@@ -31,22 +31,22 @@
 #include "VirtualDisplay.h"
 
 class X11VirtualDisplayOutput : protected VirtualDisplayOutput {
-  public:
-	X11VirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~X11VirtualDisplayOutput();
+public:
+    X11VirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~X11VirtualDisplayOutput();
 
-	virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual void PrepData(unsigned char *channelData) override;
-	virtual int  SendData(unsigned char *channelData) override;
+    virtual void PrepData(unsigned char* channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
 
-  private:
-	char       *m_imageData;
-	Display    *m_display;
-	int         m_screen;
-	Window      m_window;
-	GC          m_gc;
-	Pixmap      m_pixmap;
-	XImage     *m_image;
+private:
+    char* m_imageData;
+    Display* m_display;
+    int m_screen;
+    Window m_window;
+    GC m_gc;
+    Pixmap m_pixmap;
+    XImage* m_image;
 };

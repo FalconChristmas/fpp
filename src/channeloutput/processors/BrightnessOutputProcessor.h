@@ -20,14 +20,14 @@
 
 class BrightnessOutputProcessor : public OutputProcessor {
 public:
-    BrightnessOutputProcessor(const Json::Value &config);
+    BrightnessOutputProcessor(const Json::Value& config);
     virtual ~BrightnessOutputProcessor();
-    
-    virtual void ProcessData(unsigned char *channelData) const override;
-    
+
+    virtual void ProcessData(unsigned char* channelData) const override;
+
     virtual OutputProcessorType getType() const override { return BRIGHTNESS; }
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override {
         addRange(start, start + count - 1);
     }
 

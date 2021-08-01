@@ -29,19 +29,19 @@
 class SDLInternalData;
 
 class SDLOutput : public MediaOutputBase {
-  public:
-    SDLOutput(const std::string &mediaFilename, MediaOutputStatus *status, const std::string &videoOut);
-	virtual ~SDLOutput();
+public:
+    SDLOutput(const std::string& mediaFilename, MediaOutputStatus* status, const std::string& videoOut);
+    virtual ~SDLOutput();
 
-	virtual int  Start(int msTime = 0) override;
-	virtual int  Stop(void) override;
-	virtual int  Process(void) override;
-    virtual int  Close(void) override;
-    virtual int  IsPlaying(void) override;
+    virtual int Start(int msTime = 0) override;
+    virtual int Stop(void) override;
+    virtual int Process(void) override;
+    virtual int Close(void) override;
+    virtual int IsPlaying(void) override;
 
-    
     static bool IsOverlayingVideo();
     static bool ProcessVideoOverlay(unsigned int msTimestamp);
-  private:
-    SDLInternalData *data;
+
+private:
+    SDLInternalData* data;
 };

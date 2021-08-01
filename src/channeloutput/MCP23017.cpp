@@ -59,49 +59,47 @@
 
 #include "MCP23017.h"
 
-#define MCP23x17_IOCON      0x0A
-#define MCP23x17_IODIRA     0x00
-#define MCP23x17_IODIRB     0x01
-#define MCP23x17_GPIOA      0x12
-#define MCP23x17_GPIOB      0x13
+#define MCP23x17_IOCON 0x0A
+#define MCP23x17_IODIRA 0x00
+#define MCP23x17_IODIRB 0x01
+#define MCP23x17_GPIOA 0x12
+#define MCP23x17_GPIOB 0x13
 
-#define IOCON_INIT          0x20
+#define IOCON_INIT 0x20
 
 #define BYTETOBINARYPATTERN "%d%d%d%d%d%d%d%d"
-#define BYTETOBINARY(byte)  \
-  (byte & 0x80 ? 1 : 0), \
-  (byte & 0x40 ? 1 : 0), \
-  (byte & 0x20 ? 1 : 0), \
-  (byte & 0x10 ? 1 : 0), \
-  (byte & 0x08 ? 1 : 0), \
-  (byte & 0x04 ? 1 : 0), \
-  (byte & 0x02 ? 1 : 0), \
-  (byte & 0x01 ? 1 : 0) 
+#define BYTETOBINARY(byte)     \
+    (byte & 0x80 ? 1 : 0),     \
+        (byte & 0x40 ? 1 : 0), \
+        (byte & 0x20 ? 1 : 0), \
+        (byte & 0x10 ? 1 : 0), \
+        (byte & 0x08 ? 1 : 0), \
+        (byte & 0x04 ? 1 : 0), \
+        (byte & 0x02 ? 1 : 0), \
+        (byte & 0x01 ? 1 : 0)
 
 extern "C" {
-    MCP23017Output *createMCP23017Output(unsigned int startChannel,
-                                  unsigned int channelCount) {
-        return new MCP23017Output(startChannel, channelCount);
-    }
+MCP23017Output* createMCP23017Output(unsigned int startChannel,
+                                     unsigned int channelCount) {
+    return new MCP23017Output(startChannel, channelCount);
+}
 }
 
 /*
  *
  */
-MCP23017Output::MCP23017Output(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
-	i2c(nullptr)
-{
-	LogDebug(VB_CHANNELOUT, "MCP23017Output::MCP23017Output(%u, %u)\n",
-		startChannel, channelCount);
+MCP23017Output::MCP23017Output(unsigned int startChannel, unsigned int channelCount) :
+    ChannelOutputBase(startChannel, channelCount),
+    i2c(nullptr) {
+    LogDebug(VB_CHANNELOUT, "MCP23017Output::MCP23017Output(%u, %u)\n",
+             startChannel, channelCount);
 }
 
 /*
  *
  */
-MCP23017Output::~MCP23017Output()
-{
-	LogDebug(VB_CHANNELOUT, "MCP23017Output::~MCP23017Output()\n");
+MCP23017Output::~MCP23017Output() {
+    LogDebug(VB_CHANNELOUT, "MCP23017Output::~MCP23017Output()\n");
     if (i2c) {
         delete i2c;
     }
@@ -110,9 +108,8 @@ MCP23017Output::~MCP23017Output()
 /*
  *
  */
-int MCP23017Output::Init(Json::Value config)
-{
-	LogDebug(VB_CHANNELOUT, "MCP23017Output::Init(JSON)\n");
+int MCP23017Output::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "MCP23017Output::Init(JSON)\n");
 
     if (config["deviceID"].isString()) {
         m_deviceID = std::atoi(config["deviceID"].asString().c_str());
@@ -120,81 +117,75 @@ int MCP23017Output::Init(Json::Value config)
         m_deviceID = config["deviceID"].asInt();
     }
 
-	if (m_deviceID < 0x20 || m_deviceID > 0x27)
-	{
-		LogErr(VB_CHANNELOUT, "Invalid MSCP23017 Address: %X\n", m_deviceID);
-		return 0;
-	}
+    if (m_deviceID < 0x20 || m_deviceID > 0x27) {
+        LogErr(VB_CHANNELOUT, "Invalid MSCP23017 Address: %X\n", m_deviceID);
+        return 0;
+    }
 
     i2c = new I2CUtils(1, m_deviceID);
-	if (!i2c->isOk())
-	{
-		LogErr(VB_CHANNELOUT, "Error opening I2C device for MCP23017 output\n");
-		return 0;
-	}
+    if (!i2c->isOk()) {
+        LogErr(VB_CHANNELOUT, "Error opening I2C device for MCP23017 output\n");
+        return 0;
+    }
 
-	// Initialize
+    // Initialize
     i2c->writeByteData(MCP23x17_IOCON, IOCON_INIT);
 
-	// Enable all pins for output
+    // Enable all pins for output
     i2c->writeByteData(MCP23x17_IODIRA, 0b00000000);
     i2c->writeByteData(MCP23x17_IODIRB, 0b00000000);
 
-	return ChannelOutputBase::Init(config);
+    return ChannelOutputBase::Init(config);
 }
 
 /*
  *
  */
-int MCP23017Output::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "MCP23017Output::Close()\n");
+int MCP23017Output::Close(void) {
+    LogDebug(VB_CHANNELOUT, "MCP23017Output::Close()\n");
 
-	return ChannelOutputBase::Close();
+    return ChannelOutputBase::Close();
 }
 
 /*
  *
  */
-int MCP23017Output::SendData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "MCP23017Output::SendData(%p)\n", channelData);
+int MCP23017Output::SendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "MCP23017Output::SendData(%p)\n", channelData);
 
-	unsigned char *c = channelData;
-	int bank = 0;
-	int bankbox = 0;
-	int byte1 = 0;
-	int byte2 = 0;
-	int ch = 0;
+    unsigned char* c = channelData;
+    int bank = 0;
+    int bankbox = 0;
+    int byte1 = 0;
+    int byte2 = 0;
+    int ch = 0;
 
-	for (int x = 0; ch < m_channelCount; x++, ch++) {
-		if (*(c++)) {
-			if (x < 8)
-				byte1 |= 0x1 << x;
-			else
-				byte2 |= 0x1 << (x-8);
-		}
-	}
+    for (int x = 0; ch < m_channelCount; x++, ch++) {
+        if (*(c++)) {
+            if (x < 8)
+                byte1 |= 0x1 << x;
+            else
+                byte2 |= 0x1 << (x - 8);
+        }
+    }
 
-	LogExcess(VB_CHANNELOUT,
-		"Byte1: 0b" BYTETOBINARYPATTERN ", Byte2: 0b" BYTETOBINARYPATTERN "\n",
-		BYTETOBINARY(byte1), BYTETOBINARY(byte2));
+    LogExcess(VB_CHANNELOUT,
+              "Byte1: 0b" BYTETOBINARYPATTERN ", Byte2: 0b" BYTETOBINARYPATTERN "\n",
+              BYTETOBINARY(byte1), BYTETOBINARY(byte2));
 
     i2c->writeByteData(MCP23x17_GPIOA, byte1);
     i2c->writeByteData(MCP23x17_GPIOB, byte2);
 
-	return m_channelCount;
+    return m_channelCount;
 }
 
 /*
  *
  */
-void MCP23017Output::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "MCP23017Output::DumpConfig()\n");
+void MCP23017Output::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "MCP23017Output::DumpConfig()\n");
 
-	LogDebug(VB_CHANNELOUT, "    deviceID: %X\n", m_deviceID);
+    LogDebug(VB_CHANNELOUT, "    deviceID: %X\n", m_deviceID);
 
-	ChannelOutputBase::DumpConfig();
+    ChannelOutputBase::DumpConfig();
 }
-

@@ -4,7 +4,9 @@
 
 class EditIPOLEDPage : public TitledOLEDPage {
 public:
-    EditIPOLEDPage(const std::string &type, const std::string &v, FPPNetworkOLEDPage *parent) : TitledOLEDPage(type), networkPage(parent) {
+    EditIPOLEDPage(const std::string& type, const std::string& v, FPPNetworkOLEDPage* parent) :
+        TitledOLEDPage(type),
+        networkPage(parent) {
         std::vector<std::string> split = splitWithQuotes(v, '.');
         for (int x = 0; x < 4; x++) {
             std::string val = "000";
@@ -22,22 +24,23 @@ public:
     }
     virtual ~EditIPOLEDPage() {
     }
-    
+
     void displaying() override {
-        if (oledForcedOff) return;
+        if (oledForcedOff)
+            return;
         clearDisplay();
         int startY = displayTitle();
 
         int xPos = 9 + posIdx * 6;
-        
+
         fillTriangle(xPos, startY + 7, xPos + 3, startY + 3, xPos + 6, startY + 7);
         printString(10, startY + 10, ipAs3, true);
         fillTriangle(xPos, startY + 20, xPos + 3, startY + 24, xPos + 6, startY + 20);
 
         flushDisplay();
     }
-    
-    bool doAction(const std::string &action) {
+
+    bool doAction(const std::string& action) {
         if (action == "Back" && posIdx == 0) {
             SetCurrentPage(networkPage);
             return true;
@@ -58,31 +61,31 @@ public:
             }
         } else if (action == "Up") {
             ipAs3[posIdx]++;
-            if (ipAs3[posIdx] > '9') ipAs3[posIdx] = '0';
+            if (ipAs3[posIdx] > '9')
+                ipAs3[posIdx] = '0';
         } else if (action == "Down" || action == "Test/Down") {
             ipAs3[posIdx]--;
-            if (ipAs3[posIdx] < '0') ipAs3[posIdx] = '9';
+            if (ipAs3[posIdx] < '0')
+                ipAs3[posIdx] = '9';
         }
         displaying();
         return true;
     }
-    
+
     std::string ipAs3;
     int posIdx = 0;
-    FPPNetworkOLEDPage *networkPage;
+    FPPNetworkOLEDPage* networkPage;
 };
 
-
-FPPNetworkOLEDPage::FPPNetworkOLEDPage(OLEDPage *parent)
-: MenuOLEDPage("eth0", {}, parent)
-{
+FPPNetworkOLEDPage::FPPNetworkOLEDPage(OLEDPage* parent) :
+    MenuOLEDPage("eth0", {}, parent) {
     protocol = "dhcp";
-    
+
     char ipc[20];
     char netmaskc[20];
     char gwc[20];
     GetInterfaceAddress("eth0", ipc, netmaskc, gwc);
-    
+
     ip = ipc;
     netmask = netmaskc;
     gateway = gwc;
@@ -90,45 +93,45 @@ FPPNetworkOLEDPage::FPPNetworkOLEDPage(OLEDPage *parent)
     if (FileExists("/home/fpp/media/config/interface.eth0")) {
         std::fstream file;
         file.open("/home/fpp/media/config/interface.eth0", std::ios::in);
-        
+
         if (file.is_open()) {
-           std::string tp;
-           while (getline(file, tp)) {
-               std::vector<std::string> v = splitWithQuotes(tp, '=');
-               if (v[0] == "PROTO") {
-                   protocol = v[1];
-               } else if (v[0] == "ADDRESS") {
-                   ip = v[1];
-               } else if (v[0] == "NETMASK") {
-                   netmask = v[1];
-               } else if (v[0] == "GATEWAY") {
-                   gateway = v[1];
-               }
-           }
-           file.close(); //close the file object.
+            std::string tp;
+            while (getline(file, tp)) {
+                std::vector<std::string> v = splitWithQuotes(tp, '=');
+                if (v[0] == "PROTO") {
+                    protocol = v[1];
+                } else if (v[0] == "ADDRESS") {
+                    ip = v[1];
+                } else if (v[0] == "NETMASK") {
+                    netmask = v[1];
+                } else if (v[0] == "GATEWAY") {
+                    gateway = v[1];
+                }
+            }
+            file.close(); //close the file object.
         }
     }
     if (FileExists("/home/fpp/media/config/dns")) {
         std::fstream file;
         file.open("/home/fpp/media/config/dns", std::ios::in);
-        
+
         if (file.is_open()) {
-           std::string tp;
-           while (getline(file, tp)) {
-               std::vector<std::string> v = splitWithQuotes(tp, '=');
-               if (v[0] == "DNS1") {
-                   dns1 = v[1];
-                   if (dns1 == "\"\"") {
-                       dns1 = "";
-                   }
-               } else if (v[0] == "DNS2") {
-                   dns2 = v[1];
-                   if (dns2 == "\"\"") {
-                       dns2 = "";
-                   }
-               }
-           }
-           file.close();
+            std::string tp;
+            while (getline(file, tp)) {
+                std::vector<std::string> v = splitWithQuotes(tp, '=');
+                if (v[0] == "DNS1") {
+                    dns1 = v[1];
+                    if (dns1 == "\"\"") {
+                        dns1 = "";
+                    }
+                } else if (v[0] == "DNS2") {
+                    dns2 = v[1];
+                    if (dns2 == "\"\"") {
+                        dns2 = "";
+                    }
+                }
+            }
+            file.close();
         }
     }
     if (dns1 == "" && FileExists("/etc/resolv.conf")) {
@@ -153,7 +156,7 @@ FPPNetworkOLEDPage::FPPNetworkOLEDPage(OLEDPage *parent)
                 }
             }
         }
-       file.close();
+        file.close();
     }
 
     if (protocol == "dhcp") {
@@ -182,19 +185,17 @@ void FPPNetworkOLEDPage::writeSettings() {
         file << "GATEWAY=" << gateway << "\n";
     }
     file.close();
-    
+
     file.open("/home/fpp/media/config/dns", std::ios::out);
     file << "DNS1=\"" << dns1 << "\"\n";
     file << "DNS2=\"" << dns2 << "\"\n";
     file.close();
-    
+
     SetFilePerms("/home/fpp/media/config/interface.eth0");
     SetFilePerms("/home/fpp/media/config/dns");
 }
 
-
-
-bool FPPNetworkOLEDPage::doAction(const std::string &action) {
+bool FPPNetworkOLEDPage::doAction(const std::string& action) {
     if (protocol == "dhcp" && (action != "Enter" && action != "Back")) {
         return true;
     }
@@ -203,7 +204,7 @@ bool FPPNetworkOLEDPage::doAction(const std::string &action) {
     }
     return MenuOLEDPage::doAction(action);
 }
-void FPPNetworkOLEDPage::setParameterIP(const std::string &tp, const std::string &nipas3) {
+void FPPNetworkOLEDPage::setParameterIP(const std::string& tp, const std::string& nipas3) {
     std::vector<std::string> splits = splitWithQuotes(nipas3, '.');
     std::string nip;
     for (int x = 0; x < 4; x++) {
@@ -222,7 +223,7 @@ void FPPNetworkOLEDPage::setParameterIP(const std::string &tp, const std::string
         }
         nip += v;
     }
-    
+
     if (tp == "IP Address") {
         ip = nip;
         items[1] = "IP:" + ip;
@@ -242,8 +243,7 @@ void FPPNetworkOLEDPage::setParameterIP(const std::string &tp, const std::string
     writeSettings();
 }
 
-
-void FPPNetworkOLEDPage::itemSelected(const std::string &item) {
+void FPPNetworkOLEDPage::itemSelected(const std::string& item) {
     if (item == "Type: Static") {
         protocol = "dhcp";
         writeSettings();
@@ -277,7 +277,7 @@ void FPPNetworkOLEDPage::itemSelected(const std::string &item) {
         val = v[1];
     }
 
-    EditIPOLEDPage *p = new EditIPOLEDPage(type, val, this);
+    EditIPOLEDPage* p = new EditIPOLEDPage(type, val, this);
     p->autoDelete();
     SetCurrentPage(p);
 }

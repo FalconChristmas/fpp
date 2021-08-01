@@ -16,46 +16,44 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <vector>
-#include <string>
 #include "commands/Commands.h"
+#include <string>
+#include <vector>
 
 class PixelOverlayModel;
-
-
-
 
 class RunningEffect {
 public:
     static constexpr int32_t EFFECT_DONE = 0;
     static constexpr int32_t EFFECT_AFTER_NEXT_OUTPUT = -1;
 
-    RunningEffect(PixelOverlayModel *m) : model(m) {}
+    RunningEffect(PixelOverlayModel* m) :
+        model(m) {}
     virtual ~RunningEffect() {}
     virtual int32_t update() {
         return 0;
     }
-    
-    virtual const std::string &name() const = 0;
-    
-    PixelOverlayModel *model;
-};
 
+    virtual const std::string& name() const = 0;
+
+    PixelOverlayModel* model;
+};
 
 class PixelOverlayEffect : public Command {
 public:
-    PixelOverlayEffect(const std::string &name) : Command(name) {}
+    PixelOverlayEffect(const std::string& name) :
+        Command(name) {}
     virtual ~PixelOverlayEffect() {}
-    
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) {
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) {
         return std::make_unique<Command::Result>("Ignored");
     };
-    
-    virtual bool apply(PixelOverlayModel *model, bool autoEnable, const std::vector<std::string> &args) {return false;}
-    virtual bool apply(PixelOverlayModel *model, const std::string &enableState, const std::vector<std::string> &args) {
+
+    virtual bool apply(PixelOverlayModel* model, bool autoEnable, const std::vector<std::string>& args) { return false; }
+    virtual bool apply(PixelOverlayModel* model, const std::string& enableState, const std::vector<std::string>& args) {
         return apply(model, enableState != "false", args);
     }
 
-    static PixelOverlayEffect* GetPixelOverlayEffect(const std::string &name);
+    static PixelOverlayEffect* GetPixelOverlayEffect(const std::string& name);
     static const std::vector<std::string>& GetPixelOverlayEffects();
 };

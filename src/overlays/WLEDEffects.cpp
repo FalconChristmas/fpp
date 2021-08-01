@@ -16,35 +16,36 @@
 */
 #include "fpp-pch.h"
 
-#include "WLEDEffects.h"
 #include "PixelOverlay.h"
 #include "PixelOverlayModel.h"
+#include "WLEDEffects.h"
 
 #include "wled/FX.h"
 
-
-WLEDEffect::WLEDEffect(const std::string &name) : PixelOverlayEffect(name) {
+WLEDEffect::WLEDEffect(const std::string& name) :
+    PixelOverlayEffect(name) {
 }
 WLEDEffect::~WLEDEffect() {
 }
 
 class WLEDRunningEffect : public RunningEffect {
 public:
-    WLEDRunningEffect(PixelOverlayModel *m, const std::string &n, const std::string &ad)
-        : RunningEffect(m), effectName(n), autoDisable(false) {
+    WLEDRunningEffect(PixelOverlayModel* m, const std::string& n, const std::string& ad) :
+        RunningEffect(m),
+        effectName(n),
+        autoDisable(false) {
         PixelOverlayState st(ad);
         if (st.getState() != PixelOverlayState::PixelState::Disabled) {
             autoDisable = true;
             model->setState(st);
         }
     }
-    const std::string &name() const override {
+    const std::string& name() const override {
         return effectName;
     }
-    
+
     virtual int32_t doIteration() = 0;
-    
-    
+
     virtual int32_t update() override {
         if (stopped) {
             if (autoDisable) {
@@ -62,12 +63,11 @@ public:
     bool stopped = false;
     std::string effectName;
     bool autoDisable;
-    
-    
-    static int parseInt(const std::string &setting) {
+
+    static int parseInt(const std::string& setting) {
         return std::atoi(setting.c_str());
     }
-    static uint32_t parseColor(const std::string &setting) {
+    static uint32_t parseColor(const std::string& setting) {
         return PixelOverlayManager::mapColor(setting);
     }
     static uint32_t adjustColor(uint32_t color, int brightness) {
@@ -76,7 +76,7 @@ public:
         int g = color & 0xFF00;
         g >>= 8;
         int b = color & 0xFF;
-        
+
         r *= brightness;
         r /= 100;
         r &= 0xFF;
@@ -88,36 +88,35 @@ public:
         b &= 0xFF;
         return (r << 16 | g << 8 | b);
     }
-    
+
     void fill(uint32_t color) {
-        model->fillOverlayBuffer((color & 0xFF0000) >> 16 , (color & 0xFF00) >> 8, color & 0xFF);
+        model->fillOverlayBuffer((color & 0xFF0000) >> 16, (color & 0xFF00) >> 8, color & 0xFF);
     }
     void flush() {
         model->flushOverlayBuffer();
     }
 };
 
-
 class BlinkEffect : public WLEDEffect {
 public:
-    BlinkEffect() : WLEDEffect("Blink") {
+    BlinkEffect() :
+        WLEDEffect("Blink") {
         args.push_back(CommandArg("Brightness", "range", "Brightness").setRange(0, 100).setDefaultValue("100"));
         args.push_back(CommandArg("Speed", "range", "Speed").setRange(1, 5000).setDefaultValue("1000"));
         args.push_back(CommandArg("Intensity", "range", "Intensity").setRange(0, 100).setDefaultValue("50"));
         args.push_back(CommandArg("Color1", "color", "Color1").setDefaultValue("#FF0000"));
         args.push_back(CommandArg("Color2", "color", "Color2").setDefaultValue("#000000"));
     }
-    
-    
-    virtual bool apply(PixelOverlayModel *model, const std::string &autoEnable, const std::vector<std::string> &args) override {
+
+    virtual bool apply(PixelOverlayModel* model, const std::string& autoEnable, const std::vector<std::string>& args) override {
         model->setRunningEffect(new BlinkEffectInternal(model, "Blink", autoEnable, args), 25);
         return true;
     }
-    
+
     class BlinkEffectInternal : public WLEDRunningEffect {
     public:
-        BlinkEffectInternal(PixelOverlayModel *m, const std::string &n, const std::string &ad, const std::vector<std::string> &args)
-        : WLEDRunningEffect(m, n, ad) {
+        BlinkEffectInternal(PixelOverlayModel* m, const std::string& n, const std::string& ad, const std::vector<std::string>& args) :
+            WLEDRunningEffect(m, n, ad) {
             brightness = parseInt(args[0]);
             speed = parseInt(args[1]);
             intensity = parseInt(args[2]);
@@ -136,7 +135,7 @@ public:
             isColor2 = true;
             return speed - (speed * intensity / 100);
         }
-        
+
         int brightness;
         int speed;
         int intensity;
@@ -146,15 +145,15 @@ public:
     };
 };
 
-
 static std::vector<std::string> BUFFERMAPS;
 static std::vector<std::string> PALETTES;
 extern float GetChannelOutputRefreshRate();
 
 class RawWLEDEffect : public WLEDEffect {
 public:
-
-    RawWLEDEffect(const std::string &name, int m) : WLEDEffect(name), mode(m) {
+    RawWLEDEffect(const std::string& name, int m) :
+        WLEDEffect(name),
+        mode(m) {
         fillVectors();
         args.push_back(CommandArg("BufferMapping", "string", "Buffer Mapping").setContentList(BUFFERMAPS));
         args.push_back(CommandArg("Brightness", "range", "Brightness").setRange(0, 255).setDefaultValue("128"));
@@ -167,7 +166,7 @@ public:
     }
     static void fillVectors() {
         if (PALETTES.empty()) {
-            const char **p = wled_palette_names;
+            const char** p = wled_palette_names;
             while (*p) {
                 std::string n = *p;
                 PALETTES.push_back(n);
@@ -181,20 +180,20 @@ public:
             BUFFERMAPS.push_back("Vertical Flipped");
         }
     }
-    
-    virtual bool apply(PixelOverlayModel *model, const std::string &autoEnable, const std::vector<std::string> &args) override {
+
+    virtual bool apply(PixelOverlayModel* model, const std::string& autoEnable, const std::vector<std::string>& args) override {
         model->setRunningEffect(new RawWLEDEffectInternal(model, name, autoEnable, args, mode), 25);
         return true;
     }
-    
+
     class RawWLEDEffectInternal : public WLEDRunningEffect {
     public:
-        RawWLEDEffectInternal(PixelOverlayModel *m, const std::string &n, const std::string &ad, const std::vector<std::string> &args, int mode)
-        : WLEDRunningEffect(m, n, ad) {
+        RawWLEDEffectInternal(PixelOverlayModel* m, const std::string& n, const std::string& ad, const std::vector<std::string>& args, int mode) :
+            WLEDRunningEffect(m, n, ad) {
             RawWLEDEffect::fillVectors();
 
             int mapping = std::find(BUFFERMAPS.begin(), BUFFERMAPS.end(), args[0]) - BUFFERMAPS.begin();
-            
+
             brightness = parseInt(args[1]);
             speed = parseInt(args[2]);
             intensity = parseInt(args[3]);
@@ -230,7 +229,7 @@ public:
             int i = f;
             return i;
         }
-        
+
         int brightness;
         int speed;
         int intensity;
@@ -238,22 +237,21 @@ public:
         uint32_t color2;
         uint32_t color3;
         std::string palette;
-        
-        WS2812FX *wled;
+
+        WS2812FX* wled;
     };
-    
+
     int mode;
 };
 
-std::list<PixelOverlayEffect *> WLEDEffect::getWLEDEffects() {
-    std::list<PixelOverlayEffect *> v;
+std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {
+    std::list<PixelOverlayEffect*> v;
     v.push_back(new BlinkEffect());
-    
+
     for (int x = 2; x < MODE_COUNT; x++) {
         std::string name = "WLED - ";
-        name +=  wled_mode_names[x];
+        name += wled_mode_names[x];
         v.push_back(new RawWLEDEffect(name, x));
     }
     return v;
 }
-

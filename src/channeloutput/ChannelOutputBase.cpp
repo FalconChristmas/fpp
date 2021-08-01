@@ -25,28 +25,25 @@
 
 #include "fpp-pch.h"
 
-#include <errno.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #include "ChannelOutputBase.h"
 
 ChannelOutputBase::ChannelOutputBase(unsigned int startChannel,
-	 unsigned int channelCount)
-  : m_outputType(""),
-	m_startChannel(startChannel),
-	m_channelCount(channelCount)
-{
+                                     unsigned int channelCount) :
+    m_outputType(""),
+    m_startChannel(startChannel),
+    m_channelCount(channelCount) {
 }
 
-ChannelOutputBase::~ChannelOutputBase()
-{
-	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::~ChannelOutputBase()\n");
+ChannelOutputBase::~ChannelOutputBase() {
+    LogDebug(VB_CHANNELOUT, "ChannelOutputBase::~ChannelOutputBase()\n");
 }
 
-int ChannelOutputBase::Init(Json::Value config)
-{
-	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Init(JSON)\n");
-	m_outputType = config["type"].asString();
+int ChannelOutputBase::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Init(JSON)\n");
+    m_outputType = config["type"].asString();
     if (m_channelCount == -1)
         m_channelCount = 0;
 
@@ -54,69 +51,62 @@ int ChannelOutputBase::Init(Json::Value config)
     return 1;
 }
 
-int ChannelOutputBase::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Close()\n");
-	return 1;
+int ChannelOutputBase::Close(void) {
+    LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Close()\n");
+    return 1;
 }
 
-void ChannelOutputBase::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::DumpConfig()\n");
+void ChannelOutputBase::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "ChannelOutputBase::DumpConfig()\n");
 
-	LogDebug(VB_CHANNELOUT, "    Output Type      : %s\n", m_outputType.c_str());
-	LogDebug(VB_CHANNELOUT, "    Start Channel    : %u\n", m_startChannel + 1);
-	LogDebug(VB_CHANNELOUT, "    Channel Count    : %u\n", m_channelCount);
+    LogDebug(VB_CHANNELOUT, "    Output Type      : %s\n", m_outputType.c_str());
+    LogDebug(VB_CHANNELOUT, "    Start Channel    : %u\n", m_startChannel + 1);
+    LogDebug(VB_CHANNELOUT, "    Channel Count    : %u\n", m_channelCount);
 }
 
-
-void ChannelOutputBase::ConvertToCSV(Json::Value config, char *configStr) {
+void ChannelOutputBase::ConvertToCSV(Json::Value config, char* configStr) {
     Json::Value::Members memberNames = config.getMemberNames();
-    
+
     configStr[0] = '\0';
-    
-    if (!config.isMember("type"))
-    {
+
+    if (!config.isMember("type")) {
         strcpy(configStr, "");
         return;
     }
-    
+
     if (config.isMember("enabled"))
         strcat(configStr, config["enabled"].asString().c_str());
     else
         strcat(configStr, "0");
-    
+
     strcat(configStr, ",");
-    
+
     strcat(configStr, config["type"].asString().c_str());
     strcat(configStr, ",");
-    
+
     if (config.isMember("startChannel"))
         strcat(configStr, config["startChannel"].asString().c_str());
     else
         strcat(configStr, "1");
-    
+
     strcat(configStr, ",");
-    
+
     if (config.isMember("channelCount"))
         strcat(configStr, config["channelCount"].asString().c_str());
     else
         strcat(configStr, "1");
-    
+
     std::string key;
     int first = 1;
-    for (int i = 0; i < memberNames.size(); i++)
-    {
+    for (int i = 0; i < memberNames.size(); i++) {
         key = memberNames[i];
-        
-        if (first)
-        {
+
+        if (first) {
             strcat(configStr, ",");
             first = 0;
-        }
-        else
+        } else
             strcat(configStr, ";");
-        
+
         strcat(configStr, key.c_str());
         strcat(configStr, "=");
         strcat(configStr, config[key].asString().c_str());

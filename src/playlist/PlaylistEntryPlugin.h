@@ -29,10 +29,10 @@
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryPlugin : public PlaylistEntryBase {
-  public:
-	PlaylistEntryPlugin(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryPlugin();
+public:
+    PlaylistEntryPlugin(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntryPlugin();
 
-  private:
-	std::string m_plugin;
+private:
+    std::string m_plugin;
 };

@@ -1,20 +1,24 @@
 #include "fpp-pch.h"
 
-#include "UDPOutput.h"
 #include "GenericUDPOutput.h"
+#include "UDPOutput.h"
 
 extern "C" {
-    GenericUDPOutput *createGenericUDPOutput(unsigned int startChannel,
-                            unsigned int channelCount) {
-        return new GenericUDPOutput(startChannel, channelCount);
-    }
+GenericUDPOutput* createGenericUDPOutput(unsigned int startChannel,
+                                         unsigned int channelCount) {
+    return new GenericUDPOutput(startChannel, channelCount);
+}
 }
 
 static const std::string GENERIC_UDP_TYPE = "GenericUDP";
 
 class GenericUDPOutputData : public UDPOutputData {
 public:
-    GenericUDPOutputData(const Json::Value &config) : UDPOutputData(config), count(0), isMulticast(false), isBroadcast(false) {
+    GenericUDPOutputData(const Json::Value& config) :
+        UDPOutputData(config),
+        count(0),
+        isMulticast(false),
+        isBroadcast(false) {
         tokens = config["tokens"].asString();
         port = config["port"].asInt();
 
@@ -25,19 +29,19 @@ public:
             WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
             active = false;
         }
-        
+
         int fp = (udpAddress.sin_addr.s_addr >> 24) & 0xFF;
         printf("ip: %s    %X\n", ipAddress.c_str(), udpAddress.sin_addr.s_addr);
         printf("fp: %d\n", fp);
         printf("fp2: %d\n", udpAddress.sin_addr.s_addr & 0xFF);
-        if (fp >= 239 && fp <=  224) {
+        if (fp >= 239 && fp <= 224) {
             isMulticast = true;
         } else if (fp == 255) {
             isBroadcast = true;
         }
-        
+
         std::string nt = tokens;
-        
+
         std::string token;
         std::vector<uint8_t> bytes;
         while (!nt.empty()) {
@@ -103,18 +107,18 @@ public:
     }
     virtual ~GenericUDPOutputData() {
     }
-    
-    virtual const std::string &GetOutputTypeString() const override {
+
+    virtual const std::string& GetOutputTypeString() const override {
         return GENERIC_UDP_TYPE;
     }
 
-    void addLittleEndian(std::vector<uint8_t> &bytes, int v) {
+    void addLittleEndian(std::vector<uint8_t>& bytes, int v) {
         int a = v & 0xFF;
         int b = (v >> 8) & 0xFF;
         bytes.push_back(b);
         bytes.push_back(a);
     }
-    void addBigEndian(std::vector<uint8_t> &bytes, int v) {
+    void addBigEndian(std::vector<uint8_t>& bytes, int v) {
         int a = v & 0xFF;
         int b = (v >> 8) & 0xFF;
         bytes.push_back(a);
@@ -124,9 +128,9 @@ public:
         return !isMulticast && !isBroadcast;
     }
 
-    virtual void PrepareData(unsigned char *channelData,
-                             UDPOutputMessages &msgs) override {
-        if (valid && active && NeedToOutputFrame(channelData, startChannel - 1, 0 , channelCount)) {
+    virtual void PrepareData(unsigned char* channelData,
+                             UDPOutputMessages& msgs) override {
+        if (valid && active && NeedToOutputFrame(channelData, startChannel - 1, 0, channelCount)) {
             struct mmsghdr msg;
             memset(&msg, 0, sizeof(msg));
 
@@ -138,7 +142,7 @@ public:
             for (int x = 0; x < udpIovecs.size(); x++) {
                 msg.msg_len += udpIovecs[x].iov_len;
             }
-            
+
             count++;
             int start = startChannel - 1;
             for (auto idx : channelIovecs) {
@@ -158,34 +162,31 @@ public:
 
     virtual void DumpConfig() override {
     }
-    
+
     int port;
     int count;
-    
+
     bool isMulticast;
     bool isBroadcast;
-    
+
     std::string tokens;
-    
+
     sockaddr_in udpAddress;
     std::vector<int> channelIovecs;
     std::vector<struct iovec> udpIovecs;
     std::vector<std::vector<uint8_t>> udpBuffers;
 };
 
-
-GenericUDPOutput::GenericUDPOutput(unsigned int startChannel, unsigned int channelCount)
-: ChannelOutputBase(startChannel, channelCount)
-{
+GenericUDPOutput::GenericUDPOutput(unsigned int startChannel, unsigned int channelCount) :
+    ChannelOutputBase(startChannel, channelCount) {
 }
 GenericUDPOutput::~GenericUDPOutput() {
-    
 }
 
 int GenericUDPOutput::Init(Json::Value config) {
     if (UDPOutput::INSTANCE) {
         config.removeMember("type");
-        GenericUDPOutputData *od = new GenericUDPOutputData(config);
+        GenericUDPOutputData* od = new GenericUDPOutputData(config);
         UDPOutput::INSTANCE->addOutput(od);
     } else {
         LogErr(VB_CHANNELOUT, "GenericUDPOutput Requires the UDP outputs to be enabled\n");
@@ -196,10 +197,10 @@ int GenericUDPOutput::Close(void) {
     return ChannelOutputBase::Close();
 }
 
-void GenericUDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+void GenericUDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
-int GenericUDPOutput::SendData(unsigned char *channelData) {
+int GenericUDPOutput::SendData(unsigned char* channelData) {
     return m_channelCount;
 }

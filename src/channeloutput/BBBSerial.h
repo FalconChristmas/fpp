@@ -27,44 +27,45 @@
 #include <string>
 #include <vector>
 
-using namespace::std;
+using namespace ::std;
 
-#include "util/BBBPruUtils.h"
 #include "ThreadedChannelOutputBase.h"
+#include "util/BBBPruUtils.h"
 
 // structure of the data at the start of the PRU ram
 // that the pru program expects to see
 typedef struct {
     // in the DDR shared with the PRU
     uintptr_t address_dma;
-    
+
     // write 1 to start, 0xFF to abort. will be cleared when started
     volatile unsigned command;
     volatile unsigned response;
 } __attribute__((__packed__)) BBBSerialData;
 
 class BBBSerialOutput : public ThreadedChannelOutputBase {
-  public:
+public:
     BBBSerialOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~BBBSerialOutput();
 
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
-    virtual int RawSendData(unsigned char *channelData) override;
+    virtual int RawSendData(unsigned char* channelData) override;
 
     virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
-  private:
-    int                m_outputs;
-    int                m_pixelnet;
-    vector<int>        m_startChannels;
-    
-    uint8_t            *m_lastData;
-    uint8_t            *m_curData;
-    uint32_t           m_curFrame;
-    
-    BBBPru             *m_pru;
-    BBBSerialData      *m_serialData;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
+
+private:
+    int m_outputs;
+    int m_pixelnet;
+    vector<int> m_startChannels;
+
+    uint8_t* m_lastData;
+    uint8_t* m_curData;
+    uint32_t m_curFrame;
+
+    BBBPru* m_pru;
+    BBBSerialData* m_serialData;
 };

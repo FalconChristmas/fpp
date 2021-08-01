@@ -31,24 +31,24 @@
 class RemapOutputProcessor;
 
 class PlaylistEntryRemap : public PlaylistEntryBase {
-  public:
-	PlaylistEntryRemap(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryRemap();
+public:
+    PlaylistEntryRemap(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntryRemap();
 
-	virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-	virtual int  StartPlaying(void) override;
+    virtual int StartPlaying(void) override;
 
-	virtual void Dump(void) override;
+    virtual void Dump(void) override;
 
-	virtual Json::Value GetConfig(void) override;
+    virtual Json::Value GetConfig(void) override;
 
-  private:
-	std::string m_action;
+private:
+    std::string m_action;
 
-	int m_srcChannel;
-	int m_dstChannel;
-	int m_channelCount;
-	int m_loops;
-	int m_reverse;
+    int m_srcChannel;
+    int m_dstChannel;
+    int m_channelCount;
+    int m_loops;
+    int m_reverse;
 };

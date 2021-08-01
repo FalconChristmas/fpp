@@ -28,24 +28,24 @@
 #include "VirtualDisplay.h"
 
 class FBVirtualDisplayOutput : protected VirtualDisplayOutput {
-  public:
-	FBVirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~FBVirtualDisplayOutput();
+public:
+    FBVirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~FBVirtualDisplayOutput();
 
-	virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual int SendData(unsigned char *channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
 
-  private:
-	int     m_fbFd;
-	int     m_ttyFd;
+private:
+    int m_fbFd;
+    int m_ttyFd;
 
-	int     m_screenSize;
+    int m_screenSize;
 
-	std::string m_device;
+    std::string m_device;
 
-	struct fb_var_screeninfo m_vInfo;
-	struct fb_var_screeninfo m_vInfoOrig;
-	struct fb_fix_screeninfo m_fInfo;
+    struct fb_var_screeninfo m_vInfo;
+    struct fb_var_screeninfo m_vInfoOrig;
+    struct fb_fix_screeninfo m_fInfo;
 };

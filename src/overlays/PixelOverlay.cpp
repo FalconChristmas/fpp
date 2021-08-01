@@ -25,10 +25,11 @@
 
 #include "fpp-pch.h"
 
-#include <dirent.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 #include <Magick++.h>
+
 #include <magick/type.h>
 
 #include "effects.h"
@@ -42,14 +43,17 @@ PixelOverlayManager PixelOverlayManager::INSTANCE;
 
 class OverlayRange {
 public:
-    OverlayRange(int s, int e, int v) : start(s), end(e), value(v) {}
-    
+    OverlayRange(int s, int e, int v) :
+        start(s),
+        end(e),
+        value(v) {}
+
     int start = 0;
     int end = 0;
     int value = 0;
 };
 
-uint32_t PixelOverlayManager::mapColor(const std::string &c) {
+uint32_t PixelOverlayManager::mapColor(const std::string& c) {
     if (c[0] == '#') {
         std::string color = "0x" + c.substr(1);
         return std::stoul(color, nullptr, 0);
@@ -77,8 +81,8 @@ uint32_t PixelOverlayManager::mapColor(const std::string &c) {
     return std::stoul(c, nullptr, 0);
 }
 
-
-PixelOverlayManager::PixelOverlayManager() : numActive(0) {
+PixelOverlayManager::PixelOverlayManager() :
+    numActive(0) {
 }
 PixelOverlayManager::~PixelOverlayManager() {
     if (updateThread != nullptr) {
@@ -134,17 +138,16 @@ void PixelOverlayManager::loadModelMap() {
         }
         const Json::Value models = root["models"];
         for (int c = 0; c < models.size(); c++) {
-            PixelOverlayModel *pmodel = new PixelOverlayModel(models[c]);
+            PixelOverlayModel* pmodel = new PixelOverlayModel(models[c]);
             this->models[pmodel->getName()] = pmodel;
             this->modelNames.push_back(pmodel->getName());
         }
     }
 }
 void PixelOverlayManager::ConvertCMMFileToJSON() {
-    
-    FILE *fp;
+    FILE* fp;
     char buf[64];
-    char *s;
+    char* s;
     int startChannel;
     int channelCount;
     std::string filename(FPP_DIR_MEDIA "/channelmemorymaps");
@@ -153,21 +156,21 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
         return;
     }
     Json::Value result;
-    
+
     LogDebug(VB_CHANNELOUT, "Loading Channel Memory Map data.\n");
     fp = fopen(filename.c_str(), "r");
     if (fp == NULL) {
         LogErr(VB_CHANNELOUT, "Could not open Channel Memory Map config file %s\n", filename.c_str());
         return;
     }
-    
+
     while (fgets(buf, 64, fp) != NULL) {
         if (buf[0] == '#') {
             // Allow # comments for testing
             continue;
         }
         Json::Value model;
-        
+
         // Name
         s = strtok(buf, ",");
         if (s) {
@@ -176,45 +179,49 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
         } else {
             continue;
         }
-        
+
         // Start Channel
         s = strtok(NULL, ",");
-        if (!s)  continue;
+        if (!s)
+            continue;
         startChannel = strtol(s, NULL, 10);
         if (startChannel <= 0) {
             continue;
         }
         model["StartChannel"] = startChannel;
-        
+
         // Channel Count
-        s=strtok(NULL,",");
-        if (!s) continue;
+        s = strtok(NULL, ",");
+        if (!s)
+            continue;
         channelCount = strtol(s, NULL, 10);
         if (channelCount <= 0) {
             continue;
         }
         model["ChannelCount"] = channelCount;
-        
+
         // Orientation
-        s=strtok(NULL,",");
-        if (!s) continue;
+        s = strtok(NULL, ",");
+        if (!s)
+            continue;
         model["Orientation"] = !strcmp(s, "vertical") ? "vertical" : "horizontal";
 
-        
         // Start Corner
-        s=strtok(NULL,",");
-        if (!s) continue;
+        s = strtok(NULL, ",");
+        if (!s)
+            continue;
         model["StartCorner"] = s;
-        
-        
+
         // String Count
-        s=strtok(NULL,",");
-        if (!s) continue;
+        s = strtok(NULL, ",");
+        if (!s)
+            continue;
         model["StringCount"] = (int)strtol(s, NULL, 10);
-        
+
         // Strands Per String
-        s=strtok(NULL,",");
-        if (!s) continue;
+        s = strtok(NULL, ",");
+        if (!s)
+            continue;
         model["StrandsPerString"] = (int)strtol(s, NULL, 10);
         result["models"].append(model);
     }
@@ -229,7 +236,7 @@ bool PixelOverlayManager::hasActiveOverlays() {
     return numActive > 0;
 }
 
-void PixelOverlayManager::modelStateChanged(PixelOverlayModel *m, const PixelOverlayState &old, const PixelOverlayState &state) {
+void PixelOverlayManager::modelStateChanged(PixelOverlayModel* m, const PixelOverlayState& old, const PixelOverlayState& state) {
     if (old.getState() == 0) {
         //enabling, add
         std::unique_lock<std::mutex> lock(activeModelsLock);
@@ -246,7 +253,7 @@ void PixelOverlayManager::modelStateChanged(PixelOverlayModel *m, const PixelOve
     }
 }
 
-void PixelOverlayManager::doOverlays(uint8_t *channels) {
+void PixelOverlayManager::doOverlays(uint8_t* channels) {
     if (numActive == 0) {
         return;
     }
@@ -254,7 +261,7 @@ void PixelOverlayManager::doOverlays(uint8_t *channels) {
     for (auto m : activeModels) {
         m->doOverlay(channels);
     }
-    for (auto &m: activeRanges) {
+    for (auto& m : activeRanges) {
         for (int s = m.start; s <= m.end; s++) {
             channels[s] = m.value;
         }
@@ -262,7 +269,7 @@ void PixelOverlayManager::doOverlays(uint8_t *channels) {
     lock.unlock();
     std::unique_lock<std::mutex> l(threadLock);
     while (!afterOverlayModels.empty()) {
-        PixelOverlayModel *m = afterOverlayModels.front();
+        PixelOverlayModel* m = afterOverlayModels.front();
         afterOverlayModels.pop_front();
         l.unlock();
         m->updateRunningEffects();
@@ -270,7 +277,7 @@ void PixelOverlayManager::doOverlays(uint8_t *channels) {
     }
 }
 
-PixelOverlayModel* PixelOverlayManager::getModel(const std::string &name) {
+PixelOverlayModel* PixelOverlayManager::getModel(const std::string& name) {
     auto a = models.find(name);
     if (a == models.end()) {
         return nullptr;
@@ -278,14 +285,13 @@ PixelOverlayModel* PixelOverlayManager::getModel(const std::string &name) {
     return a->second;
 }
 
-static bool isTTF(const std::string &mainStr)
-{
+static bool isTTF(const std::string& mainStr) {
     return (mainStr.size() >= 4) && (mainStr.compare(mainStr.size() - 4, 4, ".ttf") == 0);
 }
-static void findFonts(const std::string &dir, std::map<std::string, std::string> &fonts) {
-    DIR *dp;
-    struct dirent *ep;
-    
+static void findFonts(const std::string& dir, std::map<std::string, std::string>& fonts) {
+    DIR* dp;
+    struct dirent* ep;
+
     dp = opendir(dir.c_str());
     if (dp != NULL) {
         while ((ep = readdir(dp))) {
@@ -294,7 +300,7 @@ static void findFonts(const std::string &dir, std::map<std::string, std::string>
             if (location == 0) {
                 continue;
             }
-            
+
             struct stat statbuf;
             std::string dname = dir;
             dname += ep->d_name;
@@ -317,7 +323,7 @@ static void findFonts(const std::string &dir, std::map<std::string, std::string>
 void PixelOverlayManager::loadFonts() {
     if (!fontsLoaded) {
         long unsigned int i = 0;
-        char **mlfonts = MagickLib::GetTypeList("*", &i);
+        char** mlfonts = MagickLib::GetTypeList("*", &i);
         for (int x = 0; x < i; x++) {
             fonts[mlfonts[x]] = "";
             free(mlfonts[x]);
@@ -328,15 +334,15 @@ void PixelOverlayManager::loadFonts() {
         fontsLoaded = true;
     }
 }
- 
-const std::string &PixelOverlayManager::mapFont(const std::string &f) {
+
+const std::string& PixelOverlayManager::mapFont(const std::string& f) {
     if (fonts[f] != "") {
         return fonts[f];
     }
     return f;
 }
 
-const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET(const httpserver::http_request &req) {
+const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET(const httpserver::http_request& req) {
     std::string p1 = req.get_path_pieces()[0];
     int plen = req.get_path_pieces().size();
     if (p1 == "models") {
@@ -348,7 +354,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
             if (req.get_arg("simple") == "true") {
                 simple = true;
             }
-            for (auto & mn : modelNames) {
+            for (auto& mn : modelNames) {
                 if (simple) {
                     result.append(mn);
                     empty = false;
@@ -384,16 +390,16 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
         Json::Value result;
         if (p2 == "fonts") {
             loadFonts();
-            for (auto & a : fonts) {
+            for (auto& a : fonts) {
                 result.append(a.first);
             }
         } else if (p2 == "settings") {
             result["autoCreate"] = autoCreate;
         } else if (p2 == "models") {
             std::unique_lock<std::mutex> lock(modelsLock);
-            for (auto & mn : modelNames) {
+            for (auto& mn : modelNames) {
                 Json::Value model;
-                PixelOverlayModel *m = models[mn];
+                PixelOverlayModel* m = models[mn];
                 m->toJson(model);
                 model["isActive"] = (int)m->getState().getState();
                 if (m->getRunningEffect()) {
@@ -438,11 +444,11 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
             }
         } else if (p2 == "effects") {
             if (p3 == "") {
-                for (auto &a : PixelOverlayEffect::GetPixelOverlayEffects()) {
+                for (auto& a : PixelOverlayEffect::GetPixelOverlayEffects()) {
                     result.append(a);
                 }
             } else {
-                PixelOverlayEffect *e = PixelOverlayEffect::GetPixelOverlayEffect(p3);
+                PixelOverlayEffect* e = PixelOverlayEffect::GetPixelOverlayEffect(p3);
                 if (e) {
                     result = e->getDescription();
                 }
@@ -453,7 +459,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
     }
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not found: " + p1, 404));
 }
-const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POST(const httpserver::http_request &req) {
+const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POST(const httpserver::http_request& req) {
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "models") {
         std::string p2 = req.get_path_pieces().size() > 1 ? req.get_path_pieces()[1] : "";
@@ -461,7 +467,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
             //upload of raw file
             char filename[512];
             strcpy(filename, FPP_DIR_MEDIA "/channelmemorymaps");
-            
+
             int fp = open(filename, O_CREAT | O_TRUNC | O_RDWR, 0666);
             if (fp == -1) {
                 LogErr(VB_CHANNELOUT, "Could not open Channel Memory Map config file %s\n", filename);
@@ -475,7 +481,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
         } else if (req.get_path_pieces().size() == 1) {
             char filename[512];
             strcpy(filename, FPP_DIR_CONFIG "/model-overlays.json");
-            
+
             int fp = open(filename, O_CREAT | O_TRUNC | O_RDWR, 0666);
             if (fp == -1) {
                 LogErr(VB_CHANNELOUT, "Could not open Channel Memory Map config file %s\n", filename);
@@ -490,7 +496,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
     }
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("POST Not found " + req.get_path(), 404));
 }
-const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT(const httpserver::http_request &req) {
+const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT(const httpserver::http_request& req) {
     std::string p1 = req.get_path_pieces()[0];
     std::string p2 = req.get_path_pieces().size() > 1 ? req.get_path_pieces()[1] : "";
     std::string p3 = req.get_path_pieces().size() > 2 ? req.get_path_pieces()[2] : "";
@@ -560,12 +566,12 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                             if (root.isMember("AutoEnable")) {
                                 autoEnable = root["AutoEnable"].asBool();
                             }
-                            
+
                             std::string f = fonts[font];
                             if (f == "") {
                                 f = font;
                             }
-                            
+
                             std::vector<std::string> args;
                             args.push_back(p3);
                             args.push_back(autoEnable ? "true" : "false");
@@ -671,31 +677,32 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("PUT Not found " + req.get_path(), 404));
 }
 
-
 class OverlayCommand : public Command {
 public:
-    OverlayCommand(const std::string &s, PixelOverlayManager *m) : Command(s), manager(m) {}
+    OverlayCommand(const std::string& s, PixelOverlayManager* m) :
+        Command(s),
+        manager(m) {}
     virtual ~OverlayCommand() {}
-    
-    
-    std::mutex &getLock() { return manager->modelsLock;}
-    PixelOverlayManager *manager;
+
+    std::mutex& getLock() { return manager->modelsLock; }
+    PixelOverlayManager* manager;
 };
 
 class EnableOverlayCommand : public OverlayCommand {
 public:
-    EnableOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model State", m) {
+    EnableOverlayCommand(PixelOverlayManager* m) :
+        OverlayCommand("Overlay Model State", m) {
         args.push_back(CommandArg("Model", "multistring", "Model").setContentListUrl("api/models?simple=true", false));
-        args.push_back(CommandArg("State", "string", "State").setContentList({"Disabled", "Enabled", "Transparent", "TransparentRGB"}));
+        args.push_back(CommandArg("State", "string", "State").setContentList({ "Disabled", "Enabled", "Transparent", "TransparentRGB" }));
     }
-    
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
         if (args.size() != 2) {
             return std::make_unique<Command::ErrorResult>("Command needs 2 arguments, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
-        std::list<PixelOverlayModel *> models;
-        for (auto &ms : split(args[0], ',')) {
+        std::list<PixelOverlayModel*> models;
+        for (auto& ms : split(args[0], ',')) {
             auto m = manager->getModel(ms);
             if (m) {
                 models.push_back(m);
@@ -711,17 +718,18 @@ public:
 };
 class ClearOverlayCommand : public OverlayCommand {
 public:
-    ClearOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model Clear", m) {
+    ClearOverlayCommand(PixelOverlayManager* m) :
+        OverlayCommand("Overlay Model Clear", m) {
         args.push_back(CommandArg("Model", "multistring", "Model").setContentListUrl("api/models?simple=true", false));
     }
-    
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
         if (args.size() != 1) {
             return std::make_unique<Command::ErrorResult>("Command needs 1 argument, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
-        std::list<PixelOverlayModel *> models;
-        for (auto &ms : split(args[0], ',')) {
+        std::list<PixelOverlayModel*> models;
+        for (auto& ms : split(args[0], ',')) {
             auto m = manager->getModel(ms);
             if (m) {
                 models.push_back(m);
@@ -737,19 +745,20 @@ public:
 };
 class FillOverlayCommand : public OverlayCommand {
 public:
-    FillOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model Fill", m) {
+    FillOverlayCommand(PixelOverlayManager* m) :
+        OverlayCommand("Overlay Model Fill", m) {
         args.push_back(CommandArg("Model", "multistring", "Model").setContentListUrl("api/models?simple=true", false));
-        args.push_back(CommandArg("State", "string", "State").setContentList({"Don't Set", "Enabled", "Transparent", "TransparentRGB"}));
+        args.push_back(CommandArg("State", "string", "State").setContentList({ "Don't Set", "Enabled", "Transparent", "TransparentRGB" }));
         args.push_back(CommandArg("Color", "color", "Color").setDefaultValue("#FF0000"));
     }
-    
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
-        if (args.size() <  2 || args.size() > 3) {
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
+        if (args.size() < 2 || args.size() > 3) {
             return std::make_unique<Command::ErrorResult>("Command needs 2 or 3 arguments, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
-        std::list<PixelOverlayModel *> models;
-        for (auto &ms : split(args[0], ',')) {
+        std::list<PixelOverlayModel*> models;
+        for (auto& ms : split(args[0], ',')) {
             auto m = manager->getModel(ms);
             if (m) {
                 models.push_back(m);
@@ -780,16 +789,17 @@ public:
 };
 class TextOverlayCommand : public OverlayCommand {
 public:
-    TextOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model Text", m) {
+    TextOverlayCommand(PixelOverlayManager* m) :
+        OverlayCommand("Overlay Model Text", m) {
         args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", false));
         args.push_back(CommandArg("Color", "color", "Color").setDefaultValue("#FF0000"));
         args.push_back(CommandArg("Font", "string", "Font").setContentListUrl("api/overlays/fonts", false));
         args.push_back(CommandArg("FontSize", "int", "FontSize").setRange(4, 100).setDefaultValue("18"));
         args.push_back(CommandArg("FontAntiAlias", "bool", "Anti-Aliased").setDefaultValue("false"));
-        args.push_back(CommandArg("Position", "string", "Position").setContentList({"Center", "Right to Left", "Left to Right", "Bottom to Top", "Top to Bottom"}));
+        args.push_back(CommandArg("Position", "string", "Position").setContentList({ "Center", "Right to Left", "Left to Right", "Bottom to Top", "Top to Bottom" }));
         args.push_back(CommandArg("Speed", "int", "Scroll Speed").setRange(0, 200).setDefaultValue("10"));
         args.push_back(CommandArg("AutoEnable", "bool", "Auto Enable/Disable Model").setDefaultValue("false"));
-        
+
         // keep text as last argument if possible as the MQTT commands will, by default, use the payload of the mqtt
         // msg as the last argument.  Thus, this allows all of the above to be topic paths, but the text to be
         // sent in the payload
@@ -797,7 +807,7 @@ public:
     }
     virtual bool hidden() const override { return true; }
 
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
         if (args.size() < 8) {
             return std::make_unique<Command::ErrorResult>("Command needs 9 arguments, found " + std::to_string(args.size()));
         }
@@ -824,19 +834,20 @@ public:
 
 class ApplyEffectOverlayCommand : public OverlayCommand {
 public:
-    ApplyEffectOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model Effect", m) {
+    ApplyEffectOverlayCommand(PixelOverlayManager* m) :
+        OverlayCommand("Overlay Model Effect", m) {
         args.push_back(CommandArg("Models", "multistring", "Models").setContentListUrl("api/models?simple=true", false));
-        args.push_back(CommandArg("AutoEnable", "string", "Auto Enable/Disable").setContentList({"False", "Enabled", "Transparent", "Transparent RGB"}).setDefaultValue("Enabled"));
+        args.push_back(CommandArg("AutoEnable", "string", "Auto Enable/Disable").setContentList({ "False", "Enabled", "Transparent", "Transparent RGB" }).setDefaultValue("Enabled"));
         args.push_back(CommandArg("Effect", "subcommand", "Effect").setContentListUrl("api/overlays/effects/", false));
     }
-    
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
         if (args.size() < 3) {
             return std::make_unique<Command::ErrorResult>("Command needs at least 3 arguments, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
-        std::list<PixelOverlayModel *> models;
-        for (auto &ms : split(args[0], ',')) {
+        std::list<PixelOverlayModel*> models;
+        for (auto& ms : split(args[0], ',')) {
             auto m = manager->getModel(ms);
             if (m) {
                 models.push_back(m);
@@ -866,9 +877,9 @@ void PixelOverlayManager::RegisterCommands() {
     CommandManager::INSTANCE.addCommand(new ApplyEffectOverlayCommand(this));
 }
 
-void PixelOverlayManager::addAutoOverlayModel(const std::string &name,
+void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
                                               uint32_t startChannel, uint32_t channelCount, uint32_t channelPerNode,
-                                              const std::string &orientation, const std::string &startLocation,
+                                              const std::string& orientation, const std::string& startLocation,
                                               uint32_t strings, uint32_t strands) {
     bool wasEmpty = models.empty();
 
@@ -883,7 +894,7 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string &name,
     val["ChannelCountPerNode"] = channelPerNode;
     val["autoCreated"] = true;
 
-    PixelOverlayModel *pmodel = new PixelOverlayModel(val);
+    PixelOverlayModel* pmodel = new PixelOverlayModel(val);
     this->models[pmodel->getName()] = pmodel;
     this->modelNames.push_back(pmodel->getName());
 
@@ -903,7 +914,7 @@ void PixelOverlayManager::doOverlayModelEffects() {
                 uint64_t startTime = updates.begin()->first;
                 updates.erase(updates.begin());
                 l.unlock();
-                
+
                 for (auto m : models) {
                     int32_t ms = m->updateRunningEffects();
                     if (ms != 0) {
@@ -927,15 +938,15 @@ void PixelOverlayManager::doOverlayModelEffects() {
         threadCV.wait_for(l, std::chrono::milliseconds(waitTime));
     }
 }
-void PixelOverlayManager::removePeriodicUpdate(PixelOverlayModel*m) {
+void PixelOverlayManager::removePeriodicUpdate(PixelOverlayModel* m) {
     std::unique_lock<std::mutex> l(threadLock);
-    for (auto &a : updates) {
+    for (auto& a : updates) {
         updates.begin()->second.remove(m);
     }
     afterOverlayModels.remove(m);
 }
 
-void PixelOverlayManager::addPeriodicUpdate(int32_t initialDelayMS, PixelOverlayModel*m) {
+void PixelOverlayManager::addPeriodicUpdate(int32_t initialDelayMS, PixelOverlayModel* m) {
     std::unique_lock<std::mutex> l(threadLock);
     if (updateThread == nullptr) {
         threadKeepRunning = true;
@@ -951,4 +962,3 @@ void PixelOverlayManager::addPeriodicUpdate(int32_t initialDelayMS, PixelOverlay
     l.unlock();
     threadCV.notify_all();
 }
-

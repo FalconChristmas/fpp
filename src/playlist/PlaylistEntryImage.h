@@ -24,13 +24,12 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#include <mutex>
-#include <thread>
-#include <list>
 #include <atomic>
 #include <condition_variable>
+#include <list>
+#include <mutex>
 #include <string>
+#include <thread>
 
 #include <Magick++.h>
 
@@ -40,62 +39,62 @@
 using namespace Magick;
 
 class PlaylistEntryImage : public PlaylistEntryBase, public FrameBuffer {
-  public:
-	PlaylistEntryImage(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryImage();
+public:
+    PlaylistEntryImage(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntryImage();
 
-	virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-	virtual int  StartPlaying(void) override;
-	virtual int  Process(void) override;
-	virtual int  Stop(void) override;
+    virtual int StartPlaying(void) override;
+    virtual int Process(void) override;
+    virtual int Stop(void) override;
 
-	virtual void Dump(void) override;
+    virtual void Dump(void) override;
 
-	virtual Json::Value GetConfig(void) override;
+    virtual Json::Value GetConfig(void) override;
 
-	void PrepLoop(void);
+    void PrepLoop(void);
 
-  private:
-	void SetFileList(void);
+private:
+    void SetFileList(void);
 
-	const std::string GetNextFile(void);
-	void              PrepImage(void);
+    const std::string GetNextFile(void);
+    void PrepImage(void);
 
-	void Draw(void);
+    void Draw(void);
 
-	std::string GetCacheFileName(std::string fileName);
-	bool GetImageFromCache(std::string fileName, Image &image);
-	void CacheImage(std::string fileName, Image &image);
-	void CleanupCache(void);
+    std::string GetCacheFileName(std::string fileName);
+    bool GetImageFromCache(std::string fileName, Image& image);
+    void CacheImage(std::string fileName, Image& image);
+    void CleanupCache(void);
 
-  	std::string m_imagePath;
-	std::string m_imageFullPath;
-	std::string m_curFileName;
-	std::string m_nextFileName;
+    std::string m_imagePath;
+    std::string m_imageFullPath;
+    std::string m_curFileName;
+    std::string m_nextFileName;
 
-	std::string m_cacheDir;
-	int         m_cacheEntries; // # of items
-	int         m_cacheSize;    // MB used by cached files
-	int         m_freeSpace;    // MB free on filesystem
+    std::string m_cacheDir;
+    int m_cacheEntries; // # of items
+    int m_cacheSize;    // MB used by cached files
+    int m_freeSpace;    // MB free on filesystem
 
     std::vector<std::string> m_files;
 
-	int m_width;
-	int m_height;
+    int m_width;
+    int m_height;
 
-	unsigned char *m_buffer;
-	int m_bufferSize;
+    unsigned char* m_buffer;
+    int m_bufferSize;
 
-	unsigned int  m_fileSeed;
+    unsigned int m_fileSeed;
 
-	volatile bool m_runLoop;
-	volatile bool m_imagePrepped;
-	volatile bool m_imageDrawn;
+    volatile bool m_runLoop;
+    volatile bool m_imagePrepped;
+    volatile bool m_imageDrawn;
 
-	std::thread  *m_prepThread;
-	std::mutex    m_prepLock;
-	std::mutex    m_bufferLock;
+    std::thread* m_prepThread;
+    std::mutex m_prepLock;
+    std::mutex m_bufferLock;
 
-	std::condition_variable m_prepSignal;
+    std::condition_variable m_prepSignal;
 };

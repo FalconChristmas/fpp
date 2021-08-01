@@ -1,13 +1,13 @@
 
 #include <getopt.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <inttypes.h>
 #include <libgen.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include <string>
 #include <list>
+#include <string>
 #include <vector>
 
 #include "fppversion.h"
@@ -15,7 +15,7 @@
 
 #include "FSEQFile.h"
 
-void usage(char *appname) {
+void usage(char* appname) {
     printf("Usage: %s [OPTIONS] FileName.fseq\n", appname);
     printf("\n");
     printf("  Options:\n");
@@ -35,16 +35,18 @@ void usage(char *appname) {
     printf("   -j                - Output the fseq file metadata to json\n");
     printf("   -h                - This help output\n");
 }
-const char *outputFilename = nullptr;
+const char* outputFilename = nullptr;
 
 class MergeFSEQ {
 public:
-    MergeFSEQ(const std::string &f, bool cz) : filename(f), copyZero(cz) {}
-    
+    MergeFSEQ(const std::string& f, bool cz) :
+        filename(f),
+        copyZero(cz) {}
+
     std::string filename;
     std::vector<std::pair<uint32_t, uint32_t>> ranges;
     bool copyZero = false;
-    FSEQFile *srcFile = nullptr;
+    FSEQFile* srcFile = nullptr;
 };
 
 static std::list<MergeFSEQ> mergeFseqs;
@@ -57,104 +59,103 @@ static bool sparse = true;
 static bool json = false;
 static V2FSEQFile::CompressionType compressionType = V2FSEQFile::CompressionType::zstd;
 
-static void parseRanges(std::vector<std::pair<uint32_t, uint32_t>> &ranges, char *rng) {
-    char *end = rng;
+static void parseRanges(std::vector<std::pair<uint32_t, uint32_t>>& ranges, char* rng) {
+    char* end = rng;
     int startc = strtol(rng, &end, 10);
     int r = *end == '-';
     end++;
     int endc = strtol(end, &end, 10);
     if (r) {
-        ranges.push_back(std::pair<uint32_t, uint32_t>(startc-1, endc-startc+1));
+        ranges.push_back(std::pair<uint32_t, uint32_t>(startc - 1, endc - startc + 1));
     } else {
-        ranges.push_back(std::pair<uint32_t, uint32_t>(startc-1, endc));
+        ranges.push_back(std::pair<uint32_t, uint32_t>(startc - 1, endc));
     }
 }
 
-int parseArguments(int argc, char **argv) {
-    char *s = NULL;
-    int   c;
-    
+int parseArguments(int argc, char** argv) {
+    char* s = NULL;
+    int c;
+
     int this_option_optind = optind;
     while (1) {
         this_option_optind = optind ? optind : 1;
         int option_index = 0;
         static struct option long_options[] = {
-            {"help",           no_argument,          0, 'h'},
-            {"output",         required_argument,    0, 'o'},
-            {0,                0,                    0, 0}
+            { "help", no_argument, 0, 'h' },
+            { "output", required_argument, 0, 'o' },
+            { 0, 0, 0, 0 }
         };
-        
+
         c = getopt_long(argc, argv, "c:l:o:f:r:m:M:hjVvn", long_options, &option_index);
         if (c == -1) {
             break;
         }
-        
+
         switch (c) {
-            case 'r':
-                if (mergeFseqs.empty()) {
-                    parseRanges(ranges, optarg);
-                } else {
-                    parseRanges(mergeFseqs.back().ranges, optarg);
-                }
-                break;
-            case 'j':
-                json = true;
-                break;
-            case 'v':
-                verbose = true;
-                break;
-            case 'c':
-                if (strcmp(optarg, "none") == 0) {
-                    compressionType = V2FSEQFile::CompressionType::none;
-                } else if (strcmp(optarg, "zlib") == 0) {
-                    compressionType = V2FSEQFile::CompressionType::zlib;
-                } else if (strcmp(optarg, "zstd") == 0) {
-                    compressionType = V2FSEQFile::CompressionType::zstd;
-                } else {
-                    printf("Unknown compression type: %s\n", optarg);
-                    exit(EXIT_FAILURE);
-                }
-                break;
-            case 'l':
-                compressionLevel = strtol(optarg, NULL, 10);
-                break;
-            case 'f': {
-                char *next = nullptr;
-                fseqMajVersion = strtol(optarg, &next, 10);
-                if (*next == '.') {
-                    next++;
-                    fseqMinVersion = strtol(next, &next, 10);
-                }
-                }
-                break;
-            case 'o':
-                outputFilename = optarg;
-                break;
-            case 'm':
-                mergeFseqs.push_back(MergeFSEQ(optarg, false));
-                break;
-            case 'M':
-                mergeFseqs.push_back(MergeFSEQ(optarg, true));
-                break;
-            case 'n':
-                sparse = false;
-                break;
-            case 'V':
-                printVersionInfo();
-                exit(0);
-            case 'h':
-                usage(argv[0]);
-                exit(EXIT_SUCCESS);
-            default:
-                usage(argv[0]);
+        case 'r':
+            if (mergeFseqs.empty()) {
+                parseRanges(ranges, optarg);
+            } else {
+                parseRanges(mergeFseqs.back().ranges, optarg);
+            }
+            break;
+        case 'j':
+            json = true;
+            break;
+        case 'v':
+            verbose = true;
+            break;
+        case 'c':
+            if (strcmp(optarg, "none") == 0) {
+                compressionType = V2FSEQFile::CompressionType::none;
+            } else if (strcmp(optarg, "zlib") == 0) {
+                compressionType = V2FSEQFile::CompressionType::zlib;
+            } else if (strcmp(optarg, "zstd") == 0) {
+                compressionType = V2FSEQFile::CompressionType::zstd;
+            } else {
+                printf("Unknown compression type: %s\n", optarg);
                 exit(EXIT_FAILURE);
+            }
+            break;
+        case 'l':
+            compressionLevel = strtol(optarg, NULL, 10);
+            break;
+        case 'f': {
+            char* next = nullptr;
+            fseqMajVersion = strtol(optarg, &next, 10);
+            if (*next == '.') {
+                next++;
+                fseqMinVersion = strtol(next, &next, 10);
+            }
+        } break;
+        case 'o':
+            outputFilename = optarg;
+            break;
+        case 'm':
+            mergeFseqs.push_back(MergeFSEQ(optarg, false));
+            break;
+        case 'M':
+            mergeFseqs.push_back(MergeFSEQ(optarg, true));
+            break;
+        case 'n':
+            sparse = false;
+            break;
+        case 'V':
+            printVersionInfo();
+            exit(0);
+        case 'h':
+            usage(argv[0]);
+            exit(EXIT_SUCCESS);
+        default:
+            usage(argv[0]);
+            exit(EXIT_FAILURE);
         }
     }
     return this_option_optind;
 }
 
-static char *escape(char *buf, const char *data) {
-    char *dest = buf;
+static char* escape(char* buf, const char* data) {
+    char* dest = buf;
     while (*data) {
         *dest = *data;
         dest++;
@@ -168,16 +169,15 @@ static char *escape(char *buf, const char *data) {
     return buf;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     int idx = parseArguments(argc, argv);
     if (verbose) {
         SetLogLevel("debug");
     } else {
         SetLogFile("stderr", false);
     }
-    FSEQFile *src = FSEQFile::openFSEQFile(argv[idx]);
+    FSEQFile* src = FSEQFile::openFSEQFile(argv[idx]);
     if (src) {
-        
         if (json) {
             /*
              getNumFrames() const { return m_seqNumFrames; }
@@ -195,15 +195,12 @@ int main(int argc, char *argv[]) {
                    src->getStepTime(),
                    src->getNumFrames(),
                    src->getMaxChannel(),
-                   src->getChannelCount()
-                   );
+                   src->getChannelCount());
             if (!src->getVariableHeaders().empty()) {
                 printf(", \"variableHeaders\": {");
                 bool first = true;
-                for (auto &head : src->getVariableHeaders()) {
-                    if (head.code[0] > 32 && head.code[0] <= 127
-                        && head.code[1] > 32 && head.code[1] <= 127) {
-                        
+                for (auto& head : src->getVariableHeaders()) {
+                    if (head.code[0] > 32 && head.code[0] <= 127 && head.code[1] > 32 && head.code[1] <= 127) {
                         bool allAscii = true;
                         for (auto b : head.data) {
                             if (b && (b < 32 || b > 127)) {
@@ -216,18 +213,18 @@ int main(int argc, char *argv[]) {
                             } else {
                                 first = false;
                             }
-                            printf("\"%c%c\": \"%s\"", head.code[0], head.code[1], escape(buf, (const char *)&head.data[0]));
+                            printf("\"%c%c\": \"%s\"", head.code[0], head.code[1], escape(buf, (const char*)&head.data[0]));
                         }
                     }
                 }
                 printf("}");
             }
             if (src->getVersionMajor() >= 2) {
-                V2FSEQFile *f = (V2FSEQFile*)src;
+                V2FSEQFile* f = (V2FSEQFile*)src;
                 if (!f->m_sparseRanges.empty()) {
                     printf(", \"Ranges\": [");
                     int first = true;
-                    for (auto &a : f->m_sparseRanges) {
+                    for (auto& a : f->m_sparseRanges) {
                         if (!first) {
                             printf(",");
                         }
@@ -240,12 +237,12 @@ int main(int argc, char *argv[]) {
             }
             printf("}\n");
         } else {
-            for (auto &f : mergeFseqs) {
-                FSEQFile *src = FSEQFile::openFSEQFile(f.filename);
+            for (auto& f : mergeFseqs) {
+                FSEQFile* src = FSEQFile::openFSEQFile(f.filename);
                 if (src) {
                     f.srcFile = src;
                     if (f.ranges.empty()) {
-                        f.ranges.push_back(std::pair<uint32_t, uint32_t>(0, 8024*1024));
+                        f.ranges.push_back(std::pair<uint32_t, uint32_t>(0, 8024 * 1024));
                     }
                 }
             }
@@ -258,8 +255,8 @@ int main(int argc, char *argv[]) {
                 delete src;
                 return 0;
             }
-            
-            FSEQFile *dest = FSEQFile::createFSEQFile(outputFilename,
+
+            FSEQFile* dest = FSEQFile::createFSEQFile(outputFilename,
                                                       fseqMajVersion,
                                                       compressionType,
                                                       compressionLevel);
@@ -269,32 +266,32 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             dest->enableMinorVersionFeatures(fseqMinVersion);
-            
+
             if (ranges.empty()) {
                 ranges.push_back(std::pair<uint32_t, uint32_t>(0, 999999999));
             } else if (fseqMajVersion == 2 && sparse) {
-                V2FSEQFile *f = (V2FSEQFile*)dest;
+                V2FSEQFile* f = (V2FSEQFile*)dest;
                 f->m_sparseRanges = ranges;
             }
             src->prepareRead(ranges);
 
             dest->initializeFromFSEQ(*src);
             dest->writeHeader();
-            
-            uint8_t *data = (uint8_t *)malloc(8024*1024);
-            uint8_t *mergedata = (uint8_t *)malloc(8024*1024);
-            memset(mergedata, 0, 8024*1024);
+
+            uint8_t* data = (uint8_t*)malloc(8024 * 1024);
+            uint8_t* mergedata = (uint8_t*)malloc(8024 * 1024);
+            memset(mergedata, 0, 8024 * 1024);
             for (int x = 0; x < src->getNumFrames(); x++) {
-                FSEQFile::FrameData *fdata = src->getFrame(x);
-                fdata->readFrame(data, 8024*1024);
+                FSEQFile::FrameData* fdata = src->getFrame(x);
+                fdata->readFrame(data, 8024 * 1024);
                 delete fdata;
-                
-                for (auto &m : mergeFseqs) {
+
+                for (auto& m : mergeFseqs) {
                     if (m.srcFile) {
-                        FSEQFile::FrameData *fdata = m.srcFile->getFrame(x);
-                        fdata->readFrame(mergedata, 8024*1024);
+                        FSEQFile::FrameData* fdata = m.srcFile->getFrame(x);
+                        fdata->readFrame(mergedata, 8024 * 1024);
                         delete fdata;
-                        for (auto &r : m.ranges) {
+                        for (auto& r : m.ranges) {
                             for (int y = 0, idx = r.first; y < r.second; ++y, ++idx) {
                                 if (mergedata[idx] || m.copyZero) {
                                     data[idx] = mergedata[idx];
@@ -309,13 +306,13 @@ int main(int argc, char *argv[]) {
             free(data);
             free(mergedata);
             dest->finalize();
-            
+
             if (!strcmp(outputFilename, "-memory-")) {
                 printf("size: %d\n", (int)dest->getMemoryBuffer().size());
             }
-            
+
             delete dest;
-            for (auto &a : mergeFseqs) {
+            for (auto& a : mergeFseqs) {
                 if (a.srcFile) {
                     delete a.srcFile;
                 }
@@ -324,6 +321,5 @@ int main(int argc, char *argv[]) {
         delete src;
     }
 
-    
     return 0;
 }

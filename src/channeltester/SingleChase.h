@@ -32,18 +32,18 @@
 #include "TestPatternBase.h"
 
 class TestPatternSingleChase : public TestPatternBase {
-  public:
+public:
     TestPatternSingleChase();
-	virtual ~TestPatternSingleChase();
+    virtual ~TestPatternSingleChase();
 
-	virtual int Init(Json::Value config) override;
+    virtual int Init(Json::Value config) override;
 
-	virtual int SetupTest(void) override;
-	virtual void DumpConfig(void) override;
+    virtual int SetupTest(void) override;
+    virtual void DumpConfig(void) override;
 
-  private:
-	void CycleData(void) override;
+private:
+    void CycleData(void) override;
 
-	int  m_chaseSize;
-	char m_chaseValue;
+    int m_chaseSize;
+    char m_chaseValue;
 };

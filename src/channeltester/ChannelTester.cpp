@@ -33,157 +33,137 @@
 #include "RGBFill.h"
 #include "SingleChase.h"
 
-
 ChannelTester ChannelTester::INSTANCE;
 
-
 /*
  *
  */
-ChannelTester::ChannelTester()
-  : m_testPattern(NULL)
-{
-	LogExcess(VB_CHANNELOUT, "ChannelTester::ChannelTester()\n");
+ChannelTester::ChannelTester() :
+    m_testPattern(NULL) {
+    LogExcess(VB_CHANNELOUT, "ChannelTester::ChannelTester()\n");
 
-	pthread_mutex_init(&m_testLock, NULL);
+    pthread_mutex_init(&m_testLock, NULL);
 }
 
 /*
  *
  */
-ChannelTester::~ChannelTester()
-{
-	LogExcess(VB_CHANNELOUT, "ChannelTester::~ChannelTester()\n");
+ChannelTester::~ChannelTester() {
+    LogExcess(VB_CHANNELOUT, "ChannelTester::~ChannelTester()\n");
 
-	pthread_mutex_lock(&m_testLock);
+    pthread_mutex_lock(&m_testLock);
 
-	if (m_testPattern) {
-		delete m_testPattern;
-		m_testPattern = NULL;
-	}
+    if (m_testPattern) {
+        delete m_testPattern;
+        m_testPattern = NULL;
+    }
 
-	pthread_mutex_unlock(&m_testLock);
+    pthread_mutex_unlock(&m_testLock);
 
-	pthread_mutex_destroy(&m_testLock);
+    pthread_mutex_destroy(&m_testLock);
 }
 
 /*
  *
  */
-int ChannelTester::SetupTest(std::string configStr)
-{
-	LogDebug(VB_CHANNELOUT, "ChannelTester::SetupTest()\n");
+int ChannelTester::SetupTest(std::string configStr) {
+    LogDebug(VB_CHANNELOUT, "ChannelTester::SetupTest()\n");
     LogDebug(VB_CHANNELOUT, "     %s\n", configStr.c_str());
 
-	Json::Value config;
-	int result = 0;
-	std::string patternName;
+    Json::Value config;
+    int result = 0;
+    std::string patternName;
 
-	if (!LoadJsonFromString(configStr, config))
-	{
-		LogErr(VB_CHANNELOUT,
-			"Error parsing Test Pattern config string: '%s'\n",
-			configStr.c_str());
+    if (!LoadJsonFromString(configStr, config)) {
+        LogErr(VB_CHANNELOUT,
+               "Error parsing Test Pattern config string: '%s'\n",
+               configStr.c_str());
 
-		return 0;
-	}
+        return 0;
+    }
 
-	pthread_mutex_lock(&m_testLock);
+    pthread_mutex_lock(&m_testLock);
 
-	if (config["enabled"].asInt())
-	{
-		patternName = config["mode"].asString();
+    if (config["enabled"].asInt()) {
+        patternName = config["mode"].asString();
 
-		if (m_testPattern)
-		{
-			if (patternName != m_testPattern->Name())
-			{
-				delete m_testPattern;
-				m_testPattern = NULL;
-			}
-		}
+        if (m_testPattern) {
+            if (patternName != m_testPattern->Name()) {
+                delete m_testPattern;
+                m_testPattern = NULL;
+            }
+        }
 
-		if (!m_testPattern)
-		{
-			if (patternName == "SingleChase")
-				m_testPattern = new TestPatternSingleChase();
-			else if (patternName == "RGBChase")
-				m_testPattern = new TestPatternRGBChase();
-			else if (patternName == "RGBFill")
-				m_testPattern = new TestPatternRGBFill();
-			else if (patternName == "RGBCycle")
-				m_testPattern = new TestPatternRGBCycle();
-		}
+        if (!m_testPattern) {
+            if (patternName == "SingleChase")
+                m_testPattern = new TestPatternSingleChase();
+            else if (patternName == "RGBChase")
+                m_testPattern = new TestPatternRGBChase();
+            else if (patternName == "RGBFill")
+                m_testPattern = new TestPatternRGBFill();
+            else if (patternName == "RGBCycle")
+                m_testPattern = new TestPatternRGBCycle();
+        }
 
-		if (m_testPattern)
-		{
-			result = m_testPattern->Init(config);
-			if (!result)
-			{
-				delete m_testPattern;
-				m_testPattern = NULL;
-			}
-		}
-	}
-	else
-	{
-		if (m_testPattern)
-		{
-			m_testPattern->DisableTest();
-			pthread_mutex_unlock(&m_testLock);
+        if (m_testPattern) {
+            result = m_testPattern->Init(config);
+            if (!result) {
+                delete m_testPattern;
+                m_testPattern = NULL;
+            }
+        }
+    } else {
+        if (m_testPattern) {
+            m_testPattern->DisableTest();
+            pthread_mutex_unlock(&m_testLock);
 
-			// Give the channel output loop time to clear test data
-			usleep(150000);
+            // Give the channel output loop time to clear test data
+            usleep(150000);
 
-			pthread_mutex_lock(&m_testLock);
+            pthread_mutex_lock(&m_testLock);
 
-			delete m_testPattern;
-			m_testPattern = NULL;
-		}
-	}
+            delete m_testPattern;
+            m_testPattern = NULL;
+        }
+    }
 
-	pthread_mutex_unlock(&m_testLock);
+    pthread_mutex_unlock(&m_testLock);
 
-	m_configStr = configStr;
+    m_configStr = configStr;
 
-	return result;
+    return result;
 }
 
 /*
  *
  */
-void ChannelTester::OverlayTestData(char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "ChannelTester::OverlayTestData()\n");
+void ChannelTester::OverlayTestData(char* channelData) {
+    LogExcess(VB_CHANNELOUT, "ChannelTester::OverlayTestData()\n");
 
-	pthread_mutex_lock(&m_testLock);
+    pthread_mutex_lock(&m_testLock);
 
-	if (!m_testPattern)
-	{
-		pthread_mutex_unlock(&m_testLock);
-		return;
-	}
+    if (!m_testPattern) {
+        pthread_mutex_unlock(&m_testLock);
+        return;
+    }
 
-	m_testPattern->OverlayTestData(channelData);
+    m_testPattern->OverlayTestData(channelData);
 
-	pthread_mutex_unlock(&m_testLock);
+    pthread_mutex_unlock(&m_testLock);
 }
 
 /*
  *
  */
-int ChannelTester::Testing(void)
-{
-	return m_testPattern ? 1 : 0;
+int ChannelTester::Testing(void) {
+    return m_testPattern ? 1 : 0;
 }
 
 /*
  *
  */
-std::string ChannelTester::GetConfig(void)
-{
-	if (!m_testPattern)
-		return std::string("{ \"enabled\": 0 }");
-	return m_configStr;
+std::string ChannelTester::GetConfig(void) {
+    if (!m_testPattern)
+        return std::string("{ \"enabled\": 0 }");
+    return m_configStr;
 }
-

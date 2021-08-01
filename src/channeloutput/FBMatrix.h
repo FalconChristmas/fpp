@@ -33,34 +33,32 @@
 class MatrixFrameBuffer;
 
 class FBMatrixOutput : public ChannelOutputBase {
-  public:
-	FBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~FBMatrixOutput();
+public:
+    FBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~FBMatrixOutput();
 
     virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Close(void) override;
 
-    virtual int SendData(unsigned char *channelData) override;
-    virtual void PrepData(unsigned char *channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
+    virtual void PrepData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void  GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
+private:
+    MatrixFrameBuffer* m_frameBuffer;
 
-    
-    MatrixFrameBuffer *m_frameBuffer;
-    
-	int          m_width;
-	int          m_height;
-    int          m_xoff;
-    int          m_yoff;
-	int          m_useRGB;
-	int          m_inverted;
-	std::string  m_device;
-    
-	uint16_t ***m_rgb565map;
+    int m_width;
+    int m_height;
+    int m_xoff;
+    int m_yoff;
+    int m_useRGB;
+    int m_inverted;
+    std::string m_device;
+
+    uint16_t*** m_rgb565map;
     std::vector<int> m_xpos;
     std::vector<int> m_ypos;
 };

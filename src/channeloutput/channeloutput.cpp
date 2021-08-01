@@ -23,6 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "fpp-pch.h"
+
 #include <dlfcn.h>
 #include <errno.h>
 #include <pthread.h>

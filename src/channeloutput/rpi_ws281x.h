@@ -26,44 +26,43 @@
 
 extern "C" {
 #include "../../external/rpi_ws281x/clk.h"
-#include "../../external/rpi_ws281x/gpio.h"
 #include "../../external/rpi_ws281x/dma.h"
+#include "../../external/rpi_ws281x/gpio.h"
 #include "../../external/rpi_ws281x/pwm.h"
 #include "../../external/rpi_ws281x/ws2811.h"
 }
 
 #include <vector>
 
-#include "ThreadedChannelOutputBase.h"
 #include "PixelString.h"
+#include "ThreadedChannelOutputBase.h"
 #include "util/SPIUtils.h"
 
 class RPIWS281xOutput : public ThreadedChannelOutputBase {
-  public:
-	RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~RPIWS281xOutput();
+public:
+    RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~RPIWS281xOutput();
 
-	virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual void PrepData(unsigned char *channelData) override;
-	virtual int  RawSendData(unsigned char *channelData) override;
+    virtual void PrepData(unsigned char* channelData) override;
+    virtual int RawSendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-	void SetupCtrlCHandler(void);
+private:
+    void SetupCtrlCHandler(void);
 
-	std::vector<PixelString*> m_strings;
-    
+    std::vector<PixelString*> m_strings;
+
     int offsets[4];
-    SPIUtils       *m_spi0;
-    SPIUtils       *m_spi1;
-    uint8_t        *m_spi0Data;
-    uint8_t        *m_spi1Data;
-    uint32_t       m_spi0DataCount;
-    uint32_t       m_spi1DataCount;
+    SPIUtils* m_spi0;
+    SPIUtils* m_spi1;
+    uint8_t* m_spi0Data;
+    uint8_t* m_spi1Data;
+    uint32_t m_spi0DataCount;
+    uint32_t m_spi1DataCount;
 };
-

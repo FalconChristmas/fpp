@@ -19,31 +19,30 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <list>
 #include "UDPOutput.h"
+#include <list>
 
 #define DDP_PORT 4048
 
 #define DDP_PUSH_FLAG 0x01
 #define DDP_TIMECODE_FLAG 0x10
 
-
 class DDPOutputData : public UDPOutputData {
 public:
-    explicit DDPOutputData(const Json::Value &config);
+    explicit DDPOutputData(const Json::Value& config);
     virtual ~DDPOutputData();
-    
-    virtual bool IsPingable() override { return true; }
-    virtual void PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) override;
-    virtual void DumpConfig() override;
-    
-    virtual const std::string &GetOutputTypeString() const override;
 
-    char          sequenceNumber;
-    
-    sockaddr_in   ddpAddress;
-    int           pktCount;
-    
-    struct iovec *ddpIovecs = nullptr;
-    unsigned char **ddpBuffers = nullptr;
+    virtual bool IsPingable() override { return true; }
+    virtual void PrepareData(unsigned char* channelData, UDPOutputMessages& msgs) override;
+    virtual void DumpConfig() override;
+
+    virtual const std::string& GetOutputTypeString() const override;
+
+    char sequenceNumber;
+
+    sockaddr_in ddpAddress;
+    int pktCount;
+
+    struct iovec* ddpIovecs = nullptr;
+    unsigned char** ddpBuffers = nullptr;
 };

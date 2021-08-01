@@ -32,17 +32,17 @@
 #include "TestPatternBase.h"
 
 class TestPatternRGBFill : public TestPatternBase {
-  public:
+public:
     TestPatternRGBFill();
-	virtual ~TestPatternRGBFill();
+    virtual ~TestPatternRGBFill();
 
-	virtual int  Init(Json::Value config) override;
+    virtual int Init(Json::Value config) override;
 
-	virtual int  SetupTest(void) override;
-	virtual void DumpConfig(void) override;
+    virtual int SetupTest(void) override;
+    virtual void DumpConfig(void) override;
 
-  private:
-	char              m_color1;
-	char              m_color2;
-	char              m_color3;
+private:
+    char m_color1;
+    char m_color2;
+    char m_color3;
 };

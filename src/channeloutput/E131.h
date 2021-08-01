@@ -24,8 +24,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <sys/uio.h>
 #include <netinet/in.h>
+#include <sys/uio.h>
 #include <vector>
 
 #include "UDPOutput.h"
@@ -33,23 +33,23 @@
 
 class E131OutputData : public UDPOutputData {
 public:
-    explicit E131OutputData(const Json::Value &config);
+    explicit E131OutputData(const Json::Value& config);
     virtual ~E131OutputData();
-    
+
     virtual bool IsPingable() override;
-    
-    virtual void PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) override;
-    
+
+    virtual void PrepareData(unsigned char* channelData, UDPOutputMessages& msgs) override;
+
     virtual void DumpConfig() override;
-    virtual void GetRequiredChannelRange(int &min, int & max) override;
+    virtual void GetRequiredChannelRange(int& min, int& max) override;
 
-    virtual const std::string &GetOutputTypeString() const override;
+    virtual const std::string& GetOutputTypeString() const override;
 
-    int           universe;
-    int           universeCount;
-    int           priority;
+    int universe;
+    int universeCount;
+    int priority;
 
-    std::vector<sockaddr_in>   e131Addresses;
-    std::vector<struct iovec>  e131Iovecs;
-    std::vector<unsigned char *> e131Headers;
+    std::vector<sockaddr_in> e131Addresses;
+    std::vector<struct iovec> e131Iovecs;
+    std::vector<unsigned char*> e131Headers;
 };

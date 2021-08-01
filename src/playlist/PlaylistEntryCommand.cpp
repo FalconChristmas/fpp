@@ -22,50 +22,45 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "fpp-pch.h"
+
 #include "PlaylistEntryCommand.h"
 
 /*
  *
  */
-PlaylistEntryCommand::PlaylistEntryCommand(Playlist *playlist, PlaylistEntryBase *parent)
-  : PlaylistEntryBase(playlist, parent)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryCommand::PlaylistEntryCommand()\n");
+PlaylistEntryCommand::PlaylistEntryCommand(Playlist* playlist, PlaylistEntryBase* parent) :
+    PlaylistEntryBase(playlist, parent) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryCommand::PlaylistEntryCommand()\n");
 
-	m_type = "command";
+    m_type = "command";
 }
 
 /*
  *
  */
-PlaylistEntryCommand::~PlaylistEntryCommand()
-{
+PlaylistEntryCommand::~PlaylistEntryCommand() {
 }
 
 /*
  *
  */
-int PlaylistEntryCommand::Init(Json::Value &config)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryCommand::Init()\n");
+int PlaylistEntryCommand::Init(Json::Value& config) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryCommand::Init()\n");
     m_command = config;
-	return PlaylistEntryBase::Init(config);
+    return PlaylistEntryBase::Init(config);
 }
 
 /*
  *
  */
-int PlaylistEntryCommand::StartPlaying(void)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryCommand::StartPlaying()\n");
+int PlaylistEntryCommand::StartPlaying(void) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryCommand::StartPlaying()\n");
 
-	if (!CanPlay())
-	{
-		FinishPlay();
-		return 0;
-	}
+    if (!CanPlay()) {
+        FinishPlay();
+        return 0;
+    }
 
     m_result = CommandManager::INSTANCE.run(m_command);
     if (m_result->isDone() && m_result->isError()) {
@@ -74,27 +69,24 @@ int PlaylistEntryCommand::StartPlaying(void)
         return 0;
     }
     return PlaylistEntryBase::StartPlaying();
-
 }
 
 /*
  *
  */
-int PlaylistEntryCommand::Process(void)
-{
+int PlaylistEntryCommand::Process(void) {
     LogDebug(VB_PLAYLIST, "Process()\n");
     if (m_result->isDone()) {
         FinishPlay();
     }
-	return PlaylistEntryBase::Process();
+    return PlaylistEntryBase::Process();
 }
 
 /*
  *
  */
-int PlaylistEntryCommand::Stop(void)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryCommand::Stop()\n");
+int PlaylistEntryCommand::Stop(void) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryCommand::Stop()\n");
 
     FinishPlay();
     return PlaylistEntryBase::Stop();
@@ -103,11 +95,10 @@ int PlaylistEntryCommand::Stop(void)
 /*
  *
  */
-void PlaylistEntryCommand::Dump(void)
-{
-	PlaylistEntryBase::Dump();
+void PlaylistEntryCommand::Dump(void) {
+    PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Command: %s\n", m_command["command"].asString().c_str());
+    LogDebug(VB_PLAYLIST, "Command: %s\n", m_command["command"].asString().c_str());
     for (int x = 0; x < m_command["args"].size(); x++) {
         LogDebug(VB_PLAYLIST, "  \"%s\"\n", m_command["args"][x].asString().c_str());
     }
@@ -116,8 +107,6 @@ void PlaylistEntryCommand::Dump(void)
 /*
  *
  */
-Json::Value PlaylistEntryCommand::GetConfig(void)
-{
-	return m_command;
+Json::Value PlaylistEntryCommand::GetConfig(void) {
+    return m_command;
 }
-

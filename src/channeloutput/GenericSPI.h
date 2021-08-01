@@ -28,22 +28,22 @@
 #include "util/SPIUtils.h"
 
 class GenericSPIOutput : public ThreadedChannelOutputBase {
-  public:
-	GenericSPIOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~GenericSPIOutput();
+public:
+    GenericSPIOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~GenericSPIOutput();
 
     virtual int Init(Json::Value config) override;
 
-	virtual int Close(void) override;
+    virtual int Close(void) override;
 
-	virtual int RawSendData(unsigned char *channelData) override;
+    virtual int RawSendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-    SPIUtils       *m_spi;
-	int            m_port;
-	int			   m_speed_hz;
+private:
+    SPIUtils* m_spi;
+    int m_port;
+    int m_speed_hz;
 };

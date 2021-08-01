@@ -27,18 +27,17 @@ class SPInRF24L01Output : public ChannelOutputBase {
 public:
     SPInRF24L01Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~SPInRF24L01Output();
-    
+
     virtual int Init(Json::Value config) override;
-    
+
     virtual int Close(void) override;
-    
-    virtual int SendData(unsigned char *channelData) override;
-    
+
+    virtual int SendData(unsigned char* channelData) override;
+
     virtual void DumpConfig(void) override;
-    
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
 private:
-    SPInRF24L01PrivData *data;
+    SPInRF24L01PrivData* data;
 };
-

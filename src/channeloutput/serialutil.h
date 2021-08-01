@@ -24,7 +24,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-int SerialOpen(const char *device, int baud, const char *mode, bool output = true);
+int SerialOpen(const char* device, int baud, const char* mode, bool output = true);
 int SerialClose(int fd);
 int SerialSendBreak(int fd, int duration);
 int SerialResetRTS(int fd);

@@ -6,14 +6,14 @@ class FPPStatusOLEDPage;
 
 class FPPMainMenu : public MenuOLEDPage {
 public:
-    FPPMainMenu(FPPStatusOLEDPage *parent);
+    FPPMainMenu(FPPStatusOLEDPage* parent);
     virtual ~FPPMainMenu();
-    
+
     virtual void displaying() override;
-    virtual void itemSelected(const std::string &item) override;
+    virtual void itemSelected(const std::string& item) override;
 
 private:
-    ListOLEDPage *aboutPage;
-    
-    FPPStatusOLEDPage *statusPage;
+    ListOLEDPage* aboutPage;
+
+    FPPStatusOLEDPage* statusPage;
 };

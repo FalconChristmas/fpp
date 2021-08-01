@@ -49,31 +49,29 @@
 #include "MAX7219Matrix.h"
 
 #define MAX7219_DECODE_MODE 0x09
-#define MAX7219_SHUTDOWN    0x0C
-#define MAX7219_BRIGHTNESS  0x0A
-#define MAX7219_SCAN_LIMIT  0x0B
-#define MAX7219_TEST        0x0F
-
+#define MAX7219_SHUTDOWN 0x0C
+#define MAX7219_BRIGHTNESS 0x0A
+#define MAX7219_SCAN_LIMIT 0x0B
+#define MAX7219_TEST 0x0F
 
 extern "C" {
-    MAX7219MatrixOutput *createMAX7219MatrixOutput(unsigned int startChannel,
-                                         unsigned int channelCount) {
-        return new MAX7219MatrixOutput(startChannel, channelCount);
-    }
+MAX7219MatrixOutput* createMAX7219MatrixOutput(unsigned int startChannel,
+                                               unsigned int channelCount) {
+    return new MAX7219MatrixOutput(startChannel, channelCount);
+}
 }
 /*
  *
  */
-MAX7219MatrixOutput::MAX7219MatrixOutput(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+MAX7219MatrixOutput::MAX7219MatrixOutput(unsigned int startChannel, unsigned int channelCount) :
+    ChannelOutputBase(startChannel, channelCount),
     m_panels(1),
     m_channelsPerPixel(1),
     m_pinCS(8),
     m_csPin(nullptr),
-    m_spi(nullptr)
-{
-	LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::MAX7219MatrixOutput(%u, %u)\n",
-		startChannel, channelCount);
+    m_spi(nullptr) {
+    LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::MAX7219MatrixOutput(%u, %u)\n",
+             startChannel, channelCount);
 
     m_csPin = PinCapabilities::getPinByGPIO(8).ptr();
 }
@@ -81,11 +79,10 @@ MAX7219MatrixOutput::MAX7219MatrixOutput(unsigned int startChannel, unsigned int
 /*
  *
  */
-MAX7219MatrixOutput::~MAX7219MatrixOutput()
-{
-	LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::~MAX7219MatrixOutput()\n");
+MAX7219MatrixOutput::~MAX7219MatrixOutput() {
+    LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::~MAX7219MatrixOutput()\n");
 
-	Close();
+    Close();
     if (m_spi) {
         delete m_spi;
     }
@@ -94,60 +91,57 @@ MAX7219MatrixOutput::~MAX7219MatrixOutput()
 /*
  *
  */
-int MAX7219MatrixOutput::Init(Json::Value config)
-{
-	LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::Init(JSON)\n");
+int MAX7219MatrixOutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::Init(JSON)\n");
 
     m_spi = new SPIUtils(0, 1000000);
     if (!m_spi->isOk()) {
-		LogErr(VB_CHANNELOUT, "SPIUtils setup failed\n");
-		return 0;
-	}
+        LogErr(VB_CHANNELOUT, "SPIUtils setup failed\n");
+        return 0;
+    }
 
-	m_panels = config["panels"].asInt();
+    m_panels = config["panels"].asInt();
     m_channelsPerPixel = config["channelsPerPixel"].asInt();
 
     m_csPin->configPin("gpio", true);
 
-	usleep(50000);
+    usleep(50000);
 
-	WriteCommand(MAX7219_DECODE_MODE, 0x00);  // Use LED Matrix, not BCD Mode
-	WriteCommand(MAX7219_BRIGHTNESS, 0x00);   // Lowest brightness
-	WriteCommand(MAX7219_SCAN_LIMIT, 0x07);   // Use all 8 columns
-	WriteCommand(MAX7219_SHUTDOWN, 0x01);     // (1 == On, 0 == Off)
-	WriteCommand(MAX7219_TEST, 0x00);         // Turn Off Test mode
+    WriteCommand(MAX7219_DECODE_MODE, 0x00); // Use LED Matrix, not BCD Mode
+    WriteCommand(MAX7219_BRIGHTNESS, 0x00);  // Lowest brightness
+    WriteCommand(MAX7219_SCAN_LIMIT, 0x07);  // Use all 8 columns
+    WriteCommand(MAX7219_SHUTDOWN, 0x01);    // (1 == On, 0 == Off)
+    WriteCommand(MAX7219_TEST, 0x00);        // Turn Off Test mode
 
-	return ChannelOutputBase::Init(config);
+    return ChannelOutputBase::Init(config);
 }
 
-void MAX7219MatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+void MAX7219MatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     addRange(m_startChannel, m_channelCount - 1);
 }
 
 /*
  *
  */
-int MAX7219MatrixOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::Close()\n");
+int MAX7219MatrixOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::Close()\n");
 
-	return ChannelOutputBase::Close();
+    return ChannelOutputBase::Close();
 }
 
 /*
  *
  */
-void MAX7219MatrixOutput::WriteCommand(uint8_t cmd, uint8_t value)
-{
-	uint8_t c;
-	uint8_t v;
-	uint8_t data[256];
-	int bytes = 0;
+void MAX7219MatrixOutput::WriteCommand(uint8_t cmd, uint8_t value) {
+    uint8_t c;
+    uint8_t v;
+    uint8_t data[256];
+    int bytes = 0;
 
-	for (int p = 0; p < m_panels; p++) {
-		data[bytes++] = cmd;
-		data[bytes++] = value;
-	}
+    for (int p = 0; p < m_panels; p++) {
+        data[bytes++] = cmd;
+        data[bytes++] = value;
+    }
 
     m_csPin->setValue(0);
     m_spi->xfer(data, nullptr, bytes);
@@ -157,12 +151,11 @@ void MAX7219MatrixOutput::WriteCommand(uint8_t cmd, uint8_t value)
 /*
  *
  */
-int MAX7219MatrixOutput::SendData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "MAX7219MatrixOutput::SendData(%p)\n",
-		channelData);
+int MAX7219MatrixOutput::SendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "MAX7219MatrixOutput::SendData(%p)\n",
+              channelData);
 
-	uint8_t data[256];
+    uint8_t data[256];
 
     // Line by line, send data starting with the last panel first and
     // left most pixel on a panel is MSB
@@ -197,16 +190,14 @@ int MAX7219MatrixOutput::SendData(unsigned char *channelData)
         c += m_panels * 8 * m_channelsPerPixel;
     }
 
-	return m_channelCount;
+    return m_channelCount;
 }
 
 /*
  *
  */
-void MAX7219MatrixOutput::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::DumpConfig()\n");
+void MAX7219MatrixOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::DumpConfig()\n");
 
-	ChannelOutputBase::DumpConfig();
+    ChannelOutputBase::DumpConfig();
 }
-

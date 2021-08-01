@@ -24,20 +24,20 @@
 #include "TestPatternBase.h"
 
 class TestPatternRGBCycle : public TestPatternBase {
-  public:
+public:
     TestPatternRGBCycle();
-	virtual ~TestPatternRGBCycle();
+    virtual ~TestPatternRGBCycle();
 
-	virtual int  Init(Json::Value config) override;
+    virtual int Init(Json::Value config) override;
 
-	virtual int  SetupTest(void) override;
-	virtual void DumpConfig(void) override;
+    virtual int SetupTest(void) override;
+    virtual void DumpConfig(void) override;
 
-  private:
-	void CycleData(void) override;
+private:
+    void CycleData(void) override;
 
-	std::string       m_colorPatternStr;
-	std::vector<char> m_colorPattern;
-	int               m_colorPatternSize;
-	int               m_patternOffset;
+    std::string m_colorPatternStr;
+    std::vector<char> m_colorPattern;
+    int m_colorPatternSize;
+    int m_patternOffset;
 };

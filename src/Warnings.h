@@ -14,40 +14,39 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <condition_variable>
+#include <list>
 #include <map>
 #include <mutex>
 #include <set>
-#include <list>
-#include <condition_variable>
 #include <thread>
 
 class WarningListener {
 public:
-    virtual void handleWarnings(std::list<std::string> &warnings) = 0;
+    virtual void handleWarnings(std::list<std::string>& warnings) = 0;
 };
 
 class WarningHolder {
 public:
-    
-    static void AddWarning(const std::string &w);
-    static void RemoveWarning(const std::string &w);
-    static void AddWarningTimeout(const std::string &w, int seconds);
+    static void AddWarning(const std::string& w);
+    static void RemoveWarning(const std::string& w);
+    static void AddWarningTimeout(const std::string& w, int seconds);
 
-    static void AddWarningListener(WarningListener *l);
-    static void RemoveWarningListener(WarningListener *l);
+    static void AddWarningListener(WarningListener* l);
+    static void RemoveWarningListener(WarningListener* l);
 
     static std::list<std::string> GetWarnings();
     static void StartNotifyThread();
     static void StopNotifyThread();
     static void NotifyListenersMain(); // main for notify thread
-    
+
 private:
     static std::mutex warningsLock;
     static std::mutex notifyLock;
     static std::condition_variable notifyCV;
     static std::map<std::string, int> warnings;
-    static std::thread *notifyThread;
-    static std::set<WarningListener *> listenerList;
+    static std::thread* notifyThread;
+    static std::set<WarningListener*> listenerList;
     static std::mutex listenerListLock;
     static volatile bool runNotifyThread;
 };

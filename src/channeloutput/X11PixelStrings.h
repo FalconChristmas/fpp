@@ -28,53 +28,52 @@
 
 #include <vector>
 
-#include "ThreadedChannelOutputBase.h"
 #include "PixelString.h"
+#include "ThreadedChannelOutputBase.h"
 
 class X11PixelStringsOutput : public ThreadedChannelOutputBase {
-  public:
-	X11PixelStringsOutput(unsigned int startChannel, unsigned int channelCount);
-	~X11PixelStringsOutput();
+public:
+    X11PixelStringsOutput(unsigned int startChannel, unsigned int channelCount);
+    ~X11PixelStringsOutput();
 
-	virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual void PrepData(unsigned char *channelData) override;
-	virtual int  RawSendData(unsigned char *channelData) override;
+    virtual void PrepData(unsigned char* channelData) override;
+    virtual int RawSendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-    int  InitializeX11Window(void);
+private:
+    int InitializeX11Window(void);
     void DestroyX11Window(void);
 
     inline void SyncDisplay(void);
 
-    std::string    m_title;
-    Display       *m_display;
-    int            m_screen;
-    Window         m_window;
-    GC             m_gc;
-    Pixmap         m_pixmap;
-    XImage        *m_xImage;
+    std::string m_title;
+    Display* m_display;
+    int m_screen;
+    Window m_window;
+    GC m_gc;
+    Pixmap m_pixmap;
+    XImage* m_xImage;
 
-    int            m_scale;
-    int            m_scaledWidth;
-    int            m_scaledHeight;
-    char          *m_fbp;
+    int m_scale;
+    int m_scaledWidth;
+    int m_scaledHeight;
+    char* m_fbp;
 
-	int            m_longestString;
-	int            m_pixels;
-	unsigned char *m_buffer;
-	int            m_bufferSize;
+    int m_longestString;
+    int m_pixels;
+    unsigned char* m_buffer;
+    int m_bufferSize;
 
-	std::vector<PixelString*> m_strings;
+    std::vector<PixelString*> m_strings;
 };
 
-inline void X11PixelStringsOutput::SyncDisplay(void)
-{
+inline void X11PixelStringsOutput::SyncDisplay(void) {
     XLockDisplay(m_display);
     XPutImage(m_display, m_window, m_gc, m_xImage, 0, 0, 0, 0, m_scaledWidth, m_scaledHeight);
     XSync(m_display, True);

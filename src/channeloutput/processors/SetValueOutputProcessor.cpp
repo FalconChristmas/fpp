@@ -14,13 +14,11 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <string.h>
+#include "fpp-pch.h"
 
 #include "SetValueOutputProcessor.h"
-#include "log.h"
 
-SetValueOutputProcessor::SetValueOutputProcessor(const Json::Value &config) {
+SetValueOutputProcessor::SetValueOutputProcessor(const Json::Value& config) {
     description = config["desription"].asString();
     active = config["active"].asInt() ? true : false;
     start = config["start"].asInt();
@@ -29,15 +27,14 @@ SetValueOutputProcessor::SetValueOutputProcessor(const Json::Value &config) {
     LogInfo(VB_CHANNELOUT, "Set Channel Value:   %d-%d => %d\n",
             start, start + count - 1,
             value);
-    
+
     //channel numbers need to be 0 based
     --start;
 }
 
 SetValueOutputProcessor::~SetValueOutputProcessor() {
-    
 }
 
-void SetValueOutputProcessor::ProcessData(unsigned char *channelData) const {
+void SetValueOutputProcessor::ProcessData(unsigned char* channelData) const {
     memset(channelData + start, value, count);
 }

@@ -28,65 +28,56 @@
 #include <signal.h>
 #include <stdint.h>
 
-
 #include "spixels.h"
 
-
-
 extern "C" {
-    SpixelsOutput *createOutputspixels(unsigned int startChannel,
-                                       unsigned int channelCount) {
-        return new SpixelsOutput(startChannel, channelCount);
-    }
+SpixelsOutput* createOutputspixels(unsigned int startChannel,
+                                   unsigned int channelCount) {
+    return new SpixelsOutput(startChannel, channelCount);
 }
-
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
 /*
  *
  */
-SpixelsOutput::SpixelsOutput(unsigned int startChannel, unsigned int channelCount)
-  : ThreadedChannelOutputBase(startChannel, channelCount),
-	m_spi(NULL)
-{
-	LogDebug(VB_CHANNELOUT, "SpixelsOutput::SpixelsOutput(%u, %u)\n",
-		startChannel, channelCount);
+SpixelsOutput::SpixelsOutput(unsigned int startChannel, unsigned int channelCount) :
+    ThreadedChannelOutputBase(startChannel, channelCount),
+    m_spi(NULL) {
+    LogDebug(VB_CHANNELOUT, "SpixelsOutput::SpixelsOutput(%u, %u)\n",
+             startChannel, channelCount);
 }
 
 /*
  *
  */
-SpixelsOutput::~SpixelsOutput()
-{
-	LogDebug(VB_CHANNELOUT, "SpixelsOutput::~SpixelsOutput()\n");
+SpixelsOutput::~SpixelsOutput() {
+    LogDebug(VB_CHANNELOUT, "SpixelsOutput::~SpixelsOutput()\n");
 
-	for (int s = 0; s < m_strips.size(); s++)
-		delete m_strips[s];
+    for (int s = 0; s < m_strips.size(); s++)
+        delete m_strips[s];
 
-	delete m_spi;
+    delete m_spi;
 
-	for (int s = 0; s < m_strings.size(); s++)
-		delete m_strings[s];
+    for (int s = 0; s < m_strings.size(); s++)
+        delete m_strings[s];
 }
-
 
 /*
  *
  */
-int SpixelsOutput::Init(Json::Value config)
-{
-	LogDebug(VB_CHANNELOUT, "SpixelsOutput::Init(JSON)\n");
+int SpixelsOutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "SpixelsOutput::Init(JSON)\n");
 
-	bool haveWS2801 = false;
+    bool haveWS2801 = false;
 
-	for (int i = 0; i < config["outputs"].size(); i++)
-	{
-		Json::Value s = config["outputs"][i];
+    for (int i = 0; i < config["outputs"].size(); i++) {
+        Json::Value s = config["outputs"][i];
 
-		if (s["protocol"].asString() == "ws2801")
-			haveWS2801 = true;
-	}
+        if (s["protocol"].asString() == "ws2801")
+            haveWS2801 = true;
+    }
 
 #if 0
 // Can't use ws2801 DMA for now until mailbox issue is resolved.
@@ -101,90 +92,109 @@ int SpixelsOutput::Init(Json::Value config)
 		m_spi = CreateDMAMultiSPI(); // WS2801 needs DMA for accurate timing
 	else
 #endif
-		m_spi = CreateDirectMultiSPI();
+    m_spi = CreateDirectMultiSPI();
 
-	for (int i = 0; i < config["outputs"].size(); i++)
-	{
-		Json::Value s = config["outputs"][i];
-		PixelString *newString = new PixelString();
-		LEDStrip *strip = NULL;
+    for (int i = 0; i < config["outputs"].size(); i++) {
+        Json::Value s = config["outputs"][i];
+        PixelString* newString = new PixelString();
+        LEDStrip* strip = NULL;
 
-		if (!newString->Init(s))
-			return 0;
+        if (!newString->Init(s))
+            return 0;
 
-		int connector = 0;
-		int pixels = newString->m_outputChannels / 3; // FIXME, need to confirm this
+        int connector = 0;
+        int pixels = newString->m_outputChannels / 3; // FIXME, need to confirm this
 
-		if (pixels == 0)
-		{
-			delete newString;
-			continue;
-		}
+        if (pixels == 0) {
+            delete newString;
+            continue;
+        }
 
-		switch (s["portNumber"].asInt())
-		{
-			case  0: connector = MultiSPI::SPI_P1;  break;
-			case  1: connector = MultiSPI::SPI_P2;  break;
-			case  2: connector = MultiSPI::SPI_P3;  break;
-			case  3: connector = MultiSPI::SPI_P4;  break;
-			case  4: connector = MultiSPI::SPI_P5;  break;
-			case  5: connector = MultiSPI::SPI_P6;  break;
-			case  6: connector = MultiSPI::SPI_P7;  break;
-			case  7: connector = MultiSPI::SPI_P8;  break;
-			case  8: connector = MultiSPI::SPI_P9;  break;
-			case  9: connector = MultiSPI::SPI_P10; break;
-			case 10: connector = MultiSPI::SPI_P11; break;
-			case 11: connector = MultiSPI::SPI_P12; break;
-			case 12: connector = MultiSPI::SPI_P13; break;
-			case 13: connector = MultiSPI::SPI_P14; break;
-			case 14: connector = MultiSPI::SPI_P15; break;
-			case 15: connector = MultiSPI::SPI_P16; break;
-		}
+        switch (s["portNumber"].asInt()) {
+        case 0:
+            connector = MultiSPI::SPI_P1;
+            break;
+        case 1:
+            connector = MultiSPI::SPI_P2;
+            break;
+        case 2:
+            connector = MultiSPI::SPI_P3;
+            break;
+        case 3:
+            connector = MultiSPI::SPI_P4;
+            break;
+        case 4:
+            connector = MultiSPI::SPI_P5;
+            break;
+        case 5:
+            connector = MultiSPI::SPI_P6;
+            break;
+        case 6:
+            connector = MultiSPI::SPI_P7;
+            break;
+        case 7:
+            connector = MultiSPI::SPI_P8;
+            break;
+        case 8:
+            connector = MultiSPI::SPI_P9;
+            break;
+        case 9:
+            connector = MultiSPI::SPI_P10;
+            break;
+        case 10:
+            connector = MultiSPI::SPI_P11;
+            break;
+        case 11:
+            connector = MultiSPI::SPI_P12;
+            break;
+        case 12:
+            connector = MultiSPI::SPI_P13;
+            break;
+        case 13:
+            connector = MultiSPI::SPI_P14;
+            break;
+        case 14:
+            connector = MultiSPI::SPI_P15;
+            break;
+        case 15:
+            connector = MultiSPI::SPI_P16;
+            break;
+        }
 
-		std::string protocol = s["protocol"].asString();
-		if (protocol == "ws2801")
-		{
-			strip = CreateWS2801Strip(m_spi, connector, pixels);
-		}
-		else if (protocol == "apa102")
-		{
-			strip = CreateAPA102Strip(m_spi, connector, pixels);
-		}
-		else if (protocol == "lpd6803")
-		{
-			strip = CreateLPD6803Strip(m_spi, connector, pixels);
-		}
-		else if (protocol == "lpd8806")
-		{
-			strip = CreateLPD8806Strip(m_spi, connector, pixels);
-		}
-		else
-		{
-			LogErr(VB_CHANNELOUT, "Unknown Pixel Protocol: %s\n", s["protocol"].asString());
-			return 0;
-		}
+        std::string protocol = s["protocol"].asString();
+        if (protocol == "ws2801") {
+            strip = CreateWS2801Strip(m_spi, connector, pixels);
+        } else if (protocol == "apa102") {
+            strip = CreateAPA102Strip(m_spi, connector, pixels);
+        } else if (protocol == "lpd6803") {
+            strip = CreateLPD6803Strip(m_spi, connector, pixels);
+        } else if (protocol == "lpd8806") {
+            strip = CreateLPD8806Strip(m_spi, connector, pixels);
+        } else {
+            LogErr(VB_CHANNELOUT, "Unknown Pixel Protocol: %s\n", s["protocol"].asString());
+            return 0;
+        }
 
-		m_strings.push_back(newString);
-		m_strips.push_back(strip);
-	}
+        m_strings.push_back(newString);
+        m_strips.push_back(strip);
+    }
 
-	LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", m_strings.size());
+    LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", m_strings.size());
     PixelString::AutoCreateOverlayModels(m_strings);
-	return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
  *
  */
-int SpixelsOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "SpixelsOutput::Close()\n");
+int SpixelsOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "SpixelsOutput::Close()\n");
 
-	return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutputBase::Close();
 }
 
-void SpixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
-    PixelString *ps = NULL;
+void SpixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
+    PixelString* ps = NULL;
     for (int s = 0; s < m_strings.size(); s++) {
         ps = m_strings[s];
         int min = FPPD_MAX_CHANNELS;
@@ -202,58 +212,51 @@ void SpixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int)>
         }
     }
 }
-void SpixelsOutput::PrepData(unsigned char *channelData)
-{
-	unsigned char *c = channelData;
-	unsigned int r = 0;
-	unsigned int g = 0;
-	unsigned int b = 0;
+void SpixelsOutput::PrepData(unsigned char* channelData) {
+    unsigned char* c = channelData;
+    unsigned int r = 0;
+    unsigned int g = 0;
+    unsigned int b = 0;
 
-	PixelString *ps = NULL;
-	int inCh = 0;
+    PixelString* ps = NULL;
+    int inCh = 0;
 
-	for (int s = 0; s < m_strings.size(); s++)
-	{
-		ps = m_strings[s];
-		inCh = 0;
+    for (int s = 0; s < m_strings.size(); s++) {
+        ps = m_strings[s];
+        inCh = 0;
 
-		for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++)
-		{
-			r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-			g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-			b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+        for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++) {
+            r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+            g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+            b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
 
-			m_strips[s]->SetPixel(pix, RGBc(r,g,b));
-		}
-	}
+            m_strips[s]->SetPixel(pix, RGBc(r, g, b));
+        }
+    }
 }
 
 /*
  *
  */
-int SpixelsOutput::RawSendData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "SpixelsOutput::RawSendData(%p)\n", channelData);
+int SpixelsOutput::RawSendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "SpixelsOutput::RawSendData(%p)\n", channelData);
 
-	if (m_spi)
-		m_spi->SendBuffers();
+    if (m_spi)
+        m_spi->SendBuffers();
 
-	return m_channelCount;
+    return m_channelCount;
 }
 
 /*
  *
  */
-void SpixelsOutput::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "SpixelsOutput::DumpConfig()\n");
+void SpixelsOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "SpixelsOutput::DumpConfig()\n");
 
-	for (int i = 0; i < m_strings.size(); i++)
-	{
-		LogDebug(VB_CHANNELOUT, "    String #%d\n", i);
-		m_strings[i]->DumpConfig();
-	}
+    for (int i = 0; i < m_strings.size(); i++) {
+        LogDebug(VB_CHANNELOUT, "    String #%d\n", i);
+        m_strings[i]->DumpConfig();
+    }
 
-	ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutputBase::DumpConfig();
 }
-

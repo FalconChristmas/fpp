@@ -20,14 +20,14 @@
 
 class ThreeToFourOutputProcessor : public OutputProcessor {
 public:
-    ThreeToFourOutputProcessor(const Json::Value &config);
+    ThreeToFourOutputProcessor(const Json::Value& config);
     virtual ~ThreeToFourOutputProcessor();
-    
-    virtual void ProcessData(unsigned char *channelData) const override;
-    
+
+    virtual void ProcessData(unsigned char* channelData) const override;
+
     virtual OutputProcessorType getType() const override { return THREETOFOUR; }
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override {
         addRange(start, start + (count * 4) - 1);
     }
 

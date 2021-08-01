@@ -25,62 +25,62 @@
  */
 
 #include <string>
-#include <utility>
 #include <time.h>
+#include <utility>
 
-#define SECONDS_PER_MINUTE    60
-#define SECONDS_PER_HOUR      3600
-#define SECONDS_PER_DAY       86400
-#define SECONDS_PER_WEEK      604800
-#define DAYS_PER_WEEK         7
+#define SECONDS_PER_MINUTE 60
+#define SECONDS_PER_HOUR 3600
+#define SECONDS_PER_DAY 86400
+#define SECONDS_PER_WEEK 604800
+#define DAYS_PER_WEEK 7
 
 class ScheduleEntry {
-  public:
-	ScheduleEntry();
-	~ScheduleEntry();
+public:
+    ScheduleEntry();
+    ~ScheduleEntry();
 
-	void        CalculateEaster(int year, int &month, int &day);
-	std::string DateFromLocaleHoliday(Json::Value &holiday);
-	std::string CheckHoliday(std::string date);
+    void CalculateEaster(int year, int& month, int& day);
+    std::string DateFromLocaleHoliday(Json::Value& holiday);
+    std::string CheckHoliday(std::string date);
 
-	int  LoadFromString(std::string entryStr);
-	int  LoadFromJson(Json::Value &entry);
+    int LoadFromString(std::string entryStr);
+    int LoadFromJson(Json::Value& entry);
 
     void pushStartEndTimes(int day);
 
-    void GetTimeFromSun(time_t &when, bool setStart);
-    
-	Json::Value GetJson(void);
+    void GetTimeFromSun(time_t& when, bool setStart);
 
-	bool         enabled;
-	std::string  playlist;
-    bool         sequence;
-    std::string  command;
-    Json::Value  args;
-    bool         multisyncCommand;
-    std::string  multisyncHosts;
-    
-    int          dayIndex;
-    int          startHour;
-    int          startMinute;
-    int          startSecond;
-    int          endHour;
-    int          endMinute;
-    int          endSecond;
-	bool         repeat;
-    int          repeatInterval;
-    
+    Json::Value GetJson(void);
+
+    bool enabled;
+    std::string playlist;
+    bool sequence;
+    std::string command;
+    Json::Value args;
+    bool multisyncCommand;
+    std::string multisyncHosts;
+
+    int dayIndex;
+    int startHour;
+    int startMinute;
+    int startSecond;
+    int endHour;
+    int endMinute;
+    int endSecond;
+    bool repeat;
+    int repeatInterval;
+
     std::vector<std::pair<int, int>> startEndSeconds;
     std::vector<std::pair<time_t, time_t>> startEndTimes;
-    
-	int          startDate; // YYYYMMDD format as an integer
-	int          endDate;   // YYYYMMDD format as an integer
-	int          stopType;
 
-    int          startTimeOffset;
-    int          endTimeOffset;
-    std::string  startTimeStr;
-    std::string  endTimeStr;
-	std::string  startDateStr;
-	std::string  endDateStr;
+    int startDate; // YYYYMMDD format as an integer
+    int endDate;   // YYYYMMDD format as an integer
+    int stopType;
+
+    int startTimeOffset;
+    int endTimeOffset;
+    std::string startTimeStr;
+    std::string endTimeStr;
+    std::string startDateStr;
+    std::string endDateStr;
 };

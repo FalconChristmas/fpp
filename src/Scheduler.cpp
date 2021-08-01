@@ -1011,8 +1011,7 @@ Json::Value Scheduler::GetSchedule() {
     return result;
 }
 
-class ScheduleCommand : public Command
-{
+class ScheduleCommand : public Command {
 public:
     ScheduleCommand(const std::string& str, Scheduler* s) :
         Command(str),
@@ -1022,8 +1021,7 @@ public:
     Scheduler* sched;
 };
 
-class ExtendScheduleCommand : public ScheduleCommand
-{
+class ExtendScheduleCommand : public ScheduleCommand {
 public:
     ExtendScheduleCommand(Scheduler* s) :
         ScheduleCommand("Extend Schedule", s) {

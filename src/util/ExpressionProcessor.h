@@ -24,32 +24,31 @@ class ExpressionProcessor {
 public:
     class ExpressionVariable {
     public:
-        ExpressionVariable(const std::string &n);
+        ExpressionVariable(const std::string& n);
         ~ExpressionVariable();
-        const std::string &getName() const { return name;};
-        
-        void setValue(const std::string &s);
-        const std::string &getValue() const { return sValue;};
+        const std::string& getName() const { return name; };
+
+        void setValue(const std::string& s);
+        const std::string& getValue() const { return sValue; };
+
     private:
         std::string name;
         std::string sValue;
         double dValue;
-        
+
         friend class ExpressionProcessorData;
     };
-    
-    
+
     ExpressionProcessor();
     ~ExpressionProcessor();
-    
-    
+
     // the ExpressionVariable MUST be locked in memory
     // as the address of the values may be used directly
-    void bindVariable(ExpressionVariable *var);
-    bool compile(const std::string &s);
-    
-    std::string evaluate(const std::string &type);
-    
+    void bindVariable(ExpressionVariable* var);
+    bool compile(const std::string& s);
+
+    std::string evaluate(const std::string& type);
+
 private:
-    ExpressionProcessorData *data;
+    ExpressionProcessorData* data;
 };

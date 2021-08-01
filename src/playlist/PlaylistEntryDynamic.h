@@ -33,51 +33,50 @@
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryDynamic : public PlaylistEntryBase {
-  public:
-	PlaylistEntryDynamic(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryDynamic();
+public:
+    PlaylistEntryDynamic(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntryDynamic();
 
-	virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-	virtual int  StartPlaying(void) override;
-	virtual int  Prep(void) override;
-	virtual int  Process(void) override;
-	virtual int  Stop(void) override;
+    virtual int StartPlaying(void) override;
+    virtual int Prep(void) override;
+    virtual int Process(void) override;
+    virtual int Stop(void) override;
 
-	virtual void Dump(void) override;
+    virtual void Dump(void) override;
 
-	virtual Json::Value GetConfig(void) override;
+    virtual Json::Value GetConfig(void) override;
 
-  private:
-	int ReadFromCommand(void);
-	int ReadFromFile(void);
-	int ReadFromPlugin(void);
-	int ReadFromURL(std::string url);
-	int ReadFromString(std::string jsonStr);
+private:
+    int ReadFromCommand(void);
+    int ReadFromFile(void);
+    int ReadFromPlugin(void);
+    int ReadFromURL(std::string url);
+    int ReadFromString(std::string jsonStr);
 
-	int PrepPlugin(void);
+    int PrepPlugin(void);
 
-	int Started(void);
-	int StartedPlugin(void);
+    int Started(void);
+    int StartedPlugin(void);
 
-	int ProcessData(void *buffer, size_t size, size_t nmemb);
-	void ClearPlaylistEntries(void);
+    int ProcessData(void* buffer, size_t size, size_t nmemb);
+    void ClearPlaylistEntries(void);
 
-	static size_t write_data(void *ptr, size_t size, size_t nmemb,
-	                             void *ourpointer);
+    static size_t write_data(void* ptr, size_t size, size_t nmemb,
+                             void* ourpointer);
 
-	std::string            m_subType;
-	std::string            m_data;
+    std::string m_subType;
+    std::string m_data;
 
-	CURL                  *m_curl;
+    CURL* m_curl;
 
-	int                    m_drainQueue;
-	int                    m_currentEntry;
-	std::vector<PlaylistEntryBase *> m_playlistEntries;
+    int m_drainQueue;
+    int m_currentEntry;
+    std::vector<PlaylistEntryBase*> m_playlistEntries;
 
-	std::string            m_pluginHost;
-	std::string            m_url;
-	std::string            m_method;
-	std::string            m_response;
+    std::string m_pluginHost;
+    std::string m_url;
+    std::string m_method;
+    std::string m_response;
 };
-

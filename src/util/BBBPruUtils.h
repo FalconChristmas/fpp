@@ -1,9 +1,8 @@
 #pragma once
 
-#include <stdio.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include <string>
-
 
 /**
  * Mapping of the PRU memory spaces.
@@ -16,23 +15,22 @@ class BBBPru {
 public:
     BBBPru(int pru, bool mapShared = false, bool mapOther = false);
     ~BBBPru();
-    
-    int run(const std::string &program);
+
+    int run(const std::string& program);
     void stop();
-    
-    
+
     unsigned pru_num;
-    
-    uint8_t * data_ram;      // PRU data ram in ARM space
+
+    uint8_t* data_ram;    // PRU data ram in ARM space
     size_t data_ram_size; // size in bytes of the PRU's data RAM
-    
-    uint8_t * shared_ram;      // PRU data ram in ARM space
+
+    uint8_t* shared_ram;    // PRU data ram in ARM space
     size_t shared_ram_size; // size in bytes of the PRU's data RAM
 
-    uint8_t * other_data_ram;      // PRU data ram in ARM space
+    uint8_t* other_data_ram;    // PRU data ram in ARM space
     size_t other_data_ram_size; // size in bytes of the PRU's data RAM
 
-    uint8_t * ddr;           // PRU DMA address (in ARM space)
-    uintptr_t ddr_addr;   // PRU DMA address (in PRU space)
-    size_t ddr_size;      // Size in bytes of the shared space
+    uint8_t* ddr;       // PRU DMA address (in ARM space)
+    uintptr_t ddr_addr; // PRU DMA address (in PRU space)
+    size_t ddr_size;    // Size in bytes of the shared space
 };

@@ -26,9 +26,8 @@
 
 #include <netinet/in.h>
 
-
 /* Functions for configuring Falcon controllers */
 int DetectFalconHardware(int configureHardware);
-int FalconPassThroughData(int offset,char *inBuf, int size);
-void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
-	struct in_addr recvAddr, unsigned char *inBuf);
+int FalconPassThroughData(int offset, char* inBuf, int size);
+void ProcessFalconPacket(int sock, struct sockaddr_in* srcAddr,
+                         struct in_addr recvAddr, unsigned char* inBuf);

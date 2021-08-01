@@ -23,11 +23,11 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
-#define COMMAND_FAILED        0   
-#define COMMAND_SUCCESS       1   
+
+#define COMMAND_FAILED 0
+#define COMMAND_SUCCESS 1
 
 int Command_Initialize();
 void CloseCommand();
 void CommandProc();
-char *ProcessCommand(char *command, char *response);
+char* ProcessCommand(char* command, char* response);

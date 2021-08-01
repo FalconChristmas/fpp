@@ -1,12 +1,11 @@
 #include "fpp-pch.h"
 
-#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <fcntl.h>
 
 #include "GPIOUtils.h"
 #include "commands/Commands.h"
-
 
 #if defined(PLATFORM_BBB)
 #include "BBBUtils.h"
@@ -24,43 +23,42 @@
 // No platform information on how to control pins
 class NoPinCapabilities : public PinCapabilitiesFluent<NoPinCapabilities> {
 public:
-    NoPinCapabilities(const std::string &n, uint32_t kg) : PinCapabilitiesFluent(n, kg)
-    {}
-    
-    
+    NoPinCapabilities(const std::string& n, uint32_t kg) :
+        PinCapabilitiesFluent(n, kg) {}
+
     virtual int configPin(const std::string& mode = "gpio",
-                          bool directionOut = true) const override { return 0;}
-    
+                          bool directionOut = true) const override { return 0; }
+
     virtual bool getValue() const override { return false; }
     virtual void setValue(bool i) const override {}
-    
-    virtual bool setupPWM(int maxValueNS = 25500) const override {return false;}
-    virtual void setPWMValue(int valueNS) const override {}
-    
-    virtual int getPWMRegisterAddress() const override { return 0;};
-    virtual bool supportPWM() const override { return false; };
-    
-    static void Init() {}
-    static const NoPinCapabilities &getPinByName(const std::string &name);
-    static const NoPinCapabilities &getPinByGPIO(int i);
-    static const NoPinCapabilities &getPinByUART(const std::string &n);
-    static std::vector<std::string> getPinNames();
 
+    virtual bool setupPWM(int maxValueNS = 25500) const override { return false; }
+    virtual void setPWMValue(int valueNS) const override {}
+
+    virtual int getPWMRegisterAddress() const override { return 0; };
+    virtual bool supportPWM() const override { return false; };
+
+    static void Init() {}
+    static const NoPinCapabilities& getPinByName(const std::string& name);
+    static const NoPinCapabilities& getPinByGPIO(int i);
+    static const NoPinCapabilities& getPinByUART(const std::string& n);
+    static std::vector<std::string> getPinNames();
 };
 class NullNoPinCapabilities : public NoPinCapabilities {
 public:
-    NullNoPinCapabilities() : NoPinCapabilities("-none-", 0) {}
-    virtual const PinCapabilities *ptr() const override { return nullptr; }
+    NullNoPinCapabilities() :
+        NoPinCapabilities("-none-", 0) {}
+    virtual const PinCapabilities* ptr() const override { return nullptr; }
 };
 static NullNoPinCapabilities NULL_PIN_INSTANCE;
 
-const NoPinCapabilities &NoPinCapabilities::getPinByName(const std::string &name) {
+const NoPinCapabilities& NoPinCapabilities::getPinByName(const std::string& name) {
     return NULL_PIN_INSTANCE;
 }
-const NoPinCapabilities &NoPinCapabilities::getPinByGPIO(int i) {
+const NoPinCapabilities& NoPinCapabilities::getPinByGPIO(int i) {
     return NULL_PIN_INSTANCE;
 }
-const NoPinCapabilities &NoPinCapabilities::getPinByUART(const std::string &n) {
+const NoPinCapabilities& NoPinCapabilities::getPinByUART(const std::string& n) {
     return NULL_PIN_INSTANCE;
 }
 
@@ -97,14 +95,13 @@ Json::Value PinCapabilities::toJSON() const {
     return ret;
 }
 
-
 void PinCapabilities::enableOledScreen(int i2cBus, bool enable) {
     //this pin is i2c, we may need to tell fppoled to turn off the display
     //before we shutdown this pin because once we re-configure, i2c will
     //be unavailable and the display won't update
     int smfd = shm_open("fppoled", O_CREAT | O_RDWR, 0);
     ftruncate(smfd, 1024);
-    unsigned int *status = (unsigned int *)mmap(0, 1024, PROT_WRITE | PROT_READ, MAP_SHARED, smfd, 0);
+    unsigned int* status = (unsigned int*)mmap(0, 1024, PROT_WRITE | PROT_READ, MAP_SHARED, smfd, 0);
     if (i2cBus == status[0]) {
         printf("Signal to fppoled to enable/disable I2C:   Bus: %d   Enable: %d\n", i2cBus, enable);
         if (!enable) {
@@ -126,7 +123,7 @@ void PinCapabilities::enableOledScreen(int i2cBus, bool enable) {
 
 //the built in GPIO chips that are handled by the more optimized
 //platform specific GPIO drivers
-static const std::set<std::string> PLATFORM_IGNORES {
+static const std::set<std::string> PLATFORM_IGNORES{
     "pinctrl-bcm2835", //raspberry pi's
     "pinctrl-bcm2711", // Pi4
     "raspberrypi-exp-gpio",
@@ -140,7 +137,7 @@ static const std::set<std::string> PLATFORM_IGNORES {
 static std::string PROCESS_NAME = "FPPD";
 
 int GPIODCapabilities::configPin(const std::string& mode,
-                      bool directionOut) const {
+                                 bool directionOut) const {
 #ifdef HASGPIOD
     std::string n = std::to_string(gpioIdx);
     line = gpiod::chip(n, gpiod::chip::OPEN_BY_NUMBER).get_line(gpio);
@@ -157,7 +154,7 @@ int GPIODCapabilities::configPin(const std::string& mode,
 }
 bool GPIODCapabilities::getValue() const {
 #ifdef HASGPIOD
-        return line.get_value();
+    return line.get_value();
 #else
     return 0;
 #endif
@@ -169,8 +166,7 @@ void GPIODCapabilities::setValue(bool i) const {
 }
 static std::vector<GPIODCapabilities> GPIOD_PINS;
 
-
-void PinCapabilities::InitGPIO(const std::string &process) {
+void PinCapabilities::InitGPIO(const std::string& process) {
     PROCESS_NAME = process;
 #ifdef HASGPIOD
     int chipCount = 0;
@@ -181,10 +177,10 @@ void PinCapabilities::InitGPIO(const std::string &process) {
         if (GPIOD_PINS.empty()) {
             // has at least on chip
             std::set<std::string> found;
-            for (auto &a : gpiod::make_chip_iter()) {
+            for (auto& a : gpiod::make_chip_iter()) {
                 std::string name = a.name();
                 std::string label = a.label();
-                
+
                 if (PLATFORM_IGNORES.find(label) == PLATFORM_IGNORES.end()) {
                     char i = 'b';
                     while (found.find(label) != found.end()) {
@@ -209,28 +205,28 @@ void PinCapabilities::InitGPIO(const std::string &process) {
 }
 std::vector<std::string> PinCapabilities::getPinNames() {
     std::vector<std::string> pn = PLAT_GPIO_CLASS::getPinNames();
-    for (auto &a : GPIOD_PINS) {
+    for (auto& a : GPIOD_PINS) {
         pn.push_back(a.name);
     }
     return pn;
 }
 
-const PinCapabilities &PinCapabilities::getPinByName(const std::string &n) {
-    for (auto &a : GPIOD_PINS) {
+const PinCapabilities& PinCapabilities::getPinByName(const std::string& n) {
+    for (auto& a : GPIOD_PINS) {
         if (n == a.name) {
             return a;
         }
     }
     return PLAT_GPIO_CLASS::getPinByName(n);
 }
-const PinCapabilities &PinCapabilities::getPinByGPIO(int i) {
-    for (auto &a : GPIOD_PINS) {
+const PinCapabilities& PinCapabilities::getPinByGPIO(int i) {
+    for (auto& a : GPIOD_PINS) {
         if (i == a.kernelGpio) {
             return a;
         }
     }
     return PLAT_GPIO_CLASS::getPinByGPIO(i);
 }
-const PinCapabilities &PinCapabilities::getPinByUART(const std::string &n) {
+const PinCapabilities& PinCapabilities::getPinByUART(const std::string& n) {
     return PLAT_GPIO_CLASS::getPinByUART(n);
 }

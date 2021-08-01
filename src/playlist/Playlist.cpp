@@ -26,14 +26,13 @@
 
 #include <sys/wait.h>
 
-#include <time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 
-
-#include "fpp.h"
-#include "Plugins.h"
 #include "Playlist.h"
+#include "Plugins.h"
+#include "fpp.h"
 
 #include "PlaylistEntryBoth.h"
 #include "PlaylistEntryBranch.h"
@@ -41,8 +40,8 @@
 #include "PlaylistEntryDynamic.h"
 #include "PlaylistEntryEffect.h"
 #include "PlaylistEntryImage.h"
-#include "PlaylistEntryMedia.h"
 #include "PlaylistEntryMQTT.h"
+#include "PlaylistEntryMedia.h"
 #include "PlaylistEntryPause.h"
 #include "PlaylistEntryPlaylist.h"
 #include "PlaylistEntryPlugin.h"
@@ -53,39 +52,38 @@
 #include "PlaylistEntryVolume.h"
 
 static std::list<Playlist*> PL_CLEANUPS;
-Playlist *playlist = NULL;
+Playlist* playlist = NULL;
 
 /*
  *
  */
-Playlist::Playlist(Playlist *parent)
-  : m_parent(parent),
-	m_repeat(0),
-	m_loop(0),
-	m_loopCount(0),
-	m_random(0),
-	m_blankBetweenSequences(0),
-	m_blankBetweenIterations(0),
-	m_blankAtEnd(1),
-	m_startTime(0),
-	m_subPlaylistDepth(0),
-	m_forceStop(0),
-	m_fileTime(0),
-	m_configTime(0),
-	m_currentState("idle"),
+Playlist::Playlist(Playlist* parent) :
+    m_parent(parent),
+    m_repeat(0),
+    m_loop(0),
+    m_loopCount(0),
+    m_random(0),
+    m_blankBetweenSequences(0),
+    m_blankBetweenIterations(0),
+    m_blankAtEnd(1),
+    m_startTime(0),
+    m_subPlaylistDepth(0),
+    m_forceStop(0),
+    m_fileTime(0),
+    m_configTime(0),
+    m_currentState("idle"),
     m_currentSection(nullptr),
-	m_currentSectionStr("New"),
-	m_sectionPosition(0),
-	m_startPosition(0),
-    m_status(FPP_STATUS_IDLE)
-{
-	SetIdle(false);
+    m_currentSectionStr("New"),
+    m_sectionPosition(0),
+    m_startPosition(0),
+    m_status(FPP_STATUS_IDLE) {
+    SetIdle(false);
 
-	SetRepeat(0);
-    
+    SetRepeat(0);
+
     if (mqtt) {
         //Legacy callbacks
-        std::function<void(const std::string &t, const std::string &payload)> f1 = [this] (const std::string &t, const std::string &payload) {
+        std::function<void(const std::string& t, const std::string& payload)> f1 = [this](const std::string& t, const std::string& payload) {
             std::string emptyStr;
             LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n", t.c_str());
             std::string topic = t;
@@ -97,163 +95,155 @@ Playlist::Playlist(Playlist *parent)
         mqtt->AddCallback("/playlist/sectionPosition/set", f1);
 
     } else {
-            LogDebug(VB_CONTROL, "Not registered MQTT Callbacks for Playlist. MQTT Not configured. \n");
+        LogDebug(VB_CONTROL, "Not registered MQTT Callbacks for Playlist. MQTT Not configured. \n");
     }
 }
 
 /*
  *
  */
-Playlist::~Playlist()
-{
-	Cleanup();
+Playlist::~Playlist() {
+    Cleanup();
 }
-
 
 PlaylistStatus Playlist::getPlaylistStatus() {
     return m_status;
 }
 
-
 /*
  *
  */
-int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart, const Json::Value &entries)
-{
-	PlaylistEntryBase *plEntry = NULL;
+int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart, const Json::Value& entries) {
+    PlaylistEntryBase* plEntry = NULL;
 
-	for (int c = 0; c < entries.size(); c++) {
-		// Long-term handle sub-playlists on-demand instead of at load time
-		if (entries[c]["type"].asString() == "playlist") {
-			m_subPlaylistDepth++;
-			if (m_subPlaylistDepth < 5) {
-				std::string filename = std::string(FPP_DIR_PLAYLIST) + "/" + entries[c]["name"].asString() + ".json";
+    for (int c = 0; c < entries.size(); c++) {
+        // Long-term handle sub-playlists on-demand instead of at load time
+        if (entries[c]["type"].asString() == "playlist") {
+            m_subPlaylistDepth++;
+            if (m_subPlaylistDepth < 5) {
+                std::string filename = std::string(FPP_DIR_PLAYLIST) + "/" + entries[c]["name"].asString() + ".json";
 
-				Json::Value subPlaylist = LoadJSON(filename.c_str());
+                Json::Value subPlaylist = LoadJSON(filename.c_str());
 
-				if (subPlaylist.isMember("leadIn"))
-					LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadIn"]);
+                if (subPlaylist.isMember("leadIn"))
+                    LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadIn"]);
 
-				if (subPlaylist.isMember("mainPlaylist"))
-					LoadJSONIntoPlaylist(playlistPart, subPlaylist["mainPlaylist"]);
+                if (subPlaylist.isMember("mainPlaylist"))
+                    LoadJSONIntoPlaylist(playlistPart, subPlaylist["mainPlaylist"]);
 
-				if (subPlaylist.isMember("leadOut"))
-					LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadOut"]);
+                if (subPlaylist.isMember("leadOut"))
+                    LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadOut"]);
             } else {
-				LogErr(VB_PLAYLIST, "Error, recursive playlist.  Sub-playlist depth exceeded 5 trying to include '%s'\n", entries[c]["name"].asString().c_str());
-			}
+                LogErr(VB_PLAYLIST, "Error, recursive playlist.  Sub-playlist depth exceeded 5 trying to include '%s'\n", entries[c]["name"].asString().c_str());
+            }
 
-			m_subPlaylistDepth--;
+            m_subPlaylistDepth--;
         } else {
-			plEntry = LoadPlaylistEntry(entries[c]);
-			if (plEntry)
-				playlistPart.push_back(plEntry);
-		}
-	}
-	
-	return 1;
+            plEntry = LoadPlaylistEntry(entries[c]);
+            if (plEntry)
+                playlistPart.push_back(plEntry);
+        }
+    }
+
+    return 1;
 }
 
 /*
  *
  */
-int Playlist::Load(Json::Value &config)
-{
-	LogDebug(VB_PLAYLIST, "Playlist::Load(JSON)\n");
+int Playlist::Load(Json::Value& config) {
+    LogDebug(VB_PLAYLIST, "Playlist::Load(JSON)\n");
 
-	Cleanup();
+    Cleanup();
 
-	if (config.isMember("name"))
-		m_name = config["name"].asString();
+    if (config.isMember("name"))
+        m_name = config["name"].asString();
 
-	if (config.isMember("desc"))
-		m_desc = config["desc"].asString();
+    if (config.isMember("desc"))
+        m_desc = config["desc"].asString();
 
-	m_repeat = config["repeat"].asInt();
-	m_loopCount = config["loopCount"].asInt();
-	m_subPlaylistDepth = 0;
+    m_repeat = config["repeat"].asInt();
+    m_loopCount = config["loopCount"].asInt();
+    m_subPlaylistDepth = 0;
 
-	m_playlistInfo = config["playlistInfo"];
+    m_playlistInfo = config["playlistInfo"];
 
-	PlaylistEntryBase *plEntry = NULL;
+    PlaylistEntryBase* plEntry = NULL;
 
-	if (config.isMember("leadIn")) {
-		LogDebug(VB_PLAYLIST, "Loading LeadIn:\n");
-		const Json::Value leadIn = config["leadIn"];
+    if (config.isMember("leadIn")) {
+        LogDebug(VB_PLAYLIST, "Loading LeadIn:\n");
+        const Json::Value leadIn = config["leadIn"];
 
-		LoadJSONIntoPlaylist(m_leadIn, leadIn);
-	}
+        LoadJSONIntoPlaylist(m_leadIn, leadIn);
+    }
 
-	if (config.isMember("mainPlaylist")) {
-		LogDebug(VB_PLAYLIST, "Loading MainPlaylist:\n");
-		const Json::Value playlist = config["mainPlaylist"];
+    if (config.isMember("mainPlaylist")) {
+        LogDebug(VB_PLAYLIST, "Loading MainPlaylist:\n");
+        const Json::Value playlist = config["mainPlaylist"];
 
-		LoadJSONIntoPlaylist(m_mainPlaylist, playlist);
-	}
+        LoadJSONIntoPlaylist(m_mainPlaylist, playlist);
+    }
 
-	if (config.isMember("leadOut")) {
-		LogDebug(VB_PLAYLIST, "Loading LeadOut:\n");
-		const Json::Value leadOut = config["leadOut"];
+    if (config.isMember("leadOut")) {
+        LogDebug(VB_PLAYLIST, "Loading LeadOut:\n");
+        const Json::Value leadOut = config["leadOut"];
 
-		LoadJSONIntoPlaylist(m_leadOut, leadOut);
-	}
+        LoadJSONIntoPlaylist(m_leadOut, leadOut);
+    }
 
     if (config.isMember("random"))
         m_random = config["random"].asInt();
     else
         m_random = 0;
 
-	m_sectionPosition = 0;
+    m_sectionPosition = 0;
     m_currentSection = nullptr;
 
-        if (WillLog(LOG_DEBUG, VB_PLAYLIST))
-		Dump();
+    if (WillLog(LOG_DEBUG, VB_PLAYLIST))
+        Dump();
 
-	return 1;
+    return 1;
 }
 
 /*
  *
  */
-Json::Value Playlist::LoadJSON(const char *filename)
-{
-	LogDebug(VB_PLAYLIST, "Playlist::LoadJSON(%s)\n", filename);
+Json::Value Playlist::LoadJSON(const char* filename) {
+    LogDebug(VB_PLAYLIST, "Playlist::LoadJSON(%s)\n", filename);
 
-	Json::Value root;
+    Json::Value root;
 
-	if (!LoadJsonFromFile(filename, root)) {
-		LogErr(VB_PLAYLIST, "Error loading %s\n", filename);
-		return root;
-	}
+    if (!LoadJsonFromFile(filename, root)) {
+        LogErr(VB_PLAYLIST, "Error loading %s\n", filename);
+        return root;
+    }
 
-	if (m_filename == filename)
-	{
-		struct stat attr;
-		stat(filename, &attr);
+    if (m_filename == filename) {
+        struct stat attr;
+        stat(filename, &attr);
 
-		LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime(&attr.st_mtime));
+        LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime(&attr.st_mtime));
 
-		m_fileTime = attr.st_mtime;
-	}
+        m_fileTime = attr.st_mtime;
+    }
 
-	return root;
+    return root;
 }
 
 /*
  *
  */
-int Playlist::Load(const char *filename)
-{
-	LogDebug(VB_PLAYLIST, "Playlist::Load(%s)\n", filename);
+int Playlist::Load(const char* filename) {
+    LogDebug(VB_PLAYLIST, "Playlist::Load(%s)\n", filename);
 
     if (mqtt) {
-	mqtt->Publish("playlist/name/status", filename);
+        mqtt->Publish("playlist/name/status", filename);
     }
 
     Json::Value root;
     std::string tmpFilename = filename;
 
-    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
     if (endsWith(tmpFilename, ".fseq")) {
         m_filename = FPP_DIR_SEQUENCE;
@@ -265,16 +255,16 @@ int Playlist::Load(const char *filename)
         root["loopCount"] = 0;
 
         std::string mediaName;
-        FSEQFile *src = FSEQFile::openFSEQFile(m_filename);
+        FSEQFile* src = FSEQFile::openFSEQFile(m_filename);
         if (src && !src->getVariableHeaders().empty()) {
-            for (auto &head : src->getVariableHeaders()) {
+            for (auto& head : src->getVariableHeaders()) {
                 if ((head.code[0] == 'm') && (head.code[1] == 'f')) {
-                    if (strchr((char *)&head.data[0], '/')) {
-                        mediaName = (char *)(strrchr((char *)&head.data[0], '/') + 1);
-                    } else if (strchr((char *)&head.data[0], '\\')) {
-                        mediaName = (char *)(strrchr((char *)&head.data[0], '\\') + 1);
+                    if (strchr((char*)&head.data[0], '/')) {
+                        mediaName = (char*)(strrchr((char*)&head.data[0], '/') + 1);
+                    } else if (strchr((char*)&head.data[0], '\\')) {
+                        mediaName = (char*)(strrchr((char*)&head.data[0], '\\') + 1);
                     } else {
-                        mediaName = (const char *)&head.data[0];
+                        mediaName = (const char*)&head.data[0];
                     }
                     std::string tmpMedia = std::string(FPP_DIR_MUSIC) + "/" + mediaName;
 
@@ -285,7 +275,7 @@ int Playlist::Load(const char *filename)
 
                         if (!FileExists(tmpMedia)) {
                             std::string warn = "fseq \"" + tmpFilename + "\" lists a media file of \"" + mediaName + "\" but it can not be found";
-                            
+
                             WarningHolder::AddWarningTimeout(warn, 60);
                             LogDebug(VB_PLAYLIST, "%s\n", warn.c_str());
                             mediaName = "";
@@ -298,18 +288,18 @@ int Playlist::Load(const char *filename)
         Json::Value mp(Json::arrayValue);
         Json::Value pe;
         if (mediaName.empty()) {
-            pe["type"]         = "sequence";
+            pe["type"] = "sequence";
             LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s\n", tmpFilename.c_str());
         } else {
-            pe["type"]         = "both";
-            pe["mediaName"]    = mediaName;
+            pe["type"] = "both";
+            pe["mediaName"] = mediaName;
             LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s/%s\n", tmpFilename.c_str(), mediaName.c_str());
         }
 
-        pe["enabled"]      = 1;
-        pe["playOnce"]     = 0;
+        pe["enabled"] = 1;
+        pe["playOnce"] = 0;
         pe["sequenceName"] = tmpFilename;
-        pe["videoOut"]     = "--Default--";
+        pe["videoOut"] = "--Default--";
 
         mp.append(pe);
         root["mainPlaylist"] = mp;
@@ -319,195 +309,189 @@ int Playlist::Load(const char *filename)
         m_filename += filename;
         m_filename += ".json";
 
-	    root = LoadJSON(m_filename.c_str());
+        root = LoadJSON(m_filename.c_str());
     }
 
-	int res = Load(root);
+    int res = Load(root);
 
-	GetConfigStr();
+    GetConfigStr();
 
-	return res;
+    return res;
 }
 
 /*
  *
  */
-PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
-{
-	PlaylistEntryBase *result = NULL;
+PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry) {
+    PlaylistEntryBase* result = NULL;
 
-	if (entry["type"].asString() == "both")
-		result = new PlaylistEntryBoth(this);
-	else if (entry["type"].asString() == "branch")
-		result = new PlaylistEntryBranch(this);
-	else if (entry["type"].asString() == "dynamic")
-		result = new PlaylistEntryDynamic(this);
-	else if (entry["type"].asString() == "effect")
-		result = new PlaylistEntryEffect(this);
-	else if (entry["type"].asString() == "image")
-		result = new PlaylistEntryImage(this);
-	else if (entry["type"].asString() == "media")
-		result = new PlaylistEntryMedia(this);
-	else if (entry["type"].asString() == "mqtt")
-		result = new PlaylistEntryMQTT(this);
-	else if (entry["type"].asString() == "pause")
-		result = new PlaylistEntryPause(this);
-	else if (entry["type"].asString() == "playlist")
-		result = new PlaylistEntryPlaylist(this);
-	else if (entry["type"].asString() == "plugin")
-		result = new PlaylistEntryPlugin(this);
-	else if (entry["type"].asString() == "remap")
-		result = new PlaylistEntryRemap(this);
-	else if (entry["type"].asString() == "script")
-		result = new PlaylistEntryScript(this);
-	else if (entry["type"].asString() == "sequence")
-		result = new PlaylistEntrySequence(this);
-	else if (entry["type"].asString() == "url")
-		result = new PlaylistEntryURL(this);
-	else if (entry["type"].asString() == "volume")
-		result = new PlaylistEntryVolume(this);
+    if (entry["type"].asString() == "both")
+        result = new PlaylistEntryBoth(this);
+    else if (entry["type"].asString() == "branch")
+        result = new PlaylistEntryBranch(this);
+    else if (entry["type"].asString() == "dynamic")
+        result = new PlaylistEntryDynamic(this);
+    else if (entry["type"].asString() == "effect")
+        result = new PlaylistEntryEffect(this);
+    else if (entry["type"].asString() == "image")
+        result = new PlaylistEntryImage(this);
+    else if (entry["type"].asString() == "media")
+        result = new PlaylistEntryMedia(this);
+    else if (entry["type"].asString() == "mqtt")
+        result = new PlaylistEntryMQTT(this);
+    else if (entry["type"].asString() == "pause")
+        result = new PlaylistEntryPause(this);
+    else if (entry["type"].asString() == "playlist")
+        result = new PlaylistEntryPlaylist(this);
+    else if (entry["type"].asString() == "plugin")
+        result = new PlaylistEntryPlugin(this);
+    else if (entry["type"].asString() == "remap")
+        result = new PlaylistEntryRemap(this);
+    else if (entry["type"].asString() == "script")
+        result = new PlaylistEntryScript(this);
+    else if (entry["type"].asString() == "sequence")
+        result = new PlaylistEntrySequence(this);
+    else if (entry["type"].asString() == "url")
+        result = new PlaylistEntryURL(this);
+    else if (entry["type"].asString() == "volume")
+        result = new PlaylistEntryVolume(this);
     else if (entry["type"].asString() == "command")
         result = new PlaylistEntryCommand(this);
     else {
-		LogErr(VB_PLAYLIST, "Unknown Playlist Entry Type: %s\n", entry["type"].asString().c_str());
-		return NULL;
-	}
+        LogErr(VB_PLAYLIST, "Unknown Playlist Entry Type: %s\n", entry["type"].asString().c_str());
+        return NULL;
+    }
 
-	if (result->Init(entry))
-		return result;
+    if (result->Init(entry))
+        return result;
 
-	return NULL;
+    return NULL;
 }
 
 /*
  *
  */
-int Playlist::ReloadPlaylist(void)
-{
-	LogDebug(VB_PLAYLIST, "Playlist::ReloadPlaylist()\n");
+int Playlist::ReloadPlaylist(void) {
+    LogDebug(VB_PLAYLIST, "Playlist::ReloadPlaylist()\n");
 
-	std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
-	std::string currentSectionStr = m_currentSectionStr;
-	int repeat = m_repeat;
-	int loopCount = m_loopCount;
-	long long startTime = m_startTime;
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    std::string currentSectionStr = m_currentSectionStr;
+    int repeat = m_repeat;
+    int loopCount = m_loopCount;
+    long long startTime = m_startTime;
 
-	Json::Value root = LoadJSON(m_filename.c_str());
+    Json::Value root = LoadJSON(m_filename.c_str());
 
-	if (!Load(root))
-		return 0;
+    if (!Load(root))
+        return 0;
 
     if (m_random > 0)
         RandomizeMainPlaylist();
 
-	m_repeat = repeat;
-	m_loopCount = loopCount;
-	m_startTime = startTime;
-	m_sectionPosition = 0;
-	m_currentSectionStr = "MainPlaylist";
-	m_currentSection = &m_mainPlaylist;
+    m_repeat = repeat;
+    m_loopCount = loopCount;
+    m_startTime = startTime;
+    m_sectionPosition = 0;
+    m_currentSectionStr = "MainPlaylist";
+    m_currentSection = &m_mainPlaylist;
 
-	GetConfigStr();
+    GetConfigStr();
 
-	return 1;
+    return 1;
 }
 
 /*
  *
  */
-void Playlist::ReloadIfNeeded(void)
-{
-	if (FileHasBeenModified()) {
-		LogDebug(VB_PLAYLIST, "Playlist .json file has been modified, reloading playlist\n");
+void Playlist::ReloadIfNeeded(void) {
+    if (FileHasBeenModified()) {
+        LogDebug(VB_PLAYLIST, "Playlist .json file has been modified, reloading playlist\n");
 
-		if (!ReloadPlaylist())
-			LogErr(VB_PLAYLIST, "Error reloading playlist, continuing with existing copy.");
-	}
+        if (!ReloadPlaylist())
+            LogErr(VB_PLAYLIST, "Error reloading playlist, continuing with existing copy.");
+    }
 }
 
 /*
  *
  */
-void Playlist::SwitchToMainPlaylist(void)
-{
-	LogDebug(VB_PLAYLIST, "Switching to MainPlaylist\n");
+void Playlist::SwitchToMainPlaylist(void) {
+    LogDebug(VB_PLAYLIST, "Switching to MainPlaylist\n");
 
-	m_currentSectionStr = "MainPlaylist";
-	m_currentSection    = &m_mainPlaylist;
-	m_sectionPosition   = 0;
-	m_mainPlaylist[0]->StartPlaying();
+    m_currentSectionStr = "MainPlaylist";
+    m_currentSection = &m_mainPlaylist;
+    m_sectionPosition = 0;
+    m_mainPlaylist[0]->StartPlaying();
 }
 
 /*
  *
  */
-void Playlist::SwitchToLeadOut(void)
-{
-	LogDebug(VB_PLAYLIST, "Switching to LeadOut\n");
+void Playlist::SwitchToLeadOut(void) {
+    LogDebug(VB_PLAYLIST, "Switching to LeadOut\n");
 
-	m_currentSectionStr = "LeadOut";
-	m_currentSection    = &m_leadOut;
-	m_sectionPosition   = 0;
-	m_leadOut[0]->StartPlaying();
+    m_currentSectionStr = "LeadOut";
+    m_currentSection = &m_leadOut;
+    m_sectionPosition = 0;
+    m_leadOut[0]->StartPlaying();
 }
 
 /*
  *
  */
-int Playlist::Start(void)
-{
-	LogDebug(VB_PLAYLIST, "Playlist::Start()\n");
+int Playlist::Start(void) {
+    LogDebug(VB_PLAYLIST, "Playlist::Start()\n");
 
-	if ((!m_leadIn.size()) &&
-		(!m_mainPlaylist.size()) &&
-		(!m_leadOut.size())) {
-		SetIdle();
-		return 0;
-	}
+    if ((!m_leadIn.size()) &&
+        (!m_mainPlaylist.size()) &&
+        (!m_leadOut.size())) {
+        SetIdle();
+        return 0;
+    }
 
     m_status = FPP_STATUS_PLAYLIST_PLAYING;
 
     std::string origCurState = m_currentState;
-	m_currentState = "playing";
+    m_currentState = "playing";
 
-	m_startTime = GetTime();
-	m_loop = 0;
-	m_forceStop = 0;
+    m_startTime = GetTime();
+    m_loop = 0;
+    m_forceStop = 0;
 
-	LogDebug(VB_PLAYLIST, "============================================================================\n");
+    LogDebug(VB_PLAYLIST, "============================================================================\n");
 
-	if (m_startPosition > 0) {
-		if (m_startPosition >= (m_leadIn.size() + m_mainPlaylist.size() + m_leadOut.size()))
-			m_startPosition = 0;
+    if (m_startPosition > 0) {
+        if (m_startPosition >= (m_leadIn.size() + m_mainPlaylist.size() + m_leadOut.size()))
+            m_startPosition = 0;
 
-		if (m_startPosition >= (m_leadIn.size() + m_mainPlaylist.size())) {
-			m_sectionPosition = m_startPosition - (m_leadIn.size() + m_mainPlaylist.size());
-			m_currentSectionStr = "LeadOut";
-			m_currentSection = &m_leadOut;
-		} else if (m_startPosition >= m_leadIn.size()) {
-			m_sectionPosition = m_startPosition - m_leadIn.size();
-			m_currentSectionStr = "MainPlaylist";
-			m_currentSection = &m_mainPlaylist;
+        if (m_startPosition >= (m_leadIn.size() + m_mainPlaylist.size())) {
+            m_sectionPosition = m_startPosition - (m_leadIn.size() + m_mainPlaylist.size());
+            m_currentSectionStr = "LeadOut";
+            m_currentSection = &m_leadOut;
+        } else if (m_startPosition >= m_leadIn.size()) {
+            m_sectionPosition = m_startPosition - m_leadIn.size();
+            m_currentSectionStr = "MainPlaylist";
+            m_currentSection = &m_mainPlaylist;
         } else {
-			m_sectionPosition = m_startPosition;
-			m_currentSectionStr = "LeadIn";
-			m_currentSection = &m_leadIn;
-		}
+            m_sectionPosition = m_startPosition;
+            m_currentSectionStr = "LeadIn";
+            m_currentSection = &m_leadIn;
+        }
     } else {
-		if (m_leadIn.size()) {
-			m_currentSectionStr = "LeadIn";
-			m_currentSection = &m_leadIn;
+        if (m_leadIn.size()) {
+            m_currentSectionStr = "LeadIn";
+            m_currentSection = &m_leadIn;
         } else if (m_mainPlaylist.size()) {
-			m_currentSectionStr = "MainPlaylist";
-			m_currentSection = &m_mainPlaylist;
-		} else {// must be only lead Out
-			m_currentSectionStr = "LeadOut";
-			m_currentSection = &m_leadOut;
-		}
+            m_currentSectionStr = "MainPlaylist";
+            m_currentSection = &m_mainPlaylist;
+        } else { // must be only lead Out
+            m_currentSectionStr = "LeadOut";
+            m_currentSection = &m_leadOut;
+        }
 
-		m_sectionPosition = 0;
-	}
-    
+        m_sectionPosition = 0;
+    }
+
     if (origCurState == "playing") {
         PluginManager::INSTANCE.playlistCallback(GetInfo(), "playing", m_currentSectionStr, m_sectionPosition);
     } else {
@@ -519,20 +503,18 @@ int Playlist::Start(void)
         mqtt->Publish("playlist/sectionPosition/status", m_sectionPosition);
     }
 
-	m_currentSection->at(m_sectionPosition)->StartPlaying();
+    m_currentSection->at(m_sectionPosition)->StartPlaying();
 
-
-	LogDebug(VB_PLAYLIST, "Exiting Playlist::Start()\n");
-	return 1;
+    LogDebug(VB_PLAYLIST, "Exiting Playlist::Start()\n");
+    return 1;
 }
 
 /*
  *
  */
-int Playlist::StopNow(int forceStop)
-{
-	LogDebug(VB_PLAYLIST, "Playlist::StopNow(%d)\n", forceStop);
-    
+int Playlist::StopNow(int forceStop) {
+    LogDebug(VB_PLAYLIST, "Playlist::StopNow(%d)\n", forceStop);
+
     if (m_status == FPP_STATUS_IDLE) {
         return 1;
     }
@@ -541,49 +523,48 @@ int Playlist::StopNow(int forceStop)
     keywords["PLAYLIST_NAME"] = m_name;
     CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_NOW", keywords);
 
-    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     m_status = FPP_STATUS_STOPPING_NOW;
 
-	if (m_currentSection && m_currentSection->at(m_sectionPosition)->IsPlaying())
-		m_currentSection->at(m_sectionPosition)->Stop();
+    if (m_currentSection && m_currentSection->at(m_sectionPosition)->IsPlaying())
+        m_currentSection->at(m_sectionPosition)->Stop();
 
-	m_forceStop = forceStop;
-	SetIdle();
+    m_forceStop = forceStop;
+    SetIdle();
 
     m_currentSection = nullptr;
 
-	return 1;
+    return 1;
 }
 
 /*
  *
  */
-int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
-{
-	LogDebug(VB_PLAYLIST, "Playlist::StopGracefully(%d, %d)\n", forceStop, afterCurrentLoop);
+int Playlist::StopGracefully(int forceStop, int afterCurrentLoop) {
+    LogDebug(VB_PLAYLIST, "Playlist::StopGracefully(%d, %d)\n", forceStop, afterCurrentLoop);
 
     if (m_status == FPP_STATUS_PLAYLIST_PAUSED && this == playlist) {
         Resume();
     }
-    
+
     std::map<std::string, std::string> keywords;
     keywords["PLAYLIST_NAME"] = m_name;
 
-	if (afterCurrentLoop) {
+    if (afterCurrentLoop) {
         CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_AFTER_LOOP", keywords);
-		m_status = FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP;
-		m_currentState = "stoppingAfterLoop";
-	} else {
+        m_status = FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP;
+        m_currentState = "stoppingAfterLoop";
+    } else {
         CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_GRACEFULLY", keywords);
-		m_status = FPP_STATUS_STOPPING_GRACEFULLY;
-		m_currentState = "stoppingGracefully";
-	}
-	m_forceStop = forceStop;
+        m_status = FPP_STATUS_STOPPING_GRACEFULLY;
+        m_currentState = "stoppingGracefully";
+    }
+    m_forceStop = forceStop;
     if (m_parent) {
         m_parent->StopGracefully(forceStop, afterCurrentLoop);
     }
 
-	return 1;
+    return 1;
 }
 
 void Playlist::Pause() {
@@ -604,106 +585,101 @@ void Playlist::Resume() {
             m_currentSection->at(m_sectionPosition)->Resume();
             m_status = FPP_STATUS_PLAYLIST_PLAYING;
 
-	    // Notify of current playlists because was likely changed when Paused.
-    	    if (mqtt) {
-		mqtt->Publish("playlist/name/status", m_name);
+            // Notify of current playlists because was likely changed when Paused.
+            if (mqtt) {
+                mqtt->Publish("playlist/name/status", m_name);
             }
         }
     }
 }
 
-
 /*
  *
  */
-int Playlist::IsPlaying(void)
-{
-	if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
-		(m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
-		(m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
+int Playlist::IsPlaying(void) {
+    if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
+        (m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
+        (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
         (m_status == FPP_STATUS_PLAYLIST_PAUSED)) //paused is technically still "running"
-		return 1;
+        return 1;
 
-	return 0;
+    return 0;
 }
 
 /*
  *
  */
-int Playlist::FileHasBeenModified(void)
-{
+int Playlist::FileHasBeenModified(void) {
     if (endsWith(m_filename, ".fseq"))
         return 0;
 
-	struct stat attr;
-	stat(m_filename.c_str(), &attr);
+    struct stat attr;
+    stat(m_filename.c_str(), &attr);
 
-	LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime(&attr.st_mtime));
+    LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime(&attr.st_mtime));
 
-	if (attr.st_mtime > m_fileTime)
-		return 1;
+    if (attr.st_mtime > m_fileTime)
+        return 1;
 
-	return 0;
+    return 0;
 }
 
 /*
  *
  */
-int Playlist::Process(void)
-{
+int Playlist::Process(void) {
     static time_t lastCheckTime = time(nullptr);
     time_t procTime = time(nullptr);
 
-	//LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
-    
+    //LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
+
     while (!PL_CLEANUPS.empty()) {
-        Playlist *p = PL_CLEANUPS.front();
+        Playlist* p = PL_CLEANUPS.front();
         delete p;
         PL_CLEANUPS.pop_front();
     }
 
-    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
-	if (m_currentSection == nullptr || m_sectionPosition >= m_currentSection->size()) {
-		LogErr(VB_PLAYLIST, "Section position %d is outside of section %s\n",
-			m_sectionPosition, m_currentSectionStr.c_str());
-		StopNow();
-		return 0;
-	}
-
-    if (!m_currentSection->at(m_sectionPosition)->IsPaused() && m_currentSection->at(m_sectionPosition)->IsPlaying()) {
-		m_currentSection->at(m_sectionPosition)->Process();
+    if (m_currentSection == nullptr || m_sectionPosition >= m_currentSection->size()) {
+        LogErr(VB_PLAYLIST, "Section position %d is outside of section %s\n",
+               m_sectionPosition, m_currentSectionStr.c_str());
+        StopNow();
+        return 0;
     }
 
-    Playlist *pl = nullptr;
-    if (m_currentSection->at(m_sectionPosition)->IsPaused()
-        && ((pl = SwitchToInsertedPlaylist()) != nullptr)) {
+    if (!m_currentSection->at(m_sectionPosition)->IsPaused() && m_currentSection->at(m_sectionPosition)->IsPlaying()) {
+        m_currentSection->at(m_sectionPosition)->Process();
+    }
+
+    Playlist* pl = nullptr;
+    if (m_currentSection->at(m_sectionPosition)->IsPaused() && ((pl = SwitchToInsertedPlaylist()) != nullptr)) {
         pl->Start();
         return pl->Process();
     }
 
-	if (m_currentSection->at(m_sectionPosition)->IsFinished()) {
-		LogDebug(VB_PLAYLIST, "Playlist entry finished\n");
-                if (WillLog(LOG_DEBUG, VB_PLAYLIST))
-			m_currentSection->at(m_sectionPosition)->Dump();
+    if (m_currentSection->at(m_sectionPosition)->IsFinished()) {
+        LogDebug(VB_PLAYLIST, "Playlist entry finished\n");
+        if (WillLog(LOG_DEBUG, VB_PLAYLIST))
+            m_currentSection->at(m_sectionPosition)->Dump();
 
-		LogDebug(VB_PLAYLIST, "============================================================================\n");
+        LogDebug(VB_PLAYLIST, "============================================================================\n");
 
-		if (m_status == FPP_STATUS_STOPPING_GRACEFULLY) {
-			if ((m_currentSectionStr == "LeadIn") ||
-				(m_currentSectionStr == "MainPlaylist")) {
-				ReloadIfNeeded();
+        if (m_status == FPP_STATUS_STOPPING_GRACEFULLY) {
+            if ((m_currentSectionStr == "LeadIn") ||
+                (m_currentSectionStr == "MainPlaylist")) {
+                ReloadIfNeeded();
 
-				if (m_leadOut.size()) {
-					LogDebug(VB_PLAYLIST, "Stopping Gracefully\n");
-					SwitchToLeadOut();
-				} else {
+                if (m_leadOut.size()) {
+                    LogDebug(VB_PLAYLIST, "Stopping Gracefully\n");
+                    SwitchToLeadOut();
+                } else {
                     m_currentSection = nullptr;
-					SetIdle();
-				}
-				return 1;
-			}
-		}
+                    SetIdle();
+                }
+                return 1;
+            }
+        }
         if (m_stopAtPos != -1 && m_stopAtPos <= (GetPosition() - 1)) {
             if ((pl = SwitchToInsertedPlaylist(true)) != nullptr) {
                 pl->Start();
@@ -721,10 +697,9 @@ int Playlist::Process(void)
 
         auto currentEntry = m_currentSection->at(m_sectionPosition);
         if (currentEntry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Index) {
-        
             if (currentEntry->GetNextSection() != "") {
                 LogDebug(VB_PLAYLIST, "Attempting Switch to %s section.\n",
-                    currentEntry->GetNextSection().c_str());
+                         currentEntry->GetNextSection().c_str());
 
                 if (currentEntry->GetNextSection() == "leadIn") {
                     m_currentSectionStr = "LeadIn";
@@ -775,78 +750,78 @@ int Playlist::Process(void)
             m_sectionPosition++;
         }
 
-		if (m_sectionPosition >= m_currentSection->size()) {
-			if (m_currentSectionStr == "LeadIn") {
-				LogDebug(VB_PLAYLIST, "At end of leadIn.\n");
+        if (m_sectionPosition >= m_currentSection->size()) {
+            if (m_currentSectionStr == "LeadIn") {
+                LogDebug(VB_PLAYLIST, "At end of leadIn.\n");
 
-				ReloadIfNeeded();
+                ReloadIfNeeded();
 
-				if (m_mainPlaylist.size()) {
-					SwitchToMainPlaylist();
-				} else if (m_leadOut.size()) {
-					SwitchToLeadOut();
+                if (m_mainPlaylist.size()) {
+                    SwitchToMainPlaylist();
+                } else if (m_leadOut.size()) {
+                    SwitchToLeadOut();
                 } else {
-					LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
-					SetIdle();
-				}
-			} else if (m_currentSectionStr == "MainPlaylist") {
-				m_loop++;
-				LogDebug(VB_PLAYLIST, "mainPlaylist loop now: %d\n", m_loop);
-				if ((m_repeat) && (!m_loopCount || (m_loop < m_loopCount))) {
-					ReloadIfNeeded();
+                    LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
+                    SetIdle();
+                }
+            } else if (m_currentSectionStr == "MainPlaylist") {
+                m_loop++;
+                LogDebug(VB_PLAYLIST, "mainPlaylist loop now: %d\n", m_loop);
+                if ((m_repeat) && (!m_loopCount || (m_loop < m_loopCount))) {
+                    ReloadIfNeeded();
 
-					if (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) {
-						if (m_leadOut.size()) {
-							LogDebug(VB_PLAYLIST, "Stopping Gracefully after loop\n");
-							SwitchToLeadOut();
+                    if (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) {
+                        if (m_leadOut.size()) {
+                            LogDebug(VB_PLAYLIST, "Stopping Gracefully after loop\n");
+                            SwitchToLeadOut();
                         } else {
-							LogDebug(VB_PLAYLIST, "Stopping Gracefully after loop. Empty leadOut, setting to Idle state\n");
-							SetIdle();
-						}
+                            LogDebug(VB_PLAYLIST, "Stopping Gracefully after loop. Empty leadOut, setting to Idle state\n");
+                            SetIdle();
+                        }
 
-						return 1;
-					}
+                        return 1;
+                    }
 
-					if (!m_loopCount)
-						LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, loopCount == 0\n");
-					else
-						LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, %d <= %d\n", m_loop, m_loopCount);
+                    if (!m_loopCount)
+                        LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, loopCount == 0\n");
+                    else
+                        LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, %d <= %d\n", m_loop, m_loopCount);
 
                     if (m_random == 2)
                         RandomizeMainPlaylist();
 
-					m_sectionPosition = 0;
-					m_mainPlaylist[0]->StartPlaying();
-				} else if (m_leadOut.size()) {
-					ReloadIfNeeded();
+                    m_sectionPosition = 0;
+                    m_mainPlaylist[0]->StartPlaying();
+                } else if (m_leadOut.size()) {
+                    ReloadIfNeeded();
 
-					SwitchToLeadOut();
+                    SwitchToLeadOut();
                 } else {
-					LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
-					SetIdle();
-				}
+                    LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
+                    SetIdle();
+                }
             } else {
-				LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
+                LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
                 m_currentSection = nullptr;
-				SetIdle();
-			}
+                SetIdle();
+            }
         } else {
-			// Start the next item in the current section
-			m_currentSection->at(m_sectionPosition)->StartPlaying();
-		}
+            // Start the next item in the current section
+            m_currentSection->at(m_sectionPosition)->StartPlaying();
+        }
 
         PluginManager::INSTANCE.playlistCallback(GetInfo(), "playing", m_currentSectionStr, m_sectionPosition);
-		if (mqtt) {
-		 	mqtt->Publish("playlist/section/status", m_currentSectionStr);
-			mqtt->Publish("playlist/sectionPosition/status", m_sectionPosition);
-		}
-	}
+        if (mqtt) {
+            mqtt->Publish("playlist/section/status", m_currentSectionStr);
+            mqtt->Publish("playlist/sectionPosition/status", m_sectionPosition);
+        }
+    }
 
-	return 1;
+    return 1;
 }
 
 bool Playlist::WillStopAfterCurrent() {
-    if ((m_sectionPosition+1) >= m_currentSection->size()) {
+    if ((m_sectionPosition + 1) >= m_currentSection->size()) {
         if (m_currentSectionStr == "LeadIn") {
             return !m_mainPlaylist.empty() || !m_leadOut.empty();
         } else if (m_currentSectionStr == "MainPlaylist") {
@@ -861,10 +836,9 @@ bool Playlist::WillStopAfterCurrent() {
     return false;
 }
 
-
-Playlist *Playlist::SwitchToInsertedPlaylist(bool isStopping) {
+Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
     if (m_insertedPlaylist != "") {
-        Playlist *pl;
+        Playlist* pl;
         if (isStopping && m_parent) {
             //we are exiting so there is no point wasting our memory on the stack of playlists
             //so we'll point the new playlists parent at our parent and then cleanup ourselves
@@ -890,45 +864,43 @@ Playlist *Playlist::SwitchToInsertedPlaylist(bool isStopping) {
 /*
  *
  */
-void Playlist::ProcessMedia(void)
-{
-	// FIXME, find a better way to do this
-	sigset_t blockset;
+void Playlist::ProcessMedia(void) {
+    // FIXME, find a better way to do this
+    sigset_t blockset;
 
-	sigemptyset(&blockset);
-	sigaddset(&blockset, SIGCHLD);
-	sigprocmask(SIG_BLOCK, &blockset, NULL);
+    sigemptyset(&blockset);
+    sigaddset(&blockset, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &blockset, NULL);
 
-	pthread_mutex_lock(&mediaOutputLock);
-	if (mediaOutput)
-		mediaOutput->Process();
-	pthread_mutex_unlock(&mediaOutputLock);
+    pthread_mutex_lock(&mediaOutputLock);
+    if (mediaOutput)
+        mediaOutput->Process();
+    pthread_mutex_unlock(&mediaOutputLock);
 
-	sigprocmask(SIG_UNBLOCK, &blockset, NULL);
+    sigprocmask(SIG_UNBLOCK, &blockset, NULL);
 }
 
 /*
  *
  */
-void Playlist::SetIdle(bool exit)
-{
+void Playlist::SetIdle(bool exit) {
     if (m_name != "") {
         std::map<std::string, std::string> keywords;
         keywords["PLAYLIST_NAME"] = m_name;
         CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPED", keywords);
     }
 
-	m_status = FPP_STATUS_IDLE;
-    
-	m_currentState = "idle";
-	m_name = "";
-	m_desc = "";
-	m_startPosition = 0;
-	m_sectionPosition = 0;
-	m_repeat = 0;
+    m_status = FPP_STATUS_IDLE;
 
-	// Remoted per issue #506
-	//Cleanup();
+    m_currentState = "idle";
+    m_name = "";
+    m_desc = "";
+    m_startPosition = 0;
+    m_sectionPosition = 0;
+    m_repeat = 0;
+
+    // Remoted per issue #506
+    //Cleanup();
 
     PluginManager::INSTANCE.playlistCallback(GetInfo(), "stop", m_currentSectionStr, m_sectionPosition);
 
@@ -958,42 +930,40 @@ void Playlist::SetIdle(bool exit)
 /*
  *
  */
-int Playlist::Cleanup(void)
-{
-	while (m_leadIn.size()) {
-		PlaylistEntryBase *entry = m_leadIn.back();
-		m_leadIn.pop_back();
-		delete entry;
-	}
+int Playlist::Cleanup(void) {
+    while (m_leadIn.size()) {
+        PlaylistEntryBase* entry = m_leadIn.back();
+        m_leadIn.pop_back();
+        delete entry;
+    }
 
-	while (m_mainPlaylist.size()) {
-		PlaylistEntryBase *entry = m_mainPlaylist.back();
-		m_mainPlaylist.pop_back();
-		delete entry;
-	}
+    while (m_mainPlaylist.size()) {
+        PlaylistEntryBase* entry = m_mainPlaylist.back();
+        m_mainPlaylist.pop_back();
+        delete entry;
+    }
 
-	while (m_leadOut.size()) {
-		PlaylistEntryBase *entry = m_leadOut.back();
-		m_leadOut.pop_back();
-		delete entry;
-	}
+    while (m_leadOut.size()) {
+        PlaylistEntryBase* entry = m_leadOut.back();
+        m_leadOut.pop_back();
+        delete entry;
+    }
 
-	m_name = "";
-	m_desc = "";
-	m_startPosition = 0;
-	m_sectionPosition = 0;
-	m_repeat = 0;
-	m_loopCount = 0;
-	m_startTime = 0;
-	m_currentSectionStr = "New";
+    m_name = "";
+    m_desc = "";
+    m_startPosition = 0;
+    m_sectionPosition = 0;
+    m_repeat = 0;
+    m_loopCount = 0;
+    m_startTime = 0;
+    m_currentSectionStr = "New";
     m_currentSection = nullptr;
 
-	return 1;
+    return 1;
 }
 
-
-void Playlist::InsertPlaylistAsNext(const std::string &filename, const int position, int endPosition) {
-    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+void Playlist::InsertPlaylistAsNext(const std::string& filename, const int position, int endPosition) {
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (m_status == FPP_STATUS_IDLE) {
         Play(filename.c_str(), position, 0, m_scheduleEntry, endPosition);
     } else {
@@ -1002,8 +972,8 @@ void Playlist::InsertPlaylistAsNext(const std::string &filename, const int posit
         m_insertedPlaylistEndPosition = endPosition;
     }
 }
-void Playlist::InsertPlaylistImmediate(const std::string &filename, const int position, int endPosition) {
-    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+void Playlist::InsertPlaylistImmediate(const std::string& filename, const int position, int endPosition) {
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (m_status == FPP_STATUS_IDLE) {
         Play(filename.c_str(), position, 0, m_scheduleEntry, endPosition);
     } else {
@@ -1014,31 +984,26 @@ void Playlist::InsertPlaylistImmediate(const std::string &filename, const int po
     }
 }
 
-int Playlist::Play(const char *filename, const int position, const int repeat, const int scheduleEntry, const int endPosition)
-{
-	int hadToStop = 0;
+int Playlist::Play(const char* filename, const int position, const int repeat, const int scheduleEntry, const int endPosition) {
+    int hadToStop = 0;
 
-	if (!strlen(filename))
-		return 0;
+    if (!strlen(filename))
+        return 0;
 
-	LogDebug(VB_PLAYLIST, "Playlist::Play('%s', %d, %d, %d)\n",
-		filename, position, repeat, scheduleEntry);
+    LogDebug(VB_PLAYLIST, "Playlist::Play('%s', %d, %d, %d)\n",
+             filename, position, repeat, scheduleEntry);
 
-    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
-	if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
-		(m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
-		(m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
-        
+    if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
+        (m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
+        (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
         std::string fullfilename = FPP_DIR_PLAYLIST;
         fullfilename += "/";
         fullfilename += filename;
         fullfilename += ".json";
-        
-        if ((m_filename == fullfilename)
-            && (repeat == m_repeat)
-            && m_currentSection
-            && position >= 0) {
+
+        if ((m_filename == fullfilename) && (repeat == m_repeat) && m_currentSection && position >= 0) {
             //the requested playlist is already running and loaded, we can jump right to the index
             if (m_currentSection->at(m_sectionPosition)->IsPlaying()) {
                 m_currentSection->at(m_sectionPosition)->Stop();
@@ -1054,11 +1019,11 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
             StopNow(1);
             sleep(1);
         }
-	}
+    }
     m_scheduleEntry = scheduleEntry;
-	m_forceStop = 0;
+    m_forceStop = 0;
 
-	Load(filename);
+    Load(filename);
 
     if ((position == 0) && (m_random > 0))
         RandomizeMainPlaylist();
@@ -1072,58 +1037,53 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
             p = p + m_leadIn.size();
         }
     }
-	if (p >= 0)
-		SetPosition(p);
+    if (p >= 0)
+        SetPosition(p);
 
-	if (repeat >= 0)
-		SetRepeat(repeat);
-    
+    if (repeat >= 0)
+        SetRepeat(repeat);
+
     m_stopAtPos = endPosition;
 
-	m_status = FPP_STATUS_PLAYLIST_PLAYING;
+    m_status = FPP_STATUS_PLAYLIST_PLAYING;
     if (hadToStop) {
-		Start();
+        Start();
     }
 
     std::map<std::string, std::string> keywords;
     keywords["PLAYLIST_NAME"] = m_name;
     CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STARTED", keywords);
 
-	return 1;
+    return 1;
 }
-
 
 /*
  *
  */
-void Playlist::SetPosition(int position)
-{
-	m_startPosition = position;
+void Playlist::SetPosition(int position) {
+    m_startPosition = position;
 
     if (mqtt) {
-		mqtt->Publish("playlist/position/status", position);
+        mqtt->Publish("playlist/position/status", position);
     }
 }
-
 
 /*
  *
  */
-void Playlist::SetRepeat(int repeat)
-{
-	m_repeat = repeat;
+void Playlist::SetRepeat(int repeat) {
+    m_repeat = repeat;
 
     if (mqtt) {
-		mqtt->Publish("playlist/repeat/status", repeat);
+        mqtt->Publish("playlist/repeat/status", repeat);
     }
 }
 
-void Playlist::RandomizeMainPlaylist()
-{
+void Playlist::RandomizeMainPlaylist() {
     if (m_mainPlaylist.empty())
         return;
 
-    std::vector<PlaylistEntryBase*>  tmpPlaylist = m_mainPlaylist;
+    std::vector<PlaylistEntryBase*> tmpPlaylist = m_mainPlaylist;
     m_mainPlaylist.clear();
 
     while (tmpPlaylist.size()) {
@@ -1142,43 +1102,41 @@ void Playlist::RandomizeMainPlaylist()
 /*
  *
  */
-void Playlist::Dump(void)
-{
-	LogDebug(VB_PLAYLIST, "Playlist: %s\n", m_name.c_str());
+void Playlist::Dump(void) {
+    LogDebug(VB_PLAYLIST, "Playlist: %s\n", m_name.c_str());
 
-	LogDebug(VB_PLAYLIST, "  Description      : %s\n", m_desc.c_str());
-	LogDebug(VB_PLAYLIST, "  Repeat           : %d\n", m_repeat);
-	LogDebug(VB_PLAYLIST, "  Loop Count       : %d\n", m_loopCount);
-	LogDebug(VB_PLAYLIST, "  Current Section  : %s\n", m_currentSectionStr.c_str());
-	LogDebug(VB_PLAYLIST, "  Section Position : %d\n", m_sectionPosition);
+    LogDebug(VB_PLAYLIST, "  Description      : %s\n", m_desc.c_str());
+    LogDebug(VB_PLAYLIST, "  Repeat           : %d\n", m_repeat);
+    LogDebug(VB_PLAYLIST, "  Loop Count       : %d\n", m_loopCount);
+    LogDebug(VB_PLAYLIST, "  Current Section  : %s\n", m_currentSectionStr.c_str());
+    LogDebug(VB_PLAYLIST, "  Section Position : %d\n", m_sectionPosition);
 
-	if (m_leadIn.size()) {
-		LogDebug(VB_PLAYLIST, "  Lead In:\n");
-		for (int c = 0; c < m_leadIn.size(); c++)
-			m_leadIn[c]->Dump();
+    if (m_leadIn.size()) {
+        LogDebug(VB_PLAYLIST, "  Lead In:\n");
+        for (int c = 0; c < m_leadIn.size(); c++)
+            m_leadIn[c]->Dump();
     } else {
-		LogDebug(VB_PLAYLIST, "  Lead In          : (No Lead In)\n");
-	}
+        LogDebug(VB_PLAYLIST, "  Lead In          : (No Lead In)\n");
+    }
 
-	if (m_mainPlaylist.size()) {
-		LogDebug(VB_PLAYLIST, "  Main Playlist:\n");
-		for (int c = 0; c < m_mainPlaylist.size(); c++)
-			m_mainPlaylist[c]->Dump();
+    if (m_mainPlaylist.size()) {
+        LogDebug(VB_PLAYLIST, "  Main Playlist:\n");
+        for (int c = 0; c < m_mainPlaylist.size(); c++)
+            m_mainPlaylist[c]->Dump();
     } else {
-		LogDebug(VB_PLAYLIST, "  Main Playlist    : (No Main Playlist)\n");
-	}
+        LogDebug(VB_PLAYLIST, "  Main Playlist    : (No Main Playlist)\n");
+    }
 
-	if (m_leadOut.size()) {
-		LogDebug(VB_PLAYLIST, "  Lead Out:\n");
-		for (int c = 0; c < m_leadOut.size(); c++)
-			m_leadOut[c]->Dump();
+    if (m_leadOut.size()) {
+        LogDebug(VB_PLAYLIST, "  Lead Out:\n");
+        for (int c = 0; c < m_leadOut.size(); c++)
+            m_leadOut[c]->Dump();
     } else {
-		LogDebug(VB_PLAYLIST, "  Lead Out         : (No Lead Out)\n");
-	}
+        LogDebug(VB_PLAYLIST, "  Lead Out         : (No Lead Out)\n");
+    }
 }
 
-void Playlist::RestartItem(void)
-{
+void Playlist::RestartItem(void) {
     LogDebug(VB_PLAYLIST, "RestartItem called for '%s'\n", m_name.c_str());
     if (m_currentState == "idle") {
         return;
@@ -1186,8 +1144,8 @@ void Playlist::RestartItem(void)
     if (m_status != FPP_STATUS_PLAYLIST_PLAYING) {
         return;
     }
-    
-    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     int pos = GetPosition() - 1;
     if (m_currentSection->at(m_sectionPosition)->IsPlaying())
         m_currentSection->at(m_sectionPosition)->Stop();
@@ -1196,17 +1154,16 @@ void Playlist::RestartItem(void)
     m_startPosition = pos;
     Start();
 }
-void Playlist::NextItem(void)
-{
+void Playlist::NextItem(void) {
     LogDebug(VB_PLAYLIST, "NextItem called for '%s'\n", m_name.c_str());
     if (m_currentState == "idle") {
-		return;
+        return;
     }
     if (m_status != FPP_STATUS_PLAYLIST_PLAYING) {
         return;
     }
-    
-    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     bool somewhereToGo = true;
     int pos = GetPosition();
     if (m_currentSectionStr == "LeadIn") {
@@ -1242,7 +1199,7 @@ void Playlist::NextItem(void)
             somewhereToGo = false;
         }
     }
-    
+
     if (m_currentSection->at(m_sectionPosition)->IsPlaying())
         m_currentSection->at(m_sectionPosition)->Stop();
 
@@ -1257,8 +1214,7 @@ void Playlist::NextItem(void)
 /*
  *
  */
-void Playlist::PrevItem(void)
-{
+void Playlist::PrevItem(void) {
     LogDebug(VB_PLAYLIST, "PrevItem called for '%s'\n", m_name.c_str());
     if (m_currentState == "idle") {
         return;
@@ -1267,7 +1223,7 @@ void Playlist::PrevItem(void)
         return;
     }
 
-    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     int pos = GetPosition();
     if ((m_currentSectionStr == "LeadIn") ||
         (m_currentSectionStr == "LeadOut")) {
@@ -1289,7 +1245,7 @@ void Playlist::PrevItem(void)
 
     if (m_currentSection->at(m_sectionPosition)->IsPlaying())
         m_currentSection->at(m_sectionPosition)->Stop();
-    
+
     m_sectionPosition = 0;
     m_startPosition = pos - 1;
     Start();
@@ -1298,54 +1254,51 @@ void Playlist::PrevItem(void)
 /*
  *
  */
-int Playlist::GetPosition(void)
-{
-	int result = 0;
+int Playlist::GetPosition(void) {
+    int result = 0;
 
-	if (m_currentState == "idle")
-		return result;
+    if (m_currentState == "idle")
+        return result;
 
-	if (m_currentSectionStr == "LeadIn")
-		return m_sectionPosition + 1;
+    if (m_currentSectionStr == "LeadIn")
+        return m_sectionPosition + 1;
 
-	if (m_currentSectionStr == "MainPlaylist")
-		return m_leadIn.size() + m_sectionPosition + 1;
+    if (m_currentSectionStr == "MainPlaylist")
+        return m_leadIn.size() + m_sectionPosition + 1;
 
-	if (m_currentSectionStr == "LeadOut")
-		return m_leadIn.size() + m_mainPlaylist.size() + m_sectionPosition + 1;
+    if (m_currentSectionStr == "LeadOut")
+        return m_leadIn.size() + m_mainPlaylist.size() + m_sectionPosition + 1;
 
-	return result;
+    return result;
 }
 
 /*
  *
  */
-int Playlist::GetSize(void)
-{
-	if (m_currentState == "idle")
-		return 0;
+int Playlist::GetSize(void) {
+    if (m_currentState == "idle")
+        return 0;
 
-	return m_leadIn.size() + m_mainPlaylist.size() + m_leadOut.size();
+    return m_leadIn.size() + m_mainPlaylist.size() + m_leadOut.size();
 }
 
 /*
  *
  */
-Json::Value Playlist::GetCurrentEntry(void)
-{
-	Json::Value result;
+Json::Value Playlist::GetCurrentEntry(void) {
+    Json::Value result;
 
-	if (m_currentState == "idle" || m_currentSection == nullptr)
-		return result;
+    if (m_currentState == "idle" || m_currentSection == nullptr)
+        return result;
 
-	result = m_currentSection->at(m_sectionPosition)->GetConfig();
+    result = m_currentSection->at(m_sectionPosition)->GetConfig();
 
-	return result;
+    return result;
 }
-static void GetFilenames(PlaylistEntryBase *entry, std::string &seq, std::string &med) {
-    PlaylistEntrySequence *se = dynamic_cast<PlaylistEntrySequence*>(entry);
-    PlaylistEntryMedia *me = dynamic_cast<PlaylistEntryMedia*>(entry);
-    PlaylistEntryBoth *be = dynamic_cast<PlaylistEntryBoth*>(entry);
+static void GetFilenames(PlaylistEntryBase* entry, std::string& seq, std::string& med) {
+    PlaylistEntrySequence* se = dynamic_cast<PlaylistEntrySequence*>(entry);
+    PlaylistEntryMedia* me = dynamic_cast<PlaylistEntryMedia*>(entry);
+    PlaylistEntryBoth* be = dynamic_cast<PlaylistEntryBoth*>(entry);
     if (se) {
         seq = se->GetSequenceName();
     }
@@ -1358,7 +1311,7 @@ static void GetFilenames(PlaylistEntryBase *entry, std::string &seq, std::string
     }
 }
 
-void Playlist::GetFilenamesForPos(int pos, std::string &seq, std::string &med) {
+void Playlist::GetFilenamesForPos(int pos, std::string& seq, std::string& med) {
     pos--;
     if (pos < m_leadIn.size()) {
         GetFilenames(m_leadIn[pos], seq, med);
@@ -1377,9 +1330,9 @@ void Playlist::GetFilenamesForPos(int pos, std::string &seq, std::string &med) {
     }
 }
 
-int Playlist::FindPosForMS(uint64_t &t) {
+int Playlist::FindPosForMS(uint64_t& t) {
     int cur = 1;
-    for (auto &a : m_leadIn) {
+    for (auto& a : m_leadIn) {
         uint64_t i = a->GetLengthInMS();
         if (t < i) {
             return cur;
@@ -1387,7 +1340,7 @@ int Playlist::FindPosForMS(uint64_t &t) {
         cur++;
         t -= i;
     }
-    for (auto &a : m_mainPlaylist) {
+    for (auto& a : m_mainPlaylist) {
         uint64_t i = a->GetLengthInMS();
         if (t < i) {
             return cur;
@@ -1395,7 +1348,7 @@ int Playlist::FindPosForMS(uint64_t &t) {
         cur++;
         t -= i;
     }
-    for (auto &a : m_leadOut) {
+    for (auto& a : m_leadOut) {
         uint64_t i = a->GetLengthInMS();
         if (t < i) {
             return cur;
@@ -1418,7 +1371,7 @@ uint64_t Playlist::GetCurrentPosInMS() {
     pos += m_currentSection->at(m_sectionPosition)->GetElapsedMS();
     //if we aren't in the LeadIn, add the time of the LeadIn
     if (m_currentSectionStr != "LeadIn") {
-        for (auto &a : m_leadIn) {
+        for (auto& a : m_leadIn) {
             pos += a->GetLengthInMS();
         }
     } else {
@@ -1426,7 +1379,7 @@ uint64_t Playlist::GetCurrentPosInMS() {
     }
     if (m_currentSectionStr != "MainPlaylist") {
         // must be in the leadOut, add the main list length
-        for (auto &a : m_mainPlaylist) {
+        for (auto& a : m_mainPlaylist) {
             pos += a->GetLengthInMS();
         }
     }
@@ -1437,13 +1390,13 @@ uint64_t Playlist::GetPosStartInMS(int pos) {
 
     pos--;
     if (m_currentSectionStr != "LeadIn") {
-        for (auto &a : m_leadIn) {
+        for (auto& a : m_leadIn) {
             ms += a->GetLengthInMS();
             pos--;
         }
     }
     if (m_currentSectionStr != "MainPlaylist") {
-        for (auto &a : m_mainPlaylist) {
+        for (auto& a : m_mainPlaylist) {
             ms += a->GetLengthInMS();
             pos--;
         }
@@ -1454,225 +1407,213 @@ uint64_t Playlist::GetPosStartInMS(int pos) {
     return ms;
 }
 
-
-
-Json::Value Playlist::GetMqttStatusJSON(void){
+Json::Value Playlist::GetMqttStatusJSON(void) {
     // this is called on background thread, need to lock
-    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
-	Json::Value result;
-	result["status"] = m_currentState; // Works because single playlist
-	Json::Value playlistArray =  Json::Value(Json::arrayValue);
+    Json::Value result;
+    result["status"] = m_currentState; // Works because single playlist
+    Json::Value playlistArray = Json::Value(Json::arrayValue);
 
-	if (m_currentState != "idle") {
-		Json::Value entryArray =  Json::Value(Json::arrayValue);
-		Json::Value playlist;
-		// Only one entry right now.
-		Json::Value playlistEntry = m_currentSection->at(m_sectionPosition)->GetMqttStatus();
-		entryArray.append(playlistEntry);
+    if (m_currentState != "idle") {
+        Json::Value entryArray = Json::Value(Json::arrayValue);
+        Json::Value playlist;
+        // Only one entry right now.
+        Json::Value playlistEntry = m_currentSection->at(m_sectionPosition)->GetMqttStatus();
+        entryArray.append(playlistEntry);
 
-		playlist["name"] = m_name;
-		playlist["repeat"] = m_repeat;
-		playlist["description"] = m_desc;
-		playlist["currentItems"] = entryArray;
-		playlistArray.append(playlist);
-	}
+        playlist["name"] = m_name;
+        playlist["repeat"] = m_repeat;
+        playlist["description"] = m_desc;
+        playlist["currentItems"] = entryArray;
+        playlistArray.append(playlist);
+    }
 
-	result["activePlaylists"] = playlistArray;
-	return result;
+    result["activePlaylists"] = playlistArray;
+    return result;
 }
 
 /*
  *
  */
-Json::Value Playlist::GetInfo(void)
-{
-	Json::Value result;
+Json::Value Playlist::GetInfo(void) {
+    Json::Value result;
 
-	result["currentState"] = m_currentState;
+    result["currentState"] = m_currentState;
 
-	if (m_currentState == "idle") {
-		result["name"] = "";
-		result["desc"] = "";
-		result["repeat"] = 0;
-		result["loop"] = 0;
-		result["loopCount"] = 0;
-		result["random"] = 0;
-		result["blankBetweenSequences"] = 0;
-		result["blankBetweenIterations"] = 0;
-		result["blankAtEnd"] = 0;
-		result["size"] = 0;
+    if (m_currentState == "idle") {
+        result["name"] = "";
+        result["desc"] = "";
+        result["repeat"] = 0;
+        result["loop"] = 0;
+        result["loopCount"] = 0;
+        result["random"] = 0;
+        result["blankBetweenSequences"] = 0;
+        result["blankBetweenIterations"] = 0;
+        result["blankAtEnd"] = 0;
+        result["size"] = 0;
     } else {
-		result["name"] = m_name;
-		result["desc"] = m_desc;
-		result["repeat"] = m_repeat;
-		result["loop"] = m_loop;
-		result["loopCount"] = m_loopCount;
-		result["random"] = m_random;
-		result["blankBetweenSequences"] = m_blankBetweenSequences;
-		result["blankBetweenIterations"] = m_blankBetweenIterations;
-		result["blankAtEnd"] = m_blankAtEnd;
-		result["size"] = GetSize();
-	}
+        result["name"] = m_name;
+        result["desc"] = m_desc;
+        result["repeat"] = m_repeat;
+        result["loop"] = m_loop;
+        result["loopCount"] = m_loopCount;
+        result["random"] = m_random;
+        result["blankBetweenSequences"] = m_blankBetweenSequences;
+        result["blankBetweenIterations"] = m_blankBetweenIterations;
+        result["blankAtEnd"] = m_blankAtEnd;
+        result["size"] = GetSize();
+    }
 
-	result["currentEntry"] = GetCurrentEntry();
+    result["currentEntry"] = GetCurrentEntry();
 
-	return result;
+    return result;
 }
 
 /*
  *
  */
-std::string Playlist::GetConfigStr(void)
-{
-	std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+std::string Playlist::GetConfigStr(void) {
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
-	return SaveJsonToString(GetConfig());
+    return SaveJsonToString(GetConfig());
 }
 
 /*
  *
  */
-Json::Value Playlist::GetConfig(void)
-{
-	Json::Value result = GetInfo();
+Json::Value Playlist::GetConfig(void) {
+    Json::Value result = GetInfo();
 
-// FIXME, need to test the performance of not having this on the Pi/BBB
-//	if (m_configTime > m_fileTime)
-//		return m_config;
+    // FIXME, need to test the performance of not having this on the Pi/BBB
+    //	if (m_configTime > m_fileTime)
+    //		return m_config;
 
-	if (m_leadIn.size()) {
-		Json::Value jsonArray(Json::arrayValue);
-		for (int c = 0; c < m_leadIn.size(); c++)
-			jsonArray.append(m_leadIn[c]->GetConfig());
+    if (m_leadIn.size()) {
+        Json::Value jsonArray(Json::arrayValue);
+        for (int c = 0; c < m_leadIn.size(); c++)
+            jsonArray.append(m_leadIn[c]->GetConfig());
 
-		result["leadIn"] = jsonArray;
-	}
+        result["leadIn"] = jsonArray;
+    }
 
-	if (m_mainPlaylist.size()) {
-		Json::Value jsonArray(Json::arrayValue);
-		for (int c = 0; c < m_mainPlaylist.size(); c++)
-			jsonArray.append(m_mainPlaylist[c]->GetConfig());
+    if (m_mainPlaylist.size()) {
+        Json::Value jsonArray(Json::arrayValue);
+        for (int c = 0; c < m_mainPlaylist.size(); c++)
+            jsonArray.append(m_mainPlaylist[c]->GetConfig());
 
-		result["mainPlaylist"] = jsonArray;
-	}
+        result["mainPlaylist"] = jsonArray;
+    }
 
-	if (m_leadOut.size()) {
-		Json::Value jsonArray(Json::arrayValue);
-		for (int c = 0; c < m_leadOut.size(); c++)
-			jsonArray.append(m_leadOut[c]->GetConfig());
+    if (m_leadOut.size()) {
+        Json::Value jsonArray(Json::arrayValue);
+        for (int c = 0; c < m_leadOut.size(); c++)
+            jsonArray.append(m_leadOut[c]->GetConfig());
 
-		result["leadOut"] = jsonArray;
-	}
+        result["leadOut"] = jsonArray;
+    }
 
-	m_configTime = time(NULL);
-	result["configTime"] = (Json::UInt64)m_configTime;
+    m_configTime = time(NULL);
+    result["configTime"] = (Json::UInt64)m_configTime;
 
     result["random"] = m_random;
 
-	result["playlistInfo"] = m_playlistInfo;
-	m_config = result;
+    result["playlistInfo"] = m_playlistInfo;
+    m_config = result;
 
-	return result;
+    return result;
 }
-
 
 /*
  *
  */
-int Playlist::MQTTHandler(std::string topic, std::string msg)
-{
-	LogDebug(VB_PLAYLIST, "Playlist::MQTTHandler('%s', '%s') while playing '%s'\n",
-		topic.c_str(), msg.c_str(), m_name.c_str());
+int Playlist::MQTTHandler(std::string topic, std::string msg) {
+    LogDebug(VB_PLAYLIST, "Playlist::MQTTHandler('%s', '%s') while playing '%s'\n",
+             topic.c_str(), msg.c_str(), m_name.c_str());
 
-	// note the leading /set/playlist will be removed from topic by now
+    // note the leading /set/playlist will be removed from topic by now
 
-	int pos = topic.find("/");
-	if (pos == std::string::npos) {
-		LogWarn(VB_PLAYLIST, "Ignoring Invalid playlist topic: playlist/%s\n", 
-			topic.c_str());
-		return 0;
-	}
-	std::string newPlaylistName = topic.substr(0,pos);
-	std::string topicEnd = topic.substr(pos);
+    int pos = topic.find("/");
+    if (pos == std::string::npos) {
+        LogWarn(VB_PLAYLIST, "Ignoring Invalid playlist topic: playlist/%s\n",
+                topic.c_str());
+        return 0;
+    }
+    std::string newPlaylistName = topic.substr(0, pos);
+    std::string topicEnd = topic.substr(pos);
 
-	/*
+    /*
 	 * NOTE: This because multiple playlist are not supported, the newPlaylistname value
 	 * is only considered when starting a playlist.  All other actions will
 	 * apply to the current running playlist even if the names don't match
 	 */
 
+    // ALLPLAYLIST should be checked first to avoid name colision.
+    if (topic == "ALLPLAYLISTS/stop/now") {
+        StopNow(1);
 
-	// ALLPLAYLIST should be checked first to avoid name colision.
-	if (topic == "ALLPLAYLISTS/stop/now") {
-		StopNow(1);
+    } else if (topic == "ALLPLAYLISTS/stop/graceful") {
+        StopGracefully(1);
 
-	} else if (topic == "ALLPLAYLISTS/stop/graceful") {
-		StopGracefully(1);
+    } else if (topic == "ALLPLAYLISTS/stop/afterloop") {
+        StopGracefully(1, 1);
 
-	} else if (topic == "ALLPLAYLISTS/stop/afterloop") {
-		StopGracefully(1,1);
+    } else if (topicEnd == "/next") {
+        NextItem();
 
-	} else if (topicEnd == "/next") {
-		NextItem();
+    } else if (topicEnd == "/prev") {
+        PrevItem();
 
-	} else if (topicEnd == "/prev") {
-		PrevItem();
+    } else if (topicEnd == "/repeat") {
+        SetRepeat(atoi(msg.c_str()));
 
-	} else if (topicEnd == "/repeat") {
-		SetRepeat(atoi(msg.c_str()));
+    } else if (topicEnd == "/startPosition") {
+        SetPosition(atoi(msg.c_str()));
 
-	} else if (topicEnd == "/startPosition") {
-		SetPosition(atoi(msg.c_str()));
+    } else if (topicEnd == "/stop/now") {
+        StopNow(1);
 
-	} else if (topicEnd == "/stop/now") {
-		StopNow(1);
+    } else if (topicEnd == "/stop/graceful") {
+        StopGracefully(1);
 
-	} else if (topicEnd == "/stop/graceful") {
-		StopGracefully(1);
+    } else if (topicEnd == "/stop/afterloop") {
+        StopGracefully(1, 1);
 
-	} else if (topicEnd == "/stop/afterloop") {
-		StopGracefully(1,1);
+        // These three are depgrecated and should be removed
+    } else if (topic == "name/set") {
+        LogInfo(VB_CONTROL, "playlist/%s is deprecated and will be removed in a future release\n",
+                topic.c_str());
+        Play(msg.c_str(), m_sectionPosition, m_repeat);
 
-	// These three are depgrecated and should be removed
-	} else if (topic == "name/set") {
-	        LogInfo(VB_CONTROL, "playlist/%s is deprecated and will be removed in a future release\n",
-		topic.c_str());
-		Play(msg.c_str(), m_sectionPosition, m_repeat);
+    } else if (topic == "repeat/set") {
+        LogInfo(VB_PLAYLIST, "playlist/%s is deprecated and will be removed in a future release\n",
+                topic.c_str());
+        SetRepeat(atoi(msg.c_str()));
 
-	} else if (topic == "repeat/set") {
-	        LogInfo(VB_PLAYLIST, "playlist/%s is deprecated and will be removed in a future release\n",
-		topic.c_str());
-		SetRepeat(atoi(msg.c_str()));
-		
-	} else if (topic == "sectionPosition/set") {
-	        LogInfo(VB_PLAYLIST, "playlist/%s is deprecated and will be removed in a future release\n",
-		topic.c_str());
-		SetPosition(atoi(msg.c_str()));
+    } else if (topic == "sectionPosition/set") {
+        LogInfo(VB_PLAYLIST, "playlist/%s is deprecated and will be removed in a future release\n",
+                topic.c_str());
+        SetPosition(atoi(msg.c_str()));
 
-	} else {
-		LogWarn(VB_PLAYLIST, "Ignoring Invalid playlist topic: playlist/%s\n", topic.c_str());
-		return 0;	
-	}
+    } else {
+        LogWarn(VB_PLAYLIST, "Ignoring Invalid playlist topic: playlist/%s\n", topic.c_str());
+        return 0;
+    }
 
-	return 1;
+    return 1;
 }
-
 
 /*
  *
  */
-std::string Playlist::ReplaceMatches(std::string in)
-{
-	std::string out = in;
+std::string Playlist::ReplaceMatches(std::string in) {
+    std::string out = in;
 
-	LogDebug(VB_PLAYLIST, "In: '%s'\n", in.c_str());
+    LogDebug(VB_PLAYLIST, "In: '%s'\n", in.c_str());
 
-	// FIXME, Playlist
+    // FIXME, Playlist
 
-	LogDebug(VB_PLAYLIST, "Out: '%s'\n", out.c_str());
+    LogDebug(VB_PLAYLIST, "Out: '%s'\n", out.c_str());
 
-	return out;
+    return out;
 }
-
-

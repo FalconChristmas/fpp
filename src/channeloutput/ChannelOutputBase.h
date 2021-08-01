@@ -24,36 +24,34 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <functional>
 #include <string>
 #include <vector>
-#include <functional>
 
 #include <jsoncpp/json/json.h>
 
-
 class ChannelOutputBase {
-  public:
-	ChannelOutputBase(unsigned int startChannel = 1,
-		unsigned int channelCount = 1);
-	virtual ~ChannelOutputBase();
+public:
+    ChannelOutputBase(unsigned int startChannel = 1,
+                      unsigned int channelCount = 1);
+    virtual ~ChannelOutputBase();
 
-	unsigned int  ChannelCount(void) { return m_channelCount; }
-	unsigned int  StartChannel(void) { return m_startChannel; }
+    unsigned int ChannelCount(void) { return m_channelCount; }
+    unsigned int StartChannel(void) { return m_startChannel; }
 
-    virtual int   Init(Json::Value config);
-    virtual int   Close(void);
-    
-    virtual void  PrepData(unsigned char *channelData) {}
-	virtual int   SendData(unsigned char *channelData) = 0;
+    virtual int Init(Json::Value config);
+    virtual int Close(void);
 
+    virtual void PrepData(unsigned char* channelData) {}
+    virtual int SendData(unsigned char* channelData) = 0;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) = 0;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) = 0;
 
-  protected:
-	virtual void  DumpConfig(void);
-    virtual void  ConvertToCSV(Json::Value config, char *configStr);
+protected:
+    virtual void DumpConfig(void);
+    virtual void ConvertToCSV(Json::Value config, char* configStr);
 
-	std::string      m_outputType;
-	unsigned int     m_startChannel;
-	unsigned int     m_channelCount;
+    std::string m_outputType;
+    unsigned int m_startChannel;
+    unsigned int m_channelCount;
 };

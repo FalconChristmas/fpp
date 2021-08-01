@@ -32,22 +32,20 @@
 
 #include "X11PixelStrings.h"
 
-
 /////////////////////////////////////////////////////////////////////////////
 
 extern "C" {
-    X11PixelStringsOutput *createX11PixelStringsOutput(unsigned int startChannel,
-                                           unsigned int channelCount) {
-        return new X11PixelStringsOutput(startChannel, channelCount);
-    }
+X11PixelStringsOutput* createX11PixelStringsOutput(unsigned int startChannel,
+                                                   unsigned int channelCount) {
+    return new X11PixelStringsOutput(startChannel, channelCount);
 }
-
+}
 
 /*
  *
  */
-X11PixelStringsOutput::X11PixelStringsOutput(unsigned int startChannel, unsigned int channelCount)
-  : ThreadedChannelOutputBase(startChannel, channelCount),
+X11PixelStringsOutput::X11PixelStringsOutput(unsigned int startChannel, unsigned int channelCount) :
+    ThreadedChannelOutputBase(startChannel, channelCount),
     m_display(NULL),
     m_screen(0),
     m_xImage(NULL),
@@ -55,55 +53,50 @@ X11PixelStringsOutput::X11PixelStringsOutput(unsigned int startChannel, unsigned
     m_scaledWidth(0),
     m_scaledHeight(0),
     m_fbp(NULL),
-	m_longestString(0),
-	m_pixels(0)
-{
-	LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::X11PixelStringsOutput(%u, %u)\n",
-		startChannel, channelCount);
+    m_longestString(0),
+    m_pixels(0) {
+    LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::X11PixelStringsOutput(%u, %u)\n",
+             startChannel, channelCount);
 
-	XInitThreads();
+    XInitThreads();
 }
 
 /*
  *
  */
-X11PixelStringsOutput::~X11PixelStringsOutput()
-{
-	LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::~X11PixelStringsOutput()\n");
+X11PixelStringsOutput::~X11PixelStringsOutput() {
+    LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::~X11PixelStringsOutput()\n");
 
-	for (int s = 0; s < m_strings.size(); s++)
-		delete m_strings[s];
+    for (int s = 0; s < m_strings.size(); s++)
+        delete m_strings[s];
 
     DestroyX11Window();
 }
 
-
 /*
  *
  */
-int X11PixelStringsOutput::Init(Json::Value config)
-{
-	LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::Init(JSON)\n");
+int X11PixelStringsOutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::Init(JSON)\n");
 
-	int pixels = 0;
-	for (int i = 0; i < config["outputs"].size(); i++)
-	{
-		Json::Value s = config["outputs"][i];
-		PixelString *newString = new PixelString();
+    int pixels = 0;
+    for (int i = 0; i < config["outputs"].size(); i++) {
+        Json::Value s = config["outputs"][i];
+        PixelString* newString = new PixelString();
 
-		if (!newString->Init(s))
-			return 0;
+        if (!newString->Init(s))
+            return 0;
 
-		pixels = newString->m_outputChannels / 3;
-		m_pixels += pixels;
+        pixels = newString->m_outputChannels / 3;
+        m_pixels += pixels;
 
-		if (pixels > m_longestString)
-			m_longestString = pixels;
+        if (pixels > m_longestString)
+            m_longestString = pixels;
 
-		m_strings.push_back(newString);
-	}
+        m_strings.push_back(newString);
+    }
 
-	LogDebug(VB_CHANNELOUT, "   Fount %d strings of pixels\n", m_strings.size());
+    LogDebug(VB_CHANNELOUT, "   Fount %d strings of pixels\n", m_strings.size());
 
     // Window size
     m_scaledWidth = m_longestString * m_scale;
@@ -113,80 +106,75 @@ int X11PixelStringsOutput::Init(Json::Value config)
         return 0;
     }
 
-	return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
  *
  */
-int X11PixelStringsOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::Close()\n");
+int X11PixelStringsOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::Close()\n");
 
-	return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutputBase::Close();
 }
 
-int X11PixelStringsOutput::InitializeX11Window(void)
-{
-	if ((m_scaledWidth == 0) || (m_scaledHeight == 0))
-	{
-		m_scaledWidth = 50 * m_scale;
-		m_scaledHeight = 16 * m_scale;
-	}
+int X11PixelStringsOutput::InitializeX11Window(void) {
+    if ((m_scaledWidth == 0) || (m_scaledHeight == 0)) {
+        m_scaledWidth = 50 * m_scale;
+        m_scaledHeight = 16 * m_scale;
+    }
 
-	// Initialize X11 Window here
-	m_title = "X11 Pixel Strings";
-    
-    const char *dsp = getenv("DISPLAY");
+    // Initialize X11 Window here
+    m_title = "X11 Pixel Strings";
+
+    const char* dsp = getenv("DISPLAY");
     if (dsp == nullptr) {
         dsp = ":0";
     }
-	m_display = XOpenDisplay(dsp);
-	if (!m_display)
-	{
+    m_display = XOpenDisplay(dsp);
+    if (!m_display) {
         LogErr(VB_CHANNELOUT, "Unable to connect to X Server: %s\n", dsp);
-		return 0;
-	}
+        return 0;
+    }
 
-	m_screen = DefaultScreen(m_display);
+    m_screen = DefaultScreen(m_display);
 
-	m_fbp = (char *)calloc(m_scaledWidth * m_scaledHeight * 4, 1);
+    m_fbp = (char*)calloc(m_scaledWidth * m_scaledHeight * 4, 1);
 
-	m_xImage = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
-		(char *)m_fbp, m_scaledWidth, m_scaledHeight, 32, m_scaledWidth * 4);
+    m_xImage = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
+                            (char*)m_fbp, m_scaledWidth, m_scaledHeight, 32, m_scaledWidth * 4);
 
-	XSetWindowAttributes attributes;
+    XSetWindowAttributes attributes;
 
-	attributes.background_pixel = BlackPixel(m_display, m_screen);
+    attributes.background_pixel = BlackPixel(m_display, m_screen);
 
-	XGCValues values;
+    XGCValues values;
 
-	m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display), m_scaledWidth, m_scaledHeight, 24);
+    m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display), m_scaledWidth, m_scaledHeight, 24);
 
-	m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
+    m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
     int32_t tgc = reinterpret_cast<uintptr_t>(m_gc);
     if (tgc < 0) {
-		LogErr(VB_CHANNELOUT, "Unable to create GC\n");
-		return 0;
-	}
+        LogErr(VB_CHANNELOUT, "Unable to create GC\n");
+        return 0;
+    }
 
-	m_window = XCreateWindow(
-		m_display, RootWindow(m_display, m_screen), m_scaledWidth, m_scaledHeight,
-		m_scaledWidth, m_scaledHeight, 5, 24, InputOutput,
-		DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
+    m_window = XCreateWindow(
+        m_display, RootWindow(m_display, m_screen), m_scaledWidth, m_scaledHeight,
+        m_scaledWidth, m_scaledHeight, 5, 24, InputOutput,
+        DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
 
-	XMapWindow(m_display, m_window);
+    XMapWindow(m_display, m_window);
 
-	XStoreName(m_display, m_window, m_title.c_str());
-	XSetIconName(m_display, m_window, m_title.c_str());
+    XStoreName(m_display, m_window, m_title.c_str());
+    XSetIconName(m_display, m_window, m_title.c_str());
 
-	XFlush(m_display);
+    XFlush(m_display);
 
-	return 1;
+    return 1;
 }
 
-void X11PixelStringsOutput::DestroyX11Window(void)
-{
+void X11PixelStringsOutput::DestroyX11Window(void) {
     if (m_display) {
         XDestroyWindow(m_display, m_window);
         XFreePixmap(m_display, m_pixmap);
@@ -196,11 +184,11 @@ void X11PixelStringsOutput::DestroyX11Window(void)
     }
 }
 
-void X11PixelStringsOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+void X11PixelStringsOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     int min = FPPD_MAX_CHANNELS;
     int max = 0;
-    
-    PixelString *ps = NULL;
+
+    PixelString* ps = NULL;
     for (int s = 0; s < m_strings.size(); s++) {
         ps = m_strings[s];
         int inCh = 0;
@@ -220,32 +208,31 @@ void X11PixelStringsOutput::GetRequiredChannelRanges(const std::function<void(in
 /*
  *
  */
-void X11PixelStringsOutput::PrepData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "X11PixelStringsOutput::RawSendData(%p)\n", channelData);
+void X11PixelStringsOutput::PrepData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "X11PixelStringsOutput::RawSendData(%p)\n", channelData);
 
-	unsigned char *c = channelData;
-	unsigned char r = 0;
-	unsigned char g = 0;
-	unsigned char b = 0;
-	int stride = m_scaledWidth * 4; // RGBA
-	unsigned char *d = (unsigned char*)m_fbp;
-    unsigned char *l = d;
+    unsigned char* c = channelData;
+    unsigned char r = 0;
+    unsigned char g = 0;
+    unsigned char b = 0;
+    int stride = m_scaledWidth * 4; // RGBA
+    unsigned char* d = (unsigned char*)m_fbp;
+    unsigned char* l = d;
 
-	PixelString *ps = NULL;
-	int inCh = 0;
+    PixelString* ps = NULL;
+    int inCh = 0;
 
-	for (int s = 0; s < m_strings.size(); s++) {
-		ps = m_strings[s];
+    for (int s = 0; s < m_strings.size(); s++) {
+        ps = m_strings[s];
 
-		d = (unsigned char *)m_fbp + (s * stride * m_scale);
+        d = (unsigned char*)m_fbp + (s * stride * m_scale);
         l = d;
-		inCh = 0;
+        inCh = 0;
 
-		for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++) {
-			r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-			g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-			b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+        for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++) {
+            r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+            g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+            b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
 
             // scale horizontally by duplicating pixels
             for (int i = 0; i < m_scale; i++) {
@@ -255,35 +242,32 @@ void X11PixelStringsOutput::PrepData(unsigned char *channelData)
                 *(d++) = r;
                 d++;
             }
-		}
+        }
 
         // scale vertically by duplicating rows
-        for (int i = 0; i < (m_scale - 1); i++)  {
+        for (int i = 0; i < (m_scale - 1); i++) {
             memcpy(d, l, stride);
             d += stride;
         }
-	}
+    }
 }
 
-int X11PixelStringsOutput::RawSendData(unsigned char *channelData)
-{
+int X11PixelStringsOutput::RawSendData(unsigned char* channelData) {
     SyncDisplay();
 
-	return m_channelCount;
+    return m_channelCount;
 }
 
 /*
  *
  */
-void X11PixelStringsOutput::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::DumpConfig()\n");
+void X11PixelStringsOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::DumpConfig()\n");
 
-	for (int i = 0; i < m_strings.size(); i++) {
-		LogDebug(VB_CHANNELOUT, "    String #%d\n", i);
-		m_strings[i]->DumpConfig();
-	}
+    for (int i = 0; i < m_strings.size(); i++) {
+        LogDebug(VB_CHANNELOUT, "    String #%d\n", i);
+        m_strings[i]->DumpConfig();
+    }
 
-	ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutputBase::DumpConfig();
 }
-

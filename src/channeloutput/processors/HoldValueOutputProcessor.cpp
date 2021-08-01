@@ -14,35 +14,33 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <string.h>
+#include "fpp-pch.h"
 
 #include "HoldValueOutputProcessor.h"
-#include "log.h"
 
-HoldValueOutputProcessor::HoldValueOutputProcessor(const Json::Value &config) {
+HoldValueOutputProcessor::HoldValueOutputProcessor(const Json::Value& config) {
     description = config["desription"].asString();
     active = config["active"].asInt() ? true : false;
     start = config["start"].asInt();
     count = config["count"].asInt();
     LogInfo(VB_CHANNELOUT, "Hold Channel Values:   %d-%d\n",
             start, start + count - 1);
-    
+
     //channel numbers need to be 0 based
     --start;
-    
+
     lastValues = new unsigned char[count];
 }
 
 HoldValueOutputProcessor::~HoldValueOutputProcessor() {
-    delete [] lastValues;
+    delete[] lastValues;
 }
 
-void HoldValueOutputProcessor::ProcessData(unsigned char *channelData) const {
+void HoldValueOutputProcessor::ProcessData(unsigned char* channelData) const {
     for (int x = 0; x < count; x++) {
         if (channelData[x + start] == 0) {
             channelData[x + start] = lastValues[x];
-        } else  {
+        } else {
             lastValues[x] = channelData[x + start];
         }
     }

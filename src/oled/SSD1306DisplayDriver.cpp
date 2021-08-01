@@ -1,9 +1,9 @@
 #include "fpp-pch.h"
 
-#include "I2C.h"
-#include "SSD1306_OLED.h"
 #include "DisplayDriver.h"
+#include "I2C.h"
 #include "RobotoFont-14.h"
+#include "SSD1306_OLED.h"
 
 extern I2C_DeviceT I2C_DEV_2;
 #ifdef PLATFORM_BBB
@@ -13,8 +13,8 @@ extern I2C_DeviceT I2C_DEV_2;
 #define I2C_DEV_PATH I2C_DEV1_PATH
 #endif
 
-
-SSD1306DisplayDriver::SSD1306DisplayDriver(int lt) : DisplayDriver(lt) {
+SSD1306DisplayDriver::SSD1306DisplayDriver(int lt) :
+    DisplayDriver(lt) {
     LED_DISPLAY_WIDTH = 128;
     LED_DISPLAY_HEIGHT = 64;
     if (ledType == 3 || ledType == 4) {
@@ -28,7 +28,6 @@ SSD1306DisplayDriver::SSD1306DisplayDriver(int lt) : DisplayDriver(lt) {
     }
 }
 SSD1306DisplayDriver::~SSD1306DisplayDriver() {
-    
 }
 int SSD1306DisplayDriver::getWidth() {
     return LED_DISPLAY_WIDTH;
@@ -37,7 +36,7 @@ int SSD1306DisplayDriver::getHeight() {
     return LED_DISPLAY_HEIGHT;
 }
 
-bool SSD1306DisplayDriver::initialize(int &i2cBus) {
+bool SSD1306DisplayDriver::initialize(int& i2cBus) {
     if (init_i2c_dev2(I2C_DEV_PATH, SSD1306_OLED_ADDR) != 0) {
         printf("(Main)i2c: OOPS! Something Went Wrong\n");
         return false;
@@ -59,7 +58,7 @@ bool SSD1306DisplayDriver::initialize(int &i2cBus) {
             printf("(Main)i2c1: OOPS! Something Went Wrong\n");
             return false;
         }
-        if (display_Init_seq() )  {
+        if (display_Init_seq()) {
             printf("Could not initialize display\n");
             return false;
         }
@@ -79,12 +78,12 @@ bool SSD1306DisplayDriver::initialize(int &i2cBus) {
     return true;
 }
 
-void SSD1306DisplayDriver::printString(int x, int y, const std::string &str, bool white) {
+void SSD1306DisplayDriver::printString(int x, int y, const std::string& str, bool white) {
     setTextColor(white ? WHITE : BLACK);
     setCursor(x, y);
     print_str(str.c_str());
 }
-void SSD1306DisplayDriver::printStringCentered(int y, const std::string &str, bool white) {
+void SSD1306DisplayDriver::printStringCentered(int y, const std::string& str, bool white) {
     setTextColor(white ? WHITE : BLACK);
     int len = getTextWidth(str.c_str());
     len /= 2;
@@ -98,7 +97,7 @@ void SSD1306DisplayDriver::drawLine(short x0, short y0, short x1, short y1, bool
     ::drawLine(x0, y0, x1, y1, white ? WHITE : BLACK);
 }
 void SSD1306DisplayDriver::drawBitmap(short x, short y, const unsigned char bitmap[], short w, short h, bool white) {
-    ::drawBitmap(x,y , bitmap, w, h, white ? WHITE : BLACK);
+    ::drawBitmap(x, y, bitmap, w, h, white ? WHITE : BLACK);
 }
 void SSD1306DisplayDriver::drawRect(short x0, short y0, short x1, short y1, bool white) {
     ::drawRect(x0, y0, x1, y1, white ? WHITE : BLACK);
@@ -116,7 +115,7 @@ void SSD1306DisplayDriver::displayOff() {
     ::clearDisplay();
     ::Display();
 }
-bool SSD1306DisplayDriver::setFont(const std::string &f) {
+bool SSD1306DisplayDriver::setFont(const std::string& f) {
     if (f == "") {
         setTextFont(nullptr);
         return true;
@@ -127,4 +126,3 @@ bool SSD1306DisplayDriver::setFont(const std::string &f) {
     }
     return false;
 }
-

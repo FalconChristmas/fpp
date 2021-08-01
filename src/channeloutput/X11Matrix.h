@@ -29,33 +29,33 @@
 #include "ThreadedChannelOutputBase.h"
 
 class X11MatrixOutput : public ThreadedChannelOutputBase {
-  public:
-	X11MatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~X11MatrixOutput();
+public:
+    X11MatrixOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~X11MatrixOutput();
 
-	virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual int RawSendData(unsigned char *channelData) override;
+    virtual int RawSendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void  GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-  	int         m_width;
-	int         m_height;
-	int         m_scale;
-	int         m_scaleWidth;
-	int         m_scaleHeight;
-	char       *m_imageData;
+private:
+    int m_width;
+    int m_height;
+    int m_scale;
+    int m_scaleWidth;
+    int m_scaleHeight;
+    char* m_imageData;
 
-	Display    *m_display;
-	int         m_screen;
-	Window      m_window;
-	GC          m_gc;
-	Pixmap      m_pixmap;
-	XImage     *m_image;
+    Display* m_display;
+    int m_screen;
+    Window m_window;
+    GC m_gc;
+    Pixmap m_pixmap;
+    XImage* m_image;
 
-	std::string m_title;
+    std::string m_title;
 };

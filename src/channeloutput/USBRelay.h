@@ -29,28 +29,28 @@
 #include "ChannelOutputBase.h"
 
 class USBRelayOutput : public ChannelOutputBase {
-  public:
-	USBRelayOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~USBRelayOutput();
+public:
+    USBRelayOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~USBRelayOutput();
 
     virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Close(void) override;
 
-	virtual int SendData(unsigned char *channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-	enum RelayType {
-		RELAY_DVC_UNKNOWN,
-		RELAY_DVC_BIT,
-		RELAY_DVC_ICSTATION
-	};
+private:
+    enum RelayType {
+        RELAY_DVC_UNKNOWN,
+        RELAY_DVC_BIT,
+        RELAY_DVC_ICSTATION
+    };
 
-	std::string  m_deviceName;
-	int          m_fd;
-	RelayType    m_subType;
-	int          m_relayCount;
+    std::string m_deviceName;
+    int m_fd;
+    RelayType m_subType;
+    int m_relayCount;
 };

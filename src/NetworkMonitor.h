@@ -18,10 +18,10 @@
 *   along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <map>
-#include <list>
-#include <string>
 #include <functional>
+#include <list>
+#include <map>
+#include <string>
 
 class NetworkMonitor {
 public:
@@ -31,24 +31,21 @@ public:
         NEW_ADDR,
         DEL_ADDR
     };
-    
-    
-    NetworkMonitor() : curId(0) {}
+
+    NetworkMonitor() :
+        curId(0) {}
     ~NetworkMonitor() {}
-    
-    void Init(std::map<int, std::function<bool(int)>> &callbacks);
-    
-    int registerCallback(std::function<void(NetEventType, int, const std::string &)> &callback);
-    int addCallback(std::function<void(NetEventType, int, const std::string &)> &callback) { return registerCallback(callback); }
+
+    void Init(std::map<int, std::function<bool(int)>>& callbacks);
+
+    int registerCallback(std::function<void(NetEventType, int, const std::string&)>& callback);
+    int addCallback(std::function<void(NetEventType, int, const std::string&)>& callback) { return registerCallback(callback); }
     void removeCallback(int id);
 
     static NetworkMonitor INSTANCE;
-    
-    
+
 private:
-    void callCallbacks(NetEventType, int, const std::string &n);
-    std::map<int, std::function<void(NetEventType, int, const std::string &)>> callbacks;
+    void callCallbacks(NetEventType, int, const std::string& n);
+    std::map<int, std::function<void(NetEventType, int, const std::string&)>> callbacks;
     int curId;
 };
-
-

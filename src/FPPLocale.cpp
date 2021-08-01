@@ -1,9 +1,8 @@
-#include "fpp-pch.h"
 #include "FPPLocale.h"
+#include "fpp-pch.h"
 
 Json::Value LocaleHolder::locale;
 std::mutex LocaleHolder::localeLock;
-
 
 Json::Value LocaleHolder::GetLocale() {
     std::unique_lock<std::mutex> lock(localeLock);
@@ -32,4 +31,3 @@ Json::Value LocaleHolder::GetLocale() {
 
     return empty;
 }
-

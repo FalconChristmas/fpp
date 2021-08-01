@@ -29,25 +29,24 @@
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryEffect : public PlaylistEntryBase {
-  public:
-	PlaylistEntryEffect(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryEffect();
+public:
+    PlaylistEntryEffect(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntryEffect();
 
-	virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-	virtual int  StartPlaying(void) override;
-	virtual int  Process(void) override;
-	virtual int  Stop(void) override;
+    virtual int StartPlaying(void) override;
+    virtual int Process(void) override;
+    virtual int Stop(void) override;
 
-	virtual void Dump(void) override;
+    virtual void Dump(void) override;
 
-	virtual Json::Value GetConfig(void) override;
+    virtual Json::Value GetConfig(void) override;
 
-  private:
-	std::string m_effectName;
-	int         m_startChannel;
-	int         m_repeat;
-	int         m_blocking;
-	int         m_effectID;
+private:
+    std::string m_effectName;
+    int m_startChannel;
+    int m_repeat;
+    int m_blocking;
+    int m_effectID;
 };
-

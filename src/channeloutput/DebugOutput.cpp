@@ -23,77 +23,68 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "fpp-pch.h"
 #include "DebugOutput.h"
-
-
+#include "fpp-pch.h"
 
 extern "C" {
-    DebugOutput *createOutputDebug(unsigned int startChannel,
-                                   unsigned int channelCount) {
-        return new DebugOutput(startChannel, channelCount);
-    }
+DebugOutput* createOutputDebug(unsigned int startChannel,
+                               unsigned int channelCount) {
+    return new DebugOutput(startChannel, channelCount);
+}
 }
 
 /*
  *
  */
-DebugOutput::DebugOutput(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount)
-{
-	LogDebug(VB_CHANNELOUT, "DebugOutput::DebugOutput(%u, %u)\n",
-		startChannel, channelCount);
+DebugOutput::DebugOutput(unsigned int startChannel, unsigned int channelCount) :
+    ChannelOutputBase(startChannel, channelCount) {
+    LogDebug(VB_CHANNELOUT, "DebugOutput::DebugOutput(%u, %u)\n",
+             startChannel, channelCount);
 }
 
 /*
  *
  */
-DebugOutput::~DebugOutput()
-{
-	LogDebug(VB_CHANNELOUT, "DebugOutput::~DebugOutput()\n");
+DebugOutput::~DebugOutput() {
+    LogDebug(VB_CHANNELOUT, "DebugOutput::~DebugOutput()\n");
 }
 
 /*
  *
  */
-int DebugOutput::Init(Json::Value v)
-{
-	LogDebug(VB_CHANNELOUT, "DebugOutput::Init()\n");
+int DebugOutput::Init(Json::Value v) {
+    LogDebug(VB_CHANNELOUT, "DebugOutput::Init()\n");
 
-	// Call the base class' Init() method, do not remove this line.
-	return ChannelOutputBase::Init(v);
+    // Call the base class' Init() method, do not remove this line.
+    return ChannelOutputBase::Init(v);
 }
 
 /*
  *
  */
-int DebugOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "DebugOutput::Close()\n");
+int DebugOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "DebugOutput::Close()\n");
 
-	return ChannelOutputBase::Close();
+    return ChannelOutputBase::Close();
 }
 
 /*
  *
  */
-int DebugOutput::SendData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "DebugOutput::RawSendData(%p)\n", channelData);
+int DebugOutput::SendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "DebugOutput::RawSendData(%p)\n", channelData);
 
-	HexDump("DebugOutput::RawSendData", channelData, m_channelCount, VB_CHANNELOUT);
+    HexDump("DebugOutput::RawSendData", channelData, m_channelCount, VB_CHANNELOUT);
 
-	return m_channelCount;
+    return m_channelCount;
 }
 
 /*
  *
  */
-void DebugOutput::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "DebugOutput::DumpConfig()\n");
+void DebugOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "DebugOutput::DumpConfig()\n");
 
-	// Call the base class' DumpConfig() method, do not remove this line.
-	ChannelOutputBase::DumpConfig();
+    // Call the base class' DumpConfig() method, do not remove this line.
+    ChannelOutputBase::DumpConfig();
 }
-

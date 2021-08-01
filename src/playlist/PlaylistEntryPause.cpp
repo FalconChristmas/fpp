@@ -22,97 +22,91 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "fpp-pch.h"
+
 #include "PlaylistEntryPause.h"
 
 /*
  *
  */
-PlaylistEntryPause::PlaylistEntryPause(Playlist *playlist, PlaylistEntryBase *parent)
-  : PlaylistEntryBase(playlist, parent),
-	m_duration(0.0f),
-	m_startTime(0),
-	m_endTime(0),
-    m_pausedRemaining(0)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::PlaylistEntryPause()\n");
+PlaylistEntryPause::PlaylistEntryPause(Playlist* playlist, PlaylistEntryBase* parent) :
+    PlaylistEntryBase(playlist, parent),
+    m_duration(0.0f),
+    m_startTime(0),
+    m_endTime(0),
+    m_pausedRemaining(0) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryPause::PlaylistEntryPause()\n");
 
-	m_type = "pause";
+    m_type = "pause";
 }
 
 /*
  *
  */
-PlaylistEntryPause::~PlaylistEntryPause()
-{
+PlaylistEntryPause::~PlaylistEntryPause() {
 }
 
 /*
  *
  */
-int PlaylistEntryPause::Init(Json::Value &config)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Init()\n");
+int PlaylistEntryPause::Init(Json::Value& config) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Init()\n");
 
-	m_duration = config["duration"].asFloat();
-	m_endTime = 0;
-	m_finishTime = 0;
+    m_duration = config["duration"].asFloat();
+    m_endTime = 0;
+    m_finishTime = 0;
     m_pausedRemaining = 0;
-	return PlaylistEntryBase::Init(config);
+    return PlaylistEntryBase::Init(config);
 }
 
 /*
  *
  */
-int PlaylistEntryPause::StartPlaying(void)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::StartPlaying()\n");
+int PlaylistEntryPause::StartPlaying(void) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryPause::StartPlaying()\n");
 
-	if (!CanPlay())	{
-		FinishPlay();
-		return 0;
-	}
+    if (!CanPlay()) {
+        FinishPlay();
+        return 0;
+    }
     m_pausedRemaining = 0;
-	// Calculate end time as m_duation number of seconds from now
-	m_startTime = GetTimeMS();
-    
+    // Calculate end time as m_duation number of seconds from now
+    m_startTime = GetTimeMS();
+
     double tmp = m_duration;
     tmp *= 1000.0;
-	m_endTime = m_startTime + tmp;
+    m_endTime = m_startTime + tmp;
 
-	return PlaylistEntryBase::StartPlaying();
+    return PlaylistEntryBase::StartPlaying();
 }
 
 /*
  *
  */
-int PlaylistEntryPause::Process(void)
-{
+int PlaylistEntryPause::Process(void) {
     if (!m_isStarted || !m_isPlaying || m_isFinished) {
-		return 0;
+        return 0;
     }
 
     long long now = GetTimeMS();
-	if (m_isStarted && m_isPlaying && (now >= m_endTime)) {
-		m_finishTime = GetTimeMS();
-		FinishPlay();
-	}
+    if (m_isStarted && m_isPlaying && (now >= m_endTime)) {
+        m_finishTime = GetTimeMS();
+        FinishPlay();
+    }
 
-	return PlaylistEntryBase::Process();
+    return PlaylistEntryBase::Process();
 }
 
 /*
  *
  */
-int PlaylistEntryPause::Stop(void)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Stop()\n");
+int PlaylistEntryPause::Stop(void) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Stop()\n");
 
-	m_finishTime = GetTimeMS();
-	FinishPlay();
+    m_finishTime = GetTimeMS();
+    FinishPlay();
     m_pausedRemaining = 0;
-	return PlaylistEntryBase::Stop();
+    return PlaylistEntryBase::Stop();
 }
 
 uint64_t PlaylistEntryPause::GetLengthInMS() {
@@ -128,27 +122,24 @@ uint64_t PlaylistEntryPause::GetElapsedMS() {
     return 0;
 }
 
-
 /*
  *
  */
-void PlaylistEntryPause::Dump(void)
-{
-	PlaylistEntryBase::Dump();
+void PlaylistEntryPause::Dump(void) {
+    PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Duration:    %f\n", m_duration);
-	LogDebug(VB_PLAYLIST, "Cur Time:    %lld\n", GetTimeMS());
-	LogDebug(VB_PLAYLIST, "Start Time:  %lld\n", m_startTime);
-	LogDebug(VB_PLAYLIST, "End Time:    %lld\n", m_endTime);
-	LogDebug(VB_PLAYLIST, "Finish Time: %lld\n", m_finishTime);
+    LogDebug(VB_PLAYLIST, "Duration:    %f\n", m_duration);
+    LogDebug(VB_PLAYLIST, "Cur Time:    %lld\n", GetTimeMS());
+    LogDebug(VB_PLAYLIST, "Start Time:  %lld\n", m_startTime);
+    LogDebug(VB_PLAYLIST, "End Time:    %lld\n", m_endTime);
+    LogDebug(VB_PLAYLIST, "Finish Time: %lld\n", m_finishTime);
 }
 
 /*
  *
  */
-Json::Value PlaylistEntryPause::GetConfig(void)
-{
-	Json::Value result = PlaylistEntryBase::GetConfig();
+Json::Value PlaylistEntryPause::GetConfig(void) {
+    Json::Value result = PlaylistEntryBase::GetConfig();
 
     long long now = GetTimeMS();
     if (IsPaused()) {
@@ -156,20 +147,19 @@ Json::Value PlaylistEntryPause::GetConfig(void)
         float d = m_duration * 1000;
         m_startTime = m_endTime - d;
     }
-    
-	result["duration"] = m_duration;
-	result["startTime"] = (Json::UInt64)m_startTime;
-	result["endTime"] = (Json::UInt64)m_endTime;
-	result["finishTime"] = (Json::UInt64)m_finishTime;
 
-	if (m_isPlaying)
-		result["remaining"] = (Json::UInt64)((m_endTime - now) / 1000);
-	else
-		result["remaining"] = (Json::UInt64)0;
+    result["duration"] = m_duration;
+    result["startTime"] = (Json::UInt64)m_startTime;
+    result["endTime"] = (Json::UInt64)m_endTime;
+    result["finishTime"] = (Json::UInt64)m_finishTime;
 
-	return result;
+    if (m_isPlaying)
+        result["remaining"] = (Json::UInt64)((m_endTime - now) / 1000);
+    else
+        result["remaining"] = (Json::UInt64)0;
+
+    return result;
 }
-
 
 void PlaylistEntryPause::Pause() {
     long long now = GetTimeMS();

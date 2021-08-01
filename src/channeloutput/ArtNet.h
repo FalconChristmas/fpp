@@ -24,36 +24,36 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <sys/uio.h>
 #include <netinet/in.h>
+#include <sys/uio.h>
 #include <vector>
 
 #include "UDPOutput.h"
 
-#define ARTNET_HEADER_LENGTH         18
+#define ARTNET_HEADER_LENGTH 18
 
 class ArtNetOutputData : public UDPOutputData {
 public:
-    explicit ArtNetOutputData(const Json::Value &config);
+    explicit ArtNetOutputData(const Json::Value& config);
     virtual ~ArtNetOutputData();
-    
-    virtual bool IsPingable() override;
-    
-    virtual void PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) override;
-    virtual void PostPrepareData(unsigned char *channelData, UDPOutputMessages &msgs) override;
-    
-    virtual void DumpConfig() override;
-    virtual void GetRequiredChannelRange(int &min, int & max) override;
-    
-    virtual const std::string &GetOutputTypeString() const override;
 
-    int           universe;
-    int           universeCount;
-    int           priority;
-    char          sequenceNumber;
-    
-    sockaddr_in   anAddress;
-    
-    std::vector<struct iovec>  anIovecs;
-    std::vector<unsigned char *> anHeaders;
+    virtual bool IsPingable() override;
+
+    virtual void PrepareData(unsigned char* channelData, UDPOutputMessages& msgs) override;
+    virtual void PostPrepareData(unsigned char* channelData, UDPOutputMessages& msgs) override;
+
+    virtual void DumpConfig() override;
+    virtual void GetRequiredChannelRange(int& min, int& max) override;
+
+    virtual const std::string& GetOutputTypeString() const override;
+
+    int universe;
+    int universeCount;
+    int priority;
+    char sequenceNumber;
+
+    sockaddr_in anAddress;
+
+    std::vector<struct iovec> anIovecs;
+    std::vector<unsigned char*> anHeaders;
 };

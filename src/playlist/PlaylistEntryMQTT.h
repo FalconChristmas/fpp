@@ -29,19 +29,19 @@
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryMQTT : public PlaylistEntryBase {
-  public:
-	PlaylistEntryMQTT(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryMQTT();
+public:
+    PlaylistEntryMQTT(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntryMQTT();
 
-	virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-	virtual int  StartPlaying(void) override;
+    virtual int StartPlaying(void) override;
 
-	virtual void Dump(void) override;
+    virtual void Dump(void) override;
 
-	virtual Json::Value GetConfig(void) override;
+    virtual Json::Value GetConfig(void) override;
 
-  private:
-	std::string m_topic;
-	std::string m_message;
+private:
+    std::string m_topic;
+    std::string m_message;
 };

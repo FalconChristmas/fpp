@@ -25,16 +25,15 @@
  */
 #include <string>
 
-typedef enum FPPColorOrder
-{
-	kColorOrderRGB = 0,
-	kColorOrderRBG,
-	kColorOrderGRB,
-	kColorOrderGBR,
-	kColorOrderBRG,
-	kColorOrderBGR,
+typedef enum FPPColorOrder {
+    kColorOrderRGB = 0,
+    kColorOrderRBG,
+    kColorOrderGRB,
+    kColorOrderGBR,
+    kColorOrderBRG,
+    kColorOrderBGR,
     kColorOrderONE
 } FPPColorOrder;
 
-FPPColorOrder ColorOrderFromString(const std::string &colorOrderStr);
+FPPColorOrder ColorOrderFromString(const std::string& colorOrderStr);
 const std::string ColorOrderToString(FPPColorOrder colorOrder);

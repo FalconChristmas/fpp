@@ -5,9 +5,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include<sys/ioctl.h>
-#include<linux/i2c.h>
-#include<linux/i2c-dev.h>
+#include <linux/i2c-dev.h>
+#include <linux/i2c.h>
+#include <sys/ioctl.h>
 
 #include "util/I2CUtils.h"
 
@@ -17,7 +17,7 @@
 #define I2C_DEV 1
 #endif
 
-static std::string exec(const std::string &cmd) {
+static std::string exec(const std::string& cmd) {
     std::array<char, 128> buffer;
     std::string result;
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
@@ -32,7 +32,8 @@ static std::string exec(const std::string &cmd) {
 
 class Sensor {
 public:
-    explicit Sensor(Json::Value &s) : label(s["label"].asString())  {
+    explicit Sensor(Json::Value& s) :
+        label(s["label"].asString()) {
         if (s.isMember("prefix")) {
             prefix = s["prefix"].asString();
         }
@@ -47,13 +48,13 @@ public:
         }
     }
     virtual ~Sensor() {}
-        
-    Sensor(Sensor const &) = delete;
-    void operator=(Sensor const &x) = delete;
-    
+
+    Sensor(Sensor const&) = delete;
+    void operator=(Sensor const& x) = delete;
+
     virtual double getValue() = 0;
-    
-    void report(Json::Value &s) {
+
+    void report(Json::Value& s) {
         std::unique_lock<std::mutex> lock(sensorLock);
         Json::Value v;
         v["label"] = label;
@@ -65,9 +66,9 @@ public:
 
         std::ostringstream stringStream;
         stringStream << prefix
-            << std::fixed << std::setprecision( precision )
-            << d
-            << postfix;
+                     << std::fixed << std::setprecision(precision)
+                     << d
+                     << postfix;
         v["formatted"] = stringStream.str();
         s.append(v);
     }
@@ -81,9 +82,12 @@ public:
 
 class I2CSensor : public Sensor {
 public:
-    explicit I2CSensor(Json::Value &s) : Sensor(s), address(s["address"].asString()),
-        path(s["path"].asString()), driver(s["driver"].asString()), file(-1)  {
-        
+    explicit I2CSensor(Json::Value& s) :
+        Sensor(s),
+        address(s["address"].asString()),
+        path(s["path"].asString()),
+        driver(s["driver"].asString()),
+        file(-1) {
         if (s.isMember("multiplier")) {
             multiplier = s["multiplier"].asDouble();
         }
@@ -120,7 +124,7 @@ public:
             i2cUtils = new I2CUtils(bus, add);
         }
     }
-    bool CheckForFile(std::string &path) {
+    bool CheckForFile(std::string& path) {
         if (path.find("hwmon0") == std::string::npos) {
             return FileExists(path);
         }
@@ -140,7 +144,7 @@ public:
         }
         return false;
     }
-    
+
     virtual ~I2CSensor() {
         if (file != -1) {
             close(file);
@@ -155,7 +159,7 @@ public:
         std::string result = exec(buf);
         return result.find("--") == std::string::npos;
     }
-    
+
     virtual double getValue() override {
         if (i2cUtils) {
             int ret = i2cUtils->readWordData(0);
@@ -167,7 +171,7 @@ public:
                     t |= 0xFFFF0000;
                 }
                 t = t >> 5;
-                double d  = t;
+                double d = t;
                 d *= 0.125;
                 return d;
             }
@@ -182,21 +186,24 @@ public:
         }
         return 0.0;
     }
-    
+
     std::string address;
     std::string path;
     std::string driver;
     double multiplier = 1.0;
 
-    I2CUtils *i2cUtils = nullptr;
+    I2CUtils* i2cUtils = nullptr;
     volatile int file;
 };
 
 class AINSensor : public Sensor {
 public:
-    explicit AINSensor(Json::Value &s) : Sensor(s), errcount(0), address(s["address"].asString()),
-        path(s["path"].asString()), file(-1) {
-        
+    explicit AINSensor(Json::Value& s) :
+        Sensor(s),
+        errcount(0),
+        address(s["address"].asString()),
+        path(s["path"].asString()),
+        file(-1) {
         if (s.isMember("max")) {
             max = s["max"].asDouble();
         }
@@ -226,8 +233,8 @@ public:
             int i = read(file, buffer, 20);
             buffer[i] = 0;
             double d = atof(buffer);
-            
-            d /= 4096;  //12 bit a2d
+
+            d /= 4096; //12 bit a2d
             d *= (max - min + 1);
             d += min;
             return d;
@@ -236,26 +243,27 @@ public:
         return 0.0;
     }
 
-    
     std::string address;
     std::string path;
     std::string driver;
     double min = 0.0;
     double max = 100.0;
-    
+
     volatile int file;
     volatile int errcount;
 };
 
 class ThermalSensor : public Sensor {
 public:
-    explicit ThermalSensor(Json::Value &s) : Sensor(s), path(s["path"].asString()) {
+    explicit ThermalSensor(Json::Value& s) :
+        Sensor(s),
+        path(s["path"].asString()) {
         file = open(path.c_str(), O_RDONLY);
     }
     virtual ~ThermalSensor() {
         close(file);
     }
-    
+
     virtual double getValue() override {
         if (file != -1) {
             lseek(file, 0, SEEK_SET);
@@ -263,15 +271,14 @@ public:
             int i = read(file, buffer, 20);
             buffer[i] = 0;
             double d = atof(buffer);
-            
-            d /= 1000;  //12 bit a2d
+
+            d /= 1000; //12 bit a2d
             return d;
         }
-        
+
         return 0.0;
     }
-    
-    
+
     volatile int file;
     std::string path;
 };
@@ -280,13 +287,13 @@ Sensors Sensors::INSTANCE;
 
 void Sensors::Init() {
     int i = 0;
-    char path[256] = {0};
+    char path[256] = { 0 };
     sprintf(path, "/sys/class/thermal/thermal_zone%d/temp", i);
     while (FileExists(path)) {
         Json::Value v;
         v["path"] = path;
         v["valueType"] = "Temperature";
-        
+
         sprintf(path, "/sys/class/thermal/thermal_zone%d/type", i);
         if (FileExists(path)) {
             int file = open(path, O_RDONLY);
@@ -314,7 +321,6 @@ void Sensors::Init() {
         i++;
         sprintf(path, "/sys/class/thermal/thermal_zone%d/temp", i);
     }
-
 }
 void Sensors::Close() {
     for (auto x : sensors) {
@@ -323,7 +329,7 @@ void Sensors::Close() {
     sensors.clear();
 }
 
-Sensor* Sensors::createSensor(Json::Value &s) {
+Sensor* Sensors::createSensor(Json::Value& s) {
     if (s["type"].asString() == "i2c") {
         return new I2CSensor(s);
     } else if (s["type"].asString() == "ain") {
@@ -332,22 +338,21 @@ Sensor* Sensors::createSensor(Json::Value &s) {
     return nullptr;
 }
 
-void Sensors::addSensors(Json::Value &config) {
+void Sensors::addSensors(Json::Value& config) {
     for (int x = 0; x < config.size(); x++) {
         Json::Value v = config[x];
-        Sensor *sensor = createSensor(v);
+        Sensor* sensor = createSensor(v);
         if (sensor) {
             sensors.push_back(sensor);
         }
     }
 }
 
-void Sensors::reportSensors(Json::Value &root) {
+void Sensors::reportSensors(Json::Value& root) {
     if (!sensors.empty()) {
-        Json::Value &s = root["sensors"];
+        Json::Value& s = root["sensors"];
         for (auto a : sensors) {
             a->report(s);
         }
     }
 }
-

@@ -25,22 +25,22 @@ class LOREnhancedOutputData;
 class LOREnhancedOutputUnit;
 
 class LOREnhancedOutput : public ChannelOutputBase {
-    public:
+public:
     LOREnhancedOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~LOREnhancedOutput();
-    
+
     virtual int Init(Json::Value config) override;
-    
+
     virtual int Close(void) override;
-    
-    virtual int SendData(unsigned char *channelData) override;
-    
+
+    virtual int SendData(unsigned char* channelData) override;
+
     virtual void DumpConfig(void) override;
-    
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
-    private:
-    LOREnhancedOutputData *data;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-    void SendUnitData(unsigned char *channelData, LOREnhancedOutputUnit *unit);
+private:
+    LOREnhancedOutputData* data;
+
+    void SendUnitData(unsigned char* channelData, LOREnhancedOutputUnit* unit);
 };

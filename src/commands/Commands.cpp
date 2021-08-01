@@ -1,15 +1,18 @@
 #include "fpp-pch.h"
 
-
-#include "PlaylistCommands.h"
 #include "EventCommands.h"
 #include "MediaCommands.h"
 #include "MultiSync.h"
+#include "PlaylistCommands.h"
 
 CommandManager CommandManager::INSTANCE;
-Command::Command(const std::string &n) : name(n), description("") {
+Command::Command(const std::string& n) :
+    name(n),
+    description("") {
 }
-Command::Command(const std::string &n, const std::string &descript) : name(n), description(descript) {
+Command::Command(const std::string& n, const std::string& descript) :
+    name(n),
+    description(descript) {
 }
 Command::~Command() {}
 
@@ -19,13 +22,13 @@ Json::Value Command::getDescription() {
     if (description != "") {
         cmd["description"] = description;
     }
-    for (auto &ar : args) {
+    for (auto& ar : args) {
         Json::Value a;
         a["name"] = ar.name;
         a["type"] = ar.type;
         a["description"] = ar.description;
         a["optional"] = ar.optional;
-        
+
         if (ar.min != ar.max) {
             a["min"] = ar.min;
             a["max"] = ar.max;
@@ -34,7 +37,7 @@ Json::Value Command::getDescription() {
             a["contentListUrl"] = ar.contentListUrl;
             a["allowBlanks"] = ar.allowBlanks;
         } else if (!ar.contentList.empty()) {
-            for (auto &x : ar.contentList) {
+            for (auto& x : ar.contentList) {
                 a["contents"].append(x);
             }
         }
@@ -53,10 +56,8 @@ Json::Value Command::getDescription() {
     return cmd;
 }
 
-
 CommandManager::CommandManager() {
 }
-
 
 void CommandManager::Init() {
     LoadPresets();
@@ -90,7 +91,7 @@ void CommandManager::Init() {
     addCommand(new DecreaseVolumeCommand());
     addCommand(new URLCommand());
     addCommand(new AllLightsOffCommand());
-    
+
     addCommand(new TriggerRemotePresetCommand());
     addCommand(new TriggerRemotePresetSlotCommand());
     addCommand(new StartRemoteEffectCommand());
@@ -105,7 +106,7 @@ CommandManager::~CommandManager() {
 
 void CommandManager::Cleanup() {
     while (!commands.empty()) {
-        Command *cmd = commands.begin()->second;
+        Command* cmd = commands.begin()->second;
         commands.erase(commands.begin());
 
         if (cmd->name != "GPIO") { // No idea why deleteing the GPIO command causes a crash on exit
@@ -115,23 +116,23 @@ void CommandManager::Cleanup() {
     commands.clear();
 }
 
-void CommandManager::addCommand(Command *cmd) {
+void CommandManager::addCommand(Command* cmd) {
     commands[cmd->name] = cmd;
 }
-void CommandManager::removeCommand(Command *cmd) {
+void CommandManager::removeCommand(Command* cmd) {
     commands.erase(commands.find(cmd->name));
 }
 
 Json::Value CommandManager::getDescriptions() {
-    Json::Value  ret;
-    for (auto &a : commands) {
+    Json::Value ret;
+    for (auto& a : commands) {
         if (!a.second->hidden()) {
             ret.append(a.second->getDescription());
         }
     }
     return ret;
 }
-std::unique_ptr<Command::Result> CommandManager::run(const std::string &command, const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const std::vector<std::string>& args) {
     auto f = commands.find(command);
     if (f != commands.end()) {
         LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
@@ -140,32 +141,31 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string &command,
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
-std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::string &remote, const std::string &cmd, const std::vector<std::string> &args) {
-    
+std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::string& remote, const std::string& cmd, const std::vector<std::string>& args) {
     size_t startPos = 0;
     std::string command = cmd;
     while ((startPos = command.find(" ", startPos)) != std::string::npos) {
         command.replace(startPos, 1, "%20");
         startPos += 3;
     }
-    
+
     std::string url = "http://" + remote + ":32322/command/" + command;
-    
+
     Json::Value j;
-    for (auto &a : args) {
+    for (auto& a : args) {
         j.append(a);
     }
     std::vector<std::string> uargs;
     uargs.push_back(url);
     uargs.push_back("POST");
-    
+
     std::string config = SaveJsonToString(j);
-    
+
     uargs.push_back(config);
     return run("URL", uargs);
 }
 
-std::unique_ptr<Command::Result> CommandManager::run(const std::string &command, const Json::Value &argsArray) {
+std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const Json::Value& argsArray) {
     auto f = commands.find(command);
     if (f != commands.end()) {
         std::vector<std::string> args;
@@ -174,7 +174,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string &command,
         }
         if (WillLog(LOG_DEBUG, VB_COMMAND)) {
             std::string argString;
-            for (auto &a : args) {
+            for (auto& a : args) {
                 if (!argString.empty()) {
                     argString += ",";
                 }
@@ -187,7 +187,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string &command,
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
-std::unique_ptr<Command::Result> CommandManager::run(const Json::Value &cmd) {
+std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
     std::string command = cmd["command"].asString();
     if (cmd.isMember("multisyncCommand")) {
         bool multisync = cmd["multisyncCommand"].asBool();
@@ -204,8 +204,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value &cmd) {
     return run(command, cmd["args"]);
 }
 
-
-const std::shared_ptr<httpserver::http_response> CommandManager::render_GET(const httpserver::http_request &req) {
+const std::shared_ptr<httpserver::http_response> CommandManager::render_GET(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
 
@@ -283,7 +282,7 @@ const std::shared_ptr<httpserver::http_response> CommandManager::render_GET(cons
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
 
-const std::shared_ptr<httpserver::http_response> CommandManager::render_POST(const httpserver::http_request &req) {
+const std::shared_ptr<httpserver::http_response> CommandManager::render_POST(const httpserver::http_request& req) {
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "command") {
         if (req.get_path_pieces().size() > 1) {
@@ -331,11 +330,9 @@ const std::shared_ptr<httpserver::http_response> CommandManager::render_POST(con
         return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
     }
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
-    
 }
 
-Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std::string, std::string> &keywords)
-{
+Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std::string, std::string>& keywords) {
     if (!cmd.isMember("args"))
         return cmd;
 
@@ -348,9 +345,8 @@ Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std
     return cmd;
 }
 
-int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string> &keywords)
-{
-    for (auto const& name: presets.getMemberNames()) {
+int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& keywords) {
+    for (auto const& name : presets.getMemberNames()) {
         for (int i = 0; i < presets[name].size(); i++) {
             if (presets[name][i]["presetSlot"].asInt() == slot) {
                 Json::Value cmd = ReplaceCommandKeywords(presets[name][i], keywords);
@@ -362,15 +358,13 @@ int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string> &
     return 1;
 }
 
-int CommandManager::TriggerPreset(int slot)
-{
+int CommandManager::TriggerPreset(int slot) {
     std::map<std::string, std::string> keywords;
 
     return TriggerPreset(slot, keywords);
 }
 
-int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::string> &keywords)
-{
+int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::string>& keywords) {
     if (!presets.isMember(name))
         return 0;
 
@@ -382,15 +376,13 @@ int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::s
     return 1;
 }
 
-int CommandManager::TriggerPreset(std::string name)
-{
+int CommandManager::TriggerPreset(std::string name) {
     std::map<std::string, std::string> keywords;
 
     return TriggerPreset(name, keywords);
 }
 
-void CommandManager::LoadPresets()
-{
+void CommandManager::LoadPresets() {
     LogDebug(VB_COMMAND, "Loading Command Presets\n");
 
     char id[6];
@@ -445,4 +437,3 @@ void CommandManager::LoadPresets()
         }
     }
 }
-

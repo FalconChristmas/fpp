@@ -33,42 +33,41 @@
 class Playlist;
 
 class PlaylistEntryBase {
-  public:
-	PlaylistEntryBase(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryBase();
+public:
+    PlaylistEntryBase(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntryBase();
 
-	virtual int  Init(Json::Value &config);
+    virtual int Init(Json::Value& config);
 
-	virtual int  StartPlaying(void);
-	virtual int  IsStarted(void);
-	virtual int  IsPlaying(void);
-	virtual int  IsFinished(void);
+    virtual int StartPlaying(void);
+    virtual int IsStarted(void);
+    virtual int IsPlaying(void);
+    virtual int IsFinished(void);
 
-	virtual int  Prep(void);
-	virtual int  Process(void);
-	virtual int  Stop(void);
-    
+    virtual int Prep(void);
+    virtual int Process(void);
+    virtual int Stop(void);
+
     virtual void Pause() {}
     virtual bool IsPaused() { return false; }
     virtual void Resume() {}
 
-	virtual int  HandleSigChild(pid_t pid);
+    virtual int HandleSigChild(pid_t pid);
 
-	virtual void Dump(void);
+    virtual void Dump(void);
 
-	virtual Json::Value GetConfig(void);
+    virtual Json::Value GetConfig(void);
 
-	virtual Json::Value GetMqttStatus(void);
+    virtual Json::Value GetMqttStatus(void);
 
-	virtual std::string ReplaceMatches(std::string in);
-    
+    virtual std::string ReplaceMatches(std::string in);
+
     virtual uint64_t GetLengthInMS() { return 0; }
     virtual uint64_t GetElapsedMS() { return 0; }
 
-	std::string  GetType(void) { return m_type; }
-	int          IsPrepped(void) { return m_isPrepped; }
-    
-    
+    std::string GetType(void) { return m_type; }
+    int IsPrepped(void) { return m_isPrepped; }
+
     enum class PlaylistBranchType {
         NoBranch,
         Index,
@@ -76,28 +75,26 @@ class PlaylistEntryBase {
         Playlist
     };
     virtual PlaylistBranchType GetNextBranchType() { return PlaylistBranchType::NoBranch; }
-    virtual std::string  GetNextSection(void) { return ""; }
-    virtual int          GetNextItem(void) { return 0; }
-    virtual std::string  GetNextData(void) { return ""; }
+    virtual std::string GetNextSection(void) { return ""; }
+    virtual int GetNextItem(void) { return 0; }
+    virtual std::string GetNextData(void) { return ""; }
 
+protected:
+    int CanPlay(void);
+    void FinishPlay(void);
 
-  protected:
-	int          CanPlay(void);
-	void         FinishPlay(void);
+    std::string m_type;
+    std::string m_note;
+    int m_enabled;
+    int m_isStarted;
+    int m_isPlaying;
+    int m_isFinished;
+    int m_playOnce;
+    int m_playCount;
+    int m_isPrepped;
+    int m_deprecated;
 
-	std::string  m_type;
-	std::string  m_note;
-	int          m_enabled;
-	int          m_isStarted;
-	int          m_isPlaying;
-	int          m_isFinished;
-	int          m_playOnce;
-	int          m_playCount;
-	int          m_isPrepped;
-	int          m_deprecated;
-
-
-	Json::Value  m_config;
-	PlaylistEntryBase *m_parent;
-    Playlist          *m_parentPlaylist;
+    Json::Value m_config;
+    PlaylistEntryBase* m_parent;
+    Playlist* m_parentPlaylist;
 };

@@ -22,66 +22,59 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "fpp-pch.h"
+
 #include "PlaylistEntryVolume.h"
 #include "mediaoutput/mediaoutput.h"
 
 /*
  *
  */
-PlaylistEntryVolume::PlaylistEntryVolume(Playlist *playlist, PlaylistEntryBase *parent)
-  : PlaylistEntryBase(playlist, parent),
-	m_volume(0)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::PlaylistEntryVolume()\n");
+PlaylistEntryVolume::PlaylistEntryVolume(Playlist* playlist, PlaylistEntryBase* parent) :
+    PlaylistEntryBase(playlist, parent),
+    m_volume(0) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::PlaylistEntryVolume()\n");
 
-	m_type = "volume";
-	m_deprecated = 1;
+    m_type = "volume";
+    m_deprecated = 1;
 }
 
 /*
  *
  */
-PlaylistEntryVolume::~PlaylistEntryVolume()
-{
+PlaylistEntryVolume::~PlaylistEntryVolume() {
 }
 
 /*
  *
  */
-int PlaylistEntryVolume::Init(Json::Value &config)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::Init()\n");
+int PlaylistEntryVolume::Init(Json::Value& config) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::Init()\n");
 
     std::string vol = config["volume"].asString();
     m_volAdjust = ((vol[0] == '-') || (vol[0] == '+'));
     m_volume = std::atoi(vol.c_str());
 
-
-	return PlaylistEntryBase::Init(config);
+    return PlaylistEntryBase::Init(config);
 }
 
 /*
  *
  */
-int PlaylistEntryVolume::StartPlaying(void)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::StartPlaying()\n");
+int PlaylistEntryVolume::StartPlaying(void) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::StartPlaying()\n");
 
-	if (!CanPlay())
-	{
-		FinishPlay();
-		return 0;
-	}
-
+    if (!CanPlay()) {
+        FinishPlay();
+        return 0;
+    }
 
     if (!m_volAdjust) {
         setVolume(m_volume);
     } else {
         int vol = getVolume();
         vol += m_volume;
-        if (vol  < 0) {
+        if (vol < 0) {
             vol = 0;
         } else if (vol > 100) {
             vol = 100;
@@ -89,29 +82,27 @@ int PlaylistEntryVolume::StartPlaying(void)
         setVolume(vol);
     }
 
-	PlaylistEntryBase::StartPlaying();
+    PlaylistEntryBase::StartPlaying();
 
-	FinishPlay();
+    FinishPlay();
 
-	return 1;
+    return 1;
 }
 
 /*
  *
  */
-void PlaylistEntryVolume::Dump(void)
-{
-	LogDebug(VB_PLAYLIST, "Volume: %d\n", m_volume);
+void PlaylistEntryVolume::Dump(void) {
+    LogDebug(VB_PLAYLIST, "Volume: %d\n", m_volume);
 }
 
 /*
  *
  */
-Json::Value PlaylistEntryVolume::GetConfig(void)
-{
-	Json::Value result = PlaylistEntryBase::GetConfig();
+Json::Value PlaylistEntryVolume::GetConfig(void) {
+    Json::Value result = PlaylistEntryBase::GetConfig();
 
-	result["volume"] = m_volume;
+    result["volume"] = m_volume;
 
-	return result;
+    return result;
 }

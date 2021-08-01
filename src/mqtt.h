@@ -24,12 +24,11 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#include <pthread.h>
-#include <string>
+#include <functional>
 #include <map>
 #include <mutex>
-#include <functional>
+#include <pthread.h>
+#include <string>
 
 #include "Warnings.h"
 
@@ -37,60 +36,60 @@
 
 #include "mosquitto.h"
 
-void * RunMqttPublishThread(void *data);
+void* RunMqttPublishThread(void* data);
 
 class MosquittoClient : public WarningListener {
-  public:
-  	MosquittoClient(const std::string &host, const int port, const std::string &topicPrefix);
-	~MosquittoClient();
+public:
+    MosquittoClient(const std::string& host, const int port, const std::string& topicPrefix);
+    ~MosquittoClient();
 
-	int  Init(const std::string &username, const std::string &password, const std::string &ca_file);
-    
+    int Init(const std::string& username, const std::string& password, const std::string& ca_file);
+
     void PrepareForShutdown();
 
-	int  PublishRaw(const std::string &topic, const std::string &msg, const bool retain = false, const int qos = 1);
-	int  Publish(const std::string &subTopic, const std::string &msg, const bool retain = false, const int qos = 1);
-	int  Publish(const std::string &subTopic, const int valueconst, bool retain = false, const int qos = 1);
+    int PublishRaw(const std::string& topic, const std::string& msg, const bool retain = false, const int qos = 1);
+    int Publish(const std::string& subTopic, const std::string& msg, const bool retain = false, const int qos = 1);
+    int Publish(const std::string& subTopic, const int valueconst, bool retain = false, const int qos = 1);
 
-	void LogCallback(void *userdata, int level, const char *str);
-	void MessageCallback(void *obj, const struct mosquitto_message *message);
-    
-	void AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback);
-	virtual void handleWarnings(std::list<std::string> &warnings);
+    void LogCallback(void* userdata, int level, const char* str);
+    void MessageCallback(void* obj, const struct mosquitto_message* message);
 
-    void RemoveCallback(const std::string &topic);
-	void HandleDisconnect();
-	void HandleConnect();
-	bool IsConnected();
+    void AddCallback(const std::string& topic, std::function<void(const std::string& topic, const std::string& payload)>& callback);
+    virtual void handleWarnings(std::list<std::string>& warnings);
 
-	void PublishStatus();
-	void SetReady();
+    void RemoveCallback(const std::string& topic);
+    void HandleDisconnect();
+    void HandleConnect();
+    bool IsConnected();
 
-    void        CacheSetMessage(std::string &topic, std::string &message);
-    std::string CacheGetMessage(std::string &topic);
-    bool        CacheCheckMessage(std::string &topic, std::string &message);
+    void PublishStatus();
+    void SetReady();
 
-	std::string GetBaseTopic() { return m_baseTopic; }
+    void CacheSetMessage(std::string& topic, std::string& message);
+    std::string CacheGetMessage(std::string& topic);
+    bool CacheCheckMessage(std::string& topic, std::string& message);
 
-  private:
-	bool        m_canProcessMessages;
-	bool        m_isConnected;
-	std::string m_host;
-	int         m_port;
-	int         m_keepalive;
+    std::string GetBaseTopic() { return m_baseTopic; }
 
-	std::string m_topicPrefix;
-	std::string m_baseTopic;
-	std::string m_subBaseTopic;
+private:
+    bool m_canProcessMessages;
+    bool m_isConnected;
+    std::string m_host;
+    int m_port;
+    int m_keepalive;
 
-	struct mosquitto *m_mosq;
-	pthread_mutex_t   m_mosqLock;
-	pthread_t         m_mqtt_publish_t;
-    
-    std::map<std::string, std::function<void(const std::string &topic, const std::string &payload)>> callbacks;
+    std::string m_topicPrefix;
+    std::string m_baseTopic;
+    std::string m_subBaseTopic;
+
+    struct mosquitto* m_mosq;
+    pthread_mutex_t m_mosqLock;
+    pthread_t m_mqtt_publish_t;
+
+    std::map<std::string, std::function<void(const std::string& topic, const std::string& payload)>> callbacks;
 
     std::mutex messageCacheLock;
     std::map<std::string, std::string> messageCache;
 };
 
-extern MosquittoClient *mqtt;
+extern MosquittoClient* mqtt;

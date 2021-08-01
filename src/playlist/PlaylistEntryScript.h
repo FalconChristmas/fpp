@@ -29,28 +29,27 @@
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryScript : public PlaylistEntryBase {
-  public:
-	PlaylistEntryScript(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryScript();
+public:
+    PlaylistEntryScript(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    ~PlaylistEntryScript();
 
-	virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-	virtual int  StartPlaying(void) override;
-    virtual int  Process(void) override;
-	virtual int  Stop(void) override;
+    virtual int StartPlaying(void) override;
+    virtual int Process(void) override;
+    virtual int Stop(void) override;
 
-    
     bool isChildRunning();
-	virtual void Dump(void) override;
+    virtual void Dump(void) override;
 
-	virtual Json::Value GetConfig(void) override;
+    virtual Json::Value GetConfig(void) override;
     virtual Json::Value GetMqttStatus(void) override;
-	std::string GetScriptName(void) { return m_scriptFilename; }
+    std::string GetScriptName(void) { return m_scriptFilename; }
 
-  private:
-	std::string        m_scriptFilename;
-	std::string        m_scriptArgs;
-	bool                m_blocking;
-    int                 m_scriptProcess;
-    long long           m_startTime;
+private:
+    std::string m_scriptFilename;
+    std::string m_scriptArgs;
+    bool m_blocking;
+    int m_scriptProcess;
+    long long m_startTime;
 };

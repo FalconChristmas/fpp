@@ -24,26 +24,26 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdbool.h>
 #include <map>
+#include <stdbool.h>
 #include <string>
 
 #include <jsoncpp/json/json.h>
 
-#define FPP_DIR                    "/opt/fpp"
-#define FPP_DIR_MEDIA              "/home/fpp/media"
-#define FPP_DIR_CONFIG             "/home/fpp/media/config"
-#define FPP_DIR_EFFECT             FPP_DIR_MEDIA "/effects"
-#define FPP_DIR_IMAGE              FPP_DIR_MEDIA "/images"
-#define FPP_DIR_MUSIC              FPP_DIR_MEDIA "/music"
-#define FPP_DIR_PLAYLIST           FPP_DIR_MEDIA "/playlists"
-#define FPP_DIR_PLUGIN             FPP_DIR_MEDIA "/plugins"
-#define FPP_DIR_SCRIPT             FPP_DIR_MEDIA "/scripts"
-#define FPP_DIR_SEQUENCE           FPP_DIR_MEDIA "/sequences"
-#define FPP_DIR_VIDEO              FPP_DIR_MEDIA "/videos"
-#define FPP_FILE_LOG               FPP_DIR_MEDIA "/logs/fppd.log"
-#define FPP_FILE_PIXELNET          FPP_DIR_MEDIA "/config/Falcon.FPDV1"
-#define FPP_FILE_SETTINGS          FPP_DIR_MEDIA "/settings"
+#define FPP_DIR "/opt/fpp"
+#define FPP_DIR_MEDIA "/home/fpp/media"
+#define FPP_DIR_CONFIG "/home/fpp/media/config"
+#define FPP_DIR_EFFECT FPP_DIR_MEDIA "/effects"
+#define FPP_DIR_IMAGE FPP_DIR_MEDIA "/images"
+#define FPP_DIR_MUSIC FPP_DIR_MEDIA "/music"
+#define FPP_DIR_PLAYLIST FPP_DIR_MEDIA "/playlists"
+#define FPP_DIR_PLUGIN FPP_DIR_MEDIA "/plugins"
+#define FPP_DIR_SCRIPT FPP_DIR_MEDIA "/scripts"
+#define FPP_DIR_SEQUENCE FPP_DIR_MEDIA "/sequences"
+#define FPP_DIR_VIDEO FPP_DIR_MEDIA "/videos"
+#define FPP_FILE_LOG FPP_DIR_MEDIA "/logs/fppd.log"
+#define FPP_FILE_PIXELNET FPP_DIR_MEDIA "/config/Falcon.FPDV1"
+#define FPP_FILE_SETTINGS FPP_DIR_MEDIA "/settings"
 
 typedef enum fppMode {
     UNKNOWN_MODE = 0x00,
@@ -56,26 +56,25 @@ typedef enum fppMode {
 } FPPMode;
 
 class SettingsConfig {
-  public:
+public:
     SettingsConfig();
     ~SettingsConfig();
-    
+
     void Init();
 
-    FPPMode    fppMode;
-    
+    FPPMode fppMode;
+
     Json::Value settingsInfo;
     Json::Value settings;
 
-  private:
+private:
     void LoadSettingsInfo();
 };
 
 // Helpers
-char *trimwhitespace(const char *str, int quotesAlso = 1);
-char *modeToString(int mode);
+char* trimwhitespace(const char* str, int quotesAlso = 1);
+char* modeToString(int mode);
 const std::string getFPPmodeStr(FPPMode mode = UNKNOWN_MODE);
-
 
 // Action functions
 int LoadSettings();
@@ -85,8 +84,7 @@ int SetSetting(const std::string key, const std::string value);
 int SetSetting(const std::string key, const int value);
 
 // Setters & Getters
-std::string getSetting(const char *setting, const char *defaultVal = "");
-int   getSettingInt(const char *setting, int defaultVal = 0);
+std::string getSetting(const char* setting, const char* defaultVal = "");
+int getSettingInt(const char* setting, int defaultVal = 0);
 
 FPPMode getFPPmode(void);
-

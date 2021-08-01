@@ -1,4 +1,5 @@
 #include "fpp-pch.h"
+
 #include <net/if.h>
 
 #include "FPPMainMenu.h"
@@ -7,9 +8,8 @@
 #include "FPPStatusOLEDPage.h"
 #include "NetworkOLEDPage.h"
 
-
-static int curlBufferWriter(char *data, size_t size, size_t nmemb,
-                            std::string *writerData) {
+static int curlBufferWriter(char* data, size_t size, size_t nmemb,
+                            std::string* writerData) {
     if (writerData == NULL) {
         return 0;
     }
@@ -17,20 +17,20 @@ static int curlBufferWriter(char *data, size_t size, size_t nmemb,
     return size * nmemb;
 }
 
-static std::string escapeURL(const std::string &url) {
-    CURL *curl = curl_easy_init();
-    char *output = curl_easy_escape(curl, url.c_str(), url.length());
+static std::string escapeURL(const std::string& url) {
+    CURL* curl = curl_easy_init();
+    char* output = curl_easy_escape(curl, url.c_str(), url.length());
     std::string ret = output;
     curl_free(output);
     curl_easy_cleanup(curl);
     return ret;
 }
 
-static std::string doCurlGet(const std::string &url, int timeout = 250) {
+static std::string doCurlGet(const std::string& url, int timeout = 250) {
     const std::string buffer;
-    CURL *curl = curl_easy_init();
+    CURL* curl = curl_easy_init();
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    
+
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlBufferWriter);
@@ -42,14 +42,15 @@ static std::string doCurlGet(const std::string &url, int timeout = 250) {
 
 class RebootPromptPage : public PromptOLEDPage {
 public:
-    RebootPromptPage(OLEDPage *p)
-        : PromptOLEDPage("Reboot?", "Reboot FPPD?", "", {"OK", "Cancel"}), parent(p) {}
-    RebootPromptPage(const std::string &msg1, const std::string &msg2, OLEDPage *p)
-        : PromptOLEDPage("Reboot?", msg1, msg2, {"OK", "Cancel"}), parent(p) {}
-    virtual ~RebootPromptPage() {};
-    
-    
-    virtual void ItemSelected(const std::string &item) override {
+    RebootPromptPage(OLEDPage* p) :
+        PromptOLEDPage("Reboot?", "Reboot FPPD?", "", { "OK", "Cancel" }),
+        parent(p) {}
+    RebootPromptPage(const std::string& msg1, const std::string& msg2, OLEDPage* p) :
+        PromptOLEDPage("Reboot?", msg1, msg2, { "OK", "Cancel" }),
+        parent(p) {}
+    virtual ~RebootPromptPage(){};
+
+    virtual void ItemSelected(const std::string& item) override {
         if (item == "Cancel") {
             SetCurrentPage(parent);
         } else {
@@ -63,19 +64,20 @@ public:
     }
 
 private:
-    OLEDPage *parent;
+    OLEDPage* parent;
 };
 
 class ShutdownPromptPage : public PromptOLEDPage {
-    public:
-    ShutdownPromptPage(OLEDPage *p)
-    : PromptOLEDPage("Shutdown?", "Shutdown FPPD?", "", {"OK", "Cancel"}), parent(p) {}
-    ShutdownPromptPage(const std::string &msg1, const std::string &msg2, OLEDPage *p)
-    : PromptOLEDPage("Shutdown?", msg1, msg2, {"OK", "Cancel"}), parent(p) {}
-    virtual ~ShutdownPromptPage() {};
-    
-    
-    virtual void ItemSelected(const std::string &item) override {
+public:
+    ShutdownPromptPage(OLEDPage* p) :
+        PromptOLEDPage("Shutdown?", "Shutdown FPPD?", "", { "OK", "Cancel" }),
+        parent(p) {}
+    ShutdownPromptPage(const std::string& msg1, const std::string& msg2, OLEDPage* p) :
+        PromptOLEDPage("Shutdown?", msg1, msg2, { "OK", "Cancel" }),
+        parent(p) {}
+    virtual ~ShutdownPromptPage(){};
+
+    virtual void ItemSelected(const std::string& item) override {
         if (item == "Cancel") {
             SetCurrentPage(parent);
         } else {
@@ -87,22 +89,22 @@ class ShutdownPromptPage : public PromptOLEDPage {
             system("/sbin/shutdown -h now");
         }
     }
-    
-    private:
-    OLEDPage *parent;
+
+private:
+    OLEDPage* parent;
 };
 
 class BridgeStatsPage : public ListOLEDPage {
 public:
-    BridgeStatsPage(OLEDPage *parent) : ListOLEDPage("Bridge Stats", {}, parent) {};
+    BridgeStatsPage(OLEDPage* parent) :
+        ListOLEDPage("Bridge Stats", {}, parent){};
     virtual ~BridgeStatsPage() {}
-    
-    
+
     virtual void displaying() override {
         bool on = true;
         doIteration(on);
     }
-    virtual bool doIteration(bool &displayOn) override {
+    virtual bool doIteration(bool& displayOn) override {
         std::string d = doCurlGet("http://127.0.0.1:32322/fppd/e131stats", 10000);
         Json::Value result;
         if (LoadJsonFromString(d, result)) {
@@ -126,20 +128,20 @@ public:
         }
         return false;
     }
+
 private:
 };
 
-FPPMainMenu::FPPMainMenu(FPPStatusOLEDPage *p)
-: MenuOLEDPage("Main Menu", {"FPP Mode", "Tethering", "Testing", "Reboot", "Shutdown", "About", "Back"}, p),
-  aboutPage(nullptr), statusPage(p) {
-    
+FPPMainMenu::FPPMainMenu(FPPStatusOLEDPage* p) :
+    MenuOLEDPage("Main Menu", { "FPP Mode", "Tethering", "Testing", "Reboot", "Shutdown", "About", "Back" }, p),
+    aboutPage(nullptr),
+    statusPage(p) {
 }
 FPPMainMenu::~FPPMainMenu() {
     if (aboutPage) {
         delete aboutPage;
     }
 }
-
 
 void FPPMainMenu::displaying() {
     std::string mode = statusPage->getCurrentMode();
@@ -155,26 +157,26 @@ void FPPMainMenu::displaying() {
         struct if_nameindex *if_nidxs, *intf;
 
         if_nidxs = if_nameindex();
-        if ( if_nidxs != NULL ) {
-           for (intf = if_nidxs; intf->if_index != 0 || intf->if_name != NULL; intf++) {
-               std::string n = intf->if_name;
-               if (n == "eth0") {
-                   hasEth0 = true;
-               }
-           }
-           if_freenameindex(if_nidxs);
+        if (if_nidxs != NULL) {
+            for (intf = if_nidxs; intf->if_index != 0 || intf->if_name != NULL; intf++) {
+                std::string n = intf->if_name;
+                if (n == "eth0") {
+                    hasEth0 = true;
+                }
+            }
+            if_freenameindex(if_nidxs);
         }
         if (hasEth0) {
             items.push_back("Network");
         }
     }
-    std::vector<std::string> it = {"Tethering", "Testing", "Reboot", "Shutdown", "About", "Back"};
+    std::vector<std::string> it = { "Tethering", "Testing", "Reboot", "Shutdown", "About", "Back" };
     items.insert(std::end(items), std::begin(it), std::end(it));
-    
+
     MenuOLEDPage::displaying();
 }
 
-void FPPMainMenu::itemSelected(const std::string &item) {
+void FPPMainMenu::itemSelected(const std::string& item) {
     if (item == "Back") {
         SetCurrentPage(parent);
     } else if (item == "About") {
@@ -185,29 +187,23 @@ void FPPMainMenu::itemSelected(const std::string &item) {
             ver += getFPPMinorVersion();
             std::string branch = "Branch: ";
             branch += getFPPBranch();
-            aboutPage = new ListOLEDPage("About FPP", {ver, branch}, this);
+            aboutPage = new ListOLEDPage("About FPP", { ver, branch }, this);
         }
         SetCurrentPage(aboutPage);
     } else if (item == "Reboot") {
-        RebootPromptPage *pg = new RebootPromptPage(this);
+        RebootPromptPage* pg = new RebootPromptPage(this);
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "Shutdown") {
-        ShutdownPromptPage *pg = new ShutdownPromptPage(this);
+        ShutdownPromptPage* pg = new ShutdownPromptPage(this);
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "Network") {
-        FPPNetworkOLEDPage *pg = new FPPNetworkOLEDPage(this);
+        FPPNetworkOLEDPage* pg = new FPPNetworkOLEDPage(this);
         SetCurrentPage(pg);
     } else if (item == "Testing") {
-        FPPStatusOLEDPage *sp = statusPage;
-        MenuOLEDPage *pg = new MenuOLEDPage("Test", {
-            "Off",
-            "White", "Red", "Green", "Blue",
-            "R-G-B Cycle", "R-G-B-W Cycle", "R-G-B-W-N Cycle",
-            "R-G-B Chase", "R-G-B-W Chase", "R-G-B-W-N Chase",
-            "Back"
-        }, [this, sp] (const std::string &item) {
+        FPPStatusOLEDPage* sp = statusPage;
+        MenuOLEDPage* pg = new MenuOLEDPage("Test", { "Off", "White", "Red", "Green", "Blue", "R-G-B Cycle", "R-G-B-W Cycle", "R-G-B-W-N Cycle", "R-G-B Chase", "R-G-B-W Chase", "R-G-B-W-N Chase", "Back" }, [this, sp](const std::string& item) {
             if (item == "Back") {
                 SetCurrentPage(this);
                 return;
@@ -217,11 +213,12 @@ void FPPMainMenu::itemSelected(const std::string &item) {
                 SetCurrentPage(this);
                 return;
             }
-        }, this);
+        },
+                                            this);
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "Tethering") {
-        FPPStatusOLEDPage *sp = statusPage;
+        FPPStatusOLEDPage* sp = statusPage;
         std::vector<std::string> options = {
             " Automatic",
             " On",
@@ -234,11 +231,11 @@ void FPPMainMenu::itemSelected(const std::string &item) {
         int tt = getSettingInt("TetherTechnology");
         options[tm][0] = '*';
         options[tt + 3][0] = '*';
-        MenuOLEDPage *pg = new MenuOLEDPage("Tethering", options, [this, sp] (const std::string &item) {
+        MenuOLEDPage* pg = new MenuOLEDPage("Tethering", options, [this, sp](const std::string& item) {
             if (item != " Back") {
                 std::string nitem = item.substr(1);
-		std::string nvdata;
-		std::string nvresults;
+                std::string nvdata;
+                std::string nvresults;
                 std::string nv = "http://127.0.0.1/api/settings/EnableTethering";
                 if (nitem == "Automatic") {
                     nvdata = "0";
@@ -258,19 +255,19 @@ void FPPMainMenu::itemSelected(const std::string &item) {
                 urlPut(nv, nvdata, nvresults);
                 nvdata = "1";
                 urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
-                
-                
-                RebootPromptPage *pg = new RebootPromptPage("Reboot Required", "Reboot FPPD?", this);
+
+                RebootPromptPage* pg = new RebootPromptPage("Reboot Required", "Reboot FPPD?", this);
                 pg->autoDelete();
                 SetCurrentPage(pg);
             } else {
                 SetCurrentPage(this);
             }
-        }, this);
+        },
+                                            this);
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "FPP Mode") {
-        FPPStatusOLEDPage *sp = statusPage;
+        FPPStatusOLEDPage* sp = statusPage;
         std::vector<std::string> options = {
             " Player",
             " Remote",
@@ -282,7 +279,7 @@ void FPPMainMenu::itemSelected(const std::string &item) {
         } else {
             options[0][0] = '*';
         }
-        MenuOLEDPage *pg = new MenuOLEDPage("FPPD Mode", options, [this, sp] (const std::string &item) {
+        MenuOLEDPage* pg = new MenuOLEDPage("FPPD Mode", options, [this, sp](const std::string& item) {
             if (item != " Back") {
                 std::string nitem = item.substr(1);
                 std::string nv = "http://127.0.0.1/fppxml.php?command=setFPPDmode&mode=";
@@ -297,11 +294,12 @@ void FPPMainMenu::itemSelected(const std::string &item) {
             } else {
                 SetCurrentPage(this);
             }
-        }, this);
+        },
+                                            this);
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "Bridge Stats") {
-        BridgeStatsPage *pg = new BridgeStatsPage(this);
+        BridgeStatsPage* pg = new BridgeStatsPage(this);
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "Start Playlist") {
@@ -315,8 +313,8 @@ void FPPMainMenu::itemSelected(const std::string &item) {
                 playlists.push_back(result[x].asString());
             }
             playlists.push_back("Back");
-            FPPStatusOLEDPage *sp = statusPage;
-            MenuOLEDPage *pg = new MenuOLEDPage("Playlist", playlists, [sp] (const std::string &item) {
+            FPPStatusOLEDPage* sp = statusPage;
+            MenuOLEDPage* pg = new MenuOLEDPage("Playlist", playlists, [sp](const std::string& item) {
                 if (item == "-Stop Now-") {
                     std::string url = "http://127.0.0.1/api/playlists/stop";
                     doCurlGet(url, 1000);
@@ -329,7 +327,8 @@ void FPPMainMenu::itemSelected(const std::string &item) {
                     doCurlGet(url, 1000);
                 }
                 SetCurrentPage(sp);
-            }, this);
+            },
+                                                this);
             pg->autoDelete();
             SetCurrentPage(pg);
         }

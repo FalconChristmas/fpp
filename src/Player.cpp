@@ -17,37 +17,33 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Player.h"
 #include "common.h"
 #include "log.h"
-#include "Player.h"
 
 Player Player::INSTANCE;
 
-Player::Player()
-  : lastCheckTime(std::time(nullptr)),
+Player::Player() :
+    lastCheckTime(std::time(nullptr)),
     origStartTime(0),
     origStopTime(0),
     startTime(0),
     stopTime(0),
     stopMethod(0),
-    forceStopped(false)
-{
+    forceStopped(false) {
 }
 
-Player::~Player()
-{
+Player::~Player() {
     if (playlist)
         delete playlist;
 }
 
-void Player::Init()
-{
+void Player::Init() {
     playlist = new Playlist();
 }
 
-int Player::StartPlaylist(const std::string &name, const int repeat,
-    const int startPosition, const int endPosition, const int manualPriority)
-{
+int Player::StartPlaylist(const std::string& name, const int repeat,
+                          const int startPosition, const int endPosition, const int manualPriority) {
     playlistName = name;
     startTime = std::time(nullptr);
     stopTime = 0;
@@ -58,8 +54,8 @@ int Player::StartPlaylist(const std::string &name, const int repeat,
     priority = manualPriority;
 
     LogDebug(VB_PLAYLIST, "Manually starting %srepeating playlist '%s'\n",
-        repeat ? "" : "non-",
-        playlistName.c_str());
+             repeat ? "" : "non-",
+             playlistName.c_str());
 
     if (!playlist->Play(playlistName.c_str(), startPosition, repeat, -1, endPosition))
         return 0;
@@ -67,10 +63,9 @@ int Player::StartPlaylist(const std::string &name, const int repeat,
     return playlist->Start();
 }
 
-int Player::StartScheduledPlaylist(const std::string &name,
-    const int repeat, const int scheduleEntry, const int scheduledPriority,
-    const time_t sTime, const time_t eTime, const int method)
-{
+int Player::StartScheduledPlaylist(const std::string& name,
+                                   const int repeat, const int scheduleEntry, const int scheduledPriority,
+                                   const time_t sTime, const time_t eTime, const int method) {
     playlistName = name;
     origStartTime = sTime;
     origStopTime = eTime;
@@ -82,12 +77,10 @@ int Player::StartScheduledPlaylist(const std::string &name,
     forceStoppedPlaylist = "";
 
     LogDebug(VB_PLAYLIST, "Starting %srepeating playlist '%s' with scheduled '%s' in %d seconds\n",
-        repeat ? "" : "non-",
-        playlistName.c_str(),
-        stopMethod == 0 ? "Graceful Stop" :
-            stopMethod == 1 ? "Hard Stop" :
-            stopMethod == 2 ? "Graceful Stop After Loop" : "",
-        (int)(stopTime - std::time(nullptr)));
+             repeat ? "" : "non-",
+             playlistName.c_str(),
+             stopMethod == 0 ? "Graceful Stop" : stopMethod == 1 ? "Hard Stop" : stopMethod == 2 ? "Graceful Stop After Loop" : "",
+             (int)(stopTime - std::time(nullptr)));
 
     if (!playlist->Play(playlistName.c_str(), 0, repeat, scheduleEntry))
         return 0;
@@ -95,8 +88,7 @@ int Player::StartScheduledPlaylist(const std::string &name,
     return playlist->Start();
 }
 
-int Player::AdjustPlaylistStopTime(const int seconds)
-{
+int Player::AdjustPlaylistStopTime(const int seconds) {
     if ((GetStatus() != FPP_STATUS_PLAYLIST_PLAYING) &&
         (GetStatus() != FPP_STATUS_STOPPING_GRACEFULLY) &&
         (GetStatus() != FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
@@ -117,10 +109,10 @@ int Player::AdjustPlaylistStopTime(const int seconds)
 
     if (seconds >= 0) {
         LogDebug(VB_PLAYLIST, "Extending scheduled playlist '%s' by %d seconds\n",
-            playlistName.c_str(), seconds);
+                 playlistName.c_str(), seconds);
     } else {
         LogDebug(VB_PLAYLIST, "Shortening scheduled playlist '%s' by %d seconds\n",
-            playlistName.c_str(), seconds);
+                 playlistName.c_str(), seconds);
     }
 
     stopTime += seconds;
@@ -130,18 +122,15 @@ int Player::AdjustPlaylistStopTime(const int seconds)
     return 1;
 }
 
-void Player::InsertPlaylistAsNext(const std::string &filename, const int startPosition, const int endPos)
-{
+void Player::InsertPlaylistAsNext(const std::string& filename, const int startPosition, const int endPos) {
     playlist->InsertPlaylistAsNext(filename, startPosition, endPos);
 }
 
-void Player::InsertPlaylistImmediate(const std::string &filename, const int startPosition, const int endPos)
-{
+void Player::InsertPlaylistImmediate(const std::string& filename, const int startPosition, const int endPos) {
     playlist->InsertPlaylistImmediate(filename, startPosition, endPos);
 }
 
-int Player::StopNow(int forceStop)
-{
+int Player::StopNow(int forceStop) {
     forceStopped = (bool)forceStop;
     if (forceStopped)
         forceStoppedPlaylist = playlistName;
@@ -151,8 +140,7 @@ int Player::StopNow(int forceStop)
     return playlist->StopNow(forceStop);
 }
 
-int Player::StopGracefully(int forceStop, int afterCurrentLoop)
-{
+int Player::StopGracefully(int forceStop, int afterCurrentLoop) {
     forceStopped = (bool)forceStop;
     if (forceStopped)
         forceStoppedPlaylist = playlistName;
@@ -162,8 +150,7 @@ int Player::StopGracefully(int forceStop, int afterCurrentLoop)
     return playlist->StopGracefully(forceStop, afterCurrentLoop);
 }
 
-int Player::Process()
-{
+int Player::Process() {
     std::time_t procTime = std::time(nullptr);
 
     // See if we need to stop a scheduled playlist
@@ -177,22 +164,19 @@ int Player::Process()
             int diff = stopTime - procTime;
 
             // Print the countdown more frequently as we get closer
-            if (((diff > 300) &&                  ((diff % 300) == 0)) ||
-                ((diff >  60) && (diff <= 300) && ((diff %  60) == 0)) ||
-                ((diff >  10) && (diff <=  60) && ((diff %  10) == 0)) ||
-                (                (diff <=  10)))
-            {
+            if (((diff > 300) && ((diff % 300) == 0)) ||
+                ((diff > 60) && (diff <= 300) && ((diff % 60) == 0)) ||
+                ((diff > 10) && (diff <= 60) && ((diff % 10) == 0)) ||
+                ((diff <= 10))) {
                 logSwitch = true;
             }
 
             if (logSwitch) {
                 LogDebug(VB_PLAYLIST, "Playlist '%s' will switch to '%s' in %d second%s\n",
-                    playlistName.c_str(),
-                    stopMethod == 0 ? "Stopping Gracefully" :
-                        stopMethod == 1 ? "Hard Stop" :
-                        stopMethod == 2 ? "Stopping Gracefully After Loop" : "",
-                    diff,
-                    diff == 1 ? "" : "s");
+                         playlistName.c_str(),
+                         stopMethod == 0 ? "Stopping Gracefully" : stopMethod == 1 ? "Hard Stop" : stopMethod == 2 ? "Stopping Gracefully After Loop" : "",
+                         diff,
+                         diff == 1 ? "" : "s");
             }
         }
 
@@ -201,17 +185,17 @@ int Player::Process()
             int forceStop = (stopTime < origStopTime) ? 1 : 0;
 
             switch (stopMethod) {
-                case 0: // Gracefully
-                    playlist->StopGracefully(forceStop);
-                    break;
-                case 2: // After Loop
-                    playlist->StopGracefully(forceStop, 1);
-                    break;
-                case 1: // Hard Stop
-                default:
-                    while (GetStatus() != FPP_STATUS_IDLE)
-                        playlist->StopNow(forceStop);
-                    break;
+            case 0: // Gracefully
+                playlist->StopGracefully(forceStop);
+                break;
+            case 2: // After Loop
+                playlist->StopGracefully(forceStop, 1);
+                break;
+            case 1: // Hard Stop
+            default:
+                while (GetStatus() != FPP_STATUS_IDLE)
+                    playlist->StopNow(forceStop);
+                break;
             }
         }
     }
@@ -219,123 +203,99 @@ int Player::Process()
     return playlist->Process();
 }
 
-void Player::ProcessMedia()
-{
+void Player::ProcessMedia() {
     playlist->ProcessMedia();
 }
 
-int Player::IsPlaying()
-{
+int Player::IsPlaying() {
     return playlist->IsPlaying();
 }
 
-std::string Player::GetPlaylistName()
-{
+std::string Player::GetPlaylistName() {
     return playlist->GetPlaylistName();
 }
 
-PlaylistStatus Player::GetStatus()
-{
+PlaylistStatus Player::GetStatus() {
     return playlist->getPlaylistStatus();
 }
 
-int Player::GetRepeat()
-{
+int Player::GetRepeat() {
     return playlist->GetRepeat();
 }
 
-int Player::GetStopMethod()
-{
+int Player::GetStopMethod() {
     return stopMethod;
 }
 
-int Player::GetPosition()
-{
+int Player::GetPosition() {
     return playlist->GetPosition();
 }
 
-Json::Value Player::GetInfo(void)
-{
+Json::Value Player::GetInfo(void) {
     return playlist->GetInfo();
 }
 
-int Player::GetScheduleEntry()
-{
+int Player::GetScheduleEntry() {
     return playlist->GetScheduleEntry();
 }
 
-uint64_t Player::GetFileTime()
-{
+uint64_t Player::GetFileTime() {
     return playlist->GetFileTime();
 }
 
-Json::Value Player::GetConfig()
-{
+Json::Value Player::GetConfig() {
     return playlist->GetConfig();
 }
 
-Json::Value Player::GetMqttStatusJSON()
-{
+Json::Value Player::GetMqttStatusJSON() {
     return playlist->GetMqttStatusJSON();
 }
 
-int Player::WasScheduled()
-{
+int Player::WasScheduled() {
     return playlist->WasScheduled();
 }
 
-int Player::FindPosForMS(uint64_t &ms)
-{
+int Player::FindPosForMS(uint64_t& ms) {
     return playlist->FindPosForMS(ms);
 }
 
-void Player::GetFilenamesForPos(int pos, std::string &seq, std::string &med)
-{
+void Player::GetFilenamesForPos(int pos, std::string& seq, std::string& med) {
     playlist->GetFilenamesForPos(pos, seq, med);
 }
 
-int Player::Load(const std::string filename)
-{
+int Player::Load(const std::string filename) {
     return playlist->Load(filename.c_str());
 }
 
-int Player::Start()
-{
+int Player::Start() {
     return playlist->Start();
 }
 
-void Player::RestartItem()
-{
+void Player::RestartItem() {
     playlist->RestartItem();
 }
 
-void Player::NextItem()
-{
+void Player::NextItem() {
     playlist->NextItem();
 }
 
-void Player::PrevItem()
-{
+void Player::PrevItem() {
     playlist->PrevItem();
 }
 
-void Player::Pause()
-{
+void Player::Pause() {
     playlist->Pause();
 }
 
-void Player::Resume()
-{
+void Player::Resume() {
     playlist->Resume();
 }
 
-int Player::Cleanup(void)
-{
+int Player::Cleanup(void) {
     return playlist->Cleanup();
 }
 
-Json::Value Player::GetStatusJSON()
-{
+Json::Value Player::GetStatusJSON() {
     Json::Value result;
     Json::Value playlists(Json::arrayValue);
     Json::Value pl;
@@ -363,8 +323,7 @@ Json::Value Player::GetStatusJSON()
     return result;
 }
 
-const std::shared_ptr<httpserver::http_response> Player::render_GET(const httpserver::http_request &req)
-{
+const std::shared_ptr<httpserver::http_response> Player::render_GET(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
 
@@ -378,19 +337,16 @@ const std::shared_ptr<httpserver::http_response> Player::render_GET(const httpse
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
 
-const std::shared_ptr<httpserver::http_response> Player::render_POST(const httpserver::http_request &req)
-{
+const std::shared_ptr<httpserver::http_response> Player::render_POST(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
 
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
 
-const std::shared_ptr<httpserver::http_response> Player::render_PUT(const httpserver::http_request &req)
-{
+const std::shared_ptr<httpserver::http_response> Player::render_PUT(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
 
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
-

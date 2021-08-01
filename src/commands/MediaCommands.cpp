@@ -3,10 +3,10 @@
 #include <curl/curl.h>
 
 #include "MediaCommands.h"
-#include "mediaoutput/mediaoutput.h"
 #include "mediaoutput/VLCOut.h"
+#include "mediaoutput/mediaoutput.h"
 
-std::unique_ptr<Command::Result> SetVolumeCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> SetVolumeCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
@@ -15,7 +15,7 @@ std::unique_ptr<Command::Result> SetVolumeCommand::run(const std::vector<std::st
     setVolume(v);
     return std::make_unique<Command::Result>("Volume Set");
 }
-std::unique_ptr<Command::Result> AdjustVolumeCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> AdjustVolumeCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
@@ -25,7 +25,7 @@ std::unique_ptr<Command::Result> AdjustVolumeCommand::run(const std::vector<std:
     setVolume(v);
     return std::make_unique<Command::Result>("Volume Set");
 }
-std::unique_ptr<Command::Result> IncreaseVolumeCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> IncreaseVolumeCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
@@ -34,7 +34,7 @@ std::unique_ptr<Command::Result> IncreaseVolumeCommand::run(const std::vector<st
     setVolume(v);
     return std::make_unique<Command::Result>("Volume Set");
 }
-std::unique_ptr<Command::Result> DecreaseVolumeCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> DecreaseVolumeCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
@@ -45,19 +45,19 @@ std::unique_ptr<Command::Result> DecreaseVolumeCommand::run(const std::vector<st
     return std::make_unique<Command::Result>("Volume Set");
 }
 
-static size_t URL_write_data(void *buffer, size_t size, size_t nmemb, void *userp)
-{
-    std::string *msg = (std::string*)userp;
+static size_t URL_write_data(void* buffer, size_t size, size_t nmemb, void* userp) {
+    std::string* msg = (std::string*)userp;
     msg->append(static_cast<const char*>(buffer), size * nmemb);
     return size * nmemb;
 }
 
 class CURLResult : public Command::Result {
 public:
-    CURLResult(const std::vector<std::string> &args) : Command::Result() {
+    CURLResult(const std::vector<std::string>& args) :
+        Command::Result() {
         std::string url = args[0];
         LogDebug(VB_COMMAND, "URL: \"%s\"\n", url.c_str());
-        
+
         std::string method = "GET";
         if (args.size() > 1) {
             method = args[1];
@@ -67,11 +67,10 @@ public:
         }
         std::string data;
         if (args.size() > 2) {
-            data =args[2];
+            data = args[2];
         }
         m_curl = curl_easy_init();
-        
-        
+
         CURLcode status;
         status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
         if (status != CURLE_OK) {
@@ -98,7 +97,7 @@ public:
                 return;
             }
         }
-        
+
         m_curlm = curl_multi_init();
         CURLMcode mstatus = curl_multi_add_handle(m_curlm, m_curl);
         if (mstatus != CURLM_OK) {
@@ -127,12 +126,12 @@ public:
                 cleanupCurl();
                 return true;
             }
-            
+
             if (handleCount == 0) {
                 int messagesLeft = 0;
-                CURLMsg *msg = curl_multi_info_read(m_curlm, &messagesLeft);
+                CURLMsg* msg = curl_multi_info_read(m_curlm, &messagesLeft);
                 if (msg && msg->msg == CURLMSG_DONE) {
-                    char *ct = nullptr;
+                    char* ct = nullptr;
                     if (CURLE_OK == curl_easy_getinfo(m_curl, CURLINFO_CONTENT_TYPE, &ct)) {
                         if (ct != nullptr) {
                             m_contentType = ct;
@@ -145,7 +144,7 @@ public:
         }
         return true;
     }
-    
+
     void cleanupCurl() {
         if (m_curlm) {
             if (m_curl) {
@@ -159,25 +158,29 @@ public:
             m_curl = nullptr;
         }
     }
+
 private:
-    CURL *m_curl;
-    CURLM *m_curlm;
+    CURL* m_curl;
+    CURLM* m_curlm;
     bool m_isDone;
 };
 
-std::unique_ptr<Command::Result> URLCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> URLCommand::run(const std::vector<std::string>& args) {
     return std::make_unique<CURLResult>(args);
 }
 
-
 class VLCPlayData : public VLCOutput {
 public:
-    VLCPlayData(const std::string &file, int l, int vol) : VLCOutput(file, &status, "--hdmi--"), filename(file), loop(l), volumeAdjust(vol) {
+    VLCPlayData(const std::string& file, int l, int vol) :
+        VLCOutput(file, &status, "--hdmi--"),
+        filename(file),
+        loop(l),
+        volumeAdjust(vol) {
         SetVolumeAdjustment(vol);
     }
     virtual ~VLCPlayData() {
     }
-    
+
     virtual void Stopped() override {
         //cannot Stop/delete right now as the vlc player is locked, fork a thread
         std::thread th([this] {
@@ -191,15 +194,15 @@ public:
         });
         th.detach();
     }
-    
+
     std::string filename;
-    VLCOutput *output = nullptr;
+    VLCOutput* output = nullptr;
     int loop = 0;
     int volumeAdjust = 0;
     MediaOutputStatus status;
 };
 
-std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::string>& args) {
     int loop = std::atoi(args[1].c_str());
     int volAdjust = 0;
     if (args.size() > 2) {
@@ -208,10 +211,8 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     if (loop < 1) {
         loop = 1;
     }
-    VLCOutput *out = new VLCPlayData(args[0], loop - 1, volAdjust);
+    VLCOutput* out = new VLCPlayData(args[0], loop - 1, volAdjust);
     out->Start();
-    
+
     return std::make_unique<Command::Result>("Playing");
 }
-
-

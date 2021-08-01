@@ -28,50 +28,50 @@
 #include "ThreadedChannelOutputBase.h"
 
 class X11PanelMatrixOutput : public ThreadedChannelOutputBase {
-  public:
-	X11PanelMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~X11PanelMatrixOutput();
+public:
+    X11PanelMatrixOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~X11PanelMatrixOutput();
 
-	virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual int RawSendData(unsigned char *channelData) override;
+    virtual int RawSendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-	std::string  m_layout;
-	std::string  m_colorOrder;
+private:
+    std::string m_layout;
+    std::string m_colorOrder;
 
-	int          m_panelWidth;
-	int          m_panelHeight;
-	int          m_panels;
-	int          m_width;
-	int          m_height;
-	int          m_rows;
-	int          m_outputs;
-	int          m_longestChain;
-	int          m_invertedData;
+    int m_panelWidth;
+    int m_panelHeight;
+    int m_panels;
+    int m_width;
+    int m_height;
+    int m_rows;
+    int m_outputs;
+    int m_longestChain;
+    int m_invertedData;
 
-	Matrix      *m_matrix;
-	PanelMatrix *m_panelMatrix;
-    
-    uint8_t      m_gammaCurve[256];
+    Matrix* m_matrix;
+    PanelMatrix* m_panelMatrix;
 
-    int          m_scale;
-    int          m_scaleWidth;
-    int          m_scaleHeight;
+    uint8_t m_gammaCurve[256];
 
-    char        *m_imageData;
+    int m_scale;
+    int m_scaleWidth;
+    int m_scaleHeight;
 
-    Display     *m_display;
-    int          m_screen;
-    Window       m_window;
-    GC           m_gc;
-    Pixmap       m_pixmap;
-    XImage      *m_image;
+    char* m_imageData;
 
-    std::string  m_title;
+    Display* m_display;
+    int m_screen;
+    Window m_window;
+    GC m_gc;
+    Pixmap m_pixmap;
+    XImage* m_image;
+
+    std::string m_title;
 };

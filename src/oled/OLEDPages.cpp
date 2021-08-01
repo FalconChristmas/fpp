@@ -1,16 +1,16 @@
 #include "fpp-pch.h"
+
 #include "OLEDPages.h"
 
-static std::unique_ptr<DisplayDriver> displayDriver { nullptr };
+static std::unique_ptr<DisplayDriver> displayDriver{ nullptr };
 
 OLEDPage::OLEDType OLEDPage::oledType = OLEDPage::OLEDType::SINGLE_COLOR;
 bool OLEDPage::oledFlipped = false;
-OLEDPage *OLEDPage::currentPage = nullptr;
+OLEDPage* OLEDPage::currentPage = nullptr;
 bool OLEDPage::oledForcedOff = false;
 bool OLEDPage::has4DirectionControls = false;
 
 static int DISPLAY_I2CBUS = 0;
-
 
 bool OLEDPage::InitializeDisplay(int ledType) {
     if (ledType == 0) {
@@ -24,7 +24,7 @@ bool OLEDPage::InitializeDisplay(int ledType) {
             SetOLEDType(OLEDPage::OLEDType::NONE);
             return false;
         }
-        
+
         if (ledType == 3 || ledType == 4) {
             SetOLEDType(OLEDPage::OLEDType::SMALL);
         } else if (ledType == 7 || ledType == 8) {
@@ -35,7 +35,7 @@ bool OLEDPage::InitializeDisplay(int ledType) {
         if (ledType == 2 || ledType == 4 || ledType == 6 || ledType == 8 || ledType == 10) {
             SetOLEDOrientationFlipped(true);
         }
-        
+
         return true;
     } else if (ledType <= 20) {
         displayDriver = std::make_unique<I2C1602_2004_DisplayDriver>(ledType);
@@ -94,14 +94,16 @@ void OLEDPage::fillRect(short x0, short y0, short x1, short y1, bool white) {
     }
 }
 
-void OLEDPage::printString(int x, int y, const std::string &str, bool white) {
-    if (oledForcedOff) return;
+void OLEDPage::printString(int x, int y, const std::string& str, bool white) {
+    if (oledForcedOff)
+        return;
     if (displayDriver) {
         displayDriver->printString(x, y, str, white);
     }
 }
-void OLEDPage::printStringCentered(int y, const std::string &str, bool white) {
-    if (oledForcedOff) return;
+void OLEDPage::printStringCentered(int y, const std::string& str, bool white) {
+    if (oledForcedOff)
+        return;
     if (displayDriver) {
         displayDriver->printStringCentered(y, str, white);
     }
@@ -130,10 +132,11 @@ int OLEDPage::getMinimumRefresh() {
     return 1000;
 }
 
-OLEDPage::OLEDPage() : autoDeleteOnHide(false) {
+OLEDPage::OLEDPage() :
+    autoDeleteOnHide(false) {
 }
 
-void OLEDPage::SetCurrentPage(OLEDPage *p) {
+void OLEDPage::SetCurrentPage(OLEDPage* p) {
     if (currentPage) {
         currentPage->hiding();
         if (currentPage->autoDeleteOnHide) {
@@ -146,8 +149,8 @@ void OLEDPage::SetCurrentPage(OLEDPage *p) {
     }
 }
 
-
-TitledOLEDPage::TitledOLEDPage(const std::string &t) : title(t) {
+TitledOLEDPage::TitledOLEDPage(const std::string& t) :
+    title(t) {
     numRows = GetLEDDisplayHeight() == 128 ? 11 : 5;
     if (oledType == OLEDPage::OLEDType::TWO_COLOR && oledFlipped) {
         numRows = 4;
@@ -158,26 +161,27 @@ TitledOLEDPage::TitledOLEDPage(const std::string &t) : title(t) {
     }
 }
 int TitledOLEDPage::displayTitle() {
-    if (oledForcedOff) return 0;
-    
+    if (oledForcedOff)
+        return 0;
+
     int startY = 0;
     int maxY = 63;
     switch (numRows) {
-        case 4:
-            maxY = 47;
-            break;
-        case 3:
-            maxY = 31;
-            break;
-        case 2:
-            maxY = 23;
-            break;
-        case 1:
-            maxY = 15;
-            break;
-        case 11:
-            maxY = 127;
-            break;
+    case 4:
+        maxY = 47;
+        break;
+    case 3:
+        maxY = 31;
+        break;
+    case 2:
+        maxY = 23;
+        break;
+    case 1:
+        maxY = 15;
+        break;
+    case 11:
+        maxY = 127;
+        break;
     }
     if (oledType == OLEDPage::OLEDType::TWO_COLOR && !oledFlipped) {
         if (displayDriver && displayDriver->setFont("Roboto_Medium_14")) {
@@ -219,26 +223,36 @@ int TitledOLEDPage::displayTitle() {
     return startY;
 }
 
-
-PromptOLEDPage::PromptOLEDPage(const std::string &t, const std::string &m1, const std::string &m2,
-                               const std::vector<std::string> &i)
-: TitledOLEDPage(t), msg1(m1), msg2(m2), items(i), curSelected(0), itemSelectedCallback(nullptr) {
+PromptOLEDPage::PromptOLEDPage(const std::string& t, const std::string& m1, const std::string& m2,
+                               const std::vector<std::string>& i) :
+    TitledOLEDPage(t),
+    msg1(m1),
+    msg2(m2),
+    items(i),
+    curSelected(0),
+    itemSelectedCallback(nullptr) {
 }
-PromptOLEDPage::PromptOLEDPage(const std::string &t, const std::string &m1, const std::string &m2,
-                               const std::vector<std::string> &i,
-                               const std::function<void (const std::string &)>& cb)
-: TitledOLEDPage(t), msg1(m1), msg2(m2), items(i), curSelected(0), itemSelectedCallback(cb) {
+PromptOLEDPage::PromptOLEDPage(const std::string& t, const std::string& m1, const std::string& m2,
+                               const std::vector<std::string>& i,
+                               const std::function<void(const std::string&)>& cb) :
+    TitledOLEDPage(t),
+    msg1(m1),
+    msg2(m2),
+    items(i),
+    curSelected(0),
+    itemSelectedCallback(cb) {
 }
 void PromptOLEDPage::displaying() {
     curSelected = 0;
     display();
 }
 void PromptOLEDPage::display() {
-    if (oledForcedOff) return;
+    if (oledForcedOff)
+        return;
     clearDisplay();
     int startY = displayTitle();
     int skipY = numRows <= 3 ? 8 : (numRows == 4 ? 9 : 10);
-    
+
     if (numRows > 4) {
         startY += skipY;
     }
@@ -263,7 +277,7 @@ void PromptOLEDPage::display() {
     }
     flushDisplay();
 }
-bool PromptOLEDPage::doAction(const std::string &action) {
+bool PromptOLEDPage::doAction(const std::string& action) {
     if (action == "Down" || action == "Test/Down") {
         curSelected++;
         if (curSelected == items.size()) {
@@ -282,15 +296,17 @@ bool PromptOLEDPage::doAction(const std::string &action) {
     }
     return false;
 }
-void PromptOLEDPage::ItemSelected(const std::string &item) {
+void PromptOLEDPage::ItemSelected(const std::string& item) {
     if (itemSelectedCallback) {
         itemSelectedCallback(item);
     }
 }
 
-
-ListOLEDPage::ListOLEDPage(const std::string &t, const std::vector<std::string> &i, OLEDPage *p)
-: TitledOLEDPage(t), items(i), curTop(0), parent(p) {
+ListOLEDPage::ListOLEDPage(const std::string& t, const std::vector<std::string>& i, OLEDPage* p) :
+    TitledOLEDPage(t),
+    items(i),
+    curTop(0),
+    parent(p) {
 }
 void ListOLEDPage::displaying() {
     curTop = 0;
@@ -308,9 +324,9 @@ void ListOLEDPage::displayScrollArrows(int startY) {
     }
 }
 
-
 void ListOLEDPage::display() {
-    if (oledForcedOff) return;
+    if (oledForcedOff)
+        return;
     clearDisplay();
     int startY = displayTitle();
     displayScrollArrows(startY);
@@ -326,7 +342,7 @@ void ListOLEDPage::display() {
     flushDisplay();
 }
 
-bool ListOLEDPage::doAction(const std::string &action) {
+bool ListOLEDPage::doAction(const std::string& action) {
     if (action == "Down") {
         if ((items.size() - curTop) < numRows) {
             curTop++;
@@ -349,14 +365,17 @@ bool ListOLEDPage::doAction(const std::string &action) {
     return true;
 }
 
-
-MenuOLEDPage::MenuOLEDPage(const std::string &t, const std::vector<std::string> &i, OLEDPage *p)
-: ListOLEDPage(t, i, p), curSelected(0), itemSelectedCallback(nullptr) {
+MenuOLEDPage::MenuOLEDPage(const std::string& t, const std::vector<std::string>& i, OLEDPage* p) :
+    ListOLEDPage(t, i, p),
+    curSelected(0),
+    itemSelectedCallback(nullptr) {
 }
-MenuOLEDPage::MenuOLEDPage(const std::string &t, const std::vector<std::string> &i,
-                           const std::function<void (const std::string &)>& cb,
-                           OLEDPage *p)
-: ListOLEDPage(t, i, p), curSelected(0), itemSelectedCallback(cb) {
+MenuOLEDPage::MenuOLEDPage(const std::string& t, const std::vector<std::string>& i,
+                           const std::function<void(const std::string&)>& cb,
+                           OLEDPage* p) :
+    ListOLEDPage(t, i, p),
+    curSelected(0),
+    itemSelectedCallback(cb) {
 }
 void MenuOLEDPage::displaying() {
     curSelected = 0;
@@ -364,7 +383,8 @@ void MenuOLEDPage::displaying() {
     display();
 }
 void MenuOLEDPage::display() {
-    if (oledForcedOff) return;
+    if (oledForcedOff)
+        return;
     clearDisplay();
     int startY = displayTitle();
     displayScrollArrows(startY);
@@ -383,7 +403,7 @@ void MenuOLEDPage::display() {
     }
     flushDisplay();
 }
-bool MenuOLEDPage::doAction(const std::string &action) {
+bool MenuOLEDPage::doAction(const std::string& action) {
     //printf("In menu action %s\n", action.c_str());
     if (action == "Down" || action == "Test/Down") {
         curSelected++;
@@ -417,10 +437,8 @@ bool MenuOLEDPage::doAction(const std::string &action) {
     return true;
 }
 
-void MenuOLEDPage::itemSelected(const std::string &item) {
+void MenuOLEDPage::itemSelected(const std::string& item) {
     if (itemSelectedCallback) {
         itemSelectedCallback(item);
     }
 }
-
-

@@ -3,12 +3,11 @@
 #include "Player.h"
 #include "PlaylistCommands.h"
 
-
-std::unique_ptr<Command::Result> StopPlaylistCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> StopPlaylistCommand::run(const std::vector<std::string>& args) {
     Player::INSTANCE.StopNow(1);
     return std::make_unique<Command::Result>("Stopped");
 }
-std::unique_ptr<Command::Result> StopGracefullyPlaylistCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> StopGracefullyPlaylistCommand::run(const std::vector<std::string>& args) {
     bool loop = false;
     if (args.size()) {
         loop = args[0] == "true" || args[0] == "1";
@@ -16,21 +15,20 @@ std::unique_ptr<Command::Result> StopGracefullyPlaylistCommand::run(const std::v
     Player::INSTANCE.StopGracefully(1, loop);
     return std::make_unique<Command::Result>("Stopping");
 }
-std::unique_ptr<Command::Result> RestartPlaylistCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> RestartPlaylistCommand::run(const std::vector<std::string>& args) {
     Player::INSTANCE.RestartItem();
     return std::make_unique<Command::Result>("Restarting");
 }
-std::unique_ptr<Command::Result> NextPlaylistCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> NextPlaylistCommand::run(const std::vector<std::string>& args) {
     Player::INSTANCE.NextItem();
     return std::make_unique<Command::Result>("Next Item Playing");
 }
-std::unique_ptr<Command::Result> PrevPlaylistCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> PrevPlaylistCommand::run(const std::vector<std::string>& args) {
     Player::INSTANCE.PrevItem();
     return std::make_unique<Command::Result>("Prev Item Playing");
 }
 
-
-std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std::string>& args) {
     bool r = false;
     bool iNR = false;
     if (args.size() > 1) {
@@ -45,7 +43,7 @@ std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std
     return std::make_unique<Command::Result>("Playlist Starting");
 }
 
-std::unique_ptr<Command::Result> TogglePlaylistCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> TogglePlaylistCommand::run(const std::vector<std::string>& args) {
     bool r = false;
     std::string stopType = "Gracefully";
     if (args.size() > 1) {
@@ -68,7 +66,7 @@ std::unique_ptr<Command::Result> TogglePlaylistCommand::run(const std::vector<st
     return std::make_unique<Command::Result>("Playlist Starting");
 }
 
-std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<std::string>& args) {
     bool r = false;
     int idx = std::atoi(args[1].c_str());
     bool iNR = false;
@@ -84,7 +82,7 @@ std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<s
     return std::make_unique<Command::Result>("Playlist Starting");
 }
 
-std::unique_ptr<Command::Result> StartPlaylistAtRandomCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> StartPlaylistAtRandomCommand::run(const std::vector<std::string>& args) {
     bool r = false;
     bool iNR = false;
     if (args.size() > 1) {
@@ -99,7 +97,7 @@ std::unique_ptr<Command::Result> StartPlaylistAtRandomCommand::run(const std::ve
     return std::make_unique<Command::Result>("Playlist Starting");
 }
 
-std::unique_ptr<Command::Result> InsertPlaylistCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> InsertPlaylistCommand::run(const std::vector<std::string>& args) {
     int start = -1;
     int end = -1;
     bool iNR = false;
@@ -118,8 +116,7 @@ std::unique_ptr<Command::Result> InsertPlaylistCommand::run(const std::vector<st
     return std::make_unique<Command::Result>("Playlist Inserted");
 }
 
-
-std::unique_ptr<Command::Result> InsertPlaylistImmediate::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> InsertPlaylistImmediate::run(const std::vector<std::string>& args) {
     int start = -1;
     int end = -1;
     bool iNR = false;
@@ -138,12 +135,11 @@ std::unique_ptr<Command::Result> InsertPlaylistImmediate::run(const std::vector<
     return std::make_unique<Command::Result>("Playlist Inserted");
 }
 
-
-std::unique_ptr<Command::Result> PlaylistPauseCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> PlaylistPauseCommand::run(const std::vector<std::string>& args) {
     Player::INSTANCE.Pause();
     return std::make_unique<Command::Result>("Playlist Inserted");
 }
-std::unique_ptr<Command::Result> PlaylistResumeCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> PlaylistResumeCommand::run(const std::vector<std::string>& args) {
     Player::INSTANCE.Resume();
     return std::make_unique<Command::Result>("Playlist Inserted");
 }

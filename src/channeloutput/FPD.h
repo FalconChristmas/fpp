@@ -30,7 +30,7 @@
 void SendFPDConfig();
 
 /* Create a pixelnetDMX config file */
-void CreatePixelnetDMXfile(const char * file);
+void CreatePixelnetDMXfile(const char* file);
 
 /* Expose our interface */
 extern FPPChannelOutput FPDOutput;

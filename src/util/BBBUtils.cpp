@@ -2,17 +2,16 @@
 #include "fpp-pch.h"
 
 #include "BBBUtils.h"
-#include <fcntl.h>
 #include <sys/mman.h>
-
+#include <fcntl.h>
 
 static BeagleBoneType BBB_TYPE = Unknown;
 BeagleBoneType getBeagleBoneType() {
     if (BBB_TYPE == Unknown) {
-        FILE *file = fopen("/proc/device-tree/model", "r");
+        FILE* file = fopen("/proc/device-tree/model", "r");
         if (file) {
             char buf[256];
-            fgets(buf , 256 , file);
+            fgets(buf, 256, file);
             fclose(file);
             if (strcmp(buf, "SanCloud BeagleBone Enhanced") == 0) {
                 BBB_TYPE = SanCloudEnhanced;
@@ -152,17 +151,16 @@ static const std::vector<BBBPinCapabilities> BBB_PINS = {
     BBBPinCapabilities("P9-92", 114).setPRU(0, 4),
 };
 
-
-BBBPinCapabilities::BBBPinCapabilities(const std::string &n, uint32_t k)
-: PinCapabilitiesFluent(n, k) {
+BBBPinCapabilities::BBBPinCapabilities(const std::string& n, uint32_t k) :
+    PinCapabilitiesFluent(n, k) {
     gpioIdx = k / 32;
     gpio = k % 32;
 }
 
 // ------------------------------------------------------------------------
 
-#define GPIO_DATAIN     0x138
-#define GPIO_DATAOUT    0x13C
+#define GPIO_DATAIN 0x138
+#define GPIO_DATAOUT 0x13C
 #define GPIO_SETDATAOUT 0x194
 #define GPIO_CLEARDATAOUT 0x190
 
@@ -171,25 +169,23 @@ BBBPinCapabilities::BBBPinCapabilities(const std::string &n, uint32_t k)
 #define GPIO1_BASE 0x4804C000
 #define GPIO2_BASE 0x481AC000
 #define GPIO3_BASE 0x481AE000
-#define GPIO_SIZE  0x00001000
-
+#define GPIO_SIZE 0x00001000
 
 // 1MHz frequence
 // #define HZ 1000000.0f
 #define HZ 10000.0f
 
+static uint8_t* bbGPIOMap[] = { 0, 0, 0, 0 };
 
-static uint8_t *bbGPIOMap[] = {0, 0, 0, 0};
+static int bbbPWMChipNums[] = { 1, 3, 6 };
 
-static int bbbPWMChipNums[] = { 1, 3, 6};
-
-static const char *bbbPWMDeviceNames[] = {
+static const char* bbbPWMDeviceNames[] = {
     "/sys/devices/platform/ocp/48300000.epwmss/48300200.pwm/pwm/pwmchip",
     "/sys/devices/platform/ocp/48302000.epwmss/48302200.pwm/pwm/pwmchip",
     "/sys/devices/platform/ocp/48304000.epwmss/48304200.pwm/pwm/pwmchip",
 };
 
-static FILE * bbbPWMDutyFiles[] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+static FILE* bbbPWMDutyFiles[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 
 static volatile bool registersMemMapped = false;
 
@@ -209,17 +205,15 @@ static void setupBBBMemoryMap() {
         return;
     }
     int fd = open("/dev/mem", O_RDWR);
-    bbGPIOMap[0] =  (uint8_t*)mmap(0, GPIO_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, GPIO0_BASE);
-    bbGPIOMap[1] =  (uint8_t*)mmap(0, GPIO_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, GPIO1_BASE);
-    bbGPIOMap[2] =  (uint8_t*)mmap(0, GPIO_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, GPIO2_BASE);
-    bbGPIOMap[3] =  (uint8_t*)mmap(0, GPIO_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, GPIO3_BASE);
-
+    bbGPIOMap[0] = (uint8_t*)mmap(0, GPIO_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, GPIO0_BASE);
+    bbGPIOMap[1] = (uint8_t*)mmap(0, GPIO_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, GPIO1_BASE);
+    bbGPIOMap[2] = (uint8_t*)mmap(0, GPIO_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, GPIO2_BASE);
+    bbGPIOMap[3] = (uint8_t*)mmap(0, GPIO_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, GPIO3_BASE);
 
     registersMemMapped = 1;
 }
 
 // ------------------------------------------------------------------------
-
 
 bool BBBPinCapabilities::supportPWM() const {
     return pwm != -1;
@@ -231,39 +225,37 @@ int BBBPinCapabilities::configPin(const std::string& mode,
     if (i2cBus >= 0 && !enableI2C) {
         enableOledScreen(i2cBus, false);
     }
-    
+
     char pinName[16];
     strcpy(pinName, name.c_str());
     if (pinName[2] == '-') {
         pinName[2] = '_';
     }
-    
+
     char dir_name[128];
-    
+
     sprintf(dir_name, "/sys/class/gpio/gpio%u/direction", kernelGpio);
     if (access(dir_name, F_OK) == -1) {
         // not exported, we need to export it
-        FILE *dir = fopen("/sys/class/gpio/export", "w");
+        FILE* dir = fopen("/sys/class/gpio/export", "w");
         fprintf(dir, "%d", kernelGpio);
         fclose(dir);
     }
     snprintf(dir_name, sizeof(dir_name),
              "/sys/devices/platform/ocp/ocp:%s_pinmux/state",
-             pinName
-             );
-    FILE *dir = fopen(dir_name, "w");
+             pinName);
+    FILE* dir = fopen(dir_name, "w");
     if (!dir) {
         return -1;
     }
     fprintf(dir, "%s\n", mode.c_str());
     fclose(dir);
-    
+
     if (mode != "pwm" && mode != "i2c" && mode != "uart" && mode != "default") {
         snprintf(dir_name, sizeof(dir_name),
                  "/sys/class/gpio/gpio%u/direction",
-                 kernelGpio
-                 );
-        
+                 kernelGpio);
+
         dir = fopen(dir_name, "w");
         if (!dir) {
             return -1;
@@ -279,13 +271,13 @@ int BBBPinCapabilities::configPin(const std::string& mode,
 bool BBBPinCapabilities::getValue() const {
     setupBBBMemoryMap();
     int set = 1 << gpio;
-    uint32_t *base = (uint32_t*)(bbGPIOMap[gpioIdx] + GPIO_DATAIN);
+    uint32_t* base = (uint32_t*)(bbGPIOMap[gpioIdx] + GPIO_DATAIN);
     return (*base & set) ? true : false;
 }
 void BBBPinCapabilities::setValue(bool v) const {
     setupBBBMemoryMap();
     int set = 1 << gpio;
-    uint8_t *base = bbGPIOMap[gpioIdx];
+    uint8_t* base = bbGPIOMap[gpioIdx];
     if (v) {
         base += GPIO_SETDATAOUT;
     } else {
@@ -295,42 +287,39 @@ void BBBPinCapabilities::setValue(bool v) const {
     *base32 = set;
 }
 
-
 int BBBPinCapabilities::openValueForPoll() const {
     char dir_name[128];
     snprintf(dir_name, sizeof(dir_name),
              "/sys/class/gpio/gpio%u/value",
-             kernelGpio
-             );
+             kernelGpio);
     return open(dir_name, O_RDONLY | O_NONBLOCK);
 }
 bool BBBPinCapabilities::setupPWM(int maxValue) const {
     if (pwm != -1 && (bbbPWMDutyFiles[pwm * 2 + subPwm] == nullptr)) {
         //set pin
         setupBBBMemoryMap();
-        
+
         configPin("pwm");
         int chipNum = getBBBPWMChipNum(pwm);
         char dir_name[128];
         snprintf(dir_name, sizeof(dir_name), "%s%d/export", bbbPWMDeviceNames[pwm], chipNum);
-        FILE *dir = fopen(dir_name, "w");
+        FILE* dir = fopen(dir_name, "w");
         fprintf(dir, "%d", subPwm);
         fclose(dir);
-        
-        
+
         snprintf(dir_name, sizeof(dir_name), "%s%d/pwm-%d:%d/period",
                  bbbPWMDeviceNames[pwm], chipNum, chipNum, subPwm);
         dir = fopen(dir_name, "w");
         fprintf(dir, "%d", maxValue);
         fclose(dir);
-        
+
         snprintf(dir_name, sizeof(dir_name), "%s%d/pwm-%d:%d/duty_cycle",
                  bbbPWMDeviceNames[pwm], chipNum, chipNum, subPwm);
         dir = fopen(dir_name, "w");
         fprintf(dir, "0");
         fflush(dir);
         bbbPWMDutyFiles[pwm * 2 + subPwm] = dir;
-        
+
         snprintf(dir_name, sizeof(dir_name), "%s%d/pwm-%d:%d/enable",
                  bbbPWMDeviceNames[pwm], chipNum, chipNum, subPwm);
         dir = fopen(dir_name, "w");
@@ -343,7 +332,7 @@ bool BBBPinCapabilities::setupPWM(int maxValue) const {
 void BBBPinCapabilities::setPWMValue(int value) const {
     if (pwm != -1) {
         setupBBBMemoryMap();
-        
+
         char val[16];
         fprintf(bbbPWMDutyFiles[pwm * 2 + subPwm], "%d", value);
         fflush(bbbPWMDutyFiles[pwm * 2 + subPwm]);
@@ -357,11 +346,11 @@ void BBBPinCapabilities::setPWMValue(int value) const {
 int BBBPinCapabilities::getPWMRegisterAddress() const {
     //need to add 0x200 to the base address to get the
     //address to the eHRPWM register which is what we really use
-    if (pwm == 0)  {
+    if (pwm == 0) {
         return PWMSS0_BASE + 0x200;
-    } else if (pwm == 1)  {
+    } else if (pwm == 1) {
         return PWMSS1_BASE + 0x200;
-    } else if (pwm == 2)  {
+    } else if (pwm == 2) {
         return PWMSS2_BASE + 0x200;
     }
     return 0;
@@ -369,20 +358,21 @@ int BBBPinCapabilities::getPWMRegisterAddress() const {
 
 class NullBBBPinCapabilities : public BBBPinCapabilities {
 public:
-    NullBBBPinCapabilities() : BBBPinCapabilities("-none-", 0) {}
-    virtual const PinCapabilities *ptr() const override { return nullptr; }
+    NullBBBPinCapabilities() :
+        BBBPinCapabilities("-none-", 0) {}
+    virtual const PinCapabilities* ptr() const override { return nullptr; }
 };
 static NullBBBPinCapabilities NULL_BBB_INSTANCE;
 
-const BBBPinCapabilities &BBBPinCapabilities::getPinByName(const std::string &name) {
+const BBBPinCapabilities& BBBPinCapabilities::getPinByName(const std::string& name) {
     if (getBeagleBoneType() == PocketBeagle) {
-        for (auto &a : PB_PINS) {
+        for (auto& a : PB_PINS) {
             if (a.name == name) {
                 return a;
             }
         }
     } else {
-        for (auto &a : BBB_PINS) {
+        for (auto& a : BBB_PINS) {
             if (a.name == name) {
                 return a;
             }
@@ -391,15 +381,15 @@ const BBBPinCapabilities &BBBPinCapabilities::getPinByName(const std::string &na
     return NULL_BBB_INSTANCE;
 }
 
-const BBBPinCapabilities &BBBPinCapabilities::getPinByGPIO(int i) {
+const BBBPinCapabilities& BBBPinCapabilities::getPinByGPIO(int i) {
     if (getBeagleBoneType() == PocketBeagle) {
-        for (auto &a : PB_PINS) {
+        for (auto& a : PB_PINS) {
             if (a.kernelGpio == i) {
                 return a;
             }
         }
     } else {
-        for (auto &a : BBB_PINS) {
+        for (auto& a : BBB_PINS) {
             if (a.kernelGpio == i) {
                 return a;
             }
@@ -409,31 +399,30 @@ const BBBPinCapabilities &BBBPinCapabilities::getPinByGPIO(int i) {
 }
 
 void BBBPinCapabilities::Init() {
-    
 }
 
 std::vector<std::string> BBBPinCapabilities::getPinNames() {
     std::vector<std::string> ret;
     if (getBeagleBoneType() == PocketBeagle) {
-        for (auto &a : PB_PINS) {
+        for (auto& a : PB_PINS) {
             ret.push_back(a.name);
         }
     } else {
-        for (auto &a : BBB_PINS) {
+        for (auto& a : BBB_PINS) {
             ret.push_back(a.name);
         }
     }
     return ret;
 }
-const BBBPinCapabilities &BBBPinCapabilities::getPinByUART(const std::string &n) {
+const BBBPinCapabilities& BBBPinCapabilities::getPinByUART(const std::string& n) {
     if (getBeagleBoneType() == PocketBeagle) {
-        for (auto &a : PB_PINS) {
+        for (auto& a : PB_PINS) {
             if (a.uart == n) {
                 return a;
             }
         }
     } else {
-        for (auto &a : BBB_PINS) {
+        for (auto& a : BBB_PINS) {
             if (a.uart == n) {
                 return a;
             }

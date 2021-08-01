@@ -30,7 +30,7 @@
 #include <ctime>
 
 #ifndef M_PI
-  #define M_PI 3.14159265358979323846264338327950288
+#define M_PI 3.14159265358979323846264338327950288
 #endif
 
 /**
@@ -70,11 +70,11 @@ public:
     SunSet(double, double, double);
     ~SunSet();
 
-    static constexpr double SUNSET_OFFICIAL = 90.833;       /**< Standard sun angle for sunset */
-    static constexpr double SUNSET_NAUTICAL = 102.0;        /**< Nautical sun angle for sunset */
-    static constexpr double SUNSET_CIVIL = 96.0;            /**< Civil sun angle for sunset */
-    static constexpr double SUNSET_ASTONOMICAL = 108.0;     /**< Astronomical sun angle for sunset */
-    
+    static constexpr double SUNSET_OFFICIAL = 90.833;   /**< Standard sun angle for sunset */
+    static constexpr double SUNSET_NAUTICAL = 102.0;    /**< Nautical sun angle for sunset */
+    static constexpr double SUNSET_CIVIL = 96.0;        /**< Civil sun angle for sunset */
+    static constexpr double SUNSET_ASTONOMICAL = 108.0; /**< Astronomical sun angle for sunset */
+
     void setPosition(double, double, int);
     void setPosition(double, double, double);
     void setTZOffset(int);
@@ -94,7 +94,7 @@ public:
     double calcSunset() const;
     int moonPhase(int) const;
     int moonPhase() const;
-    
+
 private:
     double degToRad(double) const;
     double radToDeg(double) const;
@@ -110,7 +110,7 @@ private:
     double calcSunDeclination(double) const;
     double calcHourAngleSunrise(double, double, double) const;
     double calcHourAngleSunset(double, double, double) const;
-    double calcJD(int,int,int) const;
+    double calcJD(int, int, int) const;
     double calcJDFromJulianCent(double) const;
     double calcSunEqOfCenter(double) const;
     double calcAbsSunrise(double) const;

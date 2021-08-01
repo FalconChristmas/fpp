@@ -24,21 +24,19 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #include <stdio.h>
 #include <string>
 
-#include <mutex>
-#include <thread>
-#include <list>
 #include <atomic>
 #include <condition_variable>
+#include <list>
+#include <mutex>
+#include <thread>
 
 #include "fseq/FSEQFile.h"
 
-
-#define FPPD_MAX_CHANNELS (8192*1024)
-#define DATA_DUMP_SIZE    28
+#define FPPD_MAX_CHANNELS (8192 * 1024)
+#define DATA_DUMP_SIZE 28
 
 //reserve 4 channels of 0 and 4 channels of 0xFF for indexes
 //that require one or the other
@@ -47,80 +45,79 @@
 #define FPPD_MAX_CHANNEL_NUM (FPPD_WHITE_CHANNEL + 4)
 
 class Sequence {
-  public:
-	Sequence();
-	~Sequence();
+public:
+    Sequence();
+    ~Sequence();
 
-	int   IsSequenceRunning(void);
-	int   IsSequenceRunning(const std::string &filename);
-	int   OpenSequenceFile(const std::string &filename, int startFrame = 0, int startSecond = -1);
-    void  StartSequence(const std::string &filename, int startFrame);
-    void  StartSequence();
-	void  ProcessSequenceData(int ms, int checkControlChannels = 1);
-	void  SeekSequenceFile(int frameNumber);
-	void  ReadSequenceData(bool forceFirstFrame = false);
-	void  SendSequenceData(void);
-	void  SendBlankingData(void);
-    void  CloseIfOpen(const std::string &filename);
-	void  CloseSequenceFile(void);
-	void  ToggleSequencePause(void);
-	void  SingleStepSequence(void);
-	void  SingleStepSequenceBack(void);
-	int   SequenceIsPaused(void);
+    int IsSequenceRunning(void);
+    int IsSequenceRunning(const std::string& filename);
+    int OpenSequenceFile(const std::string& filename, int startFrame = 0, int startSecond = -1);
+    void StartSequence(const std::string& filename, int startFrame);
+    void StartSequence();
+    void ProcessSequenceData(int ms, int checkControlChannels = 1);
+    void SeekSequenceFile(int frameNumber);
+    void ReadSequenceData(bool forceFirstFrame = false);
+    void SendSequenceData(void);
+    void SendBlankingData(void);
+    void CloseIfOpen(const std::string& filename);
+    void CloseSequenceFile(void);
+    void ToggleSequencePause(void);
+    void SingleStepSequence(void);
+    void SingleStepSequenceBack(void);
+    int SequenceIsPaused(void);
 
-    bool  hasBridgeData();
-    bool  isDataProcessed() const { return m_dataProcessed; }
-    void  setDataNotProcessed() { m_dataProcessed = false; }
+    bool hasBridgeData();
+    bool isDataProcessed() const { return m_dataProcessed; }
+    void setDataNotProcessed() { m_dataProcessed = false; }
 
-	int           m_seqMSDuration;
-	int           m_seqMSElapsed;
-	int           m_seqMSRemaining;
-	char          m_seqData[FPPD_MAX_CHANNEL_NUM] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
-    std::string   m_seqFilename;
+    int m_seqMSDuration;
+    int m_seqMSElapsed;
+    int m_seqMSRemaining;
+    char m_seqData[FPPD_MAX_CHANNEL_NUM] __attribute__((aligned(__BIGGEST_ALIGNMENT__)));
+    std::string m_seqFilename;
 
-    
-    int  GetSeqStepTime() const { return m_seqStepTime;}
-    void  BlankSequenceData(bool clearBridge = false);
-    
-    
-    void SetBridgeData(uint8_t *data, int startChannel, int len, uint64_t expireMS);
-  private:
-    void  SetLastFrameData(FSEQFile::FrameData *data);
+    int GetSeqStepTime() const { return m_seqStepTime; }
+    void BlankSequenceData(bool clearBridge = false);
 
+    void SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t expireMS);
+
+private:
+    void SetLastFrameData(FSEQFile::FrameData* data);
 
     class BridgeRangeData {
     public:
-        BridgeRangeData() : startChannel(0) {}
-        
+        BridgeRangeData() :
+            startChannel(0) {}
+
         uint32_t startChannel;
         // map of len -> ms when it expires, in MOST cases, this will be a single len (like 512 for e1.31)
         std::map<uint32_t, uint64_t> expires;
     };
     std::map<uint64_t, BridgeRangeData> m_bridgeRanges;
-    std::mutex   m_bridgeRangesLock;
-    uint8_t      *m_bridgeData;
+    std::mutex m_bridgeRangesLock;
+    uint8_t* m_bridgeData;
 
-	FSEQFile     *m_seqFile;
+    FSEQFile* m_seqFile;
 
-    volatile int  m_seqStarting;
-	int           m_seqPaused;
-    int           m_seqStepTime;
-	int           m_seqSingleStep;
-	int           m_seqSingleStepBack;
-	float           m_seqRefreshRate;
-	unsigned char m_seqLastControlValue;
-    int           m_remoteBlankCount;
-    bool          m_dataProcessed;
-    int           m_numSeek;
-    
-    int           m_blankBetweenSequences;
-    
+    volatile int m_seqStarting;
+    int m_seqPaused;
+    int m_seqStepTime;
+    int m_seqSingleStep;
+    int m_seqSingleStepBack;
+    float m_seqRefreshRate;
+    unsigned char m_seqLastControlValue;
+    int m_remoteBlankCount;
+    bool m_dataProcessed;
+    int m_numSeek;
+
+    int m_blankBetweenSequences;
+
     std::recursive_mutex m_sequenceLock;
-    
+
     std::atomic_int m_lastFrameRead;
     volatile bool m_doneRead;
     volatile bool m_shuttingDown;
-    std::thread *m_readThread;
+    std::thread* m_readThread;
     std::list<FSEQFile::FrameData*> frameCache;
     std::list<FSEQFile::FrameData*> pastFrameCache;
     FSEQFile::FrameData* m_lastFrameData;
@@ -130,9 +127,8 @@ class Sequence {
     std::condition_variable frameLoadSignal;
     std::condition_variable frameLoadedSignal;
 
-    public:
+public:
     void ReadFramesLoop();
 };
 
-extern Sequence *sequence;
-
+extern Sequence* sequence;

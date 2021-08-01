@@ -28,21 +28,21 @@
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryPlaylist : public PlaylistEntryBase {
-  public:
-	PlaylistEntryPlaylist(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryPlaylist();
+public:
+    PlaylistEntryPlaylist(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntryPlaylist();
 
-	virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-	virtual int  StartPlaying(void) override;
-	virtual int  Process(void) override;
-	virtual int  Stop(void) override;
+    virtual int StartPlaying(void) override;
+    virtual int Process(void) override;
+    virtual int Stop(void) override;
 
-	virtual void Dump(void) override;
-	virtual Json::Value GetConfig(void) override;
+    virtual void Dump(void) override;
+    virtual Json::Value GetConfig(void) override;
 
-  private:
-	std::string    m_playlistName;
+private:
+    std::string m_playlistName;
 
-	Playlist      *m_playlist;
+    Playlist* m_playlist;
 };

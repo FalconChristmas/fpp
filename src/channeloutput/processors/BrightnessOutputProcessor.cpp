@@ -14,14 +14,11 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <string.h>
-#include <cmath>
+#include "fpp-pch.h"
 
 #include "BrightnessOutputProcessor.h"
-#include "log.h"
 
-BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value &config) {
+BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value& config) {
     description = config["desription"].asString();
     active = config["active"].asInt() ? true : false;
     start = config["start"].asInt();
@@ -31,8 +28,7 @@ BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value &config) 
     LogInfo(VB_CHANNELOUT, "Brightness:   %d-%d => Brightness:%d   Gamma: %f\n",
             start, start + count - 1,
             brightness, gamma);
-    
-    
+
     float bf = brightness;
     float maxB = bf * 2.55f;
     for (int x = 0; x < 256; x++) {
@@ -47,16 +43,14 @@ BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value &config) 
         table[x] = round(f);
     }
 
-    
     //channel numbers need to be 0 based
     --start;
 }
 
 BrightnessOutputProcessor::~BrightnessOutputProcessor() {
-    
 }
 
-void BrightnessOutputProcessor::ProcessData(unsigned char *channelData) const {
+void BrightnessOutputProcessor::ProcessData(unsigned char* channelData) const {
     for (int x = 0; x < count; x++) {
         channelData[start + x] = table[channelData[start + x]];
     }

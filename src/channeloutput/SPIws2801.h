@@ -28,24 +28,24 @@
 #include "util/SPIUtils.h"
 
 class SPIws2801Output : public ThreadedChannelOutputBase {
-  public:
-	SPIws2801Output(unsigned int startChannel, unsigned int channelCount);
-	virtual ~SPIws2801Output();
+public:
+    SPIws2801Output(unsigned int startChannel, unsigned int channelCount);
+    virtual ~SPIws2801Output();
 
     virtual int Init(Json::Value config) override;
 
-	virtual int Close(void) override;
+    virtual int Close(void) override;
 
-	virtual int RawSendData(unsigned char *channelData) override;
+    virtual int RawSendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-    SPIUtils       *m_spi;
-	int            m_port;
-	int            m_pi36;
-	unsigned char *m_pi36Data;
-	int            m_pi36DataSize;
+private:
+    SPIUtils* m_spi;
+    int m_port;
+    int m_pi36;
+    unsigned char* m_pi36Data;
+    int m_pi36DataSize;
 };

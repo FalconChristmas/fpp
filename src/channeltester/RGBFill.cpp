@@ -29,81 +29,71 @@
 /*
  *
  */
-TestPatternRGBFill::TestPatternRGBFill()
-  : m_color1(0),
-	m_color2(0),
-	m_color3(0)
-{
-	LogExcess(VB_CHANNELOUT, "TestPatternRGBFill::TestPatternRGBFill()\n");
+TestPatternRGBFill::TestPatternRGBFill() :
+    m_color1(0),
+    m_color2(0),
+    m_color3(0) {
+    LogExcess(VB_CHANNELOUT, "TestPatternRGBFill::TestPatternRGBFill()\n");
 
-	m_testPatternName = "RGBFill";
+    m_testPatternName = "RGBFill";
 }
 
 /*
  *
  */
-TestPatternRGBFill::~TestPatternRGBFill()
-{
-	LogExcess(VB_CHANNELOUT, "TestPatternRGBFill::~TestPatternRGBFill()\n");
+TestPatternRGBFill::~TestPatternRGBFill() {
+    LogExcess(VB_CHANNELOUT, "TestPatternRGBFill::~TestPatternRGBFill()\n");
 }
 
 /*
  *
  */
-int TestPatternRGBFill::Init(Json::Value config)
-{
-	m_configChanged = 0;
+int TestPatternRGBFill::Init(Json::Value config) {
+    m_configChanged = 0;
 
-	if (m_color1 != config["color1"].asInt())
-	{
-		m_color1 = config["color1"].asInt();
-		m_configChanged = 1;
-	}
+    if (m_color1 != config["color1"].asInt()) {
+        m_color1 = config["color1"].asInt();
+        m_configChanged = 1;
+    }
 
-	if (m_color2 != config["color2"].asInt())
-	{
-		m_color2 = config["color2"].asInt();
-		m_configChanged = 1;
-	}
+    if (m_color2 != config["color2"].asInt()) {
+        m_color2 = config["color2"].asInt();
+        m_configChanged = 1;
+    }
 
-	if (m_color3 != config["color3"].asInt())
-	{
-		m_color3 = config["color3"].asInt();
-		m_configChanged = 1;
-	}
+    if (m_color3 != config["color3"].asInt()) {
+        m_color3 = config["color3"].asInt();
+        m_configChanged = 1;
+    }
 
-	return TestPatternBase::Init(config);
+    return TestPatternBase::Init(config);
 }
 
 /*
  *
  */
-int TestPatternRGBFill::SetupTest(void)
-{
-	bzero(m_testData, m_channelCount);
+int TestPatternRGBFill::SetupTest(void) {
+    bzero(m_testData, m_channelCount);
 
-	char *c = m_testData;
-	int   offset = 0;
-	for (int i = 0; i < m_channelCount; i += 3)
-	{
-		*(c++) = m_color1;
-		*(c++) = m_color2;
-		*(c++) = m_color3;
-	}
+    char* c = m_testData;
+    int offset = 0;
+    for (int i = 0; i < m_channelCount; i += 3) {
+        *(c++) = m_color1;
+        *(c++) = m_color2;
+        *(c++) = m_color3;
+    }
 
-	return TestPatternBase::SetupTest();
+    return TestPatternBase::SetupTest();
 }
 
 /*
  *
  */
-void TestPatternRGBFill::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "TestPatternRGBFill::DumpConfig\n");
-	LogDebug(VB_CHANNELOUT, "    color1 : %02x\n", m_color1);
-	LogDebug(VB_CHANNELOUT, "    color2 : %02x\n", m_color2);
-	LogDebug(VB_CHANNELOUT, "    color3 : %02x\n", m_color3);
+void TestPatternRGBFill::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "TestPatternRGBFill::DumpConfig\n");
+    LogDebug(VB_CHANNELOUT, "    color1 : %02x\n", m_color1);
+    LogDebug(VB_CHANNELOUT, "    color2 : %02x\n", m_color2);
+    LogDebug(VB_CHANNELOUT, "    color3 : %02x\n", m_color3);
 
-	TestPatternBase::DumpConfig();
+    TestPatternBase::DumpConfig();
 }
-

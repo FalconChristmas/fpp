@@ -32,25 +32,23 @@
 #define MAX_CHANNELS 16777215
 
 #ifdef PLATFORM_PI
-#	define MIN_SPI_SPEED_HZ 32000
-#	define MAX_SPI_SPEED_HZ 125000000
+#define MIN_SPI_SPEED_HZ 32000
+#define MAX_SPI_SPEED_HZ 125000000
 #elif PLATFORM_BBB
 //TODO need to confirm these
-#	define MIN_SPI_SPEED_HZ 1500
-#	define MAX_SPI_SPEED_HZ 48000000
+#define MIN_SPI_SPEED_HZ 1500
+#define MAX_SPI_SPEED_HZ 48000000
 #else
 //not sure what other platforms could be used, using safe values here
-#	define MIN_SPI_SPEED_HZ 50000
-#	define MAX_SPI_SPEED_HZ 100000
+#define MIN_SPI_SPEED_HZ 50000
+#define MAX_SPI_SPEED_HZ 100000
 #endif
 
-
-
 extern "C" {
-    GenericSPIOutput *createGenericSPIOutput(unsigned int startChannel,
-                                           unsigned int channelCount) {
-        return new GenericSPIOutput(startChannel, channelCount);
-    }
+GenericSPIOutput* createGenericSPIOutput(unsigned int startChannel,
+                                         unsigned int channelCount) {
+    return new GenericSPIOutput(startChannel, channelCount);
+}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -58,22 +56,20 @@ extern "C" {
 /*
  *
  */
-GenericSPIOutput::GenericSPIOutput(unsigned int startChannel, unsigned int channelCount)
-  : ThreadedChannelOutputBase(startChannel, channelCount),
-	m_port(-1),
-	m_speed_hz(0),
-    m_spi(nullptr)
-{
-	LogDebug(VB_CHANNELOUT, "GenericSPIOutput::GenericSPIOutput(%u, %u)\n",
-		startChannel, channelCount);
+GenericSPIOutput::GenericSPIOutput(unsigned int startChannel, unsigned int channelCount) :
+    ThreadedChannelOutputBase(startChannel, channelCount),
+    m_port(-1),
+    m_speed_hz(0),
+    m_spi(nullptr) {
+    LogDebug(VB_CHANNELOUT, "GenericSPIOutput::GenericSPIOutput(%u, %u)\n",
+             startChannel, channelCount);
 }
 
 /*
  *
  */
-GenericSPIOutput::~GenericSPIOutput()
-{
-	LogDebug(VB_CHANNELOUT, "GenericSPIOutput::~GenericSPIOutput()\n");
+GenericSPIOutput::~GenericSPIOutput() {
+    LogDebug(VB_CHANNELOUT, "GenericSPIOutput::~GenericSPIOutput()\n");
     if (m_spi) {
         delete m_spi;
     }
@@ -84,7 +80,7 @@ GenericSPIOutput::~GenericSPIOutput()
  */
 
 int GenericSPIOutput::Init(Json::Value config) {
-	LogDebug(VB_CHANNELOUT, "GenericSPIOutput::Init()\n");
+    LogDebug(VB_CHANNELOUT, "GenericSPIOutput::Init()\n");
 
     if (config.isMember("device")) {
         std::string device = config["device"].asString();
@@ -96,7 +92,7 @@ int GenericSPIOutput::Init(Json::Value config) {
     if (config.isMember("speed")) {
         //input page ask for speed in khz
         std::string speedStr = config["speed"].asString();
-        int config_speed = 1000*std::atoi(speedStr.c_str());
+        int config_speed = 1000 * std::atoi(speedStr.c_str());
         if (config_speed < MIN_SPI_SPEED_HZ)
             m_speed_hz = MIN_SPI_SPEED_HZ;
         else if (config_speed > MAX_SPI_SPEED_HZ)
@@ -105,63 +101,58 @@ int GenericSPIOutput::Init(Json::Value config) {
             m_speed_hz = config_speed;
     }
 
-	if (m_port == -1) {
-		LogErr(VB_CHANNELOUT, "Invalid Config for SPI.  Invalid port.\n");
-		return 0;
-	}
+    if (m_port == -1) {
+        LogErr(VB_CHANNELOUT, "Invalid Config for SPI.  Invalid port.\n");
+        return 0;
+    }
 
-	LogDebug(VB_CHANNELOUT, "Using SPI Port %d\n", m_port);
+    LogDebug(VB_CHANNELOUT, "Using SPI Port %d\n", m_port);
 
     m_spi = new SPIUtils(m_port, m_speed_hz);
     if (!m_spi->isOk()) {
-		LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
+        LogErr(VB_CHANNELOUT, "Unable to open SPI device\n");
         delete m_spi;
         m_spi = nullptr;
-		return 0;
-	}
+        return 0;
+    }
 
-	return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutputBase::Init(config);
 }
-
 
 /*
  *
  */
-int GenericSPIOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "GenericSPIOutput::Close()\n");
+int GenericSPIOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "GenericSPIOutput::Close()\n");
 
-	return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutputBase::Close();
 }
-void GenericSPIOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+void GenericSPIOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
 /*
  *
  */
-int GenericSPIOutput::RawSendData(unsigned char *channelData)
-{
-	LogDebug(VB_CHANNELOUT, "GenericSPIOutput::RawSendData(%p)\n", channelData);
+int GenericSPIOutput::RawSendData(unsigned char* channelData) {
+    LogDebug(VB_CHANNELOUT, "GenericSPIOutput::RawSendData(%p)\n", channelData);
 
     if (!m_spi) {
         return 0;
     }
-    
-	m_spi->xfer(channelData, nullptr, m_channelCount);
 
-	return m_channelCount;
+    m_spi->xfer(channelData, nullptr, m_channelCount);
+
+    return m_channelCount;
 }
 
 /*
  *
  */
-void GenericSPIOutput::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "GenericSPIOutput::DumpConfig()\n");
+void GenericSPIOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "GenericSPIOutput::DumpConfig()\n");
 
-	LogDebug(VB_CHANNELOUT, "    port    : %d\n", m_port);
+    LogDebug(VB_CHANNELOUT, "    port    : %d\n", m_port);
 
-	ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutputBase::DumpConfig();
 }
-

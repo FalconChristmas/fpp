@@ -30,23 +30,27 @@
 #include "channeloutput/channeloutputthread.h"
 #include "fseq/FSEQFile.h"
 
-
 #define MAX_EFFECTS 100
 
 class FPPeffect {
 public:
-    FPPeffect() : fp(nullptr), currentFrame(0) {}
-    ~FPPeffect() { if (fp) delete fp; }
-    
+    FPPeffect() :
+        fp(nullptr),
+        currentFrame(0) {}
+    ~FPPeffect() {
+        if (fp)
+            delete fp;
+    }
+
     std::string name;
-    FSEQFile *fp;
-    int       loop;
-    int       background;
-    uint32_t  currentFrame;
+    FSEQFile* fp;
+    int loop;
+    int background;
+    uint32_t currentFrame;
 };
 
-static int        effectCount = 0;
-static int        pauseBackgroundEffects = 0;
+static int effectCount = 0;
+static int pauseBackgroundEffects = 0;
 static std::array<FPPeffect*, MAX_EFFECTS> effects;
 static std::list<std::pair<uint32_t, uint32_t>> clearRanges;
 static std::mutex effectsLock;
@@ -54,34 +58,33 @@ static std::mutex effectsLock;
 /*
  * Initialize effects constructs
  */
-int InitEffects(void)
-{
+int InitEffects(void) {
     std::string localFilename(FPP_DIR_EFFECT "/background.eseq");
 
-	if ((getFPPmode() == REMOTE_MODE) &&
-		CheckForHostSpecificFile(getSetting("HostName").c_str(), localFilename)) {
+    if ((getFPPmode() == REMOTE_MODE) &&
+        CheckForHostSpecificFile(getSetting("HostName").c_str(), localFilename)) {
         localFilename = "background_";
-		localFilename += getSetting("HostName");
+        localFilename += getSetting("HostName");
 
-		LogInfo(VB_EFFECT, "Automatically starting background effect "
-			"sequence %s\n", localFilename.c_str());
+        LogInfo(VB_EFFECT, "Automatically starting background effect "
+                           "sequence %s\n",
+                localFilename.c_str());
 
-		StartEffect(localFilename.c_str(), 0, 1, true);
-	} else if (FileExists(localFilename)) {
-		LogInfo(VB_EFFECT, "Automatically starting background effect sequence "
-			"background.eseq\n");
-		StartEffect("background", 0, 1, true);
-	}
+        StartEffect(localFilename.c_str(), 0, 1, true);
+    } else if (FileExists(localFilename)) {
+        LogInfo(VB_EFFECT, "Automatically starting background effect sequence "
+                           "background.eseq\n");
+        StartEffect("background", 0, 1, true);
+    }
 
-	pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
-	return 1;
+    pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
+    return 1;
 }
 
 /*
  * Close effects constructs
  */
-void CloseEffects(void)
-{
+void CloseEffects(void) {
 }
 
 /*
@@ -89,80 +92,75 @@ void CloseEffects(void)
  *
  * Assumes effectsLock is held already
  */
-int GetNextEffectID(void)
-{
-	int i = -1;
+int GetNextEffectID(void) {
+    int i = -1;
 
-	for (i = 0; i < MAX_EFFECTS; i++) {
-		if (!effects[i])
-			return i;
-	}
+    for (i = 0; i < MAX_EFFECTS; i++) {
+        if (!effects[i])
+            return i;
+    }
 
-	return -1;
+    return -1;
 }
 
 /*
  * Check to see if any effects are running
  */
-int IsEffectRunning(void)
-{
-	int result = 0;
+int IsEffectRunning(void) {
+    int result = 0;
     std::unique_lock<std::mutex> lock(effectsLock);
-	result = effectCount;
+    result = effectCount;
     if (!clearRanges.empty()) {
         ++result;
     }
-	return result;
+    return result;
 }
 
-int StartEffect(FSEQFile *fseq, const std::string &effectName, int loop, bool bg) {
+int StartEffect(FSEQFile* fseq, const std::string& effectName, int loop, bool bg) {
     std::unique_lock<std::mutex> lock(effectsLock);
     if (effectCount >= MAX_EFFECTS) {
         LogErr(VB_EFFECT, "Unable to start effect %s, maximum number of effects already running\n", effectName.c_str());
         return -1;
     }
-    int   effectID = -1;
-    int   frameTime = 50;
+    int effectID = -1;
+    int frameTime = 50;
 
     frameTime = fseq->getStepTime();
-	effectID = GetNextEffectID();
+    effectID = GetNextEffectID();
 
-	if (effectID < 0) {
-		LogErr(VB_EFFECT, "Unable to start effect %s, unable to determine next effect ID\n", effectName.c_str());
+    if (effectID < 0) {
+        LogErr(VB_EFFECT, "Unable to start effect %s, unable to determine next effect ID\n", effectName.c_str());
         delete fseq;
-		return effectID;
-	}
+        return effectID;
+    }
 
-	effects[effectID] = new FPPeffect;
-	effects[effectID]->name = effectName;
-	effects[effectID]->fp = fseq;
-	effects[effectID]->loop = loop;
-	effects[effectID]->background = bg;
+    effects[effectID] = new FPPeffect;
+    effects[effectID]->name = effectName;
+    effects[effectID]->fp = fseq;
+    effects[effectID]->loop = loop;
+    effects[effectID]->background = bg;
 
-	effectCount++;
+    effectCount++;
     int tmpec = effectCount;
     lock.unlock();
 
-	StartChannelOutputThread();
-    
-    if (!sequence->IsSequenceRunning()
-        && tmpec == 1) {
+    StartChannelOutputThread();
+
+    if (!sequence->IsSequenceRunning() && tmpec == 1) {
         //first effect running, no sequence running, set the refresh rate
         //to the rate of the effect
         SetChannelOutputRefreshRate(1000 / frameTime);
     }
 
-
-	return effectID;
+    return effectID;
 }
 
-int StartFSEQAsEffect(const std::string &fseqName, int loop, bool bg) {
+int StartFSEQAsEffect(const std::string& fseqName, int loop, bool bg) {
     LogInfo(VB_EFFECT, "Starting FSEQ %s as effect\n", fseqName.c_str());
-
 
     std::string filename = std::string(FPP_DIR_SEQUENCE) + "/" + fseqName + ".fseq";
 
-    FSEQFile *fseq = FSEQFile::openFSEQFile(filename);
+    FSEQFile* fseq = FSEQFile::openFSEQFile(filename);
     if (!fseq) {
         LogErr(VB_EFFECT, "Unable to open effect: %s\n", filename.c_str());
         return -1;
@@ -173,26 +171,24 @@ int StartFSEQAsEffect(const std::string &fseqName, int loop, bool bg) {
 /*
  * Start a new effect offset at the specified channel number
  */
-int StartEffect(const std::string &effectName, int startChannel, int loop, bool bg)
-{
+int StartEffect(const std::string& effectName, int startChannel, int loop, bool bg) {
     LogInfo(VB_EFFECT, "Starting effect %s at channel %d\n", effectName.c_str(), startChannel);
-
 
     std::string filename = std::string(FPP_DIR_EFFECT) + "/" + effectName + ".eseq";
 
-    FSEQFile *fseq = FSEQFile::openFSEQFile(filename);
+    FSEQFile* fseq = FSEQFile::openFSEQFile(filename);
     if (!fseq) {
         LogErr(VB_EFFECT, "Unable to open effect: %s\n", filename.c_str());
         return -1;
     }
-    V2FSEQFile *v2fseq = dynamic_cast<V2FSEQFile*>(fseq);
+    V2FSEQFile* v2fseq = dynamic_cast<V2FSEQFile*>(fseq);
     if (!v2fseq) {
         delete fseq;
         LogErr(VB_EFFECT, "Effect file not a correct eseq file: %s\n", filename.c_str());
         return -1;
     }
 
-    if (v2fseq->m_sparseRanges.size() == 0){
+    if (v2fseq->m_sparseRanges.size() == 0) {
         LogErr(VB_EFFECT, "eseq file must have at least one model range.");
         delete fseq;
         return -1;
@@ -208,18 +204,17 @@ int StartEffect(const std::string &effectName, int startChannel, int loop, bool 
 /*
  * Helper function to stop an effect, assumes effectsLock is already held
  */
-void StopEffectHelper(int effectID)
-{
-	FPPeffect *e = NULL;
-	e = effects[effectID];
-    
+void StopEffectHelper(int effectID) {
+    FPPeffect* e = NULL;
+    e = effects[effectID];
+
     if (e->fp) {
-        V2FSEQFile *v2fseq = dynamic_cast<V2FSEQFile*>(e->fp);
+        V2FSEQFile* v2fseq = dynamic_cast<V2FSEQFile*>(e->fp);
         if (v2fseq && v2fseq->m_sparseRanges.size() != 0) {
-            for (auto &a : v2fseq->m_sparseRanges) {
+            for (auto& a : v2fseq->m_sparseRanges) {
                 clearRanges.push_back(std::pair<uint32_t, uint32_t>(a.first, a.second));
             }
-            for (auto &a : v2fseq->m_rangesToRead) {
+            for (auto& a : v2fseq->m_rangesToRead) {
                 clearRanges.push_back(std::pair<uint32_t, uint32_t>(a.first, a.second));
             }
         } else {
@@ -228,16 +223,15 @@ void StopEffectHelper(int effectID)
         }
     }
     delete e;
-	effects[effectID] = NULL;
-	effectCount--;
+    effects[effectID] = NULL;
+    effectCount--;
 }
 
 /*
  * Stop all effects named effectName
  */
-int StopEffect(const std::string &effectName)
-{
-	LogDebug(VB_EFFECT, "StopEffect(%s)\n", effectName.c_str());
+int StopEffect(const std::string& effectName) {
+    LogDebug(VB_EFFECT, "StopEffect(%s)\n", effectName.c_str());
 
     std::unique_lock<std::mutex> lock(effectsLock);
     std::vector<std::string> names = split(effectName, ',');
@@ -255,54 +249,52 @@ int StopEffect(const std::string &effectName)
 
     lock.unlock();
 
-	if ((!IsEffectRunning()) &&
+    if ((!IsEffectRunning()) &&
         (!sequence->IsSequenceRunning())) {
-		sequence->SendBlankingData();
+        sequence->SendBlankingData();
     }
 
-	return 1;
+    return 1;
 }
 
 /*
  * Stop a single effect
  */
-int StopEffect(int effectID)
-{
-	FPPeffect *e = NULL;
+int StopEffect(int effectID) {
+    FPPeffect* e = NULL;
 
-	LogDebug(VB_EFFECT, "StopEffect(%d)\n", effectID);
+    LogDebug(VB_EFFECT, "StopEffect(%d)\n", effectID);
 
     std::unique_lock<std::mutex> lock(effectsLock);
-	if (!effects[effectID]) {
-		return 0;
-	}
-
-	StopEffectHelper(effectID);
-    lock.unlock();
-
-	if ((!IsEffectRunning()) &&
-        (!sequence->IsSequenceRunning())) {
-		sequence->SendBlankingData();
+    if (!effects[effectID]) {
+        return 0;
     }
 
-	return 1;
+    StopEffectHelper(effectID);
+    lock.unlock();
+
+    if ((!IsEffectRunning()) &&
+        (!sequence->IsSequenceRunning())) {
+        sequence->SendBlankingData();
+    }
+
+    return 1;
 }
 
 /*
  * Stop all effects
  */
-void StopAllEffects(void)
-{
-	int i;
+void StopAllEffects(void) {
+    int i;
 
-	LogDebug(VB_EFFECT, "Stopping all effects\n");
+    LogDebug(VB_EFFECT, "Stopping all effects\n");
 
     std::unique_lock<std::mutex> lock(effectsLock);
 
-	for (i = 0; i < MAX_EFFECTS; i++) {
-		if (effects[i])
-			StopEffectHelper(i);
-	}
+    for (i = 0; i < MAX_EFFECTS; i++) {
+        if (effects[i])
+            StopEffectHelper(i);
+    }
     lock.unlock();
     if ((!IsEffectRunning()) &&
         (!sequence->IsSequenceRunning()))
@@ -312,16 +304,15 @@ void StopAllEffects(void)
 /*
  * Overlay a single effect onto raw channel data
  */
-int OverlayEffect(int effectID, char *channelData)
-{
-	FPPeffect *e = NULL;
-	if (!effects[effectID]) {
-		LogErr(VB_EFFECT, "Invalid Effect ID %d\n", effectID);
-		return 0;
-	}
+int OverlayEffect(int effectID, char* channelData) {
+    FPPeffect* e = NULL;
+    if (!effects[effectID]) {
+        LogErr(VB_EFFECT, "Invalid Effect ID %d\n", effectID);
+        return 0;
+    }
 
-	e = effects[effectID];
-    FSEQFile::FrameData *d = e->fp->getFrame(e->currentFrame);
+    e = effects[effectID];
+    FSEQFile::FrameData* d = e->fp->getFrame(e->currentFrame);
     if (d == nullptr && e->loop) {
         e->currentFrame = 0;
         d = e->fp->getFrame(e->currentFrame);
@@ -333,7 +324,7 @@ int OverlayEffect(int effectID, char *channelData)
         return 1;
     } else {
         StopEffectHelper(effectID);
-        for (auto &rng : clearRanges) {
+        for (auto& rng : clearRanges) {
             memset(&channelData[rng.first], 0, rng.second);
         }
         clearRanges.clear();
@@ -345,46 +336,45 @@ int OverlayEffect(int effectID, char *channelData)
 /*
  * Overlay current effects onto raw channel data
  */
-int OverlayEffects(char *channelData)
-{
-	int  i;
-	int  dataRead = 0;
+int OverlayEffects(char* channelData) {
+    int i;
+    int dataRead = 0;
 
     std::unique_lock<std::mutex> lock(effectsLock);
-    
-    //for effects that have been stopped, we need to clear the data 
-    for (auto &rng : clearRanges) {
+
+    //for effects that have been stopped, we need to clear the data
+    for (auto& rng : clearRanges) {
         memset(&channelData[rng.first], 0, rng.second);
     }
     clearRanges.clear();
 
-	if (effectCount == 0) {
-		return 0;
-	}
-
-	int skipBackground = 0;
-    if (pauseBackgroundEffects && sequence->IsSequenceRunning()) {
-		skipBackground = 1;
+    if (effectCount == 0) {
+        return 0;
     }
 
-	for (i = 0; i < MAX_EFFECTS; i++) {
-		if (effects[i]) {
-			if ((!skipBackground) ||
+    int skipBackground = 0;
+    if (pauseBackgroundEffects && sequence->IsSequenceRunning()) {
+        skipBackground = 1;
+    }
+
+    for (i = 0; i < MAX_EFFECTS; i++) {
+        if (effects[i]) {
+            if ((!skipBackground) ||
                 (skipBackground && (!effects[i]->background))) {
-				dataRead |= OverlayEffect(i, channelData);
+                dataRead |= OverlayEffect(i, channelData);
             }
-		}
-	}
+        }
+    }
 
     lock.unlock();
 
-	if ((dataRead == 0) &&
-		(!IsEffectRunning()) &&
+    if ((dataRead == 0) &&
+        (!IsEffectRunning()) &&
         (!sequence->IsSequenceRunning())) {
-		sequence->SendBlankingData();
+        sequence->SendBlankingData();
     }
 
-	return 1;
+    return 1;
 }
 
 Json::Value GetRunningEffectsJson() {
@@ -392,14 +382,14 @@ Json::Value GetRunningEffectsJson() {
     int i;
     std::unique_lock<std::mutex> lock(effectsLock);
 
-	for (i = 0; i < MAX_EFFECTS; i++) {
-		if (effects[i]) {
+    for (i = 0; i < MAX_EFFECTS; i++) {
+        if (effects[i]) {
             Json::Value obj;
             obj["id"] = i;
             obj["name"] = effects[i]->name;
             arr.append(obj);
-		}
-	}
+        }
+    }
 
     return arr;
 }
@@ -411,53 +401,51 @@ Json::Value GetRunningEffectsJson() {
  *
  * NOTE: Caller is responsible for freeing string allocated
  */
-int GetRunningEffects(char *msg, char **result)
-{
-	int length = strlen(msg) + 2; // 1 for LF, 1 for NULL termination
-	int i = 0;
+int GetRunningEffects(char* msg, char** result) {
+    int length = strlen(msg) + 2; // 1 for LF, 1 for NULL termination
+    int i = 0;
 
     std::unique_lock<std::mutex> lock(effectsLock);
 
-	for (i = 0; i < MAX_EFFECTS; i++) {
-		if (effects[i]) {
-			// delimiters
-			length += 2;
+    for (i = 0; i < MAX_EFFECTS; i++) {
+        if (effects[i]) {
+            // delimiters
+            length += 2;
 
-			// ID
-			length++;
-			if (i > 9)
-				length++;
-			if (i > 99)
-				length++;
+            // ID
+            length++;
+            if (i > 9)
+                length++;
+            if (i > 99)
+                length++;
 
-			// Name
-			length += strlen(effects[i]->name.c_str());
-		}
-	}
+            // Name
+            length += strlen(effects[i]->name.c_str());
+        }
+    }
 
-	*result = (char *)malloc(length);
-	char *cptr = *result;
-	*cptr = '\0';
+    *result = (char*)malloc(length);
+    char* cptr = *result;
+    *cptr = '\0';
 
-	strcat(cptr, msg);
-	cptr += strlen(msg);
+    strcat(cptr, msg);
+    cptr += strlen(msg);
 
-	for (i = 0; i < MAX_EFFECTS; i++) {
-		if (effects[i]) {
-			strcat(cptr,";");
-			cptr++;
+    for (i = 0; i < MAX_EFFECTS; i++) {
+        if (effects[i]) {
+            strcat(cptr, ";");
+            cptr++;
 
-			cptr += snprintf(cptr, 4, "%d", i);
+            cptr += snprintf(cptr, 4, "%d", i);
 
-			strcat(cptr, ",");
-			cptr++;
+            strcat(cptr, ",");
+            cptr++;
 
-			strcat(cptr, effects[i]->name.c_str());
-			cptr += strlen(effects[i]->name.c_str());
-		}
-	}
+            strcat(cptr, effects[i]->name.c_str());
+            cptr += strlen(effects[i]->name.c_str());
+        }
+    }
 
-	strcat(cptr, "\n");
-	return strlen(*result);
+    strcat(cptr, "\n");
+    return strlen(*result);
 }
-

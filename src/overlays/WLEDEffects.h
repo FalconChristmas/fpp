@@ -18,13 +18,10 @@
 
 #include "PixelOverlayEffects.h"
 
-
 class WLEDEffect : public PixelOverlayEffect {
 public:
-    WLEDEffect(const std::string &name);
+    WLEDEffect(const std::string& name);
     virtual ~WLEDEffect();
-    
-    
-    static std::list<PixelOverlayEffect *> getWLEDEffects();
-    
+
+    static std::list<PixelOverlayEffect*> getWLEDEffects();
 };

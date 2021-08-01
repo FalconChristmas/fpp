@@ -17,11 +17,12 @@
 #include "fpp-pch.h"
 
 #include <Magick++.h>
+
 #include <magick/type.h>
 
+#include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
 #include "PixelOverlayModel.h"
-#include "PixelOverlay.h"
 
 #include "WLEDEffects.h"
 
@@ -29,7 +30,7 @@ static uint32_t applyColorPct(uint32_t c, float pct) {
     uint32_t r = (c >> 16) & 0xFF;
     uint32_t g = (c >> 8) & 0xFF;
     uint32_t b = c & 0xFF;
-    
+
     float t = r;
     t *= pct;
     r = (int)t;
@@ -44,17 +45,21 @@ static uint32_t applyColorPct(uint32_t c, float pct) {
 
 class StopRunningEffect : public RunningEffect {
 public:
-    StopRunningEffect(PixelOverlayModel *m, const std::string &n, bool ad)
-        : RunningEffect(m), effectName(n), autoDisable(ad) {
+    StopRunningEffect(PixelOverlayModel* m, const std::string& n, bool ad) :
+        RunningEffect(m),
+        effectName(n),
+        autoDisable(ad) {
     }
-    StopRunningEffect(PixelOverlayModel *m, const std::string &n, const std::string &ad)
-        : RunningEffect(m), effectName(n), autoDisable(false) {
+    StopRunningEffect(PixelOverlayModel* m, const std::string& n, const std::string& ad) :
+        RunningEffect(m),
+        effectName(n),
+        autoDisable(false) {
         PixelOverlayState st(ad);
         if (st.getState() != PixelOverlayState::PixelState::Disabled) {
             autoDisable = true;
         }
     }
-    const std::string &name() const override {
+    const std::string& name() const override {
         return effectName;
     }
     virtual int32_t update() override {
@@ -76,19 +81,22 @@ public:
 
 class ColorFadeEffect : public PixelOverlayEffect {
 public:
-    ColorFadeEffect() : PixelOverlayEffect("Color Fade") {
+    ColorFadeEffect() :
+        PixelOverlayEffect("Color Fade") {
         args.push_back(CommandArg("Color", "color", "Color").setDefaultValue("#FF0000"));
         args.push_back(CommandArg("fadeIn", "int", "Fade In MS").setRange(0, 10000));
         args.push_back(CommandArg("fadeOut", "int", "Fade Out MS").setRange(0, 10000));
     }
-    
+
     class CFRunningEffect : public RunningEffect {
     public:
-        CFRunningEffect(PixelOverlayModel *m, const std::string &ae, const std::vector<std::string> &args) : RunningEffect(m), autoEnable(false) {
+        CFRunningEffect(PixelOverlayModel* m, const std::string& ae, const std::vector<std::string>& args) :
+            RunningEffect(m),
+            autoEnable(false) {
             color = PixelOverlayManager::mapColor(args[0]);
             fadeIn = std::stol(args[1]);
             fadeOut = std::stol(args[2]);
-            
+
             PixelOverlayState st(ae);
             if (st.getState() != PixelOverlayState::PixelState::Disabled) {
                 autoEnable = true;
@@ -102,7 +110,7 @@ public:
                 fill(0);
             }
         }
-        const std::string &name() const override {
+        const std::string& name() const override {
             static std::string NAME = "Color Fade";
             return NAME;
         }
@@ -120,7 +128,7 @@ public:
                 f /= fadeIn;
                 uint32_t c = applyColorPct(color, f);
                 fill(c);
-            } else if ((nowTime >= fadeIn) && (nowTime <= (fadeIn+fadeOut))) {
+            } else if ((nowTime >= fadeIn) && (nowTime <= (fadeIn + fadeOut))) {
                 //fading out
                 nowTime -= fadeIn;
                 float f = nowTime;
@@ -156,24 +164,23 @@ public:
         bool autoEnable;
         bool done;
     };
-    
-    virtual bool apply(PixelOverlayModel *model, const std::string &autoEnable, const std::vector<std::string> &args) override {
+
+    virtual bool apply(PixelOverlayModel* model, const std::string& autoEnable, const std::vector<std::string>& args) override {
         if (args.size() != 3) {
             LogInfo(VB_CHANNELOUT, "ColorFadeEffect: not enough args\n");
             return false;
         }
-        CFRunningEffect *re = new CFRunningEffect(model, autoEnable, args);
+        CFRunningEffect* re = new CFRunningEffect(model, autoEnable, args);
         model->setRunningEffect(re, 1);
         return true;
     }
 };
 
-
-
 class BarsEffect : public PixelOverlayEffect {
 public:
-    BarsEffect() : PixelOverlayEffect("Bars") {
-        args.push_back(CommandArg("Direction", "string", "Direction").setContentList({"Up", "Down", "Left", "Right"}));
+    BarsEffect() :
+        PixelOverlayEffect("Bars") {
+        args.push_back(CommandArg("Direction", "string", "Direction").setContentList({ "Up", "Down", "Left", "Right" }));
         args.push_back(CommandArg("time", "int", "Time (ms)").setRange(1, 60000).setDefaultValue("2000"));
         args.push_back(CommandArg("iterations", "int", "Iterations").setRange(1, 30).setDefaultValue("1"));
         args.push_back(CommandArg("colorRep", "int", "Color Rep.").setRange(1, 5).setDefaultValue("1"));
@@ -186,7 +193,9 @@ public:
     }
     class BarsRunningEffect : public RunningEffect {
     public:
-        BarsRunningEffect(PixelOverlayModel *m, const std::string &ae, const std::vector<std::string> &args) : RunningEffect(m), autoEnable(false) {
+        BarsRunningEffect(PixelOverlayModel* m, const std::string& ae, const std::vector<std::string>& args) :
+            RunningEffect(m),
+            autoEnable(false) {
             if (args[0] == "Up") {
                 direction = DirectionEnum::UP;
             } else if (args[0] == "Down") {
@@ -218,34 +227,34 @@ public:
             done = false;
             apply(0.0f);
         }
-        const std::string &name() const override {
+        const std::string& name() const override {
             static std::string NAME = "Bars";
             return NAME;
         }
 
-        void mapCoords(int m, int l, int w, int h, int &x, int &y) {
+        void mapCoords(int m, int l, int w, int h, int& x, int& y) {
             switch (direction) {
-                case DirectionEnum::UP:
-                    y = m;
-                    x = l;
-                    break;
-                case DirectionEnum::DOWN:
-                    y = h - m - 1;
-                    x = l;
-                    break;
-                case DirectionEnum::LEFT:
-                    y = l;
-                    x = m;
-                    break;
-                case DirectionEnum::RIGHT:
-                    y = l;
-                    x = w - m - 1;
-                    break;
-                default:
-                    x = y = 0;
+            case DirectionEnum::UP:
+                y = m;
+                x = l;
+                break;
+            case DirectionEnum::DOWN:
+                y = h - m - 1;
+                x = l;
+                break;
+            case DirectionEnum::LEFT:
+                y = l;
+                x = m;
+                break;
+            case DirectionEnum::RIGHT:
+                y = l;
+                x = w - m - 1;
+                break;
+            default:
+                x = y = 0;
             }
         }
-        
+
         void apply(float pos) {
             int w, h;
             model->getSize(w, h);
@@ -278,15 +287,13 @@ public:
                     model->setPixelValue(x, y, r, g, b);
                 }
             }
-            
-            
         }
         virtual int32_t update() override {
             long long nowTime = GetTimeMS();
             nowTime -= startTime;
             if (nowTime <= duration) {
                 float f = nowTime;
-                f /=duration;
+                f /= duration;
                 f *= iterations;
                 while (f > 1.0f) {
                     f -= 1.0f;
@@ -307,9 +314,12 @@ public:
             }
             return 25;
         }
-        
+
         enum class DirectionEnum {
-            UP, DOWN, LEFT, RIGHT
+            UP,
+            DOWN,
+            LEFT,
+            RIGHT
         } direction;
         long long startTime = 0;
         int iterations;
@@ -318,13 +328,13 @@ public:
         bool autoEnable;
         bool done;
     };
-    
-    virtual bool apply(PixelOverlayModel *model, const std::string &autoEnable, const std::vector<std::string> &args) override {
+
+    virtual bool apply(PixelOverlayModel* model, const std::string& autoEnable, const std::vector<std::string>& args) override {
         if (args.size() < 5) {
             LogInfo(VB_CHANNELOUT, "Bars Effect: not enough args\n");
             return false;
         }
-        BarsRunningEffect *re = new BarsRunningEffect(model, autoEnable, args);
+        BarsRunningEffect* re = new BarsRunningEffect(model, autoEnable, args);
         model->setRunningEffect(re, 1);
         return true;
     }
@@ -332,9 +342,10 @@ public:
 
 class ImageMovementEffect : public RunningEffect {
 public:
-    ImageMovementEffect(PixelOverlayModel *m) : RunningEffect(m) {
+    ImageMovementEffect(PixelOverlayModel* m) :
+        RunningEffect(m) {
     }
-    
+
     virtual ~ImageMovementEffect() {
         if (imageData) {
             free(imageData);
@@ -345,14 +356,14 @@ public:
             model->clearOverlayBuffer();
             int h, w;
             model->getSize(w, h);
-            for (int y = 0; y < imageDataRows; ++y)  {
+            for (int y = 0; y < imageDataRows; ++y) {
                 int ny = yoff + y;
                 if (ny < 0 || ny >= h) {
                     continue;
                 }
 
-                uint8_t *src = imageData + (y * imageDataCols * 3);
-                uint8_t *dst = model->getOverlayBuffer() + (ny * w * 3);
+                uint8_t* src = imageData + (y * imageDataCols * 3);
+                uint8_t* dst = model->getOverlayBuffer() + (ny * w * 3);
                 int pixelsToCopy = imageDataCols;
                 int c = w * 3;
 
@@ -416,10 +427,10 @@ public:
 
     bool done = false;
     bool waitingToSetState = false;
-    uint8_t *imageData = nullptr;
+    uint8_t* imageData = nullptr;
     int imageDataRows = 0;
     int imageDataCols = 0;
-    
+
     std::string direction;
     int x = 0;
     int y = 0;
@@ -427,15 +438,15 @@ public:
     bool disableWhenDone = false;
 };
 
-
 class TextEffect : public PixelOverlayEffect {
 public:
-    TextEffect() : PixelOverlayEffect("Text") {
+    TextEffect() :
+        PixelOverlayEffect("Text") {
         args.push_back(CommandArg("Color", "color", "Color").setDefaultValue("#FF0000"));
         args.push_back(CommandArg("Font", "string", "Font").setContentListUrl("api/overlays/fonts", false));
         args.push_back(CommandArg("FontSize", "int", "FontSize").setRange(4, 100).setDefaultValue("18"));
         args.push_back(CommandArg("FontAntiAlias", "bool", "Anti-Aliased").setDefaultValue("false"));
-        args.push_back(CommandArg("Position", "string", "Position").setContentList({"Center", "Right to Left", "Left to Right", "Bottom to Top", "Top to Bottom"}));
+        args.push_back(CommandArg("Position", "string", "Position").setContentList({ "Center", "Right to Left", "Left to Right", "Bottom to Top", "Top to Bottom" }));
         args.push_back(CommandArg("Speed", "int", "Scroll Speed").setRange(0, 200).setDefaultValue("10"));
         args.push_back(CommandArg("Duration", "int", "Duration").setRange(-1, 2000).setDefaultValue("0"));
 
@@ -446,18 +457,17 @@ public:
     }
     class TextMovementEffect : public ImageMovementEffect {
     public:
-        TextMovementEffect(PixelOverlayModel *m) : ImageMovementEffect(m) {
+        TextMovementEffect(PixelOverlayModel* m) :
+            ImageMovementEffect(m) {
         }
-        
-        const std::string &name() const override {
+
+        const std::string& name() const override {
             static std::string NAME = "Text";
             return NAME;
         }
-
-        
     };
-    
-    const std::string mapPosition(const std::string &p) {
+
+    const std::string mapPosition(const std::string& p) {
         if (p == "Center") {
             return p;
         } else if (p == "Right to Left" || p == "R2L") {
@@ -472,18 +482,17 @@ public:
         return "Center";
     }
 
-    void doText(PixelOverlayModel *m,
-                const std::string &msg,
+    void doText(PixelOverlayModel* m,
+                const std::string& msg,
                 int r, int g, int b,
-                const std::string &font,
+                const std::string& font,
                 int fontSize,
                 bool antialias,
-                const std::string &position,
+                const std::string& position,
                 int pixelsPerSecond,
-                const std::string &autoEnable,
+                const std::string& autoEnable,
                 int duration) {
-
-        Magick::Image image(Magick::Geometry(m->getWidth(),m->getHeight()), Magick::Color("black"));
+        Magick::Image image(Magick::Geometry(m->getWidth(), m->getHeight()), Magick::Color("black"));
         image.quiet(true);
         image.depth(8);
         image.font(font);
@@ -491,26 +500,26 @@ public:
         image.antiAlias(antialias);
 
         bool disableWhenDone = false;
-        
+
         PixelOverlayState st(autoEnable);
-        
+
         if ((st.getState() != PixelOverlayState::PixelState::Disabled) && (m->getState().getState() == PixelOverlayState::PixelState::Disabled)) {
             m->setState(st);
             disableWhenDone = true;
         }
-        
+
         int maxWid = 0;
         int totalHi = 0;
-        
+
         int lines = 1;
         int last = 0;
         for (int x = 0; x < msg.length(); x++) {
-            if (msg[x] == '\n' || ((x < msg.length() - 1) && msg[x] == '\\' && msg[x+1] == 'n')) {
+            if (msg[x] == '\n' || ((x < msg.length() - 1) && msg[x] == '\\' && msg[x + 1] == 'n')) {
                 lines++;
                 std::string newM = msg.substr(last, x);
                 Magick::TypeMetric metrics;
                 image.fontTypeMetrics(newM, &metrics);
-                maxWid = std::max(maxWid,  (int)metrics.textWidth());
+                maxWid = std::max(maxWid, (int)metrics.textWidth());
                 totalHi += (int)metrics.textHeight();
                 if (msg[x] == '\n') {
                     last = x + 1;
@@ -522,9 +531,9 @@ public:
         std::string newM = msg.substr(last);
         Magick::TypeMetric metrics;
         image.fontTypeMetrics(newM, &metrics);
-        maxWid = std::max(maxWid,  (int)metrics.textWidth());
+        maxWid = std::max(maxWid, (int)metrics.textWidth());
         totalHi += (int)metrics.textHeight();
-        
+
         if (position == "Centered" || position == "Center") {
             image.magick("RGB");
             //one shot, just draw the text and return
@@ -534,7 +543,7 @@ public:
             rr /= 255.0f;
             rg /= 255.0f;
             rb /= 255.0f;
-            
+
             image.fillColor(Magick::Color(Magick::Color::scaleDoubleToQuantum(rr),
                                           Magick::Color::scaleDoubleToQuantum(rg),
                                           Magick::Color::scaleDoubleToQuantum(rb)));
@@ -542,8 +551,8 @@ public:
             image.strokeAntiAlias(antialias);
             image.annotate(msg, Magick::CenterGravity);
             Magick::Blob blob;
-            image.write( &blob );
-            
+            image.write(&blob);
+
             m->setData((uint8_t*)blob.data());
 
             if (disableWhenDone) {
@@ -561,7 +570,7 @@ public:
             rr /= 255.0f;
             rg /= 255.0f;
             rb /= 255.0f;
-                    
+
             Magick::Image image2(Magick::Geometry(maxWid, totalHi), Magick::Color("black"));
             image2.quiet(true);
             image2.depth(8);
@@ -570,8 +579,8 @@ public:
             image2.antiAlias(antialias);
 
             image2.fillColor(Magick::Color(Magick::Color::scaleDoubleToQuantum(rr),
-                                          Magick::Color::scaleDoubleToQuantum(rg),
-                                          Magick::Color::scaleDoubleToQuantum(rb)));
+                                           Magick::Color::scaleDoubleToQuantum(rg),
+                                           Magick::Color::scaleDoubleToQuantum(rb)));
             image2.antiAlias(antialias);
             image2.strokeAntiAlias(antialias);
             image2.annotate(msg, Magick::CenterGravity);
@@ -585,28 +594,27 @@ public:
             } else if (position == "B2T") {
                 y = m->getHeight();
             } else if (position == "T2B") {
-                y =  -metrics.ascent();
+                y = -metrics.ascent();
             }
             image2.modifyImage();
-            
-            
-            TextMovementEffect *ef = dynamic_cast<TextMovementEffect*>(m->getRunningEffect());
+
+            TextMovementEffect* ef = dynamic_cast<TextMovementEffect*>(m->getRunningEffect());
             if (ef == nullptr) {
                 ef = new TextMovementEffect(m);
                 ef->x = (int)x;
                 ef->y = (int)y;
             }
 
-            const MagickLib::PixelPacket *pixel_cache = image2.getConstPixels(0,0, image2.columns(), image2.rows());
-            uint8_t *newData = (uint8_t*)malloc(image2.columns() * image2.rows() * 3);
+            const MagickLib::PixelPacket* pixel_cache = image2.getConstPixels(0, 0, image2.columns(), image2.rows());
+            uint8_t* newData = (uint8_t*)malloc(image2.columns() * image2.rows() * 3);
             for (int yi = 0; yi < image2.rows(); yi++) {
                 int idx = yi * image2.columns();
                 int nidx = yi * image2.columns() * 3;
 
                 for (int xi = 0; xi < image2.columns(); xi++) {
-                    const MagickLib::PixelPacket *ptr2 = &pixel_cache[idx + xi];
-                    uint8_t *np = &newData[nidx + (xi*3)];
-                    
+                    const MagickLib::PixelPacket* ptr2 = &pixel_cache[idx + xi];
+                    uint8_t* np = &newData[nidx + (xi * 3)];
+
                     float r = Magick::Color::scaleQuantumToDouble(ptr2->red);
                     float g = Magick::Color::scaleQuantumToDouble(ptr2->green);
                     float b = Magick::Color::scaleQuantumToDouble(ptr2->blue);
@@ -621,11 +629,11 @@ public:
             ef->speed = pixelsPerSecond;
             ef->disableWhenDone = disableWhenDone;
             ef->direction = position;
-            int32_t t = 1000/pixelsPerSecond;
+            int32_t t = 1000 / pixelsPerSecond;
             if (t == 0) {
                 t = 1;
             }
-            uint8_t *old= ef->imageData;
+            uint8_t* old = ef->imageData;
             ef->imageData = newData;
             ef->imageDataCols = image2.columns();
             ef->imageDataRows = image2.rows();
@@ -635,8 +643,7 @@ public:
         }
     }
 
-    
-    virtual bool apply(PixelOverlayModel *model, const std::string &autoEnable, const std::vector<std::string> &args) override {
+    virtual bool apply(PixelOverlayModel* model, const std::string& autoEnable, const std::vector<std::string>& args) override {
         std::string color = args[0];
         unsigned int cint = PixelOverlayManager::mapColor(color);
         std::string font = PixelOverlayManager::INSTANCE.mapFont(args[1]);
@@ -649,29 +656,29 @@ public:
         int pps = std::atoi(args[5].c_str());
         int duration = std::atoi(args[6].c_str());
         std::string msg = args[7];
-        
+
         doText(model,
                msg,
-                  (cint >> 16) & 0xFF,
-                  (cint >> 8) & 0xFF,
-                  cint & 0xFF,
-                  font,
-                  fontSize,
-                  aa,
-                  position,
-                  pps,
-                  autoEnable,
-                  duration);
+               (cint >> 16) & 0xFF,
+               (cint >> 8) & 0xFF,
+               cint & 0xFF,
+               font,
+               fontSize,
+               aa,
+               position,
+               pps,
+               autoEnable,
+               duration);
         return true;
     }
 };
 
-
 class StopEffect : public PixelOverlayEffect {
 public:
-    StopEffect() : PixelOverlayEffect("Stop Effects") {
+    StopEffect() :
+        PixelOverlayEffect("Stop Effects") {
     }
-    virtual bool apply(PixelOverlayModel *model, const std::string &autoEnable, const std::vector<std::string> &args) override {
+    virtual bool apply(PixelOverlayModel* model, const std::string& autoEnable, const std::vector<std::string>& args) override {
         model->setRunningEffect(new StopRunningEffect(model, "Stop Effects", autoEnable), 25);
         return true;
     }
@@ -684,26 +691,26 @@ public:
         add(new BarsEffect());
         add(new TextEffect());
         add(new StopEffect());
-        
-        std::list<PixelOverlayEffect *> wled = WLEDEffect::getWLEDEffects();
+
+        std::list<PixelOverlayEffect*> wled = WLEDEffect::getWLEDEffects();
         for (auto a : wled) {
             add(a);
         }
     }
     ~PixelOverlayEffectHolder() {
-        for (auto &a : effects) {
+        for (auto& a : effects) {
             delete a.second;
         }
         effects.clear();
     }
-    void add(PixelOverlayEffect *pe) {
+    void add(PixelOverlayEffect* pe) {
         effects[pe->name] = pe;
         effectNames.push_back(pe->name);
     }
-    PixelOverlayEffect *get(const std::string &n) {
+    PixelOverlayEffect* get(const std::string& n) {
         return effects[n];
     }
-    const std::vector<std::string> &names() const {
+    const std::vector<std::string>& names() const {
         return effectNames;
     }
 
@@ -712,13 +719,12 @@ private:
     std::vector<std::string> effectNames;
 };
 
-
 static PixelOverlayEffectHolder EFFECTS;
 
-PixelOverlayEffect* PixelOverlayEffect::GetPixelOverlayEffect(const std::string &name) {
+PixelOverlayEffect* PixelOverlayEffect::GetPixelOverlayEffect(const std::string& name) {
     return EFFECTS.get(name);
 }
 
-const std::vector<std::string> &PixelOverlayEffect::GetPixelOverlayEffects() {
+const std::vector<std::string>& PixelOverlayEffect::GetPixelOverlayEffects() {
     return EFFECTS.names();
 }

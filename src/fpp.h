@@ -24,10 +24,9 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#define FPP_SOCKET_PATH    "/run/fppd"
-#define FPP_SERVER_SOCKET  "/run/fppd/FPPD"
-#define FPP_CLIENT_SOCKET  "/run/fppd/FPP"
+#define FPP_SOCKET_PATH "/run/fppd"
+#define FPP_SERVER_SOCKET "/run/fppd/FPPD"
+#define FPP_CLIENT_SOCKET "/run/fppd/FPP"
 
-#define FPP_SERVER_SOCKET_OLD  "/tmp/FPPD"
-#define FPP_CLIENT_SOCKET_OLD  "/tmp/FPP"
-
+#define FPP_SERVER_SOCKET_OLD "/tmp/FPPD"
+#define FPP_CLIENT_SOCKET_OLD "/tmp/FPP"

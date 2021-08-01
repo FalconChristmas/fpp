@@ -24,14 +24,12 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
 typedef struct {
-	uint32_t      active;
-	uint32_t      universe;
-	uint32_t      startChannel;
-	uint32_t      channelCount;
-	uint32_t      unicast;
-	char          unicastAddress[16];
-	uint32_t      bytesReceived;
+    uint32_t active;
+    uint32_t universe;
+    uint32_t startChannel;
+    uint32_t channelCount;
+    uint32_t unicast;
+    char unicastAddress[16];
+    uint32_t bytesReceived;
 } Universe;
-

@@ -28,25 +28,25 @@
 
 #include <pthread.h>
 
-#include "TestPatternBase.h"
 #include "Sequence.h"
+#include "TestPatternBase.h"
 
 class ChannelTester {
-  public:
+public:
     ChannelTester();
-	virtual ~ChannelTester();
+    virtual ~ChannelTester();
 
-	int  SetupTest(std::string configStr);
+    int SetupTest(std::string configStr);
 
-	void OverlayTestData(char *channelData);
-	int  Testing(void);
+    void OverlayTestData(char* channelData);
+    int Testing(void);
 
-	std::string GetConfig(void);
+    std::string GetConfig(void);
 
-    
     static ChannelTester INSTANCE;
-  private:
-	TestPatternBase *m_testPattern;
-	pthread_mutex_t  m_testLock;
-	std::string      m_configStr;
+
+private:
+    TestPatternBase* m_testPattern;
+    pthread_mutex_t m_testLock;
+    std::string m_configStr;
 };

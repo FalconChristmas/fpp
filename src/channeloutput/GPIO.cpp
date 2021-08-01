@@ -27,31 +27,29 @@
 #include "GPIO.h"
 
 extern "C" {
-    GPIOOutput *createGPIOOutput(unsigned int startChannel,
-                                       unsigned int channelCount) {
-        return new GPIOOutput(startChannel, channelCount);
-    }
+GPIOOutput* createGPIOOutput(unsigned int startChannel,
+                             unsigned int channelCount) {
+    return new GPIOOutput(startChannel, channelCount);
+}
 }
 
 /*
  *
  */
-GPIOOutput::GPIOOutput(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
-	m_GPIOPin(nullptr),
-	m_invertOutput(0),
-	m_pwm(0)
-{
-	LogDebug(VB_CHANNELOUT, "GPIOOutput::GPIOOutput(%u, %u)\n",
-		startChannel, channelCount);
+GPIOOutput::GPIOOutput(unsigned int startChannel, unsigned int channelCount) :
+    ChannelOutputBase(startChannel, channelCount),
+    m_GPIOPin(nullptr),
+    m_invertOutput(0),
+    m_pwm(0) {
+    LogDebug(VB_CHANNELOUT, "GPIOOutput::GPIOOutput(%u, %u)\n",
+             startChannel, channelCount);
 }
 
 /*
  *
  */
-GPIOOutput::~GPIOOutput()
-{
-	LogDebug(VB_CHANNELOUT, "GPIOOutput::~GPIOOutput()\n");
+GPIOOutput::~GPIOOutput() {
+    LogDebug(VB_CHANNELOUT, "GPIOOutput::~GPIOOutput()\n");
 }
 int GPIOOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "GPIOOutput::Init()\n");
@@ -96,48 +94,42 @@ int GPIOOutput::Init(Json::Value config) {
 /*
  *
  */
-int GPIOOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "GPIOOutput::Close()\n");
+int GPIOOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "GPIOOutput::Close()\n");
 
-	return ChannelOutputBase::Close();
+    return ChannelOutputBase::Close();
 }
 
 /*
  *
  */
-int GPIOOutput::SendData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "GPIOOutput::SendData(%p)\n", channelData);
+int GPIOOutput::SendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "GPIOOutput::SendData(%p)\n", channelData);
 
-	if (m_pwm)
-	{
-		if (m_invertOutput)
-            m_GPIOPin->setPWMValue(100 * (int)(255-channelData[0]));
-		else
+    if (m_pwm) {
+        if (m_invertOutput)
+            m_GPIOPin->setPWMValue(100 * (int)(255 - channelData[0]));
+        else
             m_GPIOPin->setPWMValue(100 * (int)(channelData[0]));
     } else {
+        if (m_invertOutput)
+            m_GPIOPin->setValue(!channelData[0]);
+        else
+            m_GPIOPin->setValue(channelData[0]);
+    }
 
-		if (m_invertOutput)
-			m_GPIOPin->setValue(!channelData[0]);
-		else
-			m_GPIOPin->setValue(channelData[0]);
-	}
-
-	return m_channelCount;
+    return m_channelCount;
 }
 
 /*
  *
  */
-void GPIOOutput::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "GPIOOutput::DumpConfig()\n");
+void GPIOOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "GPIOOutput::DumpConfig()\n");
 
     LogDebug(VB_CHANNELOUT, "    GPIO Pin       : %d\n", m_GPIOPin ? m_GPIOPin->kernelGpio : -1);
-	LogDebug(VB_CHANNELOUT, "    Inverted Output: %s\n", m_invertOutput ? "Yes" : "No");
-	LogDebug(VB_CHANNELOUT, "    PWM            : %s\n", m_pwm ? "Yes" : "No");
+    LogDebug(VB_CHANNELOUT, "    Inverted Output: %s\n", m_invertOutput ? "Yes" : "No");
+    LogDebug(VB_CHANNELOUT, "    PWM            : %s\n", m_pwm ? "Yes" : "No");
 
-	ChannelOutputBase::DumpConfig();
+    ChannelOutputBase::DumpConfig();
 }
-

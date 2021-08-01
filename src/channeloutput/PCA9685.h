@@ -21,30 +21,27 @@
 #include "util/I2CUtils.h"
 
 class PCA9685Output : public ChannelOutputBase {
-  public:
-	PCA9685Output(unsigned int startChannel, unsigned int channelCount);
-	virtual ~PCA9685Output();
+public:
+    PCA9685Output(unsigned int startChannel, unsigned int channelCount);
+    virtual ~PCA9685Output();
 
-	virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual int SendData(unsigned char *channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
-    
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override {
         addRange(m_startChannel, m_startChannel + m_channelCount - 1);
     }
 
-
-  private:
-	I2CUtils *i2c;
-	int m_deviceID;
+private:
+    I2CUtils* i2c;
+    int m_deviceID;
     std::string m_i2cDevice;
     int m_frequency;
-    
-    
+
     class PCA9685Port {
     public:
         int m_min = 1000;
@@ -55,7 +52,6 @@ class PCA9685Output : public ChannelOutputBase {
 
         unsigned short m_lastValue;
     };
-    
+
     PCA9685Port m_ports[16];
 };
-

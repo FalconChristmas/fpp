@@ -24,43 +24,43 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <mutex>
 #include <thread>
 #include <vector>
-#include <mutex>
 
 #include "VirtualDisplay.h"
 
 #define HTTPVIRTUALDISPLAYPORT 32328
 
 class HTTPVirtualDisplayOutput : protected VirtualDisplayOutput {
-  public:
-	HTTPVirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~HTTPVirtualDisplayOutput();
+public:
+    HTTPVirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~HTTPVirtualDisplayOutput();
 
-	virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual void PrepData(unsigned char *channelData) override;
-	virtual int  SendData(unsigned char *channelData) override;
+    virtual void PrepData(unsigned char* channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
 
-	void ConnectionThread(void);
-	void SelectThread(void);
+    void ConnectionThread(void);
+    void SelectThread(void);
 
-  private:
-	int  WriteSSEPacket(int fd, std::string data);
+private:
+    int WriteSSEPacket(int fd, std::string data);
 
-	int  m_port;
-	int  m_screenSize;
+    int m_port;
+    int m_screenSize;
 
-	int m_socket;
+    int m_socket;
 
-	std::string m_sseData;
+    std::string m_sseData;
 
-	volatile bool m_running;
-	volatile bool m_connListChanged;
-	std::thread *m_connThread;
-	std::thread *m_selectThread;
+    volatile bool m_running;
+    volatile bool m_connListChanged;
+    std::thread* m_connThread;
+    std::thread* m_selectThread;
 
-	std::mutex m_connListLock;
-	std::vector<int> m_connList;
+    std::mutex m_connListLock;
+    std::vector<int> m_connList;
 };

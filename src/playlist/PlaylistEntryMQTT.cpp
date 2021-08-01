@@ -22,98 +22,88 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "fpp-pch.h"
+
 #include "PlaylistEntryMQTT.h"
 
 /*
  *
  */
-PlaylistEntryMQTT::PlaylistEntryMQTT(Playlist *playlist, PlaylistEntryBase *parent)
-  : PlaylistEntryBase(playlist, parent)
-{
+PlaylistEntryMQTT::PlaylistEntryMQTT(Playlist* playlist, PlaylistEntryBase* parent) :
+    PlaylistEntryBase(playlist, parent) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMQTT::PlaylistEntryMQTT()\n");
 
-	m_type = "mqtt";
-	m_deprecated = 1;
+    m_type = "mqtt";
+    m_deprecated = 1;
 }
 
 /*
  *
  */
-PlaylistEntryMQTT::~PlaylistEntryMQTT()
-{
+PlaylistEntryMQTT::~PlaylistEntryMQTT() {
 }
 
 /*
  *
  */
-int PlaylistEntryMQTT::Init(Json::Value &config)
-{
+int PlaylistEntryMQTT::Init(Json::Value& config) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMQTT::Init()\n");
 
-	if (!config.isMember("topic"))
-	{
-		LogErr(VB_PLAYLIST, "Missing topic entry\n");
-		return 0;
-	}
+    if (!config.isMember("topic")) {
+        LogErr(VB_PLAYLIST, "Missing topic entry\n");
+        return 0;
+    }
 
-	if (!config.isMember("message"))
-	{
-		LogErr(VB_PLAYLIST, "Missing message entry\n");
-		return 0;
-	}
+    if (!config.isMember("message")) {
+        LogErr(VB_PLAYLIST, "Missing message entry\n");
+        return 0;
+    }
 
-	m_topic = config["topic"].asString();
-	m_message = config["message"].asString();
+    m_topic = config["topic"].asString();
+    m_message = config["message"].asString();
 
-	return PlaylistEntryBase::Init(config);
+    return PlaylistEntryBase::Init(config);
 }
 
 /*
  *
  */
-int PlaylistEntryMQTT::StartPlaying(void)
-{
+int PlaylistEntryMQTT::StartPlaying(void) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMQTT::StartPlaying()\n");
 
-	if (!CanPlay())
-	{
-		FinishPlay();
-		return 0;
-	}
+    if (!CanPlay()) {
+        FinishPlay();
+        return 0;
+    }
 
-	PlaylistEntryBase::StartPlaying();
+    PlaylistEntryBase::StartPlaying();
 
-	if (mqtt)
-		mqtt->PublishRaw(m_topic.c_str(), m_message.c_str());
+    if (mqtt)
+        mqtt->PublishRaw(m_topic.c_str(), m_message.c_str());
 
-	FinishPlay();
+    FinishPlay();
 
-	return 1;
+    return 1;
 }
 
 /*
  *
  */
-void PlaylistEntryMQTT::Dump(void)
-{
-	PlaylistEntryBase::Dump();
+void PlaylistEntryMQTT::Dump(void) {
+    PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Topic  : %s\n", m_topic.c_str());
-	LogDebug(VB_PLAYLIST, "Message: %s\n", m_message.c_str());
+    LogDebug(VB_PLAYLIST, "Topic  : %s\n", m_topic.c_str());
+    LogDebug(VB_PLAYLIST, "Message: %s\n", m_message.c_str());
 }
 
 /*
  *
  */
-Json::Value PlaylistEntryMQTT::GetConfig(void)
-{
-	Json::Value result = PlaylistEntryBase::GetConfig();
+Json::Value PlaylistEntryMQTT::GetConfig(void) {
+    Json::Value result = PlaylistEntryBase::GetConfig();
 
-	result["topic"]   = m_topic;
-	result["message"] = m_message;
+    result["topic"] = m_topic;
+    result["message"] = m_message;
 
-	return result;
+    return result;
 }
-

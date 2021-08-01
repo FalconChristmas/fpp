@@ -1,14 +1,13 @@
 #include "fpp-pch.h"
 
-#include <linux/i2c.h>
 #include <linux/i2c-dev.h>
-#include <fcntl.h>
+#include <linux/i2c.h>
 #include <sys/ioctl.h>
+#include <fcntl.h>
 
 #include "I2CUtils.h"
 
 // some of this is based off the pigpio.c file which is public domain
-
 
 I2CUtils::I2CUtils(int bus, int address) {
     file = -1;
@@ -16,29 +15,30 @@ I2CUtils::I2CUtils(int bus, int address) {
     sprintf(dev, "/dev/i2c-%d", bus);
     Init(dev, address);
 }
-I2CUtils::I2CUtils(const char * bus, int address) {
+I2CUtils::I2CUtils(const char* bus, int address) {
     file = -1;
     char dev[64];
     sprintf(dev, "/dev/%s", bus);
     Init(dev, address);
 }
-void I2CUtils::Init(const char *dev, int address) {
+void I2CUtils::Init(const char* dev, int address) {
     if ((file = open(dev, O_RDWR)) < 0) {
-        if (system("/sbin/modprobe i2c_dev") == -1) { /* ignore errors */}
-        
+        if (system("/sbin/modprobe i2c_dev") == -1) { /* ignore errors */
+        }
+
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         if ((file = open(dev, O_RDWR)) < 0) {
             file = -1;
             return;
         }
     }
-    
+
     if (ioctl(file, I2C_SLAVE, address) < 0) {
         close(file);
         file = -1;
         return;
     }
-    
+
     if (ioctl(file, I2C_FUNCS, &funcs) < 0) {
         funcs = -1;
     }
@@ -50,28 +50,26 @@ I2CUtils::~I2CUtils() {
     }
 }
 
-
-int I2CUtils::readDevice(uint8_t *buf, int count) {
+int I2CUtils::readDevice(uint8_t* buf, int count) {
     if (file != -1) {
         return read(file, buf, count);
     }
     return -1;
 }
-int I2CUtils::writeDevice(uint8_t *buf, int count) {
+int I2CUtils::writeDevice(uint8_t* buf, int count) {
     if (file != -1) {
         return write(file, buf, count);
     }
     return -1;
 }
 
-
-inline int fpp_smbus_access(int file, char rw, uint8_t cmd, int size, union i2c_smbus_data *data) {
+inline int fpp_smbus_access(int file, char rw, uint8_t cmd, int size, union i2c_smbus_data* data) {
     struct i2c_smbus_ioctl_data args;
     args.read_write = rw;
-    args.command    = cmd;
-    args.size       = size;
-    args.data       = data;
-    
+    args.command = cmd;
+    args.size = size;
+    args.data = data;
+
     return ioctl(file, I2C_SMBUS, &args);
 }
 int I2CUtils::readByte() {
@@ -101,7 +99,7 @@ int I2CUtils::readByteData(int reg) {
     if (file != -1) {
         union i2c_smbus_data data;
         int status = fpp_smbus_access(file, I2C_SMBUS_READ, reg, I2C_SMBUS_BYTE_DATA, &data);
-        
+
         if (status < 0) {
             return -1;
         }
@@ -125,7 +123,7 @@ int I2CUtils::readWordData(int reg) {
     if (file != -1) {
         union i2c_smbus_data data;
         int status = fpp_smbus_access(file, I2C_SMBUS_READ, reg, I2C_SMBUS_WORD_DATA, &data);
-        
+
         if (status < 0) {
             return -1;
         }
@@ -146,13 +144,14 @@ int I2CUtils::writeWordData(int reg, unsigned val) {
     return -1;
 }
 
-int I2CUtils::writeBlockData(int reg, const uint8_t *buf, int count) {
+int I2CUtils::writeBlockData(int reg, const uint8_t* buf, int count) {
     if (file != -1) {
         union i2c_smbus_data data;
-        if (count > 32) count = 32; //max for SMBus
+        if (count > 32)
+            count = 32; //max for SMBus
         data.block[0] = count;
         for (int x = 0; x < count; x++) {
-            data.block[x+1] = buf[x];
+            data.block[x + 1] = buf[x];
         }
         int status = fpp_smbus_access(file, I2C_SMBUS_WRITE, reg, I2C_SMBUS_I2C_BLOCK_DATA, &data);
         if (status < 0) {
@@ -162,13 +161,14 @@ int I2CUtils::writeBlockData(int reg, const uint8_t *buf, int count) {
     }
     return -1;
 }
-int I2CUtils::writeI2CBlockData(int reg, const uint8_t *buf, int count) {
+int I2CUtils::writeI2CBlockData(int reg, const uint8_t* buf, int count) {
     if (file != -1) {
         union i2c_smbus_data data;
-        if (count > 32) count = 32; //max
+        if (count > 32)
+            count = 32; //max
         data.block[0] = count;
         for (int x = 0; x < count; x++) {
-            data.block[x+1] = buf[x];
+            data.block[x + 1] = buf[x];
         }
         int status = fpp_smbus_access(file, I2C_SMBUS_WRITE, reg, I2C_SMBUS_I2C_BLOCK_BROKEN, &data);
         if (status < 0) {
@@ -179,13 +179,14 @@ int I2CUtils::writeI2CBlockData(int reg, const uint8_t *buf, int count) {
     return -1;
 }
 
-int I2CUtils::readI2CBlockData(int reg, uint8_t *buf, int count) {
+int I2CUtils::readI2CBlockData(int reg, uint8_t* buf, int count) {
     if (file != -1) {
         union i2c_smbus_data data;
-        if (count > 32) count = 32; //max
+        if (count > 32)
+            count = 32; //max
         data.block[0] = count;
         for (int x = 0; x < count; x++) {
-            data.block[x+1] = buf[x];
+            data.block[x + 1] = buf[x];
         }
         int status = fpp_smbus_access(file, I2C_SMBUS_READ, reg, I2C_SMBUS_I2C_BLOCK_DATA, &data);
         if (status < 0) {
@@ -193,7 +194,7 @@ int I2CUtils::readI2CBlockData(int reg, uint8_t *buf, int count) {
         }
         for (int i = 0; i < count; i++) {
             // Skip the first byte, which is the length of the rest of the block.
-            buf[i] = data.block[i+1];
+            buf[i] = data.block[i + 1];
         }
         return count;
     }

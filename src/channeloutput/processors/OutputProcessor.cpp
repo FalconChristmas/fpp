@@ -14,59 +14,59 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
+
 #include "OutputProcessor.h"
 
-#include "RemapOutputProcessor.h"
-#include "HoldValueOutputProcessor.h"
-#include "SetValueOutputProcessor.h"
 #include "BrightnessOutputProcessor.h"
 #include "ColorOrderOutputProcessor.h"
+#include "HoldValueOutputProcessor.h"
+#include "RemapOutputProcessor.h"
+#include "SetValueOutputProcessor.h"
 #include "ThreeToFourOutputProcessor.h"
-#include "log.h"
-
 
 OutputProcessors::OutputProcessors() {
 }
 OutputProcessors::~OutputProcessors() {
-    for (OutputProcessor *a : processors) {
+    for (OutputProcessor* a : processors) {
         delete a;
     }
     processors.clear();
 }
 
-void OutputProcessors::ProcessData(unsigned char *channelData) const {
+void OutputProcessors::ProcessData(unsigned char* channelData) const {
     std::lock_guard<std::mutex> lock(processorsLock);
-    for (OutputProcessor *a : processors) {
+    for (OutputProcessor* a : processors) {
         if (a->isActive()) {
             a->ProcessData(channelData);
         }
     }
 }
 
-void OutputProcessors::addProcessor(OutputProcessor*p) {
+void OutputProcessors::addProcessor(OutputProcessor* p) {
     if (p == nullptr) {
         return;
     }
     std::lock_guard<std::mutex> lock(processorsLock);
     processors.push_back(p);
 }
-void OutputProcessors::removeProcessor(OutputProcessor*p) {
+void OutputProcessors::removeProcessor(OutputProcessor* p) {
     std::lock_guard<std::mutex> lock(processorsLock);
     processors.remove(p);
 }
 void OutputProcessors::removeAll() {
     std::lock_guard<std::mutex> lock(processorsLock);
-    for (OutputProcessor *a : processors) {
+    for (OutputProcessor* a : processors) {
         delete a;
     }
     processors.clear();
 }
 
-void OutputProcessors::loadFromJSON(const Json::Value &config, bool clear) {
+void OutputProcessors::loadFromJSON(const Json::Value& config, bool clear) {
     if (clear) {
         removeAll();
     }
-    for (Json::Value::const_iterator itr = config.begin() ; itr != config.end() ; ++itr) {
+    for (Json::Value::const_iterator itr = config.begin(); itr != config.end(); ++itr) {
         std::string name = itr.key().asString();
         if (name == "outputProcessors") {
             Json::Value val = *itr;
@@ -80,7 +80,7 @@ void OutputProcessors::loadFromJSON(const Json::Value &config, bool clear) {
         }
     }
 }
-OutputProcessor *OutputProcessors::create(const Json::Value &config) {
+OutputProcessor* OutputProcessors::create(const Json::Value& config) {
     std::string type = config["type"].asString();
     if (type == "Remap") {
         return new RemapOutputProcessor(config);
@@ -100,10 +100,9 @@ OutputProcessor *OutputProcessors::create(const Json::Value &config) {
     return nullptr;
 }
 
-
-OutputProcessor *OutputProcessors::find(std::function<bool(OutputProcessor*)> f) const {
+OutputProcessor* OutputProcessors::find(std::function<bool(OutputProcessor*)> f) const {
     std::lock_guard<std::mutex> lock(processorsLock);
-    for (OutputProcessor *a : processors) {
+    for (OutputProcessor* a : processors) {
         if (f(a)) {
             return a;
         }
@@ -111,14 +110,15 @@ OutputProcessor *OutputProcessors::find(std::function<bool(OutputProcessor*)> f)
     return nullptr;
 }
 
-void OutputProcessors::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
-    for (OutputProcessor *a : processors) {
+void OutputProcessors::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
+    for (OutputProcessor* a : processors) {
         a->GetRequiredChannelRanges(addRange);
     }
 }
 
-
-OutputProcessor::OutputProcessor() : description(), active(true) {
+OutputProcessor::OutputProcessor() :
+    description(),
+    active(true) {
 }
 
 OutputProcessor::~OutputProcessor() {

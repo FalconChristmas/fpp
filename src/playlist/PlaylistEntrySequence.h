@@ -24,47 +24,45 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #include <string>
 
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntrySequence : public PlaylistEntryBase {
-  public:
-	PlaylistEntrySequence(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntrySequence();
+public:
+    PlaylistEntrySequence(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntrySequence();
 
-	virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-    int  PreparePlay(int frame = 0);
-	virtual int  StartPlaying(void) override;
-	virtual int  Process(void) override;
-	virtual int  Stop(void) override;
+    int PreparePlay(int frame = 0);
+    virtual int StartPlaying(void) override;
+    virtual int Process(void) override;
+    virtual int Stop(void) override;
 
     virtual void Pause() override;
     virtual bool IsPaused() override;
     virtual void Resume() override;
 
-	virtual void Dump(void) override;
+    virtual void Dump(void) override;
 
-	virtual Json::Value GetConfig(void) override;
-	virtual Json::Value GetMqttStatus(void) override;
+    virtual Json::Value GetConfig(void) override;
+    virtual Json::Value GetMqttStatus(void) override;
 
     virtual uint64_t GetLengthInMS() override;
     virtual uint64_t GetElapsedMS() override;
-    
+
     void disableAdjustTiming() { m_adjustTiming = false; }
 
-	std::string GetSequenceName(void) { return m_sequenceName; }
+    std::string GetSequenceName(void) { return m_sequenceName; }
 
-  private:
-    
-    long long            m_startTme;
-    bool                 m_adjustTiming;
-    bool                 m_prepared;
-	int                  m_duration;
-    int                  m_sequenceFrameTime;
-	std::string          m_sequenceName;
-    
-    int                  m_pausedFrame;
+private:
+    long long m_startTme;
+    bool m_adjustTiming;
+    bool m_prepared;
+    int m_duration;
+    int m_sequenceFrameTime;
+    std::string m_sequenceName;
+
+    int m_pausedFrame;
 };

@@ -28,25 +28,24 @@
 #include "util/GPIOUtils.h"
 
 class GPIO595Output : public ThreadedChannelOutputBase {
-  public:
-	GPIO595Output(unsigned int startChannel, unsigned int channelCount);
-	virtual ~GPIO595Output();
+public:
+    GPIO595Output(unsigned int startChannel, unsigned int channelCount);
+    virtual ~GPIO595Output();
 
     virtual int Init(Json::Value config) override;
 
-	virtual int Close(void) override;
+    virtual int Close(void) override;
 
-	virtual int RawSendData(unsigned char *channelData) override;
+    virtual int RawSendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override {
         addRange(m_startChannel, m_startChannel + m_channelCount - 1);
     }
-    
-  private:
-	const PinCapabilities * m_clockPin;
-	const PinCapabilities * m_dataPin;
-	const PinCapabilities * m_latchPin;
-};
 
+private:
+    const PinCapabilities* m_clockPin;
+    const PinCapabilities* m_dataPin;
+    const PinCapabilities* m_latchPin;
+};

@@ -30,62 +30,62 @@
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryBranch : public PlaylistEntryBase {
-  public:
-	PlaylistEntryBranch(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryBranch();
+public:
+    PlaylistEntryBranch(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntryBranch();
 
-	virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-	virtual int  StartPlaying(void) override;
+    virtual int StartPlaying(void) override;
 
-	void SetNext(int isTrue);
+    void SetNext(int isTrue);
 
-	virtual void Dump(void) override;
+    virtual void Dump(void) override;
 
-	virtual Json::Value GetConfig(void) override;
+    virtual Json::Value GetConfig(void) override;
 
     virtual PlaylistBranchType GetNextBranchType() override { return m_nextBranchType; }
-    virtual std::string  GetNextSection(void) override { return m_nextSection; }
-    virtual int          GetNextItem(void) override { return m_nextItem; }
-    virtual std::string  GetNextData(void) override { return m_nextBranchPlaylist; }
+    virtual std::string GetNextSection(void) override { return m_nextSection; }
+    virtual int GetNextItem(void) override { return m_nextItem; }
+    virtual std::string GetNextData(void) override { return m_nextBranchPlaylist; }
 
-  private:
-	std::string  m_branchTest;
+private:
+    std::string m_branchTest;
 
-	// Time comparison
-	std::string m_startTime;
-	std::string m_endTime;
-	int  m_sHour;
-	int  m_sMinute;
-	int  m_sSecond;
-	int  m_sDaySecond;
-	int  m_sHourSecond;
-	int  m_eHour;
-	int  m_eMinute;
-	int  m_eSecond;
-	int  m_eDaySecond;
-	int  m_eHourSecond;
+    // Time comparison
+    std::string m_startTime;
+    std::string m_endTime;
+    int m_sHour;
+    int m_sMinute;
+    int m_sSecond;
+    int m_sDaySecond;
+    int m_sHourSecond;
+    int m_eHour;
+    int m_eMinute;
+    int m_eSecond;
+    int m_eDaySecond;
+    int m_eHourSecond;
 
     // Loop Number
-    int  m_iterationStart;
-    int  m_iterationCount;
+    int m_iterationStart;
+    int m_iterationCount;
 
     // MQTT Topic Message
     std::string m_mqttTopic;
     std::string m_mqttMessage;
 
     PlaylistBranchType m_trueNextBranchType;
-	std::string m_trueNextSection;
-	int         m_trueNextItem;
+    std::string m_trueNextSection;
+    int m_trueNextItem;
     std::string m_trueBranchPlaylist;
 
     PlaylistBranchType m_falseNextBranchType;
-	std::string m_falseNextSection;
-	int         m_falseNextItem;
+    std::string m_falseNextSection;
+    int m_falseNextItem;
     std::string m_falseBranchPlaylist;
-    
+
     PlaylistBranchType m_nextBranchType;
-    std::string  m_nextSection;
-    int          m_nextItem;
-    std::string  m_nextBranchPlaylist;
+    std::string m_nextSection;
+    int m_nextItem;
+    std::string m_nextBranchPlaylist;
 };

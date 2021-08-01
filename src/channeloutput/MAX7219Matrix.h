@@ -30,27 +30,26 @@
 #include "util/SPIUtils.h"
 
 class MAX7219MatrixOutput : public ChannelOutputBase {
-  public:
-	MAX7219MatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~MAX7219MatrixOutput();
+public:
+    MAX7219MatrixOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~MAX7219MatrixOutput();
 
-	virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual int SendData(unsigned char *channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-	void WriteCommand(uint8_t cmd, uint8_t value);
+private:
+    void WriteCommand(uint8_t cmd, uint8_t value);
 
-	int m_panels;
-	int m_channelsPerPixel;
-	int m_pinCS;
-    
-    const PinCapabilities *m_csPin;
-    SPIUtils *m_spi;
+    int m_panels;
+    int m_channelsPerPixel;
+    int m_pinCS;
+
+    const PinCapabilities* m_csPin;
+    SPIUtils* m_spi;
 };
-

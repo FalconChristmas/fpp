@@ -20,7 +20,7 @@
 class LocaleHolder {
 public:
     static Json::Value GetLocale();
-    
+
 private:
     static std::mutex localeLock;
     static Json::Value locale;

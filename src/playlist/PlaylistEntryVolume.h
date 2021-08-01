@@ -29,19 +29,19 @@
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryVolume : public PlaylistEntryBase {
-  public:
-	PlaylistEntryVolume(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryVolume();
+public:
+    PlaylistEntryVolume(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntryVolume();
 
-	virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-	virtual int  StartPlaying(void) override;
+    virtual int StartPlaying(void) override;
 
-	virtual void Dump(void) override;
+    virtual void Dump(void) override;
 
-	Json::Value GetConfig(void) override;
+    Json::Value GetConfig(void) override;
 
-  private:
-	int                  m_volume;
-    bool                 m_volAdjust;
+private:
+    int m_volume;
+    bool m_volAdjust;
 };

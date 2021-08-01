@@ -33,34 +33,34 @@
 #include "Sequence.h"
 
 class TestPatternBase {
-  public:
+public:
     TestPatternBase();
-	virtual ~TestPatternBase();
+    virtual ~TestPatternBase();
 
-	std::string  Name(void) { return m_testPatternName; }
-	int          Init(std::string configStr);
-	virtual int  Init(Json::Value config);
-	virtual int  SetupTest(void);
+    std::string Name(void) { return m_testPatternName; }
+    int Init(std::string configStr);
+    virtual int Init(Json::Value config);
+    virtual int SetupTest(void);
 
-	int          SetChannelSet(std::string channelSetStr);
-	int          OverlayTestData(char *channelData);
-	void         DisableTest(void) { m_testEnabled = 0; }
+    int SetChannelSet(std::string channelSetStr);
+    int OverlayTestData(char* channelData);
+    void DisableTest(void) { m_testEnabled = 0; }
 
-	virtual void DumpConfig(void);
+    virtual void DumpConfig(void);
 
-  protected:
-	virtual void CycleData(void) {}
+protected:
+    virtual void CycleData(void) {}
 
-	volatile int      m_testEnabled;
-	std::string       m_testPatternName;
-	int               m_minChannels;
-	char             *m_testData;
-	long long         m_nextCycleTime;
-	int               m_cycleMS;
+    volatile int m_testEnabled;
+    std::string m_testPatternName;
+    int m_minChannels;
+    char* m_testData;
+    long long m_nextCycleTime;
+    int m_cycleMS;
 
-	std::string       m_channelSetStr;
-	int               m_channelCount;
-	int               m_configChanged;
+    std::string m_channelSetStr;
+    int m_channelCount;
+    int m_configChanged;
 
-	std::vector<std::pair<int,int> >  m_channelSet;
+    std::vector<std::pair<int, int>> m_channelSet;
 };

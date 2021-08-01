@@ -1,35 +1,33 @@
 #include "fpp-pch.h"
 
 #include <arpa/inet.h>
-#include <sys/types.h>
+#include <sys/file.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/file.h>
 #include <sys/time.h>
+#include <sys/types.h>
 
-#include <netinet/in_systm.h>
+#include "ping.h"
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
-#include <netdb.h>
 #include <ctype.h>
+#include <netdb.h>
 #include <stdint.h>
-#include "ping.h"
 
 using namespace std;
 
-uint16_t in_cksum(uint16_t *addr, unsigned len);
+uint16_t in_cksum(uint16_t* addr, unsigned len);
 
-#define    DEFDATALEN    (64-ICMP_MINLEN)    /* default data length */
-#define    MAXIPLEN    60
-#define    MAXICMPLEN    76
-#define    MAXPACKET    (65536 - 60 - ICMP_MINLEN)/* max packet size */
+#define DEFDATALEN (64 - ICMP_MINLEN) /* default data length */
+#define MAXIPLEN 60
+#define MAXICMPLEN 76
+#define MAXPACKET (65536 - 60 - ICMP_MINLEN) /* max packet size */
 
 static int pingSocket = -1;
 
-
-inline uint16_t in_cksum(uint16_t *addr, unsigned len)
-{
+inline uint16_t in_cksum(uint16_t* addr, unsigned len) {
     uint16_t answer = 0;
     /*
      * Our algorithm is simple, using a 32 bit accumulator (sum), we add
@@ -37,47 +35,44 @@ inline uint16_t in_cksum(uint16_t *addr, unsigned len)
      * carry bits from the top 16 bits into the lower 16 bits.
      */
     uint32_t sum = 0;
-    while (len > 1)  {
+    while (len > 1) {
         sum += *addr++;
         len -= 2;
     }
-    
+
     // mop up an odd byte, if necessary
     if (len == 1) {
-        *(unsigned char *)&answer = *(unsigned char *)addr ;
+        *(unsigned char*)&answer = *(unsigned char*)addr;
         sum += answer;
     }
-    
+
     // add back carry outs from top 16 bits to low 16 bits
     sum = (sum >> 16) + (sum & 0xffff); // add high 16 to low 16
-    sum += (sum >> 16); // add carry
-    answer = ~sum; // truncate to 16 bits
+    sum += (sum >> 16);                 // add carry
+    answer = ~sum;                      // truncate to 16 bits
     return answer;
 }
 
-
-int ping(string target, int timeoutMs)
-{
-    
+int ping(string target, int timeoutMs) {
     int i, cc, packlen, datalen = DEFDATALEN;
-    struct hostent *hp;
+    struct hostent* hp;
     struct sockaddr_in to, from;
     //struct protoent    *proto;
-    struct ip *ip;
+    struct ip* ip;
     u_char packet[DEFDATALEN + MAXIPLEN + MAXICMPLEN];
     u_char outpack[MAXPACKET];
     char hnamebuf[MAXHOSTNAMELEN];
-    
+
     string hostname;
-    struct icmp *icp;
+    struct icmp* icp;
     int ret, fromlen, hlen;
     fd_set rfds;
     struct timeval tv;
     int retval;
     struct timeval start, end;
-    int /*start_t, */end_t;
+    int /*start_t, */ end_t;
     bool cont = true;
-    
+
     memset(outpack, 0, sizeof(outpack));
     memset(packet, 0, sizeof(packet));
     memset(hnamebuf, 0, sizeof(hnamebuf));
@@ -85,17 +80,15 @@ int ping(string target, int timeoutMs)
     memset(&from, 0, sizeof(to));
 
     to.sin_family = AF_INET;
-    
+
     // try to convert as dotted decimal address, else if that fails assume it's a hostname
     to.sin_addr.s_addr = inet_addr(target.c_str());
     if (to.sin_addr.s_addr != (u_int)-1)
         hostname = target;
-    else
-    {
+    else {
         hp = gethostbyname(target.c_str());
-        if (!hp)
-        {
-            cerr << "unknown host "<< target << endl;
+        if (!hp) {
+            cerr << "unknown host " << target << endl;
             return -1;
         }
         to.sin_family = hp->h_addrtype;
@@ -104,7 +97,7 @@ int ping(string target, int timeoutMs)
         hostname = hnamebuf;
     }
     packlen = datalen + MAXIPLEN + MAXICMPLEN;
-    
+
     /*
      if ( (proto = getprotobyname("icmp")) == NULL)
      {
@@ -113,107 +106,91 @@ int ping(string target, int timeoutMs)
      }
      */
     if (pingSocket == -1) {
-        if ( (pingSocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0) {
-            perror("socket");    /* probably not running as superuser */
+        if ((pingSocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0) {
+            perror("socket"); /* probably not running as superuser */
             return -1;
         }
     }
-    
-    icp = (struct icmp *)outpack;
+
+    icp = (struct icmp*)outpack;
     icp->icmp_type = ICMP_ECHO;
     icp->icmp_code = 0;
     icp->icmp_cksum = 0;
-    
+
     int ipad = to.sin_addr.s_addr;
     ipad >>= 16;
     ipad &= 0xFFFF;
-    icp->icmp_seq = ipad;    /* seq and id must be reflected */
+    icp->icmp_seq = ipad; /* seq and id must be reflected */
     icp->icmp_id = getpid();
-    
-    
+
     cc = datalen + ICMP_MINLEN;
-    icp->icmp_cksum = in_cksum((unsigned short *)icp,cc);
-    
+    icp->icmp_cksum = in_cksum((unsigned short*)icp, cc);
+
     gettimeofday(&start, NULL);
-    
-    i = sendto(pingSocket, (char *)outpack, cc, 0, (struct sockaddr*)&to, (socklen_t)sizeof(struct sockaddr_in));
-    if (i < 0 || i != cc)
-    {
+
+    i = sendto(pingSocket, (char*)outpack, cc, 0, (struct sockaddr*)&to, (socklen_t)sizeof(struct sockaddr_in));
+    if (i < 0 || i != cc) {
         if (i < 0)
             perror("sendto error");
         //cout << "wrote " << hostname << " " <<  cc << " chars, ret= " << i << endl;
     }
-    
+
     // Watch stdin (fd 0) to see when it has input.
     FD_ZERO(&rfds);
     FD_SET(pingSocket, &rfds);
     tv.tv_sec = 0;
     tv.tv_usec = timeoutMs * 1000;
-    
-    while(cont)
-    {
-        retval = select(pingSocket+1, &rfds, NULL, NULL, &tv);
-        if (retval == -1)
-        {
+
+    while (cont) {
+        retval = select(pingSocket + 1, &rfds, NULL, NULL, &tv);
+        if (retval == -1) {
             perror("select()");
             return -1;
-        }
-        else if (retval)
-        {
+        } else if (retval) {
             fromlen = sizeof(sockaddr_in);
-            if ( (ret = recvfrom(pingSocket, (char *)packet, packlen, 0,(struct sockaddr *)&from, (socklen_t*)&fromlen)) < 0)
-            {
+            if ((ret = recvfrom(pingSocket, (char*)packet, packlen, 0, (struct sockaddr*)&from, (socklen_t*)&fromlen)) < 0) {
                 perror("recvfrom error");
                 return -1;
             }
-            
+
             // Check the IP header
-            ip = (struct ip *)((char*)packet);
-            hlen = sizeof( struct ip );
-            if (ret < (hlen + ICMP_MINLEN))
-            {
+            ip = (struct ip*)((char*)packet);
+            hlen = sizeof(struct ip);
+            if (ret < (hlen + ICMP_MINLEN)) {
                 //cerr << "packet too short (" << ret  << " bytes) from " << hostname << endl;;
                 return -1;
             }
-            
+
             // Now the ICMP part
-            icp = (struct icmp *)(packet + hlen);
-            if (icp->icmp_type == ICMP_ECHOREPLY)
-            {
+            icp = (struct icmp*)(packet + hlen);
+            if (icp->icmp_type == ICMP_ECHOREPLY) {
                 //cout << "Recv: echo reply"<< endl;
-                if (icp->icmp_seq != ipad)
-                {
+                if (icp->icmp_seq != ipad) {
                     //cout << "received sequence # " << icp->icmp_seq << endl;
                     continue;
                 }
-                if (icp->icmp_id != getpid())
-                {
+                if (icp->icmp_id != getpid()) {
                     //cout << "received id " << icp->icmp_id << endl;
                     continue;
                 }
                 cont = false;
-            }
-            else
-            {
+            } else {
                 //cout << "Recv: not an echo reply" << endl;
                 continue;
             }
-            
+
             gettimeofday(&end, NULL);
-            end_t = 1000000*(end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec);
-            
-            if(end_t < 1)
+            end_t = 1000000 * (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec);
+
+            if (end_t < 1)
                 end_t = 1;
-            
+
             //cout << "Elapsed time = " << end_t << " usec" << endl;
             return end_t;
-        }
-        else
-        {
+        } else {
             //cout << "No data within 1/4 second.\n";
             return 0;
         }
     }
     return 0;
 }
-

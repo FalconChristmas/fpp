@@ -20,27 +20,28 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#include "channeloutput/channeloutputthread.h"
-#include "effects.h"
-#include "Plugins.h"
-#include "PixelOverlayModel.h"
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
+#include "PixelOverlayModel.h"
+#include "Plugins.h"
+#include "effects.h"
+#include "channeloutput/channeloutputthread.h"
 
-
-static uint8_t* createChannelDataMemory(const std::string &dataName, uint32_t size) {
-    mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
+static uint8_t* createChannelDataMemory(const std::string& dataName, uint32_t size) {
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
     int f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
     ftruncate(f, size);
-    uint8_t *channelData = (uint8_t*)mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, f, 0);
+    uint8_t* channelData = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
     memset(channelData, 0, size);
     close(f);
     return channelData;
 }
 
-PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
-    : config(c), overlayBufferData(nullptr), channelData(nullptr), runningEffect(nullptr)
-{
+PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
+    config(c),
+    overlayBufferData(nullptr),
+    channelData(nullptr),
+    runningEffect(nullptr) {
     name = config["Name"].asString();
     replaceAll(name, "/", "_");
     startChannel = config["StartChannel"].asInt();
@@ -48,10 +49,10 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
     channelCount = config["ChannelCount"].asInt();
     int strings = config["StringCount"].asInt();
     int sps = config["StrandsPerString"].asInt();
-    
+
     std::string orientation = config["Orientation"].asString();
     std::string startCorner = config["StartCorner"].asString();
-    
+
     bool TtoB = (startCorner[0] == 'T');
     bool LtoR = (startCorner[1] == 'L');
 
@@ -72,12 +73,12 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
     if (width == 0) {
         width = 1;
     }
-    
+
     std::string dataName = "/FPP-Model-Data-" + name;
     channelData = createChannelDataMemory(dataName, channelCount);
 
     if (orientation == "V" || orientation == "vertical") {
-        channelMap.resize(width*height*3);
+        channelMap.resize(width * height * 3);
 
         std::swap(width, height);
         for (int x = 0; x < width; x++) {
@@ -87,16 +88,16 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
                 int ppos = y * width + x;
                 // Relative Input Pixel 'R' channel
                 int inCh = (ppos * 3);
-                
+
                 // X position in output
                 int outX = (LtoR) ? x : width - x - 1;
                 // Y position in output
                 int outY = (TtoB == (segment % 2)) ? height - y - 1 : y;
-                
+
                 // Relative Mapped Output Pixel 'R' channel
                 int mpos = outX * height + outY;
                 int outCh = (mpos * channelsPerNode);
-                
+
                 // Map the pixel's triplet
                 for (int cho = 0; cho < 3; cho++) {
                     if (cho < channelsPerNode) {
@@ -114,27 +115,27 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
         }
         std::vector<std::string> layers = split(customData, '|');
         std::vector<std::vector<std::string>> allData;
-        for (auto&layer : layers) {
+        for (auto& layer : layers) {
             std::vector<std::string> lines = split(layer, ';');
-            for (auto &l : lines) {
+            for (auto& l : lines) {
                 allData.push_back(split(l, ','));
             }
             lines.clear();
         }
         width = 1;
         height = allData.size();
-        for (auto &l : allData) {
+        for (auto& l : allData) {
             width = std::max(width, (int)l.size());
         }
         if (height < 1) {
             height = 1;
         }
-        channelMap.resize(width*height*3);
+        channelMap.resize(width * height * 3);
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 int node = -1;
                 if (y < allData.size() && x < allData[y].size()) {
-                    std::string &s = allData[y][x];
+                    std::string& s = allData[y][x];
                     if (s == "") {
                         node = -1;
                     } else {
@@ -142,18 +143,18 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
                     }
                 }
                 int inChan = node * channelsPerNode;
-                
+
                 for (int cho = 0; cho < 3; cho++) {
                     if (node != -1 && cho < channelsPerNode) {
-                        channelMap[y*3 + x + cho] = node * channelsPerNode + cho;
+                        channelMap[y * 3 + x + cho] = node * channelsPerNode + cho;
                     } else {
-                        channelMap[y*3 + x + cho] = FPPD_OFF_CHANNEL;
+                        channelMap[y * 3 + x + cho] = FPPD_OFF_CHANNEL;
                     }
                 }
             }
         }
     } else {
-        channelMap.resize(width*height*3);
+        channelMap.resize(width * height * 3);
         for (int y = 0; y < height; y++) {
             int segment = y % sps;
             for (int x = 0; x < width; x++) {
@@ -161,16 +162,16 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
                 int ppos = y * width + x;
                 // Input Pixel 'R' channel
                 int inCh = (ppos * 3);
-                
+
                 // X position in output
                 int outX = (LtoR == (segment % 2)) ? width - x - 1 : x;
                 // Y position in output
                 int outY = (TtoB) ? y : height - y - 1;
-                
+
                 // Relative Mapped Output Pixel 'R' channel
                 int mpos = outY * width + outX;
                 int outCh = (mpos * channelsPerNode);
-                
+
                 // Map the pixel's triplet
                 for (int cho = 0; cho < 3; cho++) {
                     if (cho < channelsPerNode) {
@@ -200,19 +201,19 @@ PixelOverlayState PixelOverlayModel::getState() const {
     return state;
 }
 
-void PixelOverlayModel::setState(const PixelOverlayState &st) {
+void PixelOverlayModel::setState(const PixelOverlayState& st) {
     if (st != state) {
         PixelOverlayState old = state;
         state = st;
         PixelOverlayManager::INSTANCE.modelStateChanged(this, old, state);
     }
 }
-void PixelOverlayModel::doOverlay(uint8_t *channels) {
+void PixelOverlayModel::doOverlay(uint8_t* channels) {
     if (overlayBufferData && (overlayBufferData->flags & 0x1)) {
         //overlay buffer is dirty and needs to be flushed
         flushOverlayBuffer();
     }
-    
+
     int st = state.getState();
     if (((st == 2) || (st == 3)) &&
         (!IsEffectRunning()) &&
@@ -221,34 +222,34 @@ void PixelOverlayModel::doOverlay(uint8_t *channels) {
         //there is nothing running that we would be overlaying so do a straight copy
         st = 1;
     }
-    
-    uint8_t *src = channelData;
-    uint8_t *dst = &channels[startChannel];
+
+    uint8_t* src = channelData;
+    uint8_t* dst = &channels[startChannel];
     switch (st) {
-        case 1: //Active - Opaque
-            memcpy(dst, src, channelCount);
-            break;
-        case 2: //Active Transparent
-            for (int j = 0; j < channelCount; j++, src++, dst++) {
-                if (*src) {
-                    *dst = *src;
-                }
+    case 1: //Active - Opaque
+        memcpy(dst, src, channelCount);
+        break;
+    case 2: //Active Transparent
+        for (int j = 0; j < channelCount; j++, src++, dst++) {
+            if (*src) {
+                *dst = *src;
             }
-            break;
-        case 3: //Active Transparent RGB {
-            for (int j = 0; j < channelCount; j += 3, src += 3, dst += 3) {
-                if (src[0] || src[1] || src[2]) {
-                    dst[0] = src[0];
-                    dst[1] = src[1];
-                    dst[2] = src[2];
-                }
+        }
+        break;
+    case 3: //Active Transparent RGB {
+        for (int j = 0; j < channelCount; j += 3, src += 3, dst += 3) {
+            if (src[0] || src[1] || src[2]) {
+                dst[0] = src[0];
+                dst[1] = src[1];
+                dst[2] = src[2];
             }
-            break;
+        }
+        break;
     }
 }
 
-void PixelOverlayModel::setData(const uint8_t *data) {
-    for (int c = 0; c < (width*height*3); c++) {
+void PixelOverlayModel::setData(const uint8_t* data) {
+    for (int c = 0; c < (width * height * 3); c++) {
         if (channelMap[c] != FPPD_OFF_CHANNEL) {
             channelData[channelMap[c]] = data[c];
         }
@@ -258,7 +259,7 @@ void PixelOverlayModel::setData(const uint8_t *data) {
 void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel) {
     int start;
     int end;
-    
+
     start = startChannel - this->startChannel;
     if (startChannel == -1) {
         start = 0;
@@ -266,7 +267,7 @@ void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel
     if (start > channelCount) {
         return;
     }
-    
+
     end = endChannel - startChannel + 1;
     if (end >= channelCount) {
         end = channelCount - 1;
@@ -278,7 +279,7 @@ void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel
     }
 }
 void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
-    int c = (y*getWidth()*3) + x*3;
+    int c = (y * getWidth() * 3) + x * 3;
     if (channelMap[c] != FPPD_OFF_CHANNEL) {
         channelData[channelMap[c++]] = r;
     }
@@ -289,7 +290,7 @@ void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
         channelData[channelMap[c++]] = b;
     }
 }
-void PixelOverlayModel::getDataJson(Json::Value &v, bool rle) {
+void PixelOverlayModel::getDataJson(Json::Value& v, bool rle) {
     if (rle) {
         unsigned char r = 0;
         unsigned char g = 0;
@@ -298,15 +299,15 @@ void PixelOverlayModel::getDataJson(Json::Value &v, bool rle) {
         unsigned char lg = 0;
         unsigned char lb = 0;
         int count = 0;
-        for (int c = 0; c < height*width*3; c += 3) {
+        for (int c = 0; c < height * width * 3; c += 3) {
             if (channelMap[c] != FPPD_OFF_CHANNEL) {
                 r = channelData[channelMap[c]];
             }
-            if (channelMap[c+1] != FPPD_OFF_CHANNEL) {
-                g = channelData[channelMap[c+1]];
+            if (channelMap[c + 1] != FPPD_OFF_CHANNEL) {
+                g = channelData[channelMap[c + 1]];
             }
-            if (channelMap[c+2] != FPPD_OFF_CHANNEL) {
-                b = channelData[channelMap[c+2]];
+            if (channelMap[c + 2] != FPPD_OFF_CHANNEL) {
+                b = channelData[channelMap[c + 2]];
             }
 
             if ((r == lr) && (g == lg) && (b == lb)) {
@@ -333,7 +334,7 @@ void PixelOverlayModel::getDataJson(Json::Value &v, bool rle) {
             v.append(b);
         }
     } else {
-        for (int c = 0; c < height*width*3; c++) {
+        for (int c = 0; c < height * width * 3; c++) {
             unsigned char i = 0;
             if (channelMap[c] != FPPD_OFF_CHANNEL) {
                 i = channelData[channelMap[c]];
@@ -343,15 +344,14 @@ void PixelOverlayModel::getDataJson(Json::Value &v, bool rle) {
     }
 }
 
-
-uint8_t *PixelOverlayModel::getOverlayBuffer() {
+uint8_t* PixelOverlayModel::getOverlayBuffer() {
     if (!overlayBufferData) {
         std::string overlayBuferName = "/FPP-Model-Overlay-Buffer-" + name;
-        mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
+        mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
         int f = shm_open(overlayBuferName.c_str(), O_RDWR | O_CREAT, mode);
         int size = width * height * 3 + sizeof(OverlayBufferData);
         ftruncate(f, size);
-        overlayBufferData = (OverlayBufferData*)mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, f, 0);
+        overlayBufferData = (OverlayBufferData*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
         memset(overlayBufferData, 0, size);
         overlayBufferData->width = width;
         overlayBufferData->height = height;
@@ -361,11 +361,11 @@ uint8_t *PixelOverlayModel::getOverlayBuffer() {
 }
 
 void PixelOverlayModel::clearOverlayBuffer() {
-    memset(getOverlayBuffer(), 0, width*height*3);
+    memset(getOverlayBuffer(), 0, width * height * 3);
 }
 void PixelOverlayModel::fillOverlayBuffer(int r, int g, int b) {
-    uint8_t *data = getOverlayBuffer();
-    for (int w = 0; w < (width*height); w++) {
+    uint8_t* data = getOverlayBuffer();
+    for (int w = 0; w < (width * height); w++) {
         data[0] = r;
         data[1] = g;
         data[2] = b;
@@ -378,18 +378,18 @@ void PixelOverlayModel::setOverlayPixelValue(int x, int y, int r, int g, int b) 
         return;
     }
     int idx = y * width * 3 + x * 3;
-    uint8_t *buf = getOverlayBuffer();
+    uint8_t* buf = getOverlayBuffer();
     buf[idx++] = r;
     buf[idx++] = g;
     buf[idx] = b;
 }
-void PixelOverlayModel::getOverlayPixelValue(int x, int y, int &r, int &g, int &b) {
+void PixelOverlayModel::getOverlayPixelValue(int x, int y, int& r, int& g, int& b) {
     if (y >= height || x >= width || x < 0 || y < 0) {
         r = g = b = 0;
         return;
     }
     int idx = y * width * 3 + x * 3;
-    uint8_t *buf = getOverlayBuffer();
+    uint8_t* buf = getOverlayBuffer();
     r = buf[idx++];
     g = buf[idx++];
     b = buf[idx];
@@ -405,11 +405,11 @@ void PixelOverlayModel::setOverlayBufferDirty() {
     overlayBufferData->flags |= 0x1;
 }
 
-void PixelOverlayModel::setOverlayBufferScaledData(uint8_t *data, int w, int h) {
+void PixelOverlayModel::setOverlayBufferScaledData(uint8_t* data, int w, int h) {
     float ydiff = (float)h / (float)height;
     float xdiff = (float)w / (float)width;
-    uint8_t *buf = getOverlayBuffer();
-    
+    uint8_t* buf = getOverlayBuffer();
+
     float newy = 0.0f;
     float newx = 0.0f;
     int x, y;
@@ -418,10 +418,10 @@ void PixelOverlayModel::setOverlayBufferScaledData(uint8_t *data, int w, int h) 
         int srcY = newy;
         for (x = 0, newx = 0.0f; x < width; x++, newx += xdiff) {
             int srcX = newx;
-            
+
             int idx = y * width * 3 + x * 3;
             int srcidx = srcY * w * 3 + srcX * 3;
-            
+
             buf[idx++] = data[srcidx++];
             buf[idx++] = data[srcidx++];
             buf[idx] = data[srcidx];
@@ -429,18 +429,15 @@ void PixelOverlayModel::setOverlayBufferScaledData(uint8_t *data, int w, int h) 
     }
 }
 
-
-
 int PixelOverlayModel::getStartChannel() const {
     return startChannel;
 }
 int PixelOverlayModel::getChannelCount() const {
     return channelCount;
 }
-void PixelOverlayModel::toJson(Json::Value &result) {
+void PixelOverlayModel::toJson(Json::Value& result) {
     result = config;
 }
-
 
 int32_t PixelOverlayModel::updateRunningEffects() {
     std::unique_lock<std::mutex> l(effectLock);
@@ -455,7 +452,7 @@ int32_t PixelOverlayModel::updateRunningEffects() {
     return 0;
 }
 
-void PixelOverlayModel::setRunningEffect(RunningEffect *ef, int32_t firstUpdateMS) {
+void PixelOverlayModel::setRunningEffect(RunningEffect* ef, int32_t firstUpdateMS) {
     std::unique_lock<std::mutex> l(effectLock);
     if (runningEffect) {
         if (runningEffect != ef) {
@@ -467,8 +464,8 @@ void PixelOverlayModel::setRunningEffect(RunningEffect *ef, int32_t firstUpdateM
     PixelOverlayManager::INSTANCE.addPeriodicUpdate(firstUpdateMS, this);
 }
 
-bool PixelOverlayModel::applyEffect(const std::string &autoState, const std::string &effect, const std::vector<std::string> &args) {
-    PixelOverlayEffect *pe = PixelOverlayEffect::GetPixelOverlayEffect(effect);
+bool PixelOverlayModel::applyEffect(const std::string& autoState, const std::string& effect, const std::vector<std::string>& args) {
+    PixelOverlayEffect* pe = PixelOverlayEffect::GetPixelOverlayEffect(effect);
     if (pe) {
         return pe->apply(this, autoState, args);
     }

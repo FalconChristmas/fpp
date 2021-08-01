@@ -29,29 +29,46 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define MAX_PIXEL_STRING_LENGTH  1600
+#define MAX_PIXEL_STRING_LENGTH 1600
 
-#define SMART_RECEIVER_LEADIN 6*3
-#define SMART_RECEIVER_LEN    6*3
-#define SMART_RECEIVER_LEADOUT  6*3
+#define SMART_RECEIVER_LEADIN 6 * 3
+#define SMART_RECEIVER_LEN 6 * 3
+#define SMART_RECEIVER_LEADOUT 6 * 3
 
-#define CHECKPS_SETTING(SETTING) if (SETTING) { \
-LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING); \
-return 0; \
-}\
+#define CHECKPS_SETTING(SETTING)                                            \
+    if (SETTING) {                                                          \
+        LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING); \
+        return 0;                                                           \
+    }
 
-VirtualString::VirtualString()
-    : whiteOffset(-1), receiverNum(-1),
-    startChannel(0), pixelCount(0), groupCount(0), reverse(0), colorOrder(kColorOrderRGB),
-    startNulls(0), endNulls(0), zigZag(0), brightness(100), gamma(1.0)
-{        
+VirtualString::VirtualString() :
+    whiteOffset(-1),
+    receiverNum(-1),
+    startChannel(0),
+    pixelCount(0),
+    groupCount(0),
+    reverse(0),
+    colorOrder(kColorOrderRGB),
+    startNulls(0),
+    endNulls(0),
+    zigZag(0),
+    brightness(100),
+    gamma(1.0) {
 }
 
-VirtualString::VirtualString(int r)
-    : whiteOffset(-1), receiverNum(r),
-    startChannel(0), pixelCount(0), groupCount(0), reverse(0), colorOrder(kColorOrderRGB),
-    startNulls(0), endNulls(0), zigZag(0), brightness(100), gamma(1.0)
-{
+VirtualString::VirtualString(int r) :
+    whiteOffset(-1),
+    receiverNum(r),
+    startChannel(0),
+    pixelCount(0),
+    groupCount(0),
+    reverse(0),
+    colorOrder(kColorOrderRGB),
+    startNulls(0),
+    endNulls(0),
+    zigZag(0),
+    brightness(100),
+    gamma(1.0) {
     switch (r) {
     case 0:
         leadInCount = 0;
@@ -60,12 +77,12 @@ VirtualString::VirtualString(int r)
         break;
     case 1:
         leadInCount = SMART_RECEIVER_LEADIN;
-        toggleCount = SMART_RECEIVER_LEN*2;
+        toggleCount = SMART_RECEIVER_LEN * 2;
         leadOutCount = SMART_RECEIVER_LEADOUT;
         break;
     case 2:
         leadInCount = SMART_RECEIVER_LEADIN;
-        toggleCount = SMART_RECEIVER_LEN*3;
+        toggleCount = SMART_RECEIVER_LEN * 3;
         leadOutCount = SMART_RECEIVER_LEADOUT;
         break;
     }
@@ -84,25 +101,21 @@ int VirtualString::channelsPerNode() const {
     return whiteOffset == -1 ? 3 : 4;
 }
 
-
-
 /*
  *
  */
-PixelString::PixelString(bool supportSmart)
-  : m_portNumber(0),
-	m_channelOffset(0),
-	m_outputChannels(0),
+PixelString::PixelString(bool supportSmart) :
+    m_portNumber(0),
+    m_channelOffset(0),
+    m_outputChannels(0),
     m_isSmartReceiver(supportSmart),
-    m_brightnessMaps(nullptr)
-{
+    m_brightnessMaps(nullptr) {
 }
 
 /*
  *
  */
-PixelString::~PixelString()
-{
+PixelString::~PixelString() {
     if (m_brightnessMaps) {
         free(m_brightnessMaps);
     }
@@ -111,11 +124,10 @@ PixelString::~PixelString()
 /*
  *
  */
-int PixelString::Init(Json::Value config)
-{
-	m_portNumber = config["portNumber"].asInt();
+int PixelString::Init(Json::Value config) {
+    m_portNumber = config["portNumber"].asInt();
     m_outputChannels = 0;
-    
+
     int receiverType = 0;
     if (m_isSmartReceiver && config.isMember("differentialType")) {
         receiverType = config["differentialType"].asInt();
@@ -125,14 +137,14 @@ int PixelString::Init(Json::Value config)
         AddVirtualString(VirtualString(0));
     }
     int startMaxChan = m_outputChannels;
-	for (int i = 0; i < config["virtualStrings"].size(); i++) {
-		Json::Value vsc = config["virtualStrings"][i];
-		VirtualString vs;
+    for (int i = 0; i < config["virtualStrings"].size(); i++) {
+        Json::Value vsc = config["virtualStrings"][i];
+        VirtualString vs;
         if (!ReadVirtualString(vsc, vs)) {
             return 0;
         }
-		AddVirtualString(vs);
-	}
+        AddVirtualString(vs);
+    }
     bool hasChannelsOnA = startMaxChan != m_outputChannels;
     bool hasChannelsOnB = false;
     bool hasChannelsOnC = false;
@@ -185,41 +197,38 @@ int PixelString::Init(Json::Value config)
         m_virtualStrings.clear();
         AddVirtualString(VirtualString());
     }
-    
 
-	m_outputMap.resize(m_outputChannels);
+    m_outputMap.resize(m_outputChannels);
 
-	// Initialize all maps to an unused location which should be zero.
-	// We need this so that null nodes in the middle of a string are sent
-	// all zeroes to keep them dark.
-	for (int i = 0; i < m_outputChannels; i++)
-		m_outputMap[i] = FPPD_OFF_CHANNEL;
+    // Initialize all maps to an unused location which should be zero.
+    // We need this so that null nodes in the middle of a string are sent
+    // all zeroes to keep them dark.
+    for (int i = 0; i < m_outputChannels; i++)
+        m_outputMap[i] = FPPD_OFF_CHANNEL;
 
-	int offset = 0;
-	int mapIndex = 0;
+    int offset = 0;
+    int mapIndex = 0;
 
-	m_brightnessMaps = (uint8_t **)calloc(1, sizeof(uint8_t*) * m_outputChannels);
+    m_brightnessMaps = (uint8_t**)calloc(1, sizeof(uint8_t*) * m_outputChannels);
 
-	for (int i = 0; i < m_virtualStrings.size(); i++) {
-		offset += m_virtualStrings[i].startNulls * m_virtualStrings[i].channelsPerNode();
+    for (int i = 0; i < m_virtualStrings.size(); i++) {
+        offset += m_virtualStrings[i].startNulls * m_virtualStrings[i].channelsPerNode();
 
-		SetupMap(offset, m_virtualStrings[i]);
-		offset += m_virtualStrings[i].pixelCount * m_virtualStrings[i].channelsPerNode();
+        SetupMap(offset, m_virtualStrings[i]);
+        offset += m_virtualStrings[i].pixelCount * m_virtualStrings[i].channelsPerNode();
         offset += m_virtualStrings[i].endNulls * m_virtualStrings[i].channelsPerNode();
 
-		for (int j = 0; j < ((m_virtualStrings[i].startNulls*m_virtualStrings[i].channelsPerNode())
-                             + (m_virtualStrings[i].pixelCount*m_virtualStrings[i].channelsPerNode())
-                             + (m_virtualStrings[i].endNulls*m_virtualStrings[i].channelsPerNode())); j++)
-			m_brightnessMaps[mapIndex++] = m_virtualStrings[i].brightnessMap;
-	}
+        for (int j = 0; j < ((m_virtualStrings[i].startNulls * m_virtualStrings[i].channelsPerNode()) + (m_virtualStrings[i].pixelCount * m_virtualStrings[i].channelsPerNode()) + (m_virtualStrings[i].endNulls * m_virtualStrings[i].channelsPerNode())); j++)
+            m_brightnessMaps[mapIndex++] = m_virtualStrings[i].brightnessMap;
+    }
     //turn gpio off after all channels on this port are done
     if (m_outputChannels) {
         m_gpioCommands.push_back(GPIOCommand(m_portNumber, m_outputChannels));
     }
-	return 1;
+    return 1;
 }
 
-void PixelString::AddVirtualString(const VirtualString &vs) {
+void PixelString::AddVirtualString(const VirtualString& vs) {
     m_outputChannels += vs.startNulls * vs.channelsPerNode();
     m_outputChannels += vs.pixelCount * vs.channelsPerNode();
     m_outputChannels += vs.endNulls * vs.channelsPerNode();
@@ -227,7 +236,7 @@ void PixelString::AddVirtualString(const VirtualString &vs) {
     m_virtualStrings.push_back(vs);
 }
 
-int PixelString::ReadVirtualString(Json::Value &vsc, VirtualString &vs) const {
+int PixelString::ReadVirtualString(Json::Value& vsc, VirtualString& vs) const {
     vs.startChannel = vsc["startChannel"].asInt();
     vs.pixelCount = vsc["pixelCount"].asInt();
     vs.groupCount = vsc["groupCount"].asInt();
@@ -244,7 +253,7 @@ int PixelString::ReadVirtualString(Json::Value &vsc, VirtualString &vs) const {
     vs.zigZag = vsc["zigZag"].asInt();
     vs.brightness = vsc["brightness"].asInt();
     vs.gamma = atof(vsc["gamma"].asString().c_str());
-    
+
     if (vs.brightness > 100 || vs.brightness < 0) {
         vs.brightness = 100;
     }
@@ -254,7 +263,7 @@ int PixelString::ReadVirtualString(Json::Value &vsc, VirtualString &vs) const {
     if (vs.gamma > 50.0f) {
         vs.gamma = 50.0f;
     }
-    
+
     CHECKPS_SETTING(vs.pixelCount < 0);
     CHECKPS_SETTING(vs.pixelCount > MAX_PIXEL_STRING_LENGTH);
     if (vs.pixelCount) {
@@ -286,13 +295,13 @@ int PixelString::ReadVirtualString(Json::Value &vsc, VirtualString &vs) const {
             colorOrder = "W";
         }
         vs.colorOrder = ColorOrderFromString(colorOrder);
-        
+
         if (vs.groupCount == 1)
             vs.groupCount = 0;
-        
+
         if ((vs.zigZag == vs.pixelCount) || (vs.zigZag == 1))
             vs.zigZag = 0;
-        
+
         float bf = vs.brightness;
         float maxB = bf * 2.55f;
         for (int x = 0; x < 256; x++) {
@@ -318,7 +327,7 @@ int PixelString::ReadVirtualString(Json::Value &vsc, VirtualString &vs) const {
             vs.brightnessMap[x] = x;
         }
     }
-    
+
     return 1;
 }
 void PixelString::AddNullPixelString() {
@@ -328,62 +337,60 @@ void PixelString::AddNullPixelString() {
     AddVirtualString(vs);
 }
 
-
-void PixelString::SetupMap(int vsOffset, const VirtualString &vs)
-{
+void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
     if (vs.receiverNum >= 0) {
         //smart receiever, add codes to outputs
         //drop low to trigger receiver to start trying to figure out which data is next
         if (vs.leadInCount > 0) {
             m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset));
-            for (int x = 0; x < vs.channelsPerNode()*vs.leadInCount; x++) {
+            for (int x = 0; x < vs.channelsPerNode() * vs.leadInCount; x++) {
                 m_outputMap[vsOffset++] = FPPD_OFF_CHANNEL;
             }
             //Turn back on
             m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset, 1));
         }
         //Toggle a bunch back and forth
-        for (int x = 0; x < vs.channelsPerNode()*vs.toggleCount; x++) {
+        for (int x = 0; x < vs.channelsPerNode() * vs.toggleCount; x++) {
             //using white allows an even up/down on the GPIO
             m_outputMap[vsOffset++] = FPPD_WHITE_CHANNEL;
         }
         //drop low again and turn off so receiver can enable/disable whichever outputs are needed
         m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset));
-        for (int x = 0; x < vs.channelsPerNode()*vs.leadOutCount; x++) {
+        for (int x = 0; x < vs.channelsPerNode() * vs.leadOutCount; x++) {
             m_outputMap[vsOffset++] = FPPD_OFF_CHANNEL;
         }
         //turn gpio back on
         m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset, 1));
         return;
     }
-    
-	int offset        = vsOffset;
-	int group         = 0;
-	int maxGroups     = 0;
-	int itemsInGroup  = 0;
-	int ch            = 0;
-	int pStart        = 0;
-	int ch1           = 0;
-	int ch2           = 0;
-	int ch3           = 0;
+
+    int offset = vsOffset;
+    int group = 0;
+    int maxGroups = 0;
+    int itemsInGroup = 0;
+    int ch = 0;
+    int pStart = 0;
+    int ch1 = 0;
+    int ch2 = 0;
+    int ch3 = 0;
 
     if (vs.groupCount) {
-		maxGroups = vs.pixelCount / vs.groupCount;
+        maxGroups = vs.pixelCount / vs.groupCount;
     }
 
-	for (int p = pStart; p < vs.pixelCount; p++) {
-		if (vs.groupCount) {
-			if (itemsInGroup >= vs.groupCount) {
-				group++;
-				itemsInGroup = 0;
-			}
+    for (int p = pStart; p < vs.pixelCount; p++) {
+        if (vs.groupCount) {
+            if (itemsInGroup >= vs.groupCount) {
+                group++;
+                itemsInGroup = 0;
+            }
 
-			ch = vs.startChannel + (group * vs.channelsPerNode());
+            ch = vs.startChannel + (group * vs.channelsPerNode());
 
-			itemsInGroup++;
-		} else {
-			ch = vs.startChannel + (p * vs.channelsPerNode());
-		}
+            itemsInGroup++;
+        } else {
+            ch = vs.startChannel + (p * vs.channelsPerNode());
+        }
 
         if (vs.colorOrder == kColorOrderONE) {
             m_outputMap[offset++] = ch;
@@ -413,7 +420,7 @@ void PixelString::SetupMap(int vsOffset, const VirtualString &vs)
                 ch2 = ch + 1;
                 ch3 = ch;
             }
-            
+
             if (vs.whiteOffset == 0) {
                 m_outputMap[offset++] = ch;
                 ch1++;
@@ -427,101 +434,94 @@ void PixelString::SetupMap(int vsOffset, const VirtualString &vs)
                 m_outputMap[offset++] = ch + 3;
             }
         }
-		ch += vs.channelsPerNode();
-	}
+        ch += vs.channelsPerNode();
+    }
 
-	DumpMap("BEFORE ZIGZAG");
+    DumpMap("BEFORE ZIGZAG");
 
-	if (vs.zigZag) {
-		int segment = 0;
-		int pixel = 0;
-		int zigChannelCount = vs.zigZag * vs.channelsPerNode();
+    if (vs.zigZag) {
+        int segment = 0;
+        int pixel = 0;
+        int zigChannelCount = vs.zigZag * vs.channelsPerNode();
 
-		for (int i = 0; i < m_outputChannels; i += zigChannelCount) {
-			segment = i / zigChannelCount;
-			if (segment % 2) {
-				int offset1 = i;
-				int offset2 = i + zigChannelCount - vs.channelsPerNode();
+        for (int i = 0; i < m_outputChannels; i += zigChannelCount) {
+            segment = i / zigChannelCount;
+            if (segment % 2) {
+                int offset1 = i;
+                int offset2 = i + zigChannelCount - vs.channelsPerNode();
 
-				if ((offset2 + 2) < m_outputChannels)
-					FlipPixels(offset1, offset2, vs.channelsPerNode());
-			}
-		}
+                if ((offset2 + 2) < m_outputChannels)
+                    FlipPixels(offset1, offset2, vs.channelsPerNode());
+            }
+        }
 
-		DumpMap("AFTER ZIGZAG");
-	}
+        DumpMap("AFTER ZIGZAG");
+    }
 
-	if (vs.reverse && (vs.pixelCount > 1)) {
-		FlipPixels(vsOffset, vsOffset + (vs.pixelCount * vs.channelsPerNode()) - vs.channelsPerNode(), vs.channelsPerNode());
+    if (vs.reverse && (vs.pixelCount > 1)) {
+        FlipPixels(vsOffset, vsOffset + (vs.pixelCount * vs.channelsPerNode()) - vs.channelsPerNode(), vs.channelsPerNode());
 
-		DumpMap("AFTER REVERSE");
-	}
-}
-
-
-/*
- *
- */
-void PixelString::DumpMap(const char *msg)
-{
-	if (WillLog(LOG_EXCESSIVE, VB_CHANNELOUT))
-	{
-		LogExcess(VB_CHANNELOUT, "OutputMap: %s\n", msg);
-		for (int i = 0; i < m_outputChannels; i++)
-		{
-			LogExcess(VB_CHANNELOUT, "map[%d] = %d\n", i, m_outputMap[i]);
-		}
-	}
+        DumpMap("AFTER REVERSE");
+    }
 }
 
 /*
  *
  */
-void PixelString::FlipPixels(int offset1, int offset2, int chanCount)
-{
-	int ch1 = 0;
-	int ch2 = 0;
-	int ch3 = 0;
+void PixelString::DumpMap(const char* msg) {
+    if (WillLog(LOG_EXCESSIVE, VB_CHANNELOUT)) {
+        LogExcess(VB_CHANNELOUT, "OutputMap: %s\n", msg);
+        for (int i = 0; i < m_outputChannels; i++) {
+            LogExcess(VB_CHANNELOUT, "map[%d] = %d\n", i, m_outputMap[i]);
+        }
+    }
+}
+
+/*
+ *
+ */
+void PixelString::FlipPixels(int offset1, int offset2, int chanCount) {
+    int ch1 = 0;
+    int ch2 = 0;
+    int ch3 = 0;
     int ch4 = 0;
-	int flipPixels = (offset2 - offset1 + chanCount) / chanCount / 2;
+    int flipPixels = (offset2 - offset1 + chanCount) / chanCount / 2;
 
-	for (int i = 0; i < flipPixels; i++)
-	{
-		ch1 = m_outputMap[offset1    ];
-		ch2 = m_outputMap[offset1 + 1];
-		ch3 = m_outputMap[offset1 + 2];
+    for (int i = 0; i < flipPixels; i++) {
+        ch1 = m_outputMap[offset1];
+        ch2 = m_outputMap[offset1 + 1];
+        ch3 = m_outputMap[offset1 + 2];
         if (chanCount == 4) {
             ch4 = m_outputMap[offset1 + 3];
         }
 
-		m_outputMap[offset1    ] = m_outputMap[offset2    ];
-		m_outputMap[offset1 + 1] = m_outputMap[offset2 + 1];
-		m_outputMap[offset1 + 2] = m_outputMap[offset2 + 2];
+        m_outputMap[offset1] = m_outputMap[offset2];
+        m_outputMap[offset1 + 1] = m_outputMap[offset2 + 1];
+        m_outputMap[offset1 + 2] = m_outputMap[offset2 + 2];
         if (chanCount == 4) {
             m_outputMap[offset1 + 3] = m_outputMap[offset2 + 3];
         }
-        
-		m_outputMap[offset2    ] = ch1;
-		m_outputMap[offset2 + 1] = ch2;
-		m_outputMap[offset2 + 2] = ch3;
+
+        m_outputMap[offset2] = ch1;
+        m_outputMap[offset2 + 1] = ch2;
+        m_outputMap[offset2 + 2] = ch3;
         if (chanCount == 4) {
             m_outputMap[offset2 + 3] = ch4;
         }
 
-		offset1 += chanCount;
-		offset2 -= chanCount;
-	}
+        offset1 += chanCount;
+        offset2 -= chanCount;
+    }
 }
 
 /*
  *
  */
-void PixelString::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "        port number      : %d\n", m_portNumber);
+void PixelString::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "        port number      : %d\n", m_portNumber);
 
     int count = 0;
-    for (auto &vs : m_virtualStrings) {
+    for (auto& vs : m_virtualStrings) {
         if (vs.receiverNum == -1) {
             LogDebug(VB_CHANNELOUT, "        --- Virtual String #%d ---\n", ++count);
             LogDebug(VB_CHANNELOUT, "        start channel : %d\n", vs.startChannel + m_channelOffset);
@@ -538,19 +538,16 @@ void PixelString::DumpConfig(void)
     }
 }
 
-
-
-
-void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*> &strings) {
+void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strings) {
     if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::map<std::string, std::vector<VirtualString*>> vstrings;
         for (int s = 0; s < strings.size(); s++) {
             for (int vs = 0; vs < strings[s]->m_virtualStrings.size(); vs++) {
                 std::string desc = strings[s]->m_virtualStrings[vs].description;
                 if (desc == "") {
-                    desc = "String-" + std::to_string(s+1);
+                    desc = "String-" + std::to_string(s + 1);
                     if (strings[s]->m_virtualStrings.size() > 1) {
-                        desc += "-" + std::to_string(vs+1);
+                        desc += "-" + std::to_string(vs + 1);
                     }
                 }
                 // xLights will name the individual strings of a matrix/prop/model with a -str-# postfix
@@ -560,7 +557,8 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*> &strin
                     vstrings[desc].push_back(&strings[s]->m_virtualStrings[vs]);
                 } else {
                     int idx = std::stoi(desc.substr(found + 5));
-                    if (idx > 0) --idx;
+                    if (idx > 0)
+                        --idx;
                     desc = desc.substr(0, found);
                     if (vstrings[desc].size() <= idx) {
                         vstrings[desc].resize(idx + 1);
@@ -569,12 +567,12 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*> &strin
                 }
             }
         }
-        for (auto &m : vstrings) {
+        for (auto& m : vstrings) {
             if (PixelOverlayManager::INSTANCE.getModel(m.first) != nullptr) {
                 continue;
             }
             std::string name = m.first;
-            auto &vs = m.second;
+            auto& vs = m.second;
 
             uint32_t startChannel = FPPD_MAX_CHANNELS;
             uint32_t channelsPerNode = (*vs.begin())->channelsPerNode();
@@ -583,23 +581,19 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*> &strin
             uint32_t strings = vs.size();
             uint32_t strands = 1;
             uint32_t maxChan = 0;
-            for (auto &a : vs) {
+            for (auto& a : vs) {
                 startChannel = std::min(startChannel, (uint32_t)a->startChannel);
                 maxChan = a->startChannel + a->pixelCount * a->channelsPerNode();
             }
             int32_t channelCount = maxChan - startChannel;
 
-            if (name.find("Tree") != std::string::npos
-                || name.find("TREE") != std::string::npos
-                || name.find("tree") != std::string::npos
-                || name.find("Vert") != std::string::npos
-                || name.find("vert") != std::string::npos) {
+            if (name.find("Tree") != std::string::npos || name.find("TREE") != std::string::npos || name.find("tree") != std::string::npos || name.find("Vert") != std::string::npos || name.find("vert") != std::string::npos) {
                 //some common names that are usually vertical oriented
                 orientation = "V";
             }
 
             if (channelCount > 0) {
-                PixelOverlayManager::INSTANCE.addAutoOverlayModel(name,  startChannel, channelCount, channelsPerNode, orientation,
+                PixelOverlayManager::INSTANCE.addAutoOverlayModel(name, startChannel, channelCount, channelsPerNode, orientation,
                                                                   startLocation, strings, strands);
             }
         }

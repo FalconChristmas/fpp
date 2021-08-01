@@ -4,44 +4,44 @@
 // This #define must be before any #include's
 #define _FILE_OFFSET_BITS 64
 
-#include <vector>
-#include <array>
-#include <list>
-#include <map>
-#include <set>
-#include <string>
-#include <cstring>
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <chrono>
-#include <thread>
-#include <mutex>
-#include <iostream>
-#include <sstream>
+#include <cmath>
+#include <cstring>
+#include <ctime>
 #include <fstream>
 #include <iomanip>
-#include <ctime>
-#include <atomic>
-#include <cmath>
+#include <iostream>
+#include <list>
+#include <map>
+#include <mutex>
+#include <set>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
 
-#include <errno.h>
 #include <sys/types.h>
-#include <unistd.h>
-#include <stdlib.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <fcntl.h>
+#include <unistd.h>
 
 #include <jsoncpp/json/json.h>
 #include <httpserver.hpp>
 
-#include "common.h"
-#include "settings.h"
 #include "Sequence.h"
+#include "Warnings.h"
+#include "common.h"
 #include "fppversion.h"
 #include "log.h"
 #include "mqtt.h"
+#include "settings.h"
 #include "commands/Commands.h"
-#include "Warnings.h"
 
 #endif

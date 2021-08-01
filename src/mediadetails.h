@@ -6,29 +6,28 @@ class MediaDetails {
 public:
     MediaDetails();
     ~MediaDetails();
-    
+
     std::string title;
     std::string artist;
     std::string album;
-	int   year;
+    int year;
     std::string comment;
-	int   track;
+    int track;
     std::string genre;
 
-	int length;
-	int seconds;
-	int minutes;
+    int length;
+    int seconds;
+    int minutes;
     int lengthMS;
 
-	int bitrate;
-	int sampleRate;
-	int channels;
+    int bitrate;
+    int sampleRate;
+    int channels;
 
-    void ParseMedia(const char *mediaFilename);
+    void ParseMedia(const char* mediaFilename);
     void Clear();
-    
-    static MediaDetails INSTANCE;
-    
-private:
 
+    static MediaDetails INSTANCE;
+
+private:
 };

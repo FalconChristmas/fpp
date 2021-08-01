@@ -22,50 +22,48 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <string>
 #include <set>
+#include <string>
 
-#include "log.h"
-#include "commands/Commands.h"
-#include "common.h"
-#include "mediaoutput.h"
 #include "MultiSync.h"
+#include "common.h"
+#include "log.h"
+#include "mediaoutput.h"
+#include "commands/Commands.h"
 
 #ifdef HASVLC
-    #include "VLCOut.h"
+#include "VLCOut.h"
 #endif
+#include "Plugins.h"
 #include "SDLOut.h"
 #include "Sequence.h"
-#include "settings.h"
-#include "Plugins.h"
 #include "mediadetails.h"
-
-
+#include "settings.h"
 
 /////////////////////////////////////////////////////////////////////////////
-MediaOutputBase *mediaOutput = 0;
-float            masterMediaPosition = 0.0;
-pthread_mutex_t  mediaOutputLock;
+MediaOutputBase* mediaOutput = 0;
+float masterMediaPosition = 0.0;
+pthread_mutex_t mediaOutputLock;
 
 static bool firstOutCreate = true;
 
 MediaOutputStatus mediaOutputStatus = {
-	MEDIAOUTPUTSTATUS_IDLE, //status
-	};
+    MEDIAOUTPUTSTATUS_IDLE, //status
+};
 
 /*
  *
  */
-void InitMediaOutput(void)
-{
-	if (pthread_mutex_init(&mediaOutputLock, NULL) != 0) {
-		LogDebug(VB_MEDIAOUT, "ERROR: Media Output mutex init failed!\n");
-	}
+void InitMediaOutput(void) {
+    if (pthread_mutex_init(&mediaOutputLock, NULL) != 0) {
+        LogDebug(VB_MEDIAOUT, "ERROR: Media Output mutex init failed!\n");
+    }
 
     int vol = getSettingInt("volume", -1);
     if (vol < 0) {
@@ -77,11 +75,10 @@ void InitMediaOutput(void)
 /*
  *
  */
-void CleanupMediaOutput(void)
-{
-	CloseMediaOutput();
+void CleanupMediaOutput(void) {
+    CloseMediaOutput();
 
-	pthread_mutex_destroy(&mediaOutputLock);
+    pthread_mutex_destroy(&mediaOutputLock);
 }
 
 static int volume = 70;
@@ -89,20 +86,19 @@ int getVolume() {
     return volume;
 }
 
-void setVolume(int vol)
-{
-    char buffer [60];
-    
-    if ( vol < 0 )
+void setVolume(int vol) {
+    char buffer[60];
+
+    if (vol < 0)
         vol = 0;
-    else if ( vol > 100 )
+    else if (vol > 100)
         vol = 100;
     volume = vol;
 
     std::string mixerDevice = getSetting("AudioMixerDevice");
-    int   audioOutput = getSettingInt("AudioOutput");
+    int audioOutput = getSettingInt("AudioOutput");
     std::string audio0Type = getSetting("AudioCard0Type");
-    
+
     float fvol = volume;
 #ifdef PLATFORM_PI
     if (audioOutput == 0 && audio0Type == "bcm2") {
@@ -113,15 +109,15 @@ void setVolume(int vol)
 #endif
     snprintf(buffer, 60, "amixer set -c %d %s -- %.2f%% >/dev/null 2>&1",
              audioOutput, mixerDevice.c_str(), fvol);
-    
-    LogDebug(VB_SETTING,"Volume change: %d \n", volume);
-    LogDebug(VB_MEDIAOUT,"Calling amixer to set the volume: %s \n", buffer);
+
+    LogDebug(VB_SETTING, "Volume change: %d \n", volume);
+    LogDebug(VB_MEDIAOUT, "Calling amixer to set the volume: %s \n", buffer);
     system(buffer);
 
     pthread_mutex_lock(&mediaOutputLock);
     if (mediaOutput)
         mediaOutput->SetVolume(volume);
-    
+
     pthread_mutex_unlock(&mediaOutputLock);
 }
 
@@ -130,23 +126,17 @@ static std::set<std::string> AUDIO_EXTS = {
     "MP3", "OGG", "M4A", "M4P", "WAV", "AU", "WMA", "FLAC"
 };
 static std::map<std::string, std::string> VIDEO_EXTS = {
-    {"mp4", "mp4"}, {"MP4", "mp4"},
-    {"avi", "avi"}, {"AVI", "avi"},
-    {"mov", "mov"}, {"MOV", "mov"},
-    {"mkv", "mkv"}, {"MKV", "mkv"},
-    {"mpg", "mpg"}, {"MPG", "mpg"},
-    {"mpeg", "mpeg"}, {"MPEG", "mpeg"}
+    { "mp4", "mp4" }, { "MP4", "mp4" }, { "avi", "avi" }, { "AVI", "avi" }, { "mov", "mov" }, { "MOV", "mov" }, { "mkv", "mkv" }, { "MKV", "mkv" }, { "mpg", "mpg" }, { "MPG", "mpg" }, { "mpeg", "mpeg" }, { "MPEG", "mpeg" }
 };
 
-bool IsExtensionVideo(const std::string &ext) {
+bool IsExtensionVideo(const std::string& ext) {
     return VIDEO_EXTS.find(ext) != VIDEO_EXTS.end();
 }
-bool IsExtensionAudio(const std::string &ext) {
+bool IsExtensionAudio(const std::string& ext) {
     return AUDIO_EXTS.find(ext) != AUDIO_EXTS.end();
 }
 
-
-std::string GetVideoFilenameForMedia(const std::string &filename, std::string &ext) {
+std::string GetVideoFilenameForMedia(const std::string& filename, std::string& ext) {
     ext = "";
     std::string result("");
     std::size_t found = filename.find_last_of(".");
@@ -164,7 +154,7 @@ std::string GetVideoFilenameForMedia(const std::string &filename, std::string &e
             result = bfile + lext;
         }
     } else if (IsExtensionAudio(lext)) {
-        for (auto &n : VIDEO_EXTS) {
+        for (auto& n : VIDEO_EXTS) {
             if (FileExists(videoPath + n.first)) {
                 ext = n.second;
                 result = bfile + n.first;
@@ -175,7 +165,7 @@ std::string GetVideoFilenameForMedia(const std::string &filename, std::string &e
 
     return result;
 }
-bool HasAudio(const std::string &mediaFilename) {
+bool HasAudio(const std::string& mediaFilename) {
     std::string fullMediaPath = mediaFilename;
     if (!FileExists(mediaFilename)) {
         fullMediaPath = FPP_DIR_MUSIC;
@@ -184,7 +174,7 @@ bool HasAudio(const std::string &mediaFilename) {
     }
     return FileExists(fullMediaPath);
 }
-bool HasVideoForMedia(std::string &filename) {
+bool HasVideoForMedia(std::string& filename) {
     std::string ext;
     std::string fp = GetVideoFilenameForMedia(filename, ext);
     if (fp != "") {
@@ -193,7 +183,7 @@ bool HasVideoForMedia(std::string &filename) {
     return fp != "";
 }
 
-MediaOutputBase *CreateMediaOutput(const std::string &mediaFilename, const std::string &vOut) {
+MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::string& vOut) {
     std::string tmpFile(mediaFilename);
     std::size_t found = mediaFilename.find_last_of(".");
     if (found == std::string::npos) {
@@ -205,11 +195,11 @@ MediaOutputBase *CreateMediaOutput(const std::string &mediaFilename, const std::
 
     if (IsExtensionAudio(ext)) {
         if (getFPPmode() == REMOTE_MODE) {
-            #ifdef HASVLC
+#ifdef HASVLC
             return new VLCOutput(mediaFilename, &mediaOutputStatus, "--Disabled--");
-            #else
+#else
             return nullptr;
-            #endif
+#endif
         } else {
             return new SDLOutput(mediaFilename, &mediaOutputStatus, "--Disabled--");
         }
@@ -223,20 +213,19 @@ MediaOutputBase *CreateMediaOutput(const std::string &mediaFilename, const std::
     return nullptr;
 }
 
-
 static std::set<std::string> alreadyWarned;
 /*
  *
  */
-int OpenMediaOutput(const char *filename) {
-	LogDebug(VB_MEDIAOUT, "OpenMediaOutput(%s)\n", filename);
+int OpenMediaOutput(const char* filename) {
+    LogDebug(VB_MEDIAOUT, "OpenMediaOutput(%s)\n", filename);
 
-	pthread_mutex_lock(&mediaOutputLock);
-	if (mediaOutput) {
-		pthread_mutex_unlock(&mediaOutputLock);
-		CloseMediaOutput();
-	}
-	pthread_mutex_unlock(&mediaOutputLock);
+    pthread_mutex_lock(&mediaOutputLock);
+    if (mediaOutput) {
+        pthread_mutex_unlock(&mediaOutputLock);
+        CloseMediaOutput();
+    }
+    pthread_mutex_unlock(&mediaOutputLock);
 
     std::string tmpFile(filename);
     std::size_t found = tmpFile.find_last_of(".");
@@ -247,17 +236,17 @@ int OpenMediaOutput(const char *filename) {
     }
     std::string ext = toLowerCopy(tmpFile.substr(found + 1));
 
-	if (getFPPmode() == REMOTE_MODE) {
+    if (getFPPmode() == REMOTE_MODE) {
         std::string orgTmp = tmpFile;
         tmpFile = GetVideoFilenameForMedia(tmpFile, ext);
-        #ifdef HASVLC
+#ifdef HASVLC
         if (tmpFile == "") {
             if (HasAudio(orgTmp)) {
                 tmpFile = orgTmp;
             }
         }
-        #endif
-        
+#endif
+
         if (tmpFile == "") {
             // For v1.0 MultiSync, we can't sync audio to audio, so check for
             // a video file if the master is playing an audio file
@@ -273,8 +262,8 @@ int OpenMediaOutput(const char *filename) {
                      "Player is playing %s audio, remote will try %s\n",
                      filename, tmpFile.c_str());
         }
-	}
-   
+    }
+
     pthread_mutex_lock(&mediaOutputLock);
     std::string vOut = getSetting("VideoOutput");
     if (vOut == "") {
@@ -284,14 +273,14 @@ int OpenMediaOutput(const char *filename) {
         vOut = "--Disabled--";
 #endif
     }
-    
+
     mediaOutput = CreateMediaOutput(tmpFile, vOut);
-	if (!mediaOutput) {
-		pthread_mutex_unlock(&mediaOutputLock);
+    if (!mediaOutput) {
+        pthread_mutex_unlock(&mediaOutputLock);
         LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
-		return 0;
-	}
-    
+        return 0;
+    }
+
     Json::Value root;
     root["currentEntry"]["type"] = "media";
     root["currentEntry"]["mediaFilename"] = mediaOutput->m_mediaFilename;
@@ -312,24 +301,22 @@ int OpenMediaOutput(const char *filename) {
     PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
 
     if (multiSync->isMultiSyncEnabled()) {
-		multiSync->SendMediaOpenPacket(mediaOutput->m_mediaFilename);
+        multiSync->SendMediaOpenPacket(mediaOutput->m_mediaFilename);
     }
-    
-	pthread_mutex_unlock(&mediaOutputLock);
 
-	return 1;
+    pthread_mutex_unlock(&mediaOutputLock);
+
+    return 1;
 }
 
-bool MatchesRunningMediaFilename(const char *filename) {
+bool MatchesRunningMediaFilename(const char* filename) {
     if (mediaOutput) {
         std::string tmpFile = filename;
-        if (mediaOutput->m_mediaFilename == tmpFile
-            || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
+        if (mediaOutput->m_mediaFilename == tmpFile || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
             return true;
         }
         if (HasVideoForMedia(tmpFile)) {
-            if (mediaOutput->m_mediaFilename == tmpFile
-                || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
+            if (mediaOutput->m_mediaFilename == tmpFile || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
                 return true;
             }
         }
@@ -337,11 +324,11 @@ bool MatchesRunningMediaFilename(const char *filename) {
     return false;
 }
 
-int StartMediaOutput(const char *filename) {
+int StartMediaOutput(const char* filename) {
     if (!MatchesRunningMediaFilename(filename)) {
         CloseMediaOutput();
     }
-    
+
     if (mediaOutput && mediaOutput->IsPlaying()) {
         CloseMediaOutput();
     }
@@ -372,25 +359,24 @@ int StartMediaOutput(const char *filename) {
     return 1;
 }
 void CloseMediaOutput() {
-	LogDebug(VB_MEDIAOUT, "CloseMediaOutput()\n");
+    LogDebug(VB_MEDIAOUT, "CloseMediaOutput()\n");
 
-	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
+    mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
 
-	pthread_mutex_lock(&mediaOutputLock);
-	if (!mediaOutput) {
-		pthread_mutex_unlock(&mediaOutputLock);
-		return;
-	}
+    pthread_mutex_lock(&mediaOutputLock);
+    if (!mediaOutput) {
+        pthread_mutex_unlock(&mediaOutputLock);
+        return;
+    }
 
-	if (mediaOutput->IsPlaying())
-	{
-		pthread_mutex_unlock(&mediaOutputLock);
-		mediaOutput->Stop();
-		pthread_mutex_lock(&mediaOutputLock);
-	}
+    if (mediaOutput->IsPlaying()) {
+        pthread_mutex_unlock(&mediaOutputLock);
+        mediaOutput->Stop();
+        pthread_mutex_lock(&mediaOutputLock);
+    }
 
     if (multiSync->isMultiSyncEnabled())
-		multiSync->SendMediaSyncStopPacket(mediaOutput->m_mediaFilename);
+        multiSync->SendMediaSyncStopPacket(mediaOutput->m_mediaFilename);
 
     std::map<std::string, std::string> keywords;
     keywords["MEDIA_NAME"] = mediaOutput->m_mediaFilename;
@@ -406,16 +392,15 @@ void CloseMediaOutput() {
     root["currentEntry"]["mediaFilename"] = "";
     MediaDetails::INSTANCE.Clear();
     PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
-    
-	pthread_mutex_unlock(&mediaOutputLock);
+
+    pthread_mutex_unlock(&mediaOutputLock);
 }
 
-void UpdateMasterMediaPosition(const char *filename, float seconds)
-{
+void UpdateMasterMediaPosition(const char* filename, float seconds) {
     if (getFPPmode() != REMOTE_MODE) {
-		return;
+        return;
     }
-    
+
     if (MatchesRunningMediaFilename(filename)) {
         masterMediaPosition = seconds;
         pthread_mutex_lock(&mediaOutputLock);
@@ -426,7 +411,7 @@ void UpdateMasterMediaPosition(const char *filename, float seconds)
         mediaOutput->AdjustSpeed(seconds);
         pthread_mutex_unlock(&mediaOutputLock);
         return;
-    #ifdef HASVLC
+#ifdef HASVLC
     } else {
         // with VLC, we can jump forward a bit and get close
         OpenMediaOutput(filename);
@@ -440,8 +425,6 @@ void UpdateMasterMediaPosition(const char *filename, float seconds)
         mediaOutput->AdjustSpeed(seconds);
         pthread_mutex_unlock(&mediaOutputLock);
         return;
-    #endif
+#endif
     }
 }
-
-

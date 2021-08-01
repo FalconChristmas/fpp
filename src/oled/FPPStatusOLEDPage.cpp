@@ -4,55 +4,52 @@
 #include <sys/ioctl.h>
 
 #include <netinet/in.h>
-#include <netdb.h>
 #include <ifaddrs.h>
+#include <netdb.h>
 
-#include "FPPStatusOLEDPage.h"
 #include "FPPMainMenu.h"
-
+#include "FPPStatusOLEDPage.h"
 
 static inline int iw_get_ext(
-                             int            skfd,        /* Socket to the kernel */
-                             const char *   ifname,      /* Device name */
-                             int            request,     /* WE ID */
-                             struct iwreq * pwrq)        /* Fixed part of the request */
+    int skfd,           /* Socket to the kernel */
+    const char* ifname, /* Device name */
+    int request,        /* WE ID */
+    struct iwreq* pwrq) /* Fixed part of the request */
 {
     strncpy(pwrq->ifr_name, ifname, IFNAMSIZ);
-    return(ioctl(skfd, request, pwrq));
+    return (ioctl(skfd, request, pwrq));
 }
 
 #define MAX_PAGE 2
 
-int FPPStatusOLEDPage::getSignalStrength(char *iwname) {
-    
+int FPPStatusOLEDPage::getSignalStrength(char* iwname) {
     int sigLevel = 0;
-    
+
     iw_statistics stats;
-    int           has_stats;
-    iw_range      range;
-    int           has_range;
-    
-    
-    struct iwreq  wrq;
-    char  buffer[std::max(sizeof(iw_range), sizeof(iw_statistics)) * 2];    /* Large enough */
-    iw_range *range_raw;
-    
+    int has_stats;
+    iw_range range;
+    int has_range;
+
+    struct iwreq wrq;
+    char buffer[std::max(sizeof(iw_range), sizeof(iw_statistics)) * 2]; /* Large enough */
+    iw_range* range_raw;
+
     /* Cleanup */
     bzero(buffer, sizeof(buffer));
-    
-    wrq.u.data.pointer = (caddr_t) buffer;
+
+    wrq.u.data.pointer = (caddr_t)buffer;
     wrq.u.data.length = sizeof(buffer);
     wrq.u.data.flags = 0;
     if (iw_get_ext(sockfd, iwname, SIOCGIWRANGE, &wrq) < 0) {
         //no ranges
         return sigLevel;
     }
-    range_raw = (iw_range *) buffer;
-    memcpy((char *) &range, buffer, sizeof(iw_range));
+    range_raw = (iw_range*)buffer;
+    memcpy((char*)&range, buffer, sizeof(iw_range));
     if (range.max_qual.qual == 0) {
         return sigLevel;
     }
-    wrq.u.data.pointer = (caddr_t) &stats;
+    wrq.u.data.pointer = (caddr_t)&stats;
     wrq.u.data.length = sizeof(struct iw_statistics);
     wrq.u.data.flags = 1;
     strncpy(wrq.ifr_name, iwname, IFNAMSIZ);
@@ -60,7 +57,7 @@ int FPPStatusOLEDPage::getSignalStrength(char *iwname) {
         //no stats
         return sigLevel;
     }
-    
+
     sigLevel = stats.qual.qual;
     sigLevel *= 100;
     sigLevel /= range.max_qual.qual;
@@ -69,29 +66,31 @@ int FPPStatusOLEDPage::getSignalStrength(char *iwname) {
 
 static bool debug = false;
 
-static int writer(char *data, size_t size, size_t nmemb,
-                  std::string *writerData)
-{
-    if(writerData == NULL)
+static int writer(char* data, size_t size, size_t nmemb,
+                  std::string* writerData) {
+    if (writerData == NULL)
         return 0;
-    writerData->append(data, size*nmemb);
+    writerData->append(data, size * nmemb);
     return size * nmemb;
 }
 
-
-
-FPPStatusOLEDPage::FPPStatusOLEDPage()
-: _currentTest(0), _testSpeed(500), _curPage(0), _doFullStatus(true), _iterationCount(0), _hasSensors(false) {
+FPPStatusOLEDPage::FPPStatusOLEDPage() :
+    _currentTest(0),
+    _testSpeed(500),
+    _curPage(0),
+    _doFullStatus(true),
+    _iterationCount(0),
+    _hasSensors(false) {
     curl = curl_easy_init();
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:32322/fppd/status");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 50);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writer);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
-    
+
     //have to use a socket for ioctl
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    
+
     readImage();
     mainMenu = new FPPMainMenu(this);
 }
@@ -101,7 +100,6 @@ FPPStatusOLEDPage::~FPPStatusOLEDPage() {
     delete mainMenu;
 }
 
-
 void FPPStatusOLEDPage::outputNetwork(int idx, int y) {
     printString(0, y, networks[idx]);
     if (signalStrength[idx]) {
@@ -109,7 +107,7 @@ void FPPStatusOLEDPage::outputNetwork(int idx, int y) {
         int cur = 5;
         for (int x = 0; x < 7; x++) {
             if (signalStrength[idx] > cur) {
-                drawLine(127 - (x/2), y, 128, y);
+                drawLine(127 - (x / 2), y, 128, y);
             }
             y--;
             cur += 15;
@@ -117,7 +115,7 @@ void FPPStatusOLEDPage::outputNetwork(int idx, int y) {
     }
 }
 
-static bool compareLines(int x, std::vector<std::string> &lines1, std::vector<std::string> &lines2) {
+static bool compareLines(int x, std::vector<std::string>& lines1, std::vector<std::string>& lines2) {
     if (x < lines1.size() && x < lines2.size()) {
         return lines1[x] != lines2[x];
     } else if (x < lines1.size() || x < lines2.size()) {
@@ -126,7 +124,7 @@ static bool compareLines(int x, std::vector<std::string> &lines1, std::vector<st
     return false;
 }
 
-bool FPPStatusOLEDPage::checkIfStatusChanged(Json::Value &result) {
+bool FPPStatusOLEDPage::checkIfStatusChanged(Json::Value& result) {
     std::string mode = result["mode_name"].asString();
     mode[0] = toupper(mode[0]);
     if (currentMode != mode) {
@@ -160,9 +158,9 @@ bool FPPStatusOLEDPage::checkIfStatusChanged(Json::Value &result) {
     return false;
 }
 
-int FPPStatusOLEDPage::getLinesPage0(std::vector<std::string> &lines,
-                                Json::Value &result,
-                                bool allowBlank) {
+int FPPStatusOLEDPage::getLinesPage0(std::vector<std::string>& lines,
+                                     Json::Value& result,
+                                     bool allowBlank) {
     std::string status = result["status_name"].asString();
     currentMode = result["mode_name"].asString();
     currentMode[0] = toupper(currentMode[0]);
@@ -184,7 +182,7 @@ int FPPStatusOLEDPage::getLinesPage0(std::vector<std::string> &lines,
     if (!_doFullStatus) {
         return 1;
     }
-    
+
     if (!isIdle) {
         std::string line = result["current_sequence"].asString();
         if (line != "" || allowBlank) {
@@ -219,9 +217,9 @@ int FPPStatusOLEDPage::getLinesPage0(std::vector<std::string> &lines,
     _hasSensors = result["sensors"].size() > 0;
     return maxLines;
 }
-int FPPStatusOLEDPage::getLinesPage1(std::vector<std::string> &lines,
-                                Json::Value &result,
-                                bool allowBlank) {
+int FPPStatusOLEDPage::getLinesPage1(std::vector<std::string>& lines,
+                                     Json::Value& result,
+                                     bool allowBlank) {
     for (int x = 0; x < result["sensors"].size(); x++) {
         std::string line;
         if (result["sensors"][x]["valueType"].asString() == "Temperature") {
@@ -235,7 +233,7 @@ int FPPStatusOLEDPage::getLinesPage1(std::vector<std::string> &lines,
             line += buf;
             line += "F)";
         } else {
-            line = result["sensors"][x]["label"].asString() + " " +  result["sensors"][x]["formatted"].asString();
+            line = result["sensors"][x]["label"].asString() + " " + result["sensors"][x]["formatted"].asString();
         }
         lines.push_back(line);
     }
@@ -251,11 +249,12 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
         if (networks.size() <= 5 && GetLEDDisplayHeight() > 65) {
             idx = 0;
             lines = networks.size() < 5 ? networks.size() : 5;
-            if (lines < 2) lines = 2;
+            if (lines < 2)
+                lines = 2;
         }
         if (networks.size() <= lines) {
             idx = 0;
-        }        
+        }
         outputNetwork(idx, startY);
         startY += 8;
         if (GetLEDDisplayHeight() > 65) {
@@ -285,7 +284,7 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
     }
     return startY;
 }
-bool FPPStatusOLEDPage::getCurrentStatus(Json::Value &result) {
+bool FPPStatusOLEDPage::getCurrentStatus(Json::Value& result) {
     buffer.clear();
     bool gotStatus = false;
     if (curl_easy_perform(curl) == CURLE_OK) {
@@ -301,8 +300,7 @@ bool FPPStatusOLEDPage::getCurrentStatus(Json::Value &result) {
     return false;
 }
 
-
-int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid, Json::Value &result) {
+int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid, Json::Value& result) {
     if (statusValid) {
         std::vector<std::string> lines;
         std::string line;
@@ -380,13 +378,13 @@ int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid,
     return startY;
 }
 
-
-bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
+bool FPPStatusOLEDPage::doIteration(bool& displayOn) {
     _iterationCount++;
     if (oledType == OLEDType::NONE) {
         return false;
     }
-    if (oledForcedOff) return false;
+    if (oledForcedOff)
+        return false;
 
     bool retVal = false;
     int lastNSize = networks.size();
@@ -399,7 +397,7 @@ bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
             displayOn = true;
         }
     }
-    
+
     Json::Value result;
     bool statusValid = getCurrentStatus(result);
     if (statusValid) {
@@ -410,7 +408,7 @@ bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
             }
         }
     }
-    
+
     if (displayOn) {
         clearDisplay();
         int startY = 0;
@@ -439,7 +437,7 @@ bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
 void FPPStatusOLEDPage::fillInNetworks() {
     networks.clear();
     signalStrength.clear();
-    
+
     char hostname[HOST_NAME_MAX];
     int result;
     result = gethostname(hostname, HOST_NAME_MAX);
@@ -447,9 +445,9 @@ void FPPStatusOLEDPage::fillInNetworks() {
     hn += hostname;
     networks.push_back(hn);
     signalStrength.push_back(0);
-    
+
     //get all the addresses
-    struct ifaddrs *interfaces,*tmp;
+    struct ifaddrs *interfaces, *tmp;
     getifaddrs(&interfaces);
     tmp = interfaces;
     char addressBuf[128];
@@ -481,10 +479,9 @@ void FPPStatusOLEDPage::fillInNetworks() {
     freeifaddrs(interfaces);
 }
 
-void FPPStatusOLEDPage::runTest(const std::string &test) {
-    
+void FPPStatusOLEDPage::runTest(const std::string& test) {
     printf("Test: %s    Speed: %d\n", test.c_str(), _testSpeed);
-    
+
     Json::Value val;
     val["cycleMS"] = _testSpeed;
     val["enabled"] = 1;
@@ -544,13 +541,13 @@ void FPPStatusOLEDPage::runTest(const std::string &test) {
         printf("Unknown test  %s\n", test.c_str());
         return;
     }
-    
+
     std::string data = SaveJsonToString(val);
-    
+
     buffer.clear();
-    CURL *curl = curl_easy_init();
+    CURL* curl = curl_easy_init();
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost/api/testmode");
-    
+
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 50);
     curl_easy_setopt(curl, CURLOPT_POST, 1);
@@ -561,7 +558,7 @@ void FPPStatusOLEDPage::runTest(const std::string &test) {
     curl_easy_perform(curl);
     curl_easy_cleanup(curl);
 }
-static std::vector<std::string> TESTS = {"Off", "R-G-B Cycle", "R-G-B-W-N Cycle", "R-G-B Chase", "R-G-B-W-N Chase"};
+static std::vector<std::string> TESTS = { "Off", "R-G-B Cycle", "R-G-B-W-N Cycle", "R-G-B Chase", "R-G-B-W-N Chase" };
 void FPPStatusOLEDPage::cycleTest() {
     _currentTest++;
     if (_currentTest >= TESTS.size()) {
@@ -570,36 +567,37 @@ void FPPStatusOLEDPage::cycleTest() {
     runTest(TESTS[_currentTest]);
 }
 
-
 // trim from start (in place)
-static inline void ltrim(std::string &s) {
+static inline void ltrim(std::string& s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
-        return !std::isspace(ch);
-    }));
+                return !std::isspace(ch);
+            }));
 }
 // trim from end (in place)
-static inline void rtrim(std::string &s) {
+static inline void rtrim(std::string& s) {
     s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
-        return !std::isspace(ch);
-    }).base(), s.end());
+                return !std::isspace(ch);
+            })
+                .base(),
+            s.end());
 }
 // trim from both ends (in place)
-static inline void trim(std::string &s) {
+static inline void trim(std::string& s) {
     ltrim(s);
     rtrim(s);
 }
 static std::vector<std::string> splitAndTrim(const std::string& s, char seperator) {
     std::vector<std::string> output;
     std::string::size_type prev_pos = 0, pos = 0;
-    while((pos = s.find(seperator, pos)) != std::string::npos) {
-        std::string substring( s.substr(prev_pos, pos-prev_pos) );
+    while ((pos = s.find(seperator, pos)) != std::string::npos) {
+        std::string substring(s.substr(prev_pos, pos - prev_pos));
         trim(substring);
         if (substring != "") {
             output.push_back(substring);
         }
         prev_pos = ++pos;
     }
-    std::string substring = s.substr(prev_pos, pos-prev_pos);
+    std::string substring = s.substr(prev_pos, pos - prev_pos);
     trim(substring);
     if (substring != "") {
         output.push_back(substring); // Last word
@@ -607,12 +605,27 @@ static std::vector<std::string> splitAndTrim(const std::string& s, char seperato
     return output;
 }
 static unsigned char reverselookup[16] = {
-    0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
-    0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf, };
+    0x0,
+    0x8,
+    0x4,
+    0xc,
+    0x2,
+    0xa,
+    0x6,
+    0xe,
+    0x1,
+    0x9,
+    0x5,
+    0xd,
+    0x3,
+    0xb,
+    0x7,
+    0xf,
+};
 
 static inline uint8_t reverse(uint8_t n) {
     // Reverse the top and bottom nibble then swap them.
-    return (reverselookup[n&0b1111] << 4) | reverselookup[n>>4];
+    return (reverselookup[n & 0b1111] << 4) | reverselookup[n >> 4];
 }
 void FPPStatusOLEDPage::readImage() {
     _imageWidth = 0;
@@ -638,7 +651,7 @@ void FPPStatusOLEDPage::readImage() {
                 }
                 if (readingBytes) {
                     std::vector<std::string> v = splitAndTrim(line, ',');
-                    for (auto &s : v) {
+                    for (auto& s : v) {
                         if (s.find("}") != std::string::npos) {
                             readingBytes = false;
                             break;
@@ -656,11 +669,9 @@ void FPPStatusOLEDPage::readImage() {
     }
 }
 
-
-bool FPPStatusOLEDPage::doAction(const std::string &action) {
+bool FPPStatusOLEDPage::doAction(const std::string& action) {
     //printf("In do action  %s\n", action.c_str());
-    if (action == "Test"
-        || action == "Test/Down") {
+    if (action == "Test" || action == "Test/Down") {
         _testSpeed = 500;
         cycleTest();
         _curPage = 0;

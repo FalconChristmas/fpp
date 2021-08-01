@@ -28,10 +28,10 @@
 #include "overlays/PixelOverlay.h"
 
 extern "C" {
-    RGBMatrixOutput *createOutputRGBMatrix(unsigned int startChannel,
-                                          unsigned int channelCount) {
-        return new RGBMatrixOutput(startChannel, channelCount);
-    }
+RGBMatrixOutput* createOutputRGBMatrix(unsigned int startChannel,
+                                       unsigned int channelCount) {
+    return new RGBMatrixOutput(startChannel, channelCount);
+}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -40,108 +40,103 @@ extern "C" {
  *
  */
 RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
-	unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
-	m_canvas(NULL),
-	m_rgbmatrix(NULL),
-	m_colorOrder("RGB"),
-	m_panelWidth(32),
-	m_panelHeight(16),
-	m_panels(0),
-	m_width(0),
-	m_height(0),
-	m_rows(0),
-	m_outputs(0),
-	m_longestChain(0),
-	m_invertedData(0)
-{
-	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::RGBMatrixOutput(%u, %u)\n",
-		startChannel, channelCount);
+                                 unsigned int channelCount) :
+    ChannelOutputBase(startChannel, channelCount),
+    m_canvas(NULL),
+    m_rgbmatrix(NULL),
+    m_colorOrder("RGB"),
+    m_panelWidth(32),
+    m_panelHeight(16),
+    m_panels(0),
+    m_width(0),
+    m_height(0),
+    m_rows(0),
+    m_outputs(0),
+    m_longestChain(0),
+    m_invertedData(0) {
+    LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::RGBMatrixOutput(%u, %u)\n",
+             startChannel, channelCount);
 }
 
 /*
  *
  */
-RGBMatrixOutput::~RGBMatrixOutput()
-{
-	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::~RGBMatrixOutput()\n");
+RGBMatrixOutput::~RGBMatrixOutput() {
+    LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::~RGBMatrixOutput()\n");
 
-	delete m_rgbmatrix;
-	delete m_matrix;
-	delete m_panelMatrix;
+    delete m_rgbmatrix;
+    delete m_matrix;
+    delete m_panelMatrix;
 }
 
 /*
  *
  */
-int RGBMatrixOutput::Init(Json::Value config)
-{
-	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::Init(JSON)\n");
+int RGBMatrixOutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::Init(JSON)\n");
 
-	m_panelWidth  = config["panelWidth"].asInt();
-	m_panelHeight = config["panelHeight"].asInt();
+    m_panelWidth = config["panelWidth"].asInt();
+    m_panelHeight = config["panelHeight"].asInt();
 
-	if (!m_panelWidth)
-		m_panelWidth = 32;
+    if (!m_panelWidth)
+        m_panelWidth = 32;
 
-	if (!m_panelHeight)
-		m_panelHeight = 16;
+    if (!m_panelHeight)
+        m_panelHeight = 16;
 
-	m_invertedData = config["invertedData"].asInt();
-	m_colorOrder = config["colorOrder"].asString();
+    m_invertedData = config["invertedData"].asInt();
+    m_colorOrder = config["colorOrder"].asString();
 
-	m_panelMatrix =
-		new PanelMatrix(m_panelWidth, m_panelHeight, m_invertedData);
+    m_panelMatrix =
+        new PanelMatrix(m_panelWidth, m_panelHeight, m_invertedData);
 
-	if (!m_panelMatrix)
-	{
-		LogErr(VB_CHANNELOUT, "Unable to create PanelMatrix\n");
+    if (!m_panelMatrix) {
+        LogErr(VB_CHANNELOUT, "Unable to create PanelMatrix\n");
 
-		return 0;
-	}
+        return 0;
+    }
 
-	for (int i = 0; i < config["panels"].size(); i++)
-	{
-		Json::Value p = config["panels"][i];
-		char orientation = 'N';
-		const char *o = p["orientation"].asString().c_str();
+    for (int i = 0; i < config["panels"].size(); i++) {
+        Json::Value p = config["panels"][i];
+        char orientation = 'N';
+        const char* o = p["orientation"].asString().c_str();
 
-		if (o && *o)
-			orientation = o[0];
+        if (o && *o)
+            orientation = o[0];
 
-		if (p["colorOrder"].asString() == "")
-			p["colorOrder"] = m_colorOrder;
+        if (p["colorOrder"].asString() == "")
+            p["colorOrder"] = m_colorOrder;
 
-		m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
-			p["panelNumber"].asInt(), orientation,
-			p["xOffset"].asInt(), p["yOffset"].asInt(),
-			ColorOrderFromString(p["colorOrder"].asString()));
+        m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
+                                p["panelNumber"].asInt(), orientation,
+                                p["xOffset"].asInt(), p["yOffset"].asInt(),
+                                ColorOrderFromString(p["colorOrder"].asString()));
 
-		if (p["outputNumber"].asInt() > m_outputs)
-			m_outputs = p["outputNumber"].asInt();
+        if (p["outputNumber"].asInt() > m_outputs)
+            m_outputs = p["outputNumber"].asInt();
 
-		if (p["panelNumber"].asInt() > m_longestChain)
-			m_longestChain = p["panelNumber"].asInt();
-	}
+        if (p["panelNumber"].asInt() > m_longestChain)
+            m_longestChain = p["panelNumber"].asInt();
+    }
 
-	// Both of these are 0-based, so bump them up by 1 for comparisons
-	m_outputs++;
-	m_longestChain++;
+    // Both of these are 0-based, so bump them up by 1 for comparisons
+    m_outputs++;
+    m_longestChain++;
 
-	m_panels = m_panelMatrix->PanelCount();
+    m_panels = m_panelMatrix->PanelCount();
 
-	int gpioSlowdown = 1;
-	if (config.isMember("gpioSlowdown"))
-		gpioSlowdown = config["gpioSlowdown"].asInt();
+    int gpioSlowdown = 1;
+    if (config.isMember("gpioSlowdown"))
+        gpioSlowdown = config["gpioSlowdown"].asInt();
 
-	m_rows = m_panelHeight;
+    m_rows = m_panelHeight;
 
-	m_width  = m_panelMatrix->Width();
-	m_height = m_panelMatrix->Height();
+    m_width = m_panelMatrix->Width();
+    m_height = m_panelMatrix->Height();
 
-	m_channelCount = m_width * m_height * 3;
+    m_channelCount = m_width * m_height * 3;
 
-	RGBMatrix::Options options;
+    RGBMatrix::Options options;
     rgb_matrix::RuntimeOptions runtimeOptions;
 
     runtimeOptions.gpio_slowdown = gpioSlowdown;
@@ -149,19 +144,19 @@ int RGBMatrixOutput::Init(Json::Value config)
     runtimeOptions.drop_privileges = 0;
     runtimeOptions.do_gpio_init = true;
 
-	if (config["wiringPinout"].asString() != "")
-		options.hardware_mapping = strdup(config["wiringPinout"].asString().c_str());
+    if (config["wiringPinout"].asString() != "")
+        options.hardware_mapping = strdup(config["wiringPinout"].asString().c_str());
 
-	options.chain_length = m_longestChain;
-	options.parallel = m_outputs;
-	options.rows = m_panelHeight;
-	options.cols = m_panelWidth;
+    options.chain_length = m_longestChain;
+    options.parallel = m_outputs;
+    options.rows = m_panelHeight;
+    options.cols = m_panelWidth;
 
-	if (config.isMember("brightness"))
-		options.brightness = config["brightness"].asInt();
-	else
-		options.brightness = 100;
-    
+    if (config.isMember("brightness"))
+        options.brightness = config["brightness"].asInt();
+    else
+        options.brightness = 100;
+
     int colorDepth = 8;
     if (config.isMember("panelColorDepth")) {
         colorDepth = config["panelColorDepth"].asInt();
@@ -183,7 +178,7 @@ int RGBMatrixOutput::Init(Json::Value config)
     }
     if (config.isMember("panelInterleave")) {
         options.multiplexing = std::atoi(config["panelInterleave"].asString().c_str());
-        
+
         int panelScan = config["panelScan"].asInt();
         if (panelScan == 0) {
             // 1/8 scan by default
@@ -193,36 +188,33 @@ int RGBMatrixOutput::Init(Json::Value config)
             options.multiplexing = 0;
         }
     }
-	m_rgbmatrix = RGBMatrix::CreateFromOptions(options, runtimeOptions);
-	if (!m_rgbmatrix)
-	{
-		LogErr(VB_CHANNELOUT, "Unable to create RGBMatrix instance\n");
+    m_rgbmatrix = RGBMatrix::CreateFromOptions(options, runtimeOptions);
+    if (!m_rgbmatrix) {
+        LogErr(VB_CHANNELOUT, "Unable to create RGBMatrix instance\n");
 
-		return 0;
-	}
+        return 0;
+    }
 
-	m_canvas = m_rgbmatrix->CreateFrameCanvas();
-    FrameCanvas *c2 = m_rgbmatrix->CreateFrameCanvas();
+    m_canvas = m_rgbmatrix->CreateFrameCanvas();
+    FrameCanvas* c2 = m_rgbmatrix->CreateFrameCanvas();
     m_rgbmatrix->SwapOnVSync(c2);
 
-	m_matrix = new Matrix(m_startChannel, m_width, m_height);
+    m_matrix = new Matrix(m_startChannel, m_width, m_height);
 
-	if (config.isMember("subMatrices"))
-	{
-		for (int i = 0; i < config["subMatrices"].size(); i++)
-		{
-			Json::Value sm = config["subMatrices"][i];
+    if (config.isMember("subMatrices")) {
+        for (int i = 0; i < config["subMatrices"].size(); i++) {
+            Json::Value sm = config["subMatrices"][i];
 
-			m_matrix->AddSubMatrix(
-				sm["enabled"].asInt(),
-				sm["startChannel"].asInt() - 1,
-				sm["width"].asInt(),
-				sm["height"].asInt(),
-				sm["xOffset"].asInt(),
-				sm["yOffset"].asInt());
-		}
-	}
-    
+            m_matrix->AddSubMatrix(
+                sm["enabled"].asInt(),
+                sm["startChannel"].asInt() - 1,
+                sm["width"].asInt(),
+                sm["height"].asInt(),
+                sm["xOffset"].asInt(),
+                sm["yOffset"].asInt());
+        }
+    }
+
     float gamma = 2.2;
     if (config.isMember("gamma")) {
         gamma = atof(config["gamma"].asString().c_str());
@@ -253,66 +245,59 @@ int RGBMatrixOutput::Init(Json::Value config)
             desc = dd + "-" + std::to_string(count);
         }
         PixelOverlayManager::INSTANCE.addAutoOverlayModel(desc,
-                                                     m_startChannel, m_channelCount, 3,
-                                                     "H", m_invertedData ? "BL" : "TL",
-                                                     m_height, 1);
+                                                          m_startChannel, m_channelCount, 3,
+                                                          "H", m_invertedData ? "BL" : "TL",
+                                                          m_height, 1);
     }
-	return ChannelOutputBase::Init(config);
+    return ChannelOutputBase::Init(config);
 }
-void RGBMatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+void RGBMatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
 /*
  *
  */
-int RGBMatrixOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::Close()\n");
+int RGBMatrixOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::Close()\n");
 
-
-	delete m_rgbmatrix;
+    delete m_rgbmatrix;
     m_rgbmatrix = nullptr;
-	m_canvas = nullptr;
+    m_canvas = nullptr;
 
-	return ChannelOutputBase::Close();
+    return ChannelOutputBase::Close();
 }
 
 /*
  *
  */
-void RGBMatrixOutput::PrepData(unsigned char *channelData)
-{
+void RGBMatrixOutput::PrepData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "RGBMatrixOutput::PrepData(%p)\n",
               channelData);
-	m_matrix->OverlaySubMatrices(channelData);
-    
+    m_matrix->OverlaySubMatrices(channelData);
+
     unsigned char r;
     unsigned char g;
     unsigned char b;
 
     channelData += m_startChannel;
 
-    for (int output = 0; output < m_outputs; output++)
-    {
+    for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
-        
-        for (int i = 0; i < panelsOnOutput; i++)
-        {
+
+        for (int i = 0; i < panelsOnOutput; i++) {
             int panel = m_panelMatrix->m_outputPanels[output][i];
-            
+
             int chain = (m_longestChain - 1) - m_panelMatrix->m_panels[panel].chain;
-            for (int y = 0; y < m_panelHeight; y++)
-            {
+            for (int y = 0; y < m_panelHeight; y++) {
                 int px = chain * m_panelWidth;
-                for (int x = 0; x < m_panelWidth; x++)
-                {
+                for (int x = 0; x < m_panelWidth; x++) {
                     r = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3]]];
                     g = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 1]]];
                     b = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 2]]];
-                    
+
                     m_canvas->SetPixel(px, y + (output * m_panelHeight), r, g, b);
-                    
+
                     px++;
                 }
             }
@@ -323,23 +308,20 @@ void RGBMatrixOutput::PrepData(unsigned char *channelData)
 /*
  *
  */
-int RGBMatrixOutput::SendData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "RGBMatrixOutput::RawSendData(%p)\n",
-		channelData);
+int RGBMatrixOutput::SendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "RGBMatrixOutput::RawSendData(%p)\n",
+              channelData);
 
     m_canvas = m_rgbmatrix->SwapOnVSync(m_canvas);
-	return m_channelCount;
+    return m_channelCount;
 }
 
 /*
  *
  */
-void RGBMatrixOutput::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::DumpConfig()\n");
-	LogDebug(VB_CHANNELOUT, "    panels : %d\n", m_panels);
-	LogDebug(VB_CHANNELOUT, "    width  : %d\n", m_width);
-	LogDebug(VB_CHANNELOUT, "    height : %d\n", m_height);
+void RGBMatrixOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::DumpConfig()\n");
+    LogDebug(VB_CHANNELOUT, "    panels : %d\n", m_panels);
+    LogDebug(VB_CHANNELOUT, "    width  : %d\n", m_width);
+    LogDebug(VB_CHANNELOUT, "    height : %d\n", m_height);
 }
-

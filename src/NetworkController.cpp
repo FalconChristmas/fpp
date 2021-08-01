@@ -23,8 +23,7 @@
 
 #include "NetworkController.h"
 
-NetworkController::NetworkController(const std::string &ipStr)
-  :
+NetworkController::NetworkController(const std::string& ipStr) :
     ip(ipStr),
     hostname(ipStr),
     vendor("Unknown"),
@@ -36,19 +35,17 @@ NetworkController::NetworkController(const std::string &ipStr)
     version("Unknown"),
     majorVersion(0),
     minorVersion(0),
-    systemMode(PLAYER_MODE)
-{
+    systemMode(PLAYER_MODE) {
 }
 
-NetworkController *NetworkController::DetectControllerViaHTML(const std::string &ip,
-    const std::string &html)
-{
-    NetworkController *nc = new NetworkController(ip);
+NetworkController* NetworkController::DetectControllerViaHTML(const std::string& ip,
+                                                              const std::string& html) {
+    NetworkController* nc = new NetworkController(ip);
 
     if (nc->DetectFPP(ip, html)) {
         return nc;
     }
-    
+
     if (nc->DetectFalconController(ip, html)) {
         return nc;
     }
@@ -71,12 +68,11 @@ NetworkController *NetworkController::DetectControllerViaHTML(const std::string 
         return nc;
     }
 
-
     delete nc;
 
     return nullptr;
 }
-bool NetworkController::DetectFPP(const std::string &ip, const std::string &html) {
+bool NetworkController::DetectFPP(const std::string& ip, const std::string& html) {
     if (html.find("Falcon Player - FPP") == std::string::npos) {
         return false;
     }
@@ -91,7 +87,7 @@ bool NetworkController::DetectFPP(const std::string &ip, const std::string &html
         if (v.isMember("channelRanges")) {
             ranges = v["channelRanges"].asString();
         }
-        if (v.isMember("uuid")){
+        if (v.isMember("uuid")) {
             uuid = v["uuid"].asString();
         }
         version = v["Version"].asString();
@@ -126,9 +122,8 @@ bool NetworkController::DetectFPP(const std::string &ip, const std::string &html
     return false;
 }
 
-bool NetworkController::DetectFalconController(const std::string &ip,
-    const std::string &html)
-{
+bool NetworkController::DetectFalconController(const std::string& ip,
+                                               const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a Falcon controller\n", ip.c_str());
 
     std::regex re("\"css/falcon.css\"|\"/f16v2.js\"");
@@ -191,9 +186,8 @@ bool NetworkController::DetectFalconController(const std::string &ip,
     return false;
 }
 
-bool NetworkController::DetectSanDevicesController(const std::string &ip,
-    const std::string &html)
-{
+bool NetworkController::DetectSanDevicesController(const std::string& ip,
+                                                   const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a SanDevices controller\n", ip.c_str());
     std::regex re("Controller Model (E[0-9]+)");
     std::cmatch m;
@@ -211,7 +205,7 @@ bool NetworkController::DetectSanDevicesController(const std::string &ip,
 
     std::regex v4re("Firmware Version:</th></td><td></td><td>([0-9]+.[0-9]+)</td>");
     std::regex v5re("Firmware Version:</th></td><td>([0-9]+.[0-9]+)</td>");
-    
+
     if ((std::regex_search(html.c_str(), m, v4re)) ||
         (std::regex_search(html.c_str(), m, v5re))) {
         version = m[1];
@@ -233,9 +227,8 @@ bool NetworkController::DetectSanDevicesController(const std::string &ip,
     return false;
 }
 
-bool NetworkController::DetectESPixelStickController(const std::string &ip,
-    const std::string &html)
-{
+bool NetworkController::DetectESPixelStickController(const std::string& ip,
+                                                     const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is running ESPixelStick firmware\n", ip.c_str());
 
     std::regex re("\"esps.js\"");
@@ -273,14 +266,13 @@ bool NetworkController::DetectESPixelStickController(const std::string &ip,
     return false;
 }
 
-bool NetworkController::DetectAlphaPixController(const std::string &ip, const std::string &html)
-{
+bool NetworkController::DetectAlphaPixController(const std::string& ip, const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a AlphaPix controller\n", ip.c_str());
     std::regex re("AlphaPix (\\d+|Flex|Evolution)");
     std::regex re2("(\\d+) Port Ethernet to SPI Controller");
     std::cmatch m;
 
-    if ((!std::regex_search(html.c_str(), m, re))&&(!std::regex_search(html.c_str(), m, re2)))
+    if ((!std::regex_search(html.c_str(), m, re)) && (!std::regex_search(html.c_str(), m, re2)))
         return false;
 
     LogExcess(VB_SYNC, "%s is potentially a AlphaPix controller, checking further\n", ip.c_str());
@@ -292,7 +284,7 @@ bool NetworkController::DetectAlphaPixController(const std::string &ip, const st
     systemMode = BRIDGE_MODE;
 
     std::regex vre("Currently Installed Firmware Version:  ([0-9]+.[0-9]+)");
-    
+
     if (std::regex_search(html.c_str(), m, vre)) {
         version = m[1];
 
@@ -313,8 +305,7 @@ bool NetworkController::DetectAlphaPixController(const std::string &ip, const st
     return false;
 }
 
-bool NetworkController::DetectHinksPixController(const std::string &ip, const std::string &html)
-{
+bool NetworkController::DetectHinksPixController(const std::string& ip, const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a HinksPix controller\n", ip.c_str());
     std::regex re("HinksPix Config");
     std::cmatch m;
@@ -334,9 +325,8 @@ bool NetworkController::DetectHinksPixController(const std::string &ip, const st
     return true;
 }
 
-bool NetworkController::DetectDIYLEDExpressController(const std::string &ip,
-    const std::string &html)
-{
+bool NetworkController::DetectDIYLEDExpressController(const std::string& ip,
+                                                      const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a DIYLEDExpress controller\n", ip.c_str());
     std::regex re("DIYLEDExpress E1.31 Bridge Configuration Page");
     std::cmatch m;
@@ -354,7 +344,7 @@ bool NetworkController::DetectDIYLEDExpressController(const std::string &ip,
 
     //Firmware Rev: 4.02
     std::regex vre("Firmware Rev: ([0-9]+.[0-9]+)");
-    
+
     if (std::regex_search(html.c_str(), m, vre)) {
         version = m[1];
 
@@ -375,7 +365,7 @@ bool NetworkController::DetectDIYLEDExpressController(const std::string &ip,
     return false;
 }
 
-bool NetworkController::DetectWLEDController(const std::string &ip, const std::string &html) {
+bool NetworkController::DetectWLEDController(const std::string& ip, const std::string& html) {
     if (html.find("WLED UI") == std::string::npos) {
         return false;
     }
@@ -399,7 +389,7 @@ bool NetworkController::DetectWLEDController(const std::string &ip, const std::s
                 majorVersion = atoi(version.substr(0, verDot).c_str());
                 std::size_t verDot2 = version.find(".", verDot + 1);
                 if (verDot2 != std::string::npos) {
-                    minorVersion = atoi(version.substr(verDot + 1,verDot2 - (verDot + 1)).c_str());
+                    minorVersion = atoi(version.substr(verDot + 1, verDot2 - (verDot + 1)).c_str());
                 }
             }
         }
@@ -408,23 +398,21 @@ bool NetworkController::DetectWLEDController(const std::string &ip, const std::s
     return false;
 }
 
-void NetworkController::DumpControllerInfo(void)
-{
+void NetworkController::DumpControllerInfo(void) {
     LogDebug(VB_SYNC, "Network Controller Info:\n"
-        "IP              : %s\n"
-        "UUID            : %s\n"
-        "Hostname        : %s\n"
-        "Vendor          : %s\n"
-        "Vendor URL      : %s\n"
-        "TypeID          : %d\n"
-        "TypeStr         : %s\n"
-        "Channel Ranges  : %s\n"
-        "Firmware Version: %s\n"
-        "Firmware MajorV : %u\n"
-        "Firmware MinorV : %u\n"
-        "System Mode     : %s\n",
-        ip.c_str(), uuid.c_str(), hostname.c_str(), vendor.c_str(), vendorURL.c_str(),
-        (int)typeId, typeStr.c_str(), ranges.c_str(), version.c_str(),
-        majorVersion, minorVersion, getFPPmodeStr(systemMode).c_str());
+                      "IP              : %s\n"
+                      "UUID            : %s\n"
+                      "Hostname        : %s\n"
+                      "Vendor          : %s\n"
+                      "Vendor URL      : %s\n"
+                      "TypeID          : %d\n"
+                      "TypeStr         : %s\n"
+                      "Channel Ranges  : %s\n"
+                      "Firmware Version: %s\n"
+                      "Firmware MajorV : %u\n"
+                      "Firmware MinorV : %u\n"
+                      "System Mode     : %s\n",
+             ip.c_str(), uuid.c_str(), hostname.c_str(), vendor.c_str(), vendorURL.c_str(),
+             (int)typeId, typeStr.c_str(), ranges.c_str(), version.c_str(),
+             majorVersion, minorVersion, getFPPmodeStr(systemMode).c_str());
 }
-

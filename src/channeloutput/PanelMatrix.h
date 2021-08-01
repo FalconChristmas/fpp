@@ -29,57 +29,56 @@
 
 #include "ColorOrder.h"
 
-#define MAX_MATRIX_OUTPUTS    12
+#define MAX_MATRIX_OUTPUTS 12
 #define MAX_PANELS_PER_OUTPUT 24
-#define MAX_MATRIX_PANELS    (MAX_MATRIX_OUTPUTS * MAX_PANELS_PER_OUTPUT)
+#define MAX_MATRIX_PANELS (MAX_MATRIX_OUTPUTS * MAX_PANELS_PER_OUTPUT)
 
 typedef struct ledPanel {
-	int    output;
-	int    chain;
-	int    width;
-	int    height;
-	char   orientation;
-	int    xOffset;
-	int    yOffset;
+    int output;
+    int chain;
+    int width;
+    int height;
+    char orientation;
+    int xOffset;
+    int yOffset;
 
-	FPPColorOrder colorOrder;
+    FPPColorOrder colorOrder;
 
-	std::vector<int> pixelMap;
+    std::vector<int> pixelMap;
 } LEDPanel;
 
 class PanelMatrix {
-  public:
-	PanelMatrix(int panelWidth, int panelHeight, int invertedData = 0);
-	~PanelMatrix();
+public:
+    PanelMatrix(int panelWidth, int panelHeight, int invertedData = 0);
+    ~PanelMatrix();
 
-	int  AddPanel(int output, int chain, char orientation,
-		int xOffset, int yOffset, FPPColorOrder colorOrder = kColorOrderRGB);
+    int AddPanel(int output, int chain, char orientation,
+                 int xOffset, int yOffset, FPPColorOrder colorOrder = kColorOrderRGB);
 
-	int  ConfigurePanels(std::string layout);
+    int ConfigurePanels(std::string layout);
 
-	int  Width(void)      { return m_width; }
-	int  Height(void)     { return m_height; }
-	int  PanelCount(void) { return m_panelCount; }
+    int Width(void) { return m_width; }
+    int Height(void) { return m_height; }
+    int PanelCount(void) { return m_panelCount; }
 
-	// Map of output channels to full matrix channels
-	std::vector<int> m_outputPixelMap[MAX_MATRIX_OUTPUTS];
+    // Map of output channels to full matrix channels
+    std::vector<int> m_outputPixelMap[MAX_MATRIX_OUTPUTS];
 
-	// Unsorted list of panels on a output
-	std::vector<int> m_outputPanels[MAX_MATRIX_OUTPUTS];
-	LEDPanel    m_panels[MAX_MATRIX_PANELS];
+    // Unsorted list of panels on a output
+    std::vector<int> m_outputPanels[MAX_MATRIX_OUTPUTS];
+    LEDPanel m_panels[MAX_MATRIX_PANELS];
 
-  private:
-	int  AddPanel(std::string config);
+private:
+    int AddPanel(std::string config);
 
-	int CalculateMaps(void);
+    int CalculateMaps(void);
 
-	int  m_width;
-	int  m_height;
-	int  m_outputCount;
-	int  m_pixelCount;
-	int  m_panelCount;
-	int  m_panelWidth;
-	int  m_panelHeight;
-	int  m_invertedData;
-
+    int m_width;
+    int m_height;
+    int m_outputCount;
+    int m_pixelCount;
+    int m_panelCount;
+    int m_panelWidth;
+    int m_panelHeight;
+    int m_invertedData;
 };

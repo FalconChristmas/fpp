@@ -20,12 +20,13 @@
 
 #include "tinyexpr.h"
 
-ExpressionProcessor::ExpressionVariable::ExpressionVariable(const std::string &n) : name(n) {
+ExpressionProcessor::ExpressionVariable::ExpressionVariable(const std::string& n) :
+    name(n) {
 }
 ExpressionProcessor::ExpressionVariable::~ExpressionVariable() {
 }
 
-void ExpressionProcessor::ExpressionVariable::setValue(const std::string &s) {
+void ExpressionProcessor::ExpressionVariable::setValue(const std::string& s) {
     sValue = s;
     try {
         dValue = std::stod(s);
@@ -34,18 +35,17 @@ void ExpressionProcessor::ExpressionVariable::setValue(const std::string &s) {
     }
 }
 
-
 class EvalStep {
 public:
     EvalStep() {}
     virtual ~EvalStep() {}
-    
+
     virtual std::string eval() = 0;
 };
 
 class TinyExprEvalStep : public EvalStep {
 public:
-    TinyExprEvalStep(const std::string &s, std::vector<te_variable> &exprVars) {
+    TinyExprEvalStep(const std::string& s, std::vector<te_variable>& exprVars) {
         int err = 0;
         expr = te_compile(s.c_str(), &exprVars[0], exprVars.size(), &err);
     }
@@ -54,14 +54,14 @@ public:
             te_free(expr);
         }
     }
-    
+
     virtual std::string eval() override {
         if (expr) {
             double d = te_eval(expr);
             char buf[30];
             sprintf(buf, "%lf", d);
             int len = strlen(buf);
-            for (int x = len-1; x >= 0; x--) {
+            for (int x = len - 1; x >= 0; x--) {
                 if (buf[x] == '.' || buf[x] == ',') {
                     buf[x] = 0;
                     return buf;
@@ -77,14 +77,14 @@ public:
         return "";
     }
 
-    
-    te_expr *expr = nullptr;
+    te_expr* expr = nullptr;
 };
 class TextEvalStep : public EvalStep {
 public:
-    TextEvalStep(const std::string &s) : str(s) {}
+    TextEvalStep(const std::string& s) :
+        str(s) {}
     ~TextEvalStep() {}
-    
+
     virtual std::string eval() override {
         return str;
     }
@@ -93,9 +93,10 @@ public:
 };
 class VariableEvalStep : public EvalStep {
 public:
-    VariableEvalStep(ExpressionProcessor::ExpressionVariable *v) : var(v) {}
+    VariableEvalStep(ExpressionProcessor::ExpressionVariable* v) :
+        var(v) {}
     ~VariableEvalStep() {}
-    
+
     virtual std::string eval() override {
         if (var) {
             return var->getValue();
@@ -103,7 +104,7 @@ public:
         return "";
     }
 
-    ExpressionProcessor::ExpressionVariable *var;
+    ExpressionProcessor::ExpressionVariable* var;
 };
 
 class ExpressionProcessorData {
@@ -113,42 +114,40 @@ public:
         for (auto a : steps) {
             delete a;
         }
-        for (auto &a : exprVars) {
+        for (auto& a : exprVars) {
             free((void*)a.name);
         }
     }
-    
-    void bind(ExpressionProcessor::ExpressionVariable *var) {
+
+    void bind(ExpressionProcessor::ExpressionVariable* var) {
         variables[var->getName()] = var;
     }
-    bool compile(const std::string &s) {
+    bool compile(const std::string& s) {
         exprVars.resize(variables.size());
         int cur = 0;
-        for (auto &a: variables) {
+        for (auto& a : variables) {
             exprVars[cur].name = strdup(a.second->getName().c_str());
             exprVars[cur].address = &a.second->dValue;
             exprVars[cur].type = TE_VARIABLE;
             cur++;
         }
-        
-        if (s.size() > 1
-            && s[0] == '='
-            && s[1] != '=') {
+
+        if (s.size() > 1 && s[0] == '=' && s[1] != '=') {
             //simple math expression
             steps.push_back(new TinyExprEvalStep(s.substr(1), exprVars));
         } else {
             std::string cur = s;
             for (int x = 1; x < cur.size(); x++) {
-                if (cur[x-1] == cur[x]) {
+                if (cur[x - 1] == cur[x]) {
                     if (cur[x] == '=' || cur[x] == '%') {
                         for (int y = x + 2; y < cur.size(); y++) {
-                            if (cur[y-1] == cur[y] && cur[y] == cur[x]) {
+                            if (cur[y - 1] == cur[y] && cur[y] == cur[x]) {
                                 int key = cur[x];
-                                std::string start = cur.substr(0, x-1);
+                                std::string start = cur.substr(0, x - 1);
                                 if (start.size() > 0) {
                                     steps.push_back(new TextEvalStep(start));
                                 }
-                                std::string expr = cur.substr(x+1, y - x - 2);
+                                std::string expr = cur.substr(x + 1, y - x - 2);
                                 if (key == '%') {
                                     steps.push_back(new VariableEvalStep(variables[expr]));
                                 } else if (key == '=') {
@@ -170,9 +169,8 @@ public:
         }
         return false;
     }
-    
-    
-    std::string evaluate(const std::string &type) {
+
+    std::string evaluate(const std::string& type) {
         std::string s;
         for (auto step : steps) {
             s += step->eval();
@@ -180,7 +178,7 @@ public:
         return s;
     }
 
-    std::map<std::string,ExpressionProcessor::ExpressionVariable *> variables;
+    std::map<std::string, ExpressionProcessor::ExpressionVariable*> variables;
     std::vector<te_variable> exprVars;
     std::list<EvalStep*> steps;
 };
@@ -194,15 +192,14 @@ ExpressionProcessor::~ExpressionProcessor() {
     }
 }
 
-
-void ExpressionProcessor::bindVariable(ExpressionVariable *var) {
+void ExpressionProcessor::bindVariable(ExpressionVariable* var) {
     data->bind(var);
 }
 
-bool ExpressionProcessor::compile(const std::string &s) {
+bool ExpressionProcessor::compile(const std::string& s) {
     return data->compile(s);
 }
 
-std::string ExpressionProcessor::evaluate(const std::string &type) {
+std::string ExpressionProcessor::evaluate(const std::string& type) {
     return data->evaluate(type);
 }

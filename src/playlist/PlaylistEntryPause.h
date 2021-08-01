@@ -29,33 +29,32 @@
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryPause : public PlaylistEntryBase {
-  public:
-	PlaylistEntryPause(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryPause();
+public:
+    PlaylistEntryPause(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    ~PlaylistEntryPause();
 
-	virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-	virtual int  StartPlaying(void) override;
-	virtual int  Process(void) override;
-	virtual int  Stop(void) override;
-    
+    virtual int StartPlaying(void) override;
+    virtual int Process(void) override;
+    virtual int Stop(void) override;
+
     virtual void Pause() override;
     virtual bool IsPaused() override;
     virtual void Resume() override;
 
-    
     virtual uint64_t GetLengthInMS() override;
     virtual uint64_t GetElapsedMS() override;
 
-	virtual void Dump(void) override;
+    virtual void Dump(void) override;
 
-	virtual Json::Value GetConfig(void) override;
+    virtual Json::Value GetConfig(void) override;
 
-  private:
-	float                m_duration;
-	long long            m_startTime;
-	long long            m_endTime;
-	long long            m_finishTime;
-    
-    long long            m_pausedRemaining;
+private:
+    float m_duration;
+    long long m_startTime;
+    long long m_endTime;
+    long long m_finishTime;
+
+    long long m_pausedRemaining;
 };

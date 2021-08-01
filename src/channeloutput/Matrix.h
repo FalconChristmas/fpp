@@ -25,36 +25,35 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #include <vector>
 
 typedef struct subMatrix {
-	int enabled;
-	int startChannel;
-	int width;
-	int height;
-	int xOffset;
-	int yOffset;
+    int enabled;
+    int startChannel;
+    int width;
+    int height;
+    int xOffset;
+    int yOffset;
 } SubMatrix;
 
 class Matrix {
-  public:
-	Matrix(int startChannel, int width, int height);
-	~Matrix();
+public:
+    Matrix(int startChannel, int width, int height);
+    ~Matrix();
 
-	void AddSubMatrix(int enabled, int startChannel, int width, int height,
-		int xOffset, int yOffset);
+    void AddSubMatrix(int enabled, int startChannel, int width, int height,
+                      int xOffset, int yOffset);
 
-	void OverlaySubMatrix(unsigned char *channelData, int i);
-	void OverlaySubMatrices(unsigned char *channelData);
+    void OverlaySubMatrix(unsigned char* channelData, int i);
+    void OverlaySubMatrices(unsigned char* channelData);
 
-  private:
-	int  m_startChannel;
-	int  m_width;
-	int  m_height;
-	int  m_enableFlagOffset;
+private:
+    int m_startChannel;
+    int m_width;
+    int m_height;
+    int m_enableFlagOffset;
 
-	unsigned char *m_buffer;
+    unsigned char* m_buffer;
 
-	std::vector<SubMatrix>  subMatrix;
+    std::vector<SubMatrix> subMatrix;
 };

@@ -23,10 +23,10 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
-const char *getFPPVersion(void);
-const char *getFPPMajorVersion(void);
-const char *getFPPMinorVersion(void);
-const char *getFPPBranch(void);
-const char *getFPPVersionTriplet(void);
+
+const char* getFPPVersion(void);
+const char* getFPPMajorVersion(void);
+const char* getFPPMinorVersion(void);
+const char* getFPPBranch(void);
+const char* getFPPVersionTriplet(void);
 void printVersionInfo(void);

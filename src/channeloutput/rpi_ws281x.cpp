@@ -31,12 +31,11 @@
 #include "rpi_ws281x.h"
 #include "util/GPIOUtils.h"
 
-
 extern "C" {
-    RPIWS281xOutput *createOutputRPIWS281X(unsigned int startChannel,
-                                           unsigned int channelCount) {
-        return new RPIWS281xOutput(startChannel, channelCount);
-    }
+RPIWS281xOutput* createOutputRPIWS281X(unsigned int startChannel,
+                                       unsigned int channelCount) {
+    return new RPIWS281xOutput(startChannel, channelCount);
+}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -50,41 +49,37 @@ static ws2811_t ledstring;
 /*
  * CTRL-C handler to stop DMA output
  */
-static void rpi_ws281x_ctrl_c_handler(int signum)
-{
+static void rpi_ws281x_ctrl_c_handler(int signum) {
     if (ledstringCount) {
         ws2811_fini(&ledstring);
     }
 }
 
-
 /*
  *
  */
-RPIWS281xOutput::RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount)
-  : ThreadedChannelOutputBase(startChannel, channelCount),
+RPIWS281xOutput::RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount) :
+    ThreadedChannelOutputBase(startChannel, channelCount),
     m_spi0(nullptr),
     m_spi1(nullptr),
     m_spi0Data(nullptr),
     m_spi1Data(nullptr),
     m_spi0DataCount(0),
-    m_spi1DataCount(0)
-{
-	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::RPIWS281xOutput(%u, %u)\n",
-		startChannel, channelCount);
-    
+    m_spi1DataCount(0) {
+    LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::RPIWS281xOutput(%u, %u)\n",
+             startChannel, channelCount);
+
     offsets[0] = offsets[1] = offsets[2] = offsets[3] = -1;
 }
 
 /*
  *
  */
-RPIWS281xOutput::~RPIWS281xOutput()
-{
-	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::~RPIWS281xOutput()\n");
+RPIWS281xOutput::~RPIWS281xOutput() {
+    LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::~RPIWS281xOutput()\n");
 
-	for (int s = 0; s < m_strings.size(); s++)
-		delete m_strings[s];
+    for (int s = 0; s < m_strings.size(); s++)
+        delete m_strings[s];
     if (m_spi0) {
         delete m_spi0;
     }
@@ -99,22 +94,19 @@ RPIWS281xOutput::~RPIWS281xOutput()
     }
 }
 
-
 /*
  *
  */
-int RPIWS281xOutput::Init(Json::Value config)
-{
-	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::Init(JSON)\n");
-    
-    
+int RPIWS281xOutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::Init(JSON)\n");
+
     std::string subType = config["subType"].asString();
     if (subType == "") {
         subType = "PiHat";
     }
     Json::Value root;
     char filename[256];
-    
+
     std::string verPostf = "";
     if (config["pinoutVersion"].asString() == "2.x") {
         verPostf = "-v2";
@@ -134,40 +126,40 @@ int RPIWS281xOutput::Init(Json::Value config)
         LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", subType.c_str(), verPostf.c_str());
         return 0;
     }
-    
-    ledstring.freq   = 800000; // Hard code this for now
+
+    ledstring.freq = 800000; // Hard code this for now
     ledstring.dmanum = 10;
 
-    ledstring.channel[0].count   = 0;
+    ledstring.channel[0].count = 0;
     ledstring.channel[0].gpionum = 0;
     ledstring.channel[0].strip_type = WS2811_STRIP_RGB;
-    ledstring.channel[0].invert  = 0;
-    ledstring.channel[0].brightness  = 255;
+    ledstring.channel[0].invert = 0;
+    ledstring.channel[0].brightness = 255;
 
-    ledstring.channel[1].count   = 0;
+    ledstring.channel[1].count = 0;
     ledstring.channel[1].gpionum = 0;
     ledstring.channel[1].strip_type = WS2811_STRIP_RGB;
-    ledstring.channel[1].invert  = 0;
-    ledstring.channel[1].brightness  = 255;
+    ledstring.channel[1].invert = 0;
+    ledstring.channel[1].brightness = 255;
 
-	for (int i = 0; i < config["outputs"].size(); i++) {
-		Json::Value s = config["outputs"][i];
-		PixelString *newString = new PixelString();
+    for (int i = 0; i < config["outputs"].size(); i++) {
+        Json::Value s = config["outputs"][i];
+        PixelString* newString = new PixelString();
 
         if (!newString->Init(s))
             return 0;
 
         std::string pinName = root["outputs"][i]["pin"].asString();
         if (pinName[0] == 'P') {
-            const PinCapabilities &pin = PinCapabilities::getPinByName(pinName);
+            const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
             if (i == 0) {
                 ledstring.channel[0].gpionum = pin.gpio;
-                ledstring.channel[0].count   = newString->m_outputChannels / 3;
+                ledstring.channel[0].count = newString->m_outputChannels / 3;
                 offsets[i] = 0;
                 ledstringCount = 1;
             } else {
                 ledstring.channel[1].gpionum = pin.gpio;
-                ledstring.channel[1].count   = newString->m_outputChannels / 3;
+                ledstring.channel[1].count = newString->m_outputChannels / 3;
                 offsets[i] = 1;
                 ledstringCount = 1;
             }
@@ -186,36 +178,35 @@ int RPIWS281xOutput::Init(Json::Value config)
             }
         }
 
-		m_strings.push_back(newString);
-	}
+        m_strings.push_back(newString);
+    }
 
-	LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", m_strings.size());
+    LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", m_strings.size());
 
     SetupCtrlCHandler();
 
-	int res = ws2811_init(&ledstring);
-	if (res) {
-		LogErr(VB_CHANNELOUT, "ws2811_init() failed with error: %d\n", res);
-		return 0;
-	}
+    int res = ws2811_init(&ledstring);
+    if (res) {
+        LogErr(VB_CHANNELOUT, "ws2811_init() failed with error: %d\n", res);
+        return 0;
+    }
     PixelString::AutoCreateOverlayModels(m_strings);
-	return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
  *
  */
-int RPIWS281xOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::Close()\n");
+int RPIWS281xOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::Close()\n");
 
-	ws2811_fini(&ledstring);
+    ws2811_fini(&ledstring);
 
-	return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutputBase::Close();
 }
 
-void RPIWS281xOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
-    PixelString *ps = NULL;
+void RPIWS281xOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
+    PixelString* ps = NULL;
     for (int s = 0; s < m_strings.size(); s++) {
         ps = m_strings[s];
         int inCh = 0;
@@ -233,49 +224,47 @@ void RPIWS281xOutput::GetRequiredChannelRanges(const std::function<void(int, int
         }
     }
 }
-void RPIWS281xOutput::PrepData(unsigned char *channelData)
-{
-	unsigned char *c = channelData;
-	unsigned int r = 0;
-	unsigned int g = 0;
-	unsigned int b = 0;
+void RPIWS281xOutput::PrepData(unsigned char* channelData) {
+    unsigned char* c = channelData;
+    unsigned int r = 0;
+    unsigned int g = 0;
+    unsigned int b = 0;
 
-	PixelString *ps = NULL;
-	int inCh = 0;
+    PixelString* ps = NULL;
+    int inCh = 0;
 
-	for (int s = 0; s < m_strings.size(); s++) {
-		ps = m_strings[s];
-		inCh = 0;
+    for (int s = 0; s < m_strings.size(); s++) {
+        ps = m_strings[s];
+        inCh = 0;
         if (offsets[s] < 2) {
             for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++) {
                 r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
                 g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
                 b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
                 if (offsets[s] == 0) {
-                    ledstring.channel[0].leds[pix] = (r << 16) | (g <<  8) | (b);
+                    ledstring.channel[0].leds[pix] = (r << 16) | (g << 8) | (b);
                 } else {
-                    ledstring.channel[1].leds[pix] = (r << 16) | (g <<  8) | (b);
+                    ledstring.channel[1].leds[pix] = (r << 16) | (g << 8) | (b);
                 }
             }
         } else {
-            uint8_t *d = offsets[s] == 2 ? m_spi0Data : m_spi1Data;
+            uint8_t* d = offsets[s] == 2 ? m_spi0Data : m_spi1Data;
             for (int p = 0; p < ps->m_outputChannels; p++) {
                 d[p] = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
             }
         }
-	}
+    }
 }
 
 /*
  *
  */
-int RPIWS281xOutput::RawSendData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "RPIWS281xOutput::RawSendData(%p)\n", channelData);
+int RPIWS281xOutput::RawSendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "RPIWS281xOutput::RawSendData(%p)\n", channelData);
 
-	if (ws2811_render(&ledstring)) {
-		LogErr(VB_CHANNELOUT, "ws2811_render() failed\n");
-	}
+    if (ws2811_render(&ledstring)) {
+        LogErr(VB_CHANNELOUT, "ws2811_render() failed\n");
+    }
     if (m_spi0DataCount) {
         m_spi0->xfer(m_spi0Data, nullptr, m_spi0DataCount);
     }
@@ -283,18 +272,17 @@ int RPIWS281xOutput::RawSendData(unsigned char *channelData)
         m_spi1->xfer(m_spi1Data, nullptr, m_spi1DataCount);
     }
 
-	return m_channelCount;
+    return m_channelCount;
 }
 
 /*
  *
  */
-void RPIWS281xOutput::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::DumpConfig()\n");
+void RPIWS281xOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::DumpConfig()\n");
 
-	for (int i = 0; i < m_strings.size(); i++) {
-		LogDebug(VB_CHANNELOUT, "    String #%d\n", i);
+    for (int i = 0; i < m_strings.size(); i++) {
+        LogDebug(VB_CHANNELOUT, "    String #%d\n", i);
         if (offsets[i] < 2) {
             LogDebug(VB_CHANNELOUT, "      GPIO       : %d\n",
                      ledstring.channel[i].gpionum);
@@ -302,18 +290,16 @@ void RPIWS281xOutput::DumpConfig(void)
             LogDebug(VB_CHANNELOUT, "      SPI        : %d\n",
                      offsets[i] - 2);
         }
-		m_strings[i]->DumpConfig();
-	}
+        m_strings[i]->DumpConfig();
+    }
 
-	ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutputBase::DumpConfig();
 }
 
-void RPIWS281xOutput::SetupCtrlCHandler(void)
-{
-	struct sigaction sa;
+void RPIWS281xOutput::SetupCtrlCHandler(void) {
+    struct sigaction sa;
 
-	sa.sa_handler = rpi_ws281x_ctrl_c_handler;
+    sa.sa_handler = rpi_ws281x_ctrl_c_handler;
 
-	sigaction(SIGKILL, &sa, NULL);
+    sigaction(SIGKILL, &sa, NULL);
 }
-

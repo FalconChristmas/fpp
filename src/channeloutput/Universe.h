@@ -24,22 +24,21 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#define E131_TYPE_MULTICAST   0
-#define E131_TYPE_UNICAST     1
+#define E131_TYPE_MULTICAST 0
+#define E131_TYPE_UNICAST 1
 #define ARTNET_TYPE_BROADCAST 2
-#define ARTNET_TYPE_UNICAST   3
+#define ARTNET_TYPE_UNICAST 3
 
 typedef struct {
-	uint32_t           active;
-	uint32_t           universe;
-	uint32_t           size;
-	uint32_t           startAddress;
-	uint32_t           type;
-	char               unicastAddress[16];
-	uint32_t           bytesReceived;
-	uint32_t           packetsReceived;
-    uint32_t           errorPackets;
-    uint32_t           lastSequenceNumber;
-	uint32_t           priority;
+    uint32_t active;
+    uint32_t universe;
+    uint32_t size;
+    uint32_t startAddress;
+    uint32_t type;
+    char unicastAddress[16];
+    uint32_t bytesReceived;
+    uint32_t packetsReceived;
+    uint32_t errorPackets;
+    uint32_t lastSequenceNumber;
+    uint32_t priority;
 } UniverseEntry;

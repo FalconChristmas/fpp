@@ -34,68 +34,62 @@
 /*
  *
  */
-PlaylistEntryScript::PlaylistEntryScript(Playlist *playlist, PlaylistEntryBase *parent)
-  : PlaylistEntryBase(playlist, parent),
-	m_blocking(0), m_scriptProcess(0)
-{
+PlaylistEntryScript::PlaylistEntryScript(Playlist* playlist, PlaylistEntryBase* parent) :
+    PlaylistEntryBase(playlist, parent),
+    m_blocking(0),
+    m_scriptProcess(0) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryScript::PlaylistEntryScript()\n");
 
-	m_type = "script";
+    m_type = "script";
 }
 
 /*
  *
  */
-PlaylistEntryScript::~PlaylistEntryScript()
-{
+PlaylistEntryScript::~PlaylistEntryScript() {
 }
 
 /*
  *
  */
-int PlaylistEntryScript::Init(Json::Value &config)
-{
+int PlaylistEntryScript::Init(Json::Value& config) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryScript::Init()\n");
 
-	if (!config.isMember("scriptName"))
-	{
-		LogErr(VB_PLAYLIST, "Missing scriptName entry\n");
-		return 0;
-	}
+    if (!config.isMember("scriptName")) {
+        LogErr(VB_PLAYLIST, "Missing scriptName entry\n");
+        return 0;
+    }
 
-	m_scriptFilename = config["scriptName"].asString();
-	m_scriptArgs = config["scriptArgs"].asString();
-	m_blocking = config["blocking"].asBool();
+    m_scriptFilename = config["scriptName"].asString();
+    m_scriptArgs = config["scriptArgs"].asString();
+    m_blocking = config["blocking"].asBool();
 
-	return PlaylistEntryBase::Init(config);
+    return PlaylistEntryBase::Init(config);
 }
 
 /*
  *
  */
-int PlaylistEntryScript::StartPlaying(void)
-{
+int PlaylistEntryScript::StartPlaying(void) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryScript::StartPlaying()\n");
 
-	if (!CanPlay())
-	{
-		FinishPlay();
-		return 0;
-	}
+    if (!CanPlay()) {
+        FinishPlay();
+        return 0;
+    }
 
     m_startTime = GetTime();
-	PlaylistEntryBase::StartPlaying();
-	m_scriptProcess = RunScript(m_scriptFilename, m_scriptArgs);
+    PlaylistEntryBase::StartPlaying();
+    m_scriptProcess = RunScript(m_scriptFilename, m_scriptArgs);
     if (!m_blocking) {
         m_scriptProcess = 0;
         FinishPlay();
         return 0;
     }
 
-	return PlaylistEntryBase::StartPlaying();
+    return PlaylistEntryBase::StartPlaying();
 }
-int PlaylistEntryScript::Process(void)
-{
+int PlaylistEntryScript::Process(void) {
     if (m_scriptProcess && !isChildRunning()) {
         m_scriptProcess = 0;
         FinishPlay();
@@ -105,16 +99,15 @@ int PlaylistEntryScript::Process(void)
 /*
  *
  */
-int PlaylistEntryScript::Stop(void)
-{
+int PlaylistEntryScript::Stop(void) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryScript::Stop()\n");
 
-	if (m_scriptProcess) {
+    if (m_scriptProcess) {
         kill(m_scriptProcess, SIGTERM);
         FinishPlay();
-	}
+    }
 
-	return PlaylistEntryBase::Stop();
+    return PlaylistEntryBase::Stop();
 }
 
 bool PlaylistEntryScript::isChildRunning() {
@@ -132,43 +125,40 @@ bool PlaylistEntryScript::isChildRunning() {
 /*
  *
  */
-void PlaylistEntryScript::Dump(void)
-{
-	PlaylistEntryBase::Dump();
+void PlaylistEntryScript::Dump(void) {
+    PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Script Filename: %s\n", m_scriptFilename.c_str());
-	LogDebug(VB_PLAYLIST, "Blocking       : %d\n", m_blocking);
+    LogDebug(VB_PLAYLIST, "Script Filename: %s\n", m_scriptFilename.c_str());
+    LogDebug(VB_PLAYLIST, "Blocking       : %d\n", m_blocking);
 }
 
 /*
  *
  */
-Json::Value PlaylistEntryScript::GetConfig(void)
-{
-	Json::Value result = PlaylistEntryBase::GetConfig();
+Json::Value PlaylistEntryScript::GetConfig(void) {
+    Json::Value result = PlaylistEntryBase::GetConfig();
 
     long long t = GetTime();
     t -= m_startTime;
     t /= 1000;
     t /= 1000;
-	result["scriptFilename"]   = m_scriptFilename;
-	result["blocking"]         = m_blocking;
-	result["secondsElapsed"]   = (Json::UInt64)t;
+    result["scriptFilename"] = m_scriptFilename;
+    result["blocking"] = m_blocking;
+    result["secondsElapsed"] = (Json::UInt64)t;
 
-	return result;
+    return result;
 }
 
-Json::Value PlaylistEntryScript::GetMqttStatus(void)
-{
+Json::Value PlaylistEntryScript::GetMqttStatus(void) {
     Json::Value result = PlaylistEntryBase::GetMqttStatus();
-    
+
     long long t = GetTime();
     t -= m_startTime;
     t /= 1000;
     t /= 1000;
-    result["scriptFilename"]   = m_scriptFilename;
-    result["blocking"]         = m_blocking;
-    result["secondsElapsed"]   = (Json::UInt64)t;
-    
+    result["scriptFilename"] = m_scriptFilename;
+    result["blocking"] = m_blocking;
+    result["secondsElapsed"] = (Json::UInt64)t;
+
     return result;
 }

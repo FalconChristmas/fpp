@@ -28,30 +28,30 @@
 #include "ChannelOutputBase.h"
 
 class RHLDVIE131Output : public ChannelOutputBase {
-  public:
-	RHLDVIE131Output(unsigned int startChannel, unsigned int channelCount);
-	virtual ~RHLDVIE131Output();
+public:
+    RHLDVIE131Output(unsigned int startChannel, unsigned int channelCount);
+    virtual ~RHLDVIE131Output();
 
-	virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual int SendData(unsigned char *channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-	int     m_fbFd;
-	int     m_ttyFd;
+private:
+    int m_fbFd;
+    int m_ttyFd;
 
-	int     m_width;
-	int     m_height;
-	int     m_bytesPerPixel;
-	int     m_screenSize;
-	char   *m_data;
+    int m_width;
+    int m_height;
+    int m_bytesPerPixel;
+    int m_screenSize;
+    char* m_data;
 
-	struct fb_var_screeninfo m_vInfo;
-	struct fb_var_screeninfo m_vInfoOrig;
-	struct fb_fix_screeninfo m_fInfo;
+    struct fb_var_screeninfo m_vInfo;
+    struct fb_var_screeninfo m_vInfoOrig;
+    struct fb_fix_screeninfo m_fInfo;
 };

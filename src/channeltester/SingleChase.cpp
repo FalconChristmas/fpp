@@ -30,84 +30,74 @@
 /*
  *
  */
-TestPatternSingleChase::TestPatternSingleChase()
-  : m_chaseSize(0),
-	m_chaseValue(255)
-{
-	LogExcess(VB_CHANNELOUT, "TestPatternSingleChase::TestPatternSingleChase()\n");
-	m_testPatternName = "SingleChase";
+TestPatternSingleChase::TestPatternSingleChase() :
+    m_chaseSize(0),
+    m_chaseValue(255) {
+    LogExcess(VB_CHANNELOUT, "TestPatternSingleChase::TestPatternSingleChase()\n");
+    m_testPatternName = "SingleChase";
 }
 
 /*
  *
  */
-TestPatternSingleChase::~TestPatternSingleChase()
-{
-	LogExcess(VB_CHANNELOUT, "TestPatternSingleChase::~TestPatternSingleChase()\n");
+TestPatternSingleChase::~TestPatternSingleChase() {
+    LogExcess(VB_CHANNELOUT, "TestPatternSingleChase::~TestPatternSingleChase()\n");
 }
 
 /*
  *
  */
-int TestPatternSingleChase::Init(Json::Value config)
-{
-	m_configChanged = 0;
+int TestPatternSingleChase::Init(Json::Value config) {
+    m_configChanged = 0;
 
-	if (m_chaseSize != config["chaseSize"].asInt())
-	{
-		m_chaseSize = config["chaseSize"].asInt();
-		m_configChanged = 1;
-	}
+    if (m_chaseSize != config["chaseSize"].asInt()) {
+        m_chaseSize = config["chaseSize"].asInt();
+        m_configChanged = 1;
+    }
 
-	if (m_chaseValue != config["chaseValue"].asInt())
-	{
-		m_chaseValue = config["chaseValue"].asInt();
-		m_configChanged = 1;
-	}
+    if (m_chaseValue != config["chaseValue"].asInt()) {
+        m_chaseValue = config["chaseValue"].asInt();
+        m_configChanged = 1;
+    }
 
-	return TestPatternBase::Init(config);
+    return TestPatternBase::Init(config);
 }
 
 /*
  *
  */
-int TestPatternSingleChase::SetupTest(void)
-{
-	char *c = m_testData;
-	bzero(m_testData, m_channelCount);
+int TestPatternSingleChase::SetupTest(void) {
+    char* c = m_testData;
+    bzero(m_testData, m_channelCount);
 
-	for (int i = 0; i < m_channelCount; i += m_chaseSize)
-	{
-		*c = m_chaseValue;
-		c += m_chaseSize;
-	}
+    for (int i = 0; i < m_channelCount; i += m_chaseSize) {
+        *c = m_chaseValue;
+        c += m_chaseSize;
+    }
 
-	return TestPatternBase::SetupTest();
+    return TestPatternBase::SetupTest();
 }
 
 /*
  *
  */
-void TestPatternSingleChase::CycleData(void)
-{
-	memmove(m_testData + 1, m_testData, m_channelCount - 1);
+void TestPatternSingleChase::CycleData(void) {
+    memmove(m_testData + 1, m_testData, m_channelCount - 1);
 
-	if (m_testData[m_chaseSize] == m_chaseValue)
-		m_testData[0] = m_chaseValue;
-	else
-		m_testData[0] = 0x00;
+    if (m_testData[m_chaseSize] == m_chaseValue)
+        m_testData[0] = m_chaseValue;
+    else
+        m_testData[0] = 0x00;
 }
 
 /*
  *
  */
-void TestPatternSingleChase::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "TestPatternSingleChase::DumpConfig\n");
-	LogDebug(VB_CHANNELOUT, "    chaseSize   : %d\n", m_chaseSize);
-	LogDebug(VB_CHANNELOUT, "    chaseValue  : %d (0x%x)\n",
-		(unsigned char)m_chaseValue, (unsigned char)m_chaseValue);
+void TestPatternSingleChase::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "TestPatternSingleChase::DumpConfig\n");
+    LogDebug(VB_CHANNELOUT, "    chaseSize   : %d\n", m_chaseSize);
+    LogDebug(VB_CHANNELOUT, "    chaseValue  : %d (0x%x)\n",
+             (unsigned char)m_chaseValue, (unsigned char)m_chaseValue);
 
-	TestPatternBase::DumpConfig();
+    TestPatternBase::DumpConfig();
 }
-

@@ -24,20 +24,20 @@
 class LOROutputData;
 
 class LOROutput : public ChannelOutputBase {
-    public:
+public:
     LOROutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~LOROutput();
-    
-    virtual int Init(Json::Value config) override;
-    
-    virtual int Close(void) override;
-    
-    virtual int SendData(unsigned char *channelData) override;
-    
-    virtual void DumpConfig(void) override;
-    
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
-    private:
-    LOROutputData *data;
+    virtual int Init(Json::Value config) override;
+
+    virtual int Close(void) override;
+
+    virtual int SendData(unsigned char* channelData) override;
+
+    virtual void DumpConfig(void) override;
+
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
+
+private:
+    LOROutputData* data;
 };

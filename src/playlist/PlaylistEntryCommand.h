@@ -23,21 +23,21 @@
 #include "commands/Commands.h"
 
 class PlaylistEntryCommand : public PlaylistEntryBase {
-  public:
-	PlaylistEntryCommand(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryCommand();
+public:
+    PlaylistEntryCommand(Playlist* playlist, PlaylistEntryBase* parent = NULL);
+    virtual ~PlaylistEntryCommand();
 
-    virtual int  Init(Json::Value &config) override;
+    virtual int Init(Json::Value& config) override;
 
-	virtual int  StartPlaying(void) override;
-	virtual int  Process(void) override;
-	virtual int  Stop(void) override;
+    virtual int StartPlaying(void) override;
+    virtual int Process(void) override;
+    virtual int Stop(void) override;
 
-	virtual void Dump(void) override;
+    virtual void Dump(void) override;
 
-	virtual Json::Value GetConfig(void) override;
+    virtual Json::Value GetConfig(void) override;
 
-  private:
+private:
     Json::Value m_command;
     std::unique_ptr<Command::Result> m_result;
 };

@@ -3,17 +3,15 @@
 #include <fcntl.h>
 #include <stropts.h>
 
-#include <wiringPi.h>
 #include <piFace.h>
 #include <softPwm.h>
+#include <wiringPi.h>
 
 #include "WiringPiGPIO.h"
 
-
-WPPinCapabilities::WPPinCapabilities(const std::string &n, uint32_t kg)
-: PinCapabilitiesFluent(n, kg) {
+WPPinCapabilities::WPPinCapabilities(const std::string& n, uint32_t kg) :
+    PinCapabilitiesFluent(n, kg) {
 }
-
 
 int WPPinCapabilities::configPin(const std::string& mode,
                                  bool directionOut) const {
@@ -40,7 +38,7 @@ void WPPinCapabilities::setValue(bool i) const {
 }
 
 bool WPPinCapabilities::setupPWM(int maxValueNS) const {
-    softPwmCreate(kernelGpio, 0, maxValueNS/100);
+    softPwmCreate(kernelGpio, 0, maxValueNS / 100);
     return true;
 }
 void WPPinCapabilities::setPWMValue(int valueNS) const {
@@ -49,15 +47,13 @@ void WPPinCapabilities::setPWMValue(int valueNS) const {
 
 class NullWPPinCapabilities : public WPPinCapabilities {
 public:
-    NullWPPinCapabilities() : WPPinCapabilities("-none-", 0) {}
-    virtual const PinCapabilities *ptr() const override { return nullptr; }
+    NullWPPinCapabilities() :
+        WPPinCapabilities("-none-", 0) {}
+    virtual const PinCapabilities* ptr() const override { return nullptr; }
 };
 static NullWPPinCapabilities NULL_WP_INSTANCE;
 
-
-
 static std::vector<WPPinCapabilities> PI_PINS;
-
 
 void WPPinCapabilities::Init() {
     wiringPiSetupGpio();
@@ -71,37 +67,36 @@ void WPPinCapabilities::Init() {
         if (gpio != -1) {
             std::string p = "P1-" + std::to_string(x);
             PI_PINS.push_back(WPPinCapabilities(p, gpio));
-            
+
             switch (x) {
-                case 3:
-                case 5:
-                    PI_PINS.back().setI2C(1);
-                    break;
-                case 27:
-                case 28:
-                    PI_PINS.back().setI2C(0);
-                    break;
+            case 3:
+            case 5:
+                PI_PINS.back().setI2C(1);
+                break;
+            case 27:
+            case 28:
+                PI_PINS.back().setI2C(0);
+                break;
             }
         }
     }
 }
-const WPPinCapabilities &WPPinCapabilities::getPinByName(const std::string &name) {
-    for (auto &a : PI_PINS) {
+const WPPinCapabilities& WPPinCapabilities::getPinByName(const std::string& name) {
+    for (auto& a : PI_PINS) {
         if (a.name == name) {
             return a;
         }
     }
     return NULL_WP_INSTANCE;
 }
-const WPPinCapabilities &WPPinCapabilities::getPinByGPIO(int i) {
-    for (auto &a : PI_PINS) {
+const WPPinCapabilities& WPPinCapabilities::getPinByGPIO(int i) {
+    for (auto& a : PI_PINS) {
         if (a.kernelGpio == i) {
             return a;
         }
     }
     return NULL_WP_INSTANCE;
 }
-static const WPPinCapabilities &WPPinCapabilities::getPinByUART(const std::string &n) {
+static const WPPinCapabilities& WPPinCapabilities::getPinByUART(const std::string& n) {
     return NULL_WP_INSTANCE;
 }
-

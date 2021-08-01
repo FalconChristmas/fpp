@@ -27,49 +27,49 @@
 #include <string>
 #include <vector>
 
-#include <pthread.h>
 #include <sys/select.h>
+#include <pthread.h>
 #include <unistd.h>
 
 #include <jsoncpp/json/json.h>
 
 #include "MediaOutputStatus.h"
 
-#define MEDIAOUTPUTPIPE_READ       0
-#define MEDIAOUTPUTPIPE_WRITE      1
+#define MEDIAOUTPUTPIPE_READ 0
+#define MEDIAOUTPUTPIPE_WRITE 1
 
-#define MEDIAOUTPUTSTATUS_IDLE     0
-#define MEDIAOUTPUTSTATUS_PLAYING  1
+#define MEDIAOUTPUTSTATUS_IDLE 0
+#define MEDIAOUTPUTSTATUS_PLAYING 1
 
 #define MediaOutputSpeedDecrease -1
-#define MediaOutputSpeedNormal    0
+#define MediaOutputSpeedNormal 0
 #define MediaOutputSpeedIncrease +1
 
 class MediaOutputBase {
-  public:
-	MediaOutputBase();
-	virtual ~MediaOutputBase();
+public:
+    MediaOutputBase();
+    virtual ~MediaOutputBase();
 
-	virtual int   Start(int msTime = 0);
-	virtual int   Stop(void);
-	virtual int   Process(void);
-	virtual int   AdjustSpeed(float masterPos);
-	virtual void  SetVolume(int volume);
-	virtual int   Close(void);
+    virtual int Start(int msTime = 0);
+    virtual int Stop(void);
+    virtual int Process(void);
+    virtual int AdjustSpeed(float masterPos);
+    virtual void SetVolume(int volume);
+    virtual int Close(void);
 
-	virtual int   IsPlaying(void);
+    virtual int IsPlaying(void);
 
-	std::string        m_mediaFilename;
-	MediaOutputStatus *m_mediaOutputStatus;
-	pid_t              m_childPID;
+    std::string m_mediaFilename;
+    MediaOutputStatus* m_mediaOutputStatus;
+    pid_t m_childPID;
 
-  protected:
+protected:
     bool isChildRunning();
-    
-	unsigned int       m_isPlaying;
-	int                m_childPipe[2];
-	fd_set             m_activeFDSet;
-	fd_set             m_readFDSet;
 
-	pthread_mutex_t    m_outputLock;
+    unsigned int m_isPlaying;
+    int m_childPipe[2];
+    fd_set m_activeFDSet;
+    fd_set m_readFDSet;
+
+    pthread_mutex_t m_outputLock;
 };

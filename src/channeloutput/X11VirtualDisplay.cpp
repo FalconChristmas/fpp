@@ -24,17 +24,15 @@
  */
 #include "fpp-pch.h"
 
-#include "serialutil.h"
 #include "X11VirtualDisplay.h"
-
+#include "serialutil.h"
 
 extern "C" {
-    X11VirtualDisplayOutput *createX11VirtualDisplayOutput(unsigned int startChannel,
-                                                           unsigned int channelCount) {
-        return new X11VirtualDisplayOutput(startChannel, channelCount);
-    }
+X11VirtualDisplayOutput* createX11VirtualDisplayOutput(unsigned int startChannel,
+                                                       unsigned int channelCount) {
+    return new X11VirtualDisplayOutput(startChannel, channelCount);
 }
-
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -42,145 +40,136 @@ extern "C" {
  *
  */
 X11VirtualDisplayOutput::X11VirtualDisplayOutput(unsigned int startChannel,
-	unsigned int channelCount)
-  : VirtualDisplayOutput(startChannel, channelCount)
-{
-	LogDebug(VB_CHANNELOUT, "X11VirtualDisplayOutput::X11VirtualDisplayOutput(%u, %u)\n",
-		startChannel, channelCount);
+                                                 unsigned int channelCount) :
+    VirtualDisplayOutput(startChannel, channelCount) {
+    LogDebug(VB_CHANNELOUT, "X11VirtualDisplayOutput::X11VirtualDisplayOutput(%u, %u)\n",
+             startChannel, channelCount);
 
-	XInitThreads();
+    XInitThreads();
 
-	m_bytesPerPixel = 4;
-	m_bpp = 32;
+    m_bytesPerPixel = 4;
+    m_bpp = 32;
 }
 
 /*
  *
  */
-X11VirtualDisplayOutput::~X11VirtualDisplayOutput()
-{
-	LogDebug(VB_CHANNELOUT, "X11VirtualDisplayOutput::~X11VirtualDisplayOutput()\n");
+X11VirtualDisplayOutput::~X11VirtualDisplayOutput() {
+    LogDebug(VB_CHANNELOUT, "X11VirtualDisplayOutput::~X11VirtualDisplayOutput()\n");
 
-	Close();
+    Close();
 }
 
 /*
  *
  */
-int X11VirtualDisplayOutput::Init(Json::Value config)
-{
-	LogDebug(VB_CHANNELOUT, "X11VirtualDisplayOutput::Init(JSON)\n");
+int X11VirtualDisplayOutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "X11VirtualDisplayOutput::Init(JSON)\n");
 
-	if (!VirtualDisplayOutput::Init(config))
-		return 0;
+    if (!VirtualDisplayOutput::Init(config))
+        return 0;
 
     if (m_virtualDisplay) {
         free(m_virtualDisplay);
     }
 
-	m_virtualDisplay = new unsigned char[m_width * m_height * m_bytesPerPixel];
-	if (!m_virtualDisplay)
-	{
-		LogDebug(VB_CHANNELOUT, "Unable to allocate image data\n");
-		return 0;
-	}
-	bzero(m_virtualDisplay, m_width * m_height * m_bytesPerPixel);
+    m_virtualDisplay = new unsigned char[m_width * m_height * m_bytesPerPixel];
+    if (!m_virtualDisplay) {
+        LogDebug(VB_CHANNELOUT, "Unable to allocate image data\n");
+        return 0;
+    }
+    bzero(m_virtualDisplay, m_width * m_height * m_bytesPerPixel);
 
-	// Initialize X11 Window here
-	m_display = XOpenDisplay(getenv("DISPLAY"));
-	if (!m_display)
-	{
-		LogDebug(VB_CHANNELOUT, "Unable to connect to X Server\n");
-		return 0;
-	}
+    // Initialize X11 Window here
+    m_display = XOpenDisplay(getenv("DISPLAY"));
+    if (!m_display) {
+        LogDebug(VB_CHANNELOUT, "Unable to connect to X Server\n");
+        return 0;
+    }
 
-	XInitThreads();
+    XInitThreads();
 
-	m_screen = DefaultScreen(m_display);
+    m_screen = DefaultScreen(m_display);
 
-	m_image = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
-		(char *)m_virtualDisplay, m_width, m_height, 32, m_width * m_bytesPerPixel);
+    m_image = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
+                           (char*)m_virtualDisplay, m_width, m_height, 32, m_width * m_bytesPerPixel);
 
-	int win_x = 100;
-	int win_y = 100;
-	XSetWindowAttributes attributes;
+    int win_x = 100;
+    int win_y = 100;
+    XSetWindowAttributes attributes;
 
-	attributes.background_pixel = BlackPixel(m_display, m_screen);
+    attributes.background_pixel = BlackPixel(m_display, m_screen);
 
-	XGCValues values;
+    XGCValues values;
 
-	m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display),
-		m_width, m_height, 24);
+    m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display),
+                             m_width, m_height, 24);
 
-	m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
+    m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
     int32_t tgc = reinterpret_cast<uintptr_t>(m_gc);
     if (tgc < 0) {
-		LogDebug(VB_CHANNELOUT, "Unable to create GC\n");
-		return 0;
-	}
+        LogDebug(VB_CHANNELOUT, "Unable to create GC\n");
+        return 0;
+    }
 
-	m_window = XCreateWindow(
-		m_display, RootWindow(m_display, m_screen), win_x, win_y,
-		m_width, m_height, 5, 24, InputOutput,
-		DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
+    m_window = XCreateWindow(
+        m_display, RootWindow(m_display, m_screen), win_x, win_y,
+        m_width, m_height, 5, 24, InputOutput,
+        DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
 
-	XMapWindow(m_display, m_window);
+    XMapWindow(m_display, m_window);
 
-	XStoreName(m_display, m_window, "Virtual Display");
-	XSetIconName(m_display, m_window, "Virtual Display");
-	
-	XFlush(m_display);
+    XStoreName(m_display, m_window, "Virtual Display");
+    XSetIconName(m_display, m_window, "Virtual Display");
 
-	return InitializePixelMap();
+    XFlush(m_display);
+
+    return InitializePixelMap();
 }
 
 /*
  *
  */
-int X11VirtualDisplayOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "X11VirtualDisplayOutput::Close()\n");
+int X11VirtualDisplayOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "X11VirtualDisplayOutput::Close()\n");
 
-	// Close X11 Window here
+    // Close X11 Window here
 
-	XLockDisplay(m_display);
-	XDestroyWindow(m_display, m_window);
-	XFreePixmap(m_display, m_pixmap);
-	XFreeGC(m_display, m_gc);
-	XCloseDisplay(m_display);
-	XUnlockDisplay(m_display);
-	delete [] m_virtualDisplay;
+    XLockDisplay(m_display);
+    XDestroyWindow(m_display, m_window);
+    XFreePixmap(m_display, m_pixmap);
+    XFreeGC(m_display, m_gc);
+    XCloseDisplay(m_display);
+    XUnlockDisplay(m_display);
+    delete[] m_virtualDisplay;
     m_virtualDisplay = nullptr;
 
-	return ChannelOutputBase::Close();
+    return ChannelOutputBase::Close();
 }
 
 /*
  *
  */
-void X11VirtualDisplayOutput::PrepData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "X11VirtualDisplayOutput::PrepData(%p)\n", channelData);
+void X11VirtualDisplayOutput::PrepData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "X11VirtualDisplayOutput::PrepData(%p)\n", channelData);
 
-	DrawPixels(channelData);
+    DrawPixels(channelData);
 }
 
 /*
  *
  */
-int X11VirtualDisplayOutput::SendData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "X11VirtualDisplayOutput::SendData(%p)\n", channelData);
+int X11VirtualDisplayOutput::SendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "X11VirtualDisplayOutput::SendData(%p)\n", channelData);
 
-	XLockDisplay(m_display);
+    XLockDisplay(m_display);
 
-	XPutImage(m_display, m_window, m_gc, m_image, 0, 0, 0, 0, m_width, m_height);
+    XPutImage(m_display, m_window, m_gc, m_image, 0, 0, 0, 0, m_width, m_height);
 
-	XSync(m_display, True);
-	XFlush(m_display);
+    XSync(m_display, True);
+    XFlush(m_display);
 
-	XUnlockDisplay(m_display);
+    XUnlockDisplay(m_display);
 
-	return m_channelCount;
+    return m_channelCount;
 }
-

@@ -28,29 +28,29 @@
 
 #include "../../external/spixels/include/led-strip.h"
 
-#include "ThreadedChannelOutputBase.h"
 #include "PixelString.h"
+#include "ThreadedChannelOutputBase.h"
 
 using namespace spixels;
 
 class SpixelsOutput : public ThreadedChannelOutputBase {
-  public:
-	SpixelsOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~SpixelsOutput();
+public:
+    SpixelsOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~SpixelsOutput();
 
-	virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual void PrepData(unsigned char *channelData) override;
-	virtual int  RawSendData(unsigned char *channelData) override;
+    virtual void PrepData(unsigned char* channelData) override;
+    virtual int RawSendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-	MultiSPI    *m_spi;
+private:
+    MultiSPI* m_spi;
 
-	std::vector<LEDStrip*>    m_strips;
-	std::vector<PixelString*> m_strings;
+    std::vector<LEDStrip*> m_strips;
+    std::vector<PixelString*> m_strings;
 };

@@ -23,10 +23,10 @@
 #include "X11PanelMatrix.h"
 
 extern "C" {
-    X11PanelMatrixOutput *createOutputX11PanelMatrix(unsigned int startChannel,
-                                          unsigned int channelCount) {
-        return new X11PanelMatrixOutput(startChannel, channelCount);
-    }
+X11PanelMatrixOutput* createOutputX11PanelMatrix(unsigned int startChannel,
+                                                 unsigned int channelCount) {
+    return new X11PanelMatrixOutput(startChannel, channelCount);
+}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -35,8 +35,8 @@ extern "C" {
  *
  */
 X11PanelMatrixOutput::X11PanelMatrixOutput(unsigned int startChannel,
-    unsigned int channelCount)
-  : ThreadedChannelOutputBase(startChannel, channelCount),
+                                           unsigned int channelCount) :
+    ThreadedChannelOutputBase(startChannel, channelCount),
     m_colorOrder("RGB"),
     m_panelWidth(32),
     m_panelHeight(16),
@@ -46,10 +46,9 @@ X11PanelMatrixOutput::X11PanelMatrixOutput(unsigned int startChannel,
     m_rows(0),
     m_outputs(0),
     m_longestChain(0),
-    m_invertedData(0)
-{
+    m_invertedData(0) {
     LogDebug(VB_CHANNELOUT, "X11PanelMatrixOutput::X11PanelMatrixOutput(%u, %u)\n",
-        startChannel, channelCount);
+             startChannel, channelCount);
 
     XInitThreads();
 
@@ -59,8 +58,7 @@ X11PanelMatrixOutput::X11PanelMatrixOutput(unsigned int startChannel,
 /*
  *
  */
-X11PanelMatrixOutput::~X11PanelMatrixOutput()
-{
+X11PanelMatrixOutput::~X11PanelMatrixOutput() {
     LogDebug(VB_CHANNELOUT, "X11PanelMatrixOutput::~X11PanelMatrixOutput()\n");
 
     delete m_matrix;
@@ -70,11 +68,10 @@ X11PanelMatrixOutput::~X11PanelMatrixOutput()
 /*
  *
  */
-int X11PanelMatrixOutput::Init(Json::Value config)
-{
+int X11PanelMatrixOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "X11PanelMatrixOutput::Init(JSON)\n");
 
-    m_panelWidth  = config["panelWidth"].asInt();
+    m_panelWidth = config["panelWidth"].asInt();
     m_panelHeight = config["panelHeight"].asInt();
 
     if (!m_panelWidth)
@@ -89,18 +86,16 @@ int X11PanelMatrixOutput::Init(Json::Value config)
     m_panelMatrix =
         new PanelMatrix(m_panelWidth, m_panelHeight, m_invertedData);
 
-    if (!m_panelMatrix)
-    {
+    if (!m_panelMatrix) {
         LogErr(VB_CHANNELOUT, "Unable to create PanelMatrix\n");
 
         return 0;
     }
 
-    for (int i = 0; i < config["panels"].size(); i++)
-    {
+    for (int i = 0; i < config["panels"].size(); i++) {
         Json::Value p = config["panels"][i];
         char orientation = 'N';
-        const char *o = p["orientation"].asString().c_str();
+        const char* o = p["orientation"].asString().c_str();
 
         if (o && *o)
             orientation = o[0];
@@ -109,9 +104,9 @@ int X11PanelMatrixOutput::Init(Json::Value config)
             p["colorOrder"] = m_colorOrder;
 
         m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
-            p["panelNumber"].asInt(), orientation,
-            p["xOffset"].asInt(), p["yOffset"].asInt(),
-            ColorOrderFromString(p["colorOrder"].asString()));
+                                p["panelNumber"].asInt(), orientation,
+                                p["xOffset"].asInt(), p["yOffset"].asInt(),
+                                ColorOrderFromString(p["colorOrder"].asString()));
 
         if (p["outputNumber"].asInt() > m_outputs)
             m_outputs = p["outputNumber"].asInt();
@@ -128,7 +123,7 @@ int X11PanelMatrixOutput::Init(Json::Value config)
 
     m_rows = m_panelHeight;
 
-    m_width  = m_panelMatrix->Width();
+    m_width = m_panelMatrix->Width();
     m_height = m_panelMatrix->Height();
 
     m_channelCount = m_width * m_height * 3;
@@ -143,10 +138,8 @@ int X11PanelMatrixOutput::Init(Json::Value config)
 
     m_matrix = new Matrix(m_startChannel, m_width, m_height);
 
-    if (config.isMember("subMatrices"))
-    {
-        for (int i = 0; i < config["subMatrices"].size(); i++)
-        {
+    if (config.isMember("subMatrices")) {
+        for (int i = 0; i < config["subMatrices"].size(); i++) {
             Json::Value sm = config["subMatrices"][i];
 
             m_matrix->AddSubMatrix(
@@ -158,7 +151,7 @@ int X11PanelMatrixOutput::Init(Json::Value config)
                 sm["yOffset"].asInt());
         }
     }
-    
+
     float gamma = 2.2;
     if (config.isMember("gamma")) {
         gamma = atof(config["gamma"].asString().c_str());
@@ -190,16 +183,15 @@ int X11PanelMatrixOutput::Init(Json::Value config)
 
     m_scaleWidth = m_width * m_scale;
     m_scaleHeight = m_height * m_scale;
-    m_imageData = (char *)calloc(m_scaleWidth * m_scaleHeight * 4, 1);
+    m_imageData = (char*)calloc(m_scaleWidth * m_scaleHeight * 4, 1);
 
     // Initialize X11 Window here
-    const char *dsp = getenv("DISPLAY");
+    const char* dsp = getenv("DISPLAY");
     if (dsp == nullptr) {
         dsp = ":0";
     }
     m_display = XOpenDisplay(dsp);
-    if (!m_display)
-    {
+    if (!m_display) {
         LogErr(VB_CHANNELOUT, "Unable to connect to X Server: %s\n", dsp);
         return 0;
     }
@@ -207,7 +199,7 @@ int X11PanelMatrixOutput::Init(Json::Value config)
     m_screen = DefaultScreen(m_display);
 
     m_image = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
-        m_imageData, m_scaleWidth, m_scaleHeight, 32, m_scaleWidth * 4);
+                           m_imageData, m_scaleWidth, m_scaleHeight, 32, m_scaleWidth * 4);
 
     int win_x = 100;
     int win_y = 100;
@@ -218,7 +210,7 @@ int X11PanelMatrixOutput::Init(Json::Value config)
     XGCValues values;
 
     m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display),
-        m_scaleWidth, m_scaleHeight, 24);
+                             m_scaleWidth, m_scaleHeight, 24);
 
     m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
     int32_t tgc = reinterpret_cast<uintptr_t>(m_gc);
@@ -242,15 +234,14 @@ int X11PanelMatrixOutput::Init(Json::Value config)
     return ThreadedChannelOutputBase::Init(config);
 }
 
-void X11PanelMatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+void X11PanelMatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
 /*
  *
  */
-int X11PanelMatrixOutput::Close(void)
-{
+int X11PanelMatrixOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "X11PanelMatrixOutput::Close()\n");
 
     // Close X11 Window here
@@ -271,8 +262,7 @@ int X11PanelMatrixOutput::Close(void)
 /*
  *
  */
-int X11PanelMatrixOutput::RawSendData(unsigned char *channelData)
-{
+int X11PanelMatrixOutput::RawSendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "X11PanelMatrixOutput::RawSendData(%p)\n",
               channelData);
     m_matrix->OverlaySubMatrices(channelData);
@@ -280,36 +270,30 @@ int X11PanelMatrixOutput::RawSendData(unsigned char *channelData)
     unsigned char r;
     unsigned char g;
     unsigned char b;
-    unsigned char *c;
+    unsigned char* c;
     unsigned int stride = m_scaleWidth * 4;
 
     channelData += m_startChannel;
 
-    for (int output = 0; output < m_outputs; output++)
-    {
+    for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
-        
-        for (int i = 0; i < panelsOnOutput; i++)
-        {
+
+        for (int i = 0; i < panelsOnOutput; i++) {
             int panel = m_panelMatrix->m_outputPanels[output][i];
             int chain = m_panelMatrix->m_panels[panel].chain;
             int py = m_panelMatrix->m_panels[panel].yOffset;
             int px = m_panelMatrix->m_panels[panel].xOffset;
-            for (int y = 0; y < m_panelHeight; y++)
-            {
+            for (int y = 0; y < m_panelHeight; y++) {
                 int yw = y * m_panelWidth;
-                for (int x = 0; x < m_panelWidth; x++)
-                {
+                for (int x = 0; x < m_panelWidth; x++) {
                     r = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(yw + x) * 3]]];
                     g = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(yw + x) * 3 + 1]]];
                     b = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(yw + x) * 3 + 2]]];
-                    
-                    c = (unsigned char *)m_imageData + ((py + y) * m_scale * stride) + ((px + x) * 4 * m_scale);
 
-                    for (unsigned int t = 0; t < m_scale; t++)
-                    {
-                        for (unsigned int s = 0; s < m_scale; s++)
-                        {
+                    c = (unsigned char*)m_imageData + ((py + y) * m_scale * stride) + ((px + x) * 4 * m_scale);
+
+                    for (unsigned int t = 0; t < m_scale; t++) {
+                        for (unsigned int s = 0; s < m_scale; s++) {
                             *(c++) = b;
                             *(c++) = g;
                             *(c++) = r;
@@ -337,8 +321,7 @@ int X11PanelMatrixOutput::RawSendData(unsigned char *channelData)
 /*
  *
  */
-void X11PanelMatrixOutput::DumpConfig(void)
-{
+void X11PanelMatrixOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "X11PanelMatrixOutput::DumpConfig()\n");
     LogDebug(VB_CHANNELOUT, "    Panels        : %d\n", m_panels);
     LogDebug(VB_CHANNELOUT, "    Width         : %d\n", m_width);
@@ -347,4 +330,3 @@ void X11PanelMatrixOutput::DumpConfig(void)
     LogDebug(VB_CHANNELOUT, "    Scaled Width  : %d\n", m_scaleWidth);
     LogDebug(VB_CHANNELOUT, "    Scaled Height : %d\n", m_scaleHeight);
 }
-

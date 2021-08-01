@@ -31,26 +31,26 @@
 #define GENERICSERIAL_MAX_CHANNELS 2048
 
 class GenericSerialOutput : public ThreadedChannelOutputBase {
-  public:
-	GenericSerialOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~GenericSerialOutput();
+public:
+    GenericSerialOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~GenericSerialOutput();
 
     virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Close(void) override;
 
-	virtual int RawSendData(unsigned char *channelData) override;
+    virtual int RawSendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void DumpConfig(void) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-	std::string m_deviceName;
-	int         m_fd;
-	int         m_speed;
-	int         m_headerSize;
-	std::string m_header;
-	int         m_footerSize;
-	std::string m_footer;
-	int         m_packetSize;
-	char       *m_data;
+private:
+    std::string m_deviceName;
+    int m_fd;
+    int m_speed;
+    int m_headerSize;
+    std::string m_header;
+    int m_footerSize;
+    std::string m_footer;
+    int m_packetSize;
+    char* m_data;
 };

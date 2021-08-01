@@ -28,66 +28,62 @@
 #include <sys/stat.h>
 
 #if __GNUC__ >= 8
-#  include <filesystem>
+#include <filesystem>
 using namespace std::filesystem;
 #else
-#  include <experimental/filesystem>
+#include <experimental/filesystem>
 using namespace std::experimental::filesystem;
 #endif
 
 #include "PlaylistEntryImage.h"
 
-void StartPrepLoopThread(PlaylistEntryImage *fb);
+void StartPrepLoopThread(PlaylistEntryImage* fb);
 
 /*
  *
  */
-PlaylistEntryImage::PlaylistEntryImage(Playlist *playlist, PlaylistEntryBase *parent)
-  : PlaylistEntryBase(playlist, parent), FrameBuffer(),
-	m_width(800),
-	m_height(600),
-	m_buffer(NULL),
-	m_bufferSize(0)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryImage::PlaylistEntryImage()\n");
+PlaylistEntryImage::PlaylistEntryImage(Playlist* playlist, PlaylistEntryBase* parent) :
+    PlaylistEntryBase(playlist, parent),
+    FrameBuffer(),
+    m_width(800),
+    m_height(600),
+    m_buffer(NULL),
+    m_bufferSize(0) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryImage::PlaylistEntryImage()\n");
 
-	m_type = "image";
-	m_device = "fb0";
+    m_type = "image";
+    m_device = "fb0";
 
-	m_fileSeed = (unsigned int)time(NULL);
-	m_cacheDir = "/home/fpp/media/cache";
-	m_cacheEntries = 200;
-	m_cacheSize = 1024; // MB
-	m_freeSpace = 2048; // MB
+    m_fileSeed = (unsigned int)time(NULL);
+    m_cacheDir = "/home/fpp/media/cache";
+    m_cacheEntries = 200;
+    m_cacheSize = 1024; // MB
+    m_freeSpace = 2048; // MB
 }
 
 /*
  *
  */
-PlaylistEntryImage::~PlaylistEntryImage()
-{
-	m_runLoop = false;
-	m_prepSignal.notify_all();
-	if (m_prepThread)
-	{
-		m_prepThread->join();
-		delete m_prepThread;
-	}
+PlaylistEntryImage::~PlaylistEntryImage() {
+    m_runLoop = false;
+    m_prepSignal.notify_all();
+    if (m_prepThread) {
+        m_prepThread->join();
+        delete m_prepThread;
+    }
 }
 
 /*
  *
  */
-int PlaylistEntryImage::Init(Json::Value &config)
-{
-	if (!config.isMember("imagePath"))
-	{
-		LogErr(VB_PLAYLIST, "Missing imagePath\n");
-		return 0;
-	}
+int PlaylistEntryImage::Init(Json::Value& config) {
+    if (!config.isMember("imagePath")) {
+        LogErr(VB_PLAYLIST, "Missing imagePath\n");
+        return 0;
+    }
 
-	m_imagePath = config["imagePath"].asString();
-    if (startsWith(m_imagePath,"/")) {
+    m_imagePath = config["imagePath"].asString();
+    if (startsWith(m_imagePath, "/")) {
         m_imageFullPath = m_imagePath;
     } else {
         m_imageFullPath = FPP_DIR_IMAGE;
@@ -95,389 +91,349 @@ int PlaylistEntryImage::Init(Json::Value &config)
         m_imageFullPath += m_imagePath;
     }
 
-	if (config.isMember("outputDevice"))
-		m_device = config["outputDevice"].asString();
+    if (config.isMember("outputDevice"))
+        m_device = config["outputDevice"].asString();
 
-	if (m_device == "fb0")
-		m_device = "/dev/fb0";
-	else if (m_device == "fb1")
-		m_device = "/dev/fb1";
+    if (m_device == "fb0")
+        m_device = "/dev/fb0";
+    else if (m_device == "fb1")
+        m_device = "/dev/fb1";
 
-	SetFileList();
-	CleanupCache();
+    SetFileList();
+    CleanupCache();
 
-	if ((m_device == "/dev/fb0") || (m_device == "/dev/fb1") || (m_device == "x11"))
-	{
-		config["dataFormat"] = "RGBA";
-		FBInit(config);
+    if ((m_device == "/dev/fb0") || (m_device == "/dev/fb1") || (m_device == "x11")) {
+        config["dataFormat"] = "RGBA";
+        FBInit(config);
 
-		m_width = m_fbWidth;
-		m_height = m_fbHeight;
-	}
-	else
-	{
-		// Pixel Overlay Model??
-	}
+        m_width = m_fbWidth;
+        m_height = m_fbHeight;
+    } else {
+        // Pixel Overlay Model??
+    }
 
-	m_bufferSize = m_width * m_height * 4; // RGBA
-	m_buffer = new unsigned char[m_bufferSize];
+    m_bufferSize = m_width * m_height * 4; // RGBA
+    m_buffer = new unsigned char[m_bufferSize];
 
-	m_runLoop = true;
-	m_imagePrepped = false;
-	m_imageDrawn = false;
-	m_prepThread = new std::thread(StartPrepLoopThread, this);
-	
-	return PlaylistEntryBase::Init(config);
+    m_runLoop = true;
+    m_imagePrepped = false;
+    m_imageDrawn = false;
+    m_prepThread = new std::thread(StartPrepLoopThread, this);
+
+    return PlaylistEntryBase::Init(config);
 }
 
 /*
  *
  */
-int PlaylistEntryImage::StartPlaying(void)
-{
-	if (!CanPlay())
-	{
-		FinishPlay();
-		return 0;
-	}
+int PlaylistEntryImage::StartPlaying(void) {
+    if (!CanPlay()) {
+        FinishPlay();
+        return 0;
+    }
 
-	if (m_imagePrepped)
-		Draw();
-	else
-		m_prepSignal.notify_all();
+    if (m_imagePrepped)
+        Draw();
+    else
+        m_prepSignal.notify_all();
 
-	return PlaylistEntryBase::StartPlaying();
+    return PlaylistEntryBase::StartPlaying();
 }
 
 /*
  *
  */
-int PlaylistEntryImage::Process(void)
-{
-	if (m_imagePrepped && !m_imageDrawn)
-		Draw();
+int PlaylistEntryImage::Process(void) {
+    if (m_imagePrepped && !m_imageDrawn)
+        Draw();
 
-	if (m_imageDrawn)
-		FinishPlay();
+    if (m_imageDrawn)
+        FinishPlay();
 
-	return PlaylistEntryBase::Process();
+    return PlaylistEntryBase::Process();
 }
 
 /*
  *
  */
-int PlaylistEntryImage::Stop(void)
-{
-	FinishPlay();
+int PlaylistEntryImage::Stop(void) {
+    FinishPlay();
 
-	return PlaylistEntryBase::Stop();
+    return PlaylistEntryBase::Stop();
 }
 
 /*
  *
  */
-void PlaylistEntryImage::Dump(void)
-{
-	PlaylistEntryBase::Dump();
+void PlaylistEntryImage::Dump(void) {
+    PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Image Path     : %s\n", m_imagePath.c_str());
-	LogDebug(VB_PLAYLIST, "Image Full Path: %s\n", m_imageFullPath.c_str());
-	LogDebug(VB_PLAYLIST, "Output Device  : %s\n", m_device.c_str());
+    LogDebug(VB_PLAYLIST, "Image Path     : %s\n", m_imagePath.c_str());
+    LogDebug(VB_PLAYLIST, "Image Full Path: %s\n", m_imageFullPath.c_str());
+    LogDebug(VB_PLAYLIST, "Output Device  : %s\n", m_device.c_str());
 
-	FrameBuffer::Dump();
+    FrameBuffer::Dump();
 }
 
 /*
  *
  */
-Json::Value PlaylistEntryImage::GetConfig(void)
-{
-	Json::Value result = PlaylistEntryBase::GetConfig();
+Json::Value PlaylistEntryImage::GetConfig(void) {
+    Json::Value result = PlaylistEntryBase::GetConfig();
 
-	result["imagePath"] = m_imagePath;
-	result["outputDevice"] = m_device;
+    result["imagePath"] = m_imagePath;
+    result["outputDevice"] = m_device;
 
-	std::size_t found = m_curFileName.find_last_of("/");
-	if (found > 0)
-		result["imageFilename"] = m_curFileName.substr(found + 1);
-	else
-		result["imageFilename"] = m_curFileName;
+    std::size_t found = m_curFileName.find_last_of("/");
+    if (found > 0)
+        result["imageFilename"] = m_curFileName.substr(found + 1);
+    else
+        result["imageFilename"] = m_curFileName;
 
-	FrameBuffer::GetConfig(result);
+    FrameBuffer::GetConfig(result);
 
-	return result;
+    return result;
 }
 
 /*
  *
  */
-void PlaylistEntryImage::SetFileList(void)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryImage::SetFileList()\n");
+void PlaylistEntryImage::SetFileList(void) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryImage::SetFileList()\n");
 
-	m_files.clear();
+    m_files.clear();
 
-	if (is_regular_file(m_imageFullPath))
-	{
-		m_files.push_back(m_imageFullPath);
-		return;
-	}
+    if (is_regular_file(m_imageFullPath)) {
+        m_files.push_back(m_imageFullPath);
+        return;
+    }
 
-	if (is_directory(m_imageFullPath))
-	{
-        for (auto &cp : recursive_directory_iterator(m_imageFullPath)) {
+    if (is_directory(m_imageFullPath)) {
+        for (auto& cp : recursive_directory_iterator(m_imageFullPath)) {
             std::string entry = cp.path().string();
             m_files.push_back(entry);
         }
 
-		LogDebug(VB_PLAYLIST, "%d images in directory\n", m_files.size());
+        LogDebug(VB_PLAYLIST, "%d images in directory\n", m_files.size());
 
-		return;
-	}
+        return;
+    }
 
-	// FIXME, handle file glob
+    // FIXME, handle file glob
 }
 
 /*
  *
  */
-const std::string PlaylistEntryImage::GetNextFile(void)
-{
-	std::string result;
+const std::string PlaylistEntryImage::GetNextFile(void) {
+    std::string result;
 
-	if (!m_files.size())
-		SetFileList();
-	
-	if (!m_files.size())
-	{
-		LogWarn(VB_PLAYLIST, "No files found in GetNextFile()\n");
-		return result;
-	}
+    if (!m_files.size())
+        SetFileList();
 
-	int i = rand_r(&m_fileSeed) % m_files.size();
-	result = m_files[i];
-	m_files.erase(m_files.begin() + i);
+    if (!m_files.size()) {
+        LogWarn(VB_PLAYLIST, "No files found in GetNextFile()\n");
+        return result;
+    }
 
-	LogDebug(VB_PLAYLIST, "GetNextFile() = %s\n", result.c_str());
+    int i = rand_r(&m_fileSeed) % m_files.size();
+    result = m_files[i];
+    m_files.erase(m_files.begin() + i);
 
-	return result;
+    LogDebug(VB_PLAYLIST, "GetNextFile() = %s\n", result.c_str());
+
+    return result;
 }
 
 /*
  *
  */
-void PlaylistEntryImage::PrepImage(void)
-{
-	Image image;
-	Blob blob;
-	bool needToCache = true;
-	std::string nextFile = GetNextFile();
+void PlaylistEntryImage::PrepImage(void) {
+    Image image;
+    Blob blob;
+    bool needToCache = true;
+    std::string nextFile = GetNextFile();
 
-	if (nextFile == "")
-		return;
+    if (nextFile == "")
+        return;
 
-	if (nextFile == m_nextFileName)
-	{
-		m_imagePrepped = true;
-		return;
-	}
+    if (nextFile == m_nextFileName) {
+        m_imagePrepped = true;
+        return;
+    }
 
-	m_bufferLock.lock();
+    m_bufferLock.lock();
 
-	m_nextFileName = nextFile;
+    m_nextFileName = nextFile;
 
-	memset(m_buffer, 0, m_bufferSize);
+    memset(m_buffer, 0, m_bufferSize);
 
-	try {
-		image.quiet(true); // Squelch warning exceptions
+    try {
+        image.quiet(true); // Squelch warning exceptions
 
-		if (GetImageFromCache(nextFile, image))
-		{
-			needToCache = false;
-		}
-		else
-		{
-			image.read(nextFile.c_str());
-		}
+        if (GetImageFromCache(nextFile, image)) {
+            needToCache = false;
+        } else {
+            image.read(nextFile.c_str());
+        }
 
-		int cols = image.columns();
-		int rows = image.rows();
+        int cols = image.columns();
+        int rows = image.rows();
 
-		if ((cols != m_width) && (rows != m_height))
-		{
-			needToCache = true;
+        if ((cols != m_width) && (rows != m_height)) {
+            needToCache = true;
 
 #ifndef OLDGRAPHICSMAGICK
 //			image.autoOrient();
 #endif
 
-			image.modifyImage();
+            image.modifyImage();
 
-			// Resize to slightly larger since trying to get exact can
-			// leave us off by one pixel.  Going slightly larger will let
-			// us crop to exact size later.
-			image.resize(Geometry(m_width + 2, m_height + 2, 0, 0));
+            // Resize to slightly larger since trying to get exact can
+            // leave us off by one pixel.  Going slightly larger will let
+            // us crop to exact size later.
+            image.resize(Geometry(m_width + 2, m_height + 2, 0, 0));
 
-			cols = image.columns();
-			rows = image.rows();
+            cols = image.columns();
+            rows = image.rows();
 
-			if (cols < m_width)       // center horizontally
-			{
-				int diff = m_width - cols;
+            if (cols < m_width) // center horizontally
+            {
+                int diff = m_width - cols;
 
-				image.borderColor(Color("black"));
-				image.border(Geometry(diff / 2 + 1, 1, 0, 0));
-			}
-			else if (rows < m_height) // center vertically
-			{
-				int diff = m_height - rows;
+                image.borderColor(Color("black"));
+                image.border(Geometry(diff / 2 + 1, 1, 0, 0));
+            } else if (rows < m_height) // center vertically
+            {
+                int diff = m_height - rows;
 
-				image.borderColor(Color("black"));
-				image.border(Geometry(1, diff / 2 + 1, 0, 0));
-			}
+                image.borderColor(Color("black"));
+                image.border(Geometry(1, diff / 2 + 1, 0, 0));
+            }
 
-			image.crop(Geometry(m_width, m_height, 1, 1));
-		}
+            image.crop(Geometry(m_width, m_height, 1, 1));
+        }
 
-		image.type(TrueColorType);
+        image.type(TrueColorType);
 
-		if (needToCache)
-		{
-			CacheImage(nextFile, image);
-		}
+        if (needToCache) {
+            CacheImage(nextFile, image);
+        }
 
-		image.magick("RGBA");
-		image.write(&blob);
+        image.magick("RGBA");
+        image.write(&blob);
 
-		memcpy(m_buffer, blob.data(), m_bufferSize);
-	}
-	catch( Exception &error_ )
-	{
-		LogErr(VB_PLAYLIST, "GraphicsMagick exception reading %s: %s\n",
-			nextFile.c_str(), error_.what());
-	}
+        memcpy(m_buffer, blob.data(), m_bufferSize);
+    } catch (Exception& error_) {
+        LogErr(VB_PLAYLIST, "GraphicsMagick exception reading %s: %s\n",
+               nextFile.c_str(), error_.what());
+    }
 
-	m_bufferLock.unlock();
-	m_imagePrepped = true;
+    m_bufferLock.unlock();
+    m_imagePrepped = true;
 }
 
 /*
  *
  */
-void PlaylistEntryImage::Draw(void)
-{
-	m_bufferLock.lock();
+void PlaylistEntryImage::Draw(void) {
+    m_bufferLock.lock();
 
-	if ((m_device == "/dev/fb0") || (m_device == "/dev/fb1") || (m_device == "x11"))
-	{
-		FBCopyData(m_buffer);
-		FBStartDraw(); // Actual draw runs in another thread
-		m_curFileName = m_nextFileName;
-	}
-	else
-	{
-		// Pixel Overlay Model?
-	}
+    if ((m_device == "/dev/fb0") || (m_device == "/dev/fb1") || (m_device == "x11")) {
+        FBCopyData(m_buffer);
+        FBStartDraw(); // Actual draw runs in another thread
+        m_curFileName = m_nextFileName;
+    } else {
+        // Pixel Overlay Model?
+    }
 
-	m_bufferLock.unlock();
+    m_bufferLock.unlock();
 
-	m_imageDrawn = true;
+    m_imageDrawn = true;
 
-	m_imagePrepped = false;
-	m_prepSignal.notify_all();
+    m_imagePrepped = false;
+    m_prepSignal.notify_all();
 }
 
 /*
  *
  */
-void StartPrepLoopThread(PlaylistEntryImage *pe)
-{
-	pe->PrepLoop();
+void StartPrepLoopThread(PlaylistEntryImage* pe) {
+    pe->PrepLoop();
 }
 
-void PlaylistEntryImage::PrepLoop(void)
-{
-	std::unique_lock<std::mutex> lock(m_bufferLock);
+void PlaylistEntryImage::PrepLoop(void) {
+    std::unique_lock<std::mutex> lock(m_bufferLock);
 
-	while (m_runLoop)
-	{
-		if (!m_imagePrepped)
-		{
-			lock.unlock();
+    while (m_runLoop) {
+        if (!m_imagePrepped) {
+            lock.unlock();
 
-			PrepImage();
-			lock.lock();
-		}
+            PrepImage();
+            lock.lock();
+        }
 
-		m_prepSignal.wait(lock);
-	}
+        m_prepSignal.wait(lock);
+    }
 }
 
 /*
  *
  */
-std::string PlaylistEntryImage::GetCacheFileName(std::string fileName)
-{
+std::string PlaylistEntryImage::GetCacheFileName(std::string fileName) {
     std::size_t found = fileName.find_last_of("/");
-	std::string baseFile = fileName.substr(found + 1);
-	std::string result = m_cacheDir;
+    std::string baseFile = fileName.substr(found + 1);
+    std::string result = m_cacheDir;
 
-	result += "/pei-";
-	result += baseFile;
-	result += ".png";
+    result += "/pei-";
+    result += baseFile;
+    result += ".png";
 
-	return result;
+    return result;
 }
 
 /*
  *
  */
-bool PlaylistEntryImage::GetImageFromCache(std::string fileName, Image &image)
-{
-	std::string cacheFile = GetCacheFileName(fileName);
-	struct stat os;
-	struct stat cs;
+bool PlaylistEntryImage::GetImageFromCache(std::string fileName, Image& image) {
+    std::string cacheFile = GetCacheFileName(fileName);
+    struct stat os;
+    struct stat cs;
 
-	if (FileExists(cacheFile))
-	{
-		stat(fileName.c_str(), &os);
-		stat(cacheFile.c_str(), &cs);
+    if (FileExists(cacheFile)) {
+        stat(fileName.c_str(), &os);
+        stat(cacheFile.c_str(), &cs);
 
-		if (os.st_mtime > cs.st_mtime)
-			return false;
+        if (os.st_mtime > cs.st_mtime)
+            return false;
 
-		try {
-			image.read(cacheFile.c_str());
-		}
-		catch( Exception &error_ )
-		{
-			LogErr(VB_PLAYLIST, "GraphicsMagick exception reading %s: %s\n",
-				cacheFile.c_str(), error_.what());
-		}
+        try {
+            image.read(cacheFile.c_str());
+        } catch (Exception& error_) {
+            LogErr(VB_PLAYLIST, "GraphicsMagick exception reading %s: %s\n",
+                   cacheFile.c_str(), error_.what());
+        }
 
-		return true;
-	}
+        return true;
+    }
 
-	return false;
+    return false;
 }
 
 /*
  *
  */
-void PlaylistEntryImage::CacheImage(std::string fileName, Image &image)
-{
-	std::string cacheFile = GetCacheFileName(fileName);
+void PlaylistEntryImage::CacheImage(std::string fileName, Image& image) {
+    std::string cacheFile = GetCacheFileName(fileName);
 
-	image.write(cacheFile.c_str());
+    image.write(cacheFile.c_str());
 
-	CleanupCache();
+    CleanupCache();
 }
 
 /*
  *
  */
-void PlaylistEntryImage::CleanupCache(void)
-{
-	// FIXME
+void PlaylistEntryImage::CleanupCache(void) {
+    // FIXME
 }
-

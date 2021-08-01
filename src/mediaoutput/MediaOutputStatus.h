@@ -24,14 +24,13 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
 typedef struct mediaOutputStatus {
-	int status; 
-	int secondsElapsed;
-	int subSecondsElapsed;
-	int secondsRemaining;
-	int subSecondsRemaining;
-	int minutesTotal;
-	int secondsTotal;
-	float mediaSeconds;
-} MediaOutputStatus; 
+    int status;
+    int secondsElapsed;
+    int subSecondsElapsed;
+    int secondsRemaining;
+    int subSecondsRemaining;
+    int minutesTotal;
+    int secondsTotal;
+    float mediaSeconds;
+} MediaOutputStatus;

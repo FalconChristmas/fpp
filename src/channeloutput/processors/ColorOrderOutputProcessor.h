@@ -20,14 +20,14 @@
 
 class ColorOrderOutputProcessor : public OutputProcessor {
 public:
-    ColorOrderOutputProcessor(const Json::Value &config);
+    ColorOrderOutputProcessor(const Json::Value& config);
     virtual ~ColorOrderOutputProcessor();
-    
-    virtual void ProcessData(unsigned char *channelData) const override;
-    
+
+    virtual void ProcessData(unsigned char* channelData) const override;
+
     virtual OutputProcessorType getType() const override { return COLORORDER; }
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override {
         addRange(start, start + (count * 3) - 1);
     }
 

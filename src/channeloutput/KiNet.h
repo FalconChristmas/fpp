@@ -19,29 +19,28 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <list>
 #include "UDPOutput.h"
+#include <list>
 
 #define KINET_PORT 6038
 
-
 class KiNetOutputData : public UDPOutputData {
 public:
-    explicit KiNetOutputData(const Json::Value &config);
+    explicit KiNetOutputData(const Json::Value& config);
     virtual ~KiNetOutputData();
-    
+
     virtual bool IsPingable() override { return true; }
-    virtual void PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) override;
+    virtual void PrepareData(unsigned char* channelData, UDPOutputMessages& msgs) override;
     virtual void DumpConfig() override;
-    
-    virtual const std::string &GetOutputTypeString() const override;
-    virtual void GetRequiredChannelRange(int &min, int & max) override;
 
-    int           port = 1;
-    int           portCount = 1;
+    virtual const std::string& GetOutputTypeString() const override;
+    virtual void GetRequiredChannelRange(int& min, int& max) override;
 
-    sockaddr_in   kinetAddress;
-    
-    struct iovec *kinetIovecs = nullptr;
-    unsigned char **kinetBuffers = nullptr;
+    int port = 1;
+    int portCount = 1;
+
+    sockaddr_in kinetAddress;
+
+    struct iovec* kinetIovecs = nullptr;
+    unsigned char** kinetBuffers = nullptr;
 };

@@ -34,42 +34,40 @@
 #include "ChannelOutputBase.h"
 
 class ThreadedChannelOutputBase : public ChannelOutputBase {
-  public:
-	ThreadedChannelOutputBase(unsigned int startChannel = 1,
-		unsigned int channelCount = 1);
-	virtual ~ThreadedChannelOutputBase();
+public:
+    ThreadedChannelOutputBase(unsigned int startChannel = 1,
+                              unsigned int channelCount = 1);
+    virtual ~ThreadedChannelOutputBase();
 
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-	virtual int   Init(Json::Value config) override;
-	virtual int   Close(void) override;
+    virtual int SendData(unsigned char* channelData) override;
 
-    virtual int   SendData(unsigned char *channelData) override;
+    void OutputThread(void);
 
-	void          OutputThread(void);
+private:
+    int Init(void);
 
-  private:
-	int           Init(void);
+protected:
+    virtual void DumpConfig(void) override;
+    virtual int RawSendData(unsigned char* channelData) = 0;
+    virtual void WaitTimedOut() {}
+    int StartOutputThread(void);
+    int StopOutputThread(void);
+    int SendOutputBuffer(void);
 
-  protected:
-	virtual void  DumpConfig(void) override;
-	virtual int   RawSendData(unsigned char *channelData) = 0;
-    virtual void  WaitTimedOut() {}
-	int           StartOutputThread(void);
-	int           StopOutputThread(void);
-	int           SendOutputBuffer(void);
+    unsigned int m_maxWait;
+    unsigned int m_threadIsRunning;
+    unsigned int m_runThread;
+    volatile unsigned int m_dataWaiting;
+    unsigned int m_useDoubleBuffer;
 
-    unsigned int     m_maxWait;
-	unsigned int     m_threadIsRunning;
-	unsigned int     m_runThread;
-	volatile unsigned int     m_dataWaiting;
-	unsigned int     m_useDoubleBuffer;
+    pthread_t m_threadID;
+    pthread_mutex_t m_bufLock;
+    pthread_mutex_t m_sendLock;
+    pthread_cond_t m_sendCond;
 
-	pthread_t        m_threadID;
-	pthread_mutex_t  m_bufLock;
-	pthread_mutex_t  m_sendLock;
-	pthread_cond_t   m_sendCond;
-
-	unsigned char   *m_inBuf;
-	unsigned char   *m_outBuf;
-
+    unsigned char* m_inBuf;
+    unsigned char* m_outBuf;
 };

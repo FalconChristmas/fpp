@@ -24,13 +24,12 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #include <string>
 #include <vector>
 
-#include "util/BBBPruUtils.h"
 #include "ChannelOutputBase.h"
 #include "PixelString.h"
+#include "util/BBBPruUtils.h"
 
 #define MAX_WS2811_TIMINGS 128
 
@@ -39,60 +38,57 @@
 typedef struct {
     // in the DDR shared with the PRU
     uintptr_t address_dma;
-    
+
     // write 1 to start, 0xFF to abort. will be cleared when started
     volatile unsigned command;
     volatile unsigned response;
-    
+
     uintptr_t address_dma_gpio0;
-    
+
     uint16_t timings[MAX_WS2811_TIMINGS];
 } __attribute__((__packed__)) BBB48StringData;
 
 class BBB48StringOutput : public ChannelOutputBase {
-  public:
+public:
     BBB48StringOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~BBB48StringOutput();
 
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
-    virtual int SendData(unsigned char *channelData) override;
-    virtual void PrepData(unsigned char *channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
+    virtual void PrepData(unsigned char* channelData) override;
     virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
+private:
     void StopPRU(bool wait = true);
     int StartPRU(bool both);
-    
 
-    std::string                m_subType;
-    
+    std::string m_subType;
+
     class FrameData {
     public:
-        std::vector<int>   gpioStringMap;
-        uint8_t            *lastData = nullptr;
-        uint8_t            *curData = nullptr;
-        uint32_t           frameSize = 0;
-        int                maxStringLen = 0;
-        bool               copyToPru = true;
+        std::vector<int> gpioStringMap;
+        uint8_t* lastData = nullptr;
+        uint8_t* curData = nullptr;
+        uint32_t frameSize = 0;
+        int maxStringLen = 0;
+        bool copyToPru = true;
     } m_gpio0Data, m_gpioData;
-    std::vector<PixelString*>  m_strings;
-    
-    uint32_t           m_curFrame;
-    int                m_stallCount;
- 
-    BBBPru             *m_pru;
-    BBB48StringData    *m_pruData;
+    std::vector<PixelString*> m_strings;
 
-    BBBPru             *m_pru0;
-    BBB48StringData    *m_pru0Data;
-    
-    
-    void prepData(FrameData &d, unsigned char *channelData);
-    void sendData(FrameData &d, uintptr_t *dptr);
-    void createOutputLengths(FrameData &d, const std::string& pfx, std::vector<std::string> &args);
+    uint32_t m_curFrame;
+    int m_stallCount;
 
+    BBBPru* m_pru;
+    BBB48StringData* m_pruData;
+
+    BBBPru* m_pru0;
+    BBB48StringData* m_pru0Data;
+
+    void prepData(FrameData& d, unsigned char* channelData);
+    void sendData(FrameData& d, uintptr_t* dptr);
+    void createOutputLengths(FrameData& d, const std::string& pfx, std::vector<std::string>& args);
 };

@@ -24,17 +24,17 @@
 #include "MultiSync.h"
 
 class NetworkController {
-  public:
-    NetworkController(const std::string &ipStr);
-    ~NetworkController() {};
+public:
+    NetworkController(const std::string& ipStr);
+    ~NetworkController(){};
 
-    static NetworkController *DetectControllerViaHTML(const std::string &ip, const std::string &html);
+    static NetworkController* DetectControllerViaHTML(const std::string& ip, const std::string& html);
 
     std::string ip;
     std::string hostname;
     std::string vendor;
     std::string vendorURL;
-    systemType  typeId;
+    systemType typeId;
     std::string typeStr;
     std::string ranges;
     std::string version;
@@ -44,16 +44,15 @@ class NetworkController {
     FPPMode systemMode;
     bool sendingMultiSync = false;
 
-  private:
-    bool DetectFalconController(const std::string &ip, const std::string &html);
-    bool DetectSanDevicesController(const std::string &ip, const std::string &html);
-    bool DetectESPixelStickController(const std::string &ip, const std::string &html);
-    bool DetectAlphaPixController(const std::string &ip, const std::string &html);
-    bool DetectHinksPixController(const std::string &ip, const std::string &html);
-    bool DetectDIYLEDExpressController(const std::string &ip, const std::string &html);
-    bool DetectWLEDController(const std::string &ip, const std::string &html);
-    bool DetectFPP(const std::string &ip, const std::string &html);
+private:
+    bool DetectFalconController(const std::string& ip, const std::string& html);
+    bool DetectSanDevicesController(const std::string& ip, const std::string& html);
+    bool DetectESPixelStickController(const std::string& ip, const std::string& html);
+    bool DetectAlphaPixController(const std::string& ip, const std::string& html);
+    bool DetectHinksPixController(const std::string& ip, const std::string& html);
+    bool DetectDIYLEDExpressController(const std::string& ip, const std::string& html);
+    bool DetectWLEDController(const std::string& ip, const std::string& html);
+    bool DetectFPP(const std::string& ip, const std::string& html);
 
     void DumpControllerInfo(void);
 };
-

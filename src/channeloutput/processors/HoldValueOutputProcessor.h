@@ -20,19 +20,19 @@
 
 class HoldValueOutputProcessor : public OutputProcessor {
 public:
-    HoldValueOutputProcessor(const Json::Value &config);
+    HoldValueOutputProcessor(const Json::Value& config);
     virtual ~HoldValueOutputProcessor();
-    
-    virtual void ProcessData(unsigned char *channelData) const override;
-    
+
+    virtual void ProcessData(unsigned char* channelData) const override;
+
     virtual OutputProcessorType getType() const override { return HOLDVALUE; }
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override {
         addRange(start, start + count - 1);
     }
 
 protected:
     int start;
     int count;
-    unsigned char *lastValues;
+    unsigned char* lastValues;
 };

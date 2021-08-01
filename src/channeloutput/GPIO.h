@@ -28,24 +28,23 @@
 #include "util/GPIOUtils.h"
 
 class GPIOOutput : public ChannelOutputBase {
-  public:
-	GPIOOutput(unsigned int startChannel, unsigned int channelCount);
-	~GPIOOutput();
+public:
+    GPIOOutput(unsigned int startChannel, unsigned int channelCount);
+    ~GPIOOutput();
 
     virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Close(void) override;
 
-	virtual int SendData(unsigned char *channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override {
         addRange(m_startChannel, m_startChannel);
     }
 
-  private:
-	const PinCapabilities * m_GPIOPin;
-	int m_invertOutput;
-	int m_pwm;
-
+private:
+    const PinCapabilities* m_GPIOPin;
+    int m_invertOutput;
+    int m_pwm;
 };

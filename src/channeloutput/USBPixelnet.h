@@ -29,31 +29,31 @@
 #include "ThreadedChannelOutputBase.h"
 
 class USBPixelnetOutput : public ThreadedChannelOutputBase {
-  public:
-	USBPixelnetOutput(unsigned int startChannel, unsigned int channelCount);
-	virtual ~USBPixelnetOutput();
+public:
+    USBPixelnetOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~USBPixelnetOutput();
 
     virtual int Init(Json::Value config) override;
-	virtual int Close(void) override;
+    virtual int Close(void) override;
 
-	virtual int RawSendData(unsigned char *channelData) override;
+    virtual int RawSendData(unsigned char* channelData) override;
 
-	virtual void DumpConfig(void) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-  private:
-	enum DongleType {
-		PIXELNET_DVC_UNKNOWN,
-		PIXELNET_DVC_LYNX,
-		PIXELNET_DVC_OPEN
-	};
+private:
+    enum DongleType {
+        PIXELNET_DVC_UNKNOWN,
+        PIXELNET_DVC_LYNX,
+        PIXELNET_DVC_OPEN
+    };
 
-	std::string    m_deviceName;
-	unsigned char  m_rawData[4104];  // Sized to a multiple of 8 bytes
-	int            m_outputPacketSize;  // Header size + 4096 data bytes
-	unsigned char *m_outputData;
-	unsigned char *m_pixelnetData;
-	int            m_fd;
-	DongleType     m_dongleType;
+    std::string m_deviceName;
+    unsigned char m_rawData[4104]; // Sized to a multiple of 8 bytes
+    int m_outputPacketSize;        // Header size + 4096 data bytes
+    unsigned char* m_outputData;
+    unsigned char* m_pixelnetData;
+    int m_fd;
+    DongleType m_dongleType;
 };

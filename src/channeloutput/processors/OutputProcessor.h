@@ -16,60 +16,61 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#include <string>
-#include <list>
-#include <mutex>
-#include <functional>
-#include <jsoncpp/json/json.h>
-
 #include "../../Sequence.h"
 
 class OutputProcessor {
 public:
     OutputProcessor();
     virtual ~OutputProcessor();
-    
-    virtual void ProcessData(unsigned char *channelData) const = 0;
-    
+
+    virtual void ProcessData(unsigned char* channelData) const = 0;
+
     bool isActive() { return active; }
 
     enum OutputProcessorType {
-        UNKNOWN, REMAP, SETVALUE, BRIGHTNESS, COLORORDER, HOLDVALUE, THREETOFOUR
+        UNKNOWN,
+        REMAP,
+        SETVALUE,
+        BRIGHTNESS,
+        COLORORDER,
+        HOLDVALUE,
+        THREETOFOUR
     };
 
     virtual OutputProcessorType getType() const { return UNKNOWN; }
-    
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) = 0;
-    
-    virtual void GetRequiredChannelRange(int &min, int & max) final {
-        min = 0; max = FPPD_MAX_CHANNELS;
+
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) = 0;
+
+    virtual void GetRequiredChannelRange(int& min, int& max) final {
+        min = 0;
+        max = FPPD_MAX_CHANNELS;
     }
+
 protected:
     std::string description;
     bool active;
 };
 
-
 class OutputProcessors {
 public:
     OutputProcessors();
     ~OutputProcessors();
-    
-    void ProcessData(unsigned char *channelData) const;
-    
-    void addProcessor(OutputProcessor*p);
-    void removeProcessor(OutputProcessor*p);
-    
-    OutputProcessor *find(std::function<bool(OutputProcessor*)> f) const;
-    
-    void loadFromJSON(const Json::Value &config, bool clear = true);
-    
-    void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+
+    void ProcessData(unsigned char* channelData) const;
+
+    void addProcessor(OutputProcessor* p);
+    void removeProcessor(OutputProcessor* p);
+
+    OutputProcessor* find(std::function<bool(OutputProcessor*)> f) const;
+
+    void loadFromJSON(const Json::Value& config, bool clear = true);
+
+    void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange);
+
 protected:
     void removeAll();
-    OutputProcessor *create(const Json::Value &config);
-    
+    OutputProcessor* create(const Json::Value& config);
+
     mutable std::mutex processorsLock;
     std::list<OutputProcessor*> processors;
 };

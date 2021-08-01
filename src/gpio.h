@@ -23,56 +23,58 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
 
-#include <map>
 #include <functional>
+#include <map>
 
-#include <httpserver.hpp>
-#include <gpiod.h>
 #include <jsoncpp/json/json.h>
+#include <gpiod.h>
+#include <httpserver.hpp>
 
 class PinCapabilities;
 class GPIOManager : public httpserver::http_resource {
 public:
     static GPIOManager INSTANCE;
-    
-    virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request &req) override;
-    
-    void Initialize(std::map<int, std::function<bool(int)>> &callbacks);
+
+    virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
+
+    void Initialize(std::map<int, std::function<bool(int)>>& callbacks);
     void CheckGPIOInputs(void);
     void Cleanup();
-    
+
 private:
     class GPIOState {
     public:
-        GPIOState() : pin(nullptr), lastValue(0), lastTriggerTime(0), file(-1) {}
-        const PinCapabilities *pin;
+        GPIOState() :
+            pin(nullptr),
+            lastValue(0),
+            lastTriggerTime(0),
+            file(-1) {}
+        const PinCapabilities* pin;
         int lastValue;
         long long lastTriggerTime;
         int futureValue;
-        
-        struct gpiod_line * gpiodLine = nullptr;
+
+        struct gpiod_line* gpiodLine = nullptr;
         int file;
         Json::Value fallingAction;
         Json::Value risingAction;
-        
+
         void doAction(int newVal);
     };
-    
+
     GPIOManager();
     ~GPIOManager();
-    void SetupGPIOInput(std::map<int, std::function<bool(int)>> &callbacks);
+    void SetupGPIOInput(std::map<int, std::function<bool(int)>>& callbacks);
 
-    
     std::array<gpiod_chip*, 5> gpiodChips;
     std::vector<GPIOState> pollStates;
     std::vector<GPIOState> eventStates;
-    
+
     bool checkDebounces;
-    
+
     friend class GPIOCommand;
 };
 
-int SetupExtGPIO(int gpio, char *mode);
-int ExtGPIO(int gpio, char *mode, int value);
+int SetupExtGPIO(int gpio, char* mode);
+int ExtGPIO(int gpio, char* mode, int value);

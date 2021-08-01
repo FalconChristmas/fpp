@@ -27,46 +27,43 @@
 #include <fcntl.h>
 #include <termios.h>
 
-#include "serialutil.h"
 #include "USBDMX.h"
+#include "serialutil.h"
 
 #define DMX_MAX_CHANNELS 512
 
-
 extern "C" {
-    USBDMXOutput *createUSBDMXOutput(unsigned int startChannel,
-                                               unsigned int channelCount) {
-        return new USBDMXOutput(startChannel, channelCount);
-    }
+USBDMXOutput* createUSBDMXOutput(unsigned int startChannel,
+                                 unsigned int channelCount) {
+    return new USBDMXOutput(startChannel, channelCount);
+}
 }
 /////////////////////////////////////////////////////////////////////////////
 
-USBDMXOutput::USBDMXOutput(unsigned int startChannel, unsigned int channelCount)
-  : ThreadedChannelOutputBase(startChannel, channelCount),
-	m_dongleType(DMX_DVC_UNKNOWN),
-	m_deviceName("UNKNOWN"),
-	m_fd(-1)
-{
-	LogDebug(VB_CHANNELOUT, "USBDMXOutput::USBDMXOutput(%u, %u)\n",
-		startChannel, channelCount);
+USBDMXOutput::USBDMXOutput(unsigned int startChannel, unsigned int channelCount) :
+    ThreadedChannelOutputBase(startChannel, channelCount),
+    m_dongleType(DMX_DVC_UNKNOWN),
+    m_deviceName("UNKNOWN"),
+    m_fd(-1) {
+    LogDebug(VB_CHANNELOUT, "USBDMXOutput::USBDMXOutput(%u, %u)\n",
+             startChannel, channelCount);
 
-	m_useDoubleBuffer = 1;
+    m_useDoubleBuffer = 1;
     //DMX protocol requires data to be sent at least every 250ms
     m_maxWait = 250;
     m_dataOffset = 1;
     memset(m_outputData, 0, sizeof(m_outputData));
 }
 
-USBDMXOutput::~USBDMXOutput()
-{
-	LogDebug(VB_CHANNELOUT, "USBDMXOutput::~USBDMXOutput()\n");
+USBDMXOutput::~USBDMXOutput() {
+    LogDebug(VB_CHANNELOUT, "USBDMXOutput::~USBDMXOutput()\n");
 }
-void USBDMXOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+void USBDMXOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
 int USBDMXOutput::Init(Json::Value config) {
-	LogDebug(VB_CHANNELOUT, "USBDMXOutput::Init()\n");
+    LogDebug(VB_CHANNELOUT, "USBDMXOutput::Init()\n");
     if (config.isMember("device")) {
         m_deviceName = config["device"].asString();
     }
@@ -81,11 +78,11 @@ int USBDMXOutput::Init(Json::Value config) {
         }
     }
 
-	if ((m_deviceName == "UNKNOWN") ||
-		(m_dongleType == DMX_DVC_UNKNOWN)) {
-		LogErr(VB_CHANNELOUT, "Invalid Config.  Unknown device or type.\n");
-		return 0;
-	}
+    if ((m_deviceName == "UNKNOWN") ||
+        (m_dongleType == DMX_DVC_UNKNOWN)) {
+        LogErr(VB_CHANNELOUT, "Invalid Config.  Unknown device or type.\n");
+        return 0;
+    }
     m_deviceName = "/dev/" + m_deviceName;
 
     if (m_dongleType == DMX_DVC_OPEN) {
@@ -100,43 +97,41 @@ int USBDMXOutput::Init(Json::Value config) {
         return 0;
     }
 
-	if (m_dongleType == DMX_DVC_OPEN) {
-		if (SerialResetRTS(m_fd) != 0) {
+    if (m_dongleType == DMX_DVC_OPEN) {
+        if (SerialResetRTS(m_fd) != 0) {
             LogErr(VB_CHANNELOUT, "Error %d resetting RTS on %s: %s\n",
                    errno, m_deviceName.c_str(), strerror(errno));
             return 0;
         }
         m_dataLen = m_channelCount + 1;
     } else if (m_dongleType == DMX_DVC_PRO) {
-		m_outputData[0] = 0x7E;
-		m_outputData[1] = 0x06;
-		m_outputData[2] =  (m_channelCount + 1)       & 0xFF;
-		m_outputData[3] = ((m_channelCount + 1) >> 8) & 0xFF;
-		m_outputData[4] = 0x00;
+        m_outputData[0] = 0x7E;
+        m_outputData[1] = 0x06;
+        m_outputData[2] = (m_channelCount + 1) & 0xFF;
+        m_outputData[3] = ((m_channelCount + 1) >> 8) & 0xFF;
+        m_outputData[4] = 0x00;
         m_dataOffset = 5;
 
-		m_outputData[m_channelCount + 5] = 0xE7;
+        m_outputData[m_channelCount + 5] = 0xE7;
         m_dataLen = m_channelCount + 6;
-	}
-	
-	return ThreadedChannelOutputBase::Init(config);
+    }
+
+    return ThreadedChannelOutputBase::Init(config);
 }
 
-int USBDMXOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "USBDMXOutput::Close()\n");
+int USBDMXOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "USBDMXOutput::Close()\n");
 
-	SerialClose(m_fd);
+    SerialClose(m_fd);
 
-	return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutputBase::Close();
 }
 
-int USBDMXOutput::RawSendData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "USBDMXOutput::RawSendData(%p)\n", channelData);
+int USBDMXOutput::RawSendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "USBDMXOutput::RawSendData(%p)\n", channelData);
     memcpy(m_outputData + m_dataOffset, channelData, m_channelCount);
     WaitTimedOut();
-	return m_channelCount;
+    return m_channelCount;
 }
 void USBDMXOutput::WaitTimedOut() {
     if (m_dongleType == DMX_DVC_OPEN) {
@@ -146,17 +141,13 @@ void USBDMXOutput::WaitTimedOut() {
     write(m_fd, m_outputData, m_dataLen);
 }
 
+void USBDMXOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "USBDMXOutput::DumpConfig()\n");
 
-void USBDMXOutput::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "USBDMXOutput::DumpConfig()\n");
-
-	LogDebug(VB_CHANNELOUT, "    Dongle Type: %s\n",
-		m_dongleType == DMX_DVC_PRO ? "Pro" :
-			m_dongleType == DMX_DVC_OPEN ? "Open" : "UNKNOWN");
-	LogDebug(VB_CHANNELOUT, "    Device Name: %s\n", m_deviceName.c_str());
-	LogDebug(VB_CHANNELOUT, "    fd         : %d\n", m_fd);
+    LogDebug(VB_CHANNELOUT, "    Dongle Type: %s\n",
+             m_dongleType == DMX_DVC_PRO ? "Pro" : m_dongleType == DMX_DVC_OPEN ? "Open" : "UNKNOWN");
+    LogDebug(VB_CHANNELOUT, "    Device Name: %s\n", m_deviceName.c_str());
+    LogDebug(VB_CHANNELOUT, "    fd         : %d\n", m_fd);
 
     ThreadedChannelOutputBase::DumpConfig();
 }
-

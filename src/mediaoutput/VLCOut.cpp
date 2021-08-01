@@ -15,6 +15,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "fpp-pch.h"
+
 #include <vlc/vlc.h>
 
 #include "VLCOut.h"
@@ -24,20 +25,21 @@
 
 class VLCInternalData {
 public:
-    VLCInternalData(const std::string &m, VLCOutput *out) : fullMediaPath(m), vlcOutput(out) {
+    VLCInternalData(const std::string& m, VLCOutput* out) :
+        fullMediaPath(m),
+        vlcOutput(out) {
     }
-    VLCOutput *vlcOutput;
-    libvlc_media_player_t *vlcPlayer = nullptr;
-    libvlc_media_t *media = nullptr;
-    libvlc_equalizer_t *equalizer = nullptr;
-    std::string fullMediaPath;   
-    
+    VLCOutput* vlcOutput;
+    libvlc_media_player_t* vlcPlayer = nullptr;
+    libvlc_media_t* media = nullptr;
+    libvlc_equalizer_t* equalizer = nullptr;
+    std::string fullMediaPath;
+
     uint64_t length = 0;
     uint64_t lastPos = 0;
-    
+
     float currentRate = 1.0f;
-    
-    
+
     //circular buffer to record the last 10 diffs/rates so
     //we can detect trends
     static const int MAX_DIFFS = 10;
@@ -46,7 +48,7 @@ public:
     int diffIdx = 0;
     int diffSum = 0;
     float rateSum = 0.0f;
-    
+
     void push(int diff, float rate) {
         diffSum += diff;
         rateSum += rate;
@@ -64,62 +66,60 @@ public:
         diffs[diffIdx].first = diff;
         diffs[diffIdx].second = rate;
     }
-    
-    
+
     int lastDiff = 0.0f;
     int rateDiff = 0;
 };
 
 static std::string currentMediaFilename;
 
-void logCallback(void *data, int level, const libvlc_log_t *ctx,
-                 const char *fmt, va_list args) {
+void logCallback(void* data, int level, const libvlc_log_t* ctx,
+                 const char* fmt, va_list args) {
     switch (level) {
-        case LIBVLC_DEBUG:
-            if (WillLog(LOG_EXCESSIVE, VB_MEDIAOUT)) {
-                char buf[513];
-                vsnprintf(buf, 512, fmt, args);
-                LogExcess(VB_MEDIAOUT, "%s\n", buf);
+    case LIBVLC_DEBUG:
+        if (WillLog(LOG_EXCESSIVE, VB_MEDIAOUT)) {
+            char buf[513];
+            vsnprintf(buf, 512, fmt, args);
+            LogExcess(VB_MEDIAOUT, "%s\n", buf);
+        }
+        break;
+    case LIBVLC_NOTICE:
+    case LIBVLC_WARNING:
+        if (WillLog(LOG_DEBUG, VB_MEDIAOUT)) {
+            char buf[256];
+            vsnprintf(buf, 255, fmt, args);
+            LogDebug(VB_MEDIAOUT, "%s\n", buf);
+        }
+        break;
+    case LIBVLC_ERROR:
+        // log at warn as nothing it's reporting as error is critical
+        if (WillLog(LOG_WARN, VB_MEDIAOUT)) {
+            char buf[256];
+            vsnprintf(buf, 255, fmt, args);
+            std::string str = buf;
+            if (str == "buffer deadlock prevented") {
+                return;
             }
-            break;
-        case LIBVLC_NOTICE:
-        case LIBVLC_WARNING:
-            if (WillLog(LOG_DEBUG, VB_MEDIAOUT)) {
-                char buf[256];
-                vsnprintf(buf, 255, fmt, args);
-                LogDebug(VB_MEDIAOUT, "%s\n", buf);
+            if (str == "cannot estimate delay: Input/output error") {
+                return;
             }
-            break;
-        case LIBVLC_ERROR:
-            // log at warn as nothing it's reporting as error is critical
-            if (WillLog(LOG_WARN, VB_MEDIAOUT)) {
-                char buf[256];
-                vsnprintf(buf, 255, fmt, args);
-                std::string str = buf;
-                if (str == "buffer deadlock prevented") {
-                    return;
-                }
-                if (str == "cannot estimate delay: Input/output error") {
-                    return;
-                }
-                if (str == "cannot connect to session bus: Unable to autolaunch a dbus-daemon without a $DISPLAY for X11") {
-                    return;
-                }
-                LogWarn(VB_MEDIAOUT, "%s\n", buf);
+            if (str == "cannot connect to session bus: Unable to autolaunch a dbus-daemon without a $DISPLAY for X11") {
+                return;
             }
-            break;
+            LogWarn(VB_MEDIAOUT, "%s\n", buf);
+        }
+        break;
     }
 }
 
-static void startingEventCallBack(const struct libvlc_event_t *p_event, void *p_data) {
-    VLCInternalData *d = (VLCInternalData*)p_data;
+static void startingEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
+    VLCInternalData* d = (VLCInternalData*)p_data;
     d->vlcOutput->Starting();
 }
-static void stoppedEventCallBack(const struct libvlc_event_t *p_event, void *p_data) {
-    VLCInternalData *d = (VLCInternalData*)p_data;
+static void stoppedEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
+    VLCInternalData* d = (VLCInternalData*)p_data;
     d->vlcOutput->Stopped();
 }
-
 
 class VLCManager {
 public:
@@ -129,29 +129,29 @@ public:
             libvlc_release(vlcInstance);
         }
     }
-    
-    int load(VLCInternalData *data) {
+
+    int load(VLCInternalData* data) {
         if (vlcInstance == nullptr) {
             //const char *args[] {"-A", "alsa", "-V", "mmal_vout", nullptr};
 #ifdef PLATFORM_UNKNOWN
-            const char *dsp = getenv("DISPLAY");
+            const char* dsp = getenv("DISPLAY");
             if (dsp == nullptr) {
                 setenv("DISPLAY", ":0", true);
             }
 #endif
-            const char *args[] {"-A", "alsa", "--no-osd",
+            const char* args[]{ "-A", "alsa", "--no-osd",
 #ifdef PLATFORM_PI
-                "-V", "mmal_vout",
+                                "-V", "mmal_vout",
 #elif defined(PLATFORM_UNKNOWN)
-                "-I", "dummy",
+                                "-I", "dummy",
 #endif
-                nullptr};
+                                nullptr };
             int argc = 0;
             while (args[argc]) {
                 argc++;
             }
             vlcInstance = libvlc_new(argc, args);
-            
+
             libvlc_log_set(vlcInstance, logCallback, this);
         }
         data->media = libvlc_media_new_path(vlcInstance, data->fullMediaPath.c_str());
@@ -159,16 +159,15 @@ public:
         libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerEndReached, stoppedEventCallBack, data);
         libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
         data->length = libvlc_media_player_get_length(data->vlcPlayer);
-        
-        
+
         std::string cardType = getSetting("AudioCardType");
         if (cardType.find("Dummy") == 0) {
             WarningHolder::AddWarning("Outputting Audio to Dummy device.");
         }
-        
+
         return 0;
     }
-    int start(VLCInternalData *data, int startPos) {
+    int start(VLCInternalData* data, int startPos) {
         libvlc_media_player_play(data->vlcPlayer);
         if (startPos) {
             libvlc_media_player_set_time(data->vlcPlayer, startPos, false);
@@ -176,7 +175,7 @@ public:
         data->length = libvlc_media_player_get_length(data->vlcPlayer);
         return 0;
     }
-    int restart(VLCInternalData *data) {
+    int restart(VLCInternalData* data) {
         if (data->vlcPlayer) {
             libvlc_media_player_set_media(data->vlcPlayer, data->media);
             libvlc_media_player_play(data->vlcPlayer);
@@ -185,14 +184,14 @@ public:
         return 0;
     }
 
-    int stop(VLCInternalData *data) {
+    int stop(VLCInternalData* data) {
         if (data->vlcPlayer) {
             libvlc_media_player_stop_async(data->vlcPlayer);
             libvlc_media_player_release(data->vlcPlayer);
             data->vlcPlayer = nullptr;
             libvlc_media_release(data->media);
             data->media = nullptr;
-            
+
             if (data->equalizer) {
                 libvlc_audio_equalizer_release(data->equalizer);
                 data->equalizer = nullptr;
@@ -200,8 +199,8 @@ public:
         }
         return 0;
     }
-    
-    libvlc_instance_t *vlcInstance = nullptr;
+
+    libvlc_instance_t* vlcInstance = nullptr;
 };
 
 static VLCManager vlcManager;
@@ -209,19 +208,18 @@ static constexpr int RATE_AVERAGE_COUNT = 20;
 static std::list<float> lastRates;
 static float rateSum = 0;
 
-VLCOutput::VLCOutput(const std::string &mediaFilename, MediaOutputStatus *status, const std::string &videoOut) {
+VLCOutput::VLCOutput(const std::string& mediaFilename, MediaOutputStatus* status, const std::string& videoOut) {
     LogDebug(VB_MEDIAOUT, "VLCOutput::VLCOutput(%s)\n",
-        mediaFilename.c_str());
+             mediaFilename.c_str());
     data = nullptr;
     m_allowSpeedAdjust = getSettingInt("remoteIgnoreSync") == 0;
     m_mediaOutputStatus = status;
     m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
-    
-    
+
     m_mediaOutputStatus->mediaSeconds = 0.0;
     m_mediaOutputStatus->secondsElapsed = 0;
     m_mediaOutputStatus->subSecondsElapsed = 0;
-    
+
     std::string fullMediaPath = mediaFilename;
     if (!FileExists(mediaFilename)) {
         fullMediaPath = FPP_DIR_MUSIC;
@@ -262,7 +260,7 @@ int VLCOutput::Start(int msTime) {
 
         m_mediaOutputStatus->secondsRemaining = seconds;
         m_mediaOutputStatus->subSecondsRemaining = 0;
-        
+
         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
         return 1;
     }
@@ -282,7 +280,7 @@ int VLCOutput::Process(void) {
     if (!data) {
         return 0;
     }
-    
+
     if (data->vlcPlayer) {
         uint64_t cur = libvlc_media_player_get_time(data->vlcPlayer);
         if (!data->length) {
@@ -299,7 +297,7 @@ int VLCOutput::Process(void) {
             //printf("cur: %d    len: %d     Pos: %f        %ld\n", (int)cur, (int)data->length, libvlc_media_player_get_position(data->vlcPlayer), GetTimeMS() % 100000);
             data->lastPos = cur;
         }
-        
+
         if ((cur > 0 && !libvlc_media_player_is_playing(data->vlcPlayer)) || (cur == 0 && libvlc_media_player_get_position(data->vlcPlayer) < -0.5f)) {
             cur = data->length;
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
@@ -320,8 +318,7 @@ int VLCOutput::Process(void) {
         m_mediaOutputStatus->secondsRemaining = seconds;
         m_mediaOutputStatus->subSecondsRemaining = subSeconds;
     }
-    
-    
+
     if (multiSync->isMultiSyncEnabled()) {
         multiSync->SendMediaSyncPacket(m_mediaFilename, m_mediaOutputStatus->mediaSeconds);
     }
@@ -355,7 +352,7 @@ int VLCOutput::Restart() {
 
         m_mediaOutputStatus->secondsRemaining = seconds;
         m_mediaOutputStatus->subSecondsRemaining = 0;
-        
+
         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
         return 1;
     }
@@ -363,17 +360,16 @@ int VLCOutput::Restart() {
     return 0;
 }
 
-
 int VLCOutput::AdjustSpeed(float masterMediaPosition) {
     if (data->vlcPlayer && m_allowSpeedAdjust) {
         // Can't adjust speed if not playing yet
         if (m_mediaOutputStatus->mediaSeconds < 0.01) {
             return 1;
         }
-        
+
         int rawdiff = (int)(m_mediaOutputStatus->mediaSeconds * 1000) - (int)(masterMediaPosition * 1000);
         LogExcess(VB_MEDIAOUT, "Master %0.3f	Local: %0.3f	Diff: %dms\n", masterMediaPosition, m_mediaOutputStatus->mediaSeconds, rawdiff);
-        
+
         int diff = rawdiff;
         int sign = 1;
         if (diff < 0) {
@@ -386,7 +382,7 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             data->lastDiff = 0;
             if (data->currentRate != 1.0) {
                 LogDebug(VB_MEDIAOUT, "Diff: %d	Very close, using rate of 1.0\n", rawdiff);
-                
+
                 lastRates.push_back(1.0);
                 lastRates.push_back(1.0);
                 rateSum += 2.0;
@@ -429,7 +425,7 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             }
         }
         data->lastDiff = 0;
-        
+
         float rateDiff = diff;
         if (masterMediaPosition > 10) {
             rateDiff /= 100.0f;
@@ -462,10 +458,12 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
         if (rate > 0.991 && rate < 1.009) {
             rate = 1.0;
         }
-        if (rate > 1.2) rate = 1.2;
-        if (rate < 0.8) rate = 0.8;
-//        if (rate > 1.0 && data->currentRate < 1.0) rate = 1.0;
-//        if (rate < 1.0 && data->currentRate > 1.0) rate = 1.0;
+        if (rate > 1.2)
+            rate = 1.2;
+        if (rate < 0.8)
+            rate = 0.8;
+        //        if (rate > 1.0 && data->currentRate < 1.0) rate = 1.0;
+        //        if (rate < 1.0 && data->currentRate > 1.0) rate = 1.0;
         lastRates.push_back(rate);
         rateSum += rate;
         if (lastRates.size() > RATE_AVERAGE_COUNT) {
@@ -475,10 +473,10 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
         rate = rateSum / lastRates.size();
 
         LogDebug(VB_MEDIAOUT, "Diff: %d	RateDiff: %0.3f / %d	New rate: %0.3f/%0.3f	Calc Rate: %0.3f\n", rawdiff, rateDiff, data->rateDiff, rate, data->currentRate, lastRates.back());
-        if ((int)(rate * 1000) != (int)(data->currentRate * 1000)){
+        if ((int)(rate * 1000) != (int)(data->currentRate * 1000)) {
             LogDebug(VB_MEDIAOUT, "Calling libvlc_media_player_set_rate(%0.6f)\n", rate);
             libvlc_media_player_set_rate(data->vlcPlayer, rate);
-            }
+        }
         data->rateDiff = rateDiffI;
         data->currentRate = rate;
     }
@@ -494,8 +492,7 @@ void VLCOutput::SetVolumeAdjustment(int volAdj) {
         adj *= volAdj;
         adj /= 100;
         ampv += adj;
-        libvlc_audio_equalizer_set_preamp(data->equalizer,  ampv);
+        libvlc_audio_equalizer_set_preamp(data->equalizer, ampv);
         libvlc_media_player_set_equalizer(data->vlcPlayer, data->equalizer);
     }
 }
-

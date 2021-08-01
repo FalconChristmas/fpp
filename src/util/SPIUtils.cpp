@@ -1,8 +1,8 @@
 #include "fpp-pch.h"
 
-#include <fcntl.h>
-#include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
 
 #include "SPIUtils.h"
 
@@ -12,8 +12,8 @@ SPIUtils::SPIUtils(int c, int baud) {
     channel = c;
     speed = baud;
     bitsPerWord = 8;
-    char spiFileName[64] ;
-    sprintf(spiFileName, "/dev/spidev0.%d", channel) ;
+    char spiFileName[64];
+    sprintf(spiFileName, "/dev/spidev0.%d", channel);
     file = open(spiFileName, O_RDWR);
     if (file >= 0) {
         int mode = 0;
@@ -28,23 +28,23 @@ SPIUtils::~SPIUtils() {
     }
 }
 
-int SPIUtils::xfer(uint8_t *tx, uint8_t *rx, int count) {
+int SPIUtils::xfer(uint8_t* tx, uint8_t* rx, int count) {
     if (file != -1) {
         if (rx == nullptr) {
             rx = tx;
         }
-        struct spi_ioc_transfer spi ;
-        channel &= 1 ;
-        memset(&spi, 0, sizeof (spi));
-        
-        spi.tx_buf        = (unsigned long)tx ;
-        spi.rx_buf        = (unsigned long)rx ;
-        spi.len           = count ;
-        spi.delay_usecs   = 0 ;
-        spi.speed_hz      = speed;
-        spi.bits_per_word = bitsPerWord ;
-        
-        return ioctl(file, SPI_IOC_MESSAGE(1), &spi) ;
+        struct spi_ioc_transfer spi;
+        channel &= 1;
+        memset(&spi, 0, sizeof(spi));
+
+        spi.tx_buf = (unsigned long)tx;
+        spi.rx_buf = (unsigned long)rx;
+        spi.len = count;
+        spi.delay_usecs = 0;
+        spi.speed_hz = speed;
+        spi.bits_per_word = bitsPerWord;
+
+        return ioctl(file, SPI_IOC_MESSAGE(1), &spi);
     }
     return -1;
 }
@@ -58,15 +58,14 @@ SPIUtils::SPIUtils(int channel, int baud) {
     file = channel;
     speed = baud;
     bitsPerWord = 8;
-    if (wiringPiSPISetup (channel, 8000000) < 0) {
+    if (wiringPiSPISetup(channel, 8000000) < 0) {
         file = -1;
     }
 }
 SPIUtils::~SPIUtils() {
-    
 }
 
-int SPIUtils::xfer(uint8_t *tx, uint8_t *rx, int count) {
+int SPIUtils::xfer(uint8_t* tx, uint8_t* rx, int count) {
     if (file != -1) {
         int i = wiringPiSPIDataRW(file, tx, count);
         if (i > 0 && rx && rx != tx) {
@@ -77,5 +76,3 @@ int SPIUtils::xfer(uint8_t *tx, uint8_t *rx, int count) {
     return -1;
 }
 #endif
-
-
