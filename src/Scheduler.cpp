@@ -25,32 +25,30 @@
 
 #include "fpp-pch.h"
 
-#include <ctype.h>
-#include <time.h>
 #include <sys/types.h>
+#include <ctype.h>
 #include <string.h>
+#include <time.h>
 
-#include "command.h"
-#include "fpp.h"
 #include "Player.h"
 #include "Scheduler.h"
+#include "command.h"
+#include "fpp.h"
 #include "sunset.h"
 
-#define SCHEDULE_FILE     "/home/fpp/media/config/schedule.json"
+#define SCHEDULE_FILE "/home/fpp/media/config/schedule.json"
 
-Scheduler *scheduler = NULL;
+Scheduler* scheduler = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
-ScheduledItem::ScheduledItem()
-  : priority(1),
+ScheduledItem::ScheduledItem() :
+    priority(1),
     entry(nullptr),
-    ran(false)
-{
+    ran(false) {
 }
 
-ScheduledItem::ScheduledItem(ScheduledItem *item)
-{
+ScheduledItem::ScheduledItem(ScheduledItem* item) {
     priority = item->priority;
     entry = nullptr;
     entryIndex = item->entryIndex;
@@ -63,14 +61,13 @@ ScheduledItem::ScheduledItem(ScheduledItem *item)
 
 /////////////////////////////////////////////////////////////////////////////
 
-Scheduler::Scheduler()
-  : m_schedulerDisabled(false),
+Scheduler::Scheduler() :
+    m_schedulerDisabled(false),
     m_loadSchedule(true),
-	m_lastLoadDate(0),
-	m_lastProcTime(0),
-    m_forcedNextPlaylist(SCHEDULE_INDEX_INVALID)
-{
-	RegisterCommands();
+    m_lastLoadDate(0),
+    m_lastProcTime(0),
+    m_forcedNextPlaylist(SCHEDULE_INDEX_INVALID) {
+    RegisterCommands();
 
     m_schedulerDisabled = getSettingInt("DisableScheduler") == 1;
 
@@ -79,16 +76,14 @@ Scheduler::Scheduler()
         LogWarn(VB_SCHEDULE, "Scheduler is disabled!\n");
     }
 
-	m_lastProcTime = time(NULL);
-	LoadScheduleFromFile();
+    m_lastProcTime = time(NULL);
+    LoadScheduleFromFile();
 }
 
-Scheduler::~Scheduler()
-{
+Scheduler::~Scheduler() {
 }
 
-void Scheduler::ScheduleProc(void)
-{
+void Scheduler::ScheduleProc(void) {
     time_t procTime = time(NULL);
 
     // Only check schedule once per second at most
@@ -100,20 +95,19 @@ void Scheduler::ScheduleProc(void)
     // reload the schedule file once per day or if 5 seconds has elapsed
     // since the last process time in case the time jumps
     if ((m_lastLoadDate != GetCurrentDateInt()) ||
-        (abs((int)(procTime - m_lastProcTime)) > 5))
-    {
+        (abs((int)(procTime - m_lastProcTime)) > 5)) {
         m_loadSchedule = true;
 
         // Cleanup any ran items older than 2 days
         time_t twoDaysAgo = time(NULL) - (2 * 24 * 60 * 60);
         std::vector<std::time_t> toBeDeleted;
-        for (auto& itemTime: m_ranItems) {
+        for (auto& itemTime : m_ranItems) {
             if (itemTime.first < twoDaysAgo) {
                 toBeDeleted.push_back(itemTime.first);
             }
         }
 
-        for (auto& deleteTime: toBeDeleted) {
+        for (auto& deleteTime : toBeDeleted) {
             m_ranItems.erase(deleteTime);
         }
     }
@@ -126,8 +120,7 @@ void Scheduler::ScheduleProc(void)
     return;
 }
 
-void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped)
-{
+void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
     if (m_schedulerDisabled)
         return;
 
@@ -135,12 +128,12 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped)
 
     std::time_t now = time(nullptr);
 
-    for (auto& itemTime: m_scheduledItems) {
+    for (auto& itemTime : m_scheduledItems) {
         if (itemTime.first > now) {
             break; // no need to look at items that are further in the future
         }
 
-        for (auto& item: *itemTime.second) {
+        for (auto& item : *itemTime.second) {
             if (item->command == "Start Playlist") {
                 if (item->endTime <= now) {
                     continue;
@@ -164,19 +157,18 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped)
     CheckScheduledItems();
 }
 
-std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
-{
+std::string Scheduler::GetPlaylistThatShouldBePlaying(int& repeat) {
     if (m_schedulerDisabled)
         return "";
 
     std::time_t now = time(nullptr);
 
-    for (auto& itemTime: m_scheduledItems) {
+    for (auto& itemTime : m_scheduledItems) {
         if (itemTime.first > now) {
             break; // no need to look at items that are further in the future
         }
 
-        for (auto& item: *itemTime.second) {
+        for (auto& item : *itemTime.second) {
             if (item->command == "Start Playlist") {
                 // Skip things that should have ended in the past
                 if (item->endTime <= now) {
@@ -189,21 +181,19 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
         }
     }
 
-	repeat = 0;
+    repeat = 0;
     return "";
 }
 
-void Scheduler::ReloadScheduleFile(void)
-{
-	m_loadSchedule = true;
+void Scheduler::ReloadScheduleFile(void) {
+    m_loadSchedule = true;
 }
 
-void Scheduler::AddScheduledItems(ScheduleEntry *entry, int index)
-{
-	if (!entry->enabled)
-		return;
+void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
+    if (!entry->enabled)
+        return;
 
-	if (entry->playlist != "") {
+    if (entry->playlist != "") {
         std::string playlistFile;
         std::string warning = "Scheduled ";
 
@@ -223,79 +213,107 @@ void Scheduler::AddScheduledItems(ScheduleEntry *entry, int index)
         warning = " '";
         warning += entry->playlist + "' does not exist";
 
-		if (FileExists(playlistFile)) {
-			WarningHolder::RemoveWarning(warning);
-		} else {
-			WarningHolder::AddWarning(warning);
-			entry->enabled = false;
-			return;
-		}
-	}
+        if (FileExists(playlistFile)) {
+            WarningHolder::RemoveWarning(warning);
+        } else {
+            WarningHolder::AddWarning(warning);
+            entry->enabled = false;
+            return;
+        }
+    }
 
     int dayIndex = entry->dayIndex;
 
     // Convert everything to a day mask to simplify code below
-    switch(dayIndex) {
-        case INX_SUN:           dayIndex = INX_DAY_MASK_SUNDAY;        break;
-        case INX_MON:           dayIndex = INX_DAY_MASK_MONDAY;        break;
-        case INX_TUE:           dayIndex = INX_DAY_MASK_TUESDAY;       break;
-        case INX_WED:           dayIndex = INX_DAY_MASK_WEDNESDAY;     break;
-        case INX_THU:           dayIndex = INX_DAY_MASK_THURSDAY;      break;
-        case INX_FRI:           dayIndex = INX_DAY_MASK_FRIDAY;        break;
-        case INX_SAT:           dayIndex = INX_DAY_MASK_SATURDAY;      break;
-        case INX_EVERYDAY:      dayIndex = INX_DAY_MASK_EVERYDAY;      break;
-        case INX_WKDAYS:        dayIndex = INX_DAY_MASK_WEEKDAYS;      break;
-        case INX_WKEND:         dayIndex = INX_DAY_MASK_WEEKEND;       break;
-        case INX_M_W_F:         dayIndex = INX_DAY_MASK_M_W_F;         break;
-        case INX_T_TH:          dayIndex = INX_DAY_MASK_T_TH;          break;
-        case INX_SUN_TO_THURS:  dayIndex = INX_DAY_MASK_SUN_TO_THURS;  break;
-        case INX_FRI_SAT:       dayIndex = INX_DAY_MASK_FRI_SAT;       break;
-        case INX_ODD_DAY:
-        case INX_EVEN_DAY:
-            // Odd/Even is based on the FPP 'epoch', the date of the first
-            // commit to the FPP repository on github, July 15, 2013
-            struct std::tm FPPEpoch = {0,0,0,15,6,113};
-            std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
-            std::time_t currTime = std::time(nullptr);
-            int daysSince = (int)std::difftime(currTime, FPPEpochTimeT) / (60 * 60 * 24);
-            bool oddSunday = false;
+    switch (dayIndex) {
+    case INX_SUN:
+        dayIndex = INX_DAY_MASK_SUNDAY;
+        break;
+    case INX_MON:
+        dayIndex = INX_DAY_MASK_MONDAY;
+        break;
+    case INX_TUE:
+        dayIndex = INX_DAY_MASK_TUESDAY;
+        break;
+    case INX_WED:
+        dayIndex = INX_DAY_MASK_WEDNESDAY;
+        break;
+    case INX_THU:
+        dayIndex = INX_DAY_MASK_THURSDAY;
+        break;
+    case INX_FRI:
+        dayIndex = INX_DAY_MASK_FRIDAY;
+        break;
+    case INX_SAT:
+        dayIndex = INX_DAY_MASK_SATURDAY;
+        break;
+    case INX_EVERYDAY:
+        dayIndex = INX_DAY_MASK_EVERYDAY;
+        break;
+    case INX_WKDAYS:
+        dayIndex = INX_DAY_MASK_WEEKDAYS;
+        break;
+    case INX_WKEND:
+        dayIndex = INX_DAY_MASK_WEEKEND;
+        break;
+    case INX_M_W_F:
+        dayIndex = INX_DAY_MASK_M_W_F;
+        break;
+    case INX_T_TH:
+        dayIndex = INX_DAY_MASK_T_TH;
+        break;
+    case INX_SUN_TO_THURS:
+        dayIndex = INX_DAY_MASK_SUN_TO_THURS;
+        break;
+    case INX_FRI_SAT:
+        dayIndex = INX_DAY_MASK_FRI_SAT;
+        break;
+    case INX_ODD_DAY:
+    case INX_EVEN_DAY:
+        // Odd/Even is based on the FPP 'epoch', the date of the first
+        // commit to the FPP repository on github, July 15, 2013
+        struct std::tm FPPEpoch = { 0, 0, 0, 15, 6, 113 };
+        std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
+        std::time_t currTime = std::time(nullptr);
+        int daysSince = (int)std::difftime(currTime, FPPEpochTimeT) / (60 * 60 * 24);
+        bool oddSunday = false;
 
-            struct tm now;
-            localtime_r(&currTime, &now);
+        struct tm now;
+        localtime_r(&currTime, &now);
 
-            if ((daysSince - now.tm_wday) % 2) {
-                oddSunday = true; // This past Sunday was an odd day
+        if ((daysSince - now.tm_wday) % 2) {
+            oddSunday = true; // This past Sunday was an odd day
+        }
+
+        bool dayOn = false;
+        if (dayIndex == INX_ODD_DAY) {
+            if (((oddSunday) && ((now.tm_wday % 2) == 0)) ||
+                ((!oddSunday) && ((now.tm_wday % 2) == 1))) {
+                dayOn = true;
             }
-
-            bool dayOn = false;
-            if (dayIndex == INX_ODD_DAY) {
-                if (((oddSunday) && ((now.tm_wday % 2) == 0)) ||
-                    ((!oddSunday) && ((now.tm_wday % 2) == 1))) {
-                    dayOn = true;
-                }
-            } else { // dayIndex == INX_EVEN_DAY
-                if (((oddSunday) && ((now.tm_wday % 2) == 1)) ||
-                    ((!oddSunday) && ((now.tm_wday % 2) == 0))) {
-                    dayOn = true;
-                }
+        } else { // dayIndex == INX_EVEN_DAY
+            if (((oddSunday) && ((now.tm_wday % 2) == 1)) ||
+                ((!oddSunday) && ((now.tm_wday % 2) == 0))) {
+                dayOn = true;
             }
+        }
 
-            // Now through end of the week
-            for (int i = now.tm_wday; i < 7; i++) {
-                if (dayOn)
-                    dayIndex |= (INX_DAY_MASK_SUNDAY >> i);
+        // Now through end of the week
+        for (int i = now.tm_wday; i < 7; i++) {
+            if (dayOn)
+                dayIndex |= (INX_DAY_MASK_SUNDAY >> i);
 
-                dayOn = !dayOn;
-            }
-            // Beginning of next week
-            for (int i = 0; i < now.tm_wday; i++) {
-                if (dayOn)
-                    dayIndex |= (INX_DAY_MASK_SUNDAY >> i);
+            dayOn = !dayOn;
+        }
+        // Beginning of next week
+        for (int i = 0; i < now.tm_wday; i++) {
+            if (dayOn)
+                dayIndex |= (INX_DAY_MASK_SUNDAY >> i);
 
-                dayOn = !dayOn;
-            }
+            dayOn = !dayOn;
+        }
 
-            break;
+        break;
     }
 
     if (dayIndex & INX_DAY_MASK_SUNDAY)
@@ -319,10 +337,10 @@ void Scheduler::AddScheduledItems(ScheduleEntry *entry, int index)
     if (dayIndex & INX_DAY_MASK_SATURDAY)
         entry->pushStartEndTimes(INX_SAT);
 
-	// loop through entry->startEndTimes and add to m_scheduledItems
+    // loop through entry->startEndTimes and add to m_scheduledItems
     time_t startTime = 0;
     time_t endTime = 0;
-    for (auto & startEnd : entry->startEndTimes) {
+    for (auto& startEnd : entry->startEndTimes) {
         startTime = startEnd.first;
         endTime = startEnd.second;
 
@@ -331,14 +349,15 @@ void Scheduler::AddScheduledItems(ScheduleEntry *entry, int index)
         localtime_r(&startTime, &later);
         int dateInt = 0;
         dateInt += (later.tm_year + 1900) * 10000;
-        dateInt += (later.tm_mon + 1)     *   100;
-        dateInt += (later.tm_mday)               ;
+        dateInt += (later.tm_mon + 1) * 100;
+        dateInt += (later.tm_mday);
 
         // Skip if occurrence is outside the date range
-        if (!DateInRange(dateInt, entry->startDate, entry->endDate))
+        if (!DateInRange(dateInt, entry->startDate, entry->endDate)) {
             continue;
+        }
 
-        ScheduledItem *newItem = new ScheduledItem;
+        ScheduledItem* newItem = new ScheduledItem;
 
         newItem->entry = entry;
         newItem->entryIndex = index;
@@ -360,7 +379,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry *entry, int index)
             // Check to see if this item already ran
             auto sVec = m_ranItems.find(newItem->startTime);
             if (sVec != m_ranItems.end()) {
-                for (auto& item: *sVec->second) {
+                for (auto& item : *sVec->second) {
                     if ((newItem->command == item->command) &&
                         (newItem->startTime == item->startTime) &&
                         (newItem->endTime == item->endTime) &&
@@ -383,15 +402,14 @@ void Scheduler::AddScheduledItems(ScheduleEntry *entry, int index)
         if (sVec != m_scheduledItems.end()) {
             sVec->second->push_back(newItem);
         } else {
-            std::vector<ScheduledItem*> *newVec = new std::vector<ScheduledItem*>;
+            std::vector<ScheduledItem*>* newVec = new std::vector<ScheduledItem*>;
             newVec->push_back(newItem);
             m_scheduledItems[startTime] = newVec;
         }
     }
 }
 
-void Scheduler::DumpScheduledItem(std::time_t itemTime, ScheduledItem *item)
-{
+void Scheduler::DumpScheduledItem(std::time_t itemTime, ScheduledItem* item) {
     std::string timeStr = ctime(&itemTime);
 
     std::string argStr;
@@ -402,53 +420,49 @@ void Scheduler::DumpScheduledItem(std::time_t itemTime, ScheduledItem *item)
     }
 
     LogDebug(VB_SCHEDULE, "%s: %2d '%s' - '%s'\n",
-        timeStr.substr(0, timeStr.length() - 1).c_str(),
-        item->priority,
-        item->command.c_str(),
-        argStr.c_str()
-    );
+             timeStr.substr(0, timeStr.length() - 1).c_str(),
+             item->priority,
+             item->command.c_str(),
+             argStr.c_str());
 }
 
-void Scheduler::DumpScheduledItems()
-{
+void Scheduler::DumpScheduledItems() {
     LogDebug(VB_SCHEDULE, "DumpScheduledItems()\n");
 
-    for (const auto& itemTime: m_scheduledItems) {
-        for (const auto& item: *itemTime.second) {
+    for (const auto& itemTime : m_scheduledItems) {
+        for (const auto& item : *itemTime.second) {
             DumpScheduledItem(itemTime.first, item);
         }
     }
 }
 
-void Scheduler::CheckScheduledItems()
-{
+void Scheduler::CheckScheduledItems() {
     if (m_schedulerDisabled)
         return;
 
     std::time_t now = time(nullptr);
 
-    for (auto& itemTime: m_scheduledItems) {
+    for (auto& itemTime : m_scheduledItems) {
         if (itemTime.first > now) {
             // Check to see if we should be counting down to the next item
             bool logItems = false;
             int diff = itemTime.first - now;
 
             // Print the countdown more frequently as we get closer
-            if (((diff > 300) &&                  ((diff % 300) == 0)) ||
-                ((diff >  60) && (diff <= 300) && ((diff %  60) == 0)) ||
-                ((diff >  10) && (diff <=  60) && ((diff %  10) == 0)) ||
-                (                (diff <=  10)))
-            {
+            if (((diff > 300) && ((diff % 300) == 0)) ||
+                ((diff > 60) && (diff <= 300) && ((diff % 60) == 0)) ||
+                ((diff > 10) && (diff <= 60) && ((diff % 10) == 0)) ||
+                ((diff <= 10))) {
                 logItems = true;
             }
 
             if (logItems) {
                 LogDebug(VB_SCHEDULE, "Scheduled Item%s running in %d second%s:\n",
-                    itemTime.second->size() == 1 ? "" : "s",
-                    diff,
-                    diff == 1 ? "" : "s");
+                         itemTime.second->size() == 1 ? "" : "s",
+                         diff,
+                         diff == 1 ? "" : "s");
 
-                for (auto& item: *itemTime.second) {
+                for (auto& item : *itemTime.second) {
                     if ((item->command == "Start Playlist") &&
                         (diff < 1000)) {
                         char tmpStr[27];
@@ -465,7 +479,7 @@ void Scheduler::CheckScheduledItems()
             break; // no need to look at items that are further in the future
         }
 
-        for (auto& item: *itemTime.second) {
+        for (auto& item : *itemTime.second) {
             if (item->ran)
                 continue; // skip over any items that ran already
 
@@ -514,8 +528,8 @@ void Scheduler::CheckScheduledItems()
                         // running playlist to false so it shows as 'next' again
                         std::time_t oldStartTime = Player::INSTANCE.GetOrigStartTime();
                         std::string playlistName = Player::INSTANCE.GetPlaylistName();
-                        std::vector<ScheduledItem*> *oldItems = m_scheduledItems[oldStartTime];
-                        for (auto& oldItem: *oldItems) {
+                        std::vector<ScheduledItem*>* oldItems = m_scheduledItems[oldStartTime];
+                        for (auto& oldItem : *oldItems) {
                             if ((oldItem->command == "Start Playlist") &&
                                 (oldItem->entry->playlist == playlistName)) {
                                 oldItem->ran = false;
@@ -530,14 +544,16 @@ void Scheduler::CheckScheduledItems()
 
                         // Stop whatever is playing, and the next time through this loop we'll
                         switch (Player::INSTANCE.GetStopMethod()) {
-                            case 0: Player::INSTANCE.StopGracefully(forceStop);
-                                    break;
-                            case 2: Player::INSTANCE.StopGracefully(forceStop, 1);
-                                    break;
-                            case 1:
-                            default:
-                                    Player::INSTANCE.StopNow(forceStop);
-                                    break;
+                        case 0:
+                            Player::INSTANCE.StopGracefully(forceStop);
+                            break;
+                        case 2:
+                            Player::INSTANCE.StopGracefully(forceStop, 1);
+                            break;
+                        case 1:
+                        default:
+                            Player::INSTANCE.StopNow(forceStop);
+                            break;
                         }
                     } else {
                         // Need to wait for current Scheduled Higher-Priority
@@ -554,9 +570,9 @@ void Scheduler::CheckScheduledItems()
                 DumpScheduledItem(itemTime.first, item);
 
                 Player::INSTANCE.StartScheduledPlaylist(item->entry->playlist,
-                    item->entry->repeat, item->entryIndex,
-                    item->entryIndex, // priority is entry index for now
-                    item->startTime, item->endTime, item->entry->stopType);
+                                                        item->entry->repeat, item->entryIndex,
+                                                        item->entryIndex, // priority is entry index for now
+                                                        item->startTime, item->endTime, item->entry->stopType);
             } else {
                 if (itemTime.first < now) {
                     SetItemRan(item, true);
@@ -573,7 +589,8 @@ void Scheduler::CheckScheduledItems()
 
                 std::thread th([this](Json::Value cmd) {
                     CommandManager::INSTANCE.run(cmd);
-                }, cmd);
+                },
+                               cmd);
                 th.detach();
             }
 
@@ -582,10 +599,9 @@ void Scheduler::CheckScheduledItems()
     }
 }
 
-void Scheduler::ClearScheduledItems()
-{
-    for (auto& itemTime: m_scheduledItems) {
-        for (auto& item: *itemTime.second) {
+void Scheduler::ClearScheduledItems() {
+    for (auto& itemTime : m_scheduledItems) {
+        for (auto& item : *itemTime.second) {
             delete item;
         }
         delete itemTime.second;
@@ -593,14 +609,13 @@ void Scheduler::ClearScheduledItems()
     m_scheduledItems.clear();
 }
 
-void Scheduler::SetItemRan(ScheduledItem *item, bool ran)
-{
+void Scheduler::SetItemRan(ScheduledItem* item, bool ran) {
     item->ran = ran;
 
     auto sVec = m_ranItems.find(item->startTime);
     if (sVec != m_ranItems.end()) {
         bool found = false;
-        for (auto& ranItem: *sVec->second) {
+        for (auto& ranItem : *sVec->second) {
             if ((item->command == ranItem->command) &&
                 (item->startTime == ranItem->startTime) &&
                 (item->endTime == ranItem->endTime) &&
@@ -615,122 +630,117 @@ void Scheduler::SetItemRan(ScheduledItem *item, bool ran)
         if (!found)
             sVec->second->push_back(new ScheduledItem(item));
     } else {
-        std::vector<ScheduledItem*> *newVec = new std::vector<ScheduledItem*>;
+        std::vector<ScheduledItem*>* newVec = new std::vector<ScheduledItem*>;
         newVec->push_back(new ScheduledItem(item));
         m_ranItems[item->startTime] = newVec;
     }
 }
 
-void Scheduler::LoadScheduleFromFile(void)
-{
-  LogDebug(VB_SCHEDULE, "Loading Schedule from %s\n", SCHEDULE_FILE);
+void Scheduler::LoadScheduleFromFile(void) {
+    LogDebug(VB_SCHEDULE, "Loading Schedule from %s\n", SCHEDULE_FILE);
 
-  m_loadSchedule = false;
-  m_lastLoadDate = GetCurrentDateInt();
+    m_loadSchedule = false;
+    m_lastLoadDate = GetCurrentDateInt();
 
-  std::unique_lock<std::mutex> lock(m_scheduleLock);
-  m_Schedule.clear();
-  ClearScheduledItems();
+    std::unique_lock<std::mutex> lock(m_scheduleLock);
+    m_Schedule.clear();
+    ClearScheduledItems();
 
-  std::string playlistFile;
+    std::string playlistFile;
 
-  Json::Value sch = LoadJsonFromFile(SCHEDULE_FILE);
-  for (int i = 0; i < sch.size(); i++) {
-	ScheduleEntry scheduleEntry;
-	if (!scheduleEntry.LoadFromJson(sch[i]))
-        continue;
+    Json::Value sch = LoadJsonFromFile(SCHEDULE_FILE);
+    for (int i = 0; i < sch.size(); i++) {
+        ScheduleEntry scheduleEntry;
+        if (!scheduleEntry.LoadFromJson(sch[i]))
+            continue;
 
-    std::string warning = "Scheduled ";
+        std::string warning = "Scheduled ";
 
-    if (scheduleEntry.sequence) {
-        playlistFile = FPP_DIR_SEQUENCE;
-        playlistFile += "/";
-        playlistFile += scheduleEntry.playlist;
+        if (scheduleEntry.sequence) {
+            playlistFile = FPP_DIR_SEQUENCE;
+            playlistFile += "/";
+            playlistFile += scheduleEntry.playlist;
 
-        warning += "Sequence";
-    } else {
-        playlistFile = FPP_DIR_PLAYLIST;
-        playlistFile += "/";
-        playlistFile += scheduleEntry.playlist + ".json";
+            warning += "Sequence";
+        } else {
+            playlistFile = FPP_DIR_PLAYLIST;
+            playlistFile += "/";
+            playlistFile += scheduleEntry.playlist + ".json";
 
-        warning += "Playlist";
+            warning += "Playlist";
+        }
+
+        warning += " '";
+        warning += scheduleEntry.playlist + "' does not exist";
+
+        if ((scheduleEntry.enabled) &&
+            (scheduleEntry.playlist != "") &&
+            (!FileExists(playlistFile))) {
+            LogErr(VB_SCHEDULE, "ERROR: Scheduled %s '%s' does not exist\n",
+                   scheduleEntry.sequence ? "Sequence" : "Playlist",
+                   scheduleEntry.playlist.c_str());
+            WarningHolder::AddWarning(warning);
+            continue;
+        } else {
+            WarningHolder::RemoveWarning(warning);
+        }
+
+        m_Schedule.push_back(scheduleEntry);
     }
 
-    warning += " '";
-    warning += scheduleEntry.playlist + "' does not exist";
-
-    if ((scheduleEntry.enabled) &&
-        (scheduleEntry.playlist != "") &&
-        (!FileExists(playlistFile))) {
-        LogErr(VB_SCHEDULE, "ERROR: Scheduled %s '%s' does not exist\n",
-            scheduleEntry.sequence ? "Sequence" : "Playlist",
-            scheduleEntry.playlist.c_str());
-        WarningHolder::AddWarning(warning);
-        continue;
-    } else {
-        WarningHolder::RemoveWarning(warning);
+    for (int i = 0; i < m_Schedule.size(); i++) {
+        AddScheduledItems(&m_Schedule[i], i);
     }
 
-    m_Schedule.push_back(scheduleEntry);
-  }
+    SchedulePrint();
 
-  for (int i = 0; i < m_Schedule.size(); i++) {
-	AddScheduledItems(&m_Schedule[i], i);
-  }
+    if (WillLog(LOG_EXCESSIVE, VB_SCHEDULE))
+        DumpScheduledItems();
 
-  SchedulePrint();
+    lock.unlock();
 
-  if (WillLog(LOG_EXCESSIVE, VB_SCHEDULE))
-      DumpScheduledItems();
-
-  lock.unlock();
-
-  return;
+    return;
 }
 
-void Scheduler::SchedulePrint(void)
-{
-  int i=0;
-  char stopTypes[4] = "GHL";
-  std::string dayStr;
+void Scheduler::SchedulePrint(void) {
+    int i = 0;
+    char stopTypes[4] = "GHL";
+    std::string dayStr;
 
-  if (m_schedulerDisabled)
-    LogInfo(VB_SCHEDULE, "WARNING: Scheduler is currently disabled\n");
+    if (m_schedulerDisabled)
+        LogInfo(VB_SCHEDULE, "WARNING: Scheduler is currently disabled\n");
 
-  LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat, Stop (G)raceful/(L)oop/(H)ard\n");
-  LogInfo(VB_SCHEDULE, "Stat Start & End Dates       Days          Start & End Times   Playlist/Command\n");
-  LogInfo(VB_SCHEDULE, "---- ----------------------- ------------- ------------------- ---------------------------------------------\n");
-  for (i = 0; i < m_Schedule.size(); i++) {
-    dayStr = GetDayTextFromDayIndex(m_Schedule[i].dayIndex);
-    LogInfo(VB_SCHEDULE, "%c%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-13.13s %-8.8s %c %-8.8s %s\n",
-        m_Schedule[i].enabled ? '+': '-',
-        CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate) ? ' ': '!',
-        m_Schedule[i].repeat ? '*': ' ',
-        stopTypes[m_Schedule[i].stopType],
-        (int)(m_Schedule[i].startDate / 10000),
-        (int)(m_Schedule[i].startDate % 10000 / 100),
-        (int)(m_Schedule[i].startDate % 100),
-        (int)(m_Schedule[i].endDate / 10000),
-        (int)(m_Schedule[i].endDate % 10000 / 100),
-        (int)(m_Schedule[i].endDate % 100),
-        dayStr.c_str(),
-        m_Schedule[i].startTimeStr.c_str(),
-        m_Schedule[i].playlist != "" ? '-' : ' ',
-        m_Schedule[i].playlist != "" ? m_Schedule[i].endTimeStr.c_str() : "",
-        m_Schedule[i].playlist != "" ?
-            m_Schedule[i].playlist.c_str() :
-            m_Schedule[i].command.c_str());
-  }
+    LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat, Stop (G)raceful/(L)oop/(H)ard\n");
+    LogInfo(VB_SCHEDULE, "Stat Start & End Dates       Days          Start & End Times   Playlist/Command\n");
+    LogInfo(VB_SCHEDULE, "---- ----------------------- ------------- ------------------- ---------------------------------------------\n");
+    for (i = 0; i < m_Schedule.size(); i++) {
+        dayStr = GetDayTextFromDayIndex(m_Schedule[i].dayIndex);
+        LogInfo(VB_SCHEDULE, "%c%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-13.13s %-8.8s %c %-8.8s %s\n",
+                m_Schedule[i].enabled ? '+' : '-',
+                CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate) ? ' ' : '!',
+                m_Schedule[i].repeat ? '*' : ' ',
+                stopTypes[m_Schedule[i].stopType],
+                (int)(m_Schedule[i].startDate / 10000),
+                (int)(m_Schedule[i].startDate % 10000 / 100),
+                (int)(m_Schedule[i].startDate % 100),
+                (int)(m_Schedule[i].endDate / 10000),
+                (int)(m_Schedule[i].endDate % 10000 / 100),
+                (int)(m_Schedule[i].endDate % 100),
+                dayStr.c_str(),
+                m_Schedule[i].startTimeStr.c_str(),
+                m_Schedule[i].playlist != "" ? '-' : ' ',
+                m_Schedule[i].playlist != "" ? m_Schedule[i].endTimeStr.c_str() : "",
+                m_Schedule[i].playlist != "" ? m_Schedule[i].playlist.c_str() : m_Schedule[i].command.c_str());
+    }
 
-  LogDebug(VB_SCHEDULE, "//////////////////////////////////////////////////\n");
+    LogDebug(VB_SCHEDULE, "//////////////////////////////////////////////////\n");
 }
 
-ScheduledItem *Scheduler::GetNextScheduledPlaylist()
-{
+ScheduledItem* Scheduler::GetNextScheduledPlaylist() {
     std::time_t now = time(nullptr);
 
-    for (auto& itemTime: m_scheduledItems) {
-        for (auto& item: *itemTime.second) {
+    for (auto& itemTime : m_scheduledItems) {
+        for (auto& item : *itemTime.second) {
             if (item->ran)
                 continue; // skip over any items that ran already
 
@@ -742,12 +752,11 @@ ScheduledItem *Scheduler::GetNextScheduledPlaylist()
     return nullptr;
 }
 
-std::string Scheduler::GetNextPlaylistName()
-{
+std::string Scheduler::GetNextPlaylistName() {
     if (m_schedulerDisabled)
         return "Scheduler is disabled.";
 
-    ScheduledItem *item = GetNextScheduledPlaylist();
+    ScheduledItem* item = GetNextScheduledPlaylist();
 
     if (!item)
         return "No playlist scheduled.";
@@ -755,14 +764,13 @@ std::string Scheduler::GetNextPlaylistName()
     return item->entry->playlist;
 }
 
-std::string Scheduler::GetNextPlaylistStartStr()
-{
+std::string Scheduler::GetNextPlaylistStartStr() {
     if (m_schedulerDisabled)
         return "";
 
     std::string timeFmt = getSetting("DateFormat") + " @ " + getSetting("TimeFormat");
     std::string result;
-    ScheduledItem *item = GetNextScheduledPlaylist();
+    ScheduledItem* item = GetNextScheduledPlaylist();
 
     if (!item)
         return result;
@@ -784,46 +792,59 @@ std::string Scheduler::GetNextPlaylistStartStr()
     return result;
 }
 
-std::string Scheduler::GetDayTextFromDayIndex(const int index)
-{
-	if (index & INX_DAY_MASK) {
+std::string Scheduler::GetDayTextFromDayIndex(const int index) {
+    if (index & INX_DAY_MASK) {
         char tmpStr[15];
         strcpy(tmpStr, "Mask: ");
-        strcat(tmpStr, (index & INX_DAY_MASK_SUNDAY)    ? "S" : "-");
-        strcat(tmpStr, (index & INX_DAY_MASK_MONDAY)    ? "M" : "-");
-        strcat(tmpStr, (index & INX_DAY_MASK_TUESDAY)   ? "T" : "-");
+        strcat(tmpStr, (index & INX_DAY_MASK_SUNDAY) ? "S" : "-");
+        strcat(tmpStr, (index & INX_DAY_MASK_MONDAY) ? "M" : "-");
+        strcat(tmpStr, (index & INX_DAY_MASK_TUESDAY) ? "T" : "-");
         strcat(tmpStr, (index & INX_DAY_MASK_WEDNESDAY) ? "W" : "-");
-        strcat(tmpStr, (index & INX_DAY_MASK_THURSDAY)  ? "T" : "-");
-        strcat(tmpStr, (index & INX_DAY_MASK_FRIDAY)    ? "F" : "-");
-        strcat(tmpStr, (index & INX_DAY_MASK_SATURDAY)  ? "S" : "-");
-		return tmpStr;
+        strcat(tmpStr, (index & INX_DAY_MASK_THURSDAY) ? "T" : "-");
+        strcat(tmpStr, (index & INX_DAY_MASK_FRIDAY) ? "F" : "-");
+        strcat(tmpStr, (index & INX_DAY_MASK_SATURDAY) ? "S" : "-");
+        return tmpStr;
     }
 
-	switch(index)
-	{
-		case INX_SUN:          return "Sunday";
-		case INX_MON:          return "Monday";
-		case INX_TUE:          return "Tuesday";
-		case INX_WED:          return "Wednesday";
-		case INX_THU:          return "Thursday";
-		case INX_FRI:          return "Friday";
-		case INX_SAT:          return "Saturday";
-		case INX_EVERYDAY:     return "Everyday";
-		case INX_WKDAYS:       return "Weekdays";
-		case INX_WKEND:        return "Weekends";
-		case INX_M_W_F:        return "Mon/Wed/Fri";
-		case INX_T_TH:         return "Tues-Thurs";
-		case INX_SUN_TO_THURS: return "Sun-Thurs";
-		case INX_FRI_SAT:      return "Fri/Sat";
-		case INX_ODD_DAY:      return "Odd Days";
-		case INX_EVEN_DAY:     return "Even Days";
-	}
+    switch (index) {
+    case INX_SUN:
+        return "Sunday";
+    case INX_MON:
+        return "Monday";
+    case INX_TUE:
+        return "Tuesday";
+    case INX_WED:
+        return "Wednesday";
+    case INX_THU:
+        return "Thursday";
+    case INX_FRI:
+        return "Friday";
+    case INX_SAT:
+        return "Saturday";
+    case INX_EVERYDAY:
+        return "Everyday";
+    case INX_WKDAYS:
+        return "Weekdays";
+    case INX_WKEND:
+        return "Weekends";
+    case INX_M_W_F:
+        return "Mon/Wed/Fri";
+    case INX_T_TH:
+        return "Tues-Thurs";
+    case INX_SUN_TO_THURS:
+        return "Sun-Thurs";
+    case INX_FRI_SAT:
+        return "Fri/Sat";
+    case INX_ODD_DAY:
+        return "Odd Days";
+    case INX_EVEN_DAY:
+        return "Even Days";
+    }
 
     return "Error";
 }
 
-Json::Value Scheduler::GetInfo(void)
-{
+Json::Value Scheduler::GetInfo(void) {
     Json::Value result;
 
     std::string timeFmt = getSetting("DateFormat") + " @ " + getSetting("TimeFormat");
@@ -880,7 +901,6 @@ Json::Value Scheduler::GetInfo(void)
             cp["stopType"] = stopType;
             cp["stopTypeStr"] = stopType == 2 ? "Graceful Loop" : stopType == 1 ? "Hard" : "Graceful";
 
-
             result["status"] = "playing";
         } else {
             result["status"] = "manual";
@@ -893,12 +913,10 @@ Json::Value Scheduler::GetInfo(void)
         result["status"] = "idle";
     }
 
-
     return result;
 }
 
-Json::Value Scheduler::GetSchedule()
-{
+Json::Value Scheduler::GetSchedule() {
     std::string timeFmt = getSetting("DateFormat") + " @ " + getSetting("TimeFormat");
     Json::Value result;
     Json::Value entries(Json::arrayValue);
@@ -961,8 +979,8 @@ Json::Value Scheduler::GetSchedule()
         items.append(scheduledItem);
     }
 
-    for (auto& itemTime: m_scheduledItems) {
-        for (auto& item: *itemTime.second) {
+    for (auto& itemTime : m_scheduledItems) {
+        for (auto& item : *itemTime.second) {
             if (item->ran)
                 continue;
 
@@ -985,7 +1003,6 @@ Json::Value Scheduler::GetSchedule()
             scheduledItem["multisyncCommand"] = item->entry->multisyncCommand;
             scheduledItem["multisyncHosts"] = item->entry->multisyncHosts;
 
-
             items.append(scheduledItem);
         }
     }
@@ -994,21 +1011,26 @@ Json::Value Scheduler::GetSchedule()
     return result;
 }
 
-class ScheduleCommand : public Command {
+class ScheduleCommand : public Command
+{
 public:
-    ScheduleCommand(const std::string &str, Scheduler *s) : Command(str), sched(s) {}
+    ScheduleCommand(const std::string& str, Scheduler* s) :
+        Command(str),
+        sched(s) {}
     virtual ~ScheduleCommand() {}
 
-    Scheduler *sched;
+    Scheduler* sched;
 };
 
-class ExtendScheduleCommand : public ScheduleCommand {
+class ExtendScheduleCommand : public ScheduleCommand
+{
 public:
-    ExtendScheduleCommand(Scheduler *s) : ScheduleCommand("Extend Schedule", s) {
+    ExtendScheduleCommand(Scheduler* s) :
+        ScheduleCommand("Extend Schedule", s) {
         args.push_back(CommandArg("Seconds", "int", "Seconds").setRange(-12 * 60 * 60, 12 * 60 * 60).setDefaultValue("300").setAdjustable());
     }
 
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
         if (args.size() != 1) {
             return std::make_unique<Command::ErrorResult>("Command needs 1 argument, found " + std::to_string(args.size()));
         }
@@ -1023,4 +1045,3 @@ public:
 void Scheduler::RegisterCommands() {
     CommandManager::INSTANCE.addCommand(new ExtendScheduleCommand(this));
 }
-

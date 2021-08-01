@@ -4,7 +4,7 @@
         {
             "type": "shell",
             "label": "Make FPPD (debug)",
-            "command": "/usr/bin/make",
+            "command": "/opt/fpp/.vscode/build.sh",
             "args": [
                 "debug"
             ],
@@ -23,7 +23,7 @@
         {
             "type": "shell",
             "label": "make clean",
-            "command": "/usr/bin/make",
+            "command": "/opt/fpp/.vscode/build.sh",
             "args": [
                 "clean"
             ],
