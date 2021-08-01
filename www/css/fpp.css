@@ -1826,6 +1826,13 @@ body .sm-clean a .sub-arrow {
 	display: block;
 	padding-top: 0.5em;
 }
+
+.multisync-utilization-more {
+	color: blue;
+	font-weight: bold;
+	text-decoration: underline;
+}
+
 .pageContent .fppTableContents  .tablesorter input[type=checkbox]{
     background-position: center center;
 }
