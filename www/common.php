@@ -175,10 +175,7 @@ function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaul
 function IsInList($value, $list)
 {
     $values = explode(",", $list);
-
     $ret = in_array($value, $values);
-    error_log($value . " - " . $list . " - " . $values . " - " . ($ret ? "t" : "f"));
-
     return $ret;
 }
 function IfSettingInListPrint($setting, $value, $print, $pluginName = "", $defaultValue = "")
