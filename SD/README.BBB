@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# bone-debian-10.9-console-armhf-2021-05-28-1gb.img.xz
-# from https://rcn-ee.net/rootfs/bb.org/testing/2021-05-28/buster-console/
+# bone-debian-10.10-console-armhf-2021-07-26-1gb.img.xz
+# from https://rcn-ee.net/rootfs/bb.org/testing/2021-07-26/buster-console/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
