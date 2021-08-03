@@ -130,7 +130,7 @@ rmdir /tmp/rootfs
 
 #On a MAC, the resulting SD cards can be used to create an image via:
 # use diskutil list to get the disk name (/dev/rdisk3)
-sudo dd if=/dev/rdisk3 of=FPP-v4.0-BBB.img bs=1m count=3572
+sudo dd if=/dev/rdisk3 of=FPP-v5.0-BBB.img bs=1m count=3572
 
 
 # For btrfs:
@@ -138,7 +138,7 @@ sudo dd if=/dev/rdisk3 of=FPP-v4.0-BBB.img bs=1m count=3572
 dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=2000
 /opt/fpp/SD/BBB-FlashMMC.sh -s 1750M -noreboot btrfs /dev/mmcblk0
 
-sudo dd if=/dev/rdisk3 of=FPP-v3.1-BBB-btrfs.img bs=1m count=2000
+sudo dd if=/dev/rdisk3 of=FPP-v5.0-BBB-btrfs.img bs=1m count=2000
 
 
 
@@ -148,4 +148,4 @@ sudo dd if=/dev/rdisk3 of=FPP-v3.1-BBB-btrfs.img bs=1m count=2000
 # box for this and not an actual BBB
 apt-get install squashfs-tools
 mount /dev/sda1 /mnt
-mksquashfs /mnt /home/fpp/media/bbb-4.0.sqfs -comp xz
+mksquashfs /mnt /home/fpp/media/BBB-5.0.fppos -b 512K -comp xz
