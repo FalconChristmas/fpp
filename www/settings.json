@@ -708,7 +708,7 @@
         "HostName": {
             "name": "HostName",
             "description": "Host Name",
-            "tip": "Host names must contain only letters, numbers, and hypens and must begin with a letter or a number",
+            "tip": "Host names must contain only letters, numbers, and hyphens and must begin with a letter or a number",
             "reboot": 1,
             "default": "fpp",
             "type": "text",
@@ -730,7 +730,7 @@
         "LEDDisplayType": {
             "name": "LEDDisplayType",
             "description": "Status Display",
-            "tip": "Status Display type.  There are serveral OLED/LCD displays which can be attached to the i2c bus on the Pi and BeagleBone.  This setting is used to configure the size and type of display installed.",
+            "tip": "Status Display type.  There are several OLED/LCD displays which can be attached to the i2c bus on the Pi and BeagleBone.  This setting is used to configure the size and type of display installed.",
             "gatherStats": true,
             "reboot": 1,
             "checkFile": [
@@ -874,7 +874,7 @@
             "name": "LogLevel_Playlist",
             "gatherStats": true,
             "description": "Playlist",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for Playlis . ",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for Playlists. ",
             "default": "info",
             "type": "select",
             "options": {
@@ -1464,7 +1464,7 @@
                 "Raspberry Pi"
             ],
             "type": "checkbox",
-            "default": 0
+            "default": 1
         },
         "showAllOptions": {
             "name": "showAllOptions",

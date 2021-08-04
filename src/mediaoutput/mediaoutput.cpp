@@ -37,9 +37,7 @@
 #include "mediaoutput.h"
 #include "commands/Commands.h"
 
-#ifdef HASVLC
 #include "VLCOut.h"
-#endif
 #include "Plugins.h"
 #include "SDLOut.h"
 #include "Sequence.h"
@@ -195,18 +193,12 @@ MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::
 
     if (IsExtensionAudio(ext)) {
         if (getFPPmode() == REMOTE_MODE) {
-#ifdef HASVLC
             return new VLCOutput(mediaFilename, &mediaOutputStatus, "--Disabled--");
-#else
-            return nullptr;
-#endif
         } else {
             return new SDLOutput(mediaFilename, &mediaOutputStatus, "--Disabled--");
         }
-#ifdef HASVLC
     } else if (IsExtensionVideo(ext) && (vOut == "--HDMI--" || vOut == "HDMI")) {
         return new VLCOutput(mediaFilename, &mediaOutputStatus, vOut);
-#endif
     } else if (IsExtensionVideo(ext)) {
         return new SDLOutput(mediaFilename, &mediaOutputStatus, vOut);
     }
@@ -239,13 +231,11 @@ int OpenMediaOutput(const char* filename) {
     if (getFPPmode() == REMOTE_MODE) {
         std::string orgTmp = tmpFile;
         tmpFile = GetVideoFilenameForMedia(tmpFile, ext);
-#ifdef HASVLC
         if (tmpFile == "") {
             if (HasAudio(orgTmp)) {
                 tmpFile = orgTmp;
             }
         }
-#endif
 
         if (tmpFile == "") {
             // For v1.0 MultiSync, we can't sync audio to audio, so check for
@@ -411,7 +401,6 @@ void UpdateMasterMediaPosition(const char* filename, float seconds) {
         mediaOutput->AdjustSpeed(seconds);
         pthread_mutex_unlock(&mediaOutputLock);
         return;
-#ifdef HASVLC
     } else {
         // with VLC, we can jump forward a bit and get close
         OpenMediaOutput(filename);
@@ -425,6 +414,5 @@ void UpdateMasterMediaPosition(const char* filename, float seconds) {
         mediaOutput->AdjustSpeed(seconds);
         pthread_mutex_unlock(&mediaOutputLock);
         return;
-#endif
     }
 }

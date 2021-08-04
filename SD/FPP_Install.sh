@@ -771,6 +771,18 @@ fi
 echo "FPP - Switching git clone to ${FPPBRANCH} branch"
 cd /opt/fpp
 git checkout ${FPPBRANCH}
+if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
+    # force grabbing these upfront as the make -j4 may fail to fetch them due to locks
+    # while initializing
+    git submodule update --init external/RF24
+    git submodule update --init external/rpi-rgb-led-matrix
+    git submodule update --init external/rpi_ws281x
+    git submodule update --init external/spixels
+    cd /opt/fpp/src
+    make gitsubmodules
+fi
+
+
 
 #######################################
 # Upgrade the config if needed

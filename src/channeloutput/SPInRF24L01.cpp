@@ -94,7 +94,7 @@ class SPInRF24L01PrivData {
 public:
     SPInRF24L01PrivData() :
         radio(nullptr),
-        speed(0),
+        speed(RF24_250KBPS),
         channel(0) {}
     RF24* radio;
     rf24_datarate_e speed;

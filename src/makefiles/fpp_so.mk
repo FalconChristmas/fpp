@@ -120,9 +120,6 @@ LIBS_fpp_so += \
     $(LIBS_GPIO_ADDITIONS)
 
 
-CFLAGS_mediaoutput/mediaoutput.o+=-DHASVLC
-
-
 util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
 

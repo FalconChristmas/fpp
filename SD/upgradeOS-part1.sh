@@ -25,9 +25,9 @@ mount -t tmpfs tmpfs /mnt/tmp
 mount -o bind /dev /mnt/dev
 mount -o bind /proc /mnt/proc
 
-chroot /mnt /mnt/opt/fpp/SD/upgradeOS-part2.sh
+stdbuf --output=0 --error=0 chroot /mnt /mnt/opt/fpp/SD/upgradeOS-part2.sh
 
-echo "Done copy"
+echo "Done copy, unmounting filesystems"
 sync
 umount /mnt/dev
 umount /mnt/tmp
@@ -36,10 +36,10 @@ umount /mnt/mnt
 
 sync
 
-echo "Rebooting...."
+echo "Please Reboot...."
 
 exec 0>&- # close stdin
 exec 1>&- # close stdout
 exec 2>&- # close stderr
 sleep 1
-nohup reboot -f -f &
+sync

@@ -6,7 +6,7 @@ OBJECTS_ALL+=$(OBJECTS_fpp_co_SPI-nRF24L01_so)
 
 ifeq '$(ARCH)' 'Raspberry Pi'
 DEPS_fpp_co_SPI-nRF24L01_so += ../external/RF24/librf24-bcm.so
-CFLAGS_channeloutput/SPInRF24L01.o+=-DUSENRF -I../external/RF24/
+CXXFLAGS_channeloutput/SPInRF24L01.o+=-DUSENRF -I../external/RF24/
 LIBS_fpp_co_SPI-nRF24L01_so += -L../external/RF24/ -lrf24-bcm -Wl,-rpath=.:../external/RF24/
 endif
 

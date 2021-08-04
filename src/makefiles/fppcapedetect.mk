@@ -11,10 +11,10 @@ ifeq '$(CXXCOMPILER)' 'g++'
 # and all the services starting in parallel are trying to load things.
 # Optimize for as small as possible
 CXXFLAGS_CapeUtils.o=-Os -flto
-CFLAGS_fppcapedetect.o=-Os -flto
+CXXFLAGS_fppcapedetect.o=-Os -flto
 else
 CXXFLAGS_CapeUtils.o=-Os
-CFLAGS_fppcapedetect.o=-Os
+CXXFLAGS_fppcapedetect.o=-Os
 endif
 
 TARGETS+=fppcapedetect
