@@ -25,7 +25,7 @@ mount -t tmpfs tmpfs /mnt/tmp
 mount -o bind /dev /mnt/dev
 mount -o bind /proc /mnt/proc
 
-chroot /mnt /mnt/opt/fpp/SD/upgradeOS-part2.sh
+stdbuf --output=0 --error=0 chroot /mnt /mnt/opt/fpp/SD/upgradeOS-part2.sh
 
 echo "Done copy"
 sync
