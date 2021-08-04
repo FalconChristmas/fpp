@@ -36,6 +36,7 @@
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
 
+#include <sys/sysinfo.h>
 #include <iomanip>
 #include <sstream>
 
@@ -564,6 +565,17 @@ void PlayerResource::GetCurrentStatus(Json::Value& result) {
 
     std::time_t timeDiff = std::time(nullptr) - startupTime;
     int totalseconds = (int)timeDiff;
+
+    struct sysinfo sysInf;
+    if (sysinfo(&sysInf) == 0) {
+        int uptimeSecs = sysInf.uptime;
+        if (uptimeSecs < totalseconds) {
+            startupTime = std::time(nullptr);
+            timeDiff = std::time(nullptr) - startupTime;
+            totalseconds = (int)timeDiff;
+        }
+    }
+
     double days = ((double)timeDiff) / 86400;
     double hours = ((double)(totalseconds % 86400)) / 3600;
     int seconds = totalseconds % 86400 % 3600;
