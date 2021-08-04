@@ -46,10 +46,5 @@ sleep 3
 
 echo ""
 echo ""
-stdbuf --output=0 --error=0 echo "Starting reboot, wait a few minutes to reboot and then refresh the browser."
-sync
-sleep 3
-sync
-nohup shutdown --no-wall -r +1
 
 exit

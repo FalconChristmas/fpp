@@ -36,10 +36,10 @@ umount /mnt/mnt
 
 sync
 
-echo "Rebooting...."
+echo "Please Reboot...."
 
 exec 0>&- # close stdin
 exec 1>&- # close stdout
 exec 2>&- # close stderr
 sleep 1
-nohup shutdown --no-wall -r +1
+sync
