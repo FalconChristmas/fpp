@@ -43,7 +43,7 @@ if (preg_match('/^https?:/', $_GET['os'])) {
 ==========================================================================
 Upgrading OS:
 <?
-system($SUDO . " $fppDir/SD/upgradeOS-part1.sh /home/fpp/media/upload/" . escapeshellcmd($_GET['os']));
+system($SUDO . " stdbuf --output=L --error=L $fppDir/SD/upgradeOS-part1.sh /home/fpp/media/upload/" . escapeshellcmd($_GET['os']));
 ?>
 ==========================================================================
 <?
@@ -59,4 +59,9 @@ if (!$wrapped) {
 } else {
     echo "Rebooting.... Please wait for FPP to reboot.\n";
 }
+flush();
+while (@ob_end_flush());
+session_write_close();
+
+system($SUDO . " shutdown -r now");
 ?>

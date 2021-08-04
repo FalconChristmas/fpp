@@ -42,4 +42,4 @@ exec 0>&- # close stdin
 exec 1>&- # close stdout
 exec 2>&- # close stderr
 sleep 1
-nohup reboot -f -f &
+nohup shutdown --no-wall -r +1

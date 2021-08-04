@@ -30,13 +30,26 @@ if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
 fi
 
 # temporarily copy the ssh keys
+echo "Saving ssh keys"
 mkdir tmp/ssh
 cp -a mnt/etc/ssh/*key* tmp/ssh
 
 #copy everything other than fstab and the persistent net names
-rsync -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=etc/fstab --exclude=/etc/systemd/network/*-fpp-*
+stdbuf --output=L --error=L rsync -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=etc/fstab --exclude=/etc/systemd/network/*-fpp-*
 
 #restore the ssh keys
+echo "Restoring ssh keys"
 cp -a tmp/ssh/* mnt/etc/ssh
+
+sync
+sleep 3
+
+echo ""
+echo ""
+stdbuf --output=0 --error=0 echo "Starting reboot, wait a few minutes to reboot and then refresh the browser."
+sync
+sleep 3
+sync
+nohup shutdown --no-wall -r +1
 
 exit
