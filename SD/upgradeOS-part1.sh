@@ -27,7 +27,7 @@ mount -o bind /proc /mnt/proc
 
 stdbuf --output=0 --error=0 chroot /mnt /mnt/opt/fpp/SD/upgradeOS-part2.sh
 
-echo "Done copy"
+echo "Done copy, unmounting filesystems"
 sync
 umount /mnt/dev
 umount /mnt/tmp

@@ -11,9 +11,9 @@ then
     BOOTSIZE=${BOOTSIZE::-1}
     if [ `echo "$BOOTSIZE < 120"|bc` -eq 1 ]; then
         # 2.x image, boot partition is tiny and cannot fit everything needed for Pi4 so we need to exclude some more things
-        rsync -aAXxv boot /mnt --delete-before --exclude=boot/kernel8.img  --exclude=boot/kernel7l.img --exclude=boot/.Spotlight*
+        rsync --outbuf=N -aAXxv boot /mnt --delete-before --exclude=boot/kernel8.img  --exclude=boot/kernel7l.img --exclude=boot/.Spotlight*
     else
-        rsync -aAXxv boot /mnt --delete-before
+        rsync --outbuf=N -aAXxv boot /mnt --delete-before
     fi
 else
     rsync -aAXxv boot /mnt --delete-during
@@ -35,7 +35,7 @@ mkdir tmp/ssh
 cp -a mnt/etc/ssh/*key* tmp/ssh
 
 #copy everything other than fstab and the persistent net names
-stdbuf --output=L --error=L rsync -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=etc/fstab --exclude=/etc/systemd/network/*-fpp-*
+stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-after --exclude=etc/fstab --exclude=/etc/systemd/network/*-fpp-*
 
 #restore the ssh keys
 echo "Restoring ssh keys"
