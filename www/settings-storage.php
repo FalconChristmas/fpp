@@ -133,18 +133,18 @@ function flashEMMC() {
 }
 function flashEMMCBtrfs() {
     $('#dialog-confirm-emmc')
-    .dppDialog({
+    .fppDialog({
             resizeable: false,
             height: 300,
             width: 500,
             modal: true,
             buttons: {
             "Yes" : function() {
-            $(this).dppDialog("close");
+            $(this).fppDialog("close");
             window.location.href="flashbbbemmc-btrfs.php";
             },
             "No" : function() {
-            $(this).dppDialog("close");
+            $(this).fppDialog("close");
             }
             }
             });
@@ -317,13 +317,13 @@ if ($addflashbutton) {
 <h3>eMMC Actions:</h3>
 
     <div class="row">
-        <div class="col-md-2"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMC();'></div>
-        <div class="col-md-10"><b>*</b>&nbsp;This will copy FPP to the internal eMMC.</div>
+        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMC();'></div>
+        <div class="col-auto">&nbsp;This will copy FPP to the internal eMMC.</div>
     </div>
 <? if ($uiLevel >= 1) { ?>
     <div class="row mt-2">
-        <div class="col-md-2"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMCBtrfs();'></div>
-        <div class="col-md-10"><b>*</b>&nbsp;This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.</div>
+        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMCBtrfs();'></div>
+        <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i>&nbsp;This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.<br>BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.</div>
     </div>
 <?php
    }
