@@ -503,7 +503,6 @@ body legend{
 }
 body.has-touch .pageContent-tabs{
 	overflow: auto;
-	white-space: nowrap;
 	display: block;
 	margin-right: -20px;
 
