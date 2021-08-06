@@ -1113,7 +1113,7 @@ void MultiSync::PingSingleRemoteViaHTTP(const std::string& address) {
                 delete nc;
             } else {
                 UpdateSystem(kSysTypeUnknown, 0, 0, UNKNOWN_MODE, address,
-                             address, "Unknown", "Unknown", "0-0", "Unknown", false, nc->sendingMultiSync);
+                             address, "Unknown", "Unknown", "0-0", "Unknown", false, false);
             }
         }
     }
