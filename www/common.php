@@ -852,9 +852,8 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         $callbackName = $callbackName . "();";
     }
 
-    if ($changedFunction == "") {
-        $changedFunction = preg_replace('/\./', '', $setting . "Changed");
-    }
+    $scriptOnChangeFunction = preg_replace('/\./', '', $setting . "Changed");
+   
 
     $maxTag = 'maxlength';
     $sizeTag = 'size';
@@ -890,7 +889,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     }
 
     echo "
-    function " . $changedFunction . "() {
+    function " . $scriptOnChangeFunction . "() {
         var value = $('#$escSetting').val();
 ";
 
@@ -921,7 +920,9 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     if (isset($sData['children'])) {
         echo "Update$setting" . "Children(0);\n";
     }
-
+    if ($changedFunction != "") {
+        echo "$changedFunction" . ";\n";
+    }
     echo "
               $callbackName
               CheckRestartRebootFlags();
@@ -935,7 +936,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     if (isset($sData['onChange'])) {
         echo "<input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $sData['onChange'] . "();' value=\"";
     } else {
-        echo "<input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $changedFunction . "();' value=\"";
+        echo "<input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $scriptOnChangeFunction . "();' value=\"";
     }
 
     $curValue = "";
