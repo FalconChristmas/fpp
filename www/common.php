@@ -1727,9 +1727,7 @@ function ApplyEmailConfig()
         $emailtoemail = '';
     }
 
-    if (($emailuser == '') ||
-        ($emailpass == '') ||
-        ($emailtoemail == '')) {
+    if ($emailtoemail == '') {
         return;
     }
 
@@ -1756,7 +1754,9 @@ function ApplyEmailConfig()
     $fp = fopen($exim4Directory . '/passwd.client', 'w');
     fwrite($fp, "# password file used when the local exim is authenticating to a remote host as a client.\n");
     fwrite($fp, "#\n");
-    fwrite($fp, $emailserver . ":" . $emailuser . ":" . $emailpass . "\n");
+    if (($emailuser != '') && ($emailpass != '')) {
+        fwrite($fp, $emailserver . ":" . $emailuser . ":" . $emailpass . "\n");
+    }
     fclose($fp);
 
     $fp = fopen($exim4Directory . '/aliases', 'w');
