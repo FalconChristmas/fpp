@@ -534,11 +534,15 @@ function Convert24HFromUIFormat(tm) {
         h = parseInt(parts[0]);
         m = parseInt(parts[1]);
 
-        if (showingSeconds)
+        if (showingSeconds) {
             s = parseInt(parts[2]);
-
-        if ((tmp[1] == 'PM') || (tmp[1] == 'pm'))
+        }
+        if (h == 12) {
+            h -= 12;
+        }
+        if ((tmp[1] == 'PM') || (tmp[1] == 'pm')) {
             h += 12;
+        }
     }
 
     newTime = PadLeft(h, '0', 2) + ':' + PadLeft(m, '0', 2) + ':' + PadLeft(s, '0', 2);
