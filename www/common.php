@@ -545,7 +545,7 @@ function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $chec
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "") {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
         $callbackName = $callbackName . "('$setting');";
     }
 
@@ -677,7 +677,7 @@ function PrintSettingSelectInternal($title, $setting, $restart = 1, $reboot = 0,
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "") {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
         $callbackName = $callbackName . "();";
     }
 
@@ -848,7 +848,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "") {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
         $callbackName = $callbackName . "();";
     }
 
@@ -1016,7 +1016,7 @@ function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginNa
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "") {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
         $callbackName = $callbackName . "();";
     }
 
