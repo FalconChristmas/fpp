@@ -43,7 +43,7 @@ std::unique_ptr<Command::Result> TriggerRemotePresetSlotCommand::run(const std::
     for (int x = 1; x < args.size(); x++) {
         newargs.push_back(args[x]);
     }
-    return CommandManager::INSTANCE.runRemoteCommand(args[0], "Trigger Command Preset", newargs);
+    return CommandManager::INSTANCE.runRemoteCommand(args[0], "Trigger Command Preset Slot", newargs);
 }
 
 std::unique_ptr<Command::Result> TriggerMultiplePresetSlotsCommand::run(const std::vector<std::string>& args) {
