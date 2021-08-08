@@ -103,7 +103,7 @@ public:
         if (p.ptr()) {
             p.configPin();
             p.setValue(v == "true" || v == "1");
-            std::make_unique<Command::Result>("OK");
+            return std::make_unique<Command::Result>("OK");
         }
         return std::make_unique<Command::ErrorResult>("No Pin Named " + n);
     }
