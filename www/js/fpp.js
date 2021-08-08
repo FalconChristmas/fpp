@@ -5949,19 +5949,19 @@ function RefreshHeaderBar(){
             if (e.ifname.startsWith("can.")) { return 0; }
             e.addr_info.forEach(function (n) {
                 if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp") || e.ifname.startsWith("tether"))) {
-                    var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '</small></span>';
+                    var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
-                }else if (n.family === "inet" && "wifi" in e) {
-                    var row = '<span title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
+                } else if (n.family === "inet" && "wifi" in e) {
+                    var row = '<span title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
-                }else if (n.family === "inet") {
+                } else if (n.family === "inet") {
                     var icon = "text-success";
-                    if(n.local.startsWith("169.254.") && e.flags.includes("DYNAMIC")){
+                    if (n.local.startsWith("169.254.") && e.flags.includes("DYNAMIC")) {
                         icon = "text-warning";
-                    }else if(e.flags.includes("STATIC") && e.operstate != "UP"){
+                    } else if(e.flags.includes("STATIC") && e.operstate != "UP") {
                         icon = "text-danger";
                     }
-                    var row = '<span title="IP: ' + n.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '</small></span>';
+                    var row = '<span title="IP: ' + n.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
                 }
             });

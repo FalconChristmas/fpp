@@ -2062,8 +2062,14 @@ input[type=search].tablesorter-filter:disabled{
 	padding-top: 0.0em;
 	padding-bottom: 0;
 }
+.divIPAddress {
+	display: none;
+}
 
 @media (min-width: 991px){
+	.divIPAddress {
+		display: inline-block;
+	}
 	.tablePageHeader .btn-success, .tablePageHeader .btn-outline-success{
 		min-width: 100px;
 	}
@@ -2171,7 +2177,7 @@ input[type=search].tablesorter-filter:disabled{
 		padding: 0.4rem 0.8em;
 	}
 }
-@media (min-width:481px) and (max-width:768px){
+@media (min-width:481px) and (max-width:768px) {
 	.statusDivTopRow {
 		margin-top: 0.1em;
 		margin-bottom: 0.5em;
@@ -2416,7 +2422,7 @@ input[type=search].tablesorter-filter:disabled{
 		flex:1;
 	}
 }
-@media (min-width:481px) and (max-width:768px){
+@media (min-width:481px) and (max-width:768px) {
 	.statusDivTopCol {
 		width: calc( 50% - 1.4em);
 	}
