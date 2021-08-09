@@ -136,10 +136,13 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
                 int node = -1;
                 if (y < allData.size() && x < allData[y].size()) {
                     std::string& s = allData[y][x];
-                    if (s == "") {
+                    if (s == "" || s.length() > 10) {
                         node = -1;
                     } else {
                         node = std::stoi(s);
+                        if (node > FPPD_MAX_CHANNEL_NUM) {
+                            node = -1;
+                        }
                     }
                 }
                 int inChan = node * channelsPerNode;
