@@ -119,8 +119,13 @@ MosquittoClient::MosquittoClient(const std::string& host, const int port,
     std::function<void(const std::string&, const std::string&)> f =
         [](const std::string& topic, const std::string& payload) {
             if (topic.size() <= 13) {
-                Json::Value val = LoadJsonFromString(payload);
-                CommandManager::INSTANCE.run(val);
+                Json::Value val;
+                bool success = LoadJsonFromString(payload, val);
+                if (success && val.isObject()) {
+                    CommandManager::INSTANCE.run(val);
+                } else {
+                    LogWarn(VB_COMMAND, "Invalid JSON Payload: %s\n", payload.c_str());
+                }
             } else {
                 std::vector<std::string> args;
                 std::string command;
@@ -141,7 +146,11 @@ MosquittoClient::MosquittoClient(const std::string& host, const int port,
                 }
                 if (args.size() == 0 && payload != "") {
                     Json::Value val = LoadJsonFromString(payload);
-                    CommandManager::INSTANCE.run(command, val);
+                    if (val.isObject()) {
+                        CommandManager::INSTANCE.run(command, val);
+                    } else {
+                        LogWarn(VB_COMMAND, "Invalid JSON Payload for topic %s: %s\n", topic.c_str(), payload.c_str());
+                    }
                 } else {
                     CommandManager::INSTANCE.run(command, args);
                 }
