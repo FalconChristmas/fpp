@@ -191,7 +191,7 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
     }
     sprintf(tmpStr + strlen(tmpStr), "   ");
     for (y = 0; y < x; y++) {
-        if (str[16 - x] == '%' || str[16 - x] == '\\') {
+        if (str[y] == '%' || str[y] == '\\') {
             //these are escapes for the Log call, so don't display them
             sprintf(tmpStr + strlen(tmpStr), ".");
         } else if (isgraph(str[y]) || str[y] == ' ') {
