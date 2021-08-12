@@ -117,7 +117,9 @@ SetupFPPNetworkConfigViaConnMann() {
             fi
         fi
         if [ "$DOWAIT" == "1" ]; then
-            for i in {1..10}
+            BOOTDELAY=$(getSetting bootDelay)
+            let "BOOTDELAY=$BOOTDELAY + 10"
+            for i in {1..$BOOTDELAY}
             do
                 # wait up to 10 seconds for interface to become available
                 if [ ! -f "/sys/class/net/${INTERFACE}/address" ]; then
