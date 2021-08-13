@@ -79,6 +79,9 @@ public:
     virtual int GetNextItem(void) { return 0; }
     virtual std::string GetNextData(void) { return ""; }
 
+
+    void SetPositionInPlaylist(int i) { m_playlistPosition = i; }
+    int GetPositionInPlaylist() { return m_playlistPosition; }
 protected:
     int CanPlay(void);
     void FinishPlay(void);
@@ -93,6 +96,7 @@ protected:
     int m_playCount;
     int m_isPrepped;
     int m_deprecated;
+    int m_playlistPosition;
 
     Json::Value m_config;
     PlaylistEntryBase* m_parent;

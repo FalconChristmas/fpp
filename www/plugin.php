@@ -36,6 +36,39 @@ if (!isset($_GET['nopage'])):
 	<?php include 'common/menuHead.inc';?>
 	<title><?echo $pageTitle; ?></title>
 	<script type="text/javascript">
+function bindSettingsVisibilityListener() {
+    var visProp = getHiddenProp();
+    if (visProp) {
+      var evtname = visProp.replace(/[H|h]idden/,'') + 'visibilitychange';
+      document.addEventListener(evtname, handleSettingsVisibilityChange);
+    }
+}
+
+function handleSettingsVisibilityChange() {
+    if (isHidden() && statusTimeout != null) {
+        clearTimeout(statusTimeout);
+        statusTimeout = null;
+    } else {
+        UpdateCurrentTime();
+    }
+}    
+var hiddenChildren = {};
+function UpdateChildSettingsVisibility() {
+    hiddenChildren = {};
+    $('.parentSetting').each(function() {
+        var fn = 'Update' + $(this).attr('id') + 'Children';
+        window[fn](2); // Hide if necessary
+    });
+    $('.parentSetting').each(function() {
+        var fn = 'Update' + $(this).attr('id') + 'Children';
+        window[fn](1); // Show if not hidden
+    });
+}
+$(document).ready(function() {
+    UpdateChildSettingsVisibility();
+    bindSettingsVisibilityListener();
+});
+
 	var pluginSettings = new Array();
 
 		<?

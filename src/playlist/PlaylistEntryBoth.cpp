@@ -67,6 +67,7 @@ int PlaylistEntryBoth::Init(Json::Value& config) {
     if (!m_sequenceEntry->Init(config))
         return 0;
 
+    m_sequenceName = m_sequenceEntry->GetSequenceName();
     return PlaylistEntryBase::Init(config);
 }
 

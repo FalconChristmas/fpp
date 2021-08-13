@@ -40,6 +40,7 @@
 #include <unistd.h>
 
 #include "ArtNet.h"
+#include "e131bridge.h"
 #include "FPD.h"
 #include "channeloutput.h"
 #include "channeloutputthread.h"
@@ -174,7 +175,8 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
         //and the socket MUST have the source port of ARTNET_DEST_PORT
         //as per the ArtNet protocol
         if (messages.GetSocket(ARTNET_DEST_PORT) == -1) {
-            messages.ForceSocket(ARTNET_DEST_PORT, UDPOutput::INSTANCE->createSocket(ARTNET_DEST_PORT, true));
+            // we MAY be bridging ArtNet so we need to use that same socket
+            messages.ForceSocket(ARTNET_DEST_PORT, CreateArtNetSocket());
         }
 
         unsigned char* cur = channelData + startChannel - 1;

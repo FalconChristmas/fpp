@@ -341,6 +341,9 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
                         if (!(array_keys($options) !== range(0, count($options) - 1))) {
                             $tmp = $options;
                             $options = array();
+                            if (isset($s['optionCanBeBlank']) && $s['optionCanBeBlank']) {
+                                $options[""] = "";
+                            }
                             foreach ($tmp as $item) {
                                 if (isset($s['optionsKey'])) {
                                     $options[$item[$s['optionsKey']]] = $item[$s['optionsKey']];

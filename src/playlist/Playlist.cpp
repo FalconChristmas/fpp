@@ -191,6 +191,21 @@ int Playlist::Load(Json::Value& config) {
         LoadJSONIntoPlaylist(m_leadOut, leadOut);
     }
 
+    // set the positions prior to any randomizations
+    int curPos = 0;
+    for (auto &a : m_leadIn) {
+        a->SetPositionInPlaylist(curPos);
+        ++curPos;
+    }
+    for (auto &a : m_mainPlaylist) {
+        a->SetPositionInPlaylist(curPos);
+        ++curPos;
+    }
+    for (auto &a : m_leadOut) {
+        a->SetPositionInPlaylist(curPos);
+        ++curPos;
+    }
+
     if (config.isMember("random"))
         m_random = config["random"].asInt();
     else
@@ -1306,69 +1321,76 @@ static void GetFilenames(PlaylistEntryBase* entry, std::string& seq, std::string
         med = me->GetMediaName();
     }
     if (be) {
-        seq = se->GetSequenceName();
+        seq = be->GetSequenceName();
         med = be->GetMediaName();
     }
 }
 
 void Playlist::GetFilenamesForPos(int pos, std::string& seq, std::string& med) {
-    pos--;
-    if (pos < m_leadIn.size()) {
-        GetFilenames(m_leadIn[pos], seq, med);
-        return;
-    } else {
-        pos -= m_leadIn.size();
+    for (auto &a : m_leadIn) {
+        if (a->GetPositionInPlaylist() == pos) {
+            GetFilenames(a, seq, med);
+            return;
+        }
     }
-    if (pos < m_mainPlaylist.size()) {
-        GetFilenames(m_mainPlaylist[pos], seq, med);
-        return;
-    } else {
-        pos -= m_mainPlaylist.size();
+    for (auto &a : m_mainPlaylist) {
+        if (a->GetPositionInPlaylist() == pos) {
+            GetFilenames(a, seq, med);
+            return;
+        }
     }
-    if (pos < m_leadOut.size()) {
-        GetFilenames(m_leadOut[pos], seq, med);
+    for (auto &a : m_leadOut) {
+        if (a->GetPositionInPlaylist() == pos) {
+            GetFilenames(a, seq, med);
+            return;
+        }
     }
 }
 
 int Playlist::FindPosForMS(uint64_t& t) {
-    int cur = 1;
     for (auto& a : m_leadIn) {
         uint64_t i = a->GetLengthInMS();
         if (t < i) {
-            return cur;
+            return a->GetPositionInPlaylist();
         }
-        cur++;
         t -= i;
     }
     for (auto& a : m_mainPlaylist) {
         uint64_t i = a->GetLengthInMS();
         if (t < i) {
-            return cur;
+            return a->GetPositionInPlaylist();
         }
-        cur++;
         t -= i;
     }
     for (auto& a : m_leadOut) {
         uint64_t i = a->GetLengthInMS();
         if (t < i) {
-            return cur;
+            return a->GetPositionInPlaylist();
         }
-        cur++;
         t -= i;
     }
     t = 0;
-    return 0;
+    return -1;
 }
 
 uint64_t Playlist::GetCurrentPosInMS() {
-    if (m_currentState == "idle" || m_currentSection == nullptr)
+    int pos = 0;
+    uint64_t posms;
+    return GetCurrentPosInMS(pos, posms);
+}
+uint64_t Playlist::GetCurrentPosInMS(int &position, uint64_t &posms) {
+    position = -1;
+    posms = 0;
+    if (m_currentState == "idle" || m_currentSection == nullptr) {
         return 0;
+    }
     uint64_t pos = 0;
-
     for (int x = 0; x < m_sectionPosition; x++) {
         pos += m_currentSection->at(x)->GetLengthInMS();
     }
-    pos += m_currentSection->at(m_sectionPosition)->GetElapsedMS();
+    position = m_currentSection->at(m_sectionPosition)->GetPositionInPlaylist();
+    posms = m_currentSection->at(m_sectionPosition)->GetElapsedMS();
+    pos += posms;
     //if we aren't in the LeadIn, add the time of the LeadIn
     if (m_currentSectionStr != "LeadIn") {
         for (auto& a : m_leadIn) {
@@ -1388,21 +1410,23 @@ uint64_t Playlist::GetCurrentPosInMS() {
 uint64_t Playlist::GetPosStartInMS(int pos) {
     uint64_t ms = 0;
 
-    pos--;
-    if (m_currentSectionStr != "LeadIn") {
-        for (auto& a : m_leadIn) {
-            ms += a->GetLengthInMS();
-            pos--;
+    for (auto& a : m_leadIn) {
+        if (a->GetPositionInPlaylist() == pos) {
+            return ms;
         }
+        ms += a->GetLengthInMS();
     }
-    if (m_currentSectionStr != "MainPlaylist") {
-        for (auto& a : m_mainPlaylist) {
-            ms += a->GetLengthInMS();
-            pos--;
+    for (auto& a : m_mainPlaylist) {
+        if (a->GetPositionInPlaylist() == pos) {
+            return ms;
         }
+        ms += a->GetLengthInMS();
     }
-    for (int x = 0; x < pos; x++) {
-        ms += m_currentSection->at(x)->GetLengthInMS();
+    for (auto& a : m_leadOut) {
+        if (a->GetPositionInPlaylist() == pos) {
+            return ms;
+        }
+        ms += a->GetLengthInMS();
     }
     return ms;
 }

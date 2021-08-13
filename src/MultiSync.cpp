@@ -1563,6 +1563,15 @@ void MultiSync::SendBlankingDataPacket(void) {
 
     SendControlPacket(outBuf, sizeof(ControlPkt));
 }
+void MultiSync::addMultiSyncPlugin(MultiSyncPlugin* p) {
+    m_plugins.push_back(p);
+}
+void MultiSync::removeMultiSyncPlugin(MultiSyncPlugin* p) {
+    auto a = std::find(m_plugins.begin(), m_plugins.end(), p);
+    if (a != m_plugins.end()) {
+        m_plugins.erase(a);
+    }
+}
 
 /*
  *
@@ -1573,6 +1582,7 @@ void MultiSync::ShutdownSync(void) {
     for (auto a : m_plugins) {
         a->ShutdownSync();
     }
+    m_plugins.clear();
 
     std::unique_lock<std::mutex> lock(m_socketLock);
     if (m_broadcastSock >= 0) {
@@ -2165,18 +2175,32 @@ void MultiSync::StopSyncedSequence(const char* filename) {
 
     sequence->CloseIfOpen(filename);
 }
+void MultiSync::SyncStopAll() {
+    LogDebug(VB_SYNC, "SyncStopAll()\n");
+    sequence->CloseSequenceFile();
+    if (!mediaOutput) {
+        return;
+    }
+    CloseMediaOutput();
+}
 
 void MultiSync::SyncPlaylistToMS(uint64_t ms, const std::string& pl, bool sendSyncPackets) {
+    SyncPlaylistToMS(ms, -1, pl, sendSyncPackets);
+}
+void MultiSync::SyncPlaylistToMS(uint64_t ms, int pos, const std::string& pl, bool sendSyncPackets) {
     if (Player::INSTANCE.GetPlaylistName() != pl) {
         if (pl == "") {
             return;
         }
         Player::INSTANCE.Load(pl);
     }
+
+    int desiredpos = pos; 
+    if (pos == -1) {
+        desiredpos = Player::INSTANCE.FindPosForMS(ms);
+    }
     float seconds = ms;
     seconds /= 1000;
-
-    int desiredpos = Player::INSTANCE.FindPosForMS(ms);
     if (desiredpos) {
         if (m_controlSock < 0 && sendSyncPackets) {
             OpenControlSockets();

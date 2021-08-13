@@ -263,9 +263,8 @@ public:
 
     void SendPluginData(const std::string& name, const uint8_t* data, int len);
 
-    void addMultiSyncPlugin(MultiSyncPlugin* p) {
-        m_plugins.push_back(p);
-    }
+    void addMultiSyncPlugin(MultiSyncPlugin* p);
+    void removeMultiSyncPlugin(MultiSyncPlugin* p);
 
     void OpenSyncedSequence(const char* filename);
     void StartSyncedSequence(const char* filename);
@@ -278,6 +277,8 @@ public:
     void SyncSyncedMedia(const char* filename, int frameNumber, float secondsElapsed);
 
     void SyncPlaylistToMS(uint64_t ms, const std::string& pl = "", bool sendSyncPackets = false);
+    void SyncPlaylistToMS(uint64_t ms, int pos, const std::string& pl = "", bool sendSyncPackets = false);
+    void SyncStopAll();
 
     int OpenControlSockets();
 

@@ -501,22 +501,21 @@ int main(int argc, char *argv[])
     
     CommandManager::INSTANCE.Init();
 	if (getSetting("MQTTHost") != "") {
-                LogInfo(VB_GENERAL, "Creating MQTT\n");
+        LogInfo(VB_GENERAL, "Creating MQTT\n");
 		mqtt = new MosquittoClient(getSetting("MQTTHost").c_str(), getSettingInt("MQTTPort"), getSetting("MQTTPrefix").c_str());
 
-		if (!mqtt || !mqtt->Init(getSetting("MQTTUsername").c_str(), getSetting("MQTTPassword").c_str(), getSetting("MQTTCaFile").c_str()))
-		{
-        		LogWarn(VB_CONTROL, "MQTT Init failed. Starting without MQTT. -- Maybe MQTT host doesn't resolve\n");
+		if (!mqtt || !mqtt->Init(getSetting("MQTTUsername").c_str(), getSetting("MQTTPassword").c_str(), getSetting("MQTTCaFile").c_str())) {
+        	LogWarn(VB_CONTROL, "MQTT Init failed. Starting without MQTT. -- Maybe MQTT host doesn't resolve\n");
 
 		}
 	}
 
     WarningHolder::StartNotifyThread();
 
-        LogInfo(VB_GENERAL, "Creating Scheduler, Playlist, and Sequence\n");
+    LogInfo(VB_GENERAL, "Creating Scheduler, Playlist, and Sequence\n");
 	scheduler = new Scheduler();
 	sequence  = new Sequence();
-        LogInfo(VB_GENERAL, "Creation of Scheduler, Playlist, and Sequence Complete\n");
+    LogInfo(VB_GENERAL, "Creation of Scheduler, Playlist, and Sequence Complete\n");
 
     if (!MultiSync::INSTANCE.Init()) {
 		exit(EXIT_FAILURE);
@@ -565,6 +564,7 @@ int main(int argc, char *argv[])
     CloseEffects();
 	CloseChannelOutputs();
     CommandManager::INSTANCE.Cleanup();
+    MultiSync::INSTANCE.ShutdownSync();
     PluginManager::INSTANCE.Cleanup();
     GPIOManager::INSTANCE.Cleanup();
 

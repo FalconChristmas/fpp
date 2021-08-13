@@ -32,6 +32,11 @@ void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks);
 
 void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks);
 void Bridge_Shutdown(void);
+
+int CreateArtNetSocket();
+bool Bridge_ReceiveArtNetData();
+void AddArtNetOpcodeHandler(int opCode, std::function<bool(uint8_t *data, long long packetTime)> handler);
+
 void ResetBytesReceived();
 bool HasBridgeData();
 Json::Value GetE131UniverseBytesReceived();

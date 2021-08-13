@@ -157,7 +157,6 @@
                 "MultiSyncEnabled",
                 "DisableScheduler",
                 "ScheduleSeconds",
-                "ARTNETTimeCodeSync",
                 "Locale",
                 "screensaver",
                 "ForceHDMI",
@@ -629,15 +628,6 @@
                 "Player": "player",
                 "Remote": "remote"
             }
-        },
-        "ARTNETTimeCodeSync": {
-            "name": "ARTNETTimeCodeSync",
-            "description": "ArtNet Time Code Sync",
-            "tip": "When enabled, FPP will listen for ArtNet Time Code Packets and will sync a playlist named 'artnet-sync-playlist' with the timestamps received.",
-            "gatherStats": true,
-            "restart": 2,
-            "level": 1,
-            "type": "checkbox"
         },
         "FetchVendorLogos": {
             "name": "FetchVendorLogos",

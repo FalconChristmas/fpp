@@ -39,7 +39,8 @@ PlaylistEntryBase::PlaylistEntryBase(Playlist* playlist, PlaylistEntryBase* pare
     m_isPrepped(0),
     m_deprecated(0),
     m_parent(parent),
-    m_parentPlaylist(playlist) {
+    m_parentPlaylist(playlist),
+    m_playlistPosition(-1) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryBase::PlaylistEntryBase()\n");
     m_type = "base";
 }
