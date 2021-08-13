@@ -2095,7 +2095,14 @@ function CopyPlaylist()	{
                 if (!SavePlaylistAs(new_playlist_name, '', ''))
                     return;
 
-                PopulateLists();
+                PopulateLists({
+		    onPlaylistArrayLoaded: function () {
+		      $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
+		      onPlaylistArrayLoaded();
+		    }
+		});
+
+                
                 SetPlaylistName(new_playlist_name);
                 $(this).fppDialog("close");
             },
