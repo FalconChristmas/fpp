@@ -351,6 +351,8 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
                                     $options[$item] = $item;
                                 }
                             }
+                        } else if (isset($s['optionCanBeBlank']) && $s['optionCanBeBlank']) {
+                            $options = array("" => "") + $options;
                         }
                     } else if (isset($s['optionsCommand'])) {
                         $optionsRaw = explode("\n", trim(shell_exec($s['optionsCommand'])));

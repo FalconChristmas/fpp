@@ -82,6 +82,29 @@ function GetOptions_AudioOutputDevice() {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+function GetOptions_AudioInputDevice() {
+    global $SUDO;
+
+    $AlsaCards = Array();
+    exec($SUDO . " arecord -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
+    if ( $return_val )
+    {
+        error_log("Error getting alsa cards for input!");
+    }
+    else
+    {
+        foreach($output as $card)
+        {
+            $values = explode(':', $card);
+            $AlsaCards[$values[1]] = $values[0];
+        }
+    }
+    unset($output);
+
+    return json($AlsaCards);
+}
+
+/////////////////////////////////////////////////////////////////////////////
 function GetOptions_FrameBuffer() {
     $framebuffers = Array();
 
@@ -180,6 +203,7 @@ function GetOptions() {
     switch ($SettingName) {
         case 'AudioMixerDevice':    return GetOptions_AudioMixerDevice();
         case 'AudioOutput':         return GetOptions_AudioOutputDevice();
+        case 'AudioInput':         return GetOptions_AudioInputDevice();
         case 'FrameBuffer':         return GetOptions_FrameBuffer();
         case 'Locale':              return GetOptions_Locale();
         case 'RTC':                 return GetOptions_RTC();
