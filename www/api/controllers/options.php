@@ -44,37 +44,44 @@ function GetOptions_AudioMixerDevice() {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-function GetOptions_AudioOutputDevice() {
-    global $SUDO;
+function GetOptions_AudioOutputDevice($fulllist = false) {
+    global $SUDO, $GET;
 
     $CurrentCard = GetAudioCurrentCard();
 
     $AlsaCards = Array();
-    exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
-    if ( $return_val )
-    {
-        error_log("Error getting alsa cards for output!");
+    if ($fulllist) {
+        exec("sudo aplay -l | grep '^card' | sed -e 's/^card //' -e 's/.*\[\(.*\)\].*\[\(.*\)\]/\\1, \\2/'", $output, $return_val);
+    } else {
+        exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
     }
-    else
-    {
+    if ($return_val) {
+        error_log("Error getting alsa cards for output!");
+    } else {
         $foundOurCard = 0;
-        foreach($output as $card)
-        {
+        foreach($output as $card) {
             $values = explode(':', $card);
 
             if ($values[0] == $CurrentCard)
                 $foundOurCard = 1;
 
-            if ($values[1] == "bcm2835 ALSA")
-                $AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
-            else if ($values[1] == "CD002")
-                $AlsaCards[$values[1] . " (FM Transmitter)"] = $values[0];
-            else
-                $AlsaCards[$values[1]] = $values[0];
+            if ($fulllist) {
+                $AlsaCards[] = $card ;
+            } else {
+                if ($values[1] == "bcm2835 ALSA")
+                    $AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
+                else if ($values[1] == "CD002")
+                    $AlsaCards[$values[1] . " (FM Transmitter)"] = $values[0];
+                else
+                    $AlsaCards[$values[1]] = $values[0];
+            }
         }
 
-        if (!$foundOurCard)
-            $AlsaCards['-- Select an Audio Device --'] = $CurrentCard;
+        if (!$foundOurCard) {
+            if (!$fulllist) {
+                $AlsaCards['-- Select an Audio Device --'] = $CurrentCard;
+            }
+        } 
     }
     unset($output);
 
@@ -82,21 +89,25 @@ function GetOptions_AudioOutputDevice() {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-function GetOptions_AudioInputDevice() {
+function GetOptions_AudioInputDevice($fulllist = false) {
     global $SUDO;
 
     $AlsaCards = Array();
-    exec($SUDO . " arecord -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
-    if ( $return_val )
-    {
-        error_log("Error getting alsa cards for input!");
+    if ($fulllist) {
+        exec("sudo arecord -l | grep '^card' | sed -e 's/^card //' -e 's/.*\[\(.*\)\].*\[\(.*\)\]/\\1, \\2/'", $output, $return_val);
+    } else {
+        exec("sudo arecord -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
     }
-    else
-    {
-        foreach($output as $card)
-        {
-            $values = explode(':', $card);
-            $AlsaCards[$values[1]] = $values[0];
+    if ( $return_val ) {
+        error_log("Error getting alsa cards for input!");
+    } else {
+        foreach($output as $card) {
+            if ($fulllist) {
+                $AlsaCards[] = $card;
+            } else {
+                $values = explode(':', $card);
+                $AlsaCards[$values[1]] = $values[0];
+            }
         }
     }
     unset($output);
@@ -202,8 +213,10 @@ function GetOptions() {
 
     switch ($SettingName) {
         case 'AudioMixerDevice':    return GetOptions_AudioMixerDevice();
-        case 'AudioOutput':         return GetOptions_AudioOutputDevice();
-        case 'AudioInput':         return GetOptions_AudioInputDevice();
+        case 'AudioOutput':         return GetOptions_AudioOutputDevice(false);
+        case 'AudioInput':          return GetOptions_AudioInputDevice(false);
+        case 'AudioOutputList':     return GetOptions_AudioOutputDevice(true);
+        case 'AudioInputList':      return GetOptions_AudioInputDevice(true);
         case 'FrameBuffer':         return GetOptions_FrameBuffer();
         case 'Locale':              return GetOptions_Locale();
         case 'RTC':                 return GetOptions_RTC();
