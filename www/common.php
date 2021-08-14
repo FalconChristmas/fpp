@@ -1761,6 +1761,13 @@ function ApplyEmailConfig()
     fwrite($fp, "#\n");
     if (($emailuser != '') && ($emailpass != '')) {
         fwrite($fp, $emailserver . ":" . $emailuser . ":" . $emailpass . "\n");
+
+       $v = dns_get_record($emailserver, DNS_CNAME);
+       foreach ($v as $cname) {
+           if (isset($cname["target"])) {
+                fwrite($fp, $cname["target"] . ":" . $emailuser . ":" . $emailpass . "\n");
+           }
+       }
     }
     fclose($fp);
 
