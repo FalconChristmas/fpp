@@ -334,7 +334,7 @@ cd /opt 2> /dev/null || mkdir /opt
 export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
-	debian_9 | debian_10 | ubuntu_20.04)
+	debian_11 | debian_10 | ubuntu_20.04)
 		case $FPPPLATFORM in
 			'CHIP'|'BeagleBone Black')
 				echo "FPP - Skipping non-free for $FPPPLATFORM"
@@ -351,7 +351,7 @@ case "${OSVER}" in
         PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools python3-smbus\
             python3-werkzeug python3-click python3-colorama python3-decorator python3-dev python3-distro \
             python3-distutils python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
-            gfortran glib-networking libxmuu1 xauth network-manager"
+            gfortran glib-networking libxmuu1 xauth network-manager isc-dhcp-client"
         if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_REMOVE="$PACKAGE_REMOVE roboticscape nodejs c9-core-installer \
                 doc-beaglebone-getting-started bonescript bone101 bb-node-red-installer ardupilot-copter-bbbmini ardupilot-copter-blue \
@@ -405,7 +405,7 @@ case "${OSVER}" in
         PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
                       apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
-                      fbi fbset file flite ca-certificates lshw \
+                      fbi fbset file flite ca-certificates lshw gettext \
                       build-essential ffmpeg gcc g++ gdb ccache vim vim-common bison flex device-tree-compiler dh-autoreconf \
                       git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync connman sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
@@ -690,7 +690,7 @@ EOF
         fi
         
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
-		if [ "x${OSVER}" == "xdebian_9" ] || [ "x${OSVER}" == "xdebian_10" ]; then
+		if [ "x${OSVER}" == "xdebian_11" ] || [ "x${OSVER}" == "xdebian_10" ]; then
 			systemctl disable serial-getty@ttyAMA0.service
 			sed -i -e "s/console=serial0,115200 //" /boot/cmdline.txt
 			sed -i -e "s/autologin pi/autologin ${FPPUSER}/" /etc/systemd/system/autologin@.service
@@ -926,7 +926,7 @@ cat <<-EOF >> /etc/samba/smb.conf
 EOF
 
 case "${OSVER}" in
-	debian_9 |  debian_10 | ubuntu_20.04)
+	debian_11 |  debian_10 | ubuntu_20.04)
 		systemctl restart smbd.service
 		systemctl restart nmbd.service
 		;;
@@ -1050,7 +1050,7 @@ sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf
 rm /etc/apache2/conf-enabled/other-vhosts-access-log.conf
 
 case "${OSVER}" in
-	debian_9 |  debian_10 | ununtu_20.04)
+	debian_11 |  debian_10 | ununtu_20.04)
 		systemctl enable apache2.service
 		;;
 esac
