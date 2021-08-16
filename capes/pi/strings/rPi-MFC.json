@@ -1,0 +1,17 @@
+{
+    "name": "rPi-MFC",
+    "longName": "rPi-MFC",
+    "driver": "RPIWS281X",
+    "numSerial": 0,
+    "outputs": [
+        {
+            "pin": "P1-35"
+        }
+    ],
+    "groups": [
+        {
+            "start": 1,
+            "count": 1
+        }
+    ]
+}

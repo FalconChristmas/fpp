@@ -181,6 +181,18 @@ int RPIWS281xOutput::Init(Json::Value config) {
         m_strings.push_back(newString);
     }
 
+    int gpionum0 = ledstring.channel[0].gpionum;
+    if (gpionum0 == 0 || gpionum0 == 13 || gpionum0 == 19) {
+        // the pinouts are reversed of what rpi_ws2811 requires.  These GPIO's must be used for string 2
+        // we'll flip the two strings and then enable string 1 if needed to get the output to work correctly
+        ledstring.channel[0].gpionum = ledstring.channel[1].gpionum ? ledstring.channel[1].gpionum : 18;
+        ledstring.channel[1].gpionum = gpionum0;
+
+        std::swap(ledstring.channel[0].count, ledstring.channel[1].count);
+        offsets[0] = 1;
+        offsets[1] = 0;
+    }
+
     LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", m_strings.size());
 
     SetupCtrlCHandler();
