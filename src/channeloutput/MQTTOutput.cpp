@@ -41,7 +41,7 @@ MQTTOutput* createMQTTOutputOutput(unsigned int startChannel,
  */
 MQTTOutput::MQTTOutput(unsigned int startChannel, unsigned int channelCount) :
     ThreadedChannelOutputBase(startChannel, channelCount),
-    m_payload("%R,%G,%B"),
+    m_payload("%R%,%G%,%B%"),
     m_type(OutputType::THREE_CHAN),
     m_r(0x00),
     m_g(0x00),
@@ -67,7 +67,7 @@ int MQTTOutput::Init(Json::Value config) {
         LogWarn(VB_CHANNELOUT, "MQTT Not Configured, cannot start MQTTT Output");
         return false;
     }
-    
+
     if (config.isMember("topic")) {
         m_topic = config["topic"].asString();
     }
