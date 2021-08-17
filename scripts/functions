@@ -90,7 +90,7 @@ SetupFPPNetworkConfigViaConnMann() {
             DOWAIT=1
         fi
 
-        if [[ "$INTERFACE" == "wlan"* ]] ; then
+        if [[ "$INTERFACE" == "wl"* ]] ; then
             echo "Type=wifi"  >> $TMPFILE
             if [ "$HIDDEN" == "1" ]; then
                 echo "Hidden=true" >> $TMPFILE

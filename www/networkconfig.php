@@ -331,7 +331,7 @@ function SaveNetworkConfig()
 		data.PROTO   = 'dhcp';
 	}
 
-	if (iface.substr(0,4) == "wlan")
+	if (iface.substr(0,2) == "wl")
 	{
 		data.SSID = $('#eth_ssid').val();
 		data.PSK = $('#eth_psk').val();
@@ -403,7 +403,7 @@ function ClearPersistentNames() {
 function LoadNetworkConfig() {
 	var iface = $('#selInterfaces').val();
 	var url = "api/network/interface/" + iface;
-	var visible = iface.slice(0,4).toLowerCase() == "wlan"?true:false;
+	var visible = iface.slice(0,2).toLowerCase() == "wl"?true:false;
 
 	WirelessSettingsVisible(visible);
 	$.get(url,GetInterfaceInfo);
@@ -506,7 +506,7 @@ function GetInterfaceInfo(data,status)
 	$('#eth_netmask').val(data.NETMASK);
 	$('#eth_gateway').val(data.GATEWAY);
 
-	if (data.INTERFACE && data.INTERFACE.substr(0,4) == "wlan")
+	if (data.INTERFACE && data.INTERFACE.substr(0,2) == "wl")
 	{
 		$('#eth_ssid').val(data.SSID);
 		$('#eth_psk').val(data.PSK);

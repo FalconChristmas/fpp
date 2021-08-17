@@ -76,8 +76,8 @@ function network_presisentNames_create()
         exec($cmd, $output, $return_val);
 
         $cont = "[Match]\nMACAddress=" . $output[0];
-        if (substr($iface, 0, strlen("wlan")) === "wlan") {
-            $cont = $cont . "\nOriginalName=wlan*";
+        if (substr($iface, 0, strlen("wl")) === "wl") {
+            $cont = $cont . "\nOriginalName=wl*";
         }
         $cont = $cont . "\n[Link]\nName=" . $iface . "\n";
         file_put_contents("/tmp/5" . strval($count) . "-fpp-" . $iface . ".link", $cont);
@@ -150,7 +150,7 @@ function network_get_interface()
     }
     unset($output);
 
-    if (substr($interface, 0, 4) == "wlan") {
+    if (substr($interface, 0, 2) == "wl") {
         exec("/sbin/iwconfig $interface", $output);
         foreach ($output as $line) {
             if (preg_match('/ESSID:/', $line)) {
@@ -205,7 +205,7 @@ function network_set_interface()
             $data['INTERFACE']);
     }
 
-    if (substr($data['INTERFACE'], 0, 4) == "wlan") {
+    if (substr($data['INTERFACE'], 0, 2) == "wl") {
         fprintf($f,
             "SSID=\"%s\"\n" .
             "PSK=\"%s\"\n" .
