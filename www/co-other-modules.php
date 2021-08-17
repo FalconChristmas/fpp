@@ -692,7 +692,7 @@ function MQTTOutputTypeChanged(item) {
 
 class MQTTOutput extends OtherBase {
 
-    constructor(name="MQTTOutput", friendlyName="MQTT", maxChannels=3, fixedChans=true, config={topic: "", payload:"%R,%G,%B", channelType:"RGB"}) {
+    constructor(name="MQTTOutput", friendlyName="MQTT", maxChannels=3, fixedChans=true, config={topic: "", payload:"%R%,%G%,%B%", channelType:"RGB"}) {
         super(name, friendlyName, maxChannels, fixedChans, config);
     }
 
