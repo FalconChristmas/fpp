@@ -474,10 +474,7 @@
             "name": "disableIPAnnouncement",
             "description": "Disable IP announcement",
             "gatherStats": true,
-            "tip": "During boot, the current IP addresses will be announced over the audio output.  This setting allows disabling this announcement for production use when the Pi is connected to a FM transmitter or speakers.",
-            "platforms": [
-                "Raspberry Pi"
-            ],
+            "tip": "During boot, the current IP addresses will be announced over the audio output.  This setting allows disabling this announcement for production use when FPP is connected to a FM transmitter or speakers.",
             "type": "checkbox"
         },
         "disableUIWarnings": {
@@ -1576,7 +1573,7 @@
             "tip": "WiFi interface to use for tethering.",
             "reboot": 1,
             "type": "select",
-            "optionsCommand": "/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep wlan | colrm 6"
+            "optionsCommand": "/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep  wl | sed -r 's/:+$//'"
         },
         "TetherPSK": {
             "name": "TetherPSK",
