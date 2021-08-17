@@ -64,7 +64,7 @@ int MQTTOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "MQTTOutput::Init()\n");
 
     if (!mqtt) {
-        LogWarn(VB_CHANNELOUT, "MQTT Not Configured, cannot start MQTTT Output");
+        LogWarn(VB_CHANNELOUT, "MQTT Not Configured, cannot start MQTT Output");
         return false;
     }
 
