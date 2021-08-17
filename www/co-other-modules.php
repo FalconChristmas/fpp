@@ -678,6 +678,18 @@ class GPIO595OutputDevice extends OtherBase {
 
 /////////////////////////////////////////////////////////////////////////////
 // MQTT Output
+function MQTTOutputTypeChanged(item) {
+    var channelType = item.value;
+    var channels = 3;
+    if (channelType == "RGBW" ) {
+        channels = 4;
+    } else if (channelType == "Single" ) {
+        channels = 1;
+    }
+
+	$(item).parent().parent().find("input.count").val(channels);
+}
+
 class MQTTOutput extends OtherBase {
 
     constructor(name="MQTTOutput", friendlyName="MQTT", maxChannels=3, fixedChans=true, config={topic: "", payload:"%R,%G,%B", channelType:"RGB"}) {
@@ -708,7 +720,7 @@ class MQTTOutput extends OtherBase {
 
         result += "Topic: <input type='text' name='topic' class='topic' value='"+config.topic+"'>&nbsp;";
         result += "Payload: <input type='text' class='payload' name='payload' value='"+config.payload+"'><br>";
-        result += CreateSelect(datatypes, inType, "Channel Type", "Channel Type", "channelType" );
+        result += CreateSelect(datatypes, inType, "Channel Type", "Channel Type", "channelType", "MQTTOutputTypeChanged(this)" );
         result += "</td></tr>"
 
         return result;

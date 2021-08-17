@@ -63,6 +63,11 @@ MQTTOutput::~MQTTOutput() {
 int MQTTOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "MQTTOutput::Init()\n");
 
+    if (!mqtt) {
+        LogWarn(VB_CHANNELOUT, "MQTT Not Configured, cannot start MQTTT Output");
+        return false;
+    }
+    
     if (config.isMember("topic")) {
         m_topic = config["topic"].asString();
     }
@@ -105,7 +110,7 @@ int MQTTOutput::Close(void) {
 int MQTTOutput::RawSendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "MQTTOutput::RawSendData(%p)\n", channelData);
 
-    if (!mqtt->IsConnected()) {
+    if (!mqtt || !mqtt->IsConnected()) {
         return 0;
     }
     if (m_topic.empty()) {
@@ -120,16 +125,19 @@ int MQTTOutput::RawSendData(unsigned char* channelData) {
     uint8_t b = 0x00;
     uint8_t w = 0x00;
 
+    //The double buffer that ThreadedOutputBase performs only copies/buffers
+    //data from the startChannel for the required length.   The channelData
+    //passed in is already starting at startChannel
     switch (m_type) {
     case OutputType::ONE_CHAN:
-        w = channelData[m_startChannel - 1];
+        w = channelData[0];
         break;
     case OutputType::FOUR_CHAN:
-        w = channelData[m_startChannel + 2];
+        w = channelData[3];
     case OutputType::THREE_CHAN:
-        r = channelData[m_startChannel - 1];
-        g = channelData[m_startChannel];
-        b = channelData[m_startChannel + 1];
+        r = channelData[0];
+        g = channelData[1];
+        b = channelData[2];
         break;
     }
 
