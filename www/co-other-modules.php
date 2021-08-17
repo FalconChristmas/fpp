@@ -765,7 +765,6 @@ if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleB
     output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, {deviceID: 0x20} , 0x20, 0x27));
     output_modules.push(new GenericSPIDevice());
     output_modules.push(new PCA9685Output());
-    //output_modules.push(new PCA9685Output());
 <?
 }
 ?>
