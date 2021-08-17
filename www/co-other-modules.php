@@ -19,7 +19,7 @@ class OtherBase {
         this._fixedChans = fixedChans;
         this._config = config;
     }
-    
+
     PopulateHTMLRow(config) {
         var results = "";
         return results;
@@ -58,7 +58,7 @@ class OtherBase {
     get fixedChans () {
         return this._fixedChans;
     }
-    
+
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -68,7 +68,7 @@ class OtherBaseDevice extends OtherBase {
         super(name, friendlyName, maxChannels, fixedChans, config)
         this._devices = devices;
     }
-    
+
     PopulateHTMLRow(config) {
         var results = "";
         results += DeviceSelect(this._devices, config.device);
@@ -108,7 +108,7 @@ function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, d
     if (optionArray instanceof Map) {
         optionArray.forEach((key, value) => {
                                 result += "<option value='" + value + "'";
-                            
+
                                 if (currentValue == value) {
                                     result += " selected";
                                     found = 1;
@@ -119,7 +119,7 @@ function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, d
     } else {
         for (var key in optionArray) {
             result += "<option value='" + key + "'";
-        
+
             if (currentValue == key) {
                 result += " selected";
                 found = 1;
@@ -149,46 +149,42 @@ function DeviceSelect(deviceArray = ["No Devices"], currentValue) {
 
 var SPIDevices = new Array();
 <?
-        foreach(scandir("/dev/") as $fileName)
-        {
-            if (preg_match("/^spidev[0-9]/", $fileName)) {
-                echo "SPIDevices['$fileName'] = '$fileName';\n";
-            }
-        }
+foreach (scandir("/dev/") as $fileName) {
+    if (preg_match("/^spidev[0-9]/", $fileName)) {
+        echo "SPIDevices['$fileName'] = '$fileName';\n";
+    }
+}
 ?>
 
 var SerialDevices = new Array();
 <?
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyO[0-9]/", $fileName)) ||
-			(preg_match("/^ttyS[0-9]/", $fileName)) ||
-			(preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
-			echo "SerialDevices['$fileName'] = '$fileName';\n";
-		}
+foreach (scandir("/dev/") as $fileName) {
+    if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
+        (preg_match("/^ttyACM[0-9]+/", $fileName)) ||
+        (preg_match("/^ttyO[0-9]/", $fileName)) ||
+        (preg_match("/^ttyS[0-9]/", $fileName)) ||
+        (preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
+        (preg_match("/^ttyUSB[0-9]+/", $fileName))) {
+        echo "SerialDevices['$fileName'] = '$fileName';\n";
     }
-    if (is_dir("/dev/serial/by-id")) {
-        foreach(scandir("/dev/serial/by-id") as $fileName)
-        {
-            if(strcmp($fileName, ".") != 0 && strcmp($fileName, "..") != 0) {
-                $linkDestination = basename(readlink('/dev/serial/by-id/'.$fileName));
-                echo "SerialDevices['serial/by-id/$fileName'] = '$fileName -> $linkDestination';\n";
-            }
+}
+if (is_dir("/dev/serial/by-id")) {
+    foreach (scandir("/dev/serial/by-id") as $fileName) {
+        if (strcmp($fileName, ".") != 0 && strcmp($fileName, "..") != 0) {
+            $linkDestination = basename(readlink('/dev/serial/by-id/' . $fileName));
+            echo "SerialDevices['serial/by-id/$fileName'] = '$fileName -> $linkDestination';\n";
         }
     }
+}
 ?>
 
 var I2CDevices = new Array();
 <?
-        foreach(scandir("/dev/") as $fileName)
-        {
-            if (preg_match("/^i2c-[0-9]/", $fileName)) {
-                echo "I2CDevices['$fileName'] = '$fileName';\n";
-            }
-        }
+foreach (scandir("/dev/") as $fileName) {
+    if (preg_match("/^i2c-[0-9]/", $fileName)) {
+        echo "I2CDevices['$fileName'] = '$fileName';\n";
+    }
+}
 ?>
 
 
@@ -197,7 +193,7 @@ var I2CDevices = new Array();
 // WS2801 Output via SPI
 
 class SPIws2801Device extends OtherBaseDevice {
-    
+
     constructor() {
         super("SPIws2801", "SPI-WS2801", 1530, false, SPIDevices, {pi36: 0});
     }
@@ -216,7 +212,7 @@ class SPIws2801Device extends OtherBaseDevice {
 
     GetOutputConfig(result, cell) {
         result = super.GetOutputConfig(result, cell);
-       
+
         if (result == "")
             return "";
 
@@ -262,7 +258,7 @@ class I2COutput extends OtherBaseDevice {
         result.deviceID = parseInt(addr);
         return result;
     }
-    
+
     CanAddNewOutput() {
         //almost all i2c devices allow setting addresses so multiple can exist
         return true;
@@ -283,7 +279,7 @@ class PCA9685Output extends I2COutput {
             inMicrosecs = true;
         }
         result += " Frequency (Hz): <input class='frequency' type='number' min='40' max='1600' value='" + config.frequency + "'/><br><input class='asUsec' type='checkbox' " + (inMicrosecs ? "checked" : "") + ">Min/Max in micro-seconds</input><br>";
-        
+
         result += "<table>";
         for (var x = 0; x < 16; x++) {
             var min = 1000;
@@ -292,7 +288,7 @@ class PCA9685Output extends I2COutput {
             var dataType = 0;
             var zeroBehavior = 0;
             var description = "";
-            
+
             if (config.ports != undefined && config.ports[x] != undefined) {
                 min = config.ports[x].min;
                 max = config.ports[x].max;
@@ -307,7 +303,7 @@ class PCA9685Output extends I2COutput {
                 }
                 dataType = config.ports[x].dataType;
             }
-            
+
             result += "<tr style='outline: thin solid;'><td style='vertical-align:top'>Port " + x + ": </td><td>";
             result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
             result += "&nbsp;Min&nbsp;Value:<input class='min" + x + "' type='number' min='0' max='4095' style='width: 6em' value='" + min + "'/>";
@@ -338,7 +334,7 @@ class PCA9685Output extends I2COutput {
             result.ports[x].description = cell.find("input.description" + x).val();
         }
 
-        
+
         return result;
     }
 
@@ -347,7 +343,7 @@ class PCA9685Output extends I2COutput {
 /////////////////////////////////////////////////////////////////////////////
 // Generic SPI Output
 class GenericSPIDevice extends OtherBaseDevice {
-    
+
     constructor(name="GenericSPI", friendlyName="Generic SPI", maxChannels=FPPD_MAX_CHANNELS, fixedChans=false, devices=SPIDevices, config={speed: 50}) {
         super(name, friendlyName, maxChannels, fixedChans, devices, config);
     }
@@ -361,7 +357,7 @@ class GenericSPIDevice extends OtherBaseDevice {
     GetOutputConfig(result, cell) {
         result = super.GetOutputConfig(result, cell);
         var speed = cell.find("input.speed").val();
-       
+
         if (result == "" || speed == "")
             return "";
 
@@ -374,7 +370,7 @@ class GenericSPIDevice extends OtherBaseDevice {
 /////////////////////////////////////////////////////////////////////////////
 // Generic UDP Output
 class GenericUDPDevice extends OtherBase {
-    
+
     constructor(name="GenericUDP", friendlyName="Generic UDP", maxChannels=1400, fixedChans=false, config={address: "", port:8080, tokens:""}) {
         super(name, friendlyName, maxChannels, fixedChans, config);
     }
@@ -409,7 +405,7 @@ LOREnhancedSpeeds["500000"] = "500 k, 400 pixels max";
 LOREnhancedSpeeds["1000000"] = "1 Mbps, 800 pixels max";
 
 class LOREnhanced extends OtherBaseDevice {
-    
+
     constructor(name="LOREnhanced", friendlyName="LOR Enhanced", maxChannels=FPPD_MAX_CHANNELS, fixedChans=false, devices=SerialDevices, config={speed: 500000, units: []}) {
         super(name, friendlyName, maxChannels, fixedChans, devices, config);
     }
@@ -526,7 +522,7 @@ class LOREnhanced extends OtherBaseDevice {
 /////////////////////////////////////////////////////////////////////////////
 // X11 Virtual Matrix Output
 class X11VirtualMatrixDevice extends OtherBase {
-    
+
     constructor(name="X11Matrix", friendlyName="X11 Virtual Matrix", maxChannels=73728, fixedChans=true,
                 config={title: "X11 Virtual Matrix", scale:6, width:192, height: 128}) {
         super(name, friendlyName, maxChannels, fixedChans, config);
@@ -562,11 +558,11 @@ var PWMPins = new Array();
 <?
 $data = file_get_contents('http://127.0.0.1:32322/gpio');
 $gpiojson = json_decode($data, true);
-foreach($gpiojson as $gpio) {
+foreach ($gpiojson as $gpio) {
     $pn = $gpio['pin'] . ' (GPIO: ' . $gpio['gpio'] . ')';
     echo "GPIOPins.set(" . $gpio['gpio'] . ", '" . $pn . "');\n";
     if (isset($gpio['pwm'])) {
-        echo "PWMPins['". $gpio['gpio'] . "'] = true;\n";
+        echo "PWMPins['" . $gpio['gpio'] . "'] = true;\n";
     }
 }
 ?>
@@ -680,6 +676,61 @@ class GPIO595OutputDevice extends OtherBase {
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// MQTT Output
+class MQTTOutput extends OtherBase {
+
+    constructor(name="MQTTOutput", friendlyName="MQTT", maxChannels=3, fixedChans=true, config={topic: "", payload:"%R,%G,%B", channelType:"RGB"}) {
+        super(name, friendlyName, maxChannels, fixedChans, config);
+    }
+
+    PopulateHTMLRow(config) {
+
+        var datatypes = {};
+        datatypes["RGB"] = "RGB";
+        datatypes["RGBW"] = "RGBW";
+        datatypes["Single"] = "Single";
+
+        var inType = config.channelType;
+        if (inType == undefined) {
+            inType = "RGB";
+        }
+
+        if (inType == "RGB" ) {
+            super._maxChannels = 3;
+        } else if (inType == "RGBW" ) {
+            super._maxChannels = 4;
+        }
+        else if (inType == "Single" ) {
+            super._maxChannels = 1;
+        }
+        var result = super.PopulateHTMLRow(config);
+
+        result += "Topic: <input type='text' name='topic' class='topic' value='"+config.topic+"'>&nbsp;";
+        result += "Payload: <input type='text' class='payload' name='payload' value='"+config.payload+"'><br>";
+        result += CreateSelect(datatypes, inType, "Channel Type", "Channel Type", "channelType" );
+        result += "</td></tr>"
+
+        return result;
+    }
+
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+        result.topic =  cell.find("input.topic").val();
+        result.payload =  cell.find("input.payload").val();
+        result.channelType =  cell.find("select.channelType").val();
+
+        if (result.channelType == "RGB" ) {
+            result.channelCount = 3;
+        } else if (result.channelType == "RGBW" ) {
+            result.channelCount = 4;
+        } else if (result.channelType == "Single" ) {
+            result.channelCount = 1;
+        }
+        return result;
+    }
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 //populate the output devices
@@ -692,24 +743,24 @@ if (GPIOPins.size > 0) {
     output_modules.push(new GPIO595OutputDevice());
 }
 
+output_modules.push(new MQTTOutput());
 output_modules.push(new LOREnhanced());
 
 //Outputs for Raspberry Pi or Beagle
 <?
-if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
-{
-?>
+if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black") {
+    ?>
     output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, {deviceID: 0x20} , 0x20, 0x27));
     output_modules.push(new GenericSPIDevice());
     output_modules.push(new PCA9685Output());
+    //output_modules.push(new PCA9685Output());
 <?
 }
 ?>
 //Outputs for Raspberry Pi
 <?
-if ($settings['Platform'] == "Raspberry Pi")
-{
-?>
+if ($settings['Platform'] == "Raspberry Pi") {
+    ?>
     //TODO need to see if these modules could run as is on the BeagleBone
     output_modules.push(new SPIws2801Device());
 <?
