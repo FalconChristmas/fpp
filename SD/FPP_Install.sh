@@ -120,6 +120,40 @@ checkTimeAgainstUSNO () {
 	fi
 }
 
+configureConnMann () {
+    mv -f /etc/wpa_supplicant/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf.orig
+    mkdir /etc/connman
+    chmod 755 /etc/connman
+
+    cat <<-EOF > /var/lib/connman/settings
+[global]
+OfflineMode=false
+
+[WiFi]
+Enable=true
+Tethering=false
+
+[Bluetooth]
+Enable=false
+Tethering=false
+
+[Wired]
+Enable=true
+Tethering=false
+EOF
+
+cat <<-EOF >> /etc/connman/main.conf
+[General]
+PreferredTechnologies=wifi,ethernet
+SingleConnectedTechnology=false
+AllowHostnameUpdates=false
+PersistentTetheringMode=true
+EOF
+
+    sed -i 's/ExecStart.*/ExecStart=\/usr\/sbin\/connmand -n --nodnsproxy/g' /lib/systemd/system/connman.service
+}
+
+
 #############################################################################
 # Gather some info about our system
 . /etc/os-release
@@ -528,34 +562,7 @@ case "${FPPPLATFORM}" in
             systemctl disable dhcpcd.service
 
             echo "FPP - Configuring connman"
-            mv /etc/wpa_supplicant/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf.orig
-            mkdir /etc/connman
-            chmod 755 /etc/connman
-
-            cat <<-EOF > /var/lib/connman/settings
-[global]
-OfflineMode=false
-
-[WiFi]
-Enable=true
-Tethering=false
-
-[Bluetooth]
-Enable=false
-Tethering=false
-
-[Wired]
-Enable=true
-Tethering=false
-EOF
-
-cat <<-EOF >> /etc/connman/main.conf
-[General]
-PreferredTechnologies=wifi,ethernet
-SingleConnectedTechnology=false
-AllowHostnameUpdates=false
-PersistentTetheringMode=true
-EOF
+            configureConnMann
 
             echo "FPP - Disabling stock users (pi, odroid, debian), use the '${FPPUSER}' user instead"
             sed -i -e "s/^pi:.*/pi:*:16372:0:99999:7:::/" /etc/shadow
@@ -733,6 +740,10 @@ EOF
 		;;
 	'Debian')
 		echo "FPP - Debian"
+        if $isimage; then
+            echo "FPP - Configuring connman"
+            configureConnMann
+        fi
 		;;
 	*)
 		echo "FPP - Unknown platform"
@@ -1147,8 +1158,6 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
     cd /opt/fpp/SD
     bash ./FPP-Wifi-Drivers.sh
     rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf
-    
-    sed -i 's/ExecStart.*/ExecStart=\/usr\/sbin\/connmand -n --nodnsproxy/g' /lib/systemd/system/connman.service
 
     # replace entry already there
     sed -i 's/^DAEMON_CONF.*/DAEMON_CONF="\/etc\/hostapd\/hostapd.conf"/g' /etc/default/hostapd
