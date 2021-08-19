@@ -410,7 +410,7 @@ int Sequence::IsSequenceRunning(const std::string& filename) {
 }
 
 void Sequence::BlankSequenceData(bool clearBridge) {
-    LogDebug(VB_SEQUENCE, "BlankSequenceData()\n");
+    LogExcess(VB_SEQUENCE, "BlankSequenceData()\n");
     for (auto& a : GetOutputRanges()) {
         memset(&m_seqData[a.first], 0, a.second);
     }
@@ -419,7 +419,6 @@ void Sequence::BlankSequenceData(bool clearBridge) {
             memset(&m_bridgeData[a.first], 0, a.second);
         }
         std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
-        printf("Blanking so clearing bridges\n");
         m_bridgeRanges.clear();
     }
 
