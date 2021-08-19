@@ -475,6 +475,21 @@ include "playlistDetails.php";
 </div>
 <?php	include 'common/footer.inc';?>
 </div>
+<script>
+function Reboot() {
+    $.get({
+        url: "api/system/reboot",
+        data: "",
+        success: function(data) {
+            //Show FPP is rebooting notification for 60 seconds then reload the page
+            $.jGrowl('FPP is rebooting..', {life: 60000},{themeState:'detract'});
+            setTimeout(function () {
+                    location.href="index.php";
+            }, 60000);
+        }
+    });
+}
+</script>
 <div id='upgradePopup' title='FPP Upgrade' style="display: none">
     <textarea style='width: 99%; height: 97%;' disabled id='upgradeText'>
     </textarea>

@@ -2305,7 +2305,8 @@ function RemovePlaylistEntry()	{
 		{
 			if (confirm('Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.'))
 			{
-                $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP Upgrade" });
+                $('#dialog-help').fppDialog('close');
+                $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP Upgrade", dialogClass: 'no-close' });
                 $('#upgradePopup').fppDialog( "moveToTop" );
                 $('#upgradeText').html('');
 
