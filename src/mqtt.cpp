@@ -184,10 +184,10 @@ MosquittoClient::MosquittoClient(const std::string& host, const int port,
                 if (!payload.empty()) {
                     pos = std::atoi(payload.c_str());
                 }
-
+                
                 LogDebug(VB_CONTROL, "Starting Playlist '%s' with message '%s'\n",
                          newPlaylistName.c_str(), payload.c_str());
-                Player::INSTANCE.StartPlaylist(newPlaylistName, pos);
+                Player::INSTANCE.StartPlaylist(newPlaylistName, -1, pos);
                 LogDebug(VB_CONTROL, "Call to Player::INSTANCE.StartPlaylist complete\n");
             } else {
                 playlist->MQTTHandler(topic, payload);

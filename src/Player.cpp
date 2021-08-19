@@ -54,7 +54,7 @@ int Player::StartPlaylist(const std::string& name, const int repeat,
     priority = manualPriority;
 
     LogDebug(VB_PLAYLIST, "Manually starting %srepeating playlist '%s'\n",
-             repeat ? "" : "non-",
+             (repeat == -1 ? playlist->GetRepeat() : repeat) ? "" : "non-",
              playlistName.c_str());
 
     if (!playlist->Play(playlistName.c_str(), startPosition, repeat, -1, endPosition))
