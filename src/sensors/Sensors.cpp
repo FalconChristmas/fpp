@@ -269,10 +269,12 @@ public:
             lseek(file, 0, SEEK_SET);
             char buffer[20];
             int i = read(file, buffer, 20);
-            buffer[i] = 0;
-            double d = atof(buffer);
-
-            d /= 1000; //12 bit a2d
+            double d = 0;
+            if (i > 0) {
+                buffer[i] = 0;
+                d = std::atof(buffer);
+                d /= 1000; //12 bit a2d
+            }
             return d;
         }
 

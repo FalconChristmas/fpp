@@ -1729,7 +1729,7 @@ void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>>& r
             }
         }
         if (m_dataBlockSize == 0) {
-            m_rangesToRead.push_back(std::pair<uint32_t, uint32_t>(0, getMaxChannel() + 1));
+            m_rangesToRead.push_back(std::pair<uint32_t, uint32_t>(0, getMaxChannel()));
             m_dataBlockSize = getMaxChannel();
         }
     } else if (m_compressionType != CompressionType::none) {
@@ -1751,7 +1751,7 @@ void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>>& r
 FrameData* V2FSEQFile::getFrame(uint32_t frame) {
     if (m_rangesToRead.empty()) {
         std::vector<std::pair<uint32_t, uint32_t>> range;
-        range.push_back(std::pair<uint32_t, uint32_t>(0, getMaxChannel() + 1));
+        range.push_back(std::pair<uint32_t, uint32_t>(0, getMaxChannel()));
         prepareRead(range, frame);
     }
     if (frame >= m_seqNumFrames) {
@@ -1785,7 +1785,7 @@ void V2FSEQFile::finalize() {
 uint32_t V2FSEQFile::getMaxChannel() const {
     uint32_t ret = m_seqChannelCount;
     for (auto& a : m_sparseRanges) {
-        uint32_t m = a.first + a.second - 1;
+        uint32_t m = a.first + a.second;
         if (m > ret) {
             ret = m;
         }
