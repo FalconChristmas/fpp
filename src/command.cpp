@@ -547,15 +547,15 @@ char *ProcessCommand(char *command, char *response)
 
 void CommandProc()
 {
-    char command[256];
-    char ocommand[256];
+    constexpr int MAX_COMMAND_SIZE = 4096;
+    char *command = (char*)calloc(MAX_COMMAND_SIZE + 1, 1);
 
     struct sockaddr_un client_address;
     int bytes_received, bytes_sent;
     socklen_t address_length = sizeof(struct sockaddr_un);
 
     bzero(command, sizeof(command));
-    bytes_received = recvfrom(socket_fd, command, 256, 0,
+    bytes_received = recvfrom(socket_fd, command, MAX_COMMAND_SIZE, 0,
                               (struct sockaddr *) &(client_address),
                               &address_length);
     
@@ -564,21 +564,20 @@ void CommandProc()
     }
 
     while (bytes_received > 0) {
-        memcpy(ocommand, command, bytes_received);
-        ocommand[bytes_received] = 0;
+        command[bytes_received] = 0;
         char response[1500] = "\n";
         char *response2 = ProcessCommand(command, response);
         errno = 0;
         if (response2) {
             bytes_sent = sendto(socket_fd, response2, strlen(response2), 0,
                                 (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-            LogDebug(VB_COMMAND, "%s - (%d %d %s) %s", ocommand, bytes_sent, errno, strerror(errno), response2);
+            LogDebug(VB_COMMAND, "%s - (%d %d %s) %s", command, bytes_sent, errno, strerror(errno), response2);
             free(response2);
             response2 = NULL;
         } else {
             bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                                 (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-            LogDebug(VB_COMMAND, "%s - (%d %d %s) %s", ocommand, bytes_sent, errno, strerror(errno), response);
+            LogDebug(VB_COMMAND, "%s - (%d %d %s) %s", command, bytes_sent, errno, strerror(errno), response);
         }
         
         bzero(command, sizeof(command));
