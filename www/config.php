@@ -542,8 +542,19 @@ if ($debug) {
 
 $uiLevel = $settings['uiLevel'];
 
-define('MINYEAR', date('Y') - 2);
-define('MAXYEAR', date('Y') + 5);
+//
+// Didn't want to wait and check if ntp is synced
+// (takes too long). These dates will periodically need updated
+//
+$year = date('Y');
+if ($year < 2021 || $year > 2030) {
+    # Probably no internet
+    define('MINYEAR', date('Y') - 20);
+    define('MAXYEAR', date('Y') + 40);
+} else {
+    define('MINYEAR', date('Y') - 2);
+    define('MAXYEAR', date('Y') + 5);
+}
 
 LoadLocale();
 
