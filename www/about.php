@@ -96,6 +96,7 @@ function getFileCount($dir)
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <script language="Javascript">
 $(document).ready(function() {
+OnSystemStatusChange(updateSensorStatus)
 UpdateVersionInfo();
 GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
 GetItemCount('api/configfile/schedule.json', 'scheduleCount');
@@ -334,6 +335,7 @@ if (count($osUpdateFiles) > 0) {
                 <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>
                 <tr><td>CPU Usage:</td><td><?printf("%.2f", get_server_cpu_usage());?>%</td></tr>
                 <tr><td>Memory Usage:</td><td><?printf("%.2f", get_server_memory_usage());?>%</td></tr>
+                <tr><td style="vertical-align:top;">Sensors:</td><td><div id="sensorData"></div></td></tr>
 
                 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
                 <tr><td><b>Uptime</b></td><td>&nbsp;</td></tr>
