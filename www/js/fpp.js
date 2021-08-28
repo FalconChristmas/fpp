@@ -1913,7 +1913,6 @@ function SavePlaylistAs(name, options, callback) {
     pl.empty = false;
     pl.desc = $('#txtPlaylistDesc').val();
     pl.random = parseInt($('#randomizePlaylist').prop('value'));
-    console.log(options, typeof options)
     if (typeof options === 'object') {
 
         $.extend(pl, options)
@@ -3270,7 +3269,6 @@ function updateSensorStatus() {
         sensorText += "</table>";
         var sensorData = document.getElementById("sensorData");
         if (typeof sensorData != "undefined" && sensorData != null) {
-            console.log(sensorText)
             sensorData.innerHTML = sensorText;
         }
         $("#sensorData").show();
