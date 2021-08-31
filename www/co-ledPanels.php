@@ -89,40 +89,6 @@ function printLEDPanelLayoutSelect()
     echo "</select>";
 }
 
-function printLEDPanelSizeSelect($platform, $variant, $def, $addr)
-{
-    $values = array();
-    if ($platform == "BeagleBone Black") {
-        $values["32x16 1/8 Scan"] = "32x16x8";
-        $values["32x16 1/4 Scan"] = "32x16x4";
-        $values["32x16 1/4 Scan ABCD"] = "32x16x4x1";
-        $values["32x16 1/2 Scan A"] = "32x16x2";
-        $values["32x16 1/2 Scan AB"] = "32x16x2x1";
-        $values["32x32 1/16 Scan"] = "32x32x16";
-        $values["64x32 1/16 Scan"] = "64x32x16";
-        if (strpos($variant, 'PocketBeagle') !== false) {
-            $values["64x64 1/32 Scan"] = "64x64x32";
-        }
-        $values["64x32 1/8 Scan"] = "64x32x8";
-        $values["32x32 1/8 Scan"] = "32x32x8";
-        $values["40x20 1/5 Scan"] = "40x20x5";
-    } else {
-        $values["32x16 1/8 Scan"] = "32x16x8";
-        $values["32x16 1/4 Scan"] = "32x16x4";
-        $values["32x32 1/16 Scan"] = "32x32x16";
-        $values["32x32 1/8 Scan"] = "32x32x8";
-        $values["64x32 1/16 Scan"] = "64x32x16";
-        $values["64x32 1/8 Scan"] = "64x32x8";
-        $values["64x64 1/8 Scan"] = "64x64x8";
-        $values["128x64 1/32 Scan"] = "128x64x32";
-    }
-
-    if ($addr != "0" && $addr != "") {
-        PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def . "x" . $addr, $values, "", "LEDPanelLayoutChanged");
-    } else {
-        PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def, $values, "", "LEDPanelLayoutChanged");
-    }
-}
 function printLEDPanelGammaSelect($platform, $gamma)
 {
     if (!isset($gamma) || $gamma == "" || $gamma == "0") {
@@ -764,6 +730,7 @@ if ($settings['Platform'] == "BeagleBone Black") {
         LEDPanelOutputs = KNOWN_PANEL_CAPE["outputs"].length;
     }
 
+    PanelSubtypeChanged();
 	DrawLEDPanelTable();
 }
 
@@ -1186,7 +1153,49 @@ function SetupAdvancedUISelects() {
     }
 }
 
+function PanelSubtypeChanged() {
+    var select = document.getElementsByClassName("printSettingFieldCola col-md-3 col-lg-3")
+    var html = "";
+
+    html += "<select id='LEDPanelsSize' onchange='LEDPanelsSizeChanged();'>"
+
+    <?if ($settings['Platform'] == "BeagleBone Black") {?>
+    html += "<option value='32x16x8'>32x16 1/8 Scan</option>"
+    html += "<option value='32x16x4'>32x16 1/4 Scan</option>"
+    html += "<option value='32x16x4x1'>32x16 1/4 Scan ABCD</option>"
+    html += "<option value='32x16x2'>32x16 1/2 Scan A</option>"
+    html += "<option value='32x16x2x1'>32x16 1/2 Scan AB</option>"
+    html += "<option value='32x32x16'>32x32 1/16 Scan</option>"
+    html += "<option value='64x32x16'>64x32 1/16 Scan</option>"
+    <?    if(strpos(isset($settings['Variant']) ? $settings['Variant'] : '', 'PocketBeagle') !== false)  {?>
+    html += "<option value='64x64x32'>64x64 1/32 Scan</option>"
+    <?    }?>
+    html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
+    html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
+    html += "<option value='40x20x5'>40x20 1/5 Scan</option>"
+    <?} else {?>
+    html +="<option value='32x16x8'>32x16 1/8 Scan</option>"
+    html +="<option value='32x16x4'>32x16 1/4 Scan</option>"
+    html +="<option value='32x32x16'>32x32 1/16 Scan</option>"
+    html +="<option value='32x32x8'>32x32 1/8 Scan</option>"
+    html +="<option value='64x32x16'>64x32 1/16 Scan</option>"
+    html +="<option value='64x32x8'>64x32 1/8 Scan</option>"
+    html +="<option value='64x64x8'>64x64 1/8 Scan</option>"
+    if (($('#LEDPanelsConnection').val() === 'ColorLight5a75') || ($('#LEDPanelsConnection').val() === 'LinsnRV9')) {
+        html += "<option value='80x40x10'>80x40 1/10 Scan</option>"
+        html += "<option value='80x40x20'>80x40 1/20 Scan</option>"
+    }
+    html += "<option value='128x64x32'>128x64 1/32 Scan</option>"
+    <?}?>
+
+    html += "</select>"
+
+    select.item(0).innerHTML = html
+
+}
+
 $(document).ready(function(){
+    PanelSubtypeChanged();
 	InitializeLEDPanels();
 	LEDPanelsConnectionChanged();
 
@@ -1287,7 +1296,24 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
                 </div>
                 <div class="row">
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Single Panel Size (WxH):</b></div>
-                    <div class="printSettingFieldCol col-md-3 col-lg-3"><?printLEDPanelSizeSelect($settings['Platform'], isset($settings['Variant']) ? $settings['Variant'] : '', $LEDPanelWidth . "x" . $LEDPanelHeight . "x" . $LEDPanelScan, $LEDPanelAddressing);?></div>
+                    <div class="printSettingFieldCola col-md-3 col-lg-3">
+                        <script>
+                            function LEDPanelsSizeChanged() {
+                                var value = encodeURIComponent($('#LEDPanelsSize').val());
+
+                                $.get('fppjson.php?command=setSetting&plugin=&key=LEDPanelsSize&value=' + value)
+                                    .done(function() {
+                                        $.jGrowl('Panel Size saved',{themeState:'success'});
+                                        settings['LEDPanelsSize'] = value;
+                                        LEDPanelLayoutChanged();
+                                        SetRestartFlag(1);
+
+                                    }).fail(function() {
+                                    DialogError('Panel Size', 'Failed to save Panel Size');
+                                });
+                            }
+                        </script>
+                    </div>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Channel Count:</b></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"><span id='LEDPanelsChannelCount'>1536</span>(<span id='LEDPanelsPixelCount'>512</span> Pixels)</div>
                 </div>
