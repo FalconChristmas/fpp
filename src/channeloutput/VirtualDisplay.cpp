@@ -445,10 +445,15 @@ void VirtualDisplayOutput::DrawPixels(unsigned char* channelData) {
 
         DrawPixel(pixel.r, pixel.g, pixel.b, r, g, b);
 
-        if (m_pixelSize == 2) {
-            r /= 2;
-            g /= 2;
-            b /= 2;
+        if (m_pixelSize >= 2) {
+            if (m_pixelSize == 2) {
+                r /= 4;
+                g /= 4;
+                b /= 4;
+                r *= 3;
+                g *= 3;
+                b *= 3;
+            }
 
             if (pixel.y < (m_width - 1))
                 DrawPixel(pixel.r + m_bytesPerPixel,
