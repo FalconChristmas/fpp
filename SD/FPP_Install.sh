@@ -55,7 +55,7 @@
 SCRIPTVER="5.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="5.0"
-FPPCFGVER="67"
+FPPCFGVER="68"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -1144,6 +1144,11 @@ if $isimage; then
     
     echo "FPP - Disabling services not needed/used"
     systemctl disable connman-wait-online
+
+    # Make sure the full boot journals are kept
+    if [ -f /etc/systemd/journald.conf ]; then
+        sed -i -e "s/^SystemMaxUse.*/#SystemMaxUse=/g" /etc/systemd/journald.conf
+    fi
 fi
 
 
