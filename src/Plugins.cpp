@@ -226,7 +226,10 @@ public:
 
             execv(eventScript.c_str(), (char* const*)&sargs[0]);
 
-            LogErr(VB_PLUGIN, "We failed to exec our command callback!\n");
+            LogErr(VB_PLUGIN, "We failed to exec our command callback:  %s\n", strerror(errno));
+            for (auto a : sargs) {
+                LogErr(VB_PLUGIN, "  %s\n", a);
+            }
             exit(EXIT_FAILURE);
         } else {
             LogExcess(VB_PLUGIN, "Command parent process, resuming work.\n");
