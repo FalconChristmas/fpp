@@ -1134,24 +1134,7 @@ void MultiSync::PingSingleRemote(MultiSyncSystem& sys, int discover) {
     char outBuf[512];
     memset(outBuf, 0, sizeof(outBuf));
     int len = CreatePingPacket(m_localSystems[0], outBuf, discover);
-    struct sockaddr_in dest_addr;
-    memset(&dest_addr, 0, sizeof(dest_addr));
-    dest_addr.sin_family = AF_INET;
-    dest_addr.sin_addr.s_addr = inet_addr(sys.address.c_str());
-    dest_addr.sin_port = htons(FPP_CTRL_PORT);
-    std::unique_lock<std::mutex> lock(m_socketLock);
-    if (m_controlSock >= 0) {
-        sendto(m_controlSock, outBuf, len, MSG_DONTWAIT, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
-    } else {
-        int pingSock = socket(AF_INET, SOCK_DGRAM, 0);
-        if (pingSock < 0) {
-            LogErr(VB_SYNC, "Error opening Ping socket\n");
-            return;
-        }
-
-        sendto(pingSock, outBuf, len, MSG_DONTWAIT, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
-        close(pingSock);
-    }
+    SendUnicastPacket(sys.address, outBuf, len);
 }
 int MultiSync::CreatePingPacket(MultiSyncSystem& sysInfo, char* outBuf, int discover) {
     ControlPkt* cpkt = (ControlPkt*)outBuf;
@@ -1828,6 +1811,37 @@ void MultiSync::SendMulticastPacket(void* outBuf, int len) {
         }
     }
 }
+void MultiSync::SendUnicastPacket(const std::string &address, void* outBuf, int len) {
+    if (WillLog(LOG_EXCESSIVE, VB_SYNC)) {
+        LogExcess(VB_SYNC, "SendControlPacket()\n");
+        HexDump("Sending Control packet with contents:", outBuf, len, VB_SYNC);
+    }
+    struct sockaddr_in dest_addr;
+    memset(&dest_addr, 0, sizeof(dest_addr));
+    dest_addr.sin_family = AF_INET;
+
+    std::string ipAd = address;
+    if (GetIPForHost(ipAd)) {
+        dest_addr.sin_addr.s_addr = inet_addr(ipAd.c_str());
+    } else {
+        dest_addr.sin_addr.s_addr = inet_addr(address.c_str());
+    }
+    dest_addr.sin_port = htons(FPP_CTRL_PORT);
+    std::unique_lock<std::mutex> lock(m_socketLock);
+    if (m_controlSock >= 0) {
+        sendto(m_controlSock, outBuf, len, MSG_DONTWAIT, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+    } else {
+        int uSock = socket(AF_INET, SOCK_DGRAM, 0);
+        if (uSock < 0) {
+            LogErr(VB_SYNC, "Error opening Unicast socket\n");
+            return;
+        }
+
+        sendto(uSock, outBuf, len, MSG_DONTWAIT, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+        close(uSock);
+    }
+}
+    
 bool MultiSync::FillInInterfaces() {
     struct ifaddrs *interfaces, *tmp;
     getifaddrs(&interfaces);
@@ -2593,11 +2607,21 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
         pos += a.length() + 1;
     }
     cpkt->extraDataLen = pos - sizeof(ControlPkt);
-    SendControlPacket(outBuf, pos);
-    // the packet won't loop back so if it's supposed to run on this host as well,
-    // we need to force it
-    if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
-        CommandManager::INSTANCE.run(cmd, args);
+
+    if (host != "" && host.find(",") == std::string::npos) {
+        if (MyHostMatches(host, m_hostname, m_localSystems)) {
+            // only targetting myself, just run and don't send the packet
+            CommandManager::INSTANCE.run(cmd, args);
+        } else {
+            SendUnicastPacket(host, outBuf, pos);
+        }
+    } else {
+        SendControlPacket(outBuf, pos);
+        // the packet won't loop back so if it's supposed to run on this host as well,
+        // we need to force it
+        if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
+            CommandManager::INSTANCE.run(cmd, args);
+        }
     }
 }
 
