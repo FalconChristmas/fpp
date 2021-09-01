@@ -4754,7 +4754,7 @@ function syntaxHighlight(json) {
 function CommandToJSON(commandSelect, tblCommand, json, addArgTypes = false) {
     var args = new Array()
     var argTypes = new Array()
-    var commandVal = $('#' + commandSelect).val();;
+    var commandVal = $('#' + commandSelect).val();
     json['command'] = commandVal;
     if (commandVal != "" && !(typeof commandVal == "undefined")) {
         json['multisyncCommand'] = $("#" + tblCommand + "_multisync").is(":checked");
@@ -4903,6 +4903,17 @@ function OnMultisyncChanged(mscheck, tblCommand) {
         $("#" + tblCommand + "_multisyncHosts_row").hide();
     }
 }
+function OnMultisyncHostsChanged(hosts, tblCommand) {
+    var baseURL = $(hosts).val();
+    if (baseURL != undefined && !baseURL.includes(",")) {
+        for (var x = 1; x < 20; x++) {
+            var inp = $("#" + tblCommand + "_arg_" + x);
+            if (inp.data('contentlisturl') != null && baseURL != "") {
+                ReloadContentList(baseURL, inp);
+            }
+        }
+    }
+}
 
 var remoteIpList = null;
 function GetRemotes() {
@@ -4949,7 +4960,7 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
         + "_multisync' class='arg_multisync' onChange='OnMultisyncChanged(this, \"" + tblCommand + "\");'></input></td></tr>";
     $('#' + tblCommand).append(line);
     line = "<tr id='" + tblCommand + "_multisyncHosts_row' style='display:none'><td>Hosts:</td><td><input style='width:100%;' type='text' id='" + tblCommand + "_multisyncHosts' class='arg_multisyncHosts'";
-    line += " list='" + tblCommand + "_multisyncHosts_list'></input>";
+    line += " list='" + tblCommand + "_multisyncHosts_list' onChange='OnMultisyncHostsChanged(this, \"" + tblCommand + "\");'></input>";
     line += "<datalist id='" + tblCommand + "_multisyncHosts_list'>";
     remotes = GetRemotes();
     $.each(remotes, function (k, v) {
@@ -4960,7 +4971,6 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
     $('#' + tblCommand).append(line);
 
     argPrintFunc(tblCommand, configAdjustable, co['args']);
-
 }
 function SubCommandChanged(subCommandV, configAdjustable = false, argPrintFunc = PrintArgInputs) {
     var subCommand = $(subCommandV);
@@ -5445,7 +5455,7 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                 $("#" + tblCommand + "_multisync").prop("checked", val);
                 if (val) {
                     val = json['multisyncHosts']
-                    if (val !== undefined) {
+                    if (val !== undefined && !val.includes(",")) {
                         baseUrl = val;
                     }
                     $("#" + tblCommand + "_multisyncHosts_row").show();
