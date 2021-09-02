@@ -234,7 +234,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         if ((remotes == '') &&
             (!$('#MultiSyncMulticast').is(":checked")) &&
             (!$('#MultiSyncBroadcast').is(":checked"))) {
-            $('#MultiSyncMulticast').prop('checked', true);
+            $('#MultiSyncMulticast').prop('checked', true).trigger('change');
             alert('FPP will use multicast if no other sync methods are chosen.');
         }
 
@@ -1229,7 +1229,7 @@ function syncModeUpdated(setting = '') {
     });
 
     if (!anyUnicast && !multicastChecked && !broadcastChecked) {
-        $('#MultiSyncMulticast').prop('checked', true);
+        $('#MultiSyncMulticast').prop('checked', true).trigger('change');
         alert('FPP will use multicast if no other sync methods are chosen.');
     }
 }

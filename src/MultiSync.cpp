@@ -1646,10 +1646,6 @@ int MultiSync::OpenControlSockets() {
             remotesString += extraRemotes;
         }
     }
-    if (remotesString == "" || m_multiSyncEnabled) {
-        remotesString += ",";
-        remotesString += MULTISYNC_MULTICAST_ADDRESS;
-    }
 
     std::vector<std::string> tokens = split(remotesString, ',');
     std::set<std::string> remotes;
@@ -1660,23 +1656,18 @@ int MultiSync::OpenControlSockets() {
         }
     }
 
-    if (getSettingInt("MultiSyncBroadcast"))
+    if (getSettingInt("MultiSyncBroadcast")) {
         m_sendBroadcast = true;
+    }
 
-    if (getSettingInt("MultiSyncMulticast"))
+    if (getSettingInt("MultiSyncMulticast")) {
         m_sendMulticast = true;
+    }
+    if (remotesString == "" && m_multiSyncEnabled) {
+        m_sendMulticast = true;
+    }
 
     for (auto& s : remotes) {
-        // FIXME, need to remove this code sometime after v4.0.  It is only
-        // left in for now so that old configs still work.
-        if (s == "255.255.255.255") {
-            m_sendBroadcast = true;
-            continue;
-        } else if (s == MULTISYNC_MULTICAST_ADDRESS) {
-            m_sendMulticast = true;
-            continue;
-        }
-
         LogDebug(VB_SYNC, "Setting up Remote Sync for %s\n", s.c_str());
         struct sockaddr_in newRemote;
 
