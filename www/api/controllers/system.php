@@ -84,7 +84,7 @@ function StopFPPD()
 // GET /api/system/fppd/restart
 function RestartFPPD()
 {
-
+    global $_GET;
     if ((isset($_GET['quick'])) && ($_GET['quick'] == 1)) {
         $status = exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
         if ($status == 'true') {

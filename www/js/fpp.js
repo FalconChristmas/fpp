@@ -3880,7 +3880,7 @@ function RestartFPPD() {
     var args = "";
 
     if (settings['restartFlag'] == 2)
-        args = "&quick=1";
+        args = "?quick=1";
 
     $('html,body').css('cursor', 'wait');
     $.get("api/system/fppd/restart" + args

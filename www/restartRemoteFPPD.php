@@ -11,7 +11,6 @@ if (!isset($_GET['ip'])) {
 }
 $ip = $_GET['ip'];
 
-$postfix = '';
 if (isset($_GET['mode'])) {
     echo "Setting FPPD mode @ ".htmlspecialchars($ip)."\n";
     $mode = $_GET['mode'];
@@ -22,7 +21,6 @@ if (isset($_GET['mode'])) {
     curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 300);
     $request_content = curl_exec($curl);
     curl_close($curl);
-    $postfix = '&quick=1';
 }
 
 echo "Restarting FPPD @ ".htmlspecialchars($ip)."\n";
