@@ -452,6 +452,7 @@ if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleB
 }
 ?>
 
+    PanelSubtypeChanged();
     UpdateLegacyLEDPanelLayout();
 }
 
@@ -1153,6 +1154,17 @@ function SetupAdvancedUISelects() {
     }
 }
 
+function SetSinglePanelSize() {
+    var w = channelOutputsLookup["LEDPanelMatrix"].panelWidth;
+    var h = channelOutputsLookup["LEDPanelMatrix"].panelHeight;
+    var s = channelOutputsLookup["LEDPanelMatrix"].panelScan;
+    var singlePanelSize = [w, h, s].join('x');
+    if ("panelAddressing" in channelOutputsLookup) {
+        singlePanelSize = [singlePanelSize, channelOutputsLookup["LEDPanelMatrix"].panelAddressing].join('x');
+    }
+    $('#LEDPanelsSize').val(singlePanelSize.toString());
+}
+
 function PanelSubtypeChanged() {
     var select = document.getElementsByClassName("printSettingFieldCola col-md-3 col-lg-3")
     var html = "";
@@ -1192,10 +1204,10 @@ function PanelSubtypeChanged() {
 
     select.item(0).innerHTML = html
 
+    SetSinglePanelSize();
 }
 
 $(document).ready(function(){
-    PanelSubtypeChanged();
 	InitializeLEDPanels();
 	LEDPanelsConnectionChanged();
 
