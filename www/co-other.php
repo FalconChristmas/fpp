@@ -34,7 +34,13 @@ function nRFSpeedSelect(speedArray, currentValue) {
 function USBDeviceConfig(config) {
 	var result = "";
 
-	result += DeviceSelect(SerialDevices, config.device);
+	var description = "";
+	if (config.description != null) {
+		description = config.description;
+	}
+
+	result += "Description:&nbsp;<input class='description' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>&nbsp;";
+	result += DeviceSelect(SerialDevices, config.device) + "&nbsp;";
 
 	return result;
 }
@@ -42,11 +48,13 @@ function USBDeviceConfig(config) {
 function GetUSBOutputConfig(result, cell) {
 	$cell = $(cell);
 	var value = $cell.find("select.device").val();
+	var desc = $cell.find("input.description").val();
 
-	if (value == "")
+	if (value == "" && desc == "")
 		return "";
 
 	result.device = value;
+	result.description = desc;
 
 	return result;
 }
@@ -55,6 +63,7 @@ function NewUSBConfig() {
 	var config = {};
 
 	config.device = "";
+	config.description = "";
 
 	return USBDeviceConfig(config);
 }
@@ -255,7 +264,7 @@ function GenericSerialConfig(config) {
 	var result = "";
 
 
-	result += DeviceSelect(SerialDevices, config.device);
+	result += USBDeviceConfig(config);
 	result += GenericSerialSpeedSelect(config.speed);
 	result += " Header: <input type='text' size=10 maxlength=20 class='serialheader' value='" + config.header + "'>";
 	result += " Footer: <input type='text' size=10 maxlength=20 class='serialfooter' value='" + config.footer + "'>";
@@ -266,6 +275,7 @@ function GenericSerialConfig(config) {
 function NewGenericSerialConfig() {
 	var config = {};
 
+	config.description = "";
 	config.device = "";
 	config.speed = 9600;
 	config.header = "";
@@ -278,6 +288,8 @@ function GetGenericSerialConfig(result, cell) {
 	$cell = $(cell);
 	var device = $cell.find("select.device").val();
 
+
+
 	if (device == "")
 		return "";
 
@@ -285,6 +297,9 @@ function GetGenericSerialConfig(result, cell) {
 
 	if (speed == "")
 		return "";
+
+	var desc = $cell.find("input.description").val();
+	result.description = desc;
 
 	var header = $cell.find("input.serialheader").val();
 
@@ -652,7 +667,7 @@ function RenardParmSelect(currentValue) {
 function RenardOutputConfig(config) {
 	var result = "";
 
-	result += DeviceSelect(SerialDevices, config.device) + "&nbsp;&nbsp;";
+	result += USBDeviceConfig(config);
 	result += RenardSpeedSelect(config.renardspeed);
 	result += RenardParmSelect(config.renardparm);
 
@@ -662,11 +677,13 @@ function RenardOutputConfig(config) {
 function GetRenardOutputConfig(result, cell) {
 	$cell = $(cell);
 	var value = $cell.find("select.device").val();
+	var desc = $cell.find("input.description").val();
 
-	if (value == "")
+	if (value == "" && desc == "")
 		return "";
 
 	result.device = value;
+	result.description = desc;
 
 	value = $cell.find("select.renardspeed").val();
 
@@ -691,6 +708,7 @@ function NewRenardConfig() {
 	config.device = "";
 	config.renardspeed = "";
 	config.renardparm = "";
+	config.description = "";
 
 	return RenardOutputConfig(config);
 }
@@ -731,25 +749,27 @@ function LORSpeedSelect(currentValue) {
 function LOROutputConfig(config) {
 	var result = "";
 
-	result += DeviceSelect(SerialDevices, config.device) + "&nbsp;&nbsp;";
+	result += USBDeviceConfig(config);
 	result += LORSpeedSelect(config.speed);
 
     var val = config.firstControllerId;
     if (!val) {
         val = 1;
     }
-    result += "&nbsp;&nbsp;First Controller ID: <input class='firstControllerId' style='opacity: 1' id='firstControllerId' type='number' value='" + val + "' min='1' max='240' />";
+    result += "&nbsp;First Controller ID: <input class='firstControllerId' style='opacity: 1' id='firstControllerId' type='number' value='" + val + "' min='1' max='240' />";
 	return result;
 }
 
 function GetLOROutputConfig(result, cell) {
 	$cell = $(cell);
 	var value = $cell.find("select.device").val();
+	var desc = $cell.find("input.description").val();
 
-	if (value == "")
+	if (value == "" && desc == "")
 		return "";
 
 	result.device = value;
+	result.description = desc;
 
     value = $cell.find("select.speed").val();
 
@@ -771,6 +791,7 @@ function NewLORConfig() {
 
 	config.device = "";
 	config.speed = "";
+	config.description = "";
 
 	return LOROutputConfig(config);
 }
