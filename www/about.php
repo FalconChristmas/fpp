@@ -95,9 +95,11 @@ function getFileCount($dir)
 <?php include 'common/menuHead.inc';?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <script language="Javascript">
+var osAssetMap={};
 $(document).ready(function() {
 OnSystemStatusChange(updateSensorStatus)
 UpdateVersionInfo();
+AppendGithubOS();
 GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
 GetItemCount('api/configfile/schedule.json', 'scheduleCount');
 $('.default-value').each(function() {
@@ -116,6 +118,37 @@ this.value = default_value;
 });
 });
 });
+
+function showHideOsSelect() {
+    if ($('#OSSelect option').length > 0) {
+        $('#osSelectRow').show();
+    } else {
+        $('#osSelectRow').hide();
+    }
+}
+
+
+function AppendGithubOS() {
+    showHideOsSelect();
+    $.get("api/git/releases/os", function(data) {
+        if ("files" in data) {
+            for (const file of data["files"]) {
+                if (! file["downloaded"]) {
+                    osAssetMap[file["asset_id"]] = {
+                        name: file["filename"],
+                        url: file["url"]
+                    };
+
+                    $('#OSSelect').append($('<option>', {
+                        value: file["asset_id"],
+                        text: file["filename"] + " (download)"
+                    }));
+                }
+            }
+        }
+        showHideOsSelect();
+    });
+}
 
 function CloseUpgradeDialog() {
     $('#upgradePopup').fppDialog('close');
@@ -150,7 +183,13 @@ function UpgradeDone() {
 
 function UpgradeOS() {
     var os = $('#OSSelect').val();
-    if (confirm('Upgrade the OS using ' + os + '?\nThis can take a long time.')) {
+    var osName = os;
+    var extra = "";
+    if (os in osAssetMap) {
+        osName = osAssetMap[os].name;
+        os = osAssetMap[os].url;
+    }
+    if (confirm('Upgrade the OS using ' + osName + '?\nThis can take a long time. It is also strongly recommended to run FPP backup first.')) {
         $('#closeDialogButton').hide();
         $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP OS Upgrade", dialogClass: 'no-close' });
         $('#upgradePopup').fppDialog( "moveToTop" );
@@ -323,13 +362,11 @@ if ($settings['uiLevel'] > 0) {
 }
 
 $osUpdateFiles = preg_grep("/^" . $settings['OSImagePrefix'] . "-/", getFileList($uploadDirectory, "fppos"));
-if (count($osUpdateFiles) > 0) {
-    echo "<tr><td>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect'>\n";
-    foreach ($osUpdateFiles as $key => $value) {
-        echo "<option value='" . $value . "'>" . $value . "</option>\n";
-    }
-    echo "</select>&nbsp;<input type='button' value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'></td></tr>";
+echo "<tr id='osSelectRow'><td>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect'>\n";
+foreach ($osUpdateFiles as $key => $value) {
+    echo "<option value='" . $value . "'>" . $value . "</option>\n";
 }
+echo "</select>&nbsp;<input type='button' value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'></td></tr>";
 ?>
                 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
                 <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>

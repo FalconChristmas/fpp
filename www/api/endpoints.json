@@ -754,6 +754,47 @@
             }
         },
         {
+            "endpoint": "git/releases/os",
+            "methods": {
+                "GET": {
+                    "desc": "Returns lists of fppos files available locally or on Github for the current platform",
+                    "output": {
+                        "status": "OK",
+                        "downloaded": [
+                            "Pi-v4.4.fppos",
+                            "Pi-5.0-alpha1.fppos"
+                        ],
+                        "files": [
+                            {
+                                "tag": "5.1",
+                                "release_name": "5.1",
+                                "filename": "Pi-5.1.1.fppos",
+                                "url": "https://github.com/FalconChristmas/fpp/releases/download/5.1/Pi-5.1.1.fppos",
+                                "asset_id": 42917234,
+                                "downloaded": false
+                            },
+                            {
+                                "tag": "5.0",
+                                "release_name": "5.0",
+                                "filename": "BBB-5.0.fppos",
+                                "url": "https://github.com/FalconChristmas/fpp/releases/download/5.0/BBB-5.0.fppos",
+                                "asset_id": 41667478,
+                                "downloaded": false
+                            },
+                            {
+                                "tag": "5.0-alpha1",
+                                "release_name": "5.0-alpha1",
+                                "filename": "BBB-5.0-alpha1.fppos",
+                                "url": "https://github.com/FalconChristmas/fpp/releases/download/5.0-alpha1/BBB-5.0-alpha1.fppos",
+                                "asset_id": 37964219,
+                                "downloaded": true
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "git/reset",
             "methods": {
                 "GET": {

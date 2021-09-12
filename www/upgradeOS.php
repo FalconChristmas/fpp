@@ -1,21 +1,25 @@
 <?
-header( "Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Origin: *");
 
+$lastUpdate = time();
+$applyUpdate = true;
 $wrapped = 0;
 
-if (isset($_GET['wrapped']))
+if (isset($_GET['wrapped'])) {
     $wrapped = 1;
+}
 
-if (!$wrapped)
+if (!$wrapped) {
     echo "<html>\n";
+}
 
 $skipJSsettings = 1;
-require_once("common.php");
+require_once "common.php";
 
 DisableOutputBuffering();
 
 if (!$wrapped) {
-?>
+    ?>
 <head>
 <title>
 FPP OS Uprade
@@ -23,7 +27,7 @@ FPP OS Uprade
 </head>
 <body>
 <h2>FPP OS Upgrade</h2>
-Image: <? echo strip_tags($_GET['os']); ?><br>
+Image: <?echo strip_tags($_GET['os']); ?><br>
 <pre>
 <?
 } else {
@@ -34,23 +38,45 @@ Image: <? echo strip_tags($_GET['os']); ?><br>
 if (preg_match('/^https?:/', $_GET['os'])) {
     echo "==========================================================================\n";
     $baseFile = escapeshellcmd(preg_replace('/.*\/([^\/]*)$/', '$1', $_GET['os']));
+    $localFile = fopen("/home/fpp/media/upload/$baseFile", "wb");
     echo "Downloading OS Image:\n";
-    $cmd = "curl -f --fail-early " . escapeshellcmd($_GET['os']) . " --output /home/fpp/media/upload/$baseFile 2>&1";
-    system($cmd);
-    $_GET['os'] = $baseFile;
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_FILE, $localFile);
+    curl_setopt($ch, CURLOPT_URL, $_GET['os']);
+    curl_setopt($ch, CURLOPT_HEADER, 0);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // Connect in 10 seconds or less
+    curl_setopt($ch, CURLOPT_TIMEOUT, 86400); // 1 Day Timeout to transfer
+    curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible;)");
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, 'progress');
+    curl_setopt($ch, CURLOPT_NOPROGRESS, false); // needed to make progress function work
+
+    $result = curl_exec($ch);
+
+    if ($result) {
+        echo ("Download complete...\n");
+    } else {
+        echo ("Download aborted!\n");
+        $applyUpdate = false;
+    }
+
 }
 ?>
 ==========================================================================
 Upgrading OS:
 <?
-copy("$fppDir/SD/upgradeOS-part1.sh", "/home/fpp/media/tmp/upgradeOS-part1.sh");
-chmod("/home/fpp/media/tmp/upgradeOS-part1.sh", 0775);
-system($SUDO . " stdbuf --output=L --error=L /home/fpp/media/tmp/upgradeOS-part1.sh /home/fpp/media/upload/" . escapeshellcmd($_GET['os']));
+if ($applyUpdate) {
+    copy("$fppDir/SD/upgradeOS-part1.sh", "/home/fpp/media/tmp/upgradeOS-part1.sh");
+    chmod("/home/fpp/media/tmp/upgradeOS-part1.sh", 0775);
+    system($SUDO . " stdbuf --output=L --error=L /home/fpp/media/tmp/upgradeOS-part1.sh /home/fpp/media/upload/" . escapeshellcmd($_GET['os']));
+} else {
+    echo ("Skipping update\n");
+}
 ?>
 ==========================================================================
 <?
 if (!$wrapped) {
-?>
+    ?>
 </pre>
 <b>Rebooting.... please wait for FPP to reboot.</b>
 <a href='index.php'>Go to FPP Main Status Page</a><br>
@@ -65,5 +91,36 @@ flush();
 while (@ob_end_flush());
 session_write_close();
 
-system($SUDO . " shutdown -r now");
+if ($applyUpdate) {
+    sleep(1);
+    system($SUDO . " shutdown -r now");
+}
+
+function progress($resource, $download_size, $downloaded, $upload_size, $uploaded)
+{
+    global $lastUpdate;
+    global $filename;
+    $now = time();
+    if ($now <= $lastUpdate) {
+        return;
+    } else {
+        $delta = 1;
+        if ($download_size > 0) {
+            $delta = 5;
+        }
+        $lastUpdate = $now + $delta;
+
+    }
+
+    if ($download_size > 0) {
+        echo ("Progress: ");
+        echo intval($downloaded / $download_size * 100);
+        echo ("%");
+    } else {
+        echo ("Finding Remote Host");
+    }
+    echo ("\n");
+
+    flush();
+}
 ?>
