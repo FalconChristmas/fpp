@@ -4,6 +4,11 @@ header("Access-Control-Allow-Origin: *");
 $lastUpdate = time();
 $applyUpdate = true;
 $wrapped = 0;
+$baseFile = "unknown";
+
+if (isset($_GET['os'])) {
+    $baseFile = escapeshellcmd($_GET['os']);
+}
 
 if (isset($_GET['wrapped'])) {
     $wrapped = 1;
@@ -68,7 +73,7 @@ Upgrading OS:
 if ($applyUpdate) {
     copy("$fppDir/SD/upgradeOS-part1.sh", "/home/fpp/media/tmp/upgradeOS-part1.sh");
     chmod("/home/fpp/media/tmp/upgradeOS-part1.sh", 0775);
-    system($SUDO . " stdbuf --output=L --error=L /home/fpp/media/tmp/upgradeOS-part1.sh /home/fpp/media/upload/" . escapeshellcmd($_GET['os']));
+    system($SUDO . " stdbuf --output=L --error=L /home/fpp/media/tmp/upgradeOS-part1.sh /home/fpp/media/upload/$baseFile");
 } else {
     echo ("Skipping update\n");
 }
