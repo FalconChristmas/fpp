@@ -101,7 +101,7 @@ public:
 protected:
     void SaveFrame(unsigned char* channelData, int len);
     bool NeedToOutputFrame(unsigned char* channelData, int startChannel, int savedIdx, int count);
-    bool deDuplicate;
+    bool deDuplicate = 0;
     int skippedFrames;
     unsigned char* lastData;
 };
