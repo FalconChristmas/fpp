@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 mount $1 /mnt
 
 ORIGTYPE=$(</etc/fpp/platform)

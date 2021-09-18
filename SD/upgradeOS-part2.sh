@@ -35,7 +35,7 @@ mkdir tmp/ssh
 cp -a mnt/etc/ssh/*key* tmp/ssh
 
 #copy everything other than fstab and the persistent net names
-stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-after --exclude=etc/fstab --exclude=/etc/systemd/network/*-fpp-*
+stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-after --exclude=var/lib/connman --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/*-fpp-*
 
 #restore the ssh keys
 echo "Restoring ssh keys"

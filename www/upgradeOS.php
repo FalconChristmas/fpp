@@ -71,9 +71,16 @@ if (preg_match('/^https?:/', $_GET['os'])) {
 Upgrading OS:
 <?
 if ($applyUpdate) {
-    copy("$fppDir/SD/upgradeOS-part1.sh", "/home/fpp/media/tmp/upgradeOS-part1.sh");
-    chmod("/home/fpp/media/tmp/upgradeOS-part1.sh", 0775);
-    system($SUDO . " stdbuf --output=L --error=L /home/fpp/media/tmp/upgradeOS-part1.sh /home/fpp/media/upload/$baseFile");
+    $TMP_FILE = "/home/fpp/media/tmp/upgradeOS-part1.sh";
+    echo ("Checking for previous $TMP_FILE\n");
+    if (file_exists($TMP_FILE)) {
+        echo ("Cleaning up from previous upgradeOS\n");
+        system($SUDO . " rm $TMP_FILE");
+    }
+    copy("$fppDir/SD/upgradeOS-part1.sh", $TMP_FILE);
+    chmod($TMP_FILE, 0775);
+    #system($SUDO . " stdbuf --output=L --error=L $TMP_FILE /home/fpp/media/upload/$baseFile");
+    system($SUDO . " $TMP_FILE /home/fpp/media/upload/$baseFile");
 } else {
     echo ("Skipping update\n");
 }
@@ -92,12 +99,12 @@ if (!$wrapped) {
 } else {
     echo "Rebooting.... Please wait for FPP to reboot.\n";
 }
-flush();
 while (@ob_end_flush());
+flush();
 session_write_close();
 
 if ($applyUpdate) {
-    sleep(1);
+    sleep(3);
     system($SUDO . " shutdown -r now");
 }
 
