@@ -90,14 +90,14 @@ if ($applyUpdate) {
 if (!$wrapped) {
     ?>
 </pre>
-<b>Rebooting.... please wait for FPP to reboot.</b>
+<b>Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot</b>
 <a href='index.php'>Go to FPP Main Status Page</a><br>
 <a href='about.php'>Go back to FPP About page</a><br>
 </body>
 </html>
 <?
 } else {
-    echo "Rebooting.... Please wait for FPP to reboot.\n";
+    echo "Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot\n";
 }
 while (@ob_end_flush());
 flush();
