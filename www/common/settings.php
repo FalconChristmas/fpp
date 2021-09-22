@@ -102,7 +102,13 @@ function SetupHtaccess($enablePW)
     $data .= "SetEnvIf Host ^ LOCAL_PROTECT=" . $enablePW ."\n";
 
     // Allow open access for fppxml & fppjson
-    $data .= "<FilesMatch \"^(fppjson|fppxml)\.php$\">\nAllow from All\nSatisfy Any\n</FilesMatch>\n";
+    $data .= "<FilesMatch \"^(fppjson|fppxml)\.php$\">\n";
+    if ($enablePW) {
+        $data .= "<RequireAny>\n  <RequireAll>\n    Require local\n  </RequireAll>\n  <RequireAll>\n    Require valid-user\n  </RequireAll>\n</RequireAny>\n";
+    } else {
+        $data .= "Allow from All\nSatisfy Any\n";
+    }
+    $data .= "</FilesMatch>\n";
 
     // Don't block Fav icon
     $data .= "<FilesMatch \"^(favicon)\.ico$\">\nAllow from All\nSatisfy Any\n</FilesMatch>\n";
