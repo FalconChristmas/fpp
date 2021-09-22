@@ -329,6 +329,15 @@ function addVirtualString(item)
     $('#' + highestId).after(str);
 }
 
+function preventNonNumericalInput(e) {
+    e = e || window.event;
+    var charCode = (typeof e.which == "undefined") ? e.keyCode : e.which;
+    var charStr = String.fromCharCode(charCode);
+
+    if (!charStr.match(/^[0-9]+$/))
+        e.preventDefault();
+}
+
 function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, description, startChannel, pixelCount, groupCount, reverse, colorOrder, startNulls, endNulls, zigZag, brightness, gamma, portPfx = "")
 {
     var result = "";
@@ -355,18 +364,18 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     }
     
     result += "<td><input type='text' class='vsDescription' size='25' maxlength='60' value='" + description + "'></td>";
-    result += "<td><input type='number' class='vsStartChannel' size='6' value='" + startChannel + "' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
-    result += "<td><input type='number' class='vsPixelCount' size='4' min='1' max='1600' value='" + pixelCount + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
-    result += "<td><input type='number' class='vsGroupCount' size='3' value='" + groupCount + "' min='1' max='1000' onChange='updateItemEndChannel(this);'></td>";
+    result += "<td><input type='number' class='vsStartChannel' size='6' value='" + startChannel + "' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+    result += "<td><input type='number' class='vsPixelCount' size='4' min='1' max='1600' onkeypress='preventNonNumericalInput(event)' value='" + pixelCount + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+    result += "<td><input type='number' class='vsGroupCount' size='3' value='" + groupCount + "' min='1' max='1000' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);'></td>";
     if (groupCount == 0) {
         groupCount = 1;
     }
     result += "<td align='center' class='vsEndChannel'>" + (startChannel + (pixelCount * colorOrder.length)/groupCount - 1) + "</td>";
     result += pixelOutputTableInputDirection(reverse);
     result += pixelOutputTableInputOrder(colorOrder);
-    result += "<td><input type='number' class='vsStartNulls' size='2' value='" + startNulls + "' min='0' max='100'></td>";
-    result += "<td><input type='number' class='vsEndNulls' size='2' value='" + endNulls + "' min='0' max='100'></td>";
-    result += "<td><input type='number' class='vsZigZag' size='3' value='" + zigZag + "' min='0' max='1600'></td>";
+    result += "<td><input type='number' class='vsStartNulls' size='2' value='" + startNulls + "' min='0' max='100' onkeypress='preventNonNumericalInput(event)'></td>";
+    result += "<td><input type='number' class='vsEndNulls' size='2' value='" + endNulls + "' min='0' max='100' onkeypress='preventNonNumericalInput(event)'></td>";
+    result += "<td><input type='number' class='vsZigZag' size='3' value='" + zigZag + "' min='0' max='1600' onkeypress='preventNonNumericalInput(event)'></td>";
     result += pixelOutputTableInputBrightness(brightness);
     result += "<td><input type='number' class='vsGamma' size='3' value='" + gamma + "' min='0.1' max='5.0' step='0.01'></td>";
     result += "</tr>\n";
@@ -418,7 +427,10 @@ function updateRowEndChannel(row) {
     if (groupCount == 0) {
         groupCount = 1;
     }
-    var newEnd = startChannel + (chanPerNode * pixelCount)/groupCount - 1;
+
+    var stringChannels = chanPerNode * Math.ceil(pixelCount/groupCount);
+
+    var newEnd = startChannel + stringChannels - 1;
     if (pixelCount == 0) {
         newEnd = 0;
     }
