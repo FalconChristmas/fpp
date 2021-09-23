@@ -153,6 +153,7 @@ function GetOptions_RTC() {
     $rtcOptions['None'] = 'N';
     $rtcOptions['DS1305 / DS1307 / DS3231 (PiCap)'] = '2';
     $rtcOptions['pcf8523 (Kulp / Adafruit PiRTC)'] = '4';
+    $rtcOptions['pcf85363 (Kulp)'] = '5';
     $rtcOptions['mcp7941x (PiFace)'] = '3';
     $rtcOptions['pcf2127 (RasClock)'] = '1';
 

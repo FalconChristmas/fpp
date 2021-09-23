@@ -81,6 +81,12 @@ setupRTC () {
       echo "pcf8523 0x68" > /sys/bus/i2c/devices/${I2CBUS}/new_device
       sleep 1
       ;;
+    5)
+      # pcf85363
+      echo "FPP - Configuring RTC, Settting to pcf85363/${I2CBUS}"
+      echo "pcf85363 0x51" > /sys/bus/i2c/devices/${I2CBUS}/new_device
+      sleep 1
+      ;;
     *)
       # None
       echo "FPP - Configuring RTC, None Selected"
