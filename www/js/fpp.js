@@ -4100,7 +4100,7 @@ function RebootPi() {
                     }, 60000);
                 },
                 error: function () {
-                    DialogError('Command failed', 'Command failed');
+                    DialogError('Command failed', 'Reboot Command failed');
                 }
 
             });
@@ -4118,7 +4118,7 @@ function ShutdownPi() {
                 $.jGrowl('FPP is shutting down..', { life: 60000, themeState: 'detract' });
             },
             error: function () {
-                DialogError('Command failed', 'Command failed');
+                DialogError('Command failed', 'Shutdown Command failed');
             }
 
         });
@@ -5685,7 +5685,7 @@ function RunCommandJSON(cmdJSON) {
             $.jGrowl('Command ran', { themeState: 'success' });
         },
         error: function () {
-            DialogError('Command failed', 'Command failed');
+            DialogError('Command failed', 'api/command call failed');
         }
     });
 }
