@@ -14,7 +14,7 @@ function RebootDevice()
         // apache is container's long-running process, send it a SIGTERM
         $status = exec($SUDO . " killall -15 apache2");
     } else {
-        $status = exec($SUDO . " bash -c '/usr/bin/sleep 2; shutdown -r now > /dev/null 2>&1 &'");
+        $status = exec($SUDO . " bash -c '{ sleep 1; shutdown -r now; }  > /dev/null 2>&1 &'");
     }
 
     $output = array("status" => "OK");
@@ -30,7 +30,7 @@ function SystemShutdownOS()
         // apache is container's long-running process, send it a SIGTERM
         $status = exec($SUDO . " killall -15 apache2");
     } else {
-        $status = exec($SUDO . " shutdown -h now");
+        $status = exec($SUDO . " bash -c '{ sleep 1; shutdown -h now; }  > /dev/null 2>&1 &'");
     }
 
     $output = array("status" => "OK");
@@ -392,7 +392,6 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
         $result['Utilization']['Disk']["Media"]['Total'] = disk_total_space($uploadDir);
         $result['Utilization']['Disk']["Root"]['Free'] = disk_free_space("/");
         $result['Utilization']['Disk']["Root"]['Total'] = disk_total_space("/");
-
 
         $result['Kernel'] = get_kernel_version();
         $result['LocalGitVersion'] = get_local_git_version();
