@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php
-require_once('config.php');
+require_once 'config.php';
 
 function startsWith($string, $startString)
 {
@@ -21,9 +21,9 @@ $git_log = "";
 $currentVersion = "";
 if ($uiLevel >= 1) {
     $currentBranch = "";
-    $cmd = "git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch -a | grep '^*' | awk '{print \$2}' | sed -e 's/[^a-zA-Z0-9\.]*//'";
+    $cmd = "git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ branch -a | grep '^*' | awk '{print \$2}' | sed -e 's/[^a-zA-Z0-9\.]*//'";
     exec($cmd, $output, $return_val);
-    if ( $return_val == 0 ) {
+    if ($return_val == 0) {
         $currentBranch = $output[0];
     }
     unset($output);
@@ -41,11 +41,11 @@ if ($uiLevel >= 1) {
     exec($cmd, $output2, $return_val);
     $currentVersion = $output2[0];
 
-    if ( $return_val == 0 ) {
+    if ($return_val == 0) {
         foreach ($output as $line) {
             $line = htmlspecialchars($line);
             $thisVersion = preg_replace('/^([a-zA-Z0-9-]+).*/', '$1', $line);
-            $line = preg_replace('/^([a-zA-Z0-9-]+)/', "<a href='#' onClick='GitCheckoutVersion(\"$1\"); return false;'>$1</a>", $line);
+            $line = preg_replace('/^([a-zA-Z0-9-]+)/', "<a href='#' onClick='DisplayVersionOptions(\"$1\"); return false;'>$1</a>", $line);
 
             if (startsWith($currentVersion, $thisVersion)) {
                 $git_log .= "--> " . $line . '<br/>';
@@ -64,7 +64,7 @@ unset($output);
 ?>
 
 <head>
-<?php include 'common/menuHead.inc'; ?>
+<?php include 'common/menuHead.inc';?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <title>FPP - ChangeLog</title>
 <script>
@@ -75,6 +75,26 @@ function CloseUpgradeDialog() {
 
 function UpgradeDone() {
     $('#closeDialogButton').show();
+}
+
+function DisplayVersionOptions(version)
+{
+	$('#dialog-confirm').fppDialog({
+		resizeable: false,
+		width: 400,
+		modal: true,
+		buttons: {
+			"View Change" : {class:'btn-success',click:function() {
+				$(this).fppDialog("close");
+                let url = "https://github.com/FalconChristmas/fpp/commit/" + version
+                window.open(url, '_blank').focus();
+				}},
+			"Revert to this Change" : {click:function() {
+				$(this).fppDialog("close");
+                GitCheckoutVersion(version)
+				}}
+			}
+		});
 }
 
 function GitCheckoutVersion(version) {
@@ -90,9 +110,9 @@ function GitCheckoutVersion(version) {
 
 <body>
 <div id="bodyWrapper">
-  <?php 
-  $activeParentMenuItem = 'help'; 
-  include 'menu.inc'; ?>
+  <?php
+$activeParentMenuItem = 'help';
+include 'menu.inc';?>
   <div class="mainContainer container">
   <h1 class="title">ChangeLog</h1>
   <div class="pageContent">
@@ -103,12 +123,15 @@ if ($uiLevel >= 1) {
 ?>
       <pre><?
 if ($uiLevel >= 1) {
-    echo "    <a href='#' onClick='GitCheckoutVersion(\"HEAD\"); return false;'>HEAD</a>     - (Pull in changes and switch to latest version in this branch)\n";
+    echo "    <a href='#' onClick='DisplayVersionOptions(\"HEAD\"); return false;'>HEAD</a>     - (Pull in changes and switch to latest version in this branch)\n";
 }
-?><? echo $git_log; ?></pre>
+?><?echo $git_log; ?></pre>
     </div>
   </div>
-  <?php include 'common/footer.inc'; ?>
+  <?php include 'common/footer.inc';?>
+</div>
+<div id="dialog-confirm" style="display: none">
+    What action would you like to take?
 </div>
 <div id='upgradePopup' title='Switch Version' style="display: none">
     <textarea style='width: 99%; height: 94%;' disabled id='upgradeText'>
