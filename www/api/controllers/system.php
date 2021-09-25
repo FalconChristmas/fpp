@@ -14,7 +14,7 @@ function RebootDevice()
         // apache is container's long-running process, send it a SIGTERM
         $status = exec($SUDO . " killall -15 apache2");
     } else {
-        $status = exec($SUDO . " shutdown -r now");
+        $status = exec($SUDO . " bash -c '/usr/bin/sleep 2; shutdown -r now > /dev/null 2>&1 &'");
     }
 
     $output = array("status" => "OK");
