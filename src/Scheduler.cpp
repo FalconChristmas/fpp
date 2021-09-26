@@ -71,7 +71,7 @@ Scheduler::Scheduler() :
 
     m_schedulerDisabled = getSettingInt("DisableScheduler") == 1;
 
-    if (m_schedulerDisabled) {
+    if (m_schedulerDisabled) && (getFPPmode() == PLAYER_MODE) {
         WarningHolder::AddWarning("FPP Scheduler is disabled");
         LogWarn(VB_SCHEDULE, "Scheduler is disabled!\n");
     }
