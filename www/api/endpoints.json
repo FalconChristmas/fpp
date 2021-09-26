@@ -1799,6 +1799,19 @@
             }
         },
         {
+            "endpoint": "proxies",
+            "methods": {
+                "GET": {
+                    "desc": "Returns the list of IP addresses that this FPP instance can proxy",
+                    "output": [
+                        "192.168.1.2",
+                        "192.168.1.146",
+                        "192.168.1.148"
+                    ]
+                }
+            }
+        },
+        {
             "endpoint": "proxy/:IP/:PATH",
             "methods": {
                 "GET": {
