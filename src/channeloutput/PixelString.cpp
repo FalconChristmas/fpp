@@ -31,15 +31,27 @@
 
 #define MAX_PIXEL_STRING_LENGTH 1600
 
-#define SMART_RECEIVER_LEADIN 6 * 3
-#define SMART_RECEIVER_LEN 6 * 3
-#define SMART_RECEIVER_LEADOUT 6 * 3
+constexpr uint32_t SMART_RECEIVER_LEADIN = 6 * 3;
+constexpr uint32_t SMART_RECEIVER_LEN = 6 * 3;
+constexpr uint32_t SMART_RECEIVER_LEADOUT = 6 * 3;
+
+constexpr uint32_t SMART_RECEIVER_V2_GAP = 5 * 3;
 
 #define CHECKPS_SETTING(SETTING)                                            \
     if (SETTING) {                                                          \
         LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING); \
         return 0;                                                           \
     }
+
+
+const char *SMART_RECEIVER_LABELS[] = {
+    "virtualStrings",
+    "virtualStringsB",
+    "virtualStringsC",
+    "virtualStringsD",
+    "virtualStringsE",
+    "virtualStringsF",
+};
 
 VirtualString::VirtualString() :
     whiteOffset(-1),
@@ -53,7 +65,11 @@ VirtualString::VirtualString() :
     endNulls(0),
     zigZag(0),
     brightness(100),
-    gamma(1.0) {
+    gamma(1.0),
+    leadInCount(0),
+    toggleCount(0),
+    leadOutCount(0)
+{
 }
 
 VirtualString::VirtualString(int r) :
@@ -68,7 +84,11 @@ VirtualString::VirtualString(int r) :
     endNulls(0),
     zigZag(0),
     brightness(100),
-    gamma(1.0) {
+    gamma(1.0),
+    leadInCount(0),
+    toggleCount(0),
+    leadOutCount(0) {
+        
     switch (r) {
     case 0:
         leadInCount = 0;
@@ -84,6 +104,11 @@ VirtualString::VirtualString(int r) :
         leadInCount = SMART_RECEIVER_LEADIN;
         toggleCount = SMART_RECEIVER_LEN * 3;
         leadOutCount = SMART_RECEIVER_LEADOUT;
+        break;
+    case 3:
+        leadInCount = SMART_RECEIVER_V2_GAP;
+        toggleCount = 0;
+        leadOutCount = 0;
         break;
     }
     pixelCount = leadInCount + toggleCount + leadOutCount;
@@ -129,12 +154,27 @@ int PixelString::Init(Json::Value config) {
     m_outputChannels = 0;
 
     int receiverType = 0;
+    int receiverCount = 1;
     if (m_isSmartReceiver && config.isMember("differentialType")) {
         receiverType = config["differentialType"].asInt();
+        if (receiverType) {
+            if (receiverType <= 3) {
+                //v1 smart receivers
+                receiverCount = receiverType;
+                receiverType = 1;
+            } else {
+                //v2 smart receivers
+                receiverCount = receiverType - 3;
+                receiverType = 2;
+            }
+
+        }
     }
     m_isSmartReceiver = receiverType > 0;
-    if (receiverType) {
+    if (receiverType == 1) {
         AddVirtualString(VirtualString(0));
+    } else if (receiverType == 1) {
+        //v2 smart receiver, no lead in
     }
     int startMaxChan = m_outputChannels;
     for (int i = 0; i < config["virtualStrings"].size(); i++) {
@@ -145,53 +185,49 @@ int PixelString::Init(Json::Value config) {
         }
         AddVirtualString(vs);
     }
-    bool hasChannelsOnA = startMaxChan != m_outputChannels;
-    bool hasChannelsOnB = false;
-    bool hasChannelsOnC = false;
-    if (!hasChannelsOnA && receiverType > 0) {
+    std::array<bool, 6> hasChannels;
+    hasChannels[0] = startMaxChan != m_outputChannels;
+    if (!hasChannels[0] && receiverType > 0) {
         //we need to output at least 1 pixel
         AddNullPixelString();
     }
-    if (receiverType > 1) {
-        AddVirtualString(VirtualString(1));
-        startMaxChan = m_outputChannels;
-        for (int i = 0; i < config["virtualStringsB"].size(); i++) {
-            Json::Value vsc = config["virtualStringsB"][i];
-            VirtualString vs;
-            if (!ReadVirtualString(vsc, vs)) {
-                return 0;
-            }
-            AddVirtualString(vs);
-        }
-        hasChannelsOnB = startMaxChan != m_outputChannels;
-        if (!hasChannelsOnB) {
-            //we need to output at least 1 pixel
-            AddNullPixelString();
-        }
-    }
-    if (receiverType > 2) {
+    for (int p = 1; p < receiverCount; p++) {
         int sz = m_virtualStrings.size();
         int mc = m_outputChannels;
-        AddVirtualString(VirtualString(2));
+
+        if (receiverType == 1) {
+            //v1 smart  receiver
+            AddVirtualString(VirtualString(p));
+        } else if (receiverType == 1) {
+            //v2 smart  receiver, .15ms gap
+            AddVirtualString(VirtualString(3));
+        }
         startMaxChan = m_outputChannels;
-        for (int i = 0; i < config["virtualStringsC"].size(); i++) {
-            Json::Value vsc = config["virtualStringsC"][i];
+        for (int i = 0; i < config[SMART_RECEIVER_LABELS[p]].size(); i++) {
+            Json::Value vsc = config[SMART_RECEIVER_LABELS[p]][i];
             VirtualString vs;
             if (!ReadVirtualString(vsc, vs)) {
                 return 0;
             }
             AddVirtualString(vs);
         }
-        hasChannelsOnC = startMaxChan != m_outputChannels;
-        if (!hasChannelsOnC) {
-            // in this case, we can revert and just send 2 receivers of data
-            m_outputChannels = mc;
-            while (sz != m_virtualStrings.size()) {
-                m_virtualStrings.pop_back();
+        hasChannels[p] = startMaxChan != m_outputChannels;
+        hasChannels[0] |= hasChannels[p];
+        if (!hasChannels[p]) {
+            if (p != (receiverCount-1)) {
+                //we need to output at least 1 pixel
+                AddNullPixelString();
+            } else {
+                // in this case, we can revert and just send one less receivers of data
+                m_outputChannels = mc;
+                while (sz != m_virtualStrings.size()) {
+                    m_virtualStrings.pop_back();
+                }
             }
         }
     }
-    if (!hasChannelsOnC && !hasChannelsOnB && !hasChannelsOnA) {
+
+    if (!hasChannels[0]) {
         //empty, no strings
         m_outputChannels = 0;
         m_virtualStrings.clear();
@@ -349,18 +385,22 @@ void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
             //Turn back on
             m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset, 1));
         }
-        //Toggle a bunch back and forth
-        for (int x = 0; x < vs.channelsPerNode() * vs.toggleCount; x++) {
-            //using white allows an even up/down on the GPIO
-            m_outputMap[vsOffset++] = FPPD_WHITE_CHANNEL;
+        if (vs.toggleCount) {
+            //Toggle a bunch back and forth
+            for (int x = 0; x < vs.channelsPerNode() * vs.toggleCount; x++) {
+                //using white allows an even up/down on the GPIO
+                m_outputMap[vsOffset++] = FPPD_WHITE_CHANNEL;
+            }
         }
-        //drop low again and turn off so receiver can enable/disable whichever outputs are needed
-        m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset));
-        for (int x = 0; x < vs.channelsPerNode() * vs.leadOutCount; x++) {
-            m_outputMap[vsOffset++] = FPPD_OFF_CHANNEL;
+        if (vs.leadOutCount) {
+            //drop low again and turn off so receiver can enable/disable whichever outputs are needed
+            m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset));
+            for (int x = 0; x < vs.channelsPerNode() * vs.leadOutCount; x++) {
+                m_outputMap[vsOffset++] = FPPD_OFF_CHANNEL;
+            }
+            //turn gpio back on
+            m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset, 1));
         }
-        //turn gpio back on
-        m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset, 1));
         return;
     }
 
