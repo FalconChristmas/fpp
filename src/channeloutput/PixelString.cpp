@@ -173,7 +173,7 @@ int PixelString::Init(Json::Value config) {
     m_isSmartReceiver = receiverType > 0;
     if (receiverType == 1) {
         AddVirtualString(VirtualString(0));
-    } else if (receiverType == 1) {
+    } else if (receiverType == 2) {
         //v2 smart receiver, no lead in
     }
     int startMaxChan = m_outputChannels;
@@ -198,7 +198,7 @@ int PixelString::Init(Json::Value config) {
         if (receiverType == 1) {
             //v1 smart  receiver
             AddVirtualString(VirtualString(p));
-        } else if (receiverType == 1) {
+        } else if (receiverType == 2) {
             //v2 smart  receiver, .15ms gap
             AddVirtualString(VirtualString(3));
         }
