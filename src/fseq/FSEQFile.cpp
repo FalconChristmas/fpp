@@ -949,7 +949,7 @@ public:
                         readerlock.unlock();
                         uint64_t offset = m_file->m_frameOffsets[block].second;
                         uint64_t size = m_file->m_frameOffsets[block + 1].second - offset;
-                        int max = m_file->getNumFrames() * m_file->getChannelCount();
+                        uint64_t max = m_file->getNumFrames() * m_file->getChannelCount();
                         bool problem = false;
                         if (size > max) {
                             size = max;
@@ -1129,7 +1129,7 @@ public:
             //read the ranges into the buffer
             for (auto& rng : data->m_ranges) {
                 if (rng.first < m_file->getChannelCount()) {
-                    int start = fidx + rng.first;
+                    uint64_t start = fidx + rng.first;
                     memcpy(&data->m_data[sz], &fdata[start], rng.second);
                     sz += rng.second;
                 }
