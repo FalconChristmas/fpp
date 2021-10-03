@@ -2134,6 +2134,9 @@ input[type=search].tablesorter-filter:disabled{
 }
 
 @media (max-width:1360px){
+	.hiddenSensor {
+		display: none !important;
+	}
 
 	#playerControls .buttons, #playerControls .disableButtons, #footer .buttons {
 		display: inline-block;
@@ -2544,3 +2547,4 @@ a.api-anchor {
     background: #fff;
     padding-right: 0.65rem;
 }
+

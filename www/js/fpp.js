@@ -5894,7 +5894,7 @@ function RefreshHeaderBar() {
                 }
             }
             tooltip += '<b>' + e.label + '</b>' + val + '<br/>';
-            row = '<span onclick="RotateHeaderSensor(' + (sensors.length + 1) + ')" data-sensorcount="' + sensors.length + '" style="display:none" title="TOOLTIP_DETAILS"><i class="fas fa-' + icon + '"></i><small>' + e.label + val + '</small></span>';
+            row = '<span onclick="RotateHeaderSensor(' + (sensors.length + 1) + ')" data-sensorcount="' + sensors.length + '" class="hiddenSensor" title="TOOLTIP_DETAILS"><i class="fas fa-' + icon + '"></i><small>' + e.label + val + '</small></span>';
             sensors.push(row);
         });
         var sensorsJoined = sensors.join("");
@@ -5968,14 +5968,12 @@ function RefreshHeaderBar() {
 */
 function RotateHeaderSensor(goto) {
     var currentDefault = $("#header_sensors").data("defaultsensor");
-    var visible = $("#header_sensors span:visible").length;
-    if (currentDefault == goto && visible > 0) return;
 
     var current = $("#header_sensors").find("[data-sensorcount='" + (goto - 1) + "']");
     var next = $("#header_sensors").find("[data-sensorcount='" + goto + "']");
     if (next.length == 0) next = $("#header_sensors").find("[data-sensorcount='0']");
-    current.hide();
-    next.show();
+    current.addClass("hiddenSensor");
+    next.removeClass("hiddenSensor");
 
     //Save setting
     if (currentDefault == goto) return;
