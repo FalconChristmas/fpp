@@ -79,6 +79,11 @@ Sequence::Sequence() :
     }
 
     m_blankBetweenSequences = getSettingInt("blankBetweenSequences");
+    m_prioritize_sequence_over_bridge = false;
+    std::string bridgeDataPriority = getSetting("bridgeDataPriority", "Prioritize Bridge");
+    if (bridgeDataPriority == "Prioritize Sequence") {
+        m_prioritize_sequence_over_bridge = true;
+    }
 }
 
 Sequence::~Sequence() {
@@ -702,6 +707,10 @@ void Sequence::CloseSequenceFile(void) {
 }
 
 void Sequence::SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t expireMS) {
+    if (m_prioritize_sequence_over_bridge && this->IsSequenceRunning() ) {
+        return;
+    }
+
     if (!m_bridgeData) {
         m_bridgeData = (uint8_t*)calloc(1, FPPD_MAX_CHANNEL_NUM);
     }

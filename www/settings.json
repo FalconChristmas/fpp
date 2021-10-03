@@ -106,7 +106,8 @@
             "description": "Input Control",
             "settings": [
                 "DisableFakeNetworkBridges",
-                "PresetControlChannel"
+                "PresetControlChannel",
+                "bridgeDataPriority"
             ]
         },
         "mqtt": {
@@ -387,6 +388,22 @@
             "tip": "Blank Between Sequences instructs FPP to send blanking data out all channel outputs between each sequence played in a playlist.  This can be used to turn off all the lights after each sequence if the sequences do not end with all channels turned off.",
             "restart": 2,
             "type": "checkbox"
+        },
+        "bridgeDataPriority": {
+            "name": "bridgeDataPriority",
+            "description": "Bridge Data Priority",
+            "tip": "Describes how to handle if bridge data (E131 or DDP) is received while a sequence is playing.",
+            "level": 0,
+            "gatherStats": true,
+            "reboot": 0,
+            "restart": 1,
+            "reloadUI": 0,
+            "type": "select",
+            "default": "Prioritize Bridge",
+            "options": {
+                "Prioritize Bridge": "Prioritize Bridge",
+                "Prioritize Sequence": "Prioritize Sequence"
+            }
         },
         "bootDelay": {
             "name": "bootDelay",

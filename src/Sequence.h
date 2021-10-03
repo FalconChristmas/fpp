@@ -83,6 +83,7 @@ public:
 
 private:
     void SetLastFrameData(FSEQFile::FrameData* data);
+    bool m_prioritize_sequence_over_bridge;
 
     class BridgeRangeData {
     public:
