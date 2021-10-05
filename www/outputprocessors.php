@@ -74,6 +74,10 @@ function HTMLForOutputProcessorConfig(output) {
             + "<option value='1'" + ((output.algorithm == 1) ? " selected" : "") + ">R=G=B->W</option>"
             + "<option value='2'" + ((output.algorithm == 2) ? " selected" : "") + ">Advanced</option>"
             + "</select>";
+    } else if (type == "Override Zero") {
+        html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
+            + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
+            + "Value: <input class='value' type=number value='" + output.value + "' min='0' max='255'/>";
     } else {
         html += "unknown type " + type;
     }
@@ -239,8 +243,25 @@ function SetOutputProcessors() {
                 alert("Three to Four settings of row " + rowNumber + " is not valid.");
                 return;
             }
-        }
 
+         } else if (type == "Override Zero") {
+            var b = {
+                type: "Override Zero",
+                active: $this.find("input.active").is(':checked') ? 1 : 0,
+                description: $this.find("input.description").val(),
+                start: parseInt($this.find("input.start").val()),
+                count: parseInt($this.find("input.count").val()),
+                value: parseInt($this.find("input.value").val())
+			};
+            if ((b.start > 0) &&
+                (b.count > 0)) {
+                processors.push(b);
+            } else {
+                dataError = 1;
+                alert("Override Zero settings of row " + rowNumber + " is not valid.");
+                return;
+            }
+        }
         rowNumber++;
 
 	});
@@ -317,6 +338,15 @@ function AddOtherTypeOptions(row, type) {
         };
         config += HTMLForOutputProcessorConfig(b);
     }
+    else if (type == "Override Zero") {
+        var b = {
+            type: "Override Zero",
+            start: 1,
+            count: 1,
+            value: 255
+        };
+        config += HTMLForOutputProcessorConfig(b);
+    }
 
 
     row.find("td:nth-child(5)").html(config);
@@ -343,6 +373,7 @@ function AddNewProcessorRow() {
                      "<option value='Set Value'>Set Value</option>" +
                      "<option value='Reorder Colors'>Reorder Colors</option>" +
                      "<option value='Three to Four'>Three to Four</option>" +
+                     "<option value='Override Zero'>Override Zero</option>" +
                   "</select></td>" +
 			"<td><input class='description' type='text' size='32' maxlength='64' value=''></td>" +
             "<td> </td>" +
@@ -397,22 +428,22 @@ $(document).tooltip();
 </head>
 <body>
 	<div id="bodyWrapper">
-		<?php 
-        $activeParentMenuItem = 'input-output';
-        include 'menu.inc'; ?>
+		<?php
+$activeParentMenuItem = 'input-output';
+include 'menu.inc';?>
   <div class="mainContainer">
     <h1 class="title">Output Processors</h1>
     <div class="pageContent">
-        
+
         		<div id="time" class="settings">
-        		
+
                         <div class="row tablePageHeader">
                             <div class="col-md">
                               <h2>Output Processors</h2>
                             </div>
 							<div class="col-md-auto ml-lg-auto">
 								<div class="form-actions">
-					
+
                                         <input type=button value='Delete' data-btn-enabled-class="btn-outline-danger" onClick='DeleteSelectedProcessor();' id='btnDelete' class='disableButtons'>
                                         <button type=button value='Add' onClick='AddNewProcessorRow();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
                                         <input type=button value='Save' onClick='SetOutputProcessors();' class='buttons btn-success ml-1'>
@@ -439,7 +470,7 @@ $(document).tooltip();
                                 </table>
                             </div>
         				</div>
-        
+
         		</div>
     </div>
 </div>

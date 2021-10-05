@@ -21,6 +21,7 @@
 #include "BrightnessOutputProcessor.h"
 #include "ColorOrderOutputProcessor.h"
 #include "HoldValueOutputProcessor.h"
+#include "OverrideZeroOutputProcessor.h"
 #include "RemapOutputProcessor.h"
 #include "SetValueOutputProcessor.h"
 #include "ThreeToFourOutputProcessor.h"
@@ -94,6 +95,8 @@ OutputProcessor* OutputProcessors::create(const Json::Value& config) {
         return new ColorOrderOutputProcessor(config);
     } else if (type == "Three to Four") {
         return new ThreeToFourOutputProcessor(config);
+    } else if (type == "Override Zero") {
+        return new OverrideZeroOutputProcessor(config);
     } else {
         LogErr(VB_CHANNELOUT, "Unknown OutputProcessor type: %s\n", type.c_str());
     }

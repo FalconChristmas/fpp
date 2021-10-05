@@ -34,7 +34,8 @@ public:
         BRIGHTNESS,
         COLORORDER,
         HOLDVALUE,
-        THREETOFOUR
+        THREETOFOUR,
+        OVERRIDEZERO
     };
 
     virtual OutputProcessorType getType() const { return UNKNOWN; }
