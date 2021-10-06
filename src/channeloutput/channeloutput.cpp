@@ -73,7 +73,7 @@ const std::vector<std::pair<uint32_t, uint32_t>>& GetOutputRanges(bool precise) 
 }
 // we'll sort the ranges that the outputs have registered and combine any overlaps
 // or close ranges to keep the range list smaller
-static void sortRanges(std::vector<std::pair<uint32_t, uint32_t>> rngs, bool gaps) {
+static void sortRanges(std::vector<std::pair<uint32_t, uint32_t>> &rngs, bool gaps) {
     std::map<uint32_t, uint32_t> ranges;
     //sort
     for (auto& a : rngs) {

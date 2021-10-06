@@ -266,7 +266,7 @@ int BBBSerialOutput::Init(Json::Value config) {
 void BBBSerialOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     for (int i = 0; i < m_outputs; i++) {
         if (m_startChannels[i] >= 0) {
-            addRange(m_startChannels[i] + 1, m_pixelnet ? m_startChannels[i] + 4095 : m_startChannels[i] + 511);
+            addRange(m_startChannels[i], m_pixelnet ? m_startChannels[i] + 4095 : m_startChannels[i] + 511);
         }
     }
 }
