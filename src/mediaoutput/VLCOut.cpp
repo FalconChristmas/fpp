@@ -397,9 +397,9 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
                 data->rateDiff = 0;
             }
             return 1;
-        } else if (diff > 3000) {
+        } else if (diff > 5000) {
             LogDebug(VB_MEDIAOUT, "Diff: %d	Very far, jumping\n", rawdiff);
-            // more than 3.0 seconds off, just jump to the new position
+            // more than 5.0 seconds off, just jump to the new position
             int ms = std::round(masterMediaPosition * 1000);
             libvlc_media_player_set_time(data->vlcPlayer, ms, false);
             libvlc_media_player_set_rate(data->vlcPlayer, 1.0);
