@@ -31,6 +31,10 @@ std::unique_ptr<Command::Result> PrevPlaylistCommand::run(const std::vector<std:
 std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std::string>& args) {
     bool r = false;
     bool iNR = false;
+    if (args.empty()) {
+        LogWarn(VB_COMMAND, "Ignoring StartPlaylistCommand as no Playlist was supplied\n");
+        return std::make_unique<Command::Result>("Playlist is a requirement argument");
+    }
     if (args.size() > 1) {
         r = args[1] == "true" || args[1] == "1";
     }
