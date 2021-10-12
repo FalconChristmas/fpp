@@ -1,7 +1,0 @@
-{
-  "plugins": {
-    "fpp-arcade": {
-      "joysticks.json": "/home/fpp/media/config/joysticks.json"
-    }
-  }
-}
