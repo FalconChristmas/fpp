@@ -33,9 +33,18 @@ $system_config_areas = array(
             'special' => true
         ),
     'channelmemorymaps' => array('friendly_name' => 'Pixel Overlay Models Old(Channel Memory Maps)', 'file' => $settings['mediaDirectory'] . "/channelmemorymaps"),
-    'model-overlays' => array('friendly_name' => 'Pixel Overlay Models', 'file' => $settings['model-overlays']),
+	'gpio-input' => array('friendly_name' => 'GPIO Input Triggers ', 'file' => $settings['configDirectory'] . "/gpio.json"),
+	'model-overlays' => array('friendly_name' => 'Pixel Overlay Models', 'file' => $settings['model-overlays']),
+	'misc_configs' =>
+		array(
+			'friendly_name' => 'Miscellaneous Settings (Additional Plugins Configs, System Settings, etc.)',
+			'file' => array(
+				'configs' => array('type' => 'function', 'location' => array('backup' => 'BackupConfigFolderConfigs', 'restore' => 'RestoreConfigFolderConfigs')),
+			),
+			'special' => true
+	),
     'outputProcessors' => array('friendly_name' => 'Output Processors', 'file' => $settings['outputProcessorsFile']),
-    'show_setup' =>
+	'show_setup' =>
         array(
             'friendly_name' => 'Show Setup (Events, Playlists, Schedule, Scripts)',
             'file' => array(
@@ -48,11 +57,12 @@ $system_config_areas = array(
         ),
     'settings' =>
         array(
-            'friendly_name' => 'System Settings (incl. GPIO Input, Email, Timezone)',
+            'friendly_name' => 'System Settings (incl. Command Presets, Email, Proxies, Timezone)',
             'file' => array(
                 'system_settings' => array('type' => 'file', 'location' => $settingsFile),
-                'proxies' => array('type' => 'file', 'location' => "$mediaDirectory/config/proxies"),
-                'email' => array('type' => 'file', 'location' => false),
+				'commandPresets' => array('type' => 'file', 'location' => $settings['configDirectory'] . "/commandPresets.json"),
+				'proxies' => array('type' => 'file', 'location' => $settings['configDirectory'] . "/proxies"),
+				'email' => array('type' => 'file', 'location' => false),
 				'timezone' => array('type' => 'function', 'location' => array('backup' => 'ReadTimeZone', 'restore' => '')) //We'll handle restore ourselves
             ),
             'special' => true
@@ -63,17 +73,20 @@ $system_config_areas = array(
         'special' => true
     ),
     'network' => array(
-		'friendly_name' => 'Network Settings (Wired & WiFi)',
+		'friendly_name' => 'Network Settings (Wired & WiFi, DNS)',
 		'file' => array(
+            //Std. Network Interfaces
 			'wired_network' => array('type' => 'file', 'location' =>  $settings['configDirectory']. "/interface.eth0"),
 			'wifi_network' => array('type' => 'file', 'location' =>  $settings['configDirectory']. "/interface.wlan0"),
+			//Manual/Custom DNS Settings stored here
+			'dns' => array('type' => 'file', 'location' => $settings['configDirectory']. "/dns"),
 		),
 		'special' => true
 	)
 );
 
 //FPP Backup version
-$fpp_backup_version = "4";
+$fpp_backup_version = "5";
 //FPP Backup files directory
 $fpp_backup_location = $settings['configDirectory'] . "/backups";
 //Hold any backup error messages here
@@ -85,10 +98,13 @@ $system_active_plugins = array();
 //NOTE: - ONLY FOR PLUGINS AT CURRENT
 //Extra backup locations act as a map between any extra files and a plugin it's related to.
 //there no way to programmatically know or discover what configurations files a plugin is using outside the normal "plugin.<plugin-name>.json" configuration file
-$extra_backup_locations = json_decode(file_get_contents($settings['fppDir'] . '/www/backup_locations.json'), true);
+//$extra_backup_locations = json_decode(file_get_contents($settings['fppDir'] . '/www/backup_locations.json'), true);
 
 //Populate plugins by looking for their config files (which is what we want to backup anyway, if a config file exists therefore configuration is set for that plugin)
 $system_config_areas['plugins']['file'] = retrievePluginList();
+
+//Populate extra network interfaces
+retrieveNetworkInterfaces();
 
 //Preserve some existing settings by default
 $keepMasterSlaveSettings = true;
@@ -111,7 +127,7 @@ $network_settings_restored_applied_ips = array('wired_network' => array(), 'wifi
 $sensitive_data = array('emailgpass', 'password', 'secret');
 
 //Lookup arrays for what is a json and a ini file
-$known_json_config_files = array('channelInputs', 'channelOutputs', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'led_panels', 'other', 'model-overlays');
+$known_json_config_files = array('channelInputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'led_panels', 'other', 'model-overlays');
 $known_ini_config_files = array('settings', 'system_settings', 'network', 'wired', 'wifi');
 
 //Remove BBB Strings from the system areas if we're on a Pi or any other platform that isn't a BBB
@@ -258,6 +274,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                             $tmp_settings_data[$config_key] = remove_sensitive_data($file_data);
                         }
                     }
+                    //End for loop processing each individual "area" in order to get all areas
                 }
 //            } else if (strtolower($area) == "email") {
 //                //AREA - EMAIL BACKUP
@@ -282,6 +299,7 @@ if (isset($_POST['btnDownloadConfig'])) {
 //                );
 //
 //                $tmp_settings_data['email'] = $email_settings;
+                //End processing "ALL" backup areas
             } else {
                 //AREA - Individual Backup section selections will arrive here
                 //All other backup areas for individual selections
@@ -382,6 +400,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                         $tmp_settings_data[$area] = remove_sensitive_data($file_data);
                     }
                 }
+                //End individual / specific backup area processing
             }
 
             //DO IT!
@@ -699,8 +718,25 @@ function process_restore_data($restore_area, $restore_area_data, $backup_version
 		$settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
 	}
 
+	//GPIO INPUTS - GPIO Input Triggers
+	if ($restore_area_key == "gpio-input" && !$restore_data_is_empty) {
+		//Just write strain to the gpio.json file
+		$gpioInputs_filepath = $system_config_areas['gpio-input']['file'];
+
+		$settings_restored[$restore_area_key]['ATTEMPT'] = true;
+		//PrettyPrint the JSON data and save it
+		$gpioInputs_data = prettyPrintJSON(json_encode($restore_area_data));
+		if (file_put_contents($gpioInputs_filepath, $gpioInputs_data) === FALSE) {
+			$save_result = false;
+		} else {
+			$save_result = true;
+		}
+
+		$settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
+	}
+
     //SHOW SETUP & CHANNEL OUTPUT RESTORATION
-    if (($restore_area_key == "show_setup" || $restore_area_key == "channelOutputs") && !$restore_data_is_empty) {
+    if (($restore_area_key == "show_setup" || $restore_area_key == "channelOutputs" || $restore_area_key == "misc_configs") && !$restore_data_is_empty) {
         $settings_restored[$restore_area_key] = array();
 
         $script_filenames = array();
@@ -940,6 +976,25 @@ function process_restore_data($restore_area, $restore_area_data, $backup_version
                     }
                 }
 
+				//COMMAND PRESET RESTORE
+				if ($restore_areas_idx == "commandPresets") {
+					$settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
+
+					//Get the restore data out of the array
+					$restore_data = $restore_area_data['commandPresets'][0];
+
+					//Generate the filepath for the config file to be restored
+					$commandPresets_filepath = $settings['configDirectory'] . "/commandPresets.json";
+
+					//PrettyPrint the JSON data and save it
+					$commandPresets_data_restore = prettyPrintJSON(json_encode($restore_data));
+					if (file_put_contents($commandPresets_filepath, $commandPresets_data_restore) === FALSE) {
+						$save_result = false;
+					} else {
+						$save_result = true;
+					}
+				}
+
                 //EMAIL SETTING RESTORATION
                 if ($restore_areas_idx == "email") {
                     //get data out of nested array
@@ -1022,7 +1077,7 @@ function process_restore_data($restore_area, $restore_area_data, $backup_version
 					$data = implode("\n", $restore_data);
 
 					//This is a standard file with webserver config, just write it out
-					if (file_put_contents("$mediaDirectory/config/proxies", $data) === FALSE) {
+					if (file_put_contents( $settings['configDirectory'] . "/proxies", $data) === FALSE) {
 						$save_result = false;
 					} else {
 						$save_result = true;
@@ -1037,7 +1092,30 @@ function process_restore_data($restore_area, $restore_area_data, $backup_version
 	//Network Settings (Wired and WiFi)
 	if ($restore_area_key == "network"  && !$restore_data_is_empty) {//If the user doesn't want to keep the existing network settings, we can overwrite them
 		if ($keepNetworkSettings == false) {
-			//Overwrite existing network settings
+
+            //check the supplied network data for any extra interfaces over the std eth0 and wlan0
+            // all them to the network config area, then process as normal, if the interface key exits in the network config area then
+            // it will match upon restoration and the file will get written out
+            // this is a cheat to get around not knowing if there is more than the standard interfaces were backed up
+            //$network_data = $restore_area_data[$network_type][0];
+			foreach ($restore_area_data as $net_type => $net_data) {
+				//Check if the net_type in the network config area
+				//the new type will be wired_network, wifi_network or like interface.eth1 etc for an extra interface(s)
+				//the net_type is also the filename of the interfaces file when it was backed up
+				if (array_key_exists($net_type, $system_config_areas['network']['file']) == false) {
+					//Set it's location for restore
+					$system_config_areas['network']['file'][$net_type] = array('type' => 'file', 'location' => $settings['configDirectory'] . "/" . $net_type);
+
+					//Also add interface to the array used to track which network interfaces were restored and what their settings are
+					$network_settings_restored_post_apply[$net_type] = "";
+					$network_settings_restored_applied_ips[$net_type] = array();
+				}
+			}
+			//Remove unused vars so they don't linger
+            unset($net_type);
+            unset($net_data);
+
+			//Overwrite existing network settings with a fresh copy from the area map
 			$network_config_filepath = $system_config_areas['network']['file'];
 
 			foreach ($network_config_filepath as $network_type => $network_setting_filepath) {
@@ -1054,15 +1132,20 @@ function process_restore_data($restore_area, $restore_area_data, $backup_version
 				$settings_restored[$restore_area_key][$network_type]['ATTEMPT'] = true;
 				//Get the actual location for the network setting
 				$network_setting_filepath = $network_setting_filepath['location'];
-
+                //Get the interface config data
 				$network_data = $restore_area_data[$network_type][0];
 				//Check to make sure we have data, so we don't accidentally wipe out the network
 				if (!empty($network_data)) {
 
 					$ini_string = "";
-					foreach ($network_data as $ini_key => $ini_value) {
+					//The wired and wifi network interfaces which don't have a configuration have empty file data in the backup file
+                    //to save any issues, check the first "line" of data, if its empty then there was no configuration for the interface
+                    //else it will hold the first line of the interface configuration e.g. "INTERFACE=wlan0",
+					if (!empty($network_data[0])) {
+						foreach ($network_data as $ini_key => $ini_value) {
 //						$ini_string .= "$ini_key='$ini_value'\n";
-						$ini_string .= "$ini_value\n";
+							$ini_string .= "$ini_value\n";
+						}
 					}
 
 					//If we can parse out generated INI string, then it's value.
@@ -1212,6 +1295,171 @@ function ReadTimeZone(){
 }
 
 /**
+ * Reads any JSON files in the config folder and returns an array keyed with the filename and it's contents
+ * the keys, attempts to ignore any files specified as belonging to other areas
+ *
+ * @return array
+ */
+function BackupConfigFolderConfigs()
+{
+	global $settings, $system_config_areas;
+
+	//Get a list of files in the config directory
+	$json_config_files = read_directory_files($settings['configDirectory'], false);
+
+	//Loop over the files we have found and weed out the non .json files
+	foreach ($json_config_files as $filename => $fn_bool) {
+		//If the filename has the extension of .json, then we want to keep it, discard all others
+		//eg no .htaccess, .htpassword or .db files
+		if (stripos(strtolower($filename), ".json") === false) {
+			unset($json_config_files[$filename]);
+		}
+		//else true so we keep the filename
+	}
+
+	//One we have the list, we need to remove any that other areas, e.g co-universes.json etc
+	$system_config_areas_local = $system_config_areas;
+	unset($system_config_areas_local['all']);
+	unset($system_config_areas_local['network']);
+	unset($system_config_areas_local['misc_configs']);//to avoid something weird happening
+	//remove email as its in the general settings file and not a separate section
+	unset($system_config_areas_local['settings']['file']['email']);
+
+	//loop over the areas and process them
+	foreach ($system_config_areas_local as $config_key => $config_data) {
+		$setting_file_to_backup = $config_data['file'];
+
+		//if setting file value is an array then there are one or more setting files related to this backup
+		if (is_array($setting_file_to_backup)) {
+			//loop over the array
+			foreach ($setting_file_to_backup as $settings_file => $settings_file_data) {
+				//We only want files, so check the type first and only process files further
+				if ($settings_file_data['type'] == "file") {
+					//Check if the file location(s) is an array, if so there will likely be more than 1 file location to read
+					//All other times location should just be a simple string for the file location
+					if (is_array($settings_file_data['location'])) {
+						//loop over the locations to read them all in
+						foreach ($settings_file_data['location'] as $location_filename => $location_path) {
+							//Get just the filename from the path
+							$path_parts = pathinfo($location_path);
+							if (!empty($path_parts['extension'])) {
+								$path_parts_filename = $path_parts['filename'] . '.' . $path_parts['extension'];
+							} else {
+								$path_parts_filename = $path_parts['filename'];
+							}
+							//Check if the file is in our misc/extra json config files list
+							if (array_key_exists($path_parts_filename, $json_config_files)) {
+								//remove it from the list of misc json config files as it will get backed up in another area
+								unset($json_config_files[$path_parts_filename]);
+//								echo "Excluding file from Extra Config backup" . $path_parts_filename;
+							}
+						}//end loop
+					} else {
+						//Not an array so just a single file or filepath
+						//Do the same as above, check if the file is in our misc/extra json config files list
+
+						//Get just the filename from the path
+						$path_parts = pathinfo($settings_file_data['location']);
+						if (!empty($path_parts['extension'])) {
+							$path_parts_filename = $path_parts['filename'] . '.' . $path_parts['extension'];
+						} else {
+							$path_parts_filename = $path_parts['filename'];
+						}
+
+						if (array_key_exists($path_parts_filename, $json_config_files)) {
+							//remove it from the list of misc json config files as it will get backed up in another area
+							unset($json_config_files[$path_parts_filename]);
+//							echo "Excluding file from Extra Config backup" . $path_parts_filename;
+						}
+					}//end else
+				}
+			}
+		} else {
+			//Location is not an array, so likely just holds the filename,
+			//check if the file is in our misc/extra json config files list
+			if ($setting_file_to_backup !== false) {
+				$path_parts = pathinfo($setting_file_to_backup);
+
+				if (!empty($path_parts['extension'])) {
+					$path_parts_filename = $path_parts['filename'] . '.' . $path_parts['extension'];
+				} else {
+					$path_parts_filename = $path_parts['filename'];
+				}
+
+				if (!empty($path_parts['filename'])) {
+					if (array_key_exists($path_parts_filename, $json_config_files)) {
+						unset($json_config_files[$path_parts_filename]);
+//						echo "Excluding file from Extra Config backup" . $path_parts_filename;
+					}
+				}
+			}
+		}
+	}
+
+	//Once we have our final list of extra config files, read them in
+	//file reading them in, we'll try decoding the string which will test if it's actually a json file
+	//if the string cannot be successfully decoded, the the contents is likely not a json file
+	//unset these because want to reuse them
+	unset($filename);
+	unset($fn_bool);
+	//
+	foreach ($json_config_files as $filename => $fn_bool) {
+		if (is_string($filename)) {
+			//Read in the config file
+			$file_data = file_get_contents($settings['configDirectory'] . '/' . $filename);
+			//Attempt json_decode on the string, if there is a error then can the data and the filename (json file should have json data)
+			$json_result = json_decode($file_data);
+			//
+			if (json_last_error() === JSON_ERROR_NONE) {
+				// JSON is valid
+				// Keep the data - decode it so it's kept as an array for encoding
+				$json_config_files[$filename] = json_decode($file_data, true);
+			} else {
+				//Invalid data, don't keep it and remove the filename from the backup
+				unset($json_config_files[$filename]);
+			}
+		}
+//       $file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
+//       $file_data = json_decode(file_get_contents($setting_file_to_backup), true);
+	}
+
+	return $json_config_files;
+}
+
+/**
+ * Takes the file-named keyed array generated by backup_config_folder_configs and basically loops through
+ * restoring data into each of the files
+ *
+ * @return boolean
+ */
+function RestoreConfigFolderConfigs($restore_data)
+{
+	global $settings, $system_config_areas;
+
+	//basically restore the files into the config directory, using the array key as the filename and just write the data into the file
+	//pretty print the JSON before doing this
+	$save_result = false;
+	//make sure data is supplied before doing anything, just in case
+	if (!empty($restore_data)) {
+		//Loop over the data to restore, the array key is the filename e.g joysticks.json, it's value is a array representing the file contents
+		foreach ($restore_data as $restore_filename => $restore_file_data) {
+			//Generate the filepath for the config file to be restored
+			$misc_data_rest_filepath = $settings['configDirectory'] . '/' . $restore_filename;
+
+			//PrettyPrint the JSON data and save it
+			$misc_data_restore = prettyPrintJSON(json_encode($restore_file_data));
+			if (file_put_contents($misc_data_rest_filepath, $misc_data_restore) === FALSE) {
+				$save_result = false;
+			} else {
+				$save_result = true;
+			}
+		}
+	}
+
+	return $save_result;
+}
+
+/**
  * Reads the Falcon.FPDV1 - Falcon Pixelnet/DMX file
  * extracted & modified from LoadPixelnetDMXFile() in ./fppxml.php
  *
@@ -1347,7 +1595,7 @@ function doBackupDownload($settings_data, $area)
         //check to see fi the backup directory exists
 		if (!file_exists($fpp_backup_location)) {
 			if (mkdir($fpp_backup_location) == FALSE) {
-			    $backup_error_string = "BACKUP: Something went wrong creating the backup file directory '" . $fpp_backup_location . "' , backup file can't be created (permissions error?) and backup download will fail.";
+			    $backup_error_string = "BACKUP: Something went wrong creating the backup file directory '" . $fpp_backup_location . "' , backup file can't be created (permissions error?) and backup download will fail as a result.";
 				$backup_errors[] = $backup_error_string;
 				error_log($backup_error_string);
 			}
@@ -1422,13 +1670,56 @@ function genSelectList($area_name = "backuparea")
 }
 
 /**
+ * Returns filenames of any interface configs in addition ot eth0 and wlan0, maybe the user has a USB ethernet adapter etc.
+ * The files and their contents are later read in as part of the backup process
+ *
+ * @return array Array of extra network interfaces
+ */
+function retrieveNetworkInterfaces()
+{
+	global $system_config_areas, $settings;
+
+	//Get a list of files in the config directory
+	$network_interfaces = read_directory_files($settings['configDirectory'], false);
+
+	//Loop over the files we have found and weed out the non .json files
+	foreach ($network_interfaces as $filename => $fn_bool) {
+		//If the filename contains 'interface.', then we want to keep it, discard anything else others
+		if (stripos(strtolower($filename), "interface") === false) {
+			unset($network_interfaces[$filename]);
+		}
+		//else true so we keep the file since it's a interface
+	}
+
+	//Remove eth0 and wlan0, since the backup system will already include them by default
+	//anything remaining is a extra interface
+	if (array_key_exists('interface.eth0', $network_interfaces)) {
+		unset($network_interfaces['interface.eth0']);
+	}
+	if (array_key_exists('interface.wlan0', $network_interfaces)) {
+		unset($network_interfaces['interface.wlan0']);
+	}
+
+	//Loop over the array, put the filenames into the network area so they can be backed up
+	foreach ($network_interfaces as $intername_name => $interface_bool) {
+		$system_config_areas['network']['file'][$intername_name] = array('type' => 'file', 'location' => $settings['configDirectory'] . '/' . $intername_name);
+
+		//Add into the array that tracks what interface & settings are restored
+		$network_settings_restored_post_apply[$intername_name] = "";
+		$network_settings_restored_applied_ips[$intername_name] = array();
+	}
+
+	return $network_interfaces;
+}
+
+/**
  * Returns a list of plugin Config files
  *
  * @return array Array of plugins and respective config file data
  */
 function retrievePluginList()
 {
-    global $settings, $extra_backup_locations;
+    global $settings;
 
     $config_files = read_directory_files($settings['configDirectory'], false);
     $plugin_names = array();
@@ -1451,14 +1742,14 @@ function retrievePluginList()
                 $locations = array();
                 //Normal Plugin config file location
 				$locations[$fname] = ($settings['configDirectory'] . "/" . $fname);
-				//Check the extra backup locations where the plugin name matches this plugin and extra the extra path
-				if (isset($extra_backup_locations['plugins'][$plugin_name]) && !empty($extra_backup_locations['plugins'][$plugin_name]))
-                {
-                    //Loop over the extra locations and add them to the list in case there are more than 1 extra location
-                    foreach ($extra_backup_locations['plugins'][$plugin_name] as $p_extra_filename => $p_extra_file_location){
-						$locations[$p_extra_filename] = $p_extra_file_location;
-					}
-                }
+//				//Check the extra backup locations where the plugin name matches this plugin and extra the extra path
+//				if (isset($extra_backup_locations['plugins'][$plugin_name]) && !empty($extra_backup_locations['plugins'][$plugin_name]))
+//                {
+//                    //Loop over the extra locations and add them to the list in case there are more than 1 extra location
+//                    foreach ($extra_backup_locations['plugins'][$plugin_name] as $p_extra_filename => $p_extra_file_location){
+//						$locations[$p_extra_filename] = $p_extra_file_location;
+//					}
+//                }
 
 				//Add the expected & extra locations into the final array to be returned
 				$plugin_names[$plugin_name] = array('type' => 'file', 'location' => $locations);
