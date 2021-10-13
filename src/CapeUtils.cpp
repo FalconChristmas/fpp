@@ -29,7 +29,6 @@
 #include <thread>
 
 #include <fstream>
-
 #include <sys/reboot.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -354,8 +353,14 @@ static void copyFile(const std::string& src, const std::string& target) {
         write(t, buf, l);
     }
 }
+static size_t fileSize(const std::string &target) {
+    struct stat stat_buf;
+    int rc = stat(target.c_str(), &stat_buf);
+    return rc == 0 ? stat_buf.st_size : 0;
+}
+
 static void copyIfNotExist(const std::string& src, const std::string& target) {
-    if (file_exists(target)) {
+    if (fileSize(target) > 0) {
         return;
     }
     copyFile(src, target);

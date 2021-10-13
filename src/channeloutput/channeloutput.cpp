@@ -265,8 +265,8 @@ int InitializeChannelOutputs(void) {
 
         if (FileExists(filename)) {
             if (!LoadJsonFromFile(filename, root)) {
+                WarningHolder::AddWarning("Could not parse " + std::string(filename) + ". Some outputs may not work.");
                 LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
-                return 0;
             }
 
             const Json::Value outputs = root["channelOutputs"];
