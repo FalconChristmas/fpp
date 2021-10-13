@@ -116,6 +116,7 @@ static void initPrus() {
         hasUIO = true;
         ddr_addr = proc_read("/sys/class/uio/uio0/maps/map1/addr");
         ddr_sizeb = proc_read("/sys/class/uio/uio0/maps/map1/size");
+        ddr_filelen = ddr_sizeb;
     } else {
         hasUIO = false;
         if (!FileExists("/sys/class/remoteproc/remoteproc0/state")) {
@@ -154,6 +155,14 @@ static void initPrus() {
     prus[0].instructionRamSize = 8 * 1024;
     prus[1].instructionRam = base_memory_location + (AM33XX_PRU1IRAM_PHYS_BASE - AM33XX_PRU_BASE);
     prus[1].instructionRamSize = 8 * 1024;
+
+
+    memset(prus[0].dataRam, 0, prus[0].dataRamSize);
+    memset(prus[1].dataRam, 0, prus[1].dataRamSize);
+    memset(prus[0].sharedRam, 0, prus[0].sharedRamSize);
+    memset(ddr_mem_loc, 0, ddr_sizeb);
+    __asm__ __volatile__("" ::
+                             : "memory");
 }
 
 BBBPru::BBBPru(int pru, bool mapShared, bool mapOther) :

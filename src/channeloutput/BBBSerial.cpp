@@ -123,7 +123,7 @@ int BBBSerialOutput::Init(Json::Value config) {
 
     m_startChannels.resize(m_outputs);
 
-    // Initialize the ouputs
+    // Initialize the outputs
     for (int i = 0; i < m_outputs; i++) {
         m_startChannels[i] = -1;
     }
@@ -244,8 +244,8 @@ int BBBSerialOutput::Init(Json::Value config) {
 
     int sz = m_pixelnet ? (4096 + 6) : (512 + 1);
 
-    m_lastData = (uint8_t*)malloc(m_outputs * sz);
-    m_curData = (uint8_t*)malloc(m_outputs * sz);
+    m_lastData = (uint8_t*)calloc(1, m_outputs * sz);
+    m_curData = (uint8_t*)calloc(1, m_outputs * sz);
 
     for (int i = 0; i < m_outputs; i++) {
         if (m_pixelnet) {
