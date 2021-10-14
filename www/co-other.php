@@ -142,8 +142,8 @@ function VirtualMatrixConfig(config) {
 
     var vmDesc = config.description == null ? "VirtualMatrix" : config.description;
     var result = "Description:&nbsp;<input type='text' class='description' value='" + vmDesc + "' size='30' maxlength='50'/><br>";
-	result += "Width:&nbsp;<input type='text' size='3' maxlength='3' class='width' value='" + config.width + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
-				"&nbsp;Height:&nbsp;<input type='text' size='3' maxlength='3' class='height' value='" + config.height + "' onChange='VirtualMatrixLayoutChanged(this);'>";
+	result += "Width:&nbsp;<input type='text' size='3' maxlength='4' class='width' value='" + config.width + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
+				"&nbsp;Height:&nbsp;<input type='text' size='3' maxlength='4' class='height' value='" + config.height + "' onChange='VirtualMatrixLayoutChanged(this);'>";
 
 	result += VirtualMatrixColorOrderSelect(config.colorOrder);
 	result += "<br>Invert:&nbsp;<input type=checkbox class='invert'";
