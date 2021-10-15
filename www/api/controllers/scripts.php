@@ -13,6 +13,11 @@ function scripts_list()
         }
         closedir($d);
     }
+
+    // Sort them
+    natcasesort($scripts);
+    $scripts = array_values($scripts);
+
     return json($scripts);
 }
 function script_get()
@@ -79,26 +84,23 @@ function script_run()
 // GET /api/scripts/viewRemote/:category/:filename
 function scripts_view_remote()
 {
-	$category = params('category');
-	$filename = params('filename');
+    $category = params('category');
+    $filename = params('filename');
 
-	$script = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/" . $category . "/" . $filename);
+    $script = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/" . $category . "/" . $filename);
 
-	echo $script;
+    echo $script;
 }
 
 function scripts_install_remote()
 {
-	global $fppDir, $SUDO;
-	global $scriptDirectory;
+    global $fppDir, $SUDO;
+    global $scriptDirectory;
 
     $category = params('category');
-	$filename = params('filename');
+    $filename = params('filename');
 
-	exec("$SUDO $fppDir/scripts/installScript \"$category\" \"$filename\"");
+    exec("$SUDO $fppDir/scripts/installScript \"$category\" \"$filename\"");
 
     return json(array("status" => "OK"));
 }
-
-
-?>
