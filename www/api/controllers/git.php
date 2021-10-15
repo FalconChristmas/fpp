@@ -79,7 +79,7 @@ function GitOSReleases()
         $rc["downloaded"] = $existingFiles;
         $releases = array();
         foreach ($data as $r) {
-            if (isset($r["assets"])) {
+            if (isset($r["assets"]) && $settings['OSImagePrefix'] != "") {
                 foreach ($r["assets"] as $file) {
                     $name = $file["name"];
                     if (endsWith($name, ".fppos") && startsWith($name, $settings['OSImagePrefix'])) {
