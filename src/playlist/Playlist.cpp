@@ -28,6 +28,7 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <regex>
 #include <time.h>
 
 #include "Playlist.h"
@@ -193,15 +194,15 @@ int Playlist::Load(Json::Value& config) {
 
     // set the positions prior to any randomizations
     int curPos = 0;
-    for (auto &a : m_leadIn) {
+    for (auto& a : m_leadIn) {
         a->SetPositionInPlaylist(curPos);
         ++curPos;
     }
-    for (auto &a : m_mainPlaylist) {
+    for (auto& a : m_mainPlaylist) {
         a->SetPositionInPlaylist(curPos);
         ++curPos;
     }
-    for (auto &a : m_leadOut) {
+    for (auto& a : m_leadOut) {
         a->SetPositionInPlaylist(curPos);
         ++curPos;
     }
@@ -245,6 +246,45 @@ Json::Value Playlist::LoadJSON(const char* filename) {
     return root;
 }
 
+std::string sanitizeMediaName(std::string mediaName) {
+    LogDebug(VB_PLAYLIST, "Searching for Media File (%s)\n", mediaName.c_str());
+    // Same regex as PHP's sanitizeFilename
+    std::regex re("([^\\w\\s\\d\\-_~,;\\[\\]\\(\\).])");
+    // Check raw format for older Music uploads
+    std::string tmpMedia = std::string(FPP_DIR_MUSIC) + "/" + mediaName;
+    std::string tmpMedialClean = std::regex_replace(mediaName, re, "");
+
+    LogDebug(VB_PLAYLIST, "SanitizeMedia: Checking Raw Music (%s)\n", tmpMedia.c_str());
+    if (FileExists(tmpMedia)) {
+        return mediaName;
+    }
+
+    // Try Cleaned Music
+    tmpMedia = std::string(FPP_DIR_MUSIC) + "/" + std::regex_replace(mediaName, re, "");
+    LogDebug(VB_PLAYLIST, "SanitizeMedia: Checking Cleaned Music (%s)\n", tmpMedia.c_str());
+    if (FileExists(tmpMedia)) {
+        return tmpMedialClean;
+    }
+
+    // Try Older (orginal) Video upload
+    tmpMedia = std::string(FPP_DIR_VIDEO) + "/" + mediaName;
+    LogDebug(VB_PLAYLIST, "SanitizeMedia: Checking Raw Video (%s)\n", tmpMedia.c_str());
+    if (FileExists(tmpMedia)) {
+        return mediaName;
+    }
+
+    // Try cleaned video file
+    tmpMedia = std::string(FPP_DIR_VIDEO) + "/" + std::regex_replace(mediaName, re, "");
+    LogDebug(VB_PLAYLIST, "SanitizeMedia: Checking Clean Video (%s)\n", tmpMedia.c_str());
+    if (FileExists(tmpMedia)) {
+        return tmpMedialClean;
+    }
+
+    LogWarn(VB_PLAYLIST, "SanitizeMedia: Unable to find Media: (%s)\n", mediaName.c_str());
+    tmpMedia = "";
+    return tmpMedia;
+}
+
 /*
  *
  */
@@ -281,21 +321,16 @@ int Playlist::Load(const char* filename) {
                     } else {
                         mediaName = (const char*)&head.data[0];
                     }
-                    std::string tmpMedia = std::string(FPP_DIR_MUSIC) + "/" + mediaName;
+                    std::string tmpMedia = sanitizeMediaName(mediaName);
+                    if (tmpMedia == "") {
+                        std::string warn = "fseq \"" + tmpFilename + "\" lists a media file of \"" + mediaName + "\" but it can not be found";
 
-                    if (!FileExists(tmpMedia)) {
-                        tmpMedia = FPP_DIR_VIDEO;
-                        tmpMedia += "/";
-                        tmpMedia += mediaName;
-
-                        if (!FileExists(tmpMedia)) {
-                            std::string warn = "fseq \"" + tmpFilename + "\" lists a media file of \"" + mediaName + "\" but it can not be found";
-
-                            WarningHolder::AddWarningTimeout(warn, 60);
-                            LogDebug(VB_PLAYLIST, "%s\n", warn.c_str());
-                            mediaName = "";
-                        }
+                        WarningHolder::AddWarningTimeout(warn, 60);
+                        LogDebug(VB_PLAYLIST, "%s\n", warn.c_str());
+                        mediaName = "";
                     }
+                    // Set the Media to the correct name
+                    mediaName = tmpMedia;
                 }
             }
         }
@@ -1327,19 +1362,19 @@ static void GetFilenames(PlaylistEntryBase* entry, std::string& seq, std::string
 }
 
 void Playlist::GetFilenamesForPos(int pos, std::string& seq, std::string& med) {
-    for (auto &a : m_leadIn) {
+    for (auto& a : m_leadIn) {
         if (a->GetPositionInPlaylist() == pos) {
             GetFilenames(a, seq, med);
             return;
         }
     }
-    for (auto &a : m_mainPlaylist) {
+    for (auto& a : m_mainPlaylist) {
         if (a->GetPositionInPlaylist() == pos) {
             GetFilenames(a, seq, med);
             return;
         }
     }
-    for (auto &a : m_leadOut) {
+    for (auto& a : m_leadOut) {
         if (a->GetPositionInPlaylist() == pos) {
             GetFilenames(a, seq, med);
             return;
@@ -1378,7 +1413,7 @@ uint64_t Playlist::GetCurrentPosInMS() {
     uint64_t posms;
     return GetCurrentPosInMS(pos, posms);
 }
-uint64_t Playlist::GetCurrentPosInMS(int &position, uint64_t &posms) {
+uint64_t Playlist::GetCurrentPosInMS(int& position, uint64_t& posms) {
     position = -1;
     posms = 0;
     if (m_currentState == "idle" || m_currentSection == nullptr) {
