@@ -140,6 +140,39 @@ function playlist_playable()
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// The sole purpose of this function is to ensure that media uploaded from
+// xlights fppConnect removes special characters.  FPP UI only allows
+// valid names to be selected, so less of a problem
+function cleanMedialNamesInPlaylist(&$playlistObj, $section)
+{
+    global $settings;
+    $mapping = array(
+        "sequenceName" => array("sequenceDirectory"),
+        "mediaName" => array("musicDirectory", "videoDirectory"),
+        "imagePath" => array("imageDirectory"),
+    );
+
+    foreach ($mapping as $type => $dirs) {
+        foreach ($dirs as $dir) {
+            if (isset($playlistObj[$section])) {
+                foreach ($playlistObj[$section] as &$rec) {
+                    if (isset($rec[$type])) {
+                        $f = $settings[$dir] . "/" . $rec[$type];
+                        if (!file_exists($f)) {
+                            $f = $settings[$dir] . "/" . sanitizeFilename($rec[$type]);
+                            if (file_exists($f)) {
+                                $rec[$type] = sanitizeFilename($rec[$type]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+/////////////////////////////////////////////////////////////////////////////
 function playlist_insert()
 {
     global $settings;
@@ -147,9 +180,13 @@ function playlist_insert()
     $playlist = $GLOBALS['_POST'];
     $playlistName = $playlist['name'];
 
+    cleanMedialNamesInPlaylist($playlist, "leadIn");
+    cleanMedialNamesInPlaylist($playlist, "mainPlaylist");
+    cleanMedialNamesInPlaylist($playlist, "leadOut");
+
     $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
 
-    $json = json_encode($playlist, JSON_PRETTY_PRINT);
+    $json = json_encode($playlist/*, JSON_PRETTY_PRINT*/);
 
     $f = fopen($filename, "w");
     if ($f) {
@@ -285,7 +322,11 @@ function playlist_update()
     global $settings;
 
     $playlist = $GLOBALS['_POST'];
-    $playlistName = params('PlaylistName');
+    $playlistName = urldecode(params('PlaylistName'));
+
+    cleanMedialNamesInPlaylist($playlist, "leadIn");
+    cleanMedialNamesInPlaylist($playlist, "mainPlaylist");
+    cleanMedialNamesInPlaylist($playlist, "leadOut");
 
     $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
 
