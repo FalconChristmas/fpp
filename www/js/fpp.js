@@ -1538,8 +1538,13 @@ function UpdatePlaylistDurations() {
         var duration = 0;
 
         $('#tblPlaylist' + sections[s] + ' tr.playlistRow').each(function () {
-            if ($(this).find('.psiDurationSeconds').length)
-                duration += parseFloat($(this).find('.psiDurationSeconds').html());
+            if ($(this).find('.psiDurationSeconds').length) {
+                let current = parseFloat($(this).find('.psiDurationSeconds').html());
+                if (isNaN(current)) {
+                    current = 0.0;
+                }
+                duration += current;
+            }
         });
 
         var items = $('#tblPlaylist' + sections[s] + ' tr.playlistRow').length;
