@@ -163,6 +163,7 @@ function stats_getSystemInfo()
         "mqtt" => "MQTT",
         "fppdStatus" => "fppd",
         "fppdMode" => "mode_name",
+        "sensors" => "sensors",
         "fppdUptimeSeconds" => "uptimeTotalSeconds",
     );
     validateAndAdd($rc, $data, $mapping);
