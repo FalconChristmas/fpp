@@ -75,10 +75,8 @@ for i in "${KVERS[@]}"; do
 done
 
 cd /opt/wifi
-# git clone https://github.com/zebulon2/rtl8812au-5.6.4.2
-# cd rtl8812au-5.6.4.2
-git clone https://github.com/aircrack-ng/rtl8812au
-cd rtl8812au
+git clone https://github.com/morrownr/8812au-20210629
+cd 8812au-20210629
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
 sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
@@ -89,19 +87,8 @@ for i in "${KVERS[@]}"; do
 done
 
 cd /opt/wifi
-# git clone https://github.com/zebulon2/rtl8814au
-git clone  -b kernel-v5.8-support https://github.com/olegbuevich/rtl8814au
-cd rtl8814au
-patch -p1 < /opt/wifi/patches/rtl8814au
-for i in "${KVERS[@]}"; do
-    KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
-    KVER=$i ARCH=arm make install
-done
-
-cd /opt/wifi
-git clone https://github.com/cilynx/rtl88x2bu
-cd rtl88x2bu
+git clone https://github.com/morrownr/8814au
+cd 8814au
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
 sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
@@ -112,9 +99,32 @@ for i in "${KVERS[@]}"; do
 done
 
 cd /opt/wifi
-# git clone https://github.com/whitebatman2/rtl8821CU
-git clone https://github.com/rastreus/cudy_wu700_ac650 rtl8821CU
-cd rtl8821CU
+git clone https://github.com/morrownr/88x2bu
+cd 88x2bu
+sed -i 's/I386_PC = y/I386_PC = n/' Makefile
+sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
+sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
+for i in "${KVERS[@]}"; do
+    KVER=$i ARCH=arm make clean
+    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make install
+done
+
+cd /opt/wifi
+git clone https://github.com/morrownr/8821au-20210708
+cd 8821au-20210708
+sed -i 's/I386_PC = y/I386_PC = n/' Makefile
+sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
+sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
+for i in "${KVERS[@]}"; do
+    KVER=$i ARCH=arm make clean
+    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make install
+done
+
+cd /opt/wifi
+git clone https://github.com/morrownr/8821cu
+cd 8821cu
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
 sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile

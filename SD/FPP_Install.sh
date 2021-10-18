@@ -52,9 +52,9 @@
 #       hardware which does not support Buster may have issues.
 #
 #############################################################################
-SCRIPTVER="5.0"
+SCRIPTVER="5.3"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="5.0"
+FPPIMAGEVER="5.3"
 FPPCFGVER="68"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -545,6 +545,8 @@ case "${FPPPLATFORM}" in
         echo "pruss" >> /etc/modules-load.d/modules.conf
         echo "irq_pruss_intc" >> /etc/modules-load.d/modules.conf
         echo "remoteproc" >> /etc/modules-load.d/modules.conf
+
+        systemctl disable keyboard-setup
 		;;
 
 	'Raspberry Pi')
