@@ -55,7 +55,7 @@
 SCRIPTVER="5.3"
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="5.3"
-FPPCFGVER="68"
+FPPCFGVER="69"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -1147,9 +1147,10 @@ if $isimage; then
     echo "FPP - Disabling services not needed/used"
     systemctl disable connman-wait-online
 
-    # Make sure the full boot journals are kept
+    # Make sure the journal is large enough to store the full boot logs
+    # but not get too large which starts slowing down journalling (and thus boot)
     if [ -f /etc/systemd/journald.conf ]; then
-        sed -i -e "s/^SystemMaxUse.*/#SystemMaxUse=/g" /etc/systemd/journald.conf
+        sed -i -e "s/^.*SystemMaxUse.*/#SystemMaxUse=32M/g" /etc/systemd/journald.conf
     fi
 fi
 
