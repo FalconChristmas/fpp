@@ -588,6 +588,11 @@ exit(1)
 				echo "blacklist snd_bcm2835" | sudo tee /etc/modprobe.d/blacklist-bcm2835.conf > /dev/null
 				shutdown -r now
 			fi
+            # Preemptively load the USB sound driver so it will detect before snd-dummy is created
+            # and get the default card0 slot
+            # Minor memory usage if no USB sound device found, but otherwise OK
+            modprobe snd_usb_audio
+
             # load the dummy sound driver so things that expect a sound device to be there will still work
             modprobe snd-dummy
             modprobe snd-seq-dummy
@@ -599,6 +604,8 @@ exit(1)
 				rm /etc/modprobe.d/blacklist-bcm2835.conf
 				modprobe snd-bcm2835
 			fi
+            # load USB sound so it should be able to detect earlier
+            modprobe snd_usb_audio
 		fi
 	fi
 }
