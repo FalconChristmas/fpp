@@ -133,21 +133,6 @@ SetupFPPNetworkConfigViaConnMann() {
             echo "MAC=${MACA}" >> $TMPFILE
         fi
 
-        #if the interface has a module driver, we'll let Linux autoload the module at boot to
-        #speed up the discovery/probe
-        if [ -f "/sys/class/net/${INTERFACE}/device/driver/module" ]; then
-            MODULELINK=$(readlink /sys/class/net/${INTERFACE}/device/driver/module)
-            MODULE=$(basename "/sys/class/net/${INTERFACE}/device/driver/module/${MODULELINK}" )
-            if [ "${MODULE}" != "brcmfmac" ]; then
-                touch /etc/modules-load.d/network.conf
-                if ! grep -Fxq "${MODULE}" /etc/modules-load.d/network.conf ; then
-                    echo "${MODULE}" >> /etc/modules-load.d/network.conf
-                fi
-            fi
-            unset MODULE
-            unset MODULELINK
-        fi
-
         echo ""  >> $TMPFILE
         echo ""  >> $TMPFILE
     done
@@ -260,6 +245,26 @@ WaitForInterfacesUp() {
     #turn off power management on wireless... not all adapters
     # support this so just /dev/null any output
     iwconfig wlan0 power off 2>/dev/null >/dev/null
+}
+
+DetectNetworkModules() {
+    #if the interfaces have module drivers, we'll let Linux autoload the modules at boot to
+    #speed up the discovery/probe
+    for devicename in /sys/class/net/* ; do 
+        if [ -h "${devicename}/device/driver/module" ]; then
+            MODULELINK=$(readlink ${devicename}/device/driver/module)
+            MODULE=$(basename "${INTERFACE}/device/driver/module/${MODULELINK}" )
+
+            if [ "${MODULE}" != "brcmfmac" ]; then
+                touch /etc/modules-load.d/network.conf
+                if ! grep -Fxq "${MODULE}" /etc/modules-load.d/network.conf ; then
+                    echo "${MODULE}" >> /etc/modules-load.d/network.conf
+                fi
+            fi
+            unset MODULE
+            unset MODULELINK
+        fi
+    done
 }
 
 MaybeEnableTethering() {
