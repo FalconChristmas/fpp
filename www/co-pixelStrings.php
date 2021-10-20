@@ -1145,8 +1145,8 @@ function populatePixelStringOutputs(data) {
                             var diffType = port["differentialType"];
                             var diffCount = 0;
                             if (diffType > 1 && diffType < 4) {
-                                diffType = 1;
                                 diffCount = diffType;
+                                diffType = 1;
                             } else if (diffType > 3) {
                                 diffCount = diffType - 3
                                 diffType = 2;
