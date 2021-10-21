@@ -556,7 +556,7 @@
             "tip": "Password to be used to authenticate with email server.",
             "type": "password",
             "size": 30,
-            "maxlength": 64
+            "maxlength": 100
         },
         "emailport": {
             "name": "emailport",
