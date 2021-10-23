@@ -7,7 +7,7 @@ on:
     tags:
     - '*'
 
-defaults:
+jobs:
   # define job to build and publish docker image
   build-and-push-docker-image:
     name: Build Docker image and push to repositories
