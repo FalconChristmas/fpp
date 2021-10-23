@@ -1,4 +1,4 @@
-name: Build and Publish
+name: Build and Publish Docker
 
 on:
   # run it on push to the default repository branch
@@ -43,6 +43,8 @@ jobs:
           # Note: tags has to be all lower-case
           tags: ${{ github.repository_owner }}/fpp:${{ steps.extract_branch.outputs.branch }}
           push: true
+          cache-from: type=registry,ref=${{ github.repository_owner }}/fpp:master
+          cache-to: type=inline
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
