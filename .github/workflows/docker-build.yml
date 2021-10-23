@@ -35,9 +35,9 @@ jobs:
         id: extract_branch
 
      - name: PrepareReg Names
+        shell: bash
+        run: echo IMAGE_REPOSITORY=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
         id: extract_repository
-        run: |
-            echo IMAGE_REPOSITORY=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
       - name: Build image and push to Docker Hub 
         uses: docker/build-push-action@v2
