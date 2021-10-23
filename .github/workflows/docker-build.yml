@@ -40,7 +40,7 @@ jobs:
         with:
           # relative path to the place where source code with Dockerfile is located
           context: .
-          file: ./Docker/Dockerfile
+          file: ./Docker/Dockerfile.node
           # Note: tags has to be all lower-case
           tags: |
             ghormann/fpp:${{ steps.extract_branch.outputs.branch }}
