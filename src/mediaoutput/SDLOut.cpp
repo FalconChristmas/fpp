@@ -691,7 +691,7 @@ bool SDL::openAudio() {
 
         std::string cardType = getSetting("AudioCardType");
         if (cardType.find("Dummy") == 0) {
-            WarningHolder::AddWarning("Outputting Audio to Dummy device.");
+            WarningHolder::AddWarningTimeout("Outputting Audio to Dummy device.", 60);
         }
     }
     return true;
@@ -950,7 +950,7 @@ int SDLOutput::Start(int msTime) {
         SetChannelOutputFrameNumber(0);
         if (!sdlManager.Start(data, msTime)) {
             if (noDeviceWarning) {
-                WarningHolder::AddWarning(noDeviceError);
+                WarningHolder::AddWarningTimeout(noDeviceError, 60);
             }
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
             Stop();
@@ -960,7 +960,7 @@ int SDLOutput::Start(int msTime) {
             //no audio device so audio data is useless and no video stream so not useful either,
             //bail
             if (noDeviceWarning) {
-                WarningHolder::AddWarning(noDeviceError);
+                WarningHolder::AddWarningTimeout(noDeviceError, 60);
             }
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
             Stop();
