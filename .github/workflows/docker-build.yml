@@ -42,7 +42,7 @@ jobs:
           context: .
           file: ./Docker/Dockerfile.node
           # Note: tags has to be all lower-case
-          tags: ghormann/fpp:latest
+          tags: ghormann/fpp:${{ steps.extract_branch.outputs.branch }}
           push: true
 
       - name: Image digest
