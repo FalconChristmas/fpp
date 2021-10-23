@@ -39,7 +39,7 @@ jobs:
         with:
           # relative path to the place where source code with Dockerfile is located
           context: .
-          file: ./Docker/Dockerfile.node
+          file: ./Docker/Dockerfile
           # Note: tags has to be all lower-case
           tags: ${{ github.repository_owner }}/fpp:${{ steps.extract_branch.outputs.branch }}
           push: true
