@@ -39,7 +39,8 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           # relative path to the place where source code with Dockerfile is located
-          context: ./Docker
+          context: .
+          file: ./Docker/Dockerfile
           # Note: tags has to be all lower-case
           tags: |
             ghormann/fpp:${{ steps.extract_branch.outputs.branch }}
