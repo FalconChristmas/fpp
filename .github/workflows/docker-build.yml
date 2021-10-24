@@ -34,7 +34,14 @@ jobs:
 
       - name: Extract branch name
         shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        run: |
+          TAG="latest"
+          case $GITHUB_REF in refs/heads/*)
+            TAG=${GITHUB_REF#refs/heads/};;
+          case $GITHUB_REF in refs/tags/*)
+            TAG=${GITHUB_REF#refs/tags/};;
+          esac
+        echo "##[set-output name=branch;]$(echo ${TAG})"
         id: extract_branch
 
       - name: PrepareReg Names
