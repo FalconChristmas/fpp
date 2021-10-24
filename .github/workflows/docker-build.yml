@@ -44,7 +44,7 @@ jobs:
 	          TAG=${GITHUB_REF#refs/tags/};
           esac
 
-        echo "##[set-output name=branch;]$TAG"
+          echo "##[set-output name=branch;]$TAG"
         id: extract_branch
 
       - name: PrepareReg Names
