@@ -41,7 +41,7 @@ jobs:
           case $GITHUB_REF in refs/tags/*)
             TAG=${GITHUB_REF#refs/tags/};;
           esac
-        echo "##[set-output name=branch;]$(echo ${TAG})"
+          echo "##[set-output name=branch;]$TAG"
         id: extract_branch
 
       - name: PrepareReg Names
