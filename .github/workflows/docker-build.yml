@@ -46,7 +46,7 @@ jobs:
           context: .
           file: ./Docker/Dockerfile
           # Note: tags has to be all lower-case
-          tags: ${{ env.IMAGE_REPOSITORY }}/fpp:${{ steps.extract_branch.outputs.branch }}
+          tags: ${{ env.IMAGE_REPOSITORY }}/fpp:${{ steps.extract_branch.outputs.branch }},${{ env.IMAGE_REPOSITORY }}/fpp:latest
           push: true
           cache-from: type=registry,ref=${{ env.IMAGE_REPOSITORY }}/fpp:master
           cache-to: type=inline
