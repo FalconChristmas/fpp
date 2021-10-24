@@ -37,11 +37,11 @@ jobs:
         run: |
           TAG="latest"
           case $GITHUB_REF in refs/heads/*)
-	          TAG=${GITHUB_REF#refs/heads/};;
+          TAG=${GITHUB_REF#refs/heads/};;
           esac
 
           case $GITHUB_REF in refs/tags/*)
-	          TAG=${GITHUB_REF#refs/tags/};
+          TAG=${GITHUB_REF#refs/tags/};
           esac
 
           echo "##[set-output name=branch;]$TAG"
