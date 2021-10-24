@@ -435,8 +435,9 @@ int Playlist::ReloadPlaylist(void) {
     if (!Load(root))
         return 0;
 
-    if (m_random > 0)
+    if (m_random > 0) {
         RandomizeMainPlaylist();
+    }
 
     m_repeat = repeat;
     m_loopCount = loopCount;
@@ -837,8 +838,9 @@ int Playlist::Process(void) {
                     else
                         LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, %d <= %d\n", m_loop, m_loopCount);
 
-                    if (m_random == 2)
+                    if (m_random == 2) {
                         RandomizeMainPlaylist();
+                    }
 
                     m_sectionPosition = 0;
                     m_mainPlaylist[0]->StartPlaying();
@@ -1075,8 +1077,9 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
 
     Load(filename);
 
-    if ((position == 0) && (m_random > 0))
+    if ((position == 0) && (m_random > 0)) {
         RandomizeMainPlaylist();
+    }
 
     int p = position;
     if (p == -2) {
@@ -1130,8 +1133,13 @@ void Playlist::SetRepeat(int repeat) {
 }
 
 void Playlist::RandomizeMainPlaylist() {
-    if (m_mainPlaylist.empty())
+    if (m_random == 0) {
         return;
+    }
+
+    if (m_mainPlaylist.empty()) {
+        return;
+    }
 
     std::vector<PlaylistEntryBase*> tmpPlaylist = m_mainPlaylist;
     m_mainPlaylist.clear();

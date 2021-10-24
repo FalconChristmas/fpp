@@ -60,6 +60,7 @@ int PlaylistEntryPlaylist::Init(Json::Value& config) {
         }
     } else if (config.isMember("playlist")) {
         m_playlist->Load(config["playlist"]);
+        m_playlist->RandomizeMainPlaylist();
     }
 
     return PlaylistEntryBase::Init(config);
@@ -78,8 +79,10 @@ int PlaylistEntryPlaylist::StartPlaying(void) {
     }
 
     if (!m_playlistName.empty()) {
-        if (!m_playlist->Load(m_playlistName.c_str()))
+        if (!m_playlist->Load(m_playlistName.c_str())) {
             return 0;
+        }
+        m_playlist->RandomizeMainPlaylist();
     }
 
     if (!m_playlist->Start())
