@@ -1,9 +1,12 @@
 name: Build and Publish Docker
 
 on:
-  # run it on push to the default repository branch
+  # Run when pushes to branch or create new Tag
   push:
     branches:
+      - '*'
+  create:
+    tags:
       - '*'
 
 jobs:
