@@ -188,14 +188,17 @@ function validateNetworkFields()
 
 function validateDNSFields()
 {
+  setDNSWarning("");
 	if(validateIPaddress('dns1') == false)
 	{
 		$.jGrowl("Invalid DNS Server #1",{themeState:'danger'});
+    setDNSWarning("Invalid DNS Server #1");
 		return false;
 	}
 	if(validateIPaddress('dns2') == false)
 	{
 		$.jGrowl("Invalid DNS Server #2",{themeState:'danger'});
+    setDNSWarning("Invalid DNS Server #2");
 		return false;
 	}
 
@@ -413,14 +416,14 @@ function CheckDNSCallback(data) {
 	if (data.PROTO == "static") {
 	   if (($('#eth_static').is(':checked')) &&
 		($('#dns_dhcp').is(':checked'))) {
-		$('#dnsWarning').html("Warning: You must manually configure your DNS Server(s) if all network interfaces use static IPs.");
+       setDNSWarning("Warning: You must manually configure your DNS Server(s) if all network interfaces use static IPs.");
 	   } else {
-                $('#dnsWarning').html("");
+      setDNSWarning("");
 	   }
 	} else if ($('#eth_static').is(':checked') && ($('#eth_gateway').val() == '')) {
-	   $('#dnsWarning').html("Warning: if any interface is using DHCP while another interface is using a static IP address, you WILL need to enter a valid Gateway address.");
+       setDNSWarning("Warning: if any interface is using DHCP while another interface is using a static IP address, you WILL need to enter a valid Gateway address.");
 	} else {
-	$('#dnsWarning').html("");
+      setDNSWarning("");
 	}
 
 }
@@ -443,10 +446,23 @@ function CheckDNS() {
 	$.get(url,CheckDNSCallback);
 }
 
+function setDNSWarning(msg) {
+  if (msg == "") {
+    $("#dns_warning").hide();
+    $("#dnsWarning").hide();
+  } else {
+    $("#dns_warning").html(msg).show();
+    $("#dnsWarning").html(msg).show();
+  }
+}
+
 $(document).ready(function(){
 
   LoadNetworkConfig();
   LoadDNSConfig();
+
+  $("#dns1").change(validateDNSFields);
+  $("#dns2").change(validateDNSFields);
 
   $("#eth_static").click(function(){
     DisableNetworkFields(false);
@@ -665,7 +681,7 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
                 <tr>
     	      <td colspan='2'>
                     <b><font color='#ff0000'><span id='ipWarning'></span></font></b>
-    		<b><font color='#ff0000'><span id='dnsWarning'></span></font></b>
+                    <b><font color='#ff0000'><span id='dnsWarning'></span></font></b>
                   </td>
                 </tr>
               </table>
@@ -698,6 +714,7 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
 PrintSettingGroup('host');
 ?>
               <h2>DNS Settings</h2>
+              <div class="warning-text" id="dns_warning"></div>
               <table width="100%" border="0" cellpadding="1" cellspacing="1">
                 <tr>
                   <td>DNS Server Mode:</td>

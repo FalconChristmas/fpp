@@ -2930,12 +2930,16 @@ function validateUniverseData() {
     return returnValue;
 }
 
+/*
+ * checks if IP Address looks like an valid IP,
+ */
 function validateIPaddress(id) {
     var ipb = document.getElementById(id);
     var ip = ipb.value;
-    var isHostnameRegex = /[a-z]/i;
-    var isHostname = ip.match(isHostnameRegex);
-    if ((ip == "") || ((isHostname == null) || (isHostname.length > 0)) || (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ip))) {
+
+    var isIpRegex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    var rc = false;
+    if (ip == "" || isIpRegex.test(ip)) {
         ipb.style.border = "#000 0px none";
         return true;
     }
