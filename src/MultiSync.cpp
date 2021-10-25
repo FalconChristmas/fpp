@@ -1802,7 +1802,7 @@ void MultiSync::SendMulticastPacket(void* outBuf, int len) {
         }
     }
 }
-void MultiSync::SendUnicastPacket(const std::string &address, void* outBuf, int len) {
+void MultiSync::SendUnicastPacket(const std::string& address, void* outBuf, int len) {
     if (WillLog(LOG_EXCESSIVE, VB_SYNC)) {
         LogExcess(VB_SYNC, "SendControlPacket()\n");
         HexDump("Sending Control packet with contents:", outBuf, len, VB_SYNC);
@@ -1832,7 +1832,7 @@ void MultiSync::SendUnicastPacket(const std::string &address, void* outBuf, int 
         close(uSock);
     }
 }
-    
+
 bool MultiSync::FillInInterfaces() {
     struct ifaddrs *interfaces, *tmp;
     getifaddrs(&interfaces);
@@ -2200,7 +2200,7 @@ void MultiSync::SyncPlaylistToMS(uint64_t ms, int pos, const std::string& pl, bo
         Player::INSTANCE.Load(pl);
     }
 
-    int desiredpos = pos; 
+    int desiredpos = pos;
     if (pos == -1) {
         desiredpos = Player::INSTANCE.FindPosForMS(ms);
     }
@@ -2267,6 +2267,12 @@ void MultiSync::SyncSyncedSequence(const char* filename, int frameNumber, float 
         sequence->StartSequence(filename, frameNumber);
     }
     if (sequence->IsSequenceRunning(filename)) {
+        if (secondsElapsed > 0.0001f) {
+            //recalculate the frame number based on the seconds
+            float step = sequence->GetSeqStepTime();
+            float newFrame = secondsElapsed * 1000.0f / step;
+            frameNumber = std::round(newFrame);
+        }
         UpdateMasterPosition(frameNumber);
     }
 }
