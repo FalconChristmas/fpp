@@ -291,6 +291,7 @@ function LoadPlayListDetails($file, $mergeSubs)
 function GetPlaylist($playlistName)
 {
     global $settings;
+
     $jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $playlistName . ".json");
 
     return json_decode($jsonStr);
@@ -301,7 +302,7 @@ function playlist_get()
 {
     global $settings;
 
-    $playlistName = params('PlaylistName');
+    $playlistName = urldecode(params('PlaylistName'));
     $mergeSubs = 0;
     if ((isset($_GET['mergeSubs'])) && ($_GET['mergeSubs'] == 1)) {
         $mergeSubs = 1;
@@ -349,7 +350,7 @@ function playlist_delete()
 {
     global $settings;
 
-    $playlistName = params('PlaylistName');
+    $playlistName = urldecode(params('PlaylistName'));
     $resp = array();
 
     $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
@@ -375,8 +376,8 @@ function PlaylistSectionInsertItem()
 {
     global $settings;
 
-    $playlistName = params('PlaylistName');
-    $sectionName = params('SectionName');
+    $playlistName = urldecode(params('PlaylistName'));
+    $sectionName = urldecode(params('SectionName'));
     $entry = $GLOBALS['_POST'];
     $resp = array();
 
@@ -455,7 +456,7 @@ function playlist_start()
 {
     global $settings;
 
-    $playlistName = params('PlaylistName');
+    $playlistName = urldecode(params('PlaylistName'));
 
     $curl = curl_init('http://localhost:32322/command/Start Playlist/' . $playlistName);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
@@ -469,8 +470,8 @@ function playlist_start_repeat()
 {
     global $settings;
 
-    $playlistName = params('PlaylistName');
-    $repeat = params('Repeat');
+    $playlistName = urldecode(params('PlaylistName'));
+    $repeat = urldecode(params('Repeat'));
 
     $curl = curl_init('http://localhost:32322/command/Start Playlist/' . $playlistName . '/' . $repeat);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
