@@ -83,23 +83,19 @@ include 'common/menuHead.inc';
 			// 		SetVolume(value);
 			// 	}
             // });
-            slider.on('change',function(e){
+            slider.on('change',function(e) {
                 var value = slider.val();
-
                 SetSpeakerIndicator(value);
                 $('#volume').html(value);
                 $('#remoteVolume').html(value);
                 SetVolume(value);
             });
-            rslider.slider({
-              stop: function( event, ui ) {
-
-                  var value = rslider.val();
-                  SetSpeakerIndicator(value);
-                  $('#volume').html(value);
-                  $('#remoteVolume').html(value);
-                  SetVolume(value);
-              }
+            rslider.on('change', function(e) {
+                var value = rslider.val();
+                SetSpeakerIndicator(value);
+                $('#volume').html(value);
+                $('#remoteVolume').html(value);
+                SetVolume(value);
             });
             // $(document).tooltip({
             //     content: function() {
