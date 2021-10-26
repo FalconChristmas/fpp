@@ -162,6 +162,7 @@ int SpixelsOutput::Init(Json::Value config) {
         }
 
         std::string protocol = s["protocol"].asString();
+        toLower(protocol);
         if (protocol == "ws2801") {
             strip = CreateWS2801Strip(m_spi, connector, pixels);
         } else if (protocol == "apa102") {
@@ -171,7 +172,7 @@ int SpixelsOutput::Init(Json::Value config) {
         } else if (protocol == "lpd8806") {
             strip = CreateLPD8806Strip(m_spi, connector, pixels);
         } else {
-            LogErr(VB_CHANNELOUT, "Unknown Pixel Protocol: %s\n", s["protocol"].asString());
+            LogErr(VB_CHANNELOUT, "Unknown Pixel Protocol: %s\n", s["protocol"].asString().c_str());
             return 0;
         }
 
