@@ -100,3 +100,6 @@ There are also Playlist specific topics. Currently, ${PLAYLIST} is ignored for a
 * playlist/${PLAYLISTNAME}/stop/graceful - gracefully stop playlist
 * playlist/${PLAYLISTNAME}/stop/afterloop - Allow playlist to finish current loop then stop.
 
+These are system commands for specific
+* system/fppd/stop - Stops the fppd process (Will also kill the MQTT listener!)
+* system/fppd/restart - Executes a Fast restart on the fppd process. (Reloads all settings.) 
