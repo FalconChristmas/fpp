@@ -103,3 +103,5 @@ There are also Playlist specific topics. Currently, ${PLAYLIST} is ignored for a
 These are system commands for specific
 * system/fppd/stop - Stops the fppd process (Will also kill the MQTT listener!)
 * system/fppd/restart - Executes a Fast restart on the fppd process. (Reloads all settings.) 
+* system/shutdown - Shuts down the OS
+* system/restart - Reboots the OS
