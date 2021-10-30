@@ -23,9 +23,11 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "fpp-pch.h"
+#include "fppd.h"
 
 #include "Player.h"
 #include "effects.h"
+#include <cassert>
 
 #define FALCON_TOPIC "falcon/player"
 
@@ -184,7 +186,7 @@ MosquittoClient::MosquittoClient(const std::string& host, const int port,
                 if (!payload.empty()) {
                     pos = std::atoi(payload.c_str());
                 }
-                
+
                 LogDebug(VB_CONTROL, "Starting Playlist '%s' with message '%s'\n",
                          newPlaylistName.c_str(), payload.c_str());
                 Player::INSTANCE.StartPlaylist(newPlaylistName, -1, pos);
@@ -196,7 +198,59 @@ MosquittoClient::MosquittoClient(const std::string& host, const int port,
             LogDebug(VB_CONTROL, "exit playlist_callback (MQTT)\n");
         };
     AddCallback("/set/playlist/#", playlist_callback);
-}
+
+    /*
+     * Function to stop or restart fppd
+     */
+    std::function<void(const std::string&, const std::string&)>
+        mqtt_fppd_callback = [](const std::string& topic_in,
+                                const std::string& payload) {
+            LogDebug(VB_CONTROL, "MQTT System Callback for %s\n", topic_in.c_str());
+
+            assert(topic_in.size() > 8);
+
+            if (0 == topic_in.compare(topic_in.length() - 5, 5, "/stop")) {
+                LogInfo(VB_CONTROL, "Stopping FPP for MQTT request:   %s\n", topic_in.c_str());
+                ShutdownFPPD(false);
+            } else if (0 == topic_in.compare(topic_in.length() - 8, 8, "/restart")) {
+                LogInfo(VB_CONTROL, "Restarting FPP for MQTT request:   %s\n", topic_in.c_str());
+                ShutdownFPPD(true);
+            } else {
+                LogWarn(VB_CONTROL, "Invalid MQTT requst in mqtt_fppd_callback  %s\n", topic_in.c_str());
+            }
+        };
+
+    AddCallback("/system/fppd/#", mqtt_fppd_callback);
+
+    /*
+     * Function to stop or restart fppd
+     */
+    std::function<void(const std::string&, const std::string&)>
+        mqtt_system_callback = [](const std::string& topic_in,
+                                  const std::string& payload) {
+            LogDebug(VB_CONTROL, "MQTT System Callback for %s\n", topic_in.c_str());
+            std::string rc = "";
+
+            assert(topic_in.size() > 8);
+
+            if (0 == topic_in.compare(topic_in.length() - 9, 9, "/shutdown")) {
+                LogInfo(VB_CONTROL, "Shutting down OS for MQTT request:   %s\n", topic_in.c_str());
+                urlGet("http://localhost/api/system/shutdown", rc);
+
+            } else if (0 == topic_in.compare(topic_in.length() - 8, 8, "/restart")) {
+                LogInfo(VB_CONTROL, "Restarting FPP for MQTT request:   %s\n", topic_in.c_str());
+                urlGet("http://localhost/api/system/reboot", rc);
+
+            } else {
+                LogWarn(VB_CONTROL, "Invalid MQTT requst in mqtt_system_callback  %s\n", topic_in.c_str());
+            }
+        };
+
+    AddCallback("/system/shutdown", mqtt_system_callback);
+    AddCallback("/system/restart", mqtt_system_callback);
+
+} // End of MosquittoClient()
+
 /*
  *
  */
