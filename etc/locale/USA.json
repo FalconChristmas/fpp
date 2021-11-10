@@ -177,6 +177,13 @@
             "day": 25
         },
         {
+            "name": "Boxing Day",
+            "shortName": "BoxingDay",
+            "year": 0,
+            "month": 12,
+            "day": 26
+        },
+        {
             "name": "New Years Eve",
             "shortName": "NewYearsEve",
             "year": 0,
