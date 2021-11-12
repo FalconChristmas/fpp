@@ -1,6 +1,22 @@
 <?php
-//Stop config.php spitting out any JS used in the UI, not needed on the backup page, if unset the JSON download will have the <script> tag in it due to
+$skipHTMLCodeOutput = false;
+//Check if this script is being called directly for is being included on another script
+//If included we'll skip printing the HTML code for the page as it's likely we just want to access functions to generate a backup
+function checkDirectScriptExecution()
+{
+	global $skipJSsettings, $skipHTMLCodeOutput;
+	$incl_files = get_included_files();
+	//script in the first index should be the script were executing
+	if ($incl_files[0] != __FILE__) {
+		$skipJSsettings = 1;
+		$skipHTMLCodeOutput = true;
+	}
+}
+checkDirectScriptExecution();
+
+//Stop config.php spitting out any JS used in the UI, not needed on the backup page, if left as is the JSON download will have the <script> tag in it due to
 //that data already being in the buffer
+//so change the flag so it doesn't get output when the request is a post request (which is the user submitting the backup form)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    $skipJSsettings = 1;
 }
@@ -1596,7 +1612,7 @@ function performBackup($area = "all", $allowDownload = true)
 		if (!empty($tmp_settings_data)) {
 			doBackupDownload($tmp_settings_data, $area);
 		}else{
-			$backup_error_string = "BACKUP: Something went wrong while generating backup file for " . ucwords(str_replace("_", " ", $area)) . ", no data was found. Have these settings been configured?";
+			$backup_error_string = "SETTINGS BACKUP: Something went wrong while generating backup file for " . ucwords(str_replace("_", " ", $area)) . ", no data was found. Have these settings been configured?";
 			$backup_errors[] = $backup_error_string;
 		}
 	}
@@ -1631,14 +1647,14 @@ function doBackupDownload($settings_data, $area)
         //check to see fi the backup directory exists
 		if (!file_exists($fpp_backup_location)) {
 			if (mkdir($fpp_backup_location) == FALSE) {
-			    $backup_error_string = "BACKUP: Something went wrong creating the backup file directory '" . $fpp_backup_location . "' , backup file can't be created (permissions error?) and backup download will fail as a result.";
+			    $backup_error_string = "SETTINGS BACKUP: Something went wrong creating the backup file directory '" . $fpp_backup_location . "' , backup file can't be created (permissions error?) and backup download will fail as a result.";
 				$backup_errors[] = $backup_error_string;
 				error_log($backup_error_string);
 			}
 		} else {
 			//Backup location exists, test if writable
 			if (is_writable($fpp_backup_location) == FALSE) {
-				$backup_error_string = "BACKUP: Something went wrong, '" . $fpp_backup_location . "'  is not writable.";
+				$backup_error_string = "SETTINGS BACKUP: Something went wrong, '" . $fpp_backup_location . "'  is not writable.";
 				$backup_errors[] = $backup_error_string;
 				error_log($backup_error_string);
 			}
@@ -1666,14 +1682,14 @@ function doBackupDownload($settings_data, $area)
 				exit;
 			}
 		} else {
-			$backup_error_string = "BACKUP: Something went wrong while writing the backup file to '" . $backup_local_fpath . "', JSON backup file unable to be downloaded.";
+			$backup_error_string = "SETTINGS BACKUP: Something went wrong while writing the backup file to '" . $backup_local_fpath . "', JSON backup file unable to be downloaded.";
 			$backup_errors[] = $backup_error_string;
 			error_log($backup_error_string);
 		}
 
     } else {
         //no data supplied
-		$backup_error_string = "BACKUP: Something went wrong while generating backup file for " .  ucwords(str_replace("_", " ", $area)) . ", no data was supplied. Have these settings been configured?";
+		$backup_error_string = "SETTINGS BACKUP: Something went wrong while generating backup file for " .  ucwords(str_replace("_", " ", $area)) . ", no data was supplied. Have these settings been configured?";
 		$backup_errors[] = $backup_error_string;
         error_log($backup_error_string);
     }
@@ -1838,7 +1854,7 @@ function pruneOrRemoveAgedBackupFiles(){
 
 	//If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop procesing
 	if (count($config_dir_files) < $fpp_backup_min_number) {
-		$aged_backup_removal_message = "BACKUP: Not removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are less than the minimum backups we want to keep ($fpp_backup_min_number)";
+		$aged_backup_removal_message = "SETTINGS BACKUP: Not removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are less than the minimum backups we want to keep ($fpp_backup_min_number)";
 		error_log($aged_backup_removal_message);
 		return;
 	}
@@ -1856,7 +1872,7 @@ function pruneOrRemoveAgedBackupFiles(){
 			//Check the age of the file by checking the file modification time compared to now
 			if ((time() - filemtime($backup_file_location)) > ($backup_max_age_seconds)) {
 				//Not what happened in the logs also
-				$aged_backup_removal_message = "BACKUP: Removed old JSON settings backup file ($backup_file_location) since it was " . ceil((time() - filemtime($backup_file_location)) / 86400) . " days old. Max age is $fpp_backup_max_age days.";
+				$aged_backup_removal_message = "SETTINGS BACKUP: Removed old JSON settings backup file ($backup_file_location) since it was " . ceil((time() - filemtime($backup_file_location)) / 86400) . " days old. Max age is $fpp_backup_max_age days.";
 				error_log($aged_backup_removal_message);
                 //Remove the file
 				unlink($backup_file_location);
@@ -1911,8 +1927,12 @@ function is_array_empty($InputVariable)
 moveBackupFiles_ToBackupDirectory();
 
 ?>
+<?php
+//See if we should skip spitting out the HTML code below
+if ($skipHTMLCodeOutput == false) {
+	?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <?php require_once 'common/menuHead.inc'; ?>
     <title>FPP - <?php echo gethostname(); ?></title>
@@ -1920,8 +1940,8 @@ moveBackupFiles_ToBackupDirectory();
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
 	<?php
-$backupHosts = getKnownFPPSystems();
-?>
+	$backupHosts = getKnownFPPSystems();
+	?>
     <script type="text/javascript">
         var settings = new Array();
 		<?php
@@ -2507,3 +2527,6 @@ GetBackupDevices();
 </div>
 </body>
 </html>
+	<?php
+}
+?>
