@@ -110,7 +110,7 @@ $fpp_backup_prompt_download = true;
 //Max age for stored settings backup files, Default: 90 days
 $fpp_backup_max_age = 90;
 //Minimum number of backups we want to keep, this works with max age to ensure we have at least some backups left and not wipe out all of them if they were all old. Default: 14
-$fpp_backup_min_number = 14;
+$fpp_backup_min_number_kept = 14;
 //Hold any backup error messages here
 $backup_errors = array();
 
@@ -1860,14 +1860,14 @@ function changeLocalFPPBackupFileLocation($new_location)
  * Find and removes any JSON settings backup files that are over our specified max age
  */
 function pruneOrRemoveAgedBackupFiles(){
-	global $fpp_backup_max_age, $fpp_backup_min_number, $fpp_backup_location;
+	global $fpp_backup_max_age, $fpp_backup_min_number_kept, $fpp_backup_location;
 
 	//gets all the files in the configs/backup directory
 	$config_dir_files = read_directory_files($fpp_backup_location, false, true);
 
 	//If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop procesing
-	if (count($config_dir_files) < $fpp_backup_min_number) {
-		$aged_backup_removal_message = "SETTINGS BACKUP: Not removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are less than the minimum backups we want to keep ($fpp_backup_min_number)";
+	if (count($config_dir_files) < $fpp_backup_min_number_kept) {
+		$aged_backup_removal_message = "SETTINGS BACKUP: Not removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are less than the minimum backups we want to keep ($fpp_backup_min_number_kept)";
 		error_log($aged_backup_removal_message);
 		return;
 	}
@@ -1914,6 +1914,19 @@ function setBackupMaxAge($new_max_age)
 	//
     if (!empty($new_max_age) && ($new_max_age != 0)){
 		$fpp_backup_max_age = $new_max_age;
+	}
+}
+
+/**
+ * Set a new minimum number of backup files to keep
+ * @param $new_backup_count
+ */
+function setMinimumBackupCount($new_backup_count)
+{
+	global $fpp_backup_min_number_kept;
+	//
+	if (!empty($new_backup_count) && ($new_backup_count != 0)){
+		$fpp_backup_min_number_kept = $new_backup_count;
 	}
 }
 
