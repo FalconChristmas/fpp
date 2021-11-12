@@ -1844,6 +1844,19 @@ function moveBackupFiles_ToBackupDirectory()
 }
 
 /**
+ * Change the location where the Settings backup file is stored, a copy is always stored locally
+ * This just changes where that file is stored in case it needs to be temporarily somewhere else.
+ * @param $new_location
+ */
+function changeLocalFPPBackupFileLocation($new_location)
+{
+	global $fpp_backup_location;
+	if (isset($new_location)) {
+		$fpp_backup_location = $new_location;
+	}
+}
+
+/**
  * Find and removes any JSON settings backup files that are over our specified max age
  */
 function pruneOrRemoveAgedBackupFiles(){
