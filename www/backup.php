@@ -89,10 +89,16 @@ $system_config_areas = array(
 $fpp_backup_version = "5";
 //FPP Backup files directory
 $fpp_backup_location = $settings['configDirectory'] . "/backups";
+//Flag whether the users browser will download the JSON file
+$fpp_backup_prompt_download = true;
+//Max age for stored settings backup files, Default: 90 days
+$fpp_backup_max_age = 90;
+//Minimum number of backups we want to keep, this works with max age to ensure we have at least some backups left and not wipe out all of them if they were all old. Default: 14
+$fpp_backup_min_number = 14;
 //Hold any backup error messages here
 $backup_errors = array();
 
-//Array of known plugins
+//Array of known plugins - initially empty, populated dynamically
 $system_active_plugins = array();
 
 //NOTE: - ONLY FOR PLUGINS AT CURRENT
@@ -103,7 +109,7 @@ $system_active_plugins = array();
 //Populate plugins by looking for their config files (which is what we want to backup anyway, if a config file exists therefore configuration is set for that plugin)
 $system_config_areas['plugins']['file'] = retrievePluginList();
 
-//Populate extra network interfaces
+//Populate extra network interfaces, this will help bring in extra configured interfaces like USB eth or extra USB Wifi
 retrieveNetworkInterfaces();
 
 //Preserve some existing settings by default
@@ -153,264 +159,8 @@ if (isset($_POST['btnDownloadConfig'])) {
         //this value *SHOULD* directly match a key in $system_config_areas
         $area = $_POST['backuparea'];
 
-        //temporary collection area for settings
-        $tmp_settings_data = array();
-
-        $file_data = null;
-        $special = false;
-
-        if (array_key_exists($area, $system_config_areas)) {
-            //Create a copy of the areas array to manipulate
-            $tmp_config_areas = $system_config_areas;
-
-            //Generate backup for selected area
-            //AREA - ALL
-            if (strtolower($area) == "all") {
-                //combine all backup areas into a single file
-
-                //remove the 'all' key and do some processing of areas array
-                unset($tmp_config_areas['all']);
-                //remove email as its in the general settings file and not a separate section
-                unset($tmp_config_areas['settings']['file']['email']);
-
-                //loop over the areas and process them
-                foreach ($tmp_config_areas as $config_key => $config_data) {
-                    $setting_file_to_backup = $config_data['file'];
-                    $file_data = array();
-					$backup_file_data = '';
-                    //if setting file value is an array then there are one or more setting files related to this backup
-                    if (is_array($setting_file_to_backup)) {
-//                    if (array_key_exists('special', $setting_file)) {
-//                        $special = $tmp_config_areas[$config_key]['file']['special'];
-//                    }
-
-                        //loop over the array
-                        foreach ($setting_file_to_backup as $sfi => $sfd) {
-                            $file_data = array();
-                            //           'events' => array('type' => 'dir', 'location' => $eventDirectory),
-
-                            //File or directory, read data accordingly
-                            if ($sfd['type'] == "dir") {
-                                //read all files in directory and read data
-                                $file_data = read_directory_files($sfd['location']);
-                            } else if ($sfd['type'] == "file") {
-                                //read setting file as normal
-
-                                //Check if the file location(s) is an array, if so there will likely be more than 1 file location to read
-                                //All other times location should just be a simple string for the file location
-                                if (is_array($sfd['location'])){
-                                    //loop over the locations to read them all in
-                                    foreach ($sfd['location'] as $location_filename => $location_path){
-										//Check if the file to be backed up is one of a known type
-										if (in_array($sfi, $known_ini_config_files)) {
-											//INI
-											//parse ini properly
-											$backup_file_data = parse_ini_string(file_get_contents($location_path));
-										} else if (in_array($sfi, $known_json_config_files)) {
-											//JSON
-											//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-											$backup_file_data = json_decode(file_get_contents($location_path), true);
-										} else {
-											//all other files are std flat files, process them into an array by splitting at line breaks
-											$backup_file_data = explode("\n", file_get_contents($location_path));
-										}
-
-										//Collect the backup data
-										$file_data[$location_filename] = array($backup_file_data);
-									}//end loop
-								}else{
-                                    //Not an array so just a single file or filepath
-
-									//Check if the file to be backed up is one of a known type
-									if (in_array($sfi, $known_ini_config_files)) {
-										//INI
-										//parse ini properly
-										$backup_file_data = parse_ini_string(file_get_contents($sfd['location']));
-									} else if (in_array($sfi, $known_json_config_files)) {
-										//JSON
-										//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-										$backup_file_data = json_decode(file_get_contents($sfd['location']), true);
-									} else {
-										//all other files are std flat files, process them into an array by splitting at line breaks
-										$backup_file_data = explode("\n", file_get_contents($sfd['location']));
-									}
-
-                                    //Collect the backup data
-									$file_data = array($backup_file_data);
-                                }//end else
-
-                            } else if ($sfd['type'] == "function") {
-                                //If the type is function, call the function defined under the backup location
-                                //this function will return the necessary data
-                                $backup_function = $sfd['location']['backup'];
-                                if (function_exists($backup_function)) {
-                                    $backup_file_data = $backup_function();
-                                }
-                                $file_data = array($backup_file_data);
-                            }
-
-                            //Remove sensitive data
-                            $tmp_settings_data[$config_key][$sfi] = remove_sensitive_data($file_data);
-                        }
-                    } else {
-                        if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
-                            //what type of file are we dealing with? json, ini, csv, flatfile?
-                            //ultimately the data should be returned as an array
-                            //it will later be json_encoded
-
-                            if (in_array($config_key, $known_ini_config_files)) {
-                                //INI
-                                //parse ini properly
-                                $file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
-                            } else if (in_array($config_key, $known_json_config_files)) {
-                                //JSON
-                                //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-                                $file_data = json_decode(file_get_contents($setting_file_to_backup), true);
-                            } else {
-                                //all other files are std flat files, process them into an array by splitting at line breaks
-                                $file_data = explode("\n", file_get_contents($setting_file_to_backup));
-                            }
-                            //Remove sensitive data
-                            $tmp_settings_data[$config_key] = remove_sensitive_data($file_data);
-                        }
-                    }
-                    //End for loop processing each individual "area" in order to get all areas
-                }
-//            } else if (strtolower($area) == "email") {
-//                //AREA - EMAIL BACKUP
-//                $emailgpass = '';
-//                //Do a quick work around to obtain the emailgpass
-//                if ($tmp_config_areas['settings']['file'] !== false && file_exists($tmp_config_areas['settings']['file'])) {
-//                    $setting_file_data = parse_ini_string(file_get_contents($tmp_config_areas['settings']['file']));
-//                    if (array_key_exists('emailgpass', $setting_file_data)) {
-//                        //get pass
-//                        $emailgpass = $setting_file_data['emailgpass'];
-//                    }
-//                }
-//
-//                //special treatment for email settings as they are inside the general settings file
-//                //collect them together here
-//                $email_settings = array(
-//                    'emailenable' => $settings['emailenable'],
-//                    'emailguser' => $settings['emailguser'],
-//                    'emailgpass' => $emailgpass,
-//                    'emailfromtext' => $settings['emailfromtext'],
-//                    'emailtoemail' => $settings['emailtoemail']
-//                );
-//
-//                $tmp_settings_data['email'] = $email_settings;
-                //End processing "ALL" backup areas
-            } else {
-                //AREA - Individual Backup section selections will arrive here
-                //All other backup areas for individual selections
-                $setting_file_to_backup = $tmp_config_areas[$area]['file'];
-
-                //if setting file value is an array then there are one or more setting files related to this backup
-                if (is_array($setting_file_to_backup)) {
-//                    if (array_key_exists('special', $tmp_config_areas[$area]['file'])) {
-//                        $special = $tmp_config_areas[$area]['file']['special'];
-//                    }
-                    //loop over the array
-                    foreach ($setting_file_to_backup as $sfi => $sfd) {
-                        $file_data = array();
-                        if ($sfd['type'] == "dir") {
-                            $file_data = read_directory_files($sfd['location']);
-                        } else if ($sfd['type'] == "file") {
-
-							//Check if the file location(s) is an array, if so there will likely be more than 1 file location to read
-							//All other times location should just be a simple string for the file location
-							if (is_array($sfd['location'])){
-								//loop over the locations to read them all in
-								foreach ($sfd['location'] as $location_filename => $location_path){
-									//Check if the file to be backed up is one of a known type
-									if (in_array($sfi, $known_ini_config_files)) {
-										//INI
-										//parse ini properly
-										$backup_file_data = parse_ini_string(file_get_contents($location_path));
-									} else if (in_array($sfi, $known_json_config_files)) {
-										//JSON
-										//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-										$backup_file_data = json_decode(file_get_contents($location_path), true);
-									} else {
-										//all other files are std flat files, process them into an array by splitting at line breaks
-										$backup_file_data = explode("\n", file_get_contents($location_path));
-									}
-
-									//Collect the backup data
-									$file_data[$location_filename] = array($backup_file_data);
-								}//end loop
-							}else{
-								//Not an array so just a single file or filepath
-
-								//Check if the file to be backed up is one of a known type
-								if (in_array($sfi, $known_ini_config_files)) {
-									//INI
-									//parse ini properly
-									$backup_file_data = parse_ini_string(file_get_contents($sfd['location']));
-								} else if (in_array($sfi, $known_json_config_files)) {
-									//JSON
-									//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-									$backup_file_data = json_decode(file_get_contents($sfd['location']), true);
-								} else {
-									//all other files are std flat files, process them into an array by splitting at line breaks
-									$backup_file_data = explode("\n", file_get_contents($sfd['location']));
-								}
-
-								//Collect the backup data
-								$file_data = array($backup_file_data);
-							}//end else
-
-
-//                            //Get the data out of the file
-//                            if (in_array($sfi, $known_ini_config_files)) {
-//                                //INI
-//                                //parse ini properly
-//                                $backup_file_data = parse_ini_string(file_get_contents($sfd['location']));
-//                            } else if (in_array($sfi, $known_json_config_files)) {
-//                                //JSON
-//                                //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-//                                $backup_file_data = json_decode(file_get_contents($sfd['location']), true);
-//                            } else {
-//                                //all other files are std flat files, process them into an array by splitting at line breaks
-//                                $backup_file_data = explode("\n", file_get_contents($sfd['location']));
-//                            }
-//                            $file_data = array($backup_file_data);
-
-                        } else if ($sfd['type'] == "function") {
-                            $backup_function = $sfd['location']['backup'];
-                            $backup_file_data = array();
-                            if (function_exists($backup_function)) {
-                                $backup_file_data = $backup_function();
-                            }
-                            $file_data = array($backup_file_data);
-                        }
-                        //Remove Sensitive data
-                        $tmp_settings_data[$area][$sfi] = remove_sensitive_data($file_data);
-                    }
-                } else {
-                    if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
-                        if (in_array($area, $known_ini_config_files)) {
-                            $file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
-                        } else if (in_array($area, $known_json_config_files)) {
-                            $file_data = json_decode(file_get_contents($setting_file_to_backup), true);
-                        } else {
-                            $file_data = explode("\n", file_get_contents($setting_file_to_backup));
-                        }
-                        //Remove sensitive data
-                        $tmp_settings_data[$area] = remove_sensitive_data($file_data);
-                    }
-                }
-                //End individual / specific backup area processing
-            }
-
-            //DO IT!
-            if (!empty($tmp_settings_data)) {
-                doBackupDownload($tmp_settings_data, $area);
-            }else{
-				$backup_error_string = "BACKUP: Something went wrong while generating backup file for " . ucwords(str_replace("_", " ", $area)) . ", no data was found. Have these settings been configured?";
-				$backup_errors[] = $backup_error_string;
-            }
-        }
+        //Do the work to backup settings
+		performBackup($area, true);
     }
 
 } else if (isset($_POST['btnRestoreConfig'])) {
@@ -494,14 +244,14 @@ if (isset($_POST['btnDownloadConfig'])) {
                         //read each area and process it
                         foreach ($file_contents_decoded as $restore_area_key => $area_data) {
                             //Pass the restore area and data to the restore function
-                            $restore_done = process_restore_data($restore_area_key, $area_data, $_fpp_backup_version);
+                            $restore_done = processRestoreData($restore_area_key, $area_data, $_fpp_backup_version);
                         }
 
 //                    } else if (strtolower($restore_area) == "email" && $is_version_2_backup) {
 //                        //get email settings, from the actual system settings
 //                        $area_data = $file_contents_decoded['settings']['system_settings'];
 //                        //Pass the restore area and data to the restore function
-//                        $restore_done = process_restore_data("email", $area_data);
+//                        $restore_done = processRestoreData("email", $area_data);
 //                    }
                         //Restore all other areas, settings can be restored regardless of version
                         //if the area is not settings or it's not a v2 backup then nothing will be done
@@ -527,7 +277,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                             }
 
                             //Pass the restore area and data to the restore function
-                            $restore_done = process_restore_data($restore_area, $area_data, $_fpp_backup_version);
+                            $restore_done = processRestoreData($restore_area, $area_data, $_fpp_backup_version);
                         }
                     }
 
@@ -581,9 +331,10 @@ function remove_sensitive_data($input_array)
  * Looks in a directory and reads file contents of files within it
  * @param $directory String directory to search in
  * @param $return_data Boolean switch to include file data
+ * @param bool $sort_by_date Boolean sort results by date oldest to newest
  * @return array Array of file names and respective data
  */
-function read_directory_files($directory, $return_data = true)
+function read_directory_files($directory, $return_data = true, $sort_by_date = false)
 {
     $file_list = array();
     $file_data = false;
@@ -605,6 +356,16 @@ function read_directory_files($directory, $return_data = true)
         }
         closedir($handle);
     }
+
+	//Sort the results if sort flag  is true
+	if ($sort_by_date == true) {
+		//Modified version of https://stackoverflow.com/questions/2667065/sort-files-by-date-in-php
+		//uksort to sort by key & insert out directory variable
+		uksort($file_list, function ($a, $b) use ($directory) {
+			return filemtime($directory . "/" . $a) - filemtime($directory . "/" . $b);
+		});
+	}
+
     return $file_list;
 }
 
@@ -615,7 +376,7 @@ function read_directory_files($directory, $return_data = true)
  * @param $backup_version boolean Version of the backup
  * @return boolean Save result
  */
-function process_restore_data($restore_area, $restore_area_data, $backup_version)
+function processRestoreData($restore_area, $restore_area_data, $backup_version)
 {
     global $SUDO, $settings, $mediaDirectory, $scheduleFile, $system_config_areas, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadDataProtected, $settings_restored,
            $network_settings_restored, $network_settings_restored_post_apply, $network_settings_restored_applied_ips,
@@ -1325,7 +1086,9 @@ function BackupConfigFolderConfigs()
 	//remove email as its in the general settings file and not a separate section
 	unset($system_config_areas_local['settings']['file']['email']);
 
-	//loop over the areas and process them
+	//loop over the preconfigured areas and process them
+    //This loop will remove any files we picked up in the config folder which may already be known about and mapped to a existing area (e.g co-universes.json)
+    //any files left after this are extra config files we need to backup
 	foreach ($system_config_areas_local as $config_key => $config_data) {
 		$setting_file_to_backup = $config_data['file'];
 
@@ -1474,7 +1237,7 @@ function LoadPixelnetDMXFile_FPDv1()
     $return_data = array();
 
 
-    if (filesize($settings['configDirectory'] . "/Falcon.FPDV1") < 1024) {
+    if (@filesize($settings['configDirectory'] . "/Falcon.FPDV1") < 1024) {
         return $return_data;
     }
 
@@ -1568,13 +1331,286 @@ function SavePixelnetDMXFile_FPDv1($restore_data)
 }
 
 /**
+ * Performs all the work to gather files to be backed up for the specified backup area
+ * optionally $allowDownload can be set to false to prevent the backup being sent to the users browser and just have the file backed up to the config/backups folder
+ *
+ * This function can be called directly to perform a backup of settings, $allowDownload should be false in this instance to avoid header issues
+ *
+ * @param string $area Backup area to be backed up, refer $system_config_areas for the currently defined list of area
+ * @param bool $allowDownload Toggle to allow or disallow the backup file being sent to the users browser
+ */
+function performBackup($area = "all", $allowDownload = true)
+{
+	global $system_config_areas, $protectSensitiveData, $known_json_config_files, $known_ini_config_files;
+
+	//Toggle the flag to disallow the backup file to be downloaded by the browser
+	if ($allowDownload == false){
+		preventPromptUserBrowserDownloadBackup();
+    }
+
+	if (array_key_exists($area, $system_config_areas)) {
+		//Create a copy of the areas array to manipulate
+		$tmp_config_areas = $system_config_areas;
+
+		//Generate backup for selected area
+		//AREA - ALL
+		if (strtolower($area) == "all") {
+			//combine all backup areas into a single file
+
+			//remove the 'all' key and do some processing of areas array
+			unset($tmp_config_areas['all']);
+			//remove email as its in the general settings file and not a separate section
+			unset($tmp_config_areas['settings']['file']['email']);
+
+			//loop over the areas and process them
+			foreach ($tmp_config_areas as $config_key => $config_data) {
+				$setting_file_to_backup = $config_data['file'];
+				$file_data = array();
+				$backup_file_data = '';
+				//if setting file value is an array then there are one or more setting files related to this backup
+				if (is_array($setting_file_to_backup)) {
+//                    if (array_key_exists('special', $setting_file)) {
+//                        $special = $tmp_config_areas[$config_key]['file']['special'];
+//                    }
+
+					//loop over the array
+					foreach ($setting_file_to_backup as $sfi => $sfd) {
+						$file_data = array();
+						//           'events' => array('type' => 'dir', 'location' => $eventDirectory),
+
+						//File or directory, read data accordingly
+						if ($sfd['type'] == "dir") {
+							//read all files in directory and read data
+							$file_data = read_directory_files($sfd['location']);
+						} else if ($sfd['type'] == "file") {
+							//read setting file as normal
+
+							//Check if the file location(s) is an array, if so there will likely be more than 1 file location to read
+							//All other times location should just be a simple string for the file location
+							if (is_array($sfd['location'])){
+								//loop over the locations to read them all in
+								foreach ($sfd['location'] as $location_filename => $location_path){
+									//Check if the file to be backed up is one of a known type
+									if (in_array($sfi, $known_ini_config_files)) {
+										//INI
+										//parse ini properly
+										$backup_file_data = parse_ini_string(@file_get_contents($location_path));
+									} else if (in_array($sfi, $known_json_config_files)) {
+										//JSON
+										//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
+										$backup_file_data = json_decode(@file_get_contents($location_path), true);
+									} else {
+										//all other files are std flat files, process them into an array by splitting at line breaks
+										$backup_file_data = explode("\n", @file_get_contents($location_path));
+									}
+
+									//Collect the backup data
+									$file_data[$location_filename] = array($backup_file_data);
+								}//end loop
+							}else{
+								//Not an array so just a single file or filepath
+
+								//Check if the file to be backed up is one of a known type
+								if (in_array($sfi, $known_ini_config_files)) {
+									//INI
+									//parse ini properly
+									$backup_file_data = parse_ini_string(@file_get_contents($sfd['location']));
+								} else if (in_array($sfi, $known_json_config_files)) {
+									//JSON
+									//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
+									$backup_file_data = json_decode(@file_get_contents($sfd['location']), true);
+								} else {
+									//all other files are std flat files, process them into an array by splitting at line breaks
+									$backup_file_data = explode("\n", @file_get_contents($sfd['location']));
+								}
+
+								//Collect the backup data
+								$file_data = array($backup_file_data);
+							}//end else
+
+						} else if ($sfd['type'] == "function") {
+							//If the type is function, call the function defined under the backup location
+							//this function will return the necessary data
+							$backup_function = $sfd['location']['backup'];
+							if (function_exists($backup_function)) {
+								$backup_file_data = $backup_function();
+							}
+							$file_data = array($backup_file_data);
+						}
+
+						//Remove sensitive data
+						$tmp_settings_data[$config_key][$sfi] = remove_sensitive_data($file_data);
+					}
+				} else {
+					if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
+						//what type of file are we dealing with? json, ini, csv, flatfile?
+						//ultimately the data should be returned as an array
+						//it will later be json_encoded
+
+						if (in_array($config_key, $known_ini_config_files)) {
+							//INI
+							//parse ini properly
+							$file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
+						} else if (in_array($config_key, $known_json_config_files)) {
+							//JSON
+							//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
+							$file_data = json_decode(file_get_contents($setting_file_to_backup), true);
+						} else {
+							//all other files are std flat files, process them into an array by splitting at line breaks
+							$file_data = explode("\n", file_get_contents($setting_file_to_backup));
+						}
+						//Remove sensitive data
+						$tmp_settings_data[$config_key] = remove_sensitive_data($file_data);
+					}
+				}
+				//End for loop processing each individual "area" in order to get all areas
+			}
+//            } else if (strtolower($area) == "email") {
+//                //AREA - EMAIL BACKUP
+//                $emailgpass = '';
+//                //Do a quick work around to obtain the emailgpass
+//                if ($tmp_config_areas['settings']['file'] !== false && file_exists($tmp_config_areas['settings']['file'])) {
+//                    $setting_file_data = parse_ini_string(file_get_contents($tmp_config_areas['settings']['file']));
+//                    if (array_key_exists('emailgpass', $setting_file_data)) {
+//                        //get pass
+//                        $emailgpass = $setting_file_data['emailgpass'];
+//                    }
+//                }
+//
+//                //special treatment for email settings as they are inside the general settings file
+//                //collect them together here
+//                $email_settings = array(
+//                    'emailenable' => $settings['emailenable'],
+//                    'emailguser' => $settings['emailguser'],
+//                    'emailgpass' => $emailgpass,
+//                    'emailfromtext' => $settings['emailfromtext'],
+//                    'emailtoemail' => $settings['emailtoemail']
+//                );
+//
+//                $tmp_settings_data['email'] = $email_settings;
+			//End processing "ALL" backup areas
+		} else {
+			//AREA - Individual Backup section selections will arrive here
+			//All other backup areas for individual selections
+			$setting_file_to_backup = $tmp_config_areas[$area]['file'];
+
+			//if setting file value is an array then there are one or more setting files related to this backup
+			if (is_array($setting_file_to_backup)) {
+//                    if (array_key_exists('special', $tmp_config_areas[$area]['file'])) {
+//                        $special = $tmp_config_areas[$area]['file']['special'];
+//                    }
+				//loop over the array
+				foreach ($setting_file_to_backup as $sfi => $sfd) {
+					$file_data = array();
+					if ($sfd['type'] == "dir") {
+						$file_data = read_directory_files($sfd['location']);
+					} else if ($sfd['type'] == "file") {
+
+						//Check if the file location(s) is an array, if so there will likely be more than 1 file location to read
+						//All other times location should just be a simple string for the file location
+						if (is_array($sfd['location'])){
+							//loop over the locations to read them all in
+							foreach ($sfd['location'] as $location_filename => $location_path){
+								//Check if the file to be backed up is one of a known type
+								if (in_array($sfi, $known_ini_config_files)) {
+									//INI
+									//parse ini properly
+									$backup_file_data = parse_ini_string(file_get_contents($location_path));
+								} else if (in_array($sfi, $known_json_config_files)) {
+									//JSON
+									//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
+									$backup_file_data = json_decode(file_get_contents($location_path), true);
+								} else {
+									//all other files are std flat files, process them into an array by splitting at line breaks
+									$backup_file_data = explode("\n", file_get_contents($location_path));
+								}
+
+								//Collect the backup data
+								$file_data[$location_filename] = array($backup_file_data);
+							}//end loop
+						}else{
+							//Not an array so just a single file or filepath
+
+							//Check if the file to be backed up is one of a known type
+							if (in_array($sfi, $known_ini_config_files)) {
+								//INI
+								//parse ini properly
+								$backup_file_data = parse_ini_string(file_get_contents($sfd['location']));
+							} else if (in_array($sfi, $known_json_config_files)) {
+								//JSON
+								//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
+								$backup_file_data = json_decode(file_get_contents($sfd['location']), true);
+							} else {
+								//all other files are std flat files, process them into an array by splitting at line breaks
+								$backup_file_data = explode("\n", file_get_contents($sfd['location']));
+							}
+
+							//Collect the backup data
+							$file_data = array($backup_file_data);
+						}//end else
+
+
+//                            //Get the data out of the file
+//                            if (in_array($sfi, $known_ini_config_files)) {
+//                                //INI
+//                                //parse ini properly
+//                                $backup_file_data = parse_ini_string(file_get_contents($sfd['location']));
+//                            } else if (in_array($sfi, $known_json_config_files)) {
+//                                //JSON
+//                                //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
+//                                $backup_file_data = json_decode(file_get_contents($sfd['location']), true);
+//                            } else {
+//                                //all other files are std flat files, process them into an array by splitting at line breaks
+//                                $backup_file_data = explode("\n", file_get_contents($sfd['location']));
+//                            }
+//                            $file_data = array($backup_file_data);
+
+					} else if ($sfd['type'] == "function") {
+						$backup_function = $sfd['location']['backup'];
+						$backup_file_data = array();
+						if (function_exists($backup_function)) {
+							$backup_file_data = $backup_function();
+						}
+						$file_data = array($backup_file_data);
+					}
+					//Remove Sensitive data
+					$tmp_settings_data[$area][$sfi] = remove_sensitive_data($file_data);
+				}
+			} else {
+				if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
+					if (in_array($area, $known_ini_config_files)) {
+						$file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
+					} else if (in_array($area, $known_json_config_files)) {
+						$file_data = json_decode(file_get_contents($setting_file_to_backup), true);
+					} else {
+						$file_data = explode("\n", file_get_contents($setting_file_to_backup));
+					}
+					//Remove sensitive data
+					$tmp_settings_data[$area] = remove_sensitive_data($file_data);
+				}
+			}
+			//End individual / specific backup area processing
+		}
+
+		//DO IT!
+		if (!empty($tmp_settings_data)) {
+			doBackupDownload($tmp_settings_data, $area);
+		}else{
+			$backup_error_string = "BACKUP: Something went wrong while generating backup file for " . ucwords(str_replace("_", " ", $area)) . ", no data was found. Have these settings been configured?";
+			$backup_errors[] = $backup_error_string;
+		}
+	}
+}
+
+/**
  * Starts the download in the browser
  * @param $settings_data array Assoc. Array of settings data
  * @param $area String Area the download was for
  */
 function doBackupDownload($settings_data, $area)
 {
-    global $settings, $protectSensitiveData, $fpp_backup_version, $fpp_backup_location, $backup_errors;
+    global $settings, $protectSensitiveData, $fpp_backup_version, $fpp_backup_prompt_download, $fpp_backup_location, $backup_errors;
+
     if (!empty($settings_data)) {
         //is sensitive data removed (selectively used on restore to skip some processes)
         $settings_data['protected'] = $protectSensitiveData;
@@ -1608,21 +1644,27 @@ function doBackupDownload($settings_data, $area)
 			}
 		}
 
-        //Write a copy locally as well
+        //Write a copy locally into "config/backups"
         $backup_local_fpath = $fpp_backup_location . '/' . $backup_fname;
         $json = json_encode($settings_data);
 
         //Write data into backup file
 		if (file_put_contents($backup_local_fpath, $json) !== FALSE) {
-			///Generate the headers to prompt browser to start download
-			header("Content-Disposition: attachment; filename=\"" . basename($backup_fname) . "\"");
-			header("Content-Type: application/json");
-			header("Content-Length: " . filesize($backup_local_fpath));
-			header("Connection: close");
-			//Output the file
-			readfile($backup_local_fpath);
-			//die
-			exit;
+		    //Once the backup has been written into our local directory, prune/remove any backups older than the max set age
+			pruneOrRemoveAgedBackupFiles();
+
+			//Make the users browser prompt a download and send the file
+			if ($fpp_backup_prompt_download == true) {
+				///Generate the headers to prompt browser to start download
+				header("Content-Disposition: attachment; filename=\"" . basename($backup_fname) . "\"");
+				header("Content-Type: application/json");
+				header("Content-Length: " . filesize($backup_local_fpath));
+				header("Connection: close");
+				//Output the file
+				readfile($backup_local_fpath);
+				//die
+				exit;
+			}
 		} else {
 			$backup_error_string = "BACKUP: Something went wrong while writing the backup file to '" . $backup_local_fpath . "', JSON backup file unable to be downloaded.";
 			$backup_errors[] = $backup_error_string;
@@ -1785,6 +1827,67 @@ function moveBackupFiles_ToBackupDirectory()
     }
 }
 
+/**
+ * Find and removes any JSON settings backup files that are over our specified max age
+ */
+function pruneOrRemoveAgedBackupFiles(){
+	global $fpp_backup_max_age, $fpp_backup_min_number, $fpp_backup_location;
+
+	//gets all the files in the configs/backup directory
+	$config_dir_files = read_directory_files($fpp_backup_location, false, true);
+
+	//If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop procesing
+	if (count($config_dir_files) < $fpp_backup_min_number) {
+		$aged_backup_removal_message = "BACKUP: Not removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are less than the minimum backups we want to keep ($fpp_backup_min_number)";
+		error_log($aged_backup_removal_message);
+		return;
+	}
+
+	//loop over the backup files we've found
+	foreach ($config_dir_files as $backup_filename => $backup_data) {
+		if ((stripos(strtolower($backup_filename), "-backup_") !== false) && (stripos(strtolower($backup_filename), ".json") !== false)) {
+			//File is one of our backup files, this check is just in case there is other json files in this directory placed there by the user which we want to avoid touching.
+
+			//reconstruct the path
+			$backup_file_location = $fpp_backup_location . "/" . $backup_filename;
+			//backup max_age time in seconds, since we dealing with UNIX epoc time
+			$backup_max_age_seconds = ($fpp_backup_max_age * 86400);
+
+			//Check the age of the file by checking the file modification time compared to now
+			if ((time() - filemtime($backup_file_location)) > ($backup_max_age_seconds)) {
+				//Not what happened in the logs also
+				$aged_backup_removal_message = "BACKUP: Removed old JSON settings backup file ($backup_file_location) since it was " . ceil((time() - filemtime($backup_file_location)) / 86400) . " days old. Max age is $fpp_backup_max_age days.";
+				error_log($aged_backup_removal_message);
+                //Remove the file
+				unlink($backup_file_location);
+			}
+		}
+	}
+}
+
+/**
+ * Prevent or stop the users browser from showing a download prompt for the backup file
+ * Useful for if we just want to trigger a backup and just have it saved locally instead of both saving locally and sending it to the users browser
+ */
+function preventPromptUserBrowserDownloadBackup(){
+    global $fpp_backup_prompt_download;
+    //
+    $fpp_backup_prompt_download = false;
+}
+
+/**
+ * Set a new defined max backup age for the existing JSON settings backup files
+ * @param $new_max_age
+ */
+function setBackupMaxAge($new_max_age)
+{
+	global $fpp_backup_max_age;
+	//
+    if (!empty($new_max_age) && ($new_max_age != 0)){
+		$fpp_backup_max_age = $new_max_age;
+	}
+}
+
 function is_array_empty($InputVariable)
 {
 	$Result = true;
@@ -1812,16 +1915,16 @@ moveBackupFiles_ToBackupDirectory();
 <html>
 <head>
     <?php require_once 'common/menuHead.inc'; ?>
-    <title>FPP - <? echo gethostname(); ?></title>
+    <title>FPP - <?php echo gethostname(); ?></title>
     <!--    <script>var helpPage = "help/backup.php";</script>-->
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
-<?
+	<?php
 $backupHosts = getKnownFPPSystems();
 ?>
     <script type="text/javascript">
         var settings = new Array();
-        <?
+		<?php
         ////Override restartFlag setting not reflecting actual value after restoring, just read what's in the settings file
         $settings['restartFlag'] = ReadSettingFromFile('restartFlag');
 		$settings['rebootFlag'] = ReadSettingFromFile('rebootFlag');
@@ -1839,12 +1942,12 @@ $backupHosts = getKnownFPPSystems();
         }
 
         ?>
-        var pageName = "<? echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
+        var pageName = "<?php echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
 
-        var helpPage = "<? echo basename($_SERVER['PHP_SELF']) ?>";
+        var helpPage = "<?php echo basename($_SERVER['PHP_SELF']) ?>";
         if (pageName == "plugin") {
-            var pluginPage = "<? echo preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI']); ?>";
-            var pluginBase = "<? echo preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI'])); ?>";
+            var pluginPage = "<?php echo preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI']); ?>";
+            var pluginBase = "<?php echo preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI'])); ?>";
             helpPage = pluginBase + "nopage=1&page=help/" + pluginPage;
         }
         else {
@@ -2332,26 +2435,26 @@ GetBackupDevices();
         <option value="FROMREMOTE">Restore From Remote FPP Backups Directory</option>
         </select></td></tr>
         <tr class='copyUSB'><td>USB Device:</td><td><select name='backup.USBDevice' id='backup.USBDevice' onChange='USBDeviceChanged();'></select> <input type='button' class='buttons' onClick='GetBackupDevices();' value='Refresh List'></td></tr>
-        <tr class='copyHost'><td>Remote Host:</td><td><? PrintSettingSelect('Backup Host', 'backup.Host', 0, 0, '', $backupHosts, '', 'GetBackupHostBackupDirs'); ?></td></tr>
-        <tr class='copyPath'><td>Backup Path:</td><td><? PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', gethostname()); ?></td></tr>
+        <tr class='copyHost'><td>Remote Host:</td><td><?php PrintSettingSelect('Backup Host', 'backup.Host', 0, 0, '', $backupHosts, '', 'GetBackupHostBackupDirs'); ?></td></tr>
+        <tr class='copyPath'><td>Backup Path:</td><td><?php PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', gethostname()); ?></td></tr>
         <tr class='copyPathSelect'><td>Backup Path:</td><td><select name='backup.PathSelect' id='backup.PathSelect'></select></td></tr>
         <tr><td>What to copy:</td><td>
         <table id="CopyFlagsTable">
         <tr><td>
-            <? PrintSettingCheckbox('Backup Configuration', 'backup.Configuration', 0, 0, 1, 0, "", "", 1, 'Configuration'); ?><br>
-            <? PrintSettingCheckbox('Backup Playlists', 'backup.Playlists', 0, 0, 1, 0, "", "", 1, 'Playlists'); ?><br>
+				<?php PrintSettingCheckbox('Backup Configuration', 'backup.Configuration', 0, 0, 1, 0, "", "", 1, 'Configuration'); ?><br>
+				<?php PrintSettingCheckbox('Backup Playlists', 'backup.Playlists', 0, 0, 1, 0, "", "", 1, 'Playlists'); ?><br>
             </td><td width='10px'></td><td>
-            <? PrintSettingCheckbox('Backup Events', 'backup.Events', 0, 0, 1, 0, "", "", 1, 'Events'); ?><br>
-            <? PrintSettingCheckbox('Backup Plugins', 'backup.Plugins', 0, 0, 1, 0, "", "", 1, 'Plugins'); ?><br>
+				<?php PrintSettingCheckbox('Backup Events', 'backup.Events', 0, 0, 1, 0, "", "", 1, 'Events'); ?><br>
+				<?php PrintSettingCheckbox('Backup Plugins', 'backup.Plugins', 0, 0, 1, 0, "", "", 1, 'Plugins'); ?><br>
             </td><td width='10px'></td><td>
-            <? PrintSettingCheckbox('Backup Sequences', 'backup.Sequences', 0, 0, 1, 0, "", "", 1, 'Sequences'); ?><span style="color: #AA0000">*</span><br>
-            <? PrintSettingCheckbox('Backup Images', 'backup.Images', 0, 0, 1, 0, "", "", 1, 'Images'); ?><br>
+				<?php PrintSettingCheckbox('Backup Sequences', 'backup.Sequences', 0, 0, 1, 0, "", "", 1, 'Sequences'); ?><span style="color: #AA0000">*</span><br>
+				<?php PrintSettingCheckbox('Backup Images', 'backup.Images', 0, 0, 1, 0, "", "", 1, 'Images'); ?><br>
             </td><td width='10px'></td><td>
-            <? PrintSettingCheckbox('Backup Scripts', 'backup.Scripts', 0, 0, 1, 0, "", "", 1, 'Scripts'); ?><br>
-            <? PrintSettingCheckbox('Backup Effects', 'backup.Effects', 0, 0, 1, 0, "", "", 1, 'Effects'); ?><br>
+				<?php PrintSettingCheckbox('Backup Scripts', 'backup.Scripts', 0, 0, 1, 0, "", "", 1, 'Scripts'); ?><br>
+				<?php PrintSettingCheckbox('Backup Effects', 'backup.Effects', 0, 0, 1, 0, "", "", 1, 'Effects'); ?><br>
             </td><td width='10px'></td><td>
-            <? PrintSettingCheckbox('Backup Music', 'backup.Music', 0, 0, 1, 0, "", "", 1, 'Music'); ?><br>
-            <? PrintSettingCheckbox('Backup Videos', 'backup.Videos', 0, 0, 1, 0, "", "", 1, 'Videos'); ?><br>
+				<?php PrintSettingCheckbox('Backup Music', 'backup.Music', 0, 0, 1, 0, "", "", 1, 'Music'); ?><br>
+				<?php PrintSettingCheckbox('Backup Videos', 'backup.Videos', 0, 0, 1, 0, "", "", 1, 'Videos'); ?><br>
             </td><td width='10px'></td><td valign='top' class='copyBackups'>
             <input type='checkbox' id='backup.Backups'>Backups <span style="color: #AA0000">*</span><br>
         </td></tr></table>
