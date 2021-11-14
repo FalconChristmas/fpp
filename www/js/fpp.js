@@ -3056,8 +3056,8 @@ function GetFiles(dir) {
                 ++i;
             });
         },
-        error: function () {
-            DialogError('Load Sequences', 'Error loading list of sequences');
+        error: function (x, t, e) {
+            DialogError('Load Files', 'Error loading list of files in ' + dir + ' directory');
         }
 
     });
