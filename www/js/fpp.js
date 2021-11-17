@@ -3526,6 +3526,26 @@ function parseStatus(jsonStatus) {
     firstStatusLoad = 0;
 }
 
+function niceDuration(ms) {
+    var t = ms;
+    if (t < 1000) {
+        return "" + t + " ms";
+    }
+    t = t / 1000; // in sec now
+
+    if (t < 60) {
+        return "" + Math.round(t) + " sec";
+    }
+
+    t = t / 60; // in min now
+    if (t < 60) {
+        return "" + Math.round(t) + " min";
+    }
+
+    t = t / 60;
+    return "" + Math.round(t) + " hours";
+}
+
 function ShowMultiSyncStats(data) {
     $('#syncStats').empty();
 
@@ -3535,6 +3555,8 @@ function ShowMultiSyncStats(data) {
 
     $('#syncMaster').html(master);
 
+    var now = new Date().getTime();
+
     for (var i = 0; i < data.systems.length; i++) {
         var s = data.systems[i];
         var row = '<tr>'
@@ -3543,7 +3565,8 @@ function ShowMultiSyncStats(data) {
         if (s.hostname != '')
             row += ' (' + s.hostname + ')</td>'
 
-        row += '<td>' + s.lastReceiveTime + '</td>'
+        var ms = now - new Date(s.lastReceiveTime).getTime();
+        row += '<td><span title="' + s.lastReceiveTime + '">' + niceDuration(ms) + '</span></td>'
             + '<td class="right">' + s.pktSyncSeqOpen + '</td>'
             + '<td class="right">' + s.pktSyncSeqStart + '</td>'
             + '<td class="right">' + s.pktSyncSeqStop + '</td>'
