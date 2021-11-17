@@ -696,6 +696,8 @@ public:
         for (auto a : wled) {
             add(a);
         }
+
+        std::sort(effectNames.begin(), effectNames.end());
     }
     ~PixelOverlayEffectHolder() {
         for (auto& a : effects) {
