@@ -61,12 +61,18 @@ $(function () {
         $('body').addClass('no-touch');
     }
 
+    $('a.link-to-fpp-manual').attr("href", getManualLink());
+
     $.jGrowl.defaults.closerTemplate = '<div>Close Notifications</div>';
     SetupToolTips();
     LoadSystemStatus();
     CheckBrowser();
     CheckRestartRebootFlags();
 });
+
+function getManualLink() {
+    return "https://falconchristmas.github.io/FPP_Manual(5.4).pdf";
+}
 
 (function ($) {
 
@@ -3056,8 +3062,8 @@ function GetFiles(dir) {
                 ++i;
             });
         },
-        error: function () {
-            DialogError('Load Sequences', 'Error loading list of sequences');
+        error: function (x, t, e) {
+            DialogError('Load Files', 'Error loading list of files in ' + dir + ' directory');
         }
 
     });
@@ -3520,6 +3526,26 @@ function parseStatus(jsonStatus) {
     firstStatusLoad = 0;
 }
 
+function niceDuration(ms) {
+    var t = ms;
+    if (t < 1000) {
+        return "" + t + " ms";
+    }
+    t = t / 1000; // in sec now
+
+    if (t < 60) {
+        return "" + Math.round(t) + " sec";
+    }
+
+    t = t / 60; // in min now
+    if (t < 60) {
+        return "" + Math.round(t) + " min";
+    }
+
+    t = t / 60;
+    return "" + Math.round(t) + " hours";
+}
+
 function ShowMultiSyncStats(data) {
     $('#syncStats').empty();
 
@@ -3529,6 +3555,8 @@ function ShowMultiSyncStats(data) {
 
     $('#syncMaster').html(master);
 
+    var now = new Date().getTime();
+
     for (var i = 0; i < data.systems.length; i++) {
         var s = data.systems[i];
         var row = '<tr>'
@@ -3537,7 +3565,8 @@ function ShowMultiSyncStats(data) {
         if (s.hostname != '')
             row += ' (' + s.hostname + ')</td>'
 
-        row += '<td>' + s.lastReceiveTime + '</td>'
+        var ms = now - new Date(s.lastReceiveTime).getTime();
+        row += '<td><span title="' + s.lastReceiveTime + '">' + niceDuration(ms) + '</span></td>'
             + '<td class="right">' + s.pktSyncSeqOpen + '</td>'
             + '<td class="right">' + s.pktSyncSeqStart + '</td>'
             + '<td class="right">' + s.pktSyncSeqStop + '</td>'
@@ -4490,15 +4519,22 @@ function DisplayHelp() {
     }
 
     var tmpHelpPage = helpPage;
+    var tabs = $("#settingsManagerTabs li .active");
 
-    if ((helpPage == 'help/settings.php') && $('#tabs').length) {
-        var tab = $("#tabs li.ui-tabs-active a").attr('href').replace('#tab-', '');
+    if ((helpPage == 'help/settings.php') && (tabs.length == 1)) {
+        var id = tabs.first().attr('id');
+        const re = /settings-(.*)-tab/
+        var tab = '';
+        var findings = id.match(re);
+        if (findings) {
+            tab = findings[1];
+        }
         if (tab != '') {
-            tmpHelpPage = "help/" + tab;
+            tmpHelpPage = "help/settings-" + tab + ".php";
         }
     }
 
-    $('#helpText').html("No help file exists for this page yet.  Check the <a href='https://falconchristmas.github.io/FPP_Manual(4.6).pdf' target='_blank'>FPP Manual</a> for more info.");
+    $('#helpText').html("No help file exists for this page yet.  Check the <a class='link-to-fpp-manual' href='" + getManualLink() + "' target='_blank'>FPP Manual</a> for more info.");
     $('#helpText').load(tmpHelpPage);
     $('#dialog-help').fppDialog({ width: 1000, title: "Help - Hit F1 or ESC to close", close: HelpClosed });
     $('#dialog-help').fppDialog("moveToTop");

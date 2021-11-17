@@ -276,66 +276,50 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
         std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
         std::time_t currTime = std::time(nullptr);
         int daysSince = (int)std::difftime(currTime, FPPEpochTimeT) / (60 * 60 * 24);
-        bool oddSunday = false;
-
         struct tm now;
         localtime_r(&currTime, &now);
 
-        if ((daysSince - now.tm_wday) % 2) {
-            oddSunday = true; // This past Sunday was an odd day
+        int dayOffset = 0;
+        if (daysSince % 2) { // Today is an odd day
+            if (entry->dayIndex == INX_EVEN_DAY)
+                dayOffset = 1;
+        } else { // Today is an even day
+            if (entry->dayIndex == INX_ODD_DAY)
+                dayOffset = 1;
         }
 
-        bool dayOn = false;
-        if (dayIndex == INX_ODD_DAY) {
-            if (((oddSunday) && ((now.tm_wday % 2) == 0)) ||
-                ((!oddSunday) && ((now.tm_wday % 2) == 1))) {
-                dayOn = true;
-            }
-        } else { // dayIndex == INX_EVEN_DAY
-            if (((oddSunday) && ((now.tm_wday % 2) == 1)) ||
-                ((!oddSunday) && ((now.tm_wday % 2) == 0))) {
-                dayOn = true;
-            }
-        }
-
-        // Now through end of the week
-        for (int i = now.tm_wday; i < 7; i++) {
-            if (dayOn)
-                dayIndex |= (INX_DAY_MASK_SUNDAY >> i);
-
-            dayOn = !dayOn;
-        }
-        // Beginning of next week
-        for (int i = 0; i < now.tm_wday; i++) {
-            if (dayOn)
-                dayIndex |= (INX_DAY_MASK_SUNDAY >> i);
-
-            dayOn = !dayOn;
+        // Schedule out 5 weeks
+        for (int i = now.tm_wday + dayOffset; i <= 35 ; i += 2) {
+            entry->pushStartEndTimes(i);
         }
 
         break;
     }
 
-    if (dayIndex & INX_DAY_MASK_SUNDAY)
-        entry->pushStartEndTimes(INX_SUN);
+    if ((entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY)) {
+        for (int weekOffset = 0; weekOffset <= 28; weekOffset += 7) {
+            if (dayIndex & INX_DAY_MASK_SUNDAY)
+                entry->pushStartEndTimes(INX_SUN + weekOffset);
 
-    if (dayIndex & INX_DAY_MASK_MONDAY)
-        entry->pushStartEndTimes(INX_MON);
+            if (dayIndex & INX_DAY_MASK_MONDAY)
+                entry->pushStartEndTimes(INX_MON + weekOffset);
 
-    if (dayIndex & INX_DAY_MASK_TUESDAY)
-        entry->pushStartEndTimes(INX_TUE);
+            if (dayIndex & INX_DAY_MASK_TUESDAY)
+                entry->pushStartEndTimes(INX_TUE + weekOffset);
 
-    if (dayIndex & INX_DAY_MASK_WEDNESDAY)
-        entry->pushStartEndTimes(INX_WED);
+            if (dayIndex & INX_DAY_MASK_WEDNESDAY)
+                entry->pushStartEndTimes(INX_WED + weekOffset);
 
-    if (dayIndex & INX_DAY_MASK_THURSDAY)
-        entry->pushStartEndTimes(INX_THU);
+            if (dayIndex & INX_DAY_MASK_THURSDAY)
+                entry->pushStartEndTimes(INX_THU + weekOffset);
 
-    if (dayIndex & INX_DAY_MASK_FRIDAY)
-        entry->pushStartEndTimes(INX_FRI);
+            if (dayIndex & INX_DAY_MASK_FRIDAY)
+                entry->pushStartEndTimes(INX_FRI + weekOffset);
 
-    if (dayIndex & INX_DAY_MASK_SATURDAY)
-        entry->pushStartEndTimes(INX_SAT);
+            if (dayIndex & INX_DAY_MASK_SATURDAY)
+                entry->pushStartEndTimes(INX_SAT + weekOffset);
+        }
+    }
 
     // loop through entry->startEndTimes and add to m_scheduledItems
     time_t startTime = 0;
