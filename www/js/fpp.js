@@ -4496,11 +4496,18 @@ function DisplayHelp() {
     }
 
     var tmpHelpPage = helpPage;
+    var tabs = $("#settingsManagerTabs li .active");
 
-    if ((helpPage == 'help/settings.php') && $('#tabs').length) {
-        var tab = $("#tabs li.ui-tabs-active a").attr('href').replace('#tab-', '');
+    if ((helpPage == 'help/settings.php') && (tabs.length == 1)) {
+        var id = tabs.first().attr('id');
+        const re = /settings-(.*)-tab/
+        var tab = '';
+        var findings = id.match(re);
+        if (findings) {
+            tab = findings[1];
+        }
         if (tab != '') {
-            tmpHelpPage = "help/" + tab;
+            tmpHelpPage = "help/settings-" + tab + ".php";
         }
     }
 
