@@ -133,14 +133,19 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
             break; // no need to look at items that are further in the future
         }
 
+        LogExcess(VB_SCHEDULE, "Checking scheduled items:\n");
         for (auto& item : *itemTime.second) {
+            if (WillLog(LOG_EXCESSIVE, VB_SCHEDULE))
+                DumpScheduledItem(item->startTime, item);
             if (item->command == "Start Playlist") {
                 if (item->endTime <= now) {
+                    LogExcess(VB_SCHEDULE, "End time is in the past, skipping item\n");
                     continue;
                 }
 
                 bool ir = ignoreRepeat;
                 if (m_forcedNextPlaylist == item->entryIndex) {
+                    LogExcess(VB_SCHEDULE, "This item entry index == m_forcedNextPlaylist\n");
                     ir = true;
                 }
 
@@ -148,11 +153,13 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
                      (Player::INSTANCE.GetPlaylistName() != item->entry->playlist)) &&
                     (forceStopped != item->entryIndex) &&
                     (item->entry->repeat || ir)) {
+                    LogExcess(VB_SCHEDULE, "Item marked as ran\n");
                     item->ran = false;
                 }
             }
         }
     }
+    LogExcess(VB_SCHEDULE, "Done checking list, proceeding to call CheckScheduledItems()\n");
 
     CheckScheduledItems();
 }
@@ -296,27 +303,31 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
         break;
     }
 
+    time_t currTime = time(NULL);
+    struct tm now;
+    localtime_r(&currTime, &now);
+
     if ((entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY)) {
         for (int weekOffset = 0; weekOffset <= 28; weekOffset += 7) {
-            if (dayIndex & INX_DAY_MASK_SUNDAY)
+            if ((dayIndex & INX_DAY_MASK_SUNDAY) && ((weekOffset) || (now.tm_wday <= INX_SUN)))
                 entry->pushStartEndTimes(INX_SUN + weekOffset);
 
-            if (dayIndex & INX_DAY_MASK_MONDAY)
+            if ((dayIndex & INX_DAY_MASK_MONDAY) && ((weekOffset) || (now.tm_wday <= INX_MON)))
                 entry->pushStartEndTimes(INX_MON + weekOffset);
 
-            if (dayIndex & INX_DAY_MASK_TUESDAY)
+            if ((dayIndex & INX_DAY_MASK_TUESDAY) && ((weekOffset) || (now.tm_wday <= INX_TUE)))
                 entry->pushStartEndTimes(INX_TUE + weekOffset);
 
-            if (dayIndex & INX_DAY_MASK_WEDNESDAY)
+            if ((dayIndex & INX_DAY_MASK_WEDNESDAY) && ((weekOffset) || (now.tm_wday <= INX_WED)))
                 entry->pushStartEndTimes(INX_WED + weekOffset);
 
-            if (dayIndex & INX_DAY_MASK_THURSDAY)
+            if ((dayIndex & INX_DAY_MASK_THURSDAY) && ((weekOffset) || (now.tm_wday <= INX_THU)))
                 entry->pushStartEndTimes(INX_THU + weekOffset);
 
-            if (dayIndex & INX_DAY_MASK_FRIDAY)
+            if ((dayIndex & INX_DAY_MASK_FRIDAY) && ((weekOffset) || (now.tm_wday <= INX_FRI)))
                 entry->pushStartEndTimes(INX_FRI + weekOffset);
 
-            if (dayIndex & INX_DAY_MASK_SATURDAY)
+            if ((dayIndex & INX_DAY_MASK_SATURDAY) && ((weekOffset) || (now.tm_wday <= INX_SAT)))
                 entry->pushStartEndTimes(INX_SAT + weekOffset);
         }
     }
