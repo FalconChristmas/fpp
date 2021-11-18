@@ -303,31 +303,27 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
         break;
     }
 
-    time_t currTime = time(NULL);
-    struct tm now;
-    localtime_r(&currTime, &now);
-
     if ((entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY)) {
         for (int weekOffset = 0; weekOffset <= 28; weekOffset += 7) {
-            if ((dayIndex & INX_DAY_MASK_SUNDAY) && ((weekOffset) || (now.tm_wday <= INX_SUN)))
+            if (dayIndex & INX_DAY_MASK_SUNDAY)
                 entry->pushStartEndTimes(INX_SUN + weekOffset);
 
-            if ((dayIndex & INX_DAY_MASK_MONDAY) && ((weekOffset) || (now.tm_wday <= INX_MON)))
+            if (dayIndex & INX_DAY_MASK_MONDAY)
                 entry->pushStartEndTimes(INX_MON + weekOffset);
 
-            if ((dayIndex & INX_DAY_MASK_TUESDAY) && ((weekOffset) || (now.tm_wday <= INX_TUE)))
+            if (dayIndex & INX_DAY_MASK_TUESDAY)
                 entry->pushStartEndTimes(INX_TUE + weekOffset);
 
-            if ((dayIndex & INX_DAY_MASK_WEDNESDAY) && ((weekOffset) || (now.tm_wday <= INX_WED)))
+            if (dayIndex & INX_DAY_MASK_WEDNESDAY)
                 entry->pushStartEndTimes(INX_WED + weekOffset);
 
-            if ((dayIndex & INX_DAY_MASK_THURSDAY) && ((weekOffset) || (now.tm_wday <= INX_THU)))
+            if (dayIndex & INX_DAY_MASK_THURSDAY)
                 entry->pushStartEndTimes(INX_THU + weekOffset);
 
-            if ((dayIndex & INX_DAY_MASK_FRIDAY) && ((weekOffset) || (now.tm_wday <= INX_FRI)))
+            if (dayIndex & INX_DAY_MASK_FRIDAY)
                 entry->pushStartEndTimes(INX_FRI + weekOffset);
 
-            if ((dayIndex & INX_DAY_MASK_SATURDAY) && ((weekOffset) || (now.tm_wday <= INX_SAT)))
+            if (dayIndex & INX_DAY_MASK_SATURDAY)
                 entry->pushStartEndTimes(INX_SAT + weekOffset);
         }
     }

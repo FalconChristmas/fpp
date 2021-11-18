@@ -30,6 +30,7 @@
 #include "sunset.h"
 #include <math.h>
 
+// 'day' is an offset relative to Sunday of the current week
 static time_t GetTimeOnDOW(int day, int hour, int minute, int second) {
     time_t currTime = time(NULL);
     struct tm now;
@@ -37,9 +38,6 @@ static time_t GetTimeOnDOW(int day, int hour, int minute, int second) {
 
     int weekSecond = (now.tm_wday * SECONDS_PER_DAY) + (now.tm_hour * SECONDS_PER_HOUR) + (now.tm_min * SECONDS_PER_MINUTE) + now.tm_sec;
     time_t result = currTime - weekSecond + (day * SECONDS_PER_DAY) + (hour * SECONDS_PER_HOUR) + (minute * SECONDS_PER_MINUTE) + second;
-
-    if (day < now.tm_wday)
-        result += SECONDS_PER_WEEK;
 
     return result;
 }
@@ -268,6 +266,10 @@ static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
 void ScheduleEntry::pushStartEndTimes(int dow) {
     time_t startTime = GetTimeOnDOW(dow, startHour, startMinute, startSecond);
     time_t endTime = GetTimeOnDOW(dow, endHour, endMinute, endSecond);
+
+    // Don't insert if end time is in the past
+    if (endTime < time(NULL))
+        return;
 
     if (startTimeStr.find(":") == std::string::npos) {
         GetTimeFromSun(startTime, true);
