@@ -30,14 +30,20 @@
 #include "sunset.h"
 #include <math.h>
 
-// 'day' is an offset relative to Sunday of the current week
 static time_t GetTimeOnDOW(int day, int hour, int minute, int second) {
     time_t currTime = time(NULL);
     struct tm now;
     localtime_r(&currTime, &now);
 
-    int weekSecond = (now.tm_wday * SECONDS_PER_DAY) + (now.tm_hour * SECONDS_PER_HOUR) + (now.tm_min * SECONDS_PER_MINUTE) + now.tm_sec;
-    time_t result = currTime - weekSecond + (day * SECONDS_PER_DAY) + (hour * SECONDS_PER_HOUR) + (minute * SECONDS_PER_MINUTE) + second;
+    // 'day' is an offset relative to Sunday of the current week so our
+    // new mday is adjusted by the current day of the week we are on now
+    now.tm_mday = now.tm_mday - now.tm_wday + day;
+    now.tm_hour = hour;
+    now.tm_min = minute;
+    now.tm_sec = second;
+    now.tm_isdst = -1; // take Daylight Saving Time into account on new date
+
+    time_t result = mktime(&now);
 
     return result;
 }
