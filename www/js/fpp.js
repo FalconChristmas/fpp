@@ -3763,17 +3763,6 @@ function StopFPPD() {
     xmlhttp.send();
 }
 
-function SetSettingRestart(key, value) {
-    var restartFPPD = 1;
-
-    if ((key == 'LogLevel') ||
-        (key == 'LogMask')) {
-        restartFPPD = 0;
-    }
-
-    SetSetting(key, value, restartFPPD, 0);
-}
-
 function SetSettingReboot(key, value) {
     SetSetting(key, value, 0, 1);
 }
@@ -3880,7 +3869,7 @@ function SetRestartFlag(newValue) {
         return;
 
     settings['restartFlag'] = newValue;
-    SetSettingRestart('restartFlag', newValue);
+    SetSetting('restartFlag', newValue, newValue, 0);
 }
 
 function ClearRebootFlag() {
