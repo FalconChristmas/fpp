@@ -2066,6 +2066,10 @@ input[type=search].tablesorter-filter:disabled{
 	display: none;
 }
 
+.hiddenSensor {
+    display: none !important;
+}
+
 @media (min-width: 991px){
 	.divIPAddress {
 		display: inline-block;
@@ -2134,10 +2138,6 @@ input[type=search].tablesorter-filter:disabled{
 }
 
 @media (max-width:1360px){
-	.hiddenSensor {
-		display: none !important;
-	}
-
 	#playerControls .buttons, #playerControls .disableButtons, #footer .buttons {
 		display: inline-block;
 		margin-bottom: 0.65em;
