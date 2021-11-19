@@ -5754,8 +5754,9 @@ function ShowRunCommandPopup() {
 
     var args = {};
     args.title = 'Run FPP Command';
-    args.saveButton = 'Run';
+    args.saveButton = 'Run and Close';
     args.cancelButton = 'Cancel';
+    args.showPresetSelect = true;
 
     ShowCommandEditor(item, cmd, 'RunCommandSaved', '', args);
 }
@@ -5766,6 +5767,7 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '
         args.title = 'FPP Command Editor';
         args.saveButton = 'Accept Changes';
         args.cancelButton = 'Cancel Edit';
+        args.showPresetSelect = false;
     }
 
     allowMultisyncCommands = true;
