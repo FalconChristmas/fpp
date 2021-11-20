@@ -371,9 +371,15 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         return localVer;
     }
 
+    var ipRows = new Object();
 	function getFPPSystemInfo(ip) {
 		$.get(wrapUrlWithProxy(ip) + "/fppjson.php?command=getHostNameInfo", function(data) {
-			$('#fpp_' + ip.replace(/\./g,'_') + '_desc').html(data.HostDescription);
+            if (ipRows.hasOwnProperty(ip)) {
+                var rowID = ipRows[ip];
+                var origDesc = $('#' + rowID).find('.hostDescriptionSM').html();
+                if (origDesc == '')
+                    $('#' + rowID).find('.hostDescriptionSM').html(data.HostDescription);
+            }
             validateMultiSyncSettings();
 		});
 	}
@@ -721,7 +727,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             var newHost = 1;
             var hostRowKey = ip.replace(/\./g, '_');
 
-            var hostKey = data[i].hostname + '_' + data[i].version + '_' + data[i].fppModeString + '_' + data[i].lastSeenStr + '_' + data[i].channelRanges;
+            var hostKey = data[i].hostname + '_' + data[i].version + '_' + data[i].fppModeString + '_' + data[i].channelRanges;
             hostKey = hostKey.replace(/[^a-zA-Z0-9]/, '_');
 
             hostRows[hostRowKey] = rowID;
@@ -745,6 +751,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             if (uniqueHosts.hasOwnProperty(hostKey)) {
                 rowID = uniqueHosts[hostKey];
                 hostRows[hostRowKey] = rowID;
+                ipRows[data[i].address] = rowID;
 
                 $('#' + rowID + '_ip').append('<br>' + ipLink(data[i].address));
 
@@ -760,6 +767,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 }
             } else {
                 uniqueHosts[hostKey] = rowID;
+                ipRows[data[i].address] = rowID;
 
                 var fppMode = 'Player';
                 if (data[i].fppModeString == 'bridge') {
