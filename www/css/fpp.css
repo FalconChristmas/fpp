@@ -1790,9 +1790,11 @@ body .sm-clean a .sub-arrow {
 .fppTableWrapper.backdrop {
 	padding:0.75em;
 }
+table#fppSystemsTable td {
+    padding-bottom: 0px;
+    padding-top: 0px;
+}
 #fppSystems>tr>td{
-	padding-top: 0.65em;
-	padding-bottom: 0.65em;
 	border-top: 1px solid #dee2e6;
 }
 #fppSystems>tr:first-child>td{
@@ -1804,8 +1806,9 @@ body .sm-clean a .sub-arrow {
 }
 #fppSystems>tr>td:last-child{
 	padding-right: 1em;
-
 }
+
+
 #multisyncViewOptions .settingsTable {
 	flex-wrap: wrap;
 }
