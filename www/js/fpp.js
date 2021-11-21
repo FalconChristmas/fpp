@@ -1650,6 +1650,8 @@ function SetPlaylistItemMetaData(row) {
         GetSequenceDuration(row.find('.field_sequenceName').html(), true, row);
     } else if (type == 'image') {
         let file = row.find('.field_imagePath').html();
+        if (file.endsWith('/'))
+            return;
         $.ajax({
             url: "api/files/images?nameOnly=1",
             type: 'GET',

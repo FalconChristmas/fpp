@@ -57,7 +57,7 @@ function validatePlayListEntries(&$entries, &$media, &$playlist, &$rc)
                 array_push($rc, "Invalid Sequence " . $e->sequenceName);
             }
         } else if ($e->type == "image") {
-            if (!in_array($e->imagePath, $media)) {
+            if (!preg_match('/\/$/', $e->imagePath) && !in_array($e->imagePath, $media)) {
                 array_push($rc, "Invalid Image " . $e->imagePath);
             }
         }
