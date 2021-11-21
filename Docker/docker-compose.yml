@@ -65,6 +65,18 @@ services:
       - /dev/snd/pcmC0D0p
       - /dev/snd/seq
       - /dev/snd/timer
+      # If using a USB sound card such as the Vast FMT-212R with RDS, and
+      # want to allow the container to talk to the USB device to configure
+      # RDS, you can find out the USB Bus and Device numbers of the device
+      # using lsusb and allow the container to talk to that single USB
+      # device directly.
+      #
+      # For the following USB device (a Vast FMT-212R):
+      # "lsusb | grep 0451:2100"
+      # Bus 002 Device 006: ID 0451:2100 Texas Instruments, Inc.
+      #
+      # Use the following config line to pass through Bus 2 Device 6:
+      # - /dev/bus/usb/002/006
 
     # Include the IP in the port list to bind to a specific IP or leave off
     # the IP and just use port:port to allow traffic on any IP.  If you are
