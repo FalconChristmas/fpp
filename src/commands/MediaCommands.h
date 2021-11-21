@@ -71,6 +71,14 @@ public:
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
+class StopAllMediaCommand : public Command {
+public:
+    StopAllMediaCommand() :
+        Command("Stop All Media", "Stops all running media was was created via a Command") {
+    }
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
+
 class URLCommand : public Command {
 public:
     URLCommand() :

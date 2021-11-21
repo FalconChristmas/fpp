@@ -75,6 +75,7 @@ void CommandManager::Init() {
     addCommand(new InsertPlaylistImmediate());
     addCommand(new PlayMediaCommand());
     addCommand(new StopMediaCommand());
+    addCommand(new StopAllMediaCommand());
     addCommand(new PlaylistPauseCommand());
     addCommand(new PlaylistResumeCommand());
     addCommand(new TriggerPresetCommand());

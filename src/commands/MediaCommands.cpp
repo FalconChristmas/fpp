@@ -241,3 +241,14 @@ std::unique_ptr<Command::Result> StopMediaCommand::run(const std::vector<std::st
 
     return std::make_unique<Command::Result>(rc);
 }
+
+std::unique_ptr<Command::Result> StopAllMediaCommand::run(const std::vector<std::string>& args) {
+    runningMediaLock.lock();
+    for (std::map<std::string, VLCPlayData*>::iterator it = runningCommandMedia.begin(); it != runningCommandMedia.end(); ++it) {
+        LogDebug(VB_COMMAND, "Stopping: \"%s\"\n", it->first.c_str());
+        it->second->loop = 0;
+        it->second->Stop();
+    }
+    runningMediaLock.unlock();
+    return std::make_unique<Command::Result>("Stopped");
+}
