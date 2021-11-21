@@ -15,6 +15,8 @@
 */
 
 #include "Commands.h"
+#include "mediaoutput/VLCOut.h"
+#include "mediaoutput/mediaoutput.h"
 
 class SetVolumeCommand : public Command {
 public:
@@ -60,6 +62,15 @@ public:
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
+class StopMediaCommand : public Command {
+public:
+    StopMediaCommand() :
+        Command("Stop Media", "Stops the media in the background started via a command") {
+        args.push_back(CommandArg("media", "string", "Media").setContentListUrl("api/media"));
+    }
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
+
 class URLCommand : public Command {
 public:
     URLCommand() :
@@ -69,4 +80,15 @@ public:
         args.push_back(CommandArg("data", "string", "Post Data"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
+
+class VLCPlayData : public VLCOutput {
+public:
+    VLCPlayData(const std::string& file, int l, int vol);
+    virtual ~VLCPlayData();
+    virtual void Stopped() override;
+    std::string filename;
+    int loop = 0;
+    int volumeAdjust = 0;
+    MediaOutputStatus status;
 };

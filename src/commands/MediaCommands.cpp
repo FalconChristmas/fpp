@@ -3,8 +3,9 @@
 #include <curl/curl.h>
 
 #include "MediaCommands.h"
-#include "mediaoutput/VLCOut.h"
-#include "mediaoutput/mediaoutput.h"
+
+std::mutex runningMediaLock;
+std::map<std::string, VLCPlayData*> runningCommandMedia;
 
 std::unique_ptr<Command::Result> SetVolumeCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
@@ -169,38 +170,39 @@ std::unique_ptr<Command::Result> URLCommand::run(const std::vector<std::string>&
     return std::make_unique<CURLResult>(args);
 }
 
-class VLCPlayData : public VLCOutput {
-public:
-    VLCPlayData(const std::string& file, int l, int vol) :
-        VLCOutput(file, &status, "--hdmi--"),
-        filename(file),
-        loop(l),
-        volumeAdjust(vol) {
-        SetVolumeAdjustment(vol);
-    }
-    virtual ~VLCPlayData() {
-    }
+VLCPlayData::VLCPlayData(const std::string& file, int l, int vol) :
+    VLCOutput(file, &status, "--hdmi--"),
+    filename(file),
+    loop(l),
+    volumeAdjust(vol) {
+    SetVolumeAdjustment(vol);
+    runningMediaLock.lock();
+    runningCommandMedia[file] = this;
+    runningMediaLock.unlock();
+}
 
-    virtual void Stopped() override {
-        //cannot Stop/delete right now as the vlc player is locked, fork a thread
-        std::thread th([this] {
-            if (loop) {
-                loop--;
-                Restart();
-            } else {
-                Stop();
-                delete this;
-            }
-        });
-        th.detach();
+VLCPlayData::~VLCPlayData() {
+    runningMediaLock.lock();
+    if (runningCommandMedia[filename] == this) {
+        runningCommandMedia.erase(filename);
+        LogDebug(VB_COMMAND, "Removed cached VLCPayData for file: \"%s\"\n", filename.c_str());
     }
+    runningMediaLock.unlock();
+}
 
-    std::string filename;
-    VLCOutput* output = nullptr;
-    int loop = 0;
-    int volumeAdjust = 0;
-    MediaOutputStatus status;
-};
+void VLCPlayData::Stopped() {
+    //cannot Stop/delete right now as the vlc player is locked, fork a thread
+    std::thread th([this] {
+        if (loop) {
+            loop--;
+            Restart();
+        } else {
+            Stop();
+            delete this;
+        }
+    });
+    th.detach();
+}
 
 std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::string>& args) {
     int loop = std::atoi(args[1].c_str());
@@ -215,4 +217,27 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     out->Start();
 
     return std::make_unique<Command::Result>("Playing");
+}
+
+std::unique_ptr<Command::Result> StopMediaCommand::run(const std::vector<std::string>& args) {
+    if (args.size() == 0) {
+        return std::make_unique<Command::Result>("Invalid Number of Arguments");
+    }
+    std::string rc = "Media Not Running";
+    runningMediaLock.lock();
+    VLCPlayData* media_ptr = nullptr;
+    try {
+        media_ptr = runningCommandMedia.at(args[0]);
+    } catch (const std::out_of_range& oor) {
+        LogInfo(VB_COMMAND, "Media: \"%s\" is not running so can't stop via command\n", args[0].c_str());
+        media_ptr = nullptr;
+    }
+    if (media_ptr) {
+        media_ptr->loop = 0;
+        media_ptr->Stop();
+        rc = "Stopped";
+    }
+    runningMediaLock.unlock();
+
+    return std::make_unique<Command::Result>(rc);
 }
