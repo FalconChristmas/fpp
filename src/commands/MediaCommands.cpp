@@ -185,7 +185,7 @@ VLCPlayData::~VLCPlayData() {
     runningMediaLock.lock();
     if (runningCommandMedia[filename] == this) {
         runningCommandMedia.erase(filename);
-        LogDebug(VB_COMMAND, "Removed cached VLCPayData for file: \"%s\"\n", filename.c_str());
+        LogDebug(VB_COMMAND, "Removed cached VLCPlayData for file: \"%s\"\n", filename.c_str());
     }
     runningMediaLock.unlock();
 }
