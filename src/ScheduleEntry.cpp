@@ -273,10 +273,6 @@ void ScheduleEntry::pushStartEndTimes(int dow) {
     time_t startTime = GetTimeOnDOW(dow, startHour, startMinute, startSecond);
     time_t endTime = GetTimeOnDOW(dow, endHour, endMinute, endSecond);
 
-    // Don't insert if end time is in the past
-    if (endTime < time(NULL))
-        return;
-
     if (startTimeStr.find(":") == std::string::npos) {
         GetTimeFromSun(startTime, true);
     }
@@ -289,6 +285,9 @@ void ScheduleEntry::pushStartEndTimes(int dow) {
             GetTimeFromSun(endTime, false);
         }
     }
+
+    if (endTime < time(NULL))
+        return;
 
     if (!DateInRange(startTime, startDate, endDate)) {
         return;

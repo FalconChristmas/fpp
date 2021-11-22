@@ -230,6 +230,9 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
     }
 
     int dayIndex = entry->dayIndex;
+    std::time_t currTime = std::time(nullptr);
+    struct tm now;
+    localtime_r(&currTime, &now);
 
     // Convert everything to a day mask to simplify code below
     switch (dayIndex) {
@@ -281,10 +284,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
         // commit to the FPP repository on github, July 15, 2013
         struct std::tm FPPEpoch = { 0, 0, 0, 15, 6, 113 };
         std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
-        std::time_t currTime = std::time(nullptr);
         int daysSince = (int)std::difftime(currTime, FPPEpochTimeT) / (60 * 60 * 24);
-        struct tm now;
-        localtime_r(&currTime, &now);
 
         int dayOffset = 0;
         if (daysSince % 2) { // Today is an odd day
@@ -295,6 +295,10 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
                 dayOffset = 1;
         }
 
+        // Schedule yesterday if needed to handle midnight crossovers
+        if (dayOffset)
+            entry->pushStartEndTimes(now.tm_wday - 1);
+
         // Schedule out 5 weeks
         for (int i = now.tm_wday + dayOffset; i <= 35 ; i += 2) {
             entry->pushStartEndTimes(i);
@@ -302,6 +306,10 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
 
         break;
     }
+
+    // Special case if today is Sunday, handle any Saturday night crossovers
+    if (now.tm_wday == 0)
+        entry->pushStartEndTimes(-1);
 
     if ((entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY)) {
         for (int weekOffset = 0; weekOffset <= 28; weekOffset += 7) {
