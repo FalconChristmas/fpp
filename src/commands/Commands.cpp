@@ -74,8 +74,13 @@ void CommandManager::Init() {
     addCommand(new InsertPlaylistCommand());
     addCommand(new InsertPlaylistImmediate());
     addCommand(new PlayMediaCommand());
-    addCommand(new StopMediaCommand());
-    addCommand(new StopAllMediaCommand());
+    /* These too are currently disabled because stopping a Video
+     * can cause Siginal 6 in VLC Player
+     *
+     * ./include/vlc_atomic.h:64: vlc_atomic_rc_dec: Assertion `prev' failed.
+     */
+    //addCommand(new StopMediaCommand());
+    //addCommand(new StopAllMediaCommand());
     addCommand(new PlaylistPauseCommand());
     addCommand(new PlaylistResumeCommand());
     addCommand(new TriggerPresetCommand());

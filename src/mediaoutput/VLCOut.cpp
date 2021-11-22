@@ -67,8 +67,8 @@ public:
         diffs[diffIdx].second = rate;
     }
 
-		int lastDiff = -1;	//initalize at -1ms so speedup/slowdown logic initally assumes we are slightly behind the master (most common)
-		int rateDiff = 0;
+    int lastDiff = -1; //initalize at -1ms so speedup/slowdown logic initally assumes we are slightly behind the master (most common)
+    int rateDiff = 0;
 };
 
 static std::string currentMediaFilename;
@@ -189,7 +189,15 @@ public:
             libvlc_media_player_stop_async(data->vlcPlayer);
             libvlc_media_player_release(data->vlcPlayer);
             data->vlcPlayer = nullptr;
-            libvlc_media_release(data->media);
+            /*
+             * Per https://mailman.videolan.org/pipermail/vlc-devel/2008-May/043240.html
+             *
+             * This isn't needed.  libvlc_media_player_release will do it.   
+             * I *think* we need to wait for  libvlc_MediaPlayerStopped event
+             * Before freeing.    I don't have time to test this now
+             * But will soon.
+             */
+            //libvlc_media_release(data->media);
             data->media = nullptr;
 
             if (data->equalizer) {
@@ -207,7 +215,6 @@ static VLCManager vlcManager;
 static constexpr int RATE_AVERAGE_COUNT = 20;
 static std::list<float> lastRates;
 static float rateSum = 0.0f;
-
 
 VLCOutput::VLCOutput(const std::string& mediaFilename, MediaOutputStatus* status, const std::string& videoOut) {
     LogExcess(VB_MEDIAOUT, "VLCOutput::VLCOutput(%s)\n", mediaFilename.c_str());
@@ -366,16 +373,16 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
     if (data->vlcPlayer && m_allowSpeedAdjust) {
         // Can't adjust speed if not playing yet
         if (m_mediaOutputStatus->mediaSeconds < 0.01) {
-			LogDebug(VB_MEDIAOUT, "Can't adjust speed if not playing yet (%0.3f/%0.3f)\n", masterMediaPosition, m_mediaOutputStatus->mediaSeconds);
+            LogDebug(VB_MEDIAOUT, "Can't adjust speed if not playing yet (%0.3f/%0.3f)\n", masterMediaPosition, m_mediaOutputStatus->mediaSeconds);
             return 1;
         }
         float rate = data->currentRate;
-		
-		if (lastRates.size() == 0) { 
-			// preload rate list with normal (1.0) rate
-			lastRates.push_back(1.0);
+
+        if (lastRates.size() == 0) {
+            // preload rate list with normal (1.0) rate
+            lastRates.push_back(1.0);
             rateSum = 1.0;
-		}
+        }
 
         int rawdiff = (int)(m_mediaOutputStatus->mediaSeconds * 1000) - (int)(masterMediaPosition * 1000);
         int diff = rawdiff;
@@ -384,22 +391,22 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             sign = -1;
             diff = -diff;
         }
-		if ((m_mediaOutputStatus->mediaSeconds < 1) | (diff > 3000)) {
-			LogDebug(VB_MEDIAOUT,  "Diff: %d	Master: %0.3f  Local: %0.3f  Rate: %0.3f\n", rawdiff, masterMediaPosition, m_mediaOutputStatus->mediaSeconds, data->currentRate);
-		} else {
-			LogExcess(VB_MEDIAOUT, "Diff: %d	Master: %0.3f  Local: %0.3f  Rate: %0.3f\n", rawdiff, masterMediaPosition, m_mediaOutputStatus->mediaSeconds, data->currentRate);	
-		}
+        if ((m_mediaOutputStatus->mediaSeconds < 1) | (diff > 3000)) {
+            LogDebug(VB_MEDIAOUT, "Diff: %d	Master: %0.3f  Local: %0.3f  Rate: %0.3f\n", rawdiff, masterMediaPosition, m_mediaOutputStatus->mediaSeconds, data->currentRate);
+        } else {
+            LogExcess(VB_MEDIAOUT, "Diff: %d	Master: %0.3f  Local: %0.3f  Rate: %0.3f\n", rawdiff, masterMediaPosition, m_mediaOutputStatus->mediaSeconds, data->currentRate);
+        }
         data->push(rawdiff, data->currentRate);
-		
+
         int oldSign = data->lastDiff < 0 ? -1 : 1;
         if ((oldSign != sign) && (data->lastDiff != 0) && (data->currentRate != 1.0)) {
             //last time was slightly behind and we are now slightly ahead
             //or vice versa, reset current rate to normal speed
             LogDebug(VB_MEDIAOUT, "Diff: %d	Flipped, reset speed to normal	(%0.3f)\n", rawdiff, 1.0);
             libvlc_media_player_set_rate(data->vlcPlayer, 1.0);
-			// reset rate average list to 1.0
-		    // this is necessary or else the average rate could still be > 1 even when we need to go slower than 1
-		    // that would cause vlc to keep playing faster even after its caught up and needs to play slower
+            // reset rate average list to 1.0
+            // this is necessary or else the average rate could still be > 1 even when we need to go slower than 1
+            // that would cause vlc to keep playing faster even after its caught up and needs to play slower
             lastRates.push_back(1.0);
             rateSum += 1.0;
             while (lastRates.size() > 1) {
@@ -412,27 +419,27 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             return 1;
         }
         if (diff < 30) {
-            // close enough 
+            // close enough
             if (data->currentRate != 1.0) {
-				// only adjust if the current rate is not 1.0
-				rate = 1.0;
-				LogDebug(VB_MEDIAOUT, "Diff: %d	Very close, use normal rate	(%0.3f)\n", rawdiff, rate);
-				libvlc_media_player_set_rate(data->vlcPlayer, rate);
-				lastRates.push_back(rate);
-				rateSum += rate;
-				while (lastRates.size() > RATE_AVERAGE_COUNT) {
-					rateSum -= lastRates.front();
-					lastRates.pop_front();
-				}
-				data->currentRate = rate;
-				data->rateDiff = 0;
-				data->lastDiff = rawdiff;
-			}	
-            return 1;    
+                // only adjust if the current rate is not 1.0
+                rate = 1.0;
+                LogDebug(VB_MEDIAOUT, "Diff: %d	Very close, use normal rate	(%0.3f)\n", rawdiff, rate);
+                libvlc_media_player_set_rate(data->vlcPlayer, rate);
+                lastRates.push_back(rate);
+                rateSum += rate;
+                while (lastRates.size() > RATE_AVERAGE_COUNT) {
+                    rateSum -= lastRates.front();
+                    lastRates.pop_front();
+                }
+                data->currentRate = rate;
+                data->rateDiff = 0;
+                data->lastDiff = rawdiff;
+            }
+            return 1;
         } else if (diff > 10000) {
             // more than 10 seconds off, just jump to the new position. (should never be that far off unles fppd restarts)
-			// **NOTE** jumping in vlc is problematic and causes video freeze (audio continues)
-			// **note** if VLC 'seeking' ever gets fixed, this threshold should be lowered to around 3 seconds 
+            // **NOTE** jumping in vlc is problematic and causes video freeze (audio continues)
+            // **note** if VLC 'seeking' ever gets fixed, this threshold should be lowered to around 3 seconds
             int ms = std::round(masterMediaPosition * 1000);
             LogDebug(VB_MEDIAOUT, "Diff: %d	Very far, jumping to: %0.3f	(currently at %0.3f)\n", rawdiff, masterMediaPosition, m_mediaOutputStatus->mediaSeconds);
             libvlc_media_player_set_time(data->vlcPlayer, ms, false);
@@ -441,7 +448,7 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             rateSum += 1.0;
             data->currentRate = 1.0;
             data->rateDiff = 0;
-            data->lastDiff = -1;	//after seeking, vlc is going to be slightly behind master, so this initializes the ahead/behind logic properly
+            data->lastDiff = -1; //after seeking, vlc is going to be slightly behind master, so this initializes the ahead/behind logic properly
             return 1;
         } else if (diff < 100) {
             // very close, but the diff could just be transient network issues
@@ -451,9 +458,9 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
                 data->lastDiff = rawdiff;
                 return 1;
             }
-		}
+        }
         float rateDiff = diff;
-		
+
         if (m_mediaOutputStatus->mediaSeconds > 10) {
             rateDiff /= 100.0f;
             if (rateDiff > 10) {
@@ -467,13 +474,13 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
                 rateDiff = 20;
             }
         }
-		
+
         rateDiff *= sign;
         int rateDiffI = (int)std::round(rateDiff);
-		int oldrateDiffI = (int)std::round(data->rateDiff);
+        int oldrateDiffI = (int)std::round(data->rateDiff);
         //rate = data->currentRate;
-		
-		LogExcess(VB_MEDIAOUT, "Diff: %d	rateDiffI: %d  data->rateDiff: %d\n", rawdiff, rateDiffI, data->rateDiff);
+
+        LogExcess(VB_MEDIAOUT, "Diff: %d	rateDiffI: %d  data->rateDiff: %d\n", rawdiff, rateDiffI, data->rateDiff);
         if (rateDiffI < data->rateDiff) {
             for (int r = rateDiffI; r < data->rateDiff; r++) {
                 rate = rate * 1.02;
@@ -486,46 +493,46 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             LogDebug(VB_MEDIAOUT, "Diff: %d	SlowDown %0.3f/%0.3f [goal/current]\n", rawdiff, rate, data->currentRate);
         } else {
             //no rate change
-			LogExcess(VB_MEDIAOUT, "Diff: %d	no rate change\n");
+            LogExcess(VB_MEDIAOUT, "Diff: %d	no rate change\n");
             return 1;
         }
-		
-		// add new rate to rate history so we can calculate a running average rate
+
+        // add new rate to rate history so we can calculate a running average rate
         lastRates.push_back(rate);
         rateSum += rate;
         if (lastRates.size() > RATE_AVERAGE_COUNT) {
             rateSum -= lastRates.front();
             lastRates.pop_front();
         }
-		// final check if we flipped from behind/ahead or ahead/behind, and we weren't already at normal speed
-		// then reset to normal (1.0) speed before making further adjustments.
+        // final check if we flipped from behind/ahead or ahead/behind, and we weren't already at normal speed
+        // then reset to normal (1.0) speed before making further adjustments.
         if (((rate > 1.0) && (data->currentRate < 1.0)) | ((rate < 1.0) && (data->currentRate > 1.0))) {
-			rate = 1.0;
-			data->rateDiff = 0;
-		} 
-				
-		LogExcess(VB_MEDIAOUT, "Diff: %d	oldDiff: %d	newRate: %0.3f oldRate: %0.3f avgRate: %0.3f rateSum: %0.3f/%d \n",
-			rawdiff, data->lastDiff, lastRates.back(), data->currentRate, rate,	rateSum, (int)lastRates.size());
-        
+            rate = 1.0;
+            data->rateDiff = 0;
+        }
+
+        LogExcess(VB_MEDIAOUT, "Diff: %d	oldDiff: %d	newRate: %0.3f oldRate: %0.3f avgRate: %0.3f rateSum: %0.3f/%d \n",
+                  rawdiff, data->lastDiff, lastRates.back(), data->currentRate, rate, rateSum, (int)lastRates.size());
+
         if (rate > 2.0)
-            rate = 2.0;	// limit max to double-speed
+            rate = 2.0; // limit max to double-speed
         if (rate < 0.5)
             rate = 0.5; // limit min to half-speed
-		
+
         //if (rate > 0.991 && rate < 1.009) {
         //    rate = 1.0;
         //}
-		
+
         if ((int)(rate * 1000) != (int)(data->currentRate * 1000)) {
-            LogDebug(VB_MEDIAOUT, "Diff: %d	libvlc_media_player_set_rate	(%0.3f)\n", rawdiff, rate );
+            LogDebug(VB_MEDIAOUT, "Diff: %d	libvlc_media_player_set_rate	(%0.3f)\n", rawdiff, rate);
             libvlc_media_player_set_rate(data->vlcPlayer, rate);
             data->currentRate = rate;
-			if (rate == 1.0) {
-				data->rateDiff = 0;		
-			} else {
-				data->rateDiff = rateDiffI;
-			}
-        } 
+            if (rate == 1.0) {
+                data->rateDiff = 0;
+            } else {
+                data->rateDiff = rateDiffI;
+            }
+        }
         data->lastDiff = rawdiff;
     }
     return 1;
