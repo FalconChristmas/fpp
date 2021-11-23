@@ -38,25 +38,32 @@ function validatePlayListEntries(&$entries, &$media, &$playlist, &$rc)
 {
     foreach ($entries as $e) {
         if ($e->type == "playlist") {
-            if (!in_array($e->name, $playlist)) {
-                array_push($rc, "Invalid Playlist " . $e->name);
-            }
+            if (property_exists($e, "name")) {
+                if (!in_array($e->name, $playlist)) {
+                    array_push($rc, "Invalid Playlist " . $e->name);
+                }}
         } else if ($e->type == "media") {
-            if (!in_array($e->mediaName, $media)) {
-                array_push($rc, "Invalid Playlist " . $e->mediaName);
+            if (property_exists($e, "mediaName")) {
+                if (!in_array($e->mediaName, $media)) {
+                    array_push($rc, "Invalid Playlist " . $e->mediaName);
+                }
             }
         } else if ($e->type == "both") {
-            if (!in_array($e->mediaName, $media)) {
-                array_push($rc, "Invalid mediaName " . $e->mediaName);
+            if (property_exists($e, "mediaName")) {
+                if (!in_array($e->mediaName, $media)) {
+                    array_push($rc, "Invalid mediaName " . $e->mediaName);
+                }
             }
+            if (property_exists($e, "sequenceName")) {
+                if (!in_array($e->sequenceName, $media)) {
+                    array_push($rc, "Invalid Sequence " . $e->sequenceName);
+                }
+            }
+        } else if ($e->type == "sequence" and property_exists($e, "sequenceName")) {
             if (!in_array($e->sequenceName, $media)) {
                 array_push($rc, "Invalid Sequence " . $e->sequenceName);
             }
-        } else if ($e->type == "sequence") {
-            if (!in_array($e->sequenceName, $media)) {
-                array_push($rc, "Invalid Sequence " . $e->sequenceName);
-            }
-        } else if ($e->type == "image") {
+        } else if ($e->type == "image" and property_exists($e, "imagePath")) {
             if (!preg_match('/\/$/', $e->imagePath) && !in_array($e->imagePath, $media)) {
                 array_push($rc, "Invalid Image " . $e->imagePath);
             }
