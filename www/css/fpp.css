@@ -1847,7 +1847,7 @@ table#fppSystemsTable td {
 .systemRow .wifi-icon{
 	margin-left: 0.5em;
 }
-.tablesorter-filter-row>td:last-child input{
+#fppSystemsTable .tablesorter-filter-row>td:last-child input{
 	display: none;
 }
 #selectAllCheckbox{
@@ -1880,7 +1880,7 @@ table#fppSystemsTable td {
 .tablesorter-fpp .tablesorter-header {
 	background-image: url(data:image/gif;base64,R0lGODlhFQAJAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAkAAAIXjI+AywnaYnhUMoqt3gZXPmVg94yJVQAAOw==);
 	background-repeat: no-repeat;
-	background-position: bottom 10px right 18px;
+	background-position: bottom 10px right 10px;
 	white-space: normal;
 	cursor: pointer;
 }
