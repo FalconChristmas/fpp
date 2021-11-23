@@ -3565,7 +3565,9 @@ function ShowMultiSyncStats(data) {
             + '<td>' + s.sourceIP;
 
         if (s.hostname != '')
-            row += ' (' + s.hostname + ')</td>'
+            row += '&nbsp;(' + s.hostname + ')';
+
+        row += '</td>';
 
         var ms = now - new Date(s.lastReceiveTime).getTime();
         row += '<td><span title="' + s.lastReceiveTime + '">' + niceDuration(ms) + '</span></td>'

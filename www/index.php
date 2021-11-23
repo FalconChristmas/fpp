@@ -341,23 +341,23 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                         <table id='syncStatsTable'>
                             <thead>
                                 <tr><th rowspan=2>Host</th>
-                                    <th rowspan=2>Last<br>Rcvd</th>
+                                    <th rowspan=2 data-filter='false'>Last<br>Rcvd</th>
                                     <th colspan=4 class="sorter-false">Sequence Sync</th>
                                     <th colspan=4 class="sorter-false">Media Sync</th>
-                                    <th rowspan=2>Blank<br>Data</th>
-                                    <th rowspan=2>Ping</th>
-                                    <th rowspan=2>Plugin</th>
-                                    <th rowspan=2>FPP<br>Cmd</th>
-                                    <th rowspan=2>Errors</th>
+                                    <th rowspan=2 data-filter='false'>Blank<br>Data</th>
+                                    <th rowspan=2 data-filter='false'>Ping</th>
+                                    <th rowspan=2 data-filter='false'>Plugin</th>
+                                    <th rowspan=2 data-filter='false'>FPP<br>Cmd</th>
+                                    <th rowspan=2 data-filter='false'>Errors</th>
                                     </tr>
-                                <tr><th>Open</th>
-                                    <th>Start</th>
-                                    <th>Stop</th>
-                                    <th>Sync</th>
-                                    <th>Open</th>
-                                    <th>Start</th>
-                                    <th>Stop</th>
-                                    <th>Sync</th>
+                                <tr><th data-filter='false'>Open</th>
+                                    <th data-filter='false'>Start</th>
+                                    <th data-filter='false'>Stop</th>
+                                    <th data-filter='false'>Sync</th>
+                                    <th data-filter='false'>Open</th>
+                                    <th data-filter='false'>Start</th>
+                                    <th data-filter='false'>Stop</th>
+                                    <th data-filter='false'>Sync</th>
                                     </tr>
                             </thead>
                             <tbody id='syncStats'>
