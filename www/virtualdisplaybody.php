@@ -3,87 +3,91 @@
 var cellColors = [];
 var scaleMap = [];
 var base64 = [];
-<?
+<?php
 // 16:9 canvas by default, but can be overwridden in wrapper script
-if (!isset($canvasWidth))
-	$canvasWidth = 1024;
+if (!isset($canvasWidth)) {
+    $canvasWidth = 1024;
+}
 
-if (!isset($canvasHeight))
-	$canvasHeight = 576;
+if (!isset($canvasHeight)) {
+    $canvasHeight = 576;
+}
 
 $base64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/"; // Base64 index table
-for ($i = 0; $i < 64; $i++)
-{
-	printf("base64['%s'] = '%02X';\n", substr($base64, $i, 1), $i << 2);
+for ($i = 0; $i < 64; $i++) {
+    printf("base64['%s'] = '%02X';\n", substr($base64, $i, 1), $i << 2);
 }
 
 $f = fopen($settings['configDirectory'] . '/virtualdisplaymap', "r");
 if ($f) {
-	$line = fgets($f);
-	if (preg_match('/^#/', $line))
-		$line = fgets($f);
-	$line = trim($line);
-	$parts = explode(',', $line);
-	$previewWidth = $parts[0];
-	$previewHeight = $parts[1];
+    $line = fgets($f);
+    if (preg_match('/^#/', $line)) {
+        $line = fgets($f);
+    }
+    $line = trim($line);
+    $parts = explode(',', $line);
+    $previewWidth = $parts[0];
+    $previewHeight = $parts[1];
 
-	if (($previewWidth / $previewHeight) > ($canvasWidth / $canvasHeight))
-		$canvasHeight = (int)($canvasWidth * $previewHeight / $previewWidth);
-	else
-		$canvasWidth = (int)($canvasHeight * $previewWidth / $previewHeight);
+    if (($previewWidth / $previewHeight) > ($canvasWidth / $canvasHeight)) {
+        $canvasHeight = (int)($canvasWidth * $previewHeight / $previewWidth);
+    } else {
+        $canvasWidth = (int)($canvasHeight * $previewWidth / $previewHeight);
+    }
 
-	echo "var previewWidth = " . $previewWidth . ";\n";
-	echo "var previewHeight = " . $previewHeight . ";\n";
+    echo "var previewWidth = " . $previewWidth . ";\n";
+    echo "var previewHeight = " . $previewHeight . ";\n";
 
-	$scale = 1.0 * $canvasWidth / $previewWidth;
+    $scale = 1.0 * $canvasWidth / $previewWidth;
 
-	$scaleMap = Array();
+    $scaleMap = [];
 
-	while (!feof($f)) {
-		$line = fgets($f);
-		if (($line == "") || (preg_match('/^#/', $line)))
-			continue;
+    while (!feof($f)) {
+        $line = fgets($f);
+        if (($line == "") || (preg_match('/^#/', $line))) {
+            continue;
+        }
 
-		$line = trim($line);
-		$entry = explode(",", $line, 6);
+        $line = trim($line);
+        $entry = explode(",", $line, 6);
 
-		$ox = $entry[0];
-		$oy = $previewHeight - $entry[1];
-		$oz = $entry[2];
-		$x = (int)($ox * $scale);
-		$y = (int)($oy * $scale);
-		$z = (int)($oz * $scale);
-		$ch = $entry[3];
-		$colors = $entry[4];
-		$iy = $canvasHeight - $y;
+        $ox = $entry[0];
+        $oy = $previewHeight - $entry[1];
+        $oz = $entry[2];
+        $x = (int)($ox * $scale);
+        $y = (int)($oy * $scale);
+        $z = (int)($oz * $scale);
+        $ch = $entry[3];
+        $colors = $entry[4];
+        $iy = $canvasHeight - $y;
 
-		if (($ox >= 4096) || ($oy >= 4096))
-			$key = substr($base64, ($ox >> 12) & 0x3f, 1) .
-					substr($base64, ($ox >> 6) & 0x3f, 1) .
-					substr($base64, $ox & 0x3f, 1) .
-					substr($base64, ($oy >> 12) & 0x3f, 1) .
-					substr($base64, ($oy >> 6) & 0x3f, 1) .
-					substr($base64, $oy & 0x3f, 1);
-		else
-			$key = substr($base64, ($ox >> 6) & 0x3f, 1) .
-					substr($base64, $ox & 0x3f, 1) .
-					substr($base64, ($oy >> 6) & 0x3f, 1) .
-					substr($base64, $oy & 0x3f, 1);
+        if (($ox >= 4096) || ($oy >= 4096)) {
+            $key = substr($base64, ($ox >> 12) & 0x3f, 1) .
+                    substr($base64, ($ox >> 6) & 0x3f, 1) .
+                    substr($base64, $ox & 0x3f, 1) .
+                    substr($base64, ($oy >> 12) & 0x3f, 1) .
+                    substr($base64, ($oy >> 6) & 0x3f, 1) .
+                    substr($base64, $oy & 0x3f, 1);
+        } else {
+            $key = substr($base64, ($ox >> 6) & 0x3f, 1) .
+                    substr($base64, $ox & 0x3f, 1) .
+                    substr($base64, ($oy >> 6) & 0x3f, 1) .
+                    substr($base64, $oy & 0x3f, 1);
+        }
 
-		if (!isset($scaleMap[$key]))
-		{
-			$scaleMap[$key] = 1;
-			echo "scaleMap['" . $key . "'] = { x: $x, y: $y, ox: $ox, oy: $oy };\n";
-			echo "cellColors['$x,$y'] = { x: $x, y: $y, color: '#000000'};\n";
-		}
-	}
-	fclose($f);
+        if (!isset($scaleMap[$key])) {
+            $scaleMap[$key] = 1;
+            echo "scaleMap['" . $key . "'] = { x: $x, y: $y, ox: $ox, oy: $oy };\n";
+            echo "cellColors['$x,$y'] = { x: $x, y: $y, color: '#000000'};\n";
+        }
+    }
+    fclose($f);
 }
 
 ?>
 
-var canvasWidth = <? echo $canvasWidth; ?>;
-var canvasHeight = <? echo $canvasHeight; ?>;
+var canvasWidth = <?= $canvasWidth; ?>;
+var canvasHeight = <?= $canvasHeight; ?>;
 var evtSource;
 var ctx;
 var buffer;
@@ -93,98 +97,98 @@ $.jCanvas.defaults.fromCenter = false;
 
 function initCanvas()
 {
-	$('#vCanvas').removeLayers();
-	$('#vCanvas').clearCanvas();
+    $('#vCanvas').removeLayers();
+    $('#vCanvas').clearCanvas();
 
-	$('#vCanvas').drawRect({
-		layer: true,
-		fillStyle: '#000',
-		x: 0,
-		y: 0,
-		width: canvasWidth,
-		height: canvasHeight
-	});
+    $('#vCanvas').drawRect({
+        layer: true,
+        fillStyle: '#000',
+        x: 0,
+        y: 0,
+        width: canvasWidth,
+        height: canvasHeight
+    });
 
-	$('#vCanvas').drawImage({
-		layer: true,
-		opacity: 0.2,
-		source: 'api/file/Images/virtualdisplaybackground.jpg',
-		width: canvasWidth,
-		height: canvasHeight
-	});
+    $('#vCanvas').drawImage({
+        layer: true,
+        opacity: 0.2,
+        source: 'api/file/Images/virtualdisplaybackground.jpg',
+        width: canvasWidth,
+        height: canvasHeight
+    });
 
-	var c = document.getElementById('vCanvas');
-	ctx = c.getContext('2d');
+    var c = document.getElementById('vCanvas');
+    ctx = c.getContext('2d');
 
-	buffer = document.createElement('canvas');
-	buffer.width = c.width;
-	buffer.height = c.height;
-	bctx = buffer.getContext('2d');
+    buffer = document.createElement('canvas');
+    buffer.width = c.width;
+    buffer.height = c.height;
+    bctx = buffer.getContext('2d');
 
-	// Draw the black pixels
-	bctx.fillStyle = '#000000';
-	for (var key in cellColors)
-	{
-		bctx.fillRect(cellColors[key].x, cellColors[key].y, 1, 1);
-	}
+    // Draw the black pixels
+    bctx.fillStyle = '#000000';
+    for (var key in cellColors)
+    {
+        bctx.fillRect(cellColors[key].x, cellColors[key].y, 1, 1);
+    }
 }
 
 function processEvent(e)
 {
-	var pixels = e.data.split('|');
+    var pixels = e.data.split('|');
 
-	for (i = 0; i < pixels.length; i++)
-	{
-		// color:pixel;pixel;pixel|color:pixel|color:pixel;pixel
-		var data = pixels[i].split(':');
+    for (i = 0; i < pixels.length; i++)
+    {
+        // color:pixel;pixel;pixel|color:pixel|color:pixel;pixel
+        var data = pixels[i].split(':');
 
-		var rgb = data[0];
+        var rgb = data[0];
 
-		var r = base64[rgb.substring(0,1)];
-		var g = base64[rgb.substring(1,2)];
-		var b = base64[rgb.substring(2,3)];
+        var r = base64[rgb.substring(0,1)];
+        var g = base64[rgb.substring(1,2)];
+        var b = base64[rgb.substring(2,3)];
 
-		bctx.fillStyle = '#' + r + g + b;
+        bctx.fillStyle = '#' + r + g + b;
 
-		// Uncomment to see the incoming color and location data in real time
-		// $('#data').html(bctx.fillStyle + ' => ' + data[1] + '<br>' + $('#data').html().substring(0,500));
+        // Uncomment to see the incoming color and location data in real time
+        // $('#data').html(bctx.fillStyle + ' => ' + data[1] + '<br>' + $('#data').html().substring(0,500));
 
-		var locs = data[1].split(';');
-		for (j = 0; j < locs.length; j++)
-		{
-			var s = scaleMap[locs[j]];
+        var locs = data[1].split(';');
+        for (j = 0; j < locs.length; j++)
+        {
+            var s = scaleMap[locs[j]];
 
-			bctx.fillRect(s.x, s.y, 1, 1);
-		}
-	}
-	ctx.drawImage(buffer, 0, 0);
+            bctx.fillRect(s.x, s.y, 1, 1);
+        }
+    }
+    ctx.drawImage(buffer, 0, 0);
 }
 
 function startSSE()
 {
-	evtSource = new EventSource('//<?php echo $_SERVER['SERVER_ADDR'] ?>:32328/');
+    evtSource = new EventSource('//<?= $_SERVER['SERVER_ADDR'] ?>:32328/');
 
-	evtSource.onmessage = function(event) {
-		processEvent(event);
-	};
+    evtSource.onmessage = function(event) {
+        processEvent(event);
+    };
 }
 
 function stopSSE()
 {
-	$('#stopButton').hide();
+    $('#stopButton').hide();
 
-	evtSource.close();
+    evtSource.close();
 }
 
 function setupSSEClient()
 {
-	initCanvas();
+    initCanvas();
 
-	startSSE();
+    startSSE();
 }
 
 $(document).ready(function() {
-	setupSSEClient();
+    setupSSEClient();
 });
 
 </script>
@@ -192,6 +196,6 @@ $(document).ready(function() {
 <input type='button' id='stopButton' onClick='stopSSE();' value='Stop Virtual Display'><br>
 <table border=0>
 <tr><td valign='top'>
-<canvas id='vCanvas' width='<? echo $canvasWidth; ?>' height='<? echo $canvasHeight; ?>'></canvas></td>
+<canvas id='vCanvas' width='<?= $canvasWidth; ?>' height='<?= $canvasHeight; ?>'></canvas></td>
 <td id='data'></td></tr></table>
 

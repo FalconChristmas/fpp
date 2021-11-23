@@ -5,61 +5,63 @@ $kernel_version = exec("uname -r");
 $fpp_head_version = "v" . getFPPVersion();
 $git_branch = getFPPBranch();
 
-if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
-	$fpp_head_version .= " ($git_branch branch)";
+if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version)) {
+    $fpp_head_version .= " ($git_branch branch)";
+}
 
 ?>
 
-<?php require_once(dirname(__FILE__)."/config.php"); ?>
+<?php require_once(dirname(__FILE__) . "/config.php"); ?>
 <?php
-function list_plugin_entries($menu) {
-	global $pluginDirectory;
+function list_plugin_entries($menu)
+{
+    global $pluginDirectory;
     $menukey = $menu;
     if ($menu == "output") {
         $menukey = "input-output";
     }
-	if ($menu && file_exists($pluginDirectory)) {
-		$handle = opendir($pluginDirectory);
-		if ( $handle ) {
-			$first = 1;
-			while (($plugin = readdir($handle)) !== false) {
-				if (!in_array($plugin, array('.', '..'))) {
-					// Old naming convention ${MENU}_menu.inc
-					if ( file_exists($pluginDirectory."/".$plugin."/".$menu."_menu.inc") ) {
-						if ($first) {
-							$first = 0;
+    if ($menu && file_exists($pluginDirectory)) {
+        $handle = opendir($pluginDirectory);
+        if ($handle) {
+            $first = 1;
+            while (($plugin = readdir($handle)) !== false) {
+                if (!in_array($plugin, array('.', '..'))) {
+                    // Old naming convention ${MENU}_menu.inc
+                    if (file_exists($pluginDirectory . "/" . $plugin . "/" . $menu . "_menu.inc")) {
+                        if ($first) {
+                            $first = 0;
                             echo '<h6 class="dropdown-header">- - - - - - - Plugins - - - - - - -</h6>';
-						}
+                        }
 
                         ob_start();
-                        -include_once($pluginDirectory."/".$plugin."/".$menu."_menu.inc");
+                        - include_once($pluginDirectory . "/" . $plugin . "/" . $menu . "_menu.inc");
                         $buffer = ob_get_clean();
-                        $buffer = str_replace(array("<li>","</li>","</li\n>"),"",$buffer);
-                        $buffer = str_replace("<a ","<a class=\"dropdown-item\" ",$buffer);
+                        $buffer = str_replace(array("<li>","</li>","</li\n>"), "", $buffer);
+                        $buffer = str_replace("<a ", "<a class=\"dropdown-item\" ", $buffer);
                         $buffer = str_replace("plugin.php?plugin", "plugin.php?_menu=" . $menukey . "&plugin", $buffer);
                         echo $buffer;
                     }
 
-					// New single menu.inc file which has some logic in it to display relevant menus.
-					// See the example in the fpp-plugin-Template plugin
-					if ( file_exists($pluginDirectory."/".$plugin."/menu.inc") ) {
+                    // New single menu.inc file which has some logic in it to display relevant menus.
+                    // See the example in the fpp-plugin-Template plugin
+                    if (file_exists($pluginDirectory . "/" . $plugin . "/menu.inc")) {
                         ob_start();
-                        -include($pluginDirectory."/".$plugin."/menu.inc");
+                        - include($pluginDirectory . "/" . $plugin . "/menu.inc");
                         $buffer = ob_get_clean();
-                        $buffer = str_replace(array("<li>","</li>"),"",$buffer);
-                        $buffer = str_replace("<a ","<a class=\"dropdown-item\" ",$buffer);
-                        $buffer = str_replace("plugin.php?plugin", "plugin.php?_menu=" . $menukey . "&plugin",  $buffer);
+                        $buffer = str_replace(array("<li>","</li>"), "", $buffer);
+                        $buffer = str_replace("<a ", "<a class=\"dropdown-item\" ", $buffer);
+                        $buffer = str_replace("plugin.php?plugin", "plugin.php?_menu=" . $menukey . "&plugin", $buffer);
                         if ($first && !empty($buffer)) {
                             $first = 0;
                             echo '<h6 class="dropdown-header">- - - - - - - Plugins - - - - - - -</h6>';
                         }
 
                         echo $buffer;
-					}
-				}
-			}
-		}
-	}
+                    }
+                }
+            }
+        }
+    }
 }
 ?>
 
@@ -67,10 +69,10 @@ function list_plugin_entries($menu) {
     <div class="headerLeft">
           <div class="headerLeftCol fppBrand">
             <a href="/">
-              <img src="images/redesign/falconlogo.svg" class="logo" title="Host: <? echo $settings['HostName']; ?>" />
+              <img src="images/redesign/falconlogo.svg" class="logo" title="Host: <?= $settings['HostName']; ?>" />
               <img src="images/redesign/fpp-logo.svg" class="fpp-logo" />
             </a>
-            <a href='about.php' class='nonULLink headerLink versionHead'><?php echo $fpp_head_version; ?></a>
+            <a href='about.php' class='nonULLink headerLink versionHead'><?= $fpp_head_version; ?></a>
           </div>
 
     </div>
@@ -90,17 +92,17 @@ function list_plugin_entries($menu) {
 
 ?>
     <span class="headerBox" id="header_player"></span>
-    <span class="headerBox largeonly" id="header_sensors" data-defaultsensor="<? echo $currentHeaderSensor; ?>"></span>
+    <span class="headerBox largeonly" id="header_sensors" data-defaultsensor="<?= $currentHeaderSensor; ?>"></span>
     <span class="headerBox" id="header_IPs"></span>
     <span class="headerBox" id="header_Time"></span>
 </div>
     </div>
     <div class="headerRight largeonly">
-		  <?
+          <?
             if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank' class='platformLogoLink'>";
-		    if ($settings['Logo'] != "") {
+            if ($settings['Logo'] != "") {
            echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; }
-		    if ($settings['LogoLink'] != "") echo "</a>";
+            if ($settings['LogoLink'] != "") echo "</a>";
             if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image']) && $settings['FetchVendorLogos'] == 1) {
                 $landing = $settings['cape-info']['vendor']['url'];
                 if (isSet($settings['cape-info']['vendor']['landingPage'])) {
@@ -121,8 +123,8 @@ function list_plugin_entries($menu) {
                 ?>
                       <div class="capeVendor">
                         <div class="capeVendorLogo">
-                          <a href="<? echo $landing; ?>" target="capeVendor">
-                           <img src="<? echo $iurl; ?>" class="logo" / >
+                          <a href="<?= $landing; ?>" target="capeVendor">
+                           <img src="<?= $iurl; ?>" class="logo" / >
                           </a>
                         </div>
                       </div>
@@ -130,7 +132,7 @@ function list_plugin_entries($menu) {
 
             }
           ?>
-		</div>
+        </div>
 
   </div>
   <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
@@ -139,41 +141,41 @@ function list_plugin_entries($menu) {
   <div class="fppOuterContainer">
     <div class="fppMenuContainer">
   <?
-	if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab') )
-	{
-		$mounted = 0;
-		$needToMount = 0;
-		$mountPoints = file("/etc/fstab");
-		foreach ($mountPoints as $mountPoint)
-		{
-			if (preg_match("/^[^#].*\/home\/[a-z]*\/media/", $mountPoint))
-			{
-				$needToMount = 1;
-				$mounts = file("/proc/mounts");
-				$mounted = 0;
-				foreach ($mounts as $mount)
-				{
-					if (preg_match("/\/home\/[a-z]*\/media/", $mount))
-					{
-						$mounted = 1;
-						break;
-					}
-				}
+    if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab') )
+    {
+        $mounted = 0;
+        $needToMount = 0;
+        $mountPoints = file("/etc/fstab");
+        foreach ($mountPoints as $mountPoint)
+        {
+            if (preg_match("/^[^#].*\/home\/[a-z]*\/media/", $mountPoint))
+            {
+                $needToMount = 1;
+                $mounts = file("/proc/mounts");
+                $mounted = 0;
+                foreach ($mounts as $mount)
+                {
+                    if (preg_match("/\/home\/[a-z]*\/media/", $mount))
+                    {
+                        $mounted = 1;
+                        break;
+                    }
+                }
 
-				break;
-			}
-		}
+                break;
+            }
+        }
 
 
-		if ($needToMount && !$mounted)
-		{
+        if ($needToMount && !$mounted)
+        {
 ?>
   <div class="alert danger">
     WARNING: <?= $fppHome; ?>/media is not mounted, is a USB flash drive inserted?
   </div>
 <?
-		}
-	}
+        }
+    }
 ?>
   <!--div id='upgradeFlag' class="alert detract"><span class='inlineBlock'>FPP v5.1 is available for install</span><span class='inlineBlock'><button name="btnUpgrade" type="button" onClick="ViewReleaseNotes('5.1');"  class = "buttons btn-outline-light" ><i class='fas fa-fw fa-sync fa-nbsp'></i>Upgrade FPP</button></div-->
   <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><button name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class="buttons btn-outline-light"><i class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
@@ -225,7 +227,7 @@ function RebuildFPPD() {
           </div>
   <div class="collapse navbar-collapse" id="navbarNavDropdown">
     <ul id="fppMenuList" class="navbar-nav">
-    <li class="nav-item dropdown <? echo $activeParentMenuItem=='status' ? 'active' :''; ?>">
+    <li class="nav-item dropdown <?= $activeParentMenuItem == 'status' ? 'active' : ''; ?>">
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Status/Control
         </a>
@@ -260,7 +262,7 @@ if (!file_exists("/etc/fpp/desktop")) {
         </div>
       </li>
 
-      <li class="nav-item dropdown <? echo $activeParentMenuItem=='content' ? 'active' :''; ?>">
+      <li class="nav-item dropdown <?= $activeParentMenuItem == 'content' ? 'active' : ''; ?>">
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Content Setup
         </a>
@@ -274,7 +276,7 @@ if (!file_exists("/etc/fpp/desktop")) {
         </div>
       </li>
 
-      <li class="nav-item dropdown <? echo $activeParentMenuItem=='input-output' ? 'active' :''; ?>">
+      <li class="nav-item dropdown <?= $activeParentMenuItem == 'input-output' ? 'active' : ''; ?>">
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Input/Output Setup
         </a>
@@ -288,7 +290,7 @@ if (!file_exists("/etc/fpp/desktop")) {
         </div>
       </li>
 
-      <li class="nav-item dropdown <? echo $activeParentMenuItem=='help' ? 'active' :''; ?>">
+      <li class="nav-item dropdown <?= $activeParentMenuItem == 'help' ? 'active' : ''; ?>">
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Help
         </a>
@@ -306,7 +308,7 @@ if (!file_exists("/etc/fpp/desktop")) {
           <hr class="dropdown-divider">
           <a class="dropdown-item" href="healthCheck.php"><i class="fas fa-thermometer-half"></i> System Health Check</a>
           <a class="dropdown-item" href="troubleshooting.php"><i class="fas fa-code"></i> Troubleshooting Commands</a>
-          <a class="dropdown-item" href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
+          <a class="dropdown-item" href="http://<?= $_SERVER['SERVER_ADDR'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
           <?php list_plugin_entries("help"); ?>
         </div>
       </li>

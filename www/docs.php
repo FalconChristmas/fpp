@@ -14,29 +14,29 @@ require_once('config.php');
           $('#tblDocs tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           DocNameSelected  = $(this).find('td:first').text();
-		  SetButtonState('#btnDownloadDoc','enable');
-		  SetButtonState('#btnViewDoc','enable');
+          SetButtonState('#btnDownloadDoc','enable');
+          SetButtonState('#btnViewDoc','enable');
     });
   });
 
-	$(document).ready(function() {
-		GetFiles("Docs");
-	});
+    $(document).ready(function() {
+        GetFiles("Docs");
+    });
 
 </script>
 <style>
 fieldset {
-	min-height: 200px;
-	border: 2px solid #000000;
+    min-height: 200px;
+    border: 2px solid #000000;
 }
 h2 {
-	text-align: center;
+    text-align: center;
 }
 .right {
-	text-align: right;
+    text-align: right;
 }
 .selectedentry {
-	background: #888;
+    background: #888;
 }
 </style>
 </head>

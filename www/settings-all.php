@@ -13,7 +13,7 @@ include('common/menuHead.inc');
 <script type="text/javascript" src="js/jquery.timepicker.min.js"></script>
 <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 </head>
 
 <?php
@@ -47,13 +47,13 @@ $pages = array(
                         foreach ($pages as $page) {
                             if ($page[ui] <= $uiLevel) {
                     ?>
-                            <a class="nav-item nav-link" id="settings-<?php echo $page["name"]; ?>-tab"
+                            <a class="nav-item nav-link" id="settings-<?= $page["name"]; ?>-tab"
                                 data-toggle="tab"
-                                href="#settings-<?php echo $page["name"]; ?>"
-                                data-option="<?php echo $page["name"]; ?>"
+                                href="#settings-<?= $page["name"]; ?>"
+                                data-option="<?= $page["name"]; ?>"
                                 role="tab"
-                                aria-controls="settings-<?php echo $page["name"]; ?>"
-                                aria-selected="true"><?php echo $page["title"]; ?></a>
+                                aria-controls="settings-<?= $page["name"]; ?>"
+                                aria-selected="true"><?= $page["title"]; ?></a>
                             <? } ?>
                     <? } ?>
                     </div>
@@ -63,8 +63,8 @@ $pages = array(
                 <?php
                     foreach ($pages as $page) {
                 ?>
-                    <div class="tab-pane fade show <?php echo ($page['name'] == 'playback') ? 'active' : '';?>" id="settings-<?php echo $page['name']; ?>" role="tabpanel" aria-labelledby="settings-<?php echo $page['name']; ?>-tab">
-                    <?php require_once("settings-".$page['name'].".php"); ?>
+                    <div class="tab-pane fade show <?= ($page['name'] == 'playback') ? 'active' : '';?>" id="settings-<?= $page['name']; ?>" role="tabpanel" aria-labelledby="settings-<?= $page['name']; ?>-tab">
+                    <?php require_once("settings-" . $page['name'] . ".php"); ?>
                     </div>
                 <? } ?>
                 </div>

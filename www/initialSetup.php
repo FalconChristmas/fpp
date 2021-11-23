@@ -17,7 +17,7 @@ function initialSetupChanged() {
 }
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 </head>
 <body class="is-loading">
 <div id="bodyWrapper">
@@ -30,14 +30,14 @@ include 'menu.inc'; ?>
 
 <?php
 if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
-?>
+    ?>
 <div id='upgradeFlag' class="alert alert-danger" role="alert">
      SD card has unused space.  Go to
      <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
      file system or create a new storage partition.
 </div>
 
-<?php
+    <?php
 }
 ?>
         <div id="warningsRow" class="alert alert-danger"><div id="warningsTd"><div id="warningsDiv"></div></div></div>

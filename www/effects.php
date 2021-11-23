@@ -86,7 +86,7 @@ function StartSelectedEffect() {
 
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 </head>
 <body onLoad="GetRunningEffects();">
 <div id="bodyWrapper">
@@ -94,28 +94,24 @@ function StartSelectedEffect() {
   $activeParentMenuItem = 'status';
   include 'menu.inc';
 
-  function PrintEffectRows()
-  {
-    $files = Array();
+function PrintEffectRows()
+{
+    $files = array();
 
     global $effectDirectory;
-    foreach(scandir($effectDirectory) as $seqFile)
-    {
-      if($seqFile != '.' && $seqFile != '..' && preg_match('/.eseq$/', $seqFile))
-      {
-        $seqFile = preg_replace('/.eseq$/', '', $seqFile);
-        $files[$seqFile] = "eseq";
-      }
+    foreach (scandir($effectDirectory) as $seqFile) {
+        if ($seqFile != '.' && $seqFile != '..' && preg_match('/.eseq$/', $seqFile)) {
+            $seqFile = preg_replace('/.eseq$/', '', $seqFile);
+            $files[$seqFile] = "eseq";
+        }
     }
 
     global $sequenceDirectory;
-    foreach(scandir($sequenceDirectory) as $seqFile)
-    {
-      if($seqFile != '.' && $seqFile != '..' && preg_match('/.fseq$/', $seqFile))
-      {
-        $seqFile = preg_replace('/.fseq$/', '', $seqFile);
-        $files[$seqFile] = "fseq";
-      }
+    foreach (scandir($sequenceDirectory) as $seqFile) {
+        if ($seqFile != '.' && $seqFile != '..' && preg_match('/.fseq$/', $seqFile)) {
+            $seqFile = preg_replace('/.fseq$/', '', $seqFile);
+            $files[$seqFile] = "fseq";
+        }
     }
 
     ksort($files);
@@ -123,9 +119,9 @@ function StartSelectedEffect() {
     foreach ($files as $f => $t) {
         echo "<tr id='effect_" . $f . "'><td><img src='images/redesign/icon-" . $t . ".svg' alt=" . $t . " class='icon-effect-type'/>" . $f . "</td><td>" . $t . "</td><td><button class='buttons btn-success'>Start</button></td></tr>\n";
     }
-  }
+}
 
-  ?>
+?>
 
 <div class="mainContainer">
 <h1 class="title">Effects</h1>
@@ -161,7 +157,7 @@ function StartSelectedEffect() {
                           <div class="form-inline">
                             <div class="form-group">
                               <div>Start Channel Override:</div>
-                              <div class="p-1"><input id="effectStartChannel" class="default-value" type="number" value="" min="1" max="<? echo FPPD_MAX_CHANNELS; ?>" /></div>
+                              <div class="p-1"><input id="effectStartChannel" class="default-value" type="number" value="" min="1" max="<?= FPPD_MAX_CHANNELS; ?>" /></div>
                             </div>
                           </div>
                         </div>

@@ -9,10 +9,9 @@ require_once('common.php');
 $canvasWidth = 800;
 $canvasHeight = 450;
 
-if (isset($_GET['width']))
-{
-	$canvasWidth = (int)($_GET['width']);
-	$canvasHeight = (int)($canvasWidth * 9.0 / 16.0);
+if (isset($_GET['width'])) {
+    $canvasWidth = (int)($_GET['width']);
+    $canvasHeight = (int)($canvasWidth * 9.0 / 16.0);
 }
 ?>
 <script type="text/javascript" src="js/jquery-latest.min.js"></script>
@@ -22,8 +21,8 @@ if (isset($_GET['width']))
 <link rel="stylesheet" href="css/jquery-ui.css" />
 <link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
 <link rel="stylesheet" href="css/classicTheme/style.css" media="all" />
-<link rel="stylesheet" href="css/minimal.css?ref=<?php echo filemtime('css/minimal.css'); ?>" />
-<script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
+<link rel="stylesheet" href="css/minimal.css?ref=<?= filemtime('css/minimal.css'); ?>" />
+<script type="text/javascript" src="js/fpp.js?ref=<?= filemtime('js/fpp.js'); ?>"></script>
 
 <title>Virtual Display</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimal-ui">
@@ -31,7 +30,7 @@ if (isset($_GET['width']))
 </head>
 <body>
 <h3>FPP Virtual Display</h3>
-<?
+<?php
 require_once('virtualdisplaybody.php');
 ?>
 

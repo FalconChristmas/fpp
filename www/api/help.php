@@ -162,7 +162,7 @@ function endpointToheader(endpoint) {
 var endpoints = {};
 function loadEndpoints() {
     var menuTag = $('#api-list-hot-links ul');
-    $.get('<? echo $apiDir; ?>endpoints.json', function(data) {
+    $.get('<?= $apiDir; ?>endpoints.json', function(data) {
         data.endpoints.sort(sortByEndpoint);
         endpoints = data;
         var tables = [ 'endpoints' ];
@@ -286,7 +286,7 @@ function loadCommands() {
     if (commandList == "") {
         $.ajax({
         dataType: "json",
-        url: "<? echo $apiDir; ?>commands",
+        url: "<?= $apiDir; ?>commands",
         async: false,
         success: function(data) {
            commandList = data;

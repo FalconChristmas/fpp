@@ -1,26 +1,26 @@
 <!DOCTYPE html>
 <html>
-<?php 
+<?php
 require_once('config.php');
-include 'common/menuHead.inc'; 
+include 'common/menuHead.inc';
 require_once("common.php");
-    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-        $newht = "RewriteEngine on\nRewriteBase /proxy/\n\n";
-        
-        foreach( $_POST as $host ) {
-            $newht = $newht . "RewriteRule ^" . $host . "$  " . $host . "/  [R,L]\n";
-            $newht = $newht . "RewriteRule ^" . $host . "/(.*)$  http://" . $host . "/$1  [P,L]\n\n";
-        }
-        file_put_contents("$mediaDirectory/config/proxies", $newht);
-    }
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $newht = "RewriteEngine on\nRewriteBase /proxy/\n\n";
 
-    
-    
-    if (file_exists("$mediaDirectory/config/proxies")) {
-        $hta = file("$mediaDirectory/config/proxies", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    } else {
-        $hta = array();
+    foreach ($_POST as $host) {
+        $newht = $newht . "RewriteRule ^" . $host . "$  " . $host . "/  [R,L]\n";
+        $newht = $newht . "RewriteRule ^" . $host . "/(.*)$  http://" . $host . "/$1  [P,L]\n\n";
     }
+    file_put_contents("$mediaDirectory/config/proxies", $newht);
+}
+
+
+
+if (file_exists("$mediaDirectory/config/proxies")) {
+    $hta = file("$mediaDirectory/config/proxies", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+} else {
+    $hta = array();
+}
 ?>
 <head>
 <script type="text/javascript" src="js/validate.min.js"></script>
@@ -39,41 +39,41 @@ function UpdateLink(row) {
 }
 
 function AddNewProxy() {
-	var currentRows = $("#proxyTable > tbody > tr").length
+    var currentRows = $("#proxyTable > tbody > tr").length
 
-	$('#proxyTable tbody').append(
-		"<tr id='row'" + currentRows + " class='fppTableRow'>" +
+    $('#proxyTable tbody').append(
+        "<tr id='row'" + currentRows + " class='fppTableRow'>" +
             "<td>" + (currentRows + 1) + "</td>" +
-			"<td><input id='ipRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")'></td>" +
+            "<td><input id='ipRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")'></td>" +
             "<td id='linkRow" + currentRows + "'> </td>" +
-			"</tr>");
+            "</tr>");
 }
 function AddProxyForHost(host) {
-	var currentRows = $("#proxyTable > tbody > tr").length
+    var currentRows = $("#proxyTable > tbody > tr").length
 
-	$('#proxyTable tbody').append(
-		"<tr id='row'" + currentRows + " class='fppTableRow'>" +
+    $('#proxyTable tbody').append(
+        "<tr id='row'" + currentRows + " class='fppTableRow'>" +
             "<td>" + (currentRows + 1) + "</td>" +
-			"<td><input id='ipRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + host + "'></td>" +
+            "<td><input id='ipRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + host + "'></td>" +
             "<td id='linkRow" + currentRows + "'><a href='proxy/" + host + "'>" + host + "</a></td>" +
-			"</tr>");
+            "</tr>");
 }
 
 function RenumberColumns(tableName) {
-	var id = 1; 
-	$('#' + tableName + ' tbody tr').each(function() {
-		$this = $(this);
-		$this.find("td:first").html(id);
-		id++;
-	});
+    var id = 1; 
+    $('#' + tableName + ' tbody tr').each(function() {
+        $this = $(this);
+        $this.find("td:first").html(id);
+        id++;
+    });
 }
 function DeleteSelectedProxy() {
-	if (tableInfo.selected >= 0) {
-		$('#proxyTable tbody tr:nth-child(' + (tableInfo.selected+1) + ')').remove();
-		tableInfo.selected = -1;
-		SetButtonState("#btnDelete", "disable");
+    if (tableInfo.selected >= 0) {
+        $('#proxyTable tbody tr:nth-child(' + (tableInfo.selected+1) + ')').remove();
+        tableInfo.selected = -1;
+        SetButtonState("#btnDelete", "disable");
         RenumberColumns("proxyTable");
-	}
+    }
 }
 
 function SetProxies() {
@@ -120,13 +120,13 @@ foreach ($hta as $line) {
 });
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 </head>
 <body>
 <div id="bodyWrapper">
-  <?php 
-  $activeParentMenuItem = 'status';
-  include 'menu.inc'; ?>
+  <?php
+    $activeParentMenuItem = 'status';
+    include 'menu.inc'; ?>
   <div class="mainContainer">
     <div class="title">Proxied Hosts</div>
     <div class="pageContent">
@@ -134,20 +134,20 @@ foreach ($hta as $line) {
           <div id="proxies" class="settings">
 
                 <div class="row tablePageHeader">
-					<div class="col-md">
-						<h2>Proxied Hosts</h2>
-					</div>
-					<div class="col-md-auto ml-lg-auto">
-						<div class="form-actions">
-			
-								<input type=button value='Delete' onClick='DeleteSelectedProxy();' data-btn-enabled-class="btn-outline-danger" id='btnDelete' class='disableButtons'>
-								<button type=button value='Add' onClick='AddNewProxy();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
-								<input type=button value='Save' onClick='SetProxies();' class='buttons btn-success ml-1'>
+                    <div class="col-md">
+                        <h2>Proxied Hosts</h2>
+                    </div>
+                    <div class="col-md-auto ml-lg-auto">
+                        <div class="form-actions">
+            
+                                <input type=button value='Delete' onClick='DeleteSelectedProxy();' data-btn-enabled-class="btn-outline-danger" id='btnDelete' class='disableButtons'>
+                                <button type=button value='Add' onClick='AddNewProxy();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
+                                <input type=button value='Save' onClick='SetProxies();' class='buttons btn-success ml-1'>
 
-						</div>
-					</div>
-				</div>
-				<hr>
+                        </div>
+                    </div>
+                </div>
+                <hr>
   
                 <div class="fppTableWrapper fppTableWrapperAsTable">
                     <div class='fppTableContents' role="region" aria-labelledby="proxyTable" tabindex="0">

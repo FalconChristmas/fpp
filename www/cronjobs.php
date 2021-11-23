@@ -1,24 +1,15 @@
-<!DOCTYPE html>
-<html>
-<head>
 <?php
-require_once("config.php");
-include 'common/menuHead.inc';
-?>
-<title><? echo $pageTitle; ?></title>
-<script>
-</script>
-</head>
-<body>
-<?php
-class Crontab {
-    
+
+class Crontab
+{
+
     // In this class, array instead of string would be the standard input / output format.
-    
+
     // Legacy way to add a job:
     // $output = shell_exec('(crontab -l; echo "'.$job.'") | crontab -');
-    
-    static private function stringToArray($jobs = '') {
+
+    private static function stringToArray($jobs = '')
+    {
         $array = explode("\r\n", trim($jobs)); // trim() gets rid of the last \r\n
         foreach ($array as $key => $item) {
             if ($item == '') {
@@ -27,23 +18,27 @@ class Crontab {
         }
         return $array;
     }
-    
-    static private function arrayToString($jobs = array()) {
+
+    private static function arrayToString($jobs = array())
+    {
         $string = implode("\r\n", $jobs);
         return $string;
     }
-    
-    static public function getJobs() {
+
+    public static function getJobs()
+    {
         $output = shell_exec('crontab -l');
         return self::stringToArray($output);
     }
-    
-    static public function saveJobs($jobs = array()) {
-        $output = shell_exec('echo "'.self::arrayToString($jobs).'" | crontab -');
-        return $output;	
+
+    public static function saveJobs($jobs = array())
+    {
+        $output = shell_exec('echo "' . self::arrayToString($jobs) . '" | crontab -');
+        return $output;
     }
-    
-    static public function doesJobExist($job = '') {
+
+    public static function doesJobExist($job = '')
+    {
         $jobs = self::getJobs();
         if (in_array($job, $jobs)) {
             return true;
@@ -51,8 +46,9 @@ class Crontab {
             return false;
         }
     }
-    
-    static public function addJob($job = '') {
+
+    public static function addJob($job = '')
+    {
         if (self::doesJobExist($job)) {
             return false;
         } else {
@@ -61,8 +57,9 @@ class Crontab {
             return self::saveJobs($jobs);
         }
     }
-    
-    static public function removeJob($job = '') {
+
+    public static function removeJob($job = '')
+    {
         if (self::doesJobExist($job)) {
             $jobs = self::getJobs();
             unset($jobs[array_search($job, $jobs)]);
@@ -71,9 +68,20 @@ class Crontab {
             return false;
         }
     }
-    
 }
 ?>
+<!DOCTYPE html>
+<html>
+<head>
+<?php
+require_once("config.php");
+include 'common/menuHead.inc';
+?>
+<title><?= $pageTitle; ?></title>
+<script>
+</script>
+</head>
+<body>
 <div id="bodyWrapper">
 <?php include 'menu.inc'; ?>
 <br/>

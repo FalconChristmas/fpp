@@ -1,4 +1,4 @@
-<?
+<?php
 header("Access-Control-Allow-Origin: *");
 
 $lastUpdate = time();
@@ -32,9 +32,9 @@ FPP OS Uprade
 </head>
 <body>
 <h2>FPP OS Upgrade</h2>
-Image: <?echo strip_tags($_GET['os']); ?><br>
+Image: <?= strip_tags($_GET['os']); ?><br>
 <pre>
-<?
+    <?php
 } else {
     echo "FPP OS Upgrade\n";
     echo "Image: " . strip_tags($_GET['os']) . "\n";
@@ -64,7 +64,6 @@ if (preg_match('/^https?:/', $_GET['os'])) {
         echo ("Download aborted!\n");
         $applyUpdate = false;
     }
-
 }
 ?>
 ==========================================================================

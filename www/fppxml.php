@@ -154,7 +154,7 @@ function MoveFile()
                 error_log("Couldn't move sequence file");
                 exit(1);
             }
-        } else if (preg_match("/\.(fseq.gz)$/i", $file)) {
+        } elseif (preg_match("/\.(fseq.gz)$/i", $file)) {
             if (!rename($uploadDirectory . "/" . $file, $sequenceDirectory . '/' . $file)) {
                 error_log("Couldn't move sequence file");
                 exit(1);
@@ -162,22 +162,22 @@ function MoveFile()
             $nfile = $file;
             $nfile = str_replace('"', '\\"', $nfile);
             exec("$SUDO gunzip -f \"$sequenceDirectory/$nfile\"");
-        } else if (preg_match("/\.(eseq)$/i", $file)) {
+        } elseif (preg_match("/\.(eseq)$/i", $file)) {
             if (!rename($uploadDirectory . "/" . $file, $effectDirectory . '/' . $file)) {
                 error_log("Couldn't move effect file");
                 exit(1);
             }
-        } else if (preg_match("/\.(mp4|mkv|avi|mov|mpg|mpeg)$/i", $file)) {
+        } elseif (preg_match("/\.(mp4|mkv|avi|mov|mpg|mpeg)$/i", $file)) {
             if (!rename($uploadDirectory . "/" . $file, $videoDirectory . '/' . $file)) {
                 error_log("Couldn't move video file");
                 exit(1);
             }
-        } else if (preg_match("/\.(gif|jpg|jpeg|png)$/i", $file)) {
+        } elseif (preg_match("/\.(gif|jpg|jpeg|png)$/i", $file)) {
             if (!rename($uploadDirectory . "/" . $file, $imageDirectory . '/' . $file)) {
                 error_log("Couldn't move image file");
                 exit(1);
             }
-        } else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $file)) {
+        } elseif (preg_match("/\.(sh|pl|pm|php|py)$/i", $file)) {
             // Get rid of any DOS newlines
             $contents = file_get_contents($uploadDirectory . "/" . $file);
             $contents = str_replace("\r", "", $contents);
@@ -187,12 +187,12 @@ function MoveFile()
                 error_log("Couldn't move script file");
                 exit(1);
             }
-        } else if (preg_match("/\.(mp3|ogg|m4a|wav|au|m4p|wma|flac)$/i", $file)) {
+        } elseif (preg_match("/\.(mp3|ogg|m4a|wav|au|m4p|wma|flac)$/i", $file)) {
             if (!rename($uploadDirectory . "/" . $file, $musicDirectory . '/' . $file)) {
                 error_log("Couldn't move music file");
                 exit(1);
             }
-        } else if (preg_match("/eeprom\.bin$/i", $file)) {
+        } elseif (preg_match("/eeprom\.bin$/i", $file)) {
             if (!rename($uploadDirectory . "/" . $file, $configDirectory . '/cape-eeprom.bin')) {
                 error_log("Couldn't move eeprom file");
                 exit(1);

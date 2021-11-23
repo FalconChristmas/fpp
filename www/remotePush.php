@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Transfers a file from the specified directory on this machine 
+ * Transfers a file from the specified directory on this machine
  * to a remote FPP instance
  */
 
@@ -17,7 +17,7 @@ if (isset($_GET["raw"]) || $_GET["raw"] == 1) {
 }
 
 if ($raw == 0) {
-?>
+    ?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -31,7 +31,7 @@ Remote Push
 ==========================================================================
 
 
-<?php
+    <?php
 }
 $lastUpdate = time();
 
@@ -119,7 +119,8 @@ function progress($resource, $download_size, $downloaded, $upload_size, $uploade
     flush();
 }
 
-function move($remoteHost, $file) {
+function move($remoteHost, $file)
+{
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, "$remoteHost//api/file/move/$file");
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // Connect in 10 seconds or less
@@ -145,14 +146,13 @@ function move($remoteHost, $file) {
 
 global $raw;
 if ($raw == 0) {
-
-?>
+    ?>
 
 Done!
 </pre>
 </body>
 </html>
 
-<?php
+    <?php
 }
 ?>

@@ -20,12 +20,12 @@ Change Branch
     echo "==================================================================================\n";
 
     $branch = escapeshellcmd(htmlspecialchars($_GET['branch']));
-	$command = "sudo /opt/fpp/scripts/git_branch " . $branch . " 2>&1";
+    $command = "sudo /opt/fpp/scripts/git_branch " . $branch . " 2>&1";
 
-	echo "Command: $command\n";
-	echo "----------------------------------------------------------------------------------\n";
+    echo "Command: $command\n";
+    echo "----------------------------------------------------------------------------------\n";
     system($command);
-	echo "\n";
+    echo "\n";
 ?>
 
 ==========================================================================

@@ -276,9 +276,9 @@ function SetRowDateTimeFieldVisibility(row) {
 }
 
 function SetScheduleInputNames() {
-	$('#tblScheduleBody > tr').each(function(i) {
-		SetRowDateTimeFieldVisibility($(this));
-	});
+    $('#tblScheduleBody > tr').each(function(i) {
+        SetRowDateTimeFieldVisibility($(this));
+    });
 
     var seconds = '';
     if ((settings.hasOwnProperty('ScheduleSeconds')) && (settings['ScheduleSeconds'] == 1))
@@ -293,29 +293,29 @@ function SetScheduleInputNames() {
             timeFormat = 'H:i' + seconds;
     }
 
-	$('.time').timepicker({
-		'timeFormat': timeFormat,
-		'typeaheadHighlight': false,
-		'show2400': true,
-		'noneOption': [
-				{
-					'label': 'Dawn',
-					'value': 'Dawn'
-				},
-				{
-					'label': 'SunRise',
-					'value': 'SunRise'
-				},
-				{
-					'label': 'SunSet',
-					'value': 'SunSet'
-				},
-				{
-					'label': 'Dusk',
-					'value': 'Dusk'
-				}
-			]
-		});
+    $('.time').timepicker({
+        'timeFormat': timeFormat,
+        'typeaheadHighlight': false,
+        'show2400': true,
+        'noneOption': [
+                {
+                    'label': 'Dawn',
+                    'value': 'Dawn'
+                },
+                {
+                    'label': 'SunRise',
+                    'value': 'SunRise'
+                },
+                {
+                    'label': 'SunSet',
+                    'value': 'SunSet'
+                },
+                {
+                    'label': 'Dusk',
+                    'value': 'Dusk'
+                }
+            ]
+        });
 
     SetupDatePicker("#tblScheduleBody > tr > td > input.date");
 }
@@ -603,33 +603,33 @@ $(document).ready(function(){
         $('#tblScheduleBody').sortable(sortableOptions).disableSelection();
 });
 </script>
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 <style>
 .clear {
-	clear: both;
+    clear: both;
 }
 .items {
-	width: 40%;
-	background: rgb#FFF;
-	float: right;
-	margin: 0, auto;
+    width: 40%;
+    background: rgb#FFF;
+    float: right;
+    margin: 0, auto;
 }
 .selectedEntry {
-	background: #CCC;
+    background: #CCC;
 }
 .pl_title {
-	font-size: larger;
+    font-size: larger;
 }
 h4, h3 {
-	padding: 0;
-	margin: 0;
+    padding: 0;
+    margin: 0;
 }
 .tblheader {
-	background-color: #CCC;
-	text-align: center;
+    background-color: #CCC;
+    text-align: center;
 }
 .dayMaskTable {
-	padding: 2px 0px 0px 0px;
+    padding: 2px 0px 0px 0px;
 }
 tr.rowScheduleDetails td.dayMaskTD {
     padding: 2px 2px;
@@ -646,7 +646,7 @@ tr.rowScheduleDetails select.selPlaylist option {
     text-overflow: ellipsis;
 }
 .center {
-	text-align: center;
+    text-align: center;
 }
 
 button.ui-datepicker-current {
@@ -657,9 +657,9 @@ button.ui-datepicker-current {
 
 <body onload="PopulateCommandListCache(); getSchedule();">
 <div id="bodyWrapper">
-  <?php	
-  $activeParentMenuItem = 'content';
-  include 'menu.inc'; ?>
+  <?php
+    $activeParentMenuItem = 'content';
+    include 'menu.inc'; ?>
   <div class="mainContainer">
       <h1 class="title">Scheduler</h1>
       <div class="pageContent"> 
@@ -794,7 +794,7 @@ button.ui-datepicker-current {
                             </td>
                             <!-- end 'Playlist' options -->
                             <!-- start 'FPP Command' options -->
-                            <td class='schOptionsCommand' colspan='4'><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
+                            <td class='schOptionsCommand' colspan='4'><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><?= $commandOptions; ?></select>
                                 <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
                                 <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".cmdTmplJSON").text());'>
                                 <img class='cmdTmplTooltipIcon' title='' src='images/redesign/help-icon.svg' width=22 height=22>
@@ -826,8 +826,8 @@ button.ui-datepicker-current {
                         </tbody>
                     </table>
                 </div>
-    	    </div>
-    	<div>
+            </div>
+        <div>
         <div style="margin-bottom:10px;"><?php PrintSetting('DisableScheduler'); ?></div>
      
 

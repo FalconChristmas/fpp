@@ -25,30 +25,30 @@ var browserSync = require('browser-sync').create();
 var autoprefixer = require('autoprefixer');
 var sourcemaps = require('gulp-sourcemaps');
 var cfg = {
-	"browserSyncOptions": {
+    "browserSyncOptions": {
         "server": {
-			"baseDir": "./",
-			"index": "components.html"
+            "baseDir": "./",
+            "index": "components.html"
         },
-		"notify": false,
-		ui: {
-			port: 3181
-		},
-		port: 3180
+        "notify": false,
+        ui: {
+            port: 3181
+        },
+        port: 3180
 
-	},
+    },
 
-	"browserSyncWatchFiles": [
-		"./css/fpp-bootstrap/dist/fpp-bootstrap.css",
-		"./css/fpp.css",
-		"./components.html"
-		//"./**/*.html"
-	]
+    "browserSyncWatchFiles": [
+        "./css/fpp-bootstrap/dist/fpp-bootstrap.css",
+        "./css/fpp.css",
+        "./components.html"
+        //"./**/*.html"
+    ]
 }
 
 var paths = {
-	scss: "./css/fpp-bootstrap/src",
-	css: "./css/fpp-bootstrap/dist",
+    scss: "./css/fpp-bootstrap/src",
+    css: "./css/fpp-bootstrap/dist",
 
 }
 
@@ -56,29 +56,29 @@ var paths = {
 // gulp sass
 // Compiles SCSS files in CSS
 gulp.task('sass', function () {
-	var stream = gulp
-		.src(paths.scss + '/*.scss')
-		.pipe(
-			plumber({
-				errorHandler: function (err) {
-					console.log(err);
-					this.emit('end');
-				}
-			})
-		)
-		.pipe(sourcemaps.init({ loadMaps: true }))
-		.pipe(sass({ errLogToConsole: true }))
-		.pipe(postcss([autoprefixer()]))
-		.pipe(gulp.dest(paths.css))
-		.pipe(touch());
-	return stream;
+    var stream = gulp
+        .src(paths.scss + '/*.scss')
+        .pipe(
+            plumber({
+                errorHandler: function (err) {
+                    console.log(err);
+                    this.emit('end');
+                }
+            })
+        )
+        .pipe(sourcemaps.init({ loadMaps: true }))
+        .pipe(sass({ errLogToConsole: true }))
+        .pipe(postcss([autoprefixer()]))
+        .pipe(gulp.dest(paths.css))
+        .pipe(touch());
+    return stream;
 });
 
 // Run:
 // gulp watch
 // Starts watcher. Watcher runs gulp sass task on changes
 gulp.task('watch', function () {
-	gulp.watch([`${paths.scss}/**/*.scss`, `${paths.scss}/*.scss`], gulp.series('styles'));
+    gulp.watch([`${paths.scss}/**/ * .scss`, `${paths.scss}/*.scss`], gulp.series('styles'));
 
 });
 
@@ -86,12 +86,12 @@ gulp.task('watch', function () {
 
 
 gulp.task('styles', function (callback) {
-	return gulp.series('sass')(callback);
+    return gulp.series('sass')(callback);
 });
 
 
 gulp.task('browser-sync', function () {
-	browserSync.init(cfg.browserSyncWatchFiles, cfg.browserSyncOptions);
+    browserSync.init(cfg.browserSyncWatchFiles, cfg.browserSyncOptions);
 });
 
 // Run:

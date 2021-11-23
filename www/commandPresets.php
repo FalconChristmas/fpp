@@ -122,27 +122,27 @@ $(document).ready(function() {
         },
         scroll: true
     }
-	if(hasTouch){
-		$.extend(sortableOptions,{handle:'.rowGrip'});
-	}
+    if(hasTouch){
+        $.extend(sortableOptions,{handle:'.rowGrip'});
+    }
     $('#tblCommandsBody').sortable(sortableOptions).disableSelection();
     $(document).tooltip();
 });
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 </head>
 <body onLoad="LoadCommandList($('#newEventCommand')); LoadCommands();">
 <div id="bodyWrapper">
-<?php 
+<?php
 $activeParentMenuItem = 'status';
 include 'menu.inc'; ?>
   <div class="mainContainer">
-	  <h2 class="title">Command Presets</h2>
-	  <div class="pageContent">
+      <h2 class="title">Command Presets</h2>
+      <div class="pageContent">
 <div id="commandPresets" class="settings">
 
-		<div>
+        <div>
 
             <div class="row tablePageHeader tablePageHeader">
                 <div class="col">
@@ -181,7 +181,7 @@ include 'menu.inc'; ?>
                         <tr>
                             <td class='center' valign='middle'><div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>
                             <td><input type='text' size='32' maxlength='64' class='cmdTmplName' list='PresetTriggerNames'></td>
-                            <td><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
+                            <td><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><?= $commandOptions; ?></select>
                                 <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
                                 <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".cmdTmplJSON").text());'>
                                 <img class='cmdTmplTooltipIcon' title='' src='images/redesign/help-icon.svg' width=22 height=22>
@@ -207,7 +207,7 @@ include 'menu.inc'; ?>
                     </table>
                 </div>
             </div>
-		</div>
+        </div>
   
         <div class="backdrop">
             <b>Notes:</b>

@@ -13,7 +13,7 @@ require_once('config.php');
     unset($output);
 ?>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 
 
 <script src="jquery/jQuery-Form-Plugin/js/jquery.form.js"></script>
@@ -159,36 +159,37 @@ $(function() {
   });
 
   function GetAllFiles() {
-	GetFiles('Sequences');
-	GetFiles('Music');
-	GetFiles('Videos');
-	GetFiles('Images');
-	GetFiles('Effects');
-	GetFiles('Scripts');
-	GetFiles('Logs');
-	GetFiles('Uploads');
+    GetFiles('Sequences');
+    GetFiles('Music');
+    GetFiles('Videos');
+    GetFiles('Images');
+    GetFiles('Effects');
+    GetFiles('Scripts');
+    GetFiles('Logs');
+    GetFiles('Uploads');
   }
 
-	function RunScript(scriptName)
-	{
-		window.open("runEventScript.php?scriptName=" + scriptName);
-	}
+    function RunScript(scriptName)
+    {
+        window.open("runEventScript.php?scriptName=" + scriptName);
+    }
 
-	function EditScript(scriptName)
-	{
-		$('#fileText').html("Loading...");
+    function EditScript(scriptName)
+    {
+        $('#fileText').html("Loading...");
 
-		$.get("api/Scripts/" + scriptName, function(text) {
-			var ext = scriptName.split('.').pop();
-			if (ext != "html")
-			{
-				var html = "<textarea cols='100' rows='25' id='scriptText'>" + text + "</textarea></center></div></fieldset>";
-				$('#fileText').html(html);
+        $.get("api/Scripts/" + scriptName, function(text) {
+            var ext = scriptName.split('.').pop();
+            if (ext != "html")
+            {
+                var html = "<textarea cols='100' rows='25' id='scriptText'>" 
+                  + text + "</textarea></center></div></fieldset>";
+                $('#fileText').html(html);
         $('#scriptText').data('scriptName',scriptName);
-			}
-		});
+            }
+        });
 
-		$('#fileViewer').fppDialog({ 
+        $('#fileViewer').fppDialog({ 
 
       width: 1400, 
       title: "Script Editor : "+scriptName,
@@ -204,35 +205,35 @@ $(function() {
         }
       } 
     });
-		$('#fileViewer').fppDialog( "moveToTop" );
-	}
+        $('#fileViewer').fppDialog( "moveToTop" );
+    }
 
-	function SaveScript(scriptName)
-	{
-		var contents = $('#scriptText').val();
+    function SaveScript(scriptName)
+    {
+        var contents = $('#scriptText').val();
     var url = 'api/scripts/' + scriptName;
-		var postData = JSON.stringify(contents);
+        var postData = JSON.stringify(contents);
 
-		$.post(url, postData).done(function(data) {
-			if (data.status == "OK")
-			{
-				$('#fileViewer').fppDialog('close');
-				$.jGrowl("Script saved.",{themeState:'success'});
-			}
-			else
-			{
-				DialogError("Save Failed", "Save Failed: " + data.status);
-			}
-		}).fail(function() {
-			DialogError("Save Failed", "Save Failed!");
-		});
+        $.post(url, postData).done(function(data) {
+            if (data.status == "OK")
+            {
+                $('#fileViewer').fppDialog('close');
+                $.jGrowl("Script saved.",{themeState:'success'});
+            }
+            else
+            {
+                DialogError("Save Failed", "Save Failed: " + data.status);
+            }
+        }).fail(function() {
+            DialogError("Save Failed", "Save Failed!");
+        });
 
-	}
+    }
 
-	function AbortScriptChange()
-	{
-		$('#fileViewer').fppDialog('close');
-	}
+    function AbortScriptChange()
+    {
+        $('#fileViewer').fppDialog('close');
+    }
 
 </script>
 
@@ -240,14 +241,14 @@ $(function() {
 
 <body onload="GetAllFiles();">
 <div id="bodyWrapper">
-<?php	
+<?php
 $activeParentMenuItem = 'content';
 include 'menu.inc'; ?>
   <div class="mainContainer">
 <div class='title'>File Manager</div>
-<? if ($freespace > 95) { ?>
+<?php if ($freespace > 95) { ?>
   <div class="alert alert-danger" role="alert">WARNING: storage device is almost full!</div>
-    <? } ?>
+<?php } ?>
   <div class="pageContent">
     
     <div id="fileManager">
@@ -495,12 +496,13 @@ include 'menu.inc'; ?>
 
 <?php	include 'common/footer.inc'; ?>
 <script>
-	var activeTabNumber = 
+    var activeTabNumber = 
 <?php
-	if (isset($_GET['tab']))
-		print urlencode($_GET['tab']);
-	else
-		print "0";
+if (isset($_GET['tab'])) {
+    print urlencode($_GET['tab']);
+} else {
+    print "0";
+}
 ?>;
 
     $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
@@ -508,32 +510,32 @@ include 'menu.inc'; ?>
 // jquery upload file
 $(document).ready(function()
 {
-	$("#fileuploader").uploadFile({
-		url:"jqupload.php",
-		fileName:"myfile",
-		multiple: true,
-		autoSubmit: true,
-		returnType: "json",
-		doneStr: "Close",
-		dragdropWidth: '100%',
+    $("#fileuploader").uploadFile({
+        url:"jqupload.php",
+        fileName:"myfile",
+        multiple: true,
+        autoSubmit: true,
+        returnType: "json",
+        doneStr: "Close",
+        dragdropWidth: '100%',
     statusBarWidth: '100%',
     uploadStr:"Select Files",
     fileCounterStyle: ") ",
     showDone: true,
-		dragDropStr: "<span class='fileUploaderPlaceholder'><b>Drag &amp; Drop or Select Files to upload</b></span>",
-		onSuccess: function(files, data, xhr) {
-			for (var i = 0; i < files.length; i++) {
-				moveFile(files[i]);
-			}
+        dragDropStr: "<span class='fileUploaderPlaceholder'><b>Drag &amp; Drop or Select Files to upload</b></span>",
+        onSuccess: function(files, data, xhr) {
+            for (var i = 0; i < files.length; i++) {
+                moveFile(files[i]);
+            }
       setTimeout(function(){
         GetAllFiles();
       }, 100);
-			
-		},
-		onError: function(files, status, errMsg) {
-			alert("Error uploading file");
-		},
-		});
+            
+        },
+        onError: function(files, status, errMsg) {
+            alert("Error uploading file");
+        },
+        });
 });
 
 </script>

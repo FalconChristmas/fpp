@@ -135,24 +135,24 @@ function WirelessSettingsVisible(visible)
 
 function checkStaticIP()
 {
-	var ip = $('#eth_ip').val();
+    var ip = $('#eth_ip').val();
   $("#ipWarning").html('');
-	if (ip.startsWith( "192.168") || ip.startsWith("10.") )
-	{
-		if ($('#eth_netmask').val() == "")
-		{
-			$('#eth_netmask').val("255.255.255.0");
-		}
-		if ($('#eth_gateway').val() == "")
-		{
-			var gateway = $('#eth_ip').val().replace(/\.\d+$/, ".1");
-			$('#eth_gateway').val(gateway);
-		}
-	}
+    if (ip.startsWith( "192.168") || ip.startsWith("10.") )
+    {
+        if ($('#eth_netmask').val() == "")
+        {
+            $('#eth_netmask').val("255.255.255.0");
+        }
+        if ($('#eth_gateway').val() == "")
+        {
+            var gateway = $('#eth_ip').val().replace(/\.\d+$/, ".1");
+            $('#eth_gateway').val(gateway);
+        }
+    }
   if (ip.startsWith("192.168.6.") || ip.startsWith("192.168.7.") || ip.startsWith("192.168.8.")) {
       var text = "It is recommended to use subnets other than 192.168.6.x, 192.168.7.x, and 192.168.8.x to avoid issues with tethering."
-			$("#ipWarning").html(text);
-			$.jGrowl(text,{themeState:'danger'});
+            $("#ipWarning").html(text);
+            $.jGrowl(text,{themeState:'danger'});
     }
 
 }
@@ -161,104 +161,104 @@ function validateNetworkFields()
 {
   var eth_ip = $('#eth_ip').val();
   $("#ipWarning").html('');
-	if($('#eth_static').is(':checked'))
-	{
-		if((validateIPaddress('eth_ip')== false) || (eth_ip == ""))
-		{
-			$.jGrowl("Invalid IP Address. Expect format like 192.168.0.101",{themeState:'danger'});
-			$("#ipWarning").html('Invalid IP Address. Expect format like 192.168.0.101');
-			return false;
-		}
+    if($('#eth_static').is(':checked'))
+    {
+        if((validateIPaddress('eth_ip')== false) || (eth_ip == ""))
+        {
+            $.jGrowl("Invalid IP Address. Expect format like 192.168.0.101",{themeState:'danger'});
+            $("#ipWarning").html('Invalid IP Address. Expect format like 192.168.0.101');
+            return false;
+        }
 
-		if((validateIPaddress('eth_netmask')== false) || ($('#eth_netmask').val() == ""))
-		{
-			$.jGrowl("Invalid Netmask. Expect format like 255.255.255.0",{themeState:'danger'});
-			$("#ipWarning").html('Invalid Netmask. Expect format like 255.255.255.0');
-			return false;
-		}
-		if(validateIPaddress('eth_gateway')== false)
-		{
-			$.jGrowl("Invalid Gateway. Expect format like 192.168.0.1",{themeState:'danger'});
-			return false;
-		}
-	}
+        if((validateIPaddress('eth_netmask')== false) || ($('#eth_netmask').val() == ""))
+        {
+            $.jGrowl("Invalid Netmask. Expect format like 255.255.255.0",{themeState:'danger'});
+            $("#ipWarning").html('Invalid Netmask. Expect format like 255.255.255.0');
+            return false;
+        }
+        if(validateIPaddress('eth_gateway')== false)
+        {
+            $.jGrowl("Invalid Gateway. Expect format like 192.168.0.1",{themeState:'danger'});
+            return false;
+        }
+    }
 
-	return true;
+    return true;
 }
 
 function validateDNSFields()
 {
   setDNSWarning("");
-	if(validateIPaddress('dns1') == false)
-	{
-		$.jGrowl("Invalid DNS Server #1",{themeState:'danger'});
+    if(validateIPaddress('dns1') == false)
+    {
+        $.jGrowl("Invalid DNS Server #1",{themeState:'danger'});
     setDNSWarning("Invalid DNS Server #1");
-		return false;
-	}
-	if(validateIPaddress('dns2') == false)
-	{
-		$.jGrowl("Invalid DNS Server #2",{themeState:'danger'});
+        return false;
+    }
+    if(validateIPaddress('dns2') == false)
+    {
+        $.jGrowl("Invalid DNS Server #2",{themeState:'danger'});
     setDNSWarning("Invalid DNS Server #2");
-		return false;
-	}
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 function SaveDNSConfig()
 {
-	if (validateDNSFields() == false)
-	{
-		DialogError("Invalid DNS Config", "Save Failed");
-		return;
-	}
+    if (validateDNSFields() == false)
+    {
+        DialogError("Invalid DNS Config", "Save Failed");
+        return;
+    }
 
-	var data = {};
+    var data = {};
 
-	if ($('#dns_manual').is(':checked'))
-	{
-		data.DNS1 = $('#dns1').val();
-		data.DNS2 = $('#dns2').val();
-	}
-	else
-	{
-		data.DNS1 = "";
-		data.DNS2 = "";
-	}
+    if ($('#dns_manual').is(':checked'))
+    {
+        data.DNS1 = $('#dns1').val();
+        data.DNS2 = $('#dns2').val();
+    }
+    else
+    {
+        data.DNS1 = "";
+        data.DNS2 = "";
+    }
 
-	var postData = JSON.stringify(data);
+    var postData = JSON.stringify(data);
 
-	$.post("api/network/dns", postData
-	).done(function(data) {
-		LoadDNSConfig();
+    $.post("api/network/dns", postData
+    ).done(function(data) {
+        LoadDNSConfig();
         SetRebootFlag();
-		$.jGrowl(" DNS configuration saved",{themeState:'success'});
-	}).fail(function() {
-		DialogError("Save DNS Config", "Save Failed");
-	});
+        $.jGrowl(" DNS configuration saved",{themeState:'success'});
+    }).fail(function() {
+        DialogError("Save DNS Config", "Save Failed");
+    });
 
 }
 
 function GetDNSInfo(data)
 {
-	$('#dns1').val(data.DNS1);
-	$('#dns2').val(data.DNS2);
+    $('#dns1').val(data.DNS1);
+    $('#dns2').val(data.DNS2);
 
-	if ((typeof data.DNS1 !== "undefined" && data.DNS1 != "") ||
-	    (typeof data.DNS2 !== "undefined" && data.DNS2 != ""))
-	{
-			$('#dns_manual').prop('checked', true);
-			$('#dns_dhcp').prop('checked', false);
-			DisableDNSFields(false);
-	}
-	else
-	{
-			$('#dns_manual').prop('checked', false);
-			$('#dns_dhcp').prop('checked', true);
-			DisableDNSFields(true);
-	}
+    if ((typeof data.DNS1 !== "undefined" && data.DNS1 != "") ||
+        (typeof data.DNS2 !== "undefined" && data.DNS2 != ""))
+    {
+            $('#dns_manual').prop('checked', true);
+            $('#dns_dhcp').prop('checked', false);
+            DisableDNSFields(false);
+    }
+    else
+    {
+            $('#dns_manual').prop('checked', false);
+            $('#dns_dhcp').prop('checked', true);
+            DisableDNSFields(true);
+    }
 
-	CheckDNS();
+    CheckDNS();
 }
 
 function onlyUnique(value, index, self) {
@@ -290,75 +290,75 @@ function LoadSIDS(interface) {
 
 function LoadDNSConfig()
 {
-	var url = "api/network/dns";
+    var url = "api/network/dns";
 
-	$.get(url, GetDNSInfo);
+    $.get(url, GetDNSInfo);
 }
 
 function ApplyNetworkConfig()
 {
-	$('#dialog-confirm').fppDialog({
-		resizeable: false,
-		width: 500,
-		modal: true,
-		buttons: {
-			"Yes" : {class:'btn-success',click:function() {
-				$(this).fppDialog("close");
-				$.post("api/network/interface/" + $('#selInterfaces').val() + "/apply");
-				}},
-			"Cancel and apply at next reboot" : {click:function() {
-				$(this).fppDialog("close");
-				}}
-			}
-		});
+    $('#dialog-confirm').fppDialog({
+        resizeable: false,
+        width: 500,
+        modal: true,
+        buttons: {
+            "Yes" : {class:'btn-success',click:function() {
+                $(this).fppDialog("close");
+                $.post("api/network/interface/" + $('#selInterfaces').val() + "/apply");
+                }},
+            "Cancel and apply at next reboot" : {click:function() {
+                $(this).fppDialog("close");
+                }}
+            }
+        });
 }
 
 function SaveNetworkConfig()
 {
-	if (validateNetworkFields() == false)
-	{
-		DialogError("Invalid Network Config", "Save Failed");
-		return;
-	}
+    if (validateNetworkFields() == false)
+    {
+        DialogError("Invalid Network Config", "Save Failed");
+        return;
+    }
 
-	var iface = $('#selInterfaces').val();
-	var url;
-	var data = {};
-	data.INTERFACE = iface;
-	if ($('#eth_static').is(':checked')) {
-		data.PROTO   = 'static';
-		data.ADDRESS = $('#eth_ip').val();
-		data.NETMASK = $('#eth_netmask').val();
-		data.GATEWAY = $('#eth_gateway').val();
-	} else {
-		data.PROTO   = 'dhcp';
-	}
+    var iface = $('#selInterfaces').val();
+    var url;
+    var data = {};
+    data.INTERFACE = iface;
+    if ($('#eth_static').is(':checked')) {
+        data.PROTO   = 'static';
+        data.ADDRESS = $('#eth_ip').val();
+        data.NETMASK = $('#eth_netmask').val();
+        data.GATEWAY = $('#eth_gateway').val();
+    } else {
+        data.PROTO   = 'dhcp';
+    }
 
-	if (iface.substr(0,2) == "wl")
-	{
-		data.SSID = $('#eth_ssid').val();
-		data.PSK = $('#eth_psk').val();
+    if (iface.substr(0,2) == "wl")
+    {
+        data.SSID = $('#eth_ssid').val();
+        data.PSK = $('#eth_psk').val();
         data.HIDDEN = $('#eth_hidden').is(':checked');
-	}
+    }
 
-	var postData = JSON.stringify(data);
+    var postData = JSON.stringify(data);
 
-	$.post("api/network/interface/" + iface, postData
-	).done(function(rc) {
+    $.post("api/network/interface/" + iface, postData
+    ).done(function(rc) {
     if (rc.status == "OK") {
-		LoadNetworkConfig();
-		$.jGrowl(iface + " network interface configuration saved",{themeState:'success'});
-		$('#btnConfigNetwork').show();
+        LoadNetworkConfig();
+        $.jGrowl(iface + " network interface configuration saved",{themeState:'success'});
+        $('#btnConfigNetwork').show();
 
-		if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
-			DialogOK("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.")
-		}
+        if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
+            DialogOK("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.")
+        }
   } else {
-		DialogError("Save Network Config", "Save Failed: " + rc.status);
+        DialogError("Save Network Config", "Save Failed: " + rc.status);
   }
-	}).fail(function() {
-		DialogError("Save Network Config", "Save Failed");
-	});
+    }).fail(function() {
+        DialogError("Save Network Config", "Save Failed");
+    });
 }
 
 function CreatePersistentNames() {
@@ -404,46 +404,46 @@ function ClearPersistentNames() {
 }
 
 function LoadNetworkConfig() {
-	var iface = $('#selInterfaces').val();
-	var url = "api/network/interface/" + iface;
-	var visible = iface.slice(0,2).toLowerCase() == "wl"?true:false;
+    var iface = $('#selInterfaces').val();
+    var url = "api/network/interface/" + iface;
+    var visible = iface.slice(0,2).toLowerCase() == "wl"?true:false;
 
-	WirelessSettingsVisible(visible);
-	$.get(url,GetInterfaceInfo);
+    WirelessSettingsVisible(visible);
+    $.get(url,GetInterfaceInfo);
 }
 
 function CheckDNSCallback(data) {
-	if (data.PROTO == "static") {
-	   if (($('#eth_static').is(':checked')) &&
-		($('#dns_dhcp').is(':checked'))) {
+    if (data.PROTO == "static") {
+       if (($('#eth_static').is(':checked')) &&
+        ($('#dns_dhcp').is(':checked'))) {
        setDNSWarning("Warning: You must manually configure your DNS Server(s) if all network interfaces use static IPs.");
-	   } else {
+       } else {
       setDNSWarning("");
-	   }
-	} else if ($('#eth_static').is(':checked') && ($('#eth_gateway').val() == '')) {
+       }
+    } else if ($('#eth_static').is(':checked') && ($('#eth_gateway').val() == '')) {
        setDNSWarning("Warning: if any interface is using DHCP while another interface is using a static IP address, you WILL need to enter a valid Gateway address.");
-	} else {
+    } else {
       setDNSWarning("");
-	}
+    }
 
 }
 
 function CheckDNS() {
-	var iface = $('#selInterfaces').val();
+    var iface = $('#selInterfaces').val();
 
-	if (iface == 'eth0')
-	{
-		// FIXME, check the size of #selInterfaces here to be > 1
-		iface = 'wlan0';
-	}
-	else if (iface == 'wlan0')
-   	{
-		iface = 'eth0';
-	}
+    if (iface == 'eth0')
+    {
+        // FIXME, check the size of #selInterfaces here to be > 1
+        iface = 'wlan0';
+    }
+    else if (iface == 'wlan0')
+    {
+        iface = 'eth0';
+    }
 
-	var url = "api/network/interface/" + iface;
+    var url = "api/network/interface/" + iface;
 
-	$.get(url,CheckDNSCallback);
+    $.get(url,CheckDNSCallback);
 }
 
 function setDNSWarning(msg) {
@@ -505,35 +505,35 @@ $(document).ready(function(){
 
 function GetInterfaceInfo(data,status)
 {
-	if(data.PROTO == "static")
-	{
-		$('#eth_static').prop('checked', true);
-		$('#eth_dhcp').prop('checked', false);
-		DisableNetworkFields(false);
-	}
-	else
-	{
-		$('#eth_dhcp').prop('checked', true);
-		$('#eth_static').prop('checked', false);
-		DisableNetworkFields(true);
-	}
+    if(data.PROTO == "static")
+    {
+        $('#eth_static').prop('checked', true);
+        $('#eth_dhcp').prop('checked', false);
+        DisableNetworkFields(false);
+    }
+    else
+    {
+        $('#eth_dhcp').prop('checked', true);
+        $('#eth_static').prop('checked', false);
+        DisableNetworkFields(true);
+    }
 
-	$('#eth_ip').val(data.ADDRESS);
-	$('#eth_netmask').val(data.NETMASK);
-	$('#eth_gateway').val(data.GATEWAY);
+    $('#eth_ip').val(data.ADDRESS);
+    $('#eth_netmask').val(data.NETMASK);
+    $('#eth_gateway').val(data.GATEWAY);
 
-	if (data.INTERFACE && data.INTERFACE.substr(0,2) == "wl")
-	{
-		$('#eth_ssid').val(data.SSID);
-		$('#eth_psk').val(data.PSK);
+    if (data.INTERFACE && data.INTERFACE.substr(0,2) == "wl")
+    {
+        $('#eth_ssid').val(data.SSID);
+        $('#eth_psk').val(data.PSK);
         if (data.HIDDEN == "1") {
             $('#eth_hidden').prop('checked', true);
         } else {
             $('#eth_hidden').prop('checked', false);
         }
-	}
+    }
 
-	CheckDNS();
+    CheckDNS();
 }
 
 function DisableNetworkFields(disabled)
@@ -550,24 +550,24 @@ function DisableDNSFields(disabled)
 }
 
 function setHostName() {
-	var newHostname = $('#hostName').val();
+    var newHostname = $('#hostName').val();
 
-	var regExpHostname = new RegExp(/^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])$/);
-	var regResultHostname = regExpHostname.exec(newHostname);
+    var regExpHostname = new RegExp(/^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])$/);
+    var regResultHostname = regExpHostname.exec(newHostname);
 
-	if (regResultHostname === null)
-	{
-		alert("Invalid hostname.  Hostname may contain only letters, numbers, and hyphens and may not begin or end with a hyphen.");
-		return;
-	}
+    if (regResultHostname === null)
+    {
+        alert("Invalid hostname.  Hostname may contain only letters, numbers, and hyphens and may not begin or end with a hyphen.");
+        return;
+    }
 
-	$.put("api/settings/HostName", $('#hostName').val()
-	).done(function() {
-		$.jGrowl("HostName Saved",{themeState:'success'});
+    $.put("api/settings/HostName", $('#hostName').val()
+    ).done(function() {
+        $.jGrowl("HostName Saved",{themeState:'success'});
         SetRebootFlag();
-	}).fail(function() {
-		DialogError("Save HostName", "Save Failed");
-	});
+    }).fail(function() {
+        DialogError("Save HostName", "Save Failed");
+    });
 }
 
 function setHostDescription() {
@@ -627,7 +627,7 @@ include 'menu.inc';?>
 
               <h2> Interface Settings</h2>
     <?php
-if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
+    if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
     ?>
     <table>
     <tr>
@@ -667,7 +667,7 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
                 <tr>
                   <td>IP Address:</td>
                   <td><input type="text" name="eth_ip" id="eth_ip" size=15 maxlength=15 onChange="checkStaticIP();">
-    								<input type="button" class="buttons" onClick='PingIP($("#eth_ip").val(), 3);' value='Ping'></td>
+                                    <input type="button" class="buttons" onClick='PingIP($("#eth_ip").val(), 3);' value='Ping'></td>
                 </tr>
                 <tr>
                   <td>Netmask:</td>
@@ -676,18 +676,18 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
                 <tr>
                   <td>Gateway:</td>
                   <td><input type="text" name="eth_gateway" id="eth_gateway" size="15" maxlength="15">
-    								<input type="button" class="buttons" onClick='PingIP($("#eth_gateway").val(), 3);' value='Ping'></td>
+                                    <input type="button" class="buttons" onClick='PingIP($("#eth_gateway").val(), 3);' value='Ping'></td>
                 </tr>
                 <tr>
-    	      <td colspan='2'>
+              <td colspan='2'>
                     <b><font color='#ff0000'><span id='ipWarning'></span></font></b>
                     <b><font color='#ff0000'><span id='dnsWarning'></span></font></b>
                   </td>
                 </tr>
               </table>
-    		  <br>
+              <br>
               <div id="WirelessSettings">
-    		  <b>Wireless Settings:</b>
+              <b>Wireless Settings:</b>
               <table width = "100%" border="0" cellpadding="1" cellspacing="1">
                 <tr>
                   <td width = "25%">WPA SSID:</td>
@@ -729,13 +729,13 @@ PrintSettingGroup('host');
                   <td width = "25%">DNS Server 1:</td>
                   <td width = "25%"><input type="text" name="dns1" id="dns1"></td>
                   <td width = "50%">
-    								<input type="button" class="buttons" onClick='PingIP($("#dns1").val(), 3);' value='Ping'></td>
+                                    <input type="button" class="buttons" onClick='PingIP($("#dns1").val(), 3);' value='Ping'></td>
                 </tr>
                 <tr>
                   <td>DNS Server 2:</td>
                   <td><input type="text" name="dns2" id="dns2"></td>
-    							<td>
-    								<input type="button" class="buttons" onClick='PingIP($("#dns2").val(), 3);' value='Ping'></td>
+                                <td>
+                                    <input type="button" class="buttons" onClick='PingIP($("#dns2").val(), 3);' value='Ping'></td>
                 </tr>
               </table>
               <br>
@@ -784,7 +784,7 @@ PrintSettingGroup('tethering');
 
 
     <div id="dialog-confirm" style="display: none">
-    	<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Reconfiguring the network will cause you to lose your connection and have to reconnect if you have changed the IP address.  Do you wish to proceed?</p>
+        <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Reconfiguring the network will cause you to lose your connection and have to reconnect if you have changed the IP address.  Do you wish to proceed?</p>
     </div>
     <div id="dialog-clear-persistent" style="display: none">
     <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Clearing out persistent device names can cause interfaces to use different configuration and become unavailable.  Do you wish to proceed?</p>

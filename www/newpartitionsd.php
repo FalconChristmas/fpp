@@ -6,9 +6,7 @@ DisableOutputBuffering();
 
     $command = "sudo /opt/fpp/SD/newpartition.sh 2>&1";
 
-		echo "Command: $command\n";
-		echo "----------------------------------------------------------------------------------\n";
-		system($command);
-		echo "\n";
-
-?>
+        echo "Command: $command\n";
+        echo "----------------------------------------------------------------------------------\n";
+        system($command);
+        echo "\n";

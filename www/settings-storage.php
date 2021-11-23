@@ -112,7 +112,7 @@ function checkFormatStorage()
     
 <?php
 if ($settings['Platform'] == "BeagleBone Black") {
-?>
+    ?>
 function flashEMMC() {
     $('#dialog-confirm-emmc')
         .fppDialog({
@@ -149,31 +149,31 @@ function flashEMMCBtrfs() {
             }
             });
 }
-<?php
+    <?php
 }
 ?>
 </script>
 
 <?php
-    
+
 function PrintStorageDeviceSelect($platform)
 {
-	global $SUDO;
+    global $SUDO;
 
-	# FIXME, this would be much simpler by parsing "lsblk -l"
-	exec('lsblk -l | grep /boot | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
+    # FIXME, this would be much simpler by parsing "lsblk -l"
+    exec('lsblk -l | grep /boot | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
     if (count($output) > 0) {
         $bootDevice = $output[0];
     } else {
         $bootDevice = "";
     }
-	unset($output);
+    unset($output);
 
     if ($platform == "BeagleBone Black") {
         exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
         $rootDevice = $output[0];
         unset($output);
-        
+
         if ($bootDevice == "") {
             exec('findmnt -n -o SOURCE / | colrm 1 5 | sed -e "s/p[0-9]$//"', $output, $return_val);
             $bootDevice = $output[0];
@@ -185,86 +185,83 @@ function PrintStorageDeviceSelect($platform)
         unset($output);
     }
 
-	$storageDevice = "";
-	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
-	if (isset($output[0]))
-		$storageDevice = $output[0];
-	unset($output);
+    $storageDevice = "";
+    exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
+    if (isset($output[0])) {
+        $storageDevice = $output[0];
+    }
+    unset($output);
 
-	$found = 0;
-	$values = Array();
+    $found = 0;
+    $values = array();
 
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if ((preg_match("/^sd[a-z][0-9]/", $fileName)) ||
-			(preg_match("/^mmcblk[0-9]p[0-9]/", $fileName)))
-		{
-			exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
-			$GB = intval($output[0]) / 1024.0 / 1024.0;
-			unset($output);
+    foreach (scandir("/dev/") as $fileName) {
+        if (
+            (preg_match("/^sd[a-z][0-9]/", $fileName)) ||
+            (preg_match("/^mmcblk[0-9]p[0-9]/", $fileName))
+        ) {
+            exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
+            $GB = intval($output[0]) / 1024.0 / 1024.0;
+            unset($output);
 
-			if ($GB <= 0.1)
-				continue;
+            if ($GB <= 0.1) {
+                continue;
+            }
 
-			$FreeGB = "Not Mounted";
-			exec("df -k /dev/$fileName | grep $fileName | awk '{print $4}'", $output, $return_val);
-			if (count($output))
-			{
-				$FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
-				unset($output);
-			}
-			else
-			{
-				unset($output);
+            $FreeGB = "Not Mounted";
+            exec("df -k /dev/$fileName | grep $fileName | awk '{print $4}'", $output, $return_val);
+            if (count($output)) {
+                $FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
+                unset($output);
+            } else {
+                unset($output);
 
-				if (preg_match("/^$rootDevice/", $fileName))
-				{
-					exec("df -k / | grep ' /$' | awk '{print \$4}'", $output, $return_val);
-					if (count($output))
-						$FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
-					unset($output);
-				}
-			}
+                if (preg_match("/^$rootDevice/", $fileName)) {
+                    exec("df -k / | grep ' /$' | awk '{print \$4}'", $output, $return_val);
+                    if (count($output)) {
+                        $FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
+                    }
+                    unset($output);
+                }
+            }
 
-			$key = $fileName . " ";
-			$type = "";
+            $key = $fileName . " ";
+            $type = "";
 
-			if (preg_match("/^$bootDevice/", $fileName))
-			{
-				$type .= " (boot device)";
-			}
+            if (preg_match("/^$bootDevice/", $fileName)) {
+                $type .= " (boot device)";
+            }
 
-			if (preg_match("/^sd/", $fileName))
-			{
-				$type .= " (USB)";
-			}
+            if (preg_match("/^sd/", $fileName)) {
+                $type .= " (USB)";
+            }
 
-			$key = sprintf( "%s - %.1fGB (%s) %s", $fileName, $GB, $FreeGB, $type);
+            $key = sprintf("%s - %.1fGB (%s) %s", $fileName, $GB, $FreeGB, $type);
 
-			$values[$key] = $fileName;
+            $values[$key] = $fileName;
 
-			if ($storageDevice == $fileName)
-				$found = 1;
-		}
-	}
+            if ($storageDevice == $fileName) {
+                $found = 1;
+            }
+        }
+    }
 
-	if (!$found)
-	{
-		$arr = array_reverse($values, true);
-		$values = array_reverse($arr);
-	}
+    if (!$found) {
+        $arr = array_reverse($values, true);
+        $values = array_reverse($arr);
+    }
     if ($storageDevice == "") {
         $storageDevice = $rootDevice;
     }
 
-	PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values, "", "checkFormatStorage");
+    PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values, "", "checkFormatStorage");
 }
-    
+
 ?>
 
     
 <?php
-if ($settings['SubPlatform'] != "Docker" ) { ?>
+if ($settings['SubPlatform'] != "Docker") { ?>
     <b>Storage Device:</b> &nbsp;<? PrintStorageDeviceSelect($settings['Platform']); ?>
     
     <div class="callout callout-warning">
@@ -309,10 +306,10 @@ if ($addnewfsbutton) {
 <? } ?>
 
     <hr class="mt-2 mb-2">
-<?php
+    <?php
 }
 if ($addflashbutton) {
-?>
+    ?>
 
 <h3>eMMC Actions:</h3>
 
@@ -325,8 +322,8 @@ if ($addflashbutton) {
         <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMCBtrfs();'></div>
         <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i>&nbsp;This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.<br>BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.</div>
     </div>
-<?php
-   }
+    <?php
+}
 }
 ?>
 

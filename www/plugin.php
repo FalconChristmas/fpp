@@ -1,8 +1,7 @@
 <?php
 $pluginName = "";
 $activeParentMenuItem = "status";
-if (!isset($_GET['nopage'])):
-
+if (!isset($_GET['nopage'])) :
     require_once "config.php";
     require_once "common.php";
 
@@ -18,7 +17,6 @@ if (!isset($_GET['nopage'])):
         if (file_exists($pluginConfigFile)) {
             $pluginSettings = parse_ini_file($pluginConfigFile);
         }
-
     }
 
     $infoFile = $pluginDirectory . '/' . $pluginName . '/pluginInfo.json';
@@ -30,12 +28,12 @@ if (!isset($_GET['nopage'])):
 
     ?>
 
-	<!DOCTYPE html>
-	<html>
-	<head>
-	<?php include 'common/menuHead.inc';?>
-	<title><?echo $pageTitle; ?></title>
-	<script type="text/javascript">
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <?php include 'common/menuHead.inc';?>
+    <title><?echo $pageTitle; ?></title>
+    <script type="text/javascript">
 function bindSettingsVisibilityListener() {
     var visProp = getHiddenProp();
     if (visProp) {
@@ -69,16 +67,16 @@ $(document).ready(function() {
     bindSettingsVisibilityListener();
 });
 
-	var pluginSettings = new Array();
+    var pluginSettings = new Array();
 
-		<?
+        <?
     foreach ($pluginSettings as $key => $value) {
-        printf("	pluginSettings['%s'] = \"%s\";\n", $key, $value);
+        printf("    pluginSettings['%s'] = \"%s\";\n", $key, $value);
     }
     ?>
-										</script>
+                                        </script>
 
-										<?
+                                        <?
 
     $jsDir = $pluginDirectory . "/" . $pluginName . "/js/";
     if (file_exists($jsDir)) {
@@ -105,17 +103,17 @@ $(document).ready(function() {
     }
 
     ?>
-	</head>
-	<body>
-	<div id="bodyWrapper">
-	<?php include 'menu.inc';?>
-	<div class="mainContainer">
-	<h1 class="title"><?echo $pluginInfo['name']; ?></h1>
-	<div class="pageContent">
+    </head>
+    <body>
+    <div id="bodyWrapper">
+    <?php include 'menu.inc';?>
+    <div class="mainContainer">
+    <h1 class="title"><?echo $pluginInfo['name']; ?></h1>
+    <div class="pageContent">
 
 
-	<?php
-else:
+    <?php
+else :
     $skipJSsettings = 1;
     require_once "config.php";
 endif;
@@ -146,20 +144,27 @@ if (!isset($_GET['plugin'])) {
         $file_extension = strtolower(substr(strrchr($filename, "."), 1));
 
         switch ($file_extension) {
-            case "gif":$ctype = "image/gif;";
+            case "gif":
+                $ctype = "image/gif;";
                 break;
-            case "png":$ctype = "image/png;";
+            case "png":
+                $ctype = "image/png;";
                 break;
             case "jpeg":
-            case "jpg":$ctype = "image/jpg;";
+            case "jpg":
+                $ctype = "image/jpg;";
                 break;
-            case "js":$ctype = "text/javascript;";
+            case "js":
+                $ctype = "text/javascript;";
                 break;
-            case "json":$ctype = "application/json;";
+            case "json":
+                $ctype = "application/json;";
                 break;
-            case "css":$ctype = "text/css;";
+            case "css":
+                $ctype = "text/css;";
                 break;
-            default:$ctype = "text/plain;";
+            default:
+                $ctype = "text/plain;";
                 break;
         }
 
@@ -182,10 +187,10 @@ if (!isset($_GET['plugin'])) {
     echo "Plugin invalid, no main page exists";
 }
 
-if (!isset($_GET['nopage'])): ?>
+if (!isset($_GET['nopage'])) : ?>
 </div>
 </div>
-<?php	include 'common/footer.inc';?>
+    <?php	include 'common/footer.inc';?>
 </div>
 </body>
 </html>

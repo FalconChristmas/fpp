@@ -82,7 +82,6 @@ function getFileCount($dir)
             if (!in_array($file, array('.', '..')) && !is_dir($dir . $file)) {
                 $i++;
             }
-
         }
     }
 
@@ -291,8 +290,8 @@ tr.rowScheduleDetails td {
 <body>
 <div id="bodyWrapper">
   <?php
-$activeParentMenuItem = 'help';
-include 'menu.inc';?>
+    $activeParentMenuItem = 'help';
+    include 'menu.inc';?>
   <div class="mainContainer">
     <div class="title">About FPP</div>
     <div class="pageContent">

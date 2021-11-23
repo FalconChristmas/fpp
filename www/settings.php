@@ -13,7 +13,7 @@ include('common/menuHead.inc');
 <script type="text/javascript" src="js/jquery.timepicker.min.js"></script>
 <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 
 
 <script>
@@ -79,7 +79,7 @@ if (isset($_GET['tab'])) {
 
 <body>
 <div id="bodyWrapper">
-<?php 
+<?php
 $activeParentMenuItem = 'status';
 include 'menu.inc'; ?>
   <div class="mainContainer">
@@ -186,7 +186,7 @@ include 'menu.inc'; ?>
 <script>
 var activeTabNumber =
 <?php
-    $tabIDs = Array();
+    $tabIDs = array();
     $id = 0;
     $tabIDs["Playback"] = $id++;
     $tabIDs["AV"] = $id++;
@@ -195,17 +195,23 @@ var activeTabNumber =
     $tabIDs["Email"] = $id++;
     $tabIDs["MQTT"] = $id++;
     $tabIDs["Privacy"] = $id++;
-    if ($uiLevel >= 1 || $tabId == "Output") $tabIDs["Output"] = $id++;
+if ($uiLevel >= 1 || $tabId == "Output") {
+    $tabIDs["Output"] = $id++;
+}
     $tabIDs["Logging"] = $id++;
-    if ($uiLevel >= 1 || $tabId == "Storage") $tabIDs["Storage"] = $id++;
+if ($uiLevel >= 1 || $tabId == "Storage") {
+    $tabIDs["Storage"] = $id++;
+}
     $tabIDs["System"] = $id++;
-    if ($uiLevel >= 3 || $tabId == "Developer") $tabIDs["Developer"] = $id++;
+if ($uiLevel >= 3 || $tabId == "Developer") {
+    $tabIDs["Developer"] = $id++;
+}
 
-    if (!array_key_exists($tabId, $tabIDs)) {
-        print $tabId;
-    } else {
-        print $tabIDs[$tabId];
-    }
+if (!array_key_exists($tabId, $tabIDs)) {
+    print $tabId;
+} else {
+    print $tabIDs[$tabId];
+}
 ?>;
 
 var tabs={}

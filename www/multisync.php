@@ -7,8 +7,10 @@ require_once "common.php";
 include 'common/menuHead.inc';
 
 $advancedView = true;
-if ((isset($settings['MultiSyncAdvancedView'])) &&
-    ($settings['MultiSyncAdvancedView'] == 1)) {
+if (
+    (isset($settings['MultiSyncAdvancedView'])) &&
+    ($settings['MultiSyncAdvancedView'] == 1)
+) {
     $advancedView = true;
 }
 
@@ -199,7 +201,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         }
 
         $("input.syncCheckbox").each(function() {
-			if ($(this).is(":checked")) {
+            if ($(this).is(":checked")) {
                 let name = $(this).attr('name');
                 let msg = "";
                 if (multicastChecked) {
@@ -217,16 +219,16 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     }
 
     function updateMultiSyncRemotes(verbose = false) {
-		var remotes = "";
+        var remotes = "";
 
-		$('input.syncCheckbox').each(function() {
-			if ($(this).is(":checked")) {
-				if (remotes != "") {
-					remotes += ",";
-				}
-				remotes += $(this).attr("name");
-			}
-		});
+        $('input.syncCheckbox').each(function() {
+            if ($(this).is(":checked")) {
+                if (remotes != "") {
+                    remotes += ",";
+                }
+                remotes += $(this).attr("name");
+            }
+        });
 
         var multicastChecked = $('#MultiSyncMulticast').is(":checked");
         var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
@@ -238,9 +240,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             alert('FPP will use multicast if no other sync methods are chosen.');
         }
 
-		$.put("api/settings/MultiSyncRemotes", remotes
-		).done(function() {
-			settings['MultiSyncRemotes'] = remotes;
+        $.put("api/settings/MultiSyncRemotes", remotes
+        ).done(function() {
+            settings['MultiSyncRemotes'] = remotes;
             if (verbose) {
                 if (remotes == "") {
                     $.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.",{themeState:'success'});
@@ -256,10 +258,10 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             CheckRestartRebootFlags();
             validateMultiSyncSettings();
         }).fail(function() {
-			DialogError("Save Remotes", "Save Failed");
-		});
+            DialogError("Save Remotes", "Save Failed");
+        });
 
-	}
+    }
 
     function isFPP(typeId) {
         typeId = parseInt(typeId);
@@ -372,8 +374,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     }
 
     var ipRows = new Object();
-	function getFPPSystemInfo(ip) {
-		$.get(wrapUrlWithProxy(ip) + "/fppjson.php?command=getHostNameInfo", function(data) {
+    function getFPPSystemInfo(ip) {
+        $.get(wrapUrlWithProxy(ip) + "/fppjson.php?command=getHostNameInfo", function(data) {
             if (ipRows.hasOwnProperty(ip)) {
                 var rowID = ipRows[ip];
                 var origDesc = $('#' + rowID).find('.hostDescriptionSM').html();
@@ -381,8 +383,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     $('#' + rowID).find('.hostDescriptionSM').html(data.HostDescription);
             }
             validateMultiSyncSettings();
-		});
-	}
+        });
+    }
 
     var refreshTimer = null;
     function clearRefreshTimers() {
@@ -391,9 +393,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     }
     var unavailables = [];
 
-	function getFPPSystemStatus(ipAddresses, refreshing = false) {
-	ips = "";
-	if (Array.isArray(ipAddresses)) {
+    function getFPPSystemStatus(ipAddresses, refreshing = false) {
+    ips = "";
+    if (Array.isArray(ipAddresses)) {
         if (refreshTimer != null) {
             clearTimeout(refreshTimer);
             delete refreshTimer;
@@ -401,76 +403,76 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         }
            ipAddresses.forEach(function(entry) {
                ips += "&ip[]=" + entry;
-	   });
-	} else {
+       });
+    } else {
         ips = "&ip[]=" + ipAddresses;
     }
     $.get("api/system/status?ip=" + ips + '&advancedView=true')
     .done(function(alldata) {
         systemStatusCache = alldata;
         jQuery.each(alldata, function(ip, data) {
-			var status = 'Idle';
-			var statusInfo = "";
-			var elapsed = "";
-			var files = "";
+            var status = 'Idle';
+            var statusInfo = "";
+            var elapsed = "";
+            var files = "";
             if (data == null || data == "" || data == "null") {
                 return;
             }
 
-			if (data.status_name == 'playing') {
-				status = 'Playing';
+            if (data.status_name == 'playing') {
+                status = 'Playing';
 
-				elapsed = data.time_elapsed;
+                elapsed = data.time_elapsed;
 
-				if (data.current_sequence != "") {
-					files += data.current_sequence;
-					if (data.current_song != "")
-						files += "<br>" + data.current_song;
-				} else {
-					files += data.current_song;
-				}
+                if (data.current_sequence != "") {
+                    files += data.current_sequence;
+                    if (data.current_song != "")
+                        files += "<br>" + data.current_song;
+                } else {
+                    files += data.current_song;
+                }
 
                 if (files != "")
                     status += ":<br>" + files;
-			} else if (data.status_name == 'updating') {
-				status = 'Updating';
-			} else if (data.status_name == 'stopped') {
-				status = 'Stopped';
-			} else if (data.status_name == 'stopping gracefully') {
-				status = 'Stopping Gracefully';
-			} else if (data.status_name == 'stopping gracefully after loop') {
-				status = 'Stopping Gracefully After Loop';
-			} else if (data.status_name == 'paused') {
-				status = 'Paused';
-			} else if (data.status_name == 'testing') {
-				status = 'Testing';
+            } else if (data.status_name == 'updating') {
+                status = 'Updating';
+            } else if (data.status_name == 'stopped') {
+                status = 'Stopped';
+            } else if (data.status_name == 'stopping gracefully') {
+                status = 'Stopping Gracefully';
+            } else if (data.status_name == 'stopping gracefully after loop') {
+                status = 'Stopping Gracefully After Loop';
+            } else if (data.status_name == 'paused') {
+                status = 'Paused';
+            } else if (data.status_name == 'testing') {
+                status = 'Testing';
             } else if (data.status_name == 'unreachable') {
                 unavailables[ip]++;
                 status = "unreachable";
             } else if (data.status_name == 'password') {
                 status = '<font color="red">Protected</font>';
-			} else if (data.status_name == 'unknown') {
+            } else if (data.status_name == 'unknown') {
                 status = '-';
             } else if (data.status_name == 'idle') {
-				if (data.mode_name == 'remote') {
-					if ((data.sequence_filename != "") ||
-						(data.media_filename != "")) {
-						status = 'Syncing';
+                if (data.mode_name == 'remote') {
+                    if ((data.sequence_filename != "") ||
+                        (data.media_filename != "")) {
+                        status = 'Syncing';
 
-						elapsed += data.time_elapsed;
+                        elapsed += data.time_elapsed;
 
-						if (data.sequence_filename != "") {
-							files += data.sequence_filename;
-							if (data.media_filename != "")
-								files += "<br>" + data.media_filename;
-						} else {
-							files += data.media_filename;
-						}
+                        if (data.sequence_filename != "") {
+                            files += data.sequence_filename;
+                            if (data.media_filename != "")
+                                files += "<br>" + data.media_filename;
+                        } else {
+                            files += data.media_filename;
+                        }
 
                         if (files != "")
                             status += ":<br>" + files;
-					}
-				}
+                    }
+                }
             } else {
                 status = data.status_name;
             }
@@ -478,7 +480,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 unavailables[ip] = 0;
             }
 
-			var rowID = "fpp_" + ip.replace(/\./g, '_');
+            var rowID = "fpp_" + ip.replace(/\./g, '_');
             var hostRowKey = ip.replace(/\./g, '_');
 
             rowID = hostRows[hostRowKey];
@@ -519,7 +521,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             if ($('#' + rowID).attr('ip') != ip)
                 $('#' + rowID).attr('ip', ip);
 
-			$('#' + rowID + '_elapsed').html(elapsed);
+            $('#' + rowID + '_elapsed').html(elapsed);
 
             if (data.warnings != null && data.warnings.length > 0) {
                var result_style = document.getElementById(rowID + '_warnings').style;
@@ -539,11 +541,11 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             }
             rowSpanSet(rowID);
 
-	    //Expert View Rows
-	    if( data.hasOwnProperty('advancedView') && data.status_name !== 'unknown' && data.status_name !== 'unreachable' && data.status_name !== 'password') {
-		if (data.advancedView.hasOwnProperty('Platform')) {
-			$('#' + rowID + '_platform').html(data.advancedView.Platform);
-	        }
+        //Expert View Rows
+        if( data.hasOwnProperty('advancedView') && data.status_name !== 'unknown' && data.status_name !== 'unreachable' && data.status_name !== 'password') {
+        if (data.advancedView.hasOwnProperty('Platform')) {
+            $('#' + rowID + '_platform').html(data.advancedView.Platform);
+            }
 
                 var updatesAvailable = 0;
                 if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
@@ -652,28 +654,28 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
             if ($('.logRow:visible').length == 0)
                 $('#fppSystems').trigger('update', true);
-		}).always(function() {
-			if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
-				refreshTimer = setTimeout(function() {getFPPSystemStatus(ipAddresses, true);}, 2000);
+        }).always(function() {
+            if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+                refreshTimer = setTimeout(function() {getFPPSystemStatus(ipAddresses, true);}, 2000);
             }
-		});
+        });
 
         validateMultiSyncSettings();
-	} // end of "api/system/status?ip=" + ips + '&advancedView=true'
+    } // end of "api/system/status?ip=" + ips + '&advancedView=true'
 
     function ipLink(ip) {
         return "<a href='" + wrapUrlWithProxy(ip) + "/' ip='" + ip + "'>" + ip + "</a>";
     }
 
     function parseFPPSystems(data) {
-	$('#fppSystems').empty();
-	rowSpans = [];
+    $('#fppSystems').empty();
+    rowSpans = [];
 
         var uniqueHosts = new Object();
 
         var fppIpAddresses = [];
-		var remotes = [];
-		if ((settings['MultiSyncEnabled'] == '1') &&
+        var remotes = [];
+        if ((settings['MultiSyncEnabled'] == '1') &&
             (settings['fppMode'] == 'player')) {
             if (typeof settings['MultiSyncRemotes'] === 'string') {
                 var tarr = settings['MultiSyncRemotes'].split(',');
@@ -690,12 +692,12 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 }
             }
 
-			$('.masterOptions').show();
-		}
+            $('.masterOptions').show();
+        }
 
-		for (var i = 0; i < data.length; i++) {
-			var star = "";
-			var ip = data[i].address;
+        for (var i = 0; i < data.length; i++) {
+            var star = "";
+            var ip = data[i].address;
             var hostDescription = "";
 
             if (ip.indexOf('169.254') == 0)
@@ -723,7 +725,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 continue;
             }
 
-			var rowID = "fpp_" + ip.replace(/\./g, '_');
+            var rowID = "fpp_" + ip.replace(/\./g, '_');
             var newHost = 1;
             var hostRowKey = ip.replace(/\./g, '_');
 
@@ -782,7 +784,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                 rowSpans[rowID] = 1;
 
-		var ipTxt = data[i].local ? data[i].address : ipLink(data[i].address);
+        var ipTxt = data[i].local ? data[i].address : ipLink(data[i].address);
 
                 if ((data[i].fppModeString == 'remote') && (star != ""))
                     ipTxt = "<small class='hostDescriptionSM'>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
@@ -871,8 +873,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
         if (extras != '' && origExtra != extras) {
             <?php
-if ($uiLevel >= 1) {
-    ?>
+            if ($uiLevel >= 1) {
+            ?>
             var inp = document.getElementById("MultiSyncExtraRemotes");
             if (inp) {
                 $('#MultiSyncExtraRemotes').val(extras);
@@ -884,23 +886,23 @@ if ($uiLevel >= 1) {
         }
 
         $('#fppSystems').trigger('update', true);
-	}
+    }
 
     var systemsList = [];
-	function getFPPSystems() {
-		if (streamCount) {
-			alert("FPP Systems are being updated, you will need to manually refresh once these updates are complete.");
-			return;
-		}
+    function getFPPSystems() {
+        if (streamCount) {
+            alert("FPP Systems are being updated, you will need to manually refresh once these updates are complete.");
+            return;
+        }
 
-		$('.masterOptions').hide();
-		$('#fppSystems').html("<tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>");
+        $('.masterOptions').hide();
+        $('#fppSystems').html("<tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>");
 
         $.get('api/fppd/multiSyncSystems', function(data) {
             systemsList = data.systems;
             parseFPPSystems(data.systems);
-		});
-	}
+        });
+    }
 
 var ESPSockets = {};
 function parseESPixelStickConfig(ip, data) {
@@ -1203,18 +1205,18 @@ function RefreshStats() {
 }
 
 function autoRefreshToggled() {
-	if ($('#MultiSyncRefreshStatus').is(":checked")) {
+    if ($('#MultiSyncRefreshStatus').is(":checked")) {
         RefreshStats();
-	}
+    }
 }
 
 function reloadMultiSyncPage() {
-	if (streamCount) {
-		alert("FPP Systems are being updated, you will need to manually refresh once these updates are complete.");
-		return;
-	}
+    if (streamCount) {
+        alert("FPP Systems are being updated, you will need to manually refresh once these updates are complete.");
+        return;
+    }
 
-	reloadPage();
+    reloadPage();
 }
 
 function syncModeUpdated(setting = '') {
@@ -1318,7 +1320,7 @@ function upgradeDone(id) {
 
     if (origins.hasOwnProperty(ip)) {
         for (var i = 0; i < origins[ip].length; i++) {
-			var rowID = "fpp_" + origins[ip][i].replace(/\./g, '_');
+            var rowID = "fpp_" + origins[ip][i].replace(/\./g, '_');
             upgradeSystem(rowID);
         }
     }
@@ -1376,8 +1378,8 @@ function showWaitingOnOriginUpdate(rowID, origin) {
 var origins = {};
 function upgradeSelectedSystems() {
     $origins = {};
-	$('input.remoteCheckbox').each(function() {
-		if ($(this).is(":checked")) {
+    $('input.remoteCheckbox').each(function() {
+        if ($(this).is(":checked")) {
             var rowID = $(this).closest('tr').attr('id');
             if ($('#' + rowID).hasClass('filtered')) {
                 return true;
@@ -1396,8 +1398,8 @@ function upgradeSelectedSystems() {
     });
 
     var originsUpdating = {};
-	$('input.remoteCheckbox').each(function() {
-		if ($(this).is(":checked")) {
+    $('input.remoteCheckbox').each(function() {
+        if ($(this).is(":checked")) {
             var rowID = $(this).closest('tr').attr('id');
             if ($('#' + rowID).hasClass('filtered')) {
                 return true;
@@ -1410,8 +1412,8 @@ function upgradeSelectedSystems() {
         }
     });
 
-	$('input.remoteCheckbox').each(function() {
-		if ($(this).is(":checked")) {
+    $('input.remoteCheckbox').each(function() {
+        if ($(this).is(":checked")) {
             var rowID = $(this).closest('tr').attr('id');
             if ($('#' + rowID).hasClass('filtered')) {
                 return true;
@@ -1475,8 +1477,8 @@ function setSystemMode(rowID, mode) {
 }
 
 function restartSelectedSystems() {
-	$('input.remoteCheckbox').each(function() {
-		if ($(this).is(":checked")) {
+    $('input.remoteCheckbox').each(function() {
+        if ($(this).is(":checked")) {
             var rowID = $(this).closest('tr').attr('id');
             if ($('#' + rowID).hasClass('filtered')) {
                 return true;
@@ -1584,8 +1586,8 @@ function copyFileToSystem(file, rowID) {
 }
 
 function copyFilesToSelectedSystems() {
-	$('input.remoteCheckbox').each(function() {
-		if ($(this).is(":checked")) {
+    $('input.remoteCheckbox').each(function() {
+        if ($(this).is(":checked")) {
             var rowID = $(this).closest('tr').attr('id');
             if ($('#' + rowID).hasClass('filtered')) {
                 return true;
@@ -1601,7 +1603,7 @@ function copyOSFilesToSelectedSystems() {
     let files=[];
     let targets=[];
     $("#copyOSOptionsDetails input").each(function() {
-		if ($(this).is(":checked")) {
+        if ($(this).is(":checked")) {
             let name = $(this).attr('id');
             localFpposFiles.forEach(function(f){
                 if (name === f.name) {
@@ -1612,7 +1614,7 @@ function copyOSFilesToSelectedSystems() {
     });
 
     $('input.remoteCheckbox').each(function() {
-		if ($(this).is(":checked")) {
+        if ($(this).is(":checked")) {
             var rowID = $(this).closest('tr').attr('id');
             if ($('#' + rowID).hasClass('filtered')) {
                 return true;
@@ -1756,28 +1758,28 @@ function multiActionChanged() {
 </head>
 <body>
 <div id="bodyWrapper">
-	<?php
-$activeParentMenuItem = 'status';
-include 'menu.inc';?>
+    <?php
+    $activeParentMenuItem = 'status';
+    include 'menu.inc';?>
     <div class="mainContainer">
     <h1 class="title">FPP MultiSync</h1>
         <div class="pageContent">
 
-        	<div id="uifppsystems" class="settings">
+            <div id="uifppsystems" class="settings">
 
 
                     <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
                         <div class='fppTableContents' role="region" aria-labelledby="fppSystemsTable" tabindex="0">
-        			<table id='fppSystemsTable' cellpadding='3'>
-        				<thead>
-        					<tr>
-        						<th class="hostnameColumn" data-placeholder="Hostname">Hostname</th>
-        						<th data-placeholder="IP Address">IP Address</th>
-        						<th >Platform</th>
-        						<th >Mode</th>
-        						<th data-placeholder="Status">Status</th>
-        						<th data-sorter='false' data-filter='false'>Elapsed</th>
-        						<th data-placeholder="Version">Version</th>
+                    <table id='fppSystemsTable' cellpadding='3'>
+                        <thead>
+                            <tr>
+                                <th class="hostnameColumn" data-placeholder="Hostname">Hostname</th>
+                                <th data-placeholder="IP Address">IP Address</th>
+                                <th >Platform</th>
+                                <th >Mode</th>
+                                <th data-placeholder="Status">Status</th>
+                                <th data-sorter='false' data-filter='false'>Elapsed</th>
+                                <th data-placeholder="Version">Version</th>
 
                                 <th data-sorter='false' data-filter='false'>Git Versions</th>
                                 <th data-sorter='false' data-filter='false'>Utilization</th>
@@ -1833,8 +1835,8 @@ include 'menu.inc';?>
             <span class='actionOptions' id='copyOptions'>
                 <br>
         <?php
-PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
-?>
+        PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
+        ?>
             </span>
         </div>
 
@@ -1874,10 +1876,10 @@ if ($uiLevel > 0) {
 
 
 
-        	</div>
+            </div>
         </div>
     </div>
-	<?php include 'common/footer.inc';?>
+    <?php include 'common/footer.inc';?>
 </div>
 
 <script>

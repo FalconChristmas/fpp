@@ -85,57 +85,57 @@ function HTMLForOutputProcessorConfig(output) {
 }
 
 function PopulateOutputProcessorTable(data) {
-	$('#outputProcessors tbody').html("");
+    $('#outputProcessors tbody').html("");
 
-	for (var i = 0; i < data.outputProcessors.length; i++) {
+    for (var i = 0; i < data.outputProcessors.length; i++) {
         var output = data.outputProcessors[i];
         var type = output.type;
 
-		var html =
-			"<tr id='row" + i + "' class='fppTableRow'>" +
+        var html =
+            "<tr id='row" + i + "' class='fppTableRow'>" +
             "<td>" + (i+1) + "</td>" +
-			"<td><input class='active' type='checkbox'";
+            "<td><input class='active' type='checkbox'";
 
-		if (output.active)
-			html += " checked";
+        if (output.active)
+            html += " checked";
 
-		html += "></td>"
+        html += "></td>"
             + "<td>" + type + "</td>"
             + "<td><input class='description' type='text' size='32' maxlength='64' value='" + output.description + "'></td><td>";
 
         html += HTMLForOutputProcessorConfig(output);
-		html += "</td></tr>";
+        html += "</td></tr>";
 
-		$('#outputProcessors tbody').append(html);
-	}
+        $('#outputProcessors tbody').append(html);
+    }
 }
 
 function GetOutputProcessors() {
-	$.getJSON("api/channel/output/processors", function(data) {
-		PopulateOutputProcessorTable(data);
-	}).fail(function(){
+    $.getJSON("api/channel/output/processors", function(data) {
+        PopulateOutputProcessorTable(data);
+    }).fail(function(){
         DialogError("Error", "Failed to load Output Processors");
     });
 }
 
 function SetOutputProcessors() {
-	var dataError = 0;
-	var data = {};
-	var processors = [];
+    var dataError = 0;
+    var data = {};
+    var processors = [];
     var rowNumber = 1;
 
-	$('#outputProcessors tbody tr').each(function() {
-		$this = $(this);
-		// Type
-		var type = $this.find("td:nth-child(3)").html();
+    $('#outputProcessors tbody tr').each(function() {
+        $this = $(this);
+        // Type
+        var type = $this.find("td:nth-child(3)").html();
 
-		// User has not selected a type yet
-		if (type.indexOf("<select") >= 0) {
-			DialogError("Output Processors",
-				"Output Processor type must be selected on row " + rowNumber);
-			dataError = 1;
-			return;
-		}
+        // User has not selected a type yet
+        if (type.indexOf("<select") >= 0) {
+            DialogError("Output Processors",
+                "Output Processor type must be selected on row " + rowNumber);
+            dataError = 1;
+            return;
+        }
         if (type == "Remap") {
             var remap = {
                 type: "Remap",
@@ -146,7 +146,7 @@ function SetOutputProcessors() {
                 count: parseInt($this.find("input.count").val()),
                 loops: parseInt($this.find("input.loops").val()),
                 reverse: parseInt($this.find("select.reverse").val())
-			};
+            };
             if ((remap.source > 0) &&
                 (remap.destination > 0) &&
                 (remap.count > 0) &&
@@ -166,7 +166,7 @@ function SetOutputProcessors() {
                 count: parseInt($this.find("input.count").val()),
                 brightness: parseInt($this.find("input.brightness").val()),
                 gamma: parseFloat($this.find("input.gamma").val())
-			};
+            };
             if ((b.start > 0) &&
                 (b.count > 0)) {
                 processors.push(b);
@@ -183,7 +183,7 @@ function SetOutputProcessors() {
                 start: parseInt($this.find("input.start").val()),
                 count: parseInt($this.find("input.count").val()),
                 value: parseInt($this.find("input.value").val())
-			};
+            };
             if ((b.start > 0) &&
                 (b.count > 0)) {
                 processors.push(b);
@@ -199,7 +199,7 @@ function SetOutputProcessors() {
                 description: $this.find("input.description").val(),
                 start: parseInt($this.find("input.start").val()),
                 count: parseInt($this.find("input.count").val()),
-			};
+            };
             if ((b.start > 0) &&
                 (b.count > 0)) {
                 processors.push(b);
@@ -216,7 +216,7 @@ function SetOutputProcessors() {
                 start: parseInt($this.find("input.start").val()),
                 count: parseInt($this.find("input.count").val()),
                 colorOrder: parseInt($this.find("select.colorOrder").val())
-			};
+            };
             if ((b.start > 0) &&
                 (b.count > 0)) {
                 processors.push(b);
@@ -234,7 +234,7 @@ function SetOutputProcessors() {
                 count: parseInt($this.find("input.count").val()),
                 colorOrder: parseInt($this.find("select.colorOrder").val()),
                 algorithm: parseInt($this.find("select.algorithm").val())
-			};
+            };
             if ((b.start > 0) &&
                 (b.count > 0)) {
                 processors.push(b);
@@ -252,7 +252,7 @@ function SetOutputProcessors() {
                 start: parseInt($this.find("input.start").val()),
                 count: parseInt($this.find("input.count").val()),
                 value: parseInt($this.find("input.value").val())
-			};
+            };
             if ((b.start > 0) &&
                 (b.count > 0)) {
                 processors.push(b);
@@ -264,23 +264,23 @@ function SetOutputProcessors() {
         }
         rowNumber++;
 
-	});
+    });
 
-	if (dataError != 0)
-		return;
+    if (dataError != 0)
+        return;
 
-	data.outputProcessors = processors;
+    data.outputProcessors = processors;
 
-	$.post({
+    $.post({
         url:"api/channel/output/processors",
         data: JSON.stringify(data)}
         ).done(function(data) {
-		    $.jGrowl("Output Processors Table saved",{themeState:'success'});
-		    PopulateOutputProcessorTable(data);
-		    SetRestartFlag(2);
-	    }).fail(function() {
-		    DialogError("Save Output Processors Table", "Save Failed");
-	    });
+            $.jGrowl("Output Processors Table saved",{themeState:'success'});
+            PopulateOutputProcessorTable(data);
+            SetRestartFlag(2);
+        }).fail(function() {
+            DialogError("Save Output Processors Table", "Save Failed");
+        });
 }
 
 function AddOtherTypeOptions(row, type) {
@@ -359,12 +359,12 @@ function ProcessorTypeSelected(selectbox) {
 }
 
 function AddNewProcessorRow() {
-	var currentRows = $("#outputProcessors > tbody > tr").length
+    var currentRows = $("#outputProcessors > tbody > tr").length
 
-	$('#outputProcessors tbody').append(
-		"<tr id='row" + currentRows + "' class='fppTableRow'>" +
+    $('#outputProcessors tbody').append(
+        "<tr id='row" + currentRows + "' class='fppTableRow'>" +
             "<td>" + (currentRows + 1) + "</td>" +
-			"<td><input class='active' type='checkbox' checked></td>" +
+            "<td><input class='active' type='checkbox' checked></td>" +
             "<td><select class='type' onChange='ProcessorTypeSelected(this);'>" +
                  "<option value=''>Select a type</option>" +
                      "<option value='Remap'>Remap</option>" +
@@ -375,39 +375,39 @@ function AddNewProcessorRow() {
                      "<option value='Three to Four'>Three to Four</option>" +
                      "<option value='Override Zero'>Override Zero</option>" +
                   "</select></td>" +
-			"<td><input class='description' type='text' size='32' maxlength='64' value=''></td>" +
+            "<td><input class='description' type='text' size='32' maxlength='64' value=''></td>" +
             "<td> </td>" +
-			"</tr>");
+            "</tr>");
 }
 
 var tableInfo = {
-	tableName: "outputProcessors",
-	selected:  -1,
-	enableButtons: [ "btnDelete" ],
-	disableButtons: []
-	};
+    tableName: "outputProcessors",
+    selected:  -1,
+    enableButtons: [ "btnDelete" ],
+    disableButtons: []
+    };
 
 function RenumberColumns(tableName) {
-	var id = 0;
-	$('#' + tableName + ' tbody tr').each(function() {
-		$this = $(this);
-		$this.find("td:first").html(id+1);
-		$this.attr('id', 'row' + id);
-		id++;
-	});
+    var id = 0;
+    $('#' + tableName + ' tbody tr').each(function() {
+        $this = $(this);
+        $this.find("td:first").html(id+1);
+        $this.attr('id', 'row' + id);
+        id++;
+    });
 }
 function DeleteSelectedProcessor() {
-	if (tableInfo.selected >= 0) {
-		$('#outputProcessors tbody tr:nth-child(' + (tableInfo.selected+1) + ')').remove();
-		tableInfo.selected = -1;
-		SetButtonState("#btnDelete", "disable");
+    if (tableInfo.selected >= 0) {
+        $('#outputProcessors tbody tr:nth-child(' + (tableInfo.selected+1) + ')').remove();
+        tableInfo.selected = -1;
+        SetButtonState("#btnDelete", "disable");
         RenumberColumns("outputProcessors");
-	}
+    }
 }
 
 $(document).ready(function(){
-	SetupSelectableTableRow(tableInfo);
-	GetOutputProcessors();
+    SetupSelectableTableRow(tableInfo);
+    GetOutputProcessors();
 
     if (window.innerWidth > 600) {
         $('#outputProcessorsBody').sortable({
@@ -427,33 +427,33 @@ $(document).tooltip();
 <title><?echo $pageTitle; ?></title>
 </head>
 <body>
-	<div id="bodyWrapper">
-		<?php
-$activeParentMenuItem = 'input-output';
-include 'menu.inc';?>
+    <div id="bodyWrapper">
+        <?php
+        $activeParentMenuItem = 'input-output';
+        include 'menu.inc';?>
   <div class="mainContainer">
     <h1 class="title">Output Processors</h1>
     <div class="pageContent">
 
-        		<div id="time" class="settings">
+                <div id="time" class="settings">
 
                         <div class="row tablePageHeader">
                             <div class="col-md">
                               <h2>Output Processors</h2>
                             </div>
-							<div class="col-md-auto ml-lg-auto">
-								<div class="form-actions">
+                            <div class="col-md-auto ml-lg-auto">
+                                <div class="form-actions">
 
                                         <input type=button value='Delete' data-btn-enabled-class="btn-outline-danger" onClick='DeleteSelectedProcessor();' id='btnDelete' class='disableButtons'>
                                         <button type=button value='Add' onClick='AddNewProcessorRow();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
                                         <input type=button value='Save' onClick='SetOutputProcessors();' class='buttons btn-success ml-1'>
 
-								</div>
-							</div>
-						</div>
+                                </div>
+                            </div>
+                        </div>
                         <hr>
 
-        				<div class='fppTableWrapper fppTableWrapperAsTablefpp'>
+                        <div class='fppTableWrapper fppTableWrapperAsTablefpp'>
                             <div class='fppTableContents' role="region" aria-labelledby="outputProcessors" tabindex="0">
                                 <table id="outputProcessors" class="fppSelectableRowTable">
                                     <thead>
@@ -469,13 +469,13 @@ include 'menu.inc';?>
                                     </tbody>
                                 </table>
                             </div>
-        				</div>
+                        </div>
 
-        		</div>
+                </div>
     </div>
 </div>
 
-	<?php	include 'common/footer.inc';?>
-	</div>
+    <?php	include 'common/footer.inc';?>
+    </div>
 </body>
 </html>

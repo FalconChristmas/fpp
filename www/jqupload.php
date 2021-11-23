@@ -1,4 +1,5 @@
 <?php
+
 //////////////////////////////////////////////////////////////////////////////
 // This file is based on upload.php from jQuery-Upload-File.  It has been
 // modified slightly to fit FPP usage requirements.
@@ -16,42 +17,35 @@
 // Copyright (c) 2013 Ravishanker Kusuma
 // http://hayageek.com/
 //////////////////////////////////////////////////////////////////////////////
-$skipJSsettings = 1; // need this so config doesn't print out JavaScrip arrays
+$skipJSsettings = 1;
+// need this so config doesn't print out JavaScrip arrays
 require_once('config.php');
 require_once('common.php');
-
 $output_dir = $uploadDirectory . "/";
+if (isset($_FILES["myfile"])) {
+    $ret = array();
 
-if(isset($_FILES["myfile"]))
-{
-	$ret = array();
-	
-//	This is for custom errors;	
-/*	$custom_error= array();
-	$custom_error['jquery-upload-file-error']="File already exists";
-	echo json_encode($custom_error);
-	die();
+// This is for custom errors;
+/* $custom_error= array();
+    $custom_error['jquery-upload-file-error']="File already exists";
+   echo json_encode($custom_error);
+   die();
 */
-	$error =$_FILES["myfile"]["error"];
-	//You need to handle  both cases
-	//If Any browser does not support serializing of multiple files using FormData() 
-	if(!is_array($_FILES["myfile"]["name"])) //single file
-	{
- 	 	$fileName = sanitizeFilename($_FILES["myfile"]["name"]);
- 		move_uploaded_file($_FILES["myfile"]["tmp_name"],$output_dir.$fileName);
-    	$ret[]= $fileName;
-	}
-	else  //Multiple files, file[]
-	{
-	  $fileCount = count($_FILES["myfile"]["name"]);
-	  for($i=0; $i < $fileCount; $i++)
-	  {
-	  	$fileName = sanitizeFilename($_FILES["myfile"]["name"][$i]);
-		move_uploaded_file($_FILES["myfile"]["tmp_name"][$i],$output_dir.$fileName);
-	  	$ret[]= $fileName;
-	  }
-	
-	}
+    $error = $_FILES["myfile"]["error"];
+//You need to handle  both cases
+    //If Any browser does not support serializing of multiple files using FormData()
+    if (!is_array($_FILES["myfile"]["name"])) { //single file
+        $fileName = sanitizeFilename($_FILES["myfile"]["name"]);
+        move_uploaded_file($_FILES["myfile"]["tmp_name"], $output_dir . $fileName);
+        $ret[] = $fileName;
+    } else //Multiple files, file[]
+    {
+        $fileCount = count($_FILES["myfile"]["name"]);
+        for ($i = 0; $i < $fileCount; $i++) {
+            $fileName = sanitizeFilename($_FILES["myfile"]["name"][$i]);
+            move_uploaded_file($_FILES["myfile"]["tmp_name"][$i], $output_dir . $fileName);
+            $ret[] = $fileName;
+        }
+    }
     echo json_encode($ret);
- }
-?>
+}

@@ -1,8 +1,9 @@
 <?php
-include "playlistEntryTypes.php";
 
-if (!isset($simplifiedPlaylist))
-	$simplifiedPlaylist = 0;
+include "playlistEntryTypes.php";
+if (!isset($simplifiedPlaylist)) {
+    $simplifiedPlaylist = 0;
+}
 
 ?>
 
@@ -13,21 +14,21 @@ if (!isset($simplifiedPlaylist))
 var simplifiedPlaylist = 0;
 
 function playlistEditorDocReady() {
-	$('.default-value').each(function() {
-		var default_value = this.value;
-		$(this).focus(function() {
-			if(this.value == default_value) {
-				this.value = '';
-				$(this).css('color', '#333');
-			}
-		});
-		$(this).blur(function() {
-			if(this.value == '') {
-				this.value = default_value;
-				$(this).css('color', '#999');
-			}
-		});
-	});
+    $('.default-value').each(function() {
+      var default_value = this.value;
+        $(this).focus(function() {
+         if(this.value == default_value) {
+              this.value = '';
+               $(this).css('color', '#333');
+          }
+      });
+        $(this).blur(function() {
+          if(this.value == '') {
+             this.value = default_value;
+                $(this).css('color', '#999');
+          }
+      });
+    });
     
     //make table rows sortable
     var sortableOptions = {
@@ -74,22 +75,22 @@ function playlistEditorDocReady() {
         connectWith: '.playlistEntriesBody',
         scroll: true
     }
-	
+   
     if(hasTouch){
         $.extend(sortableOptions,{handle:'.rowGrip'});
     }
     $('.playlistEntriesBody').sortable(sortableOptions).disableSelection();
 
     function selectPlaylistEntryRow($row){
-		$('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
-		$row.addClass('playlistSelectedEntry');
+        $('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
+      $row.addClass('playlistSelectedEntry');
         EnableButtonClass('playlistDetailsEditButton');
     }
-	$('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
+  $('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
         selectPlaylistEntryRow($(this));
-	});
+   });
 
-	$('.playlistEntriesBody').on('dblclick','tr',function() {
+   $('.playlistEntriesBody').on('dblclick','tr',function() {
         EditPlaylistEntry();
     });
     $('.playlistEntriesBody').on('click','.playlistRowEditButton',function() {
@@ -113,13 +114,13 @@ function playlistEditorDocReady() {
         selectPlaylistEntryRow($(this).closest('tr'));
         RemovePlaylistEntry();
     });
-	$('#txtNewPlaylistName').on('focus',function() {
-		$(this).select();
-	});
+  $('#txtNewPlaylistName').on('focus',function() {
+       $(this).select();
+  });
 
-	$('.time').timepicker({'timeFormat': 'H:i:s', 'typeaheadHighlight': false});
+   $('.time').timepicker({'timeFormat': 'H:i:s', 'typeaheadHighlight': false});
 
-	PlaylistTypeChanged();
+  PlaylistTypeChanged();
     DisableButtonClass('playlistEditButton');
     DisableButtonClass('playlistDetailsEditButton');
 
@@ -130,16 +131,16 @@ function playlistEditorDocReady() {
 
 function MediaChanged()
 {
-	if ($('#autoSelectMatches').is(':checked') == false)
-		return;
+ if ($('#autoSelectMatches').is(':checked') == false)
+       return;
 
-	var value = $('.arg_mediaName').val();
+   var value = $('.arg_mediaName').val();
     if (value == null)  {
         return;
     }
     value = value.replace(/\.flac|\.ogg|\.mp3|\.mp4|\.mov|\.m4a/i, "");
 
-	var seq = document.getElementsByClassName("arg_sequenceName")[0];
+    var seq = document.getElementsByClassName("arg_sequenceName")[0];
     if (seq) {
         for (var i = 0; i < seq.length; i++) {
             if (seq.options[i].value.replace(/\.fseq/i, "") == value)
@@ -150,8 +151,8 @@ function MediaChanged()
 
 function SequenceChanged()
 {
-	if ($('#autoSelectMatches').is(':checked') == false)
-		return;
+    if ($('#autoSelectMatches').is(':checked') == false)
+       return;
 
     var val = $('.arg_sequenceName').val();
     if (val == null)  {
@@ -220,12 +221,12 @@ function BranchTypeChanged() {
 $(document).ready(function() {
     allowMultisyncCommands = true;
     //SetupToolTips();
-	playlistEditorDocReady();
+ playlistEditorDocReady();
     LoadCommandList($('#commandSelect'));
     CommandSelectChanged('commandSelect', 'tblCommandBody');
 });
 
-simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
+simplifiedPlaylist = <?= $simplifiedPlaylist; ?>;
 </script>
     <div class="playlistEditContainer">
         <div class="playlistEditForm ">

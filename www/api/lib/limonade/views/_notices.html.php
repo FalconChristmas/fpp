@@ -3,10 +3,10 @@
   <h4> &#x2192; Notices and warnings</h4>
   <dl>
   <?php $cpt = 1; foreach($notices as $notice): ?>
-    <dt>[<?php echo $cpt.'. '.error_type($notice['errno'])?>]</dt>
+    <dt>[<?= $cpt.'. '.error_type($notice['errno'])?>]</dt>
     <dd>
-    <?php echo $notice['errstr']?> in <strong><code><?php echo $notice['errfile']?></code></strong> 
-    line <strong><code><?php echo $notice['errline']?></code></strong>
+    <?= $notice['errstr']?> in <strong><code><?= $notice['errfile']?></code></strong> 
+    line <strong><code><?= $notice['errline']?></code></strong>
     </dd>
   <?php $cpt++; endforeach; ?>
   </dl>

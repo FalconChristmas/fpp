@@ -38,7 +38,7 @@ function SaveGPIOInputs() {
            gp["pin"] = val;
            gp["enabled"] = $("#gpio_" + key + "_enabled").is(':checked');
            gp["mode"] = $("#gpio_" + key + "_PullUpDown").val();
-	   gp["desc"] = $('#gpio_' + key + '_Desc').val();
+       gp["desc"] = $('#gpio_' + key + '_Desc').val();
            
            var rc = $('#gpio_' + key + '_RisingCommand').val();
            if (rc != "") {
@@ -110,23 +110,23 @@ extraCommands = [
 </script>
 
 
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 
 </head>
 <body>
-	<div id="bodyWrapper">
-		<?php 
+    <div id="bodyWrapper">
+        <?php
         $activeParentMenuItem = 'input-output';
         include 'menu.inc'; ?>
-		
+        
 <div class="container-fluid">
     <h1 class="title">GPIO Input Triggers </h1>
     <div class="pageContent">
         
         <div id='channelOutputManager'>
-        				<div id='divGPIO'>
-        			
-        						<div id='divGPIOData'>
+                        <div id='divGPIO'>
+                    
+                                <div id='divGPIOData'>
         
         <!-- --------------------------------------------------------------------- -->
         
@@ -256,19 +256,19 @@ extraCommands = [
         ?>
         </script>
         
-        	</div>
+            </div>
         
         <!-- --------------------------------------------------------------------- -->
         
                                 </div>
                                 
-        				</div>
-        			</div>
+                        </div>
+                    </div>
     </div>
 </div>
 
 
-	<?php	include 'common/footer.inc'; ?>
+    <?php	include 'common/footer.inc'; ?>
 </div>
 </body>
 </html>

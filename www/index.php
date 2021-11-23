@@ -53,35 +53,35 @@ include 'common/menuHead.inc';
 
 <title><?echo $pageTitle; ?></title>
 
-	<script>
+    <script>
         function PageSetup() {
-			//Store frequently elements in variables
-			var slider  = $('#slider');
+            //Store frequently elements in variables
+            var slider  = $('#slider');
             var rslider  = $('#remoteVolumeSlider');
-			//Call the Slider
-			// slider.slider({
-			// 	//Config
-			// 	range: "min",
-			// 	min: 1,
-			// 	//value: 35,
-			// });
-			rslider.slider({
-				//Config
-				range: "min",
-				min: 1,
-				//value: 35,
-			});
+            //Call the Slider
+            // slider.slider({
+            //  //Config
+            //  range: "min",
+            //  min: 1,
+            //  //value: 35,
+            // });
+            rslider.slider({
+                //Config
+                range: "min",
+                min: 1,
+                //value: 35,
+            });
 
 
-			// slider.slider({
-			// 	stop: function( event, ui ) {
-			// 		var value = slider.slider('value');
+            // slider.slider({
+            //  stop: function( event, ui ) {
+            //      var value = slider.slider('value');
 
-			// 		SetSpeakerIndicator(value);
-			// 		$('#volume').html(value);
+            //      SetSpeakerIndicator(value);
+            //      $('#volume').html(value);
             //         $('#remoteVolume').html(value);
-			// 		SetVolume(value);
-			// 	}
+            //      SetVolume(value);
+            //  }
             // });
             slider.on('change',function(e) {
                 var value = slider.val();
@@ -112,7 +112,7 @@ include 'common/menuHead.inc';
             // });
 
             SetupBanner();
-		};
+        };
 
     function EnabledStats() {
         SetSetting("statsPublish", "Enabled", 2);
@@ -135,53 +135,53 @@ include 'common/menuHead.inc';
        }
     }
 
-	function SetSpeakerIndicator(value) {
-		var speaker = $('#speaker');
+    function SetSpeakerIndicator(value) {
+        var speaker = $('#speaker');
         var remoteSpeaker = $('#remoteSpeaker');
 
-		if(value <= 5)
-		{
-			speaker.css('background-position', '0 0');
+        if(value <= 5)
+        {
+            speaker.css('background-position', '0 0');
             remoteSpeaker.css('background-position', '0 0');
-		}
-		else if (value <= 25)
-		{
-			speaker.css('background-position', '0 -25px');
+        }
+        else if (value <= 25)
+        {
+            speaker.css('background-position', '0 -25px');
             remoteSpeaker.css('background-position', '0 -25px');
-		}
-		else if (value <= 75)
-		{
-			speaker.css('background-position', '0 -50px');
+        }
+        else if (value <= 75)
+        {
+            speaker.css('background-position', '0 -50px');
             remoteSpeaker.css('background-position', '0 -50px');
-		}
-		else
-		{
-			speaker.css('background-position', '0 -75px');
+        }
+        else
+        {
+            speaker.css('background-position', '0 -75px');
             remoteSpeaker.css('background-position', '0 -75px');
-		};
-	}
+        };
+    }
 
-	function IncrementVolume()
-	{
-		var volume = parseInt($('#volume').html());
-		volume += 1;
-		if (volume > 100)
-			volume = 100;
-
-        updateVolumeUI(volume);
-		SetVolume(volume);
-	}
-
-	function DecrementVolume()
-	{
-		var volume = parseInt($('#volume').html());
-		volume -= 1;
-		if (volume < 0)
-			volume = 0;
+    function IncrementVolume()
+    {
+        var volume = parseInt($('#volume').html());
+        volume += 1;
+        if (volume > 100)
+            volume = 100;
 
         updateVolumeUI(volume);
-		SetVolume(volume);
-	}
+        SetVolume(volume);
+    }
+
+    function DecrementVolume()
+    {
+        var volume = parseInt($('#volume').html());
+        volume -= 1;
+        if (volume < 0)
+            volume = 0;
+
+        updateVolumeUI(volume);
+        SetVolume(volume);
+    }
 
     function PreviousPlaylistEntry()
     {
@@ -198,7 +198,7 @@ include 'common/menuHead.inc';
             .fail(function() {});
     }
 
-	</script>
+    </script>
 
 
 </head>
@@ -211,7 +211,7 @@ include 'menu.inc';
 
 
 <div class="mainContainer">
-<h1 class="title statusTitle">Status <span class="statusHostname"><?php echo (gethostname()) ?></span></h1>
+<h1 class="title statusTitle">Status <span class="statusHostname"><?= (gethostname()) ?></span></h1>
 <?php
 if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
     ?>
@@ -220,7 +220,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
      file system or create a new storage partition.
 </div>
 
-<?php
+    <?php
 }
 ?>
 <div class="statusDivTopWrap">

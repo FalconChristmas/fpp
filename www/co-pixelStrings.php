@@ -1,9 +1,9 @@
 <style>
 .outputTable {
-	background: #F0F0F0;
-	width: 100%;
-	border-spacing: 0px;
-	border-collapse: collapse;
+    background: #F0F0F0;
+    width: 100%;
+    border-spacing: 0px;
+    border-collapse: collapse;
 }
 
 .outputTable th {
@@ -14,12 +14,12 @@
 }
 
 .outputTable td {
-	text-align: center;
+    text-align: center;
     padding: 0px 9px 0px 0px ;
 }
 
 .outputTable tbody tr td input[type=text] {
-	text-align: center;
+    text-align: center;
     width: 100%;
 }
 .outputTable tbody tr td input[type=number] {
@@ -364,7 +364,7 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     }
     
     result += "<td><input type='text' class='vsDescription' size='25' maxlength='60' value='" + description + "'></td>";
-    result += "<td><input type='number' class='vsStartChannel' size='6' value='" + startChannel + "' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+    result += "<td><input type='number' class='vsStartChannel' size='6' value='" + startChannel + "' min='1' max='<?= FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
     result += "<td><input type='number' class='vsPixelCount' size='4' min='1' max='1600' onkeypress='preventNonNumericalInput(event)' value='" + pixelCount + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
     result += "<td><input type='number' class='vsGroupCount' size='3' value='" + groupCount + "' min='1' max='1000' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);'></td>";
     if (groupCount == 0) {
@@ -519,27 +519,27 @@ function cloneSelectedString()
 
 function getPixelStringOutputJSON()
 {
-	var postData = {};
-	postData.channelOutputs = [];
+    var postData = {};
+    postData.channelOutputs = [];
 
-	$('#pixelOutputs table').each(function() {
-		$this = $(this);
-		var tableId = $this.attr('id');
-		var enableId = tableId + '_enable';
-		var output = {};
+    $('#pixelOutputs table').each(function() {
+        $this = $(this);
+        var tableId = $this.attr('id');
+        var enableId = tableId + '_enable';
+        var output = {};
 
-		output.type = MapPixelStringType($this.attr('type'));
+        output.type = MapPixelStringType($this.attr('type'));
         output.subType = MapPixelStringSubType($this.attr('type'));
         output.pinoutVersion = MapPixelStringSubTypeVersion($this.attr('type'));
-		output.enabled = ($('#' + enableId).is(':checked')) ? 1 : 0;
-		output.startChannel = 1;
-		output.channelCount = -1;
-		output.outputCount = parseInt($this.attr('ports'));
+        output.enabled = ($('#' + enableId).is(':checked')) ? 1 : 0;
+        output.startChannel = 1;
+        output.channelCount = -1;
+        output.outputCount = parseInt($this.attr('ports'));
         output.pixelTiming = parseInt(GetPixelStringTiming());
 
-		var outputs = [];
-		for (var i = 0; i < output.outputCount; i++) {
-			var port = {};
+        var outputs = [];
+        for (var i = 0; i < output.outputCount; i++) {
+            var port = {};
             port.portNumber = i;
                                   
             var mainrow = $('#' + output.type + "_Output_0_" + i + "_0");
@@ -579,7 +579,7 @@ function getPixelStringOutputJSON()
             for (var  oid = 0; oid < mxId; oid++) {
                 var virtualStrings = [];
                 for (var j = 0; j < maxVirtualStringsPerOutput; j++) {
-				    var id = output.type + "_Output_" + oid + "_" + i + "_" + j;
+                    var id = output.type + "_Output_" + oid + "_" + i + "_" + j;
 
                     if ($('#' + id).length) {
                         var vs = {};
@@ -614,7 +614,7 @@ function getPixelStringOutputJSON()
 
                         virtualStrings.push(vs);
                     }
-				}
+                }
                 if (oid == 0) {
                     port.virtualStrings = virtualStrings;
                 } else if (oid == 1) {
@@ -628,13 +628,13 @@ function getPixelStringOutputJSON()
                 } else if (oid == 5) {
                     port.virtualStringsF = virtualStrings;
                 }
-			}
+            }
 
-			outputs.push(port);
+            outputs.push(port);
         }
 
-		output.outputs = outputs;
-		postData.channelOutputs.push(output);
+        output.outputs = outputs;
+        postData.channelOutputs.push(output);
     });
 
     return postData;

@@ -17,9 +17,9 @@ $fpp_version = "v" . getFPPVersion();
 
 <body>
 <div id="bodyWrapper">
-  <?php 
-  $activeParentMenuItem = 'help'; 
-  include 'menu.inc'; ?><div class="container">
+  <?php
+    $activeParentMenuItem = 'help';
+    include 'menu.inc'; ?><div class="container">
   <div class="title">Credits</div>
     <div class="pageContent">
       

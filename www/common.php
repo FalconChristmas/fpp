@@ -1,10 +1,9 @@
 <?php
-require_once "config.php";
 
+require_once "config.php";
 function check($var, $var_name = "", $function_name = "")
 {
     global $debug;
-
     if (empty($function_name)) {
         global $args;
         $function_name = $args['command'];
@@ -13,7 +12,6 @@ function check($var, $var_name = "", $function_name = "")
     if (empty($var) && $debug) {
         error_log("WARNING: Variable '$var_name' in function '$function_name' was empty");
     }
-
 }
 
 function startsWith($haystack, $needle)
@@ -51,13 +49,11 @@ function ScrubFile($filename, $taboo = array("emailpass", "emailgpass", "MQTTPas
     }
 
     $dataStr = "";
-
     if (preg_match("/.json$/", $filename)) {
-        // Need to scrub .json as well at some point
+    // Need to scrub .json as well at some point
         $dataStr = file_get_contents($filename);
     } else {
         $data = parse_ini_file($filename);
-
         foreach ($taboo as $key) {
             if (array_key_exists($key, $data)) {
                 $data[$key] = "********";
@@ -67,7 +63,6 @@ function ScrubFile($filename, $taboo = array("emailpass", "emailgpass", "MQTTPas
         foreach ($data as $key => $value) {
             $dataStr .= $key . " = " . $value . "\n";
         }
-
     }
 
     return $dataStr;
@@ -78,7 +73,6 @@ function ReadSettingFromFile($settingName, $plugin = "")
     global $settingsFile;
     global $settings;
     $filename = $settingsFile;
-
     if (!file_exists($filename)) {
         return false;
     }
@@ -92,12 +86,12 @@ function ReadSettingFromFile($settingName, $plugin = "")
         if (preg_match("/^" . $settingName . "/m", $settingsStr)) {
             $result = preg_match("/^" . $settingName . "\s*=(\s*\S*\w*)/m", $settingsStr, $output_array);
             if ($result == 0) {
-//        error_log("The setting " . $settingName . " could not be found in " . $filename);
+                //        error_log("The setting " . $settingName . " could not be found in " . $filename);
                 return false;
             }
             return trim($output_array[1], " \t\n\r\0\x0B\"");
         } else {
-//      error_log("The setting " . $settingName . " could not be found in " . $filename);
+        //      error_log("The setting " . $settingName . " could not be found in " . $filename);
             return false;
         }
     } else {
@@ -111,7 +105,6 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
     global $settingsFile;
     global $settings;
     $filename = $settingsFile;
-
     if ($plugin != "") {
         $filename = $settings['configDirectory'] . "/plugin." . $plugin;
     }
@@ -130,7 +123,6 @@ function DeleteSettingFromFile($settingName, $plugin = "")
     global $settingsFile;
     global $settings;
     $filename = $settingsFile;
-
     if ($plugin != "") {
         $filename = $settings['configDirectory'] . "/plugin." . $plugin;
     }
@@ -148,27 +140,28 @@ function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaul
 {
     global $settings;
     global $pluginSettings;
-
     if ($pluginName != "") {
         if (($defaultValue != "") && !isset($pluginSettings[$setting])) {
             $pluginSettings[$setting] = $defaultValue;
         }
 
-        if ((isset($pluginSettings[$setting])) &&
-            ($pluginSettings[$setting] == $value)) {
+        if (
+            (isset($pluginSettings[$setting])) &&
+            ($pluginSettings[$setting] == $value)
+        ) {
             echo $print;
         }
-
     } else {
         if (($defaultValue != "") && !isset($settings[$setting])) {
             $settings[$setting] = $defaultValue;
         }
 
-        if ((isset($settings[$setting])) &&
-            ($settings[$setting] == $value)) {
+        if (
+            (isset($settings[$setting])) &&
+            ($settings[$setting] == $value)
+        ) {
             echo $print;
         }
-
     }
 }
 
@@ -182,27 +175,28 @@ function IfSettingInListPrint($setting, $value, $print, $pluginName = "", $defau
 {
     global $settings;
     global $pluginSettings;
-
     if ($pluginName != "") {
         if (($defaultValue != "") && !isset($pluginSettings[$setting])) {
             $pluginSettings[$setting] = $defaultValue;
         }
 
-        if ((isset($pluginSettings[$setting])) &&
-            IsInList($value, $pluginSettings[$setting])) {
+        if (
+            (isset($pluginSettings[$setting])) &&
+            IsInList($value, $pluginSettings[$setting])
+        ) {
             echo $print;
         }
-
     } else {
         if (($defaultValue != "") && !isset($settings[$setting])) {
             $settings[$setting] = $defaultValue;
         }
 
-        if ((isset($settings[$setting])) &&
-            IsInList($value, $settings[$setting])) {
+        if (
+            (isset($settings[$setting])) &&
+            IsInList($value, $settings[$setting])
+        ) {
             echo $print;
         }
-
     }
 }
 
@@ -212,14 +206,12 @@ function LoadPluginSettingInfos($plugin)
     global $settingInfos;
     global $settingGroups;
     global $pluginSettingInfosLoaded;
-
     if (empty($settingInfos) || empty($settingGroups)) {
         LoadSettingInfos();
     }
 
     if (!$pluginSettingInfosLoaded) {
         $file = '/home/fpp/media/plugins/' . $plugin . '/settings.json';
-
         if (file_exists($file)) {
             $data = json_decode(file_get_contents($file), true);
             $settingInfos = array_merge($settingInfos, $data['settings']);
@@ -238,21 +230,19 @@ function PrintIcon($level)
 {
     if ($level == 1) {
         echo " <i class='fas fa-fw fa-graduation-cap fa-nbsp ui-level-1' title='Advanced Level Setting'></i>";
-    } else if ($level == 2) {
+    } elseif ($level == 2) {
         echo " <i class='fas fa-fw fa-flask fa-nbsp ui-level-2' title='Experimental Level Setting'></i>";
-    } else if ($level == 3) {
+    } elseif ($level == 3) {
         echo " <i class='fas fa-fw fa-code fa-nbsp ui-level-3' title='Developer Level Setting'></i>";
     } else {
         echo " <i class='fas fa-fw fa-nbsp ui-level-0'></i>";
     }
-
 }
 
 function ShouldPrintSetting($s)
 {
     global $settings;
     $level = isset($s['level']) ? $s['level'] : 0;
-
     if ($settings['uiLevel'] < $level) {
         return false;
     }
@@ -268,14 +258,18 @@ function ShouldPrintSetting($s)
         }
     }
     if (isset($s['fppModes'])) {
-        if (!in_array('ALL', $s['fppModes']) &&
-            !in_array($settings['fppMode'], $s['fppModes'])) {
+        if (
+            !in_array('ALL', $s['fppModes']) &&
+            !in_array($settings['fppMode'], $s['fppModes'])
+        ) {
             return false;
         }
     }
     if (isset($s['platforms'])) {
-        if (!in_array('ALL', $s['platforms']) &&
-            !in_array($settings['Platform'], $s['platforms'])) {
+        if (
+            !in_array('ALL', $s['platforms']) &&
+            !in_array($settings['Platform'], $s['platforms'])
+        ) {
             return false;
         }
     }
@@ -293,9 +287,7 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
 {
     global $settings;
     global $settingInfos;
-
     LoadSettingInfos();
-
     if ($plugin != '') {
         LoadPluginSettingInfos($plugin);
     }
@@ -309,7 +301,6 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
     $level = isset($s['level']) ? $s['level'] : 0;
     $reloadUI = isset($s['reloadUI']) ? $s['reloadUI'] : 0;
     $textOnRight = isset($s['textOnRight']) ? $s['textOnRight'] : 0;
-
     if (($callback == '') && ($reloadUI == 1)) {
         $callback = 'reloadSettingsPage';
     }
@@ -318,7 +309,6 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
         $restart = isset($s['restart']) ? $s['restart'] : 0;
         $reboot = isset($s['reboot']) ? $s['reboot'] : 0;
         $suffix = isset($s['suffix']) ? $s['suffix'] : '';
-
         if ($textOnRight) {
             echo "<div class='row' id='" . $setting . "Row'><div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2'>";
         } else {
@@ -342,7 +332,7 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
                             $tmp = $options;
                             $options = array();
                             if (isset($s['optionCanBeBlank']) && $s['optionCanBeBlank']) {
-                                $options[""] = "";
+                                        $options[""] = "";
                             }
                             foreach ($tmp as $item) {
                                 if (isset($s['optionsKey'])) {
@@ -351,11 +341,11 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
                                     $options[$item] = $item;
                                 }
                             }
-                        } else if (isset($s['optionCanBeBlank']) && $s['optionCanBeBlank']) {
+                        } elseif (isset($s['optionCanBeBlank']) && $s['optionCanBeBlank']) {
                             $options = array("" => "") + $options;
                         }
-                    } else if (isset($s['optionsCommand'])) {
-                        $optionsRaw = explode("\n", trim(shell_exec($s['optionsCommand'])));
+                    } elseif (isset($s['optionsCommand'])) {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          $optionsRaw = explode("\n", trim(shell_exec($s['optionsCommand'])));
                         foreach ($optionsRaw as $line) {
                             $parts = preg_split("/,/", trim($line));
                             if (count($parts) > 1) {
@@ -363,70 +353,71 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
                             } else {
                                 $options[$parts[0]] = $parts[0];
                             }
-
                         }
-                    } else if (isset($s['options'])) {
-                        $options = $s['options'];
+                    } elseif (isset($s['options'])) {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                $options = $s['options'];
                     }
                 }
 
                 $default = isset($s['default']) ? $s['default'] : "";
-
                 PrintSettingSelect($s['description'], $setting, $restart, $reboot, $default, $options, $plugin, $callback, '', $s);
+
 
                 break;
             case 'checkbox':
-                $checkedValue = isset($s['checkedValue']) ? $s['checkedValue'] : "1";
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      $checkedValue = isset($s['checkedValue']) ? $s['checkedValue'] : "1";
                 $uncheckedValue = isset($s['uncheckedValue']) ? $s['uncheckedValue'] : "0";
                 $default = isset($s['default']) ? $s['default'] : "0";
-
                 PrintSettingCheckbox($s['description'], $setting, $restart, $reboot, $checkedValue, $uncheckedValue, $plugin, $callback, $default, '', $s);
+
                 break;
             case 'time':
-                $size = 8;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      $size = 8;
                 $maxlength = 8;
                 $default = isset($s['default']) ? $s['default'] : '';
                 PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', 'text', $s);
+
                 break;
             case 'date':
-                $size = 10;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      $size = 10;
                 $maxlength = 10;
                 $default = isset($s['default']) ? $s['default'] : '';
                 PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', 'text', $s);
+
                 break;
             case 'text':
-                $size = isset($s['size']) ? $s['size'] : 32;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      $size = isset($s['size']) ? $s['size'] : 32;
                 $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
                 $default = isset($s['default']) ? $s['default'] : "";
-
                 PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', 'text', $s);
+
                 break;
             case 'color':
-                $size = 7;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      $size = 7;
                 $maxlength = 7;
                 $default = isset($s['default']) ? $s['default'] : "800000";
-
                 PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', 'color', $s);
+
                 break;
             case 'password':
-                $size = isset($s['size']) ? $s['size'] : 32;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      $size = isset($s['size']) ? $s['size'] : 32;
                 $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
                 $default = isset($s['default']) ? $s['default'] : "";
-
                 PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', "password", $s);
-
                 echo "<i class='fas fa-eye' id='$setting" . "HideShow' onClick='TogglePasswordHideShow(\"" . $setting . "\");'></i>";
+
                 break;
             case 'number':
-                $min = isset($s['min']) ? $s['min'] : 0;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      $min = isset($s['min']) ? $s['min'] : 0;
                 $max = isset($s['max']) ? $s['max'] : 99;
                 $step = isset($s['step']) ? $s['step'] : 1;
                 $default = isset($s['default']) ? $s['default'] : "0";
-
                 PrintSettingTextSaved($setting, $restart, $reboot, $max, $min, $plugin, $default, $callback, '', 'number', $s);
+
                 break;
             default:
-                printf("FIXME, handle %s setting type for %s\n", $s['type'], $setting);
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      printf("FIXME, handle %s setting type for %s\n", $s['type'], $setting);
+
                 break;
         }
 
@@ -440,13 +431,11 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
         }
 
         PrintToolTip($setting);
-
         if ($textOnRight) {
             echo "</div></div>\n";
         } else {
             echo "</div></div>\n";
         }
-
     }
 }
 
@@ -459,9 +448,7 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
 {
     global $settings;
     global $settingGroups;
-
     LoadSettingInfos();
-
     if ($plugin != '') {
         LoadPluginSettingInfos($plugin);
     }
@@ -474,18 +461,19 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
     $g = $settingGroups[$group];
     $level = isset($g['level']) ? $g['level'] : 0;
 
-    if (($settings['uiLevel'] >= $level) &&
+    if (
+        ($settings['uiLevel'] >= $level) &&
         ((!isset($g['fppModes'])) ||
             (in_array('ALL', $g['fppModes'])) ||
             (in_array($settings['fppMode'], $g['fppModes']))) &&
         ((!isset($g['platforms'])) ||
             (in_array('ALL', $g['platforms'])) ||
-            (in_array($settings['Platform'], $g['platforms'])))) {
+            (in_array($settings['Platform'], $g['platforms'])))
+    ) {
         if ($heading == true) {
             echo "<h2>" . $g['description'] . "</h2>\n";
         }
         echo "<div class='container-fluid settingsTable ";
-
         if ($indent) {
             echo "settingsGroupTable'>\n";
         } else {
@@ -498,7 +486,6 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
             } else {
                 echo "<div class=row><div class='col-md' colspan=2>$prependData</div></div>\n";
             }
-
         }
 
         foreach ($g['settings'] as $setting) {
@@ -507,7 +494,6 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
             } else {
                 PrintSetting($setting, $callback);
             }
-
         }
 
         if ($appendData != "") {
@@ -516,7 +502,6 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
             } else {
                 echo "<div class=row><div class='col-md' colspan=2>$appendData</div></div>\n";
             }
-
         }
 
         echo "</div><br>\n";
@@ -535,27 +520,23 @@ function PrintSettingGroupTable($group, $appendData = "", $prependData = "", $in
     echo "</div>\n";
 }
 
-function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "", $sData = array())
+function PrintSettingCheckbox($title, $setting, $restart, $reboot, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "", $sData = array())
 {
     global $settings;
     global $pluginSettings;
-
     $plugin = "";
     $settingsName = "settings";
-
     $escSetting = preg_replace('/\./', '\\\\\\\\.', $setting);
-
     if ($pluginName != "") {
         $plugin = "Plugin";
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
         $callbackName = $callbackName . "('$setting');";
     }
 
     $changedFunction = preg_replace('/\./', '', $setting . "Changed");
-
     echo "<script>\n";
     if (isset($sData['children'])) {
         echo "function Update$setting" . "Children(mode) {
@@ -611,7 +592,6 @@ function " . $changedFunction . "() {
 				$.jGrowl('$title Disabled',{themeState:'detract'});
 			$settingsName" . "['$setting'] = value;
 ";
-
     if ($restart) {
         echo "SetRestartFlag($restart);\n";
     }
@@ -646,13 +626,11 @@ function " . $changedFunction . "() {
 </script>
 
 <input type='checkbox' id='$setting' ";
-
     if (isset($sData['children'])) {
         echo "class='parentSetting' ";
     }
 
     IfSettingEqualPrint($setting, $checkedValue, "checked", $pluginName, $defaultValue);
-
     if (isset($sData['onChange'])) {
         echo " onChange='" . $sData['onChange'] . "();'";
     } else {
@@ -664,25 +642,21 @@ function " . $changedFunction . "() {
     } else {
         echo " />\n";
     }
-
 }
 
-function PrintSettingSelectInternal($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array(), $multiple = false)
+function PrintSettingSelectInternal($title, $setting, $restart, $reboot, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array(), $multiple = false)
 {
     global $settings;
     global $pluginSettings;
-
     $plugin = "";
     $settingsName = "settings";
-
     $escSetting = preg_replace('/\./', '\\\\\\\\.', $setting);
-
     if ($pluginName != "") {
         $plugin = "Plugin";
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
         $callbackName = $callbackName . "();";
     }
 
@@ -691,7 +665,6 @@ function PrintSettingSelectInternal($title, $setting, $restart = 1, $reboot = 0,
     }
 
     echo "<script>\n";
-
     if (isset($sData['children'])) {
         echo "function Update$setting" . "Children(mode) {
     var val = $('#$escSetting').val();
@@ -737,7 +710,6 @@ function " . $changedFunction . "() {
 			$settingsName" . "['$setting'] = value;
 			$callbackName
 ";
-
     if ($restart) {
         echo "SetRestartFlag($restart);\n";
     }
@@ -761,7 +733,6 @@ function " . $changedFunction . "() {
 }
 </script>
 ";
-
     if (isset($sData['onChange'])) {
         echo "<select id='$setting' onChange='" . $sData['onChange'] . "();' ";
     } else {
@@ -774,22 +745,20 @@ function " . $changedFunction . "() {
         } else {
             echo "multiple class='multiSelect' ";
         }
-    } else if (isset($sData['children'])) {
+    } elseif (isset($sData['children'])) {
         echo "class='parentSetting' ";
     }
 
     echo ">\n";
-
     foreach ($values as $key => $value) {
         echo "<option value='$value'";
-
         if (isset($pluginSettings[$setting]) || isset($settings[$setting])) {
             if ($multiple) {
                 IfSettingInListPrint($setting, $value, " selected", $pluginName);
             } else {
                 IfSettingEqualPrint($setting, $value, " selected", $pluginName);
             }
-        } else if ($value == $defaultValue) {
+        } elseif ($value == $defaultValue) {
             echo " selected";
         }
 
@@ -798,11 +767,11 @@ function " . $changedFunction . "() {
 
     echo "</select>\n";
 }
-function PrintSettingMultiSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array())
+function PrintSettingMultiSelect($title, $setting, $restart, $reboot, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array())
 {
     PrintSettingSelectInternal($title, $setting, $restart, $reboot, $defaultValue, $values, $pluginName, $callbackName, $changedFunction, $sData, true);
 }
-function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array())
+function PrintSettingSelect($title, $setting, $restart, $reboot, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array())
 {
     PrintSettingSelectInternal($title, $setting, $restart, $reboot, $defaultValue, $values, $pluginName, $callbackName, $changedFunction, $sData, false);
 }
@@ -810,10 +779,8 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
 {
     global $settings;
     global $pluginSettings;
-
     $plugin = "";
     $settingsName = "settings";
-
     if ($pluginName != "") {
         $plugin = "Plugin";
         $settingsName = "pluginSettings";
@@ -821,7 +788,6 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
 
     echo "
 <input type='text' id='$setting' maxlength='$maxlength' size='$size' value=\"";
-
     if (isset($settings[$setting])) {
         echo $settings[$setting];
     } elseif (isset($pluginSettings[$setting])) {
@@ -837,7 +803,6 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 {
     global $settings;
     global $pluginSettings;
-
     $subType = $inputType;
     if ($inputType == 'color') {
         $inputType = 'text';
@@ -845,15 +810,13 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 
     $plugin = "";
     $settingsName = "settings";
-
     $escSetting = preg_replace('/\./', '\\\\\\\\.', $setting);
-
     if ($pluginName != "") {
         $plugin = "Plugin";
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
         $callbackName = $callbackName . "();";
     }
 
@@ -898,7 +861,6 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     function " . $changedFunction . "() {
         var value = $('#$escSetting').val();
 ";
-
     if (isset($sData['regex']) && isset($sData['regexDesc'])) {
         echo "
         if (!RegexCheckData(\"" . $sData['regex'] . "\", value, \"" . $sData['regexDesc'] . "\", '$inputType' == 'password')) {
@@ -914,7 +876,6 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
               $.jGrowl('$setting Saved',{themeState:'success'});
               $settingsName" . "['$setting'] = value;
               ";
-
     if ($restart) {
         echo "SetRestartFlag($restart);\n";
     }
@@ -936,7 +897,6 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     }
     </script>
 ";
-
     if (isset($sData['onChange'])) {
         echo "<input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $sData['onChange'] . "();' value=\"";
     } else {
@@ -954,12 +914,9 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         } else {
             $curValue = $defaultValue;
         }
-
     }
     echo $curValue;
-
     echo "\" \n";
-
     if (isset($sData['children'])) {
         echo "class='parentSetting' ";
     }
@@ -973,7 +930,6 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     }
 
     echo ">\n";
-
     if ($subType == 'color') {
         echo "<span id='$setting" . "_colorBox' class='color-box' style='background-color: #" . $curValue . ";'></span>";
         echo "<script>";
@@ -986,10 +942,10 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 function PrintSettingPasswordSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "")
 {
     $sData = array();
-    PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $pluginName, $defaultValue, $callbackName, $changedFunction, "password", $sData);
-    echo "&nbsp;<input id='" . $setting . "_showHideButton' type='button' class='buttons' value='Show' onclick='" . $setting . "_showHidePassword()'>";
+PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $pluginName, $defaultValue, $callbackName, $changedFunction, "password", $sData);
+echo "&nbsp;<input id='" . $setting . "_showHideButton' type='button' class='buttons' value='Show' onclick='" . $setting . "_showHidePassword()'>";
 
-    ?>
+?>
 <script>
 function <?=$setting?>_showHidePassword() {
   var x = document.getElementById("<?=$setting?>");
@@ -1030,13 +986,13 @@ function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginNa
     echo "
 <script>
 function " . $saveFunction . "() {
-	var value = $('#$escSetting').val();
+  var value = $('#$escSetting').val();
 
-	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
-		.done(function() {
-			$.jGrowl('$title saved',{themeState:'success'});
-			$settingsName" . "['$setting'] = value;
-			$callbackName
+  $.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
+      .done(function() {
+         $.jGrowl('$title saved',{themeState:'success'});
+           $settingsName" . "['$setting'] = value;
+            $callbackName
 ";
 
     if ($restart) {
@@ -1048,10 +1004,10 @@ function " . $saveFunction . "() {
     }
 
     echo "
-		}).fail(function() {
-			DialogError('$title', 'Failed to save $title');
-			$('#$escSetting').prop('checked', false);
-		});
+       }).fail(function() {
+           DialogError('$title', 'Failed to save $title');
+            $('#$escSetting').prop('checked', false);
+      });
 }
 </script>
 

@@ -47,16 +47,16 @@ function Reboot() {
 <pre>
 <?php
     echo "==================================================================================\n";
-} else{
+} else {
     echo "FPP Upgrade to version " . $version . "\n";
 }
 
-	$command = "sudo /opt/fpp/scripts/upgrade_FPP " . $version . " 2>&1";
+    $command = "sudo /opt/fpp/scripts/upgrade_FPP " . $version . " 2>&1";
 
-	echo "Command: $command\n";
-	echo "----------------------------------------------------------------------------------\n";
+    echo "Command: $command\n";
+    echo "----------------------------------------------------------------------------------\n";
     system($command);
-	echo "\n";
+    echo "\n";
 if (!$wrapped) {
 ?>
 

@@ -20,15 +20,15 @@
 
     <!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<link rel="stylesheet" href="css/fpp-bootstrap/dist/fpp-bootstrap.css?ref=<?php echo filemtime('css/fpp-bootstrap/dist/fpp-bootstrap.css'); ?>" />
-	<link rel="stylesheet" href="css/fpp.css?ref=<?php echo filemtime('css/fpp.css'); ?>" />
+	<link rel="stylesheet" href="css/fpp-bootstrap/dist/fpp-bootstrap.css?ref=<?= filemtime('css/fpp-bootstrap/dist/fpp-bootstrap.css'); ?>" />
+	<link rel="stylesheet" href="css/fpp.css?ref=<?= filemtime('css/fpp.css'); ?>" />
 
 <? if (file_exists("/home/fpp/media/config/custom.css")) { ?>
-    <link rel="stylesheet" href="api/configfile/custom.css?ref=<?php echo filemtime('/home/fpp/media/config/custom.css'); ?>" />
+    <link rel="stylesheet" href="api/configfile/custom.css?ref=<?= filemtime('/home/fpp/media/config/custom.css'); ?>" />
 <? } ?>
-    <script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
+    <script type="text/javascript" src="js/fpp.js?ref=<?= filemtime('js/fpp.js'); ?>"></script>
 <? if (file_exists("/home/fpp/media/config/custom.js")) { ?>
-    <script type="text/javascript" src="api/configfile/custom.js?ref=<?php echo filemtime('/home/fpp/media/config/custom.js'); ?>"></script>
+    <script type="text/javascript" src="api/configfile/custom.js?ref=<?= filemtime('/home/fpp/media/config/custom.js'); ?>"></script>
 <? } ?>
 
 	<script type="text/javascript">
@@ -42,7 +42,7 @@
 ?>
 		<style>
 			.header {
-				background-color: #<? echo $settings['backgroundColor'] ?>;
+				background-color: #<?= $settings['backgroundColor'] ?>;
 			}
 		</style>
 <?

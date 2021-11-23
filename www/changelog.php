@@ -79,22 +79,22 @@ function UpgradeDone() {
 
 function DisplayVersionOptions(version)
 {
-	$('#dialog-confirm').fppDialog({
-		resizeable: false,
-		width: 400,
-		modal: true,
-		buttons: {
-			"View Change" : {class:'btn-success',click:function() {
-				$(this).fppDialog("close");
+    $('#dialog-confirm').fppDialog({
+        resizeable: false,
+        width: 400,
+        modal: true,
+        buttons: {
+            "View Change" : {class:'btn-success',click:function() {
+                $(this).fppDialog("close");
                 let url = "https://github.com/FalconChristmas/fpp/commit/" + version
                 window.open(url, '_blank').focus();
-				}},
-			"Revert to this Change" : {click:function() {
-				$(this).fppDialog("close");
+                }},
+            "Revert to this Change" : {click:function() {
+                $(this).fppDialog("close");
                 GitCheckoutVersion(version)
-				}}
-			}
-		});
+                }}
+            }
+        });
 }
 
 function GitCheckoutVersion(version) {
@@ -111,8 +111,8 @@ function GitCheckoutVersion(version) {
 <body>
 <div id="bodyWrapper">
   <?php
-$activeParentMenuItem = 'help';
-include 'menu.inc';?>
+    $activeParentMenuItem = 'help';
+    include 'menu.inc';?>
   <div class="mainContainer container">
   <h1 class="title">ChangeLog</h1>
   <div class="pageContent">

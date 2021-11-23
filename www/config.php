@@ -40,7 +40,6 @@ function GetSettingValue($setting, $default = '', $prefix = '', $suffix = '')
         } else {
             return $default;
         }
-
     }
 
     return $default;
@@ -93,8 +92,10 @@ function LoadLocale()
 function ApprovedCape($v)
 {
     if (isset($v["vendor"])) {
-        if (isset($v["vendor"]["name"]) && ($v["vendor"]["name"] == "Upgrade")
-            && isset($v["designer"]) && ($v["designer"] == "Unknown")) {
+        if (
+            isset($v["vendor"]["name"]) && ($v["vendor"]["name"] == "Upgrade")
+            && isset($v["designer"]) && ($v["designer"] == "Unknown")
+        ) {
             return true;
         }
     }
@@ -203,37 +204,37 @@ if ($settings['Platform'] == "Raspberry Pi") {
     if (preg_match('/Pi Model A Rev/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Model A";
         $settings['Logo'] = "Raspberry_Pi_A.png";
-    } else if (preg_match('/Pi Model B Rev/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Pi Model B Rev/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Model B";
         $settings['Logo'] = "Raspberry_Pi_B.png";
-    } else if (preg_match('/Pi Model A Plus/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Pi Model A Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Model A+";
         $settings['Logo'] = "Raspberry_Pi_A+.png";
-    } else if (preg_match('/Pi Model B Plus/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Pi Model B Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Model B+";
         $settings['Logo'] = "Raspberry_Pi_B+.png";
-    } else if (preg_match('/Pi 2 Model B/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Pi 2 Model B/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 2 Model B";
         $settings['Logo'] = "Raspberry_Pi_2.png";
-    } else if (preg_match('/Pi 3 Model B Plus/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Pi 3 Model B Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 3 Model B+";
         $settings['Logo'] = "Raspberry_Pi_3B+.png";
-    } else if (preg_match('/Pi 3 Model A Plus/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Pi 3 Model A Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 3 Model A+";
         $settings['Logo'] = "Raspberry_Pi_3A+.png";
-    } else if (preg_match('/Pi 3 Model B/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Pi 3 Model B/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 3 Model B";
         $settings['Logo'] = "Raspberry_Pi_3.png";
-    } else if (preg_match('/Pi 4/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Pi 4/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 4";
         $settings['Logo'] = "Raspberry_Pi_4.png";
-    } else if (preg_match('/Pi Zero W/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Pi Zero W/', $settings['SubPlatform'])) {
         $settings['Variant'] = "PiZero W";
         $settings['Logo'] = "Raspberry_Pi_ZeroW.png";
-    } else if (preg_match('/Pi Zero/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Pi Zero/', $settings['SubPlatform'])) {
         $settings['Variant'] = "PiZero";
         $settings['Logo'] = "Raspberry_Pi_Zero.png";
-    } else if ($settings['SubPlatform'] == "V2P-CA15") {
+    } elseif ($settings['SubPlatform'] == "V2P-CA15") {
         $settings['Variant'] = "qemu";
         $settings['Logo'] = "QEMU_Logo.png";
         $settings['LogoLink'] = "http://qemu.org/";
@@ -241,7 +242,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
         $settings['Variant'] = "UNKNOWN";
         $settings['Logo'] = "Raspberry_Pi_Logo.png";
     }
-} else if ($settings['Platform'] == "BeagleBone Black") {
+} elseif ($settings['Platform'] == "BeagleBone Black") {
     $settings['OSImagePrefix'] = "BBB";
     $settings['LogoLink'] = "http://beagleboard.org/";
     $settings['BBB_Tethering'] = "1";
@@ -249,66 +250,66 @@ if ($settings['Platform'] == "Raspberry Pi") {
     if (preg_match('/PocketBeagle/', $settings['SubPlatform'])) {
         $settings['Variant'] = "PocketBeagle";
         $settings['Logo'] = "beagle_pocket.png";
-    } else if (preg_match('/Green Wireless/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Green Wireless/', $settings['SubPlatform'])) {
         $settings['Variant'] = "BeagleBone Green Wireless";
         $settings['Logo'] = "beagle_greenwifi.png";
-    } else if (preg_match('/Green/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Green/', $settings['SubPlatform'])) {
         $settings['Variant'] = "BeagleBone Green";
         $settings['Logo'] = "beagle_green.png";
-    } else if (preg_match('/Black Wireless/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/Black Wireless/', $settings['SubPlatform'])) {
         $settings['Variant'] = "BeagleBone Black Wireless";
         $settings['Logo'] = "beagle_blackwifi.png";
-    } else if (preg_match('/BeagleBone Black/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/BeagleBone Black/', $settings['SubPlatform'])) {
         $settings['Variant'] = "BeagleBone Black";
         $settings['Logo'] = "beagle_black.png";
-    } else if (preg_match('/SanCloud BeagleBone Enhanced/', $settings['SubPlatform'])) {
+    } elseif (preg_match('/SanCloud BeagleBone Enhanced/', $settings['SubPlatform'])) {
         $settings['Variant'] = "SanCloud BeagleBone Enhanced";
         $settings['Logo'] = "beagle_sancloud.png";
     } else {
         $settings['Variant'] = "UNKNOWN";
         $settings['Logo'] = "beagle_logo.png";
     }
-} else if ($settings['Platform'] == "PogoPlug") {
+} elseif ($settings['Platform'] == "PogoPlug") {
     $settings['Logo'] = "pogoplug_logo.png";
     $settings['LogoLink'] = "";
-} else if ($settings['Platform'] == "ODROID") {
+} elseif ($settings['Platform'] == "ODROID") {
     $settings['Logo'] = "odroid_logo.gif";
     $settings['LogoLink'] = "http://www.hardkernel.com/main/main.php";
-} else if ($settings['Platform'] == "OrangePi") {
+} elseif ($settings['Platform'] == "OrangePi") {
     $settings['Logo'] = "orangepi_logo.png";
     $settings['LogoLink'] = "http://www.orangepi.org/";
     $settings['SubPlatform'] = trim(file_get_contents("/sys/firmware/devicetree/base/model"));
     if (preg_match('/Orange Pi Zero/', $settings['SubPlatform'])) {
         $settings['Logo'] = "orangepi_zero_logo.png";
     }
-} else if ($settings['Platform'] == "Pine64") {
+} elseif ($settings['Platform'] == "Pine64") {
     $settings['Logo'] = "pine64_logo.png";
     $settings['LogoLink'] = "https://www.pine64.org/";
-} else if ($settings['Platform'] == "CHIP") {
+} elseif ($settings['Platform'] == "CHIP") {
     $settings['Logo'] = "chip_logo.png";
     $settings['LogoLink'] = "http://www.getchip.com/";
-} else if (file_exists("/.dockerenv")) {
+} elseif (file_exists("/.dockerenv")) {
     $settings['SubPlatform'] = $settings['Platform'];
     $settings['Variant'] = $settings['Platform'];
     $settings['Platform'] = "Docker";
     $settings['Logo'] = "debian_logo.png";
     $settings['LogoLink'] = "https://www.debian.org/";
-} else if ($settings['Platform'] == "Debian") {
+} elseif ($settings['Platform'] == "Debian") {
     $settings['Logo'] = "debian_logo.png";
     $settings['LogoLink'] = "https://www.debian.org/";
-} else if ($settings['Platform'] == "Ubuntu") {
+} elseif ($settings['Platform'] == "Ubuntu") {
     $settings['Logo'] = "ubuntu_logo.png";
     $settings['LogoLink'] = "https://ubuntu.com/";
-} else if ($settings['Platform'] == "Fedora") {
+} elseif ($settings['Platform'] == "Fedora") {
     $settings['Logo'] = "fedora_logo.png";
     $settings['LogoLink'] = "https://getfedora.org/";
-} else if ($settings['Platform'] == "Linux") {
+} elseif ($settings['Platform'] == "Linux") {
     $settings['Logo'] = "tux_logo.png";
     $settings['LogoLink'] = "http://www.linux.com/";
-} else if ($settings['Platform'] == "FreeBSD") {
+} elseif ($settings['Platform'] == "FreeBSD") {
     $settings['Logo'] = "freebsd_logo.png";
     $settings['LogoLink'] = "http://www.freebsd.org/";
-} else if ($settings['Platform'] == "qemu") {
+} elseif ($settings['Platform'] == "qemu") {
     $settings['Logo'] = "QEMU_Logo.png";
     $settings['LogoLink'] = "http://qemu.org/";
 } else {
@@ -345,8 +346,10 @@ if ($fd) {
         if ($key != "") {
             // If we have a Directory setting that doesn't
             // end in a slash, then add one
-            if ((preg_match("/Directory$/", $key)) &&
-                (!preg_match("/\/$/", $value))) {
+            if (
+                (preg_match("/Directory$/", $key)) &&
+                (!preg_match("/\/$/", $value))
+            ) {
                 $value .= "/";
             }
 
@@ -359,7 +362,7 @@ if ($fd) {
                     $fppMode = "player";
                     $settings["MultiSyncEnabled"] = "1";
                     $settings[$key] = "player";
-                } else if ($value == "bridge") {
+                } elseif ($value == "bridge") {
                     $fppMode = "player";
                     $settings[$key] = "player";
                 } else {
@@ -563,7 +566,27 @@ function GetDirSetting($dir)
 {
     $dir = strtolower($dir); // Support both cases
 
-    if ($dir == "sequences") {return GetSettingValue('sequenceDirectory');} else if ($dir == "music") {return GetSettingValue('musicDirectory');} else if ($dir == "videos") {return GetSettingValue('videoDirectory');} else if ($dir == "images") {return GetSettingValue('imageDirectory');} else if ($dir == "effects") {return GetSettingValue('effectDirectory');} else if ($dir == "scripts") {return GetSettingValue('scriptDirectory');} else if ($dir == "logs") {return GetSettingValue('logDirectory');} else if ($dir == "uploads") {return GetSettingValue('uploadDirectory');} else if ($dir == "docs") {return GetSettingValue('docsDirectory');} else if ($dir == "config") {return GetSettingValue('configDirectory');}
+    if ($dir == "sequences") {
+        return GetSettingValue('sequenceDirectory');
+    } elseif ($dir == "music") {
+        return GetSettingValue('musicDirectory');
+    } elseif ($dir == "videos") {
+        return GetSettingValue('videoDirectory');
+    } elseif ($dir == "images") {
+        return GetSettingValue('imageDirectory');
+    } elseif ($dir == "effects") {
+        return GetSettingValue('effectDirectory');
+    } elseif ($dir == "scripts") {
+        return GetSettingValue('scriptDirectory');
+    } elseif ($dir == "logs") {
+        return GetSettingValue('logDirectory');
+    } elseif ($dir == "uploads") {
+        return GetSettingValue('uploadDirectory');
+    } elseif ($dir == "docs") {
+        return GetSettingValue('docsDirectory');
+    } elseif ($dir == "config") {
+        return GetSettingValue('configDirectory');
+    }
 
     return "";
 }
@@ -572,15 +595,15 @@ function GetDirSetting($dir)
 // $skipJSsettings is only set in fppjson.php and fppxml.php
 // to prevent this JavaScript from being printed
 if (!isset($skipJSsettings)) {
-    ?>
+?>
 <script type="text/javascript">
     MINYEAR = <?echo MINYEAR; ?>;
     MAXYEAR = <?echo MAXYEAR; ?>;
-	var settings = new Array();
+    var settings = new Array();
 <?
     foreach ($settings as $key => $value) {
         if (!is_array($value)) {
-            printf("	settings['%s'] = \"%s\";\n", $key, $value);
+            printf("    settings['%s'] = \"%s\";\n", $key, $value);
         } else {
             $js_array = json_encode($value);
             printf("    settings['%s'] = %s;\n", $key, $js_array);
@@ -598,7 +621,7 @@ if (!isset($skipJSsettings)) {
     var FPP_PATCH_VERSION = <?echo getFPPPatchVersion(); ?>;
     <?}?>
 
-	var pageName = "<?echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
+    var pageName = "<?echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
 
   var helpPage = "<?echo basename($_SERVER['PHP_SELF']) ?>";
   if (pageName == "plugin")

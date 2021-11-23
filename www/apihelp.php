@@ -10,13 +10,13 @@ include 'common/menuHead.inc';
 <script>
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 </head>
 <body>
 <div id="bodyWrapper">
 <?php
-$activeParentMenuItem = 'help'; 
-	include 'menu.inc'; ?>
+$activeParentMenuItem = 'help';
+    include 'menu.inc'; ?>
   <div class="mainContainer">
     <h1 class="title">API Help</h1>
         <div class="pageContent">

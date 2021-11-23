@@ -19,10 +19,16 @@ include_once 'common/menuHead.inc';
   <div>
     <fieldset class="fieldSection">
       <legend>Virtual Display</legend>
-<?
+<?php
 require_once('virtualdisplaybody.php');
 ?>
-	<br>NOTE: If the Virtual Display is not working, you need to add the HTTP Virtual Display Channel Output on the 'Other' tab of the Channel Outputs config page.  Your background image must be uploaded as a file called 'virtualdisplaybackground.jpg' and your pixel map must be copied to FPP's configuration directory from xLights as a file called 'virtualdisplaymap'.
+    <br>
+    NOTE: If the Virtual Display is not working, you need to add the 
+    HTTP Virtual Display Channel Output on the 'Other' tab of the 
+    Channel Outputs config page.  Your background image must be uploaded 
+    as a file called 'virtualdisplaybackground.jpg' and your pixel map 
+    must be copied to FPP's configuration directory from xLights as a 
+    file called 'virtualdisplaymap'.
     </fieldset>
   </div>
   <?php include 'common/footer.inc'; ?>

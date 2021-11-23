@@ -7,14 +7,14 @@ require_once('troubleshootingCommands.php');
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 </head>
 
 <body>
 <div id="bodyWrapper">
-  <?php 
-  $activeParentMenuItem = 'help'; 
-  include 'menu.inc'; ?>
+  <?php
+    $activeParentMenuItem = 'help';
+    include 'menu.inc'; ?>
   <div class="mainContainer">
 
     <h1 class="title">Troubleshooting</h1>
@@ -37,8 +37,8 @@ require_once('troubleshootingCommands.php');
     $hotLinks .= "<li><a href=\"#$header\">$title</a></li>";
     $jsArray[$key] = $title;
   ?>
-          <a class="troubleshoot-anchor" name="<? echo $header ?>">.</a><h3><? echo $title . ':&nbsp;&nbsp;&nbsp;&nbsp;' . $command; ?></h3>
-          <pre id="<? echo $key ?>"><i>Loading...</i></pre>
+          <a class="troubleshoot-anchor" name="<?= $header ?>">.</a><h3><?= $title . ':&nbsp;&nbsp;&nbsp;&nbsp;' . $command; ?></h3>
+          <pre id="<?= $key ?>"><i>Loading...</i></pre>
           <hr>
   <?
     ++$cnt;
@@ -74,7 +74,7 @@ function fixScroll() {
 
 $( document ).ready(function() {
 
-  document.querySelector("#troubleshooting-hot-links").innerHTML = '<?php echo $hotLinks ?>';
+  document.querySelector("#troubleshooting-hot-links").innerHTML = '<?= $hotLinks ?>';
 
 <?
   foreach($jsArray as $key => $command)
@@ -82,14 +82,14 @@ $( document ).ready(function() {
   $url = "./troubleshootingHelper.php?key=" . urlencode($command);
 ?>
       $.ajax({
-            url: "<?php echo $url ?>",
+            url: "<?= $url ?>",
             type: 'GET',
             success: function(data) {
-                document.querySelector("#<?php echo $key ?>").innerHTML = data;
+                document.querySelector("#<?= $key ?>").innerHTML = data;
                 fixScroll();
             },
             error: function() {
-                DialogError('Failed to query comand', "Error: Unable to query for <?php echo $command ?>");
+                DialogError('Failed to query comand', "Error: Unable to query for <?= $command ?>");
             }
         });
 

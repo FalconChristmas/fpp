@@ -11,12 +11,12 @@ error_reporting(E_ALL);
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?= $pageTitle; ?></title>
 <?
 if (isset($_GET['playlist'])) {
 ?>
 <script>
-    var initialPlaylist = "<? echo htmlspecialchars($_GET['playlist']); ?>";
+    var initialPlaylist = "<?= htmlspecialchars($_GET['playlist']); ?>";
 </script>
 <?
 }
