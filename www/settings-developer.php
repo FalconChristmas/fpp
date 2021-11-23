@@ -11,6 +11,7 @@ function filterBranch($branch) {
     if (preg_match("*v[01]\.[0-9x]*", $branch)   // very very old v0.x and v1.x branches
         || preg_match("*v2\.[0-9x]*", $branch)   // old v2.x branchs, that can no longer work (wrong lib versions)
         || preg_match("*v3\.[0-9x]*", $branch)   // old v3.x branchs, that can no longer work (wrong libhttp versions)
+        || preg_match("*v4\.[0-9x]*", $branch)   // old v4.x branchs, that can no longer work (wrong vlc versions)
         || preg_match("*cpinkham*", $branch)     // privatish branches used by developers, developers should know how to flip from command line
         || preg_match("*dkulp*", $branch)
         || $branch == "new-ui"                   // some irrelevant branches at this point
