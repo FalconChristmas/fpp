@@ -27,6 +27,7 @@
 #include "PlaylistEntrySequence.h"
 #include "fseq/FSEQFile.h"
 
+#include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
 
 PlaylistEntrySequence::PlaylistEntrySequence(Playlist* playlist, PlaylistEntryBase* parent) :
@@ -86,6 +87,7 @@ int PlaylistEntrySequence::StartPlaying(void) {
         PreparePlay();
     }
     m_pausedFrame = -1;
+    ResetChannelOutputFrameNumber();
     sequence->StartSequence();
     m_startTme = GetTimeMS();
     LogDebug(VB_PLAYLIST, "Started Sequence, ID: %s\n", m_sequenceName.c_str());
