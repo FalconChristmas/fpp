@@ -20,6 +20,11 @@ alone allows for web development with FPP.
 
 [![Remote-SSH Setup](https://img.youtube.com/vi/h2MhkFKUOow/0.jpg)](https://www.youtube.com/watch?v=h2MhkFKUOow)
 
+Basic steps:
+1) Edit "/etc/ssh/sshd_config" to set PermitRootLogin to yes
+2) Set the root password (passwd)
+3) Install the Remote-SSH extension into VSC
+
 ## Compiling FPPD
 The default vscode tasks that we currently have setup include a "clean" target and a "make debug" target.  
 If a C/C++ file is open, from the Terminal->Run Task... menu, you should be able to select either the
