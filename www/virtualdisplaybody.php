@@ -108,7 +108,7 @@ function initCanvas()
 	$('#vCanvas').drawImage({
 		layer: true,
 		opacity: 0.2,
-		source: 'api/Images/virtualdisplaybackground.jpg', 
+		source: 'api/file/Images/virtualdisplaybackground.jpg',
 		width: canvasWidth,
 		height: canvasHeight
 	});
