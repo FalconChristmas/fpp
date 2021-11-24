@@ -332,6 +332,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 void Sequence::StartSequence() {
     if (!IsSequenceRunning() && m_seqFile) {
         if (multiSync->isMultiSyncEnabled()) {
+            ResetChannelOutputFrameNumber();
             multiSync->SendSeqSyncStartPacket(m_seqFilename);
         }
         m_seqStarting = 0;

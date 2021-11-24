@@ -100,5 +100,6 @@
         "typeindex": "cpp",
         "variant": "cpp"
     },
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "cmake.configureOnOpen": false
 }

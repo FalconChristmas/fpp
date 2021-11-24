@@ -40,6 +40,7 @@ using namespace std::experimental::filesystem;
 #include "PlaylistEntryMedia.h"
 #include "Plugins.h"
 #include "mediadetails.h"
+#include "channeloutput/channeloutput.h"
 
 int PlaylistEntryMedia::m_openStartDelay = -1;
 
@@ -174,6 +175,7 @@ int PlaylistEntryMedia::StartPlaying(void) {
     if (multiSync->isMultiSyncEnabled())
         multiSync->SendMediaSyncStartPacket(m_mediaFilename);
 
+    ResetChannelOutputFrameNumber();
     if (!m_mediaOutput->Start()) {
         LogErr(VB_MEDIAOUT, "Could not start media %s\n", m_mediaOutput->m_mediaFilename.c_str());
         delete m_mediaOutput;
