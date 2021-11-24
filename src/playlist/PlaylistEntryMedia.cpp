@@ -400,7 +400,7 @@ int PlaylistEntryMedia::GetFileList(void) {
         m_files.push_back(entry);
     }
 
-    LogDebug(VB_PLAYLIST, "%d images in %s directory\n", m_files.size(), dir.c_str());
+    LogDebug(VB_PLAYLIST, "%d files in %s directory\n", m_files.size(), dir.c_str());
 
     return m_files.size();
 }
