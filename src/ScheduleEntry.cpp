@@ -293,7 +293,7 @@ void ScheduleEntry::pushStartEndTimes(int dow) {
         return;
     }
 
-    if (repeatInterval) {
+    if ((repeatInterval) && (startTime != endTime)) {
         time_t newEnd = startTime + repeatInterval - 1;
         while (startTime < endTime) {
             startEndTimes.push_back(std::pair<int, int>(startTime, newEnd));
