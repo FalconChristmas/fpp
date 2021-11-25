@@ -135,6 +135,11 @@ function AddScheduleEntry(data = {}) {
         row.find('.schOptionsSequence').hide();
         row.find('.schOptionsCommand').show();
         row.find('.schType').val('command');
+        row.find('.schRepeat').find('.immediate').hide();
+
+        // Handle old FPP Command entries where repeat was set to 1
+        if (data.repeat == 1)
+            data.repeat = 0;
 
         FillInCommandTemplate(row, data);
     }
@@ -157,7 +162,6 @@ function AddScheduleEntry(data = {}) {
     
     if (data.endTimeOffset != null) row.find('.schEndTimeOffset').val(data.endTimeOffset);
     if (data.startTimeOffset != null) row.find('.schStartTimeOffset').val(data.startTimeOffset);
-
 
     row.find('.schRepeat').val(data.repeat);
     row.find('.schStopType').val(data.stopType);
@@ -377,16 +381,21 @@ function ScheduleEntryTypeChanged(item)
         row.find('.schOptionsCommand').hide();
         row.find('.schOptionsSequence').hide();
         row.find('.schOptionsPlaylist').show();
+        row.find('.schRepeat').find('.immediate').show();
     } else if ($(item).val() == 'sequence') {
         // Sequence
         row.find('.schOptionsCommand').hide();
         row.find('.schOptionsPlaylist').hide();
         row.find('.schOptionsSequence').show();
+        row.find('.schRepeat').find('.immediate').show();
     } else {
         // FPP Command
         row.find('.schOptionsPlaylist').hide();
         row.find('.schOptionsSequence').hide();
         row.find('.schOptionsCommand').show();
+        row.find('.schRepeat').find('.immediate').hide();
+        row.find('.schRepeat').val(0);
+        row.find('.schEndTime').val(row.find('.schStartTime').val());
 
         if (row.find('.cmdTmplArgs').val() == '')
             row.find('.cmdTmplArgsTable').hide();
@@ -468,14 +477,8 @@ function GetScheduleEntryRowData(item) {
     e.day = parseInt($(item).find('.schDay').val());
     e.startTime = Convert24HFromUIFormat($(item).find('.schStartTime').val());
     e.startTimeOffset = parseInt($(item).find('.schStartTimeOffset').val());
-
-    if (schType == 'command') {
-        e.endTime = e.startTime;
-        e.endTimeOffset = e.startTimeOffset;
-    } else {
-        e.endTime = Convert24HFromUIFormat($(item).find('.schEndTime').val());
-        e.endTimeOffset = parseInt($(item).find('.schEndTimeOffset').val());
-    }
+    e.endTime = Convert24HFromUIFormat($(item).find('.schEndTime').val());
+    e.endTimeOffset = parseInt($(item).find('.schEndTimeOffset').val());
 
     e.repeat = parseInt($(item).find('.schRepeat').val());
     e.startDate = $(item).find('.schStartDate').val();
@@ -492,6 +495,10 @@ function GetScheduleEntryRowData(item) {
             json = JSON.stringify(cmd);
             $(row).find('.cmdTmplJSON').html(json);
         }
+
+        // Just in case, FPP Commands can't immediately repeat so disable
+        if (e.repeat == 1)
+            e.repeat = 0;
 
         var jdata = JSON.parse(json);
         e.playlist = '';
@@ -761,28 +768,12 @@ button.ui-datepicker-current {
                                 <option value='command'>Command</option>
                                  </select>
                             </td>
-                        <!-- start Playlist and Sequence options -->
-                             <td class='schOptionsPlaylist'>
+                            <td class='schOptionsPlaylist'>
                                  <select class='schPlaylist' title=''>
                                 </select>
                             </td>
-                             <td class='schOptionsSequence'>
+                            <td class='schOptionsSequence'>
                                  <select class='schSequence' title=''>
-                                </select>
-                            </td>
-                            <td class='schOptionsPlaylist schOptionsSequence'><input class='time schEndTime' type='text' size='6' onChange='TimeChanged(this);' />
-                                <span class='offset endOffset'><br>+<input class='schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span>
-                            </td>
-                            <td class='schOptionsPlaylist schOptionsSequence' class='' >
-                                <select class='schRepeat'>
-                                    <option value='0'>None</option>
-                                    <option value='1'>Immediate</option>
-                                    <option value='500'>5 Min.</option>
-                                    <option value='1000'>10 Min.</option>
-                                    <option value='1500'>15 Min.</option>
-                                    <option value='2000'>20 Min.</option>
-                                    <option value='3000'>30 Min.</option>
-                                    <option value='6000'>60 Min.</option>
                                 </select>
                             </td>
                             <td class='schOptionsPlaylist schOptionsSequence' class='' >
@@ -792,17 +783,30 @@ button.ui-datepicker-current {
                                     <option value='1'>Hard Stop</option>
                                 </select>
                             </td>
-                            <!-- end 'Playlist' options -->
-                            <!-- start 'FPP Command' options -->
-                            <td class='schOptionsCommand' colspan='4'><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
+                            <td class='schOptionsCommand' colspan='2'>
+                                <select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
+                                <img class='cmdTmplTooltipIcon' title='' src='images/redesign/help-icon.svg' width=22 height=22>
                                 <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
                                 <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".cmdTmplJSON").text());'>
-                                <img class='cmdTmplTooltipIcon' title='' src='images/redesign/help-icon.svg' width=22 height=22>
-                                <span class='cmdTmplMulticastInfo'></span>
                                 <table class='cmdTmplArgsTable'><tr><th class='left'>Args:</th><td><span class='cmdTmplArgs'></span></td></tr></table>
                                 <span class='cmdTmplJSON' style='display: none;'></span>
                             </td>
-                            <!-- end 'FPP Command' options -->
+                            <td>
+                                <input class='time schEndTime' type='text' size='6' onChange='TimeChanged(this);' />
+                                <span class='offset endOffset'><br>+<input class='schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span>
+                            </td>
+                            <td class='' >
+                                <select class='schRepeat'>
+                                    <option value='0'>None</option>
+                                    <option value='1' class='immediate'>Immediate</option>
+                                    <option value='500'>5 Min.</option>
+                                    <option value='1000'>10 Min.</option>
+                                    <option value='1500'>15 Min.</option>
+                                    <option value='2000'>20 Min.</option>
+                                    <option value='3000'>30 Min.</option>
+                                    <option value='6000'>60 Min.</option>
+                                </select>
+                            </td>
                         </tr>
                     </table>
                     <table id='tblSchedule' class="fppSelectableRowTable">
@@ -817,9 +821,9 @@ button.ui-datepicker-current {
                                 <th class="tblScheduleHeadStartTime">Start<br>Time</th>
                                 <th class="tblScheduleHeadSchType">Schedule<br>Type</th>
                                 <th class="tblScheduleHeadPlaylist">Playlist /<br> Command Args</th>
+                                <th class="tblScheduleHeadStopType">Stop Type</th>
                                 <th class="tblScheduleHeadEndTime">End Time</th>
                                 <th class="tblScheduleHeadRepeat">Repeat</th>
-                                <th class="tblScheduleHeadStopType">Stop Type</th>
                             </tr>
                         </thead>
                         <tbody id='tblScheduleBody'>

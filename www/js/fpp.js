@@ -5647,22 +5647,21 @@ function FillInCommandTemplate(row, data) {
     var mInfo = "";
     if (data.hasOwnProperty('multisyncCommand')) {
         if (data.multisyncCommand) {
-            mInfo = "<b>MCast:</b>&nbsp;Y";
+            mInfo = "Yes";
         } else {
-            mInfo = "<b>MCast:</b>&nbsp;N";
+            mInfo = "No";
         }
 
         command.multisyncCommand = data.multisyncCommand;
         if ((data.multisyncCommand) &&
             (data.hasOwnProperty('multisyncHosts'))) {
-            mInfo += " <b>Hosts:</b>&nbsp;" + data.multisyncHosts;
+            mInfo += "<br>" + data.multisyncHosts;
             command.multisyncHosts = data.multisyncHosts;
         }
     } else {
-        mInfo = "<b>MCast:</b> N";
+        mInfo = "No";
     }
 
-    row.find('.cmdTmplMulticastInfo').html(mInfo);
     row.find('.cmdTmplJSON').html(JSON.stringify(command));
 
     row.find('.cmdTmplTooltipIcon').tooltip({
@@ -5702,6 +5701,7 @@ function FillInCommandTemplate(row, data) {
                 }
             }
 
+            tip += "<tr><th class='left'>MultiCast:</th><td>" + mInfo + "</td></tr>";
             tip += '</table>';
 
             return tip;
