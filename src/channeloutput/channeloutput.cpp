@@ -86,7 +86,7 @@ static void sortRanges(std::vector<std::pair<uint32_t, uint32_t>> &rngs, bool ga
     }
     rngs.clear();
     std::pair<uint32_t, uint32_t> cur(FPPD_MAX_CHANNELS, FPPD_MAX_CHANNELS);
-    bool gapEliminate = gaps ? 1025 : 0;
+    uint32_t gapEliminate = gaps ? 1025 : 0;
 
     for (auto& a : ranges) {
         if (cur.first == FPPD_MAX_CHANNELS) {

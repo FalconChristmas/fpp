@@ -115,7 +115,7 @@ std::unique_ptr<Command::Result> InsertPlaylistCommand::run(const std::vector<st
         iNR = args[3] == "true" || args[3] == "1";
     }
     if (!iNR || args[0] != Player::INSTANCE.GetPlaylistName()) {
-        Player::INSTANCE.InsertPlaylistAsNext(args[0], start - 1, end - 1);
+        Player::INSTANCE.InsertPlaylistAsNext(args[0], start > 0 ? start - 1 : -1, end > 0 ? end - 1 : -1);
     }
     return std::make_unique<Command::Result>("Playlist Inserted");
 }
@@ -134,7 +134,7 @@ std::unique_ptr<Command::Result> InsertPlaylistImmediate::run(const std::vector<
         iNR = args[3] == "true" || args[3] == "1";
     }
     if (!iNR || args[0] != Player::INSTANCE.GetPlaylistName()) {
-        Player::INSTANCE.InsertPlaylistImmediate(args[0], start - 1, end - 1);
+        Player::INSTANCE.InsertPlaylistImmediate(args[0], start > 0 ? start - 1 : -1, end > 0 ? end - 1 : -1);
     }
     return std::make_unique<Command::Result>("Playlist Inserted");
 }
