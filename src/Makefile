@@ -84,6 +84,25 @@ endif
 %.o: %.c $(PCH_FILE) fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
 
+
+rebuildplugins: cleanplugins plugins
+
+plugins:
+	@for DIR in /home/fpp/media/plugins/* ; do \
+		if [ -d "$${DIR}" -a -f "$${DIR}/Makefile" ] ; then \
+			echo "Building plugin $${DIR}" ; \
+			make -C "$${DIR}" -f "$${DIR}/Makefile" ; \
+		fi ; \
+	done
+
+cleanplugins:
+	@for DIR in /home/fpp/media/plugins/* ; do \
+		if [ -d "$${DIR}" -a -f "$${DIR}/Makefile" ] ; then \
+			echo "Cleaning plugin $${DIR}" ; \
+			make -C "$${DIR}" -f "$${DIR}/Makefile" clean ; \
+		fi ; \
+	done
+
 cleanfpp:
 	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(TARGETS) $(TARGETS_PHP)
 
