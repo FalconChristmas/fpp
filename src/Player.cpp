@@ -186,15 +186,15 @@ int Player::Process() {
 
             switch (stopMethod) {
             case 0: // Gracefully
-                playlist->StopGracefully(forceStop);
+                StopGracefully(forceStop);
                 break;
             case 2: // After Loop
-                playlist->StopGracefully(forceStop, 1);
+                StopGracefully(forceStop, 1);
                 break;
             case 1: // Hard Stop
             default:
                 while (GetStatus() != FPP_STATUS_IDLE)
-                    playlist->StopNow(forceStop);
+                    StopNow(forceStop);
                 break;
             }
         }
