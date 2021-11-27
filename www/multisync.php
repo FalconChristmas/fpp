@@ -1943,6 +1943,7 @@ $(document).ready(function() {
             filter_childRows     : true,
             filter_childByColumn : true,
             filter_childWithSibs : false,
+            filter_saveFilters   : true,
             filter_functions: {
                 2: {
                     "FPP (All)": function(e,n,f,i,$r,c,data) {
