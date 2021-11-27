@@ -3910,7 +3910,8 @@ function CheckRestartRebootFlags() {
 function RestartFPPD() {
     var args = "";
 
-    if (settings['restartFlag'] == 2)
+    // Perform a quick restart if requested or if no restart is required
+    if ((settings['restartFlag'] == 2) || (settings['restartFlag'] == 0))
         args = "?quick=1";
 
     $('html,body').css('cursor', 'wait');
