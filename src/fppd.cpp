@@ -391,6 +391,8 @@ int parseArguments(int argc, char **argv)
 			{"volume",				required_argument,	0, 'v'},
 			{"mode",				required_argument,	0, 'm'},
 			{"log-file",			required_argument,	0, 'l'},
+			{"playlist",			required_argument,	0, 'p'},
+			{"position",			required_argument,	0, 'P'},
 			{"detect-hardware",		no_argument,		0, 'H'},
 			{"detect-piface",		no_argument,		0, 4},
 			{"configure-hardware",		no_argument,		0, 'C'},
@@ -399,7 +401,7 @@ int parseArguments(int argc, char **argv)
 			{0,						0,					0,	0}
 		};
 
-		c = getopt_long(argc, argv, "c:fdrVv:m:B:M:S:P:u:p:s:l:b:HChV",
+		c = getopt_long(argc, argv, "Vfdrv:m:l:p:P:HCh",
 		long_options, &option_index);
 		if (c == -1)
 			break;
@@ -423,6 +425,12 @@ int parseArguments(int argc, char **argv)
 				break;
 			case 'r': //restarted
                 SetSetting("restarted", 1);
+				break;
+			case 'p': //playlist
+                SetSetting("resumePlaylist", optarg);
+				break;
+			case 'P': //position
+                SetSetting("resumePosition", atoi(optarg));
 				break;
 			case 'v': //volume
 				setVolume (atoi(optarg));
@@ -586,7 +594,15 @@ int main(int argc, char *argv[])
 
 	if (restartFPPD) {
         remove("/home/fpp/media/fpp-info.json");
-		execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", getSettingInt("daemonize") ? "-d" : "-f", "--log-level", logLevelString.c_str(), NULL);
+
+        if ((Player::INSTANCE.GetStatus() == FPP_STATUS_PLAYLIST_PLAYING) &&
+            (Player::INSTANCE.WasScheduled())) {
+            std::string playlist = Player::INSTANCE.GetPlaylistName();
+            std::string position = std::to_string(Player::INSTANCE.GetPosition() - 1);
+            execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", getSettingInt("daemonize") ? "-d" : "-f", "--log-level", logLevelString.c_str(), "-r", "-p", playlist.c_str(), "-P", position.c_str(), NULL);
+        } else {
+            execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", getSettingInt("daemonize") ? "-d" : "-f", "--log-level", logLevelString.c_str(), "-r", NULL);
+        }
 	}
 
 	return 0;

@@ -161,7 +161,7 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
     }
     LogExcess(VB_SCHEDULE, "Done checking list, proceeding to call CheckScheduledItems()\n");
 
-    CheckScheduledItems();
+    CheckScheduledItems(getSettingInt("restarted") == 1);
 }
 
 std::string Scheduler::GetPlaylistThatShouldBePlaying(int& repeat) {
@@ -435,7 +435,7 @@ void Scheduler::DumpScheduledItems() {
     }
 }
 
-void Scheduler::CheckScheduledItems() {
+void Scheduler::CheckScheduledItems(bool restarted) {
     if (m_schedulerDisabled)
         return;
 
@@ -568,7 +568,15 @@ void Scheduler::CheckScheduledItems() {
                 LogDebug(VB_SCHEDULE, "Starting Scheduled Playlist:\n");
                 DumpScheduledItem(itemTime.first, item);
 
-                Player::INSTANCE.StartScheduledPlaylist(item->entry->playlist,
+                int position = 0;
+                if (restarted && (getSetting("resumePlaylist") == item->entry->playlist)) {
+                    position = getSettingInt("resumePosition");
+
+                    SetSetting("resumePlaylist", "");
+                    SetSetting("resumePosition", 0);
+                }
+
+                Player::INSTANCE.StartScheduledPlaylist(item->entry->playlist, position,
                                                         item->entry->repeat, item->entryIndex,
                                                         item->entryIndex, // priority is entry index for now
                                                         item->startTime, item->endTime, item->entry->stopType);

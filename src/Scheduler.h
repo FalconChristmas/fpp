@@ -108,7 +108,7 @@ private:
     void AddScheduledItems(ScheduleEntry* entry, int index);
     void DumpScheduledItem(std::time_t itemTime, ScheduledItem* item);
     void DumpScheduledItems();
-    void CheckScheduledItems();
+    void CheckScheduledItems(bool restarted = false);
     void ClearScheduledItems();
     void SetItemRan(ScheduledItem* item, bool ran);
 

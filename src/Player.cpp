@@ -63,7 +63,7 @@ int Player::StartPlaylist(const std::string& name, const int repeat,
     return playlist->Start();
 }
 
-int Player::StartScheduledPlaylist(const std::string& name,
+int Player::StartScheduledPlaylist(const std::string& name, const int position,
                                    const int repeat, const int scheduleEntry, const int scheduledPriority,
                                    const time_t sTime, const time_t eTime, const int method) {
     playlistName = name;
@@ -82,7 +82,7 @@ int Player::StartScheduledPlaylist(const std::string& name,
              stopMethod == 0 ? "Graceful Stop" : stopMethod == 1 ? "Hard Stop" : stopMethod == 2 ? "Graceful Stop After Loop" : "",
              (int)(stopTime - std::time(nullptr)));
 
-    if (!playlist->Play(playlistName.c_str(), 0, repeat, scheduleEntry))
+    if (!playlist->Play(playlistName.c_str(), position, repeat, scheduleEntry))
         return 0;
 
     return playlist->Start();
