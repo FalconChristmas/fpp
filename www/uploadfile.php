@@ -308,8 +308,10 @@ include 'menu.inc'; ?>
          
                 <div class='form-actions'>
                   <input onclick="ClearSelections('Sequences');" class="buttons" type="button" value="Clear" />
+                  <?php if (isset($settings['fppMode']) && ($settings['fppMode'] == 'player')) { ?>
                   <input onclick="ButtonHandler('Sequences', 'play');" class="disableButtons singleSequencesButton" type="button"  value="Play" />
                   <input onclick="ButtonHandler('Sequences', 'playHere');" class="disableButtons singleSequencesButton" type="button"  value="Play Here" />
+                  <?php } ?>
                   <input onclick="ButtonHandler('Sequences', 'download');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Download" />
                   <input onclick="ButtonHandler('Sequences', 'rename');" class="disableButtons singleSequencesButton" type="button"  value="Rename" />
                   <input onclick="ButtonHandler('Sequences', 'delete');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Delete" />
