@@ -669,8 +669,8 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 							</div>
 					
 							<div class="btn-group btn-group-full-width" role="group" aria-label="Increment Channel">
-								<input type='button' class='buttons' value='+3' onClick='incrementEndChannel(3);'>
 								<input type='button' class='buttons' value='-3' onClick='incrementEndChannel(-3);'>
+								<input type='button' class='buttons' value='+3' onClick='incrementEndChannel(3);'>
 							</div>
 							<div class="mt-2 mb-1">
 								<b >Update Interval: </b> 
