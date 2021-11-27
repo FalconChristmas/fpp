@@ -356,7 +356,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             updatesAvailable = 1;
         }
 
-        var localVer = "<a href='" + wrapUrlWithProxy(ip) + "/about.php' target='_blank' ip='" + ip + "'><b><font color='";
+        var localVer = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip) + "/about.php' target='_blank' ip='" + ip + "'><b><font color='";
         if (updatesAvailable) {
             localVer += 'red';
         } else if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
@@ -662,7 +662,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 	} // end of "api/system/status?ip=" + ips + '&advancedView=true'
 
     function ipLink(ip) {
-        return "<a href='" + wrapUrlWithProxy(ip) + "/' ip='" + ip + "'>" + ip + "</a>";
+        return "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip) + "/' ip='" + ip + "'>" + ip + "</a>";
     }
 
     function parseFPPSystems(data) {
