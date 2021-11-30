@@ -26,8 +26,11 @@ if (isset($_GET['playlist'])) {
         $('#playlistSelect').val(initialPlaylist).trigger('change');
         
     }
-    function handleDeleteButtonClick(){
-            DeletePlaylist({
+    function handleDeleteButtonClick(name = ""){
+            if (name == "") {
+                name = $('#txtPlaylistName').val();
+            }
+            DeleteNamedPlaylist(name, {
                 onPlaylistArrayLoaded: function(){
                     $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
                     onPlaylistArrayLoaded();
@@ -39,17 +42,25 @@ if (isset($_GET['playlist'])) {
             $('.playlistSelectCount').html(playListArray.length);
             $.each(playListArray,function(i,playList){
                 var $playlistCol = $('<div class="col-md-4"/>');
-                var $playlistCard = $('<div class="card has-shadow playlistCard"/>');
+                var $playlistCard = $('<div class="card has-shadow playlistCard buttonActionsParent"/>');
                 var $playlistName = String(playList.name);
                 var $playlistClass = playList.valid ? "" : 'class="playlist-warning" title="' + playList.messages.join(' ') + '"';
                 var $playlistCardHeading = $('<h3 ' + $playlistClass + '>'+$playlistName+'</h3>');
-              //  var $playlistEditButton = $('<button class="playlistCardEditButton circularButton circularEditButton playlistCardEditButton">Edit</button>');
-                $playlistCol.append($playlistCard);
-                $playlistCard.append($playlistCardHeading);
-                //$playlistCard.append($playlistEditButton);
-                $playlistCard.click(function(){
+                var $playlistActions = $("<div class='buttonActions' />");
+                var $playlistEditButton = $('<button class="playlistCardEditButton circularButton circularButton-sm circularEditButton">Edit</button>');
+                var $playlistDelete = $("<button class='circularButton circularButton-sm circularDeleteButton'>Delete</button>");
+                $playlistEditButton.click(function(){
                     $('#playlistSelect').val($playlistName).trigger('change');
                 })
+                $playlistDelete.click(function(){
+                    handleDeleteButtonClick($playlistName);
+                });
+                $playlistActions.append($playlistEditButton);
+                $playlistActions.append($playlistDelete);
+
+                $playlistCol.append($playlistCard);
+                $playlistCard.append($playlistCardHeading);
+                $playlistCard.append($playlistActions);
   
                 $('.playlistSelectBody').append($playlistCol)
             })

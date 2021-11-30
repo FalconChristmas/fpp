@@ -1627,6 +1627,24 @@ body .sm-clean a .sub-arrow {
 .hasPlaylistDetailsLoaded .playlistEditorContainer{
 	display: block;
 }
+
+.buttonActions{
+    top:1em;
+    right:1em;
+    position:absolute;
+    display:flex;
+}
+.buttonActionsParent .buttonActions button{
+    opacity:0.0;
+    transition: 0.2s all cubic-bezier(.01,.79,.32,.99);
+    transform:scale(0.5);
+    margin-left:0.3em;
+}
+.buttonActionsParent:hover .buttonActions button{
+    cursor:pointer;
+    opacity:1;
+    transform:scale(1);
+}
 .playlistCard{
 	padding: 1.4em;
 	position: relative;
