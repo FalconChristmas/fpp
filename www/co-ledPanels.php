@@ -1155,6 +1155,9 @@ function SetupAdvancedUISelects() {
 }
 
 function SetSinglePanelSize() {
+    if (!("LEDPanelMatrix" in channelOutputsLookup))
+        return;
+
     var w = channelOutputsLookup["LEDPanelMatrix"].panelWidth;
     var h = channelOutputsLookup["LEDPanelMatrix"].panelHeight;
     var s = channelOutputsLookup["LEDPanelMatrix"].panelScan;
