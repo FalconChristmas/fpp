@@ -309,7 +309,7 @@ function playlist_get()
 {
     global $settings;
 
-    $playlistName = urldecode(params('PlaylistName'));
+    $playlistName = rawurldecode(params('PlaylistName'));
     $mergeSubs = 0;
     if ((isset($_GET['mergeSubs'])) && ($_GET['mergeSubs'] == 1)) {
         $mergeSubs = 1;
@@ -330,7 +330,7 @@ function playlist_update()
     global $settings;
 
     $playlist = $GLOBALS['_POST'];
-    $playlistName = urldecode(params('PlaylistName'));
+    $playlistName = rawurldecode(params('PlaylistName'));
 
     cleanMedialNamesInPlaylist($playlist, "leadIn");
     cleanMedialNamesInPlaylist($playlist, "mainPlaylist");
@@ -357,7 +357,7 @@ function playlist_delete()
 {
     global $settings;
 
-    $playlistName = urldecode(params('PlaylistName'));
+    $playlistName = rawurldecode(params('PlaylistName'));
     $resp = array();
 
     $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
@@ -372,7 +372,7 @@ function playlist_delete()
         }
     } else {
         $resp['Status'] = 'Error';
-        $resp['Message'] = 'Playlist does not exist.';
+        $resp['Message'] = "Playlist '$playlistName' does not exist.";
     }
 
     return json($resp);
@@ -383,7 +383,7 @@ function PlaylistSectionInsertItem()
 {
     global $settings;
 
-    $playlistName = urldecode(params('PlaylistName'));
+    $playlistName = rawurldecode(params('PlaylistName'));
     $sectionName = urldecode(params('SectionName'));
     $entry = $GLOBALS['_POST'];
     $resp = array();
@@ -463,7 +463,7 @@ function playlist_start()
 {
     global $settings;
 
-    $playlistName = urldecode(params('PlaylistName'));
+    $playlistName = rawurldecode(params('PlaylistName'));
 
     $curl = curl_init('http://localhost:32322/command/Start Playlist/' . $playlistName);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
@@ -477,7 +477,7 @@ function playlist_start_repeat()
 {
     global $settings;
 
-    $playlistName = urldecode(params('PlaylistName'));
+    $playlistName = rawurldecode(params('PlaylistName'));
     $repeat = urldecode(params('Repeat'));
 
     $curl = curl_init('http://localhost:32322/command/Start Playlist/' . $playlistName . '/' . $repeat);
