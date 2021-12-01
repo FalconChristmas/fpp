@@ -1996,10 +1996,11 @@ input[type=search].tablesorter-filter:disabled{
 .fileManagerDivData .fileDetails td:first-child {
 	padding-left: 1em;
 }
-#fileText textarea{
-	width: 100%;
+.fileText textarea{
+	height: calc(100vh - 192px);
+	margin-bottom: 0;
 }
-#fileText pre{
+.fileText pre{
 	height: calc(100vh - 182px);
 	margin-bottom: 0;
 }
