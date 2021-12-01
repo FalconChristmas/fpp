@@ -281,7 +281,7 @@ function ShouldPrintSetting($s)
     }
     if (isset($s['settingValues'])) {
         foreach ($s['settingValues'] as $key => $value) {
-            if ($settings[$key] != $value) {
+            if (!isset($settings[$key]) || ($settings[$key] != $value)) {
                 return false;
             }
         }
