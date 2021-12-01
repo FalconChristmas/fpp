@@ -176,22 +176,24 @@ $(function() {
 
 	function EditScript(scriptName)
 	{
-		$('#fileText').html("Loading...");
+		$('#fileEditText').html("Loading...");
 
 		$.get("api/Scripts/" + scriptName, function(text) {
 			var ext = scriptName.split('.').pop();
 			if (ext != "html")
 			{
-				var html = "<textarea cols='100' rows='25' id='scriptText'>" + text + "</textarea></center></div></fieldset>";
-				$('#fileText').html(html);
+				var html = "<textarea style='width: 100%' rows='25' id='scriptText'>" + text + "</textarea></center></div></fieldset>";
+				$('#fileEditText').html(html);
         $('#scriptText').data('scriptName',scriptName);
 			}
 		});
 
-		$('#fileViewer').fppDialog({ 
-
-      width: 1400, 
+		$('#fileEditor').fppDialog({
+      width: 1800,
+      height: '100%',
       title: "Script Editor : "+scriptName,
+      resizable: true,
+      overflowX: 'scroll',
       buttons:{
         "Save":{
           class:'btn-success',
@@ -204,7 +206,7 @@ $(function() {
         }
       } 
     });
-		$('#fileViewer').fppDialog( "moveToTop" );
+		$('#fileEditor').fppDialog( "moveToTop" );
 	}
 
 	function SaveScript(scriptName)
@@ -216,7 +218,7 @@ $(function() {
 		$.post(url, postData).done(function(data) {
 			if (data.status == "OK")
 			{
-				$('#fileViewer').fppDialog('close');
+				$('#fileEditor').fppDialog('close');
 				$.jGrowl("Script saved.",{themeState:'success'});
 			}
 			else
@@ -231,7 +233,7 @@ $(function() {
 
 	function AbortScriptChange()
 	{
-		$('#fileViewer').fppDialog('close');
+		$('#fileEditor').fppDialog('close');
 	}
 
 </script>
@@ -483,7 +485,11 @@ include 'menu.inc'; ?>
       </div>
     </div>
     <div id='fileViewer' title='File Viewer' style="display: none">
-      <div id='fileText'>
+      <div id='fileText' class='fileText'>
+      </div>
+    </div>
+    <div id='fileEditor' title='File Editor' style="display: none">
+      <div id='fileEditText' class='fileText'>
       </div>
     </div>
     <div id="dialog-confirm" title="Sequence Conversion" style="display: none">

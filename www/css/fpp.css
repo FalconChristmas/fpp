@@ -2000,7 +2000,7 @@ input[type=search].tablesorter-filter:disabled{
 	width: 100%;
 }
 #fileText pre{
-	height: calc(100vh - 132px);
+	height: calc(100vh - 182px);
 	margin-bottom: 0;
 }
 #storageText{

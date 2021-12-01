@@ -198,7 +198,7 @@ function getManualLink() {
                 if (settings.height) {
                     if (settings.height == '100%') {
                         $dialogBody.css({
-                            height: 'calc(100vh - 100px)'
+                            height: 'calc(100vh - 150px)'
                         });
                         $dialogInner.css({
                             'margin-top': '10px'
@@ -4648,7 +4648,18 @@ function ViewFileImpl(url, file) {
             $('#fileText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
     });
 
-    $('#fileViewer').fppDialog({ width: 1800, title: "File Viewer: " + file, height: '100%', resizable: true, overflowX: 'scroll' });
+    $('#fileViewer').fppDialog({
+        width: 1800,
+        title: "File Viewer: " + file,
+        height: '100%',
+        resizable: true,
+        overflowX: 'scroll',
+        buttons: {
+            "Close": function() {
+                $('#fileViewer').fppDialog('close');
+            }
+        }
+    });
     $('#fileViewer').fppDialog("moveToTop");
 }
 
