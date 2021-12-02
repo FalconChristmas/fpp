@@ -2414,7 +2414,7 @@ function IPOutputTypeChanged(item, input) {
         var univc = $(item).parent().parent().find("input.numUniverseCount");
         univc.prop('disabled', true);
         var sz = $(item).parent().parent().find("input.txtSize");
-        sz.prop('max', 512000);
+        sz.prop('max', FPPD_MAX_CHANNELS);
 
         var monitor = $(item).parent().parent().find("input.txtMonitor");
         monitor.prop('disabled', false);
@@ -2548,7 +2548,7 @@ function populateUniverseData(data, reload, input) {
         var monitorDisabled = "";
         var ipDisabled = "";
         if (type == 4 || type == 5) {
-            universeSize = 512000;
+            universeSize = FPPD_MAX_CHANNELS;
             universeCountDisable = " disabled";
             universeNumberDisable = " disabled";
         }
@@ -2923,7 +2923,7 @@ function validateUniverseData() {
         txtSize = document.getElementById("txtSize[" + i + "]");
         var max = 512;
         if (universeType == 4 || universeType == 5) {
-            max = 512000;
+            max = FPPD_MAX_CHANNELS;
         }
         if (!validateNumber(txtSize, 1, max)) {
             returnValue = false;
