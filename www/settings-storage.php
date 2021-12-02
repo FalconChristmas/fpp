@@ -264,7 +264,7 @@ function PrintStorageDeviceSelect($platform)
 
     
 <?php
-if ($settings['SubPlatform'] != "Docker" ) { ?>
+if ($settings['Platform'] != "Docker" ) { ?>
     <b>Storage Device:</b> &nbsp;<? PrintStorageDeviceSelect($settings['Platform']); ?>
     
     <div class="callout callout-warning">
