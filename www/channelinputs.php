@@ -4,6 +4,7 @@
 <?php
 require_once("common.php");
 require_once('universeentry.php');
+require_once('fppdefines.php');
 include 'common/menuHead.inc';
 ?>
 <script language="Javascript">

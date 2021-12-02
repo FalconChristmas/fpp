@@ -60,7 +60,7 @@ function help_help()
         [ 'GET /fppd/multiSyncSystems', 'Gets the list of known FPP instances', '', ''],
         [ 'GET /fppd/version', 'Gets the current FPP version', '', '{"branch":"master","fppdAPI":"v1","message":"","respCode":200,"status":"OK","version":"2.x-292-g83816a39-dirty"}'],
         [ 'GET /fppd/volume', 'Gets the current output volume', '', '{"message":"","respCode":200,"status":"OK","volume":72}'],
-        [ 'GET /fppd/testing', 'Gets the current test mode configuration', '', '{"config":{"channelSet":"1-1048576","channelSetType":"channelRange","colorPattern":"FF000000FF000000FF","cycleMS":1000,"enabled":1,"mode":"RGBChase","subMode":"RGBChase-RGB"},"message":"","respCode":200,"status":"OK"}'],
+        [ 'GET /fppd/testing', 'Gets the current test mode configuration', '', '{"config":{"channelSet":"1-8392704","channelSetType":"channelRange","colorPattern":"FF000000FF000000FF","cycleMS":1000,"enabled":1,"mode":"RGBChase","subMode":"RGBChase-RGB"},"message":"","respCode":200,"status":"OK"}'],
     );
 	$h = "
 <h2>FPP API Endpoints</h2>

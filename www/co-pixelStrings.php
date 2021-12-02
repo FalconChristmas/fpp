@@ -364,7 +364,7 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     }
     
     result += "<td><input type='text' class='vsDescription' size='25' maxlength='60' value='" + description + "'></td>";
-    result += "<td><input type='number' class='vsStartChannel' size='6' value='" + startChannel + "' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+    result += "<td><input type='number' class='vsStartChannel' size='7' value='" + startChannel + "' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
     result += "<td><input type='number' class='vsPixelCount' size='4' min='1' max='1600' onkeypress='preventNonNumericalInput(event)' value='" + pixelCount + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
     result += "<td><input type='number' class='vsGroupCount' size='3' value='" + groupCount + "' min='1' max='1000' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);'></td>";
     if (groupCount == 0) {
@@ -1579,35 +1579,35 @@ style="display: none;"
                             <tbody>
                                 <tr id='BBBSerialOutputRow1'>
                                     <td>1</td>
-                                    <td><input id='BBBSerialStartChannel1' size='6' maxlength='6' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel1' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow2'>
                                     <td>2</td>
-                                    <td><input id='BBBSerialStartChannel2' size='6' maxlength='6' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel2' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow3'>
                                     <td>3</td>
-                                    <td><input id='BBBSerialStartChannel3' size='6' maxlength='6' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel3' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow4'>
                                     <td>4</td>
-                                    <td><input id='BBBSerialStartChannel4' size='6' maxlength='6' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel4' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow5'>
                                     <td>5</td>
-                                    <td><input id='BBBSerialStartChannel5' size='6' maxlength='6' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel5' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow6'>
                                     <td>6</td>
-                                    <td><input id='BBBSerialStartChannel6' size='6' maxlength='6' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel6' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow7'>
                                     <td>7</td>
-                                    <td><input id='BBBSerialStartChannel7' size='6' maxlength='6' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel7' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow8'>
                                     <td>8</td>
-                                    <td><input id='BBBSerialStartChannel8' size='6' maxlength='6' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel8' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
                                 </tr>
                             </tbody>
                         </table>

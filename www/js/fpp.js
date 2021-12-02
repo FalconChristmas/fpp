@@ -2916,7 +2916,7 @@ function validateUniverseData() {
         }
         // start address
         txtStartAddress = document.getElementById("txtStartAddress[" + i + "]");
-        if (!validateNumber(txtStartAddress, 1, 1048576)) {
+        if (!validateNumber(txtStartAddress, 1, FPPD_MAX_CHANNELS)) {
             returnValue = false;
         }
         // size

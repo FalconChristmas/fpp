@@ -687,7 +687,7 @@
                         "respCode": 200,
                         "config": {
                             "enabled": 1,
-                            "channelSet": "1-1048576",
+                            "channelSet": "1-8392704",
                             "channelSetType": "channelRange",
                             "colorPattern": "FF000000FF000000FF",
                             "cycleMS": 1000,

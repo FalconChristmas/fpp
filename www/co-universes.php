@@ -1,3 +1,6 @@
+<?
+require_once('fppdefines.php');
+?>
 <script>
 $(document).ready(function() {
 	$('.default-value').each(function() {
