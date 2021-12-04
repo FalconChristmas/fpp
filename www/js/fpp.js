@@ -2899,7 +2899,7 @@ function validateUniverseData() {
         // unicast address
         universeType = document.getElementById("universeType[" + i + "]").value;
         if (universeType == 1 || universeType == 3 || universeType == 4 || universeType == 5) {
-            if (!validateIPaddress("txtIP[" + i + "]")) {
+            if (!validateIPaddress("txtIP[" + i + "]", true)) {
                 returnValue = false;
             }
         }
@@ -2941,7 +2941,7 @@ function validateUniverseData() {
 /*
  * checks if IP Address looks like an valid IP,
  */
-function validateIPaddress(id) {
+function validateIPaddress(id, allowHostnames = false) {
     var ipb = document.getElementById(id);
     var ip = ipb.value;
 
@@ -2949,8 +2949,8 @@ function validateIPaddress(id) {
     // hostnames must begin with a letter, contain only letters/numbers/hyphens, and end with a letter or number
     var isHostnameRegex = /^[a-zA-Z][-a-zA-Z0-9]*[a-zA-Z0-9]$/;
     var rc = false;
-    if (ip == "" || isHostnameRegex.test(ip) || isIpRegex.test(ip)) {
-        ipb.style.border = "#000 0px none";
+    if (ip == "" || (allowHostnames && isHostnameRegex.test(ip)) || isIpRegex.test(ip)) {
+        ipb.style.border = "#D2D2D2 1px solid";
         return true;
     }
 
