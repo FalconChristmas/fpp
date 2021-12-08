@@ -227,6 +227,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
     } else if (preg_match('/Pi 4/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 4";
         $settings['Logo'] = "Raspberry_Pi_4.png";
+    } else if (preg_match('/Pi Zero 2/', $settings['SubPlatform'])) {
+        $settings['Variant'] = "PiZero 2";
+        $settings['Logo'] = "Raspberry_Pi_Zero2.png";
     } else if (preg_match('/Pi Zero W/', $settings['SubPlatform'])) {
         $settings['Variant'] = "PiZero W";
         $settings['Logo'] = "Raspberry_Pi_ZeroW.png";
