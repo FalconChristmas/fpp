@@ -55,6 +55,34 @@ else
 	$settings['useRGBLabels'] = 1;
 }
 
+$testStartChannel = 1;
+$testEndChannel = FPPD_MAX_CHANNELS;
+if (file_exists("/home/fpp/media/fpp-info.json")) {
+    $content = file_get_contents("/home/fpp/media/fpp-info.json");
+    $json = json_decode($content, true);
+    $channelRanges = $json['channelRanges'];
+    if ($channelRanges != "") {
+        $testStartChannel = FPPD_MAX_CHANNELS;
+        $testEndChannel = 1;
+        $ranges = explode(',', $channelRanges);
+        foreach ($ranges as $range) {
+            $minmax = explode('-', $range);
+
+            if ($minmax[0] < $testStartChannel) {
+                $testStartChannel = $minmax[0] + 1;
+            }
+            if ($minmax[1] > $testEndChannel) {
+                $testEndChannel = $minmax[1] + 1;
+            }
+        }
+
+        if ($testEndChannel < $testStartChannel) {
+            $tmp = $testEndChannel;
+            $testEndChannel = $testStartChannel;
+            $testStartChannel = $tmp;
+        }
+    }
+}
 ?>
 
 <head>
@@ -71,13 +99,98 @@ else
 <script type="text/javascript">
 if ( ! window.console ) console = { log: function(){} };
 
+var modelInfos = [];
 var lastEnabledState = 0;
+
+function StringsChanged()
+{
+    var id = parseInt($('#modelName').val());
+
+    var startChan = modelInfos[id].StartChannel + (modelInfos[id].ChannelsPerString * (parseInt($('#startString').val()) - 1));
+    var endChan = modelInfos[id].StartChannel + (modelInfos[id].ChannelsPerString * (parseInt($('#endString').val())) - 1);
+
+    $('#testModeStartChannel').val(startChan);
+    $('#testModeEndChannel').val(endChan);
+
+    SetTestMode();
+}
+
+function AdjustStartString(delta = 1)
+{
+    var id = parseInt($('#modelName').val());
+
+    var start = parseInt($('#startString').val());
+    var end = parseInt($('#endString').val());
+
+    start += delta;
+
+    if (start > modelInfos[id].StringCount)
+        start = modelInfos[id].StringCount;
+
+    if (start < 1)
+        start = 1;
+
+    if (end < start) {
+        end = start;
+        $('#endString').val(end);
+    }
+
+    $('#startString').val(start);
+
+    StringsChanged();
+}
+
+function AdjustEndString(delta = 1)
+{
+    var id = parseInt($('#modelName').val());
+
+    var start = parseInt($('#startString').val());
+    var end = parseInt($('#endString').val());
+
+    end += delta;
+
+    if (end > modelInfos[id].StringCount)
+        end = modelInfos[id].StringCount;
+
+    if (end < 1)
+        end = 1;
+
+    if (end < start) {
+        start = end;
+        $('#startString').val(start);
+    }
+
+    $('#endString').val(end);
+
+    StringsChanged();
+}
 
 function UpdateStartEndFromModel()
 {
-	var range = $('#modelName').val().split(',');
-	$('#testModeStartChannel').val(range[0]);
-	$('#testModeEndChannel').val(range[1]);
+    var id = parseInt($('#modelName').val());
+    if (id == 0) {
+        $('#testModeStartChannel').val(1);
+        $('#testModeEndChannel').val(<?=$testEndChannel?>);
+        $('.stringRow').hide();
+        $('#channelIncrement').val(3);
+        SetButtonIncrements();
+    } else {
+        $('#testModeStartChannel').val(modelInfos[id].StartChannel);
+        $('#testModeEndChannel').val(modelInfos[id].EndChannel);
+
+        if (modelInfos[id].StringCount > 1) {
+            $('#startString').attr('max', modelInfos[id].StringCount);
+            $('#startString').val(1);
+            $('#endString').attr('max', modelInfos[id].StringCount);
+            $('#endString').val(modelInfos[id].StringCount);
+            $('#channelIncrement').val(modelInfos[id].ChannelsPerString);
+            $('.stringRow').show();
+        } else {
+            $('#channelIncrement').val(3);
+            $('.stringRow').hide();
+        }
+        SetButtonIncrements();
+    }
 
 	if (lastEnabledState)
 	{
@@ -342,10 +455,63 @@ function DisableTestMode()
 	SetTestMode();
 }
 
-function incrementEndChannel(delta)
+function SetButtonIncrements()
+{
+    var delta = $('#channelIncrement').val();
+
+    $('#incStartButton').val('+' + delta);
+    $('#decStartButton').val('-' + delta);
+    $('#incBothButton').val('+' + delta);
+    $('#decBothButton').val('-' + delta);
+    $('#incEndButton').val('+' + delta);
+    $('#decEndButton').val('-' + delta);
+}
+
+function adjustBothChannels(mult = 1)
+{
+    if (mult > 0) {
+        adjustEndChannel(mult);
+        adjustStartChannel(mult);
+    } else {
+        adjustStartChannel(mult);
+        adjustEndChannel(mult);
+    }
+}
+
+function adjustStartChannel(mult = 1)
 {
     var start = parseInt($('#testModeStartChannel').val());
     var end = parseInt($('#testModeEndChannel').val());
+
+    var delta = parseInt($('#channelIncrement').val()) * mult;
+
+    $('.stringRow').hide();
+
+    start += delta;
+
+    if (start > <? echo FPPD_MAX_CHANNELS; ?>)
+        start = <? echo FPPD_MAX_CHANNELS; ?>;
+    else if (start < 1)
+        start = 1;
+
+    if (end < start) {
+        end = start;
+        $('#testModeEndChannel').val(end);
+    }
+
+    $('#testModeStartChannel').val(start);
+
+    SetTestMode();
+}
+
+function adjustEndChannel(mult = 1)
+{
+    var start = parseInt($('#testModeStartChannel').val());
+    var end = parseInt($('#testModeEndChannel').val());
+
+    var delta = parseInt($('#channelIncrement').val()) * mult;
+
+    $('.stringRow').hide();
 
     end += delta;
 
@@ -426,6 +592,26 @@ function UpdateTestModeFillColors(){
 	$('.color-box').colpickSetColor($.colpick.rgbToHex(rgb));
 }
 $(document).ready(function(){
+
+    $.ajax({
+        url: 'api/models',
+        type: 'GET',
+        async: true,
+        dataType: 'json',
+        success: function (data) {
+            modelInfos = data;
+
+            for (var i = 0; i < modelInfos.length; i++) {
+                modelInfos[i].EndChannel = modelInfos[i].StartChannel + modelInfos[i].ChannelCount - 1;
+                modelInfos[i].ChannelsPerString = parseInt(modelInfos[i].ChannelCount / modelInfos[i].StringCount);
+                var option = "<option value='" + i + "'>" + modelInfos[i].Name + "</option>\n";
+                $('#modelName').append(option);
+            }
+        },
+        error: function () {
+            $.jGrowl('Error: Unable to get list of models', { themeState: 'danger' });
+        }
+    });
 
 	$('#testModeCycleMS').on('input',function(){
 		testModeTimerInterval = $('#testModeCycleMS').val();
@@ -557,36 +743,6 @@ $(document).ready(function(){
 
 </script>
 
-<?
-$testStartChannel = 1;
-$testEndChannel = FPPD_MAX_CHANNELS;
-if (file_exists("/home/fpp/media/fpp-info.json")) {
-    $content = file_get_contents("/home/fpp/media/fpp-info.json");
-    $json = json_decode($content, true);
-    $channelRanges = $json['channelRanges'];
-    if ($channelRanges != "") {
-        $testStartChannel = FPPD_MAX_CHANNELS;
-        $testEndChannel = 1;
-        $ranges = explode(',', $channelRanges);
-        foreach ($ranges as $range) {
-            $minmax = explode('-', $range);
-            
-            if ($minmax[0] < $testStartChannel) {
-                $testStartChannel = $minmax[0] + 1;
-            }
-            if ($minmax[1] > $testEndChannel) {
-                $testEndChannel = $minmax[1] + 1;
-            }
-        }
-        
-        if ($testEndChannel < $testStartChannel) {
-            $tmp = $testEndChannel;
-            $testEndChannel = $testStartChannel;
-            $testStartChannel = $tmp;
-        }
-    }
-}
-?>
 
 
 <div id="bodyWrapper">
@@ -632,46 +788,82 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 								<div>
 									<select onChange='UpdateStartEndFromModel();' id='modelName'>
 													<option value='1,<?=$testEndChannel?>'>-- All Channels --</option>
-
-							<?
-							$curl = curl_init('http://localhost:32322/models');
-                            curl_setopt($curl, CURLOPT_FAILONERROR, true);
-                            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-                            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-                            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-                            $request_content = curl_exec($curl);
-                            curl_close($curl);
-                            if ($request_content !== false) {
-                                $data = json_decode($request_content);
-                                foreach ($data as $entry) {
-                                    printf( "<option value='%d,%d'>%s</option>\n",
-                                            intval($entry->StartChannel),
-                                            intval($entry->StartChannel) + intval($entry->ChannelCount - 1), $entry->Name);
-                                }
-                            }							
-							?>
 							</select>
 							</div>
 							</div>
-							<div class="mb-1"><b>Channel Range to Test</b></div>
+
+							<div class="mb-1"><b>Channel Range to Test</b><small  class="form-text text-muted">(1-<? echo FPPD_MAX_CHANNELS; ?>)  </small></div>
 							
 							<div class="row">
 								<div class="col-6 form-group">
 									<label for="testModeStartChannel">Start Channel:</label>
 									<input class="form-control" type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
-									<small  class="form-text text-muted">(1-<? echo FPPD_MAX_CHANNELS; ?>)	</small>
 								</div>
 								<div class="col-6 form-group">
 									<label for="testModeEndChannel">End Channel:</label>
 									<input class="form-control" type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testEndChannel ?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
-									<small  class="form-text text-muted">(1-<? echo FPPD_MAX_CHANNELS; ?>)	</small>
+								</div>
+							</div>
+
+							<div class="mb-1"><b>Adjust Start/End Channels</b></div>
+							<div class='row'>
+								<div class="col-6 form-group">
+									<label for='channelIncrement'>Increment:</label>
+								</div>
+								<div class="col-6 form-group">
+									<input class="form-control" type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='3' id='channelIncrement' onChange='SetButtonIncrements();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
 								</div>
 							</div>
 					
-							<div class="btn-group btn-group-full-width" role="group" aria-label="Increment Channel">
-								<input type='button' class='buttons' value='-3' onClick='incrementEndChannel(-3);'>
-								<input type='button' class='buttons' value='+3' onClick='incrementEndChannel(3);'>
+							<div class='row'>
+								<div class="col-6 form-group">
+									<label>Start Channel:</label>
+								</div>
+								<div class="col-6 form-group">
+								    <input type='button' class='buttons' value='-3' id='decStartButton' onClick='adjustStartChannel(-1);'>
+									<input type='button' class='buttons' value='+3' id='incStartButton' onClick='adjustStartChannel(1);'>
+								</div>
 							</div>
+							<div class='row'>
+								<div class="col-6 form-group">
+									<label>End Channel:</label>
+								</div>
+								<div class="col-6 form-group">
+								    <input type='button' class='buttons' value='-3' id='decEndButton' onClick='adjustEndChannel(-1);'>
+									<input type='button' class='buttons' value='+3' id='incEndButton' onClick='adjustEndChannel(1);'>
+								</div>
+							</div>
+							<div class='row'>
+								<div class="col-6 form-group">
+									<label>Both Channels:</label>
+								</div>
+								<div class="col-6 form-group">
+								    <input type='button' class='buttons' value='-3' id='decBothButton' onClick='adjustBothChannels(-1);'>
+									<input type='button' class='buttons' value='+3' id='incBothButton' onClick='adjustBothChannels(1);'>
+								</div>
+							</div>
+
+							<div class='row stringRow' style='display: none;'>
+								<div class="col-6 form-group">
+									<label for="testModeStartString">Start String:</label>
+									<input class="form-control" type='number' min='1' max='1' value='1' id='startString' onChange='StringsChanged();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
+								</div>
+								<div class="col-6 form-group">
+									<label for="testModeEndString">End String:</label>
+									<input class="form-control" type='number' min='1' max='1' value='1' id='endString' onChange='StringsChanged();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
+								</div>
+							</div>
+							<div class='row stringRow' style='display: none;'>
+								<div class="col-6 form-group">
+								    <input type='button' class='buttons' value='-1' onClick='AdjustStartString(-1);'>
+									<input type='button' class='buttons' value='+1' onClick='AdjustStartString(1);'>
+								</div>
+								<div class="col-6 form-group">
+								    <input type='button' class='buttons' value='-1' onClick='AdjustEndString(-1);'>
+									<input type='button' class='buttons' value='+1' onClick='AdjustEndString(1);'>
+								</div>
+							</div>
+
 							<div class="mt-2 mb-1">
 								<b >Update Interval: </b> 
 								<input id="testModeCycleMS" type="range"  min="100" max="5000" value="1000" step="100"/> 
