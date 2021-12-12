@@ -269,7 +269,7 @@ static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
     s = atoi(sparts[2].c_str());
 }
 
-void ScheduleEntry::pushStartEndTimes(int dow) {
+void ScheduleEntry::pushStartEndTimes(int dow, int delta, int deltaThreshold) {
     time_t startTime = GetTimeOnDOW(dow, startHour, startMinute, startSecond);
     time_t endTime = GetTimeOnDOW(dow, endHour, endMinute, endSecond);
 
@@ -291,6 +291,20 @@ void ScheduleEntry::pushStartEndTimes(int dow) {
 
     if (!DateInRange(startTime, startDate, endDate)) {
         return;
+    }
+
+    if (delta != 0) {
+        // Only adjust if the threshold time is in the future
+	if (deltaThreshold > startTime && deltaThreshold > time(NULL)) {
+            startTime += delta;
+        }
+
+	if (deltaThreshold > endTime && deltaThreshold > time(NULL)) {
+            endTime += delta;
+        } else {
+            // if threshold time has passed, set delta back to 0
+          delta = 0;
+        }
     }
 
     if ((repeatInterval) && (startTime != endTime)) {

@@ -97,6 +97,10 @@ public:
     void CheckIfShouldBePlayingNow(int ignoreRepeat = 0, int forceStopped = -1);
     void ReloadScheduleFile(void);
 
+    void SetTimeDelta(int delta, int timeLimit);
+    int timeDelta = 0;;
+    time_t timeDeltaThreshold = 0;
+
     std::string GetNextPlaylistName();
     std::string GetNextPlaylistStartStr();
 
