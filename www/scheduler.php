@@ -289,18 +289,21 @@ function SetScheduleInputNames() {
         seconds = ':s';
 
     var timeFormat = 'H:i' + seconds;
+    var show2400 = true;
     if (settings.hasOwnProperty('TimeFormat')) {
         var fmt = settings['TimeFormat'];
-        if (fmt == '%I:%M %p')
+        if (fmt == '%I:%M %p') {
             timeFormat = 'h:i' + seconds + ' A';
-        else
+            show2400 = false;
+        } else {
             timeFormat = 'H:i' + seconds;
+        }
     }
 
 	$('.time').timepicker({
 		'timeFormat': timeFormat,
 		'typeaheadHighlight': false,
-		'show2400': true,
+		'show2400': show2400,
 		'noneOption': [
 				{
 					'label': 'Dawn',
