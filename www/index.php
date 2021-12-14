@@ -21,15 +21,13 @@ include 'common/menuHead.inc';
 
 <script>
     SetStatusRefreshSeconds(1);
-    PlayEntrySelected = 0;
-    PlaySectionSelected = '';
+    PlayEntrySelected = 1;
 
     $(function() {
         $('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
             $('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
             $(this).addClass('playlistSelectedEntry');
             PlayEntrySelected = parseInt($(this).attr('id').substr(11));
-            PlaySectionSelected = $(this).parent().attr('id').substr(11);
         });
 
 //        $('#playlistDetailsContents').resizable({
@@ -378,7 +376,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                             </div>
                             <div class="row playlistSelectRow">
 
-                                <div class="playlistSelectCol"><select id="playlistSelect" name="playlistSelect" class="form-control form-control-lg form-control-rounded has-shadow" size="1" onClick="SelectPlaylistDetailsEntryRow();PopulatePlaylistDetailsEntries(true,'');" onChange="PopulatePlaylistDetailsEntries(true,'');"></select></div>
+                                <div class="playlistSelectCol"><select id="playlistSelect" name="playlistSelect" class="form-control form-control-lg form-control-rounded has-shadow" size="1" onClick="PopulatePlaylistDetailsEntries(true,'');" onChange="PopulatePlaylistDetailsEntries(true,'');"></select></div>
                                 <div class="playlistRepeatCol"><span class="settingLabelHeading">Repeat:</span> <input type="checkbox" id="chkRepeat"></input></div>
 
                             </div>

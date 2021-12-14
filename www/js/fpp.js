@@ -4390,8 +4390,7 @@ function PopulatePlaylistDetailsEntries(playselected, playList) {
         url = "api/fppd/playlist/config/"; // In Memory URL
     }
 
-    PlayEntrySelected = 0;
-    PlaySectionSelected = '';
+    PlayEntrySelected = 1;
 
     $.ajax({
         url: url,
@@ -4401,10 +4400,6 @@ function PopulatePlaylistDetailsEntries(playselected, playList) {
             VerbosePlaylistItemDetailsToggled();
         }
     });
-}
-
-function SelectPlaylistDetailsEntryRow(index) {
-    PlayEntrySelected = index;
 }
 
 function SetVolume(value) {

@@ -1140,11 +1140,19 @@ void Playlist::RandomizeMainPlaylist() {
 
     std::vector<PlaylistEntryBase*> tmpPlaylist = m_mainPlaylist;
     m_mainPlaylist.clear();
+    int origSize = tmpPlaylist.size();
 
     while (tmpPlaylist.size()) {
         int l = tmpPlaylist.size();
         if (l > 1) {
             int p = std::rand() % l;
+
+            // If this is the first item found and it is the last
+            // item in the previous list then try again
+            if ((!m_mainPlaylist.size()) &&
+                (p == (origSize - 1)))
+                continue;
+
             m_mainPlaylist.push_back(tmpPlaylist[p]);
             tmpPlaylist.erase(tmpPlaylist.begin() + p);
         } else {
