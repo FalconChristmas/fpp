@@ -153,7 +153,7 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
                      (Player::INSTANCE.GetPlaylistName() != item->entry->playlist)) &&
                     (forceStopped != item->entryIndex) &&
                     (item->entry->repeat || ir)) {
-                    LogExcess(VB_SCHEDULE, "Item marked as ran\n");
+                    LogExcess(VB_SCHEDULE, "Item run status reset\n");
                     item->ran = false;
                 }
             }
