@@ -2,6 +2,7 @@
 
 #include "Player.h"
 #include "PlaylistCommands.h"
+#include "Scheduler.h"
 
 std::unique_ptr<Command::Result> StopPlaylistCommand::run(const std::vector<std::string>& args) {
     Player::INSTANCE.StopNow(1);
@@ -81,7 +82,16 @@ std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<s
         iNR = args[3] == "true" || args[3] == "1";
     }
     if (!iNR || args[0] != Player::INSTANCE.GetPlaylistName()) {
-        Player::INSTANCE.StartPlaylist(args[0], r, idx - 1);
+        int scheduledRepeat = 0;
+        std::string playlistName = scheduler->GetPlaylistThatShouldBePlaying(scheduledRepeat);
+        bool repeat = scheduledRepeat;
+        // if we should be playing this playlist and repeat mode matches then let scheduler start it
+        if ((args[0] == playlistName) && (r == repeat)) {
+            Player::INSTANCE.ClearForceStopped(); // Allow the scheduler to restart even if force stopped
+            scheduler->CheckIfShouldBePlayingNow(1);
+        } else {
+            Player::INSTANCE.StartPlaylist(args[0], r, idx - 1);
+        }
     }
     return std::make_unique<Command::Result>("Playlist Starting");
 }

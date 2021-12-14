@@ -61,6 +61,7 @@ public:
     int GetStopMethod();
     int GetPosition();
     Json::Value GetInfo();
+    void ClearForceStopped() { forceStopped = false; }
     bool GetForceStopped() { return forceStopped; }
     std::string GetForceStoppedPlaylist() { return forceStoppedPlaylist; }
     int GetPriority() { return priority; }
