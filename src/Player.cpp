@@ -57,10 +57,7 @@ int Player::StartPlaylist(const std::string& name, const int repeat,
              (repeat == -1 ? playlist->GetRepeat() : repeat) ? "" : "non-",
              playlistName.c_str());
 
-    if (!playlist->Play(playlistName.c_str(), startPosition, repeat, -1, endPosition))
-        return 0;
-
-    return playlist->Start();
+    return playlist->Play(playlistName.c_str(), startPosition, repeat, -1, endPosition);
 }
 
 int Player::StartScheduledPlaylist(const std::string& name, const int position,
@@ -82,10 +79,7 @@ int Player::StartScheduledPlaylist(const std::string& name, const int position,
              stopMethod == 0 ? "Graceful Stop" : stopMethod == 1 ? "Hard Stop" : stopMethod == 2 ? "Graceful Stop After Loop" : "",
              (int)(stopTime - std::time(nullptr)));
 
-    if (!playlist->Play(playlistName.c_str(), position, repeat, scheduleEntry))
-        return 0;
-
-    return playlist->Start();
+    return playlist->Play(playlistName.c_str(), position, repeat, scheduleEntry);
 }
 
 int Player::AdjustPlaylistStopTime(const int seconds) {

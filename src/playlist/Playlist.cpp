@@ -1037,8 +1037,6 @@ void Playlist::InsertPlaylistImmediate(const std::string& filename, const int po
 }
 
 int Playlist::Play(const char* filename, const int position, const int repeat, const int scheduleEntry, const int endPosition) {
-    int hadToStop = 0;
-
     if (!strlen(filename))
         return 0;
 
@@ -1067,7 +1065,6 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
             Start();
             return 1;
         } else if (m_currentSection) {
-            hadToStop = 1;
             StopNow(1);
             sleep(1);
         }
@@ -1099,15 +1096,15 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
     m_stopAtPos = endPosition;
 
     m_status = FPP_STATUS_PLAYLIST_PLAYING;
-    if (hadToStop) {
-        Start();
+    int result = Start();
+
+    if (result == 1) {
+        std::map<std::string, std::string> keywords;
+        keywords["PLAYLIST_NAME"] = m_name;
+        CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STARTED", keywords);
     }
 
-    std::map<std::string, std::string> keywords;
-    keywords["PLAYLIST_NAME"] = m_name;
-    CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STARTED", keywords);
-
-    return 1;
+    return result;
 }
 
 /*
