@@ -1126,6 +1126,7 @@
             "name": "MQTTPort",
             "description": "Broker Port",
             "tip": "TCP Port number on which your MQTT broker is listening",
+            "restart": 2,
             "gatherStats": true,
             "default": 1883,
             "type": "number",
