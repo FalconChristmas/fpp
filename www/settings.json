@@ -452,7 +452,7 @@
         "ClockTime": {
             "name": "ClockTime",
             "description": "Set Time",
-            "tip": "Current Time to use to set the system time.",
+            "tip": "Current Time to use to set the system time.  Time must be in 24-hour format.",
             "suffix": "(HH:MM:SS)",
             "type": "time",
             "alwaysReset": 1
