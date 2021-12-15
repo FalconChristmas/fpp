@@ -213,6 +213,13 @@
             ]
         }
     },
+    "attributes": {
+        "level": 0,
+        "gatherStats": false,
+        "restart": 0,
+        "reboot": 0,
+        "default": ""
+    },
     "settings": {
         "alwaysTransmit": {
             "name": "alwaysTransmit",

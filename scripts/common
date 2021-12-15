@@ -101,6 +101,16 @@ getSetting() {
 	fi
 }
 
+# getSettingInfo SETTING_NAME ATTRIBUTE_NAME
+# getSettingInfo MQTTPort restart
+# Returns empty string if attribute is not set
+getSettingInfo() {
+    SETTING=$1
+    ATTR=$2
+
+    cat /opt/fpp/www/settings.json | python -c "import sys,json; data = json.load(sys.stdin); print(data['settings']['${SETTING}']['${ATTR}'] if (('settings' in data) and ('${SETTING}' in data['settings']) and ('${ATTR}' in data['settings']['${SETTING}'])) else data['attributes']['${ATTR}'] if ('${ATTR}' in data['attributes']) else '');"
+}
+
 setSetting() {
     SETTING=$1
     VALUE=$2
