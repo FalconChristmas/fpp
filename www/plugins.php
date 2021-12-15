@@ -327,7 +327,7 @@ function LoadPlugin(data, insert = false) {
 		}
 
 		if (insert) {
-			$('#pluginTable').find('.row:nth-child(2)').after(html);
+			$('#pluginTable').children(':first-child').after(html);
 			document.getElementById("pluginTable").scrollIntoView();
 		} else {
 			$('#pluginTable').append(html);
@@ -406,6 +406,8 @@ function ManualLoadInfo() {
 				$('html,body').css('cursor','auto');
 				pluginInfoURLs[data.repoName] = url;
 				LoadPlugin(data, true);
+				$('#pluginInput').val('');
+				FilterPlugins();
 			},
 			error: function() {
 				$('html,body').css('cursor','auto');
