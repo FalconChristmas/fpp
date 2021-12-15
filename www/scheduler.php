@@ -21,7 +21,7 @@ foreach ($data as $cmd) {
 ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
-<script type="text/javascript" src="js/jquery.timepicker.min.js"></script>
+<script type="text/javascript" src="js/jquery.timepicker.js"></script>
 <script language="Javascript">
 $(document).ready(function() {
 $('.default-value').each(function() {
@@ -289,12 +289,10 @@ function SetScheduleInputNames() {
         seconds = ':s';
 
     var timeFormat = 'H:i' + seconds;
-    var show2400 = true;
     if (settings.hasOwnProperty('TimeFormat')) {
         var fmt = settings['TimeFormat'];
         if (fmt == '%I:%M %p') {
             timeFormat = 'h:i' + seconds + ' A';
-            show2400 = false;
         } else {
             timeFormat = 'H:i' + seconds;
         }
@@ -303,7 +301,7 @@ function SetScheduleInputNames() {
 	$('.time').timepicker({
 		'timeFormat': timeFormat,
 		'typeaheadHighlight': false,
-		'show2400': show2400,
+		'show2400': true,
 		'noneOption': [
 				{
 					'label': 'Dawn',

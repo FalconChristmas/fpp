@@ -7,7 +7,7 @@ if (!isset($simplifiedPlaylist))
 ?>
 
 <link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
-<script type="text/javascript" src="js/jquery.timepicker.min.js"></script>
+<script type="text/javascript" src="js/jquery.timepicker.js"></script>
 
 <script language="Javascript">
 var simplifiedPlaylist = 0;

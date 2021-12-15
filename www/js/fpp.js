@@ -490,7 +490,10 @@ function Convert24HToUIFormat(tm) {
 
     var ampm = 'AM';
     var h12 = h;
-    if (h >= 12) {
+    if (h == 24) {
+        ampm = 'Mid';
+        h12 -= 12;
+    } else if (h >= 12) {
         ampm = 'PM';
         h12 -= 12;
     }
@@ -547,6 +550,8 @@ function Convert24HFromUIFormat(tm) {
         }
         if ((tmp[1] == 'PM') || (tmp[1] == 'pm')) {
             h += 12;
+        } else if (tmp[1] == 'Mid') {
+            h += 24;
         }
     }
 
