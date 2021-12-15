@@ -44,14 +44,19 @@ void Player::Init() {
 
 int Player::StartPlaylist(const std::string& name, const int repeat,
                           const int startPosition, const int endPosition, const int manualPriority) {
-    playlistName = name;
-    startTime = std::time(nullptr);
-    stopTime = 0;
-    origStopTime = 0;
-    stopMethod = 0;
+
+    if ((GetStatus() == FPP_STATUS_IDLE) ||
+        (name != playlistName)) {
+        playlistName = name;
+        startTime = std::time(nullptr);
+        stopTime = 0;
+        origStopTime = 0;
+        stopMethod = 0;
+        priority = manualPriority;
+    }
+
     forceStopped = false;
     forceStoppedPlaylist = "";
-    priority = manualPriority;
 
     LogDebug(VB_PLAYLIST, "Manually starting %srepeating playlist '%s'\n",
              (repeat == -1 ? playlist->GetRepeat() : repeat) ? "" : "non-",
