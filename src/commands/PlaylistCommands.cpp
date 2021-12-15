@@ -86,8 +86,12 @@ std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<s
         std::string playlistName = scheduler->GetPlaylistThatShouldBePlaying(scheduledRepeat);
         bool repeat = scheduledRepeat;
         // if we should be playing this playlist and repeat mode matches then let scheduler start it
-        if ((args[0] == playlistName) && (r == repeat)) {
-            Player::INSTANCE.ClearForceStopped(); // Allow the scheduler to restart even if force stopped
+        if (((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) ||
+             (Player::INSTANCE.GetPlaylistName() != args[0])) &&
+            (args[0] == playlistName) &&
+            (r == repeat)) {
+            // Allow the scheduler to restart even if force stopped
+            Player::INSTANCE.ClearForceStopped();
             scheduler->CheckIfShouldBePlayingNow(1);
         } else {
             Player::INSTANCE.StartPlaylist(args[0], r, idx - 1);
