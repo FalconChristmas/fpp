@@ -837,11 +837,13 @@ function SetupToolTips(delay = 100) {
             if ($(this).is('[data-tooltip-position-my]')) {
                 pos.my = $(this).data('tooltip-position-my');
             }
-            $(this).tooltip({
-                items: $(this).prop('nodeName'),
-                content: $(this).data('tooltip-title'),
-                position: pos,
-            });
+            if($(this).data('tooltip-touch') != "false" && !hasTouch ){
+                $(this).tooltip({
+                    items: $(this).prop('nodeName'),
+                    content: $(this).data('tooltip-title'),
+                    position: pos,
+                });
+            }
         }
     });
     $(document).tooltip({

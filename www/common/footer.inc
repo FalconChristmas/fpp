@@ -13,8 +13,8 @@
         FPP Mode: <span id="fppModeDropdownButtonModeText"></span>
       </button>
       <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton"  >
-        <button class="dropdown-item" onClick="SetFPPDmode('player');" data-tooltip-position-my="left+15 center" data-tooltip-position-at="right center" title="This FPP will control itself and not be controlled by another FPP">Player</button>
-        <button class="dropdown-item" onClick="SetFPPDmode('remote');" data-tooltip-position-my="left+15 center" data-tooltip-position-at="right center" title="This FPP will be controlled by a Player FPP Instance">Remote</button>
+        <button class="dropdown-item" onClick="SetFPPDmode('player');" data-tooltip-position-my="left+15 center" data-tooltip-touch="false" data-tooltip-position-at="right center" title="This FPP will control itself and not be controlled by another FPP">Player</button>
+        <button class="dropdown-item" onClick="SetFPPDmode('remote');" data-tooltip-position-my="left+15 center" data-tooltip-touch="false" data-tooltip-position-at="right center" title="This FPP will be controlled by a Player FPP Instance">Remote</button>
       </div>
     </div>
     <button name="btnReboot" onClick="RebootPi();" type="button" class="buttons btn-outline-light"><i class='fas fa-fw fa-retweet fa-nbsp'></i>Reboot</button>
