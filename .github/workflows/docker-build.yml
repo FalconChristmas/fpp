@@ -24,6 +24,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+        
       # setup Docker buld action
       - name: Set up Docker Buildx
         id: buildx
@@ -62,6 +65,7 @@ jobs:
           context: .
           file: ./Docker/Dockerfile
           # Note: tags has to be all lower-case
+          platforms: linux/amd64,linux/arm64
           tags: ${{ env.IMAGE_REPOSITORY }}/fpp:${{ steps.extract_branch.outputs.branch }},${{ env.IMAGE_REPOSITORY }}/fpp:latest
           push: true
           cache-from: type=registry,ref=${{ env.IMAGE_REPOSITORY }}/fpp:master
