@@ -208,6 +208,21 @@ var activeTabNumber =
     }
 ?>;
 
+var tabIDs = <?php echo json_encode($tabIDs); ?>;
+if(location.hash){
+    if( location.hash == '#settings-system'){ activeTabNumber = tabIDs["System"]}
+    if( location.hash == '#settings-av'){ activeTabNumber = tabIDs["AV"]}
+    if( location.hash == '#settings-time'){ activeTabNumber = tabIDs["Time"] }
+    if( location.hash == '#settings-ui'){ activeTabNumber = tabIDs["UI"] }
+    if( location.hash == '#settings-email'){ activeTabNumber = tabIDs["Email"] }
+    if( location.hash == '#settings-mqtt'){ activeTabNumber = tabIDs["MQTT"] }
+    if( location.hash == '#settings-privacy'){ activeTabNumber = tabIDs["Privacy"] }
+    if( location.hash == '#settings-output'){ activeTabNumber = tabIDs["Output"] }
+    if( location.hash == '#settings-logs'){ activeTabNumber = tabIDs["Logging"] }
+    if( location.hash == '#settings-storage'){ activeTabNumber = tabIDs["Storage"]}
+    if( location.hash == '#settings-system'){ activeTabNumber = tabIDs["System"] }
+    if( location.hash == '#settings-developer'){ activeTabNumber = tabIDs["Developer"] }
+}
 var tabs={}
 $('#settingsManagerTabs .nav-link').each(function(i){
     var tabName = $(this).attr('href').slice(1);

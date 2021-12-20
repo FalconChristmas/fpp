@@ -492,14 +492,7 @@ $(document).ready(function(){
     $('#dns1').val("");
     $('#dns2').val("");
   });
-  var queryString = window.location.search;
-  var urlParams = new URLSearchParams(queryString);
-  var tabId = urlParams.get('tab');
-  if(tabId){
-    $('.pageContent-tabs a[href="#' + tabId + '"]').tab('show');
-  }else{
-    $('.pageContent-tabs li:first-child a').tab('show');
-  }
+
 
 });
 
@@ -601,7 +594,7 @@ include 'menu.inc';?>
   <div class="pageContent">
   <ul class="nav nav-pills pageContent-tabs" role="tablist">
     <li class="nav-item">
-      <a class="nav-link" id="interface-settings-tab" data-toggle="tab" href="#interface-settings" role="tab" aria-controls="interface-settings" aria-selected="true">
+      <a class="nav-link" id="interface-settings-tab" data-toggle="tab" href="#tab-interface-settings" role="tab" aria-controls="interface-settings" aria-selected="true">
         Interface Settings
       </a>
     </li>
@@ -622,7 +615,7 @@ include 'menu.inc';?>
     </li>
   </ul>
   <div class="tab-content">
-    <div class="tab-pane fade" id="interface-settings" role="tabpanel" aria-labelledby="interface-settings-tab">
+    <div class="tab-pane fade" id="tab-interface-settings" role="tabpanel" aria-labelledby="interface-settings-tab">
     <div id="InterfaceSettings">
 
               <h2> Interface Settings</h2>

@@ -60,6 +60,16 @@ $(function () {
     } else {
         $('body').addClass('no-touch');
     }
+    $("[data-toggle=pill], [data-toggle=tab]").click(function(){
+        if(history.pushState) {
+            history.pushState(null, null, $(this).attr('href'));
+        }
+    });
+    
+    if(location.hash){
+        $(".nav-link[href='"+location.hash+"']").tab('show');
+    }
+    
 
     $('a.link-to-fpp-manual').attr("href", getManualLink());
 
