@@ -85,34 +85,38 @@ function GetFiles()
         return json(array("status" => "Invalid Directory"));
     }
 
+    // if ?nameOnly=1 was passed, then just array of names
+    if (isset($_GET['nameOnly']) && ($_GET['nameOnly'] == '1')) {
+        $rc = array();
+        foreach (scandir($dirName) as $fileName) {
+            if ($fileName != '.' && $fileName != '..') {
+                array_push($rc, $fileName);
+            }
+        }
+        if (strtolower(params("DirName")) == "logs") {
+            array_push($rc, "/var/log/messages");
+            array_push($rc, "/var/log/syslog");
+        }
+        return json($rc);
+    }
+
     foreach (scandir($dirName) as $fileName) {
         if ($fileName != '.' && $fileName != '..') {
             GetFileInfo($files, $dirName, $fileName);
         }
     }
 
-    if ($dirName == "Logs") {
+    if (strtolower(params("DirName")) == "logs") {
         if (file_exists("/var/log/messages")) {
-            GetFileInfo($root, "", "/var/log/messages");
+            GetFileInfo($files, "", "/var/log/messages");
         }
 
         if (file_exists("/var/log/syslog")) {
-            GetFileInfo($root, "", "/var/log/syslog");
+            GetFileInfo($files, "", "/var/log/syslog");
         }
 
     }
 
-    // if ?nameOnly=1 was passed, then just array of names
-    if (isset($_GET['nameOnly'])) {
-        $nameOnly = $_GET['nameOnly'];
-        if ($nameOnly == "1") {
-            $rc = array();
-            foreach ($files as $f) {
-                array_push($rc, $f["name"]);
-            }
-            return json($rc);
-        }
-    }
     return json(array("status" => "ok", "files" => $files));
 }
 
