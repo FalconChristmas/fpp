@@ -36,7 +36,7 @@ function handleSettingsVisibilityChange() {
 }
 
 function reloadSettingsPage() {
-    location.href = 'settings.php?tab=' + $('#settingsManagerTabs .nav-link.active').data('option');
+    location.href = 'settings.php' + $('#settingsManagerTabs .nav-link.active').attr('href');
 }
 
 var hiddenChildren = {};

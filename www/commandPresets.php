@@ -212,7 +212,7 @@ include 'menu.inc'; ?>
         <div class="backdrop">
             <b>Notes:</b>
             <ul>
-                <li>The Command Preset Control Channel is defined on the 'Input/Output' tab of the <a href='settings.php?tab=Output'>settings page</a>.</li>
+                <li>The Command Preset Control Channel is defined on the 'Input/Output' tab of the <a href='settings.php#settings-output'>settings page</a>.</li>
                 <li>Predefined Preset Names are automatically triggered within FPP when the action described occurs.</li>
             </ul>
 

@@ -127,7 +127,7 @@ include 'common/menuHead.inc';
           var html = [];
           html.push("Please consider enabling the collection of anonymous statistics on the hardware and features used to ");
           html.push("help us improve FPP in the future. You may preview the data  ");
-          html.push("or disable this banner on the <a href=\"settings.php?tab=Privacy\">Privacy Settings Page</a>. ");
+          html.push("or disable this banner on the <a href=\"settings.php#settings-privacy\">Privacy Settings Page</a>. ");
           html.push("<div style='margin-top:1em'><button class='buttons wideButton btn-outline-light' onClick='EnabledStats();'>Enable Stats</button></div>")
           $("#bannerRow").html(html.join(' ')).show();
        }
@@ -214,7 +214,7 @@ include 'menu.inc';
 if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
     ?>
 <div id='upgradeFlag' class="alert alert-danger" role="alert">
-     SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
+     SD card has unused space.  Go to <a href="settings.php#settings-storage">Storage Settings</a> to expand the
      file system or create a new storage partition.
 </div>
 
