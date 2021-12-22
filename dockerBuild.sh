@@ -18,4 +18,4 @@ docker build -t falconchristmas/fpp:latest -f Docker/Dockerfile .
 # docker run --name fpp --hostname fppDocker -t -i -p 80:80 -p 4048:4048/udp -p 5568:5568/udp -p 32320:32320/udp -v ${PWD}:/opt/fpp${DOCKER_MOUNT_FLAG} falconchristmas/fpp:latest
 
 # A sample docker-compose.yml file to use the docker image is also
-# included in the docs/samples subdirectory.
+# included in the Docker directory.
