@@ -125,7 +125,7 @@ private:
 
     time_t m_lastProcTime;
 
-    std::mutex m_scheduleLock;
+    std::recursive_mutex m_scheduleLock;
     std::vector<ScheduleEntry> m_Schedule;
     std::map<std::time_t, std::vector<ScheduledItem*>*> m_scheduledItems;
     std::map<std::time_t, std::vector<ScheduledItem*>*> m_oldItems;
