@@ -54,6 +54,11 @@ function UpdateChildSettingsVisibility() {
 
 var statusTimeout = null;
 function UpdateCurrentTime(once = false) {
+    if (statusTimeout != null) {
+        clearTimeout(statusTimeout);
+        statusTimeout = null;
+    }
+
     $.get('api/time', function(data) {
         $('#currentTime').html(data.time);
         if (!once)
@@ -257,7 +262,8 @@ $('#settingsManagerTabs .nav-link').each(function(i){
         };
     }
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-        if ($(this).attr("href") == '#settings-time') {
+        if (($(this).attr("href") == '#settings-time') &&
+            ($(this).parent().hasClass('active'))) {
             UpdateCurrentTime();
         } else if (statusTimeout != null) {
             clearTimeout(statusTimeout);
