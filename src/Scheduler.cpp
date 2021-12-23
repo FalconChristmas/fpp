@@ -127,6 +127,7 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
     LogDebug(VB_SCHEDULE, "CheckIfShouldBePlayingNow(%d, %d)\n", ignoreRepeat, forceStopped);
 
     std::time_t now = time(nullptr);
+    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
 
     for (auto& itemTime : m_scheduledItems) {
         if (itemTime.first > now) {
@@ -169,6 +170,7 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int& repeat) {
         return "";
 
     std::time_t now = time(nullptr);
+    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
 
     for (auto& itemTime : m_scheduledItems) {
         if (itemTime.first > now) {
