@@ -317,10 +317,6 @@ function playlist_get()
 
     $data = LoadPlayListDetails($playlistName, $mergeSubs);
 
-    if (isset($data->playlistInfo->total_duration)) {
-        $data->playlistInfo->total_duration = human_playtime($data->playlistInfo->total_duration);
-    }
-
     return json($data);
 }
 
