@@ -389,14 +389,14 @@ int StopChannelOutputThread(void)
 
 void StartForcingChannelOutput(void)
 {
-    outputForced++;
+    outputForced = outputForced + 1;
 
     StartChannelOutputThread();
 }
 
 void StopForcingChannelOutput(void)
 {
-    outputForced--;
+    outputForced = outputForced - 1;
 
     if (outputForced < 0)
         outputForced = 0;
