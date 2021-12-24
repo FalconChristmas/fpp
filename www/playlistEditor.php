@@ -227,6 +227,7 @@ $(document).ready(function() {
 
 simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
 </script>
+    <span style='display: none;' id='playlistDuration'>0</span>
     <div class="playlistEditContainer">
         <div class="playlistEditForm ">
             
@@ -250,11 +251,9 @@ simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
                         <td class='playlistDurationLeadOut'>00m:00s</td>
                     </tr>
                 </table>
-                <span style='display: none;' id='playlistDuration'>0</span>
             </div>
             <div class="clear"></div> -->
         </div>
-
 
     <div id="playlistEntryProperties" class="hidden" >
         <table border='0'>
