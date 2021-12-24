@@ -512,7 +512,8 @@ void Scheduler::CheckScheduledItems(bool restarted) {
                     if ((Player::INSTANCE.GetPlaylistName() == item->entry->playlist) &&
                         (Player::INSTANCE.WasScheduled()) &&
                         (Player::INSTANCE.GetRepeat() == item->entry->repeat) &&
-                        (Player::INSTANCE.GetStopTime() == item->endTime) &&
+                        ((Player::INSTANCE.GetOrigStopTime() == item->endTime) ||
+                         (Player::INSTANCE.GetStopTime() == item->endTime)) &&
                         (Player::INSTANCE.GetStopMethod() == item->entry->stopType)) {
                         SetItemRan(item, true);
                         continue;
