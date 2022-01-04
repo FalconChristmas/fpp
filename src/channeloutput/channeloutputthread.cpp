@@ -356,6 +356,7 @@ void StartChannelOutputThread(void)
 				break;
 		}
 		LogErr(VB_CHANNELOUT, "ERROR creating channel output thread: %s\n", msg );
+		return;
 	} else {
 		pthread_detach(ChannelOutputThreadID);
 	}
