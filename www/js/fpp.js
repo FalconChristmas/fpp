@@ -81,7 +81,7 @@ $(function () {
 });
 
 function getManualLink() {
-    return "https://falconchristmas.github.io/FPP_Manual(5.4).pdf";
+    return "https://falconchristmas.github.io/FPP_Manual(5.5).pdf";
 }
 
 (function ($) {
