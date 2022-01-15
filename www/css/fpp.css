@@ -489,8 +489,7 @@ body legend{
 	border-radius: 8px;
 	color:#000;
 	padding:2.5em 3em;
-	box-shadow: 1000px 100px 0px 0px #20222E,-1000px 100px 0px 0px #20222E ,0px 100px 0px 0px #20222E,
-				1000px 500px 0px 0px #20222E,-1000px 500px 0px 0px #20222E ,0px 500px 0px 0px #20222E;
+	box-shadow: 5px 10100px 0px 10000px #20222e,-1000px 100px 0px 0px #20222E,1000px 100px 0px 0px #20222E;
 }
 .pageContent-tabs{
 	padding-bottom: 0.85em;
@@ -1757,6 +1756,11 @@ body .sm-clean a .sub-arrow {
 .tablePageHeader.Zebra_Pin .form-actions {
 	margin-bottom: 0;
 }
+#playerControls.Zebra_Pin{
+	background-color: #fff;
+	box-shadow: 0px 5px 4px -5px rgba(0,0,0,0.2), 5px 0px 0px 0px #fff;
+	padding-top: 0.5em;
+}
 .settingsGroupTable .row>:last-child:after {
 	content:'';
 	width: 0;
@@ -2195,12 +2199,17 @@ input[type=search].tablesorter-filter:disabled{
 		max-width: 175px;
 	}
 }
-
+@media (min-width:1361px){
+	#playerControls.Zebra_Pin .buttons, #playerControls.Zebra_Pin  .disableButtons {
+		margin-bottom: 0.65em;
+	}	
+}
 @media (max-width:1360px){
 	#playerControls .buttons, #playerControls .disableButtons, #footer .buttons {
 		display: inline-block;
 		margin-bottom: 0.65em;
 	}
+
 	.tblScheduleHeadStartTime, .tblScheduleHeadEndTime{
 		min-width: 63px;
 	}
@@ -2231,10 +2240,6 @@ input[type=search].tablesorter-filter:disabled{
 	}
 }
 @media (max-width:1200px){
-	.pageContent{
-		box-shadow:400px 100px 0px 0px #20222e, -400px 100px 0px 0px #20222e, 0px 100px 0px 0px #20222e, 400px 300px 0px 0px #20222e, -400px 300px 0px 0px #20222e, 0px 300px 0px 0px #20222e
-		
-	}
 	.pageContent-tabs .nav-link{
 		padding: 0.4rem 0.8em;
 	}
@@ -2325,6 +2330,15 @@ input[type=search].tablesorter-filter:disabled{
 		margin-bottom: 1.2em;
 	}
 
+	#playerControls.Zebra_Pin .buttons, #playerControls.Zebra_Pin .disableButtons{
+		display: inline-block;
+		width: auto;
+		font-size: 1.2em;
+		display: inline-block;
+	}
+	#playerControls.Zebra_Pin .buttons .playerControlButton-text, #playerControls.Zebra_Pin .disableButtons .playerControlButton-text{
+		display: none;
+	}
 	#btnPrev, #btnNext {
 		width: calc(50% - 0.35em);
 	}

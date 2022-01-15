@@ -49,8 +49,9 @@ if (isset($_GET['playlist'])) {
                 var $playlistActions = $("<div class='buttonActions' />");
                 var $playlistEditButton = $('<button class="playlistCardEditButton circularButton circularButton-sm circularEditButton">Edit</button>');
                 var $playlistDelete = $("<button class='circularButton circularButton-sm circularDeleteButton'>Delete</button>");
-                $playlistEditButton.click(function(){
+                $playlistCard.click(function(e){
                     $('#playlistSelect').val($playlistName).trigger('change');
+                    e.stopPropagation();
                 })
                 $playlistDelete.click(function(){
                     handleDeleteButtonClick($playlistName);
