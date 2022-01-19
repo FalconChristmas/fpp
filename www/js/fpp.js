@@ -43,6 +43,7 @@ $(function () {
         contained: true,
         top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0
     });
+
     $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
         zp.update();
     });
@@ -81,7 +82,7 @@ $(function () {
 });
 
 function getManualLink() {
-    return "https://falconchristmas.github.io/FPP_Manual(5.4).pdf";
+    return "https://falconchristmas.github.io/FPP_Manual(5.5).pdf";
 }
 
 (function ($) {
@@ -3145,7 +3146,25 @@ function SetupUIForMode(fppMode) {
         }
         $("#remoteModeInfo").hide();
     }
-    $("body").removeClass('is-loading');
+    if($("body").hasClass('is-loading')){
+        $("body").removeClass('is-loading');
+        var zp_playerControls =  $.Zebra_Pin($('#playerModeInfo #playerControls'), {
+
+            onPin:function(scroll,$element){
+                setTimeout(function(){
+                    $('#playerModeInfo #playerControls').css({
+                        width: $('#playerModeInfo #playerControls').parent().width(),
+                    });
+                },50);
+                
+            },
+            top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0,
+            pinpoint_offset:150,
+            contained:true
+        });
+    }
+    
+
 }
 
 var temperatureUnit = settings['temperatureInF'] == 1;

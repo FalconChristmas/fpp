@@ -313,8 +313,10 @@ int UDPOutput::Init(Json::Value config) {
             std::string host = o->ipAddress;
             if (myIps.find(host) != myIps.end()) {
                 // trying to send UDP data to myself, that's bad.  Disable
-                LogWarn(VB_CHANNELOUT, "UDP Output set to send data to myself.  Disabling - %s\n",
-                        host.c_str());
+                std::string msg = "UDP Output set to send data to myself.  Disabling ";
+                msg += host.c_str();
+                LogWarn(VB_CHANNELOUT, msg.c_str());
+                WarningHolder::AddWarning(msg);
                 o->active = false;
             }
         }
