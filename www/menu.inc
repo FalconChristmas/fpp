@@ -175,7 +175,7 @@ function list_plugin_entries($menu) {
 		}
 	}
 ?>
-  <div id='upgradeFlag' class="alert detract"><span class='inlineBlock'>FPP v5.4 is available for install</span><span class='inlineBlock'><button name="btnUpgrade" type="button" onClick="ViewReleaseNotes('5.4');"  class = "buttons btn-outline-light" ><i class='fas fa-fw fa-sync fa-nbsp'></i>Upgrade FPP</button></div>
+  <div id='upgradeFlag' class="alert detract"><span class='inlineBlock'>FPP v5.5 is available for install</span><span class='inlineBlock'><button name="btnUpgrade" type="button" onClick="ViewReleaseNotes('5.5');"  class = "buttons btn-outline-light" ><i class='fas fa-fw fa-sync fa-nbsp'></i>Upgrade FPP</button></div>
   <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><button name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class="buttons btn-outline-light"><i class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
 
 <?
