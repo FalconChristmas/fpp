@@ -1244,6 +1244,21 @@ if ($settings['Platform'] == "Raspberry Pi") {
 		$('#outputType').append(new Option(output_module.typeFriendlyName, output_module.typeName));
 	})
 
+//sort output type list (gives better UX):
+    $("#outputType").sort_selection_list(true);
+}
+
+//jquery function to sort selection lists:
+//adapted from code at https://stackoverflow.com/questions/45888/what-is-the-most-efficient-way-to-sort-an-html-selects-options-by-value-while
+$.fn.sort_selection_list = function(keep_first) {
+    var my_options = $("#" + this.attr('id') + ' option');
+    var first = keep_first? my_options.first().detach(): null;
+//    var selected = my_options.val();
+   my_options.sort((a, b) => a.text.localeCompare(b.text));
+//   if (keep_first) my_options.prepend(first);
+   $("#" + this.attr('id')).empty().append(my_options).prepend(first); //CAUTION: need to add options to DOM before re-adding first (?)
+//    my_options.val(selected); //preserve active selection
+   return my_options; //also return a copy in case caller wants it
 }
 
 var otherTableInfo = {
