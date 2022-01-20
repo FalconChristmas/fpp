@@ -8,6 +8,22 @@ require_once('troubleshootingCommands.php');
 <?php include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <title><? echo $pageTitle; ?></title>
+<style>
+.back2top{
+        position: fixed;
+        bottom: 10px;
+        right: 20px;
+        z-index: 99;
+        background: red;
+        color: #fff;
+        border-radius: 30px;
+        padding: 15px;
+        font-weight: bold;
+        line-height: normal;
+        border: none;
+        opacity: 0.5;
+    }
+</style>
 </head>
 
 <body>
@@ -51,6 +67,7 @@ require_once('troubleshootingCommands.php');
   </div>
   <?php include 'common/footer.inc'; ?>
 </div>
+<button type="button" class="back2top">Back to top</button>
 
 <script type="application/javascript">
 
@@ -75,6 +92,11 @@ function fixScroll() {
 $( document ).ready(function() {
 
   document.querySelector("#troubleshooting-hot-links").innerHTML = '<?php echo $hotLinks ?>';
+  $(".back2top").click(() => $("html, body").animate({scrollTop: 0}, "slow") && false);
+  $(window).scroll(function(){
+      if ($(this).back2top() > 100) $('.scrollToTop').fadeIn();
+      else $('.back2top').fadeOut();
+  });
 
 <?
   foreach($jsArray as $key => $command)
@@ -85,6 +107,7 @@ $( document ).ready(function() {
             url: "<?php echo $url ?>",
             type: 'GET',
             success: function(data) {
+//                data = "<button type=\"button\" class=\"back2top\">Back to top</button>" + data;
                 document.querySelector("#<?php echo $key ?>").innerHTML = data;
                 fixScroll();
             },
