@@ -1,0 +1,157 @@
+2.4.20 (2021-12-07)
+===================
+resolves #184
+ - dropdown position behavior
+
+2.4.19 (2020-06-26)
+===================
+resolves #174
+ - select all shouldn't show disabled items as selected
+
+2.4.18 (2020-01-28)
+===================
+resolves #169
+ - allow option html in custom option list
+
+2.4.17 (2019-10-15)
+===================
+resolves #163
+ - add onPlaceholder callback
+
+2.4.16 (2019-01-18)
+===================
+resolves #149
+ - escape option value when placed in jquery selectors
+
+2.4.15 (2018-08-30)
+===================
+remove use of $.bind (deprecated as of jQuery 3)
+removed unused options
+change prev/next to siblings (re part of issue #137)
+
+2.4.14 (2018-07-17)
+===================
+Resolves PR #134
+
+2.4.13 (2018-07-06)
+===================
+code tweak/optimization for cases where working with the <select> element
+
+2.4.12 (2018-05-22)
+===================
+resolves #132 (un/select all) logic with dynamically loaded options
+
+2.4.11 (2018-03-06)
+===================
+pass selected count to the onSelectAll callback
+
+2.4.10 (2018-02-16)
+===================
+performance optimizations to assist with #124
+add new checkboxAutoFit option default to false
+
+2.4.9 (2018-01-18)
+==================
+resolves #123
+ - declare <button> type as button instead of browser default of "submit"
+
+2.4.8 (2018-01-08)
+==================
+Resolves #122
+add onSelectAll callback
+
+2.4.7 (2017-11-30)
+==================
+Resolves #116
+Minor code cleanup
+
+2.4.6 (2017-11-10)
+==================
+Add Check to verify <select> is a multiselect list during initialization.
+
+2.4.5 (2017-11-07)
+==================
+Resolves #115 (include disabled options in placeholder text logic)
+
+2.4.4 (2017-10-31)
+==================
+Resolves #112, #113, #114
+- more keyboard nav support
+- moved ms-active class up to ms-options-wrap for targeting purposes
+- added ms-has-selections for when there are selected options
+
+2.4.3 (2017-10-13)
+==================
+Merge PR #110 exclude disabled options from (un)select all
+
+2.4.2 (2017-08-04)
+==================
+resolves #104
+
+2.4.1 (2017-08-04)
+==================
+resolves #99
+ - maxWidth option implementation bug
+ - addition of new maxPlaceholderWidth option
+
+2.4 (2017-06-16)
+================
+Fix issue with searching and (un)select all functionality not working as intended #97
+Merge PR #90 search by value/text
+
+2.3.13 (2017-06-16)
+===================
+Fix disable method issue, bugfix with hasClass() call
+
+2.3.12 (2017-06-16)
+===================
+Fix issue where select all wasn't completly working re issue #92
+
+2.3.11 (2017-06-02)
+===================
+More Performance improvements on loading, select all, show/hide dropdown.
+Remove jquery.actual usage for a more optimal clientWidth/scrollWidth usage
+
+2.3.10 (2017-06-01)
+===================
+Performance improvements on loading, searching, option selection.
+
+2.3.9 (2017-04-04)
+==================
+Add method to disable or enable the select list (issue #63)
+
+2.3.8 (2017-03-17)
+==================
+additional sanity checks when loading options see issue #74
+
+2.3.7 (2017-03-17)
+==================
+(un)select all wording bugfix
+
+2.3.6 (2017-01-13)
+==================
+Add text option and logic for unselect all text
+
+2.3.5 (2017-01-10)
+==================
+Add option to delay search action
+
+2.3.4 (2017-01-10)
+==================
+Fix bug with onControlClose while clicking other lists or the current list button
+Add reset method to reset list to default values.
+
+2.3.3 (2016-12-08)
+==================
+Add Method to change list settings after it has already been rendered
+
+2.3.2 (2016-12-08)
+==================
+Optimize search functionality
+
+2.3.1 (2016-12-06)
+==================
+Optimize select all (should be 2-3x faster)
+
+
+*Previous version changes not documented outside of github commit log

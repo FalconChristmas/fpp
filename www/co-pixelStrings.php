@@ -1,3 +1,6 @@
+<script src="jquery/jQuery-multiselect/jquery.multiselect.js"></script>
+<link rel="stylesheet" href="jquery/jQuery-multiselect/jquery.multiselect.css">
+
 <style>
 .outputTable {
 	background: #F0F0F0;
@@ -26,6 +29,25 @@
     text-align: center;
     width: 100%;
 }
+
+.ms-options-wrap > .ms-options.checkbox-autofit {
+    min-width: 200px; /*kludge: force multi-select width to void wrap*/
+}
+<?
+//try to reduce typos:  :(
+//define('RPI', 'Raspberry Pi');
+//define('BBB', 'BeagleBone Black');
+//TODO: add minimum O/S rev as optional arg?
+function isBBB() {
+    global $settings;
+    return ($settings['Platform'] == 'BeagleBone Black');
+}
+function isRPI() {
+    global $settings;
+    return ($settings['Platform'] == 'Raspberry Pi');
+}
+?>
+
 
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
@@ -119,6 +141,7 @@ var KNOWN_CAPES = {
     usort($capes, 'sortByLongName');
 ?>
 };
+console.log(KNOWN_CAPES);
 
 function MapPixelStringType(type) {
     var subType = GetBBB48StringCapeFileNameForSubType(type);
@@ -137,7 +160,7 @@ function GetPixelStringTiming() {
     return $('#BBB48StringPixelTiming').val();
 }
 
-var maxVirtualStringsPerOutput = 30;
+var maxVirtualStringsPerOutput = 30; //is this limit for perf?
 var selectedPixelStringRowId = "NothingSelected";
 
 function pixelOutputTableHeader()
@@ -670,7 +693,9 @@ function GetBBB48StringCapeFileNameForSubType(mainType) {
     return type;
 }
 function IsPixelStringDriverType(type) {
-    return  type == "BBB48String" || type == 'spixels' || type == 'RPIWS281X';
+//use hash map for easier additions in future:
+//    return  type == "BBB48String" || type == 'spixels' || type == 'RPIWS281X';
+    return pixelStringSubTypes.hasOwnProperty(type);
 }
 function GetBBB48StringCapeFileName() {
     var mainType = $('#BBB48StringSubType').val();
@@ -708,7 +733,7 @@ function GetBBB48StringRows()
 {
     var subType = GetBBB48StringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    return val["outputs"].length;
+    return (val["outputs"] || []).length;
 }
 function GetBBB48StringProtocols(p) {
     var subType = GetBBB48StringCapeFileName();
@@ -1044,6 +1069,11 @@ function populatePixelStringOutputs(data) {
             var output = data.channelOutputs[opi];
             var type = output.type;
             if (IsPixelStringDriverType(type)) {
+                const is_dpi = ~type.indexOf("DPI");
+//                populateDPI(output); //avoid interfering with BBB logic
+//                continue;
+                if (is_dpi) { $('#dpi-info').show(); }
+                else { $('#dpi-info').hide(); }
                 $('#BBB48String_enable').prop('checked', output.enabled);
                 var subType = output.subType;
                 $('#BBB48StringSubType').val(subType);
@@ -1111,6 +1141,7 @@ function populatePixelStringOutputs(data) {
                     if (o < sourceOutputCount) {
                         port = output.outputs[o];
                     }
+//console.log("here1", protocols, defProtocol, port);
                     if (ShouldAddBreak(subType, o) || (o == 0 && IsDifferential(subType, o)) || IsDifferentialExpansion(inExpansion, expansionType, o) || IsExpansion(subType, o)) {
                         if (IsExpansion(subType, o)) {
                             expansionType = port["expansionType"];
@@ -1309,6 +1340,13 @@ function populatePixelStringOutputs(data) {
         }
     }
 }
+const pixelStringSubTypes =
+{
+    BBB48String: null, //empty entry for IsPixelStringDriverType
+    RPIWS281X: "PiHat",
+    spixels: "spixels",
+    "rPi-DPI": "rPi-DPI",
+};
 function ValidateBBBStrings(data) {
     if ("channelOutputs" in data) {
         PixelStringLoaded = true;
@@ -1317,12 +1355,14 @@ function ValidateBBBStrings(data) {
             var type = output.type;
             if (IsPixelStringDriverType(type)) {
                 if (output.subType == "") {
-                    if (output.type == "RPIWS281X") {
-                        output.subType = "PiHat";
-                    }
-                    if (output.type == "spixels") {
-                        output.subType = "spixels";
-                    }
+//use hash map (above) for easier additions in future:
+//                    if (output.type == "RPIWS281X") {
+//                        output.subType = "PiHat";
+//                    }
+//                    if (output.type == "spixels") {
+//                        output.subType = "spixels";
+//                    }
+                    output.subType = pixelStringSubTypes[output.type] || "";
                 }
                 var fn = GetBBB48StringCapeFileNameForSubType(output.subType);
                 if (KNOWN_CAPES[fn] == null) {
@@ -1398,6 +1438,7 @@ function BBB48StringSubTypeChanged()
     }
 }
 
+//NOTE: this is used for non-BBB as well
 function loadBBBOutputs() {
     var defaultData = {};
     defaultData.channelOutputs = [];
@@ -1475,11 +1516,78 @@ function populateCapeList() {
     ?>
 }
 
-$(document).ready(function(){
+
+//get DPI info from O/S:
+const cfgDPI = {
+<?
+//currently only applies to RPi
+  if (isRPI()) {
+//https://raspberrypi.stackexchange.com/questions/62903/how-to-detect-a-device-tree-overlay-at-run-time
+//TODO: call bcm functions; for now, just shell out
+      $has_dpi = shell_exec("sudo ls -R /sys | grep masked_dpi24");
+      echo "has_dpi: " . (($has_dpi != '')? "'" . $has_dpi . "'": "null") . ",";
+  }
+  echo "platform: '" . $settings['Platform'] . "',";
+?>
+};
+
+//define bit masks for GPIO pins:
+//defined in here in case DPI overlay !installed yet:
+const DPI_PINS = {
+    "GPIO 4 (Pi-7)": 0x000001,
+    "GPIO 5 (Pi-29)": 0x000002,
+    "GPIO 6 (Pi-31)": 0x000004,
+    "GPIO 7 (Pi-26)": 0x000008,
+    "GPIO 8 (Pi-24)": 0x000010,
+    "GPIO 9 (Pi-21)": 0x000020,
+    "GPIO 10 (Pi-19)": 0x000040,
+    "GPIO 11 (Pi-23)": 0x000080,
+    "GPIO 12 (Pi-32)": 0x000100,
+    "GPIO 13 (Pi-33)": 0x000200,
+    "GPIO 14 (Pi-8)": 0x000400,
+    "GPIO 15 (Pi-10)": 0x000800,
+    "GPIO 16 (Pi-36)": 0x001000,
+    "GPIO 17 (Pi-11)": 0x002000,
+    "GPIO 18 (Pi-12)": 0x004000,
+    "GPIO 19 (Pi-35)": 0x008000,
+    "GPIO 20 (Pi-38)": 0x010000,
+    "GPIO 21 (Pi-40)": 0x020000,
+    "GPIO 22 (Pi-15)": 0x040000,
+    "GPIO 23 (Pi-16)": 0x080000,
+    "GPIO 24 (Pi-18)": 0x100000,
+    "GPIO 25 (Pi-22)": 0x200000,
+    "GPIO 26 (Pi-37)": 0x400000,
+    "GPIO 27 (Pi-13)": 0x800000,
+};
+
+$(document).ready(function() {
     if (currentCapeName != "" && currentCapeName != "Unknown") {
         $('.capeName').html(currentCapeName);
     }
 
+console.log("here2", currentCapeName, cfgDPI);
+    const dpi_choices = Object.entries(DPI_PINS).map(([name, value]) => ({
+        name,
+        value,
+        checked: false, //TODO
+    }));
+    $('select[multiple]').multiselect({ //add checkboxes
+        columns: 1,
+        maxPlaceholderOpts: 1, //don't let it get too wide
+//        maxPlaceholderWidth: 250,
+//        maxWidth: 250,
+        checkboxAutoFit: true,
+        placeholder: "Select GPIO Pins for DPI",
+//        search: true,
+        selectAll: true,
+        onControlClose: function(dpi_pins) {
+            const dpi_mask = $("select[multiple]").val().reduce((mask, bit) => mask | +bit, 0);
+            alert("dpi pin mask: 0x" + dpi_mask.toString(16));
+        },
+    });
+    $('select[multiple]').multiselect("loadOptions", dpi_choices);
+//    if (!(cfgDPI.ports || []).length) {
+//        $("#dpi-info").innerHTML = 
     populateCapeList();
     loadBBBOutputs();
 });
@@ -1534,6 +1642,10 @@ style="display: none;"
                         <option value="1">Slow (1903)</option>
                         </select>
                     </div>
+                </div>
+                <div id="dpi-info" class="col-md-auto form-inline" style="display: none;">
+                    <div><b>DPI Pins:&nbsp;</b></div>
+                    <div><select id="dpi-ports" multiple="multiple" style="white-space: nowrap;"> </select> </div>
                 </div>
             </div>
         </div>

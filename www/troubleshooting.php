@@ -94,7 +94,7 @@ $( document ).ready(function() {
   document.querySelector("#troubleshooting-hot-links").innerHTML = '<?php echo $hotLinks ?>';
   $(".back2top").click(() => $("html, body").animate({scrollTop: 0}, "slow") && false);
   $(window).scroll(function(){
-      if ($(this).back2top() > 100) $('.scrollToTop').fadeIn();
+      if ($(this).scrollTop() > 100) $('.back2top').fadeIn();
       else $('.back2top').fadeOut();
   });
 

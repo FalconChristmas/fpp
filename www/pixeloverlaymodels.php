@@ -15,12 +15,13 @@ function GetOrientationInput(currentValue, attr) {
 		vertical:   "Vertical"
 		};
     var str = "";
-    if (currentValue == "custom") {
-        str = "<b>Custom</b>";
+    const is_custom = (currentValue || "").toLowerCase().startsWith("custom");
+    if (is_custom) {
+        str = "<b>" + currentValue + "</b>"; //allow descriptive text following
     }
 	str += "<select class='orientation'";
     str += attr;
-    if (currentValue == "custom") {
+    if (is_custom) {
         str += " style='visibility: hidden;'><option value='custom' selected>Custom</option";
     }
     str += ">";
@@ -90,7 +91,7 @@ function PopulateChannelMemMapTable(data) {
 			"<td><input class='start' type='text' size='6' maxlength='6' value='" + data[i].StartChannel + "'" + attr + "></td>" +
             "<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data[i].ChannelCount + "'" + attr + "></td>" +
             "<td><input class='cpn' type='number' min='1' max='4' value='" + ChannelCountPerNode + "'" + attr + "></td>" +
-            "<td>" + GetOrientationInput(data[i].Orientation, attr) + "</td>";
+            "<td>" + GetOrientationInput(data[i].Orientation + orientationDetails(data[i]), attr) + "</td>";
         if (data[i].Orientation != "custom") {
             postr += "<td>" + GetStartingCornerInput(data[i].StartCorner, attr) + "</td>" +
 		    "<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + data[i].StringCount + "'" + attr + "></td>" +
@@ -109,6 +110,14 @@ function PopulateChannelMemMapTable(data) {
             $('#channelMemMaps tbody').append(postr + "</td></tr>");
         }
 	}
+}
+//give a little more detail about custom model:
+function orientationDetails(data)
+{
+    if (data.Orientation != "custom" || !data.hasOwnProperty("data")) return "";
+//for now, just show grid size
+    const rows = data.data.split(";"), cols = rows[0].split(",");
+    return "&nbsp;" + cols.length + "&nbsp;x&nbsp;" + rows.length;
 }
 
 function GetChannelMemMaps() {
