@@ -141,7 +141,7 @@ var KNOWN_CAPES = {
     usort($capes, 'sortByLongName');
 ?>
 };
-console.log(KNOWN_CAPES);
+console.log("here0", KNOWN_CAPES);
 
 function MapPixelStringType(type) {
     var subType = GetBBB48StringCapeFileNameForSubType(type);
@@ -810,6 +810,11 @@ function HasSerial(subType) {
     return val["numSerial"] > 0;
 }
 
+function HasFPS(subType) {
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    return val["FPS"] != "";
+}
 
 function BBB48SerialTypeChanged() {
     if ($('#BBBSerialMode').val() == 'DMX') {
@@ -824,6 +829,7 @@ function BBB48SerialTypeChanged() {
     }
 }
 
+//NOTE: this is used for non-BBB as well
 function SetupBBBSerialPorts()
 {
     var subType = $('#BBB48StringSubType').val();
@@ -1072,7 +1078,12 @@ function populatePixelStringOutputs(data) {
                 const is_dpi = ~type.indexOf("DPI");
 //                populateDPI(output); //avoid interfering with BBB logic
 //                continue;
-                if (is_dpi) { $('#dpi-info').show(); }
+                if (is_dpi) {
+                    $("#dpi-fps").find("option").remove().end()
+                        .append((output.fps || []).map((fps_choice => `<option value="${fps_choice}">${fps_choice}</option>`)).join(""))
+                        .val("whatever"); //re-populate list in case fps choices are different between drivers
+                    $('#dpi-info').show();
+                }
                 else { $('#dpi-info').hide(); }
                 $('#BBB48String_enable').prop('checked', output.enabled);
                 var subType = output.subType;
@@ -1347,6 +1358,7 @@ const pixelStringSubTypes =
     spixels: "spixels",
     "rPi-DPI": "rPi-DPI",
 };
+//NOTE: this is used for non-BBB as well
 function ValidateBBBStrings(data) {
     if ("channelOutputs" in data) {
         PixelStringLoaded = true;
@@ -1494,12 +1506,32 @@ function saveBBBOutputs() {
     
     $.post("api/channel/output/" + PIXEL_STRING_FILE_NAME, JSON.stringify(postData)).done(function(data) {
         $.jGrowl("Pixel String Output Configuration Saved",{themeState:'success'});
+        if (cfgDPI.isRPI && cfgDPI.has_dpi === null) AskInstallDPI();
         SetRestartFlag(1);
     }).fail(function() {
         DialogError("Save Pixel String Outputs", "Save Failed");
     });
 }
 
+
+function AskInstallDPI() {
+    $('#dialog-install-dpi').fppDialog({
+        resizeable: false,
+        height: 300,
+        width: 500,
+        modal: true,
+        buttons: {
+            "Yes" : function() {
+                $(this).fppDialog("close");
+                SetRebootFlag();
+                $.post("api/network/presisentNames", "", function() {location.reload(true);});
+            },
+            "No" : function() {
+            $(this).fppDialog("close");
+            }
+        }
+    });
+}
 
 function populateCapeList() {
     var select = document.getElementById("BBB48StringSubType");
@@ -1524,16 +1556,26 @@ const cfgDPI = {
   if (isRPI()) {
 //https://raspberrypi.stackexchange.com/questions/62903/how-to-detect-a-device-tree-overlay-at-run-time
 //TODO: call bcm functions; for now, just shell out
-      $has_dpi = shell_exec("sudo ls -R /sys | grep masked_dpi24");
-      echo "has_dpi: " . (($has_dpi != '')? "'" . $has_dpi . "'": "null") . ",";
+//      $has_dpi = shell_exec("sudo ls -R /sys | grep masked_dpi24");
+      $has_dpi = shell_exec("sudo find /sys -name dpi24_pins -exec hexdump -xv {}/brcm,pins \;");
+      echo "has_dpi: " . (($has_dpi != '')? json_encode($has_dpi): "null") . ",";
   }
   echo "platform: '" . $settings['Platform'] . "',";
+  echo "isRPI: " . isRPI() . ",";
 ?>
+    get pins() { /*alert(this.has_dpi)*/; return (this.has_dpi || "").replace(/^\S+/gm, "").replace(/\s/g, "").match(/.{8}/g).map(hexstr => parseInt(hexstr.slice(2, 2+4), 16)); }, //convert hexdump to array of pin#s
 };
 
-//define bit masks for GPIO pins:
-//defined in here in case DPI overlay !installed yet:
+//define bit masks to represent GPIO pins:
+//defined here in case DPI overlay !installed yet
+//all possible GPIO pins useful for LED control are listed below
+//(some might not be configured for DPI, so they won't be in json file)
+const DPI_MASK = 0xFFFFFF;
 const DPI_PINS = {
+    "GPIO 0 (Pi-27)": 0x80000000, //DPI CLK !useful for WS281X
+    "GPIO 1 (Pi-28)": 0x40000000, //DPI EN !useful for WS281X
+    "GPIO 2 (Pi-3)": 0x20000000, //DPI VSYNC !useful for WS281X
+    "GPIO 3 (Pi-5)": 0x10000000, //DPI HSYNC !useful for WS281X
     "GPIO 4 (Pi-7)": 0x000001,
     "GPIO 5 (Pi-29)": 0x000002,
     "GPIO 6 (Pi-31)": 0x000004,
@@ -1565,11 +1607,13 @@ $(document).ready(function() {
         $('.capeName').html(currentCapeName);
     }
 
-console.log("here2", currentCapeName, cfgDPI);
+//console.log("here2", currentCapeName, cfgDPI);
+//console.log("here3", cfgDPI.pins);
     const dpi_choices = Object.entries(DPI_PINS).map(([name, value]) => ({
         name,
         value,
         checked: false, //TODO
+        enabled: value & DPI_MASK, //display but disable pins !useful for WS281X
     }));
     $('select[multiple]').multiselect({ //add checkboxes
         columns: 1,
@@ -1580,9 +1624,20 @@ console.log("here2", currentCapeName, cfgDPI);
         placeholder: "Select GPIO Pins for DPI",
 //        search: true,
         selectAll: true,
-        onControlClose: function(dpi_pins) {
-            const dpi_mask = $("select[multiple]").val().reduce((mask, bit) => mask | +bit, 0);
-            alert("dpi pin mask: 0x" + dpi_mask.toString(16));
+//        onControlClose: function(options) { //dpi_pins) {
+////console.dir(args);
+//            const dpi_mask = $("select[multiple]").val().reduce((mask, bit) => mask | +bit, 0); //bitmap of selected pins
+//            alert("dpi pin mask: 0x" + dpi_mask.toString(16));
+//        },
+        onOptionClick: function(options, select) {
+//console.dir(options);
+//console.log(Array.from(options, (opt, inx) => `[${inx}] val '${opt.value}', checked ${opt.checked? "Y": "N"}`).join(", "));
+//NOTE: options don't tell which are selected; need to use select.value
+//NOTE: select.value only gives latest option used
+//console.dir(select);
+//console.log(select.value);
+//            alert(inspect(options[0]) + " " + inspect(thing));
+//
         },
     });
     $('select[multiple]').multiselect("loadOptions", dpi_choices);
@@ -1591,6 +1646,18 @@ console.log("here2", currentCapeName, cfgDPI);
     populateCapeList();
     loadBBBOutputs();
 });
+
+//for debug only:
+function inspect(thing) {
+    if (typeof thing != "object") return thing + "";
+    return ((thing.length !== undefined)? `len ${thing.length} `: "") +  Object.entries(thing).map(([key, val]) => `${key}=${typeof val} ${tostr(val)}`).join(", ");
+}
+function tostr(thing) {
+    try { return thing.toString(); }
+    catch (exc) {}
+    try { return thing + ""; }
+    catch (exc) { return "#NO-STRING-CONV#"; }
+}
 </script>
 
 <div id='tab-BBB48String'>
@@ -1646,6 +1713,8 @@ style="display: none;"
                 <div id="dpi-info" class="col-md-auto form-inline" style="display: none;">
                     <div><b>DPI Pins:&nbsp;</b></div>
                     <div><select id="dpi-ports" multiple="multiple" style="white-space: nowrap;"> </select> </div>
+                    <div><b>FPS:&nbsp;</b></div>
+                    <div><select id="dpi-fps"> </select> </div>
                 </div>
             </div>
         </div>
@@ -1731,3 +1800,8 @@ style="display: none;"
 
     </div>
 </div>
+
+<div id="dialog-install-dpi" style="display: none">
+    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>DPI device tree overlay was not detected, but is required in order to use DPI Channel Output.  Okay to install it?</p>
+</div>
+

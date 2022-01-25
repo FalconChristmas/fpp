@@ -2,13 +2,14 @@
     "name": "rPi-DPI",
     "longName": "rPi-DPI",
     "driver": "rPi-DPI",
-    "numSerial": 0,
-    "outputs-comment": "just list first pin by default; code will enumerate other pins",
-    "outputs": [
+    "numSerial-unused": 0,
+    "outputs-comment": "no pins are enabled by default; UI will add pins selected by user",
+    "outputs-starts-empty": [
         {  "pin": "P1-13" }
     ],
-    "outputs-comment": "DPI output order is R7..0, G7..0, B7..0, mode ALT2 (6)",
-    "all-outputs": [
+    "fps-comment": "list of choices for pre-configured timing; add more as needed (requires update to SetupDPI script)",
+    "fps": [15, 20, 30, 40],
+    "outputs-all-available": [
         {  "pin": "P1-13" },
         {  "pin": "P1-37" },
         {  "pin": "P1-22" },
@@ -36,12 +37,12 @@
         {  "pin": "P1-29" },
         {  "pin": "P1-7" }
     ],
-    "protocol-comment": "maybe add other protocols in future",
-    "protocols": ["WS281X","(other)"],
+    "protocols-comment": "maybe add other protocols in future",
+    "protocols": ["WS281X"],
+    "groups-comment": "seems to only control UI grouping, no other purpose?",
     "groups": [
         {
             "start": 1,
-            "x-count": 24,
             "count": 8
         },
         {
