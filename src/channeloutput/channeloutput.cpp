@@ -52,10 +52,9 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-int channelOutputCount = 0;
 unsigned long channelOutputFrame = 0;
 float mediaElapsedSeconds = 0.0;
-FPPChannelOutputInstance channelOutputs[FPPD_MAX_CHANNEL_OUTPUTS];
+std::vector<FPPChannelOutputInstance> channelOutputs;
 
 static int LoadOutputProcessors(void);
 
@@ -211,31 +210,27 @@ static std::map<std::string, std::string> OUTPUT_REMAPS = {
  */
 int InitializeChannelOutputs(void) {
     Json::Value root;
-    int i = 0;
 
     channelOutputFrame = 0;
-
-    for (i = 0; i < FPPD_MAX_CHANNEL_OUTPUTS; i++) {
-        bzero(&channelOutputs[i], sizeof(channelOutputs[i]));
-    }
+    channelOutputs.clear();
 
     // Reset index so we can start populating the outputs array
-    i = 0;
     if (FPDOutput.isConfigured()) {
-        channelOutputs[i].startChannel = getSettingInt("FPDStartChannelOffset");
-        channelOutputs[i].outputOld = &FPDOutput;
+        FPPChannelOutputInstance inst;
+        inst.startChannel = getSettingInt("FPDStartChannelOffset");
+        inst.outputOld = &FPDOutput;
 
-        if (FPDOutput.open("", &channelOutputs[i].privData)) {
-            channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
+        if (FPDOutput.open("", &inst.privData)) {
+            inst.channelCount = inst.outputOld->maxChannels(inst.privData);
 
-            int m1 = channelOutputs[i].startChannel;
-            int m2 = m1 + channelOutputs[i].channelCount - 1;
+            int m1 = inst.startChannel;
+            int m2 = m1 + inst.channelCount - 1;
             LogInfo(VB_CHANNELOUT, "FPD:  Determined range needed %d - %d\n",
                     m1, m2);
 
             addRange(m1, m2);
 
-            i++;
+            channelOutputs.push_back(inst);
             LogDebug(VB_CHANNELOUT, "Configured FPD Channel Output\n");
         } else {
             LogErr(VB_CHANNELOUT, "ERROR Opening FPD Channel Output\n");
@@ -290,8 +285,10 @@ int InitializeChannelOutputs(void) {
                 // internally we start channel counts at zero
                 start -= 1;
 
-                channelOutputs[i].startChannel = start;
-                channelOutputs[i].channelCount = count;
+                FPPChannelOutputInstance channelOutput;
+
+                channelOutput.startChannel = start;
+                channelOutput.channelCount = count;
                 std::string libnamePfx = "";
 
                 // First some Channel Outputs enabled everythwere
@@ -303,66 +300,44 @@ int InitializeChannelOutputs(void) {
                     type = OUTPUT_REMAPS[type];
                 }
 
-                if (channelOutputs[i].outputOld == nullptr && channelOutputs[i].output == nullptr) {
-                    std::string libname = "libfpp-co-" + libnamePfx + type + ".so";
-                    void* handle = dlopen(libname.c_str(), RTLD_NOW);
-                    if (handle == NULL) {
-                        LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s - Error: %s\n", type.c_str(), dlerror());
-                        continue;
-                    }
-                    ChannelOutputBase* (*fptr)(unsigned int, unsigned int);
-                    std::string methodName = "createOutput" + type;
+                std::string libname = "libfpp-co-" + libnamePfx + type + ".so";
+                void* handle = dlopen(libname.c_str(), RTLD_NOW);
+                if (handle == NULL) {
+                    LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s - Error: %s\n", type.c_str(), dlerror());
+                    continue;
+                }
+                ChannelOutputBase* (*fptr)(unsigned int, unsigned int);
+                std::string methodName = "createOutput" + type;
+                std::replace(methodName.begin(), methodName.end(), '-', '_');
+                *(void**)(&fptr) = dlsym(handle, methodName.c_str());
+                if (fptr == nullptr) {
+                    //some use createOutputFoo and others may use createFooOutput
+                    std::string methodName = "create" + type + "Output";
                     std::replace(methodName.begin(), methodName.end(), '-', '_');
                     *(void**)(&fptr) = dlsym(handle, methodName.c_str());
-                    if (fptr == nullptr) {
-                        //some use createOutputFoo and others may use createFooOutput
-                        std::string methodName = "create" + type + "Output";
-                        std::replace(methodName.begin(), methodName.end(), '-', '_');
-                        *(void**)(&fptr) = dlsym(handle, methodName.c_str());
-                    }
-                    if (fptr == nullptr) {
-                        LogErr(VB_CHANNELOUT, "Could not create Channel Output type: %s\n", type.c_str());
-                        WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
-                        dlclose(handle);
-                        continue;
-                    }
-                    channelOutputs[i].output = fptr(start, count);
-                    channelOutputs[i].libHandle = handle;
                 }
+                if (fptr == nullptr) {
+                    LogErr(VB_CHANNELOUT, "Could not create Channel Output type: %s\n", type.c_str());
+                    WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
+                    dlclose(handle);
+                    continue;
+                }
+                channelOutput.output = fptr(start, count);
+                channelOutput.libHandle = handle;
 
-                if ((channelOutputs[i].outputOld) &&
-                    (channelOutputs[i].outputOld->open(csvConfig, &channelOutputs[i].privData))) {
-                    if (channelOutputs[i].channelCount > channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData)) {
-                        LogWarn(VB_CHANNELOUT,
-                                "Channel Output config, count (%d) exceeds max (%d) channel for configured output\n",
-                                channelOutputs[i].channelCount, channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData));
-
-                        channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
-
-                        LogWarn(VB_CHANNELOUT,
-                                "Count suppressed to %d for config: %s\n", channelOutputs[i].channelCount, csvConfig);
-                    }
-
-                    int m1 = channelOutputs[i].startChannel;
-                    int m2 = m1 + channelOutputs[i].channelCount - 1;
-                    LogInfo(VB_CHANNELOUT, "%s %d:  Determined range needed %d - %d\n",
-                            type.c_str(), i, m1, m2);
-                    addRange(m1, m2);
-                    i++;
-                } else if (channelOutputs[i].output) {
-                    if (channelOutputs[i].output->Init(outputs[c])) {
-                        channelOutputs[i].output->GetRequiredChannelRanges([type, i](int m1, int m2) {
-                            LogInfo(VB_CHANNELOUT, "%s %d:  Determined range needed %d - %d\n",
-                                    type.c_str(), i, m1, m2);
+                if (channelOutput.output) {
+                    if (channelOutput.output->Init(outputs[c])) {
+                        channelOutput.output->GetRequiredChannelRanges([type](int m1, int m2) {
+                            LogInfo(VB_CHANNELOUT, "%s:  Determined range needed %d - %d\n",
+                                    type.c_str(), m1, m2);
                             addRange(m1, m2);
                         });
-                        i++;
+                        channelOutputs.push_back(channelOutput);
                     } else {
                         WarningHolder::AddWarning("Could not initialize output type " + type + ". Check logs for details.");
-                        delete channelOutputs[i].output;
-                        channelOutputs[i].output = nullptr;
-                        if (channelOutputs[i].libHandle) {
-                            dlclose(channelOutputs[i].libHandle);
+                        delete channelOutput.output;
+                        if (channelOutput.libHandle) {
+                            dlclose(channelOutput.libHandle);
                         }
                     }
                 } else {
@@ -376,9 +351,7 @@ int InitializeChannelOutputs(void) {
         }
     }
 
-    channelOutputCount = i;
-
-    LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", channelOutputCount);
+    LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", channelOutputs.size());
 
     LoadOutputProcessors();
     outputProcessors.GetRequiredChannelRanges([](int m1, int m2) {
@@ -415,11 +388,9 @@ void ResetChannelOutputFrameNumber(void) {
 
 int PrepareChannelData(char* channelData) {
     outputProcessors.ProcessData((unsigned char*)channelData);
-    FPPChannelOutputInstance* inst;
-    for (int i = 0; i < channelOutputCount; i++) {
-        inst = &channelOutputs[i];
-        if (inst->output) {
-            inst->output->PrepData((unsigned char*)channelData);
+    for (auto &inst : channelOutputs) {
+        if (inst.output) {
+            inst.output->PrepData((unsigned char*)channelData);
         }
     }
     return 0;
@@ -439,15 +410,14 @@ int SendChannelData(const char* channelData) {
         HexDump(buf, &channelData[minimumNeededChannel], 16, VB_CHANNELDATA);
     }
 
-    for (i = 0; i < channelOutputCount; i++) {
-        inst = &channelOutputs[i];
-        if (inst->outputOld) {
-            inst->outputOld->send(
-                inst->privData,
-                channelData + inst->startChannel,
-                inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
-        } else if (inst->output) {
-            inst->output->SendData((unsigned char*)(channelData + inst->startChannel));
+    for (auto &inst : channelOutputs) {
+        if (inst.outputOld) {
+            inst.outputOld->send(
+                inst.privData,
+                channelData + inst.startChannel,
+                inst.channelCount < (FPPD_MAX_CHANNELS - inst.startChannel) ? inst.channelCount : (FPPD_MAX_CHANNELS - inst.startChannel));
+        } else if (inst.output) {
+            inst.output->SendData((unsigned char*)(channelData + inst.startChannel));
         }
     }
 
@@ -457,28 +427,36 @@ int SendChannelData(const char* channelData) {
 /*
  *
  */
-void StartOutputThreads(void) {
+void StartingOutput(void) {
     FPPChannelOutputInstance* output;
     int i = 0;
 
-    for (i = 0; i < channelOutputCount; i++) {
-        if ((channelOutputs[i].outputOld) &&
-            (channelOutputs[i].outputOld->startThread))
-            channelOutputs[i].outputOld->startThread(channelOutputs[i].privData);
+    for (auto &inst : channelOutputs) {
+        if ((inst.outputOld) &&
+            (inst.outputOld->startThread)) {
+            //old style outputs
+            inst.outputOld->startThread(inst.privData);
+        } else if (inst.output) {
+            inst.output->StartingOutput();
+        }
     }
 }
 
 /*
  *
  */
-void StopOutputThreads(void) {
+void StoppingOutput(void) {
     FPPChannelOutputInstance* output;
     int i = 0;
 
-    for (i = 0; i < channelOutputCount; i++) {
-        if ((channelOutputs[i].outputOld) &&
-            (channelOutputs[i].outputOld->stopThread))
-            channelOutputs[i].outputOld->stopThread(channelOutputs[i].privData);
+    for (auto &inst : channelOutputs) {
+        if ((inst.outputOld) &&
+            (inst.outputOld->stopThread)) {
+            inst.outputOld->stopThread(inst.privData);
+        } else if (inst.output) {
+            inst.output->StoppingOutput();
+
+        }
     }
 }
 
@@ -488,7 +466,7 @@ void StopOutputThreads(void) {
 void CloseChannelOutputs(void) {
     int i = 0;
 
-    for (i = channelOutputCount - 1; i >= 0; i--) {
+    for (i = channelOutputs.size() - 1; i >= 0; i--) {
         if (channelOutputs[i].outputOld)
             channelOutputs[i].outputOld->close(channelOutputs[i].privData);
         else if (channelOutputs[i].output)
@@ -498,7 +476,7 @@ void CloseChannelOutputs(void) {
             free(channelOutputs[i].privData);
     }
 
-    for (i = channelOutputCount - 1; i >= 0; i--) {
+    for (i = channelOutputs.size() - 1; i >= 0; i--) {
         if (channelOutputs[i].output) {
             delete channelOutputs[i].output;
             channelOutputs[i].output = NULL;

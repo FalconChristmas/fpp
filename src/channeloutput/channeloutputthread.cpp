@@ -135,14 +135,12 @@ void *RunChannelOutputThread(void *data)
     ThreadIsExiting = 0;
     statusLock.unlock();
     
-    StartOutputThreads();
+    StartingOutput();
 
-	if ((getFPPmode() == REMOTE_MODE) && !forceOutput())
-	{
+	if ((getFPPmode() == REMOTE_MODE) && !forceOutput()) {
 		// Sleep about 2 seconds waiting for the master
 		int loops = 0;
-		while ((MasterFramesPlayed < 0) && (loops < 2000) && !forceOutput())
-		{
+		while ((MasterFramesPlayed < 0) && (loops < 2000) && !forceOutput()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			loops++;
 		}
@@ -279,7 +277,7 @@ void *RunChannelOutputThread(void *data)
         }
 	}
 
-	StopOutputThreads();
+	StoppingOutput();
     statusLock.lock();
     ThreadIsRunning = 0;
     statusLock.unlock();

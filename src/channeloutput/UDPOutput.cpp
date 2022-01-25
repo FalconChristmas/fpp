@@ -798,3 +798,18 @@ bool UDPOutput::InitNetwork() {
     messages.ForceSocket(BROADCAST_MESSAGES_KEY, broadcastSocket);
     return true;
 }
+
+void UDPOutput::StartingOutput() {
+    for (auto a : outputs) {
+        if (a->valid && a->active) {
+            a->StartingOutput();
+        }
+    }
+}
+void UDPOutput::StoppingOutput() {
+    for (auto a : outputs) {
+        if (a->valid && a->active) {
+            a->StoppingOutput();
+        }
+    }
+}

@@ -28,8 +28,6 @@
 #include <stdint.h>
 #include <vector>
 
-#define FPPD_MAX_CHANNEL_OUTPUTS 64
-
 class ChannelOutputBase;
 class OutputProcessors;
 
@@ -69,7 +67,8 @@ int SendChannelData(const char* channelData);
 void CloseChannelOutputs(void);
 void SetChannelOutputFrameNumber(int frameNumber);
 void ResetChannelOutputFrameNumber(void);
-void StartOutputThreads(void);
-void StopOutputThreads(void);
+
+void StartingOutput(void);
+void StoppingOutput(void);
 
 const std::vector<std::pair<uint32_t, uint32_t>>& GetOutputRanges(bool precise = true);

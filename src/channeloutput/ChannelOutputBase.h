@@ -36,6 +36,7 @@ public:
                       unsigned int channelCount = 1);
     virtual ~ChannelOutputBase();
 
+    
     unsigned int ChannelCount(void) { return m_channelCount; }
     unsigned int StartChannel(void) { return m_startChannel; }
 
@@ -46,6 +47,12 @@ public:
     virtual int SendData(unsigned char* channelData) = 0;
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) = 0;
+
+    // Some outputs may need to know ahead of time that they are about to start or stop outputting
+    // data so that resources can be setup that are only valid during the time the data is
+    // being output.  For example, tcp sockets or auth tokens or similar.
+    virtual void StartingOutput() {}
+    virtual void StoppingOutput() {}
 
 protected:
     virtual void DumpConfig(void);

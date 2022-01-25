@@ -79,6 +79,9 @@ public:
         min = startChannel - 1;
         max = startChannel + channelCount - 1;
     }
+    
+    virtual void StartingOutput() {}
+    virtual void StoppingOutput() {}
 
     virtual const std::string& GetOutputTypeString() const;
 
@@ -129,6 +132,10 @@ public:
     static UDPOutput* INSTANCE;
 
     void BackgroundOutputWork();
+    
+    virtual void StartingOutput() override;
+    virtual void StoppingOutput() override;
+
 
 private:
     int SendMessages(unsigned int key, SendSocketInfo* socketInfo, std::vector<struct mmsghdr>& sendmsgs);
