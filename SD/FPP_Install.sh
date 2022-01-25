@@ -52,9 +52,9 @@
 #       hardware which does not support Buster may have issues.
 #
 #############################################################################
-SCRIPTVER="5.3"
+SCRIPTVER="6.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="5.3"
+FPPIMAGEVER="2022-01"
 FPPCFGVER="69"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp

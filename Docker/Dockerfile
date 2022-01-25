@@ -1,4 +1,4 @@
-FROM debian:buster
+FROM debian:bullseye
 
 # if we get a bunch of these installed up front in one shot (assume a desktop so plenty of memory to do all at once)
 # then the FPP_Install step is faster.   In addition, docker will cache this result
@@ -11,13 +11,14 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--for
     fbi fbset file flite ca-certificates lshw \
     build-essential gcc g++ gdb ccache vim vim-common bison flex device-tree-compiler dh-autoreconf \
     git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
-    samba rsync connman sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
+    samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
     mp3info mailutils dhcp-helper parprouted bridge-utils libiio-utils \
     php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-xml \
     libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
     vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
     libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
-    python-daemon python-smbus wget flex bison pkg-config libasound2-dev mesa-common-dev ; apt-get clean
+    git gettext apt-utils \
+    wget flex bison pkg-config libasound2-dev mesa-common-dev ; apt-get clean
 
 # similar to above, do this once and Docker can cache the intermediary
 ADD SD/buildVLC.sh /root/buildVLC.sh
