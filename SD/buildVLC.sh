@@ -6,8 +6,8 @@ apt-get install -y flex bison pkg-config libasound2-dev
 cd /opt
 git clone https://code.videolan.org/videolan/vlc.git
 cd vlc
-# this is latest master as of 05/30/2021
-git checkout 3d07a3d41fed1c4c8de779272e54b13a4e53c8c5
+# this is latest master as of 01/25/2022
+git checkout 3c989cb61e2bb28f49bdbdc0e01528f592d8b5122
 # this commit is causing a segfault, logged as:
 # https://code.videolan.org/videolan/vlc/-/issues/25790
 git revert --no-edit fbb54457118b61f56f4d2c12c5e7a170c04ea48d
