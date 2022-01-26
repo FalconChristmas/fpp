@@ -37,6 +37,7 @@
 #include "DDP.h"
 #include "E131.h"
 #include "KiNet.h"
+#include "Twinkly.h"
 
 extern "C" {
 UDPOutput* createOutputUDPOutput(unsigned int startChannel,
@@ -274,6 +275,10 @@ int UDPOutput::Init(Json::Value config) {
         case 7:
             //KiNet types
             outputs.push_back(new KiNetOutputData(s));
+            break;
+        case 8:
+            //Twinkly types
+            outputs.push_back(new TwinklyOutputData(s));
             break;
         default:
             LogErr(VB_CHANNELOUT, "Unknown IP output type %d\n", type);

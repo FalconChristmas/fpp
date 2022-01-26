@@ -2426,7 +2426,7 @@ function SetUniverseCount(input) {
 
 function IPOutputTypeChanged(item, input) {
     var type = $(item).val();
-    if (type == 4 || type == 5) { // DDP
+    if (type == 4 || type == 5 || type == 8) { // DDP, Twinkly
         var univ = $(item).parent().parent().find("input.txtUniverse");
         univ.prop('disabled', true);
         var univc = $(item).parent().parent().find("input.numUniverseCount");
@@ -2551,6 +2551,7 @@ function populateUniverseData(data, reload, input) {
         var typeDDP1 = type == 5 ? "selected" : "";
         var typeKiNet1 = type == 6 ? "selected" : "";
         var typeKiNet2 = type == 7 ? "selected" : "";
+        var typeTwinkly = type == 8 ? "selected" : "";
         var monitor = 1;
         if (universe.monitor != null) {
             monitor = universe.monitor;
@@ -2565,7 +2566,7 @@ function populateUniverseData(data, reload, input) {
         var universeNumberDisable = "";
         var monitorDisabled = "";
         var ipDisabled = "";
-        if (type == 4 || type == 5) {
+        if (type == 4 || type == 5 || type == 8) {
             universeSize = FPPD_MAX_CHANNELS;
             universeCountDisable = " disabled";
             universeNumberDisable = " disabled";
@@ -2605,7 +2606,8 @@ function populateUniverseData(data, reload, input) {
                 "<option value='4' " + typeDDPR + ">DDP - Raw Channel Numbers</option>" +
                 "<option value='5' " + typeDDP1 + ">DDP - One Based</option>" +
                 "<option value='6' " + typeKiNet1 + ">KiNet v1</option>" +
-                "<option value='7' " + typeKiNet2 + ">KiNet v2</option>";
+                "<option value='7' " + typeKiNet2 + ">KiNet v2</option>" +
+                "<option value='8' " + typeTwinkly + ">Twinkly</option>";
         }
 
         bodyHTML += "</select></td>";
@@ -2619,7 +2621,7 @@ function populateUniverseData(data, reload, input) {
         bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
         bodyHTML += "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'";
         if (type > 1) {
-            //DDP/ArtNet/KiNet don't support priority
+            //DDP/ArtNet/KiNet/Twinkly don't support priority
             bodyHTML += " disabled";
         }
         bodyHTML += "/></td>";

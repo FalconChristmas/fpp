@@ -135,3 +135,7 @@ bool urlPost(const std::string url, const std::string data, std::string& resp);
 bool urlPut(const std::string url, const std::string data, std::string& resp);
 bool urlDelete(const std::string url, const std::string data, std::string& resp);
 bool urlDelete(const std::string url, std::string& resp);
+
+
+std::string base64Encode(uint8_t const* bytes_to_encode, unsigned int in_len);
+std::vector<uint8_t> base64Decode(std::string const& encodedString);
