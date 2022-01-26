@@ -1,6 +1,6 @@
 #pragma once
 /*
- *   DDP Channel Output driver for Falcon Player (FPP)
+ *   KiNet Channel Output driver for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      For additional credits and developers, see credits.php.
