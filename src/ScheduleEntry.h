@@ -46,7 +46,7 @@ public:
     int LoadFromString(std::string entryStr);
     int LoadFromJson(Json::Value& entry);
 
-    void pushStartEndTimes(int day);
+    void pushStartEndTimes(int day, int &delta, int deltaThreshold);
 
     void GetTimeFromSun(time_t& when, bool setStart);
 

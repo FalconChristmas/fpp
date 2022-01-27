@@ -39,6 +39,8 @@
 #define SCHEDULE_FILE "/home/fpp/media/config/schedule.json"
 
 Scheduler* scheduler = NULL;
+int timeDelta = 0;
+time_t timeDeltaThreshold = 0;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -299,11 +301,11 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
 
         // Schedule yesterday if needed to handle midnight crossovers
         if (dayOffset)
-            entry->pushStartEndTimes(now.tm_wday - 1);
+            entry->pushStartEndTimes(now.tm_wday - 1, timeDelta, timeDeltaThreshold);
 
         // Schedule out 5 weeks
         for (int i = now.tm_wday + dayOffset; i <= 35 ; i += 2) {
-            entry->pushStartEndTimes(i);
+            entry->pushStartEndTimes(i, timeDelta, timeDeltaThreshold);
         }
 
         break;
@@ -311,30 +313,30 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
 
     // Special case if today is Sunday, handle any Saturday night crossovers
     if (now.tm_wday == 0)
-        entry->pushStartEndTimes(-1);
+        entry->pushStartEndTimes(-1, timeDelta, timeDeltaThreshold);
 
     if ((entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY)) {
         for (int weekOffset = 0; weekOffset <= 28; weekOffset += 7) {
             if (dayIndex & INX_DAY_MASK_SUNDAY)
-                entry->pushStartEndTimes(INX_SUN + weekOffset);
+                entry->pushStartEndTimes(INX_SUN + weekOffset, timeDelta, timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_MONDAY)
-                entry->pushStartEndTimes(INX_MON + weekOffset);
+                entry->pushStartEndTimes(INX_MON + weekOffset, timeDelta, timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_TUESDAY)
-                entry->pushStartEndTimes(INX_TUE + weekOffset);
+                entry->pushStartEndTimes(INX_TUE + weekOffset, timeDelta, timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_WEDNESDAY)
-                entry->pushStartEndTimes(INX_WED + weekOffset);
+                entry->pushStartEndTimes(INX_WED + weekOffset, timeDelta, timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_THURSDAY)
-                entry->pushStartEndTimes(INX_THU + weekOffset);
+                entry->pushStartEndTimes(INX_THU + weekOffset, timeDelta, timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_FRIDAY)
-                entry->pushStartEndTimes(INX_FRI + weekOffset);
+                entry->pushStartEndTimes(INX_FRI + weekOffset, timeDelta, timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_SATURDAY)
-                entry->pushStartEndTimes(INX_SAT + weekOffset);
+                entry->pushStartEndTimes(INX_SAT + weekOffset, timeDelta, timeDeltaThreshold);
         }
     }
 
@@ -1025,6 +1027,13 @@ Json::Value Scheduler::GetSchedule() {
     return result;
 }
 
+void Scheduler::SetTimeDelta(int delta, int timeLimit) {
+    timeDelta = timeDelta + delta;
+    timeDeltaThreshold = time(NULL) + timeLimit;
+    // Trigger a reload the next time Scheduler::ScheduleProc() is called
+    m_loadSchedule = true;
+}
+
 class ScheduleCommand : public Command {
 public:
     ScheduleCommand(const std::string& str, Scheduler* s) :
@@ -1039,17 +1048,22 @@ class ExtendScheduleCommand : public ScheduleCommand {
 public:
     ExtendScheduleCommand(Scheduler* s) :
         ScheduleCommand("Extend Schedule", s) {
-        args.push_back(CommandArg("Seconds", "int", "Seconds").setRange(-12 * 60 * 60, 12 * 60 * 60).setDefaultValue("300").setAdjustable());
+	args.push_back(CommandArg("Seconds","int", "Extend for Seconds").setRange(-12 * 60 * 60, 12 * 60 * 60).setDefaultValue("300").setAdjustable());
+        args.push_back(CommandArg("Limit","int", "For schedule events occurring in the next x Seconds").setRange(-12 * 60 * 60, 12 * 60 * 60).setDefaultValue("0").setAdjustable());
     }
 
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
-        if (args.size() != 1) {
-            return std::make_unique<Command::ErrorResult>("Command needs 1 argument, found " + std::to_string(args.size()));
+        if (args.size() < 1) {
+            return std::make_unique<Command::ErrorResult>("Command needs at least 1 argument, found " + std::to_string(args.size()));
         }
-
-        if (Player::INSTANCE.AdjustPlaylistStopTime(std::stoi(args[0])))
+	if (Player::INSTANCE.AdjustPlaylistStopTime(std::stoi(args[0]))) {
+            if (args.size() > 1) {
+                if (std::stoi(args[1]) != 0) {
+	            scheduler->SetTimeDelta(std::stoi(args[0]),std::stoi(args[1]));
+                }
+            }
             return std::make_unique<Command::Result>("Schedule Updated");
-
+        }
         return std::make_unique<Command::Result>("Error extending Schedule");
     }
 };
