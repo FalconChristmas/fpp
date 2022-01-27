@@ -296,7 +296,7 @@ void ScheduleEntry::pushStartEndTimes(int dow, int &delta, int deltaThreshold) {
     if (delta != 0) {
         // Only adjust if the threshold time is in the future
 	if (deltaThreshold > time(NULL)) {
-            if (deltaThreshold > startTime) {
+            if (deltaThreshold > startTime && startTime > time(NULL() {
                 startTime += delta;
             }
 
