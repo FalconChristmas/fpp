@@ -97,8 +97,6 @@ public:
     void CheckIfShouldBePlayingNow(int ignoreRepeat = 0, int forceStopped = -1);
     void ReloadScheduleFile(void);
     void SetTimeDelta(int delta, int timeLimit);
-    int timeDelta;
-    time_t timeDeltaThreshold;
 
     std::string GetNextPlaylistName();
     std::string GetNextPlaylistStartStr();
@@ -125,6 +123,8 @@ private:
     bool m_schedulerDisabled;
     bool m_loadSchedule;
     int m_lastLoadDate;
+    int timeDelta;
+    time_t timeDeltaThreshold;
 
     time_t m_lastProcTime;
 
