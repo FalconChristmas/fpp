@@ -5,7 +5,8 @@
     "driver": "rPi-DPI",
     "outputs-comment": "Below are 8 default DPI pins.  Customize as desired.  The complete list of available pins follows below that.",
     "TODO": "only use GPIO available on RPi 1?",
-    "outputs": [
+    "output8-comment": "use this section for 8 DPI pins",
+    "outputs8": [
         {"name": "GPIO27", "pin": "P1-13"},
         {"name": "GPIO26", "pin": "P1-37"},
         {"name": "GPIO25", "pin": "P1-22"},
@@ -14,6 +15,55 @@
         {"name": "GPIO22", "pin": "P1-15"},
         {"name": "GPIO17", "pin": "P1-31"},
         {"name": "GPIO16", "pin": "P1-29"}
+    ],
+    "output16-comment": "use this section for 16 DPI pins",
+    "outputs16": [
+        {"name": "GPIO27", "pin": "P1-13"},
+        {"name": "GPIO26", "pin": "P1-37"},
+        {"name": "GPIO25", "pin": "P1-22"},
+        {"name": "GPIO24", "pin": "P1-18"},
+        {"name": "GPIO23", "pin": "P1-16"},
+        {"name": "GPIO22", "pin": "P1-15"},
+        {"name": "GPIO17", "pin": "P1-11"},
+        {"name": "GPIO16", "pin": "P1-36", "CAUTION": "SPI1 CE2 might conflict"},
+
+        {"name": "GPIO11", "pin": "P1-23", "CAUTION": "SPI0 CLK might conflict"},
+        {"name": "GPIO10", "pin": "P1-19", "CAUTION": "SPI0 MOSI might conflict"},
+        {"name": "GPIO9", "pin": "P1-21", "CAUTION": "SPI0 MISO might conflict"},
+        {"name": "GPIO8", "pin": "P1-24", "CAUTION": "SPI0 CE0 might conflict"},
+        {"name": "GPIO7", "pin": "P1-26", "CAUTION": "SPI0 CE1 might conflict"},
+        {"name": "GPIO6", "pin": "P1-31"},
+        {"name": "GPIO5", "pin": "P1-29"},
+        {"name": "GPIO4", "pin": "P1-7", "CAUTION": "GPCLK0 might conflict"}
+    ],
+    "output24-comment": "use this section for 24 DPI pins",
+    "outputs24": [
+        {"name": "GPIO27", "pin": "P1-13"},
+        {"name": "GPIO26", "pin": "P1-37"},
+        {"name": "GPIO25", "pin": "P1-22"},
+        {"name": "GPIO24", "pin": "P1-18"},
+        {"name": "GPIO23", "pin": "P1-16"},
+        {"name": "GPIO22", "pin": "P1-15"},
+        {"name": "GPIO21", "pin": "P1-40", "CAUTION": "PCM DOUT (SPI1 CLK) might conflict"},
+        {"name": "GPIO20", "pin": "P1-38", "CAUTION": "PCM DIN (SPI1 MOSI) might conflict"},
+
+        {"name": "GPIO19", "pin": "P1-35", "CAUTION": "PCM FS (SPI1 MISO) might conflict"},
+        {"name": "GPIO18", "pin": "P1-12", "CAUTION": "PCM CLK might conflict"},
+        {"name": "GPIO17", "pin": "P1-11"},
+        {"name": "GPIO16", "pin": "P1-36", "CAUTION": "SPI1 CE2 might conflict"},
+        {"name": "GPIO15", "pin": "P1-10", "CAUTION": "UART RX might conflict"},
+        {"name": "GPIO14", "pin": "P1-8", "CAUTION": "UART TX might conflict"},
+        {"name": "GPIO13", "pin": "P1-33", "CAUTION": "PWM1 might conflict"},
+        {"name": "GPIO12", "pin": "P1-32", "CAUTION": "PWM0 might conflict"},
+
+        {"name": "GPIO11", "pin": "P1-23", "CAUTION": "SPI0 CLK might conflict"},
+        {"name": "GPIO10", "pin": "P1-19", "CAUTION": "SPI0 MOSI might conflict"},
+        {"name": "GPIO9", "pin": "P1-21", "CAUTION": "SPI0 MISO might conflict"},
+        {"name": "GPIO8", "pin": "P1-24", "CAUTION": "SPI0 CE0 might conflict"},
+        {"name": "GPIO7", "pin": "P1-26", "CAUTION": "SPI0 CE1 might conflict"},
+        {"name": "GPIO6", "pin": "P1-31"},
+        {"name": "GPIO5", "pin": "P1-29"},
+        {"name": "GPIO4", "pin": "P1-7", "CAUTION": "GPCLK0 might conflict"}
     ],
     "outputs-all-comment": "For reference, below is a complete list of GPIO pins that can be used for DPI Channel Output.  GPIO 0 - 3 are not useful for DPI Channel Output, and several other pins *might* conflict with other hardware (as noted below.  Please review carefully to ensure no conflicts before using those pins.",
     "outputs-all": [
