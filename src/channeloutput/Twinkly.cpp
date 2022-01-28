@@ -47,6 +47,8 @@ static const std::string TWINKLYTYPE = "Twinkly";
 constexpr int TOKEN_LEN = 8;
 constexpr int HEADER_LEN = (1 + TOKEN_LEN + 2 + 1);
 
+constexpr uint32_t MAXPACKETS = 40 * 60 * 60 * 4; //about 4 hours at 40fps,
+
 
 const std::string& TwinklyOutputData::GetOutputTypeString() const {
     return TWINKLYTYPE;
@@ -106,6 +108,12 @@ void TwinklyOutputData::GetRequiredChannelRange(int& min, int& max) {
 
 void TwinklyOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& msgs) {
     if (valid && active) {
+        reauthCount++;
+        if (reauthCount > MAXPACKETS) {
+            //need to re-authenticate or lights will stop eventually
+            StartingOutput();
+        }
+        
         int start = 0;
         struct mmsghdr msg;
         memset(&msg, 0, sizeof(msg));
@@ -144,6 +152,7 @@ void TwinklyOutputData::StartingOutput() {
     Json::Value r = callRestAPI(true, "xled/v1/login", "{\"challenge\": \"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\"}");
     authToken = r["authentication_token"].asString();
     if (authToken != "") {
+        reauthCount = 0;
         std::vector<uint8_t> at = base64Decode(authToken);
         memcpy(authTokenBytes, &at[0], std::min(TOKEN_LEN, (int)at.size()));
         for (int x = 0; x < portCount; x++) {

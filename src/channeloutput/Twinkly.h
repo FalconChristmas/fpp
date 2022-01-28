@@ -52,4 +52,5 @@ public:
     
     uint8_t authTokenBytes[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
     std::string authToken = "";
+    uint32_t reauthCount = 0;
 };
