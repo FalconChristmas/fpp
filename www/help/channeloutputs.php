@@ -133,7 +133,7 @@
 </center>
 </p>
 
-<p><b>rPi-DPI</b> - DPI Channel Output on the Raspberry Pi can drive up to 24 clusters of LED pixels connected directly to the GPIO pins (a voltage shifter might also be needed since the GPIO pins are only 3.3V).  The number of pixels is limited by the frame rate and protocol.  For example, at 20 FPS over 1,600 WS281X pixels can be chained from each GPIO pin (WS281X takes 30 usec per pixel), allowing a Raspberry Pi to run close to 40K WS281x pixels at 20 FPS.  <a id="more-dpi-info" href="#">Click to show/hide more info</a>.<p>
+<p><b>rPi-DPI</b> - DPI Channel Output on the Raspberry Pi can drive up to 24 clusters of LED pixels connected directly to the GPIO pins (a voltage shifter might also be needed since the GPIO pins are only 3.3V).  The number of pixels is detrermined by the frame rate and protocol.  For example, at 20 FPS over 1,600 WS281X pixels can be chained from each GPIO pin (each WS281X pixel takes 30 usec), allowing a Raspberry Pi to run close to 40K WS281x pixels at 20 FPS.  <a id="more-dpi-info" href="#">Click here to show/hide more info</a>.<p>
 <p class="more-dpi-info">DPI redirects video output from the GPU onto selected GPIO pins.  The RPi GPU serves as a high-speed 24-bit parallel port dongle, repeatedly refreshing the LED pixels from a GPU framebuffer and off-loading time-critical I/O from the RPi general processor cores.</p>
 <p class="more-dpi-info">GPIO pins that are used for DPI are not available for other functions such as SPI, I2C, PMW, audio, or sensors, but each GPIO can be configured individually for DPI so conflicts can be avoided - the tradeoff is fewer DPI Channel Outputs available for LED pixels.</p>
 <p class="more-dpi-info">
@@ -148,7 +148,7 @@
 </table>
 </center>
 </p>
-<p class="more-dpi-info">DPI Channel Output in FPP currently only supports WS281X, but additional protocols might be added in future.  DPI could also be used for servo or DC dimmer control, but AC (phase angle) dimming is currently not possible because the RPi GPU is not synced to AC line voltage.</p>
+<p class="more-dpi-info">DPI Channel Output in FPP currently only supports WS281X, but additional protocols might be added in future.  DPI could also be used for servo or DC dimmer control, but AC (phase angle) dimming is currently not possible directly from the GPIO pins because the RPi GPU is not synced to AC line voltage (an external controller with AC zero-cross detection would be needed).</p>
 
 <style>
 .back2top {

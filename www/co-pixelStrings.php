@@ -141,7 +141,7 @@ var KNOWN_CAPES = {
     usort($capes, 'sortByLongName');
 ?>
 };
-console.log("here0", KNOWN_CAPES);
+//console.log("here0", KNOWN_CAPES); //debug
 
 function MapPixelStringType(type) {
     var subType = GetBBB48StringCapeFileNameForSubType(type);
@@ -552,7 +552,7 @@ function getPixelStringOutputJSON()
 		var output = {};
 
 		output.type = MapPixelStringType($this.attr('type'));
-        output.subType = MapPixelStringSubType($this.attr('type'));
+        output.subType = MapPixelStringSubType($this.attr('type')); //"Cape Type"
         output.pinoutVersion = MapPixelStringSubTypeVersion($this.attr('type'));
 		output.enabled = ($('#' + enableId).is(':checked')) ? 1 : 0;
 		output.startChannel = 1;
@@ -733,7 +733,7 @@ function GetBBB48StringRows()
 {
     var subType = GetBBB48StringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    return (val["outputs"] || []).length;
+    return (val["outputs"] || []).length; //avoid error if list is empty
 }
 function GetBBB48StringProtocols(p) {
     var subType = GetBBB48StringCapeFileName();
@@ -1078,13 +1078,17 @@ function populatePixelStringOutputs(data) {
                 const is_dpi = ~type.indexOf("DPI");
 //                populateDPI(output); //avoid interfering with BBB logic
 //                continue;
+/*abandoned
                 if (is_dpi) {
+console.log("here5", "fps choices", (output.fps || []).length);
+console.log((output.fps || []).join(""));
                     $("#dpi-fps").find("option").remove().end()
                         .append((output.fps || []).map((fps_choice => `<option value="${fps_choice}">${fps_choice}</option>`)).join(""))
                         .val("whatever"); //re-populate list in case fps choices are different between drivers
                     $('#dpi-info').show();
                 }
                 else { $('#dpi-info').hide(); }
+*/
                 $('#BBB48String_enable').prop('checked', output.enabled);
                 var subType = output.subType;
                 $('#BBB48StringSubType').val(subType);
@@ -1419,6 +1423,7 @@ function BBB48StringSubTypeChanged()
     if (PixelStringLoaded) {
         $.getJSON("api/channel/output/" + PIXEL_STRING_FILE_NAME, function(data) {
                   for (var i = 0; i < data.channelOutputs.length; i++) {
+console.log("here9", `checking chout[${i}/${data.channelOutputs.length}]`, data.channelOutputs[i].type, Object.keys(data.channelOutputs[i]));
                     if (IsPixelStringDriverType(data.channelOutputs[i].type)) {
                         data.channelOutputs[i].type = MapPixelStringType($('#BBB48StringSubType').val());
                         data.channelOutputs[i].subType = $('#BBB48StringSubType').val();
@@ -1428,7 +1433,7 @@ function BBB48StringSubTypeChanged()
                     }
                   }
                   ValidateBBBStrings(data);
-                  populatePixelStringOutputs(data)
+                  populatePixelStringOutputs(data); //doesn't change until saved (reloads current data each time)
             });
     } else {
         var defaultData = {};
@@ -1445,6 +1450,7 @@ function BBB48StringSubTypeChanged()
             <?
         }
         ?>
+console.log("here10", "default ch out", output);
         defaultData.channelOutputs.push(output);
         populatePixelStringOutputs(defaultData);
     }
@@ -1469,8 +1475,12 @@ function loadBBBOutputs() {
         if (isset($capes[0]['driver'])) {
             echo "output.type = \"" . $capes[0]['driver'] . "\";";
         }
+        if (isset($capes[0]['fps'])) {
+            echo "output.fps = \"" . $capes[0]['fps'] . "\";";
+        }
     }
     ?>
+//console.log("here7", output); //default (first) choice only
     defaultData.channelOutputs.push(output);
 
     
@@ -1506,7 +1516,7 @@ function saveBBBOutputs() {
     
     $.post("api/channel/output/" + PIXEL_STRING_FILE_NAME, JSON.stringify(postData)).done(function(data) {
         $.jGrowl("Pixel String Output Configuration Saved",{themeState:'success'});
-        if (cfgDPI.isRPI && cfgDPI.has_dpi === null) AskInstallDPI();
+//ababdon        if (cfgDPI.isRPI && cfgDPI.has_dpi === null) AskInstallDPI();
         SetRestartFlag(1);
     }).fail(function() {
         DialogError("Save Pixel String Outputs", "Save Failed");
@@ -1549,9 +1559,10 @@ function populateCapeList() {
 }
 
 
+/*abandoned
 //get DPI info from O/S:
 const cfgDPI = {
-<?
+<? /*
 //currently only applies to RPi
   if (isRPI()) {
 //https://raspberrypi.stackexchange.com/questions/62903/how-to-detect-a-device-tree-overlay-at-run-time
@@ -1562,8 +1573,8 @@ const cfgDPI = {
   }
   echo "platform: '" . $settings['Platform'] . "',";
   echo "isRPI: " . isRPI() . ",";
-?>
-    get pins() { /*alert(this.has_dpi)*/; return (this.has_dpi || "").replace(/^\S+/gm, "").replace(/\s/g, "").match(/.{8}/g).map(hexstr => parseInt(hexstr.slice(2, 2+4), 16)); }, //convert hexdump to array of pin#s
+*/ ?>
+    get pins() { return (this.has_dpi || "").replace(/^\S+/gm, "").replace(/\s/g, "").match(/.{8}/g).map(hexstr => parseInt(hexstr.slice(2, 2+4), 16)); }, //convert hexdump to array of pin#s
 };
 
 //define bit masks to represent GPIO pins:
@@ -1601,12 +1612,14 @@ const DPI_PINS = {
     "GPIO 26 (Pi-37)": 0x400000,
     "GPIO 27 (Pi-13)": 0x800000,
 };
+*/
 
 $(document).ready(function() {
     if (currentCapeName != "" && currentCapeName != "Unknown") {
         $('.capeName').html(currentCapeName);
     }
 
+/*abandoned
 //console.log("here2", currentCapeName, cfgDPI);
 //console.log("here3", cfgDPI.pins);
     const dpi_choices = Object.entries(DPI_PINS).map(([name, value]) => ({
@@ -1643,6 +1656,7 @@ $(document).ready(function() {
     $('select[multiple]').multiselect("loadOptions", dpi_choices);
 //    if (!(cfgDPI.ports || []).length) {
 //        $("#dpi-info").innerHTML = 
+*/
     populateCapeList();
     loadBBBOutputs();
 });
@@ -1710,12 +1724,14 @@ style="display: none;"
                         </select>
                     </div>
                 </div>
+<!-- abandoned
                 <div id="dpi-info" class="col-md-auto form-inline" style="display: none;">
                     <div><b>DPI Pins:&nbsp;</b></div>
                     <div><select id="dpi-ports" multiple="multiple" style="white-space: nowrap;"> </select> </div>
                     <div><b>FPS:&nbsp;</b></div>
                     <div><select id="dpi-fps"> </select> </div>
                 </div>
+-->
             </div>
         </div>
             <div id='divBBB48StringData'>
