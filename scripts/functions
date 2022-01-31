@@ -735,7 +735,7 @@ DPI_PIXELS_EOF
                 shutdown -r now
             else
                 # dpipixels.txt already included but we need to check the timing line
-                if [ "x${TIMINGS}" != "x${EXISTING_TIMINGS}" ]
+                if [ "x${TIMING}" != "x${EXISTING_TIMINGS}" ]
                 then
                     # new timings don't match existing, so reboot to apply new
                     shutdown -r now
