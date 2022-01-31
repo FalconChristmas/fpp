@@ -1,0 +1,17 @@
+{
+    "name": "DPIPixels-2",
+    "longName": "DPIPixels-2 (PiCap Compatible)",
+    "driver": "DPIPixels",
+    "numSerial": 0,
+    "outputs": [
+        {  "pin": "P1-12" },
+        {  "pin": "P1-35" }
+    ],
+    "groups": [
+        {
+            "start": 1,
+            "count": 2
+        }
+    ]
+}
+

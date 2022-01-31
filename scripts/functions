@@ -627,6 +627,130 @@ exit(1)
             # load USB sound so it should be able to detect earlier
             modprobe snd_usb_audio
 		fi
+
+        ####################################################################
+        # DPI Pixels needs framebuffer set to specific resolution and timing
+        DPIPixels=1
+        if [ -f ${FPPHOME}/media/config/co-pixelStrings.json ]; then
+cat ${FPPHOME}/media/config/co-pixelStrings.json  2> /dev/null | python -c '
+import json,sys;
+obj=json.load(sys.stdin);
+
+for output in obj["channelOutputs"]:
+        if output["type"] == "DPIPixels" and output["enabled"] == 1 :
+            exit(0)
+
+exit(1)
+'
+		DPIPixels=$?
+        fi
+
+		if [ ${DPIPixels} -eq 0 ]
+		then
+			# Add our DPI Pixels config to /boot/config.txt
+
+            # Determine the best frame rate we can use
+cat ${FPPHOME}/media/config/co-pixelStrings.json  2> /dev/null | python -c '
+import json,sys;
+obj=json.load(sys.stdin);
+
+longestString = 0
+
+vskeys = ["virtualStrings", "virtualStringsA", "virtualStringsB", "virtualStringsC", "virtualStringsD", "virtualStringsE", "virtualStringsF" ]
+
+for output in obj["channelOutputs"]:
+    if output["type"] == "DPIPixels" and output["enabled"] == 1 :
+        for stroutput in output["outputs"]:
+            for vskey in vskeys:
+                if stroutput.has_key(vskey):
+                    pixels = 0
+                    for vs in stroutput["virtualStrings"]:
+                        pixels += vs["pixelCount"] + vs["nullNodes"] + vs["endNulls"]
+
+                    if pixels > longestString:
+                        longestString = pixels;
+
+        if longestString > 1800:
+            exit(15)
+
+        if longestString > 1600:
+            exit(18)
+
+        if longestString > 1100:
+            exit(20)
+
+        if longestString > 800:
+            exit(30)
+
+        exit(40)
+
+exit(0)
+'
+            FPS=$?
+
+            # Default to 20FPS/50ms timing if we can't determine otherwise
+            TIMING="392 0 0 1 0  294 0 4 3 4  0 0 0  20 0 2400000 1"
+
+            case ${FPS} in
+                20)  #20 FPS (1666 nodes/fr):
+                    TIMING="392 0 0 1 0  294 0 4 3 4  0 0 0  20 0 2400000 1"
+                    ;;
+                40)  #40 FPS (833 nodes/fr):
+                    TIMING="278 0 0 1 0  209 0 2 2 2  0 0 0  40 0 2400000 1"
+                    ;;
+                30)  #30 FPS (1111 nodes/fr):
+                    TIMING="326 0 0 1 0  244 0 0 1 0  0 0 0  30 0 2400000 1"
+                    ;;
+                15)  #15 FPS (2222 nodes/fr):
+                    TIMING="464 0 0 1 0  348 0 1 1 0  0 0 0  15 0 2400000 1"
+                    ;;
+                18.5)  #18.5 FPS (1800 nodes/fr):
+                    TIMING="416 0 0 1 0  310 0 1 1 0  0 0 0  18 0 2400000 1"
+                    ;;
+            esac
+
+            EXISTING_TIMINGS=""
+            if [ -e "/boot/dpipixels.txt" ]
+            then
+                EXISTING_TIMINGS=$(grep dpi_timings /boot/dpipixels.txt | cut -f2 -d=)
+            fi
+
+            cat <<DPI_PIXELS_EOF > /boot/dpipixels.txt
+# DPI Pixels framebuffer config
+enable_dpi_lcd=1
+dpi_group=2
+dpi_mode=87
+dpi_output_format=0x17
+max_framebuffers=2
+dpi_timings=${TIMING}
+# Enable UART2 on Pi 4
+dtoverlay=uart2
+DPI_PIXELS_EOF
+
+            grep -q "include dpipixels.txt" /boot/config.txt
+            if [ $? -eq 1 ]
+            then
+                # need to reboot after adding dpipixels.txt
+                echo "include dpipixels.txt" >> /boot/config.txt
+                shutdown -r now
+            else
+                # dpipixels.txt already included but we need to check the timing line
+                if [ "x${TIMINGS}" != "x${EXISTING_TIMINGS}" ]
+                then
+                    # new timings don't match existing, so reboot to apply new
+                    shutdown -r now
+                fi
+            fi
+        else
+            # Remove any DPI Pixels config from /boot/config.txt
+            grep -q "include dpipixels.txt" /boot/config.txt
+            if [ $? -eq 0 ]
+            then
+                sed -i -e '/^include dpipixels.txt/d' /boot/config.txt
+                rm /boot/dpipixels.txt
+                shutdown -r now
+            fi
+        fi
 	fi
 }
 

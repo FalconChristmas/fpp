@@ -18,6 +18,11 @@ int PiGPIOPinCapabilities::configPin(const std::string& mode,
         return 0;
     }
 
+    if (mode == "dpi") {
+        bcm2835_gpio_fsel(kernelGpio, BCM2835_GPIO_FSEL_ALT2); //ALT2 is DPI
+        return 0;
+    }
+
     if (mode == "pwm" || mode == "uart") {
         return 0;
     }

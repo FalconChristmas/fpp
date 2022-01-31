@@ -670,7 +670,7 @@ function GetBBB48StringCapeFileNameForSubType(mainType) {
     return type;
 }
 function IsPixelStringDriverType(type) {
-    return  type == "BBB48String" || type == 'spixels' || type == 'RPIWS281X';
+    return  type == "BBB48String" || type == 'spixels' || type == 'RPIWS281X' || type == 'DPIPixels';
 }
 function GetBBB48StringCapeFileName() {
     var mainType = $('#BBB48StringSubType').val();
@@ -1322,6 +1322,9 @@ function ValidateBBBStrings(data) {
                     }
                     if (output.type == "spixels") {
                         output.subType = "spixels";
+                    }
+                    if (output.type == "DPIPixels") {
+                        output.subType = "DPIPixels-24";
                     }
                 }
                 var fn = GetBBB48StringCapeFileNameForSubType(output.subType);
