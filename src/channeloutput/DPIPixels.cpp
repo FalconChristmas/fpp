@@ -295,7 +295,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
 
         for (int s = 0, ro = 0; s < m_strings.size(); ++s) {
             ps = m_strings[s];
-            if ((ps->m_outputChannels / 3) >= y) { // Only copy pixel data if string is this long
+            if (ps->m_outputChannels && (ps->m_outputChannels / 3) > y) { // Only copy pixel data if string is this long
                 rowData[s] =
                     (uint32_t)ps->m_brightnessMaps[p  ][channelData[ps->m_outputMap[p  ]]] << 16 |
                     (uint32_t)ps->m_brightnessMaps[p+1][channelData[ps->m_outputMap[p+1]]] << 8 |
