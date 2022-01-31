@@ -167,14 +167,16 @@ function AdjustEndString(delta = 1)
 
 function UpdateStartEndFromModel()
 {
-    var id = parseInt($('#modelName').val());
-    if (id == 0) {
-        $('#testModeStartChannel').val(1);
-        $('#testModeEndChannel').val(<?=$testEndChannel?>);
+    var val = $('#modelName').val();
+    if (val.indexOf(',') != -1) {
+        var parts = val.split(',');
+        $('#testModeStartChannel').val(parseInt(parts[0]));
+        $('#testModeEndChannel').val(parseInt(parts[1]));
         $('.stringRow').hide();
         $('#channelIncrement').val(3);
         SetButtonIncrements();
     } else {
+        var id = parseInt(val);
         $('#testModeStartChannel').val(modelInfos[id].StartChannel);
         $('#testModeEndChannel').val(modelInfos[id].EndChannel);
 
