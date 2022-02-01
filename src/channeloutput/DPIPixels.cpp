@@ -428,6 +428,9 @@ void DPIPixelsOutput::InitFrameWS281x(void) {
     protoLastBitPerLine = protoBitsPerLine - 1;
     protoBitOnLine = 0;
 
+    // We're skipping the last 2 pixels on a scan line for now, so decrement the max # of protocol bits possible
+    protoLastBitPerLine--;
+
     protoDest = (uint8_t*)fbp + (page * pagesize);
 
     memset(protoDest, 0, pagesize);
@@ -442,6 +445,9 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData) {
     uint32_t bv;
     int oindex = 0;
     int destExtra = finfo.line_length - (vinfo.xres * 3);
+
+    // Skip the last 2 FB bits on a scan line for now
+    destExtra += 3 * 3;
 
     // 24 bits in WS281x output data
     for (int bt = 0; bt < 24; ++bt) {
