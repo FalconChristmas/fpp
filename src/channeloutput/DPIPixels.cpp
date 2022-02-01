@@ -365,7 +365,8 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
 
     std::string errStr = "";
 
-    // 40 FPS, 25ms
+    // 40 FPS, 25ms, 3.875 WS pixels per line
+    // dpi_timings=278 0 0 1 0  209 0 2 2 2  0 0 0  40 0 2400000 1
     if ((vinfo.xres == 278) && (vinfo.yres == 209)) {
         if (longestString <= 800)
             return true;
@@ -373,7 +374,8 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
             errStr = "DPIPixels Framebuffer configured for 40fps but pixel count is to high.  Reboot is required.";
     }
 
-    // 30 FPS, 33.3ms
+    // 30 FPS, 33.3ms, 4.542 WS pixels per line
+    // dpi_timings=326 0 0 1 0  244 0 0 1 0  0 0 0  30 0 2400000 1
     if ((vinfo.xres == 326) && (vinfo.yres == 244)) {
         if (longestString <= 1100)
             return true;
@@ -381,7 +383,8 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
             errStr = "DPIPixels Framebuffer configured for 30fps but pixel count is to high.  Reboot is required.";
     }
 
-    // 20 FPS, 50ms
+    // 20 FPS, 50ms, 5.458 WS pixels per line
+    // dpi_timings=392 0 0 1 0  294 0 4 3 4  0 0 0  20 0 2400000 1
     if ((vinfo.xres == 392) && (vinfo.yres == 294)) {
         if (longestString <= 1600)
             return true;
@@ -389,7 +392,8 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
             errStr = "DPIPixels Framebuffer configured for 20fps but pixel count is to high.  Reboot is required.";
     }
 
-    // 18.5 FPS, 54.054ms
+    // 18.5 FPS, 54.054ms, 5.792 WS pixels per line
+    // dpi_timings=416 0 0 1 0  310 0 1 1 0  0 0 0  18 0 2400000 1
     if ((vinfo.xres == 416) && (vinfo.yres == 310)) {
         if (longestString <= 1800)
             return true;
@@ -397,7 +401,8 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
             errStr = "DPIPixels Framebuffer configured for 18.5fps but pixel count is to high.  Reboot is required.";
     }
 
-    // 15 FPS, 66.6ms
+    // 15 FPS, 66.6ms, 6.458 WS pixels per line
+    // dpi_timings=464 0 0 1 0  348 0 1 1 0  0 0 0  15 0 2400000 1
     if ((vinfo.xres == 464) && (vinfo.yres == 348)) {
         if (longestString <= 2200)
             return true;
@@ -436,7 +441,7 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData) {
     uint32_t onOff = 0;
     uint32_t bv;
     int oindex = 0;
-    int destExtra = finfo.line_length - (vinfo.xres * 3) - 3;
+    int destExtra = finfo.line_length - (vinfo.xres * 3);
 
     // 24 bits in WS281x output data
     for (int bt = 0; bt < 24; ++bt) {
@@ -467,20 +472,16 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData) {
         *(protoDest++) = (onOff >>  8);
         *(protoDest++) = (onOff      );
 
-#if 0
-        // These should already be zero since we memset the buffer
-        // Third FB pixel bit
-        onOff = 0x000000;
-        *(protoDest++) = (onOff >> 16);
-        *(protoDest++) = (onOff >>  8);
-        *(protoDest++) = (onOff      );
-#else
-        protoDest += 3;
-#endif
+        // Third FB pixel bit is always 0, so we jump over it below
 
         if (protoBitOnLine != protoLastBitPerLine) {
+            // increment protoDest for the last 1/3 of the WS bit,
+            // but not when on the last bit on the line
+            protoDest += 3;
+
             protoBitOnLine++;
         } else {
+            // Jump to beginning of next scan line and reset counter
             protoDest += destExtra;
             protoBitOnLine = 0;
         }
