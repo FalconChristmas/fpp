@@ -363,14 +363,52 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
     if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo))
       LogDebug(VB_CHANNELOUT, "Error reading variable information.\n");
 
-    // Check for one of the resolutions we use for outputting certain frame rates.
-    // This test may change in the future, but for now this is the quickest way to test.
-    if (((vinfo.xres == 392) && (vinfo.yres == 294)) ||   // 20 FPS, 50ms
-        ((vinfo.xres == 278) && (vinfo.yres == 209)) ||   // 40 FPS, 25ms
-        ((vinfo.xres == 326) && (vinfo.yres == 244)) ||   // 30 FPS, 33.3ms
-        ((vinfo.xres == 464) && (vinfo.yres == 348)) ||   // 15 FPS, 66.6ms
-        ((vinfo.xres == 416) && (vinfo.yres == 310))) {   // 18.5 FPS, 54.054ms
-        return true;
+    std::string errStr = "";
+
+    // 40 FPS, 25ms
+    if ((vinfo.xres == 278) && (vinfo.yres == 209)) {
+        if (longestString <= 800)
+            return true;
+        else
+            errStr = "DPIPixels Framebuffer configured for 40fps but pixel count is to high.  Reboot is required.";
+    }
+
+    // 30 FPS, 33.3ms
+    if ((vinfo.xres == 326) && (vinfo.yres == 244)) {
+        if (longestString <= 1100)
+            return true;
+        else
+            errStr = "DPIPixels Framebuffer configured for 30fps but pixel count is to high.  Reboot is required.";
+    }
+
+    // 20 FPS, 50ms
+    if ((vinfo.xres == 392) && (vinfo.yres == 294)) {
+        if (longestString <= 1600)
+            return true;
+        else
+            errStr = "DPIPixels Framebuffer configured for 20fps but pixel count is to high.  Reboot is required.";
+    }
+
+    // 18.5 FPS, 54.054ms
+    if ((vinfo.xres == 416) && (vinfo.yres == 310)) {
+        if (longestString <= 1800)
+            return true;
+        else
+            errStr = "DPIPixels Framebuffer configured for 18.5fps but pixel count is to high.  Reboot is required.";
+    }
+
+    // 15 FPS, 66.6ms
+    if ((vinfo.xres == 464) && (vinfo.yres == 348)) {
+        if (longestString <= 2200)
+            return true;
+        else
+            errStr = "DPIPixels Framebuffer configured for 15fps but pixel count is to high.  Reboot is required.";
+    }
+
+    if (errStr != "") {
+        WarningHolder::AddWarning(errStr);
+        errStr += "\n";
+        LogErr(VB_CHANNELOUT, errStr.c_str());
     }
 
     return false;
