@@ -74,5 +74,5 @@ private:
     int protoBitsPerLine = 0;
     int protoLastBitPerLine = 0;
     int protoBitOnLine = 0;
-    char *protoDest = nullptr;
+    uint8_t *protoDest = nullptr;
 };

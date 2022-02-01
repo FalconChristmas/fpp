@@ -423,7 +423,7 @@ void DPIPixelsOutput::InitFrameWS281x(void) {
     protoLastBitPerLine = protoBitsPerLine - 1;
     protoBitOnLine = 0;
 
-    protoDest = fbp + (page * pagesize);
+    protoDest = (uint8_t*)fbp + (page * pagesize);
 
     memset(protoDest, 0, pagesize);
 
@@ -436,37 +436,52 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData) {
     uint32_t onOff = 0;
     uint32_t bv;
     int oindex = 0;
+    int destExtra = finfo.line_length - (vinfo.xres * 3) - 3;
 
     // 24 bits in WS281x output data
     for (int bt = 0; bt < 24; ++bt) {
         // 3 FB pixels per WS281x bit.  WS281x 0 == 100, WS281x 1 == 110
-        for (int i = 0; i < 3; ++i) {
-            switch (i) {
-                case 0: onOff = 0xFFFFFF;
-                        break;
-                case 1: onOff = 0x000000;
-                        for (int s = 0; s < m_strings.size(); ++s) {
-                            oindex = bitPos[s];
-                            if (oindex != -1) {
-                                bv = rowData[s] & (0x800000 >> bt);
-                                onOff |= bv ? (0x800000 >> oindex) : 0;
-                            }
-                        }
-                        break;
-                case 2: onOff = 0x000000;
-                        break;
-            }
 
-            *(protoDest++) = (onOff >> 16) & 0xFF;
-            *(protoDest++) = (onOff >>  8) & 0xFF;
-            *(protoDest++) = (onOff      ) & 0xFF;
+        // First FB pixel bit
+        if (1) { // no smart receivers
+            *(protoDest++) = 0xFF;
+            *(protoDest++) = 0xFF;
+            *(protoDest++) = 0xFF;
+        } else { // FIXME, will have to handle smarts here
+            onOff = 0xFFFFFF;
+            *(protoDest++) = (onOff >> 16);
+            *(protoDest++) = (onOff >>  8);
+            *(protoDest++) = (onOff      );
         }
+
+        // Second FB pixel bit
+        onOff = 0x000000;
+        for (int s = 0; s < m_strings.size(); ++s) {
+            oindex = bitPos[s];
+            if (oindex != -1) {
+                if (rowData[s] & (0x800000 >> bt))
+                    onOff |= 0x800000 >> oindex;
+            }
+        }
+        *(protoDest++) = (onOff >> 16);
+        *(protoDest++) = (onOff >>  8);
+        *(protoDest++) = (onOff      );
+
+#if 0
+        // These should already be zero since we memset the buffer
+        // Third FB pixel bit
+        onOff = 0x000000;
+        *(protoDest++) = (onOff >> 16);
+        *(protoDest++) = (onOff >>  8);
+        *(protoDest++) = (onOff      );
+#else
+        protoDest += 3;
+#endif
 
         if (protoBitOnLine != protoLastBitPerLine) {
             protoBitOnLine++;
         } else {
-            //compensate for hsync and/or scan line pad within framebuffer
-            protoDest += finfo.line_length - (vinfo.xres * 3) - 3;
+            protoDest += destExtra;
             protoBitOnLine = 0;
         }
     }
