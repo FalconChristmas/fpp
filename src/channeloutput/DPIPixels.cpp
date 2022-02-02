@@ -424,12 +424,8 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
 ////////////////////////////////////////////////
 
 void DPIPixelsOutput::InitFrameWS281x(void) {
-    protoBitsPerLine = (vinfo.xres + 1) / 3; // add 1 here because last 1/3 of last bit is inside hsync area
-    protoLastBitPerLine = protoBitsPerLine - 1;
+    protoBitsPerLine = (vinfo.xres - 2) / 3; // Skip the last 2 pixels on a line, each WS bit is one FB pixel
     protoBitOnLine = 0;
-
-    // We're skipping the last 2 pixels on a scan line for now, so decrement the max # of protocol bits possible
-    protoLastBitPerLine--;
 
     protoDest = (uint8_t*)fbp + (page * pagesize);
 
@@ -444,28 +440,25 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData) {
     uint32_t onOff = 0;
     uint32_t bv;
     int oindex = 0;
-    int destExtra = finfo.line_length - (vinfo.xres * 3);
-
-    // Skip the last 2 FB bits on a scan line for now
-    destExtra += 3 * 3;
+    int destExtra = finfo.line_length - ((vinfo.xres - 2) * 3); // Skip over the hsync/porch area and last FB 2 pixels per line
 
     // 24 bits in WS281x output data
     for (int bt = 0; bt < 24; ++bt) {
         // 3 FB pixels per WS281x bit.  WS281x 0 == 100, WS281x 1 == 110
 
-        // First FB pixel bit
+        // First FB pixel for the WS bit
         if (1) { // no smart receivers
             *(protoDest++) = 0xFF;
             *(protoDest++) = 0xFF;
             *(protoDest++) = 0xFF;
-        } else { // FIXME, will have to handle smarts here
+        } else { // FIXME, will have to handle smart receivers here
             onOff = 0xFFFFFF;
             *(protoDest++) = (onOff >> 16);
             *(protoDest++) = (onOff >>  8);
             *(protoDest++) = (onOff      );
         }
 
-        // Second FB pixel bit
+        // Second FB pixel for the WS bit
         onOff = 0x000000;
         for (int s = 0; s < m_strings.size(); ++s) {
             oindex = bitPos[s];
@@ -478,15 +471,11 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData) {
         *(protoDest++) = (onOff >>  8);
         *(protoDest++) = (onOff      );
 
-        // Third FB pixel bit is always 0, so we jump over it below
+        // Third FB pixel for the WS bit is always 0, so jump over it
+        protoDest += 3;
 
-        if (protoBitOnLine != protoLastBitPerLine) {
-            // increment protoDest for the last 1/3 of the WS bit,
-            // but not when on the last bit on the line
-            protoDest += 3;
-
-            protoBitOnLine++;
-        } else {
+        protoBitOnLine++;
+        if (protoBitOnLine == protoBitsPerLine) {
             // Jump to beginning of next scan line and reset counter
             protoDest += destExtra;
             protoBitOnLine = 0;

@@ -72,7 +72,6 @@ private:
     int longestString = 0;
 
     int protoBitsPerLine = 0;
-    int protoLastBitPerLine = 0;
     int protoBitOnLine = 0;
     uint8_t *protoDest = nullptr;
 };
