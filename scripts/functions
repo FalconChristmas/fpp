@@ -679,8 +679,6 @@ for output in obj["channelOutputs"]:
         if longestString > 1100:
             exit(20)
 
-        exit(20)
-
         if longestString > 800:
             exit(30)
 
