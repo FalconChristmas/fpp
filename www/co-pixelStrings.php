@@ -1142,7 +1142,10 @@ function populatePixelStringOutputs(data) {
                             str += "<td colspan='3' style='font-size:0.7em; text-align:left; white-space: nowrap;'>Differential Receiver: ";
 
 
-                            var diffType = port["differentialType"];
+                            var diffType = 0;
+                            if (port.hasOwnProperty("differentialType"))
+                                diffType = port["differentialType"];
+
                             var diffCount = 0;
                             if (diffType > 1 && diffType < 4) {
                                 diffCount = diffType;
