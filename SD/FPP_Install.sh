@@ -25,19 +25,14 @@
 #       purposes, but it is not our main priority to keep FPP working on
 #       other Linux distributions or distribution versions other than those
 #       we base our FPP releases on.  Currently, FPP images are based on the
-#       following OS images for the Raspberry Pi and BeagleBone Black:
+#       latest OS images for the Raspberry Pi and BeagleBone Black.  See
+#       appropriate README for the exact image that is used.
 #
 #       Raspberry Pi
-#           - URL: https://www.raspberrypi.org/downloads/
-#           - Image
-#             - 2020-08-20-raspbian-buster-lite.zip
 #           - Login/Password
 #             - pi/raspberry
 #
 #       BeagleBone Black
-#           - URL: https://debian.beagleboard.org/images/2020-04-06/buster-console/
-#           - Images
-#             - bone-debian-10.5-console-armhf-2020-08-31-1gb.img.xz
 #           - Login/Password
 #             - debian/temppwd
 #
@@ -48,13 +43,13 @@
 #############################################################################
 # Other platforms which may be functioning:
 #
-# NOTE: FPP Development is based on the latest *bian Buster images, so
-#       hardware which does not support Buster may have issues.
+# NOTE: FPP Development is based on the latest Debian Bullseye images, so
+#       hardware which does not support Bullseye may have issues.
 #
 #############################################################################
 SCRIPTVER="6.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2022-01"
+FPPIMAGEVER="2022-02"
 FPPCFGVER="69"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -349,7 +344,7 @@ case "${OSVER}" in
 
 
         #remove a bunch of packages that aren't neeeded, free's up space
-        PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools triggerhappy python3-smbus\
+        PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools triggerhappy pocketsphinx-en-us python3-smbus\
             python3-werkzeug python3-click python3-colorama python3-decorator python3-dev python3-distro \
             python3-distutils python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
             gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv rsyslog"
@@ -409,7 +404,8 @@ case "${OSVER}" in
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
                       git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
-                      fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev"
+                      fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev \
+                      flex bison pkg-config libasound2-dev"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity"
@@ -528,9 +524,6 @@ case "${FPPPLATFORM}" in
 
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
-
-        echo "FPP - Install kernel headers so modules can be compiled later"
-        apt-get -y install raspberrypi-kernel-headers
 
         if $isimage; then
             echo "FPP - Disabling stock users (pi, odroid, debian), use the '${FPPUSER}' user instead"
@@ -1106,6 +1099,8 @@ if $isimage; then
     if [ -f /etc/systemd/journald.conf ]; then
         sed -i -e "s/^.*SystemMaxUse.*/#SystemMaxUse=64M/g" /etc/systemd/journald.conf
     fi
+    
+    cp /opt/fpp/etc/systemd/network/* /etc/systemd/network
 fi
 
 
@@ -1116,6 +1111,11 @@ make clean ; make -j ${CPUS} optimized
 
 ######################################
 if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
+    if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
+        echo "FPP - Install kernel headers so modules can be compiled later"
+        apt-get -y install raspberrypi-kernel-headers
+    fi
+
     echo "FPP - Compiling WIFI drivers"
     cd /opt/fpp/SD
     bash ./FPP-Wifi-Drivers.sh
