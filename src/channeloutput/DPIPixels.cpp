@@ -74,7 +74,8 @@ DPIPixelsOutput* createOutputDPIPixels(unsigned int startChannel,
 
 DPIPixelsOutput::DPIPixelsOutput(unsigned int startChannel, unsigned int channelCount) :
     ThreadedChannelOutputBase(startChannel, channelCount),
-    device("/dev/fb0") {
+    device("/dev/fb0"),
+    protocol("ws2811") {
 
     LogDebug(VB_CHANNELOUT, "DPIPixelsOutput::DPIPixelsOutput(%u, %u)\n",
              startChannel, channelCount);
@@ -365,49 +366,19 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
 
     std::string errStr = "";
 
-    // 40 FPS, 25ms, 3.875 WS pixels per line
-    // dpi_timings=278 0 0 1 0  209 0 2 2 2  0 0 0  40 0 2400000 1
-    if ((vinfo.xres == 278) && (vinfo.yres == 209)) {
-        if (longestString <= 800)
-            return true;
-        else
-            errStr = "DPIPixels Framebuffer configured for 40fps but pixel count is to high.  Reboot is required.";
-    }
-
-    // 30 FPS, 33.3ms, 4.542 WS pixels per line
-    // dpi_timings=326 0 0 1 0  244 0 0 1 0  0 0 0  30 0 2400000 1
-    if ((vinfo.xres == 326) && (vinfo.yres == 244)) {
-        if (longestString <= 1100)
-            return true;
-        else
-            errStr = "DPIPixels Framebuffer configured for 30fps but pixel count is to high.  Reboot is required.";
-    }
-
-    // 20 FPS, 50ms, 5.458 WS pixels per line
-    // dpi_timings=392 0 0 1 0  294 0 4 3 4  0 0 0  20 0 2400000 1
-    if ((vinfo.xres == 392) && (vinfo.yres == 294)) {
-        if (longestString <= 1600)
-            return true;
-        else
-            errStr = "DPIPixels Framebuffer configured for 20fps but pixel count is to high.  Reboot is required.";
-    }
-
-    // 18.5 FPS, 54.054ms, 5.792 WS pixels per line
-    // dpi_timings=416 0 0 1 0  310 0 1 1 0  0 0 0  18 0 2400000 1
-    if ((vinfo.xres == 416) && (vinfo.yres == 310)) {
-        if (longestString <= 1800)
-            return true;
-        else
-            errStr = "DPIPixels Framebuffer configured for 18.5fps but pixel count is to high.  Reboot is required.";
-    }
-
-    // 15 FPS, 66.6ms, 6.458 WS pixels per line
-    // dpi_timings=464 0 0 1 0  348 0 1 1 0  0 0 0  15 0 2400000 1
-    if ((vinfo.xres == 464) && (vinfo.yres == 348)) {
-        if (longestString <= 2200)
-            return true;
-        else
-            errStr = "DPIPixels Framebuffer configured for 15fps but pixel count is to high.  Reboot is required.";
+    if (protocol == "ws2811") {
+        if (vinfo.xres == 360) {
+            if (vinfo.yres == 162) {
+                if (longestString <= 800)
+                    return true;
+                else
+                    errStr = "DPIPixels Framebuffer configured for 40fps but pixel count is to high.  Reboot is required.";
+            } else if (vinfo.yres == 324) {
+                return true;
+            }
+        } else {
+            return false;
+        }
     }
 
     if (errStr != "") {
@@ -424,23 +395,19 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
 ////////////////////////////////////////////////
 
 void DPIPixelsOutput::InitFrameWS281x(void) {
-    protoBitsPerLine = (vinfo.xres - 2) / 3; // Skip the last 2 pixels on a line, each WS bit is one FB pixel
+    protoBitsPerLine = vinfo.xres / 3; // Each WS bit is one FB pixel
     protoBitOnLine = 0;
 
     protoDest = (uint8_t*)fbp + (page * pagesize);
 
     memset(protoDest, 0, pagesize);
-
-    // Skip first pixel's worth of data in the framebuffer to fix vsync issue
-    // 24 ws281x bits, 3 FB pixels per ws281x bit, and 3 bytes per FB pixel
-    protoDest += 24 * 3 * 3; protoBitOnLine += 24;
 }
 
 void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData) {
     uint32_t onOff = 0;
     uint32_t bv;
     int oindex = 0;
-    int destExtra = finfo.line_length - ((vinfo.xres - 2) * 3); // Skip over the hsync/porch area and last FB 2 pixels per line
+    int destExtra = finfo.line_length - (vinfo.xres * 3); // Skip over the hsync/porch/pad area
 
     // 24 bits in WS281x output data
     for (int bt = 0; bt < 24; ++bt) {
