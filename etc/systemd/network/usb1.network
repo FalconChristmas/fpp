@@ -1,0 +1,17 @@
+[Match]
+Name=usb1
+
+[Link]
+RequiredForOnline=no
+
+[Network]
+DHCP=no
+Address=192.168.6.2/24
+DHCPServer=on
+
+[DHCPServer]
+EmitDNS=no
+EmitRouter=no
+EmitTimezone=no
+MaxLeaseTimeSec=20min
+PoolSize=1

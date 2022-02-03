@@ -2,8 +2,8 @@
 Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
-Install the latest Raspbian Buster Lite image to the SD card.  The last
-version test 2021-05-07-raspios-buster-armhf-lite.img
+Install the latest Raspbian Bullseye Lite image to the SD card.  The last
+version test 2021-10-30-raspios-bullseye-armhf-lite.img
 
 Resize the root partition to 3.5GB using fdisk (substitute the proper device
 for your SD card).
@@ -51,9 +51,9 @@ Remove the SD card and boot it up in a Pi.
 
 Do a system upgrade to make sure everything is at the latest versions
     sudo apt-get update
-    sudo apt-get dist-upgrade
+    sudo apt-get upgrade
     sudo apt-get clean
-    localectl set-locale LANG="en_US.utf8"
+    localectl set-locale LANG="en_US.UTF-8"
 
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
 

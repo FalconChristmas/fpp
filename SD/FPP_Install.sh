@@ -349,7 +349,7 @@ case "${OSVER}" in
 
 
         #remove a bunch of packages that aren't neeeded, free's up space
-        PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools python3-smbus\
+        PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools triggerhappy python3-smbus\
             python3-werkzeug python3-click python3-colorama python3-decorator python3-dev python3-distro \
             python3-distutils python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
             gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv rsyslog"
@@ -454,6 +454,18 @@ case "${OSVER}" in
             echo "FPP - Disabling dhcp-helper and hostapd from automatically starting"
             systemctl disable dhcp-helper
             systemctl disable hostapd
+            
+            echo "FPP - Enabling systemd-networkd"
+            # clean out the links to /dev/null so that we can enable systemd-netowrkd
+            rm -f /etc/systemd/network/99*
+            rm -f /etc/systemd/network/20*
+            if [ ! -f /etc/systemd/network/eth0.network ]
+            then
+                # Need to make sure there is configuration for eth0 or no connection will be
+                # setup after a reboot
+                wget -O /etc/systemd/network/eth0.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/eth0.network
+            fi
+            systemctl enable systemd-networkd
         fi
 
 		;;
