@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# bone-debian-10.10-console-armhf-2021-07-26-1gb.img.xz
-# from https://rcn-ee.net/rootfs/bb.org/testing/2021-07-26/buster-console/
+# am335x-debian-11.2-minimal-armhf-2022-02-01-2gb.img.xz
+# from https://rcn-ee.net/rootfs/bb.org/testing/2022-02-01/bullseye-minimal/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -40,22 +40,14 @@ shutdown -h now
 apt-get update
 apt-get -y upgrade
 
-#need to install/generate the UTF-8 locales
-apt-get install -y locales git curl
-echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
-locale-gen
-localectl set-locale LANG="en_US.utf8"
-
-cd /opt/scripts
-git pull
 
 #check
 cd /root
-wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-5.4.106fpp_5.4.106fpp-2_armhf.deb
-wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-5.4.106fpp_5.4.106fpp-2_armhf.deb
+export NEW_KERNEL_VERSION=5.10.90fpp_5.10.90fpp-1
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${NEW_KERNEL_VERSION}_armhf.deb
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-${NEW_KERNEL_VERSION}_armhf.deb
 dpkg -i *.deb
 rm -f *.deb
-
 apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r)
 
 # delete old kernels and modules in /boot and /lib/modules

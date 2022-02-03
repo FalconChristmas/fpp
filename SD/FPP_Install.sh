@@ -120,39 +120,6 @@ checkTimeAgainstUSNO () {
 	fi
 }
 
-configureConnMann () {
-    mv -f /etc/wpa_supplicant/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf.orig
-    mkdir /etc/connman
-    chmod 755 /etc/connman
-
-    cat <<-EOF > /var/lib/connman/settings
-[global]
-OfflineMode=false
-
-[WiFi]
-Enable=true
-Tethering=false
-
-[Bluetooth]
-Enable=false
-Tethering=false
-
-[Wired]
-Enable=true
-Tethering=false
-EOF
-
-cat <<-EOF >> /etc/connman/main.conf
-[General]
-PreferredTechnologies=wifi,ethernet
-SingleConnectedTechnology=false
-AllowHostnameUpdates=false
-PersistentTetheringMode=true
-EOF
-
-    sed -i 's/ExecStart.*/ExecStart=\/usr\/sbin\/connmand -n --nodnsproxy/g' /lib/systemd/system/connman.service
-}
-
 
 #############################################################################
 # Gather some info about our system
@@ -385,20 +352,13 @@ case "${OSVER}" in
         PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools python3-smbus\
             python3-werkzeug python3-click python3-colorama python3-decorator python3-dev python3-distro \
             python3-distutils python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
-            gfortran glib-networking libxmuu1 xauth network-manager isc-dhcp-client"
+            gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv rsyslog"
         if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
-            PACKAGE_REMOVE="$PACKAGE_REMOVE roboticscape nodejs c9-core-installer \
-                doc-beaglebone-getting-started bonescript bone101 bb-node-red-installer ardupilot-copter-bbbmini ardupilot-copter-blue \
-                ardupilot-plane-bbbmini ardupilot-plane-blue ardupilot-rover-bbbmini ardupilot-rover-blue \
-                ardupilot-copter-3.6-bbbmini ardupilot-copter-3.6-blue ardupilot-copter-3.6-pocket \
-                ardupilot-rover-3.4-bbbmini ardupilot-rover-3.4-blue ardupilot-rover-3.4-pocket"
+            PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer"
         fi
         if $desktop; then
             #don't remove anything from a desktop
             PACKAGE_REMOVE=""
-        else
-            echo "FPP - Marking unneeded packages for removal to save space"
-            systemctl disable network-manager.service
         fi
         
         if $skip_apt_install; then
@@ -442,16 +402,17 @@ case "${OSVER}" in
                       fbi fbset file flite ca-certificates lshw gettext wget \
                       build-essential ffmpeg gcc g++ gdb ccache vim vim-common bison flex device-tree-compiler dh-autoreconf \
                       git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
-                      samba rsync connman sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
+                      samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
                       mp3info mailutils dhcp-helper parprouted bridge-utils libiio-utils \
                       php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-xml \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
+                      git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
-            PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity python-daemon python-smbus"
+            PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity"
         fi
 
         if $skip_apt_install; then
@@ -464,7 +425,7 @@ case "${OSVER}" in
         apt-get -y clean
 
 
-		echo "FPP - Installing libhttpserver 0.17.5"
+		echo "FPP - Installing libhttpserver 0.18.2"
 		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.18.2 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
         echo "FPP - Configuring shellinabox to use /var/tmp"
@@ -560,12 +521,6 @@ case "${FPPPLATFORM}" in
         apt-get -y install raspberrypi-kernel-headers
 
         if $isimage; then
-            echo "FPP - Disabling dhcpcd"
-            systemctl disable dhcpcd.service
-
-            echo "FPP - Configuring connman"
-            configureConnMann
-
             echo "FPP - Disabling stock users (pi, odroid, debian), use the '${FPPUSER}' user instead"
             sed -i -e "s/^pi:.*/pi:*:16372:0:99999:7:::/" /etc/shadow
             sed -i -e "s/^odroid:.*/odroid:*:16372:0:99999:7:::/" /etc/shadow
@@ -742,10 +697,6 @@ EOF
 		;;
 	'Debian')
 		echo "FPP - Debian"
-        if $isimage; then
-            echo "FPP - Configuring connman"
-            configureConnMann
-        fi
 		;;
 	*)
 		echo "FPP - Unknown platform"
@@ -803,10 +754,7 @@ sh scripts/upgrade_config -notee
 
 
 #######################################
-PHPDIR="/etc/php/7.3"
-if [ -d "/etc/php/7.4" ]; then
-    PHPDIR="/etc/php/7.4"
-fi
+PHPDIR="/etc/php/7.4"
 
 echo "FPP - Allowing short tags in PHP"
 FILES="cli/php.ini apache2/php.ini"
@@ -1096,11 +1044,8 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     make clean
     
     # install the newer pru code generator
-    apt-get install ti-pru-cgt-installer
+    apt-get install ti-pru-cgt-v2.3 ti-pru-pru-v2.3
     
-    #set the preferred tech
-    sed -i -e "s/PreferredTechnologies\(.*\)/PreferredTechnologies=wifi,ethernet/" /etc/connman/main.conf
-
     #Set colored prompt
     sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
     
@@ -1143,14 +1088,11 @@ systemctl enable rsync
 
 if $isimage; then
     cp /opt/fpp/etc/update-RTC /etc/cron.daily
-    
-    echo "FPP - Disabling services not needed/used"
-    systemctl disable connman-wait-online
 
     # Make sure the journal is large enough to store the full boot logs
     # but not get too large which starts slowing down journalling (and thus boot)
     if [ -f /etc/systemd/journald.conf ]; then
-        sed -i -e "s/^.*SystemMaxUse.*/#SystemMaxUse=32M/g" /etc/systemd/journald.conf
+        sed -i -e "s/^.*SystemMaxUse.*/#SystemMaxUse=64M/g" /etc/systemd/journald.conf
     fi
 fi
 
@@ -1177,20 +1119,10 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
         # default line not there, just append to end of file
         echo "DAEMON_CONF=\"/etc/hostapd/hostapd.conf\"" >> /etc/default/hostapd
     fi
-
-    sed -i 's/^NetworkInterfaceBlacklist.*/NetworkInterfaceBlacklist=SoftAp0,usb0,usb1/g' /etc/connman/main.conf
-    if ! grep -q "^NetworkInterfaceBlacklist" "/etc/connman/main.conf"; then
-        echo "NetworkInterfaceBlacklist=SoftAp0,usb0,usb1" >> /etc/connman/main.conf
-    fi
     
     if $isimage; then
-
         systemctl enable dnsmasq
         systemctl unmask hostapd
-    
-        cd /etc
-        rm resolv.conf
-        ln -s /var/run/connman/resolv.conf .
     fi
 fi
 
