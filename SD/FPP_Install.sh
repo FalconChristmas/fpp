@@ -405,7 +405,7 @@ case "${OSVER}" in
                       git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev \
-                      flex bison pkg-config libasound2-dev"
+                      flex bison pkg-config libasound2-dev python3-distutils"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity"

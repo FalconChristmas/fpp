@@ -40,8 +40,9 @@ for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make
     KVER=$i ARCH=arm make install
 done
-
 cd /opt/wifi
+rm -rf rtl8192cu-fixes
+
 git clone https://github.com/Mange/rtl8192eu-linux-driver
 cd rtl8192eu-linux-driver
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
@@ -52,8 +53,9 @@ for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make
     KVER=$i ARCH=arm make install
 done
-
 cd /opt/wifi
+rm -rf rtl8192eu-linux-driver
+
 git clone https://github.com/lwfinger/rtl8723bu
 cd rtl8723bu
 patch -p1 < /opt/wifi/patches/rtl8723bu
@@ -63,8 +65,9 @@ for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make
     KVER=$i ARCH=arm make install
 done
-
 cd /opt/wifi
+rm -rf rtl8723bu
+
 git clone https://github.com/lwfinger/rtl8723au
 cd rtl8723au
 patch -p1 < /opt/wifi/patches/rtl8723au
@@ -73,8 +76,9 @@ for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make
     KVER=$i ARCH=arm make install
 done
-
 cd /opt/wifi
+rm -rf rtl8723au
+
 git clone https://github.com/morrownr/8812au-20210629
 cd 8812au-20210629
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
@@ -85,8 +89,9 @@ for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make
     KVER=$i ARCH=arm make install
 done
-
 cd /opt/wifi
+rm -rf 8812au-20210629
+
 git clone https://github.com/morrownr/8814au
 cd 8814au
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
@@ -97,8 +102,9 @@ for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make
     KVER=$i ARCH=arm make install
 done
-
 cd /opt/wifi
+rm -rf 8814au
+
 git clone https://github.com/morrownr/88x2bu
 cd 88x2bu
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
@@ -109,8 +115,9 @@ for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make
     KVER=$i ARCH=arm make install
 done
-
 cd /opt/wifi
+rm -rf 88x2bu
+
 git clone https://github.com/morrownr/8821au-20210708
 cd 8821au-20210708
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
@@ -121,8 +128,9 @@ for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make
     KVER=$i ARCH=arm make install
 done
-
 cd /opt/wifi
+rm -rf 8821au-20210708
+
 git clone https://github.com/morrownr/8821cu
 cd 8821cu
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
@@ -133,8 +141,9 @@ for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make
     KVER=$i ARCH=arm make install
 done
-
 cd /opt/wifi
+rm -rf 8821cu
+
 git clone https://github.com/lwfinger/rtl8188eu
 cd rtl8188eu
 for i in "${KVERS[@]}"; do
@@ -145,8 +154,9 @@ done
 cp rtl8188eufw.bin /lib/firmware/
 mkdir -p /lib/firmware/rtlwifi
 cp rtl8188eufw.bin /lib/firmware/rtlwifi/
-
 cd /opt/wifi
+rm -rf rtl8188eu
+
 git clone https://github.com/kelebek333/rtl8188fu
 cd rtl8188fu
 patch -p1 < /opt/wifi/patches/rtl8188fu
