@@ -1,7 +1,6 @@
 #include "fpp-pch.h"
 
 #include <fcntl.h>
-#include <stropts.h>
 
 #include "PiFaceUtils.h"
 #include "PiGPIOUtils.h"

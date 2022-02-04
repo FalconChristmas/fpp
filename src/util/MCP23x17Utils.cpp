@@ -1,7 +1,6 @@
 #include "fpp-pch.h"
 
 #include <fcntl.h>
-#include <stropts.h>
 
 #include "MCP23x17Utils.h"
 #include "SPIUtils.h"

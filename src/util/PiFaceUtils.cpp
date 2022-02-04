@@ -1,7 +1,5 @@
 #include "fpp-pch.h"
 
-#include <stropts.h>
-
 #include "MCP23x17Utils.h"
 #include "PiFaceUtils.h"
 #include "SPIUtils.h"
