@@ -174,8 +174,142 @@ SetupFPPNetworkConfigViaConnMann() {
         fi
     fi
 }
+declare -A NETMASK2SUBNET=(
+    ['255.255.255.252']='30'
+    ['255.255.255.248']='29'
+    ['255.255.255.240']='28'
+    ['255.255.255.224']='27'
+    ['255.255.255.192']='26'
+    ['255.255.255.128']='25'
+    ['255.255.255.0']='24'
+    ['255.255.254.0']='23'
+    ['255.255.252.0']='22'
+    ['255.255.248.0']='21'
+    ['255.255.240.0']='20'
+    ['255.255.224.0']='19'
+    ['255.255.192.0']='18'
+    ['255.255.128.0']='17'
+    ['255.255.0.0']='16'
+)
+
+SetupFPPNetworkConfigViaSystemdNetworkd() {
+    CONFIGS=`ls ${FPPHOME}/media/config/interface.w*; ls ${FPPHOME}/media/config/interface.e*`
+    DEFGW="none"
+    DNS1=""
+    DNS2=""
+    if [ -f "${FPPHOME}/media/config/dns" ]
+    then
+        . ${FPPHOME}/media/config/dns
+    fi
+    if [ "x$DNS1" != "x" ]
+    then
+        DNS="$DNS1"
+    fi
+    if [ "x$DNS2" != "x" ]
+    then
+        DNS="$DNS1,$DNS2"
+    fi
+    
+
+
+    WifiRegulatoryDomain=$(getSetting WifiRegulatoryDomain)
+    if [ "$WifiRegulatoryDomain" == "" ]; then
+        WifiRegulatoryDomain="US"
+    fi
+    iw reg set "$WifiRegulatoryDomain"
+
+    for f in $CONFIGS; do
+        unset SSID
+        unset PSK
+        unset INTERFACE
+        unset MAC
+        unset HIDDEN
+        unset PROTO
+        unset GATEWAY
+        unset NETMASK
+        unset ADDRESS
+        . ${f}
+
+        # Handle the PSK differently since variable substitution is
+        # performed when sourcing the config file which prevents using a PSK
+        # with a dollar sign in it.  Rather than trying to escape/unescape
+        # things in the settings UI code, handle it here.
+        PSK=$(grep "^PSK=" ${f} | sed -e "s/^PSK=\"//" -e "s/\"$//")
+
+        TMPFILE="/var/tmp/10-${INTERFACE}.network"
+        rm -f ${TMPFILE}
+        echo "[Match]" >> ${TMPFILE}
+        echo "Name=${INTERFACE}" >> $TMPFILE
+
+        if [[ "$INTERFACE" == "wl"* ]] ; then
+            echo "Type=wlan"  >> $TMPFILE
+        else
+            echo "Type=ether"  >> $TMPFILE
+        fi
+        echo "" >> $TMPFILE
+        echo "[Network]" >> $TMPFILE
+        if [ "$PROTO" = "dhcp" ]; then
+            echo "DHCP=yes"  >> $TMPFILE
+        else
+            SUBNET="${NETMASK2SUBNET[$NETMASK]}"
+            if [ "x$SUBNET" == "x" ]; then
+                SUBNET="24"
+            fi
+            echo "Address=$ADDRESS/$SUBNET" >> $TMPFILE
+        fi
+        if [ "x$GATEWAY" != "x" ]; then
+            echo "Gateway=${GATEWAY}" >> $TMPFILE
+        fi
+        if [ "x$DNS1" != "x" ]; then
+            echo "DNS=${DNS1}" >> $TMPFILE
+        fi
+        if [ "x$DNS2" != "x" ]; then
+            echo "DNS=${DNS2}" >> $TMPFILE
+        fi
+        echo "IgnoreCarrierLoss=5s" >> $TMPFILE
+        
+        echo "" >> $TMPFILE
+        echo "[DHCPv4]" >> $TMPFILE
+        if [[ "$INTERFACE" == "wl"* ]] ; then
+            echo "RouteMetric=10" >> $TMPFILE
+        else
+            echo "RouteMetric=20" >> $TMPFILE
+        fi
+        echo "" >> $TMPFILE
+        cp $TMPFILE /etc/systemd/network
+
+        if [[ "$INTERFACE" == "wl"* ]] ; then
+            WPATMPFILE="/var/tmp/wpa_supplicant-${INTERFACE}.conf"
+            rm -f ${WPATMPFILE}
+            echo "ctrl_interface=/var/run/wpa_supplicant" >> ${WPATMPFILE}
+            echo "ctrl_interface_group=0" >> ${WPATMPFILE}
+            echo "update_config=1" >> ${WPATMPFILE}
+            echo "country=${WifiRegulatoryDomain}" >> ${WPATMPFILE}
+            echo "" >> ${WPATMPFILE}
+            echo "network={" >> ${WPATMPFILE}
+            echo "  ssid=\"${SSID}\"" >> ${WPATMPFILE}
+            if [ "x$PSK" != "x" ]; then
+                echo "  psk=\"${PSK}\"" >> ${WPATMPFILE}
+            fi
+            echo "  key_mgmt=WPA-PSK" >> ${WPATMPFILE}
+            echo "  scan_ssid=1" >> ${WPATMPFILE}
+            echo "}" >> ${WPATMPFILE}
+            echo "" >> ${WPATMPFILE}
+            cp $WPATMPFILE /etc/wpa_supplicant
+            systemctl enable "wpa_supplicant@${INTERFACE}.service"
+        fi
+    done
+
+    # FIXME - tethering
+    
+    systemctl reload-or-restart systemd-networkd.service
+}
 SetupFPPNetworkConfig () {
-    SetupFPPNetworkConfigViaConnMann
+    if [ -f /usr/bin/connmanctl ]; then
+        SetupFPPNetworkConfigViaConnMann
+    else
+        SetupFPPNetworkConfigViaSystemdNetworkd
+    fi
     ENABLEROUTING=$(getSetting EnableRouting)
     if [ "x${ENABLEROUTING}" = "x1" ]
     then
@@ -221,26 +355,26 @@ WaitForInterfacesUp() {
         fi
     fi
 
-    # connmanctl services >> /tmp/services.txt
-
-    CONFIGS=`ls ${FPPHOME}/media/config/interface.w* 2> /dev/null; ls ${FPPHOME}/media/config/interface.e* 2> /dev/null`
-    for f in $CONFIGS; do
-	. ${f}
-	if [ "x$GATEWAY" != "x" ]; then
-	     DEFGW=${GATEWAY}
-	fi
-    done
-    if [ "x$DEFGW" == "x" ]; then
-        # no gateway defined
-	CURDIR=$(pwd)
-        ETHS=`ls -d ether* 2> /dev/null`
-        WIFIS=`ls -d wifi* 2> /dev/null`
-        if [ "x$WIFIS" != "x" ]; then
-            for f in $ETHS; do
-	        connmanctl move-before $WIFIS $f
-            done
+    if [ -f /usr/bin/connmanctl ]; then
+        CONFIGS=`ls ${FPPHOME}/media/config/interface.w* 2> /dev/null; ls ${FPPHOME}/media/config/interface.e* 2> /dev/null`
+        for f in $CONFIGS; do
+        . ${f}
+        if [ "x$GATEWAY" != "x" ]; then
+             DEFGW=${GATEWAY}
         fi
-        cd "${CURDIR}"
+        done
+        if [ "x$DEFGW" == "x" ]; then
+            # no gateway defined
+        CURDIR=$(pwd)
+            ETHS=`ls -d ether* 2> /dev/null`
+            WIFIS=`ls -d wifi* 2> /dev/null`
+            if [ "x$WIFIS" != "x" ]; then
+                for f in $ETHS; do
+                connmanctl move-before $WIFIS $f
+                done
+            fi
+            cd "${CURDIR}"
+        fi
     fi
     #turn off power management on wireless... not all adapters
     # support this so just /dev/null any output
@@ -268,6 +402,10 @@ DetectNetworkModules() {
 }
 
 MaybeEnableTethering() {
+    if [ ! -f /usr/bin/connmanctl ]; then
+        return
+    fi
+    //FIXME tethering
     TetherEnabled=$(getSetting EnableTethering)
 
     if [ "x${TetherEnabled}" == "x" ]; then

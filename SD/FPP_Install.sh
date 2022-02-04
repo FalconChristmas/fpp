@@ -344,10 +344,10 @@ case "${OSVER}" in
 
 
         #remove a bunch of packages that aren't neeeded, free's up space
-        PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools triggerhappy pocketsphinx-en-us python3-smbus\
+        PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools triggerhappy pocketsphinx-en-us python3-smbus guile-2.2-libs \
             python3-werkzeug python3-click python3-colorama python3-decorator python3-dev python3-distro \
-            python3-distutils python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
-            gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv rsyslog"
+            python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
+            gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv"
         if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer"
         fi
@@ -452,16 +452,23 @@ case "${OSVER}" in
             systemctl disable hostapd
             
             echo "FPP - Enabling systemd-networkd"
-            # clean out the links to /dev/null so that we can enable systemd-netowrkd
+            # clean out the links to /dev/null so that we can enable systemd-networkd
             rm -f /etc/systemd/network/99*
             rm -f /etc/systemd/network/20*
-            if [ ! -f /etc/systemd/network/eth0.network ]
+            rm -f /etc/systemd/network/73*
+            rm -f /etc/systemd/network/eth*
+            rm -f /etc/systemd/network/wlan*
+            if [ ! -f /etc/systemd/network/10-eth0.network ]
             then
                 # Need to make sure there is configuration for eth0 or no connection will be
                 # setup after a reboot
-                wget -O /etc/systemd/network/eth0.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/eth0.network
+                wget -O /etc/systemd/network/10-eth0.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/10-eth0.network
             fi
             systemctl enable systemd-networkd
+            systemctl disable systemd-networkd-wait-online.service
+            systemctl enable systemd-resolved
+            rm -f /etc/resolv.conf
+            ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
         fi
 
 		;;
@@ -664,7 +671,8 @@ EOF
 			sed -i -e "s/console=serial0,115200 //" /boot/cmdline.txt
 			sed -i -e "s/autologin pi/autologin ${FPPUSER}/" /etc/systemd/system/autologin@.service
 		fi
-
+        rm -f /var/swap
+        rfkill unblock all
 		;;
 	#TODO
 	'CHIP')
@@ -1097,9 +1105,11 @@ if $isimage; then
     # Make sure the journal is large enough to store the full boot logs
     # but not get too large which starts slowing down journalling (and thus boot)
     if [ -f /etc/systemd/journald.conf ]; then
-        sed -i -e "s/^.*SystemMaxUse.*/#SystemMaxUse=64M/g" /etc/systemd/journald.conf
+        sed -i -e "s/^.*SystemMaxUse.*/SystemMaxUse=64M/g" /etc/systemd/journald.conf
     fi
     
+    rm -f /opt/fpp/etc/systemd/network/*eth*
+    rm -f /opt/fpp/etc/systemd/network/*wlan*
     cp /opt/fpp/etc/systemd/network/* /etc/systemd/network
 fi
 
@@ -1133,8 +1143,9 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
     fi
     
     if $isimage; then
-        systemctl enable dnsmasq
+        systemctl disable dnsmasq
         systemctl unmask hostapd
+        systemctl disable hostapd
     fi
 fi
 
