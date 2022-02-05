@@ -696,6 +696,7 @@ exit(20)
 	    DATE_ADDED=`date`
             cat <<DPI_PIXELS_EOF > /boot/dpipixels.txt
 # DPI Pixels framebuffer config
+# more info: https://www.raspberrypi.com/documentation/computers/config_txt.html
 # added ${DATE_ADDED}
 enable_dpi_lcd=1
 dpi_group=2
