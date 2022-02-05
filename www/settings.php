@@ -2,9 +2,9 @@
 <html>
 <head>
 <?
-require_once('config.php');
-require_once('common.php');
-include('common/menuHead.inc');
+require_once 'config.php';
+require_once 'common.php';
+include 'common/menuHead.inc';
 
 ?>
 <link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
@@ -13,7 +13,7 @@ include('common/menuHead.inc');
 <script type="text/javascript" src="js/jquery.timepicker.js"></script>
 <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 
 
 <script>
@@ -84,9 +84,9 @@ if (isset($_GET['tab'])) {
 
 <body>
 <div id="bodyWrapper">
-<?php 
+<?php
 $activeParentMenuItem = 'status';
-include 'menu.inc'; ?>
+include 'menu.inc';?>
   <div class="mainContainer">
 <h1 class="title">FPP Settings</h1>
     <div class="pageContent">
@@ -128,37 +128,37 @@ include 'menu.inc'; ?>
                                 Privacy
                             </a>
                         </li>
-                        <? if ($uiLevel >= 1 || $tabId == "Output"){?>
+                        <?if ($uiLevel >= 1 || $tabId == "Output") {?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-output-tab" data-toggle="tab" href="#settings-output" data-option="Output" role="tab" aria-controls="settings-output" aria-selected="true">
                             Input/Output
                             </a>
                         </li>
-                        <? } ?>
+                        <?}?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-logs-tab" data-toggle="tab" href="#settings-logs" data-option="Logging" role="tab" aria-controls="settings-logs" aria-selected="true">
                                 Logging
                             </a>
                         </li>
-                        <? if ($uiLevel >= 1 || $tabId == "Storage"){?>
+                        <?if ($uiLevel >= 1 || $tabId == "Storage") {?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-storage-tab" data-toggle="tab" href="#settings-storage" data-option="Storage" role="tab" aria-controls="settings-storage" aria-selected="true">
                             Storage
                             </a>
                         </li>
-                        <? } ?>
+                        <?}?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-system-tab" data-toggle="tab" href="#settings-system" data-option="System" role="tab" aria-controls="settings-system" aria-selected="true">
                             System
                             </a>
                         </li>
-                        <? if ($uiLevel >= 1 || $tabId == "Storage"){?>
+                        <?if ($uiLevel >= 1 || $tabId == "Storage") {?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-developer-tab" data-toggle="tab" href="#settings-developer" data-option="Developer" role="tab" aria-controls="settings-developer" aria-selected="true">
                             Developer
                             </a>
                         </li>
-                        <? } ?>
+                        <?}?>
                     </ul>
                     <div id="settingsManagerTabsContent" class="tab-content">
                         <div class="spinner-border spinner-danger spinner-lg" role="status">
@@ -167,50 +167,58 @@ include 'menu.inc'; ?>
                     </div>
 
                     <br>
-                    <div class="backdrop">
-                            <div class="row">
-                            <? if ($uiLevel >= 1) { ?>
-                                       <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i> - Advanced Level Setting</div>
-                            <? } ?>
-                            <? if ($uiLevel >= 2) { ?>
-                                       <div class="col-auto"><i class='fas fa-fw fa-flask ui-level-2'></i> - Experimental Level Setting</div>
-                            <? } ?>
-                            <? if ($uiLevel >= 3) { ?>
-                                       <div class="col-auto"><i class='fas fa-fw fa-code ui-level-3'></i> - Developer Level Setting</div>
-                            <? } ?>
-                            </div>
+                    <?if ($uiLevel >= 1) {?>
+                        <div class="backdrop">
+                                <div class="row">
+                                        <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i> - Advanced Level Setting</div>
+                                <?if ($uiLevel >= 2) {?>
+                                        <div class="col-auto"><i class='fas fa-fw fa-flask ui-level-2'></i> - Experimental Level Setting</div>
+                                <?}?>
+                                <?if ($uiLevel >= 3) {?>
+                                        <div class="col-auto"><i class='fas fa-fw fa-code ui-level-3'></i> - Developer Level Setting</div>
+                                <?}?>
+                                </div>
 
-                    </div>
-    
+                        </div>
+                    <?}?>
+
             </div>
     </div>
 </div>
 
-<?php	include 'common/footer.inc'; ?>
+<?php	include 'common/footer.inc';?>
 
 <script>
 var activeTabNumber =
 <?php
-    $tabIDs = Array();
-    $id = 0;
-    $tabIDs["Playback"] = $id++;
-    $tabIDs["AV"] = $id++;
-    $tabIDs["Time"] = $id++;
-    $tabIDs["UI"] = $id++;
-    $tabIDs["Email"] = $id++;
-    $tabIDs["MQTT"] = $id++;
-    $tabIDs["Privacy"] = $id++;
-    if ($uiLevel >= 1 || $tabId == "Output") $tabIDs["Output"] = $id++;
-    $tabIDs["Logging"] = $id++;
-    if ($uiLevel >= 1 || $tabId == "Storage") $tabIDs["Storage"] = $id++;
-    $tabIDs["System"] = $id++;
-    if ($uiLevel >= 3 || $tabId == "Developer") $tabIDs["Developer"] = $id++;
+$tabIDs = array();
+$id = 0;
+$tabIDs["Playback"] = $id++;
+$tabIDs["AV"] = $id++;
+$tabIDs["Time"] = $id++;
+$tabIDs["UI"] = $id++;
+$tabIDs["Email"] = $id++;
+$tabIDs["MQTT"] = $id++;
+$tabIDs["Privacy"] = $id++;
+if ($uiLevel >= 1 || $tabId == "Output") {
+    $tabIDs["Output"] = $id++;
+}
 
-    if (!array_key_exists($tabId, $tabIDs)) {
-        print $tabId;
-    } else {
-        print $tabIDs[$tabId];
-    }
+$tabIDs["Logging"] = $id++;
+if ($uiLevel >= 1 || $tabId == "Storage") {
+    $tabIDs["Storage"] = $id++;
+}
+
+$tabIDs["System"] = $id++;
+if ($uiLevel >= 3 || $tabId == "Developer") {
+    $tabIDs["Developer"] = $id++;
+}
+
+if (!array_key_exists($tabId, $tabIDs)) {
+    print $tabId;
+} else {
+    print $tabIDs[$tabId];
+}
 ?>;
 
 var tabIDs = <?php echo json_encode($tabIDs); ?>;
