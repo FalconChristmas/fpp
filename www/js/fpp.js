@@ -5272,8 +5272,9 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                 }
 
                 if (typeof val['children'] === 'object') {
-                    if (tblCommand == 'playlistEntryCommandOptions')
+                    if (tblCommand == 'playlistEntryCommandOptions' || tblCommand == 'playlistEntryOptions'){
                         line += " onChange='UpdateChildVisibility();";
+                    }
                     if (typeof val['onChange'] === 'string') {
                         line += ' ' + val['onChange'] + '();';
                         initFuncs.push(val['onChange']);
