@@ -242,6 +242,9 @@ int DPIPixelsOutput::Init(Json::Value config) {
         LogErr(VB_CHANNELOUT, "Unable to turn the cursor off\n");
     }
 
+    if (protocol == "ws2811")
+        InitializeWS281x();
+
     PixelString::AutoCreateOverlayModels(m_strings);
     return ThreadedChannelOutputBase::Init(config);
 }
@@ -394,36 +397,49 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
 // Protocol-specific functions
 ////////////////////////////////////////////////
 
+void DPIPixelsOutput::InitializeWS281x(void) {
+    uint8_t *p = (uint8_t*)fbp;
+
+    memset(fbp, 0, pagesize * 2);
+
+    // Setup the first FB row
+    for (int x = 0; x < vinfo.xres;) {
+        *(p++) = 0xFF;
+        *(p++) = 0xFF;
+        *(p++) = 0xFF;
+
+        p += 6;
+        x += 3;
+    }
+
+    // Setup the rest of the FB rows on both pages
+    p = (uint8_t*)fbp + finfo.line_length;
+    for (int y = 1; y < (vinfo.yres*2); y++) {
+        memcpy(p, fbp, finfo.line_length);
+        p += finfo.line_length;
+    }
+}
+
 void DPIPixelsOutput::InitFrameWS281x(void) {
     protoBitsPerLine = vinfo.xres / 3; // Each WS bit is one FB pixel
     protoBitOnLine = 0;
 
-    protoDest = (uint8_t*)fbp + (page * pagesize);
-
-    memset(protoDest, 0, pagesize);
+    protoDest = (uint8_t*)fbp + (page * pagesize) + 3;     // Start at front but skip the first FB pixel which is 0xFFFFFF
+    protoDestExtra = finfo.line_length - (vinfo.xres * 3); // Skip over the hsync/porch/pad area
 }
 
 void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData) {
     uint32_t onOff = 0;
     uint32_t bv;
     int oindex = 0;
-    int destExtra = finfo.line_length - (vinfo.xres * 3); // Skip over the hsync/porch/pad area
 
     // 24 bits in WS281x output data
     for (int bt = 0; bt < 24; ++bt) {
         // 3 FB pixels per WS281x bit.  WS281x 0 == 100, WS281x 1 == 110
 
-        // First FB pixel for the WS bit
-        if (1) { // no smart receivers
-            *(protoDest++) = 0xFF;
-            *(protoDest++) = 0xFF;
-            *(protoDest++) = 0xFF;
-        } else { // FIXME, will have to handle smart receivers here
-            onOff = 0xFFFFFF;
-            *(protoDest++) = (onOff >> 16);
-            *(protoDest++) = (onOff >>  8);
-            *(protoDest++) = (onOff      );
-        }
+        // First FB pixel for the WS bit has already been initialized in InitializeWS281x(),
+        // and is skipped over on initialization of protoDest in INitFrameWS281x() and
+        // at the bottom of this loop when incrementing protoDest.
 
         // Second FB pixel for the WS bit
         onOff = 0x000000;
@@ -439,14 +455,19 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData) {
         *(protoDest++) = (onOff      );
 
         // Third FB pixel for the WS bit is always 0, so jump over it
-        protoDest += 3;
+        //   AND while we're jumping also skip the First FB pixel for the next WS bit.
+        protoDest += 6;
 
         protoBitOnLine++;
         if (protoBitOnLine == protoBitsPerLine) {
             // Jump to beginning of next scan line and reset counter
-            protoDest += destExtra;
+            protoDest += protoDestExtra;
             protoBitOnLine = 0;
         }
     }
+}
+
+void DPIPixelsOutput::CompleteFrameWS281x(void) {
+    // FIXME, put smart string code here to fix up those FB bits
 }
 
