@@ -139,9 +139,14 @@ public:
                 setenv("DISPLAY", ":0", true);
             }
 #endif
-            const char* args[]{ "-A", "alsa", "--no-osd",
+
+            int hardwareDecoding = getSettingInt("HardwareDecoding", 1);
+
+            const char* args[]{ 
+                "-A", "alsa", "--no-osd",
 #ifdef PLATFORM_PI
-                                "-V", "mmal_vout",
+                                hardwareDecoding ? "-V" : nullptr,
+                                hardwareDecoding ? "mmal_vout" : nullptr,
 #elif defined(PLATFORM_UNKNOWN)
                                 "-I", "dummy",
 #endif
