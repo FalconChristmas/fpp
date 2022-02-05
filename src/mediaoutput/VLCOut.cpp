@@ -141,21 +141,24 @@ public:
 #endif
 
             int hardwareDecoding = getSettingInt("HardwareDecoding", 1);
-
-            const char* args[]{ 
-                "-A", "alsa", "--no-osd",
-#ifdef PLATFORM_PI
-                                hardwareDecoding ? "-V" : nullptr,
-                                hardwareDecoding ? "mmal_vout" : nullptr,
-#elif defined(PLATFORM_UNKNOWN)
-                                "-I", "dummy",
-#endif
-                                nullptr };
-            int argc = 0;
-            while (args[argc]) {
-                argc++;
+            std::vector<const char *> args;
+            args.push_back("-A");
+            args.push_back("alsa");
+            args.push_back("--no-osd");
+            if (!hardwareDecoding) {
+                args.push_back("--no-hw-dec");
             }
-            vlcInstance = libvlc_new(argc, args);
+#ifdef PLATFORM_PI
+            if (hardwareDecoding) {
+                args.push_back("-V");
+                args.push_back("mmal_vout"); 
+            }
+#elif defined(PLATFORM_UNKNOWN)
+            args.push_back("-I");
+            args.push_back("dummy"); 
+#endif
+            args.push_back(nullptr);
+            vlcInstance = libvlc_new(args.size() - 1, &args[0]);
 
             libvlc_log_set(vlcInstance, logCallback, this);
         }
