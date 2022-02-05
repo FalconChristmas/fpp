@@ -693,8 +693,10 @@ exit(20)
                 EXISTING_TIMINGS=$(grep dpi_timings /boot/dpipixels.txt | cut -f2 -d=)
             fi
 
+	    DATE_ADDED=`date`
             cat <<DPI_PIXELS_EOF > /boot/dpipixels.txt
 # DPI Pixels framebuffer config
+# added ${DATE_ADDED}
 enable_dpi_lcd=1
 dpi_group=2
 dpi_mode=87
