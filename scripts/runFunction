@@ -1,0 +1,17 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
+
+if [ "x$1" = "x" ]
+then
+    echo "USAGE: $0 FUNCTION_NAME"
+    echo "       for example: $0 compilePlugins"
+    exit
+fi
+
+# Run the function name passed in on the command line
+$1
+
