@@ -706,7 +706,8 @@ dpi_timings=${TIMING}
 # create fb1 < RPi 4, put DPI on fb1 (even if no monitor/projector on fb0)
 max_framebuffers=2
 framebuffer_priority=2
-hdmi_force_hotplug=1
+# uncomment to force DPI onto fb1:
+#hdmi_force_hotplug=1
 # Enable UART2 on Pi 4
 dtoverlay=uart2
 DPI_PIXELS_EOF
