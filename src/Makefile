@@ -1,4 +1,5 @@
 
+FULLBASEDIR := $(shell echo `pwd`)
 BASEDIR := $(shell basename `pwd`)
 SRCDIRS := channeloutput channeloutput/processors channeltester fseq mediaoutput oled playlist pru sensors util
 
@@ -7,6 +8,10 @@ ifneq '$(BASEDIR)' 'src'
 	VPATH = ../src/
 	SRCDIR = ../src/
 	MKDIROUT = $(shell mkdir $(SRCDIRS))
+else
+	ifneq '$(FULLBASEDIR)' '/opt/fpp/src'
+		SRCDIR = $(FULLBASEDIR)/
+	endif
 endif
 
 include  ${SRCDIR}/makefiles/common/setup.mk
