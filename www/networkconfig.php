@@ -751,7 +751,7 @@ PrintSettingGroup('tethering');
 
       <p>
       <?if ($settings['Platform'] == "BeagleBone Black") {?>
-          On BeagleBones, USB tethering is available unless ConnMan tethering is enabled.  The IP address for USB tethering would be 192.168.6.2
+          On BeagleBones, USB tethering is available.  The IP address for USB tethering would be 192.168.6.2
               (OSX/Linux) or 192.168.7.2 (Windows).
       <?}?>
       <?if ($settings['Platform'] == "Raspberry Pi") {?>

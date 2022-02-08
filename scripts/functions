@@ -27,6 +27,45 @@ AttemptCreateSoftAP() {
     fi
 }
 
+CreateHostAPDConfig() {
+    TetherSSID=$(getSetting TetherSSID)
+    TetherPSK=$(getSetting TetherPSK)
+    if [ "${TetherSSID}x" == "x" ]; then
+        TetherSSID="FPP"
+    fi
+    if [ "${TetherPSK}x" == "x" ]; then
+        TetherPSK="Christmas"
+    fi
+    WifiRegulatoryDomain=$(getSetting WifiRegulatoryDomain)
+    if [ "$WifiRegulatoryDomain" == "" ]; then
+        WifiRegulatoryDomain="US"
+    fi
+
+cat > /etc/hostapd/hostapd.conf <<-EOF
+interface=$1
+driver=nl80211
+wpa_passphrase=${TetherPSK}
+ssid=${TetherSSID}
+country_code=${WifiRegulatoryDomain}
+hw_mode=g
+channel=11
+macaddr_acl=0
+auth_algs=3
+wpa=2
+wpa_key_mgmt=WPA-PSK
+wpa_pairwise=TKIP
+rsn_pairwise=CCMP
+wmm_enabled=0
+ignore_broadcast_ssid=0
+reassociation_deadline=3000
+pmk_r1_push=1
+ft_over_ds=0
+bss_transition=1
+wpa_group_rekey=3600
+wpa_gmk_rekey=86400
+EOF
+}
+
 SetupFPPNetworkConfigViaConnMann() {
 
     CONFIGS=`ls ${FPPHOME}/media/config/interface.w*; ls ${FPPHOME}/media/config/interface.e*`
@@ -209,8 +248,6 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
     then
         DNS="$DNS1,$DNS2"
     fi
-    
-
 
     WifiRegulatoryDomain=$(getSetting WifiRegulatoryDomain)
     if [ "$WifiRegulatoryDomain" == "" ]; then
@@ -218,6 +255,17 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
     fi
     iw reg set "$WifiRegulatoryDomain"
 
+    TetherEnabled=$(getSetting EnableTethering)
+    TetherInterface=$(getSetting TetherInterface)
+    if [ "x${TetherInterface}" == "x" ]; then
+        TetherInterface="wlan0";
+    fi
+    if [ "x${TetherEnabled}" == "x" ]; then
+        TetherEnabled="";
+    fi
+    ENABLEROUTING=$(getSetting EnableRouting)
+
+    ENABLEHOSTAPD="0"
     for f in $CONFIGS; do
         unset SSID
         unset PSK
@@ -248,15 +296,6 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         fi
         echo "" >> $TMPFILE
         echo "[Network]" >> $TMPFILE
-        if [ "$PROTO" = "dhcp" ]; then
-            echo "DHCP=yes"  >> $TMPFILE
-        else
-            SUBNET="${NETMASK2SUBNET[$NETMASK]}"
-            if [ "x$SUBNET" == "x" ]; then
-                SUBNET="24"
-            fi
-            echo "Address=$ADDRESS/$SUBNET" >> $TMPFILE
-        fi
         if [ "x$GATEWAY" != "x" ]; then
             echo "Gateway=${GATEWAY}" >> $TMPFILE
         fi
@@ -266,8 +305,50 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         if [ "x$DNS2" != "x" ]; then
             echo "DNS=${DNS2}" >> $TMPFILE
         fi
+        if [ "$ENABLEROUTING" = "1" ]; then
+            echo "IPForward=yes" >> $TMPFILE
+        fi
+
+        ADDRESSLINES=""
+        if [ "$PROTO" = "dhcp" ]; then
+            ADDRESSLINES="DHCP=yes"
+        else
+            SUBNET="${NETMASK2SUBNET[$NETMASK]}"
+            if [ "x$SUBNET" == "x" ]; then
+                SUBNET="24"
+            fi
+            ADDRESSLINES="Address=$ADDRESS/$SUBNET"
+        fi
+        if [[ "$INTERFACE" == "wl"* ]] ; then
+            if [ "$TetherEnabled" == "1" ] && [ "$INTERFACE" == "$TetherInterface" ]; then
+                CreateHostAPDConfig ${TetherInterface}
+                ADDRESSLINES="Address=192.168.8.1/24"
+                echo "DHCPServer=yes" >> $TMPFILE
+                ENABLEHOSTAPD="1"
+            else 
+                WPATMPFILE="/var/tmp/wpa_supplicant-${INTERFACE}.conf"
+                rm -f ${WPATMPFILE}
+                echo "ctrl_interface=/var/run/wpa_supplicant" >> ${WPATMPFILE}
+                echo "ctrl_interface_group=0" >> ${WPATMPFILE}
+                echo "update_config=1" >> ${WPATMPFILE}
+                echo "country=${WifiRegulatoryDomain}" >> ${WPATMPFILE}
+                echo "" >> ${WPATMPFILE}
+                echo "network={" >> ${WPATMPFILE}
+                echo "  ssid=\"${SSID}\"" >> ${WPATMPFILE}
+                if [ "x$PSK" != "x" ]; then
+                    echo "  psk=\"${PSK}\"" >> ${WPATMPFILE}
+                fi
+                echo "  key_mgmt=WPA-PSK" >> ${WPATMPFILE}
+                echo "  scan_ssid=1" >> ${WPATMPFILE}
+                echo "}" >> ${WPATMPFILE}
+                echo "" >> ${WPATMPFILE}
+                cp $WPATMPFILE /etc/wpa_supplicant
+                systemctl enable "wpa_supplicant@${INTERFACE}.service"
+            fi
+        fi
+
+        echo "$ADDRESSLINES" >> $TMPFILE
         echo "IgnoreCarrierLoss=5s" >> $TMPFILE
-        
         echo "" >> $TMPFILE
         echo "[DHCPv4]" >> $TMPFILE
         if [[ "$INTERFACE" == "wl"* ]] ; then
@@ -277,32 +358,15 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         fi
         echo "" >> $TMPFILE
         cp $TMPFILE /etc/systemd/network
-
-        if [[ "$INTERFACE" == "wl"* ]] ; then
-            WPATMPFILE="/var/tmp/wpa_supplicant-${INTERFACE}.conf"
-            rm -f ${WPATMPFILE}
-            echo "ctrl_interface=/var/run/wpa_supplicant" >> ${WPATMPFILE}
-            echo "ctrl_interface_group=0" >> ${WPATMPFILE}
-            echo "update_config=1" >> ${WPATMPFILE}
-            echo "country=${WifiRegulatoryDomain}" >> ${WPATMPFILE}
-            echo "" >> ${WPATMPFILE}
-            echo "network={" >> ${WPATMPFILE}
-            echo "  ssid=\"${SSID}\"" >> ${WPATMPFILE}
-            if [ "x$PSK" != "x" ]; then
-                echo "  psk=\"${PSK}\"" >> ${WPATMPFILE}
-            fi
-            echo "  key_mgmt=WPA-PSK" >> ${WPATMPFILE}
-            echo "  scan_ssid=1" >> ${WPATMPFILE}
-            echo "}" >> ${WPATMPFILE}
-            echo "" >> ${WPATMPFILE}
-            cp $WPATMPFILE /etc/wpa_supplicant
-            systemctl enable "wpa_supplicant@${INTERFACE}.service"
-        fi
     done
 
-    # FIXME - tethering
-    
     systemctl reload-or-restart systemd-networkd.service
+    if [ "${ENABLEHOSTAPD}" = "1" ]; then
+        systemctl reload-or-restart hostapd.service
+    else
+        systemctl stop hostapd.service
+        systemctl disable hostapd.service
+    fi
 }
 SetupFPPNetworkConfig () {
     if [ -f /usr/bin/connmanctl ]; then
@@ -365,7 +429,7 @@ WaitForInterfacesUp() {
         done
         if [ "x$DEFGW" == "x" ]; then
             # no gateway defined
-        CURDIR=$(pwd)
+            CURDIR=$(pwd)
             ETHS=`ls -d ether* 2> /dev/null`
             WIFIS=`ls -d wifi* 2> /dev/null`
             if [ "x$WIFIS" != "x" ]; then
@@ -402,10 +466,6 @@ DetectNetworkModules() {
 }
 
 MaybeEnableTethering() {
-    if [ ! -f /usr/bin/connmanctl ]; then
-        return
-    fi
-    //FIXME tethering
     TetherEnabled=$(getSetting EnableTethering)
 
     if [ "x${TetherEnabled}" == "x" ]; then
@@ -444,30 +504,45 @@ MaybeEnableTethering() {
         # no wifi adapter, no point enabling tethering
         TetherEnabled=2
     fi
+
     if [ "$TetherEnabled" == "1" ]; then
-        TetherSSID=$(getSetting TetherSSID)
-        TetherPSK=$(getSetting TetherPSK)
-        if [ "${TetherSSID}x" == "x" ]; then
-            TetherSSID="FPP"
-        fi
-        if [ "${TetherPSK}x" == "x" ]; then
-            TetherPSK="Christmas"
-        fi
-
-        TetherTechnology=$(getSetting TetherTechnology)
-        if [ "$TetherTechnology" == "1" ]; then
-            if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-                systemctl disable dnsmasq
-                systemctl stop dnsmasq
-            fi
-            connmanctl tether wifi on "${TetherSSID}" "${TetherPSK}"
+        if [ ! -f /usr/bin/connmanctl ]; then
+            CreateHostAPDConfig ${TetherInterface}
+            TMPFILE="/var/tmp/10-${INTERFACE}.network"
+            rm -f ${TMPFILE}
+            echo "[Match]" >> ${TMPFILE}
+            echo "Name=${INTERFACE}" >> $TMPFILE
+            echo "Type=wlan"  >> $TMPFILE
+            echo "" >> $TMPFILE
+            echo "[Network]" >> $TMPFILE
+            echo "Address=192.168.8.1/24" >> $TMPFILE
+            echo "DHCPServer=yes" >> $TMPFILE
+            echo "" >> $TMPFILE
+            cp $TMPFILE /etc/systemd/network
+            systemctl reload-or-restart hostapd.service
         else
-            AttemptCreateSoftAP
-            if [ -e "/sys/class/net/SoftAp0" ]; then
-                TetherInterface="SoftAp0"
-            fi
+            TetherTechnology=$(getSetting TetherTechnology)
+            if [ "$TetherTechnology" == "1" ]; then
+                if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+                    systemctl disable dnsmasq
+                    systemctl stop dnsmasq
+                fi
+                TetherSSID=$(getSetting TetherSSID)
+                TetherPSK=$(getSetting TetherPSK)
+                if [ "${TetherSSID}x" == "x" ]; then
+                    TetherSSID="FPP"
+                fi
+                if [ "${TetherPSK}x" == "x" ]; then
+                    TetherPSK="Christmas"
+                fi
+                connmanctl tether wifi on "${TetherSSID}" "${TetherPSK}"
+            else
+                AttemptCreateSoftAP
+                if [ -e "/sys/class/net/SoftAp0" ]; then
+                    TetherInterface="SoftAp0"
+                fi
 
-            systemctl stop dnsmasq
+                systemctl stop dnsmasq
 
 cat > /etc/dnsmasq.d/fpp-tether <<-EOF
 interface=${TetherInterface}
@@ -476,41 +551,19 @@ listen-address=192.168.8.1
 dhcp-option=${TetherInterface},3
 dhcp-option=${TetherInterface},6
 EOF
+                CreateHostAPDConfig ${TetherInterface}
 
-cat > /etc/hostapd/hostapd.conf <<-EOF
-interface=${TetherInterface}
-driver=nl80211
-wpa_passphrase=${TetherPSK}
-ssid=${TetherSSID}
-country_code=US
-hw_mode=g
-channel=11
-macaddr_acl=0
-auth_algs=3
-wpa=2
-wpa_key_mgmt=WPA-PSK
-wpa_pairwise=TKIP
-rsn_pairwise=CCMP
-wmm_enabled=0
-ignore_broadcast_ssid=0
-reassociation_deadline=3000
-pmk_r1_push=1
-ft_over_ds=0
-bss_transition=1
-wpa_group_rekey=3600
-wpa_gmk_rekey=86400
-EOF
+                /sbin/ifconfig ${TetherInterface} 192.168.8.1 netmask 255.255.255.0
 
-            /sbin/ifconfig ${TetherInterface} 192.168.8.1 netmask 255.255.255.0
+                echo 1 > /proc/sys/net/ipv4/ip_forward
+                iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+                iptables -A FORWARD -i eth0 -o  ${TetherInterface} -m state --state RELATED,ESTABLISHED -j ACCEPT
+                iptables -A FORWARD -i  ${TetherInterface} -o eth0 -j ACCEPT
 
-            echo 1 > /proc/sys/net/ipv4/ip_forward
-            iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-            iptables -A FORWARD -i eth0 -o  ${TetherInterface} -m state --state RELATED,ESTABLISHED -j ACCEPT
-            iptables -A FORWARD -i  ${TetherInterface} -o eth0 -j ACCEPT
-
-            systemctl unmask hostapd
-            systemctl start dnsmasq
-            systemctl start hostapd
+                systemctl unmask hostapd
+                systemctl start dnsmasq
+                systemctl start hostapd
+            fi
         fi
     fi
 }

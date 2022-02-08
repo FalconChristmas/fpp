@@ -1629,6 +1629,9 @@
             "reboot": 1,
             "default": 0,
             "type": "select",
+            "checkFile": [
+                "/usr/bin/connmanctl"
+            ],
             "options": {
                 "Hostapd": 0,
                 "ConnMan": 1
