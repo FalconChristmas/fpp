@@ -17,8 +17,8 @@
         <button class="dropdown-item" onClick="SetFPPDmode('remote');" data-tooltip-position-my="left+15 center" data-tooltip-touch="false" data-tooltip-position-at="right center" title="This FPP will be controlled by a Player FPP Instance">Remote</button>
       </div>
     </div>
-    <button name="btnReboot" onClick="RebootPi();" type="button" class="buttons btn-outline-light"><i class='fas fa-fw fa-retweet fa-nbsp'></i>Reboot</button>
-    <button name="btnShutdown" type="button" onClick="ShutdownPi();" class = "buttons btn-outline-light"><i class='fas fa-fw fa-power-off fa-nbsp'></i>Shutdown</button>
+    <button name="btnReboot" onClick="Reboot();" type="button" class="buttons btn-outline-light"><i class='fas fa-fw fa-retweet fa-nbsp'></i>Reboot</button>
+    <button name="btnShutdown" type="button" onClick="Shutdown();" class = "buttons btn-outline-light"><i class='fas fa-fw fa-power-off fa-nbsp'></i>Shutdown</button>
     <button name="btnRestartFPPD" type="button" onClick="ClearRestartFlag(); RestartFPPD();" class="buttons btn-outline-light"><i class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
     <button type="button" id="btnDaemonControl" value="" class="buttons btn-outline-light hidden" onClick="ControlFPPD();"></button>
 
