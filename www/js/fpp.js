@@ -4154,7 +4154,7 @@ function GetRunningEffects() {
     });
 }
 
-function RebootPi() {
+function Reboot() {
     if (confirm('REBOOT the Falcon Player?')) {
         ClearRestartFlag();
         ClearRebootFlag();
@@ -4180,7 +4180,7 @@ function RebootPi() {
     }
 }
 
-function ShutdownPi() {
+function Shutdown() {
     if (confirm('SHUTDOWN the Falcon Player?')) {
         $.get({
             url: "api/system/shutdown",
