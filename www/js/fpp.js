@@ -3570,6 +3570,10 @@ function parseStatus(jsonStatus) {
 
 function niceDuration(ms) {
     var t = ms;
+    if (t <= 0) {
+        return "&lt; 1 min";
+    }
+
     if (t < 1000) {
         return "" + t + " ms";
     }
@@ -4154,7 +4158,7 @@ function GetRunningEffects() {
     });
 }
 
-function RebootPi() {
+function Reboot() {
     if (confirm('REBOOT the Falcon Player?')) {
         ClearRestartFlag();
         ClearRebootFlag();
@@ -4180,7 +4184,7 @@ function RebootPi() {
     }
 }
 
-function ShutdownPi() {
+function Shutdown() {
     if (confirm('SHUTDOWN the Falcon Player?')) {
         $.get({
             url: "api/system/shutdown",
@@ -5272,8 +5276,9 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                 }
 
                 if (typeof val['children'] === 'object') {
-                    if (tblCommand == 'playlistEntryCommandOptions')
+                    if (tblCommand == 'playlistEntryCommandOptions' || tblCommand == 'playlistEntryOptions'){
                         line += " onChange='UpdateChildVisibility();";
+                    }
                     if (typeof val['onChange'] === 'string') {
                         line += ' ' + val['onChange'] + '();';
                         initFuncs.push(val['onChange']);

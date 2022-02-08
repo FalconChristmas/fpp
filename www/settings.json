@@ -73,6 +73,7 @@
                 "AudioMixerDevice",
                 "AudioFormat",
                 "VideoOutput",
+                "HardwareDecoding",
                 "mediaOffset",
                 "remoteIgnoreSync",
                 "disableIPAnnouncement"
@@ -1687,6 +1688,16 @@
             "tip": "The Default Video Output device to be used when playing a video.  On all FPP systems, video played in a playlist can be displayed on a Pixel Overlay model.  On the Raspberry Pi, video can also be played on the HDMI/Composite video outputs.",
             "type": "select",
             "optionsURL": "api/settings/VideoOutput/options"
+        },
+        "HardwareDecoding": {
+            "name": "HardwareDecoding",
+            "description": "Hardware Decoding",
+            "gatherStats": true,
+            "tip": "Use the Hardware Decoder for decoding videos.  Disabling will cause much higher CPU usage, but may allow better control over the video output.",
+            "type": "checkbox",
+            "default": 1,
+            "level": 1,
+            "restart": 2
         },
         "TimeZone": {
             "name": "TimeZone",

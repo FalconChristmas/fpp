@@ -52,8 +52,10 @@ public:
 private:
     bool FrameBufferIsConfigured(void);
 
+    void InitializeWS281x(void);
     void InitFrameWS281x(void);
     void OutputPixelRowWS281x(uint32_t *rowData);
+    void CompleteFrameWS281x(void);
 
     std::string device;
     std::string protocol;
@@ -74,4 +76,5 @@ private:
     int protoBitsPerLine = 0;
     int protoBitOnLine = 0;
     uint8_t *protoDest = nullptr;
+    int protoDestExtra = 0;
 };
