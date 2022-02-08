@@ -3570,6 +3570,10 @@ function parseStatus(jsonStatus) {
 
 function niceDuration(ms) {
     var t = ms;
+    if (t <= 0) {
+        return "&lt; 1 min";
+    }
+
     if (t < 1000) {
         return "" + t + " ms";
     }
