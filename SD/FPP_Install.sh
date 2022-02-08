@@ -436,6 +436,7 @@ case "${OSVER}" in
 			systemctl disable bonescript-autorun.service
 			systemctl disable console-kit-daemon.service
 			systemctl disable cloud9.socket
+            systemctl disable beagle-flasher-init-shutdown.service
 		fi
 
         if $isimage; then

@@ -105,7 +105,7 @@ done
 cd /opt/wifi
 rm -rf 8814au
 
-git clone https://github.com/morrownr/88x2bu
+git clone https://github.com/morrownr/88x2bu-20210702 88x2bu
 cd 88x2bu
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
 sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile

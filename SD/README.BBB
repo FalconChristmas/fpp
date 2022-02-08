@@ -89,6 +89,7 @@ rm -rf /etc/udev/rules.d/beagle-tester.rules
 rm -rf /opt/cloud9
 rm -rf /etc/avahi/services/cloud9.service
 rm -f /var/local/bb_usb_mass_storage.img
+rm -f /etc/bbb.io/templates/beaglebone-getting-started-2022-01-12.img
 
 # blacklist  bluetooth (needed if making image on BBGG or BBBW)
 echo "blacklist bluetooth" > /etc/modprobe.d/blacklist-bluetooth.conf
