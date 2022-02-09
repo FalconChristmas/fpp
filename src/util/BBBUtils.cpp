@@ -177,7 +177,6 @@ BBBPinCapabilities::BBBPinCapabilities(const std::string& n, uint32_t k) :
 
 static uint8_t* bbGPIOMap[] = { 0, 0, 0, 0 };
 
-static int bbbPWMChipNums[] = { 1, 4, 7 };  // #48300200, 48302200, 48304200
 static const char* bbbPWMDeviceName = "/sys/class/pwm/pwmchip";
 
 static FILE* bbbPWMDutyFiles[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
@@ -185,7 +184,15 @@ static FILE* bbbPWMDutyFiles[] = { nullptr, nullptr, nullptr, nullptr, nullptr, 
 static volatile bool registersMemMapped = false;
 
 static int getBBBPWMChipNum(int pwm) {
-    return bbbPWMChipNums[pwm];
+    static const char *bbbPWMChipNums[] = { "48300200", "48302200", "48304200" };
+    char buf[256];
+    for (int x = 0; x < 10; x++) {
+        sprintf(buf, "/sys/bus/platform/drivers/ehrpwm/%s.pwm/pwm/pwmchip%d", bbbPWMChipNums[pwm], x);
+        if (access(buf, F_OK) == 0) {
+            return x;
+        }
+    }
+    return 0;
 }
 
 static void setupBBBMemoryMap() {
