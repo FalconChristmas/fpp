@@ -901,6 +901,8 @@ dpi_output_format=0x17
 max_framebuffers=2
 # Make onboard HDMI fb0 and DPI fb1 if HDMI is in use, otherwise DPI is fb0
 framebuffer_priority=2
+# uncomment to force DPI onto fb1 even if no monitor/projector present on fb0
+#hdmi_force_hotplug=1
 # Custom resolution and timing
 dpi_timings=${TIMING}
 # Enable UART2 on Pi 4 since UART0 TXD pin is used by DPI
