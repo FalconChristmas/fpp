@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# am335x-debian-11.2-minimal-armhf-2022-02-01-2gb.img.xz
-# from https://rcn-ee.net/rootfs/bb.org/testing/2022-02-01/bullseye-minimal/
+# am335x-debian-11.2-minimal-armhf-2022-02-03-2gb.img.xz
+# from https://rcn-ee.net/rootfs/bb.org/testing/2022-02-03/bullseye-minimal/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -28,8 +28,8 @@ chmod +x BBB-FlashMMC.sh
 
 #copy the ssh keys temporarily to allow it to boot quicker and avoid
 #having to reset known_hosts while building image
-mount -t ext4 /dev/mmcblk1p1 /tmp/rootfs
-cp -a /etc/ssh/* /tmp/rootfs/etc/ssh
+mount -t ext4 /dev/mmcblk1p1 /mnt
+cp -a /etc/ssh/* /mnt/etc/ssh
 shutdown -h now
 
 
