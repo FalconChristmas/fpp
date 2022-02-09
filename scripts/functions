@@ -886,13 +886,24 @@ exit(20)
 
             cat <<DPI_PIXELS_EOF > /boot/dpipixels.txt
 # DPI Pixels framebuffer config
+# more info: https://www.raspberrypi.com/documentation/computers/config_txt.html
+#
+# Date Added: $(date)
+#
+# Enable DPI
 enable_dpi_lcd=1
+# Enable mode with custom resolution and timing
 dpi_group=2
 dpi_mode=87
+# RGB24 888, RGB color order
 dpi_output_format=0x17
+# Enable DPI framebuffer on < Pi 4
 max_framebuffers=2
+# Make onboard HDMI fb0 and DPI fb1 if HDMI is in use, otherwise DPI is fb0
+framebuffer_priority=2
+# Custom resolution and timing
 dpi_timings=${TIMING}
-# Enable UART2 on Pi 4
+# Enable UART2 on Pi 4 since UART0 TXD pin is used by DPI
 dtoverlay=uart2
 DPI_PIXELS_EOF
 
