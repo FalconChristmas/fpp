@@ -136,32 +136,32 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
             pin.configPin("dpi"); // Enable ALT2 functionality for this pin
 
-            if      (pinName == "P1-7")  bitPos[i] =  7; // DPI_D0
-            else if (pinName == "P1-29") bitPos[i] =  6; // DPI_D1
-            else if (pinName == "P1-31") bitPos[i] =  5; // DPI_D2
-            else if (pinName == "P1-26") bitPos[i] =  4; // DPI_D3
-            else if (pinName == "P1-24") bitPos[i] =  3; // DPI_D4
-            else if (pinName == "P1-21") bitPos[i] =  2; // DPI_D5
-            else if (pinName == "P1-19") bitPos[i] =  1; // DPI_D6
-            else if (pinName == "P1-23") bitPos[i] =  0; // DPI_D7
+            if      (pinName == "P1-7")  bitPos[i] =  7; // DPI_D0  = GPIO4
+            else if (pinName == "P1-29") bitPos[i] =  6; // DPI_D1  = GPIO5
+            else if (pinName == "P1-31") bitPos[i] =  5; // DPI_D2  = GPIO6
+            else if (pinName == "P1-26") bitPos[i] =  4; // DPI_D3  = GPIO7
+            else if (pinName == "P1-24") bitPos[i] =  3; // DPI_D4  = GPIO8
+            else if (pinName == "P1-21") bitPos[i] =  2; // DPI_D5  = GPIO9
+            else if (pinName == "P1-19") bitPos[i] =  1; // DPI_D6  = GPIO10
+            else if (pinName == "P1-23") bitPos[i] =  0; // DPI_D7  = GPIO11
 
-            else if (pinName == "P1-32") bitPos[i] = 15; // DPI_D8
-            else if (pinName == "P1-33") bitPos[i] = 14; // DPI_D9
-            else if (pinName == "P1-8")  bitPos[i] = 13; // DPI_D10
-            else if (pinName == "P1-10") bitPos[i] = 12; // DPI_D11
-            else if (pinName == "P1-36") bitPos[i] = 11; // DPI_D12
-            else if (pinName == "P1-11") bitPos[i] = 10; // DPI_D13
-            else if (pinName == "P1-12") bitPos[i] =  9; // DPI_D14
-            else if (pinName == "P1-35") bitPos[i] =  8; // DPI_D15
+            else if (pinName == "P1-32") bitPos[i] = 15; // DPI_D8  = GPIO12
+            else if (pinName == "P1-33") bitPos[i] = 14; // DPI_D9  = GPIO13
+            else if (pinName == "P1-8")  bitPos[i] = 13; // DPI_D10  = GPIO14
+            else if (pinName == "P1-10") bitPos[i] = 12; // DPI_D11  = GPIO15
+            else if (pinName == "P1-36") bitPos[i] = 11; // DPI_D12  = GPIO16
+            else if (pinName == "P1-11") bitPos[i] = 10; // DPI_D13  = GPIO17
+            else if (pinName == "P1-12") bitPos[i] =  9; // DPI_D14  = GPIO18
+            else if (pinName == "P1-35") bitPos[i] =  8; // DPI_D15  = GPIO19
 
-            else if (pinName == "P1-38") bitPos[i] = 23; // DPI_D16
-            else if (pinName == "P1-40") bitPos[i] = 22; // DPI_D17
-            else if (pinName == "P1-15") bitPos[i] = 21; // DPI_D18
-            else if (pinName == "P1-16") bitPos[i] = 20; // DPI_D19
-            else if (pinName == "P1-18") bitPos[i] = 19; // DPI_D20
-            else if (pinName == "P1-22") bitPos[i] = 18; // DPI_D21
-            else if (pinName == "P1-37") bitPos[i] = 17; // DPI_D22
-            else if (pinName == "P1-13") bitPos[i] = 16; // DPI_D23
+            else if (pinName == "P1-38") bitPos[i] = 23; // DPI_D16  = GPIO20
+            else if (pinName == "P1-40") bitPos[i] = 22; // DPI_D17  = GPIO21
+            else if (pinName == "P1-15") bitPos[i] = 21; // DPI_D18  = GPIO22
+            else if (pinName == "P1-16") bitPos[i] = 20; // DPI_D19  = GPIO23
+            else if (pinName == "P1-18") bitPos[i] = 19; // DPI_D20  = GPIO24
+            else if (pinName == "P1-22") bitPos[i] = 18; // DPI_D21  = GPIO25
+            else if (pinName == "P1-37") bitPos[i] = 17; // DPI_D22  = GPIO26
+            else if (pinName == "P1-13") bitPos[i] = 16; // DPI_D23  = GPIO27
         }
 
         m_strings.push_back(newString);
