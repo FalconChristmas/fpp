@@ -635,6 +635,9 @@ function getPixelStringOutputJSON()
 
 		output.outputs = outputs;
 		postData.channelOutputs.push(output);
+//                if (IsPixelStringDriverType(output.type)) {
+                const is_dpi = ~output.type.indexOf("DPI");
+                show_slowest(output, is_dpi); //show extra DPI info (fps for slowest port)
     });
 
     return postData;
@@ -1413,7 +1416,7 @@ function show_slowest(output, want_info)
 //    const xres = 360; //TODO: get this from somewhere
 //    const pxPerLine = xres / 72;
     const fps = longest? 1 / (longest * 30e-6 + 1e-3): 0; //allow 1 msec for refresh/latency, assume xres/yres don't add much overhead
-console.log("here1", longest, which, fps);
+//console.log("here1", longest, which, fps);
     const slowest = longest? `, slowest is port# ${which + 1} ${port2pin[which] || "(unknown port)"}`: "";
     $("#dpi-info").html(`<b>Max DPI FPS</b>: ${fps.toFixed(2).replace(".00", "")}${slowest}`);
     $("#dpi-info").show();
