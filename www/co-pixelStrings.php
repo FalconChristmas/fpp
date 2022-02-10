@@ -1044,6 +1044,8 @@ function populatePixelStringOutputs(data) {
             var output = data.channelOutputs[opi];
             var type = output.type;
             if (IsPixelStringDriverType(type)) {
+                const is_dpi = ~type.indexOf("DPI");
+                show_slowest(output, is_dpi); //show extra DPI info (fps for slowest port)
                 $('#BBB48String_enable').prop('checked', output.enabled);
                 var subType = output.subType;
                 $('#BBB48StringSubType').val(subType);
@@ -1362,6 +1364,61 @@ function ValidateBBBStrings(data) {
     }
 }
 
+//map port# to user-friendly pin name + header name:
+const port2pin = {
+    0: "GPIO4 (P1-7)",
+    1: "GPIO5 (P1-29)",
+    2: "GPIO6 (P1-31)",
+    3: "GPIO7 (P1-26)",
+    4: "GPIO8 (P1-24)",
+    5: "GPIO9 (P1-21)",
+    6: "GPIO10 (P1-19)",
+    7: "GPIO11 (P1-23)",
+
+    8: "GPIO12 (P1-32)",
+    9: "GPIO13 (P1-33)",
+    10: "GPIO14 (P1-8)",
+    11: "GPIO15 (P1-10)",
+    12: "GPIO16 (P1-36)",
+    13: "GPIO17 (P1-11)",
+    14: "GPIO18 (P1-12)",
+    15: "GPIO19 (P1-35)",
+
+    16: "GPIO20 (P1-38)",
+    17: "GPIO21 (P1-40)",
+    18: "GPIO22 (P1-15)",
+    19: "GPIO23 (P1-16)",
+    20: "GPIO24 (P1-18)",
+    21: "GPIO25 (P1-22)",
+    22: "GPIO26 (P1-37)",
+    23: "GPIO27 (P1-13)",
+};
+
+//show extra DPI info (fps for slowest port):
+function show_slowest(output, want_info)
+{
+    if (!want_info) {
+        $("#dpi-info").hide();
+        return;
+    }
+//console.log("here0", JSON.stringify(output), typeof output.outputs, Array.isArray(output.outputs), (output.outputs || []).length);
+    const [longest, which] = (output.outputs || [])
+        .reduce(([longest, which], str_output) =>
+        {
+            const numpx = (str_output.virtualStrings || [])
+                .reduce((numpx, virtstr) => numpx + virtstr.pixelCount + virtstr.nullNodes + virtstr.endNulls, 0);
+            if (numpx > longest) return [numpx, str_output.portNumber];
+            return [longest, which];
+        }, [0, ""]);
+//    const xres = 360; //TODO: get this from somewhere
+//    const pxPerLine = xres / 72;
+    const fps = longest? 1 / (longest * 30e-6 + 1e-3): 0; //allow 1 msec for refresh/latency, assume xres/yres don't add much overhead
+console.log("here1", longest, which, fps);
+    const slowest = longest? `, slowest is port# ${which + 1} ${port2pin[which] || "(unknown port)"}`: "";
+    $("#dpi-info").html(`<b>Max DPI FPS</b>: ${fps.toFixed(2).replace(".00", "")}${slowest}`);
+    $("#dpi-info").show();
+}
+
 <? if ($settings['Platform'] == "BeagleBone Black") { ?>
 var PIXEL_STRING_FILE_NAME = "co-bbbStrings";
 <? } else { ?>
@@ -1540,6 +1597,8 @@ style="display: none;"
                         <option value="1">Slow (1903)</option>
                         </select>
                     </div>
+                </div>
+                <div id="dpi-info" class="col-md-auto form-inline" style="display: none;">
                 </div>
             </div>
         </div>
