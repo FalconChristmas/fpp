@@ -54,7 +54,7 @@ private:
 
     void InitializeWS281x(void);
     void InitFrameWS281x(void);
-    void OutputPixelRowWS281x(uint32_t *rowData);
+    void OutputPixelRowWS281x(uint32_t *rowData, int y, int longestString);
     void CompleteFrameWS281x(void);
 
     std::string device;

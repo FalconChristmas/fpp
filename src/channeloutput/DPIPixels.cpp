@@ -324,7 +324,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
         startTime = GetTime();
 
         if (protocol == "ws2811")
-            OutputPixelRowWS281x(rowData);
+            OutputPixelRowWS281x(rowData, y, longestString);
 
         elapsedTimeOutput += GetTime() - startTime;
     }
@@ -428,11 +428,12 @@ void DPIPixelsOutput::InitFrameWS281x(void) {
     protoDestExtra = finfo.line_length - (vinfo.xres * 3); // Skip over the hsync/porch/pad area
 }
 
-void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData) {
+void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData, int y, int longestString) {
     uint32_t onOff = 0;
     uint32_t bv;
     int oindex = 0;
 
+    LogDebug(VB_CHANNELOUT, "OutputPixelRowWS281x : #str %d, dest %d, bit on line %d, bits per line %d, extra %d\n", m_strings.size(), protoDest, protoBitOnLine, protoBitsPerLine, protoDestExtra);
     // 24 bits in WS281x output data
     for (int bt = 0; bt < 24; ++bt) {
         // 3 FB pixels per WS281x bit.  WS281x 0 == 100, WS281x 1 == 110
@@ -450,6 +451,12 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t *rowData) {
                     onOff |= 0x800000 >> oindex;
             }
         }
+#if 1 //debug
+	if (protoDest + 3 > (uint8_t*)fbp + 2 * pagesize) {
+            LogInfo(VB_CHANNELOUT, "DPIPixelsOutput::OutputPixelRowWS281x ptr overrun: y %d, longest %d, protoDest %p = ofs %d, fb end = %p + %d, bit on line %d, bits per line %d, bt %d\n", y, longestString, protoDest, protoDest - (uint8_t*)fbp, fbp, 2 * pagesize, protoBitOnLine, protoBitsPerLine, bt);
+	    return;
+	}
+#endif
         *(protoDest++) = (onOff >> 16);
         *(protoDest++) = (onOff >>  8);
         *(protoDest++) = (onOff      );
