@@ -6,7 +6,7 @@ require_once('common.php');
 <script>
 
 function changeAll(newVal) {
-   $("select[id^=LogLevel]").val(newVal).trigger("change");
+   $("select[id^=LogLevel]:not(#LogLevel_ChannelData)").val(newVal).trigger("change");
 }
 
 
@@ -23,7 +23,7 @@ PrintSettingGroup('log-levels');
 ?>
 
 <div>
-   <b>Bulk Change Log Level</b>
+   <b>Bulk Change Log Level</b> (Changes all except for Channel Data)
    <div>
       <button class="buttons" onclick="changeAll('error')">Errors Only</button>
       <button class="buttons" onclick="changeAll('warn')">Warn</button>
