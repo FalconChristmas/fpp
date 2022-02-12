@@ -49,37 +49,37 @@ include 'common/menuHead.inc';
 
 </script>
 
-<title><?echo $pageTitle; ?></title>
+<title><?=$pageTitle ?></title>
 
-	<script>
+    <script>
         function PageSetup() {
-			//Store frequently elements in variables
-			var slider  = $('#slider');
+            //Store frequently elements in variables
+            var slider  = $('#slider');
             var rslider  = $('#remoteVolumeSlider');
-			//Call the Slider
-			// slider.slider({
-			// 	//Config
-			// 	range: "min",
-			// 	min: 1,
-			// 	//value: 35,
-			// });
-			rslider.slider({
-				//Config
-				range: "min",
-				min: 1,
-				//value: 35,
-			});
+            //Call the Slider
+            // slider.slider({
+            //  //Config
+            //  range: "min",
+            //  min: 1,
+            //  //value: 35,
+            // });
+            rslider.slider({
+                //Config
+                range: "min",
+                min: 1,
+                //value: 35,
+            });
 
 
-			// slider.slider({
-			// 	stop: function( event, ui ) {
-			// 		var value = slider.slider('value');
+            // slider.slider({
+            //  stop: function( event, ui ) {
+            //      var value = slider.slider('value');
 
-			// 		SetSpeakerIndicator(value);
-			// 		$('#volume').html(value);
+            //      SetSpeakerIndicator(value);
+            //      $('#volume').html(value);
             //         $('#remoteVolume').html(value);
-			// 		SetVolume(value);
-			// 	}
+            //      SetVolume(value);
+            //  }
             // });
             slider.on('change',function(e) {
                 var value = slider.val();
@@ -110,93 +110,95 @@ include 'common/menuHead.inc';
             // });
 
             SetupBanner();
-		};
+        };
 
-    function EnabledStats() {
-        SetSetting("statsPublish", "Enabled", 2);
-        $("#bannerRow").hide();
-    }
+        function EnabledStats() {
+            SetSetting("statsPublish", "Enabled", 2);
+            $("#bannerRow").hide();
+        }
 
-    function SetupBanner() {
-       let showIt = true;
-       if (settings.hasOwnProperty('statsPublish') && settings.statsPublish != "Banner") {
-          showIt = false;
-       }
+        function SetupBanner() {
+            let showIt = true;
+            if (settings.hasOwnProperty('statsPublish') && settings.statsPublish != "Banner") {
+                showIt = false;
+            }
 
-       if (showIt) {
-          var html = [];
-          html.push("Please consider enabling the collection of anonymous statistics on the hardware and features used to ");
-          html.push("help us improve FPP in the future. You may preview the data  ");
-          html.push("or disable this banner on the <a href=\"settings.php#settings-privacy\">Privacy Settings Page</a>. ");
-          html.push("<div style='margin-top:1em'><button class='buttons wideButton btn-outline-light' onClick='EnabledStats();'>Enable Stats</button></div>")
-          $("#bannerRow").html(html.join(' ')).show();
-       }
-    }
+            if (showIt) {
+                $("#bannerRow").html(
+                    "Please consider enabling the collection of anonymous statistics "
+                    + "on the hardware and features used to help us improve FPP in the "
+                    + "future. You may preview the data or disable this banner on the "
+                    + "<a href=\"settings.php#settings-privacy\">Privacy Settings Page</a>. "
+                    + "<div style='margin-top:1em'><button class='buttons wideButton "
+                    + "btn-outline-light' onClick='EnabledStats();'>Enable Stats</button></div>"
+                ).show();
+            }
+        }
 
-	function SetSpeakerIndicator(value) {
-		var speaker = $('#speaker');
-        var remoteSpeaker = $('#remoteSpeaker');
+        function SetSpeakerIndicator(value) {
+            var speaker = $('#speaker');
+            var remoteSpeaker = $('#remoteSpeaker');
 
-		if(value <= 5)
-		{
-			speaker.css('background-position', '0 0');
-            remoteSpeaker.css('background-position', '0 0');
-		}
-		else if (value <= 25)
-		{
-			speaker.css('background-position', '0 -25px');
-            remoteSpeaker.css('background-position', '0 -25px');
-		}
-		else if (value <= 75)
-		{
-			speaker.css('background-position', '0 -50px');
-            remoteSpeaker.css('background-position', '0 -50px');
-		}
-		else
-		{
-			speaker.css('background-position', '0 -75px');
-            remoteSpeaker.css('background-position', '0 -75px');
-		};
-	}
+            if(value <= 5)
+            {
+                speaker.css('background-position', '0 0');
+                remoteSpeaker.css('background-position', '0 0');
+            }
+            else if (value <= 25)
+            {
+                speaker.css('background-position', '0 -25px');
+                remoteSpeaker.css('background-position', '0 -25px');
+            }
+            else if (value <= 75)
+            {
+                speaker.css('background-position', '0 -50px');
+                remoteSpeaker.css('background-position', '0 -50px');
+            }
+            else
+            {
+                speaker.css('background-position', '0 -75px');
+                remoteSpeaker.css('background-position', '0 -75px');
+            };
+        }
 
-	function IncrementVolume()
-	{
-		var volume = parseInt($('#volume').html());
-		volume += 1;
-		if (volume > 100)
-			volume = 100;
+        function IncrementVolume()
+        {
+            var volume = parseInt($('#volume').html());
+            volume += 1;
+            if (volume > 100)
+                volume = 100;
 
-        updateVolumeUI(volume);
-		SetVolume(volume);
-	}
+            updateVolumeUI(volume);
+            SetVolume(volume);
+        }
 
-	function DecrementVolume()
-	{
-		var volume = parseInt($('#volume').html());
-		volume -= 1;
-		if (volume < 0)
-			volume = 0;
+        function DecrementVolume()
+        {
+            var volume = parseInt($('#volume').html());
+            volume -= 1;
+            if (volume < 0)
+                volume = 0;
 
-        updateVolumeUI(volume);
-		SetVolume(volume);
-	}
+            updateVolumeUI(volume);
+            SetVolume(volume);
+        }
 
-    function PreviousPlaylistEntry()
-    {
-        var url = 'api/command/Prev Playlist Item';
-        $.get(url)
-            .done(function() {})
-            .fail(function() {});
-    }
-    function NextPlaylistEntry()
-    {
-        var url = 'api/command/Next Playlist Item';
-        $.get(url)
-            .done(function() {})
-            .fail(function() {});
-    }
+        function PreviousPlaylistEntry()
+        {
+            var url = 'api/command/Prev Playlist Item';
+            $.get(url)
+                .done(function() {})
+                .fail(function() {});
+        }
+        function NextPlaylistEntry()
+        {
+            var url = 'api/command/Next Playlist Item';
+            $.get(url)
+                .done(function() {})
+                .fail(function() {});
+        }
 
-	</script>
+    </script>
 
 
 </head>
@@ -209,18 +211,17 @@ include 'menu.inc';
 
 
 <div class="mainContainer">
-<h1 class="title statusTitle">Status <span class="statusHostname"><?php echo (gethostname()) ?></span></h1>
+<h1 class="title statusTitle">Status <span class="statusHostname"><?=gethostname()?></span></h1>
+
 <?php
-if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
+if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) :
     ?>
 <div id='upgradeFlag' class="alert alert-danger" role="alert">
      SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
      file system or create a new storage partition.
 </div>
+<?php endif; ?>
 
-<?php
-}
-?>
 <div class="statusDivTopWrap">
     <div id="schedulerInfo" class="statusDiv statusDivTop">
         <div class="statusTable statusDivTopRow">
@@ -233,8 +234,12 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                 <div class="labelHeading">Extend Current Playlist:</div>
                 <div class='labelValue' colspan='2'>
                     <div class="btn-group">
-                    <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedulePopup();'><i class="fas fa-fw fa-calendar-plus"></i>Extend</button>
-                    <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedule(5);'><i class="fas fa-fw fa-clock"></i>+5min</button>
+                        <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedulePopup();'>
+                            <i class="fas fa-fw fa-calendar-plus"></i>Extend
+                        </button>
+                        <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedule(5);'>
+                            <i class="fas fa-fw fa-clock"></i>+5min
+                        </button>
                     </div>
                 </div>
             </div>
@@ -243,7 +248,9 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                 <div class='labelValue' id='schedulerStartTime'></div>
             </div>
             <div class="statusDivTopCol schedulerEndTime">
-                <div class='labelHeading'><span id='schedulerStopType'></span> Stop at:</div>
+                <div class='labelHeading'>
+                    <span id='schedulerStopType'></span> Stop at:
+                </div>
                 <div class='labelValue' id='schedulerEndTime'></div>
             </div>
             <div class="statusDivTopCol">
@@ -254,7 +261,9 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                     </div>
                     <div>
                         <div class="labelAction">
-                            <button class='buttons wideButton btn-outline-light' onClick='PreviewSchedule();'><i class="fas fa-fw fa-calendar-alt"></i>Preview</button>
+                            <button class='buttons wideButton btn-outline-light' onClick='PreviewSchedule();'>
+                                <i class="fas fa-fw fa-calendar-alt"></i>Preview
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -290,7 +299,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
 
                 <div class='statusTable'>
                     <div class="row">
-                    <div class="col-md-3">
+                        <div class="col-md-3">
                             <div class="playerStatusLabel">Remote Status:</div>
                             <div id="txtRemoteStatus" class="labelValue txtRemoteStatusLabelValue"></div>
                         </div>
@@ -311,11 +320,17 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
 
                 <div class="volumeControlsContainer d-flex">
                     <div class="ml-auto">
-                        <div class="labelHeading">Volume</div> <span id='remoteVolume' class='volume'></span></div>
-                        <div class="volumeControls">
-                            <button class='volumeButton buttons' onClick="DecrementVolume();"><i class='fas fa-fw fa-volume-down'></i></button>
-                            <input type="range" min="0" max="100" class="slider" id="remoteVolumeSlider">
-                            <button class='volumeButton buttons' onClick="IncrementVolume();"><i class='fas fa-fw fa-volume-up'></i></button>
+                        <div class="labelHeading">Volume</div>
+                        <span id='remoteVolume' class='volume'></span>
+                    </div>
+                    <div class="volumeControls">
+                        <button class='volumeButton buttons' onClick="DecrementVolume();">
+                            <i class='fas fa-fw fa-volume-down'></i>
+                        </button>
+                        <input type="range" min="0" max="100" class="slider" id="remoteVolumeSlider">
+                        <button class='volumeButton buttons' onClick="IncrementVolume();">
+                            <i class='fas fa-fw fa-volume-up'></i>
+                        </button>
                         <span id='speaker'></span> <!-- Volume -->
                     </div>
                 </div>
@@ -329,8 +344,10 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                         <input type='button' onClick='ResetMultiSyncStats();' value='Reset' class='buttons'>
                     </div>
                     <div class="col-auto ml-auto">
-                    <?PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0");?> Live Update Stats
-
+                        <?php
+                        PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0");
+                        ?>
+                        Live Update Stats
                     </div>
                 </div>
 
@@ -338,7 +355,8 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                     <div class='fppTableContents' role="region" aria-labelledby="syncStatsTable" tabindex="0">
                         <table id='syncStatsTable'>
                             <thead>
-                                <tr><th rowspan=2>Host</th>
+                                <tr>
+                                    <th rowspan=2>Host</th>
                                     <th rowspan=2 data-filter='false'>Last<br>Rcvd</th>
                                     <th colspan=4 class="sorter-false">Sequence Sync</th>
                                     <th colspan=4 class="sorter-false">Media Sync</th>
@@ -347,8 +365,9 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                                     <th rowspan=2 data-filter='false'>Plugin</th>
                                     <th rowspan=2 data-filter='false'>FPP<br>Cmd</th>
                                     <th rowspan=2 data-filter='false'>Errors</th>
-                                    </tr>
-                                <tr><th data-filter='false'>Open</th>
+                                </tr>
+                                <tr>
+                                    <th data-filter='false'>Open</th>
                                     <th data-filter='false'>Start</th>
                                     <th data-filter='false'>Stop</th>
                                     <th data-filter='false'>Sync</th>
@@ -356,7 +375,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                                     <th data-filter='false'>Start</th>
                                     <th data-filter='false'>Stop</th>
                                     <th data-filter='false'>Sync</th>
-                                    </tr>
+                                </tr>
                             </thead>
                             <tbody id='syncStats'>
                             </tbody>
@@ -376,28 +395,82 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                             </div>
                             <div class="row playlistSelectRow">
 
-                                <div class="playlistSelectCol"><select id="playlistSelect" name="playlistSelect" class="form-control form-control-lg form-control-rounded has-shadow" size="1" onClick="PopulatePlaylistDetailsEntries(true,'');" onChange="PopulatePlaylistDetailsEntries(true,'');"></select></div>
-                                <div class="playlistRepeatCol"><span class="settingLabelHeading">Repeat:</span> <input type="checkbox" id="chkRepeat"></input></div>
-
+                                <div class="playlistSelectCol">
+                                    <select id="playlistSelect" name="playlistSelect"
+                                        class="form-control form-control-lg form-control-rounded has-shadow"
+                                        size="1" onClick="PopulatePlaylistDetailsEntries(true,'');"
+                                        onChange="PopulatePlaylistDetailsEntries(true,'');">
+                                    </select>
+                                </div>
+                                <div class="playlistRepeatCol">
+                                    <span class="settingLabelHeading">Repeat:</span>
+                                    <input type="checkbox" id="chkRepeat"></input>
+                                </div>
                             </div>
-
                         </div>
                         <div class="row statusPageControlsRow">
                             <div id="playerControls" class="col-md" >
-                                <button id= "btnPlay" class ="buttons btn-rounded btn-success disableButtons" onClick="StartPlaylistNow();"><i class='fas fa-fw fa-play'></i><span class="playerControlButton-text">Play</span></button>
-                                <button id= "btnPrev" class ="buttons btn-rounded btn-pleasant disableButtons" onClick="PreviousPlaylistEntry();"><i class='fas fa-fw fa-step-backward'></i><span class="playerControlButton-text">Previous</span></button>
-                                <button id= "btnNext" class ="buttons btn-rounded btn-pleasant disableButtons" onClick="NextPlaylistEntry();"><i class='fas fa-fw fa-step-forward'></i><span class="playerControlButton-text">Next</span></button>
-                                <button id= "btnStopGracefully" class ="buttons btn-rounded btn-graceful disableButtons" onClick="StopGracefully();"><i class='fas fa-fw fa-stop'></i><span class="playerControlButton-text">Stop <span class="playerControlButton-text-important">Graceful</span>ly</span></button>
-                                <button id= "btnStopGracefullyAfterLoop" class ="buttons btn-rounded btn-detract disableButtons" onClick="StopGracefullyAfterLoop();"><i class='fas fa-fw fa-hourglass-half'></i><span class="playerControlButton-text">Stop <span class="playerControlButton-text-important">After Loop</span></span></button>
-                                <button id= "btnStopNow" class ="buttons btn-rounded btn-danger disableButtons"  onClick="StopNow();"><i class='fas fa-fw fa-hand-paper'></i><span class="playerControlButton-text">Stop <span class="playerControlButton-text-important">Now</span></span></button>
+                                <button id="btnPlay" class="buttons btn-rounded btn-success disableButtons"
+                                    onClick="StartPlaylistNow();">
+
+                                    <i class='fas fa-fw fa-play'></i>
+                                    <span class="playerControlButton-text">Play</span>
+                                </button>
+                                <button id="btnPrev" class ="buttons btn-rounded btn-pleasant disableButtons"
+                                    onClick="PreviousPlaylistEntry();">
+
+                                    <i class='fas fa-fw fa-step-backward'></i>
+                                    <span class="playerControlButton-text">Previous</span>
+                                </button>
+                                <button id= "btnNext" class ="buttons btn-rounded btn-pleasant disableButtons"
+                                    onClick="NextPlaylistEntry();">
+
+                                    <i class='fas fa-fw fa-step-forward'></i>
+                                    <span class="playerControlButton-text">Next</span>
+                                </button>
+                                <button id="btnStopGracefully" class ="buttons btn-rounded btn-graceful disableButtons"
+                                    onClick="StopGracefully();">
+
+                                    <i class='fas fa-fw fa-stop'></i>
+                                    <span class="playerControlButton-text">
+                                        Stop
+                                        <span class="playerControlButton-text-important">Graceful</span>ly
+                                    </span>
+                                </button>
+                                <button id="btnStopGracefullyAfterLoop"
+                                    class="buttons btn-rounded btn-detract disableButtons"
+                                    onClick="StopGracefullyAfterLoop();">
+
+                                    <i class='fas fa-fw fa-hourglass-half'></i>
+                                    <span class="playerControlButton-text">
+                                        Stop
+                                        <span class="playerControlButton-text-important">After Loop</span>
+                                    </span>
+                                </button>
+                                <button id= "btnStopNow" class ="buttons btn-rounded btn-danger disableButtons"
+                                    onClick="StopNow();">
+
+                                    <i class='fas fa-fw fa-hand-paper'></i>
+                                    <span class="playerControlButton-text">
+                                        Stop
+                                        <span class="playerControlButton-text-important">Now</span>
+                                    </span>
+                                </button>
                             </div>
 
                             <div class="volumeControlsContainer col-md-auto">
-                                <div><div class="labelHeading">Volume</div> <span id='volume' class='volume'></span></div>
+                                <div>
+                                    <div class="labelHeading">Volume</div>
+                                    <span id='volume' class='volume'></span>
+                                </div>
                                 <div class="volumeControls">
-                                        <button class='volumeButton buttons' onClick="DecrementVolume();"><i class='fas fa-fw fa-volume-down'></i></button>
+                                        <button class='volumeButton buttons' onClick="DecrementVolume();">
+                                            <i class='fas fa-fw fa-volume-down'></i>
+                                        </button>
                                         <input type="range" min="0" max="100" class="slider" id="slider">
-                                        <button class='volumeButton buttons' onClick="IncrementVolume();"><i class='fas fa-fw fa-volume-up'></i></button>
+                                        <button class='volumeButton buttons' onClick="IncrementVolume();">
+                                            <i class='fas fa-fw fa-volume-up'></i>
+                                        </button>
                                     <span id='speaker'></span> <!-- Volume -->
                                 </div>
                             </div>
@@ -424,32 +497,33 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                     </div>
                 </div>
                 <div id="playerStatusBottom">
-                    <?
-include "playlistDetails.php";
-?>
+                    <?php include "playlistDetails.php"; ?>
 
 
                     <div id='deprecationWarning' class="hidden callout callout-danger">
-                    <b>* - Playlist items marked with an asterisk have been deprecated
-                        and will be auto-upgraded the next time you edit the playlist.</b>
+                        <b>
+                            * - Playlist items marked with an asterisk have been deprecated
+                            and will be auto-upgraded the next time you edit the playlist.
+                        </b>
                     </div>
                 </div>
 
                 <div class="verbosePlaylistItemSetting">
-                    <?PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled');?>
+                    <?php PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled');?>
                 </div>
             </div>
             <!-- Bridge Mode stats -->
             <div id="bridgeModeInfo" class="pageContent" style="margin-top: 5px;">
-                <H3>E1.31/DDP/ArtNet Packets and Bytes Received</H3>
+                <h3>E1.31/DDP/ArtNet Packets and Bytes Received</h3>
                 <table style='width: 100%' class='statusTable'>
                     <tr>
-                        <td align='left'>
+                        <td style="text-align: left;">
                             <input type='button' class="buttons" onClick='GetUniverseBytesReceived();' value='Update'>
                             <input type='button' class="buttons" onClick='ResetUniverseBytesReceived();' value='Reset'>
                         </td>
-                        <td align='right'>
-    <?PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0");?> Live Update Stats
+                        <td style="text-align: right;">
+                            <?php PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0");?>
+                            Live Update Stats
                         </td>
                     </tr>
                 </table>
@@ -467,13 +541,12 @@ include "playlistDetails.php";
 
     </div>
 </div>
-<?php	include 'common/footer.inc';?>
+<?php include 'common/footer.inc' ?>
 </div>
 <div id='upgradePopup' title='FPP Upgrade' style="display: none">
-    <textarea style='width: 99%; height: 97%;' disabled id='upgradeText'>
-    </textarea>
-    <input id='rebootFPPAfterUpgradeButton' type='button' class='buttons' value='Reboot' onClick='Reboot();' style='display: none;'>
-
+    <textarea style='width: 99%; height: 97%;' disabled id='upgradeText'></textarea>
+    <input id='rebootFPPAfterUpgradeButton' type='button' class='buttons'
+        value='Reboot' onClick='Reboot();' style='display: none;'>
 </div>
 </body>
 </html>

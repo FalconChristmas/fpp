@@ -117,7 +117,7 @@ reboot
 
 #place 4G SD card in sd slot
 # zero out everything unused so compressing the image will work better
-dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=3600
+dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=3800
 /opt/fpp/SD/BBB-FlashMMC.sh -s 3500M -noreboot ext4 /dev/mmcblk0
 rmdir /tmp/rootfs
 

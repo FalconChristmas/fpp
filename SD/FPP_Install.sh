@@ -470,6 +470,9 @@ case "${OSVER}" in
             systemctl enable systemd-resolved
             rm -f /etc/resolv.conf
             ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+            
+            #remove some things that were installed (not sure why)
+            apt-get remove -y --purge --autoremove --allow-change-held-packages pocketsphinx-en-us guile-2.2-libs
         fi
 
 		;;
@@ -733,7 +736,10 @@ if $clone_fpp; then
 
     echo "FPP - Cloning git repository into /opt/fpp"
     git clone https://github.com/FalconChristmas/fpp fpp
+    cd fpp
+    git config pull.rebase true
 fi
+git config --global pull.rebase true
 
 #######################################
 # Build VLC
@@ -1110,8 +1116,8 @@ if $isimage; then
         sed -i -e "s/^.*SystemMaxUse.*/SystemMaxUse=64M/g" /etc/systemd/journald.conf
     fi
     
-    rm -f /opt/fpp/etc/systemd/network/*eth*
-    rm -f /opt/fpp/etc/systemd/network/*wlan*
+    rm -f /etc/systemd/network/*eth*
+    rm -f /etc/systemd/network/*wlan*
     cp /opt/fpp/etc/systemd/network/* /etc/systemd/network
 fi
 
