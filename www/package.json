@@ -16,7 +16,7 @@
     "sass": "^1.35.1"
   },
   "dependencies": {
-    "node-sass": "^6.0.1",
+    "node-sass": "^7.0.0",
     "tar": "^6.1.9"
   }
 }

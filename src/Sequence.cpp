@@ -660,8 +660,14 @@ void Sequence::SendBlankingData(void) {
         multiSync->SendBlankingDataPacket();
 
     BlankSequenceData(true);
-    ProcessSequenceData(0, 0);
-    SendSequenceData();
+
+    if (ChannelOutputThreadIsRunning()) {
+        m_dataProcessed = false;
+        ForceChannelOutputNow();
+    } else {
+        ProcessSequenceData(0, 0);
+        SendSequenceData();
+    }
 }
 
 void Sequence::CloseIfOpen(const std::string& filename) {
