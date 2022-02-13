@@ -27,6 +27,23 @@
     width: 100%;
 }
 
+/* prevent table header from scrolling: */
+.fppTableContents {
+    /* no-worky: max-height: calc(90% - 20px); */
+    max-height: 400px; /* TODO: adjust for media queries? */
+    overflow: auto;
+}
+table {
+  text-align: left;
+  position: relative; /* required for th sticky to work */
+}
+th {
+    background: #fff; /* prevent add/delete circular buttons from showing through */
+    position: sticky;
+    top: 0;
+    z-index: 20; /* draw table header on top of add/delete buttons */
+}
+
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
     //  BBB only supports ws2811 at this point
@@ -414,6 +431,7 @@ function setPixelStringsStartChannelOnNextRow()
         updateRowEndChannel(nextRow);
         
         selectedPixelStringRowId = nextRow.attr('id');
+        selected_string_details();
     }
 }
 
@@ -442,6 +460,46 @@ function updateItemEndChannel(item) {
     var row = $(item).parent().parent();
     
     updateRowEndChannel(row);
+}
+
+//max pixel current:
+//use current instead of power so 5V vs 12V doesn't matter
+const pxAmps = {
+    ws2811: 60e-3,
+//add more types as needed
+};
+
+//show details about currently selected pixel port:
+function selected_string_details(outputs, rowid) {
+    let details = "";
+    const pins = (GetBBB48StringPins() || [])
+        .map(hdr_pin => ({hdr_pin, gpio_info: (selected_string_details.gpio || []).find(pin_info => pin_info.pin == hdr_pin)}));
+    const [_, type, oid, port, sid] = (rowid || "").match(/^(.*?)_Output_(.*?)_(.*?)_(.*?)$/);
+//console.log("here1", JSON.stringify(pins));
+//console.log("here2", rowid, type, oid, port, sid);
+    const is_dpi = ~(type || "").indexOf("DPI");
+    if (outputs && is_dpi) { //TODO: show this for other string types also?
+	const protocol = outputs[port].protocol, pxA = pxAmps[protocol];
+        const [numpx, maxA] = (outputs[port].virtualStrings || [])
+	    .reduce(([numpx, maxA], virtstr) => [
+		numpx + virtstr.pixelCount + virtstr.nullNodes + virtstr.endNulls,
+		maxA + virtstr.pixelCount * virtstr.brightness / 100 * pxA, //ignores nulls
+	    ], [0, 0]);
+        const max_fps = numpx? 1 / (numpx * 30e-6 + 1e-3): 0; //allow 1 msec for refresh/latency, assume hsync/vsync don't add much overhead
+	const cfg_fps = !numpx? "": //no output
+            (max_fps < 20)? "config error": //will cause frame overrun
+            (max_fps < 40)? 20: 40; //TODO: add other fps if supported
+//console.log("here3", JSON.stringify(outputs[port]));
+        const hdr_name = (pins[port] || {}).hdr_pin, gpio_name = ((pins[port] || {}).gpio_info || {}).gpio;
+        details += `<b>Port ${+port + 1} (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"}):</b> ${plural(numpx)} pixel${plural()}, ${max_fps.toFixed(2).replace(".00", "")} max fps${cfg_fps? ` (configurable as ${cfg_fps})`: ""}, ${maxA.toFixed(1).replace(".0", "")} A max`;
+    }
+    $("#pixel-string-details").html(details);
+}
+
+function plural(n, multi, single) {
+    if (n == null) return plural.suffix; //undef or null
+    plural.suffix = (n != 1)? multi || "s": single || "";
+    return n;
 }
 
 function setRowData(row, protocol, description, startChannel, pixelCount, groupCount, reverse, colorOrder, startNulls, endNulls, zigZag, brightness, gamma)
@@ -710,6 +768,16 @@ function GetBBB48StringRows()
     var val = KNOWN_CAPES[subType];
     return val["outputs"].length;
 }
+
+//get array of header pin#s indexed by port#:
+//NOTE: used by non-BBB capes as well
+function GetBBB48StringPins()
+{
+    const subType = GetBBB48StringCapeFileName();
+    const capeInfo = KNOWN_CAPES[subType];
+    return capeInfo.outputs && (capeInfo.outputs || []).map(info => info.pin);
+}
+
 function GetBBB48StringProtocols(p) {
     var subType = GetBBB48StringCapeFileName();
     if (KNOWN_CAPES[subType]) {
@@ -1274,6 +1342,7 @@ function populatePixelStringOutputs(data) {
                     $('#pixelOutputs table tr').removeClass('selectedEntry');
                     $(this).addClass('selectedEntry');
                     selectedPixelStringRowId = $(this).attr('id');
+                    selected_string_details(output.outputs, selectedPixelStringRowId);
                 });
             }
             if (type == 'BBBSerial') {
@@ -1486,6 +1555,9 @@ $(document).ready(function(){
         $('.capeName').html(currentCapeName);
     }
 
+    $.get('/api/gpio')
+	.done(data => selected_string_details.gpio = data)
+        .fail(err => DialogError("Query gpio", "Get gpio info failed: " + err));
     populateCapeList();
     loadBBBOutputs();
 });
@@ -1545,6 +1617,7 @@ style="display: none;"
         </div>
             <div id='divBBB48StringData'>
                 <div>
+                    <span id="pixel-string-details" class="text-muted text-left d-block" style="float: left;"></span>
                     <small class="text-muted text-right pt-2 d-block">
                         Press F2 to auto set the start channel on the next row.
                     </small>
