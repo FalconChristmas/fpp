@@ -27,6 +27,24 @@ AttemptCreateSoftAP() {
     fi
 }
 
+FindTetherWIFIAdapater() {
+    local TetherInterface=$(getSetting TetherInterface)
+    if [ "x${TetherInterface}" == "x" ]; then
+        WLDEVICES=$(ls -d /sys/class/net/wl*)
+        for d in $WLDEVICES; do
+            DEV=$(basename $d)
+            HASLINKDEV=$(iwconfig $DEV | grep "Not-Associated")
+            if [ "x${HASLINKDEV}" != "x" ]; then
+                TetherInterface=$DEV
+            fi
+        done
+    fi
+    if [ "x${TetherInterface}" == "x" ]; then
+        TetherInterface="wlan0"
+    fi
+    echo "$TetherInterface"
+}
+
 CreateHostAPDConfig() {
     TetherSSID=$(getSetting TetherSSID)
     TetherPSK=$(getSetting TetherPSK)
@@ -255,11 +273,8 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
     fi
     iw reg set "$WifiRegulatoryDomain"
 
+    TetherInterface=$(FindTetherWIFIAdapater)
     TetherEnabled=$(getSetting EnableTethering)
-    TetherInterface=$(getSetting TetherInterface)
-    if [ "x${TetherInterface}" == "x" ]; then
-        TetherInterface="wlan0";
-    fi
     if [ "x${TetherEnabled}" == "x" ]; then
         TetherEnabled="";
     fi
@@ -442,7 +457,11 @@ WaitForInterfacesUp() {
     fi
     #turn off power management on wireless... not all adapters
     # support this so just /dev/null any output
-    iwconfig wlan0 power off 2>/dev/null >/dev/null
+    WLDEVICES=$(ls -d /sys/class/net/wl*)
+    for d in $WLDEVICES; do
+        DEV=$(basename $d)
+        iwconfig $DEV power off 2>/dev/null >/dev/null
+    done
 }
 
 DetectNetworkModules() {
@@ -474,7 +493,16 @@ MaybeEnableTethering() {
 
     if [ "$TetherEnabled" == "0" ]; then
         IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
-        HASLINK=$(ethtool eth0 | grep "Link detected: yes")
+        
+        ETHDEVICES=$(ls -d /sys/class/net/e*)
+        HASLINK=""
+        for d in $ETHDEVICES; do
+            DEV=$(basename $d)
+            HASLINKDEV=$(ethtool $DEV | grep "Link detected: yes")
+            if [ "x${HASLINKDEV}" != "x" ]; then
+                HASLINK=1
+            fi
+        done
         if [ "x${HASLINK}" = "x" ]; then
             # no link on eth0
             if [ -z "$IPS" ]; then
@@ -483,14 +511,7 @@ MaybeEnableTethering() {
             fi
         fi
     fi
-    TetherInterface=$(getSetting TetherInterface)
-    if [ "x${TetherInterface}" == "x" ]; then
-        TetherInterface="wlan0";
-    fi
-    if [ ! -e "/sys/class/net/${TetherInterface}" ]; then
-        # no wifi adapter, try wlan0
-        TetherInterface="wlan0";
-    fi
+    TetherInterface=$(FindTetherWIFIAdapater)
     if [ "$TetherEnabled" == "1" ]; then
         for i in {1..30}
         do
@@ -501,8 +522,12 @@ MaybeEnableTethering() {
         done
     fi
     if [ ! -e "/sys/class/net/${TetherInterface}" ]; then
-        # no wifi adapter, no point enabling tethering
-        TetherEnabled=2
+        # see if the wait above caused a different wifi adapter to appear
+        TetherInterface=$(FindTetherWIFIAdapater)
+        if [ ! -e "/sys/class/net/${TetherInterface}" ]; then
+            # no wifi adapter, no point enabling tethering
+            TetherEnabled=2
+        fi
     fi
 
     if [ "$TetherEnabled" == "1" ]; then

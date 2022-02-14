@@ -292,9 +292,6 @@ int UDPOutput::Init(Json::Value config) {
     if (config.isMember("interface")) {
         e131Interface = config["interface"].asString();
     }
-    if (e131Interface == "") {
-        e131Interface = "eth0";
-    }
 
     std::set<std::string> myIps;
     //get all the addresses
@@ -304,14 +301,29 @@ int UDPOutput::Init(Json::Value config) {
     //loop through all the interfaces and get the addresses
     char address[16];
     memset(address, 0, sizeof(address));
+    std::string firstInterface = "";
     while (tmp) {
         if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
             GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
             myIps.emplace(address);
+            if (e131Interface == "") {
+                if (firstInterface == "") {
+                    firstInterface = tmp->ifa_name;
+                }
+                if (tmp->ifa_name[0] == 'e') {
+                    e131Interface = firstInterface;
+                }
+            }
         }
         tmp = tmp->ifa_next;
     }
     freeifaddrs(interfaces);
+    if (e131Interface == "") {
+        e131Interface = firstInterface;
+    }
+    if (e131Interface == "") {
+        e131Interface = "eth0";
+    }
 
     for (auto o : outputs) {
         if (o->IsPingable() && o->active) {

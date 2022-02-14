@@ -1962,6 +1962,8 @@ function network_wifi_strength_obj()
 
 function network_list_interfaces_obj()
 {
+    global $settings;
+    
     $output = array();
     $cmd = "ip --json address show";
     exec($cmd, $output);
@@ -1990,6 +1992,11 @@ function network_list_interfaces_obj()
         $add = $rec["address"];
         if ($ifname == "lo" || $ifname == "usb0" || $ifname == "usb1" || $ifname == "SoftAp0" || $add == "0.0.0.0" || $add == "::") {
             unset($rc[array_search($rec, $rc)]);
+        }
+        $cfgFile = $settings['configDirectory'] . "/interface." . $ifname;
+        if (file_exists($cfgFile)) {
+            $result = parse_ini_file($cfgFile);
+            $rec["config"] = $result;
         }
     }
     return array_values($rc);
