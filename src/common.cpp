@@ -592,7 +592,6 @@ bool SetFilePerms(const char* file) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-#ifndef PLATFORM_OSX
 /*
  * Merge the contens of Json::Value b into Json::Value a
  */
@@ -719,7 +718,6 @@ bool SaveJsonToFile(const Json::Value& root, const char* filename, const char* i
 
     return SaveJsonToFile(root, filenameStr, indentationStr);
 }
-#endif
 
 /////////////////////////////////////////////////////////////////////////////
 // trim from start (in place)
@@ -732,8 +730,7 @@ static inline void ltrim(std::string& s) {
 static inline void rtrim(std::string& s) {
     s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
                 return !std::isspace(ch);
-            })
-                .base(),
+            }).base(),
             s.end());
 }
 // trim from both ends (in place)
@@ -985,20 +982,14 @@ bool urlDelete(const std::string url, std::string& resp) {
     return urlHelper("DELETE", url, data, resp);
 }
 
-
-
-
-
-
 static const std::string BASE64_CHARS =
-             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-             "abcdefghijklmnopqrstuvwxyz"
-             "0123456789+/";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789+/";
 
 static inline bool isBase64(uint8_t c) {
-  return (isalnum(c) || (c == '+') || (c == '/'));
+    return (isalnum(c) || (c == '+') || (c == '/'));
 }
-
 
 std::string base64Encode(uint8_t const* buf, unsigned int bufLen) {
     std::string ret;
@@ -1015,7 +1006,7 @@ std::string base64Encode(uint8_t const* buf, unsigned int bufLen) {
             char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
             char_array_4[3] = char_array_3[2] & 0x3f;
 
-            for(i = 0; (i <4) ; i++) {
+            for (i = 0; (i < 4); i++) {
                 ret += BASE64_CHARS[char_array_4[i]];
             }
             i = 0;
@@ -1023,7 +1014,7 @@ std::string base64Encode(uint8_t const* buf, unsigned int bufLen) {
     }
 
     if (i) {
-        for(j = i; j < 3; j++) {
+        for (j = i; j < 3; j++) {
             char_array_3[j] = '\0';
         }
 
@@ -1036,7 +1027,7 @@ std::string base64Encode(uint8_t const* buf, unsigned int bufLen) {
             ret += BASE64_CHARS[char_array_4[j]];
         }
 
-        while((i++ < 3)) {
+        while ((i++ < 3)) {
             ret += '=';
         }
     }
@@ -1050,10 +1041,11 @@ std::vector<uint8_t> base64Decode(std::string const& encodedString) {
     uint8_t char_array_4[4], char_array_3[3];
     std::vector<uint8_t> ret;
 
-    while (in_len-- && ( encodedString[in_] != '=') && isBase64(encodedString[in_])) {
-        char_array_4[i++] = encodedString[in_]; in_++;
-        if (i ==4) {
-            for (i = 0; i <4; i++) {
+    while (in_len-- && (encodedString[in_] != '=') && isBase64(encodedString[in_])) {
+        char_array_4[i++] = encodedString[in_];
+        in_++;
+        if (i == 4) {
+            for (i = 0; i < 4; i++) {
                 char_array_4[i] = BASE64_CHARS.find(char_array_4[i]);
             }
 
@@ -1069,10 +1061,10 @@ std::vector<uint8_t> base64Decode(std::string const& encodedString) {
     }
 
     if (i) {
-        for (j = i; j <4; j++) {
+        for (j = i; j < 4; j++) {
             char_array_4[j] = 0;
         }
-        for (j = 0; j <4; j++) {
+        for (j = 0; j < 4; j++) {
             char_array_4[j] = BASE64_CHARS.find(char_array_4[j]);
         }
 

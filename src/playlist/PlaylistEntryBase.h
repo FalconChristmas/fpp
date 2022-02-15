@@ -28,8 +28,6 @@
 
 #include <string>
 
-#include <jsoncpp/json/json.h>
-
 class Playlist;
 
 class PlaylistEntryBase {
@@ -79,9 +77,9 @@ public:
     virtual int GetNextItem(void) { return 0; }
     virtual std::string GetNextData(void) { return ""; }
 
-
     void SetPositionInPlaylist(int i) { m_playlistPosition = i; }
     int GetPositionInPlaylist() { return m_playlistPosition; }
+
 protected:
     int CanPlay(void);
     void FinishPlay(void);

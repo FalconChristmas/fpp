@@ -29,8 +29,6 @@
 #include <sys/types.h>
 #include <mutex>
 #include <pthread.h>
-
-#include <jsoncpp/json/json.h>
 #include <set>
 
 #include "settings.h"
@@ -302,7 +300,7 @@ private:
     void SendBroadcastPacket(void* outBuf, int len);
     void SendControlPacket(void* outBuf, int len);
     void SendMulticastPacket(void* outBuf, int len);
-    void SendUnicastPacket(const std::string &address, void* outBuf, int len);
+    void SendUnicastPacket(const std::string& address, void* outBuf, int len);
     bool FillInInterfaces();
     bool RemoveInterface(const std::string& interface);
 

@@ -878,9 +878,12 @@ sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 #######################################
 # Configure ccache
 echo "FPP - Configuring ccache"
+mkdir -p /root/.ccache
 ccache -M 250M
 ccache --set-config=temporary_dir=/tmp
 ccache --set-config=sloppiness=pch_defines,time_macros
+ccache --set-config=hard_link=true
+ccache --set-config=pch_external_checksum=true
 
 if $isimage; then
     #######################################

@@ -31,8 +31,6 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include <jsoncpp/json/json.h>
-
 #include "MediaOutputStatus.h"
 
 #define MEDIAOUTPUTPIPE_READ 0

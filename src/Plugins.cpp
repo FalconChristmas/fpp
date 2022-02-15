@@ -18,7 +18,6 @@
 #include "Plugins.h"
 #include "mediadetails.h"
 #include "mediaoutput/mediaoutput.h"
-#include <jsoncpp/json/json.h>
 
 #include "commands/Commands.h"
 #include "playlist/Playlist.h"

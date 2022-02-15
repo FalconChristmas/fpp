@@ -40,8 +40,6 @@
 #include <sstream>
 #include <string>
 
-#include <jsoncpp/json/json.h>
-
 #include "command.h"
 #include "e131bridge.h"
 
@@ -92,9 +90,9 @@ static UniverseEntry unknownUniverse;
 
 static bool bridgeDataReceived = false;
 
-static std::map<int, std::function<bool(uint8_t *data, long long packetTime)>> ArtNetOpcodeHandlers;
+static std::map<int, std::function<bool(uint8_t* data, long long packetTime)>> ArtNetOpcodeHandlers;
 
-void AddArtNetOpcodeHandler(int opCode, std::function<bool(uint8_t *data, long long packetTime)> handler) {
+void AddArtNetOpcodeHandler(int opCode, std::function<bool(uint8_t* data, long long packetTime)> handler) {
     ArtNetOpcodeHandlers[opCode] = handler;
 }
 
@@ -270,9 +268,8 @@ bool Bridge_ReceiveArtNetData(void) {
     long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
-            uint8_t *bridgeBuffer = (uint8_t*)buffers[x];
-            if (bridgeBuffer[0] != 'A' || bridgeBuffer[1] != 'r' || bridgeBuffer[2] != 't' || bridgeBuffer[3] != '-' || bridgeBuffer[4] != 'N' 
-                || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0 || bridgeBuffer[11] != 0xE ) { //version must be 14
+            uint8_t* bridgeBuffer = (uint8_t*)buffers[x];
+            if (bridgeBuffer[0] != 'A' || bridgeBuffer[1] != 'r' || bridgeBuffer[2] != 't' || bridgeBuffer[3] != '-' || bridgeBuffer[4] != 'N' || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0 || bridgeBuffer[11] != 0xE) { //version must be 14
                 continue;
             }
             int opCode = (bridgeBuffer[9] << 8) | bridgeBuffer[8];
@@ -538,7 +535,7 @@ bool Bridge_StoreArtNetData(uint8_t* bridgeBuffer, long long packetTime) {
         }
     }
     return false;
-} 
+}
 bool Bridge_HandleArtNetPoll(uint8_t* bridgeBuffer, long long packetTime) {
     if (bridgeBuffer[9] == 0x20 && bridgeBuffer[8] == 0x00) {
         //ArtNet Poll, need to send a reply
@@ -904,7 +901,7 @@ void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
     }
     if (artnetSock > 0) {
         if (enabled) {
-            AddArtNetOpcodeHandler(0x5000, Bridge_StoreArtNetData); // ArtOutput
+            AddArtNetOpcodeHandler(0x5000, Bridge_StoreArtNetData);  // ArtOutput
             AddArtNetOpcodeHandler(0x5200, Bridge_HandleArtNetSync); // ArtSync
             AddArtNetOpcodeHandler(0x2000, Bridge_HandleArtNetPoll); // ArtPoll
 

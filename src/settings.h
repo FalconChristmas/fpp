@@ -28,8 +28,6 @@
 #include <stdbool.h>
 #include <string>
 
-#include <jsoncpp/json/json.h>
-
 #define FPP_DIR "/opt/fpp"
 #define FPP_DIR_MEDIA "/home/fpp/media"
 #define FPP_DIR_CONFIG "/home/fpp/media/config"

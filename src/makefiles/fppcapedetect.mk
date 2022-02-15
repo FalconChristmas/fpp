@@ -1,4 +1,6 @@
 
+ifeq '$(BUILD_FPPCAPEDETECT)' '1'
+
 OBJECTS_fppcapedetect = \
 	fppcapedetect.o \
 	CapeUtils.o
@@ -29,3 +31,5 @@ CapeUtils.o: CapeUtils.cpp CapeUtils.h fppversion_defines.h Makefile makefiles/*
 
 fppcapedetect.o: fppcapedetect.cpp fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
+
+endif

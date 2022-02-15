@@ -27,8 +27,6 @@
 #include <string>
 #include <vector>
 
-#include <jsoncpp/json/json.h>
-
 #include "TestPatternBase.h"
 
 class TestPatternRGBChase : public TestPatternBase {

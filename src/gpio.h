@@ -27,7 +27,6 @@
 #include <functional>
 #include <map>
 
-#include <jsoncpp/json/json.h>
 #include <gpiod.h>
 #include <httpserver.hpp>
 

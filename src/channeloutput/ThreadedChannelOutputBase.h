@@ -29,8 +29,6 @@
 
 #include <pthread.h>
 
-#include <jsoncpp/json/json.h>
-
 #include "ChannelOutputBase.h"
 
 class ThreadedChannelOutputBase : public ChannelOutputBase {

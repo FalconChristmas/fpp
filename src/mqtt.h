@@ -32,8 +32,6 @@
 
 #include "Warnings.h"
 
-#include <jsoncpp/json/json.h>
-
 #include "mosquitto.h"
 
 void* RunMqttPublishThread(void* data);

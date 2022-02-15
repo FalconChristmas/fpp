@@ -36,8 +36,6 @@
 #include <X11/Xlib.h>
 #endif
 
-#include <jsoncpp/json/json.h>
-
 typedef enum {
     IT_Random = -2,
     IT_Default = -1,

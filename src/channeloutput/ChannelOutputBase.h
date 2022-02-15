@@ -28,15 +28,12 @@
 #include <string>
 #include <vector>
 
-#include <jsoncpp/json/json.h>
-
 class ChannelOutputBase {
 public:
     ChannelOutputBase(unsigned int startChannel = 1,
                       unsigned int channelCount = 1);
     virtual ~ChannelOutputBase();
 
-    
     unsigned int ChannelCount(void) { return m_channelCount; }
     unsigned int StartChannel(void) { return m_startChannel; }
 

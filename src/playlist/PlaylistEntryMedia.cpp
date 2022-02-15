@@ -25,13 +25,8 @@
 
 #include "fpp-pch.h"
 
-#if __GNUC__ >= 8
 #include <filesystem>
 using namespace std::filesystem;
-#else
-#include <experimental/filesystem>
-using namespace std::experimental::filesystem;
-#endif
 
 #include <sys/wait.h>
 

@@ -23,9 +23,12 @@ CFLAGS += $(shell GraphicsMagick++-config --cppflags)
 endif
 
 ifneq ($(wildcard /.dockerenv),)
+#don't build the oled/cape stuff for docker
 CFLAGS += -DPLATFORM_DOCKER
 else
 CFLAGS += -DPLATFORM_UNKNOWN
+BUILD_FPPOLED=1
+BUILD_FPPCAPEDETECT=1
 endif
 
 LDFLAGS_fppd += -L.
@@ -33,5 +36,6 @@ LDFLAGS_fppd += -L.
 LDFLAGS_fppd += $(shell log4cpp-config --libs)
 
 OBJECTS_GPIO_ADDITIONS+=util/TmpFileGPIO.o
+LDFLAGS=-lrt -lpthread
 
 endif

@@ -100,7 +100,6 @@ OBJECTS_fpp_so += \
 
 LIBS_fpp_so += \
 	-lstdc++fs \
-	-lpthread -lrt \
     -lzstd -lz \
 	-lgpiod \
 	-lgpiodcxx \

@@ -28,7 +28,6 @@
 #include <vector>
 
 #include <curl/curl.h>
-#include <jsoncpp/json/json.h>
 
 #include "PlaylistEntryBase.h"
 

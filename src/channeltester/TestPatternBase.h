@@ -28,8 +28,6 @@
 #include <utility>
 #include <vector>
 
-#include <jsoncpp/json/json.h>
-
 #include "Sequence.h"
 
 class TestPatternBase {

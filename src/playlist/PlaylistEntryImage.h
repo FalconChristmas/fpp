@@ -31,12 +31,13 @@
 #include <string>
 #include <thread>
 
-#include <Magick++.h>
-
 #include "FrameBuffer.h"
 #include "PlaylistEntryBase.h"
 
-using namespace Magick;
+namespace Magick
+{
+    class Image;
+};
 
 class PlaylistEntryImage : public PlaylistEntryBase, public FrameBuffer {
 public:
@@ -64,8 +65,8 @@ private:
     void Draw(void);
 
     std::string GetCacheFileName(std::string fileName);
-    bool GetImageFromCache(std::string fileName, Image& image);
-    void CacheImage(std::string fileName, Image& image);
+    bool GetImageFromCache(std::string fileName, Magick::Image& image);
+    void CacheImage(std::string fileName, Magick::Image& image);
     void CleanupCache(void);
 
     std::string m_imagePath;

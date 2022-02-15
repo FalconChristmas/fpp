@@ -13,6 +13,8 @@ CFLAGS_util/bcm2835.o+=-fpermissive
 
 OBJECTS_fppoled += util/SPIUtils.o
 
+BUILD_FPPOLED=1
+BUILD_FPPCAPEDETECT=1
 
-
+LDFLAGS=-lrt -lpthread
 endif
