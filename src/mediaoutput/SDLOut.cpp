@@ -353,7 +353,7 @@ static int open_codec_context(int* stream_idx,
                               const std::string& src_filename) {
     int ret, stream_index;
     AVStream* st;
-    AVCodec* dec = NULL;
+    const AVCodec* dec = NULL;
     AVDictionary* opts = NULL;
     ret = av_find_best_stream(fmt_ctx, type, -1, -1, NULL, 0);
     if (ret < 0) {
@@ -797,14 +797,10 @@ SDLOutput::SDLOutput(const std::string& mediaFilename,
     }
     std::string fullAudioPath = mediaFilename;
     if (!FileExists(mediaFilename)) {
-        fullAudioPath = FPP_DIR_MUSIC;
-        fullAudioPath += "/";
-        fullAudioPath += mediaFilename;
+        fullAudioPath = FPP_DIR_MUSIC("/" + mediaFilename);
     }
     if (!FileExists(fullAudioPath)) {
-        fullAudioPath = FPP_DIR_VIDEO;
-        fullAudioPath += "/";
-        fullAudioPath += mediaFilename;
+        fullAudioPath = FPP_DIR_VIDEO("/" + mediaFilename);
     }
     if (!FileExists(fullAudioPath)) {
         LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());

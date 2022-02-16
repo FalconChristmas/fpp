@@ -28,20 +28,24 @@
 #include <stdbool.h>
 #include <string>
 
-#define FPP_DIR "/opt/fpp"
-#define FPP_DIR_MEDIA "/home/fpp/media"
-#define FPP_DIR_CONFIG "/home/fpp/media/config"
-#define FPP_DIR_EFFECT FPP_DIR_MEDIA "/effects"
-#define FPP_DIR_IMAGE FPP_DIR_MEDIA "/images"
-#define FPP_DIR_MUSIC FPP_DIR_MEDIA "/music"
-#define FPP_DIR_PLAYLIST FPP_DIR_MEDIA "/playlists"
-#define FPP_DIR_PLUGIN FPP_DIR_MEDIA "/plugins"
-#define FPP_DIR_SCRIPT FPP_DIR_MEDIA "/scripts"
-#define FPP_DIR_SEQUENCE FPP_DIR_MEDIA "/sequences"
-#define FPP_DIR_VIDEO FPP_DIR_MEDIA "/videos"
-#define FPP_FILE_LOG FPP_DIR_MEDIA "/logs/fppd.log"
-#define FPP_FILE_PIXELNET FPP_DIR_MEDIA "/config/Falcon.FPDV1"
-#define FPP_FILE_SETTINGS FPP_DIR_MEDIA "/settings"
+
+std::string getFPPDDir(const std::string &path = "");
+std::string getFPPMediaDir(const std::string &path = "");
+
+#define FPP_DIR getFPPDDir()
+#define FPP_DIR_MEDIA(a) getFPPMediaDir(a)
+#define FPP_DIR_CONFIG(a) getFPPMediaDir(std::string("/config") + a)
+#define FPP_DIR_EFFECT(a) getFPPMediaDir(std::string("/effects") + a)
+#define FPP_DIR_IMAGE(a) getFPPMediaDir(std::string("/images") + a)
+#define FPP_DIR_MUSIC(a) getFPPMediaDir(std::string("/music") + a)
+#define FPP_DIR_PLAYLIST(a) getFPPMediaDir(std::string("/playlists") + a)
+#define FPP_DIR_PLUGIN(a) getFPPMediaDir(std::string("/plugins") + a)
+#define FPP_DIR_SCRIPT(a) getFPPMediaDir(std::string("/scripts") + a)
+#define FPP_DIR_SEQUENCE(a) getFPPMediaDir(std::string("/sequences") + a)
+#define FPP_DIR_VIDEO(a) getFPPMediaDir(std::string("/videos") + a)
+#define FPP_FILE_LOG getFPPMediaDir("/logs/fppd.log")
+#define FPP_FILE_PIXELNET getFPPMediaDir("/config/Falcon.FPDV1")
+#define FPP_FILE_SETTINGS getFPPMediaDir("/settings")
 
 typedef enum fppMode {
     UNKNOWN_MODE = 0x00,
@@ -75,7 +79,7 @@ char* modeToString(int mode);
 const std::string getFPPmodeStr(FPPMode mode = UNKNOWN_MODE);
 
 // Action functions
-int LoadSettings();
+int LoadSettings(const char *base);
 int SaveSettings();
 void UpgradeSettings();
 int SetSetting(const std::string key, const std::string value);

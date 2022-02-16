@@ -124,7 +124,7 @@ void PixelOverlayManager::loadModelMap() {
     modelNames.clear();
     ConvertCMMFileToJSON();
 
-    std::string filename(FPP_DIR_CONFIG "/model-overlays.json");
+    std::string filename(FPP_DIR_CONFIG("/model-overlays.json"));
     if (FileExists(filename)) {
         Json::Value root;
         bool result = LoadJsonFromFile(filename, root);
@@ -150,7 +150,7 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
     char* s;
     int startChannel;
     int channelCount;
-    std::string filename(FPP_DIR_MEDIA "/channelmemorymaps");
+    std::string filename(FPP_DIR_MEDIA("/channelmemorymaps"));
 
     if (!FileExists(filename)) {
         return;
@@ -228,7 +228,7 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
     fclose(fp);
     remove(filename.c_str());
 
-    filename = FPP_DIR_CONFIG "/model-overlays.json";
+    filename = FPP_DIR_CONFIG("/model-overlays.json");
     SaveJsonToFile(result, filename);
 }
 
@@ -465,8 +465,8 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
         std::string p2 = req.get_path_pieces().size() > 1 ? req.get_path_pieces()[1] : "";
         if (p2 == "raw") {
             //upload of raw file
-            char filename[512];
-            strcpy(filename, FPP_DIR_MEDIA "/channelmemorymaps");
+            char filename[2048];
+            strcpy(filename, FPP_DIR_MEDIA("/channelmemorymaps").c_str());
 
             int fp = open(filename, O_CREAT | O_TRUNC | O_RDWR, 0666);
             if (fp == -1) {
@@ -479,8 +479,8 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
             loadModelMap();
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
         } else if (req.get_path_pieces().size() == 1) {
-            char filename[512];
-            strcpy(filename, FPP_DIR_CONFIG "/model-overlays.json");
+            char filename[2048];
+            strcpy(filename, FPP_DIR_CONFIG("/model-overlays.json").c_str());
 
             int fp = open(filename, O_CREAT | O_TRUNC | O_RDWR, 0666);
             if (fp == -1) {

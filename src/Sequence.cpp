@@ -261,9 +261,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     char tmpFilename[2048];
     unsigned char tmpData[2048];
-    strcpy(tmpFilename, FPP_DIR_SEQUENCE);
-    strcat(tmpFilename, "/");
-    strcat(tmpFilename, filename.c_str());
+    strcpy(tmpFilename, FPP_DIR_SEQUENCE("/" + filename).c_str());
 
     if (getFPPmode() == REMOTE_MODE)
         CheckForHostSpecificFile(getSetting("HostName").c_str(), tmpFilename);

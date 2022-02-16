@@ -28,7 +28,7 @@
 #include <vector>
 
 #include <netinet/in.h>
-#include <sys/socket.h>
+#include "SysSocket.h"
 
 #include "ChannelOutputBase.h"
 

@@ -25,13 +25,13 @@
  */
 
 #include <netinet/in.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <mutex>
 #include <pthread.h>
 #include <set>
 
 #include "settings.h"
+#include "SysSocket.h"
 
 #define FPP_CTRL_PORT 32320
 
@@ -105,6 +105,7 @@ typedef enum systemType {
     kSysTypexSchedule = 0xC1,
     kSysTypeESPixelStick = 0xC2,
     kSysTypeESPixelStickESP32 = 0xC3,
+    kSysTypeMacOS = 0xC4,
     kSysTypeNonMultiSyncCapable = 0xF0,
     kSysTypeWLED = 0xFB,
     kSysTypeDIYLEDExpress = 0xFC,

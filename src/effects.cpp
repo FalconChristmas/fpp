@@ -59,7 +59,7 @@ static std::mutex effectsLock;
  * Initialize effects constructs
  */
 int InitEffects(void) {
-    std::string localFilename(FPP_DIR_EFFECT "/background.eseq");
+    std::string localFilename(FPP_DIR_EFFECT("/background.eseq"));
 
     if ((getFPPmode() == REMOTE_MODE) &&
         CheckForHostSpecificFile(getSetting("HostName").c_str(), localFilename)) {
@@ -158,7 +158,7 @@ int StartEffect(FSEQFile* fseq, const std::string& effectName, int loop, bool bg
 int StartFSEQAsEffect(const std::string& fseqName, int loop, bool bg) {
     LogInfo(VB_EFFECT, "Starting FSEQ %s as effect\n", fseqName.c_str());
 
-    std::string filename = std::string(FPP_DIR_SEQUENCE) + "/" + fseqName + ".fseq";
+    std::string filename = FPP_DIR_SEQUENCE("/" + fseqName + ".fseq");
 
     FSEQFile* fseq = FSEQFile::openFSEQFile(filename);
     if (!fseq) {
@@ -174,7 +174,7 @@ int StartFSEQAsEffect(const std::string& fseqName, int loop, bool bg) {
 int StartEffect(const std::string& effectName, int startChannel, int loop, bool bg) {
     LogInfo(VB_EFFECT, "Starting effect %s at channel %d\n", effectName.c_str(), startChannel);
 
-    std::string filename = std::string(FPP_DIR_EFFECT) + "/" + effectName + ".eseq";
+    std::string filename = FPP_DIR_EFFECT("/" + effectName + ".eseq");
 
     FSEQFile* fseq = FSEQFile::openFSEQFile(filename);
     if (!fseq) {

@@ -34,7 +34,7 @@ FPPPlugin::FPPPlugin(const std::string& n) :
 
 void FPPPlugin::reloadSettings() {
     settings.clear();
-    std::string dname = std::string(FPP_DIR_CONFIG) + "/plugin." + name;
+    std::string dname = FPP_DIR_CONFIG("/plugin." + name);
     if (FileExists(dname)) {
         FILE* file = fopen(dname.c_str(), "r");
 
@@ -243,7 +243,7 @@ public:
 };
 
 static void LoadPluginCommands(const std::string& dir) {
-    std::string commandDir = std::string(FPP_DIR_PLUGIN) + "/" + dir + "/commands/";
+    std::string commandDir = FPP_DIR_PLUGIN("/" + dir + "/commands/");
     std::string descriptions = commandDir + "/descriptions.json";
     if (FileExists(descriptions)) {
         Json::Value json = LoadJsonFromFile(descriptions);
@@ -263,7 +263,7 @@ void PluginManager::init() {
     DIR* dp;
     struct dirent* ep;
 
-    dp = opendir(FPP_DIR_PLUGIN);
+    dp = opendir(FPP_DIR_PLUGIN("").c_str());
     if (dp != NULL) {
         while ((ep = readdir(dp))) {
             int location = strstr(ep->d_name, ".") - ep->d_name;
@@ -272,9 +272,7 @@ void PluginManager::init() {
                 continue;
             }
             struct stat statbuf;
-            std::string dname = FPP_DIR_PLUGIN;
-            dname += "/";
-            dname += ep->d_name;
+            std::string dname = FPP_DIR_PLUGIN("/" + ep->d_name);
             lstat(dname.c_str(), &statbuf);
             if (!S_ISDIR(statbuf.st_mode)) {
                 dname += "/.linkOK"; // Allow developers to use symlinks if desired
@@ -284,7 +282,7 @@ void PluginManager::init() {
 
             LogDebug(VB_PLUGIN, "Found Plugin: (%s)\n", ep->d_name);
 
-            std::string filename = std::string(FPP_DIR_PLUGIN) + "/" + ep->d_name + "/callbacks";
+            std::string filename = FPP_DIR_PLUGIN("/" + ep->d_name + "/callbacks");
             bool found = false;
 
             if (FileExists(filename)) {
@@ -307,7 +305,7 @@ void PluginManager::init() {
             }
             LoadPluginCommands(ep->d_name);
 
-            std::string eventScript(FPP_DIR "/scripts/eventScript");
+            std::string eventScript = FPP_DIR + "/scripts/eventScript";
 
             if (!found) {
                 LogExcess(VB_PLUGIN, "No callbacks supported by plugin: '%s'\n", ep->d_name);
@@ -362,9 +360,9 @@ void PluginManager::init() {
             } else {
                 for (auto& a : spl->getOtherTypes()) {
                     if (startsWith(a, "c++")) {
-                        std::string shlibName = std::string(FPP_DIR_PLUGIN) + "/" + ep->d_name + "/lib" + ep->d_name + ".so";
+                        std::string shlibName = FPP_DIR_PLUGIN("/" + ep->d_name + "/lib" + ep->d_name + ".so");
                         if (a[3] == ':') {
-                            shlibName = std::string(FPP_DIR_PLUGIN) + "/" + ep->d_name + "/" + a.substr(4);
+                            shlibName = FPP_DIR_PLUGIN("/" + ep->d_name + "/" + a.substr(4));
                         }
                         void* handle = dlopen(shlibName.c_str(), RTLD_NOW);
                         if (handle == nullptr) {
@@ -393,7 +391,7 @@ void PluginManager::init() {
         }
         closedir(dp);
     } else {
-        LogWarn(VB_PLUGIN, "Couldn't open the directory %s: (%d): %s\n", FPP_DIR_PLUGIN, errno, strerror(errno));
+        LogWarn(VB_PLUGIN, "Couldn't open the directory %s: (%d): %s\n", FPP_DIR_PLUGIN("").c_str(), errno, strerror(errno));
     }
     mPluginsLoaded = true;
 
@@ -489,7 +487,7 @@ void MediaCallback::run(const Json::Value& playlist, const MediaDetails& mediaDe
     if (pid == 0) {
         LogDebug(VB_PLUGIN, "Child process, calling %s callback for media : %s\n", mName.c_str(), mFilename.c_str());
 
-        std::string eventScript(FPP_DIR "/scripts/eventScript");
+        std::string eventScript = FPP_DIR + "/scripts/eventScript";
         Json::Value root;
 
         root["type"] = playlist["currentEntry"]["type"];
@@ -560,7 +558,7 @@ void PlaylistCallback::run(const Json::Value& playlist, const std::string& actio
     if (pid == 0) {
         LogDebug(VB_PLUGIN, "Child process, calling %s callback for media : %s\n", mName.c_str(), mFilename.c_str());
 
-        std::string eventScript(FPP_DIR "/scripts/eventScript");
+        std::string eventScript = FPP_DIR + "/scripts/eventScript";
         Json::Value root;
 
         root = playlist;

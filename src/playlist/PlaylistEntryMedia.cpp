@@ -188,12 +188,6 @@ int PlaylistEntryMedia::StartPlaying(void) {
  *
  */
 int PlaylistEntryMedia::Process(void) {
-    sigset_t blockset;
-
-    sigemptyset(&blockset);
-    sigaddset(&blockset, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &blockset, NULL);
-
     pthread_mutex_lock(&m_mediaOutputLock);
 
     if (m_mediaOutput) {
@@ -209,9 +203,6 @@ int PlaylistEntryMedia::Process(void) {
     }
 
     pthread_mutex_unlock(&m_mediaOutputLock);
-
-    sigprocmask(SIG_UNBLOCK, &blockset, NULL);
-
     return PlaylistEntryBase::Process();
 }
 
@@ -388,9 +379,9 @@ int PlaylistEntryMedia::GetFileList(void) {
     m_files.clear();
 
     if (m_fileMode == "randomVideo")
-        dir = FPP_DIR_VIDEO;
+        dir = FPP_DIR_VIDEO("");
     else if (m_fileMode == "randomAudio")
-        dir = FPP_DIR_MUSIC;
+        dir = FPP_DIR_MUSIC("");
 
     for (auto& cp : recursive_directory_iterator(dir)) {
         std::string entry = cp.path().string();

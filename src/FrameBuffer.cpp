@@ -24,7 +24,11 @@
  */
 #include "fpp-pch.h"
 
+#include "config.h"
+
+#ifdef HAS_FRAMEBUFFER
 #include <linux/kd.h>
+#endif
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -101,12 +105,14 @@ FrameBuffer::~FrameBuffer() {
     if (m_outputBuffer)
         free(m_outputBuffer);
 
+#ifdef HAS_FRAMEBUFFER
     if (m_device == "/dev/fb0") {
         if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
             LogErr(VB_PLAYLIST, "Error resetting variable info\n");
     }
+#endif
 #ifdef USE_X11
-    else if (m_device == "x11") {
+    if (m_device == "x11") {
         DestroyX11Window();
     }
 #endif
@@ -176,16 +182,14 @@ int FrameBuffer::FBInit(Json::Value& config) {
     m_outputBuffer = (char*)malloc(m_screenSize);
     if (!m_outputBuffer) {
         LogErr(VB_PLAYLIST, "Error, unable to allocate outputBuffer buffer\n");
-        ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-        close(m_fbFd);
+        DestroyFrameBuffer();
         return 0;
     }
 
     m_lastFrame = (unsigned char*)malloc(m_lastFrameSize);
     if (!m_lastFrame) {
         LogErr(VB_PLAYLIST, "Error, unable to allocate lastFrame buffer\n");
-        ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-        close(m_fbFd);
+        DestroyFrameBuffer();
         return 0;
     }
 
@@ -227,6 +231,15 @@ int FrameBuffer::FBInit(Json::Value& config) {
 
     return 1;
 }
+void FrameBuffer::DestroyFrameBuffer(void) {
+#ifdef HAS_FRAMEBUFFER
+    if (m_fbFd > -1) {
+        ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
+        close(m_fbFd);
+    }
+#endif
+    m_fbFd = -1;
+}
 
 /*
  *
@@ -234,6 +247,7 @@ int FrameBuffer::FBInit(Json::Value& config) {
 int FrameBuffer::InitializeFrameBuffer(void) {
     LogDebug(VB_PLAYLIST, "Using FrameBuffer device %s\n", m_device.c_str());
 
+#ifdef HAS_FRAMEBUFFER
     m_fbFd = open(m_device.c_str(), O_RDWR);
     if (!m_fbFd) {
         LogErr(VB_PLAYLIST, "Error opening FrameBuffer device: %s\n", m_device.c_str());
@@ -387,8 +401,10 @@ int FrameBuffer::InitializeFrameBuffer(void) {
             }
         }
     }
-
     return 1;
+#else
+    return 0;
+#endif
 }
 
 #ifdef USE_X11

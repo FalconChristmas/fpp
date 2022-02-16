@@ -16,12 +16,21 @@
  */
 #include "fpp-pch.h"
 
+#include <vlc/libvlc_version.h>
 #include <vlc/vlc.h>
 
 #include "VLCOut.h"
 
 #include "MultiSync.h"
 #include "channeloutput/channeloutputthread.h"
+
+#if LIBVLC_VERSION_MAJOR > 3
+#define MEDIA_PLAYER_SET_TIME(a, b) libvlc_media_player_set_time(a, b, false)
+#define MEDIA_PLAYER_STOP(a) libvlc_media_player_stop_async(a)
+#else
+#define MEDIA_PLAYER_SET_TIME(a, b) libvlc_media_player_set_time(a, b)
+#define MEDIA_PLAYER_STOP(a) libvlc_media_player_stop(a)
+#endif
 
 class VLCInternalData {
 public:
@@ -73,8 +82,8 @@ public:
 
 static std::string currentMediaFilename;
 
-void logCallback(void* data, int level, const libvlc_log_t* ctx,
-                 const char* fmt, va_list args) {
+static void logCallback(void* data, int level, const libvlc_log_t* ctx,
+                        const char* fmt, va_list args) {
     switch (level) {
     case LIBVLC_DEBUG:
         if (WillLog(LOG_EXCESSIVE, VB_MEDIAOUT)) {
@@ -141,7 +150,7 @@ public:
 #endif
 
             int hardwareDecoding = getSettingInt("HardwareDecoding", 1);
-            std::vector<const char *> args;
+            std::vector<const char*> args;
             args.push_back("-A");
             args.push_back("alsa");
             args.push_back("--no-osd");
@@ -151,11 +160,11 @@ public:
 #ifdef PLATFORM_PI
             if (hardwareDecoding) {
                 args.push_back("-V");
-                args.push_back("mmal_vout"); 
+                args.push_back("mmal_vout");
             }
 #elif defined(PLATFORM_UNKNOWN)
             args.push_back("-I");
-            args.push_back("dummy"); 
+            args.push_back("dummy");
 #endif
             args.push_back(nullptr);
             vlcInstance = libvlc_new(args.size() - 1, &args[0]);
@@ -178,7 +187,7 @@ public:
     int start(VLCInternalData* data, int startPos) {
         libvlc_media_player_play(data->vlcPlayer);
         if (startPos) {
-            libvlc_media_player_set_time(data->vlcPlayer, startPos, false);
+            MEDIA_PLAYER_SET_TIME(data->vlcPlayer, startPos);
         }
         data->length = libvlc_media_player_get_length(data->vlcPlayer);
         return 0;
@@ -187,14 +196,14 @@ public:
         if (data->vlcPlayer) {
             libvlc_media_player_set_media(data->vlcPlayer, data->media);
             libvlc_media_player_play(data->vlcPlayer);
-            libvlc_media_player_set_time(data->vlcPlayer, 0, false);
+            MEDIA_PLAYER_SET_TIME(data->vlcPlayer, 0);
         }
         return 0;
     }
 
     int stop(VLCInternalData* data) {
         if (data->vlcPlayer) {
-            libvlc_media_player_stop_async(data->vlcPlayer);
+            MEDIA_PLAYER_STOP(data->vlcPlayer);
             libvlc_media_player_release(data->vlcPlayer);
             data->vlcPlayer = nullptr;
             /*
@@ -237,14 +246,12 @@ VLCOutput::VLCOutput(const std::string& mediaFilename, MediaOutputStatus* status
 
     std::string fullMediaPath = mediaFilename;
     if (!FileExists(mediaFilename)) {
-        fullMediaPath = FPP_DIR_MUSIC;
-        fullMediaPath += "/";
-        fullMediaPath += mediaFilename;
+        fullMediaPath = FPP_DIR_MUSIC("/" + mediaFilename);
+        ;
     }
     if (!FileExists(fullMediaPath)) {
-        fullMediaPath = FPP_DIR_VIDEO;
-        fullMediaPath += "/";
-        fullMediaPath += mediaFilename;
+        fullMediaPath = FPP_DIR_VIDEO("/" + mediaFilename);
+        ;
     }
     if (!FileExists(fullMediaPath)) {
         LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullMediaPath.c_str());
@@ -450,7 +457,7 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             // **note** if VLC 'seeking' ever gets fixed, this threshold should be lowered to around 3 seconds
             int ms = std::round(masterMediaPosition * 1000);
             LogDebug(VB_MEDIAOUT, "Diff: %d	Very far, jumping to: %0.3f	(currently at %0.3f)\n", rawdiff, masterMediaPosition, m_mediaOutputStatus->mediaSeconds);
-            libvlc_media_player_set_time(data->vlcPlayer, ms, false);
+            MEDIA_PLAYER_SET_TIME(data->vlcPlayer, ms);
             libvlc_media_player_set_rate(data->vlcPlayer, 1.0);
             lastRates.push_back(1.0);
             rateSum += 1.0;

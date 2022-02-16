@@ -18,11 +18,8 @@ OBJECTS_fppoled += \
     $(OBJECTS_GPIO_ADDITIONS)
 
 LIBS_fppoled = \
-	-lstdc++fs \
 	-ljsoncpp \
 	-lcurl \
-	-lgpiod \
-	-lgpiodcxx \
 	$(LIBS_GPIO_ADDITIONS)
 
 TARGETS += fppoled

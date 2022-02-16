@@ -135,3 +135,6 @@ bool urlDelete(const std::string url, std::string& resp);
 
 std::string base64Encode(uint8_t const* bytes_to_encode, unsigned int in_len);
 std::vector<uint8_t> base64Decode(std::string const& encodedString);
+
+void ShutdownFPPD(bool restart);
+void RegisterShutdownHandler(const std::function<void(bool)> hook);

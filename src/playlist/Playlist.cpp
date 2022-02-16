@@ -122,7 +122,7 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart
         if (entries[c]["type"].asString() == "playlist") {
             m_subPlaylistDepth++;
             if (m_subPlaylistDepth < 5) {
-                std::string filename = std::string(FPP_DIR_PLAYLIST) + "/" + entries[c]["name"].asString() + ".json";
+                std::string filename = FPP_DIR_PLAYLIST("/" + entries[c]["name"].asString() + ".json");
 
                 Json::Value subPlaylist = LoadJSON(filename.c_str());
 
@@ -251,7 +251,7 @@ std::string sanitizeMediaName(std::string mediaName) {
     // Same regex as PHP's sanitizeFilename
     std::regex re("([^\\w\\s\\d\\-_~,;\\[\\]\\(\\).])");
     // Check raw format for older Music uploads
-    std::string tmpMedia = std::string(FPP_DIR_MUSIC) + "/" + mediaName;
+    std::string tmpMedia = FPP_DIR_MUSIC("/" + mediaName);
     std::string tmpMedialClean = std::regex_replace(mediaName, re, "");
 
     LogDebug(VB_PLAYLIST, "SanitizeMedia: Checking Raw Music (%s)\n", tmpMedia.c_str());
@@ -260,21 +260,21 @@ std::string sanitizeMediaName(std::string mediaName) {
     }
 
     // Try Cleaned Music
-    tmpMedia = std::string(FPP_DIR_MUSIC) + "/" + std::regex_replace(mediaName, re, "");
+    tmpMedia = FPP_DIR_MUSIC("/" + std::regex_replace(mediaName, re, ""));
     LogDebug(VB_PLAYLIST, "SanitizeMedia: Checking Cleaned Music (%s)\n", tmpMedia.c_str());
     if (FileExists(tmpMedia)) {
         return tmpMedialClean;
     }
 
     // Try Older (orginal) Video upload
-    tmpMedia = std::string(FPP_DIR_VIDEO) + "/" + mediaName;
+    tmpMedia = FPP_DIR_VIDEO("/" + mediaName);
     LogDebug(VB_PLAYLIST, "SanitizeMedia: Checking Raw Video (%s)\n", tmpMedia.c_str());
     if (FileExists(tmpMedia)) {
         return mediaName;
     }
 
     // Try cleaned video file
-    tmpMedia = std::string(FPP_DIR_VIDEO) + "/" + std::regex_replace(mediaName, re, "");
+    tmpMedia = FPP_DIR_VIDEO("/" + std::regex_replace(mediaName, re, ""));
     LogDebug(VB_PLAYLIST, "SanitizeMedia: Checking Clean Video (%s)\n", tmpMedia.c_str());
     if (FileExists(tmpMedia)) {
         return tmpMedialClean;
@@ -301,9 +301,7 @@ int Playlist::Load(const char* filename) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
     if (endsWith(tmpFilename, ".fseq")) {
-        m_filename = FPP_DIR_SEQUENCE;
-        m_filename += "/";
-        m_filename += tmpFilename;
+        m_filename = FPP_DIR_SEQUENCE("/" + tmpFilename);
 
         root["name"] = tmpFilename;
         root["repeat"] = 0;
@@ -354,11 +352,7 @@ int Playlist::Load(const char* filename) {
         mp.append(pe);
         root["mainPlaylist"] = mp;
     } else {
-        m_filename = FPP_DIR_PLAYLIST;
-        m_filename += "/";
-        m_filename += filename;
-        m_filename += ".json";
-
+        m_filename = FPP_DIR_PLAYLIST("/" + filename + ".json");
         root = LoadJSON(m_filename.c_str());
     }
 
@@ -917,19 +911,10 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
  *
  */
 void Playlist::ProcessMedia(void) {
-    // FIXME, find a better way to do this
-    sigset_t blockset;
-
-    sigemptyset(&blockset);
-    sigaddset(&blockset, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &blockset, NULL);
-
     pthread_mutex_lock(&mediaOutputLock);
     if (mediaOutput)
         mediaOutput->Process();
     pthread_mutex_unlock(&mediaOutputLock);
-
-    sigprocmask(SIG_UNBLOCK, &blockset, NULL);
 }
 
 /*
@@ -1048,10 +1033,7 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
     if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
         (m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
         (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
-        std::string fullfilename = FPP_DIR_PLAYLIST;
-        fullfilename += "/";
-        fullfilename += filename;
-        fullfilename += ".json";
+        std::string fullfilename = FPP_DIR_PLAYLIST("/" + filename + ".json");
 
         if ((m_filename == fullfilename) && (repeat == m_repeat) && m_currentSection && position >= 0) {
             //the requested playlist is already running and loaded, we can jump right to the index

@@ -34,12 +34,14 @@
 #include "log.h"
 #include "../util/GPIOUtils.h"
 
+#ifdef PLATFORM_OSX
+#include <IOKit/serial/ioss.h>
+#else
 // The following is in asm-generic/termios.h, but including that in a C++
 // program causes errors.  The Qt developers worked around this by including
 // the following struct definition and #define's manually:
 // https://codereview.qt-project.org/#/c/125161/6/src/serialport/qserialport_unix.cpp,unified
 
-#ifndef OLDCUSTOMSPEED
 struct termios2 {
     tcflag_t c_iflag; /* input mode flags */
     tcflag_t c_oflag; /* output mode flags */
@@ -81,8 +83,10 @@ speed_t SerialGetBaudRate(int baud) {
         return B115200;
     case 230400:
         return B230400;
+#ifndef PLATFORM_OSX
     case 1000000:
         return B1000000;
+#endif        
     default:
         return B38400;
     }
@@ -184,26 +188,13 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output) {
         (baud != 38400)) {
         LogInfo(VB_CHANNELOUT, "Using custom baud rate of %d\n", baud);
 
-#ifdef OLDCUSTOMSPEED
-        struct serial_struct ss;
-
-        if (ioctl(fd, TIOCGSERIAL, &ss) < 0) {
-            LogErr(VB_CHANNELOUT, "Error getting serial settings: %s\n",
-                   strerror(errno));
+#ifdef PLATFORM_OSX
+        if ( ioctl(fd, IOSSIOSPEED, &adjustedBaud ) == -1 ) {
+            LogErr(VB_CHANNELOUT, "Error %d calling ioctl( ..., IOSSIOSPEED, ... )\n", errno );
             close(fd);
             return -1;
         }
-
-        ss.custom_divisor = ss.baud_base / baud;
-        ss.flags &= ~ASYNC_SPD_MASK;
-        ss.flags |= ASYNC_SPD_CUST;
-
-        if (ioctl(fd, TIOCSSERIAL, &ss) < 0) {
-            LogErr(VB_CHANNELOUT, "Error setting custom baud rate\n");
-            close(fd);
-            return -1;
-        }
-#else
+#else        
         struct termios2 tio;
 
         if (ioctl(fd, TCGETS2, &tio) < 0) {

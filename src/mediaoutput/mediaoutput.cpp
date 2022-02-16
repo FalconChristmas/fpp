@@ -141,7 +141,7 @@ std::string GetVideoFilenameForMedia(const std::string& filename, std::string& e
     std::string oext = filename.substr(found + 1);
     std::string lext = toLowerCopy(oext);
     std::string bfile = filename.substr(0, found + 1);
-    std::string videoPath = std::string(FPP_DIR_VIDEO) + "/" + bfile;
+    std::string videoPath = FPP_DIR_VIDEO("/" + bfile);
 
     if (IsExtensionVideo(lext)) {
         if (FileExists(videoPath + oext)) {
@@ -166,9 +166,7 @@ std::string GetVideoFilenameForMedia(const std::string& filename, std::string& e
 bool HasAudio(const std::string& mediaFilename) {
     std::string fullMediaPath = mediaFilename;
     if (!FileExists(mediaFilename)) {
-        fullMediaPath = FPP_DIR_MUSIC;
-        fullMediaPath += "/";
-        fullMediaPath += mediaFilename;
+        fullMediaPath = FPP_DIR_MUSIC("/" + mediaFilename);
     }
     return FileExists(fullMediaPath);
 }

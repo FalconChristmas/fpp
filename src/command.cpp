@@ -90,7 +90,7 @@ static void exit_handler(int signum)
 
      old_umask = umask(0011);
 
-     if(bind(socket_fd, (const struct sockaddr *) &server_address, sizeof(server_address)) < 0) {
+     if (bind(socket_fd, (const struct sockaddr *) &server_address, sizeof(server_address)) < 0) {
          close(socket_fd);
          perror("command socket bind");
          exit(1);
@@ -555,7 +555,7 @@ void CommandProc()
     int bytes_received, bytes_sent;
     socklen_t address_length = sizeof(struct sockaddr_un);
 
-    memset(&command[0], MAX_COMMAND_SIZE, 0);
+    memset(&command[0], 0, MAX_COMMAND_SIZE);
     bytes_received = recvfrom(socket_fd, &command[0], MAX_COMMAND_SIZE - 1, 0,
                               (struct sockaddr *) &(client_address),
                               &address_length);
@@ -584,7 +584,7 @@ void CommandProc()
                      &command[0], bytes_sent, errno, strerror(errno), &response[0]);
         }
         
-        memset(&command[0], MAX_COMMAND_SIZE, 0);
+        memset(&command[0], 0, MAX_COMMAND_SIZE);
         bytes_received = recvfrom(socket_fd, &command[0], MAX_COMMAND_SIZE - 1, 0,
                                   (struct sockaddr *) &(client_address),
                                   &address_length);

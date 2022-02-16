@@ -1,3 +1,4 @@
+
 /*
  *   E131 bridge for Falcon Player (FPP)
  *
@@ -27,6 +28,9 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#ifdef PLATFORM_OSX
+#include <netinet/udp.h>
+#endif
 #include <sys/types.h>
 #include <errno.h>
 #include <ifaddrs.h>
@@ -115,7 +119,11 @@ int CreateArtNetSocket() {
         //need to be able to send broadcase for ArtPollReply
         setsockopt(artnetSock, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
         enable = 1;
+#ifdef PLATFORM_OSX        
+        setsockopt(artnetSock, IPPROTO_UDP, UDP_NOCKSUM, (void*)&enable, sizeof enable);
+#else        
         setsockopt(artnetSock, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
+#endif
 
         memset((char*)&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
@@ -140,7 +148,7 @@ bool LoadInputUniversesFromFile(void) {
     char* s;
     InputUniverseCount = 0;
     char active = 0;
-    std::string filename(FPP_DIR_CONFIG "/ci-universes.json");
+    std::string filename = FPP_DIR_CONFIG("/ci-universes.json");
 
     LogDebug(VB_E131BRIDGE, "Opening File Now %s\n", filename.c_str());
 
@@ -358,7 +366,9 @@ bool Bridge_Initialize_Internal() {
         }
 
         // FIXME, move this to /etc/sysctl.conf or our startup script
+#ifndef PLATFORM_OSX
         system("sudo sysctl net/ipv4/igmp_max_memberships=512");
+#endif
 
         memset((char*)&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;

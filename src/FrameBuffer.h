@@ -30,8 +30,9 @@
 #include <mutex>
 #include <thread>
 
+#ifdef HAS_FRAMEBUFFER
 #include <linux/fb.h>
-
+#endif
 #ifdef USE_X11
 #include <X11/Xlib.h>
 #endif
@@ -116,9 +117,11 @@ public:
 
     unsigned int m_typeSeed;
 
+#ifdef HAS_FRAMEBUFFER
     struct fb_var_screeninfo m_vInfo;
     struct fb_var_screeninfo m_vInfoOrig;
     struct fb_fix_screeninfo m_fInfo;
+#endif
 
     volatile bool m_runLoop;
     volatile bool m_imageReady;
@@ -152,6 +155,7 @@ private:
     inline void SyncDisplay(void);
 
     int InitializeFrameBuffer(void);
+    void DestroyFrameBuffer(void);
 
 #ifdef USE_X11
     int InitializeX11Window(void);

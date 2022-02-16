@@ -25,6 +25,7 @@
 
 #include "fpp-pch.h"
 
+#include "PlaylistEntryImage.h"
 #include <sys/stat.h>
 
 #include <filesystem>
@@ -32,8 +33,6 @@ using namespace std::filesystem;
 
 #include <Magick++.h>
 using namespace Magick;
-
-#include "PlaylistEntryImage.h"
 
 void StartPrepLoopThread(PlaylistEntryImage* fb);
 
@@ -53,7 +52,7 @@ PlaylistEntryImage::PlaylistEntryImage(Playlist* playlist, PlaylistEntryBase* pa
     m_device = "fb0";
 
     m_fileSeed = (unsigned int)time(NULL);
-    m_cacheDir = "/home/fpp/media/cache";
+    m_cacheDir = FPP_DIR_MEDIA("/cache");
     m_cacheEntries = 200;
     m_cacheSize = 1024; // MB
     m_freeSpace = 2048; // MB
@@ -84,9 +83,7 @@ int PlaylistEntryImage::Init(Json::Value& config) {
     if (startsWith(m_imagePath, "/")) {
         m_imageFullPath = m_imagePath;
     } else {
-        m_imageFullPath = FPP_DIR_IMAGE;
-        m_imageFullPath += "/";
-        m_imageFullPath += m_imagePath;
+        m_imageFullPath = FPP_DIR_IMAGE("/" + m_imagePath);
     }
 
     if (config.isMember("outputDevice"))

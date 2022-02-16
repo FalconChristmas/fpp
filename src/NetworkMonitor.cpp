@@ -19,8 +19,10 @@
 
 #include "fpp-pch.h"
 
+#ifndef PLATFORM_OSX
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#endif
 #include <net/if.h>
 #include <netinet/in.h>
 #include <sys/types.h>
@@ -30,6 +32,7 @@
 NetworkMonitor NetworkMonitor::INSTANCE;
 
 void NetworkMonitor::Init(std::map<int, std::function<bool(int)>>& callbacks) {
+#ifndef PLATFORM_OSX
     int nl_socket = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
     if (nl_socket < 0) {
         LogWarn(VB_GENERAL, "Could not create NETLINK socket.\n");
@@ -97,6 +100,7 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>>& callbacks) {
         }
         return false;
     };
+#endif    
 }
 void NetworkMonitor::callCallbacks(NetEventType nl, int up, const std::string& n) {
     for (auto& cb : callbacks) {

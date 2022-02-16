@@ -24,7 +24,6 @@
  */
 #include "fpp-pch.h"
 
-#include <linux/kd.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -121,7 +120,7 @@ int VirtualDisplayOutput::Init(Json::Value config) {
  *
  */
 int VirtualDisplayOutput::InitializePixelMap(void) {
-    std::string virtualDisplayMapFilename(FPP_DIR_CONFIG "/virtualdisplaymap");
+    std::string virtualDisplayMapFilename = FPP_DIR_CONFIG("/virtualdisplaymap");
 
     if (!FileExists(virtualDisplayMapFilename)) {
         LogErr(VB_CHANNELOUT, "Error: %s does not exist\n",

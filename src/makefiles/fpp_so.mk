@@ -99,13 +99,11 @@ OBJECTS_fpp_so += \
 
 
 LIBS_fpp_so += \
-	-lstdc++fs \
     -lzstd -lz \
-	-lgpiod \
-	-lgpiodcxx \
 	-lhttpserver \
 	-ljsoncpp \
 	-lm \
+	-lcurl \
 	-lmosquitto \
 	-lutil \
 	-ltag \
@@ -116,16 +114,18 @@ LIBS_fpp_so += \
 	-lswresample \
 	-L/usr/local/lib \
 	-lswscale \
-	-lvlc
+	-lvlc \
+	-lGraphicsMagick \
+	-lGraphicsMagickWand \
+	-lGraphicsMagick++ \
     $(LIBS_GPIO_ADDITIONS)
 
 
 util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
 
-
-TARGETS += libfpp.so
+TARGETS += libfpp.$(SHLIB_EXT)
 OBJECTS_ALL+=$(OBJECTS_fpp_so)
 
-libfpp.so: $(OBJECTS_fpp_so) $(DEPS_fpp_so)
-	$(CCACHE) $(CC) -shared $(CFLAGS_$@) $(OBJECTS_fpp_so) $(LIBS_fpp_so) $(LIBS_fpp_so) $(LDFLAGS) $(LDFLAGS_fpp_so) -Wl,-rpath=$(PWD):$(PWD)/../external/RF24/ -o $@
+libfpp.$(SHLIB_EXT): $(OBJECTS_fpp_so) $(DEPS_fpp_so)
+	$(CCACHE) $(CC) -shared $(CFLAGS_$@) $(OBJECTS_fpp_so) $(LIBS_fpp_so) $(LDFLAGS) $(LDFLAGS_fpp_so) -o $@

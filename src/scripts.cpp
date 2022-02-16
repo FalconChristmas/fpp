@@ -45,13 +45,13 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
     LogDebug(VB_COMMAND, "Script %s:  Args: %s\n", script.c_str(), scriptArgs.c_str());
     
 	// Setup the script from our user
-	strcpy(userScript, FPP_DIR_SCRIPT);
-	strcat(userScript, "/");
+	strcpy(userScript, FPP_DIR_SCRIPT("/").c_str());
 	strncat(userScript, script.c_str(), 1024 - strlen(userScript));
 	userScript[1023] = '\0';
 
 	// Setup the wrapper
-    strcpy(eventScript, FPP_DIR "/scripts/eventScript");
+    strcpy(eventScript, FPP_DIR.c_str());
+    strcat(eventScript, "/scripts/eventScript");
 
     pid = fork();
 
@@ -139,10 +139,9 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 			setenv(envVars[ev].first.c_str(), envVars[ev].second.c_str(), 0);
 		}
 
-        if (chdir(FPP_DIR_SCRIPT))
-        {
+        if (chdir(FPP_DIR_SCRIPT("").c_str())) {
             LogErr(VB_COMMAND, "Unable to change directory to %s: %s\n",
-                FPP_DIR_SCRIPT, strerror(errno));
+                FPP_DIR_SCRIPT("").c_str(), strerror(errno));
             exit(EXIT_FAILURE);
         }
         for (int x = 0; x < i; x++) {

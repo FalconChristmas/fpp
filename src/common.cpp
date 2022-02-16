@@ -581,7 +581,9 @@ bool SetFilePerms(const std::string& filename) {
     chmod(filename.c_str(), mode);
 
     struct passwd* pwd = getpwnam("fpp");
-    chown(filename.c_str(), pwd->pw_uid, pwd->pw_gid);
+    if (pwd) {
+        chown(filename.c_str(), pwd->pw_uid, pwd->pw_gid);
+    }
 
     return true;
 }
@@ -1077,4 +1079,15 @@ std::vector<uint8_t> base64Decode(std::string const& encodedString) {
         }
     }
     return ret;
+}
+
+
+static std::function<void(bool)> SHUTDOWN_HOOK;
+void ShutdownFPPD(bool restart) {
+    if (SHUTDOWN_HOOK) {
+        SHUTDOWN_HOOK(restart);
+    }
+}
+void RegisterShutdownHandler(const std::function<void(bool)> hook) {
+    SHUTDOWN_HOOK = hook;
 }

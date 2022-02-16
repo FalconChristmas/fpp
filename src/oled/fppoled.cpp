@@ -34,7 +34,7 @@ void sigTermHandler(int sig) {
 int main(int argc, char* argv[]) {
     PinCapabilities::InitGPIO("FPPOLED");
     printf("FPP OLED Status Display Driver\n");
-    LoadSettings();
+    LoadSettings(argv[0]);
 
     int ledType = getSettingInt("LEDDisplayType");
     printf("    Led Type: %d\n", ledType);

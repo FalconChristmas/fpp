@@ -230,7 +230,7 @@ const std::shared_ptr<httpserver::http_response> CommandManager::render_GET(cons
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
         }
     } else if (p1 == "commandPresets") {
-        std::string commandsFile(FPP_DIR_CONFIG "/commandPresets.json");
+        std::string commandsFile = FPP_DIR_CONFIG("/commandPresets.json");
         Json::Value allCommands;
         if (FileExists(commandsFile)) {
             // Load new config file
@@ -395,7 +395,7 @@ void CommandManager::LoadPresets() {
     char id[6];
     memset(id, 0, sizeof(id));
 
-    std::string commandsFile(FPP_DIR_CONFIG "/commandPresets.json");
+    std::string commandsFile = FPP_DIR_CONFIG("/commandPresets.json");
 
     Json::Value allCommands;
 
@@ -409,9 +409,7 @@ void CommandManager::LoadPresets() {
         for (int major = 1; major <= 25; major++) {
             for (int minor = 1; minor <= 25; minor++) {
                 sprintf(id, "%02d_%02d", major, minor);
-                std::string filename = "/home/fpp/media/events/";
-                filename += id;
-                filename += ".fevt";
+                std::string filename = FPP_DIR_MEDIA(std::string("/events/") + id + ".fevt");
 
                 if (FileExists(filename)) {
                     LogDebug(VB_COMMAND, "Converting old %s event to a Command Preset\n", id);

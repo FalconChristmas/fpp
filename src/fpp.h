@@ -24,9 +24,15 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef PLATFORM_OSX
+#define FPP_SOCKET_PATH "/var/tmp/fppd"
+#define FPP_SERVER_SOCKET "/var/tmp/fppd/FPPD"
+#define FPP_CLIENT_SOCKET "/var/tmp/fppd/FPP"
+#else
 #define FPP_SOCKET_PATH "/run/fppd"
 #define FPP_SERVER_SOCKET "/run/fppd/FPPD"
 #define FPP_CLIENT_SOCKET "/run/fppd/FPP"
+#endif
 
 #define FPP_SERVER_SOCKET_OLD "/tmp/FPPD"
 #define FPP_CLIENT_SOCKET_OLD "/tmp/FPP"
