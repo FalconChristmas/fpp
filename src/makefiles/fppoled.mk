@@ -20,7 +20,7 @@ OBJECTS_fppoled += \
 LIBS_fppoled = \
 	-ljsoncpp \
 	-lcurl \
-	$(LIBS_GPIO_ADDITIONS)
+	$(LIBS_GPIO_ADDITIONS) $(LD_FLAG_FS)
 
 TARGETS += fppoled
 OBJECTS_ALL+=$(OBJECTS_fppoled)

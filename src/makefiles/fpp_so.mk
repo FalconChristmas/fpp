@@ -118,7 +118,7 @@ LIBS_fpp_so += \
 	-lGraphicsMagick \
 	-lGraphicsMagickWand \
 	-lGraphicsMagick++ \
-    $(LIBS_GPIO_ADDITIONS)
+    $(LIBS_GPIO_ADDITIONS) $(LD_FLAG_FS)
 
 
 util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
