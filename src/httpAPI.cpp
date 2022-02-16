@@ -24,7 +24,9 @@
  */
 #include "fpp-pch.h"
 
+#ifdef PLATFORM_OSX
 #include <sys/sysctl.h>
+#endif
 
 #include "MultiSync.h"
 #include "Player.h"
