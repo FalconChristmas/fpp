@@ -422,20 +422,22 @@ function PlaylistSectionInsertItem()
 function playlist_stop()
 {
     global $settings;
-
-    $curl = curl_init('http://localhost:32322/command/Stop Now');
+    $curl = curl_init();
+    error_log(implode("\\n", curl_version()));
+    curl_setopt($curl, CURLOPT_URL, "http://localhost:32322/command/Stop%20Now");
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
     $request_content = curl_exec($curl);
+    error_log("    " . $request_content);
     return $request_content;
 }
 function playlist_stopgracefully()
 {
     global $settings;
 
-    $curl = curl_init('http://localhost:32322/command/Stop Gracefully');
+    $curl = curl_init('http://localhost:32322/command/Stop%20Gracefully');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -447,7 +449,7 @@ function playlist_stopgracefullyafterloop()
 {
     global $settings;
 
-    $curl = curl_init('http://localhost:32322/command/Stop Gracefully/true');
+    $curl = curl_init('http://localhost:32322/command/Stop%20Gracefully/true');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -461,7 +463,7 @@ function playlist_start()
 
     $playlistName = rawurldecode(params('PlaylistName'));
 
-    $curl = curl_init('http://localhost:32322/command/Start Playlist/' . $playlistName);
+    $curl = curl_init('http://localhost:32322/command/Start%20Playlist/' . $playlistName);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -476,7 +478,7 @@ function playlist_start_repeat()
     $playlistName = rawurldecode(params('PlaylistName'));
     $repeat = urldecode(params('Repeat'));
 
-    $curl = curl_init('http://localhost:32322/command/Start Playlist/' . $playlistName . '/' . $repeat);
+    $curl = curl_init('http://localhost:32322/command/Start%20Playlist/' . $playlistName . '/' . $repeat);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -488,7 +490,7 @@ function playlist_pause()
 {
     global $settings;
 
-    $curl = curl_init('http://localhost:32322/command/Pause Playlist');
+    $curl = curl_init('http://localhost:32322/command/Pause%20Playlist');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -500,7 +502,7 @@ function playlist_resume()
 {
     global $settings;
 
-    $curl = curl_init('http://localhost:32322/command/Resume Playlist');
+    $curl = curl_init('http://localhost:32322/command/Resume%20Playlist');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);

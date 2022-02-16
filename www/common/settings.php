@@ -197,7 +197,7 @@ function SetWifiDrivers($value) {
         exec("sudo rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val );
         exec("sudo rm -f /etc/modprobe.d/50-8188eu.conf", $output, $return_val);
     } else {
-        exec("sudo cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
+        exec("sudo cp " . $settings["fppDir"] . "/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
         exec("sudo rm -f /etc/modprobe.d/blacklist-8192cu.conf", $output, $return_val );
         exec("sudo rm -f /etc/modprobe.d/50-8188eu.conf", $output, $return_val);
     }

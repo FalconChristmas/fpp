@@ -151,12 +151,13 @@ public:
 
             int hardwareDecoding = getSettingInt("HardwareDecoding", 1);
             std::vector<const char*> args;
-            args.push_back("-A");
-            args.push_back("alsa");
             args.push_back("--no-osd");
             if (!hardwareDecoding) {
                 args.push_back("--no-hw-dec");
             }
+#ifndef PLATFORM_OSX            
+            args.push_back("-A");
+            args.push_back("alsa");
 #ifdef PLATFORM_PI
             if (hardwareDecoding) {
                 args.push_back("-V");
@@ -165,32 +166,46 @@ public:
 #elif defined(PLATFORM_UNKNOWN)
             args.push_back("-I");
             args.push_back("dummy");
+#endif            
+#else
+            args.push_back("-I");
+            args.push_back("macosx");
+            args.push_back("-f");
 #endif
             args.push_back(nullptr);
             vlcInstance = libvlc_new(args.size() - 1, &args[0]);
 
-            libvlc_log_set(vlcInstance, logCallback, this);
+            if (vlcInstance) {
+                libvlc_log_set(vlcInstance, logCallback, this);
+            } else {
+                WarningHolder::AddWarningTimeout("Could not create Video Ouput Device.", 60);
+            }
         }
-        data->media = libvlc_media_new_path(vlcInstance, data->fullMediaPath.c_str());
-        data->vlcPlayer = libvlc_media_player_new_from_media(data->media);
-        libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerEndReached, stoppedEventCallBack, data);
-        libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
-        data->length = libvlc_media_player_get_length(data->vlcPlayer);
+        if (vlcInstance) {
+            data->media = libvlc_media_new_path(vlcInstance, data->fullMediaPath.c_str());
+            data->vlcPlayer = libvlc_media_player_new_from_media(data->media);
+            libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerEndReached, stoppedEventCallBack, data);
+            libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
+            data->length = libvlc_media_player_get_length(data->vlcPlayer);
 
-        std::string cardType = getSetting("AudioCardType");
-        if (cardType.find("Dummy") == 0) {
-            WarningHolder::AddWarningTimeout("Outputting Audio to Dummy device.", 60);
+            std::string cardType = getSetting("AudioCardType");
+            if (cardType.find("Dummy") == 0) {
+                WarningHolder::AddWarningTimeout("Outputting Audio to Dummy device.", 60);
+            }
+            return 0;
         }
-
-        return 0;
+        return 1;
     }
     int start(VLCInternalData* data, int startPos) {
-        libvlc_media_player_play(data->vlcPlayer);
-        if (startPos) {
-            MEDIA_PLAYER_SET_TIME(data->vlcPlayer, startPos);
+        if (data->vlcPlayer) {
+            libvlc_media_player_play(data->vlcPlayer);
+            if (startPos) {
+                MEDIA_PLAYER_SET_TIME(data->vlcPlayer, startPos);
+            }
+            data->length = libvlc_media_player_get_length(data->vlcPlayer);
+            return 0;
         }
-        data->length = libvlc_media_player_get_length(data->vlcPlayer);
-        return 0;
+        return 1;
     }
     int restart(VLCInternalData* data) {
         if (data->vlcPlayer) {
@@ -274,7 +289,10 @@ VLCOutput::~VLCOutput() {
 int VLCOutput::Start(int msTime) {
     LogDebug(VB_MEDIAOUT, "VLCOutput::Start(%X, %d) %0.3f\n", data, msTime, m_mediaOutputStatus->mediaSeconds);
     if (data) {
-        vlcManager.start(data, msTime);
+        if (vlcManager.start(data, msTime)) {
+            m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+            return 0;
+        }
 
         int seconds = data->length / 1000;
         m_mediaOutputStatus->secondsTotal = seconds / 60;
@@ -300,7 +318,7 @@ int VLCOutput::Stop(void) {
 
 int VLCOutput::Process(void) {
     //LogExcess(VB_MEDIAOUT, "VLCOutput::Process(%X) %0.3f\n", data, m_mediaOutputStatus->mediaSeconds);
-    if (!data) {
+    if (!data || !data->vlcPlayer) {
         return 0;
     }
 

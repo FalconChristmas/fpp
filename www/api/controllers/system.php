@@ -316,35 +316,13 @@ function SystemGetStatus()
     }
 }
 
-//
-// This function adds some local information to the multi-sync result
-// That doesn't come from fppd
-//
-function finalizeStatusJson($obj)
-{
-    $obj['wifi'] = network_wifi_strength_obj();
-    $obj['interfaces'] = network_list_interfaces_obj();
-
-    //Get the advanced info directly as an array
-    $request_expert_content = GetSystemInfoJsonInternal(true, false);
-    //check we have valid data
-    if ($request_expert_content === false) {
-        $request_expert_content = array();
-    }
-    //Add data into the final response, since we have the status as an array already then just add the expert view
-    //Add a new key for the expert data to the original data array
-    $obj['advancedView'] = $request_expert_content;
-
-    return $obj;
-}
-
 function GetSystemInfoJsonInternal($return_array = false, $simple = false)
 {
     global $settings;
 
     //close the session before we start, this removes the session lock and lets other scripts run
     session_write_close();
-
+    
     //Default json to be returned
     $result = array();
     $result['HostName'] = $settings['HostName'];
@@ -359,19 +337,28 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
     }
     $result['Version'] = getFPPVersion();
     $result['Branch'] = getFPPBranch();
-    $result['OSVersion'] = trim(file_get_contents('/etc/fpp/rfs_version'));
-
-    $os_release = "Unknown";
-    if (file_exists("/etc/os-release")) {
-        $info = parse_ini_file("/etc/os-release");
-        if (isset($info["PRETTY_NAME"])) {
-            $os_release = $info["PRETTY_NAME"];
+    
+    
+    if ($settings["Platform"] == "MacOS") {
+        $result['OSRelease'] = "";
+        $result['OSVersion'] = "";
+    } else {
+        if (file_exists('/etc/fpp/rfs_version')) {
+            $result['OSVersion'] = trim(file_get_contents('/etc/fpp/rfs_version'));
         }
 
-        unset($output);
-    }
-    $result['OSRelease'] = $os_release;
+        $os_release = "Unknown";
+        if (file_exists("/etc/os-release")) {
+            $info = parse_ini_file("/etc/os-release");
+            if (isset($info["PRETTY_NAME"])) {
+                $os_release = $info["PRETTY_NAME"];
+            }
 
+            unset($output);
+        }
+        $result['OSRelease'] = $os_release;
+    }
+    
     if (file_exists($settings['mediaDirectory'] . "/fpp-info.json")) {
         $content = file_get_contents($settings['mediaDirectory'] . "/fpp-info.json");
         $json = json_decode($content, true);
@@ -397,26 +384,29 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
         $result['LocalGitVersion'] = get_local_git_version();
         $result['RemoteGitVersion'] = get_remote_git_version(getFPPBranch());
 
+        
         if (isset($settings['UpgradeSource'])) {
             $result['UpgradeSource'] = $settings['UpgradeSource'];
         } else {
             $result['UpgradeSource'] = 'github.com';
         }
 
-        $output = array();
-        $IPs = array();
-        exec("ip --json -4 address show", $output);
-        //print(join("", $output));
-        $ipAddresses = json_decode(join("", $output), true);
-        foreach ($ipAddresses as $key => $value) {
-            if ($value["ifname"] != "lo" && strpos($value["ifname"], 'usb') === false) {
-                foreach ($value["addr_info"] as $key2 => $value2) {
-                    $IPs[] = $value2["local"];
+        if ($settings["Platform"] != "MacOS") {
+            $output = array();
+            $IPs = array();
+            exec("ip --json -4 address show", $output);
+            //print(join("", $output));
+            $ipAddresses = json_decode(join("", $output), true);
+            foreach ($ipAddresses as $key => $value) {
+                if ($value["ifname"] != "lo" && strpos($value["ifname"], 'usb') === false) {
+                    foreach ($value["addr_info"] as $key2 => $value2) {
+                        $IPs[] = $value2["local"];
+                    }
                 }
             }
-        }
 
-        $result['IPs'] = $IPs;
+            $result['IPs'] = $IPs;
+        }
     }
 
     //Return just the array if requested
@@ -425,4 +415,25 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
     } else {
         return json($result);
     }
+}
+
+//
+// This function adds some local information to the multi-sync result
+// That doesn't come from fppd
+//
+function finalizeStatusJson($obj)
+{
+    $obj['wifi'] = network_wifi_strength_obj();
+    $obj['interfaces'] = network_list_interfaces_obj();
+
+    //Get the advanced info directly as an array
+    $request_expert_content = GetSystemInfoJsonInternal(true, false);
+    //check we have valid data
+    if ($request_expert_content === false) {
+        $request_expert_content = array();
+    }
+    //Add data into the final response, since we have the status as an array already then just add the expert view
+    //Add a new key for the expert data to the original data array
+    $obj['advancedView'] = $request_expert_content;
+    return $obj;
 }

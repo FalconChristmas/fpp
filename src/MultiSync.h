@@ -91,6 +91,8 @@ typedef enum systemType {
     kSysTypeFPPBeagleBoneGreenWireless = 0x44,
     kSysTypeFPPPocketBeagle = 0x45,
     kSysTypeFPPSanCloudBeagleBoneEnhanced = 0x46,
+    kSysTypeMacOS = 0x70,
+    // Values under 0x80 are "FPP based" and run full FPP
     kSysTypeFalconController = 0x80,
     kSysTypeFalconF16v2 = 0x81,
     kSysTypeFalconF4v2_64Mb = 0x82,
@@ -105,7 +107,6 @@ typedef enum systemType {
     kSysTypexSchedule = 0xC1,
     kSysTypeESPixelStick = 0xC2,
     kSysTypeESPixelStickESP32 = 0xC3,
-    kSysTypeMacOS = 0xC4,
     kSysTypeNonMultiSyncCapable = 0xF0,
     kSysTypeWLED = 0xFB,
     kSysTypeDIYLEDExpress = 0xFC,

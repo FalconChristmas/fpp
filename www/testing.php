@@ -57,8 +57,8 @@ else
 
 $testStartChannel = 1;
 $testEndChannel = FPPD_MAX_CHANNELS;
-if (file_exists("/home/fpp/media/fpp-info.json")) {
-    $content = file_get_contents("/home/fpp/media/fpp-info.json");
+if (file_exists($mediaDirectory . "/fpp-info.json")) {
+    $content = file_get_contents($mediaDirectory . "/fpp-info.json");
     $json = json_decode($content, true);
     $channelRanges = $json['channelRanges'];
     if ($channelRanges != "") {

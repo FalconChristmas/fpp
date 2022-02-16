@@ -176,6 +176,7 @@ int PlaylistEntryMedia::StartPlaying(void) {
         delete m_mediaOutput;
         m_mediaOutput = 0;
         pthread_mutex_unlock(&m_mediaOutputLock);
+        FinishPlay();
         return 0;
     }
 

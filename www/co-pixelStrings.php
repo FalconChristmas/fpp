@@ -102,7 +102,7 @@ var KNOWN_CAPES = {
     }
     
     $capes = array();
-    $capes = readCapes("/home/fpp/media/tmp/strings/", $capes);
+    $capes = readCapes($mediaDirectory . "/tmp/strings/", $capes);
     if (count($capes) == 0 || $settings["showAllOptions"] == 1) {
         if ($settings['Platform'] == "Raspberry Pi") {
             $capedir = "/opt/fpp/capes/pi/strings/";

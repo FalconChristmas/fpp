@@ -30,7 +30,7 @@ Rebuild FPP
 Stopping fppd...
 <?php
 if (file_exists("/.dockerenv")) {
-    system($SUDO . " /opt/fpp/scripts/fppd_stop");
+    system($SUDO . " " . $settings['fppDir'] . "/scripts/fppd_stop");
 } else {
     exec($SUDO . " systemctl stop fppd");
 }
@@ -40,12 +40,12 @@ touch("$mediaDirectory/tmp/fppd_restarted");
 ==========================================================================
 Rebuilding FPP...
 <?
-system($SUDO . " /opt/fpp/scripts/fpp_build");
+system($SUDO . " " . $settings['fppDir'] . "/scripts/fpp_build");
 ?>
 ==========================================================================
 Restarting fppd...
 <?
-system($SUDO . " /opt/fpp/scripts/fppd_start");
+system($SUDO . " " . $settings['fppDir'] . "/scripts/fppd_start");
 exec($SUDO . " rm -f /tmp/cache_*.cache");
 ?>
 ==========================================================================

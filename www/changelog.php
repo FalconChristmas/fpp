@@ -30,10 +30,10 @@ if ($uiLevel >= 1) {
 
     $output = "";
     if ($currentBranch != 'HEAD') {
-        $cmd = $logCmd . " | tee -a /home/fpp/media/tmp/gitlog";
+        $cmd = $logCmd . " | tee -a " . $mediaDirectory . "/tmp/gitlog";
         exec($cmd, $output, $return_val);
     } else {
-        $cmd = "cat /home/fpp/media/tmp/gitlog";
+        $cmd = "cat " . $mediaDirectory . "/tmp/gitlog";
         exec($cmd, $output, $return_val);
     }
 

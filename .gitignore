@@ -32,6 +32,7 @@ www/.htpasswd
 www/.config.php
 www/fppversion.php
 www/fppdefines.php
+www/media_root.txt
 external/rasclock/modules.order
 external/rasclock/Module.symvers
 external/rasclock/rtc-pcf2127a.*

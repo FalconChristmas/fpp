@@ -84,6 +84,7 @@ int DateInRange(int currentDate, int startDate, int endDate);
 void CloseOpenFiles(void);
 
 std::string GetFileContents(const std::string& filename);
+bool PutFileContents(const std::string& filename, const std::string& str);
 void TrimWhiteSpace(std::string& s);
 
 uint8_t ReverseBitsInByte(uint8_t n);

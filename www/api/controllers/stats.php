@@ -375,8 +375,10 @@ function stats_getPlugins()
 
 function stats_getUUID()
 {
+    global $fppDir;
+    
     $output = array();
-    exec("/opt/fpp/scripts/get_uuid", $output);
+    exec($fppDir . "/scripts/get_uuid", $output);
 
     return $output[0];
 }

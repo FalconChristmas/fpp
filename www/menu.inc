@@ -77,10 +77,10 @@ function list_plugin_entries($menu) {
     <div class="headerCenter">
       <div class="headerCenterRow headerHost">
 <?
-    if (!file_exists("/etc/fpp/desktop")) {
-        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><a href='networkconfig.php#tab-host-dns' class='nonULLink'>".$settings['HostName']."</a></span></span>");
+    if (!$settings["IsDesktop"]) {
+        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".$settings["HostName"]."\"><a href='networkconfig.php#tab-host-dns' class='nonULLink'>".$settings['HostName']."</a></span></span>");
     } else {
-        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".gethostname()."\">".gethostname()."</span></span>");
+        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".$settings["HostName"]."\">".$settings["HostName"]."</span></span>");
     }
 
     $currentHeaderSensor = "1";
@@ -188,7 +188,7 @@ function list_plugin_entries($menu) {
 ?>
     </span>
   </div>
-<?  if (!file_exists("/opt/fpp/src/fppd")) { ?>
+<?  if (!file_exists(__DIR__."/../src/fppd")) { ?>
 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
     </textarea>
@@ -232,7 +232,7 @@ function RebuildFPPD() {
         <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
         <a class="dropdown-item" href="index.php"><i class="fas fa-info"></i> Status Page</a>
 <?
-if (!file_exists("/etc/fpp/desktop")) {
+if (!$settings["IsDesktop"]) {
           echo "<a class='dropdown-item' href='networkconfig.php'><i class='fas fa-network-wired'></i> Network</a>";
 }
 ?>

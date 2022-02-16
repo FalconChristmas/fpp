@@ -157,7 +157,8 @@ run();
 
 function addPluginEndpoints()
 {
-    $baseDir = '/home/fpp/media/plugins/';
+    global $pluginDirectory;
+    $baseDir = $pluginDirectory . '/';
     if ($dir = opendir($baseDir)) {
         while (($file = readdir($dir)) !== false) {
             if (!in_array($file, array('.', '..')) && is_dir($baseDir . $file) && is_file($baseDir . $file . '/api.php')) {

@@ -6,5 +6,5 @@ require_once("common.php");
 
 DisableOutputBuffering();
 
-system("/opt/fpp/scripts/healthCheck --php");
+system($settings["fppDir"] . "/scripts/healthCheck --php");
 ?>

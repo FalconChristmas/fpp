@@ -3,18 +3,24 @@
 $SUDO = "sudo";
 $debug = false;
 $fppRfsVersion = "Unknown";
-$fppHome = "/home/fpp";
 
-$settingsFile = $fppHome . "/media/settings";
+if (file_exists(__DIR__ . "/media_root.txt")) {
+    $mediaDirectory = trim(file_get_contents(__DIR__ . "/media_root.txt"));
+    $fppHome = dirname($mediaDirectory);
+} else {
+    $fppHome = "/home/fpp";
+    $mediaDirectory = "/home/fpp/media";
+}
+$settingsFile = $mediaDirectory . "/settings";
 
 if (file_exists("/etc/fpp/rfs_version")) {
     $fppRfsVersion = trim(file_get_contents("/etc/fpp/rfs_version"));
 }
 
-if (file_exists("/opt/fpp/www/fppversion.php")) {
-    include_once "/opt/fpp/www/fppversion.php";
+if (file_exists(__DIR__."/fppversion.php")) {
+    include_once __DIR__."/fppversion.php";
 } else {
-    include_once "/opt/fpp/www/fppunknown_versions.php";
+    include_once __DIR__."/fppunknown_versions.php";
 }
 
 // Allow overrides that we'll ignore from the git repository to make it
@@ -98,7 +104,7 @@ function ApprovedCape($v)
             return true;
         }
     }
-    if (isset($v["verifiedKeyId"]) && file_exists("/opt/fpp/scripts/keys/" . $v["verifiedKeyId"] . "_pub.pem")) {
+    if (isset($v["verifiedKeyId"]) && file_exists(__DIR__ . "/../scripts/keys/" . $v["verifiedKeyId"] . "_pub.pem")) {
         return true;
     }
     return false;
@@ -107,7 +113,6 @@ function ApprovedCape($v)
 // Set some defaults
 $fppMode = "player";
 $fppDir = dirname(dirname(__FILE__));
-$mediaDirectory = $fppHome . "/media";
 $pluginDirectory = $mediaDirectory . "/plugins";
 $configDirectory = $mediaDirectory . "/config";
 $docsDirectory = $fppDir . "/docs";
@@ -163,11 +168,9 @@ if ($debug) {
     error_log("emailtoemail: $emailtoemail");
 }
 
-$settings['HostName'] = 'FPP';
 $settings['HostDescription'] = '';
-$settings['Title'] = "Falcon Player - FPP";
-$settings['fppBinDir'] = '/opt/fpp/src';
-$settings['wwwDir'] = '/opt/fpp/www';
+$settings['fppBinDir'] = $fppDir . '/src';
+$settings['wwwDir'] = $fppDir . '/www';
 
 $settings['Platform'] = false;
 if (file_exists("/etc/fpp/platform")) {
@@ -194,6 +197,12 @@ if ($settings['Platform'] == false) {
     $settings['Platform'] = exec("uname -s");
     $settings['Variant'] = $settings['Platform'];
 }
+$settings['HostName'] = 'FPP';
+$settings["IsDesktop"] = false;
+if (file_exists("/etc/fpp/desktop")) {
+    $settings["IsDesktop"] = true;
+}
+
 
 if ($settings['Platform'] == "Raspberry Pi") {
     $settings['OSImagePrefix'] = "Pi";
@@ -314,10 +323,17 @@ if ($settings['Platform'] == "Raspberry Pi") {
 } else if ($settings['Platform'] == "qemu") {
     $settings['Logo'] = "QEMU_Logo.png";
     $settings['LogoLink'] = "http://qemu.org/";
+} else if ($settings['Platform'] == "Darwin") {
+    $settings['Platform'] = "MacOS";
+    $settings['Logo'] = "Apple-Logo.png";
+    $settings['LogoLink'] = "http://apple.com/";
+    $SUDO = "";
+    $settings["IsDesktop"] = true;
 } else {
     $settings['Logo'] = "";
     $settings['LogoLink'] = "";
 }
+
 
 $fd = @fopen($settingsFile, "r");
 if ($fd) {
@@ -442,6 +458,10 @@ if ($fd) {
     } while ($data != null);
 
     fclose($fd);
+}
+
+if ($settings["IsDesktop"]) {
+    $settings["HostName"] = explode(".", gethostname())[0];
 }
 
 $pageTitle = "FPP - " . $settings['HostName'];

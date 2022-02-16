@@ -727,7 +727,7 @@ void MainLoop(void) {
 
     while (runMainFPPDLoop) {
 #ifdef USE_KQUEUE
-        struct timespec timeoutStruct = {0, sleepms * 1000};
+        struct timespec timeoutStruct = {0, sleepms * 1000000};
         int epollresult = kevent(epollf, nullptr, 0, events, MAX_EVENTS, &timeoutStruct);
 #else        
         int epollresult = epoll_wait(epollf, events, MAX_EVENTS, sleepms);

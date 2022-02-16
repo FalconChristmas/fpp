@@ -137,7 +137,6 @@ int Player::StopNow(int forceStop) {
         forceStoppedPlaylist = playlistName;
     else
         forceStoppedPlaylist = "";
-
     return playlist->StopNow(forceStop);
 }
 

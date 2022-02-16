@@ -63,16 +63,24 @@ std::string getFPPDDir(const std::string &path) {
 }
 std::string getFPPMediaDir(const std::string &path) {
     if (FPP_MEDIA_DIR == "") {
-#ifdef PLATFORM_OSX
-        const char *homedir;
-        if ((homedir = getenv("HOME")) == NULL) {
-            homedir = getpwuid(getuid())->pw_dir;
+        std::string filename = getFPPDDir("/www/media_root.txt");
+        if (FileExists(filename)) {
+            FPP_MEDIA_DIR = GetFileContents(filename);
+            TrimWhiteSpace(FPP_MEDIA_DIR);
         }
-        FPP_MEDIA_DIR = homedir;
-        FPP_MEDIA_DIR += "/tmp/fpp";
+        if (FPP_MEDIA_DIR == "") {
+#ifdef PLATFORM_OSX
+            const char *homedir;
+            if ((homedir = getenv("HOME")) == NULL) {
+                homedir = getpwuid(getuid())->pw_dir;
+            }
+            FPP_MEDIA_DIR = homedir;
+            FPP_MEDIA_DIR += "/Documents/fpp";
 #else
-        FPP_MEDIA_DIR = "/home/fpp/media";
+            FPP_MEDIA_DIR = "/home/fpp/media";
 #endif
+        }
+        PutFileContents(filename, FPP_MEDIA_DIR);
     }
     return FPP_MEDIA_DIR + path;
 }

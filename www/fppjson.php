@@ -544,7 +544,7 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
     }
 
     $output = array();
-    exec("/opt/fpp/scripts/get_uuid", $output);
+    exec($settings['fppDir'] . "/scripts/get_uuid", $output);
     $result['uuid'] = $output[0];
     
     if (! $simple) {
