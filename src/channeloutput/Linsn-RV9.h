@@ -25,7 +25,6 @@
  */
 
 #include <arpa/inet.h>
-#include <linux/if_packet.h>
 #include <net/if.h>
 #include <string>
 #include <vector>
@@ -60,6 +59,7 @@ private:
     void GetSrcMAC(void);
     void SetHostMACs(void* data);
     void SetDiscoveryMACs(void* data);
+    int Send(char* buffer, int len);
 
     int m_width;
     int m_height;

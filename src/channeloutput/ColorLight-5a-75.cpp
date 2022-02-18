@@ -67,10 +67,17 @@
  */
 #include "fpp-pch.h"
 
-#include <arpa/inet.h>
+
+#ifndef PLATFORM_OSX
 #include <linux/if_packet.h>
-#include <net/if.h>
 #include <netinet/ether.h>
+#else
+#include <net/bpf.h>
+#endif
+
+#include "../SysSocket.h"
+#include <arpa/inet.h>
+#include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <errno.h>
@@ -166,10 +173,10 @@ int ColorLight5a75Output::Init(Json::Value config) {
     for (int i = 0; i < config["panels"].size(); i++) {
         Json::Value p = config["panels"][i];
         char orientation = 'N';
-        const char* o = p["orientation"].asString().c_str();
-
-        if (o && *o)
+        std::string o = p["orientation"].asString();
+        if (o != "") {
             orientation = o[0];
+        }
 
         if (m_flippedLayout) {
             switch (orientation) {
@@ -260,6 +267,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
 
     m_rowSize = m_longestChain * m_panelWidth * 3;
 
+#ifndef PLATFORM_OSX
     // Open our raw socket
     if ((m_fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
         LogErr(VB_CHANNELOUT, "Error creating raw socket: %s\n", strerror(errno));
@@ -284,9 +292,33 @@ int ColorLight5a75Output::Init(Json::Value config) {
 
     // Force packets out the desired interface
     if ((bind(m_fd, (struct sockaddr*)&m_sock_addr, sizeof(m_sock_addr))) == -1) {
-        LogDebug(VB_CHANNELOUT, "bind() failed\n");
+        LogErr(VB_CHANNELOUT, "bind() failed\n");
         return 0;
     }
+#else
+    char buf[ 11 ] = { 0 };
+    int i = 0;
+    for (int i = 0; i < 255; i++ ) {
+        sprintf( buf, "/dev/bpf%i", i );
+        m_fd = open( buf, O_RDWR );
+        if (m_fd != -1 ) {
+            break;
+        }
+    }
+    if (m_fd == -1) {
+        LogErr(VB_CHANNELOUT, "Error opening bpf file: %s\n", strerror(errno));
+        return 0;
+    }
+    
+    struct ifreq bound_if;
+    memset(&bound_if, 0, sizeof(bound_if));
+    strcpy(bound_if.ifr_name, m_ifName.c_str());
+    if (ioctl(m_fd, BIOCSETIF, &bound_if) > 0) {
+        LogErr(VB_CHANNELOUT, "Cannot bind bpf device to physical device %s, exiting\n", m_ifName.c_str());
+    }
+    int yes = 1;
+    ioctl(m_fd, BIOCSHDRCMPLT, &yes);
+#endif
 
     int packetCount = 2 + (m_rows * (((int)(m_rowSize - 1) / CL5A75_MAX_CHANNELS_PER_PACKET) + 1));
     m_msgs.resize(packetCount);
@@ -463,6 +495,28 @@ void ColorLight5a75Output::PrepData(unsigned char* channelData) {
     }
 }
 
+
+int ColorLight5a75Output::sendMessages(struct mmsghdr* msgs, int msgCount) {
+#ifdef PLATFORM_OSX
+    char buf[1500];
+    for (int m = 0; m < msgCount; m++) {
+        int cur = 0;
+        for (int io = 0; io < msgs[m].msg_hdr.msg_iovlen; io++) {
+            memcpy(&buf[cur], msgs[m].msg_hdr.msg_iov[io].iov_base, msgs[m].msg_hdr.msg_iov[io].iov_len);
+            cur += msgs[m].msg_hdr.msg_iov[io].iov_len;
+        }
+        int bytes_sent = write(m_fd, buf, cur);
+        if (bytes_sent != cur) {
+            return m;
+        }
+    }
+    return msgCount;
+#else
+    return sendmmsg(m_fd, msgs, msgCount, MSG_DONTWAIT);
+#endif
+}
+
+
 /*
  *
  */
@@ -476,7 +530,7 @@ int ColorLight5a75Output::SendData(unsigned char* channelData) {
         return 0;
 
     errno = 0;
-    int oc = sendmmsg(m_fd, msgs, msgCount, MSG_DONTWAIT);
+    int oc = sendMessages(msgs, msgCount);
     int outputCount = 0;
     if (oc > 0) {
         outputCount = oc;
@@ -487,7 +541,7 @@ int ColorLight5a75Output::SendData(unsigned char* channelData) {
     while ((outputCount != msgCount) && !done) {
         errCount++;
         errno = 0;
-        oc = sendmmsg(m_fd, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+        oc = sendMessages(&msgs[outputCount], msgCount - outputCount);
         if (oc > 0) {
             outputCount += oc;
         }
