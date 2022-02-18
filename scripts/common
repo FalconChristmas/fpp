@@ -8,11 +8,13 @@ COMMON_PATH=$(cd "$COMMON_PATH/.." && pwd)
 FPPDIR=${FPPDIR:-$COMMON_PATH}
 
 if [ -f "${FPPDIR}/www/media_root.txt" ]; then
-    FPPHOME=$(cat "${FPPDIR}/www/media_root.txt")
+    MEDIADIR=$(cat "../www/media_root.txt")
+    FPPHOME=$(dirname ${MEDIADIR})
 else
     FPPHOME="/home/fpp"
     FPPUSER="fpp"
     FPPGROUP="fpp"
+    MEDIADIR="${MEDIADIR:-${FPPHOME}/media}"
 fi
 
 if [ -f /etc/fpp/platform ]; then
@@ -52,7 +54,6 @@ SUDO=${SUDO:-sudo}
 SCRIPTDIR="${FPPDIR}/scripts"
 BINDIR="${FPPDIR}/scripts"
 UPGRADEDIR="${FPPDIR}/upgrade"
-MEDIADIR="${MEDIADIR:-${FPPHOME}/media}"
 LOGDIR="${MEDIADIR}/logs"
 CFGDIR="${MEDIADIR}/config"
 CFGFILE="${CFGFILE:-${MEDIADIR}/settings}"
