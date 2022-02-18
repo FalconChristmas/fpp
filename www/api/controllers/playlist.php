@@ -423,14 +423,12 @@ function playlist_stop()
 {
     global $settings;
     $curl = curl_init();
-    error_log(implode("\\n", curl_version()));
     curl_setopt($curl, CURLOPT_URL, "http://localhost:32322/command/Stop%20Now");
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
     $request_content = curl_exec($curl);
-    error_log("    " . $request_content);
     return $request_content;
 }
 function playlist_stopgracefully()

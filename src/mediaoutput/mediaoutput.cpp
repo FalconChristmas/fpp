@@ -43,6 +43,7 @@
 #include "Sequence.h"
 #include "mediadetails.h"
 #include "settings.h"
+#include "../config.h"
 
 /////////////////////////////////////////////////////////////////////////////
 MediaOutputBase* mediaOutput = 0;
@@ -63,11 +64,13 @@ void InitMediaOutput(void) {
         LogDebug(VB_MEDIAOUT, "ERROR: Media Output mutex init failed!\n");
     }
 
+#ifndef PLATFORM_OSX
     int vol = getSettingInt("volume", -1);
     if (vol < 0) {
         vol = 70;
     }
     setVolume(vol);
+#endif
 }
 
 /*
@@ -79,10 +82,16 @@ void CleanupMediaOutput(void) {
     pthread_mutex_destroy(&mediaOutputLock);
 }
 
+#ifndef PLATFORM_OSX
 static int volume = 70;
 int getVolume() {
     return volume;
 }
+#else
+int getVolume() {
+    return MacOSGetVolume();
+}
+#endif
 
 void setVolume(int vol) {
     char buffer[60];
@@ -91,12 +100,13 @@ void setVolume(int vol) {
         vol = 0;
     else if (vol > 100)
         vol = 100;
-    volume = vol;
 
     std::string mixerDevice = getSetting("AudioMixerDevice");
     int audioOutput = getSettingInt("AudioOutput");
     std::string audio0Type = getSetting("AudioCard0Type");
 
+#ifndef PLATFORM_OSX
+    volume = vol;
     float fvol = volume;
 #ifdef PLATFORM_PI
     if (audioOutput == 0 && audio0Type == "bcm2") {
@@ -111,10 +121,13 @@ void setVolume(int vol) {
     LogDebug(VB_SETTING, "Volume change: %d \n", volume);
     LogDebug(VB_MEDIAOUT, "Calling amixer to set the volume: %s \n", buffer);
     system(buffer);
-
+#else
+    MacOSSetVolume(vol);
+#endif
+    
     pthread_mutex_lock(&mediaOutputLock);
     if (mediaOutput)
-        mediaOutput->SetVolume(volume);
+        mediaOutput->SetVolume(vol);
 
     pthread_mutex_unlock(&mediaOutputLock);
 }

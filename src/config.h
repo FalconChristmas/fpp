@@ -5,6 +5,9 @@
 
 #define SHLIB_EXT ".dylib"
 
+extern void MacOSSetVolume(int v);
+extern int MacOSGetVolume();
+
 #else
 
 #define HAS_SPI

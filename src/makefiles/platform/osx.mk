@@ -16,8 +16,10 @@ CXXFLAGS_overlays/PixelOverlayEffects.o+=$(MAGICK_INCLUDE_PATH)
 CXXFLAGS_mediaoutput/VLCOut.o+=-I/opt/homebrew/Caskroom/vlc/3.0.16/VLC.app/Contents/MacOS/include
 CXXFLAGS_playlist/PlaylistEntryImage.o+=$(MAGICK_INCLUDE_PATH)
 CXXFLAGS_fppd.o+=$(MAGICK_INCLUDE_PATH)
+OBJECTS_fpp_so += MacOSUtils.o
 
-LIBS_fpp_so+=-L/opt/homebrew/Caskroom/vlc/3.0.16/VLC.app/Contents/MacOS/lib
+
+LIBS_fpp_so+=-L/opt/homebrew/Caskroom/vlc/3.0.16/VLC.app/Contents/MacOS/lib -framework CoreAudio
 
 
 SHLIB_EXT=dylib

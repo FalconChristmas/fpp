@@ -756,7 +756,9 @@ if (GPIOPins.size > 0) {
 }
 
 output_modules.push(new MQTTOutput());
-output_modules.push(new LOREnhanced());
+if (Object.keys(SerialDevices).length > 0) {
+    output_modules.push(new LOREnhanced());
+}
 
 //Outputs for Raspberry Pi or Beagle
 <?

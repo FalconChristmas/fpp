@@ -153,6 +153,16 @@ void SettingsConfig::LoadSettingsInfo() {
         LogExcess(VB_SETTING, "Setting default for '%s' setting to '%s'\n",
                   memberNames[i].c_str(), def.c_str());
     }
+#ifdef PLATFORM_OSX
+    char hostname[256];
+    gethostname(hostname, 256);
+    std::string hn = hostname;
+    int idx = hn.find(".");
+    if (idx != std::string::npos) {
+        hn = hn.substr(0, idx);
+    }
+    settings["HostName"] = hn;
+#endif
 }
 
 // Returns a string that's the white-space trimmed version
