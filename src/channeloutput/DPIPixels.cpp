@@ -73,7 +73,7 @@ DPIPixelsOutput* createOutputDPIPixels(unsigned int startChannel,
 /////////////////////////////////////////////////////////////////////////////
 
 DPIPixelsOutput::DPIPixelsOutput(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ChannelOutputBase(startChannel, channelCount),
     device("/dev/fb0"),
     protocol("ws2811") {
 
@@ -246,7 +246,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
         InitializeWS281x();
 
     PixelString::AutoCreateOverlayModels(m_strings);
-    return ThreadedChannelOutputBase::Init(config);
+    return ChannelOutputBase::Init(config);
 }
 
 int DPIPixelsOutput::Close(void) {
@@ -258,7 +258,7 @@ int DPIPixelsOutput::Close(void) {
     if (fbfd)
         close(fbfd);
 
-    return ThreadedChannelOutputBase::Close();
+    return ChannelOutputBase::Close();
 }
 
 void DPIPixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -338,7 +338,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     page = page ? 0 : 1;
 }
 
-int DPIPixelsOutput::RawSendData(unsigned char* channelData) {
+int DPIPixelsOutput::SendData(unsigned char* channelData) {
     // Flip to current page
     vinfo.yoffset = page * vinfo.yres;
     ioctl(fbfd, FBIOPAN_DISPLAY, &vinfo);
@@ -357,7 +357,7 @@ void DPIPixelsOutput::DumpConfig(void) {
         m_strings[i]->DumpConfig();
     }
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ChannelOutputBase::DumpConfig();
 }
 
 bool DPIPixelsOutput::FrameBufferIsConfigured(void) {

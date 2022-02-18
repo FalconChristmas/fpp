@@ -31,10 +31,10 @@
 #include <linux/fb.h>
 
 #include "PixelString.h"
-#include "ThreadedChannelOutputBase.h"
+#include "ChannelOutputBase.h"
 #include "util/SPIUtils.h"
 
-class DPIPixelsOutput : public ThreadedChannelOutputBase {
+class DPIPixelsOutput : public ChannelOutputBase {
 public:
     DPIPixelsOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~DPIPixelsOutput();
@@ -43,7 +43,7 @@ public:
     virtual int Close(void) override;
 
     virtual void PrepData(unsigned char* channelData) override;
-    virtual int RawSendData(unsigned char* channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
 
     virtual void DumpConfig(void) override;
 
