@@ -630,28 +630,26 @@ bool UDPOutput::PingControllers(bool failedOnly) {
             } else if (p <= 0) {
                 o->failCount++;
                 LogDebug(VB_CHANNELOUT, "Could not ping host %s   Fail count: %d   Currently Valid: %d\n", host.c_str(), o->failCount, o->valid);
-                if (o->valid) {
-                    if (o->failCount == 2) {
-                        // two pings failed, lets try an HTTP HEAD request
-                        if (curls[host] == nullptr) {
-                            std::string url = "http://" + host;
-                            CURL* curl = curl_easy_init();
-                            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                            curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
-                            curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000);
-                            curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
-                            curl_multi_add_handle(m_curlm, curl);
-                            curls[host] = curl;
-                        }
-                    } else if (o->failCount == 3) {
-                        // two shorter pings, a HEAD request, and one long ping failed
-                        // must not be valid anymore
-                        WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString()));
-                        LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
-                                host.c_str());
-                        newOutputs = true;
-                        o->valid = false;
+                if (o->failCount == 2) {
+                    // two pings failed, lets try an HTTP HEAD request
+                    if (curls[host] == nullptr) {
+                        std::string url = "http://" + host;
+                        CURL* curl = curl_easy_init();
+                        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+                        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000);
+                        curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+                        curl_multi_add_handle(m_curlm, curl);
+                        curls[host] = curl;
                     }
+                } else if (o->valid && (o->failCount == 3)) {
+                    // two shorter pings, a HEAD request, and one long ping failed
+                    // must not be valid anymore
+                    WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString()));
+                    LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
+                            host.c_str());
+                    newOutputs = true;
+                    o->valid = false;
                 } else if (o->failCount > 4) {
                     // make sure we wrap around so another HEAD request later may pick it up
                     o->failCount = 0;
