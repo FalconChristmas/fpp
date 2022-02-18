@@ -72,6 +72,7 @@ int ping(string target, int timeoutMs) {
     struct timeval start, end;
     int /*start_t, */ end_t;
     bool cont = true;
+    int icmpID = getpid() & 0xFFFF;
 
     memset(outpack, 0, sizeof(outpack));
     memset(packet, 0, sizeof(packet));
@@ -121,7 +122,7 @@ int ping(string target, int timeoutMs) {
     ipad >>= 16;
     ipad &= 0xFFFF;
     icp->icmp_seq = ipad; /* seq and id must be reflected */
-    icp->icmp_id = getpid();
+    icp->icmp_id = icmpID;
 
     cc = datalen + ICMP_MINLEN;
     icp->icmp_cksum = in_cksum((unsigned short*)icp, cc);
@@ -169,7 +170,7 @@ int ping(string target, int timeoutMs) {
                     //cout << "received sequence # " << icp->icmp_seq << endl;
                     continue;
                 }
-                if (icp->icmp_id != getpid()) {
+                if (icp->icmp_id != icmpID) {
                     //cout << "received id " << icp->icmp_id << endl;
                     continue;
                 }
