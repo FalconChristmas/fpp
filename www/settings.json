@@ -1608,7 +1608,7 @@
             "tip": "WiFi interface to use for tethering.",
             "reboot": 1,
             "type": "select",
-            "optionsCommand": "/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep  wl | sed -r 's/:+$//'"
+            "optionsCommand": "/sbin/ifconfig -a | cut -f1 | cut -f1 -d' ' | grep -v ^$ | grep  wl | sed -r 's/:+$//'"
         },
         "TetherPSK": {
             "name": "TetherPSK",

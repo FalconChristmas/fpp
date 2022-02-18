@@ -701,7 +701,7 @@ compileBinaries() {
     if [ -f "/proc/cpuinfo" ]; then
         CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
     else
-        CPUS="4"
+        CPUS=$(sysctl -n hw.ncpu)
     fi
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then

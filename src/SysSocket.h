@@ -26,6 +26,12 @@ struct sockaddr_ll {
     unsigned char  sll_addr[8];  /* Physical-layer address */
 };
 
+struct ether_header {
+    u_char    ether_dhost[6];
+    u_char    ether_shost[6];
+    u_short   ether_type;
+};
+
 inline int recvmmsg(int fd, struct mmsghdr *msgs, unsigned int n,
                     unsigned int flags, struct timespec *timeout)
 {

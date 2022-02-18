@@ -107,7 +107,12 @@ int ping(string target, int timeoutMs) {
      }
      */
     if (pingSocket == -1) {
-        if ((pingSocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0) {
+        if (getuid()) {
+            pingSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+        } else {
+            pingSocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+        }
+        if (pingSocket < 0) {
             perror("socket"); /* probably not running as superuser */
             return -1;
         }

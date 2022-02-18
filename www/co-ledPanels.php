@@ -605,7 +605,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 <?
 function PopulateEthernetInterfaces()
 {
-    $interfaces = explode("\n", trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb0 | grep -v ^wl")));
+    $interfaces = network_list_interfaces_array();
     foreach ($interfaces as $iface) {
         $iface = preg_replace("/:$/", "", $iface);
         echo "<option value='" . $iface;

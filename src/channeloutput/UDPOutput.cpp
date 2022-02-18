@@ -777,19 +777,21 @@ int UDPOutput::createSocket(int port, bool broadCast) {
             LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
             exit(1);
         }
+#ifndef PLATFORM_OSX
     } else {
         if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_IF, (char*)&address, sizeof(address)) < 0) {
             LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_IF error\n");
-            close(sendSocket);
-            return -1;
         }
+#endif
     }
     if (bind(sendSocket, (struct sockaddr*)&address, sizeof(struct sockaddr_in)) == -1) {
         LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
     }
+#ifndef PLATFORM_OSX
     if (connect(sendSocket, (struct sockaddr*)&address, sizeof(address)) < 0) {
         LogErr(VB_CHANNELOUT, "Error connecting IP_MULTICAST_LOOP socket\n");
     }
+#endif
     return sendSocket;
 }
 

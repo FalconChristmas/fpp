@@ -246,32 +246,32 @@ double GetSecondsFromInputPacket() {
 bool Bridge_ReceiveE131Data(void) {
     //	LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
 
-    int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
+    int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     bool sync = false;
     long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
             sync |= Bridge_StoreData((uint8_t*)buffers[x], packetTime);
         }
-        msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
+        msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
     return sync;
 }
 bool Bridge_ReceiveDDPData(void) {
     //    LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
-    int msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
+    int msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     bool sync = false;
     long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
             sync |= Bridge_StoreDDPData((uint8_t*)buffers[x], packetTime);
         }
-        msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
+        msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
     return sync;
 }
 bool Bridge_ReceiveArtNetData(void) {
-    int msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, 0, nullptr);
+    int msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     bool sync = false;
     long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
@@ -286,7 +286,7 @@ bool Bridge_ReceiveArtNetData(void) {
                 sync |= cb->second(bridgeBuffer, packetTime);
             }
         }
-        msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, 0, nullptr);
+        msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
     return sync;
 }

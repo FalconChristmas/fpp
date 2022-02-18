@@ -2010,6 +2010,20 @@ function network_wifi_strength_obj()
     return $rc;
 }
 
+#############
+# Returns an array of just the network interface nmes
+#############
+function network_list_interfaces_array() {
+    global $settings;
+    if ($settings["Platform"] == "MacOS") {
+        $output = exec("ipconfig getiflist");
+        $parts = preg_split("/\s+/", trim($output));
+        return $parts;
+    }
+    $interfaces = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | grep -v tether ")));
+    return $interfaces;
+}
+
 function network_list_interfaces_obj()
 {
     global $settings;
@@ -2028,6 +2042,7 @@ function network_list_interfaces_obj()
             $obj->ifindex = $cnt;
             $obj->ifname = $int;
             $obj->addr_info = array();
+            $obj->flags = array();
             array_push($obj->addr_info, new \stdClass());
             $lastKey = "";
             foreach ($config as $line) {
@@ -2048,6 +2063,8 @@ function network_list_interfaces_obj()
                 } else if ($key == "InterfaceType" && $value == "WiFi") {
                     $wifiObj[0]->interface = $int;
                     $obj->wifi = $wifiObj[0];
+                } else if ($key == "ConfigMethod" && $value == "DHCP") {
+                    $obj->flags[] = "DYNAMIC";
                 } else {
                     $lastKey = $key;
                 }

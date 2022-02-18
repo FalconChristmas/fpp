@@ -82,7 +82,7 @@ function PopulateInterfaces()
 {
 	global $settings;
 
-	$interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb | grep -v SoftAp | grep -v 'can.'")));
+	$interfaces = network_list_interfaces_array();
 	$ifaceE131 = "";
     // legacy setting for the E131Interface
 	if (isset($settings['E131interface'])) {

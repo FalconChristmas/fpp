@@ -623,7 +623,7 @@ function CreatePersistentNetNames()
 {
 	global $settings;
     shell_exec("sudo rm -f /etc/systemd/network/5?-fpp-*.link");
-    $interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | grep -v tether ")));
+    $interfaces = network_list_interfaces_array();
     $count = 0;
     foreach ($interfaces as $iface) {
         $iface = preg_replace("/:$/", "", $iface);

@@ -44,6 +44,7 @@
 #include "common.h"
 #include "log.h"
 #include "settings.h"
+#include "../config.h"
 
 //old style that still need porting
 #include "FPD.h"
@@ -299,10 +300,11 @@ int InitializeChannelOutputs(void) {
                     type = OUTPUT_REMAPS[type];
                 }
 
-                std::string libname = "libfpp-co-" + libnamePfx + type + ".so";
+                std::string libname = "libfpp-co-" + libnamePfx + type + SHLIB_EXT;
                 void* handle = dlopen(libname.c_str(), RTLD_NOW);
                 if (handle == NULL) {
                     LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s - Error: %s\n", type.c_str(), dlerror());
+                    WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
                     continue;
                 }
                 ChannelOutputBase* (*fptr)(unsigned int, unsigned int);
