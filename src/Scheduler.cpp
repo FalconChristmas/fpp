@@ -532,7 +532,7 @@ void Scheduler::CheckScheduledItems(bool restarted) {
                             if ((oldItem->command == "Start Playlist") &&
                                 (oldItem->entry->playlist == playlistName)) {
                                 oldItem->ran = false;
-                                m_forcedNextPlaylist == oldItem->entryIndex;
+                                m_forcedNextPlaylist = oldItem->entryIndex;
                             }
                         }
 
