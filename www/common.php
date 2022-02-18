@@ -1947,7 +1947,7 @@ function network_wifi_strength_obj()
 {
     global $settings;
     $rc = array();
-    if ($settings["Platform"] = "MacOS") {
+    if ($settings["Platform"] == "MacOS") {
         exec("/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I", $status);
         $obj = new \stdClass();
         $obj->level = 100;
