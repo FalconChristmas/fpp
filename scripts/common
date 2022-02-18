@@ -2,13 +2,19 @@
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin:${PATH}
 
-COMMON_PATH=$(dirname "$0")            # relative
+if [ "x$0" = "x-bash" ]
+then
+    COMMON_PATH="/opt/fpp/scripts"
+else
+    COMMON_PATH=$(dirname "$0")            # relative
+fi
+
 COMMON_PATH=$(cd "$COMMON_PATH/.." && pwd)
 
 FPPDIR=${FPPDIR:-$COMMON_PATH}
 
 if [ -f "${FPPDIR}/www/media_root.txt" ]; then
-    MEDIADIR=$(cat "../www/media_root.txt")
+    MEDIADIR=$(cat "${FPPDIR}/www/media_root.txt")
     FPPHOME=$(dirname ${MEDIADIR})
 else
     FPPHOME="/home/fpp"
