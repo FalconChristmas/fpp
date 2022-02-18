@@ -4059,19 +4059,21 @@ function PopulatePlaylists(sequencesAlso, options) {
     GetPlaylistArray(onPlaylistArrayLoaded);
 
     if (sequencesAlso)
-        playlistOptionsText += "<option disabled>---------- Playlists ---------- </option>";
+        playlistOptionsText += "<optgroup label='Playlists'>";
 
     for (j = 0; j < playListArray.length; j++) {
         playlistOptionsText += "<option value=\"" + playListArray[j].name + "\">" + playListArray[j].name + "</option>";
     }
 
     if (sequencesAlso) {
+        playlistOptionsText += "</optgroup><optgroup label='Sequences'>";
         GetSequenceArray();
 
-        playlistOptionsText += "<option disabled>---------- Sequences ---------- </option>";
         for (j = 0; j < sequenceArray.length; j++) {
             playlistOptionsText += "<option value=\"" + sequenceArray[j] + ".fseq\">" + sequenceArray[j] + ".fseq</option>";
         }
+
+        playlistOptionsText += "</optgroup>";
     }
 
     $('#playlistSelect').html(playlistOptionsText);
