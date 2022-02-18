@@ -659,7 +659,7 @@ void Sequence::SendBlankingData(void) {
 
     BlankSequenceData(true);
 
-    if (ChannelOutputThreadIsRunning()) {
+    if (ChannelOutputThreadIsRunning() && ChannelOutputThreadIsEnabled()) {
         m_dataProcessed = false;
         ForceChannelOutputNow();
     } else {

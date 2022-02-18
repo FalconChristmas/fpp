@@ -53,7 +53,7 @@ int BridgeLightDelay = 50000;
 int LightDelay = 50000;
 volatile int FrameSkip = 0;
 int MasterFramesPlayed = -1;
-int OutputFrames = 1;
+volatile int OutputFrames = 1;
 float mediaOffset = 0.0;
 
 /* local variables */
@@ -77,6 +77,10 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
  */
 int ChannelOutputThreadIsRunning(void) {
     return ThreadIsRunning;
+}
+
+int ChannelOutputThreadIsEnabled() {
+	return OutputFrames;
 }
 
 /*
