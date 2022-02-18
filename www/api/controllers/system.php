@@ -40,11 +40,15 @@ function SystemShutdownOS()
 // GET /api/system/fppd/start
 function StartFPPD()
 {
-    global $settingsFile, $SUDO;
+    global $settingsFile, $SUDO, $fppDir, $settings;
     $rc = "Already Running";
     $status = exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
     if ($status == 'false') {
-        exec($SUDO . " /opt/fpp/scripts/fppd_start");
+        if ($settings["Platform"] == "MacOS") {
+            exec("launchctl start falconchristmas.fppd");
+        } else {
+            exec($SUDO . " ". $fppDir . "/scripts/fppd_start");
+        }
         $rc = "OK";
     }
     $output = array("status" => $rc);
@@ -53,7 +57,7 @@ function StartFPPD()
 
 function StopFPPDNoStatus()
 {
-    global $SUDO;
+    global $SUDO, $settings;
 
     // Stop Playing
     SendCommand('d');
@@ -66,6 +70,8 @@ function StopFPPDNoStatus()
         usleep(500000);
         // kill it if it's still running
         exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+    } else if ($settings["Platform"] == "MacOS") {
+        exec("launchctl stop falconchristmas.fppd");
     } else {
         // systemctl uses fppd_stop to stop fppd, but we need systemctl to know
         exec($SUDO . " systemctl stop fppd");
@@ -94,7 +100,6 @@ function RestartFPPD()
             return json($output);
         }
     }
-
     StopFPPDNoStatus();
     return StartFPPD();
 }

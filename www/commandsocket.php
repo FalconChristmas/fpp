@@ -14,11 +14,17 @@ $socketError = "";
 
 function SendCommand($command)
 {
+    global $settings;
 	$socketDebug = 0;
 	$socketError = "";
     $bytes_received = 0;
 	$cpath = "/run/fppd/FPP." . getmypid() . "-" . rand(0, 9999999);
 	$spath = "/run/fppd/FPPD";
+    
+    if ($settings["Platform"] == "MacOS") {
+        $cpath = "/var/tmp/fppd/FPP." . getmypid() . "-" . rand(0, 9999999);
+        $spath = "/var/tmp/fppd/FPPD";
+    }
 
 	CleanupSocket($cpath);
 

@@ -3926,8 +3926,13 @@ function ClearRebootFlag() {
 }
 
 function SetRebootFlag() {
-    settings['rebootFlag'] = 1;
-    SetSettingReboot('rebootFlag', 1);
+    if (settings['Platform'] == "MacOS") {
+        // no reboot on MacOS, just restart
+        SetRestartFlag(2);
+    } else {
+        settings['rebootFlag'] = 1;
+        SetSettingReboot('rebootFlag', 1);
+    }
 }
 
 function CheckRestartRebootFlags() {

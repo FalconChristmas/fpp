@@ -20,9 +20,9 @@ fi
 if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset" >/dev/null; then
 
     if [ "${SOURCEIP}" == "github.com" ]; then
-        sudo git remote set-url origin "https://github.com/FalconChristmas/fpp.git"
+        $SUDO git remote set-url origin "https://github.com/FalconChristmas/fpp.git"
     else
-        sudo git remote set-url origin "http://${SOURCEIP}/git/"
+        $SUDO git remote set-url origin "http://${SOURCEIP}/git/"
     fi
     GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
 
@@ -51,7 +51,7 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
         cd ${FPPDIR} && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git fetch --tags -f && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
     fi
 
-    sudo ${SCRIPTDIR}/upgrade_config
+    $SUDO ${SCRIPTDIR}/upgrade_config
     compileBinaries
 else
     echo "Can not access ${HTTPURL}, unable to pull git updates"

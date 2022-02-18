@@ -231,6 +231,7 @@ SetupFPPNetworkConfigViaConnMann() {
         fi
     fi
 }
+if [ "${FPPPLATFORM}" != "MacOS" ]; then
 declare -A NETMASK2SUBNET=(
     ['255.255.255.252']='30'
     ['255.255.255.248']='29'
@@ -248,7 +249,7 @@ declare -A NETMASK2SUBNET=(
     ['255.255.128.0']='17'
     ['255.255.0.0']='16'
 )
-
+fi
 SetupFPPNetworkConfigViaSystemdNetworkd() {
     CONFIGS=`ls ${FPPHOME}/media/config/interface.w*; ls ${FPPHOME}/media/config/interface.e*`
     DEFGW="none"
@@ -697,12 +698,16 @@ compileBinaries() {
 	# export CCACHE_LOGFILE=/tmp/cache.debug
 	export LANG=en_US.UTF-8
 	export TERM=linux
-	CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+    if [ -f "/proc/cpuinfo" ]; then
+        CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+    else
+        CPUS="4"
+    fi
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
 		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} -E make -j ${CPUS} optimized
 	else
-		cd ${FPPDIR}/src && ${SUDO} -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make -j ${CPUS} optimized
+		cd ${FPPDIR}/src && sudo -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make -j ${CPUS} optimized
 	fi
 
     for p in ${MEDIADIR}/plugins/*; do

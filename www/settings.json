@@ -266,7 +266,10 @@
             "restart": 2,
             "default": "PCM",
             "type": "select",
-            "optionsURL": "api/settings/AudioMixerDevice/options"
+            "optionsURL": "api/settings/AudioMixerDevice/options",
+            "platforms": [
+                "!MacOS"
+            ]
         },
         "AudioOutput": {
             "name": "AudioOutput",
@@ -440,7 +443,10 @@
                 "2 min": 120,
                 "3 min": 180,
                 "5 min": 300
-            }
+            },
+            "platforms": [
+                "!MacOS"
+            ]
         },
         "ClockDate": {
             "name": "ClockDate",
@@ -500,7 +506,10 @@
             "description": "Disable IP announcement",
             "gatherStats": true,
             "tip": "During boot, the current IP addresses will be announced over the audio output.  This setting allows disabling this announcement for production use when FPP is connected to a FM transmitter or speakers.",
-            "type": "checkbox"
+            "type": "checkbox",
+            "platforms": [
+                "!MacOS"
+            ]
         },
         "disableUIWarnings": {
             "name": "disableUIWarnings",
@@ -1690,7 +1699,10 @@
             "gatherStats": true,
             "tip": "The Default Video Output device to be used when playing a video.  On all FPP systems, video played in a playlist can be displayed on a Pixel Overlay model.  On the Raspberry Pi, video can also be played on the HDMI/Composite video outputs.",
             "type": "select",
-            "optionsURL": "api/settings/VideoOutput/options"
+            "optionsURL": "api/settings/VideoOutput/options",
+            "platforms": [
+                "!MacOS"
+            ]
         },
         "HardwareDecoding": {
             "name": "HardwareDecoding",

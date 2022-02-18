@@ -278,6 +278,9 @@ function ShouldPrintSetting($s)
             !in_array($settings['Platform'], $s['platforms'])) {
             return false;
         }
+        if (in_array("!" . $settings['Platform'], $s['platforms'])) {
+            return false;
+        }
     }
     if (isset($s['settingValues'])) {
         foreach ($s['settingValues'] as $key => $value) {

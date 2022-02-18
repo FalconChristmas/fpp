@@ -1,6 +1,9 @@
 #!/bin/bash
 
-. /opt/fpp/scripts/common
+COMMON_PATH=$(dirname "$0")            # relative
+COMMON_PATH=$(cd "$COMMON_PATH" && pwd)
+
+. ${COMMON_PATH}/common
 
 PHPOUT="n"
 

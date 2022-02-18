@@ -358,8 +358,11 @@ if ($settings['uiLevel'] > 0) {
     $upgradeSources = array();
     $remotes = getKnownFPPSystems();
 
+if ($settings["Platform"] != "MacOS") {
     $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
-
+} else {
+    $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | grep 'inet ' | awk '{print \$2}'")));
+}
     foreach ($remotes as $desc => $host) {
         if ((!in_array($host, $IPs)) && (!preg_match('/^169\.254\./', $host))) {
             $upgradeSources[$desc] = $host;

@@ -226,7 +226,7 @@ function UpgradePlugin()
             $install_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
         }
         if (file_exists($install_script)) {
-            system("sudo " . $install_script, $return_val);
+            system($SUDO . " " . $install_script, $return_val);
         }
         return "\nDone\n";
     }
@@ -241,7 +241,7 @@ function UpgradePlugin()
         $install_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
     }
     if (file_exists($install_script)) {
-        exec("sudo " . $install_script, $return_val);
+        exec($SUDO . " " . $install_script, $return_val);
     }
 
 	if ($return_val == 0) {

@@ -654,6 +654,21 @@ bool SDL::openAudio() {
             break;
         }
 
+        const char *audioDeviceName = nullptr;
+#ifdef PLATFORM_OSX
+        std::string dev = getSetting("AudioOutput", "--System Default--");
+        if (dev != "--System Default--") {
+            int cnt = SDL_GetNumAudioDevices(0);
+            for (int x = 0; x < cnt; x++) {
+                std::string dn = SDL_GetAudioDeviceName(x, 0);
+                if (endsWith(dn, dev)) {
+                    audioDeviceName = SDL_GetAudioDeviceName(x, 0);
+                }
+            }
+            LogDebug(VB_MEDIAOUT, "Using output device: %s\n", audioDeviceName);
+        }
+#endif
+        
         _wanted_spec.channels = 2;
         _wanted_spec.silence = 0;
         _wanted_spec.samples = DEFAULT_NUM_SAMPLES;
@@ -661,7 +676,7 @@ bool SDL::openAudio() {
         _wanted_spec.userdata = nullptr;
 
         SDL_AudioSpec have;
-        audioDev = SDL_OpenAudioDevice(NULL, 0, &_wanted_spec, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+        audioDev = SDL_OpenAudioDevice(audioDeviceName, 0, &_wanted_spec, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE);
         if (audioDev == 0 && !noDeviceWarning) {
             noDeviceError = "Could not open audio device - ";
             noDeviceError += SDL_GetError();

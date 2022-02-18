@@ -605,15 +605,16 @@ int main(int argc, char* argv[]) {
     CloseOpenFiles();
 
     if (restartFPPD) {
+        LogInfo(VB_GENERAL, "Performing Restart.\n");
         remove(FPP_DIR_MEDIA("/fpp-info.json").c_str());
 
         if ((Player::INSTANCE.GetStatus() == FPP_STATUS_PLAYLIST_PLAYING) &&
             (Player::INSTANCE.WasScheduled())) {
             std::string playlist = Player::INSTANCE.GetPlaylistName();
             std::string position = std::to_string(Player::INSTANCE.GetPosition() - 1);
-            execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", getSettingInt("daemonize") ? "-d" : "-f", "--log-level", logLevelString.c_str(), "-r", "-p", playlist.c_str(), "-P", position.c_str(), NULL);
+            execlp(getFPPDDir("/src/fppd").c_str(), getFPPDDir("/src/fppd").c_str(), getSettingInt("daemonize") ? "-d" : "-f", "--log-level", logLevelString.c_str(), "-r", "-p", playlist.c_str(), "-P", position.c_str(), NULL);
         } else {
-            execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", getSettingInt("daemonize") ? "-d" : "-f", "--log-level", logLevelString.c_str(), "-r", NULL);
+            execlp(getFPPDDir("/src/fppd").c_str(), getFPPDDir("/src/fppd").c_str(), getSettingInt("daemonize") ? "-d" : "-f", "--log-level", logLevelString.c_str(), "-r", NULL);
         }
     }
 

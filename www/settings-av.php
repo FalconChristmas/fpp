@@ -6,6 +6,7 @@ require_once('common.php');
 // Set a sane audio device if not set already
 if ((!isset($settings['AudioOutput'])) ||
     ($settings['AudioOutput'] == '')) {
+    
     exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
     if ( $return_val )
     {

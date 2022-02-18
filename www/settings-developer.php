@@ -2,7 +2,7 @@
 $skipJSsettings = 1;
 require_once('common.php');
 
-$git_branch = exec("sudo git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
+$git_branch = exec("$SUDO git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
 if ( $return_val != 0 )
   $git_branch = "Unknown";
 unset($output);
@@ -24,11 +24,11 @@ function filterBranch($branch) {
 
 function PrintGitBranchOptions()
 {
-	global $git_branch;
+	global $git_branch, $SUDO;
 
   $branches = Array();
-  exec("sudo git fetch -p --all && sudo git remote prune origin");
-  exec("sudo git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch -a | grep -v -- '->' | sed -e 's/remotes\/origin\///' -e 's/\\* *//' -e 's/ *//' | sort -u", $branches);
+  exec("$SUDO git fetch -p --all && sudo git remote prune origin");
+  exec("$SUDO git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch -a | grep -v -- '->' | sed -e 's/remotes\/origin\///' -e 's/\\* *//' -e 's/ *//' | sort -u", $branches);
   foreach($branches as $branch)
   {
       $branch = filterBranch($branch);
