@@ -326,7 +326,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
     $settings['Platform'] = "MacOS";
     $settings['Logo'] = "Apple-Logo.png";
     $settings['LogoLink'] = "http://apple.com/";
-    $settings['Variant'] = shell_exec("sw_vers -productVersion");
+    $settings['Variant'] = trim(shell_exec("sw_vers -productVersion"));
     $SUDO = "";
     $settings["IsDesktop"] = true;
 } else {

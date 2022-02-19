@@ -342,11 +342,10 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
     }
     $result['Version'] = getFPPVersion();
     $result['Branch'] = getFPPBranch();
-    
-    
+
     if ($settings["Platform"] == "MacOS") {
-        $result['OSRelease'] = "";
-        $result['OSVersion'] = "";
+        $result['OSRelease'] = trim(shell_exec("sw_vers -productVersion"));
+        $result['OSVersion'] = trim(shell_exec("sw_vers -productVersion"));
     } else {
         if (file_exists('/etc/fpp/rfs_version')) {
             $result['OSVersion'] = trim(file_get_contents('/etc/fpp/rfs_version'));
