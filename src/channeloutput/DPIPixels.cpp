@@ -339,6 +339,10 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
 }
 
 int DPIPixelsOutput::SendData(unsigned char* channelData) {
+    // Wait for vsync
+    int dummy = 0;
+    ioctl(fbfd, FBIO_WAITFORVSYNC, &dummy);
+
     // Flip to current page
     vinfo.yoffset = page * vinfo.yres;
     ioctl(fbfd, FBIOPAN_DISPLAY, &vinfo);
