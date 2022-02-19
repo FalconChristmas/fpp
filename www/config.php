@@ -17,10 +17,10 @@ if (file_exists("/etc/fpp/rfs_version")) {
     $fppRfsVersion = trim(file_get_contents("/etc/fpp/rfs_version"));
 }
 
-if (file_exists(__DIR__."/fppversion.php")) {
-    include_once __DIR__."/fppversion.php";
+if (file_exists(__DIR__ . "/fppversion.php")) {
+    include_once __DIR__ . "/fppversion.php";
 } else {
-    include_once __DIR__."/fppunknown_versions.php";
+    include_once __DIR__ . "/fppunknown_versions.php";
 }
 
 // Allow overrides that we'll ignore from the git repository to make it
@@ -203,7 +203,6 @@ if (file_exists("/etc/fpp/desktop")) {
     $settings["IsDesktop"] = true;
 }
 
-
 if ($settings['Platform'] == "Raspberry Pi") {
     $settings['OSImagePrefix'] = "Pi";
     $settings['LogoLink'] = "http://raspberrypi.org/";
@@ -327,13 +326,13 @@ if ($settings['Platform'] == "Raspberry Pi") {
     $settings['Platform'] = "MacOS";
     $settings['Logo'] = "Apple-Logo.png";
     $settings['LogoLink'] = "http://apple.com/";
+    $settings['Variant'] = shell_exec("sw_vers -productVersion");
     $SUDO = "";
     $settings["IsDesktop"] = true;
 } else {
     $settings['Logo'] = "";
     $settings['LogoLink'] = "";
 }
-
 
 $fd = @fopen($settingsFile, "r");
 if ($fd) {
