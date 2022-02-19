@@ -333,6 +333,9 @@ int Playlist::Load(const char* filename) {
             }
         }
 
+        if (src)
+            delete src;
+
         Json::Value mp(Json::arrayValue);
         Json::Value pe;
         if (mediaName.empty()) {
