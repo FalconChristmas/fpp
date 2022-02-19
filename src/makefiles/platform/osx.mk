@@ -2,7 +2,7 @@
 # The only thing that really builds on OSX at this point is fsequtils
 ifeq '$(ARCH)' 'OSX'
 
-CFLAGS += -DPLATFORM_OSX  -I/opt/homebrew/include -Wswitch
+CFLAGS += -DPLATFORM_OSX  -I/opt/homebrew/include -Wswitch -mmacosx-version-min=10.15
 LDFLAGS += -L.  -L/opt/homebrew/lib
 
 OBJECTS_GPIO_ADDITIONS+=util/TmpFileGPIO.o

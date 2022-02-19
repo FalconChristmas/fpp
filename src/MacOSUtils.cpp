@@ -75,7 +75,7 @@ void MacOSSetVolume(int fvol) {
     
     UInt32 volumeSize = sizeof(volume);
     AudioObjectPropertyAddress volumeAddress =  {
-        kAudioHardwareServiceDeviceProperty_VirtualMasterVolume,
+        kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
         kAudioDevicePropertyScopeOutput,
         kAudioObjectPropertyElementMaster
     };
@@ -98,7 +98,7 @@ int MacOSGetVolume() {
 
     UInt32 volumeSize = sizeof(volume);
     AudioObjectPropertyAddress volumeAddress =  {
-        kAudioHardwareServiceDeviceProperty_VirtualMasterVolume,
+        kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
         kAudioDevicePropertyScopeOutput,
         kAudioObjectPropertyElementMaster
     };
