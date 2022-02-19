@@ -297,6 +297,12 @@ function GetZipDir()
     global $logDirectory;
     global $mediaDirectory;
 
+    $ignore_files = array(
+        "git_branch.log", // No longer generated
+        "git_checkout_version.log", // No longer generated
+        "git_fetch.log", // No longer generated
+    );
+
     $dirName = params("DirName");
     if ($dirName != "Logs") {
         return json(array("status" => "Unsupported Directory"));
@@ -318,7 +324,7 @@ function GetZipDir()
         exit("Cannot open '$filename'\n");
     }
     foreach (scandir($logDirectory) as $file) {
-        if ($file == "." || $file == "..") {
+        if ($file == "." || $file == ".." || in_array($file, $ignore_files)) {
             continue;
         }
         $zip->addFile($logDirectory . '/' . $file, "Logs/" . $file);
