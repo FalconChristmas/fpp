@@ -530,7 +530,9 @@ if (isset($settings["cape-info"])) {
         if (isset($currentCapeInfo['vendor']['email'])) {
             echo "<tr><td><b>E-mail:</b></td><td><a href=\"mailto:" . $currentCapeInfo['vendor']['email'] . "\">" . $currentCapeInfo['vendor']['email'] . "</td></tr>";
         }
-
+        if (isset($currentCapeInfo['vendor']['forum'])) {
+            echo "<tr><td><b>Support Forum:</b></td><td><a href=\"" . $currentCapeInfo['vendor']['forum'] . "\">" . $currentCapeInfo['vendor']['forum'] . "</td></tr>";
+        }
         if (isset($currentCapeInfo['vendor']['image']) && $settings['FetchVendorLogos']) {
             if ($settings['SendVendorSerial'] == 1) {
                 $iurl = $currentCapeInfo['vendor']['image'] . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
