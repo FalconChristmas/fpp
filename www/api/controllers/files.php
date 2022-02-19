@@ -223,7 +223,7 @@ function MoveFile()
         }
     }
 
-    if (! file_exists($uploadDirectory . "/" . $file)) {
+    if (!file_exists($uploadDirectory . "/" . $file)) {
         $tempFile = sanitizeFilename($file);
         if (file_exists($uploadDirectory . "/" . $tempFile)) {
             // was sanitized during upload process
@@ -383,7 +383,7 @@ function GetZipDir()
     }
     unset($output);
 
-    exec("/usr/bin/git --work-tree=" . dirname(dirname(__FILE__)) . "/ status", $output, $return_val);
+    exec("/usr/bin/git --work-tree=" . gitBaseDirectory() . "/ status", $output, $return_val);
     if ($return_val != 0) {
         error_log("Unable to get a git status for logs");
     } else {
@@ -391,7 +391,7 @@ function GetZipDir()
     }
     unset($output);
 
-    exec("/usr/bin/git --work-tree=" . dirname(dirname(__FILE__)) . "/ diff", $output, $return_val);
+    exec("/usr/bin/git --work-tree=" . gitBaseDirectory() . "/ diff", $output, $return_val);
     if ($return_val != 0) {
         error_log("Unable to get a git diff for logs");
     } else {

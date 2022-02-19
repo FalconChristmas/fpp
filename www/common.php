@@ -553,7 +553,7 @@ function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $chec
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
         $callbackName = $callbackName . "('$setting');";
     }
 
@@ -685,7 +685,7 @@ function PrintSettingSelectInternal($title, $setting, $restart = 1, $reboot = 0,
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
         $callbackName = $callbackName . "();";
     }
 
@@ -856,7 +856,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
         $callbackName = $callbackName . "();";
     }
 
@@ -1024,7 +1024,7 @@ function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginNa
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
         $callbackName = $callbackName . "();";
     }
 
@@ -1779,12 +1779,12 @@ function ApplyEmailConfig()
     if (($emailuser != '') && ($emailpass != '')) {
         fwrite($fp, $emailserver . ":" . $emailuser . ":" . $emailpass . "\n");
 
-       $v = dns_get_record($emailserver, DNS_CNAME);
-       foreach ($v as $cname) {
-           if (isset($cname["target"])) {
+        $v = dns_get_record($emailserver, DNS_CNAME);
+        foreach ($v as $cname) {
+            if (isset($cname["target"])) {
                 fwrite($fp, $cname["target"] . ":" . $emailuser . ":" . $emailpass . "\n");
-           }
-       }
+            }
+        }
     }
     fclose($fp);
 
@@ -2013,7 +2013,8 @@ function network_wifi_strength_obj()
 #############
 # Returns an array of just the network interface nmes
 #############
-function network_list_interfaces_array() {
+function network_list_interfaces_array()
+{
     global $settings;
     if ($settings["Platform"] == "MacOS") {
         $output = exec("ipconfig getiflist");
@@ -2027,17 +2028,17 @@ function network_list_interfaces_array() {
 function network_list_interfaces_obj()
 {
     global $settings;
-    
+
     $output = array();
     global $settings;
     $rc = array();
-    
+
     $wifiObj = network_wifi_strength_obj();
     if ($settings["Platform"] == "MacOS") {
         $output = exec("ipconfig getiflist");
         $parts = preg_split("/\s+/", trim($output));
-        foreach ($parts as $cnt => $int)  {
-            exec("ipconfig getsummary "  . $int, $config);
+        foreach ($parts as $cnt => $int) {
+            exec("ipconfig getsummary " . $int, $config);
             $obj = new \stdClass();
             $obj->ifindex = $cnt;
             $obj->ifname = $int;
@@ -2148,5 +2149,12 @@ function is_valid_domain_name($domain_name)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+
+// Returns the base directory of the git repo
+// normally /opt/fpp
+function gitBaseDirectory()
+{
+    return dirname(dirname(__FILE__));
+}
 
 ?>
