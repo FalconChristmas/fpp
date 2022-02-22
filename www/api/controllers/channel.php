@@ -219,7 +219,7 @@ function channel_get_pixelnetDMX()
         fclose($f);
         //No file exists add one and save to new file.
         $address = 1;
-        for ($i; $i < 12; $i++) {
+        for ($i = 0; $i < 12; $i++) {
             $dataFile[] = new PixelnetDMXentry(1, 0, $address);
             $address += 4096;
         }
