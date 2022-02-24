@@ -406,10 +406,10 @@
                 "optional": true,
                 "statusOnly": true
             },
-            "outputDevice": {
-                "name": "outputDevice",
-                "description": "Output Device",
-                "contentListUrl": "api/options/FrameBuffer",
+            "modelName": {
+                "name": "modelName",
+                "description": "Pixel Overlay Model",
+                "contentListUrl": "api/models?simple=true",
                 "type": "string",
                 "optional": false
             },

@@ -82,31 +82,31 @@ public:
     FrameBuffer();
     ~FrameBuffer();
 
-    int FBInit(Json::Value& config);
-    void FBCopyData(unsigned char* buffer, int draw = 0);
+    int FBInit(const Json::Value& config);
+    void FBCopyData(const uint8_t* buffer, int draw = 0);
     void FBStartDraw(ImageTransitionType transitionType = IT_Default);
 
     void Dump(void);
-    void GetConfig(Json::Value& config);
 
     void DrawLoop(void);
     void PrepLoop(void);
 
+    std::string m_name;
     std::string m_device;
     std::string m_dataFormat;
     int m_fbFd;
     int m_ttyFd;
-    int m_fbWidth;
-    int m_fbHeight;
+    int m_width;
+    int m_height;
     int m_bpp;
-    char* m_fbp;
-    char* m_outputBuffer;
+    uint8_t* m_fbp;
+    uint8_t* m_outputBuffer;
     int m_screenSize;
     int m_useRGB;
     int m_inverted;
     uint16_t*** m_rgb565map;
     int m_lastFrameSize;
-    unsigned char* m_lastFrame;
+    uint8_t* m_lastFrame;
     int m_rOffset;
     int m_gOffset;
     int m_bOffset;
@@ -161,7 +161,6 @@ private:
     int InitializeX11Window(void);
     void DestroyX11Window(void);
 
-    std::string m_title;
     Display* m_display;
     int m_screen;
     Window m_window;
@@ -172,9 +171,12 @@ private:
 };
 
 inline void FrameBuffer::SyncDisplay(void) {
+    if (m_device != "x11")
+        return;
+
 #ifdef USE_X11
     XLockDisplay(m_display);
-    XPutImage(m_display, m_window, m_gc, m_xImage, 0, 0, 0, 0, m_fbWidth, m_fbHeight);
+    XPutImage(m_display, m_window, m_gc, m_xImage, 0, 0, 0, 0, m_width, m_height);
     XSync(m_display, True);
     XFlush(m_display);
     XUnlockDisplay(m_display);

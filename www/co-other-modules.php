@@ -93,58 +93,6 @@ class OtherBaseDevice extends OtherBase {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Misc. Support functions
-function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, dropDownTitle, selectClass, onselect = "") {
-	var result = selectTitle+":&nbsp;<select class='"+selectClass+"'";
-    if (onselect != "") {
-        result += " onchange='" + onselect + "'";
-    }
-    result += ">";
-
-	if (currentValue === "")
-		result += "<option value=''>"+dropDownTitle+"</option>";
-
-	var found = 0;
-    if (optionArray instanceof Map) {
-        optionArray.forEach((key, value) => {
-                                result += "<option value='" + value + "'";
-
-                                if (currentValue == value) {
-                                    result += " selected";
-                                    found = 1;
-                                }
-
-                                result += ">" + key + "</option>";
-                            });
-    } else {
-        for (var key in optionArray) {
-            result += "<option value='" + key + "'";
-
-            if (currentValue == key) {
-                result += " selected";
-                found = 1;
-            }
-
-            result += ">" + optionArray[key] + "</option>";
-        }
-    }
-
-	if ((currentValue != '') &&
-		(found == 0)) {
-		result += "<option value='" + currentValue + "'>" + currentValue + "</option>";
-	}
-	result += "</select>";
-
-	return result;
-}
-
-function DeviceSelect(deviceArray = ["No Devices"], currentValue) {
-    return CreateSelect (deviceArray, currentValue, "Port", "-- Port --", "device");
-}
-
-
-
-/////////////////////////////////////////////////////////////////////////////
 // SPI and Serial Devices
 
 var SPIDevices = new Array();

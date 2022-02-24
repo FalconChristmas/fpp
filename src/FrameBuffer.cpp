@@ -51,8 +51,8 @@ FrameBuffer::FrameBuffer() :
     m_dataFormat("RGB"),
     m_fbFd(-1),
     m_ttyFd(-1),
-    m_fbWidth(0),
-    m_fbHeight(0),
+    m_width(640),
+    m_height(480),
     m_bpp(24),
     m_fbp(NULL),
     m_outputBuffer(NULL),
@@ -136,24 +136,27 @@ FrameBuffer::~FrameBuffer() {
 /*
  *
  */
-int FrameBuffer::FBInit(Json::Value& config) {
-    if (config.isMember("width"))
-        m_fbWidth = config["width"].asInt();
+int FrameBuffer::FBInit(const Json::Value& config) {
+    if (config.isMember("Name"))
+        m_name = config["Name"].asString();
 
-    if (config.isMember("height"))
-        m_fbHeight = config["height"].asInt();
+    if (config.isMember("Width"))
+        m_width = config["Width"].asInt();
 
-    if (config.isMember("inverted"))
-        m_inverted = config["inverted"].asInt();
+    if (config.isMember("Height"))
+        m_height = config["Height"].asInt();
 
-    if (config.isMember("device"))
-        m_device = config["device"].asString();
+    if (config.isMember("Inverted"))
+        m_inverted = config["Inverted"].asInt();
 
-    if (config.isMember("transitionType"))
-        m_transitionType = (ImageTransitionType)(atoi(config["transitionType"].asString().c_str()));
+    if (config.isMember("Device"))
+        m_device = config["Device"].asString();
 
-    if (config.isMember("dataFormat"))
-        m_dataFormat = config["dataFormat"].asString();
+    if (config.isMember("TransitionType"))
+        m_transitionType = (ImageTransitionType)(atoi(config["TransitionType"].asString().c_str()));
+
+    if (config.isMember("DataFormat"))
+        m_dataFormat = config["DataFormat"].asString();
 
     if (m_device == "fb0")
         m_device = "/dev/fb0";
@@ -175,18 +178,18 @@ int FrameBuffer::FBInit(Json::Value& config) {
     if (!result)
         return 0;
 
-    m_screenSize = m_fbWidth * m_fbHeight * m_bpp / 8;
+    m_screenSize = m_width * m_height * m_bpp / 8;
 
-    m_lastFrameSize = m_fbWidth * m_fbHeight * m_dataFormat.size();
+    m_lastFrameSize = m_width * m_height * m_dataFormat.size();
 
-    m_outputBuffer = (char*)malloc(m_screenSize);
+    m_outputBuffer = (uint8_t*)malloc(m_screenSize);
     if (!m_outputBuffer) {
         LogErr(VB_PLAYLIST, "Error, unable to allocate outputBuffer buffer\n");
         DestroyFrameBuffer();
         return 0;
     }
 
-    m_lastFrame = (unsigned char*)malloc(m_lastFrameSize);
+    m_lastFrame = (uint8_t*)malloc(m_lastFrameSize);
     if (!m_lastFrame) {
         LogErr(VB_PLAYLIST, "Error, unable to allocate lastFrame buffer\n");
         DestroyFrameBuffer();
@@ -296,12 +299,12 @@ int FrameBuffer::InitializeFrameBuffer(void) {
         LogExcess(VB_PLAYLIST, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
     }
 
-    if (m_fbWidth && m_fbHeight) {
-        m_vInfo.xres = m_vInfo.xres_virtual = m_fbWidth;
-        m_vInfo.yres = m_vInfo.yres_virtual = m_fbHeight;
+    if (m_width && m_height) {
+        m_vInfo.xres = m_vInfo.xres_virtual = m_width;
+        m_vInfo.yres = m_vInfo.yres_virtual = m_height;
     } else {
-        m_fbWidth = m_vInfo.xres;
-        m_fbHeight = m_vInfo.yres;
+        m_width = m_vInfo.xres;
+        m_height = m_vInfo.yres;
     }
 
     if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
@@ -318,14 +321,14 @@ int FrameBuffer::InitializeFrameBuffer(void) {
 
     m_screenSize = m_vInfo.xres * m_vInfo.yres * m_vInfo.bits_per_pixel / 8;
 
-    if (m_screenSize != (m_fbWidth * m_fbHeight * m_vInfo.bits_per_pixel / 8)) {
+    if (m_screenSize != (m_width * m_height * m_vInfo.bits_per_pixel / 8)) {
         LogErr(VB_PLAYLIST, "Error, screensize incorrect\n");
         ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
         close(m_fbFd);
         return 0;
     }
 
-    m_lastFrameSize = m_fbWidth * m_fbHeight * m_dataFormat.size();
+    m_lastFrameSize = m_width * m_height * m_dataFormat.size();
 
     if (m_device == "/dev/fb0") {
         m_ttyFd = open("/dev/console", O_RDWR);
@@ -344,7 +347,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
         m_ttyFd = -1;
     }
 
-    m_fbp = (char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
+    m_fbp = (uint8_t*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
 
     if ((char*)m_fbp == (char*)-1) {
         LogErr(VB_PLAYLIST, "Error, unable to map /dev/fb0\n");
@@ -361,15 +364,16 @@ int FrameBuffer::InitializeFrameBuffer(void) {
         LogExcess(VB_PLAYLIST, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
         LogExcess(VB_PLAYLIST, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
 
-        unsigned char rMask = (0xFF ^ (0xFF >> m_vInfo.red.length));
-        unsigned char gMask = (0xFF ^ (0xFF >> m_vInfo.green.length));
-        unsigned char bMask = (0xFF ^ (0xFF >> m_vInfo.blue.length));
         int rShift = m_vInfo.red.offset - (8 + (8 - m_vInfo.red.length));
         int gShift = m_vInfo.green.offset - (8 + (8 - m_vInfo.green.length));
         int bShift = m_vInfo.blue.offset - (8 + (8 - m_vInfo.blue.length));
-        ;
 
-        //LogDebug(VB_PLAYLIST, "rM/rS: 0x%02x/%d, gM/gS: 0x%02x/%d, bM/bS: 0x%02x/%d\n", rMask, rShift, gMask, gShift, bMask, bShift);
+#if 0
+        uint8_t rMask = (0xFF ^ (0xFF >> m_vInfo.red.length));
+        uint8_t gMask = (0xFF ^ (0xFF >> m_vInfo.green.length));
+        uint8_t bMask = (0xFF ^ (0xFF >> m_vInfo.blue.length));
+        LogDebug(VB_PLAYLIST, "rM/rS: 0x%02x/%d, gM/gS: 0x%02x/%d, bM/bS: 0x%02x/%d\n", rMask, rShift, gMask, gShift, bMask, bShift);
+#endif
 
         uint16_t o;
         m_rgb565map = new uint16_t**[32];
@@ -409,13 +413,6 @@ int FrameBuffer::InitializeFrameBuffer(void) {
 
 #ifdef USE_X11
 int FrameBuffer::InitializeX11Window(void) {
-    if ((m_fbWidth == 0) || (m_fbHeight == 0)) {
-        m_fbWidth = X11_WINDOW_WIDTH;
-        m_fbHeight = X11_WINDOW_HEIGHT;
-    }
-
-    // Initialize X11 Window here
-    m_title = "X11 FrameBuffer";
     m_display = XOpenDisplay(getenv("DISPLAY"));
     if (!m_display) {
         LogErr(VB_PLAYLIST, "Unable to connect to X Server\n");
@@ -424,10 +421,10 @@ int FrameBuffer::InitializeX11Window(void) {
 
     m_screen = DefaultScreen(m_display);
 
-    m_fbp = new char[m_fbWidth * m_fbHeight * 4];
+    m_fbp = new uint8_t[m_width * m_height * 4];
 
     m_xImage = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
-                            (char*)m_fbp, m_fbWidth, m_fbHeight, 32, m_fbWidth * 4);
+                            (char*)m_fbp, m_width, m_height, 32, m_width * 4);
 
     m_bpp = 32;
 
@@ -437,7 +434,7 @@ int FrameBuffer::InitializeX11Window(void) {
 
     XGCValues values;
 
-    m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display), m_fbWidth, m_fbHeight, 24);
+    m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display), m_width, m_height, 24);
 
     m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
     if (m_gc < 0) {
@@ -446,14 +443,14 @@ int FrameBuffer::InitializeX11Window(void) {
     }
 
     m_window = XCreateWindow(
-        m_display, RootWindow(m_display, m_screen), m_fbWidth, m_fbHeight,
-        m_fbWidth, m_fbHeight, 5, 24, InputOutput,
+        m_display, RootWindow(m_display, m_screen), m_width, m_height,
+        m_width, m_height, 5, 24, InputOutput,
         DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
 
     XMapWindow(m_display, m_window);
 
-    XStoreName(m_display, m_window, m_title.c_str());
-    XSetIconName(m_display, m_window, m_title.c_str());
+    XStoreName(m_display, m_window, m_name.c_str());
+    XSetIconName(m_display, m_window, m_name.c_str());
 
     XFlush(m_display);
 
@@ -472,29 +469,29 @@ void FrameBuffer::DestroyX11Window(void) {
 /*
  *
  */
-void FrameBuffer::FBCopyData(unsigned char* buffer, int draw) {
-    int ostride = m_fbWidth * m_bpp / 8;
+void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
+    int ostride = m_width * m_bpp / 8;
     int srow = 0;
-    int drow = m_inverted ? m_fbHeight - 1 : 0;
-    unsigned char* s = buffer;
-    unsigned char* d;
-    unsigned char* l = m_lastFrame;
-    unsigned char* sR = buffer + m_rOffset;
-    unsigned char* sG = buffer + m_gOffset;
-    unsigned char* sB = buffer + m_bOffset;
+    int drow = m_inverted ? m_height - 1 : 0;
+    const uint8_t* s = buffer;
+    uint8_t* d;
+    uint8_t* l = m_lastFrame;
+    const uint8_t* sR = buffer + m_rOffset;
+    const uint8_t* sG = buffer + m_gOffset;
+    const uint8_t* sB = buffer + m_bOffset;
     int sBpp = m_dataFormat.size();
     int skipped = 0;
-    unsigned char* ob = (unsigned char*)m_outputBuffer;
+    uint8_t* ob = (uint8_t*)m_outputBuffer;
 
     m_bufferLock.lock();
 
     if (draw)
-        ob = (unsigned char*)m_fbp;
+        ob = (uint8_t*)m_fbp;
 
     if (m_bpp == 16) {
-        for (int y = 0; y < m_fbHeight; y++) {
+        for (int y = 0; y < m_height; y++) {
             d = ob + (drow * ostride);
-            for (int x = 0; x < m_fbWidth; x++) {
+            for (int x = 0; x < m_width; x++) {
                 if (memcmp(l, sR, sBpp)) {
                     if (skipped) {
                         sG += skipped * sBpp;
@@ -531,17 +528,17 @@ void FrameBuffer::FBCopyData(unsigned char* buffer, int draw) {
         }
     } else if (m_bpp == 32) // X11 BGRA
     {
-        unsigned char* dR;
-        unsigned char* dG;
-        unsigned char* dB;
+        uint8_t* dR;
+        uint8_t* dG;
+        uint8_t* dB;
 
-        for (int y = 0; y < m_fbHeight; y++) {
+        for (int y = 0; y < m_height; y++) {
             // Data to BGR framebuffer
             dR = ob + (drow * ostride) + 2;
             dG = ob + (drow * ostride) + 1;
             dB = ob + (drow * ostride) + 0;
 
-            for (int x = 0; x < m_fbWidth; x++) {
+            for (int x = 0; x < m_width; x++) {
                 //				if (memcmp(l, sB, 3))
                 //				{
                 *dR = *sR;
@@ -562,21 +559,21 @@ void FrameBuffer::FBCopyData(unsigned char* buffer, int draw) {
         }
     } else if (m_dataFormat != "BGR") // non-BGR to 24bpp BGR
     {
-        unsigned char* dR;
-        unsigned char* dG;
-        unsigned char* dB;
+        uint8_t* dR;
+        uint8_t* dG;
+        uint8_t* dB;
 
         // Hack for Pi's 1366x768 mode on a 1376x768 monitor. Not sure why...
-        if ((m_fbWidth == 1366) && (m_fbHeight == 768))
+        if ((m_width == 1366) && (m_height == 768))
             ostride += 30;
 
-        for (int y = 0; y < m_fbHeight; y++) {
+        for (int y = 0; y < m_height; y++) {
             // Data to BGR framebuffer
             dR = ob + (drow * ostride) + 2;
             dG = ob + (drow * ostride) + 1;
             dB = ob + (drow * ostride) + 0;
 
-            for (int x = 0; x < m_fbWidth; x++) {
+            for (int x = 0; x < m_width; x++) {
                 //				if (memcmp(l, sB, 3))
                 //				{
                 *dR = *sR;
@@ -598,11 +595,11 @@ void FrameBuffer::FBCopyData(unsigned char* buffer, int draw) {
     } else // 24bpp BGR input data to match 24bpp BGR framebuffer
     {
         if (m_inverted) {
-            int istride = m_fbWidth * sBpp;
-            unsigned char* src = buffer;
-            unsigned char* dst = ob + (ostride * (m_fbHeight - 1));
+            int istride = m_width * sBpp;
+            const uint8_t* src = buffer;
+            uint8_t* dst = ob + (ostride * (m_height - 1));
 
-            for (int y = 0; y < m_fbHeight; y++) {
+            for (int y = 0; y < m_height; y++) {
                 memcpy(dst, src, istride);
                 src += istride;
                 dst -= ostride;
@@ -625,29 +622,12 @@ void FrameBuffer::FBCopyData(unsigned char* buffer, int draw) {
  */
 void FrameBuffer::Dump(void) {
     LogDebug(VB_PLAYLIST, "Transition Type: %d\n", (int)m_transitionType);
-#ifdef USE_X11
-    LogDebug(VB_PLAYLIST, "Width          : %d\n", X11_WINDOW_WIDTH);
-    LogDebug(VB_PLAYLIST, "Height         : %d\n", X11_WINDOW_HEIGHT);
-#else
-    LogDebug(VB_PLAYLIST, "Width          : %d\n", m_fbWidth);
-    LogDebug(VB_PLAYLIST, "Height         : %d\n", m_fbHeight);
-#endif
+    LogDebug(VB_PLAYLIST, "Width          : %d\n", m_width);
+    LogDebug(VB_PLAYLIST, "Height         : %d\n", m_height);
     LogDebug(VB_PLAYLIST, "Device         : %s\n", m_device.c_str());
     LogDebug(VB_PLAYLIST, "DataFormat     : %s\n", m_dataFormat.c_str());
     LogDebug(VB_PLAYLIST, "Inverted       : %d\n", m_inverted);
     LogDebug(VB_PLAYLIST, "bpp            : %d\n", m_bpp);
-}
-
-/*
- *
- */
-void FrameBuffer::GetConfig(Json::Value& config) {
-    config["transitionType"] = m_transitionType;
-    config["width"] = m_fbWidth;
-    config["height"] = m_fbHeight;
-    config["device"] = m_device;
-    config["dataFormat"] = m_dataFormat;
-    config["inverted"] = m_inverted;
 }
 
 /*
@@ -766,16 +746,16 @@ void FrameBuffer::FBDrawNormal(void) {
  *
  */
 void FrameBuffer::FBDrawSlideUp(void) {
-    int stride = m_fbWidth * m_bpp / 8;
+    int stride = m_width * m_bpp / 8;
     int rEach = 2;
-    int sleepTime = 800 * 1000 * rEach / m_fbHeight;
+    int sleepTime = 800 * 1000 * rEach / m_height;
 
-    if ((m_fbHeight % 4) == 0)
+    if ((m_height % 4) == 0)
         rEach = 4;
 
     m_bufferLock.lock();
-    for (int i = m_fbHeight - rEach; i >= 0;) {
-        memcpy(m_fbp + (stride * i), m_outputBuffer, stride * (m_fbHeight - i));
+    for (int i = m_height - rEach; i >= 0;) {
+        memcpy(m_fbp + (stride * i), m_outputBuffer, stride * (m_height - i));
         SyncDisplay();
 
         usleep(sleepTime);
@@ -789,16 +769,16 @@ void FrameBuffer::FBDrawSlideUp(void) {
  *
  */
 void FrameBuffer::FBDrawSlideDown(void) {
-    int stride = m_fbWidth * m_bpp / 8;
+    int stride = m_width * m_bpp / 8;
     int rEach = 2;
-    int sleepTime = 800 * 1000 * rEach / m_fbHeight;
+    int sleepTime = 800 * 1000 * rEach / m_height;
 
-    if ((m_fbHeight % 4) == 0)
+    if ((m_height % 4) == 0)
         rEach = 4;
 
     m_bufferLock.lock();
-    for (int i = rEach; i <= m_fbHeight;) {
-        memcpy(m_fbp, m_outputBuffer + (stride * (m_fbHeight - i)), stride * i);
+    for (int i = rEach; i <= m_height;) {
+        memcpy(m_fbp, m_outputBuffer + (stride * (m_height - i)), stride * i);
         SyncDisplay();
 
         usleep(sleepTime);
@@ -813,10 +793,10 @@ void FrameBuffer::FBDrawSlideDown(void) {
  */
 void FrameBuffer::FBDrawSlideLeft(void) {
     int colsEach = 2;
-    int sleepTime = 800 * 1000 * colsEach / m_fbWidth;
+    int sleepTime = 800 * 1000 * colsEach / m_width;
 
-    for (int x = m_fbWidth - colsEach; x >= 0; x -= colsEach) {
-        DrawSquare(x, 0, m_fbWidth - x, m_fbHeight, 0, 0);
+    for (int x = m_width - colsEach; x >= 0; x -= colsEach) {
+        DrawSquare(x, 0, m_width - x, m_height, 0, 0);
         SyncDisplay();
 
         usleep(sleepTime);
@@ -828,10 +808,10 @@ void FrameBuffer::FBDrawSlideLeft(void) {
  */
 void FrameBuffer::FBDrawSlideRight(void) {
     int colsEach = 2;
-    int sleepTime = 800 * 1000 * colsEach / m_fbWidth;
+    int sleepTime = 800 * 1000 * colsEach / m_width;
 
-    for (int x = 2; x <= m_fbWidth; x += colsEach) {
-        DrawSquare(0, 0, x, m_fbHeight, m_fbWidth - x, 0);
+    for (int x = 2; x <= m_width; x += colsEach) {
+        DrawSquare(0, 0, x, m_height, m_width - x, 0);
         SyncDisplay();
 
         usleep(sleepTime);
@@ -842,16 +822,16 @@ void FrameBuffer::FBDrawSlideRight(void) {
  *
  */
 void FrameBuffer::FBDrawWipeUp(void) {
-    int stride = m_fbWidth * m_bpp / 8;
+    int stride = m_width * m_bpp / 8;
     int rEach = 2;
 
-    if ((m_fbHeight % 4) == 0)
+    if ((m_height % 4) == 0)
         rEach = 4;
 
-    int sleepTime = 800 * 1000 * rEach / m_fbHeight;
+    int sleepTime = 800 * 1000 * rEach / m_height;
 
     m_bufferLock.lock();
-    for (int i = m_fbHeight - rEach; i >= 0;) {
+    for (int i = m_height - rEach; i >= 0;) {
         memcpy(m_fbp + (stride * i), m_outputBuffer + (stride * i), stride * rEach);
         SyncDisplay();
 
@@ -866,16 +846,16 @@ void FrameBuffer::FBDrawWipeUp(void) {
  *
  */
 void FrameBuffer::FBDrawWipeDown(void) {
-    int stride = m_fbWidth * m_bpp / 8;
+    int stride = m_width * m_bpp / 8;
     int rEach = 2;
 
-    if ((m_fbHeight % 4) == 0)
+    if ((m_height % 4) == 0)
         rEach = 4;
 
-    int sleepTime = 800 * 1000 * rEach / m_fbHeight;
+    int sleepTime = 800 * 1000 * rEach / m_height;
 
     m_bufferLock.lock();
-    for (int i = 0; i < m_fbHeight;) {
+    for (int i = 0; i < m_height;) {
         memcpy(m_fbp + (stride * i), m_outputBuffer + (stride * i), stride * rEach);
         SyncDisplay();
 
@@ -890,13 +870,13 @@ void FrameBuffer::FBDrawWipeDown(void) {
  *
  */
 void FrameBuffer::FBDrawWipeLeft(void) {
-    int stride = m_fbWidth * m_bpp / 8;
+    int stride = m_width * m_bpp / 8;
     int BPP = m_bpp / 8;
 
     m_bufferLock.lock();
 
-    for (int x = m_fbWidth - 1; x >= 0; x--) {
-        for (int y = 0; y < m_fbHeight; y++) {
+    for (int x = m_width - 1; x >= 0; x--) {
+        for (int y = 0; y < m_height; y++) {
             memcpy(m_fbp + (stride * y) + (x * BPP),
                    m_outputBuffer + (stride * y) + (x * BPP), BPP);
         }
@@ -910,13 +890,13 @@ void FrameBuffer::FBDrawWipeLeft(void) {
  *
  */
 void FrameBuffer::FBDrawWipeRight(void) {
-    int stride = m_fbWidth * m_bpp / 8;
+    int stride = m_width * m_bpp / 8;
     int BPP = m_bpp / 8;
 
     m_bufferLock.lock();
 
-    for (int x = 0; x < m_fbWidth; x++) {
-        for (int y = 0; y < m_fbHeight; y++) {
+    for (int x = 0; x < m_width; x++) {
+        for (int y = 0; y < m_height; y++) {
             memcpy(m_fbp + (stride * y) + (x * BPP),
                    m_outputBuffer + (stride * y) + (x * BPP), BPP);
         }
@@ -930,20 +910,20 @@ void FrameBuffer::FBDrawWipeRight(void) {
  *
  */
 void FrameBuffer::FBDrawWipeToHCenter(void) {
-    int stride = m_fbWidth * m_bpp / 8;
+    int stride = m_width * m_bpp / 8;
     int rEach = 2;
-    int mid = m_fbHeight / 2;
+    int mid = m_height / 2;
 
-    if ((m_fbHeight % 4) == 0)
+    if ((m_height % 4) == 0)
         rEach = 4;
 
-    int sleepTime = 800 * 1000 * rEach / m_fbHeight * 2;
+    int sleepTime = 800 * 1000 * rEach / m_height * 2;
 
     m_bufferLock.lock();
     for (int i = 0; i < mid; i += rEach) {
         memcpy(m_fbp + (stride * i), m_outputBuffer + (stride * i), stride * rEach);
-        memcpy(m_fbp + (stride * (m_fbHeight - i - rEach)),
-               m_outputBuffer + (stride * (m_fbHeight - i - rEach)),
+        memcpy(m_fbp + (stride * (m_height - i - rEach)),
+               m_outputBuffer + (stride * (m_height - i - rEach)),
                stride * rEach);
         SyncDisplay();
 
@@ -956,15 +936,15 @@ void FrameBuffer::FBDrawWipeToHCenter(void) {
  *
  */
 void FrameBuffer::FBDrawWipeFromHCenter(void) {
-    int stride = m_fbWidth * m_bpp / 8;
-    int mid = m_fbHeight / 2;
+    int stride = m_width * m_bpp / 8;
+    int mid = m_height / 2;
     int rowsEachUpdate = 2;
-    int sleepTime = 800 * 1000 * rowsEachUpdate / m_fbHeight * 2;
+    int sleepTime = 800 * 1000 * rowsEachUpdate / m_height * 2;
 
     m_bufferLock.lock();
 
     int t = mid - 2;
-    for (int b = mid; b < m_fbHeight; b += rowsEachUpdate, t -= rowsEachUpdate) {
+    for (int b = mid; b < m_height; b += rowsEachUpdate, t -= rowsEachUpdate) {
         memcpy(m_fbp + (stride * b), m_outputBuffer + (stride * b),
                stride * rowsEachUpdate);
 
@@ -984,14 +964,14 @@ void FrameBuffer::FBDrawWipeFromHCenter(void) {
  *
  */
 void FrameBuffer::FBDrawHorzBlindsOpen(void) {
-    int stride = m_fbWidth * m_bpp / 8;
+    int stride = m_width * m_bpp / 8;
     int rowsEachUpdate = 2;
     int blindSize = 32;
     int sleepTime = 800 * 1000 * rowsEachUpdate / blindSize;
 
     m_bufferLock.lock();
     for (int i = (blindSize - 1); i >= 0; i -= rowsEachUpdate) {
-        for (int y = i; y < m_fbHeight; y += blindSize) {
+        for (int y = i; y < m_height; y += blindSize) {
             memcpy(m_fbp + (stride * y), m_outputBuffer + (stride * y),
                    stride * rowsEachUpdate);
         }
@@ -1007,14 +987,14 @@ void FrameBuffer::FBDrawHorzBlindsOpen(void) {
  *
  */
 void FrameBuffer::FBDrawHorzBlindsClose(void) {
-    int stride = m_fbWidth * m_bpp / 8;
+    int stride = m_width * m_bpp / 8;
     int rowsEachUpdate = 2;
     int blindSize = 32;
     int sleepTime = 800 * 1000 * rowsEachUpdate / blindSize;
 
     m_bufferLock.lock();
     for (int i = 0; i < blindSize; i += rowsEachUpdate) {
-        for (int y = i; y < m_fbHeight; y += blindSize) {
+        for (int y = i; y < m_height; y += blindSize) {
             memcpy(m_fbp + (stride * y), m_outputBuffer + (stride * y),
                    stride * rowsEachUpdate);
         }
@@ -1031,8 +1011,8 @@ void FrameBuffer::FBDrawHorzBlindsClose(void) {
  */
 void FrameBuffer::FBDrawMosaic(void) {
     int squareSize = 32;
-    int xSquares = m_fbWidth / squareSize + 1;
-    int ySquares = m_fbHeight / squareSize + 1;
+    int xSquares = m_width / squareSize + 1;
+    int ySquares = m_height / squareSize + 1;
     int squares[ySquares][xSquares];
     int count = xSquares * ySquares;
     int sleepTime = 800 * 1000 / count;
@@ -1079,7 +1059,7 @@ void FrameBuffer::FBDrawMosaic(void) {
  *
  */
 void FrameBuffer::DrawSquare(int dx, int dy, int w, int h, int sx, int sy) {
-    int stride = m_fbWidth * m_bpp / 8;
+    int stride = m_width * m_bpp / 8;
     int dRowOffset = dx * m_bpp / 8;
     int sRowOffset = ((sx == -1) ? dx : sx) * m_bpp / 8;
     int bytesWide = w * m_bpp / 8;

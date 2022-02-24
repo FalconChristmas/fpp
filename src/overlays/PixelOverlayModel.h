@@ -73,11 +73,11 @@ public:
     }
 
     PixelOverlayState getState() const;
-    void setState(const PixelOverlayState& state);
+    virtual void setState(const PixelOverlayState& state);
 
-    void doOverlay(uint8_t* channels);
+    virtual void doOverlay(uint8_t* channels);
 
-    void setData(const uint8_t* data); // full RGB data, width*height*3
+    virtual void setData(const uint8_t* data); // full RGB data, width*height*3
 
     int getStartChannel() const;
     int getChannelCount() const;
@@ -91,8 +91,10 @@ public:
     void fillOverlayBuffer(int r, int g, int b);
     void setOverlayPixelValue(int x, int y, int r, int g, int b);
     void getOverlayPixelValue(int x, int y, int& r, int& g, int& b);
-    void setOverlayBufferDirty();
+    virtual void setOverlayBufferDirty(bool dirty = true);
     void flushOverlayBuffer();
+
+    virtual bool overlayBufferIsDirty();
 
     void clear() {
         clearOverlayBuffer();
@@ -110,7 +112,7 @@ public:
 
     int32_t updateRunningEffects();
 
-private:
+protected:
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
 
     Json::Value config;

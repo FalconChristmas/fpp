@@ -31,7 +31,7 @@
 #include <string>
 #include <thread>
 
-#include "FrameBuffer.h"
+#include "overlays/PixelOverlayModel.h"
 #include "PlaylistEntryBase.h"
 
 namespace Magick
@@ -39,7 +39,7 @@ namespace Magick
     class Image;
 };
 
-class PlaylistEntryImage : public PlaylistEntryBase, public FrameBuffer {
+class PlaylistEntryImage : public PlaylistEntryBase {
 public:
     PlaylistEntryImage(Playlist* playlist, PlaylistEntryBase* parent = NULL);
     virtual ~PlaylistEntryImage();
@@ -83,6 +83,10 @@ private:
 
     int m_width;
     int m_height;
+
+    std::string m_modelName;
+    PixelOverlayModel *m_model = nullptr;
+    PixelOverlayState::PixelState m_modelOrigState = PixelOverlayState::PixelState::Disabled;
 
     unsigned char* m_buffer;
     int m_bufferSize;

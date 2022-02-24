@@ -64,14 +64,27 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
         }
     }
 
-    height = strings * sps;
-    if (height == 0) {
-        height = 1;
-    }
-    width = channelCount / channelsPerNode;
-    width /= height;
-    if (width == 0) {
-        width = 1;
+    if (config["Type"].asString() != "Channel") {
+        width = config["Width"].asInt();
+        height = config["Height"].asInt();
+        config["ChannelCount"] = channelCount = width * height * channelsPerNode;
+        config["StringCount"] = strings = height;
+        config["StrandsPerString"] = sps = 1;
+        config["StartChannel"] = startChannel = 0;
+        config["Orientation"] = orientation = "horizontal";
+        config["StartCorner"] = startCorner = "TL";
+        TtoB = true;
+        LtoR = true;
+    } else {
+        height = strings * sps;
+        if (height == 0) {
+            height = 1;
+        }
+        width = channelCount / channelsPerNode;
+        width /= height;
+        if (width == 0) {
+            width = 1;
+        }
     }
 
     std::string dataName = "/FPP-Model-Data-" + name;
@@ -212,8 +225,7 @@ void PixelOverlayModel::setState(const PixelOverlayState& st) {
     }
 }
 void PixelOverlayModel::doOverlay(uint8_t* channels) {
-    if (overlayBufferData && (overlayBufferData->flags & 0x1)) {
-        //overlay buffer is dirty and needs to be flushed
+    if (overlayBufferIsDirty()) {
         flushOverlayBuffer();
     }
 
@@ -400,12 +412,20 @@ void PixelOverlayModel::getOverlayPixelValue(int x, int y, int& r, int& g, int& 
 
 void PixelOverlayModel::flushOverlayBuffer() {
     setData(getOverlayBuffer());
-    //make sure the dirty flag is unset
-    overlayBufferData->flags &= ~0x1;
+    setOverlayBufferDirty(false);
 }
-void PixelOverlayModel::setOverlayBufferDirty() {
+
+bool PixelOverlayModel::overlayBufferIsDirty() {
+    return (overlayBufferData && (overlayBufferData->flags & 0x1));
+}
+
+void PixelOverlayModel::setOverlayBufferDirty(bool dirty) {
     getOverlayBuffer();
-    overlayBufferData->flags |= 0x1;
+
+    if (dirty)
+        overlayBufferData->flags |= 0x1;
+    else
+        overlayBufferData->flags &= ~0x1;
 }
 
 void PixelOverlayModel::setOverlayBufferScaledData(uint8_t* data, int w, int h) {

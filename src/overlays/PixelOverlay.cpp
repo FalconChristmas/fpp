@@ -38,6 +38,7 @@
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
 #include "PixelOverlayModel.h"
+#include "PixelOverlayModelFB.h"
 
 PixelOverlayManager PixelOverlayManager::INSTANCE;
 
@@ -136,11 +137,24 @@ void PixelOverlayManager::loadModelMap() {
         if (root.isMember("autoCreate")) {
             autoCreate = root["autoCreate"].asBool();
         }
-        const Json::Value models = root["models"];
+        Json::Value models = root["models"];
         for (int c = 0; c < models.size(); c++) {
-            PixelOverlayModel* pmodel = new PixelOverlayModel(models[c]);
-            this->models[pmodel->getName()] = pmodel;
-            this->modelNames.push_back(pmodel->getName());
+            PixelOverlayModel* pmodel = nullptr;
+            
+            if (!models[c].isMember("Type"))
+                models[c]["Type"] = "Channel";
+
+            std::string type = models[c]["Type"].asString();
+
+            if (type == "Channel")
+                pmodel = new PixelOverlayModel(models[c]);
+            else if (type == "FB")
+                pmodel = new PixelOverlayModelFB(models[c]);
+
+            if (pmodel) {
+                this->models[pmodel->getName()] = pmodel;
+                this->modelNames.push_back(pmodel->getName());
+            }
         }
     }
 }
@@ -885,6 +899,7 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
 
     Json::Value val;
     val["Name"] = name;
+    val["Type"] = "Channel";
     val["StartChannel"] = startChannel + 1;
     val["ChannelCount"] = channelCount;
     val["StringCount"] = strings;
