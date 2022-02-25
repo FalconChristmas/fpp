@@ -105,9 +105,8 @@ FrameBuffer::~FrameBuffer() {
         free(m_outputBuffer);
 
 #ifdef HAS_FRAMEBUFFER
-    if (m_device == "/dev/fb0") {
-        if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
-            LogErr(VB_PLAYLIST, "Error resetting variable info\n");
+    if (m_fbFd > -1) {
+        DestroyFrameBuffer();
     }
 #endif
 #ifdef USE_X11
@@ -115,9 +114,6 @@ FrameBuffer::~FrameBuffer() {
         DestroyX11Window();
     }
 #endif
-
-    if (m_fbFd > -1)
-        close(m_fbFd);
 
     if (m_rgb565map) {
         for (int r = 0; r < 32; r++) {
@@ -236,10 +232,8 @@ int FrameBuffer::FBInit(const Json::Value& config) {
 }
 void FrameBuffer::DestroyFrameBuffer(void) {
 #ifdef HAS_FRAMEBUFFER
-    if (m_fbFd > -1) {
-        ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
+    if (m_fbFd > -1)
         close(m_fbFd);
-    }
 #endif
     m_fbFd = -1;
 }
@@ -262,8 +256,6 @@ int FrameBuffer::InitializeFrameBuffer(void) {
         close(m_fbFd);
         return 0;
     }
-
-    memcpy(&m_vInfoOrig, &m_vInfo, sizeof(struct fb_var_screeninfo));
 
     if (m_vInfo.bits_per_pixel == 32)
         m_vInfo.bits_per_pixel = 24;
@@ -323,8 +315,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
 
     if (m_screenSize != (m_width * m_height * m_vInfo.bits_per_pixel / 8)) {
         LogErr(VB_PLAYLIST, "Error, screensize incorrect\n");
-        ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-        close(m_fbFd);
+        DestroyFrameBuffer();
         return 0;
     }
 
@@ -332,8 +323,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
         m_ttyFd = open("/dev/console", O_RDWR);
         if (!m_ttyFd) {
             LogErr(VB_PLAYLIST, "Error, unable to open /dev/console\n");
-            ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-            close(m_fbFd);
+            DestroyFrameBuffer();
             return 0;
         }
 
@@ -349,8 +339,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
 
     if ((char*)m_fbp == (char*)-1) {
         LogErr(VB_PLAYLIST, "Error, unable to map /dev/fb0\n");
-        ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-        close(m_fbFd);
+        DestroyFrameBuffer();
         return 0;
     }
 

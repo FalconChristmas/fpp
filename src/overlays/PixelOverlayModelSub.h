@@ -23,16 +23,12 @@ public:
     PixelOverlayModelSub(const Json::Value& config);
     virtual ~PixelOverlayModelSub();
 
-    bool foundParent();
-
-    virtual void setState(const PixelOverlayState& st) override;
-
     virtual void doOverlay(uint8_t* channels) override;
     virtual void setData(const uint8_t* data) override;
 
-    virtual bool overlayBufferIsDirty() override;
-
 private:
+    bool foundParent();
+
     PixelOverlayModel* parent = nullptr;
 
     int xOffset = 0;

@@ -1,6 +1,4 @@
-ifneq ($(wildcard /usr/include/X11/Xlib.h),)
-	CXXFLAGS_FrameBuffer.o = -DUSE_X11
-endif
+
 
 OBJECTS_fpp_so += \
 	channeloutput/ChannelOutputBase.o \
@@ -127,9 +125,6 @@ LIBS_fpp_so += \
 
 util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
-
-FrameBuffer.o: FrameBuffer.cpp
-	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 TARGETS += libfpp.$(SHLIB_EXT)
 OBJECTS_ALL+=$(OBJECTS_fpp_so)

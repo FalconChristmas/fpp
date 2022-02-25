@@ -30,6 +30,8 @@
 #include <mutex>
 #include <thread>
 
+#include "config.h"
+
 #ifdef HAS_FRAMEBUFFER
 #include <linux/fb.h>
 #endif
@@ -118,7 +120,6 @@ public:
 
 #ifdef HAS_FRAMEBUFFER
     struct fb_var_screeninfo m_vInfo;
-    struct fb_var_screeninfo m_vInfoOrig;
     struct fb_fix_screeninfo m_fInfo;
 #endif
 

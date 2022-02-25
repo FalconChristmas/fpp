@@ -31,47 +31,20 @@ PixelOverlayModelFB::~PixelOverlayModelFB() {
         delete fb;
 }
 
-void PixelOverlayModelFB::setState(const PixelOverlayState& st) {
-    if (st == state)
-        return;
-
-    if (!st.getState() && overlayBufferIsDirty()) {
-        // Give the buffer a little time to flush before disabling
-        int x = 0;
-        while (overlayBufferIsDirty() && (x++ < 10)) {
-            usleep(10000);
-        }
-    }
-
-    PixelOverlayModel::setState(st);
-}
-
 void PixelOverlayModelFB::doOverlay(uint8_t* channels) {
     if (PixelOverlayModel::overlayBufferIsDirty())
         flushOverlayBuffer();
 
-    if (!needRefresh)
+    if (!dirtyBuffer)
         return;
 
     fb->FBCopyData(channelData);
     fb->FBStartDraw();
-    needRefresh = false;
+    dirtyBuffer = false;
 }
 
 void PixelOverlayModelFB::setData(const uint8_t* data) {
     memcpy(channelData, data, width * height * 3);
-    needRefresh = true;
-}
-
-void PixelOverlayModelFB::setData(const uint8_t* data, int xOffset, int yOffset, int w, int h) {
-    PixelOverlayModel::setData(data, xOffset, yOffset, w, h);
-    needRefresh = true;
-}
-
-bool PixelOverlayModelFB::overlayBufferIsDirty() {
-    if (needRefresh)
-        return true;
-
-    return PixelOverlayModel::overlayBufferIsDirty();
+    dirtyBuffer = true;
 }
 

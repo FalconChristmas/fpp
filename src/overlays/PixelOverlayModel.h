@@ -98,6 +98,9 @@ public:
 
     virtual bool overlayBufferIsDirty();
 
+    void setBufferIsDirty(bool dirty = true);
+    bool needRefresh();
+
     void clear() {
         clearOverlayBuffer();
         flushOverlayBuffer();
@@ -128,6 +131,8 @@ protected:
 
     std::vector<uint32_t> channelMap;
     uint8_t* channelData;
+
+    volatile bool dirtyBuffer = false;
 
     struct OverlayBufferData {
         uint32_t width;

@@ -219,12 +219,22 @@ PixelOverlayState PixelOverlayModel::getState() const {
 }
 
 void PixelOverlayModel::setState(const PixelOverlayState& st) {
-    if (st != state) {
-        PixelOverlayState old = state;
-        state = st;
-        PixelOverlayManager::INSTANCE.modelStateChanged(this, old, state);
+    if (st == state)
+        return;
+
+    if (!st.getState() && needRefresh()) {
+        // Give the buffer a little time to flush before disabling
+        int x = 0;
+        while (needRefresh() && (x++ < 10)) {
+            usleep(10000);
+        }
     }
+
+    PixelOverlayState old = state;
+    state = st;
+    PixelOverlayManager::INSTANCE.modelStateChanged(this, old, state);
 }
+
 void PixelOverlayModel::doOverlay(uint8_t* channels) {
     if (overlayBufferIsDirty()) {
         flushOverlayBuffer();
@@ -262,6 +272,8 @@ void PixelOverlayModel::doOverlay(uint8_t* channels) {
         }
         break;
     }
+
+    dirtyBuffer = false;
 }
 
 void PixelOverlayModel::setData(const uint8_t* data) {
@@ -270,6 +282,8 @@ void PixelOverlayModel::setData(const uint8_t* data) {
             channelData[channelMap[c]] = data[c];
         }
     }
+
+    dirtyBuffer = true;
 }
 
 void PixelOverlayModel::setData(const uint8_t* data, int xOffset, int yOffset, int w, int h) {
@@ -302,6 +316,8 @@ void PixelOverlayModel::setData(const uint8_t* data, int xOffset, int yOffset, i
         }
         c += rowWrap;
     }
+
+    dirtyBuffer = true;
 }
 
 void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel) {
@@ -325,6 +341,8 @@ void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel
             channelData[channelMap[c]] = value;
         }
     }
+
+    dirtyBuffer = true;
 }
 void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
     int c = (y * getWidth() * 3) + x * 3;
@@ -390,6 +408,14 @@ void PixelOverlayModel::getDataJson(Json::Value& v, bool rle) {
             v.append(i);
         }
     }
+}
+
+bool PixelOverlayModel::needRefresh() {
+    return (dirtyBuffer || overlayBufferIsDirty());
+}
+
+void PixelOverlayModel::setBufferIsDirty(bool dirty) {
+    dirtyBuffer = dirty;
 }
 
 uint8_t* PixelOverlayModel::getOverlayBuffer() {

@@ -49,33 +49,18 @@ bool PixelOverlayModelSub::foundParent() {
     return false;
 }
 
-void PixelOverlayModelSub::setState(const PixelOverlayState& st) {
-    if (st == state)
-        return;
-
-    if (!st.getState() && overlayBufferIsDirty()) {
-        // Give the buffer a little time to flush before disabling
-        int x = 0;
-        while (overlayBufferIsDirty() && (x++ < 10)) {
-            usleep(10000);
-        }
-    }
-
-    PixelOverlayModel::setState(st);
-}
-
 void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     if (PixelOverlayModel::overlayBufferIsDirty())
         flushOverlayBuffer();
 
-    if (!needRefresh)
+    if (!dirtyBuffer)
         return;
 
     if (!foundParent())
         return;
 
     parent->setData(channelData, xOffset, yOffset, width, height);
-    needRefresh = false;
+    dirtyBuffer = false;
 }
 
 void PixelOverlayModelSub::setData(const uint8_t* data) {
@@ -84,13 +69,6 @@ void PixelOverlayModelSub::setData(const uint8_t* data) {
 
     PixelOverlayModel::setData(data);
 
-    needRefresh = true;
-}
-
-bool PixelOverlayModelSub::overlayBufferIsDirty() {
-    if (needRefresh)
-        return true;
-
-    return PixelOverlayModel::overlayBufferIsDirty();
+    dirtyBuffer = true;
 }
 

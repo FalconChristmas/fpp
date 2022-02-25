@@ -16,8 +16,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
-
 #include "FrameBuffer.h"
 #include "PixelOverlayModel.h"
 
@@ -26,16 +24,9 @@ public:
     PixelOverlayModelFB(const Json::Value& config);
     virtual ~PixelOverlayModelFB();
 
-    virtual void setState(const PixelOverlayState& st) override;
-
     virtual void doOverlay(uint8_t* channels) override;
     virtual void setData(const uint8_t* data) override;
-    virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h);
-
-    virtual bool overlayBufferIsDirty() override;
 
 private:
     FrameBuffer* fb = nullptr;
-
-    volatile bool needRefresh = false;
 };
