@@ -31,6 +31,7 @@
 #include <fcntl.h>
 
 #include "FBVirtualDisplay.h"
+#include "overlays/PixelOverlay.h"
 
 extern "C" {
 FBVirtualDisplayOutput* createOutputFBVirtualDisplay(unsigned int startChannel,
@@ -48,15 +49,9 @@ FBVirtualDisplayOutput* createOutputFBVirtualDisplay(unsigned int startChannel,
  */
 FBVirtualDisplayOutput::FBVirtualDisplayOutput(unsigned int startChannel,
                                                unsigned int channelCount) :
-    VirtualDisplayOutput(startChannel, channelCount),
-    m_fbFd(0),
-    m_ttyFd(0),
-    m_screenSize(0) {
+    VirtualDisplayOutput(startChannel, channelCount) {
     LogDebug(VB_CHANNELOUT, "FBVirtualDisplayOutput::FBVirtualDisplayOutput(%u, %u)\n",
              startChannel, channelCount);
-
-    m_bytesPerPixel = 3;
-    m_bpp = 24;
 }
 
 /*
@@ -74,167 +69,47 @@ FBVirtualDisplayOutput::~FBVirtualDisplayOutput() {
 int FBVirtualDisplayOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "FBVirtualDisplayOutput::Init()\n");
 
+    if (config.isMember("ModelName"))
+        m_modelName = config["ModelName"].asString();
+
+    if (m_modelName == "") {
+        LogErr(VB_PLAYLIST, "Empty Pixel Overlay Model name\n");
+        return 0;
+    }
+
+    m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
+
+    if (!m_model) {
+        LogErr(VB_PLAYLIST, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
+        return 0;
+    }
+
+    m_model->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
+    m_width = m_model->getWidth();
+    m_height = m_model->getHeight();
+
+    config["width"] = m_width;
+    config["height"] = m_height;
+
     if (!VirtualDisplayOutput::Init(config))
         return 0;
-    if (m_virtualDisplay) {
-        free(m_virtualDisplay);
-        m_virtualDisplay = nullptr;
-    }
 
-    m_device = "/dev/";
-    if (config.isMember("device"))
-        m_device += config["device"].asString();
-    else
-        m_device += "fb0";
-
-    m_fbFd = open(m_device.c_str(), O_RDWR);
-    if (!m_fbFd) {
-        LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device\n");
+    m_virtualDisplay = (unsigned char*)malloc(m_width * m_height * m_bytesPerPixel);
+    if (!m_virtualDisplay) {
+        LogErr(VB_CHANNELOUT, "Unable to malloc buffer\n");
         return 0;
     }
 
-    if (ioctl(m_fbFd, FBIOGET_VSCREENINFO, &m_vInfo)) {
-        LogErr(VB_CHANNELOUT, "Error getting FrameBuffer info\n");
-        close(m_fbFd);
+    memset(m_virtualDisplay, 0, m_width * m_height * m_bytesPerPixel);
+
+    int result = InitializePixelMap();
+    if (!result)
         return 0;
-    }
 
-    memcpy(&m_vInfoOrig, &m_vInfo, sizeof(struct fb_var_screeninfo));
+    // Put the background image onto the model.
+    m_model->setData(m_virtualDisplay);
 
-    if (m_vInfo.bits_per_pixel == 32)
-        m_vInfo.bits_per_pixel = 24;
-
-    m_bpp = m_vInfo.bits_per_pixel;
-    m_bytesPerPixel = m_bpp / 8;
-    LogDebug(VB_CHANNELOUT, "FrameBuffer is using %d BPP\n", m_bpp);
-
-    if ((m_bpp != 24) && (m_bpp != 16)) {
-        LogErr(VB_CHANNELOUT, "Do not know how to handle %d BPP\n", m_bpp);
-        close(m_fbFd);
-    }
-
-    if (m_bpp == 16) {
-        LogExcess(VB_CHANNELOUT, "Current Bitfield offset info:\n");
-        LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-        LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-        LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
-
-        // RGB565
-        m_vInfo.red.offset = 11;
-        m_vInfo.red.length = 5;
-        m_vInfo.green.offset = 5;
-        m_vInfo.green.length = 6;
-        m_vInfo.blue.offset = 0;
-        m_vInfo.blue.length = 5;
-        m_vInfo.transp.offset = 0;
-        m_vInfo.transp.length = 0;
-
-        LogExcess(VB_CHANNELOUT, "New Bitfield offset info should be:\n");
-        LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-        LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-        LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
-    }
-
-    m_vInfo.xres = m_vInfo.xres_virtual = m_width;
-    m_vInfo.yres = m_vInfo.yres_virtual = m_height;
-
-    // Config to set the screen back to when we are done
-    m_vInfoOrig.bits_per_pixel = 16;
-    m_vInfoOrig.xres = m_vInfoOrig.xres_virtual = 640;
-    m_vInfoOrig.yres = m_vInfoOrig.yres_virtual = 480;
-
-    if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
-        LogErr(VB_CHANNELOUT, "Error setting FrameBuffer info\n");
-        close(m_fbFd);
-        return 0;
-    }
-
-    if (ioctl(m_fbFd, FBIOGET_FSCREENINFO, &m_fInfo)) {
-        LogErr(VB_CHANNELOUT, "Error getting fixed FrameBuffer info\n");
-        close(m_fbFd);
-        return 0;
-    }
-
-    m_screenSize = m_vInfo.xres * m_vInfo.yres * m_vInfo.bits_per_pixel / 8;
-
-    if (m_screenSize != (m_width * m_height * m_vInfo.bits_per_pixel / 8)) {
-        LogErr(VB_CHANNELOUT, "Error, screensize incorrect\n");
-        ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-        close(m_fbFd);
-        return 0;
-    }
-
-    if (m_device == "/dev/fb0") {
-        m_ttyFd = open("/dev/console", O_RDWR);
-        if (!m_ttyFd) {
-            LogErr(VB_CHANNELOUT, "Error, unable to open /dev/console\n");
-            ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-            close(m_fbFd);
-            return 0;
-        }
-
-        // Hide the text console
-        ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
-    }
-
-    m_virtualDisplay = (unsigned char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
-
-    if ((char*)m_virtualDisplay == (char*)-1) {
-        LogErr(VB_CHANNELOUT, "Error, unable to map /dev/fb0\n");
-        ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-        close(m_fbFd);
-        return 0;
-    }
-    memset(m_virtualDisplay, 0, m_screenSize);
-
-    if (m_bpp == 16) {
-        LogExcess(VB_CHANNELOUT, "Generating RGB565Map for Bitfield offset info:\n");
-        LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-        LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-        LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
-
-        unsigned char rMask = (0xFF ^ (0xFF >> m_vInfo.red.length));
-        unsigned char gMask = (0xFF ^ (0xFF >> m_vInfo.green.length));
-        unsigned char bMask = (0xFF ^ (0xFF >> m_vInfo.blue.length));
-        int rShift = m_vInfo.red.offset - (8 + (8 - m_vInfo.red.length));
-        int gShift = m_vInfo.green.offset - (8 + (8 - m_vInfo.green.length));
-        int bShift = m_vInfo.blue.offset - (8 + (8 - m_vInfo.blue.length));
-        ;
-
-        //LogDebug(VB_CHANNELOUT, "rM/rS: 0x%02x/%d, gM/gS: 0x%02x/%d, bM/bS: 0x%02x/%d\n", rMask, rShift, gMask, gShift, bMask, bShift);
-
-        uint16_t o;
-        m_rgb565map = new uint16_t**[32];
-
-        for (uint16_t b = 0; b < 32; b++) {
-            m_rgb565map[b] = new uint16_t*[64];
-            for (uint16_t g = 0; g < 64; g++) {
-                m_rgb565map[b][g] = new uint16_t[32];
-                for (uint16_t r = 0; r < 32; r++) {
-                    o = 0;
-
-                    if (rShift >= 0)
-                        o |= r >> rShift;
-                    else
-                        o |= r << abs(rShift);
-
-                    if (gShift >= 0)
-                        o |= g >> gShift;
-                    else
-                        o |= g << abs(gShift);
-
-                    if (bShift >= 0)
-                        o |= b >> bShift;
-                    else
-                        o |= b << abs(bShift);
-
-                    m_rgb565map[b][g][r] = o;
-                }
-            }
-        }
-    }
-
-    return InitializePixelMap();
+    return 1;
 }
 
 /*
@@ -244,33 +119,54 @@ int FBVirtualDisplayOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "FBVirtualDisplayOutput::Close()\n");
 
     if (m_virtualDisplay) {
-        munmap(m_virtualDisplay, m_screenSize);
+        free(m_virtualDisplay);
         m_virtualDisplay = nullptr;
-    }
-
-    if (m_device == "/dev/fb0") {
-        if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
-            LogErr(VB_CHANNELOUT, "Error resetting variable info\n");
-    }
-
-    close(m_fbFd);
-
-    if (m_device == "/dev/fb0") {
-        // Re-enable the text console
-        ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
-        close(m_ttyFd);
     }
 
     return VirtualDisplayOutput::Close();
 }
 
-/*
- *
- */
 int FBVirtualDisplayOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "FBVirtualDisplayOutput::SendData(%p)\n",
               channelData);
-    DrawPixels(channelData);
+    unsigned char r = 0;
+    unsigned char g = 0;
+    unsigned char b = 0;
+    int stride = m_width * m_bytesPerPixel;
+    VirtualDisplayPixel pixel;
+
+    for (int i = 0; i < m_pixels.size(); i++) {
+        pixel = m_pixels[i];
+
+        GetPixelRGB(pixel, channelData, r, g, b);
+
+        m_model->setPixelValue(pixel.xs, pixel.ys, r, g, b);
+
+        if (m_pixelSize >= 2) {
+            if (m_pixelSize == 2) {
+                r /= 4;
+                g /= 4;
+                b /= 4;
+                r *= 3;
+                g *= 3;
+                b *= 3;
+            }
+
+            if (pixel.y < (m_width - 1))
+                m_model->setPixelValue(pixel.xs, pixel.ys + 1, r, g, b);
+
+            if (pixel.y > 0)
+                m_model->setPixelValue(pixel.xs, pixel.ys - 1, r, g, b);
+
+            if (pixel.x > 0)
+                m_model->setPixelValue(pixel.xs - 1, pixel.ys, r, g, b);
+
+            if (pixel.x < (m_height - 1))
+                m_model->setPixelValue(pixel.xs + 1, pixel.ys, r, g, b);
+        }
+    }
+
+    m_model->setBufferIsDirty(true);
 
     return m_channelCount;
 }

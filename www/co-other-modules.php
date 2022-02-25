@@ -5,17 +5,19 @@ If needed extend a class to add input fields on the Output Config column.  Creat
 Name = type, fpp uses this name to load the correct module
 friendlyName = is the display name for the type and is what is displayed in the Output Type column
 maxChannels = is the max channels that can be configured.  It is also the default channel count for a new row.
-fixChans = true when the output has a fixed channel count.
+fixedStart = true when the output has a fixed start channel.
+fixedChans = true when the output has a fixed channel count.
 */
 
 /////////////////////////////////////////////////////////////////////////////
 //Base Class
 
 class OtherBase {
-    constructor (name="Base-Type", friendlyName="Base Name", maxChannels=512, fixedChans=false, config = {}) {
+    constructor (name="Base-Type", friendlyName="Base Name", maxChannels=512, fixedStart=false, fixedChans=false, config = {}) {
         this._typeName = name;
         this._typeFriendlyName = friendlyName;
         this._maxChannels = maxChannels;
+        this._fixedStart = fixedStart;
         this._fixedChans = fixedChans;
         this._config = config;
     }
@@ -34,7 +36,18 @@ class OtherBase {
     }
 
     SetDefaults(row) {
+        if(this._fixedStart)
+            row.find("td input.start").prop('disabled', true);
+
         row.find("td input.count").val(this._maxChannels);
+        if(this._fixedChans)
+            row.find("td input.count").prop('disabled', true);
+    }
+
+    RowAdded(row) {
+        if(this._fixedStart)
+            row.find("td input.start").prop('disabled', true);
+
         if(this._fixedChans)
             row.find("td input.count").prop('disabled', true);
     }
@@ -59,19 +72,23 @@ class OtherBase {
         return this._fixedChans;
     }
 
+    get fixedStart () {
+        return this._fixedStart;
+    }
+
 }
 
 /////////////////////////////////////////////////////////////////////////////
 //Base Class for outputs with a "Port" device such as serial and SPI
 class OtherBaseDevice extends OtherBase {
-    constructor (name="Base-Type-Device", friendlyName="Base Device Name", maxChannels=512, fixedChans=false, devices=["No Devices"], config = {}) {
-        super(name, friendlyName, maxChannels, fixedChans, config)
+    constructor (name="Base-Type-Device", friendlyName="Base Device Name", maxChannels=512, fixedStart=false, fixedChans=false, devices=["No Devices"], config = {}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, config)
         this._devices = devices;
     }
 
     PopulateHTMLRow(config) {
         var results = "";
-        results += DeviceSelect(this._devices, config.device);
+        results += DeviceSelect(this._devices, config.device) + "&nbsp;";
         return results;
     }
 
@@ -93,7 +110,7 @@ class OtherBaseDevice extends OtherBase {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// SPI and Serial Devices
+// SPI/Serial/FrameBuffer Devices
 
 var SPIDevices = new Array();
 <?
@@ -135,6 +152,45 @@ foreach (scandir("/dev/") as $fileName) {
 }
 ?>
 
+var FBDevices = new Array();
+var FBInfo = {};
+<?
+if ($settings["Platform"] != "MacOS") {
+    foreach (scandir("/dev/") as $fileName) {
+        if (preg_match("/^fb[0-9]+/", $fileName)) {
+            echo "FBDevices['$fileName'] = '$fileName';\n";
+            echo "FBInfo['$fileName'] = {};\n";
+
+            $geometry = exec("fbset -i -fb /dev/$fileName | grep geometry", $output, $return_val);
+            if ($return_val == 0) {
+                $parts = preg_split("/\s+/", preg_replace('/^ *geometry */', '', $geometry));
+                if (count($parts) > 3) {
+                    echo "FBInfo['$fileName'].Width = " . $parts[0] . ";\n";
+                    echo "FBInfo['$fileName'].Height = " . $parts[1] . ";\n";
+                }
+            }
+        }
+    }
+}
+
+if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'))) {
+?>
+FBDevices['x11'] = 'x11';
+FBInfo['x11'] = {};
+FBInfo['x11'].Width = 640;
+FBInfo['x11'].Height = 480;
+<?
+}
+?>
+
+var PixelOverlayModels = new Array();
+<?
+$json = file_get_contents('http://localhost/api/models?simple=true');
+$models = json_decode($json, true);
+foreach ($models as $model) {
+    echo "PixelOverlayModels['$model'] = '$model';\n";
+}
+?>
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -180,8 +236,8 @@ class SPIws2801Device extends OtherBaseDevice {
 // I2C Output
 class I2COutput extends OtherBaseDevice {
 
-    constructor(name="I2C-Output", friendlyName="I2C Output", maxChannels=512, fixedChans=false, config = {deviceID: 0x40}, minAddr = 0x00, maxAddr = 0x7f) {
-        super(name, friendlyName, maxChannels, fixedChans, I2CDevices, config);
+    constructor(name="I2C-Output", friendlyName="I2C Output", maxChannels=512, fixedStart=false, fixedChans=false, config = {deviceID: 0x40}, minAddr = 0x00, maxAddr = 0x7f) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, I2CDevices, config);
         this._minAddr = minAddr;
         this._maxAddr = maxAddr;
     }
@@ -214,8 +270,8 @@ class I2COutput extends OtherBaseDevice {
 }
 
 class PCA9685Output extends I2COutput {
-    constructor(name="PCA9685", friendlyName="PCA9685", maxChannels=32, fixedChans=false, config = {device:"i2c-1", deviceID: 0x40, frequency: 50}) {
-        super(name, friendlyName, maxChannels, fixedChans, config);
+    constructor(name="PCA9685", friendlyName="PCA9685", maxChannels=32, fixedStart=false, fixedChans=false, config = {device:"i2c-1", deviceID: 0x40, frequency: 50}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, config);
     }
     PopulateHTMLRow(config) {
         var result = super.PopulateHTMLRow(config);
@@ -292,8 +348,8 @@ class PCA9685Output extends I2COutput {
 // Generic SPI Output
 class GenericSPIDevice extends OtherBaseDevice {
 
-    constructor(name="GenericSPI", friendlyName="Generic SPI", maxChannels=FPPD_MAX_CHANNELS, fixedChans=false, devices=SPIDevices, config={speed: 50}) {
-        super(name, friendlyName, maxChannels, fixedChans, devices, config);
+    constructor(name="GenericSPI", friendlyName="Generic SPI", maxChannels=FPPD_MAX_CHANNELS, fixedStart=false, fixedChans=false, devices=SPIDevices, config={speed: 50}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, devices, config);
     }
 
     PopulateHTMLRow(config) {
@@ -319,8 +375,8 @@ class GenericSPIDevice extends OtherBaseDevice {
 // Generic UDP Output
 class GenericUDPDevice extends OtherBase {
 
-    constructor(name="GenericUDP", friendlyName="Generic UDP", maxChannels=1400, fixedChans=false, config={address: "", port:8080, tokens:""}) {
-        super(name, friendlyName, maxChannels, fixedChans, config);
+    constructor(name="GenericUDP", friendlyName="Generic UDP", maxChannels=1400, fixedStart=false, fixedChans=false, config={address: "", port:8080, tokens:""}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, config);
     }
 
     PopulateHTMLRow(config) {
@@ -354,8 +410,8 @@ LOREnhancedSpeeds["1000000"] = "1 Mbps, 800 pixels max";
 
 class LOREnhanced extends OtherBaseDevice {
 
-    constructor(name="LOREnhanced", friendlyName="LOR Enhanced", maxChannels=FPPD_MAX_CHANNELS, fixedChans=false, devices=SerialDevices, config={speed: 500000, units: []}) {
-        super(name, friendlyName, maxChannels, fixedChans, devices, config);
+    constructor(name="LOREnhanced", friendlyName="LOR Enhanced", maxChannels=FPPD_MAX_CHANNELS, fixedStart=false, fixedChans=false, devices=SerialDevices, config={speed: 500000, units: []}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, devices, config);
     }
 
     static CreateUnitConfigRow(uintId, numOfPixels, lorStartPixel, fppStartAddr) {
@@ -468,12 +524,45 @@ class LOREnhanced extends OtherBaseDevice {
 
 
 /////////////////////////////////////////////////////////////////////////////
+// Virtual Display Output
+class VirtualDisplayDevice extends OtherBaseDevice {
+    constructor(name="FBVirtualDisplay", friendlyName="Virtual Display", maxChannels=FPPD_MAX_CHANNELS,
+            fixedStart=true, fixedChans=true,
+            config={ModelName: '', PixelSize: 2}) {
+            super(name, friendlyName, maxChannels, fixedStart, fixedChans, PixelOverlayModels, config);
+
+        if (Object.keys(PixelOverlayModels).length > 0)
+            this._config.ModelName = Object.keys(PixelOverlayModels)[0];
+    }
+
+    PopulateHTMLRow(config) {
+        var result = CreateSelect(this._devices, config.ModelName, 'Pixel Overlay Model', '', 'device') + "&nbsp;";
+        result += "Pixel Size:&nbsp;<select class='pixelSize'>";
+        for (i = 1; i <= 3; i++) {
+            result += "<option value='" + i + "'";
+            if (config.PixelSize == i)
+                result += " selected";
+            result += ">" + i + "</option>";
+        }
+        result += "</select>";
+        return result;
+    }
+
+    GetOutputConfig(result, cell) {
+        result.ModelName = cell.find("select.device").val();
+        result.PixelSize = parseInt(cell.find("select.pixelSize").val());
+
+        return result;
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // X11 Virtual Matrix Output
 class X11VirtualMatrixDevice extends OtherBase {
 
-    constructor(name="X11Matrix", friendlyName="X11 Virtual Matrix", maxChannels=73728, fixedChans=true,
+    constructor(name="X11Matrix", friendlyName="X11 Virtual Matrix", maxChannels=73728, fixedStart=true, fixedChans=true,
                 config={title: "X11 Virtual Matrix", scale:6, width:192, height: 128}) {
-        super(name, friendlyName, maxChannels, fixedChans, config);
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, config);
     }
 
     PopulateHTMLRow(config) {
@@ -527,8 +616,8 @@ function GPIOHeaderPinChanged(item) {
 }
 
 class GPIOOutputDevice extends OtherBase {
-    constructor(name="GPIO", friendlyName="GPIO", maxChannels=1, fixedChans=true, config={}) {
-        super(name, friendlyName, maxChannels, fixedChans, config);
+    constructor(name="GPIO", friendlyName="GPIO", maxChannels=1, fixedStart=false, fixedChans=true, config={}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, config);
     }
 
     PopulateHTMLRow(config) {
@@ -582,8 +671,8 @@ class GPIOOutputDevice extends OtherBase {
 }
 
 class GPIO595OutputDevice extends OtherBase {
-    constructor(name="GPIO-595", friendlyName="GPIO-595", maxChannels=128, fixedChans=false, config={}) {
-        super(name, friendlyName, maxChannels, fixedChans, config);
+    constructor(name="GPIO-595", friendlyName="GPIO-595", maxChannels=128, fixedStart=false, fixedChans=false, config={}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, config);
     }
 
     PopulateHTMLRow(config) {
@@ -640,8 +729,8 @@ function MQTTOutputTypeChanged(item) {
 
 class MQTTOutput extends OtherBase {
 
-    constructor(name="MQTTOutput", friendlyName="MQTT", maxChannels=3, fixedChans=true, config={topic: "", payload:"%R%,%G%,%B%", channelType:"RGB"}) {
-        super(name, friendlyName, maxChannels, fixedChans, config);
+    constructor(name="MQTTOutput", friendlyName="MQTT", maxChannels=3, fixedStart=false, fixedChans=true, config={topic: "", payload:"%R%,%G%,%B%", channelType:"RGB"}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, config);
     }
 
     PopulateHTMLRow(config) {
@@ -712,7 +801,7 @@ if (Object.keys(SerialDevices).length > 0) {
 <?
 if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black") {
     ?>
-    output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, {deviceID: 0x20} , 0x20, 0x27));
+    output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, false, {deviceID: 0x20} , 0x20, 0x27));
     output_modules.push(new GenericSPIDevice());
     output_modules.push(new PCA9685Output());
 <?
@@ -728,6 +817,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 }
 ?>
     output_modules.push(new GenericUDPDevice());
+    output_modules.push(new VirtualDisplayDevice());
 
 <?
 if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux")) {

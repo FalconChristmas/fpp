@@ -25,6 +25,8 @@
  */
 #include <linux/fb.h>
 
+#include "FrameBuffer.h"
+#include "overlays/PixelOverlayModel.h"
 #include "VirtualDisplay.h"
 
 class FBVirtualDisplayOutput : protected VirtualDisplayOutput {
@@ -38,14 +40,6 @@ public:
     virtual int SendData(unsigned char* channelData) override;
 
 private:
-    int m_fbFd;
-    int m_ttyFd;
-
-    int m_screenSize;
-
-    std::string m_device;
-
-    struct fb_var_screeninfo m_vInfo;
-    struct fb_var_screeninfo m_vInfoOrig;
-    struct fb_fix_screeninfo m_fInfo;
+    std::string m_modelName;
+    PixelOverlayModel *m_model = nullptr;
 };

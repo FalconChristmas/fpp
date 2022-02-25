@@ -100,7 +100,11 @@ int VirtualDisplayOutput::Init(Json::Value config) {
     if (!m_height)
         m_height = 1024;
 
-    m_pixelSize = config["pixelSize"].asInt();
+    if (config.isMember("pixelSize"))
+        m_pixelSize = config["pixelSize"].asInt();
+    else if (config.isMember("PixelSize"))
+        m_pixelSize = config["PixelSize"].asInt();
+
     if (!m_pixelSize)
         m_pixelSize = 2;
 
@@ -145,6 +149,9 @@ int VirtualDisplayOutput::InitializePixelMap(void) {
     int x = 0;
     int y = 0;
     int z = 0;
+    int xs = 0;
+    int ys = 0;
+    int zs = 0;
     int ch = 0;
     int s = 0;
     int r = 0;
@@ -180,6 +187,7 @@ int VirtualDisplayOutput::InitializePixelMap(void) {
                 m_previewWidth = atoi(parts[0].c_str());
                 m_previewHeight = atoi(parts[1].c_str());
 
+                // Only HTTPVirtualDisplay uses this where buffer is based on preview size
                 if ((m_width == -1) || (m_height == -1)) {
                     m_width = m_previewWidth;
                     m_height = m_previewHeight;
@@ -229,7 +237,9 @@ int VirtualDisplayOutput::InitializePixelMap(void) {
 
             customR = customG = customB = 0;
 
-            s = ((m_height - (int)(y * m_scale + rowOffset) - 1) * m_width + (int)(x * m_scale + colOffset)) * m_bytesPerPixel;
+            ys = (m_height - (y * m_scale + rowOffset) - 1);
+            xs = x * m_scale + colOffset;
+            s = (ys * m_width + xs) * m_bytesPerPixel;
 
             if (m_colorOrder == "RGB") {
                 r = s + 0;
@@ -301,7 +311,7 @@ int VirtualDisplayOutput::InitializePixelMap(void) {
             }
 
             if (!found)
-                m_pixels.push_back({ x, y, z, ch, r, g, b, BPP, customR, customG, customB, vpc });
+                m_pixels.push_back({ x, y, z, xs, ys, zs, ch, r, g, b, BPP, customR, customG, customB, vpc });
         }
     }
 

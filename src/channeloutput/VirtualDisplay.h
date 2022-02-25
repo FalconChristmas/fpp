@@ -48,6 +48,9 @@ typedef struct virtualDisplayPixel {
     int x;
     int y;
     int z;
+    int xs;
+    int ys;
+    int zs;
     int ch;
     int r;
     int g;
@@ -75,7 +78,7 @@ public:
                      unsigned char& r, unsigned char& g, unsigned char& b);
     void DrawPixel(int rOffset, int gOffset, int bOffset,
                    unsigned char r, unsigned char g, unsigned char b);
-    void DrawPixels(unsigned char* channelData);
+    virtual void DrawPixels(unsigned char* channelData);
 
     virtual void DumpConfig(void) override;
 
