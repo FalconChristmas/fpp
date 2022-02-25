@@ -580,8 +580,6 @@ int Playlist::StopNow(int forceStop) {
     m_forceStop = forceStop;
     SetIdle();
 
-    m_currentSection = nullptr;
-
     return 1;
 }
 
@@ -722,7 +720,6 @@ int Playlist::Process(void) {
                     LogDebug(VB_PLAYLIST, "Stopping Gracefully\n");
                     SwitchToLeadOut();
                 } else {
-                    m_currentSection = nullptr;
                     SetIdle();
                 }
                 return 1;
@@ -734,7 +731,6 @@ int Playlist::Process(void) {
                 return pl->Process();
             }
             LogDebug(VB_PLAYLIST, "Stopping after end position\n");
-            m_currentSection = nullptr;
             SetIdle();
             return 1;
         }
@@ -851,7 +847,6 @@ int Playlist::Process(void) {
                 }
             } else {
                 LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
-                m_currentSection = nullptr;
                 SetIdle();
             }
         } else {
@@ -931,16 +926,9 @@ void Playlist::SetIdle(bool exit) {
     }
 
     m_status = FPP_STATUS_IDLE;
-
     m_currentState = "idle";
-    m_name = "";
-    m_desc = "";
-    m_startPosition = 0;
-    m_sectionPosition = 0;
-    m_repeat = 0;
 
-    // Remoted per issue #506
-    //Cleanup();
+    Cleanup();
 
     PluginManager::INSTANCE.playlistCallback(GetInfo(), "stop", m_currentSectionStr, m_sectionPosition);
 
