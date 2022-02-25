@@ -383,22 +383,6 @@
                 "optional": false,
                 "simpleUI": true
             },
-            "transitionType": {
-                "name": "transitionType",
-                "description": "Transition Type",
-                "type": "string",
-                "contents": {
-                    "Random": -2,
-                    "None": 0,
-                    "Slide Up": 1,
-                    "Slide Down": 2,
-                    "Wipe Up": 3,
-                    "Wipe Down": 4,
-                    "Wipe to Horizontal Center": 5
-                },
-                "optional": false,
-                "simpleUI": true
-            },
             "imageFilename": {
                 "name": "imageFilename",
                 "description": "File",
