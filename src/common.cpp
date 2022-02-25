@@ -146,8 +146,10 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
     unsigned char str[17];
     char tmpStr[150];
 
-    sprintf(tmpStr, "%s: (%d bytes)\n", title, len);
-    LogInfo(facility, tmpStr);
+    if (strlen(title)) {
+        sprintf(tmpStr, "%s: (%d bytes)\n", title, len);
+        LogInfo(facility, tmpStr);
+    }
 
     while (l < len) {
         if (x == 0) {
