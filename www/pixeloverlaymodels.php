@@ -39,6 +39,16 @@ FBInfo['x11'].Height = 480;
 
 ?>
 
+var PixelOverlayModels = new Array();
+<?
+$json = file_get_contents('http://localhost/api/models?simple=true');
+$models = json_decode($json, true);
+foreach ($models as $model) {
+    echo "PixelOverlayModels['$model'] = '$model';";
+}
+
+?>
+
 function GetOrientationInput(currentValue, attr) {
 
 	var options = {
@@ -158,12 +168,21 @@ function PopulateChannelMemMapTable(data) {
                 }
                 break;
             case "FB":
-                //alert('JSON: ' + JSON.stringify(model));
                 postr += "<td><span class='hidden type'>FB</span>FrameBuffer</td>" + 
                     "<td>" + CreateSelect(FBDevices, model.Device, '', '-- Port --', 'device', 'DeviceChanged(this);') + "</td>" +
                     "<td class='channels'>" + (model.Width * model.Height * 3) + "</td><td>3</td><td>Horizontal</td><td>Top Left</td>" +
-                    "<td colspan='2'><input class='width' type='number' min='0' max='4096' step='8' value='" + model.Width + "'" + attr + " onChange='WidthOrHeightModified(this);'> <b>X</b>" +
-                        "<input class='height' type='number' min='0' max='2160' step='8' value='" + model.Height + "'" + attr + " onChange='WidthOrHeightModified(this);'></td>" +
+                    "<td colspan='2'><input class='width' type='number' min='8' max='4096' step='8' value='" + model.Width + "'" + attr + " onChange='WidthOrHeightModified(this);'> <b>X</b>" +
+                        "<input class='height' type='number' min='8' max='2160' step='8' value='" + model.Height + "'" + attr + " onChange='WidthOrHeightModified(this);'></td>" +
+                    "<td>";
+                break;
+            case "Sub":
+                postr += "<td><span class='hidden type'>Sub</span>Sub-Model</td>" +
+                    "<td>" + CreateSelect(PixelOverlayModels, model.Parent, '', '-- Parent --', 'parent', '') + "</td>" +
+                    "<td class='channels'>" + (model.Width * model.Height * 3) + "</td><td>3</td>" +
+                    "<td>xOffset: <input class='xOffset' type='number' min='0' max='4096' value='" + model.XOffset + "'" + attr + "></td>" +
+                    "<td>yOffset: <input class='yOffset' type='number' min='0' max='2160' value='" + model.YOffset + "'" + attr + "></td>" +
+                    "<td colspan='2'><input class='width' type='number' min='8' max='4096' value='" + model.Width + "'" + attr + " onChange='WidthOrHeightModified(this);'> <b>X</b>" +
+                        "<input class='height' type='number' min='8' max='2160' value='" + model.Height + "'" + attr + " onChange='WidthOrHeightModified(this);'></td>" +
                     "<td>";
                 break;
         }
@@ -247,9 +266,14 @@ function SetChannelMemMaps() {
                     model.Height = parseInt($this.find("input.height").val());
                     model.Device = $this.find("select.device").val();
 
-                    // -1 indicates use default value
-                    model.Width = model.Width > 0 ? model.Width : -1;
-                    model.Height = model.Height > 0 ? model.Height : -1;
+                    models.push(model);
+                    break;
+                case "Sub":
+                    model.Width = parseInt($this.find("input.width").val());
+                    model.Height = parseInt($this.find("input.height").val());
+                    model.XOffset = parseInt($this.find("input.xOffset").val());
+                    model.YOffset = parseInt($this.find("input.yOffset").val());
+                    model.Parent = $this.find("select.parent").val();
 
                     models.push(model);
                     break;
@@ -293,7 +317,6 @@ function AddNewChannelModel() {
             "<td><input class='strands' type='text' size='2' maxlength='2' value='1'></td>" +
             "<td></td>" +
             "</tr>");
-    $(this).fppDialog("close");
 }
 
 function AddNewFBModel() {
@@ -310,24 +333,42 @@ function AddNewFBModel() {
             "<input class='height' type='number' min='0' max='2160' step='8' value='" + FBInfo[device].Height + "' onChange='WidthOrHeightModified(this);'></td>" +
             "<td></td>" +
             "</tr>");
-    $(this).fppDialog("close");
+}
+
+function AddNewSubModel() {
+    var currentRows = $("#channelMemMaps > tbody > tr").length;
+    $('#channelMemMaps tbody').append(
+        "<tr id='row'" + currentRows + " class='fppTableRow'>" +
+            "<td class='center' valign='middle'><div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>"  +
+            "<td><input class='blk' type='text' size='31' maxlength='31' value=''></td>" +
+            "<td><span class='hidden type'>Sub</span>Sub-Model</td>" +
+            "<td>" + CreateSelect(PixelOverlayModels, '', '', '-- Parent --', 'parent', '') + "</td>" +
+            "<td class='channels'>" + (64 * 32 * 3) + "</td><td>3</td>" +
+            "<td>xOffset: <input class='xOffset' type='number' min='0' max='4096' value='0'></td>" +
+            "<td>yOffset: <input class='yOffset' type='number' min='0' max='2160' value='0'></td>" +
+            "<td colspan='2'><input class='width' type='number' min='8' max='4096' value='64' onChange='WidthOrHeightModified(this);'> <b>X</b>" +
+                "<input class='height' type='number' min='8' max='2160' value='32' onChange='WidthOrHeightModified(this);'></td>" +
+            "<td></td>" +
+            "</tr>");
 }
 
 function AddNewModel() {
-    if (settings['Platform'] == 'MacOS') {
-        AddNewChannelModel();
-        return;
-    }
-
     $('#addDialog').fppDialog({
         autoOpen: true,
         buttons: {
             Channel: function() {
                 AddNewChannelModel();
+                $(this).fppDialog("close");
             },
 
             FrameBuffer: function() {
                 AddNewFBModel();
+                $(this).fppDialog("close");
+            },
+
+            SubModel: function() {
+                AddNewSubModel();
+                $(this).fppDialog("close");
             }
         }
     });

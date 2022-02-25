@@ -59,6 +59,7 @@ OBJECTS_fpp_so += \
     overlays/PixelOverlayEffects.o \
 	overlays/PixelOverlayModel.o \
 	overlays/PixelOverlayModelFB.o \
+	overlays/PixelOverlayModelSub.o \
     overlays/WLEDEffects.o \
     overlays/wled/FX.o \
     overlays/wled/FX_fcn.o \

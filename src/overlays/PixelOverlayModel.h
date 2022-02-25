@@ -61,9 +61,10 @@ private:
 class PixelOverlayModel {
 public:
     PixelOverlayModel(const Json::Value& config);
-    ~PixelOverlayModel();
+    virtual ~PixelOverlayModel();
 
     const std::string& getName() const { return name; };
+    const std::string& getType() const { return type; };
 
     int getWidth() const { return width; }
     int getHeight() const { return height; }
@@ -78,6 +79,7 @@ public:
     virtual void doOverlay(uint8_t* channels);
 
     virtual void setData(const uint8_t* data); // full RGB data, width*height*3
+    virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h);
 
     int getStartChannel() const;
     int getChannelCount() const;
@@ -117,6 +119,7 @@ protected:
 
     Json::Value config;
     std::string name;
+    std::string type;
     int width, height;
     PixelOverlayState state;
     int startChannel;

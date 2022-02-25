@@ -1,6 +1,6 @@
 #pragma once
 /*
- *   Pixel Overlay Model on a FrameBuffer for Falcon Player (FPP)
+ *   Pixel Overlay Model on Sub Model for Falcon Player (FPP)
  *
  *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
@@ -16,26 +16,27 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
-
-#include "FrameBuffer.h"
 #include "PixelOverlayModel.h"
 
-class PixelOverlayModelFB : public PixelOverlayModel {
+class PixelOverlayModelSub : public PixelOverlayModel {
 public:
-    PixelOverlayModelFB(const Json::Value& config);
-    virtual ~PixelOverlayModelFB();
+    PixelOverlayModelSub(const Json::Value& config);
+    virtual ~PixelOverlayModelSub();
+
+    bool foundParent();
 
     virtual void setState(const PixelOverlayState& st) override;
 
     virtual void doOverlay(uint8_t* channels) override;
     virtual void setData(const uint8_t* data) override;
-    virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h);
 
     virtual bool overlayBufferIsDirty() override;
 
 private:
-    FrameBuffer* fb = nullptr;
+    PixelOverlayModel* parent = nullptr;
+
+    int xOffset = 0;
+    int yOffset = 0;
 
     volatile bool needRefresh = false;
 };

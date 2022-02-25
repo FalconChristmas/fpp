@@ -39,6 +39,7 @@
 #include "PixelOverlayEffects.h"
 #include "PixelOverlayModel.h"
 #include "PixelOverlayModelFB.h"
+#include "PixelOverlayModelSub.h"
 
 PixelOverlayManager PixelOverlayManager::INSTANCE;
 
@@ -146,10 +147,13 @@ void PixelOverlayManager::loadModelMap() {
 
             std::string type = models[c]["Type"].asString();
 
-            if (type == "Channel")
+            if (type == "Channel") {
                 pmodel = new PixelOverlayModel(models[c]);
-            else if (type == "FB")
+            } else if (type == "FB") {
                 pmodel = new PixelOverlayModelFB(models[c]);
+            } else if (type == "Sub") {
+                pmodel = new PixelOverlayModelSub(models[c]);
+            }
 
             if (pmodel) {
                 this->models[pmodel->getName()] = pmodel;
@@ -272,9 +276,17 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
         return;
     }
     std::unique_lock<std::mutex> lock(activeModelsLock);
+    // First do any sub-models
     for (auto m : activeModels) {
-        m->doOverlay(channels);
+        if (m->getType() == "Sub")
+            m->doOverlay(channels);
     }
+    // Then do any non-subs
+    for (auto m : activeModels) {
+        if (m->getType() != "Sub")
+            m->doOverlay(channels);
+    }
+
     for (auto& m : activeRanges) {
         for (int s = m.start; s <= m.end; s++) {
             channels[s] = m.value;

@@ -1,5 +1,5 @@
 /*
-*   Pixel Overlay Model on a FrameBuffer for Falcon Player (FPP)
+*   Pixel Overlay Model on Sub Model for Falcon Player (FPP)
 *
 *   The Falcon Player (FPP) is free software; you can redistribute it
 *   and/or modify it under the terms of the GNU General Public License
@@ -17,21 +17,39 @@
 
 #include "fpp-pch.h"
 
-#include "PixelOverlayModelFB.h"
+#include "PixelOverlay.h"
+#include "PixelOverlayModelSub.h"
 
-PixelOverlayModelFB::PixelOverlayModelFB(const Json::Value& c) :
+PixelOverlayModelSub::PixelOverlayModelSub(const Json::Value& c) :
     PixelOverlayModel(c) {
-    fb = new FrameBuffer();
+    if (config.isMember("XOffset")) {
+        xOffset = config["XOffset"].asInt();
+    }
 
-    fb->FBInit(config);
+    if (config.isMember("YOffset")) {
+        yOffset = config["YOffset"].asInt();
+    }
 }
 
-PixelOverlayModelFB::~PixelOverlayModelFB() {
-    if (fb)
-        delete fb;
+PixelOverlayModelSub::~PixelOverlayModelSub() {
 }
 
-void PixelOverlayModelFB::setState(const PixelOverlayState& st) {
+bool PixelOverlayModelSub::foundParent() {
+    if (parent)
+        return true;
+
+    parent = PixelOverlayManager::INSTANCE.getModel(config["Parent"].asString());
+
+    if (parent) {
+        parent->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
+        return true;
+    }
+
+    LogErr(VB_CHANNELOUT, "Unable to find parent\n");
+    return false;
+}
+
+void PixelOverlayModelSub::setState(const PixelOverlayState& st) {
     if (st == state)
         return;
 
@@ -46,29 +64,30 @@ void PixelOverlayModelFB::setState(const PixelOverlayState& st) {
     PixelOverlayModel::setState(st);
 }
 
-void PixelOverlayModelFB::doOverlay(uint8_t* channels) {
+void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     if (PixelOverlayModel::overlayBufferIsDirty())
         flushOverlayBuffer();
 
     if (!needRefresh)
         return;
 
-    fb->FBCopyData(channelData);
-    fb->FBStartDraw();
+    if (!foundParent())
+        return;
+
+    parent->setData(channelData, xOffset, yOffset, width, height);
     needRefresh = false;
 }
 
-void PixelOverlayModelFB::setData(const uint8_t* data) {
-    memcpy(channelData, data, width * height * 3);
+void PixelOverlayModelSub::setData(const uint8_t* data) {
+    if (!foundParent())
+        return;
+
+    PixelOverlayModel::setData(data);
+
     needRefresh = true;
 }
 
-void PixelOverlayModelFB::setData(const uint8_t* data, int xOffset, int yOffset, int w, int h) {
-    PixelOverlayModel::setData(data, xOffset, yOffset, w, h);
-    needRefresh = true;
-}
-
-bool PixelOverlayModelFB::overlayBufferIsDirty() {
+bool PixelOverlayModelSub::overlayBufferIsDirty() {
     if (needRefresh)
         return true;
 

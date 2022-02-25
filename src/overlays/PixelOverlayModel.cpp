@@ -43,6 +43,7 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     channelData(nullptr),
     runningEffect(nullptr) {
     name = config["Name"].asString();
+    type = config["Type"].asString();
     replaceAll(name, "/", "_");
     startChannel = config["StartChannel"].asInt();
     startChannel--; //need to be 0 based
@@ -268,6 +269,38 @@ void PixelOverlayModel::setData(const uint8_t* data) {
         if (channelMap[c] != FPPD_OFF_CHANNEL) {
             channelData[channelMap[c]] = data[c];
         }
+    }
+}
+
+void PixelOverlayModel::setData(const uint8_t* data, int xOffset, int yOffset, int w, int h) {
+    if (((w + xOffset) > width) ||
+        ((h + yOffset) > height) ||
+        (xOffset < 0) ||
+        (yOffset < 0)) {
+        LogErr(VB_CHANNELOUT, "Error: region is out of bounds\n");
+        return;
+    }
+
+    if ((w == width) &&
+        (h == height) &&
+        (xOffset == 0) &&
+        (yOffset == 0)) {
+        setData(data);
+        return;
+    }
+
+    int rowWrap = (width - w) * 3;
+    int s = 0;
+    int c = (yOffset * width * 3) + (xOffset * 3);
+    for (int yPos = 0; yPos < h; yPos++) {
+        for (int xPos = 0; xPos < w; xPos++) {
+            for (int i = 0; i < 3; i++, c++, s++) {
+                if (channelMap[c] != FPPD_OFF_CHANNEL) {
+                    channelData[channelMap[c]] = data[s];
+                }
+            }
+        }
+        c += rowWrap;
     }
 }
 
