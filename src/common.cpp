@@ -212,6 +212,8 @@ int GetInterfaceAddress(const char* interface, char* addr, char* mask, char* gw)
     int fd;
     struct ifreq ifr;
 
+    memset(&ifr, 0, sizeof(ifr));
+
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     ifr.ifr_addr.sa_family = AF_INET;
 
