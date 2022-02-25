@@ -275,16 +275,22 @@ void PlaylistEntryImage::PrepImage(void) {
     memset(m_buffer, 0, m_bufferSize);
 
     try {
+        int cols = 0;
+        int rows = 0;
+
+        needToCache = false;
         image.quiet(true); // Squelch warning exceptions
 
         if (GetImageFromCache(nextFile, image)) {
-            needToCache = false;
-        } else {
-            image.read(nextFile.c_str());
+            cols = image.columns();
+            rows = image.rows();
         }
 
-        int cols = image.columns();
-        int rows = image.rows();
+        if ((cols != m_width) || (rows != m_height)) {
+            image.read(nextFile.c_str());
+            cols = image.columns();
+            rows = image.rows();
+        }
 
         if ((cols != m_width) && (rows != m_height)) {
             needToCache = true;
