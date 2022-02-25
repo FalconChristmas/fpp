@@ -51,7 +51,7 @@ PlaylistEntryImage::PlaylistEntryImage(Playlist* playlist, PlaylistEntryBase* pa
 
     m_type = "image";
 
-    m_fileSeed = (unsigned int)time(NULL);
+    m_fileSeed = (unsigned int)(time(NULL) + this);
     m_cacheDir = FPP_DIR_MEDIA("/cache");
     m_cacheEntries = 200;
     m_cacheSize = 1024; // MB
