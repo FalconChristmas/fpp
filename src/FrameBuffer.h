@@ -105,7 +105,6 @@ public:
     int m_useRGB;
     int m_inverted;
     uint16_t*** m_rgb565map;
-    int m_lastFrameSize;
     uint8_t* m_lastFrame;
     int m_rOffset;
     int m_gOffset;

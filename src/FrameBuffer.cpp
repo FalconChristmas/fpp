@@ -60,7 +60,6 @@ FrameBuffer::FrameBuffer() :
     m_useRGB(0),
     m_inverted(0),
     m_rgb565map(NULL),
-    m_lastFrameSize(0),
     m_lastFrame(NULL),
     m_rOffset(0),
     m_gOffset(1),
@@ -168,6 +167,9 @@ int FrameBuffer::FBInit(const Json::Value& config) {
 
     int result = 0;
 
+    LogDebug(VB_CHANNELOUT, "Initializing %s frame buffer at %dx%d resolution.\n",
+        m_device.c_str(), m_width, m_height);
+
 #ifdef USE_X11
     if (m_device == "x11")
         result = InitializeX11Window();
@@ -180,8 +182,6 @@ int FrameBuffer::FBInit(const Json::Value& config) {
 
     m_screenSize = m_width * m_height * m_bpp / 8;
 
-    m_lastFrameSize = m_width * m_height * m_dataFormat.size();
-
     m_outputBuffer = (uint8_t*)malloc(m_screenSize);
     if (!m_outputBuffer) {
         LogErr(VB_PLAYLIST, "Error, unable to allocate outputBuffer buffer\n");
@@ -189,7 +189,7 @@ int FrameBuffer::FBInit(const Json::Value& config) {
         return 0;
     }
 
-    m_lastFrame = (uint8_t*)malloc(m_lastFrameSize);
+    m_lastFrame = (uint8_t*)malloc(m_screenSize);
     if (!m_lastFrame) {
         LogErr(VB_PLAYLIST, "Error, unable to allocate lastFrame buffer\n");
         DestroyFrameBuffer();
@@ -197,7 +197,7 @@ int FrameBuffer::FBInit(const Json::Value& config) {
     }
 
     memset(m_outputBuffer, 0, m_screenSize);
-    memset(m_lastFrame, 0, m_lastFrameSize);
+    memset(m_lastFrame, 0, m_screenSize);
 
     std::string colorOrder = m_dataFormat.substr(0, 3);
 
@@ -327,8 +327,6 @@ int FrameBuffer::InitializeFrameBuffer(void) {
         close(m_fbFd);
         return 0;
     }
-
-    m_lastFrameSize = m_width * m_height * m_dataFormat.size();
 
     if (m_device == "/dev/fb0") {
         m_ttyFd = open("/dev/console", O_RDWR);
@@ -609,7 +607,7 @@ void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
         }
     }
 
-    memcpy(m_lastFrame, buffer, m_lastFrameSize);
+    memcpy(m_lastFrame, buffer, m_screenSize);
 
     m_bufferLock.unlock();
 
