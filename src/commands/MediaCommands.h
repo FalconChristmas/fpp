@@ -15,8 +15,8 @@
 */
 
 #include "Commands.h"
-#include "mediaoutput/VLCOut.h"
 #include "mediaoutput/mediaoutput.h"
+#include "mediaoutput/VLCOut.h"
 
 class SetVolumeCommand : public Command {
 public:
@@ -50,7 +50,19 @@ public:
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+class URLCommand : public Command {
+public:
+    URLCommand() :
+        Command("URL") {
+        args.push_back(CommandArg("name", "string", "URL"));
+        args.push_back(CommandArg("method", "string", "Method").setContentList({ "GET", "POST" }).setDefaultValue("GET"));
+        args.push_back(CommandArg("data", "string", "Post Data"));
+    }
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
 
+
+#ifdef HAS_VLC
 class PlayMediaCommand : public Command {
 public:
     PlayMediaCommand() :
@@ -78,25 +90,4 @@ public:
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
-
-class URLCommand : public Command {
-public:
-    URLCommand() :
-        Command("URL") {
-        args.push_back(CommandArg("name", "string", "URL"));
-        args.push_back(CommandArg("method", "string", "Method").setContentList({ "GET", "POST" }).setDefaultValue("GET"));
-        args.push_back(CommandArg("data", "string", "Post Data"));
-    }
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
-};
-
-class VLCPlayData : public VLCOutput {
-public:
-    VLCPlayData(const std::string& file, int l, int vol);
-    virtual ~VLCPlayData();
-    virtual void Stopped() override;
-    std::string filename;
-    int loop = 0;
-    int volumeAdjust = 0;
-    MediaOutputStatus status;
-};
+#endif

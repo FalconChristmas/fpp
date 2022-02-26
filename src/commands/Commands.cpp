@@ -73,6 +73,7 @@ void CommandManager::Init() {
     addCommand(new StartPlaylistAtRandomCommand());
     addCommand(new InsertPlaylistCommand());
     addCommand(new InsertPlaylistImmediate());
+#ifdef HAS_VLC
     addCommand(new PlayMediaCommand());
     /* These too are currently disabled because stopping a Video
      * can cause Siginal 6 in VLC Player
@@ -81,6 +82,7 @@ void CommandManager::Init() {
      */
     //addCommand(new StopMediaCommand());
     //addCommand(new StopAllMediaCommand());
+#endif
     addCommand(new PlaylistPauseCommand());
     addCommand(new PlaylistResumeCommand());
     addCommand(new TriggerPresetCommand());

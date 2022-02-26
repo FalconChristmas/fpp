@@ -17,4 +17,3 @@ endif
 
 fppd: $(OBJECTS_fppd) libfpp.$(SHLIB_EXT)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -L . -l fpp $(LIBS_fpp_so) -o $@
-	$(ADJUST_PATHS_COMMAND)

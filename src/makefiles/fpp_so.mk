@@ -116,12 +116,14 @@ LIBS_fpp_so += \
 	-lswresample \
 	-L/usr/local/lib \
 	-lswscale \
-	-lvlc \
 	-lGraphicsMagick \
 	-lGraphicsMagickWand \
 	-lGraphicsMagick++ \
     $(LIBS_GPIO_ADDITIONS) $(LD_FLAG_FS)
 
+ifneq ($(wildcard /usr/local/include/vlc/vlc.h),)
+LIBS_fpp_so += -lvlc
+endif
 
 util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@

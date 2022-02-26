@@ -611,6 +611,9 @@ bool SDL::openAudio() {
                 _wanted_spec.freq = 48000;
             }
 #endif
+#ifdef PLATFORM_OSX
+            _wanted_spec.freq = 48000;
+#endif
             _wanted_spec.format = AUDIO_S16;
             break;
 

@@ -211,6 +211,8 @@ function SystemGetStatus()
         'time_remaining' => '00:00'
     );
 
+    $default_return_json['uuid'] = stats_getUUID();
+
     //if the ip= argument supplied
     if (isset($_GET['ip'])) {
         $ipAddresses = $_GET['ip'];
@@ -313,7 +315,7 @@ function SystemGetStatus()
 
             $default_return_json['fppd'] = "Not Running";
             $default_return_json['status_name'] = $status == 'updating' ? $status : 'stopped';
-
+            
             return json(finalizeStatusJson($default_return_json));
         }
         $data = json_decode($request_content, true);

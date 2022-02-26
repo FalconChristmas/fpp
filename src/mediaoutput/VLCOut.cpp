@@ -16,6 +16,9 @@
  */
 #include "fpp-pch.h"
 
+#if __has_include(<vlc/vlc.h>)
+
+
 #include <vlc/libvlc_version.h>
 #include <vlc/vlc.h>
 
@@ -585,3 +588,5 @@ void VLCOutput::SetVolumeAdjustment(int volAdj) {
         libvlc_media_player_set_equalizer(data->vlcPlayer, data->equalizer);
     }
 }
+
+#endif

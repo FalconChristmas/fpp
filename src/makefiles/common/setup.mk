@@ -12,6 +12,23 @@ CC := g++
 ifneq ($(wildcard /usr/bin/ccache),)
 	CCACHE = ccache
 endif
+ifneq ($(wildcard /opt/homebrew/bin/ccache),)
+	CCACHE = ccache
+endif
+
+ifneq ($(wildcard /usr/local/bin/gcc-[0-9]*),)
+CXXCOMPILER := $(wildcard /usr/local/bin/g++-[0-9]*)
+CCOMPILER := $(wildcard /usr/local/bin/gcc-[0-9]*)
+CC := $(wildcard /usr/local/bin/g++-[0-9]*)
+CXXFLAGS += -std=c++20
+endif
+ifneq ($(wildcard /opt/homebrew/bin/gcc-[0-9]*),)
+CXXCOMPILER := $(wildcard /opt/homebrew/bin/g++-[0-9]*)
+CCOMPILER := $(wildcard /opt/homebrew/bin/gcc-[0-9]*)
+CC := $(wildcard /opt/homebrew/bin/g++-[0-9]*)
+CXXFLAGS += -std=c++20
+CFLAGS += -fpch-preprocess
+endif
 
 TARGETS =
 SUBMODULES =
@@ -39,8 +56,8 @@ ifeq '$(CXXCOMPILER)' 'g++'
     GCCVERSIONGTEQ9:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 9)
     # Common CFLAGS
     CFLAGS+=-fpch-preprocess
-    OPTIMIZE_FLAGS=-O3 -Wno-psabi
-    debug: OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
+    OPTIMIZE_FLAGS+=-O3 -Wno-psabi
+    debug: OPTIMIZE_FLAGS+=-g -DDEBUG -Wno-psabi
     CXXFLAGS += -std=gnu++2a
 
     ifeq "$(GCCVERSIONGTEQ9)" "0"
@@ -49,9 +66,9 @@ ifeq '$(CXXCOMPILER)' 'g++'
 		LD_FLAG_FS=
     endif
 else
-    OPTIMIZE_FLAGS=-O3
-    debug: OPTIMIZE_FLAGS=-g -DDEBUG
-    CXXFLAGS += -std=gnu++2a
+    OPTIMIZE_FLAGS+=-O3
+    debug: OPTIMIZE_FLAGS+=-g -DDEBUG
+    #CXXFLAGS += -std=gnu++2a
 endif
 
 

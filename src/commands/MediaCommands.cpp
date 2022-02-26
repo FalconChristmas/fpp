@@ -4,9 +4,6 @@
 
 #include "MediaCommands.h"
 
-std::mutex runningMediaLock;
-std::map<std::string, VLCPlayData*> runningCommandMedia;
-
 std::unique_ptr<Command::Result> SetVolumeCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -170,6 +167,22 @@ std::unique_ptr<Command::Result> URLCommand::run(const std::vector<std::string>&
     return std::make_unique<CURLResult>(args);
 }
 
+
+#ifdef HAS_VLC
+class VLCPlayData : public VLCOutput {
+public:
+    VLCPlayData(const std::string& file, int l, int vol);
+    virtual ~VLCPlayData();
+    virtual void Stopped() override;
+    std::string filename;
+    int loop = 0;
+    int volumeAdjust = 0;
+    MediaOutputStatus status;
+};
+std::mutex runningMediaLock;
+std::map<std::string, VLCPlayData*> runningCommandMedia;
+
+
 VLCPlayData::VLCPlayData(const std::string& file, int l, int vol) :
     VLCOutput(file, &status, "--hdmi--"),
     filename(file),
@@ -252,3 +265,4 @@ std::unique_ptr<Command::Result> StopAllMediaCommand::run(const std::vector<std:
     runningMediaLock.unlock();
     return std::make_unique<Command::Result>("Stopped");
 }
+#endif
