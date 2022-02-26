@@ -53,7 +53,8 @@ else
 fi
 echo ""
 echo "The next step is to use brew to install several needed dependencies.   This includes"
-echo "php, gcc, git, httpd, ffmpeg, ccache, make, sdl2, zstd, wget, taglib, mosquitto"
+echo "   php, git, httpd, ffmpeg, ccache, make, sdl2, zstd, wget, taglib, mosquitto,"
+echo "   jsoncpp, libhttpserver, graphicsmagick"
 echo ""
 echo -n "Do you wish to proceed? [N/y] "
 read ANSWER
@@ -63,24 +64,9 @@ if [ "x${ANSWER}" != "xY" -a "x${ANSWER}" != "xy" ]; then
     echo
     exit
 fi
-brew install php@7.4 gcc@11 git httpd ffmpeg ccache make sdl2 zstd wget taglib mosquitto
+brew install php@7.4 git httpd ffmpeg ccache make sdl2 zstd wget taglib mosquitto jsoncpp libhttpserver graphicsmagick
 brew link --force --overwrite php@7.4
 echo ""
-echo "We now have most of the dependencies installed.  However, there are a few that"
-echo "we need to build from source so the correct version of C++ is picked up."
-echo "These include jsoncpp, libhttpserver, and graphicsmagick"
-echo ""
-echo -n "Do you wish to proceed? [N/y] "
-read ANSWER
-if [ "x${ANSWER}" != "xY" -a "x${ANSWER}" != "xy" ]; then
-    echo
-    echo "Install cancelled."
-    echo
-    exit
-fi
-brew install --build-from-source --cc=gcc-11 jsoncpp
-brew install --build-from-source --cc=gcc-11 libhttpserver
-brew install --build-from-source --cc=gcc-11 graphicsmagick
 ccache -M 250M
 ccache --set-config=temporary_dir=/tmp
 ccache --set-config=sloppiness=pch_defines,time_macros
@@ -148,6 +134,7 @@ sed -i -e "s+^upload_tmp_dir =.*+upload_tmp_dir = ${MEDIADIRE}/upload+g" $PHPCON
 sed -i -e "s/^default_socket_timeout =.*/default_socket_timeout = 900/g" $PHPCONF
 
 echo "Configuring FPPD"
+mkdir -p ~/Library/LaunchAgents
 cp fpp/etc/macOS/falconchristmas.fppd.plist ~/Library/LaunchAgents
 sed -i -e "s+FPPDIR+${MEDIADIR}/fpp+/g" ~/Library/LaunchAgents/falconchristmas.fppd.plist
 sed -i -e "s+MEDIADIR+${MEDIADIR}+/g" ~/Library/LaunchAgents/falconchristmas.fppd.plist
