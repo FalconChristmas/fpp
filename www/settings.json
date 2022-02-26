@@ -736,7 +736,10 @@
             "size": 30,
             "maxlength": 30,
             "regex": "^\\([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])$",
-            "regexDesc": "Host names must contain only letters, numbers and hyphens"
+            "regexDesc": "Host names must contain only letters, numbers and hyphens",
+            "platforms": [
+                "!MacOS"
+            ]
         },
         "Latitude": {
             "name": "Latitude",
@@ -1722,7 +1725,10 @@
             "restart": 2,
             "default": "Europe/London",
             "type": "select",
-            "optionsURL": "api/settings/TimeZone/options"
+            "optionsURL": "api/settings/TimeZone/options",
+            "platforms": [
+                "!MacOS"
+            ]
         }
     }
 }

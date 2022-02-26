@@ -113,16 +113,19 @@ HTTPCONF="${BREWLOC}/etc/httpd/httpd.conf"
 USER=$(whoami)
 sed -i -e "s/Listen 8080.*/Listen 80/" $HTTPCONF
 sed -i -e "s+#LoadModule proxy+LoadModule proxy+g" $HTTPCONF
+sed -i -e "s+LoadModule proxy_balanc+#LoadModule proxy_balanc+g" $HTTPCONF
 sed -i -e "s+#LoadModule rewrite+LoadModule rewrite+g" $HTTPCONF
+sed -i -e "s+#LoadModule watchdog+LoadModule watchdog+g" $HTTPCONF
 sed -i -e "s+User .*+User ${USER}+g" $HTTPCONF
-sed -i -e "s+Grou .*+Group staff+g" $HTTPCONF
+sed -i -e "s+Group .*+Group staff+g" $HTTPCONF
 sed -i -e "s+DirectoryIndex index.*+DirectoryIndex index.php index.html+g" $HTTPCONF
 sed -i -e "s+${BREWLOC}/var/www+${MEDIADIR}/fpp/www+g" $HTTPCONF
-sed -i -e "s/AllowOverride None/AllowOverride All/2" $HTTPCONF
+sed -i -e "s/AllowOverride None/AllowOverride All/g" $HTTPCONF
 echo "LoadModule php7_module ${BREWLOC}/opt/php@7.4/lib/httpd/modules/libphp7.so" >> $HTTPCONF
 echo "<FilesMatch \.php\$>" >> $HTTPCONF
 echo "    SetHandler application/x-httpd-php" >> $HTTPCONF
 echo "</FilesMatch>" >> $HTTPCONF
+echo "ServerName localhost" >> $HTTPCONF
 echo "Configuring PHP"
 PHPCONF="${BREWLOC}/etc/php/7.4/php.ini"
 sed -i -e "s/^max_execution_time =.*/max_execution_time = 1000/g" $PHPCONF
@@ -132,6 +135,7 @@ sed -i -e "s/^post_max_size =.*/post_max_size = 4G/g" $PHPCONF
 sed -i -e "s/^upload_max_filesize =.*/upload_max_filesize = 4G/g" $PHPCONF
 sed -i -e "s+^upload_tmp_dir =.*+upload_tmp_dir = ${MEDIADIRE}/upload+g" $PHPCONF
 sed -i -e "s/^default_socket_timeout =.*/default_socket_timeout = 900/g" $PHPCONF
+sed -i -e "s/^short_open_tag =.*/short_open_tag = On/g" $PHPCONF
 
 echo "Configuring FPPD"
 mkdir -p ~/Library/LaunchAgents
