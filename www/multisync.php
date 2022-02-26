@@ -106,6 +106,21 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
     }
 
+    /*
+     * Returns Mode + value of "Send Multisync"
+     */
+    function getFullMode(data) {
+        rc = "Unknown";
+        if (data.hasOwnProperty('mode')) {
+            rc = modeToString(data.mode);
+        }
+        if (data.hasOwnProperty('multisync') && data.multisync && data.mode == 2) {
+            rc += " w/ Multisync"
+        }
+
+        return rc;
+    }
+
     function exportMultisync() {
         if (systemStatusCache == null || systemStatusCache == "" || systemStatusCache == "null") {
             $.jGrowl("Please wait until the system statuses finish loading",{themeState:'danger'});
@@ -497,9 +512,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 $('#' + rowID + '_mode').html("<span class=\"warning-text\">Unreachable</span>");
             } else if (status != "") {
                 $('#' + rowID + '_status').html(status);
-                $('#' + rowID + '_mode').html(modeToString(data.mode));
+                $('#' + rowID + '_mode').html(getFullMode(data));
             } else {
-                $('#' + rowID + '_mode').html(modeToString(data.mode));
+                $('#' + rowID + '_mode').html(getFullMode(data));
             }
             if (data.hasOwnProperty('wifi')) {
                 var wifi_html = [];
