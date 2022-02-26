@@ -103,7 +103,7 @@ include 'menu.inc';?>
                             Audio/Video
                             </a>
                         </li>
-<?if (!$settings["IsDesktop"]) { ?>
+<?if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2)) {?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-time-tab" data-toggle="tab" href="#settings-time" data-option="Time" role="tab" aria-controls="settings-time" aria-selected="true">
                             Time
@@ -115,7 +115,7 @@ include 'menu.inc';?>
                                 UI
                             </a>
                         </li>
-<?if ($settings["Platform"] != "MacOS") { ?>
+<?if ($settings["Platform"] != "MacOS") {?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-email-tab" data-toggle="tab" href="#settings-email" data-option="Email" role="tab" aria-controls="settings-email" aria-selected="true">
                                 Email

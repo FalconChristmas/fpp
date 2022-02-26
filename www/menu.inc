@@ -77,7 +77,7 @@ function list_plugin_entries($menu) {
     <div class="headerCenter">
       <div class="headerCenterRow headerHost">
 <?
-    if (!$settings["IsDesktop"]) {
+    if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
         echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".$settings["HostName"]."\"><a href='networkconfig.php#tab-host-dns' class='nonULLink'>".$settings['HostName']."</a></span></span>");
     } else {
         echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".$settings["HostName"]."\">".$settings["HostName"]."</span></span>");
@@ -232,7 +232,7 @@ function RebuildFPPD() {
         <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
         <a class="dropdown-item" href="index.php"><i class="fas fa-info"></i> Status Page</a>
 <?
-if (!$settings["IsDesktop"]) {
+if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
           echo "<a class='dropdown-item' href='networkconfig.php'><i class='fas fa-network-wired'></i> Network</a>";
 }
 ?>
