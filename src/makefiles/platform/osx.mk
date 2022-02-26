@@ -14,12 +14,11 @@ CXXFLAGS_channeloutput/VirtualDisplay.o+=$(MAGICK_INCLUDE_PATH)
 CXXFLAGS_overlays/PixelOverlay.o+=$(MAGICK_INCLUDE_PATH)
 CXXFLAGS_overlays/PixelOverlayEffects.o+=$(MAGICK_INCLUDE_PATH)
 CXXFLAGS_playlist/PlaylistEntryImage.o+=$(MAGICK_INCLUDE_PATH)
+CXXFLAGS_channeloutput/VirtualDisplayBase.o+=$(MAGICK_INCLUDE_PATH)
 CXXFLAGS_fppd.o+=$(MAGICK_INCLUDE_PATH)
 OBJECTS_fpp_so += MacOSUtils.o
 
-
 LIBS_fpp_so+=-framework CoreAudio
-
 
 SHLIB_EXT=dylib
 
