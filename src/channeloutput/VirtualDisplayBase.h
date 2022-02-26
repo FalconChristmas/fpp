@@ -1,6 +1,6 @@
 #pragma once
 /*
- *   VirtualDisplay Channel Output for Falcon Player (FPP)
+ *   VirtualDisplay Channel Outputs base class for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
@@ -63,10 +63,10 @@ typedef struct virtualDisplayPixel {
     VirtualPixelColor vpc;
 } VirtualDisplayPixel;
 
-class VirtualDisplayOutput : public ChannelOutputBase {
+class VirtualDisplayBaseOutput : public ChannelOutputBase {
 public:
-    VirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
-    virtual ~VirtualDisplayOutput();
+    VirtualDisplayBaseOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~VirtualDisplayBaseOutput();
 
     virtual int Init(Json::Value config) override;
 
@@ -103,7 +103,7 @@ public:
     std::vector<VirtualDisplayPixel> m_pixels;
 };
 
-inline void VirtualDisplayOutput::GetPixelRGB(VirtualDisplayPixel& pixel,
+inline void VirtualDisplayBaseOutput::GetPixelRGB(VirtualDisplayPixel& pixel,
                                               unsigned char* channelData, unsigned char& r, unsigned char& g, unsigned char& b) {
     if (pixel.vpc == kVPC_Custom) {
         r = pixel.customR;

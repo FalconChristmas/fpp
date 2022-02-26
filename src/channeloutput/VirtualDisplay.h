@@ -1,6 +1,6 @@
 #pragma once
 /*
- *   FBVirtualDisplay Channel Output for Falcon Player (FPP)
+ *   VirtualDisplay Channel Output for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
@@ -27,12 +27,12 @@
 
 #include "FrameBuffer.h"
 #include "overlays/PixelOverlayModel.h"
-#include "VirtualDisplay.h"
+#include "VirtualDisplayBase.h"
 
-class FBVirtualDisplayOutput : protected VirtualDisplayOutput {
+class VirtualDisplayOutput : protected VirtualDisplayBaseOutput {
 public:
-    FBVirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
-    virtual ~FBVirtualDisplayOutput();
+    VirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~VirtualDisplayOutput();
 
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;

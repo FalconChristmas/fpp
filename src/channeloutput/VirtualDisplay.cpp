@@ -1,5 +1,5 @@
 /*
- *   FBVirtualDisplay Channel Output for Falcon Player (FPP)
+ *   VirtualDisplay Channel Output for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
@@ -30,13 +30,13 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#include "FBVirtualDisplay.h"
+#include "VirtualDisplay.h"
 #include "overlays/PixelOverlay.h"
 
 extern "C" {
-FBVirtualDisplayOutput* createOutputFBVirtualDisplay(unsigned int startChannel,
+VirtualDisplayOutput* createOutputVirtualDisplay(unsigned int startChannel,
                                                      unsigned int channelCount) {
-    return new FBVirtualDisplayOutput(startChannel, channelCount);
+    return new VirtualDisplayOutput(startChannel, channelCount);
 }
 }
 
@@ -47,18 +47,18 @@ FBVirtualDisplayOutput* createOutputFBVirtualDisplay(unsigned int startChannel,
 /*
  *
  */
-FBVirtualDisplayOutput::FBVirtualDisplayOutput(unsigned int startChannel,
+VirtualDisplayOutput::VirtualDisplayOutput(unsigned int startChannel,
                                                unsigned int channelCount) :
-    VirtualDisplayOutput(startChannel, channelCount) {
-    LogDebug(VB_CHANNELOUT, "FBVirtualDisplayOutput::FBVirtualDisplayOutput(%u, %u)\n",
+    VirtualDisplayBaseOutput(startChannel, channelCount) {
+    LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::VirtualDisplayOutput(%u, %u)\n",
              startChannel, channelCount);
 }
 
 /*
  *
  */
-FBVirtualDisplayOutput::~FBVirtualDisplayOutput() {
-    LogDebug(VB_CHANNELOUT, "FBVirtualDisplayOutput::~FBVirtualDisplayOutput()\n");
+VirtualDisplayOutput::~VirtualDisplayOutput() {
+    LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::~VirtualDisplayOutput()\n");
 
     Close();
 }
@@ -66,8 +66,8 @@ FBVirtualDisplayOutput::~FBVirtualDisplayOutput() {
 /*
  *
  */
-int FBVirtualDisplayOutput::Init(Json::Value config) {
-    LogDebug(VB_CHANNELOUT, "FBVirtualDisplayOutput::Init()\n");
+int VirtualDisplayOutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::Init()\n");
 
     if (config.isMember("ModelName"))
         m_modelName = config["ModelName"].asString();
@@ -91,7 +91,7 @@ int FBVirtualDisplayOutput::Init(Json::Value config) {
     config["width"] = m_width;
     config["height"] = m_height;
 
-    if (!VirtualDisplayOutput::Init(config))
+    if (!VirtualDisplayBaseOutput::Init(config))
         return 0;
 
     m_virtualDisplay = (unsigned char*)malloc(m_width * m_height * m_bytesPerPixel);
@@ -115,19 +115,19 @@ int FBVirtualDisplayOutput::Init(Json::Value config) {
 /*
  *
  */
-int FBVirtualDisplayOutput::Close(void) {
-    LogDebug(VB_CHANNELOUT, "FBVirtualDisplayOutput::Close()\n");
+int VirtualDisplayOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::Close()\n");
 
     if (m_virtualDisplay) {
         free(m_virtualDisplay);
         m_virtualDisplay = nullptr;
     }
 
-    return VirtualDisplayOutput::Close();
+    return VirtualDisplayBaseOutput::Close();
 }
 
-int FBVirtualDisplayOutput::SendData(unsigned char* channelData) {
-    LogExcess(VB_CHANNELOUT, "FBVirtualDisplayOutput::SendData(%p)\n",
+int VirtualDisplayOutput::SendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "VirtualDisplayOutput::SendData(%p)\n",
               channelData);
     unsigned char r = 0;
     unsigned char g = 0;

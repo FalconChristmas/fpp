@@ -197,7 +197,6 @@ void ChannelOutputJSON2CSV(Json::Value config, char* configStr) {
 
 // in some of these cases, we could symlink the shlib and add additional createXXXOutput methods
 static std::map<std::string, std::string> OUTPUT_REMAPS = {
-    { "VirtualDisplay", "FBVirtualDisplay" },
     { "VirtualMatrix", "FBMatrix" },
     { "DMX-Pro", "USBDMX" },
     { "DMX-Open", "USBDMX" },

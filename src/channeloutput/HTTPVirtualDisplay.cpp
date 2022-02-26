@@ -46,7 +46,7 @@ HTTPVirtualDisplayOutput* createOutputHTTPVirtualDisplay(unsigned int startChann
  */
 HTTPVirtualDisplayOutput::HTTPVirtualDisplayOutput(unsigned int startChannel,
                                                    unsigned int channelCount) :
-    VirtualDisplayOutput(startChannel, channelCount),
+    VirtualDisplayBaseOutput(startChannel, channelCount),
     m_port(HTTPVIRTUALDISPLAYPORT),
     m_screenSize(0),
     m_socket(-1),
@@ -111,7 +111,7 @@ void RunSelectThread(HTTPVirtualDisplayOutput* VirtualDisplay) {
 int HTTPVirtualDisplayOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::Init()\n");
 
-    if (!VirtualDisplayOutput::Init(config))
+    if (!VirtualDisplayBaseOutput::Init(config))
         return 0;
 
     if (config.isMember("port"))
@@ -174,7 +174,7 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
 int HTTPVirtualDisplayOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::Close()\n");
 
-    return VirtualDisplayOutput::Close();
+    return VirtualDisplayBaseOutput::Close();
 }
 
 /*

@@ -11,7 +11,7 @@ OBJECTS_fpp_so += \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
 	channeloutput/serialutil.o \
-	channeloutput/VirtualDisplay.o \
+	channeloutput/VirtualDisplayBase.o \
     channeloutput/processors/OutputProcessor.o \
     channeloutput/processors/RemapOutputProcessor.o \
     channeloutput/processors/HoldValueOutputProcessor.o \

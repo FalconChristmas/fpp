@@ -1,5 +1,5 @@
 /*
- *   VirtualDisplay Channel Output for Falcon Player (FPP)
+ *   VirtualDisplay Channel Outputs base class for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
@@ -34,7 +34,7 @@
 
 #include <magick/type.h>
 
-#include "VirtualDisplay.h"
+#include "VirtualDisplayBase.h"
 
 /////////////////////////////////////////////////////////////////////////////
 // To disable interpolated scaling on the GPU, add this to /boot/config.txt:
@@ -43,7 +43,7 @@
 /*
  *
  */
-VirtualDisplayOutput::VirtualDisplayOutput(unsigned int startChannel,
+VirtualDisplayBaseOutput::VirtualDisplayBaseOutput(unsigned int startChannel,
                                            unsigned int channelCount) :
     ChannelOutputBase(startChannel, channelCount),
     m_backgroundFilename("virtualdisplaybackground.jpg"),
@@ -59,15 +59,15 @@ VirtualDisplayOutput::VirtualDisplayOutput(unsigned int startChannel,
     m_virtualDisplay(NULL),
     m_pixelSize(2),
     m_rgb565map(nullptr) {
-    LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::VirtualDisplayOutput(%u, %u)\n",
+    LogDebug(VB_CHANNELOUT, "VirtualDisplayBaseOutput::VirtualDisplayBaseOutput(%u, %u)\n",
              startChannel, channelCount);
 }
 
 /*
  *
  */
-VirtualDisplayOutput::~VirtualDisplayOutput() {
-    LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::~VirtualDisplayOutput()\n");
+VirtualDisplayBaseOutput::~VirtualDisplayBaseOutput() {
+    LogDebug(VB_CHANNELOUT, "VirtualDisplayBaseOutput::~VirtualDisplayBaseOutput()\n");
 
     if (m_rgb565map) {
         for (int r = 0; r < 32; r++) {
@@ -89,8 +89,8 @@ VirtualDisplayOutput::~VirtualDisplayOutput() {
 /*
  *
  */
-int VirtualDisplayOutput::Init(Json::Value config) {
-    LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::Init()\n");
+int VirtualDisplayBaseOutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "VirtualDisplayBaseOutput::Init()\n");
 
     m_width = config["width"].asInt();
     if (!m_width)
@@ -123,7 +123,7 @@ int VirtualDisplayOutput::Init(Json::Value config) {
 /*
  *
  */
-int VirtualDisplayOutput::InitializePixelMap(void) {
+int VirtualDisplayBaseOutput::InitializePixelMap(void) {
     std::string virtualDisplayMapFilename = FPP_DIR_CONFIG("/virtualdisplaymap");
 
     if (!FileExists(virtualDisplayMapFilename)) {
@@ -323,7 +323,7 @@ int VirtualDisplayOutput::InitializePixelMap(void) {
 /*
  *
  */
-void VirtualDisplayOutput::LoadBackgroundImage(void) {
+void VirtualDisplayBaseOutput::LoadBackgroundImage(void) {
     std::string bgFile = "/home/fpp/media/images/";
     bgFile += m_backgroundFilename;
 
@@ -404,7 +404,7 @@ void VirtualDisplayOutput::LoadBackgroundImage(void) {
 /*
  *
  */
-void VirtualDisplayOutput::DrawPixel(int rOffset, int gOffset, int bOffset,
+void VirtualDisplayBaseOutput::DrawPixel(int rOffset, int gOffset, int bOffset,
                                      unsigned char r, unsigned char g, unsigned char b) {
     if (m_bpp == 16) {
         if ((rOffset < gOffset) && (gOffset < bOffset)) {
@@ -427,7 +427,7 @@ void VirtualDisplayOutput::DrawPixel(int rOffset, int gOffset, int bOffset,
     }
 }
 
-void VirtualDisplayOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
+void VirtualDisplayBaseOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     int min = FPPD_MAX_CHANNELS;
     int max = 0;
     for (auto& pixel : m_pixels) {
@@ -440,7 +440,7 @@ void VirtualDisplayOutput::GetRequiredChannelRanges(const std::function<void(int
 /*
  *
  */
-void VirtualDisplayOutput::DrawPixels(unsigned char* channelData) {
+void VirtualDisplayBaseOutput::DrawPixels(unsigned char* channelData) {
     unsigned char r = 0;
     unsigned char g = 0;
     unsigned char b = 0;
@@ -494,8 +494,8 @@ void VirtualDisplayOutput::DrawPixels(unsigned char* channelData) {
 /*
  *
  */
-void VirtualDisplayOutput::DumpConfig(void) {
-    LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::DumpConfig()\n");
+void VirtualDisplayBaseOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "VirtualDisplayBaseOutput::DumpConfig()\n");
     LogDebug(VB_CHANNELOUT, "    width         : %d\n", m_width);
     LogDebug(VB_CHANNELOUT, "    height        : %d\n", m_height);
     LogDebug(VB_CHANNELOUT, "    scale         : %0.3f\n", m_scale);

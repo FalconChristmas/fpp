@@ -526,7 +526,7 @@ class LOREnhanced extends OtherBaseDevice {
 /////////////////////////////////////////////////////////////////////////////
 // Virtual Display Output
 class VirtualDisplayDevice extends OtherBaseDevice {
-    constructor(name="FBVirtualDisplay", friendlyName="Virtual Display", maxChannels=FPPD_MAX_CHANNELS,
+    constructor(name="VirtualDisplay", friendlyName="Virtual Display", maxChannels=FPPD_MAX_CHANNELS,
             fixedStart=true, fixedChans=true,
             config={ModelName: '', PixelSize: 2}) {
             super(name, friendlyName, maxChannels, fixedStart, fixedChans, PixelOverlayModels, config);
