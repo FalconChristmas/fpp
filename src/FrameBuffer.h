@@ -93,46 +93,6 @@ public:
     void DrawLoop(void);
     void PrepLoop(void);
 
-    std::string m_name;
-    std::string m_device;
-    std::string m_dataFormat;
-    int m_fbFd;
-    int m_ttyFd;
-    int m_width;
-    int m_height;
-    int m_bpp;
-    uint8_t* m_fbp;
-    uint8_t* m_outputBuffer;
-    int m_screenSize;
-    int m_useRGB;
-    int m_inverted;
-    uint16_t*** m_rgb565map;
-    uint8_t* m_lastFrame;
-    int m_rOffset;
-    int m_gOffset;
-    int m_bOffset;
-
-    ImageTransitionType m_transitionType;
-    volatile ImageTransitionType m_nextTransitionType;
-    int m_transitionTime;
-
-    unsigned int m_typeSeed;
-
-#ifdef HAS_FRAMEBUFFER
-    struct fb_var_screeninfo m_vInfo;
-    struct fb_fix_screeninfo m_fInfo;
-#endif
-
-    volatile bool m_runLoop;
-    volatile bool m_imageReady;
-
-    std::thread* m_drawThread;
-
-    std::mutex m_bufferLock;
-    std::mutex m_drawLock;
-
-    std::condition_variable m_drawSignal;
-
 private:
     void FBDrawNormal(void);
     void FBDrawSlideUp(void);
@@ -152,7 +112,8 @@ private:
     // Helpers
     void DrawSquare(int dx, int dy, int w, int h, int sx = -1, int sy = -1);
 
-    inline void SyncDisplay(void);
+    void NextPage();
+    void SyncDisplay(bool pageChanged = false);
 
     int InitializeFrameBuffer(void);
     void DestroyFrameBuffer(void);
@@ -160,25 +121,63 @@ private:
 #ifdef USE_X11
     int InitializeX11Window(void);
     void DestroyX11Window(void);
+#endif
 
-    Display* m_display;
-    int m_screen;
+    std::string m_name;
+    std::string m_device;
+    std::string m_dataFormat = "RGB";
+    int m_fbFd = -1;
+    int m_ttyFd = -1;
+    int m_width = 640;
+    int m_height = 480;
+    int m_bpp = 24;
+    uint8_t* m_buffer = nullptr;
+    uint8_t* m_outputBuffer = nullptr;
+    int m_screenSize = 0;
+    int m_useRGB = 0;
+    int m_inverted = 0;
+    uint16_t*** m_rgb565map = nullptr;
+    uint8_t* m_lastFrame = nullptr;
+    int m_rOffset = 0;
+    int m_gOffset = 1;
+    int m_bOffset = 2;
+
+    ImageTransitionType m_transitionType = IT_Normal;
+    volatile ImageTransitionType m_nextTransitionType = IT_Normal;
+    int m_transitionTime = 800;
+
+    unsigned int m_typeSeed;
+
+#ifdef HAS_FRAMEBUFFER
+    struct fb_var_screeninfo m_vInfo;
+    struct fb_fix_screeninfo m_fInfo;
+#endif
+
+    volatile bool m_runLoop = false;
+    volatile bool m_imageReady = false;
+
+    std::thread* m_drawThread = nullptr;
+
+    std::mutex m_bufferLock;
+    std::mutex m_drawLock;
+
+    std::condition_variable m_drawSignal;
+
+    bool m_isDoubleBuffered = false;
+    bool m_page = 0;
+    int m_pages = 2;
+    int m_frameSize = 0;
+    int m_bufferSize = 0;
+    int m_rowStride = 0;
+    int m_rowPadding = 0;
+
+#ifdef USE_X11
+    Display* m_display = nullptr;
+    int m_screen = 0;
     Window m_window;
     GC m_gc;
     Pixmap m_pixmap;
-    XImage* m_xImage;
+    XImage* m_xImage = nullptr;
 #endif
 };
 
-inline void FrameBuffer::SyncDisplay(void) {
-    if (m_device != "x11")
-        return;
-
-#ifdef USE_X11
-    XLockDisplay(m_display);
-    XPutImage(m_display, m_window, m_gc, m_xImage, 0, 0, 0, 0, m_width, m_height);
-    XSync(m_display, True);
-    XFlush(m_display);
-    XUnlockDisplay(m_display);
-#endif
-}
