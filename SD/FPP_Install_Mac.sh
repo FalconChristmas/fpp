@@ -136,8 +136,8 @@ sed -i -e "s/^default_socket_timeout =.*/default_socket_timeout = 900/g" $PHPCON
 echo "Configuring FPPD"
 mkdir -p ~/Library/LaunchAgents
 cp fpp/etc/macOS/falconchristmas.fppd.plist ~/Library/LaunchAgents
-sed -i -e "s+FPPDIR+${MEDIADIR}/fpp+/g" ~/Library/LaunchAgents/falconchristmas.fppd.plist
-sed -i -e "s+MEDIADIR+${MEDIADIR}+/g" ~/Library/LaunchAgents/falconchristmas.fppd.plist
+sed -i -e "s+FPPDIR+${MEDIADIR}/fpp+g" ~/Library/LaunchAgents/falconchristmas.fppd.plist
+sed -i -e "s+MEDIADIR+${MEDIADIR}+g" ~/Library/LaunchAgents/falconchristmas.fppd.plist
 launchctl load -w ~/Library/LaunchAgents/falconchristmas.fppd.plist
 launchctl start falconchristmas.fppd
 
