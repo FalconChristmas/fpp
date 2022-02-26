@@ -12,23 +12,6 @@ CC := g++
 ifneq ($(wildcard /usr/bin/ccache),)
 	CCACHE = ccache
 endif
-ifneq ($(wildcard /opt/homebrew/bin/ccache),)
-	CCACHE = ccache
-endif
-
-ifneq ($(wildcard /usr/local/bin/gcc-[0-9]*),)
-CXXCOMPILER := $(wildcard /usr/local/bin/g++-[0-9]*)
-CCOMPILER := $(wildcard /usr/local/bin/gcc-[0-9]*)
-CC := $(wildcard /usr/local/bin/g++-[0-9]*)
-CXXFLAGS += -std=c++20
-endif
-ifneq ($(wildcard /opt/homebrew/bin/gcc-[0-9]*),)
-CXXCOMPILER := $(wildcard /opt/homebrew/bin/g++-[0-9]*)
-CCOMPILER := $(wildcard /opt/homebrew/bin/gcc-[0-9]*)
-CC := $(wildcard /opt/homebrew/bin/g++-[0-9]*)
-CXXFLAGS += -std=c++20
-CFLAGS += -fpch-preprocess
-endif
 
 TARGETS =
 SUBMODULES =
