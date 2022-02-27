@@ -131,7 +131,7 @@ sed -i -e "s+User .*+User ${USER}+g" $HTTPCONF
 sed -i -e "s+Group .*+Group staff+g" $HTTPCONF
 sed -i -e "s+DirectoryIndex index.*+DirectoryIndex index.php index.html+g" $HTTPCONF
 sed -i -e "s+${BREWLOC}/var/www+${MEDIADIR}/fpp/www+g" $HTTPCONF
-sed -i -e "s+${BREWLOC}/var/log/httpd+${MEDIADIR}/logs+g" $HTTPCONF
+sed -i -e "s+${BREWLOC}/var/log/httpd/+${MEDIADIR}/logs/apache2-+g" $HTTPCONF
 sed -i -e "s/AllowOverride None/AllowOverride All/1" $HTTPCONF
 echo "LoadModule php7_module ${BREWLOC}/opt/php@7.4/lib/httpd/modules/libphp7.so" >> $HTTPCONF
 echo "<FilesMatch \.php\$>" >> $HTTPCONF
