@@ -274,11 +274,24 @@ function ShouldPrintSetting($s)
         }
     }
     if (isset($s['platforms'])) {
-        if (!in_array('ALL', $s['platforms']) &&
-            !in_array($settings['Platform'], $s['platforms'])) {
-            return false;
+        $hasNonExclusion = false;
+        $hasAll = false;
+        $hasPlatform = false;
+        foreach ($s['platforms'] as $platform) {
+            if (("!" . $settings['Platform']) == $platform) {
+                return false;
+            }
+            if ($platform[0] != "!") {
+                $hasNonExclusion = true;
+            }
+            if ($platform == "ALL") {
+                $hasAll = true;
+            }
+            if ($platform == $settings['Platform']) {
+                $hasPlatform = true;
+            }
         }
-        if (in_array("!" . $settings['Platform'], $s['platforms'])) {
+        if (!$hasAll && !$hasPlatform && $hasNonExclusion) {
             return false;
         }
     }
