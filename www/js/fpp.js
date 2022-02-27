@@ -5955,7 +5955,9 @@ function RefreshHeaderBar() {
                     var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
                 } else if (n.family === "inet" && "wifi" in e) {
-                    var row = '<span title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
+                    var row = '<span title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + 'dBm">';
+                    row += '<img src="images/redesign/wifi-' + e.wifi.desc + '.svg" height="14px"/>';
+                    row += '<small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
                 } else if (n.family === "inet") {
                     var icon = "text-success";
