@@ -63,8 +63,8 @@ UPGRADEDIR="${FPPDIR}/upgrade"
 LOGDIR="${MEDIADIR}/logs"
 CFGDIR="${MEDIADIR}/config"
 CFGFILE="${CFGFILE:-${MEDIADIR}/settings}"
-PLUGINDIR="${PLUGINDIR:-${FPPHOME}/media/plugins}"
-SETTINGSFILE="${SETTINGSFILE:-${FPPHOME}/media/settings}"
+PLUGINDIR="${PLUGINDIR:-${MEDIADIR}/plugins}"
+SETTINGSFILE="${SETTINGSFILE:-${MEDIADIR}/settings}"
 
 if [ "${FPPPLATFORM}" != "MacOS" ]; then
     FPPVERSIONFILE="${FPPVERSIONFILE:-/etc/fpp/rfs_version}"
