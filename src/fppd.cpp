@@ -602,6 +602,7 @@ int main(int argc, char* argv[]) {
     curl_global_cleanup();
     std::string logLevelString = FPPLogger::INSTANCE.GetLogLevelString();
 
+    CloseCommand();
     CloseOpenFiles();
 
     if (restartFPPD) {

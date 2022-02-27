@@ -432,9 +432,31 @@ int GetCurrentDateInt(int daysOffset) {
  */
 void CloseOpenFiles(void) {
     int maxfd = sysconf(_SC_OPEN_MAX);
-
-    for (int fd = 3; fd < maxfd; fd++)
-        close(fd);
+    
+    for (int fd = 3; fd < maxfd; fd++) {
+        if (fcntl(fd, F_GETFD) != -1 ) {
+            bool doClose = false;
+            struct stat statBuf;
+            if (fstat(fd, &statBuf) == 0) {
+                // it's a file or unix domain socket or similar
+                doClose = true;
+            }
+            struct sockaddr_in address;
+            memset(&address, 0, sizeof(address));
+            socklen_t addrLen = sizeof(address);
+            getsockname(fd, (struct sockaddr *)&address, &addrLen);
+            if (address.sin_family) {
+                //its a tcp/udp socket of some sort
+                doClose = true;
+            }
+            if (doClose) {
+                //if it's not a file or socket, we cannot close it
+                //On OSX, that may be a "NPOLICY" descriptor which
+                //if closed will terminate the process immediately
+                close(fd);
+            }
+        }
+    }
 }
 
 int DateInRange(time_t when, int startDate, int endDate) {
