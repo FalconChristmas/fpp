@@ -131,12 +131,15 @@ sed -i -e "s+User .*+User ${USER}+g" $HTTPCONF
 sed -i -e "s+Group .*+Group staff+g" $HTTPCONF
 sed -i -e "s+DirectoryIndex index.*+DirectoryIndex index.php index.html+g" $HTTPCONF
 sed -i -e "s+${BREWLOC}/var/www+${MEDIADIR}/fpp/www+g" $HTTPCONF
+sed -i -e "s+${BREWLOC}/var/log/httpd+${MEDIADIR}/fpp/logs+g" $HTTPCONF
 sed -i -e "s/AllowOverride None/AllowOverride All/g" $HTTPCONF
 echo "LoadModule php7_module ${BREWLOC}/opt/php@7.4/lib/httpd/modules/libphp7.so" >> $HTTPCONF
 echo "<FilesMatch \.php\$>" >> $HTTPCONF
 echo "    SetHandler application/x-httpd-php" >> $HTTPCONF
 echo "</FilesMatch>" >> $HTTPCONF
 echo "ServerName localhost" >> $HTTPCONF
+
+
 echo "Configuring PHP"
 PHPCONF="${BREWLOC}/etc/php/7.4/php.ini"
 sed -i -e "s/^max_execution_time =.*/max_execution_time = 1000/g" $PHPCONF
