@@ -133,6 +133,10 @@ body .ui-tabs .ui-tabs-nav li {
 	background-color: #171720;
 }
 
+.headerCenter {
+	padding-left: 0px;
+}
+
 .statusHostname {
 	/*display: inline;*/
 	display:none;
@@ -288,6 +292,7 @@ input#MultiSyncHTTPSubnets {
 	display: flex;
 	align-items: center;
     font-size: 2.1em;
+	height:40px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -304,7 +309,7 @@ input#MultiSyncHTTPSubnets {
 
 	background-position: center top;
 	vertical-align: middle;
-	margin-left: 0.6em;
+	margin-left: 0.1em;
 	padding-right: 0.9em;
 	text-align: center;
 	position: relative;
@@ -2296,6 +2301,10 @@ input[type=search].tablesorter-filter:disabled{
 	.headerHostName {
 		max-width: 170px;
 	}
+	.header.swiped .headerLeft .logo{
+		display: none;
+	}
+
 	.header.swiped .headerHostName{
 		display: flex;
 	}
@@ -2419,6 +2428,7 @@ input[type=search].tablesorter-filter:disabled{
 	}
 	.header>.headerLeft{
 		padding-left: 0.5em;
+		padding-right:0.1em;
 	}
 	.fppBrand {
 		padding-left: 0;
@@ -2441,7 +2451,7 @@ input[type=search].tablesorter-filter:disabled{
 }
 @media(max-width:450px){
 	.headerHostName {
-		max-width: 190px;
+		max-width: 120px;
 	}
 
     .headerLeft {
