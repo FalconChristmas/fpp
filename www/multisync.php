@@ -1398,6 +1398,11 @@ function upgradeSelectedSystems() {
                 return true;
             }
             var origin = $('#' + rowID + '_origin').html();
+            if (typeof origin === 'undefined') {
+                var msg =  "Invalid Origin for " + ipFromRowID(rowID) + ". Skipping";
+                $.jGrowl(msg, { themeState: 'danger' });
+                return;
+            }
             var originRowID = "fpp_" + origin.replace(/\./g, '_');
             if ((origin != '') &&
                 (origin != 'github.com') &&
@@ -1433,6 +1438,11 @@ function upgradeSelectedSystems() {
             }
 
             var origin = $('#' + rowID + '_origin').html();
+            if (typeof origin === 'undefined') {
+                var msg  = "Invalid Origin for " + ipFromRowID(rowID) + ". Skipping";
+                $.jGrowl(msg, { themeState: 'danger' });
+                return;
+            }
             var originRowID = "fpp_" + origin.replace(/\./g, '_');
             if ((origin == '') ||
                 (origin == 'github.com') ||
