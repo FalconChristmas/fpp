@@ -44,11 +44,22 @@ if [ "x${ANSWER}" != "xY" -a "x${ANSWER}" != "xy" ]; then
     exit
 fi
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+NEEDBREW=1
+if [ -f ~/.zprofile ]; then
+    grep -q brew ~/.zprofile
+    NEEDBREW=$?
+fi
+if [ $NEEDBREW != 0 ]; then
 if [ "${ARCH}" == "arm" ]; then
     echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-    eval "$(/opt/homebrew/bin/brew shellenv)"
 else
     echo 'eval "$(/usr/local/bin/brew shellenv)"' >> ~/.zprofile
+fi
+fi
+if [ "${ARCH}" == "arm" ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+else
     eval "$(/usr/local/bin/brew shellenv)"
 fi
 echo ""
