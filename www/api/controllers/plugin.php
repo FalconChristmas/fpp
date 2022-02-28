@@ -207,7 +207,7 @@ function CheckForPluginUpdates()
 // GET /api/plugin/:RepoName/upgrade
 function UpgradePlugin()
 {
-	global $settings, $SUDO, $_REQUEST;
+	global $settings, $SUDO, $_REQUEST, $fppDir;
 	$result = Array();
 
 	$plugin = params('RepoName');
@@ -226,7 +226,7 @@ function UpgradePlugin()
             $install_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
         }
         if (file_exists($install_script)) {
-            system($SUDO . " " . $install_script, $return_val);
+            system($SUDO . " " . $install_script . "  FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src", $return_val);
         }
         return "\nDone\n";
     }
@@ -241,7 +241,7 @@ function UpgradePlugin()
         $install_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
     }
     if (file_exists($install_script)) {
-        exec($SUDO . " " . $install_script, $return_val);
+        exec($SUDO . " " . $install_script . "  FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src", $return_val);
     }
 
 	if ($return_val == 0) {

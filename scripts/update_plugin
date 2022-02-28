@@ -22,18 +22,18 @@ else
 fi
 
 
-if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]; then
+if [ -x "${PLUGINDIR}/$1/fpp_update.sh" ]; then
 	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]; then
 		if [ -e "${PLUGINDIR}/$1/fpp_update.sh" ]; then
-			$SUDO ${PLUGINDIR}/$1/fpp_update.sh
+			$SUDO ${PLUGINDIR}/$1/fpp_update.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 		fi
 	elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]; then
 		if [ -e "${PLUGINDIR}/$1/fpp_update.sh" ]; then
-			sudo -u ${FPPUSER} ${PLUGINDIR}/$1/fpp_update.sh
+			sudo -u ${FPPUSER} ${PLUGINDIR}/$1/fpp_update.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 		fi
 	else
 		if [ -e "${PLUGINDIR}/$1/fpp_update.sh" ]; then
-			${PLUGINDIR}/$1/fpp_update.sh
+			${PLUGINDIR}/$1/fpp_update.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 		fi
 	fi
 fi

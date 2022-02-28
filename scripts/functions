@@ -611,7 +611,7 @@ cleanCompiledBinaries() {
         if [ -d "$p" ]; then
             if [ -f "${p}/Makefile" ]; then
                 echo "Cleaning plugin $p"
-                make -C "${p}" -f "${p}/Makefile" clean
+                make -C "${p}" -f "${p}/Makefile" SRCDIR=${FPPDIR}/src clean
             fi
         fi
     done
@@ -714,7 +714,7 @@ compileBinaries() {
         if [ -d "$p" ]; then
             if [ -f "${p}/Makefile" ]; then
                 echo "Building plugin $p"
-                make -C "${p}" -f "${p}/Makefile" -j ${CPUS}
+                make -C "${p}" -f "${p}/Makefile" -j ${CPUS} SRCDIR=${FPPDIR}/src
             fi
         fi
     done
@@ -723,9 +723,9 @@ compileBinaries() {
 #############################################################################
 # Helper script for running the User hook script with a specified hook
 runUserHookScript() {
-	if [ -f "${FPPHOME}/media/scripts/UserCallbackHook.sh" ]
+	if [ -f "${MEDIADIR}/scripts/UserCallbackHook.sh" ]
 	then
-		/bin/bash ${FPPHOME}/media/scripts/UserCallbackHook.sh $1
+		/bin/bash ${MEDIADIR}/scripts/UserCallbackHook.sh $1
 	fi
 }
 

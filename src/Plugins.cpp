@@ -15,6 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "config.h"
 #include "Plugins.h"
 #include "mediadetails.h"
 #include "mediaoutput/mediaoutput.h"
@@ -360,7 +361,7 @@ void PluginManager::init() {
             } else {
                 for (auto& a : spl->getOtherTypes()) {
                     if (startsWith(a, "c++")) {
-                        std::string shlibName = FPP_DIR_PLUGIN("/" + ep->d_name + "/lib" + ep->d_name + ".so");
+                        std::string shlibName = FPP_DIR_PLUGIN("/" + ep->d_name + "/lib" + ep->d_name + SHLIB_EXT);
                         if (a[3] == ':') {
                             shlibName = FPP_DIR_PLUGIN("/" + ep->d_name + "/" + a.substr(4));
                         }

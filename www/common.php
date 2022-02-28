@@ -211,6 +211,7 @@ function LoadPluginSettingInfos($plugin)
     global $settings;
     global $settingInfos;
     global $settingGroups;
+    global $mediaDirectory;
     global $pluginSettingInfosLoaded;
 
     if (empty($settingInfos) || empty($settingGroups)) {
