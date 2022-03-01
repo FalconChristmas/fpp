@@ -36,6 +36,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #else
+#include <linux/fb.h>
 #include <linux/kd.h>
 #endif
 #ifdef USE_X11
