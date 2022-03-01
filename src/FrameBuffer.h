@@ -32,8 +32,11 @@
 
 #include "config.h"
 
-#ifdef HAS_FRAMEBUFFER
-#include <linux/fb.h>
+#ifdef USE_FRAMEBUFFER_SOCKET
+#include <sys/socket.h>
+#include <sys/un.h>
+#else
+#include <linux/kd.h>
 #endif
 #ifdef USE_X11
 #include <X11/Xlib.h>
@@ -148,11 +151,6 @@ private:
 
     unsigned int m_typeSeed;
 
-#ifdef HAS_FRAMEBUFFER
-    struct fb_var_screeninfo m_vInfo;
-    struct fb_fix_screeninfo m_fInfo;
-#endif
-
     volatile bool m_runLoop = false;
     volatile bool m_imageReady = false;
 
@@ -171,6 +169,13 @@ private:
     int m_rowStride = 0;
     int m_rowPadding = 0;
 
+#ifdef USE_FRAMEBUFFER_SOCKET
+    int shmemFile = -1;
+    struct sockaddr_un dev_address;
+#else
+    struct fb_var_screeninfo m_vInfo;
+    struct fb_fix_screeninfo m_fInfo;
+#endif
 #ifdef USE_X11
     Display* m_display = nullptr;
     int m_screen = 0;
@@ -180,4 +185,3 @@ private:
     XImage* m_xImage = nullptr;
 #endif
 };
-

@@ -10,23 +10,31 @@ require_once("common.php");
 var FBDevices = new Array();
 var FBInfo = {};
 <?
-if ($settings["Platform"] != "MacOS") {
-    foreach (scandir("/dev/") as $fileName) {
+    $devDir = "/dev/";
+    if ($settings["Platform"] == "MacOS") {
+        $devDir = $settings["framebufferControlSocketPath"];
+    }
+    foreach (scandir($devDir) as $fileName) {
         if (preg_match("/^fb[0-9]+/", $fileName)) {
             echo "FBDevices['$fileName'] = '$fileName';\n";
             echo "FBInfo['$fileName'] = {};\n";
 
-            $geometry = exec("fbset -i -fb /dev/$fileName | grep geometry", $output, $return_val);
-            if ($return_val == 0) {
-                $parts = preg_split("/\s+/", preg_replace('/^ *geometry */', '', $geometry));
-                if (count($parts) > 3) {
-                    echo "FBInfo['$fileName'].Width = " . $parts[0] . ";\n";
-                    echo "FBInfo['$fileName'].Height = " . $parts[1] . ";\n";
+            if ($settings["Platform"] == "MacOS") {
+                echo "FBInfo['$fileName'].Width = 150;\n";
+                echo "FBInfo['$fileName'].Height = 100;\n";
+            } else {
+                $geometry = exec("fbset -i -fb /dev/$fileName | grep geometry", $output, $return_val);
+                if ($return_val == 0) {
+                    $parts = preg_split("/\s+/", preg_replace('/^ *geometry */', '', $geometry));
+                    if (count($parts) > 3) {
+                        echo "FBInfo['$fileName'].Width = " . $parts[0] . ";\n";
+                        echo "FBInfo['$fileName'].Height = " . $parts[1] . ";\n";
+                    }
                 }
             }
         }
     }
-}
+
 
 if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'))) {
 ?>
@@ -321,11 +329,11 @@ function AddNewChannelModel() {
 
 function AddNewFBModel() {
     var currentRows = $("#channelMemMaps > tbody > tr").length;
-    var device = 'fb0';
+    var device = Object.keys(FBDevices)[0];
     $('#channelMemMaps tbody').append(
         "<tr id='row'" + currentRows + " class='fppTableRow'>" +
             "<td class='center' valign='middle'><div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>"  +
-            "<td><input class='blk' type='text' size='31' maxlength='31' value='fb0'></td>" +
+            "<td><input class='blk' type='text' size='31' maxlength='31' value='" + device + "'></td>" +
             "<td><span class='hidden type'>FB</span>FrameBuffer</td>" + 
             "<td>" + CreateSelect(FBDevices, device, '', '-- Port --', 'device', 'DeviceChanged(this);') + "</td>" +
             "<td class='channels'>" + (FBInfo[device].Width * FBInfo[device].Height * 3) + "</td><td>3</td><td>Horizontal</td><td>Top Left</td>" +

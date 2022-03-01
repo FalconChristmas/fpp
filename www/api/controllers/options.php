@@ -169,13 +169,19 @@ function GetOptions_AudioInputDevice($fulllist = false) {
 
 /////////////////////////////////////////////////////////////////////////////
 function GetOptions_FrameBuffer() {
+    global $settings;
+    
     $framebuffers = Array();
-
-    if (file_exists('/dev/fb0'))
-        $framebuffers['/dev/fb0'] = '/dev/fb0';
-    if (file_exists('/dev/fb1'))
-        $framebuffers['/dev/fb1'] = '/dev/fb1';
-
+    
+    $devPath = "/dev";
+    if (isset($settings["framebufferControlSocketPath"])) {
+        $devPath = $settings["framebufferControlSocketPath"];
+    }
+    for ($x = 0; $x <= 10; $x++) {
+        if (file_exists($devPath . '/fb' . x)) {
+            $framebuffers['/dev/fb' . x] = '/dev/fb' . x;
+        }
+    }
     return json($framebuffers);
 }
 

@@ -1,5 +1,4 @@
 # MacOSX
-# The only thing that really builds on OSX at this point is fsequtils
 ifeq '$(ARCH)' 'OSX'
 
 CHIP := $(shell uname -p 2> /dev/null)
@@ -31,5 +30,6 @@ SHLIB_EXT=dylib
 ifneq ($(wildcard $(HOMEBREW)/bin/ccache),)
 	CCACHE = ccache
 endif
+
 
 endif

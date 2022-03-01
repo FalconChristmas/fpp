@@ -19,6 +19,7 @@
 
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <sys/posix_shm.h>
 
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
@@ -30,10 +31,19 @@
 static uint8_t* createChannelDataMemory(const std::string& dataName, uint32_t size) {
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
     int f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
-    ftruncate(f, size);
+    int flags = MAP_SHARED;
+    if (f == -1) {
+        LogWarn(VB_CHANNELOUT, "Could not create shared memory block for %s:  %s\n", dataName.c_str(), strerror(errno));
+        //we couldn't create the shared memory block.  Most of the time,
+        //we are fine with non-shared memory and this at least prevents a crash
+        flags = MAP_ANONYMOUS;
+    } else {
+        ftruncate(f, size);
+    }
     uint8_t* channelData = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
-    memset(channelData, 0, size);
-    close(f);
+    if (f != -1) {
+        close(f);
+    }
     return channelData;
 }
 
@@ -89,6 +99,13 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     }
 
     std::string dataName = "/FPP-Model-Data-" + name;
+    if (PSHMNAMLEN <= 48) {
+        // system doesn't allow very long shared memory names, we'll use a shortened form
+        dataName = "/FPPMD-" + name;
+        if (dataName.size() > PSHMNAMLEN) {
+            dataName = dataName.substr(0, PSHMNAMLEN);
+        }
+    }
     channelData = createChannelDataMemory(dataName, channelCount);
 
     if (orientation == "V" || orientation == "vertical") {

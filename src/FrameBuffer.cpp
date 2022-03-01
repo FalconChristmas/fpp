@@ -26,9 +26,6 @@
 
 #include "config.h"
 
-#ifdef HAS_FRAMEBUFFER
-#include <linux/kd.h>
-#endif
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -73,11 +70,9 @@ FrameBuffer::~FrameBuffer() {
     if (m_outputBuffer)
         free(m_outputBuffer);
 
-#ifdef HAS_FRAMEBUFFER
     if (m_fbFd > -1) {
         DestroyFrameBuffer();
     }
-#endif
 #ifdef USE_X11
     if (m_device == "x11") {
         DestroyX11Window();
@@ -122,18 +117,13 @@ int FrameBuffer::FBInit(const Json::Value& config) {
     if (config.isMember("DataFormat"))
         m_dataFormat = config["DataFormat"].asString();
 
-    if (m_device == "fb0")
-        m_device = "/dev/fb0";
-    else if (m_device == "fb1")
-        m_device = "/dev/fb1";
-
     if (m_dataFormat == "RGB")
         m_useRGB = 1;
 
     int result = 0;
 
     LogDebug(VB_CHANNELOUT, "Initializing %s frame buffer at %dx%d resolution.\n",
-        m_device.c_str(), m_width, m_height);
+             m_device.c_str(), m_width, m_height);
 
 #ifdef USE_X11
     if (m_device == "x11")
@@ -203,10 +193,11 @@ int FrameBuffer::FBInit(const Json::Value& config) {
 int FrameBuffer::InitializeFrameBuffer(void) {
     LogDebug(VB_PLAYLIST, "Using FrameBuffer device %s\n", m_device.c_str());
 
-#ifdef HAS_FRAMEBUFFER
-    m_fbFd = open(m_device.c_str(), O_RDWR);
+    std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/" + m_device;
+#ifndef USE_FRAMEBUFFER_SOCKET
+    m_fbFd = open(devString.c_str(), O_RDWR);
     if (!m_fbFd) {
-        LogErr(VB_PLAYLIST, "Error opening FrameBuffer device: %s\n", m_device.c_str());
+        LogErr(VB_PLAYLIST, "Error opening FrameBuffer device: %s\n", devString.c_str());
         return 0;
     }
 
@@ -282,7 +273,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
         return 0;
     }
 
-    if (m_device == "/dev/fb0") {
+    if (devString == "/dev/fb0") {
         m_ttyFd = open("/dev/console", O_RDWR);
         if (!m_ttyFd) {
             LogErr(VB_PLAYLIST, "Error, unable to open /dev/console\n");
@@ -361,21 +352,94 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     }
     return 1;
 #else
-    return 0;
+    m_isDoubleBuffered = true;
+    m_pages = 2;
+    m_bpp = 24;
+    m_rowStride = m_width * 3;
+    m_rowPadding = 0;
+    m_screenSize = m_width * m_height * 3;
+    m_bufferSize = m_screenSize * m_pages;
+
+    m_fbFd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if (m_fbFd < 0) {
+        LogErr(VB_PLAYLIST, "Error opening FrameBuffer device: %s\n", devString.c_str());
+        return 0;
+    }
+
+    std::string shmFile = "/fpp/" + m_device + "-buffer";
+    shmemFile = shm_open(shmFile.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    if (shmemFile == -1) {
+        LogErr(VB_PLAYLIST, "Error creating shared memory buffer: %s   %s\n", shmFile.c_str(), strerror(errno));
+        close(m_fbFd);
+        m_fbFd = -1;
+        return 0;
+    }
+    ftruncate(shmemFile, m_bufferSize);
+    m_buffer = (uint8_t*)mmap(NULL, m_bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, shmemFile, 0);
+    if (m_buffer == MAP_FAILED) {
+        LogErr(VB_PLAYLIST, "Error mmap buffer: %s    %s\n", shmFile.c_str(), strerror(errno));
+        close(m_fbFd);
+        m_fbFd = -1;
+        close(shmemFile);
+        shmemFile = -1;
+        shm_unlink(shmFile.c_str());
+        m_buffer = nullptr;
+        return 0;
+    }
+    memset(m_buffer, 0, m_bufferSize);
+
+    memset(&dev_address, 0, sizeof(struct sockaddr_un));
+    dev_address.sun_family = AF_UNIX;
+    strcpy(dev_address.sun_path, devString.c_str());
+
+    // CMD 1 : send the w/h/pages so the framebuffer can setup
+    uint16_t data[4] = { 1, (uint16_t)m_width, (uint16_t)m_height, (uint16_t)m_pages };
+
+    struct msghdr msg = { 0 };
+    char buf[CMSG_SPACE(sizeof(shmemFile))];
+    memset(buf, '\0', sizeof(buf));
+
+    struct iovec io = { .iov_base = data, .iov_len = sizeof(data) };
+
+    msg.msg_iov = &io;
+    msg.msg_iovlen = 1;
+    msg.msg_control = buf;
+    msg.msg_controllen = sizeof(buf);
+
+    struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    cmsg->cmsg_len = CMSG_LEN(sizeof(shmemFile));
+
+    memmove(CMSG_DATA(cmsg), &shmemFile, sizeof(shmemFile));
+    msg.msg_controllen = CMSG_SPACE(sizeof(shmemFile));
+
+    msg.msg_name = &dev_address;
+    msg.msg_namelen = sizeof(dev_address);
+    sendmsg(m_fbFd, &msg, 0);
+    return 1;
 #endif
 }
 
 void FrameBuffer::DestroyFrameBuffer(void) {
-#ifdef HAS_FRAMEBUFFER
     if (m_buffer) {
         memset(m_buffer, 0, m_bufferSize);
         munmap(m_buffer, m_bufferSize);
     }
 
-    if (m_fbFd > -1)
+    if (m_fbFd > -1) {
         close(m_fbFd);
-#endif
+    }
     m_fbFd = -1;
+
+#ifdef USE_FRAMEBUFFER_SOCKET
+    if (shmemFile != -1) {
+        close(shmemFile);
+        std::string shmFile = m_device + "-buffer";
+        shm_unlink(shmFile.c_str());
+        shmemFile = -1;
+    }
+#endif
 }
 
 #ifdef USE_X11
@@ -595,7 +659,7 @@ void FrameBuffer::DrawLoop(void) {
     while (m_runLoop) {
         if (m_imageReady) {
             lock.unlock();
-            //m_nextTransitionType = IT_WipeFromHCenter;
+            // m_nextTransitionType = IT_WipeFromHCenter;
             switch (m_nextTransitionType) {
             case IT_Random:
                 m_nextTransitionType = (ImageTransitionType)(rand_r(&m_typeSeed) % ((int)IT_MAX - 1) + 1);
@@ -685,14 +749,18 @@ void FrameBuffer::SyncDisplay(bool pageChanged) {
         XFlush(m_display);
         XUnlockDisplay(m_display);
 #endif
-    } else {
-#ifdef HAS_FRAMEBUFFER
+    } else if (m_fbFd != -1) {
         if (m_pages == 1)
             return;
 
         if (!pageChanged)
             return;
 
+#ifdef USE_FRAMEBUFFER_SOCKET
+        // CMD 2 - sync, param is page#
+        uint16_t data[2] = { 2, (uint16_t)m_page };
+        sendto(m_fbFd, data, sizeof(data), 0, (struct sockaddr*)&dev_address, sizeof(dev_address));
+#else
         // Pan the display to the new page
         m_vInfo.yoffset = m_vInfo.yres * m_page;
         ioctl(m_fbFd, FBIOPAN_DISPLAY, &m_vInfo);

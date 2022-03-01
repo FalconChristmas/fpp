@@ -7,13 +7,13 @@
 
 extern void MacOSSetVolume(int v);
 extern int MacOSGetVolume();
+#define USE_FRAMEBUFFER_SOCKET
 
 #else
 
 #define HAS_SPI
 #define HAS_I2C
 #define HAS_GPIOD
-#define HAS_FRAMEBUFFER
 
 #define SHLIB_EXT ".so"
 
