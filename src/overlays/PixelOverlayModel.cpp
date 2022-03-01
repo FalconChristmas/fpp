@@ -19,7 +19,12 @@
 
 #include <sys/mman.h>
 #include <fcntl.h>
+#if __has_include(<sys/posix_shm.h>)
 #include <sys/posix_shm.h>
+#else
+#include <limits.h>
+#define PSHMNAMLEN NAME_MAX
+#endif
 
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
