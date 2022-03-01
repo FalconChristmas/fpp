@@ -899,12 +899,12 @@ exit(20)
             FPS=$?
 
             # Default to 20FPS/50ms timing just in case
-            TIMING="360 0 1 1 1  324 0 2 2 2  0 0 0  20 0 2400000 1"
+            TIMING="362 0 0 1 0  324 0 2 2 2  0 0 0  20 0 2400000 1"
 
             case ${FPS} in
-                20) TIMING="360 0 1 1 1  324 0 2 2 2  0 0 0  20 0 2400000 1"
+                20) TIMING="362 0 0 1 0  324 0 2 2 2  0 0 0  20 0 2400000 1"
                     ;;
-                40) TIMING="360 0 1 1 1  162 0 1 1 1  0 0 0  40 0 2400000 1"
+                40) TIMING="362 0 0 1 0  162 0 1 1 1  0 0 0  40 0 2400000 1"
                     ;;
             esac
 
@@ -915,26 +915,39 @@ exit(20)
             fi
 
             cat <<DPI_PIXELS_EOF > /boot/dpipixels.txt
+######################################################################
 # DPI Pixels framebuffer config
-# more info: https://www.raspberrypi.com/documentation/computers/config_txt.html
+# https://www.raspberrypi.com/documentation/computers/config_txt.html
 #
 # Date Added: $(date)
-#
+######################################################################
 # Enable DPI
 enable_dpi_lcd=1
-# Enable mode with custom resolution and timing
+#
+# Set group/mode to allow custom resolution and timing
 dpi_group=2
 dpi_mode=87
+#
 # RGB24 888, RGB color order
 dpi_output_format=0x17
+#
 # Enable DPI framebuffer on < Pi 4
 max_framebuffers=2
+#
 # Make onboard HDMI fb0 and DPI fb1 if HDMI is in use, otherwise DPI is fb0
 framebuffer_priority=2
-# Custom resolution and timing
+#
+# Force HDMI on (as fb0) so DPI becomes fb1
+hdmi_force_hotplug=1
+#
+# Custom resolution with ${FPS} FPS timing
 dpi_timings=${TIMING}
+#
 # Enable UART2 on Pi 4 since UART0 TXD pin is used by DPI
 dtoverlay=uart2
+#
+# Disable SPI
+dtparam=spi=off
 DPI_PIXELS_EOF
 
             grep -q "include dpipixels.txt" /boot/config.txt
