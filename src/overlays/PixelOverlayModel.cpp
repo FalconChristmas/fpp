@@ -41,11 +41,22 @@ static uint8_t* createChannelDataMemory(const std::string& dataName, uint32_t si
         LogWarn(VB_CHANNELOUT, "Could not create shared memory block for %s:  %s\n", dataName.c_str(), strerror(errno));
         //we couldn't create the shared memory block.  Most of the time,
         //we are fine with non-shared memory and this at least prevents a crash
-        flags = MAP_ANONYMOUS;
+        flags = MAP_ANON;
     } else {
-        ftruncate(f, size);
+        int rc = ftruncate(f, size);
+        if (rc == -1) {
+            //if ftruncate fails, we need to completely reset
+            close(f);
+            shm_unlink(dataName.c_str());
+            f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
+            ftruncate(f, size);
+        }
     }
-    uint8_t* channelData = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
+    uint8_t* channelData = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, flags, f, 0);
+    if (channelData == MAP_FAILED) {
+        //mmap is failing, but we need channelData so just do malloc
+        channelData = (uint8_t*)malloc(size);
+    }
     if (f != -1) {
         close(f);
     }
@@ -227,11 +238,25 @@ PixelOverlayModel::~PixelOverlayModel() {
     if (channelData) {
         munmap(channelData, channelCount);
         std::string dataName = "/FPP-Model-Data-" + name;
+        if (PSHMNAMLEN <= 48) {
+            // system doesn't allow very long shared memory names, we'll use a shortened form
+            dataName = "/FPPMD-" + name;
+            if (dataName.size() > PSHMNAMLEN) {
+                dataName = dataName.substr(0, PSHMNAMLEN);
+            }
+        }
         shm_unlink(dataName.c_str());
     }
     if (overlayBufferData) {
         munmap(overlayBufferData, width * height * 3 + sizeof(OverlayBufferData));
         std::string overlayBufferName = "/FPP-Model-Overlay-Buffer-" + name;
+        if (PSHMNAMLEN <= 48) {
+            // system doesn't allow very long shared memory names, we'll use a shortened form
+            overlayBufferName = "/FPPMB-" + name;
+            if (overlayBufferName.size() > PSHMNAMLEN) {
+                overlayBufferName = overlayBufferName.substr(0, PSHMNAMLEN);
+            }
+        }
         shm_unlink(overlayBufferName.c_str());
     }
 }
@@ -442,9 +467,17 @@ void PixelOverlayModel::setBufferIsDirty(bool dirty) {
 
 uint8_t* PixelOverlayModel::getOverlayBuffer() {
     if (!overlayBufferData) {
-        std::string overlayBuferName = "/FPP-Model-Overlay-Buffer-" + name;
+        std::string overlayBufferName = "/FPP-Model-Overlay-Buffer-" + name;
+        if (PSHMNAMLEN <= 48) {
+            // system doesn't allow very long shared memory names, we'll use a shortened form
+            overlayBufferName = "/FPPMB-" + name;
+            if (overlayBufferName.size() > PSHMNAMLEN) {
+                overlayBufferName = overlayBufferName.substr(0, PSHMNAMLEN);
+            }
+        }
+
         mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-        int f = shm_open(overlayBuferName.c_str(), O_RDWR | O_CREAT, mode);
+        int f = shm_open(overlayBufferName.c_str(), O_RDWR | O_CREAT, mode);
         int size = width * height * 3 + sizeof(OverlayBufferData);
         ftruncate(f, size);
         overlayBufferData = (OverlayBufferData*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);

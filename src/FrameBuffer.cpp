@@ -374,7 +374,12 @@ int FrameBuffer::InitializeFrameBuffer(void) {
         m_fbFd = -1;
         return 0;
     }
-    ftruncate(shmemFile, m_bufferSize);
+    if (ftruncate(shmemFile, m_bufferSize) == -1) {
+        close(shmemFile);
+        shm_unlink(shmFile.c_str());
+        shmemFile = shm_open(shmFile.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+        ftruncate(shmemFile, m_bufferSize);
+    }
     m_buffer = (uint8_t*)mmap(NULL, m_bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, shmemFile, 0);
     if (m_buffer == MAP_FAILED) {
         LogErr(VB_PLAYLIST, "Error mmap buffer: %s    %s\n", shmFile.c_str(), strerror(errno));

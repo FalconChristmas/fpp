@@ -306,7 +306,7 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
           <hr class="dropdown-divider">
           <a class="dropdown-item" href="healthCheck.php"><i class="fas fa-thermometer-half"></i> System Health Check</a>
           <a class="dropdown-item" href="troubleshooting.php"><i class="fas fa-code"></i> Troubleshooting Commands</a>
-          <a class="dropdown-item" href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
+          <a class="dropdown-item" href="http://<?php echo $_SERVER['HTTP_HOST'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
           <?php list_plugin_entries("help"); ?>
         </div>
       </li>

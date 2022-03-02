@@ -2221,7 +2221,7 @@ function BackupDirectionChanged() {
             $('.copyPathSelect').show();
             $('.copyHost').hide();
             $('.copyBackups').hide();
-            GetBackupDirsViaAPI('<?php echo $_SERVER['SERVER_ADDR'] ?>');
+            GetBackupDirsViaAPI('<?php echo $_SERVER['HTTP_HOST'] ?>');
             break;
         case 'TOREMOTE':
             $('.copyUSB').hide();

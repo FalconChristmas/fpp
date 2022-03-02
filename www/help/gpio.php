@@ -25,7 +25,7 @@ pulled high by default and can be connected to ground to pull them low via a swi
 		action when the button is released, attach a Rising event to the GPIO Input.<br>
 		<br>
 		<center><b>Sample GPIO Normally Open Button Configuration</b><br>
-			<img src='http://<?= $_SERVER['SERVER_ADDR']; ?>/help/GPIO.png'></center></li>
+			<img src='help/GPIO.png'></center></li>
 	<li><b>Normally Closed (NC)</b> - Normally Closed connections complete a circuit
 		in their default state and break the circuit upon activation.  One example
 		device which may include a Normally Closed connection is a motion detection
