@@ -163,7 +163,7 @@ private:
     std::condition_variable m_drawSignal;
 
     bool m_isDoubleBuffered = false;
-    bool m_page = 0;
+    int m_page = 0;
     int m_pages = 2;
     int m_frameSize = 0;
     int m_bufferSize = 0;

@@ -354,11 +354,13 @@ int FrameBuffer::InitializeFrameBuffer(void) {
 #else
     m_isDoubleBuffered = true;
     m_pages = 2;
-    m_bpp = 24;
-    m_rowStride = m_width * 3;
+    m_bpp = 32;
+    m_useRGB = true;
+    m_rowStride = m_width * 4;
     m_rowPadding = 0;
-    m_screenSize = m_width * m_height * 3;
+    m_screenSize = m_width * m_height * 4;
     m_bufferSize = m_screenSize * m_pages;
+    m_page = 0;
 
     m_fbFd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (m_fbFd < 0) {
@@ -741,7 +743,7 @@ void FrameBuffer::DrawLoop(void) {
 void FrameBuffer::NextPage() {
     if (m_pages == 1)
         return;
-
+    
     m_page = (m_page + 1) % m_pages;
 }
 
@@ -757,7 +759,7 @@ void FrameBuffer::SyncDisplay(bool pageChanged) {
     } else if (m_fbFd != -1) {
         if (m_pages == 1)
             return;
-
+        
         if (!pageChanged)
             return;
 
@@ -780,7 +782,7 @@ void FrameBuffer::FBDrawNormal(void) {
     m_bufferLock.lock();
 
     NextPage();
-
+    
     memcpy(FB_CURRENT_PAGE_PTR, m_outputBuffer, m_screenSize);
 
     SyncDisplay(true);
