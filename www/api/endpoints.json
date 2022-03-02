@@ -2330,6 +2330,42 @@
             }
         },
         {
+            "endpoint": "system/info",
+            "methods": {
+                "GET": {
+                    "desc": "Returns basic information about the system.",
+                    "output": {
+                        "HostName": "FPPPi",
+                        "HostDescription": "",
+                        "Platform": "Raspberry Pi",
+                        "Variant": "Pi 4",
+                        "Mode": "player",
+                        "Version": "6.0",
+                        "Branch": "master",
+                        "OSVersion": "v2022-02",
+                        "OSRelease": "Raspbian GNU/Linux 11 (bullseye)",
+                        "channelRanges": "1545-84479",
+                        "majorVersion": 6,
+                        "minorVersion": 1000,
+                        "typeId": 13,
+                        "uuid": "M1-10000000AAAAAAA",
+                        "Utilization": {
+                          "CPU": 0.11971951428083116,
+                          "Memory": 1.955242609664765,
+                          "Uptime": "11 days"
+                        },
+                        "Kernel": "5.10.92-v7l+",
+                        "LocalGitVersion": "b998f65",
+                        "RemoteGitVersion": "ed62c12",
+                        "UpgradeSource": "github.com",
+                        "IPs": [
+                          "192.168.3.84"
+                        ]
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "system/status",
             "methods": {
                 "GET": {

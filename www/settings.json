@@ -32,7 +32,7 @@
                 "HostDescription"
             ]
         },
-        "hostDocker": {
+        "hostDesktop": {
             "description": "Host Settings",
             "settings": [
                 "HostDescription"

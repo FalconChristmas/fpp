@@ -35,8 +35,8 @@ function CloseKioskDialog() {
 
 </script>
 <?
-if (file_exists("/.dockerenv")) {
-    PrintSettingGroup('hostDocker');
+if (file_exists("/.dockerenv") || $settings["IsDesktop"]) {
+    PrintSettingGroup('hostDesktop');
 }
 
 PrintSettingGroup('system');

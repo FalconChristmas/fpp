@@ -141,6 +141,7 @@ dispatch_get('/system/reboot', 'RebootDevice');
 dispatch_get('/system/releaseNotes/:version', 'ViewReleaseNotes');
 dispatch_get('/system/shutdown', 'SystemShutdownOS');
 dispatch_get('/system/status', 'SystemGetStatus');
+dispatch_get('/system/info', 'SystemGetInfo');
 dispatch_get('/system/volume', 'SystemGetAudio');
 dispatch_post('/system/volume', 'SystemSetAudio');
 

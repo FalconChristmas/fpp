@@ -1472,7 +1472,7 @@ function get_server_cpu_usage()
     global $settings;
     if ($settings["Platform"] == "MacOS") {
         $output = exec("ps -A -o %cpu | awk '{s+=$1} END {print s}'");
-        return $output;
+        return floatval($output);
     }
     if (!file_exists("/tmp/cpustats.txt")) {
         $ostats = get_cpu_stats();
@@ -2170,5 +2170,128 @@ function gitBaseDirectory()
 {
     return dirname(dirname(__FILE__));
 }
+
+
+function GetSystemInfoJsonInternal($simple = false)
+{
+    global $settings;
+
+    //close the session before we start, this removes the session lock and lets other scripts run
+    session_write_close();
+    
+    //Default json to be returned
+    $result = array();
+    $result['HostName'] = $settings['HostName'];
+    $result['HostDescription'] = !empty($settings['HostDescription']) ? $settings['HostDescription'] : "";
+    $result['Platform'] = $settings['Platform'];
+    $result['Variant'] = isset($settings['Variant']) ? $settings['Variant'] : '';
+    $result['Mode'] = $settings['fppMode'];
+    $result['Version'] = getFPPVersion();
+    $result['Branch'] = getFPPBranch();
+    $result['multisync'] = isset($settings['MultiSyncEnabled']) ? ($settings['MultiSyncEnabled'] == '1') : false;
+    if ($result['Mode'] == "master") {
+        $result['Mode'] = "player";
+        $result['multisync'] = true;
+    }
+    if ($settings["Platform"] == "MacOS") {
+        $result['OSRelease'] = trim(shell_exec("sw_vers -productVersion"));
+        $result['OSVersion'] = $result['OSRelease'];
+    } else {
+        if (file_exists('/etc/fpp/rfs_version')) {
+            $result['OSVersion'] = trim(file_get_contents('/etc/fpp/rfs_version'));
+        }
+
+        $os_release = "Unknown";
+        if (file_exists("/etc/os-release")) {
+            $info = parse_ini_file("/etc/os-release");
+            if (isset($info["PRETTY_NAME"])) {
+                $os_release = $info["PRETTY_NAME"];
+            }
+
+            unset($output);
+        }
+        $result['OSRelease'] = $os_release;
+    }
+    if (file_exists($settings['mediaDirectory'] . "/fpp-info.json")) {
+        $content = file_get_contents($settings['mediaDirectory'] . "/fpp-info.json");
+        $json = json_decode($content, true);
+        $result['channelRanges'] = $json['channelRanges'];
+        $result['majorVersion'] = $json['majorVersion'];
+        $result['minorVersion'] = $json['minorVersion'];
+        $result['typeId'] = $json['typeId'];
+    }
+    $output = array();
+    exec($settings['fppDir'] . "/scripts/get_uuid", $output);
+    $result['uuid'] = $output[0];
+    
+    if (!$simple) {
+        //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
+        $result['Utilization']['CPU'] = get_server_cpu_usage();
+        $result['Utilization']['Memory'] = get_server_memory_usage();
+        $result['Utilization']['Uptime'] = get_server_uptime(true);
+
+        $result['Kernel'] = get_kernel_version();
+        $result['LocalGitVersion'] = get_local_git_version();
+        $result['RemoteGitVersion'] = get_remote_git_version(getFPPBranch());
+
+        $uploadDir = GetDirSetting("uploads"); // directory under media
+        $result['Utilization']['Disk']["Media"]['Free'] = disk_free_space($uploadDir);
+        $result['Utilization']['Disk']["Media"]['Total'] = disk_total_space($uploadDir);
+        $result['Utilization']['Disk']["Root"]['Free'] = disk_free_space("/");
+        $result['Utilization']['Disk']["Root"]['Total'] = disk_total_space("/");
+
+        if (isset($settings['UpgradeSource'])) {
+            $result['UpgradeSource'] = $settings['UpgradeSource'];
+        } else {
+            $result['UpgradeSource'] = 'github.com';
+        }
+
+        if ($settings["Platform"] != "MacOS") {
+            $output = array();
+            $IPs = array();
+            exec("ip --json -4 address show", $output);
+            //print(join("", $output));
+            $ipAddresses = json_decode(join("", $output), true);
+            foreach ($ipAddresses as $key => $value) {
+                if ($value["ifname"] != "lo" && strpos($value["ifname"], 'usb') === false) {
+                    foreach ($value["addr_info"] as $key2 => $value2) {
+                        $IPs[] = $value2["local"];
+                    }
+                }
+            }
+
+            $result['IPs'] = $IPs;
+        } else {
+            $IPs = array();
+            $output = exec("ipconfig getiflist");
+            $parts = preg_split("/\s+/", trim($output));
+            foreach ($parts as $cnt => $int) {
+                exec("ipconfig getsummary " . $int, $config);
+                $lastKey = "";
+                foreach ($config as $line) {
+                    // do stuff with $line
+                    $line = trim($line);
+                    $array = explode(':', $line);
+                    $key = trim($array[0]);
+                    if (count($array) > 1) {
+                        $value = trim($array[1]);
+                    } else {
+                        $value = "";
+                    }
+                    if ($key == "0" && $lastKey == "Addresses") {
+                        $IPs[] = $value;
+                    } else {
+                        $lastKey = $key;
+                    }
+                }
+                unset($config);
+            }
+            $result['IPs'] = $IPs;
+        }
+
+    }
+    return $result;
+}
+
 
 ?>

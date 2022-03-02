@@ -165,6 +165,10 @@ Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
     system["local"] = local ? 1 : 0;
 
     system["multiSyncCapable"] = multiSync ? 1 : 0;
+    
+    if (local) {
+        system["HostDescription"] = getSetting("HostDescription");
+    }
 
     return system;
 }

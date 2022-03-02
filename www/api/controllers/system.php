@@ -322,105 +322,11 @@ function SystemGetStatus()
         return json(finalizeStatusJson($data));
     }
 }
-
-function GetSystemInfoJsonInternal($return_array = false, $simple = false)
+// GET /api/system/info
+function SystemGetInfo()
 {
-    global $settings;
-
-    //close the session before we start, this removes the session lock and lets other scripts run
-    session_write_close();
-    
-    //Default json to be returned
-    $result = array();
-    $result['HostName'] = $settings['HostName'];
-    $result['HostDescription'] = !empty($settings['HostDescription']) ? $settings['HostDescription'] : "";
-    $result['Platform'] = $settings['Platform'];
-    $result['Variant'] = isset($settings['Variant']) ? $settings['Variant'] : '';
-    $result['Mode'] = $settings['fppMode'];
-    $result['multisync'] = isset($settings['MultiSyncEnabled']) ? ($settings['MultiSyncEnabled'] == '1') : false;
-    if ($result['Mode'] == "master") {
-        $result['Mode'] = "player";
-        $result['multisync'] = true;
-    }
-    $result['Version'] = getFPPVersion();
-    $result['Branch'] = getFPPBranch();
-
-    if ($settings["Platform"] == "MacOS") {
-        $result['OSRelease'] = trim(shell_exec("sw_vers -productVersion"));
-        $result['OSVersion'] = trim(shell_exec("sw_vers -productVersion"));
-    } else {
-        if (file_exists('/etc/fpp/rfs_version')) {
-            $result['OSVersion'] = trim(file_get_contents('/etc/fpp/rfs_version'));
-        }
-
-        $os_release = "Unknown";
-        if (file_exists("/etc/os-release")) {
-            $info = parse_ini_file("/etc/os-release");
-            if (isset($info["PRETTY_NAME"])) {
-                $os_release = $info["PRETTY_NAME"];
-            }
-
-            unset($output);
-        }
-        $result['OSRelease'] = $os_release;
-    }
-    
-    if (file_exists($settings['mediaDirectory'] . "/fpp-info.json")) {
-        $content = file_get_contents($settings['mediaDirectory'] . "/fpp-info.json");
-        $json = json_decode($content, true);
-        $result['channelRanges'] = $json['channelRanges'];
-        $result['majorVersion'] = $json['majorVersion'];
-        $result['minorVersion'] = $json['minorVersion'];
-        $result['typeId'] = $json['typeId'];
-    }
-
-    if (!$simple) {
-        //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
-        $result['Utilization']['CPU'] = get_server_cpu_usage();
-        $result['Utilization']['Memory'] = get_server_memory_usage();
-        $result['Utilization']['Uptime'] = get_server_uptime(true);
-
-        $uploadDir = GetDirSetting("uploads"); // directory under media
-        $result['Utilization']['Disk']["Media"]['Free'] = disk_free_space($uploadDir);
-        $result['Utilization']['Disk']["Media"]['Total'] = disk_total_space($uploadDir);
-        $result['Utilization']['Disk']["Root"]['Free'] = disk_free_space("/");
-        $result['Utilization']['Disk']["Root"]['Total'] = disk_total_space("/");
-
-        $result['Kernel'] = get_kernel_version();
-        $result['LocalGitVersion'] = get_local_git_version();
-        $result['RemoteGitVersion'] = get_remote_git_version(getFPPBranch());
-
-        
-        if (isset($settings['UpgradeSource'])) {
-            $result['UpgradeSource'] = $settings['UpgradeSource'];
-        } else {
-            $result['UpgradeSource'] = 'github.com';
-        }
-
-        if ($settings["Platform"] != "MacOS") {
-            $output = array();
-            $IPs = array();
-            exec("ip --json -4 address show", $output);
-            //print(join("", $output));
-            $ipAddresses = json_decode(join("", $output), true);
-            foreach ($ipAddresses as $key => $value) {
-                if ($value["ifname"] != "lo" && strpos($value["ifname"], 'usb') === false) {
-                    foreach ($value["addr_info"] as $key2 => $value2) {
-                        $IPs[] = $value2["local"];
-                    }
-                }
-            }
-
-            $result['IPs'] = $IPs;
-        }
-    }
-
-    //Return just the array if requested
-    if ($return_array == true) {
-        return $result;
-    } else {
-        return json($result);
-    }
+    $result =  GetSystemInfoJsonInternal(isset($_GET['simple']));
+    return json($result);
 }
 
 //
@@ -433,7 +339,7 @@ function finalizeStatusJson($obj)
     $obj['interfaces'] = network_list_interfaces_obj();
 
     //Get the advanced info directly as an array
-    $request_expert_content = GetSystemInfoJsonInternal(true, false);
+    $request_expert_content = GetSystemInfoJsonInternal(false);
     //check we have valid data
     if ($request_expert_content === false) {
         $request_expert_content = array();
