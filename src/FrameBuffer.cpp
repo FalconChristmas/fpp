@@ -399,6 +399,15 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     dev_address.sun_family = AF_UNIX;
     strcpy(dev_address.sun_path, devString.c_str());
 
+    targetExists = FileExists(dev_address.sun_path);
+    sendFramebufferConfig();
+    
+    return 1;
+#endif
+}
+
+#ifdef USE_FRAMEBUFFER_SOCKET
+void FrameBuffer::sendFramebufferConfig() {
     // CMD 1 : send the w/h/pages so the framebuffer can setup
     uint16_t data[4] = { 1, (uint16_t)m_width, (uint16_t)m_height, (uint16_t)m_pages };
 
@@ -424,9 +433,8 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     msg.msg_name = &dev_address;
     msg.msg_namelen = sizeof(dev_address);
     sendmsg(m_fbFd, &msg, 0);
-    return 1;
-#endif
 }
+#endif
 
 void FrameBuffer::DestroyFrameBuffer(void) {
     if (m_buffer) {
@@ -765,8 +773,18 @@ void FrameBuffer::SyncDisplay(bool pageChanged) {
 
 #ifdef USE_FRAMEBUFFER_SOCKET
         // CMD 2 - sync, param is page#
-        uint16_t data[2] = { 2, (uint16_t)m_page };
-        sendto(m_fbFd, data, sizeof(data), 0, (struct sockaddr*)&dev_address, sizeof(dev_address));
+        bool fe = FileExists(dev_address.sun_path);
+        if (!targetExists && fe) {
+            sendFramebufferConfig();
+            targetExists = true;
+        } else if (!fe) {
+            targetExists = false;
+        }
+        if (targetExists) {
+            uint16_t data[2] = { 2, (uint16_t)m_page };
+            sendto(m_fbFd, data, sizeof(data), 0, (struct sockaddr*)&dev_address, sizeof(dev_address));
+        }
+
 #else
         // Pan the display to the new page
         m_vInfo.yoffset = m_vInfo.yres * m_page;

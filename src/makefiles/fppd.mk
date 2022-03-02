@@ -11,6 +11,8 @@ LDFLAGS_fppd += -rdynamic $(shell curl-config --libs) \
 TARGETS += fppd
 OBJECTS_ALL+=$(OBJECTS_fppd)
 
+CXXFLAGS_fppd.o+=$(MAGICK_INCLUDE_PATH)
+
 ifneq '$(ARCH)' 'OSX'
 LIBS_fpp_so+=-Wl,-rpath=$(SRCDIR):$(SRCDIR)/../external/RF24/:.
 endif

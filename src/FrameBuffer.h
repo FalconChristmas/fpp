@@ -173,6 +173,8 @@ private:
 #ifdef USE_FRAMEBUFFER_SOCKET
     int shmemFile = -1;
     struct sockaddr_un dev_address;
+    bool targetExists = false;
+    void sendFramebufferConfig();
 #else
     struct fb_var_screeninfo m_vInfo;
     struct fb_fix_screeninfo m_fInfo;

@@ -133,3 +133,9 @@ OBJECTS_ALL+=$(OBJECTS_fpp_so)
 
 libfpp.$(SHLIB_EXT): $(OBJECTS_fpp_so) $(DEPS_fpp_so)
 	$(CCACHE) $(CC) -shared $(CFLAGS_$@) $(OBJECTS_fpp_so) $(LIBS_fpp_so) $(LDFLAGS) $(LDFLAGS_fpp_so) -o $@
+
+
+CXXFLAGS_overlays/PixelOverlay.o+=$(MAGICK_INCLUDE_PATH)
+CXXFLAGS_overlays/PixelOverlayEffects.o+=$(MAGICK_INCLUDE_PATH)
+CXXFLAGS_playlist/PlaylistEntryImage.o+=$(MAGICK_INCLUDE_PATH)
+CXXFLAGS_channeloutput/VirtualDisplayBase.o+=$(MAGICK_INCLUDE_PATH)
