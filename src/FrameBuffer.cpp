@@ -353,7 +353,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     return 1;
 #else
     m_isDoubleBuffered = true;
-    m_pages = 2;
+    m_pages = 3;
     m_bpp = 32;
     m_useRGB = true;
     m_rowStride = m_width * 4;
