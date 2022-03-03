@@ -371,17 +371,17 @@ void UpgradeSettings() {
 }
 
 std::string getSetting(const char* setting, const char* defaultVal) {
-    std::string result;
+    std::string result = defaultVal;
 
     if ((!setting) || (setting[0] == 0x00)) {
         LogErr(VB_SETTING, "getSetting() called with NULL or empty value\n");
-        return defaultVal;
+        return result;
     }
 
     if (settings.settings.isMember(setting))
         result = settings.settings[setting].asString().c_str();
 
-    LogExcess(VB_SETTING, "getSetting(%s) returning %d\n", setting, result.c_str());
+    LogExcess(VB_SETTING, "getSetting(%s) returning '%s'\n", setting, result.c_str());
     return result;
 }
 
