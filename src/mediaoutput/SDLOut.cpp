@@ -120,6 +120,15 @@ public:
         if (frame != nullptr) {
             av_free(frame);
         }
+        
+        if (audioCodecContext) {
+            avcodec_close(audioCodecContext);
+            audioCodecContext = nullptr;
+        }
+        if (videoCodecContext) {
+            avcodec_close(videoCodecContext);
+            videoCodecContext = nullptr;
+        }
         if (swsCtx != nullptr) {
             sws_freeContext(swsCtx);
             swsCtx = nullptr;

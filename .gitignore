@@ -44,3 +44,5 @@ plugins/
 ._*
 
 .vscode/sftp.json
+xcuserdata
+src/fppd.xcodeproj/project.xcworkspace/xcshareddata
