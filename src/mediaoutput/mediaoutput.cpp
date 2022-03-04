@@ -43,6 +43,7 @@
 #include "Sequence.h"
 #include "mediadetails.h"
 #include "settings.h"
+#include "../config.h"
 
 /////////////////////////////////////////////////////////////////////////////
 MediaOutputBase* mediaOutput = 0;
@@ -63,11 +64,13 @@ void InitMediaOutput(void) {
         LogDebug(VB_MEDIAOUT, "ERROR: Media Output mutex init failed!\n");
     }
 
+#ifndef PLATFORM_OSX
     int vol = getSettingInt("volume", -1);
     if (vol < 0) {
         vol = 70;
     }
     setVolume(vol);
+#endif
 }
 
 /*
@@ -79,10 +82,16 @@ void CleanupMediaOutput(void) {
     pthread_mutex_destroy(&mediaOutputLock);
 }
 
+#ifndef PLATFORM_OSX
 static int volume = 70;
 int getVolume() {
     return volume;
 }
+#else
+int getVolume() {
+    return MacOSGetVolume();
+}
+#endif
 
 void setVolume(int vol) {
     char buffer[60];
@@ -91,12 +100,13 @@ void setVolume(int vol) {
         vol = 0;
     else if (vol > 100)
         vol = 100;
-    volume = vol;
 
     std::string mixerDevice = getSetting("AudioMixerDevice");
     int audioOutput = getSettingInt("AudioOutput");
     std::string audio0Type = getSetting("AudioCard0Type");
 
+#ifndef PLATFORM_OSX
+    volume = vol;
     float fvol = volume;
 #ifdef PLATFORM_PI
     if (audioOutput == 0 && audio0Type == "bcm2") {
@@ -111,10 +121,13 @@ void setVolume(int vol) {
     LogDebug(VB_SETTING, "Volume change: %d \n", volume);
     LogDebug(VB_MEDIAOUT, "Calling amixer to set the volume: %s \n", buffer);
     system(buffer);
-
+#else
+    MacOSSetVolume(vol);
+#endif
+    
     pthread_mutex_lock(&mediaOutputLock);
     if (mediaOutput)
-        mediaOutput->SetVolume(volume);
+        mediaOutput->SetVolume(vol);
 
     pthread_mutex_unlock(&mediaOutputLock);
 }
@@ -141,7 +154,7 @@ std::string GetVideoFilenameForMedia(const std::string& filename, std::string& e
     std::string oext = filename.substr(found + 1);
     std::string lext = toLowerCopy(oext);
     std::string bfile = filename.substr(0, found + 1);
-    std::string videoPath = std::string(FPP_DIR_VIDEO) + "/" + bfile;
+    std::string videoPath = FPP_DIR_VIDEO("/" + bfile);
 
     if (IsExtensionVideo(lext)) {
         if (FileExists(videoPath + oext)) {
@@ -166,9 +179,7 @@ std::string GetVideoFilenameForMedia(const std::string& filename, std::string& e
 bool HasAudio(const std::string& mediaFilename) {
     std::string fullMediaPath = mediaFilename;
     if (!FileExists(mediaFilename)) {
-        fullMediaPath = FPP_DIR_MUSIC;
-        fullMediaPath += "/";
-        fullMediaPath += mediaFilename;
+        fullMediaPath = FPP_DIR_MUSIC("/" + mediaFilename);
     }
     return FileExists(fullMediaPath);
 }
@@ -191,6 +202,7 @@ MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::
     }
     std::string ext = toLowerCopy(mediaFilename.substr(found + 1));
 
+#ifdef HAS_VLC
     if (IsExtensionAudio(ext)) {
         if (getFPPmode() == REMOTE_MODE) {
             return new VLCOutput(mediaFilename, &mediaOutputStatus, "--Disabled--");
@@ -199,7 +211,9 @@ MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::
         }
     } else if (IsExtensionVideo(ext) && (vOut == "--HDMI--" || vOut == "HDMI")) {
         return new VLCOutput(mediaFilename, &mediaOutputStatus, vOut);
-    } else if (IsExtensionVideo(ext)) {
+    } else if (IsExtensionVideo(ext))
+#endif
+    {
         return new SDLOutput(mediaFilename, &mediaOutputStatus, vOut);
     }
     return nullptr;

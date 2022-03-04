@@ -119,17 +119,17 @@ var KNOWN_CAPES = {
     }
     
     $capes = array();
-    $capes = readCapes("/home/fpp/media/tmp/strings/", $capes);
+    $capes = readCapes($mediaDirectory . "/tmp/strings/", $capes);
     if (count($capes) == 0 || $settings["showAllOptions"] == 1) {
         if ($settings['Platform'] == "Raspberry Pi") {
-            $capedir = "/opt/fpp/capes/pi/strings/";
+            $capedir = $fppDir . "/capes/pi/strings/";
         } else if ($settings['Platform'] == "BeagleBone Black") {
-            $capedir = "/opt/fpp/capes/bbb/strings/";
+            $capedir = $fppDir . "/capes/bbb/strings/";
             if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
-                $capedir = "/opt/fpp/capes/pb/strings/";
+                $capedir = $fppDir . "/capes/pb/strings/";
             }
         } else {
-            $capedir = "/opt/fpp/capes/virtual/strings/";
+            $capedir = $fppDir . "/capes/virtual/strings/";
         }
         $capes = readCapes($capedir, $capes);
     }

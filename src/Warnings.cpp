@@ -34,7 +34,9 @@ void WarningHolder::StartNotifyThread() {
 
 void WarningHolder::StopNotifyThread() {
     runNotifyThread = false;
+    std::unique_lock<std::mutex> lck(notifyLock);
     notifyCV.notify_all();
+    lck.unlock();
     notifyThread->join();
 }
 
@@ -42,6 +44,9 @@ void WarningHolder::NotifyListenersMain() {
     std::unique_lock<std::mutex> lck(notifyLock);
     while (runNotifyThread) {
         notifyCV.wait(lck);                                             // sleep here
+        if (!runNotifyThread) {
+            return;
+        }
         std::list<std::string> warnings = WarningHolder::GetWarnings(); // Calls warning Lock
         LogDebug(VB_GENERAL, "Warning has changed, notifying other threads of %d Warnings\n", warnings.size());
         std::for_each(listenerList.begin(), listenerList.end(), [&](WarningListener* l) { l->handleWarnings(warnings); });

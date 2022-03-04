@@ -10,8 +10,7 @@ fi
 
 echo "Checking config version"
 
-if [ ${FPPVERSION} -lt 10 ]
-then
+if [ ${FPPVERSION} -lt 10 ]; then
 	echo "$0: Unable to upgrade FPP below Alpha 0.1.0, please upgrade your SD image"
 	exit 1
 fi
@@ -20,9 +19,10 @@ export FPPVERSION
 
 ########################################################################
 
-if [ -f ${CFGVERSIONFILE} ]
-then
+if [ -f ${CFGVERSIONFILE} ]; then
 	CFGVERSION=$(cat ${CFGVERSIONFILE})
+else
+    CFGVERSION="99999"
 fi
 
 echo "FPP Version: ${FPPVERSION}"

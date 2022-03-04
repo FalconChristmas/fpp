@@ -22,10 +22,12 @@ if (!isset($_GET['nopage'])):
     }
 
     $infoFile = $pluginDirectory . '/' . $pluginName . '/pluginInfo.json';
-
     if (file_exists($infoFile)) {
         $json = file_get_contents($infoFile);
         $pluginInfo = json_decode($json, true);
+    } else {
+        $pluginInfo = array();
+        $pluginInfo["name"] = "Unknown";
     }
 
     ?>

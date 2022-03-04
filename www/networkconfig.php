@@ -108,7 +108,7 @@ $wifiDomains['Algeria'] = 'DZ';
 function PopulateInterfaces()
 {
     $first = 1;
-    $interfaces = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | grep -v tether ")));
+    $interfaces = network_list_interfaces_array();
     foreach ($interfaces as $iface) {
         $iface = preg_replace("/:$/", "", $iface);
         $ifaceChecked = $first ? " selected" : "";
@@ -413,35 +413,36 @@ function LoadNetworkConfig() {
 }
 
 function CheckDNSCallback(data) {
-	if (data.PROTO == "static") {
-	   if (($('#eth_static').is(':checked')) &&
-		($('#dns_dhcp').is(':checked'))) {
-       setDNSWarning("Warning: You must manually configure your DNS Server(s) if all network interfaces use static IPs.");
-	   } else {
-      setDNSWarning("");
-	   }
-	} else if ($('#eth_static').is(':checked') && ($('#eth_gateway').val() == '')) {
-       setDNSWarning("Warning: if any interface is using DHCP while another interface is using a static IP address, you WILL need to enter a valid Gateway address.");
-	} else {
-      setDNSWarning("");
+    var iface = $('#selInterfaces').val();
+	if (iface.startsWith('e')) {
+		// FIXME, check the size of #selInterfaces here to be > 1
+		iface = 'wl';
+	} else if (iface.startsWith('wl')) {
+		iface = 'e';
 	}
 
+    data.forEach(function(i) {
+        if (i.ifname.startsWith(iface)) {
+            if (i.config !== 'undefined') {
+                if (i.config.PROTO == "static") {
+	                if (($('#eth_static').is(':checked')) &&
+		                ($('#dns_dhcp').is(':checked'))) {
+                        setDNSWarning("Warning: You must manually configure your DNS Server(s) if all network interfaces use static IPs.");
+	                } else {
+                        setDNSWarning("");
+	                }
+	            } else if ($('#eth_static').is(':checked') && ($('#eth_gateway').val() == '')) {
+                    setDNSWarning("Warning: if any interface is using DHCP while another interface is using a static IP address, you WILL need to enter a valid Gateway address.");
+	            } else {
+                    setDNSWarning("");
+	            }
+            }
+        }
+    });
 }
 
 function CheckDNS() {
-	var iface = $('#selInterfaces').val();
-
-	if (iface == 'eth0')
-	{
-		// FIXME, check the size of #selInterfaces here to be > 1
-		iface = 'wlan0';
-	}
-	else if (iface == 'wlan0')
-   	{
-		iface = 'eth0';
-	}
-
-	var url = "api/network/interface/" + iface;
+	var url = "api/network/interface";
 
 	$.get(url,CheckDNSCallback);
 }

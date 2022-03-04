@@ -228,8 +228,8 @@ extraCommands = [
             echo "$('#pullHeader').hide();";
         }
         
-        if (file_exists('/home/fpp/media/config/gpio.json')) {
-            $data = file_get_contents('/home/fpp/media/config/gpio.json');
+        if (file_exists($mediaDirectory . '/config/gpio.json')) {
+            $data = file_get_contents($mediaDirectory . '/config/gpio.json');
             $gpioInputJson = json_decode($data, true);
             echo "var gpioConfig = " . json_encode($gpioInputJson, JSON_PRETTY_PRINT) . ";\n";
         

@@ -1961,7 +1961,7 @@ if ($skipHTMLCodeOutput == false) {
 <html lang="en">
 <head>
     <?php require_once 'common/menuHead.inc'; ?>
-    <title>FPP - <?php echo gethostname(); ?></title>
+    <title>$pageTitle</title>
     <!--    <script>var helpPage = "help/backup.php";</script>-->
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
@@ -2066,7 +2066,7 @@ function PerformCopy() {
 
         storageLocation = host;
     } else {
-        storageLocation = "/home/fpp/media/backups";
+        storageLocation = $mediaDirectory . "/backups";
     }
 
     if (direction.substring(0,4) == 'FROM') {
@@ -2221,7 +2221,7 @@ function BackupDirectionChanged() {
             $('.copyPathSelect').show();
             $('.copyHost').hide();
             $('.copyBackups').hide();
-            GetBackupDirsViaAPI('<?php echo $_SERVER['SERVER_ADDR'] ?>');
+            GetBackupDirsViaAPI('<?php echo $_SERVER['HTTP_HOST'] ?>');
             break;
         case 'TOREMOTE':
             $('.copyUSB').hide();
@@ -2482,7 +2482,7 @@ GetBackupDevices();
         </select></td></tr>
         <tr class='copyUSB'><td>USB Device:</td><td><select name='backup.USBDevice' id='backup.USBDevice' onChange='USBDeviceChanged();'></select> <input type='button' class='buttons' onClick='GetBackupDevices();' value='Refresh List'></td></tr>
         <tr class='copyHost'><td>Remote Host:</td><td><?php PrintSettingSelect('Backup Host', 'backup.Host', 0, 0, '', $backupHosts, '', 'GetBackupHostBackupDirs'); ?></td></tr>
-        <tr class='copyPath'><td>Backup Path:</td><td><?php PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', gethostname()); ?></td></tr>
+        <tr class='copyPath'><td>Backup Path:</td><td><?php PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', $settings["HostName"]); ?></td></tr>
         <tr class='copyPathSelect'><td>Backup Path:</td><td><select name='backup.PathSelect' id='backup.PathSelect'></select></td></tr>
         <tr><td>What to copy:</td><td>
         <table id="CopyFlagsTable">

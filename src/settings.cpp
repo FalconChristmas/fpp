@@ -37,6 +37,54 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#ifdef PLATFORM_OSX
+#  include <mach-o/dyld.h>
+#endif
+
+static std::string FPP_BIN_DIR("");
+static std::string FPP_MEDIA_DIR("");
+
+std::string getFPPDDir(const std::string &path) {
+    if (FPP_BIN_DIR == "") {
+        char exePath[2048];
+        exePath[0] = 0;
+#ifdef PLATFORM_OSX
+        uint32_t len = sizeof(exePath);
+        _NSGetExecutablePath(exePath, &len);
+#else
+        ssize_t len = ::readlink("/proc/self/exe", exePath, sizeof(exePath));
+        exePath[len] = '\0';
+#endif
+        FPP_BIN_DIR = exePath;
+        FPP_BIN_DIR = FPP_BIN_DIR.substr(0, FPP_BIN_DIR.rfind("/"));
+        FPP_BIN_DIR = FPP_BIN_DIR.substr(0, FPP_BIN_DIR.rfind("/"));
+    }
+    return FPP_BIN_DIR + path;
+}
+std::string getFPPMediaDir(const std::string &path) {
+    if (FPP_MEDIA_DIR == "") {
+        std::string filename = getFPPDDir("/www/media_root.txt");
+        if (FileExists(filename)) {
+            FPP_MEDIA_DIR = GetFileContents(filename);
+            TrimWhiteSpace(FPP_MEDIA_DIR);
+        }
+        if (FPP_MEDIA_DIR == "") {
+#ifdef PLATFORM_OSX
+            const char *homedir;
+            if ((homedir = getenv("HOME")) == NULL) {
+                homedir = getpwuid(getuid())->pw_dir;
+            }
+            FPP_MEDIA_DIR = homedir;
+            FPP_MEDIA_DIR += "/Documents/fpp";
+#else
+            FPP_MEDIA_DIR = "/home/fpp/media";
+#endif
+        }
+        PutFileContents(filename, FPP_MEDIA_DIR);
+    }
+    return FPP_MEDIA_DIR + path;
+}
+
 const char* fpp_bool_to_string[] = { "false", "true", "default" };
 
 SettingsConfig settings;
@@ -52,10 +100,10 @@ void SettingsConfig::Init() {
     fppMode = PLAYER_MODE;
 
     // load UUID File
-    if (access("/opt/fpp/scripts/get_uuid", F_OK) == 0) {
+    if (access(getFPPDDir("/scripts/get_uuid").c_str(), F_OK) == 0) {
         FILE* uuid_fp;
         char temp_uuid[500];
-        uuid_fp = popen("/opt/fpp/scripts/get_uuid", "r");
+        uuid_fp = popen(getFPPDDir("/scripts/get_uuid").c_str(), "r");
         if (uuid_fp == NULL) {
             LogWarn(VB_SETTING, "Couldn't execute get_uuid\n");
         }
@@ -65,9 +113,8 @@ void SettingsConfig::Init() {
             if ('\n' == temp_uuid[pos]) {
                 temp_uuid[pos] = '\0';
             }
-            settings["SystemUUID"] = temp_uuid;
+            settings["SystemUUID"] = std::string(temp_uuid);
         }
-
         if (uuid_fp != NULL) {
             pclose(uuid_fp);
         }
@@ -81,7 +128,7 @@ void SettingsConfig::Init() {
 }
 
 void SettingsConfig::LoadSettingsInfo() {
-    settingsInfo = LoadJsonFromFile("/opt/fpp/www/settings.json");
+    settingsInfo = LoadJsonFromFile(getFPPDDir("/www/settings.json"));
 
     Json::Value s = settingsInfo["settings"];
     Json::Value::Members memberNames = s.getMemberNames();
@@ -106,6 +153,16 @@ void SettingsConfig::LoadSettingsInfo() {
         LogExcess(VB_SETTING, "Setting default for '%s' setting to '%s'\n",
                   memberNames[i].c_str(), def.c_str());
     }
+#ifdef PLATFORM_OSX
+    char hostname[256];
+    gethostname(hostname, 256);
+    std::string hn = hostname;
+    int idx = hn.find(".");
+    if (idx != std::string::npos) {
+        hn = hn.substr(0, idx);
+    }
+    settings["HostName"] = hn;
+#endif
 }
 
 // Returns a string that's the white-space trimmed version
@@ -206,16 +263,16 @@ int SetSetting(const std::string key, const std::string value) {
     return 1;
 }
 
-int LoadSettings() {
+int LoadSettings(const char *base) {
     settings.Init();
 
     if (!FileExists(FPP_FILE_SETTINGS)) {
         LogWarn(VB_SETTING,
-                "Attempted to load settings file %s which does not exist!\n", FPP_FILE_SETTINGS);
+                "Attempted to load settings file %s which does not exist!\n", FPP_FILE_SETTINGS.c_str());
         return -1;
     }
 
-    FILE* file = fopen(FPP_FILE_SETTINGS, "r");
+    FILE* file = fopen(FPP_FILE_SETTINGS.c_str(), "r");
 
     if (file != NULL) {
         char* line = (char*)calloc(256, 1);
@@ -268,7 +325,7 @@ int LoadSettings() {
 
         fclose(file);
     } else {
-        LogWarn(VB_SETTING, "Warning: couldn't open settings file: '%s'!\n", FPP_FILE_SETTINGS);
+        LogWarn(VB_SETTING, "Warning: couldn't open settings file: '%s'!\n", FPP_FILE_SETTINGS.c_str());
         return -1;
     }
 
@@ -314,17 +371,17 @@ void UpgradeSettings() {
 }
 
 std::string getSetting(const char* setting, const char* defaultVal) {
-    std::string result;
+    std::string result = defaultVal;
 
     if ((!setting) || (setting[0] == 0x00)) {
         LogErr(VB_SETTING, "getSetting() called with NULL or empty value\n");
-        return defaultVal;
+        return result;
     }
 
     if (settings.settings.isMember(setting))
         result = settings.settings[setting].asString().c_str();
 
-    LogExcess(VB_SETTING, "getSetting(%s) returning %d\n", setting, result.c_str());
+    LogExcess(VB_SETTING, "getSetting(%s) returning '%s'\n", setting, result.c_str());
     return result;
 }
 

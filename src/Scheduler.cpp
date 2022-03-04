@@ -36,7 +36,6 @@
 #include "fpp.h"
 #include "sunset.h"
 
-#define SCHEDULE_FILE "/home/fpp/media/config/schedule.json"
 
 Scheduler* scheduler = NULL;
 int timeDelta = 0;
@@ -209,15 +208,11 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
         std::string warning = "Scheduled ";
 
         if (entry->sequence) {
-            playlistFile = FPP_DIR_SEQUENCE;
-            playlistFile += "/";
-            playlistFile += entry->playlist;
+            playlistFile = FPP_DIR_SEQUENCE("/" + entry->playlist);
 
             warning = "Sequence";
         } else {
-            playlistFile = FPP_DIR_PLAYLIST;
-            playlistFile += "/";
-            playlistFile += entry->playlist + ".json";
+            playlistFile = FPP_DIR_PLAYLIST("/" + entry->playlist + ".json");
 
             warning = "Playlist";
         }
@@ -537,7 +532,7 @@ void Scheduler::CheckScheduledItems(bool restarted) {
                             if ((oldItem->command == "Start Playlist") &&
                                 (oldItem->entry->playlist == playlistName)) {
                                 oldItem->ran = false;
-                                m_forcedNextPlaylist == oldItem->entryIndex;
+                                m_forcedNextPlaylist = oldItem->entryIndex;
                             }
                         }
 
@@ -649,7 +644,8 @@ void Scheduler::SetItemRan(ScheduledItem* item, bool ran) {
 }
 
 void Scheduler::LoadScheduleFromFile(void) {
-    LogDebug(VB_SCHEDULE, "Loading Schedule from %s\n", SCHEDULE_FILE);
+    std::string SCHEDULE_FILE = FPP_DIR_CONFIG("/schedule.json");
+    LogDebug(VB_SCHEDULE, "Loading Schedule from %s\n", SCHEDULE_FILE.c_str());
 
     m_loadSchedule = false;
     m_lastLoadDate = GetCurrentDateInt();
@@ -669,15 +665,11 @@ void Scheduler::LoadScheduleFromFile(void) {
         std::string warning = "Scheduled ";
 
         if (scheduleEntry.sequence) {
-            playlistFile = FPP_DIR_SEQUENCE;
-            playlistFile += "/";
-            playlistFile += scheduleEntry.playlist;
+            playlistFile = FPP_DIR_SEQUENCE("/" + scheduleEntry.playlist);
 
             warning += "Sequence";
         } else {
-            playlistFile = FPP_DIR_PLAYLIST;
-            playlistFile += "/";
-            playlistFile += scheduleEntry.playlist + ".json";
+            playlistFile = FPP_DIR_PLAYLIST("/" + scheduleEntry.playlist + ".json");
 
             warning += "Playlist";
         }

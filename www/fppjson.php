@@ -7,7 +7,6 @@ require_once('common/settings.php');
 require_once('commandsocket.php');
 require_once('universeentry.php');
 
-
 $a = session_id();
 if(empty($a))
 {
@@ -297,41 +296,45 @@ function SetAudioOutput($card)
 {
 	global $args, $SUDO, $debug, $settings;
 
-	if ($card != 0 && file_exists("/proc/asound/card$card")) {
-		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
-		unset($output);
-		if ($return_val) {
-			error_log("Failed to set audio to card $card!");
-			return;
-		}
-        if ( $debug ) {
-			error_log("Setting to audio output $card");
+    if ($settings["Platform"] == "MacOS") {
+        // don't need to adjust anything
+    } else {
+        if ($card != 0 && file_exists("/proc/asound/card$card")) {
+            exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
+            unset($output);
+            if ($return_val) {
+                error_log("Failed to set audio to card $card!");
+                return;
+            }
+            if ( $debug ) {
+                error_log("Setting to audio output $card");
+            }
+        } else if ($card == 0) {
+            exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
+            unset($output);
+            if ($return_val) {
+                error_log("Failed to set audio back to default!");
+                return;
+            }
+            if ( $debug )
+                error_log("Setting default audio");
         }
-	} else if ($card == 0) {
-		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
-		unset($output);
-		if ($return_val) {
-			error_log("Failed to set audio back to default!");
-			return;
-		}
-		if ( $debug )
-			error_log("Setting default audio");
-	}
-    // need to also reset mixer device
-    $AudioMixerDevice = exec("sudo amixer -c $card scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
-    unset($output);
-    if ($return_val == 0) {
-        WriteSettingToFile("AudioMixerDevice", $AudioMixerDevice);
-        if ($settings['Platform'] == "Raspberry Pi" && $card == 0) {
-            $type = exec("sudo aplay -l | grep \"card $card\"", $output, $return_val);
-            if (strpos($type, '[bcm') !== false) {
-                WriteSettingToFile("AudioCard0Type", "bcm");
+        // need to also reset mixer device
+        $AudioMixerDevice = exec("sudo amixer -c $card scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
+        unset($output);
+        if ($return_val == 0) {
+            WriteSettingToFile("AudioMixerDevice", $AudioMixerDevice);
+            if ($settings['Platform'] == "Raspberry Pi" && $card == 0) {
+                $type = exec("sudo aplay -l | grep \"card $card\"", $output, $return_val);
+                if (strpos($type, '[bcm') !== false) {
+                    WriteSettingToFile("AudioCard0Type", "bcm");
+                } else {
+                    WriteSettingToFile("AudioCard0Type", "unknown");
+                }
+                unset($output);
             } else {
                 WriteSettingToFile("AudioCard0Type", "unknown");
             }
-            unset($output);
-        } else {
-            WriteSettingToFile("AudioCard0Type", "unknown");
         }
     }
 	return $card;
@@ -503,87 +506,8 @@ function ExtGPIOJson()
 /////////////////////////////////////////////////////////////////////////////
 function GetSystemInfoJson() {
     global $args;
-    return GetSystemInfoJsonInternal(false, isset($args['simple']));
-}
-
-function GetSystemInfoJsonInternal($return_array = false, $simple = false)
-{
-    global $settings;
-
-    //close the session before we start, this removes the session lock and lets other scripts run
-    session_write_close();
-
-    //Default json to be returned
-    $result = array();
-    $result['HostName'] = $settings['HostName'];
-	$result['HostDescription'] = !empty($settings['HostDescription']) ? $settings['HostDescription'] : "";
-	$result['Platform'] = $settings['Platform'];
-    $result['Variant'] = isset($settings['Variant']) ? $settings['Variant'] : '';
-    $result['Mode'] = $settings['fppMode'];
-    $result['Version'] = getFPPVersion();
-    $result['Branch'] = getFPPBranch();
-    $result['OSVersion'] = trim(file_get_contents('/etc/fpp/rfs_version'));
-
-    $os_release = "Unknown";
-    if (file_exists("/etc/os-release"))
-    {
-        $info = parse_ini_file("/etc/os-release");
-        if (isset($info["PRETTY_NAME"]))
-            $os_release = $info["PRETTY_NAME"];
-        unset($output);
-    }
-    $result['OSRelease'] = $os_release;
-    
-    if (file_exists($settings['mediaDirectory'] . "/fpp-info.json")) {
-        $content = file_get_contents($settings['mediaDirectory'] . "/fpp-info.json");
-        $json = json_decode($content, true);
-        $result['channelRanges'] = $json['channelRanges'];
-        $result['majorVersion'] = $json['majorVersion'];
-        $result['minorVersion'] = $json['minorVersion'];
-        $result['typeId'] = $json['typeId'];
-    }
-
-    $output = array();
-    exec("/opt/fpp/scripts/get_uuid", $output);
-    $result['uuid'] = $output[0];
-    
-    if (! $simple) {
-        //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
-        $result['Utilization']['CPU'] =  get_server_cpu_usage();
-        $result['Utilization']['Memory'] = get_server_memory_usage();
-        $result['Utilization']['Uptime'] = get_server_uptime(true);
-        
-        $result['Kernel'] = get_kernel_version();
-        $result['LocalGitVersion'] = get_local_git_version();
-        $result['RemoteGitVersion'] = get_remote_git_version(getFPPBranch());
-
-        if (isset($settings['UpgradeSource']))
-            $result['UpgradeSource'] = $settings['UpgradeSource'];
-        else
-            $result['UpgradeSource'] = 'github.com';
-        
-        $output = array();
-        $IPs = array();
-        exec("ip --json -4 address show", $output);
-        //print(join("", $output));
-        $ipAddresses = json_decode(join("", $output), true);
-        foreach($ipAddresses as $key => $value) {
-            if ($value["ifname"] != "lo" && strpos($value["ifname"], 'usb') === false) {
-                foreach($value["addr_info"] as $key2 => $value2) {
-                    $IPs[] = $value2["local"];
-                }
-            }
-        }
-
-        $result['IPs'] = $IPs;
-    }
-
-    //Return just the array if requested
-	if ($return_array == true) {
-		return $result;
-	} else {
-		returnJSON($result);
-	}
+    $result = GetSystemInfoJsonInternal(isset($args['simple']));
+    return returnJSON($result);
 }
     
 function SetBBBLeds() {
@@ -619,7 +543,7 @@ function CreatePersistentNetNames()
 {
 	global $settings;
     shell_exec("sudo rm -f /etc/systemd/network/5?-fpp-*.link");
-    $interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | grep -v tether ")));
+    $interfaces = network_list_interfaces_array();
     $count = 0;
     foreach ($interfaces as $iface) {
         $iface = preg_replace("/:$/", "", $iface);

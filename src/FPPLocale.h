@@ -15,8 +15,6 @@
  */
 #include <mutex>
 
-#include <jsoncpp/json/json.h>
-
 class LocaleHolder {
 public:
     static Json::Value GetLocale();

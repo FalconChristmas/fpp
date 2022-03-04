@@ -38,6 +38,8 @@
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
 #include "PixelOverlayModel.h"
+#include "PixelOverlayModelFB.h"
+#include "PixelOverlayModelSub.h"
 
 PixelOverlayManager PixelOverlayManager::INSTANCE;
 
@@ -124,7 +126,7 @@ void PixelOverlayManager::loadModelMap() {
     modelNames.clear();
     ConvertCMMFileToJSON();
 
-    std::string filename(FPP_DIR_CONFIG "/model-overlays.json");
+    std::string filename(FPP_DIR_CONFIG("/model-overlays.json"));
     if (FileExists(filename)) {
         Json::Value root;
         bool result = LoadJsonFromFile(filename, root);
@@ -136,11 +138,27 @@ void PixelOverlayManager::loadModelMap() {
         if (root.isMember("autoCreate")) {
             autoCreate = root["autoCreate"].asBool();
         }
-        const Json::Value models = root["models"];
+        Json::Value models = root["models"];
         for (int c = 0; c < models.size(); c++) {
-            PixelOverlayModel* pmodel = new PixelOverlayModel(models[c]);
-            this->models[pmodel->getName()] = pmodel;
-            this->modelNames.push_back(pmodel->getName());
+            PixelOverlayModel* pmodel = nullptr;
+            
+            if (!models[c].isMember("Type"))
+                models[c]["Type"] = "Channel";
+
+            std::string type = models[c]["Type"].asString();
+
+            if (type == "Channel") {
+                pmodel = new PixelOverlayModel(models[c]);
+            } else if (type == "FB") {
+                pmodel = new PixelOverlayModelFB(models[c]);
+            } else if (type == "Sub") {
+                pmodel = new PixelOverlayModelSub(models[c]);
+            }
+
+            if (pmodel) {
+                this->models[pmodel->getName()] = pmodel;
+                this->modelNames.push_back(pmodel->getName());
+            }
         }
     }
 }
@@ -150,7 +168,7 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
     char* s;
     int startChannel;
     int channelCount;
-    std::string filename(FPP_DIR_MEDIA "/channelmemorymaps");
+    std::string filename(FPP_DIR_MEDIA("/channelmemorymaps"));
 
     if (!FileExists(filename)) {
         return;
@@ -228,7 +246,7 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
     fclose(fp);
     remove(filename.c_str());
 
-    filename = FPP_DIR_CONFIG "/model-overlays.json";
+    filename = FPP_DIR_CONFIG("/model-overlays.json");
     SaveJsonToFile(result, filename);
 }
 
@@ -258,9 +276,17 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
         return;
     }
     std::unique_lock<std::mutex> lock(activeModelsLock);
+    // First do any sub-models
     for (auto m : activeModels) {
-        m->doOverlay(channels);
+        if (m->getType() == "Sub")
+            m->doOverlay(channels);
     }
+    // Then do any non-subs
+    for (auto m : activeModels) {
+        if (m->getType() != "Sub")
+            m->doOverlay(channels);
+    }
+
     for (auto& m : activeRanges) {
         for (int s = m.start; s <= m.end; s++) {
             channels[s] = m.value;
@@ -465,8 +491,8 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
         std::string p2 = req.get_path_pieces().size() > 1 ? req.get_path_pieces()[1] : "";
         if (p2 == "raw") {
             //upload of raw file
-            char filename[512];
-            strcpy(filename, FPP_DIR_MEDIA "/channelmemorymaps");
+            char filename[2048];
+            strcpy(filename, FPP_DIR_MEDIA("/channelmemorymaps").c_str());
 
             int fp = open(filename, O_CREAT | O_TRUNC | O_RDWR, 0666);
             if (fp == -1) {
@@ -479,8 +505,8 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
             loadModelMap();
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
         } else if (req.get_path_pieces().size() == 1) {
-            char filename[512];
-            strcpy(filename, FPP_DIR_CONFIG "/model-overlays.json");
+            char filename[2048];
+            strcpy(filename, FPP_DIR_CONFIG("/model-overlays.json").c_str());
 
             int fp = open(filename, O_CREAT | O_TRUNC | O_RDWR, 0666);
             if (fp == -1) {
@@ -885,6 +911,7 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
 
     Json::Value val;
     val["Name"] = name;
+    val["Type"] = "Channel";
     val["StartChannel"] = startChannel + 1;
     val["ChannelCount"] = channelCount;
     val["StringCount"] = strings;

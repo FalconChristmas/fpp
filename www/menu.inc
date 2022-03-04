@@ -77,10 +77,10 @@ function list_plugin_entries($menu) {
     <div class="headerCenter">
       <div class="headerCenterRow headerHost">
 <?
-    if (!file_exists("/etc/fpp/desktop")) {
-        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><a href='networkconfig.php#tab-host-dns' class='nonULLink'>".$settings['HostName']."</a></span></span>");
+    if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
+        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".$settings["HostName"]."\"><a href='networkconfig.php#tab-host-dns' class='nonULLink'>".$settings['HostName']."</a></span></span>");
     } else {
-        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".gethostname()."\">".gethostname()."</span></span>");
+        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".$settings["HostName"]."\">".$settings["HostName"]."</span></span>");
     }
 
     $currentHeaderSensor = "1";
@@ -188,7 +188,7 @@ function list_plugin_entries($menu) {
 ?>
     </span>
   </div>
-<?  if (!file_exists("/opt/fpp/src/fppd")) { ?>
+<?  if (!file_exists(__DIR__."/../src/fppd")) { ?>
 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
     </textarea>
@@ -232,7 +232,7 @@ function RebuildFPPD() {
         <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
         <a class="dropdown-item" href="index.php"><i class="fas fa-info"></i> Status Page</a>
 <?
-if (!file_exists("/etc/fpp/desktop")) {
+if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
           echo "<a class='dropdown-item' href='networkconfig.php'><i class='fas fa-network-wired'></i> Network</a>";
 }
 ?>
@@ -306,7 +306,7 @@ if (!file_exists("/etc/fpp/desktop")) {
           <hr class="dropdown-divider">
           <a class="dropdown-item" href="healthCheck.php"><i class="fas fa-thermometer-half"></i> System Health Check</a>
           <a class="dropdown-item" href="troubleshooting.php"><i class="fas fa-code"></i> Troubleshooting Commands</a>
-          <a class="dropdown-item" href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
+          <a class="dropdown-item" href="http://<?php echo $_SERVER['HTTP_HOST'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
           <?php list_plugin_entries("help"); ?>
         </div>
       </li>

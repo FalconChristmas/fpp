@@ -24,7 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <jsoncpp/json/json.h>
 #include <cmath>
 #include <stdint.h>
 #include <string>

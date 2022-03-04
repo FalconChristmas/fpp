@@ -1,5 +1,11 @@
 #!/bin/bash
 
+PLATFORM=$(uname);
+if [ "$PLATFORM" = "Darwin" ]; then
+    ioreg -d2 -c IOPlatformExpertDevice | awk -F\" '/IOPlatformUUID/{print $(NF-1)}'
+    exit 0
+fi
+
 
 #
 # Check for an developer-only FPP_UUID setting

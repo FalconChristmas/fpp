@@ -15,12 +15,12 @@ logOutput
 if [ -x "${PLUGINDIR}/$1/scripts/fpp_uninstall.sh" ]
 then
 	echo "Running fpp_uninstall.sh script for $1"
-	$SUDO ${PLUGINDIR}/$1/scripts/fpp_uninstall.sh
+	$SUDO ${PLUGINDIR}/$1/scripts/fpp_uninstall.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 else
 	if [ -x "${PLUGINDIR}/$1/fpp_uninstall.sh" ]
 	then
 		echo "Running fpp_uninstall.sh script for $1"
-		$SUDO ${PLUGINDIR}/$1/fpp_uninstall.sh
+		$SUDO ${PLUGINDIR}/$1/fpp_uninstall.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 	fi
 fi
 

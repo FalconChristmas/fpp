@@ -2,21 +2,45 @@
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin:${PATH}
 
-FPPDIR=${FPPDIR:-/opt/fpp}
-FPPHOME="/home/fpp"
-FPPUSER="fpp"
-
-FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
-FPPBINDIR="${FPPDIR}/src"
-if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]
+if [ "x$0" = "x-bash" ]
 then
+    COMMON_PATH="/opt/fpp/scripts"
+else
+    COMMON_PATH=$(dirname "$0")            # relative
+fi
+
+COMMON_PATH=$(cd "$COMMON_PATH/.." && pwd)
+
+FPPDIR=${FPPDIR:-$COMMON_PATH}
+
+if [ -f "${FPPDIR}/www/media_root.txt" ]; then
+    MEDIADIR=$(cat "${FPPDIR}/www/media_root.txt")
+    FPPHOME=$(dirname ${MEDIADIR})
+else
+    FPPHOME="/home/fpp"
+    FPPUSER="fpp"
+    FPPGROUP="fpp"
+    MEDIADIR="${MEDIADIR:-${FPPHOME}/media}"
+fi
+
+if [ -f /etc/fpp/platform ]; then
+    FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
+else
+    FPPPLATFORM=$(uname -s)
+    if [ "${FPPPLATFORM}" = "Darwin" ]; then
+        FPPPLATFORM="MacOS"
+        FPPUSER=$(whoami)
+        FPPGROUP="staff"
+    fi
+fi
+FPPBINDIR="${FPPDIR}/src"
+if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     BBBMODEL=$(cut -d' ' -f3- /proc/device-tree/model | tr '\0' '\n')
     export BBBMODEL
 fi
 
 PATHDIRS="${FPPDIR}/scripts/:${FPPBINDIR}/"
-if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPBINDIR}/fppd" ]
-then
+if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPBINDIR}/fppd" ]; then
 	FPPBINDIR="${FPPDIR}/src"
 	PATHDIRS="${FPPDIR}/scripts/:${FPPDIR}/src/"
 fi
@@ -27,41 +51,59 @@ export FPPDIR
 export FPPBINDIR
 export FPPHOME
 export FPPUSER
+export FPPGROUP
+export FPPPLATFORM
 export PATH=${PATHDIRS}:${PATH}
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${FPPDIR}/external/RF24:${FPPDIR}/lib:${FPPDIR}/src
 
 SUDO=${SUDO:-sudo}
+export SRCDIR="${FPPDIR}/src"
 SCRIPTDIR="${FPPDIR}/scripts"
 BINDIR="${FPPDIR}/scripts"
 UPGRADEDIR="${FPPDIR}/upgrade"
-MEDIADIR="${MEDIADIR:-${FPPHOME}/media}"
 LOGDIR="${MEDIADIR}/logs"
 CFGDIR="${MEDIADIR}/config"
 CFGFILE="${CFGFILE:-${MEDIADIR}/settings}"
-PLUGINDIR="${PLUGINDIR:-${FPPHOME}/media/plugins}"
-SETTINGSFILE="${SETTINGSFILE:-${FPPHOME}/media/settings}"
-FPPVERSIONFILE="${FPPVERSIONFILE:-/etc/fpp/rfs_version}"
-FPPVERSION="${FPPVERSION:-0}"
-[ -f $FPPVERSIONFILE ] && FPPVERSION="$(cat ${FPPVERSIONFILE} | sed -e "s/[^0-9]//g")"
-CFGVERSIONFILE="${CFGVERSIONFILE:-/etc/fpp/config_version}"
-CFGVERSION="${CFGVERSION:-0}"
-[ -f $CFGVERSIONFILE ] && CFGVERSION="$(cat ${CFGVERSIONFILE})"
+PLUGINDIR="${PLUGINDIR:-${MEDIADIR}/plugins}"
+SETTINGSFILE="${SETTINGSFILE:-${MEDIADIR}/settings}"
 
-. /etc/os-release
-OSID=${ID}
-OSVER="${ID}_${VERSION_ID}"
-if [ "x${OSID}" = "xraspbian" ]
-then
-    OSVER="debian_${VERSION_ID}"
+
+if [ "${FPPPLATFORM}" != "MacOS" ]; then
+    FPPVERSIONFILE="${FPPVERSIONFILE:-/etc/fpp/rfs_version}"
+    FPPVERSION="${FPPVERSION:-0}"
+    [ -f $FPPVERSIONFILE ] && FPPVERSION="$(cat ${FPPVERSIONFILE} | sed -e "s/[^0-9]//g")"
+    CFGVERSIONFILE="${CFGVERSIONFILE:-/etc/fpp/config_version}"
+    CFGVERSION="${CFGVERSION:-0}"
+    [ -f $CFGVERSIONFILE ] && CFGVERSION="$(cat ${CFGVERSIONFILE})"
+
+    . /etc/os-release
+    OSID=${ID}
+    OSVER="${ID}_${VERSION_ID}"
+    if [ "x${OSID}" = "xraspbian" ]; then
+        OSVER="debian_${VERSION_ID}"
+    fi
+else
+    SOURCE_VERSION=$(cd ${FPPDIR} ; git describe --dirty || git describe ${FPPDIR} || echo Unknown)
+    MAJOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d\.)
+    MINOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d- | cut -f2 -d\.)
+    if [ "$MINOR_VERSION" = "x" ]; then
+        MINOR_VERSION=0
+    fi
+
+    FPPVERSION=${MAJOR_VERSION}${MINOR_VERSION}
+    CFGVERSION="999999"
+    CFGVERSIONFILE="${CFGVERSIONFILE:-/etc/fpp/config_version}"
+    SUDO=""
+    export CFGVERSION
 fi
-
+export FPPVERSION
 
 #############################################################################
 makeLogDir() {
 	if [ ! -d ${LOGDIR} ]
 	then
 		mkdir -p ${LOGDIR}
-		chown ${FPPUSER}.${FPPUSER} ${LOGDIR}
+		chown ${FPPUSER}.${FPPGROUP} ${LOGDIR}
 		chmod 775 ${LOGDIR}
 	fi
 }
@@ -108,7 +150,7 @@ getSettingInfo() {
     SETTING=$1
     ATTR=$2
 
-    cat /opt/fpp/www/settings.json | python -c "import sys,json; data = json.load(sys.stdin); print(data['settings']['${SETTING}']['${ATTR}'] if (('settings' in data) and ('${SETTING}' in data['settings']) and ('${ATTR}' in data['settings']['${SETTING}'])) else data['attributes']['${ATTR}'] if ('${ATTR}' in data['attributes']) else '');"
+    cat $FPPDIR/www/settings.json | python -c "import sys,json; data = json.load(sys.stdin); print(data['settings']['${SETTING}']['${ATTR}'] if (('settings' in data) and ('${SETTING}' in data['settings']) and ('${ATTR}' in data['settings']['${SETTING}'])) else data['attributes']['${ATTR}'] if ('${ATTR}' in data['attributes']) else '');"
 }
 
 setSetting() {

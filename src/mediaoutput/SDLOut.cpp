@@ -120,6 +120,15 @@ public:
         if (frame != nullptr) {
             av_free(frame);
         }
+        
+        if (audioCodecContext) {
+            avcodec_close(audioCodecContext);
+            audioCodecContext = nullptr;
+        }
+        if (videoCodecContext) {
+            avcodec_close(videoCodecContext);
+            videoCodecContext = nullptr;
+        }
         if (swsCtx != nullptr) {
             sws_freeContext(swsCtx);
             swsCtx = nullptr;
@@ -353,7 +362,7 @@ static int open_codec_context(int* stream_idx,
                               const std::string& src_filename) {
     int ret, stream_index;
     AVStream* st;
-    AVCodec* dec = NULL;
+    const AVCodec* dec = NULL;
     AVDictionary* opts = NULL;
     ret = av_find_best_stream(fmt_ctx, type, -1, -1, NULL, 0);
     if (ret < 0) {
@@ -611,6 +620,9 @@ bool SDL::openAudio() {
                 _wanted_spec.freq = 48000;
             }
 #endif
+#ifdef PLATFORM_OSX
+            _wanted_spec.freq = 48000;
+#endif
             _wanted_spec.format = AUDIO_S16;
             break;
 
@@ -654,6 +666,21 @@ bool SDL::openAudio() {
             break;
         }
 
+        const char *audioDeviceName = nullptr;
+#ifdef PLATFORM_OSX
+        std::string dev = getSetting("AudioOutput", "--System Default--");
+        if (dev != "--System Default--") {
+            int cnt = SDL_GetNumAudioDevices(0);
+            for (int x = 0; x < cnt; x++) {
+                std::string dn = SDL_GetAudioDeviceName(x, 0);
+                if (endsWith(dn, dev)) {
+                    audioDeviceName = SDL_GetAudioDeviceName(x, 0);
+                }
+            }
+            LogDebug(VB_MEDIAOUT, "Using output device: %s\n", audioDeviceName);
+        }
+#endif
+        
         _wanted_spec.channels = 2;
         _wanted_spec.silence = 0;
         _wanted_spec.samples = DEFAULT_NUM_SAMPLES;
@@ -661,7 +688,7 @@ bool SDL::openAudio() {
         _wanted_spec.userdata = nullptr;
 
         SDL_AudioSpec have;
-        audioDev = SDL_OpenAudioDevice(NULL, 0, &_wanted_spec, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+        audioDev = SDL_OpenAudioDevice(audioDeviceName, 0, &_wanted_spec, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE);
         if (audioDev == 0 && !noDeviceWarning) {
             noDeviceError = "Could not open audio device - ";
             noDeviceError += SDL_GetError();
@@ -797,14 +824,10 @@ SDLOutput::SDLOutput(const std::string& mediaFilename,
     }
     std::string fullAudioPath = mediaFilename;
     if (!FileExists(mediaFilename)) {
-        fullAudioPath = FPP_DIR_MUSIC;
-        fullAudioPath += "/";
-        fullAudioPath += mediaFilename;
+        fullAudioPath = FPP_DIR_MUSIC("/" + mediaFilename);
     }
     if (!FileExists(fullAudioPath)) {
-        fullAudioPath = FPP_DIR_VIDEO;
-        fullAudioPath += "/";
-        fullAudioPath += mediaFilename;
+        fullAudioPath = FPP_DIR_VIDEO("/" + mediaFilename);
     }
     if (!FileExists(fullAudioPath)) {
         LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());

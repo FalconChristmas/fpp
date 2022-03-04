@@ -141,6 +141,7 @@ dispatch_get('/system/reboot', 'RebootDevice');
 dispatch_get('/system/releaseNotes/:version', 'ViewReleaseNotes');
 dispatch_get('/system/shutdown', 'SystemShutdownOS');
 dispatch_get('/system/status', 'SystemGetStatus');
+dispatch_get('/system/info', 'SystemGetInfo');
 dispatch_get('/system/volume', 'SystemGetAudio');
 dispatch_post('/system/volume', 'SystemSetAudio');
 
@@ -157,7 +158,8 @@ run();
 
 function addPluginEndpoints()
 {
-    $baseDir = '/home/fpp/media/plugins/';
+    global $pluginDirectory;
+    $baseDir = $pluginDirectory . '/';
     if ($dir = opendir($baseDir)) {
         while (($file = readdir($dir)) !== false) {
             if (!in_array($file, array('.', '..')) && is_dir($baseDir . $file) && is_file($baseDir . $file . '/api.php')) {

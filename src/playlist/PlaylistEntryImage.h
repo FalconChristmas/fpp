@@ -31,14 +31,15 @@
 #include <string>
 #include <thread>
 
-#include <Magick++.h>
-
-#include "FrameBuffer.h"
+#include "overlays/PixelOverlayModel.h"
 #include "PlaylistEntryBase.h"
 
-using namespace Magick;
+namespace Magick
+{
+    class Image;
+};
 
-class PlaylistEntryImage : public PlaylistEntryBase, public FrameBuffer {
+class PlaylistEntryImage : public PlaylistEntryBase {
 public:
     PlaylistEntryImage(Playlist* playlist, PlaylistEntryBase* parent = NULL);
     virtual ~PlaylistEntryImage();
@@ -64,8 +65,8 @@ private:
     void Draw(void);
 
     std::string GetCacheFileName(std::string fileName);
-    bool GetImageFromCache(std::string fileName, Image& image);
-    void CacheImage(std::string fileName, Image& image);
+    bool GetImageFromCache(std::string fileName, Magick::Image& image);
+    void CacheImage(std::string fileName, Magick::Image& image);
     void CleanupCache(void);
 
     std::string m_imagePath;
@@ -82,6 +83,10 @@ private:
 
     int m_width;
     int m_height;
+
+    std::string m_modelName;
+    PixelOverlayModel *m_model = nullptr;
+    PixelOverlayState::PixelState m_modelOrigState = PixelOverlayState::PixelState::Disabled;
 
     unsigned char* m_buffer;
     int m_bufferSize;

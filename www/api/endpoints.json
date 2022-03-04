@@ -619,58 +619,73 @@
                     "desc": "Gets the current status of the FPPD daemon",
                     "output": {
                         "MQTT": {
-                            "configured": false,
-                            "connected": false
+                            "configured": true,
+                            "connected": true
                         },
+                        "bridging": false,
                         "current_playlist": {
-                            "count": "0",
-                            "index": "0",
-                            "playlist": "",
-                            "type": ""
+                            "count": "1",
+                            "description": "Idle 30 seconds",
+                            "index": "1",
+                            "playlist": "Idle30",
+                            "type": "pause"
                         },
                         "current_sequence": "",
                         "current_song": "",
+                        "dateStr": "Sat Feb 26",
                         "fppd": "running",
                         "mode": 2,
                         "mode_name": "player",
+                        "multisync": false,
                         "next_playlist": {
-                            "playlist": "No playlist scheduled.",
-                            "start_time": ""
+                            "playlist": "Idle30",
+                            "start_time": "Sun Feb 27 @ 12:00 AM - (Everyday)"
                         },
-                        "repeat_mode": "0",
-                        "seconds_played": "0",
-                        "seconds_remaining": "0",
+                        "repeat_mode": 1,
                         "scheduler": {
+                            "currentPlaylist": {
+                                "actualEndTime": 1645938000,
+                                "actualEndTimeStr": "Sun Feb 27 @ 12:00 AM",
+                                "actualStartTime": 1645911479,
+                                "actualStartTimeStr": "Sat Feb 26 @ 04:37 PM",
+                                "currentTime": 1645911483,
+                                "currentTimeStr": "Wed Dec 31 @ 07:00 PM",
+                                "playlistName": "Idle30",
+                                "scheduledEndTime": 1645938000,
+                                "scheduledEndTimeStr": "Sun Feb 27 @ 12:00 AM",
+                                "scheduledStartTime": 1645851600,
+                                "scheduledStartTimeStr": "Sat Feb 26 @ 12:00 AM",
+                                "secondsRemaining": 26517,
+                                "stopType": 0,
+                                "stopTypeStr": "Graceful"
+                            },
                             "enabled": 1,
                             "nextPlaylist": {
-                                "playlistName": "No playlist scheduled.",
+                                "playlistName": "Idle30",
                                 "scheduledStartTime": 0,
-                                "scheduledStartTimeStr": ""
+                                "scheduledStartTimeStr": "Sun Feb 27 @ 12:00 AM - (Everyday)"
                             },
-                            "status": "idle"
+                            "status": "playing"
                         },
-                        "sensors": [
-                            {
-                                "formatted": "53.7",
-                                "label": "CPU: ",
-                                "postfix": "",
-                                "prefix": "",
-                                "value": 53.692,
-                                "valueType": "Temperature"
-                            }
-                        ],
-                        "status": 0,
-                        "status_name": "idle",
-                        "time": "Tue Apr 02 08:06:34 EDT 2019",
-                        "time_elapsed": "00:00",
-                        "time_remaining": "00:00",
-                        "volume": 0,
-                        "uptime": "00:22",
-                        "uptimeDays": 0.00025462962962962961,
-                        "uptimeHours": 0.0061111111111111114,
-                        "uptimeMinutes": 0.36666666666666664,
-                        "uptimeSeconds": 22,
-                        "uptimeStr": "0 days, 0 hours, 0 minutes, 22 seconds"
+                        "seconds_elapsed": "5",
+                        "seconds_played": "5",
+                        "seconds_remaining": "25",
+                        "status": 1,
+                        "status_name": "playing",
+                        "time": "Sat Feb 26 16:38:03 EST 2022",
+                        "timeStr": "04:38 PM",
+                        "timeStrFull": "04:38:03 PM",
+                        "time_elapsed": "00:05",
+                        "time_remaining": "00:25",
+                        "uptime": "00:04",
+                        "uptimeDays": 4.6296296296296294e-05,
+                        "uptimeHours": 0.0011111111111111111,
+                        "uptimeMinutes": 0.066666666666666666,
+                        "uptimeSeconds": 4,
+                        "uptimeStr": "0 days, 0 hours, 0 minutes, 4 seconds",
+                        "uptimeTotalSeconds": 4,
+                        "uuid": "M2-4c928e82-f67f-930d-56ee-7f883e62591b",
+                        "volume": 70
                     }
                 }
             }
@@ -2310,6 +2325,42 @@
                     "desc": "Execute a clean shutdown of the Linux operating system.",
                     "output": {
                         "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "system/info",
+            "methods": {
+                "GET": {
+                    "desc": "Returns basic information about the system.",
+                    "output": {
+                        "HostName": "FPPPi",
+                        "HostDescription": "",
+                        "Platform": "Raspberry Pi",
+                        "Variant": "Pi 4",
+                        "Mode": "player",
+                        "Version": "6.0",
+                        "Branch": "master",
+                        "OSVersion": "v2022-02",
+                        "OSRelease": "Raspbian GNU/Linux 11 (bullseye)",
+                        "channelRanges": "1545-84479",
+                        "majorVersion": 6,
+                        "minorVersion": 1000,
+                        "typeId": 13,
+                        "uuid": "M1-10000000AAAAAAA",
+                        "Utilization": {
+                          "CPU": 0.11971951428083116,
+                          "Memory": 1.955242609664765,
+                          "Uptime": "11 days"
+                        },
+                        "Kernel": "5.10.92-v7l+",
+                        "LocalGitVersion": "b998f65",
+                        "RemoteGitVersion": "ed62c12",
+                        "UpgradeSource": "github.com",
+                        "IPs": [
+                          "192.168.3.84"
+                        ]
                     }
                 }
             }

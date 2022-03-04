@@ -27,16 +27,18 @@ then
 fi
 
 
-$SUDO chown -R fpp.fpp $1
+if [ "${FPPPLATFORM}" != "MacOS" ]; then
+    $SUDO chown -R fpp.fpp $1
+fi
 
 if [ -x "${PLUGINDIR}/$1/scripts/fpp_install.sh" ]
 then
 	echo "Running fpp_install.sh script for $1"
-	$SUDO ${PLUGINDIR}/$1/scripts/fpp_install.sh
+	$SUDO ${PLUGINDIR}/$1/scripts/fpp_install.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 else
 	if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]
 	then
 		echo "Running fpp_install.sh script for $1"
-		$SUDO ${PLUGINDIR}/$1/fpp_install.sh
+		$SUDO ${PLUGINDIR}/$1/fpp_install.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 	fi
 fi

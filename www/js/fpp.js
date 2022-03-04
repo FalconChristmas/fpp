@@ -3926,8 +3926,13 @@ function ClearRebootFlag() {
 }
 
 function SetRebootFlag() {
-    settings['rebootFlag'] = 1;
-    SetSettingReboot('rebootFlag', 1);
+    if (settings['Platform'] == "MacOS") {
+        // no reboot on MacOS, just restart
+        SetRestartFlag(2);
+    } else {
+        settings['rebootFlag'] = 1;
+        SetSettingReboot('rebootFlag', 1);
+    }
 }
 
 function CheckRestartRebootFlags() {
@@ -4054,19 +4059,21 @@ function PopulatePlaylists(sequencesAlso, options) {
     GetPlaylistArray(onPlaylistArrayLoaded);
 
     if (sequencesAlso)
-        playlistOptionsText += "<option disabled>---------- Playlists ---------- </option>";
+        playlistOptionsText += "<optgroup label='Playlists'>";
 
     for (j = 0; j < playListArray.length; j++) {
         playlistOptionsText += "<option value=\"" + playListArray[j].name + "\">" + playListArray[j].name + "</option>";
     }
 
     if (sequencesAlso) {
+        playlistOptionsText += "</optgroup><optgroup label='Sequences'>";
         GetSequenceArray();
 
-        playlistOptionsText += "<option disabled>---------- Sequences ---------- </option>";
         for (j = 0; j < sequenceArray.length; j++) {
             playlistOptionsText += "<option value=\"" + sequenceArray[j] + ".fseq\">" + sequenceArray[j] + ".fseq</option>";
         }
+
+        playlistOptionsText += "</optgroup>";
     }
 
     $('#playlistSelect').html(playlistOptionsText);
@@ -5948,7 +5955,9 @@ function RefreshHeaderBar() {
                     var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
                 } else if (n.family === "inet" && "wifi" in e) {
-                    var row = '<span title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
+                    var row = '<span title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + 'dBm">';
+                    row += '<img src="images/redesign/wifi-' + e.wifi.desc + '.svg" height="14px"/>';
+                    row += '<small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
                 } else if (n.family === "inet") {
                     var icon = "text-success";
@@ -6153,3 +6162,54 @@ function bytesToHuman(bytes) {
     size = size / 1024;
     return "" + Math.round(size) + "TB"
 }
+
+function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, dropDownTitle, selectClass, onselect = "") {
+    var result = selectTitle != '' ? selectTitle + ':&nbsp;' : '';
+
+    result += "<select class='"+selectClass+"'";
+    if (onselect != "") {
+        result += " onchange='" + onselect + "'";
+    }
+    result += ">";
+
+    if (currentValue === "")
+        result += "<option value=''>"+dropDownTitle+"</option>";
+
+    var found = 0;
+    if (optionArray instanceof Map) {
+        optionArray.forEach((key, value) => {
+                                result += "<option value='" + value + "'";
+
+                                if (currentValue == value) {
+                                    result += " selected";
+                                    found = 1;
+                                }
+
+                                result += ">" + key + "</option>";
+                            });
+    } else {
+        for (var key in optionArray) {
+            result += "<option value='" + key + "'";
+
+            if (currentValue == key) {
+                result += " selected";
+                found = 1;
+            }
+
+            result += ">" + optionArray[key] + "</option>";
+        }
+    }
+
+    if ((currentValue != '') &&
+        (found == 0)) {
+        result += "<option value='" + currentValue + "'>" + currentValue + "</option>";
+    }
+    result += "</select>";
+
+    return result;
+}
+
+function DeviceSelect(deviceArray = ["No Devices"], currentValue, onselect = "") {
+    return CreateSelect (deviceArray, currentValue, "Port", "-- Port --", "device", onselect);
+}
+

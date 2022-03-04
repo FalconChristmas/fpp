@@ -44,6 +44,7 @@
 #include "common.h"
 #include "log.h"
 #include "settings.h"
+#include "../config.h"
 
 //old style that still need porting
 #include "FPD.h"
@@ -196,7 +197,6 @@ void ChannelOutputJSON2CSV(Json::Value config, char* configStr) {
 
 // in some of these cases, we could symlink the shlib and add additional createXXXOutput methods
 static std::map<std::string, std::string> OUTPUT_REMAPS = {
-    { "VirtualDisplay", "FBVirtualDisplay" },
     { "VirtualMatrix", "FBMatrix" },
     { "DMX-Pro", "USBDMX" },
     { "DMX-Open", "USBDMX" },
@@ -239,11 +239,11 @@ int InitializeChannelOutputs(void) {
 
     // FIXME, build this list dynamically
     const char* configFiles[] = {
-        "co-universes.json",
-        "co-other.json",
-        "co-pixelStrings.json",
-        "co-bbbStrings.json",
-        "channeloutputs.json",
+        "/co-universes.json",
+        "/co-other.json",
+        "/co-pixelStrings.json",
+        "/co-bbbStrings.json",
+        "/channeloutputs.json",
         NULL
     };
 
@@ -253,8 +253,7 @@ int InitializeChannelOutputs(void) {
 
     // Parse the JSON channel outputs config files
     for (int f = 0; configFiles[f]; f++) {
-        strcpy(filename, FPP_DIR_CONFIG "/");
-        strcat(filename, configFiles[f]);
+        strcpy(filename, FPP_DIR_CONFIG(configFiles[f]).c_str());
 
         LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
 
@@ -300,10 +299,11 @@ int InitializeChannelOutputs(void) {
                     type = OUTPUT_REMAPS[type];
                 }
 
-                std::string libname = "libfpp-co-" + libnamePfx + type + ".so";
+                std::string libname = "libfpp-co-" + libnamePfx + type + SHLIB_EXT;
                 void* handle = dlopen(libname.c_str(), RTLD_NOW);
                 if (handle == NULL) {
                     LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s - Error: %s\n", type.c_str(), dlerror());
+                    WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
                     continue;
                 }
                 ChannelOutputBase* (*fptr)(unsigned int, unsigned int);
@@ -489,7 +489,7 @@ void CloseChannelOutputs(void) {
 
 int LoadOutputProcessors(void) {
     Json::Value root;
-    std::string filename(FPP_DIR_CONFIG "/outputprocessors.json");
+    std::string filename = FPP_DIR_CONFIG("/outputprocessors.json");
 
     if (!FileExists(filename))
         return 0;

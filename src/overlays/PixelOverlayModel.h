@@ -16,7 +16,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <jsoncpp/json/json.h>
 #include <mutex>
 #include <thread>
 
@@ -62,9 +61,10 @@ private:
 class PixelOverlayModel {
 public:
     PixelOverlayModel(const Json::Value& config);
-    ~PixelOverlayModel();
+    virtual ~PixelOverlayModel();
 
     const std::string& getName() const { return name; };
+    const std::string& getType() const { return type; };
 
     int getWidth() const { return width; }
     int getHeight() const { return height; }
@@ -74,11 +74,12 @@ public:
     }
 
     PixelOverlayState getState() const;
-    void setState(const PixelOverlayState& state);
+    virtual void setState(const PixelOverlayState& state);
 
-    void doOverlay(uint8_t* channels);
+    virtual void doOverlay(uint8_t* channels);
 
-    void setData(const uint8_t* data); // full RGB data, width*height*3
+    virtual void setData(const uint8_t* data); // full RGB data, width*height*3
+    virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h);
 
     int getStartChannel() const;
     int getChannelCount() const;
@@ -92,8 +93,13 @@ public:
     void fillOverlayBuffer(int r, int g, int b);
     void setOverlayPixelValue(int x, int y, int r, int g, int b);
     void getOverlayPixelValue(int x, int y, int& r, int& g, int& b);
-    void setOverlayBufferDirty();
+    virtual void setOverlayBufferDirty(bool dirty = true);
     void flushOverlayBuffer();
+
+    virtual bool overlayBufferIsDirty();
+
+    void setBufferIsDirty(bool dirty = true);
+    bool needRefresh();
 
     void clear() {
         clearOverlayBuffer();
@@ -111,11 +117,12 @@ public:
 
     int32_t updateRunningEffects();
 
-private:
+protected:
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
 
     Json::Value config;
     std::string name;
+    std::string type;
     int width, height;
     PixelOverlayState state;
     int startChannel;
@@ -124,6 +131,8 @@ private:
 
     std::vector<uint32_t> channelMap;
     uint8_t* channelData;
+
+    volatile bool dirtyBuffer = false;
 
     struct OverlayBufferData {
         uint32_t width;

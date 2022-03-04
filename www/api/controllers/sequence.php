@@ -45,7 +45,7 @@ function GetSequence() {
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/sequence/:SequenceName/meta
 function GetSequenceMetaData() {
-    global $settings;
+    global $settings, $fppDir;
     $sequence = params('SequenceName');
     $file = $settings['sequenceDirectory'] . "/" . $sequence;
     if (substr( $file, -5 ) != ".fseq") {
@@ -55,7 +55,7 @@ function GetSequenceMetaData() {
 	$file = urldecode($file);
     }
     if (file_exists($file)) {
-        $cmd = "/opt/fpp/src/fsequtils -j \"$file\" 2> /dev/null";
+        $cmd = $fppDir . "/src/fsequtils -j \"$file\" 2> /dev/null";
         exec( $cmd, $output);
         if (isset($output[0])) {
             $js = json_decode($output[0]);

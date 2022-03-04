@@ -25,17 +25,16 @@
 
 #include "fpp-pch.h"
 
+#include "PlaylistEntryImage.h"
 #include <sys/stat.h>
 
-#if __GNUC__ >= 8
 #include <filesystem>
 using namespace std::filesystem;
-#else
-#include <experimental/filesystem>
-using namespace std::experimental::filesystem;
-#endif
 
-#include "PlaylistEntryImage.h"
+#include <Magick++.h>
+using namespace Magick;
+
+#include "overlays/PixelOverlay.h"
 
 void StartPrepLoopThread(PlaylistEntryImage* fb);
 
@@ -44,7 +43,6 @@ void StartPrepLoopThread(PlaylistEntryImage* fb);
  */
 PlaylistEntryImage::PlaylistEntryImage(Playlist* playlist, PlaylistEntryBase* parent) :
     PlaylistEntryBase(playlist, parent),
-    FrameBuffer(),
     m_width(800),
     m_height(600),
     m_buffer(NULL),
@@ -52,10 +50,9 @@ PlaylistEntryImage::PlaylistEntryImage(Playlist* playlist, PlaylistEntryBase* pa
     LogDebug(VB_PLAYLIST, "PlaylistEntryImage::PlaylistEntryImage()\n");
 
     m_type = "image";
-    m_device = "fb0";
 
-    m_fileSeed = (unsigned int)time(NULL);
-    m_cacheDir = "/home/fpp/media/cache";
+    m_fileSeed = (unsigned int)(time(NULL) + ((long long)this & 0xFFFFFFFF));
+    m_cacheDir = FPP_DIR_MEDIA("/cache");
     m_cacheEntries = 200;
     m_cacheSize = 1024; // MB
     m_freeSpace = 2048; // MB
@@ -71,12 +68,42 @@ PlaylistEntryImage::~PlaylistEntryImage() {
         m_prepThread->join();
         delete m_prepThread;
     }
+
+    if (m_modelOrigState == PixelOverlayState::PixelState::Disabled) {
+        m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
+
+        if (m_model) {
+            m_model->clear();
+            m_model->setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
+        }
+    }
 }
 
 /*
  *
  */
 int PlaylistEntryImage::Init(Json::Value& config) {
+    if (config.isMember("modelName"))
+        m_modelName = config["modelName"].asString();
+
+    if (m_modelName == "") {
+        LogErr(VB_PLAYLIST, "Empty Pixel Overlay Model name\n");
+        return 0;
+    }
+
+    m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
+
+    if (!m_model) {
+        LogErr(VB_PLAYLIST, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
+        return 0;
+    }
+    m_width = m_model->getWidth();
+    m_height = m_model->getHeight();
+    m_modelOrigState = m_model->getState().getState();
+    
+    if (m_modelOrigState == PixelOverlayState::PixelState::Disabled)
+        m_model->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
+
     if (!config.isMember("imagePath")) {
         LogErr(VB_PLAYLIST, "Missing imagePath\n");
         return 0;
@@ -86,33 +113,13 @@ int PlaylistEntryImage::Init(Json::Value& config) {
     if (startsWith(m_imagePath, "/")) {
         m_imageFullPath = m_imagePath;
     } else {
-        m_imageFullPath = FPP_DIR_IMAGE;
-        m_imageFullPath += "/";
-        m_imageFullPath += m_imagePath;
+        m_imageFullPath = FPP_DIR_IMAGE("/" + m_imagePath);
     }
-
-    if (config.isMember("outputDevice"))
-        m_device = config["outputDevice"].asString();
-
-    if (m_device == "fb0")
-        m_device = "/dev/fb0";
-    else if (m_device == "fb1")
-        m_device = "/dev/fb1";
 
     SetFileList();
     CleanupCache();
 
-    if ((m_device == "/dev/fb0") || (m_device == "/dev/fb1") || (m_device == "x11")) {
-        config["dataFormat"] = "RGBA";
-        FBInit(config);
-
-        m_width = m_fbWidth;
-        m_height = m_fbHeight;
-    } else {
-        // Pixel Overlay Model??
-    }
-
-    m_bufferSize = m_width * m_height * 4; // RGBA
+    m_bufferSize = m_width * m_height * 3; // RGB
     m_buffer = new unsigned char[m_bufferSize];
 
     m_runLoop = true;
@@ -170,9 +177,7 @@ void PlaylistEntryImage::Dump(void) {
 
     LogDebug(VB_PLAYLIST, "Image Path     : %s\n", m_imagePath.c_str());
     LogDebug(VB_PLAYLIST, "Image Full Path: %s\n", m_imageFullPath.c_str());
-    LogDebug(VB_PLAYLIST, "Output Device  : %s\n", m_device.c_str());
-
-    FrameBuffer::Dump();
+    LogDebug(VB_PLAYLIST, "Model Name     : %s\n", m_modelName.c_str());
 }
 
 /*
@@ -182,15 +187,13 @@ Json::Value PlaylistEntryImage::GetConfig(void) {
     Json::Value result = PlaylistEntryBase::GetConfig();
 
     result["imagePath"] = m_imagePath;
-    result["outputDevice"] = m_device;
+    result["modelName"] = m_modelName;
 
     std::size_t found = m_curFileName.find_last_of("/");
     if (found > 0)
         result["imageFilename"] = m_curFileName.substr(found + 1);
     else
         result["imageFilename"] = m_curFileName;
-
-    FrameBuffer::GetConfig(result);
 
     return result;
 }
@@ -240,6 +243,9 @@ const std::string PlaylistEntryImage::GetNextFile(void) {
     result = m_files[i];
     m_files.erase(m_files.begin() + i);
 
+    if (!FileExists(result))
+        return GetNextFile(); // Recurse to handle refilling empty list
+
     LogDebug(VB_PLAYLIST, "GetNextFile() = %s\n", result.c_str());
 
     return result;
@@ -269,16 +275,22 @@ void PlaylistEntryImage::PrepImage(void) {
     memset(m_buffer, 0, m_bufferSize);
 
     try {
+        int cols = 0;
+        int rows = 0;
+
+        needToCache = false;
         image.quiet(true); // Squelch warning exceptions
 
         if (GetImageFromCache(nextFile, image)) {
-            needToCache = false;
-        } else {
-            image.read(nextFile.c_str());
+            cols = image.columns();
+            rows = image.rows();
         }
 
-        int cols = image.columns();
-        int rows = image.rows();
+        if ((cols != m_width) || (rows != m_height)) {
+            image.read(nextFile.c_str());
+            cols = image.columns();
+            rows = image.rows();
+        }
 
         if ((cols != m_width) && (rows != m_height)) {
             needToCache = true;
@@ -320,7 +332,7 @@ void PlaylistEntryImage::PrepImage(void) {
             CacheImage(nextFile, image);
         }
 
-        image.magick("RGBA");
+        image.magick("RGB");
         image.write(&blob);
 
         memcpy(m_buffer, blob.data(), m_bufferSize);
@@ -339,13 +351,15 @@ void PlaylistEntryImage::PrepImage(void) {
 void PlaylistEntryImage::Draw(void) {
     m_bufferLock.lock();
 
-    if ((m_device == "/dev/fb0") || (m_device == "/dev/fb1") || (m_device == "x11")) {
-        FBCopyData(m_buffer);
-        FBStartDraw(); // Actual draw runs in another thread
-        m_curFileName = m_nextFileName;
-    } else {
-        // Pixel Overlay Model?
+    // We need to look this up again since the model may have disappeared
+    m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
+
+    if (!m_model) {
+        LogErr(VB_PLAYLIST, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
+        return;
     }
+
+    m_model->setData(m_buffer);
 
     m_bufferLock.unlock();
 

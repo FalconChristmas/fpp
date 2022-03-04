@@ -58,9 +58,11 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
 <?
 
 $extraData = "<div class='form-actions'>" .
-    "<input type='button' class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'> " .
-    "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'> " .
-    "<input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> " .
+    "<input type='button' class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'> ";
+if ($settings["Platform"] != "MacOS") {
+    $extraData .= "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'> ";
+}
+$extraData .= "<input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> " .
     "<input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'> " .
     "</div>";
 

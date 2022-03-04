@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>falconchristmas.fppd</string>
+	<key>WorkingDirectory</key>
+	<string>FPPDIR/src/</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>FPPDIR/src/fppd</string>
+		<string>-f</string>
+	</array>
+	<key>StandardOutPath</key>
+	<string>MEDIADIR/logs/fppd.log</string>
+	<key>StandardErrorPath</key>
+	<string>MEDIADIR/logs/fppd.log</string>
+	<key>KeepAlive</key>
+	<false/>
+	<key>RunAtLoad</key>
+	<true/>
+</dict>
+</plist>

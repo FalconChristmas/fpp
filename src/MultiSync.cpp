@@ -26,8 +26,8 @@
 #include "fpp-pch.h"
 
 #include <arpa/inet.h>
-#include <linux/version.h>
 #include <netinet/in.h>
+#include <net/if.h>
 #include <sys/types.h>
 #include <ifaddrs.h>
 #include <math.h>
@@ -165,6 +165,10 @@ Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
     system["local"] = local ? 1 : 0;
 
     system["multiSyncCapable"] = multiSync ? 1 : 0;
+    
+    if (local) {
+        system["HostDescription"] = getSetting("HostDescription");
+    }
 
     return system;
 }
@@ -341,8 +345,12 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model) {
         }
         return kSysTypeFPPBeagleBoneGreen;
     }
-    if (contains(model, "PocketBeagle"))
+    if (contains(model, "PocketBeagle")) {
         return kSysTypeFPPPocketBeagle;
+    }
+    if (model == "MacOS") {
+        return kSysTypeMacOS;
+    }
     // FIXME, fill in the rest of the types
 
     return kSysTypeFPP;
@@ -425,6 +433,7 @@ bool MultiSync::FillLocalSystemInfo(void) {
     newSystem.ipb = 0;
     newSystem.ipc = 0;
     newSystem.ipd = 0;
+    newSystem.uuid = getSetting("SystemUUID");
 
     LogDebug(VB_SYNC, "Host name: %s\n", newSystem.hostname.c_str());
     LogDebug(VB_SYNC, "Version: %s\n", newSystem.version.c_str());
@@ -459,6 +468,9 @@ bool MultiSync::FillLocalSystemInfo(void) {
  *
  */
 std::string MultiSync::GetHardwareModel(void) {
+#ifdef PLATFORM_OSX
+    return "MacOS";
+#else
     std::string result;
     std::string filename;
 
@@ -490,6 +502,7 @@ std::string MultiSync::GetHardwareModel(void) {
     TrimWhiteSpace(result);
 
     return result;
+#endif
 }
 
 /*
@@ -594,6 +607,8 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local) {
         return "ESPixelStick-ESP8266";
     case kSysTypeESPixelStickESP32:
         return "ESPixelStick-ESP32";
+    case kSysTypeMacOS:
+        return "MacOS";
     case kSysTypeSanDevices:
         return "SanDevices";
     case kSysTypeAlphaPix:
@@ -713,7 +728,7 @@ void MultiSync::Discover() {
 void MultiSync::PerformHTTPDiscovery() {
     std::string subnetsStr = getSetting("MultiSyncHTTPSubnets");
 
-    Json::Value outputs = LoadJsonFromFile("/home/fpp/media/config/co-universes.json");
+    Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"));
     if (outputs.isMember("channelOutputs")) {
         for (int co = 0; co < outputs["channelOutputs"].size(); co++) {
             if (outputs["channelOutputs"][co].isMember("universes")) {
@@ -1789,10 +1804,16 @@ void MultiSync::SendMulticastPacket(void* outBuf, int len) {
                 if (setsockopt(a.second.multicastSocket, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&loopch, sizeof(loopch)) < 0) {
                     LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP for %s: %s\n", a.second.interfaceName.c_str(), strerror(errno));
                 }
-
+#ifdef PLATFORM_OSX
+                int idx = if_nametoindex( a.second.interfaceName.c_str());
+                if (setsockopt(a.second.multicastSocket, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx)) < 0) {
+                    LogErr(VB_SYNC, "Error setting IP_MULTICAST Device for %s: %s\n", a.second.interfaceName.c_str(), strerror(errno));
+                }
+#else
                 if (setsockopt(a.second.multicastSocket, SOL_SOCKET, SO_BINDTODEVICE, a.second.interfaceName.c_str(), a.second.interfaceName.size()) < 0) {
                     LogErr(VB_SYNC, "Error setting IP_MULTICAST Device for %s: %s\n", a.second.interfaceName.c_str(), strerror(errno));
                 }
+#endif                
             }
         }
 
@@ -1845,7 +1866,11 @@ bool MultiSync::FillInInterfaces() {
         if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
             if (isSupportedForMultisync("", tmp->ifa_name)) {
                 //skip the usb* interfaces as we won't support multisync on those
+#ifdef PLATFORM_OSX
+                struct sockaddr_in* ba = (struct sockaddr_in*)(tmp->ifa_dstaddr);
+#else
                 struct sockaddr_in* ba = (struct sockaddr_in*)(tmp->ifa_ifu.ifu_broadaddr);
+#endif                
                 struct sockaddr_in* sa = (struct sockaddr_in*)(tmp->ifa_addr);
 
                 NetInterfaceInfo& info = m_interfaces[tmp->ifa_name];

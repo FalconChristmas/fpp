@@ -71,16 +71,6 @@ function NewUSBConfig() {
 /////////////////////////////////////////////////////////////////////////////
 // Virtual Matrix Output
 //
-// Framebuffer Devices
-var FBDevices = new Array();
-<?
-foreach (scandir("/dev/") as $fileName) {
-    if (preg_match("/^fb[0-9]+/", $fileName)) {
-        echo "FBDevices['$fileName'] = '$fileName';\n";
-    }
-}
-?>
-
 function VirtualMatrixLayoutChanged(item) {
 	var width = $(item).parent().parent().find("input.width").val();
 	var height = $(item).parent().parent().find("input.height").val();
@@ -411,96 +401,6 @@ function GetUSBRelayOutputConfig(result, cell) {
 
 
 /////////////////////////////////////////////////////////////////////////////
-// VirtualDisplay (Display Preview on HDMI Output)
-
-function NewVirtualDisplayConfig() {
-	var config = {};
-
-	config.width = 1280;
-	config.height = 1024;
-	config.colorOrder = "BGR";
-	config.pixelSize = 2;
-	config.device = "fb0";
-
-	return VirtualDisplayConfig(config);
-}
-
-function VirtualDisplayColorOrderSelect(colorOrder) {
-	var result = "";
-
-	result += " Color Order: <select class='colorOrder'>";
-	result += "<option value='RGB'";
-
-	if (colorOrder == 'RGB')
-		result += " selected";
-
-	result += ">RGB</option><option value='BGR'";
-
-	if (colorOrder != 'RGB')
-		result += " selected";
-
-	result += ">BGR</option></select>";
-
-	return result;
-}
-
-function VirtualDisplayConfig(config) {
-	var result = "";
-
-	result += "Width: <input type=text class='width' size=4 maxlength=4 value='" + config.width + "'> ";
-	result += "Height: <input type=text class='height' size=4 maxlength=4 value='" + config.height + "'> ";
-	result += VirtualDisplayColorOrderSelect(config.colorOrder);
-	result += "Pixel Size: <select class='pixelSize'>";
-	for (i = 1; i <= 3; i++)
-	{
-		result += "<option value='" + i + "'";
-        if (config.pixelSize == i)
-			result += " selected";
-		result += ">" + i + "</option>";
-	}
-	result += "</select>";
-	result += DeviceSelect(FBDevices, config.device);
-
-	return result;
-}
-
-function GetVirtualDisplayConfig(result, cell) {
-	$cell = $(cell);
-
-	var width = $cell.find("input.width").val();
-	if (width == "")
-		return "";
-
-	result.width = parseInt(width);
-
-	var height = $cell.find("input.height").val();
-	if (height == "")
-		return "";
-
-	result.height = parseInt(height);
-
-	var colorOrder = $cell.find("select.colorOrder").val();
-
-	if (colorOrder == "")
-		return "";
-
-	result.colorOrder = colorOrder;
-
-	var pixelSize = $cell.find("select.pixelSize").val();
-	if (pixelSize == "")
-		return "";
-
-	result.pixelSize = parseInt(pixelSize);
-
-	var device = $cell.find("select.device").val();
-	if (device == "")
-		return "";
-
-	result.device = device;
-
-	return result;
-}
-
 function NewHTTPVirtualDisplayConfig() {
     var config = {};
 
@@ -853,17 +753,22 @@ function PopulateChannelOutputTable(data) {
             if (output.enabled)
                 newRow += " checked";
 
+            var startDisabled = "";
             var countDisabled = "";
 
             ///////used for new way
 			let output_module = output_modules.find(obj => obj.typeName == type);
 			///////
 
+            if ((type == 'HTTPVirtualDisplay') ||
+                (type == 'VirtualMatrix')) {
+                startDisabled = " disabled='disabled'";
+            }
+
 			if ((type == 'USBRelay') ||
                 (type == 'Pixelnet-Lynx') ||
                 (type == 'Pixelnet-Open') ||
                 (type == 'MAX7219Matrix') ||
-                (type == 'VirtualDisplay') ||
                 (type == 'VirtualMatrix')) {
                 countDisabled = " disabled='disabled'";
             }
@@ -878,7 +783,7 @@ function PopulateChannelOutputTable(data) {
 
 			newRow += "></td>" +
 					"<td class='type' style='vertical-align:top'>" + typeFriendlyName + "<input class='type' type='hidden' name='type' value='" +type+ "'></td>" +
-                    "<td style='vertical-align:top'><input class='start' type=text size=7 maxlength=7 value='" + output.startChannel + "'></td>" +
+                    "<td style='vertical-align:top'><input class='start' type=text size=7 maxlength=7 value='" + output.startChannel + "'" + startDisabled + "></td>" +
                     "<td style='vertical-align:top'><input class='count' type=text size=7 maxlength=7 value='" + output.channelCount + "'" + countDisabled + "></td>" +
                     "<td style='vertical-align:top' class='config'>";
 
@@ -895,8 +800,6 @@ function PopulateChannelOutputTable(data) {
                 newRow += LOROutputConfig(output);
             } else if (type == "SPI-nRF24L01") {
                 newRow += SPInRFDeviceConfig(output);
-            } else if (type == "VirtualDisplay") {
-                newRow += VirtualDisplayConfig(output);
             } else if (type == "HTTPVirtualDisplay") {
                 newRow += HTTPVirtualDisplayConfig(output);
             } else if (type == "MAX7219Matrix") {
@@ -914,6 +817,9 @@ function PopulateChannelOutputTable(data) {
                     "</tr>";
 
             $('#tblOtherOutputs > tbody').append(newRow);
+
+            if (output_module != undefined)
+                output_module.RowAdded($('#tblOtherOutputs > tbody > tr').last());
 
         }
     }
@@ -1022,14 +928,6 @@ function SaveOtherChannelOutputs() {
 				return;
 			}
 			maxChannels = 512;
-		} else if (type == "VirtualDisplay") {
-			config = GetVirtualDisplayConfig(config, $this.find("td:nth-child(6)"));
-			if (config == "") {
-				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid Virtual Display Config");
-				return;
-			}
-			maxChannels = FPPD_MAX_CHANNELS;
 		} else if (type == "HTTPVirtualDisplay") {
 			config = GetHTTPVirtualDisplayConfig(config, $this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1128,14 +1026,11 @@ function AddOtherTypeOptions(row, type) {
 	} else if (type == "SPI-nRF24L01") {
 		config += NewnRFSPIConfig();
 		row.find("td input.count").val("512");
-	} else if (type == "VirtualDisplay") {
-		config += NewVirtualDisplayConfig();
-		row.find("td input.count").val(FPPD_MAX_CHANNELS);
-		row.find("td input.count").prop('disabled', true);
     } else if (type == "HTTPVirtualDisplay") {
         config += NewHTTPVirtualDisplayConfig();
         row.find("td input.count").val(FPPD_MAX_CHANNELS);
         row.find("td input.count").prop('disabled', true);
+        row.find("td input.start").prop('disabled', true);
 	} else if (type == "MAX7219Matrix") {
 		config += NewMAX7219MatrixConfig();
 		row.find("td input.count").val("64");
@@ -1227,8 +1122,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 }
 ?>
         if (Object.keys(FBDevices).length > 0) {
-            newRow += "<option value='VirtualMatrix'>Virtual Matrix</option>" +
-                "<option value='VirtualDisplay'>Virtual Display</option>";
+            newRow += "<option value='VirtualMatrix'>Virtual Matrix</option>";
         }
         newRow += "<option value='HTTPVirtualDisplay'>HTTP Virtual Display</option>";
         newRow += "</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +

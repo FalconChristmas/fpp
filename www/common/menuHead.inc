@@ -23,12 +23,12 @@
 	<link rel="stylesheet" href="css/fpp-bootstrap/dist/fpp-bootstrap.css?ref=<?php echo filemtime('css/fpp-bootstrap/dist/fpp-bootstrap.css'); ?>" />
 	<link rel="stylesheet" href="css/fpp.css?ref=<?php echo filemtime('css/fpp.css'); ?>" />
 
-<? if (file_exists("/home/fpp/media/config/custom.css")) { ?>
-    <link rel="stylesheet" href="api/configfile/custom.css?ref=<?php echo filemtime('/home/fpp/media/config/custom.css'); ?>" />
+<? if (file_exists($mediaDirectory . "/config/custom.css")) { ?>
+    <link rel="stylesheet" href="api/configfile/custom.css?ref=<?php echo filemtime($mediaDirectory . '/config/custom.css'); ?>" />
 <? } ?>
     <script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
-<? if (file_exists("/home/fpp/media/config/custom.js")) { ?>
-    <script type="text/javascript" src="api/configfile/custom.js?ref=<?php echo filemtime('/home/fpp/media/config/custom.js'); ?>"></script>
+<? if (file_exists($mediaDirectory . "/config/custom.js")) { ?>
+    <script type="text/javascript" src="api/configfile/custom.js?ref=<?php echo filemtime($mediaDirectory . '/config/custom.js'); ?>"></script>
 <? } ?>
 
 	<script type="text/javascript">

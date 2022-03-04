@@ -223,7 +223,7 @@ function MoveFile()
         }
     }
 
-    if (! file_exists($uploadDirectory . "/" . $file)) {
+    if (!file_exists($uploadDirectory . "/" . $file)) {
         $tempFile = sanitizeFilename($file);
         if (file_exists($uploadDirectory . "/" . $tempFile)) {
             // was sanitized during upload process
@@ -297,6 +297,12 @@ function GetZipDir()
     global $logDirectory;
     global $mediaDirectory;
 
+    $ignore_files = array(
+        "git_branch.log", // No longer generated
+        "git_checkout_version.log", // No longer generated
+        "git_fetch.log", // No longer generated
+    );
+
     $dirName = params("DirName");
     if ($dirName != "Logs") {
         return json(array("status" => "Unsupported Directory"));
@@ -318,7 +324,7 @@ function GetZipDir()
         exit("Cannot open '$filename'\n");
     }
     foreach (scandir($logDirectory) as $file) {
-        if ($file == "." || $file == "..") {
+        if ($file == "." || $file == ".." || in_array($file, $ignore_files)) {
             continue;
         }
         $zip->addFile($logDirectory . '/' . $file, "Logs/" . $file);
@@ -338,14 +344,17 @@ function GetZipDir()
         "channelremap",
         "config/channeloutputs.json",
         //new v2 config files
-        "config/schedule.json",
-        "config/outputprocessors.json",
+        "config/channeloutputs.json",
+        "config/ci-universes.json",
+        "config/co-bbbStrings.json",
+        "config/commandPresets.json",
         "config/co-other.json",
         "config/co-pixelStrings.json",
-        "config/co-bbbStrings.json",
         "config/co-universes.json",
-        "config/ci-universes.json",
+        "config/instantCommand.json",
         "config/model-overlays.json",
+        "config/outputprocessors.json",
+        "config/schedule.json",
         //
         "pixelnetDMX",
         "settings",
@@ -383,7 +392,7 @@ function GetZipDir()
     }
     unset($output);
 
-    exec("/usr/bin/git --work-tree=" . dirname(dirname(__FILE__)) . "/ status", $output, $return_val);
+    exec("/usr/bin/git --work-tree=" . gitBaseDirectory() . "/ status", $output, $return_val);
     if ($return_val != 0) {
         error_log("Unable to get a git status for logs");
     } else {
@@ -391,7 +400,7 @@ function GetZipDir()
     }
     unset($output);
 
-    exec("/usr/bin/git --work-tree=" . dirname(dirname(__FILE__)) . "/ diff", $output, $return_val);
+    exec("/usr/bin/git --work-tree=" . gitBaseDirectory() . "/ diff", $output, $return_val);
     if ($return_val != 0) {
         error_log("Unable to get a git diff for logs");
     } else {

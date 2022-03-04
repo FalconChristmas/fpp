@@ -1,8 +1,29 @@
 # MacOSX
-# The only thing that really builds on OSX at this point is fsequtils
 ifeq '$(ARCH)' 'OSX'
 
-CFLAGS += -DPLATFORM_OSX
-LDFLAGS += -L.
+CHIP := $(shell uname -p 2> /dev/null)
+ifeq '$(CHIP)' 'arm'
+HOMEBREW=/opt/homebrew
+else
+HOMEBREW=/usr/local
+endif
+
+
+CFLAGS += -DPLATFORM_OSX  -I$(HOMEBREW)/include -Wswitch
+LDFLAGS += -L.  -L$(HOMEBREW)/lib
+
+OBJECTS_GPIO_ADDITIONS+=util/TmpFileGPIO.o
+
+MAGICK_INCLUDE_PATH=-I$(HOMEBREW)/include/GraphicsMagick
+
+OBJECTS_fpp_so += MacOSUtils.o
+LIBS_fpp_so+=-framework CoreAudio
+
+SHLIB_EXT=dylib
+
+ifneq ($(wildcard $(HOMEBREW)/bin/ccache),)
+	CCACHE = ccache
+endif
+
 
 endif

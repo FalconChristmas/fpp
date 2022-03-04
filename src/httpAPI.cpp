@@ -13,7 +13,6 @@
  *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
- *   the License, or (at your option) any later version.
  *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,6 +23,10 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "fpp-pch.h"
+
+#ifdef PLATFORM_OSX
+#include <sys/sysctl.h>
+#endif
 
 #include "MultiSync.h"
 #include "Player.h"
@@ -36,7 +39,6 @@
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
 
-#include <sys/sysinfo.h>
 #include <iomanip>
 #include <sstream>
 
@@ -46,6 +48,9 @@
 #include "overlays/PixelOverlay.h"
 #include "sensors/Sensors.h"
 
+#ifndef PLATFORM_OSX
+#include <sys/sysinfo.h>
+#endif
 /*
  *
  */
@@ -566,6 +571,16 @@ void PlayerResource::GetCurrentStatus(Json::Value& result) {
     std::time_t timeDiff = std::time(nullptr) - startupTime;
     int totalseconds = (int)timeDiff;
 
+#ifdef PLATFORM_OSX
+    struct timeval boot;
+    struct timeval now;
+    int mib[] = { CTL_KERN, KERN_BOOTTIME };
+    size_t size = sizeof(boot);
+    if (sysctl(mib, 2, &boot, &size, 0, 0) == 0 && gettimeofday(&now, 0)) {
+        uint64_t uptime_micro = (now.tv_sec * 1000000 + now.tv_usec) - (boot.tv_sec * 1000000 + boot.tv_usec);
+        totalseconds = (int)(uptime_micro / 1000000);
+    }
+#else
     struct sysinfo sysInf;
     if (sysinfo(&sysInf) == 0) {
         int uptimeSecs = sysInf.uptime;
@@ -575,6 +590,7 @@ void PlayerResource::GetCurrentStatus(Json::Value& result) {
             totalseconds = (int)timeDiff;
         }
     }
+#endif
 
     double days = ((double)timeDiff) / 86400;
     double hours = ((double)(totalseconds % 86400)) / 3600;

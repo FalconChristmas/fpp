@@ -1,3 +1,4 @@
+
 /*
  *   E131 bridge for Falcon Player (FPP)
  *
@@ -27,6 +28,9 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#ifdef PLATFORM_OSX
+#include <netinet/udp.h>
+#endif
 #include <sys/types.h>
 #include <errno.h>
 #include <ifaddrs.h>
@@ -39,8 +43,6 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-
-#include <jsoncpp/json/json.h>
 
 #include "command.h"
 #include "e131bridge.h"
@@ -92,9 +94,9 @@ static UniverseEntry unknownUniverse;
 
 static bool bridgeDataReceived = false;
 
-static std::map<int, std::function<bool(uint8_t *data, long long packetTime)>> ArtNetOpcodeHandlers;
+static std::map<int, std::function<bool(uint8_t* data, long long packetTime)>> ArtNetOpcodeHandlers;
 
-void AddArtNetOpcodeHandler(int opCode, std::function<bool(uint8_t *data, long long packetTime)> handler) {
+void AddArtNetOpcodeHandler(int opCode, std::function<bool(uint8_t* data, long long packetTime)> handler) {
     ArtNetOpcodeHandlers[opCode] = handler;
 }
 
@@ -117,7 +119,11 @@ int CreateArtNetSocket() {
         //need to be able to send broadcase for ArtPollReply
         setsockopt(artnetSock, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
         enable = 1;
+#ifdef PLATFORM_OSX        
+        setsockopt(artnetSock, IPPROTO_UDP, UDP_NOCKSUM, (void*)&enable, sizeof enable);
+#else        
         setsockopt(artnetSock, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
+#endif
 
         memset((char*)&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
@@ -142,7 +148,7 @@ bool LoadInputUniversesFromFile(void) {
     char* s;
     InputUniverseCount = 0;
     char active = 0;
-    std::string filename(FPP_DIR_CONFIG "/ci-universes.json");
+    std::string filename = FPP_DIR_CONFIG("/ci-universes.json");
 
     LogDebug(VB_E131BRIDGE, "Opening File Now %s\n", filename.c_str());
 
@@ -240,39 +246,38 @@ double GetSecondsFromInputPacket() {
 bool Bridge_ReceiveE131Data(void) {
     //	LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
 
-    int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
+    int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     bool sync = false;
     long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
             sync |= Bridge_StoreData((uint8_t*)buffers[x], packetTime);
         }
-        msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
+        msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
     return sync;
 }
 bool Bridge_ReceiveDDPData(void) {
     //    LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
-    int msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
+    int msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     bool sync = false;
     long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
             sync |= Bridge_StoreDDPData((uint8_t*)buffers[x], packetTime);
         }
-        msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
+        msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
     return sync;
 }
 bool Bridge_ReceiveArtNetData(void) {
-    int msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, 0, nullptr);
+    int msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     bool sync = false;
     long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
-            uint8_t *bridgeBuffer = (uint8_t*)buffers[x];
-            if (bridgeBuffer[0] != 'A' || bridgeBuffer[1] != 'r' || bridgeBuffer[2] != 't' || bridgeBuffer[3] != '-' || bridgeBuffer[4] != 'N' 
-                || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0 || bridgeBuffer[11] != 0xE ) { //version must be 14
+            uint8_t* bridgeBuffer = (uint8_t*)buffers[x];
+            if (bridgeBuffer[0] != 'A' || bridgeBuffer[1] != 'r' || bridgeBuffer[2] != 't' || bridgeBuffer[3] != '-' || bridgeBuffer[4] != 'N' || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0 || bridgeBuffer[11] != 0xE) { //version must be 14
                 continue;
             }
             int opCode = (bridgeBuffer[9] << 8) | bridgeBuffer[8];
@@ -281,7 +286,7 @@ bool Bridge_ReceiveArtNetData(void) {
                 sync |= cb->second(bridgeBuffer, packetTime);
             }
         }
-        msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, 0, nullptr);
+        msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
     return sync;
 }
@@ -361,7 +366,9 @@ bool Bridge_Initialize_Internal() {
         }
 
         // FIXME, move this to /etc/sysctl.conf or our startup script
+#ifndef PLATFORM_OSX
         system("sudo sysctl net/ipv4/igmp_max_memberships=512");
+#endif
 
         memset((char*)&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
@@ -538,7 +545,7 @@ bool Bridge_StoreArtNetData(uint8_t* bridgeBuffer, long long packetTime) {
         }
     }
     return false;
-} 
+}
 bool Bridge_HandleArtNetPoll(uint8_t* bridgeBuffer, long long packetTime) {
     if (bridgeBuffer[9] == 0x20 && bridgeBuffer[8] == 0x00) {
         //ArtNet Poll, need to send a reply
@@ -904,7 +911,7 @@ void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
     }
     if (artnetSock > 0) {
         if (enabled) {
-            AddArtNetOpcodeHandler(0x5000, Bridge_StoreArtNetData); // ArtOutput
+            AddArtNetOpcodeHandler(0x5000, Bridge_StoreArtNetData);  // ArtOutput
             AddArtNetOpcodeHandler(0x5200, Bridge_HandleArtNetSync); // ArtSync
             AddArtNetOpcodeHandler(0x2000, Bridge_HandleArtNetPoll); // ArtPoll
 

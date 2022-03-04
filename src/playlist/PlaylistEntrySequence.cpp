@@ -144,7 +144,7 @@ int PlaylistEntrySequence::Stop(void) {
 
 uint64_t PlaylistEntrySequence::GetLengthInMS() {
     if (m_duration == 0) {
-        std::string n = std::string(FPP_DIR_SEQUENCE) + "/" + m_sequenceName;
+        std::string n = FPP_DIR_SEQUENCE("/" + m_sequenceName);
         if (FileExists(n)) {
             FSEQFile* fs = FSEQFile::openFSEQFile(n);
             m_duration = fs->getTotalTimeMS();

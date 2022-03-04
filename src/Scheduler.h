@@ -31,8 +31,6 @@
 #include <pthread.h>
 #include <time.h>
 
-#include <jsoncpp/json/json.h>
-
 #include "ScheduleEntry.h"
 
 #define SCHEDULE_INDEX_INVALID -1

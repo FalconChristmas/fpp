@@ -27,6 +27,24 @@ AttemptCreateSoftAP() {
     fi
 }
 
+FindTetherWIFIAdapater() {
+    local TetherInterface=$(getSetting TetherInterface)
+    if [ "x${TetherInterface}" == "x" ]; then
+        WLDEVICES=$(ls -d /sys/class/net/wl*)
+        for d in $WLDEVICES; do
+            DEV=$(basename $d)
+            HASLINKDEV=$(iwconfig $DEV | grep "Not-Associated")
+            if [ "x${HASLINKDEV}" != "x" ]; then
+                TetherInterface=$DEV
+            fi
+        done
+    fi
+    if [ "x${TetherInterface}" == "x" ]; then
+        TetherInterface="wlan0"
+    fi
+    echo "$TetherInterface"
+}
+
 CreateHostAPDConfig() {
     TetherSSID=$(getSetting TetherSSID)
     TetherPSK=$(getSetting TetherPSK)
@@ -213,6 +231,7 @@ SetupFPPNetworkConfigViaConnMann() {
         fi
     fi
 }
+if [ "${FPPPLATFORM}" != "MacOS" ]; then
 declare -A NETMASK2SUBNET=(
     ['255.255.255.252']='30'
     ['255.255.255.248']='29'
@@ -230,7 +249,7 @@ declare -A NETMASK2SUBNET=(
     ['255.255.128.0']='17'
     ['255.255.0.0']='16'
 )
-
+fi
 SetupFPPNetworkConfigViaSystemdNetworkd() {
     CONFIGS=`ls ${FPPHOME}/media/config/interface.w*; ls ${FPPHOME}/media/config/interface.e*`
     DEFGW="none"
@@ -255,11 +274,8 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
     fi
     iw reg set "$WifiRegulatoryDomain"
 
+    TetherInterface=$(FindTetherWIFIAdapater)
     TetherEnabled=$(getSetting EnableTethering)
-    TetherInterface=$(getSetting TetherInterface)
-    if [ "x${TetherInterface}" == "x" ]; then
-        TetherInterface="wlan0";
-    fi
     if [ "x${TetherEnabled}" == "x" ]; then
         TetherEnabled="";
     fi
@@ -442,7 +458,11 @@ WaitForInterfacesUp() {
     fi
     #turn off power management on wireless... not all adapters
     # support this so just /dev/null any output
-    iwconfig wlan0 power off 2>/dev/null >/dev/null
+    WLDEVICES=$(ls -d /sys/class/net/wl*)
+    for d in $WLDEVICES; do
+        DEV=$(basename $d)
+        iwconfig $DEV power off 2>/dev/null >/dev/null
+    done
 }
 
 DetectNetworkModules() {
@@ -474,7 +494,16 @@ MaybeEnableTethering() {
 
     if [ "$TetherEnabled" == "0" ]; then
         IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
-        HASLINK=$(ethtool eth0 | grep "Link detected: yes")
+        
+        ETHDEVICES=$(ls -d /sys/class/net/e*)
+        HASLINK=""
+        for d in $ETHDEVICES; do
+            DEV=$(basename $d)
+            HASLINKDEV=$(ethtool $DEV | grep "Link detected: yes")
+            if [ "x${HASLINKDEV}" != "x" ]; then
+                HASLINK=1
+            fi
+        done
         if [ "x${HASLINK}" = "x" ]; then
             # no link on eth0
             if [ -z "$IPS" ]; then
@@ -483,14 +512,7 @@ MaybeEnableTethering() {
             fi
         fi
     fi
-    TetherInterface=$(getSetting TetherInterface)
-    if [ "x${TetherInterface}" == "x" ]; then
-        TetherInterface="wlan0";
-    fi
-    if [ ! -e "/sys/class/net/${TetherInterface}" ]; then
-        # no wifi adapter, try wlan0
-        TetherInterface="wlan0";
-    fi
+    TetherInterface=$(FindTetherWIFIAdapater)
     if [ "$TetherEnabled" == "1" ]; then
         for i in {1..30}
         do
@@ -501,8 +523,12 @@ MaybeEnableTethering() {
         done
     fi
     if [ ! -e "/sys/class/net/${TetherInterface}" ]; then
-        # no wifi adapter, no point enabling tethering
-        TetherEnabled=2
+        # see if the wait above caused a different wifi adapter to appear
+        TetherInterface=$(FindTetherWIFIAdapater)
+        if [ ! -e "/sys/class/net/${TetherInterface}" ]; then
+            # no wifi adapter, no point enabling tethering
+            TetherEnabled=2
+        fi
     fi
 
     if [ "$TetherEnabled" == "1" ]; then
@@ -585,7 +611,7 @@ cleanCompiledBinaries() {
         if [ -d "$p" ]; then
             if [ -f "${p}/Makefile" ]; then
                 echo "Cleaning plugin $p"
-                make -C "${p}" -f "${p}/Makefile" clean
+                make -C "${p}" -f "${p}/Makefile" SRCDIR=${FPPDIR}/src clean
             fi
         fi
     done
@@ -672,19 +698,23 @@ compileBinaries() {
 	# export CCACHE_LOGFILE=/tmp/cache.debug
 	export LANG=en_US.UTF-8
 	export TERM=linux
-	CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+    if [ -f "/proc/cpuinfo" ]; then
+        CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+    else
+        CPUS=$(sysctl -n hw.ncpu)
+    fi
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
 		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} -E make -j ${CPUS} optimized
 	else
-		cd ${FPPDIR}/src && ${SUDO} -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make -j ${CPUS} optimized
+		cd ${FPPDIR}/src && sudo -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make -j ${CPUS} optimized
 	fi
 
     for p in ${MEDIADIR}/plugins/*; do
         if [ -d "$p" ]; then
             if [ -f "${p}/Makefile" ]; then
                 echo "Building plugin $p"
-                make -C "${p}" -f "${p}/Makefile" -j ${CPUS}
+                make -C "${p}" -f "${p}/Makefile" -j ${CPUS} SRCDIR=${FPPDIR}/src
             fi
         fi
     done
@@ -693,9 +723,9 @@ compileBinaries() {
 #############################################################################
 # Helper script for running the User hook script with a specified hook
 runUserHookScript() {
-	if [ -f "${FPPHOME}/media/scripts/UserCallbackHook.sh" ]
+	if [ -f "${MEDIADIR}/scripts/UserCallbackHook.sh" ]
 	then
-		/bin/bash ${FPPHOME}/media/scripts/UserCallbackHook.sh $1
+		/bin/bash ${MEDIADIR}/scripts/UserCallbackHook.sh $1
 	fi
 }
 
@@ -869,12 +899,12 @@ exit(20)
             FPS=$?
 
             # Default to 20FPS/50ms timing just in case
-            TIMING="360 0 1 1 1  324 0 2 2 2  0 0 0  20 0 2400000 1"
+            TIMING="362 0 0 1 0  324 0 2 2 2  0 0 0  20 0 2400000 1"
 
             case ${FPS} in
-                20) TIMING="360 0 1 1 1  324 0 2 2 2  0 0 0  20 0 2400000 1"
+                20) TIMING="362 0 0 1 0  324 0 2 2 2  0 0 0  20 0 2400000 1"
                     ;;
-                40) TIMING="360 0 1 1 1  162 0 1 1 1  0 0 0  40 0 2400000 1"
+                40) TIMING="362 0 0 1 0  162 0 1 1 1  0 0 0  40 0 2400000 1"
                     ;;
             esac
 
@@ -885,26 +915,39 @@ exit(20)
             fi
 
             cat <<DPI_PIXELS_EOF > /boot/dpipixels.txt
+######################################################################
 # DPI Pixels framebuffer config
-# more info: https://www.raspberrypi.com/documentation/computers/config_txt.html
+# https://www.raspberrypi.com/documentation/computers/config_txt.html
 #
 # Date Added: $(date)
-#
+######################################################################
 # Enable DPI
 enable_dpi_lcd=1
-# Enable mode with custom resolution and timing
+#
+# Set group/mode to allow custom resolution and timing
 dpi_group=2
 dpi_mode=87
+#
 # RGB24 888, RGB color order
 dpi_output_format=0x17
+#
 # Enable DPI framebuffer on < Pi 4
 max_framebuffers=2
+#
 # Make onboard HDMI fb0 and DPI fb1 if HDMI is in use, otherwise DPI is fb0
 framebuffer_priority=2
-# Custom resolution and timing
+#
+# Force HDMI on (as fb0) so DPI becomes fb1
+hdmi_force_hotplug=1
+#
+# Custom resolution with ${FPS} FPS timing
 dpi_timings=${TIMING}
+#
 # Enable UART2 on Pi 4 since UART0 TXD pin is used by DPI
 dtoverlay=uart2
+#
+# Disable SPI
+dtparam=spi=off
 DPI_PIXELS_EOF
 
             grep -q "include dpipixels.txt" /boot/config.txt

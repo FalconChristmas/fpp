@@ -292,9 +292,6 @@ int UDPOutput::Init(Json::Value config) {
     if (config.isMember("interface")) {
         e131Interface = config["interface"].asString();
     }
-    if (e131Interface == "") {
-        e131Interface = "eth0";
-    }
 
     std::set<std::string> myIps;
     //get all the addresses
@@ -304,14 +301,29 @@ int UDPOutput::Init(Json::Value config) {
     //loop through all the interfaces and get the addresses
     char address[16];
     memset(address, 0, sizeof(address));
+    std::string firstInterface = "";
     while (tmp) {
         if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
             GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
             myIps.emplace(address);
+            if (e131Interface == "") {
+                if (firstInterface == "") {
+                    firstInterface = tmp->ifa_name;
+                }
+                if (tmp->ifa_name[0] == 'e') {
+                    e131Interface = firstInterface;
+                }
+            }
         }
         tmp = tmp->ifa_next;
     }
     freeifaddrs(interfaces);
+    if (e131Interface == "") {
+        e131Interface = firstInterface;
+    }
+    if (e131Interface == "") {
+        e131Interface = "eth0";
+    }
 
     for (auto o : outputs) {
         if (o->IsPingable() && o->active) {
@@ -635,28 +647,26 @@ bool UDPOutput::PingControllers(bool failedOnly) {
             } else if (p <= 0) {
                 o->failCount++;
                 LogDebug(VB_CHANNELOUT, "Could not ping host %s   Fail count: %d   Currently Valid: %d\n", host.c_str(), o->failCount, o->valid);
-                if (o->valid) {
-                    if (o->failCount == 2) {
-                        // two pings failed, lets try an HTTP HEAD request
-                        if (curls[host] == nullptr) {
-                            std::string url = "http://" + host;
-                            CURL* curl = curl_easy_init();
-                            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                            curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
-                            curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000);
-                            curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
-                            curl_multi_add_handle(m_curlm, curl);
-                            curls[host] = curl;
-                        }
-                    } else if (o->failCount == 3) {
-                        // two shorter pings, a HEAD request, and one long ping failed
-                        // must not be valid anymore
-                        WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString()));
-                        LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
-                                host.c_str());
-                        newOutputs = true;
-                        o->valid = false;
+                if (o->failCount == 2) {
+                    // two pings failed, lets try an HTTP HEAD request
+                    if (curls[host] == nullptr) {
+                        std::string url = "http://" + host;
+                        CURL* curl = curl_easy_init();
+                        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+                        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000);
+                        curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+                        curl_multi_add_handle(m_curlm, curl);
+                        curls[host] = curl;
                     }
+                } else if (o->valid && (o->failCount == 3)) {
+                    // two shorter pings, a HEAD request, and one long ping failed
+                    // must not be valid anymore
+                    WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString()));
+                    LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
+                            host.c_str());
+                    newOutputs = true;
+                    o->valid = false;
                 } else if (o->failCount > 4) {
                     // make sure we wrap around so another HEAD request later may pick it up
                     o->failCount = 0;
@@ -767,19 +777,21 @@ int UDPOutput::createSocket(int port, bool broadCast) {
             LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
             exit(1);
         }
+#ifndef PLATFORM_OSX
     } else {
         if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_IF, (char*)&address, sizeof(address)) < 0) {
             LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_IF error\n");
-            close(sendSocket);
-            return -1;
         }
+#endif
     }
     if (bind(sendSocket, (struct sockaddr*)&address, sizeof(struct sockaddr_in)) == -1) {
         LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
     }
+#ifndef PLATFORM_OSX
     if (connect(sendSocket, (struct sockaddr*)&address, sizeof(address)) < 0) {
         LogErr(VB_CHANNELOUT, "Error connecting IP_MULTICAST_LOOP socket\n");
     }
+#endif
     return sendSocket;
 }
 

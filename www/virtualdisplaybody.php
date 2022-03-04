@@ -162,7 +162,7 @@ function processEvent(e)
 
 function startSSE()
 {
-	evtSource = new EventSource('//<?php echo $_SERVER['SERVER_ADDR'] ?>:32328/');
+	evtSource = new EventSource('//<?php echo $_SERVER['HTTP_HOST'] ?>:32328/');
 
 	evtSource.onmessage = function(event) {
 		processEvent(event);

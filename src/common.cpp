@@ -146,8 +146,10 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
     unsigned char str[17];
     char tmpStr[150];
 
-    sprintf(tmpStr, "%s: (%d bytes)\n", title, len);
-    LogInfo(facility, tmpStr);
+    if (strlen(title)) {
+        sprintf(tmpStr, "%s: (%d bytes)\n", title, len);
+        LogInfo(facility, tmpStr);
+    }
 
     while (l < len) {
         if (x == 0) {
@@ -211,6 +213,8 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
 int GetInterfaceAddress(const char* interface, char* addr, char* mask, char* gw) {
     int fd;
     struct ifreq ifr;
+
+    memset(&ifr, 0, sizeof(ifr));
 
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     ifr.ifr_addr.sa_family = AF_INET;
@@ -428,9 +432,31 @@ int GetCurrentDateInt(int daysOffset) {
  */
 void CloseOpenFiles(void) {
     int maxfd = sysconf(_SC_OPEN_MAX);
-
-    for (int fd = 3; fd < maxfd; fd++)
-        close(fd);
+    
+    for (int fd = 3; fd < maxfd; fd++) {
+        if (fcntl(fd, F_GETFD) != -1 ) {
+            bool doClose = false;
+            struct stat statBuf;
+            if (fstat(fd, &statBuf) == 0) {
+                // it's a file or unix domain socket or similar
+                doClose = true;
+            }
+            struct sockaddr_in address;
+            memset(&address, 0, sizeof(address));
+            socklen_t addrLen = sizeof(address);
+            getsockname(fd, (struct sockaddr *)&address, &addrLen);
+            if (address.sin_family) {
+                //its a tcp/udp socket of some sort
+                doClose = true;
+            }
+            if (doClose) {
+                //if it's not a file or socket, we cannot close it
+                //On OSX, that may be a "NPOLICY" descriptor which
+                //if closed will terminate the process immediately
+                close(fd);
+            }
+        }
+    }
 }
 
 int DateInRange(time_t when, int startDate, int endDate) {
@@ -581,7 +607,9 @@ bool SetFilePerms(const std::string& filename) {
     chmod(filename.c_str(), mode);
 
     struct passwd* pwd = getpwnam("fpp");
-    chown(filename.c_str(), pwd->pw_uid, pwd->pw_gid);
+    if (pwd) {
+        chown(filename.c_str(), pwd->pw_uid, pwd->pw_gid);
+    }
 
     return true;
 }
@@ -592,7 +620,6 @@ bool SetFilePerms(const char* file) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-#ifndef PLATFORM_OSX
 /*
  * Merge the contens of Json::Value b into Json::Value a
  */
@@ -719,7 +746,6 @@ bool SaveJsonToFile(const Json::Value& root, const char* filename, const char* i
 
     return SaveJsonToFile(root, filenameStr, indentationStr);
 }
-#endif
 
 /////////////////////////////////////////////////////////////////////////////
 // trim from start (in place)
@@ -732,8 +758,7 @@ static inline void ltrim(std::string& s) {
 static inline void rtrim(std::string& s) {
     s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
                 return !std::isspace(ch);
-            })
-                .base(),
+            }).base(),
             s.end());
 }
 // trim from both ends (in place)
@@ -985,20 +1010,14 @@ bool urlDelete(const std::string url, std::string& resp) {
     return urlHelper("DELETE", url, data, resp);
 }
 
-
-
-
-
-
 static const std::string BASE64_CHARS =
-             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-             "abcdefghijklmnopqrstuvwxyz"
-             "0123456789+/";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789+/";
 
 static inline bool isBase64(uint8_t c) {
-  return (isalnum(c) || (c == '+') || (c == '/'));
+    return (isalnum(c) || (c == '+') || (c == '/'));
 }
-
 
 std::string base64Encode(uint8_t const* buf, unsigned int bufLen) {
     std::string ret;
@@ -1015,7 +1034,7 @@ std::string base64Encode(uint8_t const* buf, unsigned int bufLen) {
             char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
             char_array_4[3] = char_array_3[2] & 0x3f;
 
-            for(i = 0; (i <4) ; i++) {
+            for (i = 0; (i < 4); i++) {
                 ret += BASE64_CHARS[char_array_4[i]];
             }
             i = 0;
@@ -1023,7 +1042,7 @@ std::string base64Encode(uint8_t const* buf, unsigned int bufLen) {
     }
 
     if (i) {
-        for(j = i; j < 3; j++) {
+        for (j = i; j < 3; j++) {
             char_array_3[j] = '\0';
         }
 
@@ -1036,7 +1055,7 @@ std::string base64Encode(uint8_t const* buf, unsigned int bufLen) {
             ret += BASE64_CHARS[char_array_4[j]];
         }
 
-        while((i++ < 3)) {
+        while ((i++ < 3)) {
             ret += '=';
         }
     }
@@ -1050,10 +1069,11 @@ std::vector<uint8_t> base64Decode(std::string const& encodedString) {
     uint8_t char_array_4[4], char_array_3[3];
     std::vector<uint8_t> ret;
 
-    while (in_len-- && ( encodedString[in_] != '=') && isBase64(encodedString[in_])) {
-        char_array_4[i++] = encodedString[in_]; in_++;
-        if (i ==4) {
-            for (i = 0; i <4; i++) {
+    while (in_len-- && (encodedString[in_] != '=') && isBase64(encodedString[in_])) {
+        char_array_4[i++] = encodedString[in_];
+        in_++;
+        if (i == 4) {
+            for (i = 0; i < 4; i++) {
                 char_array_4[i] = BASE64_CHARS.find(char_array_4[i]);
             }
 
@@ -1069,10 +1089,10 @@ std::vector<uint8_t> base64Decode(std::string const& encodedString) {
     }
 
     if (i) {
-        for (j = i; j <4; j++) {
+        for (j = i; j < 4; j++) {
             char_array_4[j] = 0;
         }
-        for (j = 0; j <4; j++) {
+        for (j = 0; j < 4; j++) {
             char_array_4[j] = BASE64_CHARS.find(char_array_4[j]);
         }
 
@@ -1085,4 +1105,15 @@ std::vector<uint8_t> base64Decode(std::string const& encodedString) {
         }
     }
     return ret;
+}
+
+
+static std::function<void(bool)> SHUTDOWN_HOOK;
+void ShutdownFPPD(bool restart) {
+    if (SHUTDOWN_HOOK) {
+        SHUTDOWN_HOOK(restart);
+    }
+}
+void RegisterShutdownHandler(const std::function<void(bool)> hook) {
+    SHUTDOWN_HOOK = hook;
 }

@@ -456,7 +456,6 @@ bool fpp_detectCape() {
         printf("Did not find eeprom on i2c.\n");
     }
     if (!file_exists(EEPROM)) {
-        printf("EEPROM file doesn't exist %s.\n", EEPROM.c_str());
         EEPROM = "/opt/fpp-vendor/cape-eeprom.bin";
     }
     if (!file_exists(EEPROM)) {
@@ -534,6 +533,7 @@ bool fpp_detectCape() {
                     exec(cmd);
                     unlink(path.c_str());
                 }
+                printf("- extracted file: %s\n", path.c_str());
                 break;
             }
             case 97: {
@@ -555,6 +555,11 @@ bool fpp_detectCape() {
                 } else if (type != "0") {
                     validEpromLocation = false;
                 }
+
+                if (validEpromLocation)
+                    printf("- eeprom location is valid\n");
+                else
+                    printf("- ERROR eeprom is NOT valid\n");
                 break;
             }
             case 99: {
@@ -565,6 +570,11 @@ bool fpp_detectCape() {
                 put_file_contents(path, buffer, flen - 6);
                 file = DoSignatureVerify(file, fkeyId, path, validSignature, deleteEpromFile);
                 unlink(path.c_str());
+
+                if (validSignature)
+                    printf("- signature verified for key ID: %s\n", fkeyId.c_str());
+                else
+                    printf("- ERROR signature is NOT valid for key ID: %s\n", fkeyId.c_str());
                 break;
             }
             default:

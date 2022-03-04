@@ -7,12 +7,12 @@ ifeq '$(ARCH)' 'BeagleBone Black'
 
 
 OBJECTS_fpp_co_matrix_LEDscapeMatrix_so += channeloutput/BBBMatrix.o
-LIBS_fpp_co_matrix_LEDscapeMatrix_so += -L. -lfpp
+LIBS_fpp_co_matrix_LEDscapeMatrix_so += -L. -lfpp -ljsoncpp
 
-TARGETS += libfpp-co-matrix-LEDscapeMatrix.so
+TARGETS += libfpp-co-matrix-LEDscapeMatrix.$(SHLIB_EXT)
 OBJECTS_ALL+=$(OBJECTS_fpp_co_matrix_LEDscapeMatrix_so)
 
-libfpp-co-matrix-LEDscapeMatrix.so: $(OBJECTS_fpp_co_matrix_LEDscapeMatrix_so) libfpp.so
+libfpp-co-matrix-LEDscapeMatrix.$(SHLIB_EXT): $(OBJECTS_fpp_co_matrix_LEDscapeMatrix_so) libfpp.$(SHLIB_EXT)
 	$(CCACHE) $(CC) -shared $(CFLAGS_$@) $(OBJECTS_fpp_co_matrix_LEDscapeMatrix_so) $(LIBS_fpp_co_matrix_LEDscapeMatrix_so) $(LDFLAGS) $(LDFLAGS_fpp_co_matrix_LEDscapeMatrix_so) -o $@
 
 endif

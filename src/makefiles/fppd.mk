@@ -11,5 +11,11 @@ LDFLAGS_fppd += -rdynamic $(shell curl-config --libs) \
 TARGETS += fppd
 OBJECTS_ALL+=$(OBJECTS_fppd)
 
-fppd: $(OBJECTS_fppd) libfpp.so
-	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -L . -l fpp -Wl,-rpath=$(PWD):$(PWD)/../external/RF24/ $(LIBS_fpp_so) -o $@
+CXXFLAGS_fppd.o+=$(MAGICK_INCLUDE_PATH)
+
+ifneq '$(ARCH)' 'OSX'
+LIBS_fpp_so+=-Wl,-rpath=$(SRCDIR):$(SRCDIR)/../external/RF24/:.
+endif
+
+fppd: $(OBJECTS_fppd) libfpp.$(SHLIB_EXT)
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -L . -l fpp $(LIBS_fpp_so) -o $@

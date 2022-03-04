@@ -76,8 +76,8 @@ fppversion_defines.h: fppversion.c
 ifeq '$(CXXCOMPILER)' 'g++'
 PCH_FILE=fpp-pch.h.gch
 fpp-pch.h.gch: fpp-pch.h common.h settings.h Sequence.h fppversion.h log.h mqtt.h Warnings.h commands/Commands.h
-	CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
-	sha1sum $(PCH_FILE) > $(PCH_FILE).sum
+	CCACHE_NOHARDLINK=true CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
+	shasum $(PCH_FILE) > $(PCH_FILE).sum
 endif
 
 %.o: %.cpp %.h $(PCH_FILE) fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk

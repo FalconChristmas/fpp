@@ -211,6 +211,7 @@ function LoadPluginSettingInfos($plugin)
     global $settings;
     global $settingInfos;
     global $settingGroups;
+    global $mediaDirectory;
     global $pluginSettingInfosLoaded;
 
     if (empty($settingInfos) || empty($settingGroups)) {
@@ -218,7 +219,7 @@ function LoadPluginSettingInfos($plugin)
     }
 
     if (!$pluginSettingInfosLoaded) {
-        $file = '/home/fpp/media/plugins/' . $plugin . '/settings.json';
+        $file = $mediaDirectory . '/plugins/' . $plugin . '/settings.json';
 
         if (file_exists($file)) {
             $data = json_decode(file_get_contents($file), true);
@@ -274,8 +275,24 @@ function ShouldPrintSetting($s)
         }
     }
     if (isset($s['platforms'])) {
-        if (!in_array('ALL', $s['platforms']) &&
-            !in_array($settings['Platform'], $s['platforms'])) {
+        $hasNonExclusion = false;
+        $hasAll = false;
+        $hasPlatform = false;
+        foreach ($s['platforms'] as $platform) {
+            if (("!" . $settings['Platform']) == $platform) {
+                return false;
+            }
+            if ($platform[0] != "!") {
+                $hasNonExclusion = true;
+            }
+            if ($platform == "ALL") {
+                $hasAll = true;
+            }
+            if ($platform == $settings['Platform']) {
+                $hasPlatform = true;
+            }
+        }
+        if (!$hasAll && !$hasPlatform && $hasNonExclusion) {
             return false;
         }
     }
@@ -550,7 +567,7 @@ function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $chec
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
         $callbackName = $callbackName . "('$setting');";
     }
 
@@ -682,7 +699,7 @@ function PrintSettingSelectInternal($title, $setting, $restart = 1, $reboot = 0,
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
         $callbackName = $callbackName . "();";
     }
 
@@ -853,7 +870,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
         $callbackName = $callbackName . "();";
     }
 
@@ -1021,7 +1038,7 @@ function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginNa
         $settingsName = "pluginSettings";
     }
 
-    if ($callbackName != "" && ($callbackName[strlen($callbackName)-1] != ")")) {
+    if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
         $callbackName = $callbackName . "();";
     }
 
@@ -1311,28 +1328,37 @@ function human_playtime($total_duration)
  */
 function get_server_memory_usage()
 {
-    $fh = fopen('/proc/meminfo', 'r');
-    $total = 0;
-    $free = 0;
-    $buffers = 0;
-    $cached = 0;
-    while ($line = fgets($fh)) {
-        $pieces = array();
-        if (preg_match('/^MemTotal:\s+(\d+)\skB$/', $line, $pieces)) {
-            $total = $pieces[1];
-        } else if (preg_match('/^MemFree:\s+(\d+)\skB$/', $line, $pieces)) {
-            $free = $pieces[1];
-        } else if (preg_match('/^Buffers:\s+(\d+)\skB$/', $line, $pieces)) {
-            $buffers = $pieces[1];
-        } else if (preg_match('/^Cached:\s+(\d+)\skB$/', $line, $pieces)) {
-            $cached = $pieces[1];
+    global $settings;
+    if (file_exists("/proc/meminfo")) {
+        $fh = fopen('/proc/meminfo', 'r');
+        $total = 0;
+        $free = 0;
+        $buffers = 0;
+        $cached = 0;
+        while ($line = fgets($fh)) {
+            $pieces = array();
+            if (preg_match('/^MemTotal:\s+(\d+)\skB$/', $line, $pieces)) {
+                $total = $pieces[1];
+            } else if (preg_match('/^MemFree:\s+(\d+)\skB$/', $line, $pieces)) {
+                $free = $pieces[1];
+            } else if (preg_match('/^Buffers:\s+(\d+)\skB$/', $line, $pieces)) {
+                $buffers = $pieces[1];
+            } else if (preg_match('/^Cached:\s+(\d+)\skB$/', $line, $pieces)) {
+                $cached = $pieces[1];
+            }
         }
+        fclose($fh);
+
+        $used = $total - $free - $buffers - $cached;
+        $memory_usage = 1.0 * $used / $total * 100;
+    } else if ($settings["Platform"] == "MacOS") {
+        $output = exec("memory_pressure | grep System-wide");
+        $array = explode(":", $output);
+        $memory_usage = trim(rtrim($array[1], "%"));
+        $memory_usage = 100 - $memory_usage;
+    } else {
+        $memory_usage = 0;
     }
-    fclose($fh);
-
-    $used = $total - $free - $buffers - $cached;
-    $memory_usage = 1.0 * $used / $total * 100;
-
     return $memory_usage;
 }
 
@@ -1434,7 +1460,7 @@ function get_cpu_stats()
             }
         }
     }
-    return array(0, 0, 0, 0);
+    return array(0, 0, 0, 0, 0, 0, 0);
 }
 
 /**
@@ -1443,6 +1469,11 @@ function get_cpu_stats()
  */
 function get_server_cpu_usage()
 {
+    global $settings;
+    if ($settings["Platform"] == "MacOS") {
+        $output = exec("ps -A -o %cpu | awk '{s+=$1} END {print s}'");
+        return floatval($output);
+    }
     if (!file_exists("/tmp/cpustats.txt")) {
         $ostats = get_cpu_stats();
         $vs = sprintf("%d %d %d %d %d %d %d", $ostats[0], $ostats[1], $ostats[2], $ostats[3], $ostats[4], $ostats[5], $ostats[6]);
@@ -1612,7 +1643,7 @@ function get_remote_git_version($git_branch)
             if ($return_val == 0) {
                 //Google DNS Ping success
                 // this can take a couple seconds to complete so we'll cache it
-                $git_remote_version = exec("ping -q -c 1 $origin > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+                $git_remote_version = exec("ping -q -c 1 $origin > /dev/null && (git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
                 if ($return_val != 0) {
                     $git_remote_version = "Unknown";
                 }
@@ -1623,7 +1654,7 @@ function get_remote_git_version($git_branch)
                 // use ssh to access github, so fallback and check for a
                 // 'github' origin which can be setup to use https://
                 if ($git_remote_version == "") {
-                    $git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h github $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+                    $git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h github $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
                     if ($return_val != 0) {
                         $git_remote_version = "Unknown";
                     }
@@ -1762,12 +1793,12 @@ function ApplyEmailConfig()
     if (($emailuser != '') && ($emailpass != '')) {
         fwrite($fp, $emailserver . ":" . $emailuser . ":" . $emailpass . "\n");
 
-       $v = dns_get_record($emailserver, DNS_CNAME);
-       foreach ($v as $cname) {
-           if (isset($cname["target"])) {
+        $v = dns_get_record($emailserver, DNS_CNAME);
+        foreach ($v as $cname) {
+            if (isset($cname["target"])) {
                 fwrite($fp, $cname["target"] . ":" . $emailuser . ":" . $emailpass . "\n");
-           }
-       }
+            }
+        }
     }
     fclose($fp);
 
@@ -1928,68 +1959,166 @@ function PrintAwesomeFree($code, $isLink = 0)
 #############
 function network_wifi_strength_obj()
 {
+    global $settings;
     $rc = array();
-    $lines = file("/proc/net/wireless");
-    #
-    # Expected format
-    #
-    # face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
-    # wlan0: 0000   41.  -69.  -256        0      0      0   2042      0        0
-    #
-    foreach ($lines as $cnt => $line) {
-        if ($cnt > 1) {
-            $parts = preg_split("/\s+/", trim($line));
-            $obj = new \stdClass();
-            $obj->interface = rtrim($parts[0], ":");
-            $obj->link = intval($parts[2]);
-            $obj->level = intval($parts[3]);
-            $obj->noise = intval($parts[4]);
-
-            if ($obj->level > -50) {
-                $obj->desc = "excellent";
-            } elseif ($obj->level > -60) {
-                $obj->desc = "good";
-            } elseif ($obj->level > -70) {
-                $obj->desc = "fair";
-            } else {
-                $obj->desc = "weak";
+    if ($settings["Platform"] == "MacOS") {
+        exec("/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I", $status);
+        $obj = new \stdClass();
+        $obj->level = 100;
+        foreach ($status as $line) {
+            // do stuff with $line
+            $line = trim($line);
+            $array = explode(':', $line);
+            $key = trim($array[0]);
+            $value = trim($array[1]);
+            if ($key == "agrCtlRSSI") {
+                $obj->level = $value;
             }
-            array_push($rc, $obj);
+            if ($key == "agrCtlNoise") {
+                $obj->noise = $value;
+            }
+            if ($key == "lastTxRate") {
+                $obj->rate = $value;
+            }
+        }
+        if ($obj->level > -50) {
+            $obj->desc = "excellent";
+        } elseif ($obj->level > -60) {
+            $obj->desc = "good";
+        } elseif ($obj->level > -70) {
+            $obj->desc = "fair";
+        } else {
+            $obj->desc = "weak";
+        }
+        array_push($rc, $obj);
+    } else {
+        $lines = file("/proc/net/wireless");
+        #
+        # Expected format
+        #
+        # face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
+        # wlan0: 0000   41.  -69.  -256        0      0      0   2042      0        0
+        #
+        foreach ($lines as $cnt => $line) {
+            if ($cnt > 1) {
+                $parts = preg_split("/\s+/", trim($line));
+                $obj = new \stdClass();
+                $obj->interface = rtrim($parts[0], ":");
+                $obj->link = intval($parts[2]);
+                $obj->level = intval($parts[3]);
+                $obj->noise = intval($parts[4]);
+
+                if ($obj->level > -50) {
+                    $obj->desc = "excellent";
+                } elseif ($obj->level > -60) {
+                    $obj->desc = "good";
+                } elseif ($obj->level > -70) {
+                    $obj->desc = "fair";
+                } else {
+                    $obj->desc = "weak";
+                }
+                array_push($rc, $obj);
+            }
         }
     }
     return $rc;
 }
 
+#############
+# Returns an array of just the network interface nmes
+#############
+function network_list_interfaces_array()
+{
+    global $settings;
+    if ($settings["Platform"] == "MacOS") {
+        $output = exec("ipconfig getiflist");
+        $parts = preg_split("/\s+/", trim($output));
+        return $parts;
+    }
+    $interfaces = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | grep -v tether ")));
+    return $interfaces;
+}
+
 function network_list_interfaces_obj()
 {
+    global $settings;
+
     $output = array();
-    $cmd = "ip --json address show";
-    exec($cmd, $output);
-    $rc = json_decode(join(" ", $output), true);
+    global $settings;
+    $rc = array();
+
     $wifiObj = network_wifi_strength_obj();
-
-    foreach ($rc as &$rec) {
-        // Filter only ipv4 addresses
-        $addrInfo = $rec['addr_info'];
-        $newAddrInfo = array();
-        foreach ($addrInfo as $ai) {
-            if ($ai['family'] == 'inet') {
-                array_push($newAddrInfo, $ai);
+    if ($settings["Platform"] == "MacOS") {
+        $output = exec("ipconfig getiflist");
+        $parts = preg_split("/\s+/", trim($output));
+        foreach ($parts as $cnt => $int) {
+            exec("ipconfig getsummary " . $int, $config);
+            $obj = new \stdClass();
+            $obj->ifindex = $cnt;
+            $obj->ifname = $int;
+            $obj->addr_info = array();
+            $obj->flags = array();
+            array_push($obj->addr_info, new \stdClass());
+            $lastKey = "";
+            foreach ($config as $line) {
+                // do stuff with $line
+                $line = trim($line);
+                $array = explode(':', $line);
+                $key = trim($array[0]);
+                if (count($array) > 1) {
+                    $value = trim($array[1]);
+                } else {
+                    $value = "";
+                }
+                if ($key == "0" && $lastKey == "Addresses") {
+                    $obj->addr_info[0]->family = "inet";
+                    $obj->addr_info[0]->local = $value;
+                    $obj->addr_info[0]->label = $int;
+                    array_push($rc, $obj);
+                } else if ($key == "InterfaceType" && $value == "WiFi") {
+                    $wifiObj[0]->interface = $int;
+                    $obj->wifi = $wifiObj[0];
+                } else if ($key == "ConfigMethod" && $value == "DHCP") {
+                    $obj->flags[] = "DYNAMIC";
+                } else {
+                    $lastKey = $key;
+                }
             }
-
+            unset($config);
         }
-        $rec['addr_info'] = $newAddrInfo;
+    } else {
+        $cmd = "ip --json address show";
+        exec($cmd, $output);
+        $rc = json_decode(join(" ", $output), true);
 
-        // Merge two objects
-        foreach ($wifiObj as $wifi) {
-            if ($rec["ifname"] == $wifi->interface) {
-                $rec["wifi"] = $wifi;
+        foreach ($rc as &$rec) {
+            // Filter only ipv4 addresses
+            $addrInfo = $rec['addr_info'];
+            $newAddrInfo = array();
+            foreach ($addrInfo as $ai) {
+                if ($ai['family'] == 'inet') {
+                    array_push($newAddrInfo, $ai);
+                }
+
             }
-        }
-        $ifname = $rec["ifname"];
-        $add = $rec["address"];
-        if ($ifname == "lo" || $ifname == "usb0" || $ifname == "usb1" || $ifname == "SoftAp0" || $add == "0.0.0.0" || $add == "::") {
-            unset($rc[array_search($rec, $rc)]);
+            $rec['addr_info'] = $newAddrInfo;
+
+            // Merge two objects
+            foreach ($wifiObj as $wifi) {
+                if ($rec["ifname"] == $wifi->interface) {
+                    $rec["wifi"] = $wifi;
+                }
+            }
+            $ifname = $rec["ifname"];
+            $add = $rec["address"];
+            if ($ifname == "lo" || $ifname == "usb0" || $ifname == "usb1" || $ifname == "SoftAp0" || $add == "0.0.0.0" || $add == "::") {
+                unset($rc[array_search($rec, $rc)]);
+            }
+            $cfgFile = $settings['configDirectory'] . "/interface." . $ifname;
+            if (file_exists($cfgFile)) {
+                $result = parse_ini_file($cfgFile);
+                $rec["config"] = $result;
+            }
         }
     }
     return array_values($rc);
@@ -2034,5 +2163,135 @@ function is_valid_domain_name($domain_name)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+
+// Returns the base directory of the git repo
+// normally /opt/fpp
+function gitBaseDirectory()
+{
+    return dirname(dirname(__FILE__));
+}
+
+
+function GetSystemInfoJsonInternal($simple = false)
+{
+    global $settings;
+
+    //close the session before we start, this removes the session lock and lets other scripts run
+    session_write_close();
+    
+    //Default json to be returned
+    $result = array();
+    $result['HostName'] = $settings['HostName'];
+    $result['HostDescription'] = !empty($settings['HostDescription']) ? $settings['HostDescription'] : "";
+    $result['Platform'] = $settings['Platform'];
+    $result['Variant'] = isset($settings['Variant']) ? $settings['Variant'] : '';
+    $result['Mode'] = $settings['fppMode'];
+    $result['Version'] = getFPPVersion();
+    $result['Branch'] = getFPPBranch();
+    $result['multisync'] = isset($settings['MultiSyncEnabled']) ? ($settings['MultiSyncEnabled'] == '1') : false;
+    if ($result['Mode'] == "master") {
+        $result['Mode'] = "player";
+        $result['multisync'] = true;
+    }
+    if ($settings["Platform"] == "MacOS") {
+        $result['OSRelease'] = trim(shell_exec("sw_vers -productVersion"));
+        $result['OSVersion'] = $result['OSRelease'];
+    } else {
+        if (file_exists('/etc/fpp/rfs_version')) {
+            $result['OSVersion'] = trim(file_get_contents('/etc/fpp/rfs_version'));
+        }
+
+        $os_release = "Unknown";
+        if (file_exists("/etc/os-release")) {
+            $info = parse_ini_file("/etc/os-release");
+            if (isset($info["PRETTY_NAME"])) {
+                $os_release = $info["PRETTY_NAME"];
+            }
+
+            unset($output);
+        }
+        $result['OSRelease'] = $os_release;
+    }
+    if (file_exists($settings['mediaDirectory'] . "/fpp-info.json")) {
+        $content = file_get_contents($settings['mediaDirectory'] . "/fpp-info.json");
+        $json = json_decode($content, true);
+        $result['channelRanges'] = $json['channelRanges'];
+        $result['majorVersion'] = $json['majorVersion'];
+        $result['minorVersion'] = $json['minorVersion'];
+        $result['typeId'] = $json['typeId'];
+    }
+    $output = array();
+    exec($settings['fppDir'] . "/scripts/get_uuid", $output);
+    $result['uuid'] = $output[0];
+    
+    if (!$simple) {
+        //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
+        $result['Utilization']['CPU'] = get_server_cpu_usage();
+        $result['Utilization']['Memory'] = get_server_memory_usage();
+        $result['Utilization']['Uptime'] = get_server_uptime(true);
+
+        $result['Kernel'] = get_kernel_version();
+        $result['LocalGitVersion'] = get_local_git_version();
+        $result['RemoteGitVersion'] = get_remote_git_version(getFPPBranch());
+
+        $uploadDir = GetDirSetting("uploads"); // directory under media
+        $result['Utilization']['Disk']["Media"]['Free'] = disk_free_space($uploadDir);
+        $result['Utilization']['Disk']["Media"]['Total'] = disk_total_space($uploadDir);
+        $result['Utilization']['Disk']["Root"]['Free'] = disk_free_space("/");
+        $result['Utilization']['Disk']["Root"]['Total'] = disk_total_space("/");
+
+        if (isset($settings['UpgradeSource'])) {
+            $result['UpgradeSource'] = $settings['UpgradeSource'];
+        } else {
+            $result['UpgradeSource'] = 'github.com';
+        }
+
+        if ($settings["Platform"] != "MacOS") {
+            $output = array();
+            $IPs = array();
+            exec("ip --json -4 address show", $output);
+            //print(join("", $output));
+            $ipAddresses = json_decode(join("", $output), true);
+            foreach ($ipAddresses as $key => $value) {
+                if ($value["ifname"] != "lo" && strpos($value["ifname"], 'usb') === false) {
+                    foreach ($value["addr_info"] as $key2 => $value2) {
+                        $IPs[] = $value2["local"];
+                    }
+                }
+            }
+
+            $result['IPs'] = $IPs;
+        } else {
+            $IPs = array();
+            $output = exec("ipconfig getiflist");
+            $parts = preg_split("/\s+/", trim($output));
+            foreach ($parts as $cnt => $int) {
+                exec("ipconfig getsummary " . $int, $config);
+                $lastKey = "";
+                foreach ($config as $line) {
+                    // do stuff with $line
+                    $line = trim($line);
+                    $array = explode(':', $line);
+                    $key = trim($array[0]);
+                    if (count($array) > 1) {
+                        $value = trim($array[1]);
+                    } else {
+                        $value = "";
+                    }
+                    if ($key == "0" && $lastKey == "Addresses") {
+                        $IPs[] = $value;
+                    } else {
+                        $lastKey = $key;
+                    }
+                }
+                unset($config);
+            }
+            $result['IPs'] = $IPs;
+        }
+
+    }
+    return $result;
+}
+
 
 ?>

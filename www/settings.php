@@ -103,21 +103,25 @@ include 'menu.inc';?>
                             Audio/Video
                             </a>
                         </li>
+<?if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2)) {?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-time-tab" data-toggle="tab" href="#settings-time" data-option="Time" role="tab" aria-controls="settings-time" aria-selected="true">
                             Time
                             </a>
                         </li>
+<?}?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-ui-tab" data-toggle="tab" href="#settings-ui" data-option="UI" role="tab" aria-controls="settings-ui" aria-selected="true">
                                 UI
                             </a>
                         </li>
+<?if ($settings["Platform"] != "MacOS") {?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-email-tab" data-toggle="tab" href="#settings-email" data-option="Email" role="tab" aria-controls="settings-email" aria-selected="true">
                                 Email
                             </a>
                         </li>
+<?}?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-mqtt-tab" data-toggle="tab" href="#settings-mqtt" data-option="MQTT" role="tab" aria-controls="settings-mqtt" aria-selected="true">
                                 MQTT

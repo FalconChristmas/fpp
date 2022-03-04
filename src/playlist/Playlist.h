@@ -29,8 +29,6 @@
 #include <string>
 #include <vector>
 
-#include <jsoncpp/json/json.h>
-
 #include "PlaylistEntryBase.h"
 
 enum PlaylistStatus {
@@ -102,11 +100,10 @@ public:
 
     // these Positions are 0 based and includes the leadIn entries
     uint64_t GetCurrentPosInMS();
-    uint64_t GetCurrentPosInMS(int &pos, uint64_t &posms);
+    uint64_t GetCurrentPosInMS(int& pos, uint64_t& posms);
     uint64_t GetPosStartInMS(int pos);
     int FindPosForMS(uint64_t& ms); //ms will be updated with how far into Pos it would be
     void GetFilenamesForPos(int pos, std::string& seq, std::string& med);
-
 
     int MQTTHandler(std::string topic, std::string msg);
 

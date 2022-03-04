@@ -9,9 +9,11 @@ error_reporting(E_ALL);
 
 $fpp_version = "v" . getFPPVersion();
 
-$serialNumber = exec("sed -n 's/^Serial.*: //p' /proc/cpuinfo", $output, $return_val);
-if ($return_val != 0) {
-    unset($serialNumber);
+if (file_exists("/proc/cpuinfo")) {
+    $serialNumber = exec("sed -n 's/^Serial.*: //p' /proc/cpuinfo", $output, $return_val);
+    if ($return_val != 0) {
+        unset($serialNumber);
+    }
 }
 
 unset($output);
@@ -20,12 +22,6 @@ if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version
     exec($SUDO . " $fppDir/scripts/upgrade_config");
 }
 
-$lastBoot = exec("uptime -s", $output, $return_val);
-if ($return_val != 0) {
-    $lastBoot = 'Unknown';
-}
-
-unset($output);
 
 $os_build = "Unknown";
 if (file_exists("/etc/fpp/rfs_version")) {
@@ -46,8 +42,20 @@ if (file_exists("/etc/os-release")) {
 
     unset($output);
 }
+if ($settings["Platform"] != "MacOS") {
+    $lastBoot = exec("uptime -s", $output, $return_val);
+    if ($return_val != 0) {
+        $lastBoot = 'Unknown';
+    }
+    unset($output);
+} else {
+    $lastBoot = "";
+    $os_version = "";
+    $os_build = "";
+}
 
-$kernel_version = exec("/bin/uname -r", $output, $return_val);
+
+$kernel_version = exec("uname -r", $output, $return_val);
 if ($return_val != 0) {
     $kernel_version = "Unknown";
 }
@@ -311,13 +319,15 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
 }
 
 ?></td></tr>
-                <tr><td>FPP OS Build:</td><td id='osVersion'><?echo $os_build; ?></td></tr>
+     <?if ($os_build != "") { ?><tr><td>FPP OS Build:</td><td id='osVersion'><?echo $os_build; ?></td></tr><? } ?>
                 <tr><td>OS Version:</td><td id='osRelease'><?echo $os_version; ?></td></tr>
     <?if (isset($serialNumber) && $serialNumber != "") {?>
             <tr><td>Hardware Serial Number:</td><td><?echo $serialNumber; ?></td></tr>
     <?}?>
                 <tr><td>Kernel Version:</td><td><?echo $kernel_version; ?></td></tr>
+<? if ($lastBoot != "") { ?>
                 <tr><td>System Boot Time:</td><td id='lastBoot'><?echo $lastBoot; ?></td></tr>
+<? } ?>
                 <tr><td>fppd Uptime:</td><td id='fppdUptime'></td></tr>
                 <tr><td>Local Git Version:</td><td id='localGitVersion'>
     <?
@@ -348,8 +358,11 @@ if ($settings['uiLevel'] > 0) {
     $upgradeSources = array();
     $remotes = getKnownFPPSystems();
 
-    $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
-
+if ($settings["Platform"] != "MacOS") {
+    $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
+} else {
+    $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | grep 'inet ' | awk '{print \$2}'")));
+}
     foreach ($remotes as $desc => $host) {
         if ((!in_array($host, $IPs)) && (!preg_match('/^169\.254\./', $host))) {
             $upgradeSources[$desc] = $host;
@@ -403,15 +416,20 @@ $percentageUsed = 100 - ($diskFree * 100 / $diskTotal);
 $progressClass = "bg-success";
 if ($percentageUsed > 60) {$progressClass = "bg-warning";}
 if ($percentageUsed > 80) {$progressClass = "bg-danger";}
-exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
-$rootDevice = $output[0];
-unset($output);
-exec('findmnt -n -o SOURCE ' . $mediaDirectory . ' | colrm 1 5', $output, $return_val);
-$mediaDevice = "";
-if (count($output) > 0) {
-    $mediaDevice = $output[0];
+if (file_exists("/bin/findmnt")) {
+    exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+    $rootDevice = $output[0];
+    unset($output);
+    exec('findmnt -n -o SOURCE ' . $mediaDirectory . ' | colrm 1 5', $output, $return_val);
+    $mediaDevice = "";
+    if (count($output) > 0) {
+        $mediaDevice = $output[0];
+    }
+    unset($output);
+} else {
+    $rootDevice = "";
+    $mediaDevice = "";
 }
-unset($output);
 ?>
                 <tr>
                   <td colspan="2">
@@ -420,7 +438,7 @@ unset($output);
                   </div>
                   </td>
                 </tr>
-                <tr><td>Root (<?echo $rootDevice; ?>) Free Space:</td><td>
+                <tr><td>Root <? if ($rootDevice != "") echo "(" . $rootDevice . ")"; ?> Free Space:</td><td>
 
     <?
 printf("%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
@@ -512,7 +530,9 @@ if (isset($settings["cape-info"])) {
         if (isset($currentCapeInfo['vendor']['email'])) {
             echo "<tr><td><b>E-mail:</b></td><td><a href=\"mailto:" . $currentCapeInfo['vendor']['email'] . "\">" . $currentCapeInfo['vendor']['email'] . "</td></tr>";
         }
-
+        if (isset($currentCapeInfo['vendor']['forum'])) {
+            echo "<tr><td><b>Support Forum:</b></td><td><a href=\"" . $currentCapeInfo['vendor']['forum'] . "\">" . $currentCapeInfo['vendor']['forum'] . "</td></tr>";
+        }
         if (isset($currentCapeInfo['vendor']['image']) && $settings['FetchVendorLogos']) {
             if ($settings['SendVendorSerial'] == 1) {
                 $iurl = $currentCapeInfo['vendor']['image'] . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];

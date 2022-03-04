@@ -133,6 +133,10 @@ body .ui-tabs .ui-tabs-nav li {
 	background-color: #171720;
 }
 
+.headerCenter {
+	padding-left: 0px;
+}
+
 .statusHostname {
 	/*display: inline;*/
 	display:none;
@@ -287,8 +291,13 @@ input#MultiSyncHTTPSubnets {
 .headerHostName {
 	display: flex;
 	align-items: center;
-    font-size: 2.2em;
+    font-size: 2.1em;
+	height:40px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
+
 .headerHostLink{
 	font-weight: bold;
 	padding-right: 1em;
@@ -300,7 +309,7 @@ input#MultiSyncHTTPSubnets {
 
 	background-position: center top;
 	vertical-align: middle;
-	margin-left: 0.6em;
+	margin-left: 0.1em;
 	padding-right: 0.9em;
 	text-align: center;
 	position: relative;
@@ -2266,6 +2275,10 @@ input[type=search].tablesorter-filter:disabled{
 	}
 }
 @media (max-width:768px){
+	.headerHostName {
+		max-width: 200px;
+	}
+
 	.headerRight{
 		display: none;
 	}
@@ -2274,6 +2287,9 @@ input[type=search].tablesorter-filter:disabled{
 	}
 }
 @media (max-width:560px){
+	.headerHostName {
+		max-width: 180px;
+	}
 	.fpp-logo, .headerRight{
 		display: none;
 	}
@@ -2282,6 +2298,13 @@ input[type=search].tablesorter-filter:disabled{
 	}
 }
 @media(max-width:480px){
+	.headerHostName {
+		max-width: 170px;
+	}
+	.header.swiped .headerLeft .logo{
+		display: none;
+	}
+
 	.header.swiped .headerHostName{
 		display: flex;
 	}
@@ -2405,6 +2428,7 @@ input[type=search].tablesorter-filter:disabled{
 	}
 	.header>.headerLeft{
 		padding-left: 0.5em;
+		padding-right:0.1em;
 	}
 	.fppBrand {
 		padding-left: 0;
@@ -2426,6 +2450,10 @@ input[type=search].tablesorter-filter:disabled{
 
 }
 @media(max-width:450px){
+	.headerHostName {
+		max-width: 120px;
+	}
+
     .headerLeft {
         display: none;
     }

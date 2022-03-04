@@ -26,7 +26,7 @@ if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
 	cd ${FPPDIR} && $SUDO git submodule foreach git reset --hard && $SUDO git checkout $1 && $SUDO git pull && $SUDO git submodule sync && $SUDO git submodule update --init
 else
-	cd ${FPPDIR} && sudo git submodule foreach git reset --hard && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git submodule sync && sudo git submodule update --init
+	cd ${FPPDIR} && $SUDO git submodule foreach git reset --hard && $SUDO -u ${FPPUSER} git checkout $1 && $SUDO -u ${FPPUSER} git pull && $SUDO -u ${FPPUSER} git submodule sync && $SUDO git submodule update --init
 fi
 
 sudo ${SCRIPTDIR}/upgrade_config

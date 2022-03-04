@@ -5,8 +5,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <linux/i2c-dev.h>
-#include <linux/i2c.h>
 #include <sys/ioctl.h>
 
 #include "util/I2CUtils.h"

@@ -25,7 +25,6 @@
  */
 
 #include <arpa/inet.h>
-#include <linux/if_packet.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <sys/uio.h>
@@ -61,6 +60,7 @@ public:
 
 private:
     void SetHostMACs(void* data);
+    int sendMessages(struct mmsghdr* msgs, int cnt);
 
     int m_width;
     int m_height;

@@ -564,6 +564,7 @@ void PixelString::DumpConfig(void) {
     for (auto& vs : m_virtualStrings) {
         if (vs.receiverNum == -1) {
             LogDebug(VB_CHANNELOUT, "        --- Virtual String #%d ---\n", ++count);
+            LogDebug(VB_CHANNELOUT, "        description   : %s\n", vs.description.c_str());
             LogDebug(VB_CHANNELOUT, "        start channel : %d\n", vs.startChannel + m_channelOffset);
             LogDebug(VB_CHANNELOUT, "        pixel count   : %d\n", vs.pixelCount);
             LogDebug(VB_CHANNELOUT, "        group count   : %d\n", vs.groupCount);

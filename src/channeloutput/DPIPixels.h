@@ -27,14 +27,13 @@
 #include <string>
 #include <vector>
 
-// from fbws.c
 #include <linux/fb.h>
 
+#include "ChannelOutputBase.h"
 #include "PixelString.h"
-#include "ThreadedChannelOutputBase.h"
 #include "util/SPIUtils.h"
 
-class DPIPixelsOutput : public ThreadedChannelOutputBase {
+class DPIPixelsOutput : public ChannelOutputBase {
 public:
     DPIPixelsOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~DPIPixelsOutput();
@@ -43,38 +42,43 @@ public:
     virtual int Close(void) override;
 
     virtual void PrepData(unsigned char* channelData) override;
-    virtual int RawSendData(unsigned char* channelData) override;
+    virtual int SendData(unsigned char* channelData) override;
 
     virtual void DumpConfig(void) override;
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
 private:
+    int GetDPIPinBitPosition(std::string pinName);
+
     bool FrameBufferIsConfigured(void);
 
-    void InitializeWS281x(void);
+    bool InitializeWS281x(void);
     void InitFrameWS281x(void);
-    void OutputPixelRowWS281x(uint32_t *rowData);
+    void OutputPixelRowWS281x(uint32_t* rowData, int maxString);
     void CompleteFrameWS281x(void);
 
-    std::string device;
-    std::string protocol;
+    std::string device = "/dev/fb1";
+    std::string protocol = "ws2811";
 
-    std::vector<PixelString*> m_strings;
+    std::vector<PixelString*> pixelStrings;
     int bitPos[24];
 
     int fbfd = 0;
-    char *fbp = 0;
+    char* fbp = 0;
     int screensize = 0;
     int pagesize = 0;
-    int page = 0;
+    int page = 1;
+    int pages = 3;
     struct fb_var_screeninfo vinfo;
     struct fb_fix_screeninfo finfo;
 
+    int stringCount = 0;
     int longestString = 0;
 
     int protoBitsPerLine = 0;
     int protoBitOnLine = 0;
-    uint8_t *protoDest = nullptr;
+    uint8_t* protoDest = nullptr;
     int protoDestExtra = 0;
 };
+

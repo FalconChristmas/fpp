@@ -27,9 +27,16 @@
 #include <functional>
 #include <map>
 
-#include <jsoncpp/json/json.h>
-#include <gpiod.h>
 #include <httpserver.hpp>
+
+#include "config.h"
+
+#ifdef HAS_GPIOD
+#include <gpiod.h>
+#else 
+struct gpiod_line {};
+struct gpiod_chip {};
+#endif
 
 class PinCapabilities;
 class GPIOManager : public httpserver::http_resource {

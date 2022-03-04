@@ -83,30 +83,66 @@ function stats_network()
 
 function stats_memory()
 {
+    global $settings;
     $rc = array('meminfoAvailable' => false);
-    $interesting = array('MemTotal', 'MemFree', 'MemAvailable', 'Active', 'Inactive', 'Cached');
-    $output = array();
-    exec("cat /proc/meminfo", $output, $exitCode);
+    if (file_exists("/proc/meminfo")) {
+        $interesting = array('MemTotal', 'MemFree', 'MemAvailable', 'Active', 'Inactive', 'Cached');
+        $output = array();
+        exec("cat /proc/meminfo", $output, $exitCode);
 
-    if ($exitCode == 0) {
-        $rc['meminfoAvailable'] = true;
-        $key = 'unknown';
-        $value = 0;
-        foreach ($output as $row) {
-            $matches = array();
-            if (preg_match("/^(.*):/", $row, $matches) == 1) {
-                $key = $matches[1];
+        if ($exitCode == 0) {
+            $rc['meminfoAvailable'] = true;
+            $key = 'unknown';
+            $value = 0;
+            foreach ($output as $row) {
+                $matches = array();
+                if (preg_match("/^(.*):/", $row, $matches) == 1) {
+                    $key = $matches[1];
+                }
+
+                if (preg_match("/\s+([0-9]*) kB/", $row, $matches) == 1) {
+                    $value = $matches[1];
+                }
+
+                if (in_array($key, $interesting)) {
+                    $rc[$key] = $value;
+                }
             }
-
-            if (preg_match("/\s+([0-9]*) kB/", $row, $matches) == 1) {
-                $value = $matches[1];
-            }
-
-            if (in_array($key, $interesting)) {
-                $rc[$key] = $value;
+        }
+    } else if ($settings["Platform"] == "MacOS") {
+        $output = array();
+        exec("memory_pressure", $output, $exitCode);
+        if ($exitCode == 0) {
+            $rc['meminfoAvailable'] = true;
+            $key = 'unknown';
+            $value = 0;
+            $pageSize = 4096;
+            $totalPages = 0;
+            foreach ($output as $row) {
+                $matches = array();
+                if (preg_match("/([0-9]*) pages with a page size of ([0-9]*).*/", $row, $matches) == 1) {
+                    $totalPages = intval($matches[1]);
+                    $pageSize = intval($matches[2]);
+                    $rc['MemTotal'] = strval($pageSize*$totalPages/1024);
+                } else  if (preg_match("/^(.*): ([0-9]*)/", $row, $matches) == 1) {
+                    $key = $matches[1];
+                    $value = intval($matches[2]);
+                    
+                    if ($key == "Pages active") {
+                        $rc["Active"] = strval($pageSize * $value / 1024);
+                    } else if ($key == "Pages inactive") {
+                        $rc["Inactive"] = strval($pageSize * $value / 1024);
+                    } else if ($key == "Pages purgeable") {
+                        $rc["Cached"] = strval($pageSize * $value / 1024);
+                    } else if ($key == "Pages free") {
+                        $rc["MemFree"] = strval($pageSize * $value / 1024);
+                        $rc['MemAvailable'] = strval($pageSize * $value /1024);
+                    }
+                }
             }
         }
     }
+
     return $rc;
 }
 
@@ -375,8 +411,10 @@ function stats_getPlugins()
 
 function stats_getUUID()
 {
+    global $fppDir;
+    
     $output = array();
-    exec("/opt/fpp/scripts/get_uuid", $output);
+    exec($fppDir . "/scripts/get_uuid", $output);
 
     return $output[0];
 }

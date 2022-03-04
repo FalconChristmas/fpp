@@ -9,8 +9,7 @@ OBJECTS_fsequtils = \
 LIBS_fsequtils = \
 	-lcurl \
 	-ljsoncpp \
-    -lzstd -lz \
-	-lpthread
+    -lzstd -lz
 
 TARGETS += fsequtils
 OBJECTS_ALL+=$(OBJECTS_fsequtils)

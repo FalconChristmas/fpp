@@ -18,6 +18,9 @@
 
 #include "MediaOutputBase.h"
 
+#if __has_include(<vlc/vlc.h>)
+#define HAS_VLC
+
 class VLCInternalData;
 
 class VLCOutput : public MediaOutputBase {
@@ -45,3 +48,4 @@ private:
     VLCInternalData* data;
     bool m_allowSpeedAdjust;
 };
+#endif

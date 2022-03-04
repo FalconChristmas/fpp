@@ -25,15 +25,13 @@
  */
 
 #include <netinet/in.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <mutex>
 #include <pthread.h>
-
-#include <jsoncpp/json/json.h>
 #include <set>
 
 #include "settings.h"
+#include "SysSocket.h"
 
 #define FPP_CTRL_PORT 32320
 
@@ -93,6 +91,8 @@ typedef enum systemType {
     kSysTypeFPPBeagleBoneGreenWireless = 0x44,
     kSysTypeFPPPocketBeagle = 0x45,
     kSysTypeFPPSanCloudBeagleBoneEnhanced = 0x46,
+    kSysTypeMacOS = 0x70,
+    // Values under 0x80 are "FPP based" and run full FPP
     kSysTypeFalconController = 0x80,
     kSysTypeFalconF16v2 = 0x81,
     kSysTypeFalconF4v2_64Mb = 0x82,
@@ -302,7 +302,7 @@ private:
     void SendBroadcastPacket(void* outBuf, int len);
     void SendControlPacket(void* outBuf, int len);
     void SendMulticastPacket(void* outBuf, int len);
-    void SendUnicastPacket(const std::string &address, void* outBuf, int len);
+    void SendUnicastPacket(const std::string& address, void* outBuf, int len);
     bool FillInInterfaces();
     bool RemoveInterface(const std::string& interface);
 

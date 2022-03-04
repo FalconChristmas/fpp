@@ -25,13 +25,8 @@
 
 #include "fpp-pch.h"
 
-#if __GNUC__ >= 8
 #include <filesystem>
 using namespace std::filesystem;
-#else
-#include <experimental/filesystem>
-using namespace std::experimental::filesystem;
-#endif
 
 #include <sys/wait.h>
 
@@ -181,6 +176,7 @@ int PlaylistEntryMedia::StartPlaying(void) {
         delete m_mediaOutput;
         m_mediaOutput = 0;
         pthread_mutex_unlock(&m_mediaOutputLock);
+        FinishPlay();
         return 0;
     }
 
@@ -193,12 +189,6 @@ int PlaylistEntryMedia::StartPlaying(void) {
  *
  */
 int PlaylistEntryMedia::Process(void) {
-    sigset_t blockset;
-
-    sigemptyset(&blockset);
-    sigaddset(&blockset, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &blockset, NULL);
-
     pthread_mutex_lock(&m_mediaOutputLock);
 
     if (m_mediaOutput) {
@@ -214,9 +204,6 @@ int PlaylistEntryMedia::Process(void) {
     }
 
     pthread_mutex_unlock(&m_mediaOutputLock);
-
-    sigprocmask(SIG_UNBLOCK, &blockset, NULL);
-
     return PlaylistEntryBase::Process();
 }
 
@@ -393,9 +380,9 @@ int PlaylistEntryMedia::GetFileList(void) {
     m_files.clear();
 
     if (m_fileMode == "randomVideo")
-        dir = FPP_DIR_VIDEO;
+        dir = FPP_DIR_VIDEO("");
     else if (m_fileMode == "randomAudio")
-        dir = FPP_DIR_MUSIC;
+        dir = FPP_DIR_MUSIC("");
 
     for (auto& cp : recursive_directory_iterator(dir)) {
         std::string entry = cp.path().string();

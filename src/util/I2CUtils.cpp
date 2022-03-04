@@ -1,7 +1,13 @@
 #include "fpp-pch.h"
 
+#include "../config.h"
+
+#ifdef HAS_I2C
 #include <linux/i2c-dev.h>
 #include <linux/i2c.h>
+#else
+
+#endif
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
@@ -22,6 +28,9 @@ I2CUtils::I2CUtils(const char* bus, int address) {
     Init(dev, address);
 }
 void I2CUtils::Init(const char* dev, int address) {
+    file = -1;
+    funcs = -1;
+#ifdef HAS_I2C
     if ((file = open(dev, O_RDWR)) < 0) {
         if (system("/sbin/modprobe i2c_dev") == -1) { /* ignore errors */
         }
@@ -42,6 +51,7 @@ void I2CUtils::Init(const char* dev, int address) {
     if (ioctl(file, I2C_FUNCS, &funcs) < 0) {
         funcs = -1;
     }
+#endif
 }
 I2CUtils::~I2CUtils() {
     if (file != -1) {
@@ -63,6 +73,7 @@ int I2CUtils::writeDevice(uint8_t* buf, int count) {
     return -1;
 }
 
+#ifdef HAS_I2C
 inline int fpp_smbus_access(int file, char rw, uint8_t cmd, int size, union i2c_smbus_data* data) {
     struct i2c_smbus_ioctl_data args;
     args.read_write = rw;
@@ -200,3 +211,14 @@ int I2CUtils::readI2CBlockData(int reg, uint8_t* buf, int count) {
     }
     return -1;
 }
+#else
+int I2CUtils::readByte() { return -1; }
+int I2CUtils::writeByte(unsigned val) { return -1; }
+int I2CUtils::readByteData(int reg) { return -1; }
+int I2CUtils::writeByteData(int reg, unsigned val) { return -1; }
+int I2CUtils::readWordData(int reg) { return -1; }
+int I2CUtils::writeWordData(int reg, unsigned val) { return -1; }
+int I2CUtils::writeBlockData(int reg, const uint8_t* buf, int count) { return -1; }
+int I2CUtils::writeI2CBlockData(int reg, const uint8_t* buf, int count) { return -1; }
+int I2CUtils::readI2CBlockData(int reg, uint8_t* buf, int count) { return -1; }
+#endif

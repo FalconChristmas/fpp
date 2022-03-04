@@ -3,8 +3,6 @@
 #include <string>
 #include <vector>
 
-#include <jsoncpp/json/json.h>
-
 #if __has_include(<gpiod.hpp>)
 #include <gpiod.hpp>
 #define HASGPIOD

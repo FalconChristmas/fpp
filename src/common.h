@@ -26,6 +26,7 @@
 
 #include <stdint.h>
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -84,6 +85,7 @@ int DateInRange(int currentDate, int startDate, int endDate);
 void CloseOpenFiles(void);
 
 std::string GetFileContents(const std::string& filename);
+bool PutFileContents(const std::string& filename, const std::string& str);
 void TrimWhiteSpace(std::string& s);
 
 uint8_t ReverseBitsInByte(uint8_t n);
@@ -91,8 +93,6 @@ uint8_t ReverseBitsInByte(uint8_t n);
 bool SetFilePerms(const std::string& filename);
 bool SetFilePerms(const char* file);
 
-#ifndef PLATFORM_OSX
-#include <jsoncpp/json/json.h>
 void MergeJsonValues(Json::Value& a, Json::Value& b);
 Json::Value LoadJsonFromFile(const std::string& filename);
 Json::Value LoadJsonFromString(const std::string& str);
@@ -103,7 +103,6 @@ std::string SaveJsonToString(const Json::Value& root, const std::string& indenta
 bool SaveJsonToString(const Json::Value& root, std::string& str, const std::string& indentation);
 bool SaveJsonToFile(const Json::Value& root, const std::string& filename, const std::string& indentation = "\t");
 bool SaveJsonToFile(const Json::Value& root, const char* filename, const char* indentation = "\t");
-#endif
 
 std::string tail(std::string const& source, size_t const length);
 std::vector<std::string>& split(const std::string& s, char delim, std::vector<std::string>& elems);
@@ -136,6 +135,8 @@ bool urlPut(const std::string url, const std::string data, std::string& resp);
 bool urlDelete(const std::string url, const std::string data, std::string& resp);
 bool urlDelete(const std::string url, std::string& resp);
 
-
 std::string base64Encode(uint8_t const* bytes_to_encode, unsigned int in_len);
 std::vector<uint8_t> base64Decode(std::string const& encodedString);
+
+void ShutdownFPPD(bool restart);
+void RegisterShutdownHandler(const std::function<void(bool)> hook);

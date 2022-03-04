@@ -6,7 +6,7 @@ function GetAvailableBackupsFromDir($backupDir) {
     $excludeList = Array();
     $dirs = Array();
 
-    foreach(scandir('/home/fpp/media') as $fileName) {
+    foreach(scandir($mediaDirectory) as $fileName) {
         if (($fileName != '.') &&
             ($fileName != '..')) {
             array_push($excludeList, $fileName);
@@ -36,7 +36,7 @@ function GetAvailableBackupsFromDir($backupDir) {
 }
 
 function GetAvailableBackups() {
-    return json(GetAvailableBackupsFromDir('/home/fpp/media/backups/'));
+    return json(GetAvailableBackupsFromDir($mediaDirectory . '/backups/'));
 }
 
 function CheckIfDeviceIsUsable($deviceName) {

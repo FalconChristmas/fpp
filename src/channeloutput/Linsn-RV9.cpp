@@ -60,10 +60,20 @@
  */
 #include "fpp-pch.h"
 
-#include <arpa/inet.h>
+#ifndef PLATFORM_OSX
 #include <linux/if_packet.h>
-#include <net/if.h>
 #include <netinet/ether.h>
+#else
+#include <net/bpf.h>
+#include <ifaddrs.h>
+#include <sys/socket.h>
+#include <net/if_dl.h>
+#endif
+
+#include "../SysSocket.h"
+
+#include <arpa/inet.h>
+#include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
@@ -164,10 +174,10 @@ int LinsnRV9Output::Init(Json::Value config) {
     for (int i = 0; i < config["panels"].size(); i++) {
         Json::Value p = config["panels"][i];
         char orientation = 'N';
-        const char* o = p["orientation"].asString().c_str();
-
-        if (o && *o)
+        std::string o = p["orientation"].asString();
+        if (o != "") {
             orientation = o[0];
+        }
 
         if (p["colorOrder"].asString() == "")
             p["colorOrder"] = ColorOrderToString(m_colorOrder);
@@ -281,6 +291,7 @@ int LinsnRV9Output::Init(Json::Value config) {
 
     m_pktSize = sizeof(struct ether_header) + LINSNRV9_HEADER_SIZE + LINSNRV9_DATA_SIZE;
 
+#ifndef PLATFORM_OSX
     // Open our raw socket
     if ((m_fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
         LogErr(VB_CHANNELOUT, "Error creating raw socket: %s\n", strerror(errno));
@@ -298,6 +309,30 @@ int LinsnRV9Output::Init(Json::Value config) {
     m_sock_addr.sll_ifindex = m_if_idx.ifr_ifindex;
     m_sock_addr.sll_halen = ETH_ALEN;
     memcpy(m_sock_addr.sll_addr, m_eh->ether_dhost, 6);
+#else
+    char buf[ 11 ] = { 0 };
+    int i = 0;
+    for (int i = 0; i < 255; i++ ) {
+        sprintf( buf, "/dev/bpf%i", i );
+        m_fd = open( buf, O_RDWR );
+        if (m_fd != -1 ) {
+            break;
+        }
+    }
+    if (m_fd == -1) {
+        LogErr(VB_CHANNELOUT, "Error opening bpf file: %s\n", strerror(errno));
+        return 0;
+    }
+    
+    struct ifreq bound_if;
+    memset(&bound_if, 0, sizeof(bound_if));
+    strcpy(bound_if.ifr_name, m_ifName.c_str());
+    if (ioctl(m_fd, BIOCSETIF, &bound_if) > 0) {
+        LogErr(VB_CHANNELOUT, "Cannot bind bpf device to physical device %s, exiting\n", m_ifName.c_str());
+    }
+    int yes = 1;
+    ioctl(m_fd, BIOCSHDRCMPLT, &yes);
+#endif
 
     // Send discovery/wakeup packets
     SetDiscoveryMACs(m_buffer);
@@ -320,7 +355,7 @@ int LinsnRV9Output::Init(Json::Value config) {
     //	m_buffer[48] = 0x00; // This was returned by reciever in byte offset 0x0b
 
     for (int i = 0; i < 2; i++) {
-        if (sendto(m_fd, m_buffer, LINSNRV9_BUFFER_SIZE, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0) {
+        if (Send(m_buffer, LINSNRV9_BUFFER_SIZE) < 0) {
             LogErr(VB_CHANNELOUT, "Error sending row data packet: %s\n", strerror(errno));
             return 0;
         }
@@ -407,6 +442,15 @@ void LinsnRV9Output::PrepData(unsigned char* channelData) {
     }
 }
 
+int LinsnRV9Output::Send(char* buffer, int len) {
+#ifndef PLATFORM_OSX
+    return sendto(m_fd, buffer, len, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll));
+#else
+    return write(m_fd, buffer, len);
+#endif
+}
+
+
 /*
  *
  */
@@ -431,7 +475,7 @@ int LinsnRV9Output::SendData(unsigned char* channelData) {
 
     m_buffer[45] = m_formatCodes[m_formatIndex].code;
 
-    if (sendto(m_fd, m_buffer, LINSNRV9_BUFFER_SIZE, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0) {
+    if (Send(m_buffer, LINSNRV9_BUFFER_SIZE) < 0) {
         LogErr(VB_CHANNELOUT, "Error sending row data packet: %s\n", strerror(errno));
         return 0;
     }
@@ -448,7 +492,7 @@ int LinsnRV9Output::SendData(unsigned char* channelData) {
 
         memcpy(m_data, m_outputFrame + bytesSent, LINSNRV9_DATA_SIZE);
 
-        if (sendto(m_fd, m_buffer, LINSNRV9_BUFFER_SIZE, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0) {
+        if (Send(m_buffer, LINSNRV9_BUFFER_SIZE) < 0) {
             LogErr(VB_CHANNELOUT, "Error sending row data packet: %s\n", strerror(errno));
             return 0;
         }
@@ -510,21 +554,40 @@ void LinsnRV9Output::HandShake(void) {
  *
  */
 void LinsnRV9Output::GetSrcMAC(void) {
-    struct ifreq ifr;
     int s;
 
+#ifndef PLATFORM_OSX
+    struct ifreq ifr;
     s = socket(AF_INET, SOCK_DGRAM, 0);
     strcpy(ifr.ifr_name, m_ifName.c_str());
     ioctl(s, SIOCGIFHWADDR, &ifr);
-
-    m_srcMAC[0] = ifr.ifr_hwaddr.sa_data[0];
-    m_srcMAC[1] = ifr.ifr_hwaddr.sa_data[1];
-    m_srcMAC[2] = ifr.ifr_hwaddr.sa_data[2];
-    m_srcMAC[3] = ifr.ifr_hwaddr.sa_data[3];
-    m_srcMAC[4] = ifr.ifr_hwaddr.sa_data[4];
-    m_srcMAC[5] = ifr.ifr_hwaddr.sa_data[5];
-
+    char *sa_data = ifr.ifr_hwaddr.sa_data;
     close(s);
+#else
+    char sa_data[24];
+    ifaddrs* iflist;
+    bool found = false;
+    if (getifaddrs(&iflist) == 0) {
+        for (ifaddrs* cur = iflist; cur; cur = cur->ifa_next) {
+            if ((cur->ifa_addr->sa_family == AF_LINK) &&
+                    (strcmp(cur->ifa_name, m_ifName.c_str()) == 0) &&
+                    cur->ifa_addr) {
+                sockaddr_dl* sdl = (sockaddr_dl*)cur->ifa_addr;
+                memcpy(sa_data, LLADDR(sdl), sdl->sdl_alen);
+                found = true;
+                break;
+            }
+        }
+
+        freeifaddrs(iflist);
+    }
+#endif
+    m_srcMAC[0] = sa_data[0];
+    m_srcMAC[1] = sa_data[1];
+    m_srcMAC[2] = sa_data[2];
+    m_srcMAC[3] = sa_data[3];
+    m_srcMAC[4] = sa_data[4];
+    m_srcMAC[5] = sa_data[5];
 }
 
 /*

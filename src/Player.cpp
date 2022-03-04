@@ -16,6 +16,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
 #include "Player.h"
 #include "common.h"
@@ -44,7 +45,6 @@ void Player::Init() {
 
 int Player::StartPlaylist(const std::string& name, const int repeat,
                           const int startPosition, const int endPosition, const int manualPriority) {
-
     if ((GetStatus() == FPP_STATUS_IDLE) ||
         (name != playlistName)) {
         playlistName = name;
@@ -81,7 +81,9 @@ int Player::StartScheduledPlaylist(const std::string& name, const int position,
     LogDebug(VB_PLAYLIST, "Starting %srepeating playlist '%s' with scheduled '%s' in %d seconds\n",
              repeat ? "" : "non-",
              playlistName.c_str(),
-             stopMethod == 0 ? "Graceful Stop" : stopMethod == 1 ? "Hard Stop" : stopMethod == 2 ? "Graceful Stop After Loop" : "",
+             stopMethod == 0 ? "Graceful Stop" : stopMethod == 1 ? "Hard Stop"
+                                             : stopMethod == 2   ? "Graceful Stop After Loop"
+                                                                 : "",
              (int)(stopTime - std::time(nullptr)));
 
     return playlist->Play(playlistName.c_str(), position, repeat, scheduleEntry);
@@ -135,7 +137,6 @@ int Player::StopNow(int forceStop) {
         forceStoppedPlaylist = playlistName;
     else
         forceStoppedPlaylist = "";
-
     return playlist->StopNow(forceStop);
 }
 
@@ -173,7 +174,9 @@ int Player::Process() {
             if (logSwitch) {
                 LogDebug(VB_PLAYLIST, "Playlist '%s' will switch to '%s' in %d second%s\n",
                          playlistName.c_str(),
-                         stopMethod == 0 ? "Stopping Gracefully" : stopMethod == 1 ? "Hard Stop" : stopMethod == 2 ? "Stopping Gracefully After Loop" : "",
+                         stopMethod == 0 ? "Stopping Gracefully" : stopMethod == 1 ? "Hard Stop"
+                                                               : stopMethod == 2   ? "Stopping Gracefully After Loop"
+                                                                                   : "",
                          diff,
                          diff == 1 ? "" : "s");
             }

@@ -20,6 +20,7 @@ src/fsequtils
 src/util/seqdump
 src/Makefile.local
 src/libfpp*.so
+src/libfpp*.dylib
 cscope.out
 tags
 pixelnetDMX
@@ -31,6 +32,7 @@ www/.htpasswd
 www/.config.php
 www/fppversion.php
 www/fppdefines.php
+www/media_root.txt
 external/rasclock/modules.order
 external/rasclock/Module.symvers
 external/rasclock/rtc-pcf2127a.*
@@ -42,3 +44,5 @@ plugins/
 ._*
 
 .vscode/sftp.json
+xcuserdata
+src/fppd.xcodeproj/project.xcworkspace/xcshareddata

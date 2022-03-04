@@ -1,21 +1,46 @@
 <?
 /////////////////////////////////////////////////////////////////////////////
-function GetAudioCurrentCard() {
-    global $SUDO;
+if (! function_exists('str_ends_with')) {
+    function str_ends_with(string $haystack, string $needle): bool {
+        $needle_len = strlen($needle);
+        return ($needle_len === 0 || 0 === substr_compare($haystack, $needle, - $needle_len));
+    }
+}
 
-    exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
-    if ( $return_val )
-    {
-        error_log("Error getting currently selected alsa card used!");
+function GetAudioCurrentCard() {
+    global $SUDO, $settings;
+
+    if ($settings["Platform"] == "MacOS") {
+        exec("system_profiler SPAudioDataType", $output);
+        $cards = Array();
+        $curCard = "";
+        foreach ($output as $line) {
+            $tline = trim($line);
+            if ($tline != "" && $tline != "Audio:" && $tline != "Device:") {
+                if (str_ends_with($tline, ":")) {
+                    $curCard = rtrim($tline, ":");
+                } else {
+                    $values = explode(':', $tline);
+                    $key = trim($values[0]);
+                    if ($key == "Default Output Device") {
+                        return $curCard;
+                    }
+                }
+            }
+        }
+    } else {
+        exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
+        if ( $return_val ) {
+            error_log("Error getting currently selected alsa card used!");
+        } else {
+            if (isset($output[0])) {
+                $CurrentCard = $output[0];
+            } else {
+                $CurrentCard = "0";
+            }
+        }
+        unset($output);
     }
-    else
-    {
-        if (isset($output[0]))
-            $CurrentCard = $output[0];
-        else
-            $CurrentCard = "0";
-    }
-    unset($output);
 
     return $CurrentCard;
 }
@@ -24,68 +49,95 @@ function GetAudioCurrentCard() {
 function GetOptions_AudioMixerDevice() {
     global $SUDO;
     global $settings;
+    
 
     $CurrentCard = GetAudioCurrentCard();
-
     $MixerDevices = Array();
-    exec($SUDO . " amixer -c $CurrentCard scontrols | cut -f2 -d\"'\"", $output, $return_val);
-    if ( $return_val || strpos($output[0], "Usage:") === 0) {
-        error_log("Error getting mixer devices!");
-        $AudioMixerDevice = "PCM";
+    if ($settings["Platform"] == "MacOS") {
+        $MixerDevices[$CurrentCard] = $CurrentCard;
     } else {
-        foreach($output as $device)
-        {
-            $MixerDevices[$device] = $device;
+        exec($SUDO . " amixer -c $CurrentCard scontrols | cut -f2 -d\"'\"", $output, $return_val);
+        if ( $return_val || strpos($output[0], "Usage:") === 0) {
+            error_log("Error getting mixer devices!");
+            $AudioMixerDevice = "PCM";
+        } else {
+            foreach($output as $device) {
+                $MixerDevices[$device] = $device;
+            }
         }
+        unset($output);
     }
-    unset($output);
 
     return json($MixerDevices);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 function GetOptions_AudioOutputDevice($fulllist = false) {
-    global $SUDO, $GET;
+    global $SUDO, $GET, $settings;
 
-    $CurrentCard = GetAudioCurrentCard();
-
-    $AlsaCards = Array();
-    if ($fulllist) {
-        exec("sudo aplay -l | grep '^card' | sed -e 's/^card //' -e 's/.*\[\(.*\)\].*\[\(.*\)\]/\\1, \\2/'", $output, $return_val);
-    } else {
-        exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
-    }
-    if ($return_val) {
-        error_log("Error getting alsa cards for output!");
-    } else {
-        $foundOurCard = 0;
-        foreach($output as $card) {
-            $values = explode(':', $card);
-
-            if ($values[0] == $CurrentCard)
-                $foundOurCard = 1;
-
-            if ($fulllist) {
-                $AlsaCards[] = $card ;
-            } else {
-                if ($values[1] == "bcm2835 ALSA")
-                    $AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
-                else if ($values[1] == "CD002")
-                    $AlsaCards[$values[1] . " (FM Transmitter)"] = $values[0];
-                else
-                    $AlsaCards[$values[1]] = $values[0];
+    if ($settings["Platform"] == "MacOS") {
+        exec("system_profiler SPAudioDataType", $output);
+        $cards = Array();
+        $cards["--System Default--"] = "--System Default--";
+        $curCard = "";
+        foreach ($output as $line) {
+            $tline = trim($line);
+            if ($tline != "" && $tline != "Audio:" && $tline != "Device:") {
+                if (str_ends_with($tline, ":")) {
+                    $curCard = rtrim($tline, ":");
+                } else {
+                    $values = explode(':', $tline);
+                    $key = trim($values[0]);
+                    if ($key == "Output Source") {
+                        $cards[$curCard] = $curCard;
+                    } else if ($key == "Default Output Device") {
+                        
+                    }
+                }
             }
         }
+        unset($output);
+        return json($cards);
+    } else {
+        $CurrentCard = GetAudioCurrentCard();
+        $AlsaCards = Array();
+        if ($fulllist) {
+            exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/.*\[\(.*\)\].*\[\(.*\)\]/\\1, \\2/'", $output, $return_val);
+        } else {
+            exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
+        }
+        if ($return_val) {
+            error_log("Error getting alsa cards for output!");
+        } else {
+            $foundOurCard = 0;
+            foreach($output as $card) {
+                $values = explode(':', $card);
 
-        if (!$foundOurCard) {
-            if (!$fulllist) {
-                $AlsaCards['-- Select an Audio Device --'] = $CurrentCard;
+                if ($values[0] == $CurrentCard)
+                    $foundOurCard = 1;
+
+                if ($fulllist) {
+                    $AlsaCards[] = $card ;
+                } else {
+                    if ($values[1] == "bcm2835 ALSA")
+                        $AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
+                    else if ($values[1] == "CD002")
+                        $AlsaCards[$values[1] . " (FM Transmitter)"] = $values[0];
+                    else
+                        $AlsaCards[$values[1]] = $values[0];
+                }
             }
-        } 
-    }
-    unset($output);
 
-    return json($AlsaCards);
+            if (!$foundOurCard) {
+                if (!$fulllist) {
+                    $AlsaCards['-- Select an Audio Device --'] = $CurrentCard;
+                }
+            }
+        }
+        unset($output);
+
+        return json($AlsaCards);
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -94,9 +146,9 @@ function GetOptions_AudioInputDevice($fulllist = false) {
 
     $AlsaCards = Array();
     if ($fulllist) {
-        exec("sudo arecord -l | grep '^card' | sed -e 's/^card //' -e 's/.*\[\(.*\)\].*\[\(.*\)\]/\\1, \\2/'", $output, $return_val);
+        exec($SUDO . " arecord -l | grep '^card' | sed -e 's/^card //' -e 's/.*\[\(.*\)\].*\[\(.*\)\]/\\1, \\2/'", $output, $return_val);
     } else {
-        exec("sudo arecord -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
+        exec($SUDO . " arecord -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
     }
     if ( $return_val ) {
         error_log("Error getting alsa cards for input!");
@@ -117,13 +169,19 @@ function GetOptions_AudioInputDevice($fulllist = false) {
 
 /////////////////////////////////////////////////////////////////////////////
 function GetOptions_FrameBuffer() {
+    global $settings;
+    
     $framebuffers = Array();
-
-    if (file_exists('/dev/fb0'))
-        $framebuffers['/dev/fb0'] = '/dev/fb0';
-    if (file_exists('/dev/fb1'))
-        $framebuffers['/dev/fb1'] = '/dev/fb1';
-
+    
+    $devPath = "/dev";
+    if (isset($settings["framebufferControlSocketPath"])) {
+        $devPath = $settings["framebufferControlSocketPath"];
+    }
+    for ($x = 0; $x <= 10; $x++) {
+        if (file_exists($devPath . '/fb' . x)) {
+            $framebuffers['/dev/fb' . x] = '/dev/fb' . x;
+        }
+    }
     return json($framebuffers);
 }
 

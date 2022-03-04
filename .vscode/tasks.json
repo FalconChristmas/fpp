@@ -4,12 +4,12 @@
         {
             "type": "shell",
             "label": "Make FPPD (debug)",
-            "command": "/opt/fpp/.vscode/build.sh",
+            "command": "${workspaceFolder}/.vscode/build.sh",
             "args": [
                 "debug"
             ],
             "options": {
-                "cwd": "/opt/fpp/src"
+                "cwd": "${workspaceFolder}/src"
             },
             "problemMatcher": [
                 "$gcc"
@@ -23,12 +23,12 @@
         {
             "type": "shell",
             "label": "make clean",
-            "command": "/opt/fpp/.vscode/build.sh",
+            "command": "${workspaceFolder}/.vscode/build.sh",
             "args": [
                 "clean"
             ],
             "options": {
-                "cwd": "/opt/fpp/src"
+                "cwd": "${workspaceFolder}/src"
             },
             "problemMatcher": [
                 "$gcc"

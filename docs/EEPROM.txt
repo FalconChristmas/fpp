@@ -11,16 +11,16 @@ Bytes
 0-5      EEPROM format identifier string, null terminated.  Currently "FPP02"
 6-31     Cape name as null terminated string (26 bytes)
 32-41    Cape version as null terminated string (10 bytes)
-42-56    Cape serial number as null terminated string (15 bytes)
+42-57    Cape serial number as null terminated string (16 bytes)
 
 
 The second part of the content is a bunch of variable length records repeating:
 0-5      LENGTH (as a string).  If the string "0", end of eeprom data
-7-8      Code representing the type of record.  Number between 0-99 as a string
+6-7      Code representing the type of record.  Number between 0-99 as a string
          The 2 bytes for the code is NOT included in LENGTH
 
 If code is less than 50, the code is immediately followed by:
-9-72     Filename as null terminated string.  ex:  "tmp/cape-info.json" (64 char)
+8-71     Filename as null terminated string.  ex:  "tmp/cape-info.json" (64 char)
          The 64bytes for the filename is NOT included in the LENGTH
 
 If code is 0, the filename is followed by LENGTH bytes of data to be written

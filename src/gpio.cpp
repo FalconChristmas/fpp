@@ -26,7 +26,6 @@
 
 #include "Plugins.h"
 
-#include <gpiod.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -160,6 +159,7 @@ void GPIOManager::CheckGPIOInputs(void) {
     }
 }
 void GPIOManager::Cleanup() {
+#ifdef HAS_GPIOD    
     for (auto& a : eventStates) {
         if (a.gpiodLine) {
             gpiod_line_release(a.gpiodLine);
@@ -175,6 +175,7 @@ void GPIOManager::Cleanup() {
             gpiod_chip_close(a);
         }
     }
+#endif
 }
 
 const std::shared_ptr<httpserver::http_response> GPIOManager::render_GET(const httpserver::http_request& req) {
@@ -212,7 +213,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
     int i = 0;
     int enabledCount = 0;
 
-    std::string file = "/home/fpp/media/config/gpio.json";
+    std::string file = FPP_DIR_CONFIG("/config/gpio.json");
     if (FileExists(file)) {
         Json::Value root;
         if (LoadJsonFromFile(file, root)) {
@@ -250,7 +251,10 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                         // from triggering our GPIOs on startup.
                         state.lastTriggerTime = GetTime();
                         state.lastValue = state.futureValue = state.pin->getValue();
+                        state.gpiodLine = nullptr;
+                        state.file = -1;
 
+#ifdef HAS_GPIOD
                         if ((state.pin->supportsGpiod()) &&
                             (!gpiodChips[state.pin->gpioIdx])) {
                             gpiodChips[state.pin->gpioIdx] = gpiod_chip_open_by_number(state.pin->gpioIdx);
@@ -286,14 +290,17 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                             state.gpiodLine = nullptr;
                             state.file = -1;
                         }
+#endif
 
                         if (state.file > 0) {
                             eventStates.push_back(state);
                         } else {
+#ifdef HAS_GPIOD
                             if (state.gpiodLine) {
                                 gpiod_line_release(state.gpiodLine);
                             }
                             state.gpiodLine = nullptr;
+#endif                            
                             pollStates.push_back(state);
                         }
                         enabledCount++;
@@ -303,7 +310,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
         }
     }
     LogDebug(VB_GPIO, "%d GPIO Input(s) enabled\n", enabledCount);
-
+#ifdef HAS_GPIOD
     for (auto& a : eventStates) {
         std::function<bool(int)> f = [&a, this](int i) {
             struct gpiod_line_event event;
@@ -326,6 +333,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
         };
         callbacks[a.file] = f;
     }
+#endif
 }
 
 void GPIOManager::GPIOState::doAction(int v) {

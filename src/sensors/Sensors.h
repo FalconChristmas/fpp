@@ -1,6 +1,5 @@
 #pragma once
 
-#include <jsoncpp/json/json.h>
 #include <list>
 
 class Sensor;

@@ -1,3 +1,4 @@
+ifeq '$(BUILD_FPPOLED)' '1'
 OBJECTS_fppoled += \
 	common.o \
 	log.o \
@@ -17,13 +18,9 @@ OBJECTS_fppoled += \
     $(OBJECTS_GPIO_ADDITIONS)
 
 LIBS_fppoled = \
-	-lstdc++fs \
 	-ljsoncpp \
-	-lpthread -lrt \
 	-lcurl \
-	-lgpiod \
-	-lgpiodcxx \
-	$(LIBS_GPIO_ADDITIONS)
+	$(LIBS_GPIO_ADDITIONS) $(LD_FLAG_FS)
 
 TARGETS += fppoled
 OBJECTS_ALL+=$(OBJECTS_fppoled)
@@ -31,4 +28,5 @@ OBJECTS_ALL+=$(OBJECTS_fppoled)
 fppoled: $(OBJECTS_fppoled)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -o $@
 
+endif
 

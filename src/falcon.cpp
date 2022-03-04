@@ -51,7 +51,7 @@ int FalconReadConfig(char *filename, char *buf)
 	char  fullFilename[1024];
 	FILE *fp = NULL;
 
-	sprintf(fullFilename, "%s/%s", FPP_DIR_CONFIG, filename);
+	sprintf(fullFilename, "%s/%s", FPP_DIR_CONFIG("").c_str(), filename);
 
 	fp = fopen(fullFilename, "r");
 	if (!fp)
@@ -77,7 +77,7 @@ int FalconWriteConfig(char *filename, char *buf, int size)
 	char  fullFilename[1024];
 	FILE *fp = NULL;
 
-	sprintf(fullFilename, "%s/%s", FPP_DIR_CONFIG, filename);
+	sprintf(fullFilename, "%s/%s", FPP_DIR_CONFIG("").c_str(), filename);
 
 	fp = fopen(fullFilename, "w");
 	if (!fp)

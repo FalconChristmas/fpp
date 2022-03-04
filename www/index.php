@@ -211,7 +211,7 @@ include 'menu.inc';
 
 
 <div class="mainContainer">
-<h1 class="title statusTitle">Status <span class="statusHostname"><?=gethostname()?></span></h1>
+<h1 class="title statusTitle">Status <span class="statusHostname"><?=$settings["HostName"]?></span></h1>
 
 <?php
 if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) :

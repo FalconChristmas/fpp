@@ -28,11 +28,11 @@
 #include <thread>
 #include <vector>
 
-#include "VirtualDisplay.h"
+#include "VirtualDisplayBase.h"
 
 #define HTTPVIRTUALDISPLAYPORT 32328
 
-class HTTPVirtualDisplayOutput : protected VirtualDisplayOutput {
+class HTTPVirtualDisplayOutput : protected VirtualDisplayBaseOutput {
 public:
     HTTPVirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~HTTPVirtualDisplayOutput();

@@ -25,7 +25,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <jsoncpp/json/json.h>
 #include <ctime>
 #include <httpserver.hpp>
 

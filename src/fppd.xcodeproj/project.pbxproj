@@ -1,0 +1,399 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 55;
+	objects = {
+
+/* Begin PBXFileReference section */
+		678A064F27D129D300C79533 /* sunset.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sunset.h; sourceTree = SOURCE_ROOT; };
+		678A065027D129D300C79533 /* log.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = log.cpp; sourceTree = SOURCE_ROOT; };
+		678A065127D129D300C79533 /* FPPLocale.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FPPLocale.h; sourceTree = SOURCE_ROOT; };
+		678A065227D129D300C79533 /* MultiSync.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MultiSync.cpp; sourceTree = SOURCE_ROOT; };
+		678A065327D129D300C79533 /* NetworkMonitor.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = NetworkMonitor.cpp; sourceTree = SOURCE_ROOT; };
+		678A065427D129D300C79533 /* NetworkController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NetworkController.h; sourceTree = SOURCE_ROOT; };
+		678A065527D129D300C79533 /* Scheduler.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Scheduler.cpp; sourceTree = SOURCE_ROOT; };
+		678A065627D129D300C79533 /* SysSocket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SysSocket.h; sourceTree = SOURCE_ROOT; };
+		678A065727D129D300C79533 /* e131bridge.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = e131bridge.h; sourceTree = SOURCE_ROOT; };
+		678A065827D129D300C79533 /* Sequence.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Sequence.cpp; sourceTree = SOURCE_ROOT; };
+		678A065927D129D300C79533 /* effects.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = effects.cpp; sourceTree = SOURCE_ROOT; };
+		678A065A27D129D300C79533 /* fseq */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = fseq; sourceTree = SOURCE_ROOT; };
+		678A065B27D129D300C79533 /* ping.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ping.cpp; sourceTree = SOURCE_ROOT; };
+		678A065C27D129D300C79533 /* pru */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = pru; sourceTree = SOURCE_ROOT; };
+		678A065D27D129D300C79533 /* settings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = settings.h; sourceTree = SOURCE_ROOT; };
+		678A065E27D129D300C79533 /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = config.h; sourceTree = SOURCE_ROOT; };
+		678A065F27D129D300C79533 /* fpp-pch.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "fpp-pch.h"; sourceTree = SOURCE_ROOT; };
+		678A066027D129D300C79533 /* channeloutput */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = channeloutput; sourceTree = SOURCE_ROOT; };
+		678A066127D129D300C79533 /* fppd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fppd.cpp; sourceTree = SOURCE_ROOT; };
+		678A066227D129D300C79533 /* scripts.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = scripts.cpp; sourceTree = SOURCE_ROOT; };
+		678A066327D129D300C79533 /* falcon.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = falcon.cpp; sourceTree = SOURCE_ROOT; };
+		678A066427D129D300C79533 /* FrameBuffer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = FrameBuffer.cpp; sourceTree = SOURCE_ROOT; };
+		678A066527D129D300C79533 /* gpio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gpio.h; sourceTree = SOURCE_ROOT; };
+		678A066627D129D300C79533 /* gpio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gpio.cpp; sourceTree = SOURCE_ROOT; };
+		678A066727D129D300C79533 /* mediadetails.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mediadetails.cpp; sourceTree = SOURCE_ROOT; };
+		678A066827D129D300C79533 /* fppversion.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = fppversion.sh; sourceTree = SOURCE_ROOT; };
+		678A066927D129D400C79533 /* macOSMake */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = macOSMake; sourceTree = SOURCE_ROOT; };
+		678A066A27D129D400C79533 /* NetworkMonitor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NetworkMonitor.h; sourceTree = SOURCE_ROOT; };
+		678A066B27D129D400C79533 /* mqtt.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mqtt.h; sourceTree = SOURCE_ROOT; };
+		678A066C27D129D400C79533 /* fppd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fppd.h; sourceTree = SOURCE_ROOT; };
+		678A066D27D129D400C79533 /* channeltester */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = channeltester; sourceTree = SOURCE_ROOT; };
+		678A066E27D129D400C79533 /* mediaoutput */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = mediaoutput; sourceTree = SOURCE_ROOT; };
+		678A066F27D129D400C79533 /* NetworkController.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = NetworkController.cpp; sourceTree = SOURCE_ROOT; };
+		678A067027D129D400C79533 /* e131bridge.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = e131bridge.cpp; sourceTree = SOURCE_ROOT; };
+		678A067127D129D400C79533 /* common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = common.cpp; sourceTree = SOURCE_ROOT; };
+		678A067227D129D400C79533 /* httpAPI.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = httpAPI.h; sourceTree = SOURCE_ROOT; };
+		678A067327D129D400C79533 /* ping.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ping.h; sourceTree = SOURCE_ROOT; };
+		678A067427D129D400C79533 /* Scheduler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Scheduler.h; sourceTree = SOURCE_ROOT; };
+		678A067527D129D400C79533 /* Sequence.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sequence.h; sourceTree = SOURCE_ROOT; };
+		678A067627D129D400C79533 /* command.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = command.cpp; sourceTree = SOURCE_ROOT; };
+		678A067727D129D400C79533 /* fpp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fpp.h; sourceTree = SOURCE_ROOT; };
+		678A067827D129D400C79533 /* ScheduleEntry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ScheduleEntry.h; sourceTree = SOURCE_ROOT; };
+		678A067927D129D400C79533 /* MacOSUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MacOSUtils.cpp; sourceTree = SOURCE_ROOT; };
+		678A067A27D129D400C79533 /* mqtt.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mqtt.cpp; sourceTree = SOURCE_ROOT; };
+		678A067B27D129D400C79533 /* FrameBuffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FrameBuffer.h; sourceTree = SOURCE_ROOT; };
+		678A067C27D129D400C79533 /* Player.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Player.h; sourceTree = SOURCE_ROOT; };
+		678A067D27D129D400C79533 /* mediadetails.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mediadetails.h; sourceTree = SOURCE_ROOT; };
+		678A067E27D129D400C79533 /* effects.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = effects.h; sourceTree = SOURCE_ROOT; };
+		678A067F27D129D400C79533 /* settings.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = settings.cpp; sourceTree = SOURCE_ROOT; };
+		678A068027D129D400C79533 /* Player.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Player.cpp; sourceTree = SOURCE_ROOT; };
+		678A068127D129D400C79533 /* falcon.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = falcon.h; sourceTree = SOURCE_ROOT; };
+		678A068227D129D400C79533 /* ScheduleEntry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ScheduleEntry.cpp; sourceTree = SOURCE_ROOT; };
+		678A068327D129D400C79533 /* CapeUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CapeUtils.cpp; sourceTree = SOURCE_ROOT; };
+		678A068427D129D400C79533 /* common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = SOURCE_ROOT; };
+		678A068527D129D400C79533 /* Plugins.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Plugins.h; sourceTree = SOURCE_ROOT; };
+		678A068627D129D400C79533 /* Warnings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Warnings.h; sourceTree = SOURCE_ROOT; };
+		678A068727D129D400C79533 /* fppd.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = fppd.sh; sourceTree = SOURCE_ROOT; };
+		678A068827D129D400C79533 /* Warnings.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Warnings.cpp; sourceTree = SOURCE_ROOT; };
+		678A068927D129D400C79533 /* e131defs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = e131defs.h; sourceTree = SOURCE_ROOT; };
+		678A068A27D129D400C79533 /* FPPLocale.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = FPPLocale.cpp; sourceTree = SOURCE_ROOT; };
+		678A068B27D129D400C79533 /* Plugin.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Plugin.h; sourceTree = SOURCE_ROOT; };
+		678A068C27D129D400C79533 /* Plugins.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Plugins.cpp; sourceTree = SOURCE_ROOT; };
+		678A068D27D129D400C79533 /* oled */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = oled; sourceTree = SOURCE_ROOT; };
+		678A068E27D129D400C79533 /* MultiSync.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MultiSync.h; sourceTree = SOURCE_ROOT; };
+		678A068F27D129D400C79533 /* sensors */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = sensors; sourceTree = SOURCE_ROOT; };
+		678A069027D129D400C79533 /* playlist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = playlist; sourceTree = SOURCE_ROOT; };
+		678A069127D129D400C79533 /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = log.h; sourceTree = SOURCE_ROOT; };
+		678A069227D129D400C79533 /* command.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = command.h; sourceTree = SOURCE_ROOT; };
+		678A069327D129D400C79533 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Makefile; sourceTree = SOURCE_ROOT; };
+		678A069427D129D400C79533 /* scripts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = scripts.h; sourceTree = SOURCE_ROOT; };
+		678A069527D129D400C79533 /* overlays */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = overlays; sourceTree = SOURCE_ROOT; };
+		678A069627D129D400C79533 /* commands */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = commands; sourceTree = SOURCE_ROOT; };
+		678A069727D129D400C79533 /* sunset.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = sunset.cpp; sourceTree = SOURCE_ROOT; };
+		678A069827D129D400C79533 /* httpAPI.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = httpAPI.cpp; sourceTree = SOURCE_ROOT; };
+		678A069927D129D400C79533 /* util */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = util; sourceTree = SOURCE_ROOT; };
+		678A069A27D129D400C79533 /* fppversion.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fppversion.h; sourceTree = SOURCE_ROOT; };
+		678A069B27D129D400C79533 /* fppdefines.php */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.php; path = fppdefines.php; sourceTree = SOURCE_ROOT; };
+		678A069C27D129D400C79533 /* makefiles */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = makefiles; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		6761B74C27D124AB006557A0 = {
+			isa = PBXGroup;
+			children = (
+				678A064727D127F600C79533 /* fppd */,
+				678A063D27D1279B00C79533 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		678A063D27D1279B00C79533 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		678A064727D127F600C79533 /* fppd */ = {
+			isa = PBXGroup;
+			children = (
+				678A068327D129D400C79533 /* CapeUtils.cpp */,
+				678A066027D129D300C79533 /* channeloutput */,
+				678A066D27D129D400C79533 /* channeltester */,
+				678A067627D129D400C79533 /* command.cpp */,
+				678A069227D129D400C79533 /* command.h */,
+				678A069627D129D400C79533 /* commands */,
+				678A067127D129D400C79533 /* common.cpp */,
+				678A068427D129D400C79533 /* common.h */,
+				678A065E27D129D300C79533 /* config.h */,
+				678A067027D129D400C79533 /* e131bridge.cpp */,
+				678A065727D129D300C79533 /* e131bridge.h */,
+				678A068927D129D400C79533 /* e131defs.h */,
+				678A065927D129D300C79533 /* effects.cpp */,
+				678A067E27D129D400C79533 /* effects.h */,
+				678A066327D129D300C79533 /* falcon.cpp */,
+				678A068127D129D400C79533 /* falcon.h */,
+				678A065F27D129D300C79533 /* fpp-pch.h */,
+				678A067727D129D400C79533 /* fpp.h */,
+				678A066127D129D300C79533 /* fppd.cpp */,
+				678A066C27D129D400C79533 /* fppd.h */,
+				678A068727D129D400C79533 /* fppd.sh */,
+				678A069B27D129D400C79533 /* fppdefines.php */,
+				678A068A27D129D400C79533 /* FPPLocale.cpp */,
+				678A065127D129D300C79533 /* FPPLocale.h */,
+				678A069A27D129D400C79533 /* fppversion.h */,
+				678A066827D129D300C79533 /* fppversion.sh */,
+				678A066427D129D300C79533 /* FrameBuffer.cpp */,
+				678A067B27D129D400C79533 /* FrameBuffer.h */,
+				678A065A27D129D300C79533 /* fseq */,
+				678A066627D129D300C79533 /* gpio.cpp */,
+				678A066527D129D300C79533 /* gpio.h */,
+				678A069827D129D400C79533 /* httpAPI.cpp */,
+				678A067227D129D400C79533 /* httpAPI.h */,
+				678A065027D129D300C79533 /* log.cpp */,
+				678A069127D129D400C79533 /* log.h */,
+				678A066927D129D400C79533 /* macOSMake */,
+				678A067927D129D400C79533 /* MacOSUtils.cpp */,
+				678A069327D129D400C79533 /* Makefile */,
+				678A069C27D129D400C79533 /* makefiles */,
+				678A066727D129D300C79533 /* mediadetails.cpp */,
+				678A067D27D129D400C79533 /* mediadetails.h */,
+				678A066E27D129D400C79533 /* mediaoutput */,
+				678A067A27D129D400C79533 /* mqtt.cpp */,
+				678A066B27D129D400C79533 /* mqtt.h */,
+				678A065227D129D300C79533 /* MultiSync.cpp */,
+				678A068E27D129D400C79533 /* MultiSync.h */,
+				678A066F27D129D400C79533 /* NetworkController.cpp */,
+				678A065427D129D300C79533 /* NetworkController.h */,
+				678A065327D129D300C79533 /* NetworkMonitor.cpp */,
+				678A066A27D129D400C79533 /* NetworkMonitor.h */,
+				678A068D27D129D400C79533 /* oled */,
+				678A069527D129D400C79533 /* overlays */,
+				678A065B27D129D300C79533 /* ping.cpp */,
+				678A067327D129D400C79533 /* ping.h */,
+				678A068027D129D400C79533 /* Player.cpp */,
+				678A067C27D129D400C79533 /* Player.h */,
+				678A069027D129D400C79533 /* playlist */,
+				678A068B27D129D400C79533 /* Plugin.h */,
+				678A068C27D129D400C79533 /* Plugins.cpp */,
+				678A068527D129D400C79533 /* Plugins.h */,
+				678A065C27D129D300C79533 /* pru */,
+				678A068227D129D400C79533 /* ScheduleEntry.cpp */,
+				678A067827D129D400C79533 /* ScheduleEntry.h */,
+				678A065527D129D300C79533 /* Scheduler.cpp */,
+				678A067427D129D400C79533 /* Scheduler.h */,
+				678A066227D129D300C79533 /* scripts.cpp */,
+				678A069427D129D400C79533 /* scripts.h */,
+				678A068F27D129D400C79533 /* sensors */,
+				678A065827D129D300C79533 /* Sequence.cpp */,
+				678A067527D129D400C79533 /* Sequence.h */,
+				678A067F27D129D400C79533 /* settings.cpp */,
+				678A065D27D129D300C79533 /* settings.h */,
+				678A069727D129D400C79533 /* sunset.cpp */,
+				678A064F27D129D300C79533 /* sunset.h */,
+				678A065627D129D300C79533 /* SysSocket.h */,
+				678A069927D129D400C79533 /* util */,
+				678A068827D129D400C79533 /* Warnings.cpp */,
+				678A068627D129D400C79533 /* Warnings.h */,
+			);
+			path = fppd;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXLegacyTarget section */
+		678A064B27D128C500C79533 /* fppd */ = {
+			isa = PBXLegacyTarget;
+			buildArgumentsString = "$(ACTION)";
+			buildConfigurationList = 678A064C27D128C500C79533 /* Build configuration list for PBXLegacyTarget "fppd" */;
+			buildPhases = (
+			);
+			buildToolPath = macOSMake;
+			buildWorkingDirectory = "$(SRCROOT)";
+			dependencies = (
+			);
+			name = fppd;
+			passBuildSettingsInEnvironment = 1;
+			productName = fppd;
+		};
+/* End PBXLegacyTarget section */
+
+/* Begin PBXProject section */
+		6761B74D27D124AB006557A0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1320;
+				TargetAttributes = {
+					678A064B27D128C500C79533 = {
+						CreatedOnToolsVersion = 13.2.1;
+					};
+				};
+			};
+			buildConfigurationList = 6761B75027D124AB006557A0 /* Build configuration list for PBXProject "fppd" */;
+			compatibilityVersion = "Xcode 13.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 6761B74C27D124AB006557A0;
+			productRefGroup = 678A063D27D1279B00C79533 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				678A064B27D128C500C79533 /* fppd */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin XCBuildConfiguration section */
+		6761B75227D124AB006557A0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+			};
+			name = Debug;
+		};
+		6761B75327D124AB006557A0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+			};
+			name = Release;
+		};
+		678A064D27D128C500C79533 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUGGING_SYMBOLS = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		678A064E27D128C500C79533 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6761B75027D124AB006557A0 /* Build configuration list for PBXProject "fppd" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6761B75227D124AB006557A0 /* Debug */,
+				6761B75327D124AB006557A0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		678A064C27D128C500C79533 /* Build configuration list for PBXLegacyTarget "fppd" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				678A064D27D128C500C79533 /* Debug */,
+				678A064E27D128C500C79533 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 6761B74D27D124AB006557A0 /* Project object */;
+}

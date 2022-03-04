@@ -459,12 +459,15 @@ case "${OSVER}" in
             rm -f /etc/systemd/network/73*
             rm -f /etc/systemd/network/eth*
             rm -f /etc/systemd/network/wlan*
-            if [ ! -f /etc/systemd/network/10-eth0.network ]
+            if [ ! -f /etc/systemd/network/50-default.network ]
             then
                 # Need to make sure there is configuration for eth0 or no connection will be
                 # setup after a reboot
-                wget -O /etc/systemd/network/10-eth0.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/10-eth0.network
+                wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
             fi
+            # make sure we end up with eth0/wlan0 instead of enx#### wlx#### naming for now
+            ln -s /dev/null /etc/systemd/network/99-default.link
+            ln -s /dev/null /etc/systemd/network/73-usb-net-by-mac.link
             systemctl enable systemd-networkd
             systemctl disable systemd-networkd-wait-online.service
             systemctl enable systemd-resolved
@@ -875,9 +878,12 @@ sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 #######################################
 # Configure ccache
 echo "FPP - Configuring ccache"
+mkdir -p /root/.ccache
 ccache -M 250M
 ccache --set-config=temporary_dir=/tmp
 ccache --set-config=sloppiness=pch_defines,time_macros
+ccache --set-config=hard_link=true
+ccache --set-config=pch_external_checksum=true
 
 if $isimage; then
     #######################################
@@ -1076,6 +1082,7 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     sed -i -e "s+#uboot_overlay_addr4=\(.*\)+uboot_overlay_addr4=/lib/firmware/AM335X-I2C2-400-00A0.dtbo+g"  /boot/uEnv.txt
     sed -i -e "s+#uboot_overlay_addr5=\(.*\)+uboot_overlay_addr5=/lib/firmware/AM335X-I2C1-400-00A0.dtbo+g"  /boot/uEnv.txt
     sed -i -e "s+ quiet+ quiet rootwait+g"  /boot/uEnv.txt
+    sed -i -e "s+ net.ifnames=.+ +g"  /boot/uEnv.txt
     sed -i -e "s+^uboot_overlay_pru=+#uboot_overlay_pru=+g"  /boot/uEnv.txt
     sed -i -e "s+#uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+g" /boot/uEnv.txt
     sed -i -e "s+#uboot_overlay_pru=AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+g" /boot/uEnv.txt
