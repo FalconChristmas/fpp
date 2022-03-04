@@ -667,7 +667,6 @@ void Sequence::SendBlankingData(void) {
         ProcessSequenceData(0, 0);
         SendSequenceData();
     }
-    m_dataProcessed = false;
 }
 
 void Sequence::CloseIfOpen(const std::string& filename) {
