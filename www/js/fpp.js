@@ -61,16 +61,16 @@ $(function () {
     } else {
         $('body').addClass('no-touch');
     }
-    $("[data-toggle=pill], [data-toggle=tab]").click(function(){
-        if(history.pushState) {
+    $("[data-toggle=pill], [data-toggle=tab]").click(function () {
+        if (history.pushState) {
             history.pushState(null, null, $(this).attr('href'));
         }
     });
-    
-    if(location.hash){
-        $(".nav-link[href='"+location.hash+"']").tab('show');
+
+    if (location.hash) {
+        $(".nav-link[href='" + location.hash + "']").tab('show');
     }
-    
+
 
     $('a.link-to-fpp-manual').attr("href", getManualLink());
 
@@ -848,7 +848,7 @@ function SetupToolTips(delay = 100) {
             if ($(this).is('[data-tooltip-position-my]')) {
                 pos.my = $(this).data('tooltip-position-my');
             }
-            if($(this).data('tooltip-touch') != "false" && !hasTouch ){
+            if ($(this).data('tooltip-touch') != "false" && !hasTouch) {
                 $(this).tooltip({
                     items: $(this).prop('nodeName'),
                     content: $(this).data('tooltip-title'),
@@ -3148,24 +3148,24 @@ function SetupUIForMode(fppMode) {
         }
         $("#remoteModeInfo").hide();
     }
-    if($("body").hasClass('is-loading')){
+    if ($("body").hasClass('is-loading')) {
         $("body").removeClass('is-loading');
-        var zp_playerControls =  $.Zebra_Pin($('#playerModeInfo #playerControls'), {
+        var zp_playerControls = $.Zebra_Pin($('#playerModeInfo #playerControls'), {
 
-            onPin:function(scroll,$element){
-                setTimeout(function(){
+            onPin: function (scroll, $element) {
+                setTimeout(function () {
                     $('#playerModeInfo #playerControls').css({
                         width: $('#playerModeInfo #playerControls').parent().width(),
                     });
-                },50);
-                
+                }, 50);
+
             },
             top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0,
-            pinpoint_offset:150,
-            contained:true
+            pinpoint_offset: 150,
+            contained: true
         });
     }
-    
+
 
 }
 
@@ -4701,7 +4701,7 @@ function ViewFileImpl(url, file) {
         resizable: true,
         overflowX: 'scroll',
         buttons: {
-            "Close": function() {
+            "Close": function () {
                 $('#fileViewer').fppDialog('close');
             }
         }
@@ -5283,7 +5283,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                 }
 
                 if (typeof val['children'] === 'object') {
-                    if (tblCommand == 'playlistEntryCommandOptions' || tblCommand == 'playlistEntryOptions'){
+                    if (tblCommand == 'playlistEntryCommandOptions' || tblCommand == 'playlistEntryOptions') {
                         line += " onChange='UpdateChildVisibility();";
                     }
                     if (typeof val['onChange'] === 'string') {
@@ -5955,7 +5955,7 @@ function RefreshHeaderBar() {
                     var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
                 } else if (n.family === "inet" && "wifi" in e) {
-                    var row = '<span title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + 'dBm">';
+                    var row = '<span title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + e.wifi.unit + '">';
                     row += '<img src="images/redesign/wifi-' + e.wifi.desc + '.svg" height="14px"/>';
                     row += '<small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
@@ -6166,27 +6166,27 @@ function bytesToHuman(bytes) {
 function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, dropDownTitle, selectClass, onselect = "") {
     var result = selectTitle != '' ? selectTitle + ':&nbsp;' : '';
 
-    result += "<select class='"+selectClass+"'";
+    result += "<select class='" + selectClass + "'";
     if (onselect != "") {
         result += " onchange='" + onselect + "'";
     }
     result += ">";
 
     if (currentValue === "")
-        result += "<option value=''>"+dropDownTitle+"</option>";
+        result += "<option value=''>" + dropDownTitle + "</option>";
 
     var found = 0;
     if (optionArray instanceof Map) {
         optionArray.forEach((key, value) => {
-                                result += "<option value='" + value + "'";
+            result += "<option value='" + value + "'";
 
-                                if (currentValue == value) {
-                                    result += " selected";
-                                    found = 1;
-                                }
+            if (currentValue == value) {
+                result += " selected";
+                found = 1;
+            }
 
-                                result += ">" + key + "</option>";
-                            });
+            result += ">" + key + "</option>";
+        });
     } else {
         for (var key in optionArray) {
             result += "<option value='" + key + "'";
@@ -6210,6 +6210,6 @@ function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, d
 }
 
 function DeviceSelect(deviceArray = ["No Devices"], currentValue, onselect = "") {
-    return CreateSelect (deviceArray, currentValue, "Port", "-- Port --", "device", onselect);
+    return CreateSelect(deviceArray, currentValue, "Port", "-- Port --", "device", onselect);
 }
 
