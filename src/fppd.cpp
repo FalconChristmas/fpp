@@ -72,6 +72,10 @@
 
 #include <curl/curl.h>
 
+extern "C" {
+#include <SDL2/SDL.h>
+}
+
 pid_t pid, sid;
 volatile int runMainFPPDLoop = 1;
 volatile bool restartFPPD = 0;
@@ -816,6 +820,10 @@ void MainLoop(void) {
             idleCount++;
             if (idleCount >= 20) {
                 doPing = true;
+            }
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                //for now, discard event, but at least the queue doesn't grow
             }
         } else if (idleCount > 0) {
             doPing = true;
