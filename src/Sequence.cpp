@@ -426,6 +426,8 @@ void Sequence::BlankSequenceData(bool clearBridge) {
         m_bridgeRanges.clear();
     }
 
+    m_dataProcessed = false;
+
     std::unique_lock<std::mutex> lock(frameCacheLock);
     SetLastFrameData(nullptr);
 }
@@ -660,7 +662,6 @@ void Sequence::SendBlankingData(void) {
     BlankSequenceData(true);
 
     if (ChannelOutputThreadIsRunning() && ChannelOutputThreadIsEnabled()) {
-        m_dataProcessed = false;
         ForceChannelOutputNow();
     } else {
         ProcessSequenceData(0, 0);

@@ -39,10 +39,6 @@ VirtualDisplayOutput* createOutputVirtualDisplay(unsigned int startChannel,
 }
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// To disable interpolated scaling on the GPU, add this to /boot/config.txt:
-// scaling_kernel=8
-
 /*
  *
  */

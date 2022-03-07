@@ -709,6 +709,13 @@ public:
         effects[pe->name] = pe;
         effectNames.push_back(pe->name);
     }
+    void remove(PixelOverlayEffect* pe) {
+        effects.erase(pe->name);
+        auto it = std::find(effectNames.begin(), effectNames.end(), pe->name);
+        if (it != effectNames.end()) {
+            effectNames.erase(it);
+        }
+    }
     PixelOverlayEffect* get(const std::string& n) {
         return effects[n];
     }
@@ -729,4 +736,11 @@ PixelOverlayEffect* PixelOverlayEffect::GetPixelOverlayEffect(const std::string&
 
 const std::vector<std::string>& PixelOverlayEffect::GetPixelOverlayEffects() {
     return EFFECTS.names();
+}
+
+void PixelOverlayEffect::AddPixelOverlayEffect(PixelOverlayEffect* effect) {
+    EFFECTS.add(effect);
+}
+void PixelOverlayEffect::RemovePixelOverlayEffect(PixelOverlayEffect* effect) {
+    EFFECTS.remove(effect);
 }

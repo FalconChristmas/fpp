@@ -1973,6 +1973,7 @@ function network_wifi_strength_obj()
             $value = trim($array[1]);
             if ($key == "agrCtlRSSI") {
                 $obj->level = $value;
+                $obj->unit = "dBm";
             }
             if ($key == "agrCtlNoise") {
                 $obj->noise = $value;
@@ -1999,6 +2000,9 @@ function network_wifi_strength_obj()
         # face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
         # wlan0: 0000   41.  -69.  -256        0      0      0   2042      0        0
         #
+        # NOTE: If level is negative, then it is db.  If positive then it is quality %
+        # https://www.intuitibits.com/2016/03/23/dbm-to-percent-conversion/ used for manual quality mapping
+        #
         foreach ($lines as $cnt => $line) {
             if ($cnt > 1) {
                 $parts = preg_split("/\s+/", trim($line));
@@ -2006,16 +2010,31 @@ function network_wifi_strength_obj()
                 $obj->interface = rtrim($parts[0], ":");
                 $obj->link = intval($parts[2]);
                 $obj->level = intval($parts[3]);
+                $obj->unit = "dBm";
                 $obj->noise = intval($parts[4]);
 
-                if ($obj->level > -50) {
-                    $obj->desc = "excellent";
-                } elseif ($obj->level > -60) {
-                    $obj->desc = "good";
-                } elseif ($obj->level > -70) {
-                    $obj->desc = "fair";
+                if ($obj->level >= 0) {
+                    $obj->unit = "pct";
+                    if ($obj->level >= 79) {
+                        $obj->desc = "excellent";
+                    } elseif ($obj->level > 66) {
+                        $obj->desc = "good";
+                    } elseif ($obj->level > 48) {
+                        $obj->desc = "fair";
+                    } else {
+                        $obj->desc = "weak";
+                    }
                 } else {
-                    $obj->desc = "weak";
+
+                    if ($obj->level > -50) {
+                        $obj->desc = "excellent";
+                    } elseif ($obj->level > -60) {
+                        $obj->desc = "good";
+                    } elseif ($obj->level > -70) {
+                        $obj->desc = "fair";
+                    } else {
+                        $obj->desc = "weak";
+                    }
                 }
                 array_push($rc, $obj);
             }
@@ -2025,7 +2044,7 @@ function network_wifi_strength_obj()
 }
 
 #############
-# Returns an array of just the network interface nmes
+# Returns an array of just the network interface names
 #############
 function network_list_interfaces_array()
 {
@@ -2171,14 +2190,13 @@ function gitBaseDirectory()
     return dirname(dirname(__FILE__));
 }
 
-
 function GetSystemInfoJsonInternal($simple = false)
 {
     global $settings;
 
     //close the session before we start, this removes the session lock and lets other scripts run
     session_write_close();
-    
+
     //Default json to be returned
     $result = array();
     $result['HostName'] = $settings['HostName'];
@@ -2223,7 +2241,7 @@ function GetSystemInfoJsonInternal($simple = false)
     $output = array();
     exec($settings['fppDir'] . "/scripts/get_uuid", $output);
     $result['uuid'] = $output[0];
-    
+
     if (!$simple) {
         //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
         $result['Utilization']['CPU'] = get_server_cpu_usage();
@@ -2292,6 +2310,5 @@ function GetSystemInfoJsonInternal($simple = false)
     }
     return $result;
 }
-
 
 ?>
