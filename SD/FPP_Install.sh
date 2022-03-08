@@ -1103,6 +1103,7 @@ if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
     # Beagles don't have hdmi/video out so no need to wait for getty before starting up
     sed -i -e "s/getty.target//g" /lib/systemd/system/fppd.service
 fi
+cp /opt/fpp/etc/avahi/* /etc/avahi/services
 
 systemctl disable mosquitto
 systemctl daemon-reload
