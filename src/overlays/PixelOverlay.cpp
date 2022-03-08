@@ -322,6 +322,7 @@ static void findFonts(const std::string& dir, std::map<std::string, std::string>
     if (dp != NULL) {
         while ((ep = readdir(dp))) {
             int location = strstr(ep->d_name, ".") - ep->d_name;
+            
             // We're one of ".", "..", or hidden, so let's skip
             if (location == 0) {
                 continue;
@@ -348,15 +349,19 @@ static void findFonts(const std::string& dir, std::map<std::string, std::string>
 
 void PixelOverlayManager::loadFonts() {
     if (!fontsLoaded) {
+#ifndef PLATFORM_OSX
         long unsigned int i = 0;
         char** mlfonts = MagickLib::GetTypeList("*", &i);
         for (int x = 0; x < i; x++) {
             fonts[mlfonts[x]] = "";
             free(mlfonts[x]);
         }
+        free(mlfonts);
         findFonts("/usr/share/fonts/truetype/", fonts);
         findFonts("/usr/local/share/fonts/", fonts);
-        free(mlfonts);
+#else
+        findFonts("/System/Library/fonts/", fonts);
+#endif
         fontsLoaded = true;
     }
 }
