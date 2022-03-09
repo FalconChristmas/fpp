@@ -450,7 +450,7 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
     protoDest = (uint8_t*)fbp + 3; // Skip the first FB pixel for WS data
 
     // Setup the first FB row
-    for (int x = 0; x < vinfo.xres;) {
+    for (int x = 0; x < (vinfo.xres - 2);) {
         *(protoDest++) = 0xFF;
         *(protoDest++) = 0xFF;
         *(protoDest++) = 0xFF;
