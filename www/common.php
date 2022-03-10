@@ -79,13 +79,13 @@ function ReadSettingFromFile($settingName, $plugin = "")
     global $settings;
     $filename = $settingsFile;
 
+    if ($plugin != "") {
+        $filename = $settings["configDirectory"] . "/plugin." . $plugin;
+    }
     if (!file_exists($filename)) {
         return false;
     }
 
-    if ($plugin != "") {
-        $filename = $settings["configDirectory"] . "/plugin." . $plugin;
-    }
 
     $settingsStr = file_get_contents($filename);
     if (!empty($settingsStr)) {
