@@ -17,6 +17,10 @@
 
 #include "fpp-pch.h"
 
+#include <Magick++.h>
+
+#include <magick/type.h>
+
 #include <sys/mman.h>
 #include <fcntl.h>
 #if __has_include(<sys/posix_shm.h>)
@@ -25,6 +29,8 @@
 #include <limits.h>
 #define PSHMNAMLEN NAME_MAX
 #endif
+#include <sys/time.h>
+#include <time.h>
 
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
@@ -564,6 +570,51 @@ void PixelOverlayModel::setOverlayBufferScaledData(uint8_t* data, int w, int h) 
             buf[idx] = data[srcidx];
         }
     }
+}
+
+void PixelOverlayModel::saveOverlayAsImage(std::string filename) {
+    Magick::Blob blob;
+    Magick::Image image(Magick::Geometry(width, height), Magick::Color("black"));
+
+    if (filename == "") {
+        struct timeval tv;
+        struct tm tm;
+        char timeStr[32];
+
+        gettimeofday(&tv, nullptr);
+        localtime_r(&tv.tv_sec, &tm);
+
+        snprintf(timeStr, sizeof(timeStr),
+                 "%4d%02d%02d_%02d%02d%02d",
+                 1900 + tm.tm_year, tm.tm_mon + 1,
+                 tm.tm_mday, tm.tm_hour, tm.tm_min,
+                 tm.tm_sec);
+
+        filename = name + "-" + timeStr + ".png";
+    }
+
+    filename = FPP_DIR_IMAGE("/") + filename;
+
+    LogDebug(VB_CHANNELOUT, "Saving %dx%d PixelOverlayModel image to: %s\n",
+            width, height, filename.c_str());
+
+    uint8_t data[width * height * 3];
+    memset(data, 0, width * height * 3);
+    for (int c = 0; c < height * width * 3; c++) {
+        if (channelMap[c] != FPPD_OFF_CHANNEL) {
+            data[c] = channelData[channelMap[c]];
+        }
+    }
+    blob.update(data, width * height * 3);
+
+    image.magick("RGB");
+    image.depth(8);
+    image.quiet(true);
+    image.read(blob, Magick::Geometry(width, height));
+
+    image.write(filename.c_str());
+
+    SetFilePerms(filename);
 }
 
 int PixelOverlayModel::getStartChannel() const {

@@ -575,6 +575,15 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                                              root["RGB"][0].asInt(),
                                              root["RGB"][1].asInt(),
                                              root["RGB"][2].asInt());
+                            m->setBufferIsDirty(true);
+                            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
+                        }
+                    }
+                } else if (p4 == "save") {
+                    Json::Value root;
+                    if (LoadJsonFromString(req.get_content(), root)) {
+                        if (root.isMember("File")) {
+                            m->saveOverlayAsImage(root["File"].asString());
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }

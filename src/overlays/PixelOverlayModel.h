@@ -95,6 +95,7 @@ public:
     void getOverlayPixelValue(int x, int y, int& r, int& g, int& b);
     virtual void setOverlayBufferDirty(bool dirty = true);
     void flushOverlayBuffer();
+    void saveOverlayAsImage(std::string filename = "");
 
     virtual bool overlayBufferIsDirty();
 
