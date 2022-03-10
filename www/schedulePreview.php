@@ -32,34 +32,38 @@ function showPlaylistEnds($currTime = 0) {
 
     $deleteEnds = array();
 
-    foreach ($endTimes as $eTime => $endItem) {
+    foreach ($endTimes as $eTime => $endItems) {
         if (($currTime == 0) || ($eTime <= $currTime)) {
-            printf("<tr style='background-color: #%s;'>", $colors[$endItem["previewDepth"]][$endItem["colorIndex"]]);
-            for ($i = 0; $i < $endItem["previewDepth"]; $i++) {
-                if (isset($depthsInUse[$i])) {
-                    printf("<td width='20px' class='borderLeft' style='background-color: #%s;'>&nbsp;</td>", $colors[$i][$colorIndexes[$i]]);
-                } else {
-                    printf("<td width='20px' style='background-color: #000000;'>&nbsp;</td>");
+            foreach ($endItems as $endItem) {
+                printf("<tr style='background-color: #%s;'>", $colors[$endItem["previewDepth"]][$endItem["colorIndex"]]);
+                for ($i = 0; $i < $endItem["previewDepth"]; $i++) {
+                    if (isset($depthsInUse[$i])) {
+                        printf("<td width='20px' class='borderLeft' style='background-color: #%s;'>&nbsp;</td>", $colors[$i][$colorIndexes[$i]]);
+                    } else {
+                        printf("<td width='20px' style='background-color: #000000;'>&nbsp;</td>");
+                    }
                 }
-            }
 
-            printf("<td width='20px' class='borderLeft borderBottom'>&nbsp;</td>");
+                printf("<td width='20px' class='borderLeft borderBottom'>&nbsp;</td>");
 
-            for ($j = $endItem["previewDepth"]; $j < $maxDepth; $j++) {
-                if (isset($depthsInUse[$j+1]))
-                    printf("<td width='20px' class='borderBottom' style='color: #%s; font-weight: bold; text-align: center;'>|</td>",
-                        $colors[$j+1][$colorIndexes[$j+1]]);
-                else
-                    printf("<td width='20px' class='borderBottom'>&nbsp;</td>");
-            }
+                for ($j = $endItem["previewDepth"]; $j < $maxDepth; $j++) {
+                    if (isset($depthsInUse[$j+1]))
+                        printf("<td width='20px' class='borderBottom' style='color: #%s; font-weight: bold; text-align: center;'>|</td>",
+                            $colors[$j+1][$colorIndexes[$j+1]]);
+                    else
+                        printf("<td width='20px' class='borderBottom'>&nbsp;</td>");
+                }
 
-            printf("<td>%s</td><th>&nbsp;-&nbsp;</th><td>End Playing</td><th>&nbsp;-&nbsp;</th><td>%s (%s Stop)</td></tr>\n<tr>",
-                $endItem["endTimeStr"],
-                $endItem["args"][0],
-                $data["schedule"]["entries"][$endItem["id"]]["stopTypeStr"]
+                printf("<td>%s</td><th>&nbsp;-&nbsp;</th><td>End Playing</td><th>&nbsp;-&nbsp;</th><td>%s (%s Stop)</td></tr>\n<tr>",
+                    $endItem["endTimeStr"],
+                    $endItem["args"][0],
+                    $data["schedule"]["entries"][$endItem["id"]]["stopTypeStr"]
                 );
+
+                unset($depthsInUse[$endItem["previewDepth"]]);
+            }
+
             array_push($deleteEnds, $eTime);
-            unset($depthsInUse[$endItem["previewDepth"]]);
         }
     }
 
@@ -73,7 +77,7 @@ function showPlaylistEnds($currTime = 0) {
 foreach ($data["schedule"]["items"] as $item) {
     $deleteEnds = array();
 
-    foreach ($endTimes as $eTime => $endItem) {
+    foreach ($endTimes as $eTime => $endItems) {
         if ($eTime < $item["startTime"]) {
             $depth--;
             array_push($deleteEnds, $eTime);
@@ -84,7 +88,14 @@ foreach ($data["schedule"]["items"] as $item) {
     }
 
     if ($item["command"] == "Start Playlist") {
-        $endTimes[$item["endTime"]] = $item;
+        if (isset($endTimes[$item["endTime"]])) {
+            array_push($endTimes[$item["endTime"]], $item);
+        } else {
+            $items = array();
+            array_push($items, $item);
+            $endTimes[$item["endTime"]] = $items;
+        }
+
         ksort($endTimes);
 
         if ($depth > $maxDepth)
@@ -141,7 +152,14 @@ foreach ($data["schedule"]["items"] as $item) {
         $item["colorIndex"] = $colorIndex;
         $item["previewDepth"] = $depth;
         $depthsInUse[$depth] = 1;
-        $endTimes[$item["endTime"]] = $item;
+
+        if (isset($endTimes[$item["endTime"]])) {
+            array_unshift($endTimes[$item["endTime"]], $item);
+        } else {
+            $items = array($item);
+            $endTimes[$item["endTime"]] = $items;
+        }
+
         ksort($endTimes);
         printf("<td width='20px' class='borderTop borderLeft'>&nbsp;</td>");
 
