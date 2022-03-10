@@ -6208,7 +6208,7 @@ function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, d
 
     if ((currentValue != '') &&
         (found == 0)) {
-        result += "<option value='" + currentValue + "'>" + currentValue + "</option>";
+        result += "<option value='" + currentValue + "' selected>" + currentValue + "</option>";
     }
     result += "</select>";
 
