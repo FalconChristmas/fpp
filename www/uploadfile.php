@@ -384,6 +384,7 @@ include 'menu.inc'; ?>
                   <input onclick="ClearSelections('Images');" class="buttons" type="button" value="Clear" />
                   <input onclick="ButtonHandler('Images', 'viewImage');" class="disableButtons singleImagesButton" type="button"  value="View" />
                   <input onclick="ButtonHandler('Images', 'download');" class="disableButtons singleImagesButton multiImagesButton" type="button"  value="Download" />
+                  <input onclick="ButtonHandler('Images', 'rename');" class="disableButtons singleImagesButton" type="button"  value="Rename" />
                   <input onclick="ButtonHandler('Images', 'delete');" class="disableButtons singleImagesButton multiImagesButton" type="button"  value="Delete" />
                 </div>
                 <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
