@@ -27,6 +27,19 @@
     width: 100%;
 }
 
+h2.divider {
+    width: 100%;
+    text-align: left;
+    border-bottom: 2px solid #000;
+    line-height: 0.1em;
+    margin: 12px 0 10px;
+}
+
+h2.divider span {
+    background: #f5f5f5;
+    padding: 0 10px;
+}
+
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
     //  BBB only supports ws2811 at this point
@@ -302,6 +315,7 @@ function addVirtualString(item)
     var type = row.attr('type');
     var oid = parseInt(row.attr('oid'));
     var pid = parseInt(row.attr('pid'));
+    var hwLabel = parseInt(row.attr('hwlabel'));
     var protocols = row.attr('protocols');
     var protocol = row.find('.vsProtocol').val();
     var tbody = row.parent();
@@ -324,7 +338,7 @@ function addVirtualString(item)
     
     var sid = highest + 1;
     
-    str += pixelOutputTableRow(type, protocols, protocol, oid, pid, sid, desc + sid, 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, '1.0');
+    str += pixelOutputTableRow(type, protocols, protocol, oid, pid, sid, desc + sid, 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, '1.0', '', hwLabel);
     
     $('#' + highestId).after(str);
 }
@@ -338,13 +352,16 @@ function preventNonNumericalInput(e) {
         e.preventDefault();
 }
 
-function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, description, startChannel, pixelCount, groupCount, reverse, colorOrder, startNulls, endNulls, zigZag, brightness, gamma, portPfx = "")
+function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, description, startChannel, pixelCount, groupCount, reverse, colorOrder, startNulls, endNulls, zigZag, brightness, gamma, portPfx = "", hwLabel = "")
 {
     var result = "";
     var id = type + "_Output_" + oid + "_" + port + "_" + sid;
     
-    result += "<tr id='" + id + "' type='" + type + "' oid='" + oid + "' pid='" + port + "' sid='" + sid + "' protocols='" + protocols + "'>";
+    if (hwLabel == "")
+        hwLabel = "" + (port+1);
     
+    result += "<tr id='" + id + "' type='" + type + "' oid='" + oid + "' pid='" + port + "' sid='" + sid + "' protocols='" + protocols + "' hwlabel='" + hwLabel +"'>";
+
     if (groupCount == 0) {
         groupCount = 1;
     }
@@ -357,7 +374,7 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     }
     else
     {
-        result += "<td class='vsPortLabel' align='center'>" + (port+1) + "" + portPfx + ")</td>";
+        result += "<td class='vsPortLabel' align='center'>" + hwLabel + "" + portPfx + ")</td>";
         result += "<td>" + pixelOutputProtocolSelect(protocols, protocol) + "</td>";
         result += "<td ><button ";
         result += "class='circularButton circularButton-sm circularButton-visible circularVirtualStringButton circularAddButton' onClick='addVirtualString(this);'></button></td>";
@@ -736,10 +753,53 @@ function GetBBB48StringDefaultProtocol(p) {
     }
     return "ws2811";
 }
-function ShouldAddBreak(subType, s) {
-    if (s == 0) {
-        return false;
+function GetStringHWLabel(p) {
+    p += 1;
+    var subType = GetBBB48StringCapeFileName();
+    var group = {};
+    if (KNOWN_CAPES[subType]) {
+        var val = KNOWN_CAPES[subType];
+        for (instance of val["groups"]) {
+            if ((p >= instance['start']) &&
+                (p < (instance['start'] + instance['count']))) {
+                group = instance;
+            }
+        }
     }
+
+    if (group.hasOwnProperty('portStart'))
+        p = group['portStart'] + (p - group['start']);
+
+    if (group.hasOwnProperty('portPrefix'))
+        p = group['portPrefix'] + p;
+
+    return p;
+}
+function GetGroupLabel(subType, s) {
+    s = s + 1;
+    var subType = GetBBB48StringCapeFileName();
+    if (KNOWN_CAPES[subType]) {
+        var val = KNOWN_CAPES[subType];
+        for (instance of val["groups"]) {
+            if ((s == instance["start"]) && instance.hasOwnProperty('label')) {
+                return instance['label'];
+            }
+        }
+    }
+    return '';
+}
+function GetGroupPortStart(subType, s) {
+    s = s + 1;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    for (instance of val["groups"]) {
+        if ((s == instance["start"]) && instance.hasOwnProperty('portStart')) {
+            return instance['portStart'];
+        }
+    }
+    return 0;
+}
+function ShouldAddBreak(subType, s) {
     s = s + 1;
     var subType = GetBBB48StringCapeFileName();
     var val = KNOWN_CAPES[subType];
@@ -899,6 +959,7 @@ function BBB48StringExpansionTypeChanged(port) {
     }
     var dt = $('#ExpansionType' + port);
     var val = parseInt(dt.val());
+    var type = MapPixelStringType($('#BBB48StringSubType').val());
 
     if (val == 0 || val == -1) {
         //droping to standard/none... need to set everything to non-smart first
@@ -911,19 +972,19 @@ function BBB48StringExpansionTypeChanged(port) {
                 tr.remove();
             }
             if (val == -1) {
-                $('#BBB48String_Output_0_' + (port+x) + '_0').hide();
+                $('#' + type + '_Output_0_' + (port+x) + '_0').hide();
             } else {
-                $('#BBB48String_Output_0_' + (port+x) + '_0').show();
+                $('#' + type + '_Output_0_' + (port+x) + '_0').show();
             }
         }
         
     } else {
         //going to differential, need to add receiver type selections
         for (var x = 0; x < num; x += 4) {
-            $('#BBB48String_Output_0_' + (port+x) + '_0').show();
-            $('#BBB48String_Output_0_' + (port+x+1) + '_0').show();
-            $('#BBB48String_Output_0_' + (port+x+2) + '_0').show();
-            $('#BBB48String_Output_0_' + (port+x+3) + '_0').show();
+            $('#' + type + '_Output_0_' + (port+x) + '_0').show();
+            $('#' + type + '_Output_0_' + (port+x+1) + '_0').show();
+            $('#' + type + '_Output_0_' + (port+x+2) + '_0').show();
+            $('#' + type + '_Output_0_' + (port+x+3) + '_0').show();
             var o = port + x;
             var str = "<tr id='ROW_RULER_DIFFERENTIAL_" +o + "'><td colSpan='3'><hr></td><td></td>";
             str += "<td colspan='2' style='font-size:0.7em; text-align:left; white-space: nowrap;'>Differential Receiver: ";
@@ -940,7 +1001,7 @@ function BBB48StringExpansionTypeChanged(port) {
             str += "</select>";
             str += "</td><td colSpan='9'><hr></td>";
             str += "</tr>";
-            $("#BBB48String_Output_0_" + o + "_0").before(str);
+            $('#' + type + '_Output_0_' + o + '_0').before(str);
         }
     }
 }
@@ -977,6 +1038,7 @@ function BBB48StringDifferentialTypeChanged(port) {
 function BBB48StringDifferentialTypeChangedTo(port, tp, count) {
     var protocols = GetBBB48StringProtocols(port);
     var protocol = GetBBB48StringDefaultProtocol(port);
+    var type = MapPixelStringType($('#BBB48StringSubType').val());
     if (count == 0) {
         count = 1;
     }
@@ -988,7 +1050,7 @@ function BBB48StringDifferentialTypeChangedTo(port, tp, count) {
         }
         for (var i = 0; i < 4; i++) {
             for (var j = 0; j < maxVirtualStringsPerOutput; j++) {
-                var id = "BBB48String_Output_" + x + "_" + (port + i) + "_" + j;
+                var id = type + '_Output_' + x + '_' + (port + i) + '_' + j;
                 if ($('#' + id).length) {
                     var row = $('#' + id);
                     row.remove();
@@ -1018,20 +1080,21 @@ function BBB48StringDifferentialTypeChangedTo(port, tp, count) {
         if (x > 0 && !tr.length) {
             var j = 0;
             for (var j = maxVirtualStringsPerOutput-1; j > 0; j--) {
-                var id = "BBB48String_Output_" + x + "_" + (port + 3) + "_" + j;
+                var id = type + '_Output_' + x + '_' + (port + 3) + '_' + j;
                 if ($('#' + id).length) {
                     break;
                 }
             }
             var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_" + x + "'><td colSpan='15'><hr></td></tr>";
             for (var y = 0; y < 4; y++) {
-                str += pixelOutputTableRow("BBB48String", protocols, protocol, x, (port + y), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", label);
+                var hwLabel = GetStringHWLabel(port+y);
+                str += pixelOutputTableRow(type, protocols, protocol, x, (port + y), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", label, hwLabel);
             }
-            $("#BBB48String_Output_" + (x-1) + "_" + (port + 3) + "_" + j).after(str);
+            $('#' + type + '_Output_' + (x-1) + '_' + (port + 3) + '_' + j).after(str);
         } else {
             for (var y = 0; y < 4; y++) {
                 var newLabel = "" + (port + 1 + y) + label + ")";
-                $("#BBB48String_Output_" + x + "_" + (port + y) + "_0 td:first").html(newLabel);
+                $('#' + type + '_Output_' + x + '_' + (port + y) + '_0 td:first').html(newLabel);
             }
         }
     }
@@ -1112,6 +1175,10 @@ function populatePixelStringOutputs(data) {
                         port = output.outputs[o];
                     }
                     if (ShouldAddBreak(subType, o) || (o == 0 && IsDifferential(subType, o)) || IsDifferentialExpansion(inExpansion, expansionType, o) || IsExpansion(subType, o)) {
+                        var groupLabel = GetGroupLabel(subType, o);
+                        if (groupLabel != '') {
+                            str += "<tr><td colspan='15'><h2 class='divider'><span>" + groupLabel + "</span></h2></td></tr>";
+                        }
                         if (IsExpansion(subType, o)) {
                             expansionType = port["expansionType"];
                             if (expansionType == null) {
@@ -1180,7 +1247,7 @@ function populatePixelStringOutputs(data) {
                             if (diffType >= 1) {
                                 loops = diffCount;
                             }
-                        } else if (!inExpansion) {
+                        } else if ((o != 0) && (!inExpansion)) {
                             str += "<tr><td colSpan='15'><hr></td></tr>";
                         }
                     }
@@ -1229,13 +1296,16 @@ function populatePixelStringOutputs(data) {
                                             var vs = strings[v];
                                             
                                             var endNulls = vs.hasOwnProperty("endNulls") ? vs.endNulls : 0;
-                                            str += pixelOutputTableRow(type, protocols, protocol, l, o2, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, endNulls, vs.zigZag, vs.brightness, vs.gamma, pfx);
+                                            var hwLabel = GetStringHWLabel(o2);
+                                            str += pixelOutputTableRow(type, protocols, protocol, l, o2, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, endNulls, vs.zigZag, vs.brightness, vs.gamma, pfx, hwLabel);
                                         }
                                     } else {
-                                        str += pixelOutputTableRow(type, protocols, protocol, l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", pfx);
+                                        var hwLabel = GetStringHWLabel(o2);
+                                        str += pixelOutputTableRow(type, protocols, protocol, l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", pfx, hwLabel);
                                     }
                                 } else {
-                                    str += pixelOutputTableRow(type, protocols, protocol, l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", pfx);
+                                    var hwLabel = GetStringHWLabel(o2);
+                                    str += pixelOutputTableRow(type, protocols, protocol, l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", pfx, hwLabel);
                                 }
                             }
                         }
@@ -1251,10 +1321,12 @@ function populatePixelStringOutputs(data) {
                                     protocol = port["protocol"];
                                 }
                                 var endNulls = vs.hasOwnProperty("endNulls") ? vs.endNulls : 0;
-                                str += pixelOutputTableRow(type, protocols, protocol, 0, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, endNulls, vs.zigZag, vs.brightness, vs.gamma);
+                                var hwLabel = GetStringHWLabel(o);
+                                str += pixelOutputTableRow(type, protocols, protocol, 0, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, endNulls, vs.zigZag, vs.brightness, vs.gamma, '', hwLabel);
                             }
                         } else {
-                            str += pixelOutputTableRow(type, protocols, defProtocol, 0, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0");
+                            var hwLabel = GetStringHWLabel(o);
+                            str += pixelOutputTableRow(type, protocols, defProtocol, 0, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", '', hwLabel);
                         }
                     }
                 }
@@ -1275,6 +1347,16 @@ function populatePixelStringOutputs(data) {
                     $(this).addClass('selectedEntry');
                     selectedPixelStringRowId = $(this).attr('id');
                 });
+
+                var key = GetBBB48StringCapeFileNameForSubType(subType);
+                var val = KNOWN_CAPES[key];
+                if (val.hasOwnProperty('notes')) {
+                    $('.capeNotes').show();
+                    $('#capeNotes').html(val.notes);
+                } else {
+                    $('.capeNotes').hide();
+                    $('#capeNotes').html('');
+                }
             }
             if (type == 'BBBSerial') {
                 var subType = output.subType;
@@ -1484,6 +1566,7 @@ function populateCapeList() {
 $(document).ready(function(){
     if (currentCapeName != "" && currentCapeName != "Unknown") {
         $('.capeName').html(currentCapeName);
+        $('.capeTypeLabel').html("Cape Config");
     }
 
     populateCapeList();
@@ -1516,8 +1599,12 @@ $(document).ready(function(){
                     </div>
                 </div>
                 <div class="col-md-auto form-inline">
-                    <div><b>Cape Type:</b></div>
-                    <div ><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'></select><span id='BBB48StringSubTypeSpan'> </span></div>
+                    <div><b><span class='capeTypeLabel'>Cape Type</span>:</b></div>
+		    <div ><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'
+<? if (isSet($settings['cape-info']) && isset($settings['cape-info']['capeTypeTip'])) {  ?>
+title="<?= $settings['cape-info']['capeTypeTip'] ?>"
+<? } ?>
+                          ></select><span id='BBB48StringSubTypeSpan'> </span></div>
 
                 </div>
                 <div class="col-md-auto form-inline">
@@ -1546,7 +1633,8 @@ style="display: none;"
             <div id='divBBB48StringData'>
                 <div>
                     <small class="text-muted text-right pt-2 d-block">
-                        Press F2 to auto set the start channel on the next row.
+                        Press F2 to auto set the start channel on the next row.<br>
+                        <span class='capeNotes' style='display: none;'><a href='#capeNotes'>View Cape Configuration Notes</a></span>
                     </small>
 
                     <?if ((isSet($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {  ?>
@@ -1625,3 +1713,6 @@ style="display: none;"
 
     </div>
 </div>
+<a name='capeNotes'></a>
+<span class='capeNotes' style='display: none;'><b>Cape Configuration Notes:</b><br></span>
+<span class='capeNotes' id='capeNotes' style='display: none;'></span>
