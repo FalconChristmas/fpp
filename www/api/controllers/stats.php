@@ -439,7 +439,7 @@ function stats_getCapeInfo()
     }
 
     $data = json_decode(file_get_contents("http://localhost/api/cape"), true);
-    if ($data != false) {
+    if (($data != false) && ((!isset($data['sendStats'])) || ($data['sendStats'] == 1))) {
         validateAndAdd($rc, $data, $mapping);
     }
 
