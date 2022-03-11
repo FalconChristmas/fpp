@@ -161,7 +161,13 @@ void KiNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages&
                 msgs[kinetAddress.sin_addr.s_addr].push_back(msg);
 
                 if (type == KINET_V2_TYPE) {
-                    kinetBuffers[p][17]++;
+                    if ((++kinetBuffers[p][8]) == 0) {
+                        if ((++kinetBuffers[p][9]) == 0) {
+                            if ((++kinetBuffers[p][10]) == 0) {
+                                ++kinetBuffers[p][11];
+                            }
+                        }
+                    }
                 }
                 // set the pointer to the channelData for the universe
                 kinetIovecs[p * 2 + 1].iov_base = (void*)(&channelData[startChannel - 1 + start]);
