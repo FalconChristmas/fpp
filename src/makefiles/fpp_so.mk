@@ -137,5 +137,6 @@ libfpp.$(SHLIB_EXT): $(OBJECTS_fpp_so) $(DEPS_fpp_so)
 
 CXXFLAGS_overlays/PixelOverlay.o+=$(MAGICK_INCLUDE_PATH)
 CXXFLAGS_overlays/PixelOverlayEffects.o+=$(MAGICK_INCLUDE_PATH)
+CXXFLAGS_overlays/PixelOverlayModel.o+=$(MAGICK_INCLUDE_PATH)
 CXXFLAGS_playlist/PlaylistEntryImage.o+=$(MAGICK_INCLUDE_PATH)
 CXXFLAGS_channeloutput/VirtualDisplayBase.o+=$(MAGICK_INCLUDE_PATH)
