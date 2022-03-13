@@ -554,6 +554,9 @@ case "${FPPPLATFORM}" in
             echo "FPP - Disabling the VC4 OpenGL driver"
             sed -i -e "s/dtoverlay=vc4-fkms-v3d/#dtoverlay=vc4-fkms-v3d/" /boot/config.txt
             sed -i -e "s/dtoverlay=vc4-kms-v3d/#dtoverlay=vc4-kms-v3d/" /boot/config.txt
+            
+            echo "FPP - Disabling Camera AutoDetect"
+            sed -i -e "s/camera_auto_detect/#camera_auto_detect/" /boot/config.txt
 
             echo "FPP - Enabling SPI in device tree"
             echo >> /boot/config.txt
