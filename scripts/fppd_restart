@@ -10,16 +10,24 @@ cd ${FPPDIR}
 logOutput
 
 # Clear any restart flag
-sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
+sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${MEDIADIR}/settings
 
-if [ -f "/.dockerenv" ]
-then
+if [ -f "/.dockerenv" ]; then
     /opt/fpp/scripts/fppd_stop
     /opt/fpp/scripts/fppd_start
+elif [ "${FPPPLATFORM}" == "MacOS" ]; then
+    launchctl stop falconchristmas.fppd
+    for i in {1..60}
+    do
+        PN=$(launchctl list  | grep falconchristmas.fppd | awk  '{print $1}')
+        if [ $PN != "-" ]; then
+            sleep 0.1
+        fi
+    done
+    launchctl start falconchristmas.fppd
 else
     PID=$(pgrep -x fppd)
-    if [ "x${PID}" == "x" ]
-    then
+    if [ "x${PID}" == "x" ]; then
         # fppd not running so we need to start
         systemctl start fppd
     else
