@@ -13,6 +13,8 @@ wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8188fu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8814au
 
+CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+
 shopt -s nullglob
 KVERS=($(ls /usr/src/ | colrm 1 14))
 shopt -u nullglob
@@ -37,7 +39,7 @@ sed -i 's/ARM_GENERIC = n/ARM_GENERIC = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 cd /opt/wifi
@@ -50,7 +52,7 @@ sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 cd /opt/wifi
@@ -62,7 +64,7 @@ patch -p1 < /opt/wifi/patches/rtl8723bu
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 cd /opt/wifi
@@ -73,7 +75,7 @@ cd rtl8723au
 patch -p1 < /opt/wifi/patches/rtl8723au
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 cd /opt/wifi
@@ -86,7 +88,7 @@ sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 cd /opt/wifi
@@ -99,7 +101,7 @@ sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 cd /opt/wifi
@@ -112,7 +114,7 @@ sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 cd /opt/wifi
@@ -125,7 +127,7 @@ sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 cd /opt/wifi
@@ -138,7 +140,7 @@ sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 cd /opt/wifi
@@ -148,7 +150,7 @@ git clone https://github.com/lwfinger/rtl8188eu
 cd rtl8188eu
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 cp rtl8188eufw.bin /lib/firmware/
@@ -162,7 +164,7 @@ cd rtl8188fu
 patch -p1 < /opt/wifi/patches/rtl8188fu
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 ARCH=arm make installfw

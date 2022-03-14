@@ -1143,6 +1143,7 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
     if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
         echo "FPP - Install kernel headers so modules can be compiled later"
         apt-get -y install raspberrypi-kernel-headers
+        apt-get clean
     fi
 
     echo "FPP - Compiling WIFI drivers"
