@@ -26,6 +26,8 @@ public:
     virtual void doOverlay(uint8_t* channels) override;
     virtual void setData(const uint8_t* data) override;
 
+    virtual void setState(const PixelOverlayState& st) override;
+
 private:
     bool foundParent();
 

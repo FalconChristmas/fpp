@@ -32,10 +32,7 @@ PixelOverlayModelFB::~PixelOverlayModelFB() {
 }
 
 void PixelOverlayModelFB::doOverlay(uint8_t* channels) {
-    if (PixelOverlayModel::overlayBufferIsDirty())
-        flushOverlayBuffer();
-
-    if (!dirtyBuffer)
+    if (children.empty() && !dirtyBuffer)
         return;
 
     fb->FBCopyData(channelData);

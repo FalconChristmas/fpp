@@ -105,6 +105,7 @@ PixelOverlayManager::~PixelOverlayManager() {
 void PixelOverlayManager::Initialize() {
     loadModelMap();
     RegisterCommands();
+    loadFonts();
 }
 
 void PixelOverlayManager::loadModelMap() {
@@ -276,15 +277,23 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
         return;
     }
     std::unique_lock<std::mutex> lock(activeModelsLock);
-    // First do any sub-models
+    // First, flush any buffers
     for (auto m : activeModels) {
-        if (m->getType() == "Sub")
+        if (m->overlayBufferIsDirty()) {
+            m->flushOverlayBuffer();
+        }
+    }
+    // Second, do any sub-models
+    for (auto m : activeModels) {
+        if (m->getType() == "Sub") {
             m->doOverlay(channels);
+        }
     }
     // Then do any non-subs
     for (auto m : activeModels) {
-        if (m->getType() != "Sub")
+        if (m->getType() != "Sub") {
             m->doOverlay(channels);
+        }
     }
 
     for (auto& m : activeRanges) {
@@ -420,7 +429,6 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
         std::string p5 = req.get_path_pieces().size() > 4 ? req.get_path_pieces()[4] : "";
         Json::Value result;
         if (p2 == "fonts") {
-            loadFonts();
             for (auto& a : fonts) {
                 result.append(a.first);
             }
@@ -553,16 +561,15 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                     Json::Value root;
                     if (LoadJsonFromString(req.get_content(), root)) {
                         if (root.isMember("RGB")) {
-                            m->fillOverlayBuffer(root["RGB"][0].asInt(),
-                                                 root["RGB"][1].asInt(),
-                                                 root["RGB"][2].asInt());
+                            m->fill(root["RGB"][0].asInt(),
+                                    root["RGB"][1].asInt(),
+                                    root["RGB"][2].asInt());
                             m->flushOverlayBuffer();
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         } else if (root.isMember("Value")) {
-                            m->fillOverlayBuffer(root["Value"].asInt(),
-                                                 root["Value"].asInt(),
-                                                 root["Value"].asInt());
-                            m->flushOverlayBuffer();
+                            m->fill(root["Value"].asInt(),
+                                    root["Value"].asInt(),
+                                    root["Value"].asInt());
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }
@@ -575,7 +582,6 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                                              root["RGB"][0].asInt(),
                                              root["RGB"][1].asInt(),
                                              root["RGB"][2].asInt());
-                            m->setBufferIsDirty(true);
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }
@@ -588,7 +594,6 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                         }
                     }
                 } else if (p4 == "text") {
-                    loadFonts();
                     Json::Value root;
                     if (LoadJsonFromString(req.get_content(), root)) {
                         if (root.isMember("Message")) {
@@ -629,6 +634,10 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }
+                } else if (p4 == "mmap") {
+                    //Force mmap the overlay buffer so external programs can have access to it
+                    m->getOverlayBuffer();
+                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                 } else {
                     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Model Command Not found " + p4, 404));
                 }

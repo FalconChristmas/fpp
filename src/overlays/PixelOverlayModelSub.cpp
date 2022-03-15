@@ -41,12 +41,17 @@ bool PixelOverlayModelSub::foundParent() {
     parent = PixelOverlayManager::INSTANCE.getModel(config["Parent"].asString());
 
     if (parent) {
-        parent->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
         return true;
     }
 
     LogErr(VB_CHANNELOUT, "Unable to find parent\n");
     return false;
+}
+void PixelOverlayModelSub::setState(const PixelOverlayState& st) {
+    PixelOverlayModel::setState(st);
+    if (foundParent()) {
+        parent->setChildState(name, st, xOffset, yOffset, width, height);
+    }
 }
 
 void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
@@ -59,7 +64,7 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     if (!foundParent())
         return;
 
-    parent->setData(channelData, xOffset, yOffset, width, height);
+    parent->setData(channelData, xOffset, yOffset, width, height, state);
     dirtyBuffer = false;
 }
 

@@ -492,21 +492,20 @@ public:
                 int pixelsPerSecond,
                 const std::string& autoEnable,
                 int duration) {
-        Magick::Image image(Magick::Geometry(m->getWidth(), m->getHeight()), Magick::Color("black"));
-        image.quiet(true);
-        image.depth(8);
-        image.font(font);
-        image.fontPointsize(fontSize);
-        image.antiAlias(antialias);
-
+        
         bool disableWhenDone = false;
-
         PixelOverlayState st(autoEnable);
-
         if ((st.getState() != PixelOverlayState::PixelState::Disabled) && (m->getState().getState() == PixelOverlayState::PixelState::Disabled)) {
             m->setState(st);
             disableWhenDone = true;
         }
+
+        Magick::Image *image = new Magick::Image(Magick::Geometry(m->getWidth(), m->getHeight()), Magick::Color("black"));
+        image->quiet(true);
+        image->depth(8);
+        image->font(font);
+        image->fontPointsize(fontSize);
+        image->antiAlias(antialias);
 
         int maxWid = 0;
         int totalHi = 0;
@@ -518,7 +517,7 @@ public:
                 lines++;
                 std::string newM = msg.substr(last, x);
                 Magick::TypeMetric metrics;
-                image.fontTypeMetrics(newM, &metrics);
+                image->fontTypeMetrics(newM, &metrics);
                 maxWid = std::max(maxWid, (int)metrics.textWidth());
                 totalHi += (int)metrics.textHeight();
                 if (msg[x] == '\n') {
@@ -530,12 +529,12 @@ public:
         }
         std::string newM = msg.substr(last);
         Magick::TypeMetric metrics;
-        image.fontTypeMetrics(newM, &metrics);
+        image->fontTypeMetrics(newM, &metrics);
         maxWid = std::max(maxWid, (int)metrics.textWidth());
         totalHi += (int)metrics.textHeight();
 
         if (position == "Centered" || position == "Center") {
-            image.magick("RGB");
+            image->magick("RGB");
             //one shot, just draw the text and return
             double rr = r;
             double rg = g;
@@ -544,14 +543,14 @@ public:
             rg /= 255.0f;
             rb /= 255.0f;
 
-            image.fillColor(Magick::Color(Magick::Color::scaleDoubleToQuantum(rr),
+            image->fillColor(Magick::Color(Magick::Color::scaleDoubleToQuantum(rr),
                                           Magick::Color::scaleDoubleToQuantum(rg),
                                           Magick::Color::scaleDoubleToQuantum(rb)));
-            image.antiAlias(antialias);
-            image.strokeAntiAlias(antialias);
-            image.annotate(msg, Magick::CenterGravity);
+            image->antiAlias(antialias);
+            image->strokeAntiAlias(antialias);
+            image->annotate(msg, Magick::CenterGravity);
             Magick::Blob blob;
-            image.write(&blob);
+            image->write(&blob);
 
             m->setData((uint8_t*)blob.data());
 
@@ -562,7 +561,9 @@ public:
                 }
                 m->setRunningEffect(new StopRunningEffect(m, "Text", disableWhenDone), nd);
             }
+            delete image;
         } else {
+            delete image;
             //movement
             double rr = r;
             double rg = g;
