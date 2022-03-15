@@ -78,7 +78,7 @@ fi
 brew install php@7.4 git httpd ffmpeg ccache make sdl2 zstd wget taglib mosquitto jsoncpp libhttpserver graphicsmagick
 brew link --force --overwrite php@7.4
 echo ""
-ccache -M 250M
+ccache -M 350M
 ccache --set-config=temporary_dir=/tmp
 ccache --set-config=sloppiness=pch_defines,time_macros
 echo ""

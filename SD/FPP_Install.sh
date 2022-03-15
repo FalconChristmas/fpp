@@ -882,7 +882,7 @@ sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 # Configure ccache
 echo "FPP - Configuring ccache"
 mkdir -p /root/.ccache
-ccache -M 250M
+ccache -M 350M
 ccache --set-config=temporary_dir=/tmp
 ccache --set-config=sloppiness=pch_defines,time_macros
 ccache --set-config=hard_link=true
