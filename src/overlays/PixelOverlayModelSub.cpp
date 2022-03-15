@@ -58,11 +58,13 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     if (PixelOverlayModel::overlayBufferIsDirty())
         flushOverlayBuffer();
 
+    if (!foundParent())
+        return;
+
+    dirtyBuffer |= parent->needRefresh();
     if (!dirtyBuffer)
         return;
 
-    if (!foundParent())
-        return;
 
     parent->setData(channelData, xOffset, yOffset, width, height, state);
     dirtyBuffer = false;
