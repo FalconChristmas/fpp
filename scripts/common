@@ -12,14 +12,14 @@ fi
 COMMON_PATH=$(cd "$COMMON_PATH/.." && pwd)
 
 FPPDIR=${FPPDIR:-$COMMON_PATH}
+FPPUSER="fpp"
+FPPGROUP="fpp"
 
 if [ -f "${FPPDIR}/www/media_root.txt" ]; then
     MEDIADIR=$(cat "${FPPDIR}/www/media_root.txt")
     FPPHOME=$(dirname ${MEDIADIR})
 else
     FPPHOME="/home/fpp"
-    FPPUSER="fpp"
-    FPPGROUP="fpp"
     MEDIADIR="${MEDIADIR:-${FPPHOME}/media}"
 fi
 
