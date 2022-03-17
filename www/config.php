@@ -593,8 +593,12 @@ function GetDirSetting($dir)
 
 // $skipJSsettings is only set in fppjson.php and fppxml.php
 // to prevent this JavaScript from being printed
+//
+// HTTP discovery looks for the string "Falcon Player - FPP" in the resulting HTML
+// so we'll make sure it's in a comment so that discovery will work
 if (!isset($skipJSsettings)) {
     ?>
+<!-- Falcon Player - FPP -->
 <script type="text/javascript">
     MINYEAR = <?echo MINYEAR; ?>;
     MAXYEAR = <?echo MAXYEAR; ?>;
