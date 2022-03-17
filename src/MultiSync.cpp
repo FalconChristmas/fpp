@@ -955,6 +955,11 @@ void MultiSync::DiscoverViaHTTP(const std::set<std::string>& ipSet, const std::s
         curl_easy_setopt(handles[ips], CURLOPT_TCP_FASTOPEN, 1L);
 
         curl_multi_add_handle(multi_handle, handles[ips]);
+        if ((ips % 10) == 0) {
+            //periodically need to do a perform so DNS can work, otherwise
+            //it seems to max out at aroung 70 or 80
+            curl_multi_perform(multi_handle, &still_running);
+        }
         ips++;
     }
 
@@ -982,7 +987,7 @@ void MultiSync::DiscoverViaHTTP(const std::set<std::string>& ipSet, const std::s
                             ipList[idx] = "";
                         }
                     } else {
-                        LogDebug(VB_SYNC, "No/Error response from %s\n", ipList[idx].c_str());
+                        LogDebug(VB_SYNC, "No/Error response from %s.  Response code: %d\n", ipList[idx].c_str(), msg->data.result);
                         ipList[idx] = "";
                     }
                     curl_multi_remove_handle(multi_handle, e);
