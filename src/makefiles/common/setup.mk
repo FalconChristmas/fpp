@@ -39,8 +39,8 @@ ifeq '$(CXXCOMPILER)' 'g++'
     GCCVERSIONGTEQ9:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 9)
     # Common CFLAGS
     CFLAGS+=-fpch-preprocess
-    OPTIMIZE_FLAGS+=-O3 -Wno-psabi
-    debug: OPTIMIZE_FLAGS+=-g -DDEBUG -Wno-psabi
+    OPTIMIZE_FLAGS=-O3 -Wno-psabi
+    debug: OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
     CXXFLAGS += -std=gnu++2a
 
     ifeq "$(GCCVERSIONGTEQ9)" "0"
@@ -49,8 +49,8 @@ ifeq '$(CXXCOMPILER)' 'g++'
 		LD_FLAG_FS=
     endif
 else
-    OPTIMIZE_FLAGS+=-O3
-    debug: OPTIMIZE_FLAGS+=-g -DDEBUG
+    OPTIMIZE_FLAGS=-O3
+    debug: OPTIMIZE_FLAGS=-g -DDEBUG
     #CXXFLAGS += -std=gnu++2a
 endif
 

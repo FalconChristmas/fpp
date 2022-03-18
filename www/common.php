@@ -117,7 +117,9 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
     }
 
     $settingsStr = "";
-    $tmpSettings = parse_ini_file($filename);
+    if (file_exists($filename)) {
+        $tmpSettings = parse_ini_file($filename);
+    }
     $tmpSettings[$settingName] = $setting;
     foreach ($tmpSettings as $key => $value) {
         $settingsStr .= $key . " = \"" . $value . "\"\n";
@@ -213,6 +215,7 @@ function LoadPluginSettingInfos($plugin)
     global $settingGroups;
     global $mediaDirectory;
     global $pluginSettingInfosLoaded;
+    global $pluginSettingInfos;
 
     if (empty($settingInfos) || empty($settingGroups)) {
         LoadSettingInfos();
@@ -223,11 +226,35 @@ function LoadPluginSettingInfos($plugin)
 
         if (file_exists($file)) {
             $data = json_decode(file_get_contents($file), true);
+            $pluginSettingInfos = $data['settings'];
             $settingInfos = array_merge($settingInfos, $data['settings']);
             $settingGroups = array_merge($settingGroups, $data['settingGroups']);
         }
         $pluginSettingInfosLoaded = 1;
     }
+}
+function MergeDefaultsFromPluginSettings($plugin)
+{
+    global $pluginSettingInfos;
+    global $pluginSettings;
+
+    LoadPluginSettingInfos($plugin);
+    foreach($pluginSettingInfos as $key => $value) {
+        if (!isset($pluginSettings[$key]) && isset($value["default"])) {
+            $pluginSettings[$key] = $value["default"];
+        }
+    }
+}
+function LoadPluginSettings($pluginName) {
+    global $pluginSettings, $settings;
+    $pluginConfigFile = $settings ['configDirectory'] . "/plugin." . $pluginName;
+    if (file_exists($pluginConfigFile)) {
+	    $pluginSettings = parse_ini_file($pluginConfigFile);
+    }
+    MergeDefaultsFromPluginSettings($pluginName);
+}
+function ParseBooleanValue($value) {
+    return $value == "1" || $value == "true" || $value == "TRUE" || $value == "ON" || $value == "on";
 }
 
 function PrintPluginSetting($plugin, $setting, $callback = '', $options = array())
@@ -345,6 +372,7 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
         }
 
         switch ($s['type']) {
+            case 'datalist':
             case 'select':
                 if (empty($options)) {
                     if (isset($s['optionsURL'])) {
@@ -389,8 +417,15 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
 
                 $default = isset($s['default']) ? $s['default'] : "";
 
-                PrintSettingSelect($s['description'], $setting, $restart, $reboot, $default, $options, $plugin, $callback, '', $s);
-
+                if ($s['type'] == "select") {
+                    PrintSettingSelect($s['description'], $setting, $restart, $reboot, $default, $options, $plugin, $callback, '', $s);
+                } else {
+                    $news = $s;
+                    $news['options'] = $options;
+                    $size = isset($s['size']) ? $s['size'] : 32;
+                    $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
+                    PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', 'datalist', $news);
+                }
                 break;
             case 'checkbox':
                 $checkedValue = isset($s['checkedValue']) ? $s['checkedValue'] : "1";
@@ -859,6 +894,9 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     if ($inputType == 'color') {
         $inputType = 'text';
     }
+    if ($inputType == 'datalist') {
+        $inputType = 'text';
+    }
 
     $plugin = "";
     $settingsName = "settings";
@@ -987,10 +1025,19 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         if ($sData['type'] == 'date') {
             echo "class='date' autocomplete='off' ";
         }
+        if ($sData['type'] == 'datalist') {
+            echo "list='" . $setting . "_list'";
+        }
     }
-
     echo ">\n";
-
+    if ($subType == 'datalist') {
+        $options = $sData["options"];
+        echo "<datalist id='" . $setting . "_list'>\n";
+        foreach ($options as $option => $value) {
+            echo "<option value='" . $option . "'>" . $value . "</option>\n";
+        }
+        echo "</datalist>\n";
+    }
     if ($subType == 'color') {
         echo "<span id='$setting" . "_colorBox' class='color-box' style='background-color: #" . $curValue . ";'></span>";
         echo "<script>";

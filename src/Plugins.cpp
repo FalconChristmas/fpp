@@ -15,8 +15,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "config.h"
 #include "Plugins.h"
+#include "config.h"
 #include "mediadetails.h"
 #include "mediaoutput/mediaoutput.h"
 
@@ -94,6 +94,21 @@ void FPPPlugin::reloadSettings() {
     }
 }
 
+class LifecycleCallback {
+public:
+    LifecycleCallback(const std::string& name, const std::string& filename) :
+        mName(name),
+        mFilename(filename) {
+    }
+    virtual ~LifecycleCallback() {}
+
+    void run(const std::string& lifecycle);
+
+private:
+    std::string mName;
+    std::string mFilename;
+};
+
 class MediaCallback {
 public:
     MediaCallback(const std::string& name, const std::string& filename) :
@@ -147,20 +162,26 @@ public:
             } else if (types[i] == "playlist") {
                 LogDebug(VB_PLUGIN, "Plugin %s supports playlist callback.\n", name.c_str());
                 m_playlistCallback = new PlaylistCallback(name, filename);
+            } else if (types[i] == "lifecycle") {
+                m_lifecycleCallback = new LifecycleCallback(name, filename);
             } else {
                 otherTypes.push_back(types[i]);
             }
         }
+        lifecycleCallback("startup");
     }
     virtual ~ScriptFPPPlugin() {
+        lifecycleCallback("shutdown");
         if (m_mediaCallback)
             delete m_mediaCallback;
         if (m_playlistCallback)
             delete m_playlistCallback;
+        if (m_lifecycleCallback)
+            delete m_lifecycleCallback;
     }
 
     bool hasCallback() const {
-        return m_mediaCallback != nullptr || m_playlistCallback != nullptr;
+        return m_mediaCallback != nullptr || m_playlistCallback != nullptr || m_lifecycleCallback != nullptr;
     }
 
     const std::list<std::string>& getOtherTypes() const {
@@ -177,6 +198,11 @@ public:
             m_playlistCallback->run(playlist, action, section, item);
         }
     }
+    virtual void lifecycleCallback(const std::string& lifecycle) {
+        if (m_lifecycleCallback) {
+            m_lifecycleCallback->run(lifecycle);
+        }
+    }
 
 private:
     const std::string fileName;
@@ -184,6 +210,7 @@ private:
     std::list<std::string> otherTypes;
     MediaCallback* m_mediaCallback = nullptr;
     PlaylistCallback* m_playlistCallback = nullptr;
+    LifecycleCallback* m_lifecycleCallback = nullptr;
 };
 
 PluginManager::PluginManager() :
@@ -218,13 +245,26 @@ public:
             std::string eventScript = directory + "/" + script;
 
             std::vector<const char*> sargs;
+            std::vector<const char*> envs;
+
+            char mediaDir[1024];
+            char fppDir[1024];
+            char pluginDir[1024];
+            sprintf(mediaDir, "MEDIADIR=%s", getFPPMediaDir().c_str());
+            sprintf(fppDir, "FPPDIR=%s", getFPPDDir().c_str());
+            sprintf(pluginDir, "SCRIPTDIR=%s", directory.c_str());
+            envs.push_back(mediaDir);
+            envs.push_back(fppDir);
+            envs.push_back(pluginDir);
+            envs.push_back(nullptr);
+
             sargs.push_back(eventScript.c_str());
             for (auto& a : args) {
                 sargs.push_back(a.c_str());
             }
             sargs.push_back(nullptr);
 
-            execv(eventScript.c_str(), (char* const*)&sargs[0]);
+            execvpe(eventScript.c_str(), (char* const*)&sargs[0], (char* const*)&envs[0]);
 
             LogErr(VB_PLUGIN, "We failed to exec our command callback:  %s\n", strerror(errno));
             for (auto a : sargs) {
@@ -575,6 +615,27 @@ void PlaylistCallback::run(const Json::Value& playlist, const std::string& actio
         exit(EXIT_FAILURE);
     } else {
         LogExcess(VB_PLUGIN, "Playlist parent process, resuming work.\n");
+        wait(NULL);
+    }
+}
+void LifecycleCallback::run(const std::string& lifecycle) {
+    int pid;
+    if ((pid = fork()) == -1) {
+        LogErr(VB_PLUGIN, "Failed to fork\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid == 0) {
+        LogDebug(VB_PLUGIN, "Child process, calling %s callback for lifecycle : %s\n", mName.c_str(), mFilename.c_str());
+
+        std::string eventScript = FPP_DIR + "/scripts/eventScript";
+        LogDebug(VB_PLUGIN, "Lifecycle plugin data: %s\n", lifecycle.c_str());
+        execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "lifecycle", lifecycle.c_str(), NULL);
+
+        LogErr(VB_PLUGIN, "We failed to exec our lifecycle callback!\n");
+        exit(EXIT_FAILURE);
+    } else {
+        LogExcess(VB_PLUGIN, "Lifecycle parent process, resuming work.\n");
         wait(NULL);
     }
 }
