@@ -475,7 +475,7 @@ if (isset($mediaDevice) && $mediaDevice != "" && $mediaDevice != $rootDevice) {
 if (isset($settings["cape-info"])) {
     $currentCapeInfo = $settings["cape-info"];
     $capeHardwareType = "Cape/Hat";
-    if ($isset($currentCapeInfo["hardwareType"])) {
+    if (isset($currentCapeInfo["hardwareType"])) {
         $capeHardwareType = $currentCapeInfo["hardwareType"];
     }
     ?>
