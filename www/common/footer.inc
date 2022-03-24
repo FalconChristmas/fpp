@@ -29,7 +29,7 @@
   </div>
 <br />
 <div class="footerLink">
-<a href="http://www.falconchristmas.com">www.falconchristmas.com</a>
+<a href='<?= $themeInfo["FOOTER_URL"] ?>'><?= $themeInfo["FOOTER_URL_TEXT"] ?></a>
 </div>
 
 <br />

@@ -31,6 +31,13 @@ if (file_exists(__DIR__ . "/fppversion.php")) {
 // Settings array so we can stop making individual variables for each new setting
 $settings = array();
 $pluginSettings = array();
+$themeInfo = array();
+
+$themeInfo["FOOTER_URL"] = "http://www.falconchristmas.com";
+$themeInfo["FOOTER_URL_TEXT"] = "www.falconchristmas.com";
+
+$themeInfo["HEADER_LOGO1"] = "images/redesign/falconlogo.svg";
+$themeInfo["HEADER_LOGO2"] = "images/redesign/fpp-logo.svg";
 
 // FIXME, need to convert other settings below to use this array
 $settings['fppMode'] = "player";
@@ -589,6 +596,25 @@ function GetDirSetting($dir)
 
     return "";
 }
+
+
+
+if (file_exists($pluginDirectory)) {
+    $handle = opendir($pluginDirectory);
+    if ($handle) {
+        $first = 1;
+        while (($plugin = readdir($handle)) !== false) {
+            if (!in_array($plugin, array('.', '..'))) {
+                // Old naming convention ${MENU}_menu.inc
+                $themeInc = $pluginDirectory . "/" . $plugin . "/theme.inc.php";
+                if (file_exists($themeInc)) {
+                    include($themeInc);
+                }
+            }
+        }
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 // $skipJSsettings is only set in fppjson.php and fppxml.php
