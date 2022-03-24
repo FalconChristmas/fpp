@@ -474,11 +474,15 @@ if (isset($mediaDevice) && $mediaDevice != "" && $mediaDevice != $rootDevice) {
         <?
 if (isset($settings["cape-info"])) {
     $currentCapeInfo = $settings["cape-info"];
+    $capeHardwareType = "Cape/Hat";
+    if ($isset($currentCapeInfo["hardwareType"])) {
+        $capeHardwareType = $currentCapeInfo["hardwareType"];
+    }
     ?>
         </div>
         <div class="row">
             <div class="aboutAll col-md">
-            <h2>About Cape/Hat</h2>
+            <h2>About <?= $capeHardwareType ?> </h2>
             <div class="container-fluid">
             <div class="row">
             <div class='<?if (isset($currentCapeInfo['vendor'])) {echo "aboutLeft col-md";} else {echo "aboutAll";}?> '>
