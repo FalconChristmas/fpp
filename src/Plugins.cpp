@@ -264,7 +264,7 @@ public:
             }
             sargs.push_back(nullptr);
 
-            execvpe(eventScript.c_str(), (char* const*)&sargs[0], (char* const*)&envs[0]);
+            execve(eventScript.c_str(), (char* const*)&sargs[0], (char* const*)&envs[0]);
 
             LogErr(VB_PLUGIN, "We failed to exec our command callback:  %s\n", strerror(errno));
             for (auto a : sargs) {
