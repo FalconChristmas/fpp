@@ -178,6 +178,8 @@ then
                 case "${ELEMENT}" in
                 "192.168.6.2" | "192.168.7.2" | "192.168.8.1" )
                     ;;
+                *":"*)   # SKIP IPv6
+                    ;;
                 * )
                     FLITESTR+=", ${ELEMENT} "
                     ;;
