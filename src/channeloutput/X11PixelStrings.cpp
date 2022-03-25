@@ -1,5 +1,5 @@
 /*
- *   X11 Pixel Strings Test Channel Output for Falcon Player (FPP)
+ *   Pixel Strings Test Channel Output for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
@@ -28,58 +28,63 @@
 #include <signal.h>
 #include <stdint.h>
 
-#include <X11/Xutil.h>
-
-#include "X11PixelStrings.h"
+#include "overlays/PixelOverlay.h"
+#include "ModelPixelStrings.h"
 
 /////////////////////////////////////////////////////////////////////////////
 
 extern "C" {
-X11PixelStringsOutput* createX11PixelStringsOutput(unsigned int startChannel,
+ModelPixelStringsOutput* createModelPixelStringsOutput(unsigned int startChannel,
                                                    unsigned int channelCount) {
-    return new X11PixelStringsOutput(startChannel, channelCount);
+    return new ModelPixelStringsOutput(startChannel, channelCount);
 }
 }
 
 /*
  *
  */
-X11PixelStringsOutput::X11PixelStringsOutput(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
-    m_display(NULL),
-    m_screen(0),
-    m_xImage(NULL),
-    m_scale(10),
-    m_scaledWidth(0),
-    m_scaledHeight(0),
-    m_fbp(NULL),
-    m_longestString(0),
-    m_pixels(0) {
-    LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::X11PixelStringsOutput(%u, %u)\n",
+ModelPixelStringsOutput::ModelPixelStringsOutput(unsigned int startChannel, unsigned int channelCount) :
+    ThreadedChannelOutputBase(startChannel, channelCount) {
+    LogDebug(VB_CHANNELOUT, "ModelPixelStringsOutput::ModelPixelStringsOutput(%u, %u)\n",
              startChannel, channelCount);
-
-    XInitThreads();
 }
 
 /*
  *
  */
-X11PixelStringsOutput::~X11PixelStringsOutput() {
-    LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::~X11PixelStringsOutput()\n");
+ModelPixelStringsOutput::~ModelPixelStringsOutput() {
+    LogDebug(VB_CHANNELOUT, "ModelPixelStringsOutput::~ModelPixelStringsOutput()\n");
 
-    for (int s = 0; s < m_strings.size(); s++)
-        delete m_strings[s];
+    for (int s = 0; s < strings.size(); s++)
+        delete strings[s];
 
-    DestroyX11Window();
+    if (buffer)
+        free(buffer);
 }
 
 /*
  *
  */
-int X11PixelStringsOutput::Init(Json::Value config) {
-    LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::Init(JSON)\n");
+int ModelPixelStringsOutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "ModelPixelStringsOutput::Init(JSON)\n");
 
-    int pixels = 0;
+    if (config.isMember("modelName"))
+        modelName = config["modelName"].asString();
+
+    if (modelName == "") {
+        LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
+        return 0;
+    }
+
+    model = PixelOverlayManager::INSTANCE.getModel(modelName);
+
+    if (!model) {
+        LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", modelName.c_str());
+        return 0;
+    }
+
+    model->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
+
     for (int i = 0; i < config["outputs"].size(); i++) {
         Json::Value s = config["outputs"][i];
         PixelString* newString = new PixelString();
@@ -87,24 +92,19 @@ int X11PixelStringsOutput::Init(Json::Value config) {
         if (!newString->Init(s))
             return 0;
 
-        pixels = newString->m_outputChannels / 3;
-        m_pixels += pixels;
+        if ((newString->m_outputChannels / 3) <= model->getWidth()) {
+            strings.push_back(newString);
+        } else {
+            delete newString;
 
-        if (pixels > m_longestString)
-            m_longestString = pixels;
-
-        m_strings.push_back(newString);
+            LogErr(VB_CHANNELOUT, "ERROR, string length of %d is too long for model width of %d\n",
+                   (newString->m_outputChannels / 3), model->getWidth());
+        }
     }
 
-    LogDebug(VB_CHANNELOUT, "   Fount %d strings of pixels\n", m_strings.size());
+    LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", strings.size());
 
-    // Window size
-    m_scaledWidth = m_longestString * m_scale;
-    m_scaledHeight = m_strings.size() * m_scale;
-
-    if (!InitializeX11Window()) {
-        return 0;
-    }
+    buffer = (unsigned char*)malloc(model->getWidth() * model->getHeight() * 3);
 
     return ThreadedChannelOutputBase::Init(config);
 }
@@ -112,85 +112,19 @@ int X11PixelStringsOutput::Init(Json::Value config) {
 /*
  *
  */
-int X11PixelStringsOutput::Close(void) {
-    LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::Close()\n");
+int ModelPixelStringsOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "ModelPixelStringsOutput::Close()\n");
 
     return ThreadedChannelOutputBase::Close();
 }
 
-int X11PixelStringsOutput::InitializeX11Window(void) {
-    if ((m_scaledWidth == 0) || (m_scaledHeight == 0)) {
-        m_scaledWidth = 50 * m_scale;
-        m_scaledHeight = 16 * m_scale;
-    }
-
-    // Initialize X11 Window here
-    m_title = "X11 Pixel Strings";
-
-    const char* dsp = getenv("DISPLAY");
-    if (dsp == nullptr) {
-        dsp = ":0";
-    }
-    m_display = XOpenDisplay(dsp);
-    if (!m_display) {
-        LogErr(VB_CHANNELOUT, "Unable to connect to X Server: %s\n", dsp);
-        return 0;
-    }
-
-    m_screen = DefaultScreen(m_display);
-
-    m_fbp = (char*)calloc(m_scaledWidth * m_scaledHeight * 4, 1);
-
-    m_xImage = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
-                            (char*)m_fbp, m_scaledWidth, m_scaledHeight, 32, m_scaledWidth * 4);
-
-    XSetWindowAttributes attributes;
-
-    attributes.background_pixel = BlackPixel(m_display, m_screen);
-
-    XGCValues values;
-
-    m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display), m_scaledWidth, m_scaledHeight, 24);
-
-    m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
-    int32_t tgc = reinterpret_cast<uintptr_t>(m_gc);
-    if (tgc < 0) {
-        LogErr(VB_CHANNELOUT, "Unable to create GC\n");
-        return 0;
-    }
-
-    m_window = XCreateWindow(
-        m_display, RootWindow(m_display, m_screen), m_scaledWidth, m_scaledHeight,
-        m_scaledWidth, m_scaledHeight, 5, 24, InputOutput,
-        DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
-
-    XMapWindow(m_display, m_window);
-
-    XStoreName(m_display, m_window, m_title.c_str());
-    XSetIconName(m_display, m_window, m_title.c_str());
-
-    XFlush(m_display);
-
-    return 1;
-}
-
-void X11PixelStringsOutput::DestroyX11Window(void) {
-    if (m_display) {
-        XDestroyWindow(m_display, m_window);
-        XFreePixmap(m_display, m_pixmap);
-        XDestroyImage(m_xImage);
-        XFreeGC(m_display, m_gc);
-        XCloseDisplay(m_display);
-    }
-}
-
-void X11PixelStringsOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
+void ModelPixelStringsOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     int min = FPPD_MAX_CHANNELS;
     int max = 0;
 
     PixelString* ps = NULL;
-    for (int s = 0; s < m_strings.size(); s++) {
-        ps = m_strings[s];
+    for (int s = 0; s < strings.size(); s++) {
+        ps = strings[s];
         int inCh = 0;
         for (int p = 0; p < ps->m_outputChannels; p++) {
             int ch = ps->m_outputMap[inCh++];
@@ -208,52 +142,31 @@ void X11PixelStringsOutput::GetRequiredChannelRanges(const std::function<void(in
 /*
  *
  */
-void X11PixelStringsOutput::PrepData(unsigned char* channelData) {
-    LogExcess(VB_CHANNELOUT, "X11PixelStringsOutput::RawSendData(%p)\n", channelData);
+void ModelPixelStringsOutput::PrepData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "ModelPixelStringsOutput::RawSendData(%p)\n", channelData);
 
     unsigned char* c = channelData;
-    unsigned char r = 0;
-    unsigned char g = 0;
-    unsigned char b = 0;
-    int stride = m_scaledWidth * 4; // RGBA
-    unsigned char* d = (unsigned char*)m_fbp;
-    unsigned char* l = d;
+    unsigned char* d = buffer;
+    int stride = model->getWidth() * 3; // RGB
 
     PixelString* ps = NULL;
     int inCh = 0;
 
-    for (int s = 0; s < m_strings.size(); s++) {
-        ps = m_strings[s];
-
-        d = (unsigned char*)m_fbp + (s * stride * m_scale);
-        l = d;
+    for (int s = 0; s < strings.size(); s++) {
+        ps = strings[s];
+        d = buffer + (s * stride);
         inCh = 0;
 
         for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++) {
-            r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-            g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-            b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-
-            // scale horizontally by duplicating pixels
-            for (int i = 0; i < m_scale; i++) {
-                //framebuffer is bgr
-                *(d++) = b;
-                *(d++) = g;
-                *(d++) = r;
-                d++;
-            }
-        }
-
-        // scale vertically by duplicating rows
-        for (int i = 0; i < (m_scale - 1); i++) {
-            memcpy(d, l, stride);
-            d += stride;
+            *(d++) = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+            *(d++) = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+            *(d++) = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
         }
     }
 }
 
-int X11PixelStringsOutput::RawSendData(unsigned char* channelData) {
-    SyncDisplay();
+int ModelPixelStringsOutput::RawSendData(unsigned char* channelData) {
+    model->setData(buffer);
 
     return m_channelCount;
 }
@@ -261,12 +174,12 @@ int X11PixelStringsOutput::RawSendData(unsigned char* channelData) {
 /*
  *
  */
-void X11PixelStringsOutput::DumpConfig(void) {
-    LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::DumpConfig()\n");
+void ModelPixelStringsOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "ModelPixelStringsOutput::DumpConfig()\n");
 
-    for (int i = 0; i < m_strings.size(); i++) {
+    for (int i = 0; i < strings.size(); i++) {
         LogDebug(VB_CHANNELOUT, "    String #%d\n", i);
-        m_strings[i]->DumpConfig();
+        strings[i]->DumpConfig();
     }
 
     ThreadedChannelOutputBase::DumpConfig();
