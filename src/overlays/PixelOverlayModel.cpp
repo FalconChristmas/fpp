@@ -98,8 +98,13 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     }
 
     if (config["Type"].asString() != "Channel") {
-        width = config["Width"].asInt();
-        height = config["Height"].asInt();
+        if (config.isMember("PixelSize")) {
+            width = config["Width"].asInt() / config["PixelSize"].asInt();
+            height = config["Height"].asInt() / config["PixelSize"].asInt();
+        } else {
+            width = config["Width"].asInt();
+            height = config["Height"].asInt();
+        }
         config["ChannelCount"] = channelCount = width * height * channelsPerNode;
         config["StringCount"] = strings = height;
         config["StrandsPerString"] = sps = 1;
@@ -452,7 +457,8 @@ void PixelOverlayModel::setData(const uint8_t* data, int xOffset, int yOffset, i
         ((h + yOffset) > height) ||
         (xOffset < 0) ||
         (yOffset < 0)) {
-        LogErr(VB_CHANNELOUT, "Error: region is out of bounds\n");
+        LogErr(VB_CHANNELOUT, "Error: region is out of bounds, model is %dx%d, region is %dx%d @ %d,%d\n",
+               width, height, w, h, xOffset, yOffset);
         return;
     }
 

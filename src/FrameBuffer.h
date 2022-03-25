@@ -95,7 +95,26 @@ public:
     void Dump(void);
 
     void DrawLoop(void);
-    void PrepLoop(void);
+
+    int Width() { return m_width; }
+    int Height() { return m_height; }
+    int Page(bool producer = false) { return producer ? m_pPage : m_cPage; }
+    int PageCount() { return m_pages; }
+    int PageSize() { return m_pageSize; }
+    int RowStride() { return m_rowStride; }
+    int RowPadding() { return m_rowPadding; }
+    uint8_t* Buffer() { return m_buffer; }
+    uint8_t* BufferPage(int page = 0) { return (m_buffer + (m_pageSize * page)); }
+    int BitsPerPixel() { return m_bpp; }
+    int BytesPerPixel() { return m_bpp / 8; }
+    bool IsDirty(int page) { return (m_dirtyPages[page] == 1); }
+    void SetDirty(int page, uint8_t dirty = 1) { m_dirtyPages[page] = dirty; }
+
+    void ClearAllPages();
+    void Clear();
+
+    void NextPage(bool producer = false);
+    void SyncDisplay(bool pageChanged = false);
 
 private:
     void FBDrawNormal(void);
@@ -116,35 +135,24 @@ private:
     // Helpers
     void DrawSquare(int dx, int dy, int w, int h, int sx = -1, int sy = -1);
 
-    void NextPage();
-    void SyncDisplay(bool pageChanged = false);
-
     int InitializeFrameBuffer(void);
     void DestroyFrameBuffer(void);
 
-#ifdef USE_X11
-    int InitializeX11Window(void);
-    void DestroyX11Window(void);
-#endif
-
     std::string m_name;
     std::string m_device;
-    std::string m_dataFormat = "RGB";
     int m_fbFd = -1;
-    int m_ttyFd = -1;
-    int m_width = 640;
-    int m_height = 480;
-    int m_bpp = 24;
+    int m_xOffset = -1;
+    int m_yOffset = -1;
+    int m_width = 0;
+    int m_height = 0;
+    int m_bpp = -1;
     uint8_t* m_buffer = nullptr;
     uint8_t* m_outputBuffer = nullptr;
-    int m_screenSize = 0;
-    int m_useRGB = 0;
-    int m_inverted = 0;
-    uint16_t*** m_rgb565map = nullptr;
-    uint8_t* m_lastFrame = nullptr;
-    int m_rOffset = 0;
-    int m_gOffset = 1;
-    int m_bOffset = 2;
+    int m_pageSize = 0;
+
+    int m_pixelSize = 1;
+    int m_pixelsWide = 0;
+    int m_pixelsHigh = 0;
 
     ImageTransitionType m_transitionType = IT_Normal;
     volatile ImageTransitionType m_nextTransitionType = IT_Normal;
@@ -156,30 +164,48 @@ private:
     volatile bool m_imageReady = false;
 
     std::thread* m_drawThread = nullptr;
+    bool m_autoSync = false;
+    volatile uint8_t* m_dirtyPages = nullptr;
 
     std::mutex m_bufferLock;
     std::mutex m_drawLock;
 
     std::condition_variable m_drawSignal;
 
-    bool m_isDoubleBuffered = false;
-    int m_page = 0;
+    int m_cPage = 0;
+    int m_pPage = 0;
     int m_pages = 2;
-    int m_frameSize = 0;
     int m_bufferSize = 0;
     int m_rowStride = 0;
     int m_rowPadding = 0;
 
 #ifdef USE_FRAMEBUFFER_SOCKET
+    void SyncLoopFBSocket();
+    void sendFramebufferConfig();
+    void sendFramebufferFrame();
+
     int shmemFile = -1;
     struct sockaddr_un dev_address;
     bool targetExists = false;
-    void sendFramebufferConfig();
 #else
+    void SyncLoopFB();
+
     struct fb_var_screeninfo m_vInfo;
     struct fb_fix_screeninfo m_fInfo;
+
+    int m_ttyFd = -1;
+
+    // Support for 16-bit framebuffer output
+    uint16_t*** m_rgb565map = nullptr;
+    uint8_t* m_lastFrame = nullptr;
+    int m_frameSize = 0;
 #endif
+
 #ifdef USE_X11
+    int InitializeX11Window(void);
+    void DestroyX11Window(void);
+    void SyncLoopX11();
+
     Display* m_display = nullptr;
     int m_screen = 0;
     Window m_window;

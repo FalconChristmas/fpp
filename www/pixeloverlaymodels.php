@@ -120,8 +120,15 @@ function DeviceChanged(item) {
     if (type == 'FB') {
         var device = $(item).val();
 
-        $(item).parent().parent().find('input.width').val(FBInfo[device].Width);
-        $(item).parent().parent().find('input.height').val(FBInfo[device].Height);
+        if (FBInfo.hasOwnProperty(device)) {
+            $(item).parent().parent().find('input.width').val(FBInfo[device].Width);
+            $(item).parent().parent().find('input.height').val(FBInfo[device].Height);
+        }
+
+        if (device == 'x11')
+            $(item).parent().parent().find('.X11input').show();
+        else
+            $(item).parent().parent().find('.X11input').hide();
     }
 }
 
@@ -129,6 +136,15 @@ function WidthOrHeightModified(item) {
     var width = parseInt($(item).parent().parent().find('input.width').val());
     var height = parseInt($(item).parent().parent().find('input.height').val());
     var channels = width * height * 3;
+
+    if ($(item).parent().parent().find('input.pixelSize').length) {
+        var pixelSize = parseInt($(item).parent().parent().find('input.pixelSize').val());
+
+        var pWidth = parseInt(width / pixelSize);
+        var pHeight = parseInt(height / pixelSize);
+        channels = pWidth * pHeight * 3;
+    }
+
     $(item).parent().parent().find('td.channels').html(channels);
 }
 
@@ -176,11 +192,22 @@ function PopulateChannelMemMapTable(data) {
                 }
                 break;
             case "FB":
+                var pWidth = parseInt(model.Width / model.PixelSize);
+                var pHeight = parseInt(model.Height / model.PixelSize);
+                var channels = pWidth * pHeight * 3;
                 postr += "<td><span class='hidden type'>FB</span>FrameBuffer</td>" + 
                     "<td>" + CreateSelect(FBDevices, model.Device, '', '-- Port --', 'device', 'DeviceChanged(this);') + "</td>" +
-                    "<td class='channels'>" + (model.Width * model.Height * 3) + "</td><td>3</td><td>Horizontal</td><td>Top Left</td>" +
-                    "<td colspan='2'><input class='width' type='number' min='8' max='4096' step='8' value='" + model.Width + "'" + attr + " onChange='WidthOrHeightModified(this);'> <b>X</b>" +
-                        "<input class='height' type='number' min='8' max='2160' step='8' value='" + model.Height + "'" + attr + " onChange='WidthOrHeightModified(this);'></td>" +
+                    "<td class='channels'>" + channels + "</td>" +
+                    "<td colspan='3'>Size: <input class='width' type='number' min='8' max='4096' step='8' value='" + model.Width + "'" + attr + " onChange='WidthOrHeightModified(this);'> <b>X</b>" +
+                    "<input class='height' type='number' min='8' max='2160' step='8' value='" + model.Height + "'" + attr + " onChange='WidthOrHeightModified(this);'>";
+
+                if (model.Device == 'x11') {
+                    postr += "<span class='X11input'>&nbsp;@ <input class='xOffset X11input' type='number' min='8' max='4096' step='8' value='" + model.X + "'" + attr + ">"
+                        + ",<input class='yOffset X11input' type='number' min='8' max='2160' step='8' value='" + model.Y + "'" + attr + "></span>";
+                }
+
+                postr += "<td colspan='2'>Pixel Size: <input class='pixelSize' type='number' min='1' max='64' value='" + model.PixelSize + "'" + attr + " onChange='WidthOrHeightModified(this);'></td>";
+                postr += "</td>" +
                     "<td>";
                 break;
             case "Sub":
@@ -273,6 +300,12 @@ function SetChannelMemMaps() {
                     model.Width = parseInt($this.find("input.width").val());
                     model.Height = parseInt($this.find("input.height").val());
                     model.Device = $this.find("select.device").val();
+                    model.PixelSize = parseInt($this.find("input.pixelSize").val());
+
+                    if (model.Device == 'x11') {
+                        model.X = parseInt($this.find("input.xOffset").val());
+                        model.Y = parseInt($this.find("input.yOffset").val());
+                    }
 
                     models.push(model);
                     break;
@@ -336,9 +369,13 @@ function AddNewFBModel() {
             "<td><input class='blk' type='text' size='31' maxlength='31' value='" + device + "'></td>" +
             "<td><span class='hidden type'>FB</span>FrameBuffer</td>" + 
             "<td>" + CreateSelect(FBDevices, device, '', '-- Port --', 'device', 'DeviceChanged(this);') + "</td>" +
-            "<td class='channels'>" + (FBInfo[device].Width * FBInfo[device].Height * 3) + "</td><td>3</td><td>Horizontal</td><td>Top Left</td>" +
-            "<td colspan='2'><input class='width' type='number' min='0' max='4096' step='8' value='" + FBInfo[device].Width + "' onChange='WidthOrHeightModified(this);'> <b>X</b>" +
-            "<input class='height' type='number' min='0' max='2160' step='8' value='" + FBInfo[device].Height + "' onChange='WidthOrHeightModified(this);'></td>" +
+            "<td class='channels'>" + (FBInfo[device].Width * FBInfo[device].Height * 3) + "</td>" +
+            "<td colspan='3'>Size: <input class='width' type='number' min='0' max='4096' step='8' value='" + FBInfo[device].Width + "' onChange='WidthOrHeightModified(this);'> <b>X</b>" +
+                "<input class='height' type='number' min='0' max='2160' step='8' value='" + FBInfo[device].Height + "' onChange='WidthOrHeightModified(this);'></td>" +
+                "<span class='X11input'>&nbsp;@ <input class='xOffset X11input' type='number' min='8' max='4096' step='8' value='0' style='display: none;'>" +
+                    ",<input class='yOffset X11input' type='number' min='8' max='2160' step='8' value='0' style='display: none;'></span>" +
+            "</td>" +
+            "<td colspan='2'>Pixel Size: <input class='pixelSize' type='number' min='1' max='64' value='1' onChange='WidthOrHeightModified(this);'></td>" +
             "<td></td>" +
             "</tr>");
 }

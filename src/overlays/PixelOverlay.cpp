@@ -104,8 +104,34 @@ PixelOverlayManager::~PixelOverlayManager() {
 }
 void PixelOverlayManager::Initialize() {
     loadModelMap();
-    RegisterCommands();
     loadFonts();
+}
+
+void PixelOverlayManager::addModel(Json::Value config) {
+    bool wasEmpty = models.empty();
+    PixelOverlayModel* pmodel = nullptr;
+
+    if (!config.isMember("Type"))
+        config["Type"] = "Channel";
+
+    std::string type = config["Type"].asString();
+
+    if (type == "Channel") {
+        pmodel = new PixelOverlayModel(config);
+    } else if (type == "FB") {
+        pmodel = new PixelOverlayModelFB(config);
+    } else if (type == "Sub") {
+        pmodel = new PixelOverlayModelSub(config);
+    }
+
+    if (pmodel) {
+        models[pmodel->getName()] = pmodel;
+        modelNames.push_back(pmodel->getName());
+    }
+
+    if (wasEmpty) {
+        RegisterCommands();
+    }
 }
 
 void PixelOverlayManager::loadModelMap() {
@@ -141,25 +167,7 @@ void PixelOverlayManager::loadModelMap() {
         }
         Json::Value models = root["models"];
         for (int c = 0; c < models.size(); c++) {
-            PixelOverlayModel* pmodel = nullptr;
-            
-            if (!models[c].isMember("Type"))
-                models[c]["Type"] = "Channel";
-
-            std::string type = models[c]["Type"].asString();
-
-            if (type == "Channel") {
-                pmodel = new PixelOverlayModel(models[c]);
-            } else if (type == "FB") {
-                pmodel = new PixelOverlayModelFB(models[c]);
-            } else if (type == "Sub") {
-                pmodel = new PixelOverlayModelSub(models[c]);
-            }
-
-            if (pmodel) {
-                this->models[pmodel->getName()] = pmodel;
-                this->modelNames.push_back(pmodel->getName());
-            }
+            addModel(models[c]);
         }
     }
 }
@@ -930,8 +938,6 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
                                               uint32_t startChannel, uint32_t channelCount, uint32_t channelPerNode,
                                               const std::string& orientation, const std::string& startLocation,
                                               uint32_t strings, uint32_t strands) {
-    bool wasEmpty = models.empty();
-
     Json::Value val;
     val["Name"] = name;
     val["Type"] = "Channel";
@@ -944,13 +950,7 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
     val["ChannelCountPerNode"] = channelPerNode;
     val["autoCreated"] = true;
 
-    PixelOverlayModel* pmodel = new PixelOverlayModel(val);
-    this->models[pmodel->getName()] = pmodel;
-    this->modelNames.push_back(pmodel->getName());
-
-    if (wasEmpty) {
-        RegisterCommands();
-    }
+    addModel(val);
 }
 
 void PixelOverlayManager::doOverlayModelEffects() {
