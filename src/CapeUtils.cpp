@@ -341,7 +341,7 @@ static void copyFile(const std::string& src, const std::string& target) {
     while (true) {
         int l = read(s, buf, 256);
         if (l == -1) {
-            printf("Error copying file %s\n", strerror(errno));
+            printf("Error copying file %s - %s\n", src.c_str(), strerror(errno));
             close(s);
             close(t);
             return;
@@ -456,6 +456,7 @@ bool fpp_detectCape() {
         printf("Did not find eeprom on i2c.\n");
     }
     if (!file_exists(EEPROM)) {
+        printf("EEPROM file doesn't exist %s.\n", EEPROM.c_str());
         EEPROM = "/opt/fpp-vendor/cape-eeprom.bin";
     }
     if (!file_exists(EEPROM)) {
@@ -726,7 +727,7 @@ bool fpp_detectCape() {
             std::string resultStr = Json::writeString(wbuilder, result);
             put_file_contents("/home/fpp/media/tmp/cape-info.json", (const uint8_t*)resultStr.c_str(), resultStr.size());
         } else {
-            printf("Failed to parse cape-info.json\n");
+            printf("Failed to parse cape-info.json: %s\n", errors.c_str());
         }
     }
 
