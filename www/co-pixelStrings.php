@@ -1486,6 +1486,13 @@ function BBB48StringSubTypeChanged()
     }
 }
 
+//fully load up all empty output strings (mainly for dev/test):
+function fillEmpty() {
+    $(".vsPixelCount")
+        .filter(function() { return $.trim($(this).val()) == "0"; })
+        .val("1600"); //FPP max is 1600
+}
+
 function loadBBBOutputs() {
     var defaultData = {};
     defaultData.channelOutputs = [];
@@ -1582,6 +1589,9 @@ $(document).ready(function(){
             <div class="col-md-auto ml-lg-auto">
                 <div class="form-actions">
                     
+<? if ($uiLevel >= 3) { ?>
+                        <input type='button' class="buttons" onClick='fillEmpty();' value='Fill Empty'>
+<? } ?>
                         <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
                         <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
                         <input type='button' class="buttons btn-success ml-1" onClick='saveBBBOutputs();' value='Save'>
