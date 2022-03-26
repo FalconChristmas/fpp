@@ -768,7 +768,7 @@ void FrameBuffer::SyncLoopFB() {
     while (m_runLoop) {
         // Wait for vsync
         dummy = 0;
-//LogInfo(VB_CHANNELOUT, "%s - %d - waiting for vsync\n", m_device.c_str(), m_cPage);
+        //LogInfo(VB_CHANNELOUT, "%s - %d - waiting for vsync\n", m_device.c_str(), m_cPage);
         ioctl(m_fbFd, FBIO_WAITFORVSYNC, &dummy);
 
         // Allow the producer to catch up if needed
@@ -777,11 +777,11 @@ void FrameBuffer::SyncLoopFB() {
 
         if (m_dirtyPages[m_cPage]) {
             // Pan the display to the page
-//LogInfo(VB_CHANNELOUT, "%s - %d - flipping to cPage\n", m_device.c_str(), m_cPage);
+            //LogInfo(VB_CHANNELOUT, "%s - %d - flipping to cPage\n", m_device.c_str(), m_cPage);
             m_vInfo.yoffset = m_vInfo.yres * m_cPage;
             ioctl(m_fbFd, FBIOPAN_DISPLAY, &m_vInfo);
 
-//LogInfo(VB_CHANNELOUT, "%s - %d - marking clear and bumping cPage\n", m_device.c_str(), m_cPage);
+            //LogInfo(VB_CHANNELOUT, "%s - %d - marking clear and bumping cPage\n", m_device.c_str(), m_cPage);
             m_dirtyPages[m_cPage] = 0;
             NextPage();
         }
@@ -792,7 +792,9 @@ void FrameBuffer::SyncLoopFB() {
 void FrameBuffer::DrawLoop(void) {
     if (m_autoSync) {
         if (m_device == "x11") {
+#ifdef USE_X11
             SyncLoopX11();
+#endif
         } else {
 #ifdef USE_FRAMEBUFFER_SOCKET
             SyncLoopFBSocket();
@@ -886,7 +888,7 @@ void FrameBuffer::NextPage(bool producer) {
     if (m_pages == 1)
         return;
 
-//LogInfo(VB_CHANNELOUT, "%s - %d - NextPage() for %s\n", m_device.c_str(), m_cPage, producer ? "producer" : "consumer");
+    //LogInfo(VB_CHANNELOUT, "%s - %d - NextPage() for %s\n", m_device.c_str(), m_cPage, producer ? "producer" : "consumer");
     if (producer)
         m_pPage = (m_pPage + 1) % m_pages;
     else
@@ -914,11 +916,11 @@ void FrameBuffer::SyncDisplay(bool pageChanged) {
 #else
         // Wait for vsync
         int dummy = 0;
-//LogInfo(VB_CHANNELOUT, "%s - %d - SyncDisplay() waiting for vsync\n", m_device.c_str(), m_cPage);
+        //LogInfo(VB_CHANNELOUT, "%s - %d - SyncDisplay() waiting for vsync\n", m_device.c_str(), m_cPage);
         ioctl(m_fbFd, FBIO_WAITFORVSYNC, &dummy);
 
         // Pan the display to the new page
-//LogInfo(VB_CHANNELOUT, "%s - %d - SyncDisplay() flipping to cPage\n", m_device.c_str(), m_cPage);
+        //LogInfo(VB_CHANNELOUT, "%s - %d - SyncDisplay() flipping to cPage\n", m_device.c_str(), m_cPage);
         m_vInfo.yoffset = m_vInfo.yres * m_cPage;
         ioctl(m_fbFd, FBIOPAN_DISPLAY, &m_vInfo);
 #endif
