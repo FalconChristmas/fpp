@@ -40,6 +40,23 @@ h2.divider span {
     padding: 0 10px;
 }
 
+/* prevent table header from scrolling: */
+.fppTableContents {
+    /* no-worky: max-height: calc(90% - 20px); */
+    max-height: 400px; /* TODO: adjust for media queries? */
+    overflow: auto;
+}
+table {
+  text-align: left;
+  position: relative; /* required for th sticky to work */
+}
+th {
+    background: #fff; /* prevent add/delete circular buttons from showing through */
+    position: sticky;
+    top: 0;
+    z-index: 20; /* draw table header on top of add/delete buttons */
+}
+
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
     //  BBB only supports ws2811 at this point
@@ -91,6 +108,8 @@ var KNOWN_CAPES = {
                         $string = "";
                     } else {
                         $string = file_get_contents($cd . $file);
+//			echo "/* file len " . strlen($string) . "*/\n";
+//			echo "/* ends with '" . substr($string, -4) . "' */\n";
                     }
                     
                     if ($string != "") {
@@ -343,6 +362,12 @@ function addVirtualString(item)
     $('#' + highestId).after(str);
 }
 
+//try to standardize rowid:
+//TODO: use this throughout, to make rowid format change easier
+function rowid(type, outid, portid, strid) {
+    return type + "_Output_" + outid + "_" + portid + "_" + strid;
+}
+
 function preventNonNumericalInput(e) {
     e = e || window.event;
     var charCode = (typeof e.which == "undefined") ? e.keyCode : e.which;
@@ -387,7 +412,7 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     if (groupCount == 0) {
         groupCount = 1;
     }
-    result += "<td align='center' class='vsEndChannel'>" + (startChannel + (pixelCount * colorOrder.length)/groupCount - 1) + "</td>";
+    result += "<td align='center' class='vsEndChannel'>" + (startChannel + (pixelCount * (colorOrder || "RGB").length)/groupCount - 1) + "</td>";
     result += pixelOutputTableInputDirection(reverse);
     result += pixelOutputTableInputOrder(colorOrder);
     result += "<td><input type='number' class='vsStartNulls' size='2' value='" + startNulls + "' min='0' max='100' onkeypress='preventNonNumericalInput(event)'></td>";
@@ -413,7 +438,7 @@ function setPixelStringsStartChannelOnNextRow()
             groupCount = 1;
         }
         var pixelType = row.find('.vsColorOrder').val();
-        var chanPerNode = pixelType.length;
+        var chanPerNode = (pixelType || "RGB").length;
         var nextStart = startChannel + (chanPerNode * pixelCount)/groupCount;
         
         $('#pixelOutputs table tr').removeClass('selectedEntry');
@@ -438,8 +463,8 @@ function updateRowEndChannel(row) {
     var startChannel = parseInt(row.find('.vsStartChannel').val()) || 1;
     var pixelCount = parseInt(row.find('.vsPixelCount').val()) || 0;
     var groupCount = parseInt(row.find('.vsGroupCount').val()) || 0;
-    var pixelType = row.find('.vsColorOrder').val();
-    var chanPerNode = pixelType.length;
+    var pixelType = row.find('.vsColorOrder').val() || "RGB";
+    var chanPerNode = (pixelType || "RGB").length;
     
     if (groupCount == 0) {
         groupCount = 1;
@@ -453,12 +478,63 @@ function updateRowEndChannel(row) {
     }
     
     row.find('.vsEndChannel').html(newEnd);
+    selected_string_details(row);
 }
 
 function updateItemEndChannel(item) {
     var row = $(item).parent().parent();
     
     updateRowEndChannel(row);
+}
+
+//max pixel current:
+//use current instead of power so 5V vs 12V doesn't matter
+const pxAmps = {
+    ws2811: 60e-3,
+//add more types as needed
+};
+
+//show details about currently selected pixel port:
+function selected_string_details(row) { //outputs, rowid) {
+    let details = "";
+    if (!row.hasClass("selectedEntry")) return; //don't overwrite with non-selected row (this happens when edited row loses focus > new row gets focus)
+    const pins = (GetBBB48StringPins() || [])
+        .map(hdr_pin => ({hdr_pin, gpio_info: (selected_string_details.gpio || []).find(pin_info => pin_info.pin == hdr_pin)}));
+    const is_dpi = ~$('#BBB48StringSubType').val().indexOf("DPI");
+    const portid = row.attr("id").replace(/_\d+$/, "");
+    row = $('#' + portid + "_0"); //start with first string on this port
+    const portinx = +(portid.match(/(?:_)(\d+)$/) || [])[1]; //some rows don't have port label so get it from row id
+    const protocol = row.find(".vsProtocol").val(), pxA = pxAmps[protocol];
+    const hdr_name = (pins[portinx] || {}).hdr_pin, gpio_name = ((pins[portinx] || {}).gpio_info || {}).gpio;
+    if (is_dpi) {
+//use on-screen values (might not be saved yet):
+        let [numpx, maxA] = [0, 0];
+        for (;;) //add all strings on this port
+        {
+            const sPixelCount = parseInt(row.find('.vsPixelCount').val()) || 0;
+            const sNullNodes = parseInt(row.find('.vsNullNodes').val()) || 0;
+            const sEndNulls = parseInt(row.find('.vsEndNulls').val()) || 0;
+            const sBrightness = parseInt(row.find('.vsBrightness').val()) || 100;
+	        numpx += sPixelCount + sNullNodes + sEndNulls;
+            maxA += sPixelCount * sBrightness / 100 * pxA;
+            row = row.closest('tr').next('tr');
+            if ((row.attr("id") || "").replace(/_\d+$/, "") != portid) break;
+        }
+        const frtime = numpx? numpx * 30e-6 + 1e-3: 0; //allow 1 msec for refresh/latency, assume hsync/vsync don't add much overhead
+        const port_fps = numpx? 1 / frtime: 0;
+	    const cfg_fps = !numpx? "": //no output
+            (port_fps < 20)? "OVERRUN": //will cause frame overrun
+            (port_fps < 40)? "as 20": "as 40"; //TODO: add other fps if supported
+        details += `<b>Port ${portinx + 1} (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"}):</b> ${plural(numpx)} pixel${plural()}, ${(frtime * 1e3).toFixed(3).replace(".000", "")} msec refresh${cfg_fps? ` (config ${cfg_fps} fps)`: ""}, ${maxA.toFixed(1).replace(".0", "")} A max`;
+    }
+    $("#pixel-string-details").html(details);
+}
+
+//keep the Grammar Police happy :)
+function plural(n, multi, single) {
+    if (n == null) return plural.suffix; //undef or null
+    plural.suffix = (n != 1)? multi || "s": single || "";
+    return n;
 }
 
 function setRowData(row, protocol, description, startChannel, pixelCount, groupCount, reverse, colorOrder, startNulls, endNulls, zigZag, brightness, gamma)
@@ -509,13 +585,16 @@ function cloneSelectedString()
     if (nextRow.find('td.vsPortLabel').length == 0)
         nextRow = nextRow.closest('tr').next('tr');
     
-    row.find('.vsDescription').val(sDescription + '0');
-    
+//    row.find('.vsDescription').val(sDescription + '0');
+    const suffix = (sDescription.match(/(\d+)$/) || [])[1] || "0";
+
     for (i = 0; i < clones; i++)
     {
+        const oldname = nextRow.find(".vsDescription").val();
         setRowData(nextRow,
                    row.find('.vsProtocol').val(),
-                   sDescription + (i+1),
+//                   sDescription + (i+1),
+                   oldname.match(/\d+$/)? oldname: oldname + (+suffix + i+1),
                    sStartChannel + (sPixelCount * 3 * (i+1)),
                    sPixelCount,
                    row.find('.vsGroupCount').val(),
@@ -725,8 +804,18 @@ function GetBBB48StringRows()
 {
     var subType = GetBBB48StringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    return val["outputs"].length;
+    return (val["outputs"] || []).length;
 }
+
+//get array of header pin#s indexed by port#:
+//NOTE: used by non-BBB capes as well
+function GetBBB48StringPins()
+{
+    const subType = GetBBB48StringCapeFileName();
+    const capeInfo = KNOWN_CAPES[subType];
+    return capeInfo.outputs && (capeInfo.outputs || []).map(info => info.pin);
+}
+
 function GetBBB48StringProtocols(p) {
     var subType = GetBBB48StringCapeFileName();
     if (KNOWN_CAPES[subType]) {
@@ -1346,6 +1435,7 @@ function populatePixelStringOutputs(data) {
                     $('#pixelOutputs table tr').removeClass('selectedEntry');
                     $(this).addClass('selectedEntry');
                     selectedPixelStringRowId = $(this).attr('id');
+                    selected_string_details($(this)); //output.outputs, selectedPixelStringRowId);
                 });
 
                 var key = GetBBB48StringCapeFileNameForSubType(subType);
@@ -1486,6 +1576,70 @@ function BBB48StringSubTypeChanged()
     }
 }
 
+//get uploaded xLights models:
+<?
+define("xLights_MODELS", "/home/fpp/media/upload/xlights_rgbeffects.xml");
+$models_err = "";
+clearstatcache(true); //TODO: is this needed?
+$models_str = file_get_contents(xLights_MODELS);
+if ($models_str == "") $models_err = "xlights_rgbeffect.xml not found.  Please upload it from your xLights folder.";
+else {
+    $sv_errh = libxml_use_internal_errors(true); //enable user error handling
+    $models_xml = simplexml_load_string($models_str);
+    if (!models_xml)
+        foreach (libxml_get_errors() as $error) {
+            $models_err = $models_err . "\n" . $error;
+        }
+    libxml_clear_errors();
+    libxml_use_internal_errors($sv_errh);
+    $models_json = json_encode($models_xml);
+}
+if (!$models_json || $models_json == "") $models_json = "{}";
+?>
+const xlmodels = <? echo $models_json; ?>;
+const xlmodels_err = "<? echo $models_err; ?>";
+//xlate xLights models into Pixel Strings:
+function importStrings() {
+    const outtype = $('#BBB48StringSubType').val(); //"DPI24Hat"
+    const driver = MapPixelStringType(outtype); //"DPIPixel"
+    if (xlmodels_err) { alert(xlmodels_err); return; }
+    xlmodels.models.model.forEach((model, inx) => {
+        const attrs = model["@attributes"];
+	    const name = attrs.name;
+        const starch = +attrs.StartChannel.replace(/![^:]+:/, "");
+        const numpx = attrs.CustomModel? attrs.CustomModel.split(/[;,]/).filter(node => node !== "").length: attrs.parm2? +attrs.parm2: 0;
+        const ctlr = (model.ControllerConnection || {})["@attributes"] || {};
+	    const [port, protocol, order, maxbr] = [ctlr.Port || inx, ctlr.protocol || "ws2811", ctlr.colorOrder || "RGB", ctlr.brightness || 100];
+//	console.log("import model", {outtype, driver, protocol, name, starch, numpx, port, order, maxbr});
+        for (let substr = 0;; ++substr) { //populate blank or create new string
+            const rid = rowid(driver, 0, port - 1, substr);
+            let row = $('#' + rid);
+            if (!row.length && substr) { //create new substring
+                addVirtualString($('#' + rowid(driver, 0, port - 1, substr - 1)).find(".vsPixelCount"));
+                row = $('#' + rid);
+            }
+            if (+row.find(".vsPixelCount").val() || 0) continue; //occupied
+            setRowData(row,
+                   protocol, //row.find('.vsProtocol').val(),
+                   name,
+                   starch,
+                   numpx,
+                   1, //row.find('.vsGroupCount').val(),
+                   "0", //"Forward", //row.find('.vsReverse').val(),
+                   order, //row.find('.vsColorOrder').val(),
+                   0, //row.find('.vsStartNulls').val(),
+                   0, //row.find('.vsEndNulls').val(),
+                   0, //row.find('.vsZigZag').val(),
+                   maxbr.toString(),
+                   1.0); //row.find('.vsGamma').val());
+//            const paranoid = row.find('.vsPixelCount').val();
+//            if (paranoid != numpx) throw "update pixelCount failed: " + typeof(paranoid) + " " + JSON.stringify(paranoid) + " " + typeof row.find(".vsPixelCount") + " " + JSON.stringify(row.find(".vsPixelCount"));
+            return;
+        }
+    });
+    $(window).trigger('resize'); //kludge: force table to repaint
+}
+
 function loadBBBOutputs() {
     var defaultData = {};
     defaultData.channelOutputs = [];
@@ -1569,9 +1723,13 @@ $(document).ready(function(){
         $('.capeTypeLabel').html("Cape Config");
     }
 
+    $.get('/api/gpio')
+	.done(data => selected_string_details.gpio = data)
+        .fail(err => DialogError("Query gpio", "Get gpio info failed: " + err));
     populateCapeList();
     loadBBBOutputs();
 });
+
 </script>
 
 <div id='tab-BBB48String'>
@@ -1584,6 +1742,7 @@ $(document).ready(function(){
                     
                         <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
                         <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
+                        <input type='button' class="buttons" onClick='importStrings();' value='Import Strings'>
                         <input type='button' class="buttons btn-success ml-1" onClick='saveBBBOutputs();' value='Save'>
                 </div>
             </div>
@@ -1632,6 +1791,7 @@ style="display: none;"
         </div>
             <div id='divBBB48StringData'>
                 <div>
+                    <span id="pixel-string-details" class="text-muted text-left d-block" style="float: left;"></span>
                     <small class="text-muted text-right pt-2 d-block">
                         Press F2 to auto set the start channel on the next row.<br>
                         <span class='capeNotes' style='display: none;'><a href='#capeNotes'>View Cape Configuration Notes</a></span>
@@ -1716,3 +1876,4 @@ style="display: none;"
 <a name='capeNotes'></a>
 <span class='capeNotes' style='display: none;'><b>Cape Configuration Notes:</b><br></span>
 <span class='capeNotes' id='capeNotes' style='display: none;'></span>
+<style>
