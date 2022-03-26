@@ -30,6 +30,20 @@ then
 fi
 ##############################################################################
 
+# Check for a boot script in /boot to allow easy/custom configuration
+if [ -f "/boot/fpp_boot.sh" ]; then
+   /bin/bash "/boot/fpp_boot.sh"
+fi
+# copy any files in /boot/fpp into /home/fpp/media/
+if [ -d "/boot/fpp" ]; then
+    if [ ! -f "/boot/fpp/copy_done" ]; then
+        cp -a /boot/fpp/* /home/fpp/media
+        # mark as copied so we then don't keep
+        # overwriting the configuration
+        touch /boot/fpp/copy_done
+    fi
+fi
+
 # Run any user boot-time scripts
 runBootHookScripts
 

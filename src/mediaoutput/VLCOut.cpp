@@ -7,7 +7,6 @@
  *   the License, or (at your option) any later version.
  *
  *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
  *
@@ -17,7 +16,6 @@
 #include "fpp-pch.h"
 
 #if __has_include(<vlc/vlc.h>)
-
 
 #include <vlc/libvlc_version.h>
 #include <vlc/vlc.h>
@@ -34,6 +32,11 @@
 #define MEDIA_PLAYER_SET_TIME(a, b) libvlc_media_player_set_time(a, b)
 #define MEDIA_PLAYER_STOP(a) libvlc_media_player_stop(a)
 #endif
+
+// recent versions of VLC have renamed libvlc_MediaPlayerEndReached to libvlc_MediaPlayerStopping
+// but that breaks compiling.  It is the next enum after libvlc_MediaPlayerBackward so we'll
+// grab it that way
+#define STOPPINGENUM (libvlc_MediaPlayerBackward + 1)
 
 class VLCInternalData {
 public:
@@ -187,7 +190,7 @@ public:
         if (vlcInstance) {
             data->media = libvlc_media_new_path(vlcInstance, data->fullMediaPath.c_str());
             data->vlcPlayer = libvlc_media_player_new_from_media(data->media);
-            libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerEndReached, stoppedEventCallBack, data);
+            libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), STOPPINGENUM, stoppedEventCallBack, data);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
             data->length = libvlc_media_player_get_length(data->vlcPlayer);
 

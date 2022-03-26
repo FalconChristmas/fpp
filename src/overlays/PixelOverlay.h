@@ -41,6 +41,7 @@ public:
     void doOverlays(uint8_t* channels);
     void modelStateChanged(PixelOverlayModel*, const PixelOverlayState& old, const PixelOverlayState& state);
 
+    void addModel(Json::Value config);
     PixelOverlayModel* getModel(const std::string& name);
 
     void Initialize();

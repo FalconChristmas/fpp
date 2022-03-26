@@ -104,7 +104,34 @@ PixelOverlayManager::~PixelOverlayManager() {
 }
 void PixelOverlayManager::Initialize() {
     loadModelMap();
-    RegisterCommands();
+    loadFonts();
+}
+
+void PixelOverlayManager::addModel(Json::Value config) {
+    bool wasEmpty = models.empty();
+    PixelOverlayModel* pmodel = nullptr;
+
+    if (!config.isMember("Type"))
+        config["Type"] = "Channel";
+
+    std::string type = config["Type"].asString();
+
+    if (type == "Channel") {
+        pmodel = new PixelOverlayModel(config);
+    } else if (type == "FB") {
+        pmodel = new PixelOverlayModelFB(config);
+    } else if (type == "Sub") {
+        pmodel = new PixelOverlayModelSub(config);
+    }
+
+    if (pmodel) {
+        models[pmodel->getName()] = pmodel;
+        modelNames.push_back(pmodel->getName());
+    }
+
+    if (wasEmpty) {
+        RegisterCommands();
+    }
 }
 
 void PixelOverlayManager::loadModelMap() {
@@ -140,25 +167,7 @@ void PixelOverlayManager::loadModelMap() {
         }
         Json::Value models = root["models"];
         for (int c = 0; c < models.size(); c++) {
-            PixelOverlayModel* pmodel = nullptr;
-            
-            if (!models[c].isMember("Type"))
-                models[c]["Type"] = "Channel";
-
-            std::string type = models[c]["Type"].asString();
-
-            if (type == "Channel") {
-                pmodel = new PixelOverlayModel(models[c]);
-            } else if (type == "FB") {
-                pmodel = new PixelOverlayModelFB(models[c]);
-            } else if (type == "Sub") {
-                pmodel = new PixelOverlayModelSub(models[c]);
-            }
-
-            if (pmodel) {
-                this->models[pmodel->getName()] = pmodel;
-                this->modelNames.push_back(pmodel->getName());
-            }
+            addModel(models[c]);
         }
     }
 }
@@ -276,15 +285,23 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
         return;
     }
     std::unique_lock<std::mutex> lock(activeModelsLock);
-    // First do any sub-models
+    // First, flush any buffers
     for (auto m : activeModels) {
-        if (m->getType() == "Sub")
+        if (m->overlayBufferIsDirty()) {
+            m->flushOverlayBuffer();
+        }
+    }
+    // Second, do any sub-models
+    for (auto m : activeModels) {
+        if (m->getType() == "Sub") {
             m->doOverlay(channels);
+        }
     }
     // Then do any non-subs
     for (auto m : activeModels) {
-        if (m->getType() != "Sub")
+        if (m->getType() != "Sub") {
             m->doOverlay(channels);
+        }
     }
 
     for (auto& m : activeRanges) {
@@ -322,6 +339,7 @@ static void findFonts(const std::string& dir, std::map<std::string, std::string>
     if (dp != NULL) {
         while ((ep = readdir(dp))) {
             int location = strstr(ep->d_name, ".") - ep->d_name;
+            
             // We're one of ".", "..", or hidden, so let's skip
             if (location == 0) {
                 continue;
@@ -348,15 +366,19 @@ static void findFonts(const std::string& dir, std::map<std::string, std::string>
 
 void PixelOverlayManager::loadFonts() {
     if (!fontsLoaded) {
+#ifndef PLATFORM_OSX
         long unsigned int i = 0;
         char** mlfonts = MagickLib::GetTypeList("*", &i);
         for (int x = 0; x < i; x++) {
             fonts[mlfonts[x]] = "";
             free(mlfonts[x]);
         }
+        free(mlfonts);
         findFonts("/usr/share/fonts/truetype/", fonts);
         findFonts("/usr/local/share/fonts/", fonts);
-        free(mlfonts);
+#else
+        findFonts("/System/Library/fonts/", fonts);
+#endif
         fontsLoaded = true;
     }
 }
@@ -415,7 +437,6 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
         std::string p5 = req.get_path_pieces().size() > 4 ? req.get_path_pieces()[4] : "";
         Json::Value result;
         if (p2 == "fonts") {
-            loadFonts();
             for (auto& a : fonts) {
                 result.append(a.first);
             }
@@ -548,16 +569,15 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                     Json::Value root;
                     if (LoadJsonFromString(req.get_content(), root)) {
                         if (root.isMember("RGB")) {
-                            m->fillOverlayBuffer(root["RGB"][0].asInt(),
-                                                 root["RGB"][1].asInt(),
-                                                 root["RGB"][2].asInt());
+                            m->fill(root["RGB"][0].asInt(),
+                                    root["RGB"][1].asInt(),
+                                    root["RGB"][2].asInt());
                             m->flushOverlayBuffer();
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         } else if (root.isMember("Value")) {
-                            m->fillOverlayBuffer(root["Value"].asInt(),
-                                                 root["Value"].asInt(),
-                                                 root["Value"].asInt());
-                            m->flushOverlayBuffer();
+                            m->fill(root["Value"].asInt(),
+                                    root["Value"].asInt(),
+                                    root["Value"].asInt());
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }
@@ -573,8 +593,15 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }
+                } else if (p4 == "save") {
+                    Json::Value root;
+                    if (LoadJsonFromString(req.get_content(), root)) {
+                        if (root.isMember("File")) {
+                            m->saveOverlayAsImage(root["File"].asString());
+                            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
+                        }
+                    }
                 } else if (p4 == "text") {
-                    loadFonts();
                     Json::Value root;
                     if (LoadJsonFromString(req.get_content(), root)) {
                         if (root.isMember("Message")) {
@@ -615,6 +642,10 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }
+                } else if (p4 == "mmap") {
+                    //Force mmap the overlay buffer so external programs can have access to it
+                    m->getOverlayBuffer();
+                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                 } else {
                     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Model Command Not found " + p4, 404));
                 }
@@ -907,8 +938,6 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
                                               uint32_t startChannel, uint32_t channelCount, uint32_t channelPerNode,
                                               const std::string& orientation, const std::string& startLocation,
                                               uint32_t strings, uint32_t strands) {
-    bool wasEmpty = models.empty();
-
     Json::Value val;
     val["Name"] = name;
     val["Type"] = "Channel";
@@ -921,13 +950,7 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
     val["ChannelCountPerNode"] = channelPerNode;
     val["autoCreated"] = true;
 
-    PixelOverlayModel* pmodel = new PixelOverlayModel(val);
-    this->models[pmodel->getName()] = pmodel;
-    this->modelNames.push_back(pmodel->getName());
-
-    if (wasEmpty) {
-        RegisterCommands();
-    }
+    addModel(val);
 }
 
 void PixelOverlayManager::doOverlayModelEffects() {

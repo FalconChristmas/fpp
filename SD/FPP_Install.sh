@@ -49,7 +49,7 @@
 #############################################################################
 SCRIPTVER="6.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2022-02"
+FPPIMAGEVER="2022-03"
 FPPCFGVER="69"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -554,6 +554,9 @@ case "${FPPPLATFORM}" in
             echo "FPP - Disabling the VC4 OpenGL driver"
             sed -i -e "s/dtoverlay=vc4-fkms-v3d/#dtoverlay=vc4-fkms-v3d/" /boot/config.txt
             sed -i -e "s/dtoverlay=vc4-kms-v3d/#dtoverlay=vc4-kms-v3d/" /boot/config.txt
+            
+            echo "FPP - Disabling Camera AutoDetect"
+            sed -i -e "s/camera_auto_detect/#camera_auto_detect/" /boot/config.txt
 
             echo "FPP - Enabling SPI in device tree"
             echo >> /boot/config.txt
@@ -879,7 +882,7 @@ sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 # Configure ccache
 echo "FPP - Configuring ccache"
 mkdir -p /root/.ccache
-ccache -M 250M
+ccache -M 350M
 ccache --set-config=temporary_dir=/tmp
 ccache --set-config=sloppiness=pch_defines,time_macros
 ccache --set-config=hard_link=true
@@ -1103,6 +1106,7 @@ if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
     # Beagles don't have hdmi/video out so no need to wait for getty before starting up
     sed -i -e "s/getty.target//g" /lib/systemd/system/fppd.service
 fi
+cp /opt/fpp/etc/avahi/* /etc/avahi/services
 
 systemctl disable mosquitto
 systemctl daemon-reload
@@ -1139,6 +1143,7 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
     if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
         echo "FPP - Install kernel headers so modules can be compiled later"
         apt-get -y install raspberrypi-kernel-headers
+        apt-get clean
     fi
 
     echo "FPP - Compiling WIFI drivers"

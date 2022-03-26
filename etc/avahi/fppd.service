@@ -1,0 +1,9 @@
+<?xml version="1.0" standalone='no'?><!--*-nxml-*-->
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+<name replace-wildcards="yes">%h FPPD</name>
+<service>
+<type>_fppd._udp</type>
+<port>32320</port>
+</service>
+</service-group>

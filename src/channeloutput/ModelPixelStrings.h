@@ -1,6 +1,6 @@
 #pragma once
 /*
- *   X11 Pixel Strings Test Channel Output for Falcon Player (FPP)
+ *   Pixel Strings Test Channel Output for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
@@ -24,17 +24,16 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <X11/Xlib.h>
-
 #include <vector>
 
+#include "overlays/PixelOverlayModel.h"
 #include "PixelString.h"
 #include "ThreadedChannelOutputBase.h"
 
-class X11PixelStringsOutput : public ThreadedChannelOutputBase {
+class ModelPixelStringsOutput : public ThreadedChannelOutputBase {
 public:
-    X11PixelStringsOutput(unsigned int startChannel, unsigned int channelCount);
-    ~X11PixelStringsOutput();
+    ModelPixelStringsOutput(unsigned int startChannel, unsigned int channelCount);
+    ~ModelPixelStringsOutput();
 
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
@@ -47,36 +46,11 @@ public:
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
 private:
-    int InitializeX11Window(void);
-    void DestroyX11Window(void);
+    std::string modelName;
+    PixelOverlayModel *model = nullptr;
 
-    inline void SyncDisplay(void);
+    unsigned char* buffer = nullptr;
 
-    std::string m_title;
-    Display* m_display;
-    int m_screen;
-    Window m_window;
-    GC m_gc;
-    Pixmap m_pixmap;
-    XImage* m_xImage;
-
-    int m_scale;
-    int m_scaledWidth;
-    int m_scaledHeight;
-    char* m_fbp;
-
-    int m_longestString;
-    int m_pixels;
-    unsigned char* m_buffer;
-    int m_bufferSize;
-
-    std::vector<PixelString*> m_strings;
+    std::vector<PixelString*> strings;
 };
 
-inline void X11PixelStringsOutput::SyncDisplay(void) {
-    XLockDisplay(m_display);
-    XPutImage(m_display, m_window, m_gc, m_xImage, 0, 0, 0, 0, m_scaledWidth, m_scaledHeight);
-    XSync(m_display, True);
-    XFlush(m_display);
-    XUnlockDisplay(m_display);
-}

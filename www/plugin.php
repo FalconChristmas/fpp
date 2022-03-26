@@ -7,6 +7,7 @@ if (!isset($_GET['nopage'])):
     require_once "common.php";
 
     $pluginSettings = array();
+    $pluginSettingInfos = array();
 
     if (isset($_GET['_menu'])) {
         $activeParentMenuItem = htmlspecialchars($_GET['_menu'], ENT_QUOTES, 'UTF-8');
@@ -14,11 +15,7 @@ if (!isset($_GET['nopage'])):
 
     if (isset($_GET['plugin'])) {
         $pluginName = htmlspecialchars($_GET['plugin'], ENT_QUOTES, 'UTF-8');
-        $pluginConfigFile = $settings['configDirectory'] . "/plugin." . $pluginName;
-        if (file_exists($pluginConfigFile)) {
-            $pluginSettings = parse_ini_file($pluginConfigFile);
-        }
-
+        LoadPluginSettings($pluginName);
     }
 
     $infoFile = $pluginDirectory . '/' . $pluginName . '/pluginInfo.json';

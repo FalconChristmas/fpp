@@ -82,7 +82,7 @@ $(function () {
 });
 
 function getManualLink() {
-    return "https://falconchristmas.github.io/FPP_Manual(5.5).pdf";
+    return "https://falconchristmas.github.io/FPP_Manual(6.0).pdf";
 }
 
 (function ($) {
@@ -3001,14 +3001,20 @@ function ReloadPixelnetDMX() {
     getPixelnetDMXoutputs("TRUE");
 }
 
+function StartNextScheduledItemNow() {
+    var url = "api/command/Start Next Scheduled Item";
+    $.get(url).done(function (data) {
+        $.jGrowl(data, { themeState: 'success' });
+    }).fail(function () {
+        $.jGrowl("Failed to start next scheduled item.", { themeState: 'danger' });
+    });
+}
+
 function ExtendSchedule(minutes) {
     var seconds = minutes * 60;
     var url = "api/command/Extend Schedule/" + seconds;
     $.get(url).done(function (data) {
         $.jGrowl(data, { themeState: 'success' });
-        if (statusTimeout != null)
-            clearTimeout(statusTimeout);
-        GetFPPStatus();
     }).fail(function () {
         $.jGrowl("Failed to extend schedule.", { themeState: 'danger' });
     });
@@ -6202,7 +6208,7 @@ function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, d
 
     if ((currentValue != '') &&
         (found == 0)) {
-        result += "<option value='" + currentValue + "'>" + currentValue + "</option>";
+        result += "<option value='" + currentValue + "' selected>" + currentValue + "</option>";
     }
     result += "</select>";
 

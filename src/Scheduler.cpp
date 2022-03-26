@@ -113,6 +113,8 @@ void Scheduler::ScheduleProc(void) {
         }
     }
 
+    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
+
     if (m_loadSchedule)
         LoadScheduleFromFile();
 
@@ -1026,6 +1028,31 @@ void Scheduler::SetTimeDelta(int delta, int timeLimit) {
     m_loadSchedule = true;
 }
 
+bool Scheduler::StartNextScheduledItemNow() {
+    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
+
+    ScheduledItem* item = GetNextScheduledPlaylist();
+
+    if (item) {
+        if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
+            LogDebug(VB_SCHEDULE, "Force-Stopping running playlist\n");
+            Player::INSTANCE.StopNow(1);
+        }
+
+        LogDebug(VB_SCHEDULE, "Force-Starting next scheduled playlist now:\n");
+        DumpScheduledItem(item->startTime, item);
+
+        time_t now = time(NULL);
+        Player::INSTANCE.StartScheduledPlaylist(item->entry->playlist, 0,
+                                                item->entry->repeat, item->entryIndex,
+                                                item->entryIndex, // priority is entry index for now
+                                                now, item->endTime, item->entry->stopType);
+        return true;
+    }
+
+    return false;
+}
+
 class ScheduleCommand : public Command {
 public:
     ScheduleCommand(const std::string& str, Scheduler* s) :
@@ -1034,6 +1061,20 @@ public:
     virtual ~ScheduleCommand() {}
 
     Scheduler* sched;
+};
+
+class StartNextItemCommand : public ScheduleCommand {
+public:
+    StartNextItemCommand(Scheduler* s) :
+        ScheduleCommand("Start Next Scheduled Item", s) {
+    }
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
+        if (sched->StartNextScheduledItemNow())
+            return std::make_unique<Command::Result>("Next scheduled item started");
+        else
+            return std::make_unique<Command::Result>("Unable to start next scheduled item");
+    }
 };
 
 class ExtendScheduleCommand : public ScheduleCommand {
@@ -1061,5 +1102,6 @@ public:
 };
 
 void Scheduler::RegisterCommands() {
+    CommandManager::INSTANCE.addCommand(new StartNextItemCommand(this));
     CommandManager::INSTANCE.addCommand(new ExtendScheduleCommand(this));
 }

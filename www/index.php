@@ -264,6 +264,9 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                             <button class='buttons wideButton btn-outline-light' onClick='PreviewSchedule();'>
                                 <i class="fas fa-fw fa-calendar-alt"></i>Preview
                             </button>
+                            <button class='buttons wideButton btn-outline-light' onClick='StartNextScheduledItemNow();'>
+                                <i class="fas fa-fw fa-running"></i>Start Next
+                            </button>
                         </div>
                     </div>
                 </div>

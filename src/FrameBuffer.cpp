@@ -36,10 +36,31 @@
 #include "common.h"
 #include "log.h"
 
-#define X11_WINDOW_WIDTH 720
-#define X11_WINDOW_HEIGHT 400
+#define FB_CURRENT_PAGE_PTR (m_buffer + (m_pageSize * m_cPage))
 
-#define FB_CURRENT_PAGE_PTR (m_buffer + (m_screenSize * m_page))
+/*
+ * Usage:
+ *
+ * AutoSync Off:
+ *
+ * Client -> FBCopyData();
+ * Client -> FBSyncDisplay();
+ * FrameBuffer::DrawLoop() calls transition effect
+ * - None -> NextPage(false); copy output buffer, SyncDisplay();
+ * - Others -> loop(copy output buffer, SyncDisplay())
+ *   (effects only work on a single m_cPage page)
+ *
+ * AutoSync On:
+ * Client:
+ *   page = Page(true);
+ *   if IsDirty(page) then can't do anything, else do...
+ *   NextPage(true)
+ *   copy data to BufferPage(page)
+ *   SetDirty(page)
+ * FrameBuffer::SyncLoop*():
+ * - if page m_cPage is dirty, then output and incremenet else just sleep/wait
+ *
+ */
 
 void StartDrawLoopThread(FrameBuffer* fb);
 
@@ -47,7 +68,7 @@ void StartDrawLoopThread(FrameBuffer* fb);
  *
  */
 FrameBuffer::FrameBuffer() {
-    LogDebug(VB_PLAYLIST, "FrameBuffer::FrameBuffer()\n");
+    LogDebug(VB_CHANNELOUT, "FrameBuffer::FrameBuffer()\n");
 
     m_typeSeed = (unsigned int)time(NULL);
 }
@@ -79,17 +100,8 @@ FrameBuffer::~FrameBuffer() {
     }
 #endif
 
-    if (m_rgb565map) {
-        for (int r = 0; r < 32; r++) {
-            for (int g = 0; g < 64; g++) {
-                delete[] m_rgb565map[r][g];
-            }
-
-            delete[] m_rgb565map[r];
-        }
-
-        delete[] m_rgb565map;
-    }
+    if (m_dirtyPages)
+        delete[] m_dirtyPages;
 }
 
 /*
@@ -99,14 +111,20 @@ int FrameBuffer::FBInit(const Json::Value& config) {
     if (config.isMember("Name"))
         m_name = config["Name"].asString();
 
+    if (config.isMember("X"))
+        m_xOffset = config["X"].asInt();
+
+    if (config.isMember("Y"))
+        m_yOffset = config["Y"].asInt();
+
     if (config.isMember("Width"))
         m_width = config["Width"].asInt();
 
     if (config.isMember("Height"))
         m_height = config["Height"].asInt();
 
-    if (config.isMember("Inverted"))
-        m_inverted = config["Inverted"].asInt();
+    if (config.isMember("PixelSize"))
+        m_pixelSize = config["PixelSize"].asInt();
 
     if (config.isMember("Device"))
         m_device = config["Device"].asString();
@@ -114,71 +132,69 @@ int FrameBuffer::FBInit(const Json::Value& config) {
     if (config.isMember("TransitionType"))
         m_transitionType = (ImageTransitionType)(atoi(config["TransitionType"].asString().c_str()));
 
-    if (config.isMember("DataFormat"))
-        m_dataFormat = config["DataFormat"].asString();
+    if (config.isMember("Pages"))
+        m_pages = config["Pages"].asInt();
 
-    if (m_dataFormat == "RGB")
-        m_useRGB = 1;
+    if (config.isMember("BitsPerPixel"))
+        m_bpp = config["BitsPerPixel"].asInt();
+
+    if (config.isMember("AutoSync"))
+        m_autoSync = config["AutoSync"].asBool();
+
+    m_pixelsWide = m_width / m_pixelSize;
+    m_pixelsHigh = m_height / m_pixelSize;
+
+    // Adjust our Width/Height to be whole numbers
+    m_width = m_pixelSize * m_pixelsWide;
+    m_height = m_pixelSize * m_pixelsHigh;
 
     int result = 0;
 
-    LogDebug(VB_CHANNELOUT, "Initializing %s frame buffer at %dx%d resolution.\n",
-             m_device.c_str(), m_width, m_height);
-
-#ifdef USE_X11
-    if (m_device == "x11")
-        result = InitializeX11Window();
-    else
-#endif
+    if (m_device != "x11") {
         result = InitializeFrameBuffer();
+    } else {
+#ifdef USE_X11
+        result = InitializeX11Window();
+#else
+        std::string errStr = "X11 FrameBuffer configured, but FPP is not compiled with X11 support";
+        WarningHolder::AddWarning(errStr);
+        errStr += "\n";
+        LogErr(VB_CHANNELOUT, errStr.c_str());
+#endif
+    }
 
     if (!result)
         return 0;
 
-    m_outputBuffer = (uint8_t*)malloc(m_screenSize);
+    if (m_autoSync) {
+        m_dirtyPages = new volatile uint8_t[m_pages];
+        for (int i = 0; i < m_pages; i++)
+            m_dirtyPages[i] = 0;
+    }
+
+    m_outputBuffer = (uint8_t*)malloc(m_pageSize);
     if (!m_outputBuffer) {
-        LogErr(VB_PLAYLIST, "Error, unable to allocate outputBuffer buffer\n");
+        LogErr(VB_CHANNELOUT, "Error, unable to allocate outputBuffer buffer\n");
         DestroyFrameBuffer();
         return 0;
     }
-    memset(m_outputBuffer, 0, m_screenSize);
+    memset(m_outputBuffer, 0, m_pageSize);
 
-    m_frameSize = m_width * m_height * 3; // Input always RGB
-    m_lastFrame = (uint8_t*)malloc(m_frameSize);
-    if (!m_lastFrame) {
-        LogErr(VB_PLAYLIST, "Error, unable to allocate lastFrame buffer\n");
-        DestroyFrameBuffer();
-        return 0;
+    if (m_bpp == 16) {
+        m_frameSize = m_width * m_height * 3; // Input always RGB
+        m_lastFrame = new uint8_t[m_frameSize];
+        if (!m_lastFrame) {
+            LogErr(VB_CHANNELOUT, "Error, unable to allocate lastFrame buffer\n");
+            DestroyFrameBuffer();
+            return 0;
+        }
+        memset(m_lastFrame, 0, m_frameSize);
     }
-    memset(m_lastFrame, 0, m_frameSize);
 
-    std::string colorOrder = m_dataFormat.substr(0, 3);
+    LogDebug(VB_CHANNELOUT, "Initialized %s frame buffer at %dx%d resolution.\n",
+             m_device.c_str(), m_width, m_height);
 
-    if (colorOrder == "RGB") {
-        m_rOffset = 0;
-        m_gOffset = 1;
-        m_bOffset = 2;
-    } else if (colorOrder == "RBG") {
-        m_rOffset = 0;
-        m_gOffset = 2;
-        m_bOffset = 1;
-    } else if (colorOrder == "GRB") {
-        m_rOffset = 1;
-        m_gOffset = 0;
-        m_bOffset = 2;
-    } else if (colorOrder == "GBR") {
-        m_rOffset = 2;
-        m_gOffset = 0;
-        m_bOffset = 1;
-    } else if (colorOrder == "BRG") {
-        m_rOffset = 1;
-        m_gOffset = 2;
-        m_bOffset = 0;
-    } else if (colorOrder == "BGR") {
-        m_rOffset = 2;
-        m_gOffset = 1;
-        m_bOffset = 0;
-    }
+    Dump();
 
     m_runLoop = true;
 
@@ -202,28 +218,29 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     }
 
     if (ioctl(m_fbFd, FBIOGET_VSCREENINFO, &m_vInfo)) {
-        LogErr(VB_PLAYLIST, "Error getting FrameBuffer info\n");
+        LogErr(VB_CHANNELOUT, "Error getting FrameBuffer info for device: %s\n", devString.c_str());
         close(m_fbFd);
         return 0;
     }
 
-    if (m_vInfo.bits_per_pixel == 32)
+    if (m_bpp != -1)
+        m_vInfo.bits_per_pixel = m_bpp;
+    else if (m_vInfo.bits_per_pixel == 32)
         m_vInfo.bits_per_pixel = 24;
 
     m_bpp = m_vInfo.bits_per_pixel;
-    LogDebug(VB_PLAYLIST, "FrameBuffer is using %d BPP\n", m_bpp);
 
     if ((m_bpp != 24) && (m_bpp != 16)) {
-        LogErr(VB_PLAYLIST, "Do not know how to handle %d BPP\n", m_bpp);
+        LogErr(VB_CHANNELOUT, "Do not know how to handle %d BPP\n", m_bpp);
         close(m_fbFd);
         return 0;
     }
 
     if (m_bpp == 16) {
-        LogExcess(VB_PLAYLIST, "Current Bitfield offset info:\n");
-        LogExcess(VB_PLAYLIST, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-        LogExcess(VB_PLAYLIST, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-        LogExcess(VB_PLAYLIST, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
+        LogExcess(VB_CHANNELOUT, "Current Bitfield offset info:\n");
+        LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
+        LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
+        LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
 
         // RGB565
         m_vInfo.red.offset = 11;
@@ -235,14 +252,11 @@ int FrameBuffer::InitializeFrameBuffer(void) {
         m_vInfo.transp.offset = 0;
         m_vInfo.transp.length = 0;
 
-        LogExcess(VB_PLAYLIST, "New Bitfield offset info should be:\n");
-        LogExcess(VB_PLAYLIST, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-        LogExcess(VB_PLAYLIST, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-        LogExcess(VB_PLAYLIST, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
+        LogExcess(VB_CHANNELOUT, "New Bitfield offset info should be:\n");
+        LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
+        LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
+        LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
     }
-
-    m_isDoubleBuffered = true;
-    m_pages = 2;
 
     if (m_width && m_height) {
         m_vInfo.xres = m_width;
@@ -253,13 +267,21 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     }
     m_vInfo.xres_virtual = m_width;
     m_vInfo.yres_virtual = m_height * m_pages;
+    m_vInfo.yoffset = 0;
+
+    if (m_autoSync) {
+        m_cPage = 1; // Drawwing will be on the second page first
+        m_pPage = 1; // Producer gets Page(true) then NextPage(true) after checking if page is clean
+    }
 
     if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
-        m_isDoubleBuffered = false;
         m_vInfo.yres_virtual = m_height;
+        m_cPage = 0;
+        m_pPage = 0;
         m_pages = 1;
+
         if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
-            LogErr(VB_PLAYLIST, "Error setting FrameBuffer info\n");
+            LogErr(VB_CHANNELOUT, "Error setting FrameBuffer info\n");
             close(m_fbFd);
             return 0;
         } else {
@@ -268,7 +290,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     }
 
     if (ioctl(m_fbFd, FBIOGET_FSCREENINFO, &m_fInfo)) {
-        LogErr(VB_PLAYLIST, "Error getting fixed FrameBuffer info\n");
+        LogErr(VB_CHANNELOUT, "Error getting fixed FrameBuffer info\n");
         close(m_fbFd);
         return 0;
     }
@@ -276,7 +298,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     if (devString == "/dev/fb0") {
         m_ttyFd = open("/dev/console", O_RDWR);
         if (!m_ttyFd) {
-            LogErr(VB_PLAYLIST, "Error, unable to open /dev/console\n");
+            LogErr(VB_CHANNELOUT, "Error, unable to open /dev/console\n");
             DestroyFrameBuffer();
             return 0;
         }
@@ -291,12 +313,12 @@ int FrameBuffer::InitializeFrameBuffer(void) {
 
     m_rowStride = m_fInfo.line_length;
     m_rowPadding = m_rowStride - (m_width * 3);
-    m_screenSize = m_vInfo.yres * m_fInfo.line_length;
-    m_bufferSize = m_screenSize * m_pages;
+    m_pageSize = m_vInfo.yres * m_fInfo.line_length;
+    m_bufferSize = m_pageSize * m_pages;
     m_buffer = (uint8_t*)mmap(0, m_bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
 
     if ((char*)m_buffer == (char*)-1) {
-        LogErr(VB_PLAYLIST, "Error, unable to map /dev/fb0\n");
+        LogErr(VB_CHANNELOUT, "Error, unable to map framebuffer device %s\n", devString.c_str());
         DestroyFrameBuffer();
         return 0;
     }
@@ -304,10 +326,10 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     memset(m_buffer, 0, m_bufferSize);
 
     if (m_bpp == 16) {
-        LogExcess(VB_PLAYLIST, "Generating RGB565Map for Bitfield offset info:\n");
-        LogExcess(VB_PLAYLIST, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-        LogExcess(VB_PLAYLIST, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-        LogExcess(VB_PLAYLIST, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
+        LogExcess(VB_CHANNELOUT, "Generating RGB565Map for Bitfield offset info:\n");
+        LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
+        LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
+        LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
 
         int rShift = m_vInfo.red.offset - (8 + (8 - m_vInfo.red.length));
         int gShift = m_vInfo.green.offset - (8 + (8 - m_vInfo.green.length));
@@ -317,7 +339,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
         uint8_t rMask = (0xFF ^ (0xFF >> m_vInfo.red.length));
         uint8_t gMask = (0xFF ^ (0xFF >> m_vInfo.green.length));
         uint8_t bMask = (0xFF ^ (0xFF >> m_vInfo.blue.length));
-        LogDebug(VB_PLAYLIST, "rM/rS: 0x%02x/%d, gM/gS: 0x%02x/%d, bM/bS: 0x%02x/%d\n", rMask, rShift, gMask, gShift, bMask, bShift);
+        LogDebug(VB_CHANNELOUT, "rM/rS: 0x%02x/%d, gM/gS: 0x%02x/%d, bM/bS: 0x%02x/%d\n", rMask, rShift, gMask, gShift, bMask, bShift);
 #endif
 
         uint16_t o;
@@ -350,17 +372,13 @@ int FrameBuffer::InitializeFrameBuffer(void) {
             }
         }
     }
-    return 1;
 #else
-    m_isDoubleBuffered = true;
     m_pages = 3;
     m_bpp = 32;
-    m_useRGB = true;
     m_rowStride = m_width * 4;
     m_rowPadding = 0;
-    m_screenSize = m_width * m_height * 4;
-    m_bufferSize = m_screenSize * m_pages;
-    m_page = 0;
+    m_pageSize = m_width * m_height * 4;
+    m_bufferSize = m_pageSize * m_pages;
 
     m_fbFd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (m_fbFd < 0) {
@@ -401,9 +419,8 @@ int FrameBuffer::InitializeFrameBuffer(void) {
 
     targetExists = FileExists(dev_address.sun_path);
     sendFramebufferConfig();
-    
-    return 1;
 #endif
+    return 1;
 }
 
 #ifdef USE_FRAMEBUFFER_SOCKET
@@ -434,6 +451,21 @@ void FrameBuffer::sendFramebufferConfig() {
     msg.msg_namelen = sizeof(dev_address);
     sendmsg(m_fbFd, &msg, 0);
 }
+
+void FrameBuffer::sendFramebufferFrame() {
+    // CMD 2 - sync, param is page#
+    bool fe = FileExists(dev_address.sun_path);
+    if (!targetExists && fe) {
+        sendFramebufferConfig();
+        targetExists = true;
+    } else if (!fe) {
+        targetExists = false;
+    }
+    if (targetExists) {
+        uint16_t data[2] = { 2, (uint16_t)m_cPage };
+        sendto(m_fbFd, data, sizeof(data), 0, (struct sockaddr*)&dev_address, sizeof(dev_address));
+    }
+}
 #endif
 
 void FrameBuffer::DestroyFrameBuffer(void) {
@@ -442,10 +474,10 @@ void FrameBuffer::DestroyFrameBuffer(void) {
         munmap(m_buffer, m_bufferSize);
     }
 
-    if (m_fbFd > -1) {
+    if (m_fbFd != -1) {
         close(m_fbFd);
+        m_fbFd = -1;
     }
-    m_fbFd = -1;
 
 #ifdef USE_FRAMEBUFFER_SOCKET
     if (shmemFile != -1) {
@@ -454,26 +486,54 @@ void FrameBuffer::DestroyFrameBuffer(void) {
         shm_unlink(shmFile.c_str());
         shmemFile = -1;
     }
+#else
+    if (m_ttyFd != -1) {
+        // Show the text console
+        ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
+
+        // Shouldn't need this anymore.
+        close(m_ttyFd);
+        m_ttyFd = -1;
+    }
+
+    if (m_rgb565map) {
+        for (int r = 0; r < 32; r++) {
+            for (int g = 0; g < 64; g++) {
+                delete[] m_rgb565map[r][g];
+            }
+
+            delete[] m_rgb565map[r];
+        }
+
+        delete[] m_rgb565map;
+    }
+
+    if (m_lastFrame)
+        delete[] m_lastFrame;
 #endif
 }
 
 #ifdef USE_X11
 int FrameBuffer::InitializeX11Window(void) {
+    if ((m_width == 0) || (m_height == 0)) {
+        LogErr(VB_CHANNELOUT, "Invalid X11 FrameBuffer width/height of %dx%d\n", m_width, m_height);
+        return 0;
+    }
+
     m_display = XOpenDisplay(getenv("DISPLAY"));
     if (!m_display) {
-        LogErr(VB_PLAYLIST, "Unable to connect to X Server\n");
+        LogErr(VB_CHANNELOUT, "Unable to connect to X Server\n");
         return 0;
     }
 
     m_screen = DefaultScreen(m_display);
 
-    m_isDoubleBuffered = false;
     m_pages = 1;
     m_bpp = 32;
     m_rowStride = m_width * m_bpp / 8;
     m_rowPadding = 0;
-    m_screenSize = m_width * m_height * m_bpp / 8;
-    m_bufferSize = m_screenSize;
+    m_pageSize = m_width * m_height * m_bpp / 8;
+    m_bufferSize = m_pageSize;
     m_buffer = new uint8_t[m_bufferSize];
 
     m_xImage = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
@@ -489,12 +549,12 @@ int FrameBuffer::InitializeX11Window(void) {
 
     m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
     if (m_gc < 0) {
-        LogErr(VB_PLAYLIST, "Unable to create GC\n");
+        LogErr(VB_CHANNELOUT, "Unable to create GC\n");
         return 0;
     }
 
     m_window = XCreateWindow(
-        m_display, RootWindow(m_display, m_screen), m_width, m_height,
+        m_display, RootWindow(m_display, m_screen), 0, 0,
         m_width, m_height, 5, 24, InputOutput,
         DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
 
@@ -504,6 +564,12 @@ int FrameBuffer::InitializeX11Window(void) {
     XSetIconName(m_display, m_window, m_name.c_str());
 
     XFlush(m_display);
+
+    if ((m_xOffset != -1) && (m_yOffset != -1)) {
+        XMoveWindow(m_display, m_window, m_xOffset, m_yOffset);
+        XSync(m_display, True);
+        XFlush(m_display);
+    }
 
     return 1;
 }
@@ -523,43 +589,42 @@ void FrameBuffer::DestroyX11Window(void) {
  *
  */
 void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
-    int srow = 0;
-    int drow = m_inverted ? m_height - 1 : 0;
-    const uint8_t* s = buffer;
-    uint8_t* d;
-    uint8_t* l = m_lastFrame;
-    const uint8_t* sR = buffer + m_rOffset;
-    const uint8_t* sG = buffer + m_gOffset;
-    const uint8_t* sB = buffer + m_bOffset;
-    int sBpp = 3;
-    int skipped = 0;
+    int drow = 0;
+    const uint8_t* sR = buffer + 0; // Input always RGB
+    const uint8_t* sG = buffer + 1;
+    const uint8_t* sB = buffer + 2;
     uint8_t* ob = m_outputBuffer;
 
-    if (draw) {
+    if (draw && (m_pixelSize == 1)) {
         m_bufferLock.lock();
         ob = FB_CURRENT_PAGE_PTR;
     }
 
+#ifndef USE_FRAMEBUFFER_SOCKET
     if (m_bpp == 16) {
-        for (int y = 0; y < m_height; y++) {
-            d = ob + (drow * m_rowStride);
-            for (int x = 0; x < m_width; x++) {
+        uint8_t* l = m_lastFrame;
+        int skipped = 0;
+        int sBpp = 3;
+        uint8_t* d;
+
+        for (int y = 0; y < m_pixelsHigh; y++) {
+            d = ob + (drow * m_pixelSize * m_rowStride);
+            for (int x = 0; x < m_pixelsWide; x++) {
                 if (memcmp(l, sR, sBpp)) {
                     if (skipped) {
-                        sG += skipped * sBpp;
-                        sB += skipped * sBpp;
-                        d += skipped * 2;
+                        sG += skipped * sBpp * m_pixelSize;
+                        sB += skipped * sBpp * m_pixelSize;
+                        d += skipped * 2 * m_pixelSize;
                         skipped = 0;
                     }
 
-                    if (m_useRGB) // RGB data to BGR framebuffer
+                    for (int sc = 0; sc < m_pixelSize; sc++) {
                         *((uint16_t*)d) = m_rgb565map[*sR >> 3][*sG >> 2][*sB >> 3];
-                    else // BGR data to BGR framebuffer
-                        *((uint16_t*)d) = m_rgb565map[*sB >> 3][*sG >> 2][*sR >> 3];
+                        d += 2;
+                    }
 
                     sG += sBpp;
                     sB += sBpp;
-                    d += 2;
                 } else {
                     skipped++;
                 }
@@ -568,63 +633,53 @@ void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
                 l += sBpp;
             }
 
-            srow++;
-            drow += m_inverted ? -1 : 1;
+            d = ob + (drow * m_pixelSize * m_rowStride);
+            for (int sc = 1; sc < m_pixelSize; sc++) {
+                memcpy(d + (sc * m_rowStride), d, m_rowStride);
+            }
+
+            drow++;
         }
-    } else if (m_useRGB || (m_bpp == 32)) {
+
+        memcpy(m_lastFrame, buffer, m_frameSize);
+    } else
+#endif
+    {
         uint8_t* dR;
         uint8_t* dG;
         uint8_t* dB;
         int add = m_bpp / 8;
 
-        for (int y = 0; y < m_height; y++) {
-            if (m_useRGB) {
-                dR = ob + (drow * m_rowStride) + 2;
-                dG = ob + (drow * m_rowStride) + 1;
-                dB = ob + (drow * m_rowStride) + 0;
-            } else {
-                dR = ob + (drow * m_rowStride) + 0;
-                dG = ob + (drow * m_rowStride) + 1;
-                dB = ob + (drow * m_rowStride) + 2;
-            }
+        for (int y = 0; y < m_pixelsHigh; y++) {
+            // Output is BGR(A)
+            dB = ob + (drow * m_pixelSize * m_rowStride);
+            dG = dB + 1;
+            dR = dB + 2;
 
-            for (int x = 0; x < m_width; x++) {
-                *dR = *sR;
-                *dG = *sG;
-                *dB = *sB;
+            for (int x = 0; x < m_pixelsWide; x++) {
+                for (int sc = 0; sc < m_pixelSize; sc++) {
+                    *dR = *sR;
+                    *dG = *sG;
+                    *dB = *sB;
+
+                    dR += add;
+                    dG += add;
+                    dB += add;
+                }
 
                 sR += 3;
                 sG += 3;
                 sB += 3;
-
-                dR += add;
-                dG += add;
-                dB += add;
             }
 
-            srow++;
-            drow += m_inverted ? -1 : 1;
-        }
-    } else {
-        int istride = m_width * 3;
-        const uint8_t* src = buffer;
-        uint8_t* dst = ob;
+            dB = ob + (drow * m_pixelSize * m_rowStride);
+            for (int sc = 1; sc < m_pixelSize; sc++) {
+                memcpy(dB + (sc * m_rowStride), dB, m_rowStride);
+            }
 
-        if (m_inverted)
-            dst = ob + (m_rowStride * (m_height - 1));
-
-        for (int y = 0; y < m_height; y++) {
-            memcpy(dst, src, istride);
-            src += istride;
-
-            if (m_inverted)
-                dst -= m_rowStride;
-            else
-                dst += m_rowStride;
+            drow++;
         }
     }
-
-    memcpy(m_lastFrame, buffer, m_frameSize);
 
     if (draw) {
         m_bufferLock.unlock();
@@ -637,13 +692,14 @@ void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
  *
  */
 void FrameBuffer::Dump(void) {
-    LogDebug(VB_PLAYLIST, "Transition Type: %d\n", (int)m_transitionType);
-    LogDebug(VB_PLAYLIST, "Width          : %d\n", m_width);
-    LogDebug(VB_PLAYLIST, "Height         : %d\n", m_height);
-    LogDebug(VB_PLAYLIST, "Device         : %s\n", m_device.c_str());
-    LogDebug(VB_PLAYLIST, "DataFormat     : %s\n", m_dataFormat.c_str());
-    LogDebug(VB_PLAYLIST, "Inverted       : %d\n", m_inverted);
-    LogDebug(VB_PLAYLIST, "bpp            : %d\n", m_bpp);
+    LogDebug(VB_CHANNELOUT, "Device         : %s\n", m_device.c_str());
+    LogDebug(VB_CHANNELOUT, "Width          : %d\n", m_width);
+    LogDebug(VB_CHANNELOUT, "Height         : %d\n", m_height);
+    LogDebug(VB_CHANNELOUT, "PixelSize      : %d\n", m_pixelSize);
+    LogDebug(VB_CHANNELOUT, "Pixels Wide    : %d\n", m_pixelsWide);
+    LogDebug(VB_CHANNELOUT, "Pixels High    : %d\n", m_pixelsHigh);
+    LogDebug(VB_CHANNELOUT, "bpp            : %d\n", m_bpp);
+    LogDebug(VB_CHANNELOUT, "Transition Type: %d\n", (int)m_transitionType);
 }
 
 /*
@@ -668,7 +724,87 @@ void StartDrawLoopThread(FrameBuffer* fb) {
     fb->DrawLoop();
 }
 
+#ifdef USE_X11
+void FrameBuffer::SyncLoopX11() {
+    while (m_runLoop) {
+        if (m_dirtyPages[m_cPage]) {
+            XLockDisplay(m_display);
+            XPutImage(m_display, m_window, m_gc, m_xImage, 0, 0, 0, 0, m_width, m_height);
+            XSync(m_display, True);
+            XFlush(m_display);
+            XUnlockDisplay(m_display);
+
+            m_dirtyPages[m_cPage] = 0;
+            NextPage();
+        }
+
+        usleep(25000);
+    }
+}
+#endif
+
+#ifdef USE_FRAMEBUFFER_SOCKET
+void FrameBuffer::SyncLoopFBSocket() {
+    while (m_runLoop) {
+        if (m_dirtyPages[m_cPage]) {
+            sendFramebufferFrame();
+
+            m_dirtyPages[m_cPage] = 0;
+            NextPage();
+        }
+
+        usleep(25000);
+    }
+}
+#else
+void FrameBuffer::SyncLoopFB() {
+    int dummy = 0;
+
+    if (m_pages == 1) {
+        // using /dev/fb* and only one page so writes are immediate, no need to sync
+        return;
+    }
+
+    while (m_runLoop) {
+        // Wait for vsync
+        dummy = 0;
+        //LogInfo(VB_CHANNELOUT, "%s - %d - waiting for vsync\n", m_device.c_str(), m_cPage);
+        ioctl(m_fbFd, FBIO_WAITFORVSYNC, &dummy);
+
+        // Allow the producer to catch up if needed
+        if (!m_dirtyPages[m_cPage] && m_dirtyPages[(m_cPage + 1) % m_pages])
+            NextPage();
+
+        if (m_dirtyPages[m_cPage]) {
+            // Pan the display to the page
+            //LogInfo(VB_CHANNELOUT, "%s - %d - flipping to cPage\n", m_device.c_str(), m_cPage);
+            m_vInfo.yoffset = m_vInfo.yres * m_cPage;
+            ioctl(m_fbFd, FBIOPAN_DISPLAY, &m_vInfo);
+
+            //LogInfo(VB_CHANNELOUT, "%s - %d - marking clear and bumping cPage\n", m_device.c_str(), m_cPage);
+            m_dirtyPages[m_cPage] = 0;
+            NextPage();
+        }
+    }
+}
+#endif
+
 void FrameBuffer::DrawLoop(void) {
+    if (m_autoSync) {
+        if (m_device == "x11") {
+#ifdef USE_X11
+            SyncLoopX11();
+#endif
+        } else {
+#ifdef USE_FRAMEBUFFER_SOCKET
+            SyncLoopFBSocket();
+#else
+            SyncLoopFB();
+#endif
+        }
+        return;
+    }
+
     std::unique_lock<std::mutex> lock(m_bufferLock);
 
     while (m_runLoop) {
@@ -748,11 +884,15 @@ void FrameBuffer::DrawLoop(void) {
     }
 }
 
-void FrameBuffer::NextPage() {
+void FrameBuffer::NextPage(bool producer) {
     if (m_pages == 1)
         return;
-    
-    m_page = (m_page + 1) % m_pages;
+
+    //LogInfo(VB_CHANNELOUT, "%s - %d - NextPage() for %s\n", m_device.c_str(), m_cPage, producer ? "producer" : "consumer");
+    if (producer)
+        m_pPage = (m_pPage + 1) % m_pages;
+    else
+        m_cPage = (m_cPage + 1) % m_pages;
 }
 
 void FrameBuffer::SyncDisplay(bool pageChanged) {
@@ -767,27 +907,21 @@ void FrameBuffer::SyncDisplay(bool pageChanged) {
     } else if (m_fbFd != -1) {
         if (m_pages == 1)
             return;
-        
+
         if (!pageChanged)
             return;
 
 #ifdef USE_FRAMEBUFFER_SOCKET
-        // CMD 2 - sync, param is page#
-        bool fe = FileExists(dev_address.sun_path);
-        if (!targetExists && fe) {
-            sendFramebufferConfig();
-            targetExists = true;
-        } else if (!fe) {
-            targetExists = false;
-        }
-        if (targetExists) {
-            uint16_t data[2] = { 2, (uint16_t)m_page };
-            sendto(m_fbFd, data, sizeof(data), 0, (struct sockaddr*)&dev_address, sizeof(dev_address));
-        }
-
+        sendFramebufferFrame();
 #else
+        // Wait for vsync
+        int dummy = 0;
+        //LogInfo(VB_CHANNELOUT, "%s - %d - SyncDisplay() waiting for vsync\n", m_device.c_str(), m_cPage);
+        ioctl(m_fbFd, FBIO_WAITFORVSYNC, &dummy);
+
         // Pan the display to the new page
-        m_vInfo.yoffset = m_vInfo.yres * m_page;
+        //LogInfo(VB_CHANNELOUT, "%s - %d - SyncDisplay() flipping to cPage\n", m_device.c_str(), m_cPage);
+        m_vInfo.yoffset = m_vInfo.yres * m_cPage;
         ioctl(m_fbFd, FBIOPAN_DISPLAY, &m_vInfo);
 #endif
     }
@@ -800,8 +934,8 @@ void FrameBuffer::FBDrawNormal(void) {
     m_bufferLock.lock();
 
     NextPage();
-    
-    memcpy(FB_CURRENT_PAGE_PTR, m_outputBuffer, m_screenSize);
+
+    memcpy(FB_CURRENT_PAGE_PTR, m_outputBuffer, m_pageSize);
 
     SyncDisplay(true);
     m_bufferLock.unlock();
@@ -1125,4 +1259,12 @@ void FrameBuffer::DrawSquare(int dx, int dy, int w, int h, int sx, int sy) {
         memcpy(FB_CURRENT_PAGE_PTR + (m_rowStride * (dy + i)) + dRowOffset,
                m_outputBuffer + (m_rowStride * (sy + i)) + sRowOffset, bytesWide);
     }
+}
+
+void FrameBuffer::ClearAllPages() {
+    memset(m_buffer, 0, m_bufferSize);
+}
+
+void FrameBuffer::Clear() {
+    memset(FB_CURRENT_PAGE_PTR, 0, m_pageSize);
 }

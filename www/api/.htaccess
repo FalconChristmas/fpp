@@ -1,25 +1,3 @@
-SetEnvIf LOCAL_PROTECT 1 PROTECTED
-
-AuthUserFile /home/fpp/media/config/.htpasswd
-AuthType Basic
-AuthName "Falcon Player"
-
-<RequireAny>
-    <RequireAll>
-        # If parent is not protected - allow access
-        Require not env PROTECTED
-        Require all granted
-    </RequireAll>
-    <RequireAll>
-        # If parent is protected & request comes from local - allow access
-       Require env PROTECTED
-       Require local
-    </RequireAll>
-    <RequireAll>
-        # If user is authenticated - allow access
-        Require valid-user
-    </RequireAll>
-</RequireAny>
 
 RewriteEngine on
 

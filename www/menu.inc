@@ -67,8 +67,11 @@ function list_plugin_entries($menu) {
     <div class="headerLeft">
           <div class="headerLeftCol fppBrand">
             <a href="/">
-              <img src="images/redesign/falconlogo.svg" class="logo" title="Host: <? echo $settings['HostName']; ?>" />
-              <img src="images/redesign/fpp-logo.svg" class="fpp-logo" />
+              <img src='<?= $themeInfo["HEADER_LOGO1"] ?>' class="logo" title="Host: <? echo $settings['HostName']; ?>" />
+              <? if (isset($themeInfo["HEADER_LOGO2"]) && $themeInfo["HEADER_LOGO2"] != "" ) {
+                echo "<img src='" . $themeInfo["HEADER_LOGO2"] . "' class='fpp-logo'  title='Host: " . $settings["HostName"] . "' />";
+              }
+              ?>
             </a>
             <a href='about.php' class='nonULLink headerLink versionHead'><?php echo $fpp_head_version; ?></a>
           </div>
@@ -175,7 +178,9 @@ function list_plugin_entries($menu) {
 		}
 	}
 ?>
-  <!--div id='upgradeFlag' class="alert detract"><span class='inlineBlock'>FPP v5.1 is available for install</span><span class='inlineBlock'><button name="btnUpgrade" type="button" onClick="ViewReleaseNotes('5.1');"  class = "buttons btn-outline-light" ><i class='fas fa-fw fa-sync fa-nbsp'></i>Upgrade FPP</button></div-->
+<!--
+  <div id='upgradeFlag' class="alert detract"><span class='inlineBlock'>FPP v5.1 is available for install</span><span class='inlineBlock'><button name="btnUpgrade" type="button" onClick="ViewReleaseNotes('5.1');"  class = "buttons btn-outline-light" ><i class='fas fa-fw fa-sync fa-nbsp'></i>Upgrade FPP</button></span></div>
+-->
   <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><button name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class="buttons btn-outline-light"><i class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
 
 <?

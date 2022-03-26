@@ -29,9 +29,16 @@
   </div>
 <br />
 <div class="footerLink">
-<a href="http://www.falconchristmas.com">www.falconchristmas.com</a>
+<a href='<?= $themeInfo["FOOTER_URL"] ?>'><?= $themeInfo["FOOTER_URL_TEXT"] ?></a>
+<?
+if ($themeInfo["FOOTER_URL_TEXT"] != "www.falconchristmas.com") {
+    echo "<br>\n<p style='font-size: 70%'>Powered by FPP</p>\n";
+}
+?>
 </div>
 
 <br />
 <br />
 </div>
+
+</div> <!-- div for fppOuterContainer opened in menu.inc -->

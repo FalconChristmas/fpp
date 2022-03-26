@@ -12,14 +12,14 @@ fi
 COMMON_PATH=$(cd "$COMMON_PATH/.." && pwd)
 
 FPPDIR=${FPPDIR:-$COMMON_PATH}
+FPPUSER="fpp"
+FPPGROUP="fpp"
 
 if [ -f "${FPPDIR}/www/media_root.txt" ]; then
     MEDIADIR=$(cat "${FPPDIR}/www/media_root.txt")
     FPPHOME=$(dirname ${MEDIADIR})
 else
     FPPHOME="/home/fpp"
-    FPPUSER="fpp"
-    FPPGROUP="fpp"
     MEDIADIR="${MEDIADIR:-${FPPHOME}/media}"
 fi
 
@@ -156,14 +156,12 @@ getSettingInfo() {
 setSetting() {
     SETTING=$1
     VALUE=$2
+    
     if [ -f "${CFGFILE}" ]; then
         OLD=$(getSetting $SETTING)
-        if [ "x${OLD}" = "x" ]; then
-            echo "${SETTING} = \"${VALUE}\"" >> ${CFGFILE}
-        else
-            sed -i \
-                -e '/^#\?\(\s*'"${SETTING}"'\s*=\s*\).*/{s//\1'"\"${VALUE}\""'/;:a;n;ba;q}' \
-                -e '$a'"${SETTING}"'='"\"${VALUE}\"" ${CFGFILE}
+        if [ "x${OLD}" != "x" ]; then
+            sed -i -e "/^${SETTING} *= *\"/d" ${CFGFILE}
         fi
+        echo "${SETTING} = \"${VALUE}\"" >> ${CFGFILE}
     fi
 }

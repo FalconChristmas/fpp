@@ -1109,6 +1109,19 @@
             }
         },
         {
+            "endpoint": "overlays/model/:ModelName/save",
+            "fppd": true,
+            "methods": {
+                "PUT": {
+                    "desc": "Saves the contents of the overlay model to a file in the images directory.",
+                    "input": {
+                        "File": "ImageFilename.png"
+                    },
+                    "output": "OK"
+                }
+            }
+        },
+        {
             "endpoint": "overlays/model/:ModelName/state",
             "fppd": true,
             "methods": {

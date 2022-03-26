@@ -684,7 +684,7 @@ populateCCACHE() {
     fi
 
     # set the CCache sizes/flags that we need to be able to successfully compile
-    sudo ccache -M 250M
+    sudo ccache -M 350M
     sudo ccache --set-config=temporary_dir=/tmp
     sudo ccache --set-config=sloppiness=pch_defines,time_macros,locale
     sudo ccache --set-config=pch_external_checksum=true
@@ -883,7 +883,7 @@ for output in obj["channelOutputs"]:
     if output["type"] == "DPIPixels" and output["enabled"] == 1 :
         for stroutput in output["outputs"]:
             for vskey in vskeys:
-                if stroutput.has_key(vskey):
+                if vskey in stroutput:
                     pixels = 0
                     for vs in stroutput["virtualStrings"]:
                         pixels += vs["pixelCount"] + vs["nullNodes"] + vs["endNulls"]

@@ -58,6 +58,7 @@ private:
     PixelState state;
 };
 
+
 class PixelOverlayModel {
 public:
     PixelOverlayModel(const Json::Value& config);
@@ -78,47 +79,55 @@ public:
 
     virtual void doOverlay(uint8_t* channels);
 
-    virtual void setData(const uint8_t* data); // full RGB data, width*height*3
-    virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h);
-
     int getStartChannel() const;
     int getChannelCount() const;
 
     void toJson(Json::Value& v);
     void getDataJson(Json::Value& v, bool rle = false);
+    
+    
+    // Access to the chanelData.  The channelData is a minimal array of bytes
+    // If the model is a "custom" model or using singleChannel nodes or similar,
+    // then the channelData will be significantly smaller than WxHx3
+    void saveOverlayAsImage(std::string filename = "");
+    virtual void setData(const uint8_t* data); // full RGB data, width*height*3
+    virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h, const PixelOverlayState &st = PixelOverlayState(PixelOverlayState::Enabled));
+    void setScaledData(uint8_t* data, int w, int h);
+    void setPixelValue(int x, int y, int r, int g, int b);
+    void clearData();
+    void fillData(int r, int g, int b);
+    void setBufferIsDirty(bool dirty = true);
+    bool needRefresh();
 
+    
+    // The overlay buffer is a full continuous width*height*3 buffer that can be used to
+    // construct the frame as a full RGB image prior to flushing to the channelData.
+    // The overlay buffer is also mmapped so external programs can have easy
+    // access to the continuous width*height*3 buffer
     uint8_t* getOverlayBuffer();
+    void setOverlayBufferDirty(bool dirty = true);
+    bool overlayBufferIsDirty();
     void clearOverlayBuffer();
     void setOverlayBufferScaledData(uint8_t* data, int w, int h);
     void fillOverlayBuffer(int r, int g, int b);
     void setOverlayPixelValue(int x, int y, int r, int g, int b);
     void getOverlayPixelValue(int x, int y, int& r, int& g, int& b);
-    virtual void setOverlayBufferDirty(bool dirty = true);
     void flushOverlayBuffer();
 
-    virtual bool overlayBufferIsDirty();
-
-    void setBufferIsDirty(bool dirty = true);
-    bool needRefresh();
-
-    void clear() {
-        clearOverlayBuffer();
-        flushOverlayBuffer();
-    }
-    void fill(int r, int g, int b) {
-        fillOverlayBuffer(r, g, b);
-        flushOverlayBuffer();
-    }
-    void setPixelValue(int x, int y, int r, int g, int b);
+    
+    // Operate on both the overlay buffer (if mapped) and the channelData
+    void clear();
+    void fill(int r, int g, int b);
 
     bool applyEffect(const std::string& autoState, const std::string& effect, const std::vector<std::string>& args);
     void setRunningEffect(RunningEffect* r, int32_t firstUpdateMS);
     RunningEffect* getRunningEffect() const { return runningEffect; }
-
     int32_t updateRunningEffects();
 
+    void setChildState(const std::string &n, const PixelOverlayState& state, int ox, int oy, int w, int h);
 protected:
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
+    bool flushChildren(uint8_t* dst);
 
     Json::Value config;
     std::string name;
@@ -144,4 +153,15 @@ protected:
 
     std::mutex effectLock;
     RunningEffect* runningEffect;
+    
+    class ChildModelState {
+    public:
+        std::string name;
+        PixelOverlayState state = PixelOverlayState::Disabled;
+        int xoffset = 0;
+        int yoffset = 0;
+        int width = 0;
+        int height = 0;
+    };
+    std::list<ChildModelState> children;
 };

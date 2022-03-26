@@ -1,0 +1,10 @@
+
+RewriteEngine on
+
+RewriteBase /js/plugin
+
+RewriteRule ^(.*)/(.*)$   "/plugin.php?plugin=$1&file=$2&nopage=1"    [NC,L,QSA,B]
+
+Header add Access-Control-Allow-Origin "*"
+Header add Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"
+
