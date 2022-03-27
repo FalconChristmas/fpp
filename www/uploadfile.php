@@ -473,6 +473,8 @@ include 'menu.inc'; ?>
               <div class='form-actions'>
                 <input onclick="ClearSelections('Uploads');" class="buttons" type="button" value="Clear" />
                 <input onclick="ButtonHandler('Uploads', 'download');" class="disableButtons singleUploadsButton multiUploadsButton" type="button"  value="Download" />
+                <input onclick="ButtonHandler('Uploads', 'copyFile');" class="disableButtons singleUploadsButton" type="button"  value="Copy" />
+                <input onclick="ButtonHandler('Uploads', 'rename');" class="disableButtons singleUploadsButton" type="button"  value="Rename" />
                 <input onclick="ButtonHandler('Uploads', 'delete');" class="disableButtons singleUploadsButton multiUploadsButton" type="button"  value="Delete" />
               </div>
               <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
