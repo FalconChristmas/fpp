@@ -572,23 +572,24 @@ function cloneSelectedString()
     
     var clones = prompt('How many strings to clone from selected string?', maxClone);
     
-    if (clones == null || clones == "")
+    if (clones == null || clones == "" || clones == 0)
         return;
     
     clones = parseInt(clones);
+    const dir = (clones < 0)? "prev": "next";
     
     var sDescription = row.find('.vsDescription').val();
     var sStartChannel = parseInt(row.find('.vsStartChannel').val()) || 1;
     var sPixelCount = parseInt(row.find('.vsPixelCount').val()) || 0;
-    var nextRow = row.closest('tr').next('tr');
+    var nextRow = row.closest('tr')[dir]('tr');
 
     if (nextRow.find('td.vsPortLabel').length == 0)
-        nextRow = nextRow.closest('tr').next('tr');
+        nextRow = nextRow.closest('tr')[dir]('tr');
     
 //    row.find('.vsDescription').val(sDescription + '0');
     const suffix = (sDescription.match(/(\d+)$/) || [])[1] || "0";
 
-    for (i = 0; i < clones; i++)
+    for (i = 0; i < Math.abs(clones); i++)
     {
         const oldname = nextRow.find(".vsDescription").val();
         setRowData(nextRow,
@@ -606,10 +607,10 @@ function cloneSelectedString()
                    row.find('.vsBrightness').val(),
                    row.find('.vsGamma').val());
         
-        nextRow = nextRow.closest('tr').next('tr');
+        nextRow = nextRow.closest('tr')[dir]('tr');
 
         if (nextRow.find('td.vsPortLabel').length == 0)
-            nextRow = nextRow.closest('tr').next('tr');
+            nextRow = nextRow.closest('tr')[dir]('tr');
     }
 }
 
