@@ -1604,14 +1604,19 @@ function importStrings() {
     const outtype = $('#BBB48StringSubType').val(); //"DPI24Hat"
     const driver = MapPixelStringType(outtype); //"DPIPixel"
     if (xlmodels_err) { alert(xlmodels_err); return; }
-    xlmodels.models.model.forEach((model, inx) => {
+    xlmodels.models.model
+    .map((model, inx) => {
         const attrs = model["@attributes"];
-	    const name = attrs.name;
+        const name = attrs.name;
         const starch = +attrs.StartChannel.replace(/![^:]+:/, "");
         const numpx = attrs.CustomModel? attrs.CustomModel.split(/[;,]/).filter(node => node !== "").length: attrs.parm2? +attrs.parm2: 0;
+        return Object.assign(model, {inx, attrs, name, starch, numpx});
+    })
+    .sort((lhs, rhs) => lhs.starch - rhs.starch)
+    .forEach(model => {
         const ctlr = (model.ControllerConnection || {})["@attributes"] || {};
-	    const [port, protocol, order, maxbr] = [ctlr.Port || inx, ctlr.protocol || "ws2811", ctlr.colorOrder || "RGB", ctlr.brightness || 100];
-//	console.log("import model", {outtype, driver, protocol, name, starch, numpx, port, order, maxbr});
+        const [port, protocol, order, maxbr] = [ctlr.Port || model.inx, ctlr.protocol || "ws2811", ctlr.colorOrder || "RGB", ctlr.brightness || 100];
+//	console.log("import model", {outtype, driver, protocol, name: model.name, starch: model.starch, numpx: model.numpx, port, order, maxbr});
         for (let substr = 0;; ++substr) { //populate blank or create new string
             const rid = rowid(driver, 0, port - 1, substr);
             let row = $('#' + rid);
@@ -1619,12 +1624,13 @@ function importStrings() {
                 addVirtualString($('#' + rowid(driver, 0, port - 1, substr - 1)).find(".vsPixelCount"));
                 row = $('#' + rid);
             }
-            if (+row.find(".vsPixelCount").val() || 0) continue; //occupied
+            if (!row.length) throw "can't find row " + rid;
+            if (+row.find(".vsPixelCount").val() || 0) continue; //skip populated strings
             setRowData(row,
                    protocol, //row.find('.vsProtocol').val(),
-                   name,
-                   starch,
-                   numpx,
+                   model.name,
+                   model.starch,
+                   model.numpx,
                    1, //row.find('.vsGroupCount').val(),
                    "0", //"Forward", //row.find('.vsReverse').val(),
                    order, //row.find('.vsColorOrder').val(),
@@ -1634,7 +1640,7 @@ function importStrings() {
                    maxbr.toString(),
                    1.0); //row.find('.vsGamma').val());
 //            const paranoid = row.find('.vsPixelCount').val();
-//            if (paranoid != numpx) throw "update pixelCount failed: " + typeof(paranoid) + " " + JSON.stringify(paranoid) + " " + typeof row.find(".vsPixelCount") + " " + JSON.stringify(row.find(".vsPixelCount"));
+//            if (paranoid != model.numpx) throw "update pixelCount failed: " + typeof(paranoid) + " " + JSON.stringify(paranoid) + " " + typeof row.find(".vsPixelCount") + " " + JSON.stringify(row.find(".vsPixelCount"));
             return;
         }
     });
