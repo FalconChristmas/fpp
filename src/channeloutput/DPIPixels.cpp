@@ -416,12 +416,12 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
                 if (longestString <= 800)
                     return true;
                 else
-                    errStr = m_outputType + " Framebuffer configured for 40fps but pixel count is to high.  Reboot is required.";
+                    errStr = m_outputType + " Framebuffer configured for 40fps but pixel count " + std::to_string(longestString) + " is too high.  Reboot is required.";
             } else if (vinfo.yres == 324) {
                 if (longestString <= 1600)
                     return true;
                 else
-                    errStr = m_outputType + " Framebuffer configured for 20fps but pixel count is to high.";
+                    errStr = m_outputType + " Framebuffer configured for 20fps but pixel count " + std::to_string(longestString) + " is too high.";
             }
         } else {
             return false;
