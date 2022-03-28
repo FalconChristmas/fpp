@@ -56,7 +56,7 @@ export FPPPLATFORM
 export PATH=${PATHDIRS}:${PATH}
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${FPPDIR}/external/RF24:${FPPDIR}/lib:${FPPDIR}/src
 
-SUDO=${SUDO:-sudo}
+SUDO=${SUDO:-sudo -E}
 export SRCDIR="${FPPDIR}/src"
 SCRIPTDIR="${FPPDIR}/scripts"
 BINDIR="${FPPDIR}/scripts"

@@ -23,7 +23,7 @@ fi
 
 if [ "x$4" != "x" ]
 then
-	(cd $1 && $SUDO git reset --hard $4)
+    (cd $1 && $SUDO git reset --hard $4)
 fi
 
 
@@ -33,12 +33,11 @@ fi
 
 if [ -x "${PLUGINDIR}/$1/scripts/fpp_install.sh" ]
 then
-	echo "Running fpp_install.sh script for $1"
-	$SUDO ${PLUGINDIR}/$1/scripts/fpp_install.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
+    echo "Running fpp_install.sh script for $1"
+    $SUDO ${PLUGINDIR}/$1/scripts/fpp_install.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 else
-	if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]
-	then
-		echo "Running fpp_install.sh script for $1"
-		$SUDO ${PLUGINDIR}/$1/fpp_install.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
-	fi
+    if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]; then
+        echo "Running fpp_install.sh script for $1"
+        $SUDO ${PLUGINDIR}/$1/fpp_install.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
+    fi
 fi
