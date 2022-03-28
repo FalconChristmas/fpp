@@ -178,6 +178,8 @@ private:
     int m_bufferSize = 0;
     int m_rowStride = 0;
     int m_rowPadding = 0;
+    int m_frameSize = 0;
+    uint8_t* m_lastFrame = nullptr;
 
 #ifdef USE_FRAMEBUFFER_SOCKET
     void SyncLoopFBSocket();
@@ -197,8 +199,6 @@ private:
 
     // Support for 16-bit framebuffer output
     uint16_t*** m_rgb565map = nullptr;
-    uint8_t* m_lastFrame = nullptr;
-    int m_frameSize = 0;
 #endif
 
 #ifdef USE_X11
