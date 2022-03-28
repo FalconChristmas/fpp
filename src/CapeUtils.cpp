@@ -331,9 +331,16 @@ static void copyFile(const std::string& src, const std::string& target) {
         printf("Failed to open src %s - %s\n", src.c_str(), strerror(errno));
         return;
     }
-    t = open(target.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+
+    size_t fsep = target.find_last_of("/");
+    std::string target_fname = (fsep != std::string::npos)? target.substr(fsep + 1): target;
+    if (fsep != std::string::npos) mkdir(target.substr(0, fsep).c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH); //ensure target folder exists
+//        if (mkdir(path, mode) != 0 && errno != EEXIST)
+//    else if (!S_ISDIR(st.st_mode)) errno = ENOTDIR;
+
+    t = open(target_fname.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
     if (t == -1) {
-        printf("Failed to open target %s - %s\n", src.c_str(), strerror(errno));
+        printf("Failed to open target %s - %s\n", target.c_str(), strerror(errno));
         close(s);
         return;
     }
