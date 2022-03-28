@@ -99,6 +99,9 @@ static std::map<int, std::function<bool(uint8_t* data, long long packetTime)>> A
 void AddArtNetOpcodeHandler(int opCode, std::function<bool(uint8_t* data, long long packetTime)> handler) {
     ArtNetOpcodeHandlers[opCode] = handler;
 }
+void RemoveArtNetOpcodeHandler(int opCode) {
+    ArtNetOpcodeHandlers.erase(opCode);
+}
 
 // prototypes for functions below
 bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime);
@@ -711,6 +714,8 @@ void Bridge_Shutdown(void) {
     bridgeSock = -1;
     ddpSock = -1;
     artnetSock = -1;
+    
+    ArtNetOpcodeHandlers.clear();
 }
 
 void ResetBytesReceived() {
