@@ -1749,7 +1749,13 @@ $(document).ready(function(){
                     
                         <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
                         <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
-                        <input type='button' class="buttons" onClick='importStrings();' value='Import Strings'>
+<? if ($uiLevel >= 3) { ?>
+<!--                            <input type='button' class="buttons" onClick='importStrings();' value='Import Strings'> -->
+			<span class="buttons" onClick='importStrings();'>
+                            <i class='fas fa-fw fa-code ui-level-3'></i>
+                            Import Strings
+                        </span>
+<? } ?>
                         <input type='button' class="buttons btn-success ml-1" onClick='saveBBBOutputs();' value='Save'>
                 </div>
             </div>
@@ -1883,4 +1889,3 @@ style="display: none;"
 <a name='capeNotes'></a>
 <span class='capeNotes' style='display: none;'><b>Cape Configuration Notes:</b><br></span>
 <span class='capeNotes' id='capeNotes' style='display: none;'></span>
-<style>
