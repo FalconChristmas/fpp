@@ -490,8 +490,9 @@ function updateItemEndChannel(item) {
 //max pixel current:
 //use current instead of power so 5V vs 12V doesn't matter
 const pxAmps = {
-    ws2811: 60e-3,
-//add more types as needed
+    ws2811: 60e-3, //max current drawn by full-on px
+    null_ws2811: 2e-3, //current drawn by off or null px; TODO: verify this
+//TODO: add more types as needed (APA102, LPD6803/8806, WS2801, etc)
 };
 
 //show details about currently selected pixel port:
@@ -504,7 +505,8 @@ function selected_string_details(row) { //outputs, rowid) {
     const portid = row.attr("id").replace(/_\d+$/, "");
     row = $('#' + portid + "_0"); //start with first string on this port
     const portinx = +(portid.match(/(?:_)(\d+)$/) || [])[1]; //some rows don't have port label so get it from row id
-    const protocol = row.find(".vsProtocol").val(), pxA = pxAmps[protocol];
+    const protocol = row.find(".vsProtocol").val();
+    const pxA = [pxAmps["null_" + protocol] || 0, pxAmps[protocol] || 0];
     const hdr_name = (pins[portinx] || {}).hdr_pin, gpio_name = ((pins[portinx] || {}).gpio_info || {}).gpio;
     if (is_dpi) {
 //use on-screen values (might not be saved yet):
@@ -516,7 +518,8 @@ function selected_string_details(row) { //outputs, rowid) {
             const sEndNulls = parseInt(row.find('.vsEndNulls').val()) || 0;
             const sBrightness = parseInt(row.find('.vsBrightness').val()) || 100;
 	        numpx += sPixelCount + sNullNodes + sEndNulls;
-            maxA += sPixelCount * sBrightness / 100 * pxA;
+            maxA += sPixelCount * sBrightness / 100 * pxA[1];
+            maxA += (sPixelCount + sNullNodes + sEndNulls) * pxA[0]; //off + null px take power too
             row = row.closest('tr').next('tr');
             if ((row.attr("id") || "").replace(/_\d+$/, "") != portid) break;
         }
