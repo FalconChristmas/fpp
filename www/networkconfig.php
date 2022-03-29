@@ -5,105 +5,29 @@
 <?php include 'common/menuHead.inc';?>
 
 <title><?echo $pageTitle; ?></title>
+
+<script>
+var hiddenChildren = {};
+function UpdateChildSettingsVisibility() {
+    hiddenChildren = {};
+    $('.parentSetting').each(function() {
+        var fn = 'Update' + $(this).attr('id') + 'Children';
+        window[fn](2); // Hide if necessary
+    });
+    $('.parentSetting').each(function() {
+        var fn = 'Update' + $(this).attr('id') + 'Children';
+        window[fn](1); // Show if not hidden
+    });
+}
+$(document).ready(function() {
+    UpdateChildSettingsVisibility();
+});
+</script>
 </head>
 <body>
 
 
 <?php
-
-$wifiDrivers = array();
-$wifiDrivers['External'] = "External";
-$wifiDrivers['Linux Kernel'] = "Kernel";
-$defaultWifiDrivers = "External";
-if (isset($settings['wifiDrivers']) && $settings['wifiDrivers'] == "Realtek") {
-    $settings['wifiDrivers'] == "External";
-}
-
-// list from https://www.arubanetworks.com/techdocs/InstantWenger_Mobile/Advanced/Content/Instant%20User%20Guide%20-%20volumes/Country_Codes_List.htm#regulatory_domain_3737302751_1017918
-$wifiDomains = array();
-$wifiDomains['United States'] = 'US';
-$wifiDomains['Canada'] = 'CA';
-$wifiDomains['Japan'] = 'JP3';
-$wifiDomains['Germany'] = 'DE';
-$wifiDomains['Netherlands'] = 'NL';
-$wifiDomains['Italy'] = 'IT';
-$wifiDomains['Portugal'] = 'PT';
-$wifiDomains['Luxembourg'] = 'LU';
-$wifiDomains['Norway'] = 'NO';
-$wifiDomains['Finland'] = 'FI';
-$wifiDomains['Denmark'] = 'DK';
-$wifiDomains['Switzerland'] = 'CH';
-$wifiDomains['Czech Republic'] = 'CZ';
-$wifiDomains['Spain'] = 'ES';
-$wifiDomains['United Kingdom'] = 'GB';
-$wifiDomains['Republic of Korea (South Korea)'] = 'KR';
-$wifiDomains['China'] = 'CN';
-$wifiDomains['France'] = 'FR';
-$wifiDomains['Hong Kong'] = 'HK';
-$wifiDomains['Singapore'] = 'SG';
-$wifiDomains['Taiwan'] = 'TW';
-$wifiDomains['Brazil'] = 'BR';
-$wifiDomains['Israel'] = 'IL';
-$wifiDomains['Saudi Arabia'] = 'SA';
-$wifiDomains['Lebanon'] = 'LB';
-$wifiDomains['United Arab Emirates'] = 'AE';
-$wifiDomains['South Africa'] = 'ZA';
-$wifiDomains['Argentina'] = 'AR';
-$wifiDomains['Australia'] = 'AU';
-$wifiDomains['Austria'] = 'AT';
-$wifiDomains['Bolivia'] = 'BO';
-$wifiDomains['Chile'] = 'CL';
-$wifiDomains['Greece'] = 'GR';
-$wifiDomains['Iceland'] = 'IS';
-$wifiDomains['India'] = 'IN';
-$wifiDomains['Ireland'] = 'IE';
-$wifiDomains['Kuwait'] = 'KW';
-$wifiDomains['Liechtenstein'] = 'LI';
-$wifiDomains['Lithuania'] = 'LT';
-$wifiDomains['Mexico'] = 'MX';
-$wifiDomains['Morocco'] = 'MA';
-$wifiDomains['New Zealand'] = 'NZ';
-$wifiDomains['Poland'] = 'PL';
-$wifiDomains['Puerto Rico'] = 'PR';
-$wifiDomains['Slovak Republic'] = 'SK';
-$wifiDomains['Slovenia'] = 'SI';
-$wifiDomains['Thailand'] = 'TH';
-$wifiDomains['Uruguay'] = 'UY';
-$wifiDomains['Panama'] = 'PA';
-$wifiDomains['Russia'] = 'RU';
-$wifiDomains['Egypt'] = 'EG';
-$wifiDomains['Trinidad and Tobago'] = 'TT';
-$wifiDomains['Turkey'] = 'TR';
-$wifiDomains['Costa Rica'] = 'CR';
-$wifiDomains['Ecuador'] = 'EC';
-$wifiDomains['Honduras'] = 'HN';
-$wifiDomains['Kenya'] = 'KE';
-$wifiDomains['Ukraine'] = 'UA';
-$wifiDomains['Vietnam'] = 'VN';
-$wifiDomains['Bulgaria'] = 'BG';
-$wifiDomains['Cyprus'] = 'CY';
-$wifiDomains['Estonia'] = 'EE';
-$wifiDomains['Mauritius'] = 'MU';
-$wifiDomains['Romania'] = 'RO';
-$wifiDomains['Serbia and Montenegro'] = 'CS';
-$wifiDomains['Indonesia'] = 'ID';
-$wifiDomains['Peru'] = 'PE';
-$wifiDomains['Venezuela'] = 'VE';
-$wifiDomains['Jamaica'] = 'JM';
-$wifiDomains['Bahrain'] = 'BH';
-$wifiDomains['Oman'] = 'OM';
-$wifiDomains['Jordan'] = 'JO';
-$wifiDomains['Bermuda'] = 'BM';
-$wifiDomains['Colombia'] = 'CO';
-$wifiDomains['Dominican Republic'] = 'DO';
-$wifiDomains['Guatemala'] = 'GT';
-$wifiDomains['Philippines'] = 'PH';
-$wifiDomains['Sri Lanka'] = 'LK';
-$wifiDomains['El Salvador'] = 'SV';
-$wifiDomains['Tunisia'] = 'TN';
-$wifiDomains['Islamic Republic of Pakistan'] = 'PK';
-$wifiDomains['Qatar'] = 'QA';
-$wifiDomains['Algeria'] = 'DZ';
 
 function PopulateInterfaces()
 {
@@ -120,108 +44,85 @@ function PopulateInterfaces()
 ?>
 <script>
 
-function WirelessSettingsVisible(visible)
-{
-  if(visible == true)
-  {
-    LoadSIDS($('#selInterfaces').val());
-    $("#WirelessSettings").show();
-  }
-  else
-  {
-    $("#WirelessSettings").hide();
-  }
+function WirelessSettingsVisible(visible) {
+    if(visible == true) {
+        LoadSIDS($('#selInterfaces').val());
+        $("#WirelessSettings").show();
+    } else {
+      $("#WirelessSettings").hide();
+    }
 }
 
-function checkStaticIP()
-{
+function checkStaticIP() {
 	var ip = $('#eth_ip').val();
-  $("#ipWarning").html('');
-	if (ip.startsWith( "192.168") || ip.startsWith("10.") )
-	{
-		if ($('#eth_netmask').val() == "")
-		{
+    $("#ipWarning").html('');
+	if (ip.startsWith( "192.168") || ip.startsWith("10.") ) {
+		if ($('#eth_netmask').val() == "") {
 			$('#eth_netmask').val("255.255.255.0");
 		}
-		if ($('#eth_gateway').val() == "")
-		{
+		if ($('#eth_gateway').val() == "") {
 			var gateway = $('#eth_ip').val().replace(/\.\d+$/, ".1");
 			$('#eth_gateway').val(gateway);
 		}
 	}
-  if (ip.startsWith("192.168.6.") || ip.startsWith("192.168.7.") || ip.startsWith("192.168.8.")) {
-      var text = "It is recommended to use subnets other than 192.168.6.x, 192.168.7.x, and 192.168.8.x to avoid issues with tethering."
-			$("#ipWarning").html(text);
-			$.jGrowl(text,{themeState:'danger'});
+    if (ip.startsWith("192.168.6.") || ip.startsWith("192.168.7.") || ip.startsWith("192.168.8.")) {
+        var text = "It is recommended to use subnets other than 192.168.6.x, 192.168.7.x, and 192.168.8.x to avoid issues with tethering."
+		$("#ipWarning").html(text);
+		$.jGrowl(text,{themeState:'danger'});
     }
-
 }
 
-function validateNetworkFields()
-{
-  var eth_ip = $('#eth_ip').val();
-  $("#ipWarning").html('');
-	if($('#eth_static').is(':checked'))
-	{
-		if((validateIPaddress('eth_ip')== false) || (eth_ip == ""))
-		{
-			$.jGrowl("Invalid IP Address. Expect format like 192.168.0.101",{themeState:'danger'});
+function validateNetworkFields() {
+    var eth_ip = $('#eth_ip').val();
+    $("#ipWarning").html('');
+	if($('#eth_static').is(':checked')) {
+		if((validateIPaddress('eth_ip')== false) || (eth_ip == "")) {
+		    $.jGrowl("Invalid IP Address. Expect format like 192.168.0.101",{themeState:'danger'});
 			$("#ipWarning").html('Invalid IP Address. Expect format like 192.168.0.101');
 			return false;
 		}
 
-		if((validateIPaddress('eth_netmask')== false) || ($('#eth_netmask').val() == ""))
-		{
+		if((validateIPaddress('eth_netmask')== false) || ($('#eth_netmask').val() == "")) {
 			$.jGrowl("Invalid Netmask. Expect format like 255.255.255.0",{themeState:'danger'});
 			$("#ipWarning").html('Invalid Netmask. Expect format like 255.255.255.0');
 			return false;
 		}
-		if(validateIPaddress('eth_gateway')== false)
-		{
+		if(validateIPaddress('eth_gateway')== false) {
 			$.jGrowl("Invalid Gateway. Expect format like 192.168.0.1",{themeState:'danger'});
 			return false;
 		}
 	}
-
 	return true;
 }
 
 function validateDNSFields()
 {
-  setDNSWarning("");
-	if(validateIPaddress('dns1') == false)
-	{
-		$.jGrowl("Invalid DNS Server #1",{themeState:'danger'});
-    setDNSWarning("Invalid DNS Server #1");
+    setDNSWarning("");
+    if(validateIPaddress('dns1') == false) {
+        $.jGrowl("Invalid DNS Server #1",{themeState:'danger'});
+        setDNSWarning("Invalid DNS Server #1");
 		return false;
 	}
-	if(validateIPaddress('dns2') == false)
-	{
+	if(validateIPaddress('dns2') == false) {
 		$.jGrowl("Invalid DNS Server #2",{themeState:'danger'});
-    setDNSWarning("Invalid DNS Server #2");
+        setDNSWarning("Invalid DNS Server #2");
 		return false;
 	}
-
 	return true;
 }
 
-function SaveDNSConfig()
-{
-	if (validateDNSFields() == false)
-	{
+function SaveDNSConfig() {
+	if (validateDNSFields() == false) {
 		DialogError("Invalid DNS Config", "Save Failed");
 		return;
 	}
 
 	var data = {};
 
-	if ($('#dns_manual').is(':checked'))
-	{
+	if ($('#dns_manual').is(':checked')) {
 		data.DNS1 = $('#dns1').val();
 		data.DNS2 = $('#dns2').val();
-	}
-	else
-	{
+	} else {
 		data.DNS1 = "";
 		data.DNS2 = "";
 	}
@@ -236,33 +137,28 @@ function SaveDNSConfig()
 	}).fail(function() {
 		DialogError("Save DNS Config", "Save Failed");
 	});
-
 }
 
-function GetDNSInfo(data)
-{
+function GetDNSInfo(data) {
 	$('#dns1').val(data.DNS1);
 	$('#dns2').val(data.DNS2);
 
 	if ((typeof data.DNS1 !== "undefined" && data.DNS1 != "") ||
-	    (typeof data.DNS2 !== "undefined" && data.DNS2 != ""))
-	{
-			$('#dns_manual').prop('checked', true);
-			$('#dns_dhcp').prop('checked', false);
-			DisableDNSFields(false);
-	}
-	else
-	{
-			$('#dns_manual').prop('checked', false);
-			$('#dns_dhcp').prop('checked', true);
-			DisableDNSFields(true);
+	    (typeof data.DNS2 !== "undefined" && data.DNS2 != "")) {
+		$('#dns_manual').prop('checked', true);
+		$('#dns_dhcp').prop('checked', false);
+		DisableDNSFields(false);
+	} else {
+		$('#dns_manual').prop('checked', false);
+		$('#dns_dhcp').prop('checked', true);
+		DisableDNSFields(true);
 	}
 
 	CheckDNS();
 }
 
 function onlyUnique(value, index, self) {
-  return self.indexOf(value) === index;
+    return self.indexOf(value) === index;
 }
 
 function LoadSIDS(interface) {
@@ -270,17 +166,17 @@ function LoadSIDS(interface) {
   ).done(function(data){
     var ssids = [];
     data.networks.forEach(function(n){
-      if (n.SSID != "") {
-        ssids.push(n.SSID);
-      }
+        if (n.SSID != "") {
+            ssids.push(n.SSID);
+        }
     });
     ssids = ssids.filter(onlyUnique);
     ssids.sort();
     html=[];
     ssids.forEach(function(n){
-      html.push("<option value='");
-      html.push(n);
-      html.push("'>");
+        html.push("<option value='");
+        html.push(n);
+        html.push("'>");
     });
     $("#eth_ssids").html(html.join(''));
   }).fail(function(){
@@ -288,10 +184,8 @@ function LoadSIDS(interface) {
   });
 }
 
-function LoadDNSConfig()
-{
+function LoadDNSConfig() {
 	var url = "api/network/dns";
-
 	$.get(url, GetDNSInfo);
 }
 
@@ -313,10 +207,8 @@ function ApplyNetworkConfig()
 		});
 }
 
-function SaveNetworkConfig()
-{
-	if (validateNetworkFields() == false)
-	{
+function SaveNetworkConfig() {
+	if (validateNetworkFields() == false) {
 		DialogError("Invalid Network Config", "Save Failed");
 		return;
 	}
@@ -333,9 +225,15 @@ function SaveNetworkConfig()
 	} else {
 		data.PROTO   = 'dhcp';
 	}
+<?if ($settings['uiLevel'] >= 1) {?>
+    data.ROUTEMETRIC = $('#routeMetric').val();
+    data.DHCPSERVER = $('#dhcpServer').is(':checked');
+    data.DHCPOFFSET = $('#dhcpOffset').val();
+    data.DHCPPOOLSIZE = $('#dhcpPoolSize').val();
+    data.IPFORWARDING = $('#ipForwarding').val();
+<?}?>
 
-	if (iface.substr(0,2) == "wl")
-	{
+	if (iface.substr(0,2) == "wl") {
 		data.SSID = $('#eth_ssid').val();
 		data.PSK = $('#eth_psk').val();
         data.HIDDEN = $('#eth_hidden').is(':checked');
@@ -345,17 +243,17 @@ function SaveNetworkConfig()
 
 	$.post("api/network/interface/" + iface, postData
 	).done(function(rc) {
-    if (rc.status == "OK") {
-		LoadNetworkConfig();
-		$.jGrowl(iface + " network interface configuration saved",{themeState:'success'});
-		$('#btnConfigNetwork').show();
+        if (rc.status == "OK") {
+            LoadNetworkConfig();
+            $.jGrowl(iface + " network interface configuration saved",{themeState:'success'});
+            $('#btnConfigNetwork').show();
 
-		if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
-			DialogOK("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.")
-		}
-  } else {
-		DialogError("Save Network Config", "Save Failed: " + rc.status);
-  }
+            if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
+                DialogOK("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.")
+            }
+        } else {
+            DialogError("Save Network Config", "Save Failed: " + rc.status);
+        }
 	}).fail(function() {
 		DialogError("Save Network Config", "Save Failed");
 	});
@@ -408,9 +306,10 @@ function LoadNetworkConfig() {
 	var url = "api/network/interface/" + iface;
 	var visible = iface.slice(0,2).toLowerCase() == "wl"?true:false;
 
-	WirelessSettingsVisible(visible);
 	$.get(url,GetInterfaceInfo);
+    WirelessSettingsVisible(visible);
 }
+
 
 function CheckDNSCallback(data) {
     var iface = $('#selInterfaces').val();
@@ -423,7 +322,7 @@ function CheckDNSCallback(data) {
 
     data.forEach(function(i) {
         if (i.ifname.startsWith(iface)) {
-            if (i.config !== 'undefined') {
+            if (i.hasOwnProperty("config")) {
                 if (i.config.PROTO == "static") {
 	                if (($('#eth_static').is(':checked')) &&
 		                ($('#dns_dhcp').is(':checked'))) {
@@ -459,54 +358,52 @@ function setDNSWarning(msg) {
 
 $(document).ready(function(){
 
-  LoadNetworkConfig();
-  LoadDNSConfig();
+    LoadNetworkConfig();
+    LoadDNSConfig();
 
-  $("#dns1").change(validateDNSFields);
-  $("#dns2").change(validateDNSFields);
+    $("#dns1").change(validateDNSFields);
+    $("#dns2").change(validateDNSFields);
 
-  $("#eth_static").click(function(){
-    DisableNetworkFields(false);
-    $('#eth_dhcp').prop('checked', false);
+    $("#eth_static").click(function() {
+        DisableNetworkFields(false);
+        $('#eth_dhcp').prop('checked', false);
 
-    $('#dns_dhcp').prop('checked', false);
-    $('#dns_manual').prop('checked', true);
-    DisableDNSFields(false);
-  });
+        $('#dns_dhcp').prop('checked', false);
+        $('#dns_manual').prop('checked', true);
+        DisableDNSFields(false);
+    });
 
-  $("#eth_dhcp").click(function(){
-    DisableNetworkFields(true);
-    $('#eth_static').prop('checked', false);
-    $('#eth_ip').val("");
-    $('#eth_netmask').val("");
-    $('#eth_gateway').val("");
-  });
+    $("#eth_dhcp").click(function(){
+        DisableNetworkFields(true);
+        $('#eth_static').prop('checked', false);
+        $('#eth_ip').val("");
+        $('#eth_netmask').val("");
+        $('#eth_gateway').val("");
+<?if ($settings['uiLevel'] >= 1) {?>
+        $('#dhcpServer').prop('checked', false);
+        UpdateChildSettingsVisibility();
+<?}?>
+    });
 
-  $("#dns_manual").click(function(){
-    DisableDNSFields(false);
-    $('#dns_dhcp').prop('checked', false);
-  });
+    $("#dns_manual").click(function(){
+        DisableDNSFields(false);
+        $('#dns_dhcp').prop('checked', false);
+    });
 
-  $("#dns_dhcp").click(function(){
-    DisableDNSFields(true);
-    $('#dns_manual').prop('checked', false);
-    $('#dns1').val("");
-    $('#dns2').val("");
-  });
-
-
+    $("#dns_dhcp").click(function(){
+        DisableDNSFields(true);
+        $('#dns_manual').prop('checked', false);
+        $('#dns1').val("");
+        $('#dns2').val("");
+    });
 });
 
-function GetInterfaceInfo(data,status)
-{
-	if(data.PROTO == "static")
-	{
+function GetInterfaceInfo(data,status) {
+	if(data.PROTO == "static") {
 		$('#eth_static').prop('checked', true);
 		$('#eth_dhcp').prop('checked', false);
 		DisableNetworkFields(false);
-	}
-	else
-	{
+	} else {
 		$('#eth_dhcp').prop('checked', true);
 		$('#eth_static').prop('checked', false);
 		DisableNetworkFields(true);
@@ -516,8 +413,7 @@ function GetInterfaceInfo(data,status)
 	$('#eth_netmask').val(data.NETMASK);
 	$('#eth_gateway').val(data.GATEWAY);
 
-	if (data.INTERFACE && data.INTERFACE.substr(0,2) == "wl")
-	{
+	if (data.INTERFACE && data.INTERFACE.substr(0,2) == "wl") {
 		$('#eth_ssid').val(data.SSID);
 		$('#eth_psk').val(data.PSK);
         if (data.HIDDEN == "1") {
@@ -526,21 +422,53 @@ function GetInterfaceInfo(data,status)
             $('#eth_hidden').prop('checked', false);
         }
 	}
-
+<?if ($settings['uiLevel'] >= 1) {?>
+    if (data.ROUTEMETRIC) {
+        $('#routeMetric').val(data.ROUTEMETRIC);
+    } else {
+        $('#routeMetric').val(0);
+    }
+    if (data.DHCPSERVER) {
+        if (data.DHCPSERVER == "1") {
+            $('#dhcpServer').prop('checked', true);
+        } else {
+            $('#dhcpServer').prop('checked', false);
+        }
+    } else {
+        $('#dhcpServer').prop('checked', false);
+    }
+    if (data.DHCPOFFSET) {
+        $('#dhcpOffset').val(data.DHCPOFFSET);
+    } else {
+        $('#dhcpOffset').val(100);
+    }
+    if (data.DHCPPOOLSIZE) {
+        $('#dhcpPoolSize').val(data.DHCPPOOLSIZE);
+    } else {
+        $('#dhcpPoolSize').val(50);
+    }
+    if (data.IPFORWARDING) {
+        $('#ipForwarding').val(data.IPFORWARDING);
+    } else {
+        $('#ipForwarding').val(0);
+    }
+    UpdateChildSettingsVisibility();
+<?}?>
 	CheckDNS();
 }
 
-function DisableNetworkFields(disabled)
-{
-  $('#eth_ip').prop( "disabled", disabled );
-  $('#eth_netmask').prop( "disabled", disabled );
-  $('#eth_gateway').prop( "disabled", disabled );
+function DisableNetworkFields(disabled) {
+    $('#eth_ip').prop( "disabled", disabled );
+    $('#eth_netmask').prop( "disabled", disabled );
+    $('#eth_gateway').prop( "disabled", disabled );
+    <?if ($settings['uiLevel'] >= 1) {?>
+    $('#dhcpServer').prop('disabled', disabled);
+    <?}?>
 }
 
-function DisableDNSFields(disabled)
-{
-  $('#dns1').prop( "disabled", disabled );
-  $('#dns2').prop( "disabled", disabled );
+function DisableDNSFields(disabled) {
+    $('#dns1').prop( "disabled", disabled );
+    $('#dns2').prop( "disabled", disabled );
 }
 
 function setHostName() {
@@ -549,8 +477,7 @@ function setHostName() {
 	var regExpHostname = new RegExp(/^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])$/);
 	var regResultHostname = regExpHostname.exec(newHostname);
 
-	if (regResultHostname === null)
-	{
+	if (regResultHostname === null) {
 		alert("Invalid hostname.  Hostname may contain only letters, numbers, and hyphens and may not begin or end with a hyphen.");
 		return;
 	}
@@ -572,17 +499,6 @@ function setHostDescription() {
     }).fail(function() {
         DialogError("Save HostDescription", "Save Failed");
     });
-}
-function showHidePassword(id) {
-  var x = document.getElementById(id);
-  var b = document.getElementById(id + "_showHideButton");
-  if (x.type === "password") {
-    x.type = "text";
-    b.value = "Hide";
-  } else {
-    x.type = "password";
-    b.value = "Show";
-  }
 }
 
 </script>
@@ -609,89 +525,81 @@ include 'menu.inc';?>
         Tethering
       </a>
     </li>
+<?if (file_exists("/usr/bin/connmanctl")) {?>
     <li class="nav-item">
       <a class="nav-link" id="tab-interface-routing-tab" data-toggle="tab" href="#tab-interface-routing" role="tab" aria-controls="tab-interface-routing" aria-selected="false">
         Interface Routing
       </a>
     </li>
+<?}?>
   </ul>
   <div class="tab-content">
     <div class="tab-pane fade show active" id="tab-interface-settings" role="tabpanel" aria-labelledby="interface-settings-tab">
     <div id="InterfaceSettings">
 
-              <h2> Interface Settings</h2>
-    <?php
+<?php
 if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
-    ?>
-    <table>
-    <tr>
-    <td width = "45%">WIFI Drivers:</td>
-    <td width = "55%">
-    <?php PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : $defaultWifiDrivers, $wifiDrivers, "", "reloadPage");?>
-    </td>
-    </tr>
-    <tr>
-    <td width = "45%">WIFI Regulatory Domain:</td>
-    <td width = "55%">
-    <?php PrintSettingSelect("WIFI Regulatory Domain", "WifiRegulatoryDomain", 0, 1, isset($settings['WifiRegulatoryDomain']) ? $settings['WifiRegulatoryDomain'] : "US", $wifiDomains);?>
-    </td>
-    </tr>
-    </table>
-    <br>
-    <?
+    PrintSettingGroup("wifiDriversGroup");
 }
 ?>
-
-              Select an interface name to configure the network information for that interface.<br><br>
-              <table width = "100%" border="0" cellpadding="1" cellspacing="1">
-                <tr>
-                  <td width = "25%" valign='top'>Interface Name:</td>
-                  <td width = "25%" valign='top'><select id ="selInterfaces"  class='multiSelect' size='3' style="width:10em;"  onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></td>
-                  <td width = "50%">&nbsp;</td>
-                </tr>
-                <tr>
-                  <td>Interface Mode:</td>
-                  <td><label><input type="radio" id ="eth_static" value="static">
+        <h2> Interface Settings</h2>
+        <div class="container-fluid settingsTable settingsGroupTable">
+            <div class="row"><div class="printSettingLabelCol col-md-8">Select an interface name to configure the network information for that interface.</div></div>
+            <div class="row" id="selInterfacesRow">
+                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Interface Name</div></div>
+                <div class="printSettingFieldCol col-md"><select id ="selInterfaces"  class='multiSelect' size='3' style="width:10em;"  onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></div>
+            </div>
+            <div class="row" id="interfaceConfigTypeRow">
+                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Interface Mode</div></div>
+                <div class="printSettingFieldCol col-md"><label><input type="radio" id ="eth_static" value="static">
                         Static</label>
                       <label><input type="radio" id ="eth_dhcp" value="dhcp">
-                        DHCP</label>
-                      <br>
-                  </td>
-                </tr>
-                <tr>
-                  <td>IP Address:</td>
-                  <td><input type="text" name="eth_ip" id="eth_ip" size=15 maxlength=15 onChange="checkStaticIP();">
-    								<input type="button" class="buttons" onClick='PingIP($("#eth_ip").val(), 3);' value='Ping'></td>
-                </tr>
-                <tr>
-                  <td>Netmask:</td>
-                  <td><input type="text" name="eth_netmask" id="eth_netmask" size="15" maxlength="15"></td>
-                </tr>
-                <tr>
-                  <td>Gateway:</td>
-                  <td><input type="text" name="eth_gateway" id="eth_gateway" size="15" maxlength="15">
-    								<input type="button" class="buttons" onClick='PingIP($("#eth_gateway").val(), 3);' value='Ping'></td>
-                </tr>
-                <tr>
-    	      <td colspan='2'>
-                    <b><font color='#ff0000'><span id='ipWarning'></span></font></b>
+                        DHCP</label></div>
+            </div>
+            <div class="row" id="ipAddressRow">
+                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">IP Address</div></div>
+                <div class="printSettingFieldCol col-md"><input type="text" name="eth_ip" id="eth_ip" size=15 maxlength=15 onChange="checkStaticIP();">
+    								<input type="button" class="buttons" onClick='PingIP($("#eth_ip").val(), 3);' value='Ping'></div>
+            </div>
+            <div class="row" id="netmaskRow">
+                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Netmask</div></div>
+                <div class="printSettingFieldCol col-md"><input type="text" name="eth_netmask" id="eth_netmask" size="15" maxlength="15"></div>
+            </div>
+            <div class="row" id="gatewayRow">
+                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Netmask</div></div>
+                <div class="printSettingFieldCol col-md"><input type="text" name="eth_gateway" id="eth_gateway" size="15" maxlength="15">
+    								<input type="button" class="buttons" onClick='PingIP($("#eth_gateway").val(), 3);' value='Ping'></div>
+            </div>
+            <div class="row">
+                <div class="col-md-6"> <b><font color='#ff0000'><span id='ipWarning'></span></font></b>
                     <b><font color='#ff0000'><span id='dnsWarning'></span></font></b>
-                  </td>
-                </tr>
-              </table>
-    		  <br>
-              <div id="WirelessSettings">
-    		  <b>Wireless Settings:</b>
-              <table width = "100%" border="0" cellpadding="1" cellspacing="1">
-                <tr>
-                  <td width = "25%">WPA SSID:</td>
-                  <td width = "75%"><input list="eth_ssids" name="eth_ssid" id="eth_ssid" size="32" maxlength="32"><datalist id='eth_ssids'></datalist><input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</td>
-                </tr>
-                <tr>
-                  <td>WPA Pre Shared key (PSK):</td><td><input type="password" name="eth_psk" id="eth_psk" size="32" maxlength="64">&nbsp;<input id="eth_psk_showHideButton" type="button" class="buttons" value="Show" onclick="showHidePassword('eth_psk')"></td>
-                </tr>
-              </table>
-              </div>
+                </div>
+            </div>
+        </div>
+        <div id="WirelessSettings">
+    		<h2>Wireless Settings</h2>
+            <div class="container-fluid settingsTable settingsGroupTable">
+                <div class="row" id="essidRow">
+                    <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">WPA SSID</div></div>
+                    <div class="printSettingFieldCol col-md"><input list="eth_ssids" name="eth_ssid" id="eth_ssid" size="32" maxlength="32"><datalist id='eth_ssids'></datalist><input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</div>
+                </div>
+                <div class="row" id="pskRow">
+                    <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">WPA Pre Shared key (PSK)</div></div>
+                    <div class="printSettingFieldCol col-md"><input type="password" name="eth_psk" id="eth_psk" size="32" maxlength="64">&nbsp;<i class='fas fa-eye' id='eth_pskHideShow' onClick='TogglePasswordHideShow("eth_psk");'></i></div>
+                </div>
+            </div>
+        </div>
+<script>
+function NoSaveSettingCallback() {
+}
+function dhcpServerEnabledCallback() {
+    UpdatedhcpServerChildren(0);
+}
+</script>
+<?php
+PrintSettingGroup("advNetworkSettingsGroup", "", "", 1, "", "", true);
+?>
+
               <br>
               <input name="btnSetInterface" type="button" style="" class = "buttons btn-success" value="Update Interface" onClick="SaveNetworkConfig();">
               <input id="btnConfigNetwork" type="button" style="display: none;" class = "buttons" value="Restart Network" onClick="ApplyNetworkConfig();">
@@ -707,31 +615,26 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
 <?
 PrintSettingGroup('host');
 ?>
-              <h2>DNS Settings</h2>
-              <div class="warning-text" id="dns_warning"></div>
-              <table width="100%" border="0" cellpadding="1" cellspacing="1">
-                <tr>
-                  <td>DNS Server Mode:</td>
-                  <td><label><input type="radio" id ="dns_manual" value="manual">
+            <h2>DNS Settings</h2>
+            <div class="warning-text" id="dns_warning"></div>
+
+            <div class="container-fluid settingsTable settingsGroupTable">
+                <div class="row" id="dnsServerRow">
+                    <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">DNS Server Mode</div></div>
+                    <div class="printSettingFieldCol col-md"><label><input type="radio" id ="dns_manual" value="manual">
                         Manual</label>
                       <label><input type="radio" id ="dns_dhcp" value="dhcp" checked>
-                        DHCP</label>
-                      <br>
-                  </td>
-                </tr>
-                <tr>
-                  <td width = "25%">DNS Server 1:</td>
-                  <td width = "25%"><input type="text" name="dns1" id="dns1"></td>
-                  <td width = "50%">
-    								<input type="button" class="buttons" onClick='PingIP($("#dns1").val(), 3);' value='Ping'></td>
-                </tr>
-                <tr>
-                  <td>DNS Server 2:</td>
-                  <td><input type="text" name="dns2" id="dns2"></td>
-    							<td>
-    								<input type="button" class="buttons" onClick='PingIP($("#dns2").val(), 3);' value='Ping'></td>
-                </tr>
-              </table>
+                        DHCP</label></div>
+                </div>
+                <div class="row" id="dns1Row">
+                    <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">DNS Server 1</div></div>
+                    <div class="printSettingFieldCol col-md"><input type="text" name="dns1" id="dns1"><input type="button" class="buttons" onClick='PingIP($("#dns1").val(), 3);' value='Ping'></div>
+                </div>
+                <div class="row" id="dns2Row">
+                    <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">DNS Server 2</div></div>
+                    <div class="printSettingFieldCol col-md"><input type="text" name="dns2" id="dns2"><input type="button" class="buttons" onClick='PingIP($("#dns2").val(), 3);' value='Ping'></div>
+                </div>
+            </div>
               <br>
               <input name="btnSetDNS" type=""  class = "buttons btn-success" value="Update DNS" onClick="SaveDNSConfig();">
 
