@@ -426,7 +426,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
             (channelOutputsLookup["LEDPanelMatrix"].subType == 'LinsnRv9') ||
             (channelOutputsLookup["LEDPanelMatrix"].subType == 'X11PanelMatrix'))
 		{
-			LEDPanelOutputs = 12;
+			LEDPanelOutputs = 16;
 			LEDPanelPanelsPerOutput = 24;
 		}
     }
@@ -661,7 +661,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 }
 ?>
 
-		LEDPanelOutputs = 12;
+		LEDPanelOutputs = 16;
 	}
 	else
 	{
