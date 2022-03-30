@@ -1193,7 +1193,6 @@ function BBB48StringDifferentialTypeChangedTo(port, tp, count) {
     }
 }
 
-var headerTop = 0;
 function populatePixelStringOutputs(data) {
     if ("channelOutputs" in data) {
         for (var opi = 0; opi < data.channelOutputs.length; opi++) {
@@ -1442,19 +1441,7 @@ function populatePixelStringOutputs(data) {
                     selected_string_details($(this)); //output.outputs, selectedPixelStringRowId);
                 });
 
-                if (!headerTop)
-                    headerTop = $('.header').outerHeight() + $('.tablePageHeader').outerHeight();
-                $.Zebra_Pin($('#BBB48String thead'), {
-                    contained: true,
-                    top_spacing: headerTop,
-                    onPin: function(scroll, $element) {
-                            var hrow = $('#BBB48String thead.Zebra_Pin tr:first');
-                            var drow = $('#BBB48String tbody tr:nth-child(2)');
-                            for (var i = 1; i <= hrow.find('th').length; i++) {
-                                hrow.find('th:nth-child(' + i + ')').css('width', drow.find('td:nth-child(' + i + ')').outerWidth());
-                            }
-                        }
-                });
+                setTimeout(pinTableHeader, 500);
 
                 var key = GetBBB48StringCapeFileNameForSubType(subType);
                 var val = KNOWN_CAPES[key];
@@ -1739,6 +1726,20 @@ function populateCapeList() {
     <?
     }
     ?>
+}
+
+function pinTableHeader() {
+    var zp = $.Zebra_Pin($('#BBB48String thead'), {
+        contained: true,
+        top_spacing: zebraPinSubContentTop,
+        onPin: function(scroll, $element) {
+                var hrow = $('#BBB48String thead.Zebra_Pin tr:first');
+                var drow = $('#BBB48String tbody tr:nth-child(2)');
+                for (var i = 1; i <= hrow.find('th').length; i++) {
+                    hrow.find('th:nth-child(' + i + ')').css('width', drow.find('td:nth-child(' + i + ')').outerWidth());
+                }
+            }
+    });
 }
 
 $(document).ready(function(){

@@ -25,6 +25,7 @@ var statusTimeout = null;
 var lastStatus = '';
 var lastStatusJSON = null;
 var statusChangeFuncs = [];
+var zebraPinSubContentTop = 0;
 
 if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)) {
     hasTouch = true;
@@ -47,6 +48,8 @@ $(function () {
     $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
         zp.update();
     });
+
+    zebraPinSubContentTop = $('.header').outerHeight() + $('.tablePageHeader').outerHeight();
 
     if (hasTouch == true) {
         $('body').addClass('has-touch');
