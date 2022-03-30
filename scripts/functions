@@ -279,7 +279,6 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
     if [ "x${TetherEnabled}" == "x" ]; then
         TetherEnabled="";
     fi
-    ENABLEROUTING=$(getSetting EnableRouting)
 
     ENABLEHOSTAPD="0"
     for f in $CONFIGS; do
@@ -292,6 +291,11 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         unset GATEWAY
         unset NETMASK
         unset ADDRESS
+        DHCPSERVER=0
+        DHCPOFFSET=100
+        DHCPPOOLSIZE=50
+        ROUTEMETRIC=0
+        IPFORWARDING=0
         . ${f}
 
         # Handle the PSK differently since variable substitution is
@@ -321,13 +325,11 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         if [ "x$DNS2" != "x" ]; then
             echo "DNS=${DNS2}" >> $TMPFILE
         fi
-        if [ "$ENABLEROUTING" = "1" ]; then
-            echo "IPForward=yes" >> $TMPFILE
-        fi
 
         ADDRESSLINES=""
-        if [ "$PROTO" = "dhcp" ]; then
+        if [ "$PROTO" == "dhcp" ]; then
             ADDRESSLINES="DHCP=yes"
+            DHCPSERVER=0
         else
             SUBNET="${NETMASK2SUBNET[$NETMASK]}"
             if [ "x$SUBNET" == "x" ]; then
@@ -339,7 +341,7 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
             if [ "$TetherEnabled" == "1" ] && [ "$INTERFACE" == "$TetherInterface" ]; then
                 CreateHostAPDConfig ${TetherInterface}
                 ADDRESSLINES="Address=192.168.8.1/24"
-                echo "DHCPServer=yes" >> $TMPFILE
+                DHCPSERVER=1
                 ENABLEHOSTAPD="1"
             else 
                 WPATMPFILE="/var/tmp/wpa_supplicant-${INTERFACE}.conf"
@@ -362,17 +364,39 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
                 systemctl enable "wpa_supplicant@${INTERFACE}.service"
             fi
         fi
+        if [ "$DHCPSERVER" == "1" ]; then
+            echo "DHCPServer=yes" >> $TMPFILE
+        fi
+        if [ "$IPFORWARDING" == "1" ]; then
+            echo "IPForward=yes" >> $TMPFILE
+        fi
+        if [ "$IPFORWARDING" == "2" ]; then
+            echo "IPMasquerade=both" >> $TMPFILE
+        fi
 
         echo "$ADDRESSLINES" >> $TMPFILE
         echo "IgnoreCarrierLoss=5s" >> $TMPFILE
         echo "" >> $TMPFILE
-        echo "[DHCPv4]" >> $TMPFILE
-        if [[ "$INTERFACE" == "wl"* ]] ; then
-            echo "RouteMetric=10" >> $TMPFILE
-        else
-            echo "RouteMetric=20" >> $TMPFILE
+        if [ "$ROUTEMETRIC" != "0" ]; then
+            echo "[DHCPv4]" >> $TMPFILE
+            echo "RouteMetric=${ROUTEMETRIC}" >> $TMPFILE
+            echo "" >> $TMPFILE
+            echo "[IPv6AcceptRA]" >> $TMPFILE
+            echo "RouteMetric=${ROUTEMETRIC}" >> $TMPFILE
+            echo "" >> $TMPFILE
         fi
-        echo "" >> $TMPFILE
+
+        if [ "$DHCPSERVER" == "1" ]; then
+            echo "[DHCPServer]" >> $TMPFILE
+            echo "PoolOffset=${DHCPOFFSET}" >> $TMPFILE
+            echo "PoolSize=${DHCPPOOLSIZE}" >> $TMPFILE
+            if [ "x$DNS1" != "x" ]; then
+                echo "EmitDNS=yes" >> $TMPFILE
+                echo "DNS=${DNS1}" >> $TMPFILE
+            fi
+            echo "" >> $TMPFILE
+        fi
+
         cp $TMPFILE /etc/systemd/network
     done
 
@@ -385,17 +409,18 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
     fi
 }
 SetupFPPNetworkConfig () {
+    rfkill unblock wifi; rfkill unblock all
     if [ -f /usr/bin/connmanctl ]; then
         SetupFPPNetworkConfigViaConnMann
+        ENABLEROUTING=$(getSetting EnableRouting)
+        if [ "x${ENABLEROUTING}" = "x1" ]
+        then
+            sysctl -w net.ipv4.ip_forward=1
+        else
+            sysctl -w net.ipv4.ip_forward=0
+        fi
     else
         SetupFPPNetworkConfigViaSystemdNetworkd
-    fi
-    ENABLEROUTING=$(getSetting EnableRouting)
-    if [ "x${ENABLEROUTING}" = "x1" ]
-    then
-        sysctl -w net.ipv4.ip_forward=1
-    else
-        sysctl -w net.ipv4.ip_forward=0
     fi
 }
 

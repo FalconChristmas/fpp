@@ -34,6 +34,13 @@ function network_wifi_scan()
 
     $cmd = "sudo /sbin/iw dev $interface scan";
     exec($cmd, $output);
+    if (strpos($output, "Network is down") !== false) {
+        exec("sudo /sbin/ifconfig $interface up", $output);
+
+        $output = array();
+        $cmd = "sudo /sbin/iw dev $interface scan";
+        exec($cmd, $output);
+    }
     foreach ($output as $row) {
         if (startsWith($row, "BSS")) {
             array_push($networks, $current);
@@ -93,38 +100,40 @@ function network_presisentNames_create()
 }
 
 // GET /api/network/dns
-function network_get_dns() {
-	global $settings;
+function network_get_dns()
+{
+    global $settings;
 
-	$cfgFile = $settings['configDirectory'] . "/dns";
-	if (file_exists($cfgFile)) {
-		$obj = parse_ini_file($cfgFile);
-		$obj['status'] = "OK";
-		return json($obj);
-	}
-	return json (Array("status"=> "Not Configured"));
+    $cfgFile = $settings['configDirectory'] . "/dns";
+    if (file_exists($cfgFile)) {
+        $obj = parse_ini_file($cfgFile);
+        $obj['status'] = "OK";
+        return json($obj);
+    }
+    return json(array("status" => "Not Configured"));
 }
 
 // POST /api/network/dns
-function network_save_dns() {
-	global $settings;
+function network_save_dns()
+{
+    global $settings;
 
-	$data = json_decode(file_get_contents('php://input'), true);
+    $data = json_decode(file_get_contents('php://input'), true);
 
-	$cfgFile = $settings['configDirectory'] . "/dns";
+    $cfgFile = $settings['configDirectory'] . "/dns";
 
-	$f = fopen($cfgFile, "w");
-	if ($f == FALSE) {
-		return;
-	}
+    $f = fopen($cfgFile, "w");
+    if ($f == false) {
+        return;
+    }
 
-	fprintf($f,
-		"DNS1=\"%s\"\n" .
-		"DNS2=\"%s\"\n",
-		$data['DNS1'], $data['DNS2']);
-	fclose($f);
+    fprintf($f,
+        "DNS1=\"%s\"\n" .
+        "DNS2=\"%s\"\n",
+        $data['DNS1'], $data['DNS2']);
+    fclose($f);
 
-	return json(array("status"=>"OK", "DNS"=> $data));
+    return json(array("status" => "OK", "DNS" => $data));
 }
 
 // GET /network/interface/:interface
@@ -147,20 +156,21 @@ function network_get_interface()
             $result['CurrentAddress'] = preg_replace('/.*inet ([0-9\.]+) .*/', '$1', $line);
             $result['CurrentNetmask'] = preg_replace('/.*netmask ([0-9\.]+).*/', '$1', $line);
         }
+        if (preg_match('/flags=/', $line)) {
+            $result['status'] = 'OK';
+        }
     }
     unset($output);
 
     if (substr($interface, 0, 2) == "wl") {
         exec("/sbin/iwconfig $interface", $output);
         foreach ($output as $line) {
-            if (preg_match('/ESSID:/', $line)) {
+            if (preg_match('/ESSID:/', $line) && !preg_match('/ESSID:off/', $line)) {
                 $result['CurrentSSID'] = preg_replace('/.*ESSID:"([^"]+)".*/', '$1', $line);
             }
-
             if (preg_match('/Rate:/', $line)) {
                 $result['CurrentRate'] = preg_replace('/.*Bit Rate=([0-9\.]+) .*/', '$1', $line);
             }
-
         }
         unset($output);
     }
@@ -177,7 +187,7 @@ function network_set_interface()
     $raw = file_get_contents('php://input');
     $data = json_decode($raw, true);
     if (!isset($data['INTERFACE'])) {
-        echo("WTF");
+        echo ("WTF");
         return json(array("status" => "Invalid Name is required", "debug" => $raw));
     }
 
@@ -212,6 +222,21 @@ function network_set_interface()
             "HIDDEN=%s\n",
             $data['SSID'], $data['PSK'], $data['HIDDEN']);
     }
+    if (isset($data['DHCPSERVER'])) {
+        fprintf($f, "DHCPSERVER=%d\n", $data['DHCPSERVER'] ? "1" : 0);
+    }
+    if (isset($data['DHCPOFFSET'])) {
+        fprintf($f, "DHCPOFFSET=%d\n", $data['DHCPOFFSET']);
+    }
+    if (isset($data['DHCPPOOLSIZE'])) {
+        fprintf($f, "DHCPPOOLSIZE=%d\n", $data['DHCPPOOLSIZE']);
+    }
+    if (isset($data['ROUTEMETRIC'])) {
+        fprintf($f, "ROUTEMETRIC=%d\n", $data['ROUTEMETRIC']);
+    }
+    if (isset($data['IPFORWARDING'])) {
+        fprintf($f, "IPFORWARDING=%d\n", $data['IPFORWARDING']);
+    }
 
     fclose($f);
 
@@ -222,11 +247,10 @@ function network_set_interface()
 
 function network_apply_interface()
 {
-	global $settings, $SUDO;
+    global $settings, $SUDO;
 
     $interface = params('interface');
 
-	exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface", $output);
+    exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface", $output);
     return json(array("status" => "OK", "output" => $output));
 }
-

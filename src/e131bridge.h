@@ -36,6 +36,7 @@ void Bridge_Shutdown(void);
 int CreateArtNetSocket();
 bool Bridge_ReceiveArtNetData();
 void AddArtNetOpcodeHandler(int opCode, std::function<bool(uint8_t *data, long long packetTime)> handler);
+void RemoveArtNetOpcodeHandler(int opCode);
 
 void ResetBytesReceived();
 bool HasBridgeData();

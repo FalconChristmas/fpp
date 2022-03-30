@@ -41,20 +41,18 @@ h2.divider span {
 }
 
 /* prevent table header from scrolling: */
-.fppTableContents {
-    /* no-worky: max-height: calc(90% - 20px); */
-    max-height: 400px; /* TODO: adjust for media queries? */
-    overflow: auto;
-}
-table {
+#BBB48String {
   text-align: left;
   position: relative; /* required for th sticky to work */
 }
-th {
+#BBB48String thead th {
+    font-weight: bold;
     background: #fff; /* prevent add/delete circular buttons from showing through */
     position: sticky;
     top: 0;
     z-index: 20; /* draw table header on top of add/delete buttons */
+    padding: 8px 0 0 5px;
+    border-bottom: 2px solid #d5d7da
 }
 
 <?
@@ -501,7 +499,9 @@ function selected_string_details(row) { //outputs, rowid) {
     if (!row.hasClass("selectedEntry")) return; //don't overwrite with non-selected row (this happens when edited row loses focus > new row gets focus)
     const pins = (GetBBB48StringPins() || [])
         .map(hdr_pin => ({hdr_pin, gpio_info: (selected_string_details.gpio || []).find(pin_info => pin_info.pin == hdr_pin)}));
-    const is_dpi = ~$('#BBB48StringSubType').val().indexOf("DPI");
+    const outtype = $('#BBB48StringSubType').val();
+    const driver = MapPixelStringType(outtype);
+    const is_dpi = driver == 'DPIPixels';
     const portid = row.attr("id").replace(/_\d+$/, "");
     row = $('#' + portid + "_0"); //start with first string on this port
     const portinx = +(portid.match(/(?:_)(\d+)$/) || [])[1]; //some rows don't have port label so get it from row id
@@ -1193,7 +1193,7 @@ function BBB48StringDifferentialTypeChangedTo(port, tp, count) {
     }
 }
 
-
+var headerTop = 0;
 function populatePixelStringOutputs(data) {
     if ("channelOutputs" in data) {
         for (var opi = 0; opi < data.channelOutputs.length; opi++) {
@@ -1440,6 +1440,20 @@ function populatePixelStringOutputs(data) {
                     $(this).addClass('selectedEntry');
                     selectedPixelStringRowId = $(this).attr('id');
                     selected_string_details($(this)); //output.outputs, selectedPixelStringRowId);
+                });
+
+                if (!headerTop)
+                    headerTop = $('.header').outerHeight() + $('.tablePageHeader').outerHeight();
+                $.Zebra_Pin($('#BBB48String thead'), {
+                    contained: true,
+                    top_spacing: headerTop,
+                    onPin: function(scroll, $element) {
+                            var hrow = $('#BBB48String thead.Zebra_Pin tr:first');
+                            var drow = $('#BBB48String tbody tr:nth-child(2)');
+                            for (var i = 1; i <= hrow.find('th').length; i++) {
+                                hrow.find('th:nth-child(' + i + ')').css('width', drow.find('td:nth-child(' + i + ')').outerWidth());
+                            }
+                        }
                 });
 
                 var key = GetBBB48StringCapeFileNameForSubType(subType);
@@ -1753,11 +1767,7 @@ $(document).ready(function(){
                         <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
                         <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
 <? if ($uiLevel >= 3) { ?>
-<!--                            <input type='button' class="buttons" onClick='importStrings();' value='Import Strings'> -->
-			<span class="buttons" onClick='importStrings();'>
-                            <i class='fas fa-fw fa-code ui-level-3'></i>
-                            Import Strings
-                        </span>
+            			<input type='button' class="buttons" onClick='importStrings();' value='Import Strings'>
 <? } ?>
                         <input type='button' class="buttons btn-success ml-1" onClick='saveBBBOutputs();' value='Save'>
                 </div>
