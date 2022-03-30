@@ -1765,11 +1765,7 @@ $(document).ready(function(){
                         <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
                         <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
 <? if ($uiLevel >= 3) { ?>
-<!--                            <input type='button' class="buttons" onClick='importStrings();' value='Import Strings'> -->
-			<span class="buttons" onClick='importStrings();'>
-                            <i class='fas fa-fw fa-code ui-level-3'></i>
-                            Import Strings
-                        </span>
+            			<input type='button' class="buttons" onClick='importStrings();' value='Import Strings'>
 <? } ?>
                         <input type='button' class="buttons btn-success ml-1" onClick='saveBBBOutputs();' value='Save'>
                 </div>
