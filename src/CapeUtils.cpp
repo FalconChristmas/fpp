@@ -331,9 +331,16 @@ static void copyFile(const std::string& src, const std::string& target) {
         printf("Failed to open src %s - %s\n", src.c_str(), strerror(errno));
         return;
     }
-    t = open(target.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+
+    size_t fsep = target.find_last_of("/");
+    std::string target_fname = (fsep != std::string::npos)? target.substr(fsep + 1): target;
+    if (fsep != std::string::npos) mkdir(target.substr(0, fsep).c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH); //ensure target folder exists
+//        if (mkdir(path, mode) != 0 && errno != EEXIST)
+//    else if (!S_ISDIR(st.st_mode)) errno = ENOTDIR;
+
+    t = open(target_fname.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
     if (t == -1) {
-        printf("Failed to open target %s - %s\n", src.c_str(), strerror(errno));
+        printf("Failed to open target %s - %s\n", target.c_str(), strerror(errno));
         close(s);
         return;
     }
@@ -341,7 +348,7 @@ static void copyFile(const std::string& src, const std::string& target) {
     while (true) {
         int l = read(s, buf, 256);
         if (l == -1) {
-            printf("Error copying file %s\n", strerror(errno));
+            printf("Error copying file %s - %s\n", src.c_str(), strerror(errno));
             close(s);
             close(t);
             return;
@@ -456,6 +463,7 @@ bool fpp_detectCape() {
         printf("Did not find eeprom on i2c.\n");
     }
     if (!file_exists(EEPROM)) {
+        printf("EEPROM file doesn't exist %s.\n", EEPROM.c_str());
         EEPROM = "/opt/fpp-vendor/cape-eeprom.bin";
     }
     if (!file_exists(EEPROM)) {
@@ -726,7 +734,7 @@ bool fpp_detectCape() {
             std::string resultStr = Json::writeString(wbuilder, result);
             put_file_contents("/home/fpp/media/tmp/cape-info.json", (const uint8_t*)resultStr.c_str(), resultStr.size());
         } else {
-            printf("Failed to parse cape-info.json\n");
+            printf("Failed to parse cape-info.json: %s\n", errors.c_str());
         }
     }
 
