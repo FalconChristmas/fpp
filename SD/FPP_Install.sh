@@ -301,7 +301,8 @@ cat >> /etc/issue.new <<EOF
 Falcon Player OS Image v${FPPIMAGEVER}
 My IP address: \4
 
-FPP is configured from a web browser. Point your browser at http://\4 , http://fpp.local , or http://fpp .
+FPP is configured from a web browser. Point your browser at:
+http://\4 , http://\n.local , or http://\n 
 
 EOF
 cp /etc/issue.new /etc/issue

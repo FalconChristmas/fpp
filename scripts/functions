@@ -559,16 +559,23 @@ MaybeEnableTethering() {
     if [ "$TetherEnabled" == "1" ]; then
         if [ ! -f /usr/bin/connmanctl ]; then
             CreateHostAPDConfig ${TetherInterface}
-            TMPFILE="/var/tmp/10-${INTERFACE}.network"
+            TMPFILE="/var/tmp/10-${TetherInterface}.network"
             rm -f ${TMPFILE}
             echo "[Match]" >> ${TMPFILE}
-            echo "Name=${INTERFACE}" >> $TMPFILE
+            echo "Name=${TetherInterface}" >> $TMPFILE
             echo "Type=wlan"  >> $TMPFILE
             echo "" >> $TMPFILE
             echo "[Network]" >> $TMPFILE
+            echo "DHCP=no" >> $TMPFILE
             echo "Address=192.168.8.1/24" >> $TMPFILE
             echo "DHCPServer=yes" >> $TMPFILE
             echo "" >> $TMPFILE
+            
+            echo "[DHCPServer]" >> $TMPFILE
+            echo "PoolOffset=10" >> $TMPFILE
+            echo "PoolSize=100" >> $TMPFILE
+            echo "EmitDNS=no" >> $TMPFILE
+            
             cp $TMPFILE /etc/systemd/network
             systemctl reload-or-restart hostapd.service
         else
