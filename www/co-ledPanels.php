@@ -1210,6 +1210,27 @@ function PanelSubtypeChanged() {
     SetSinglePanelSize();
 }
 
+function AutoLayoutPanels() {
+    var sure = prompt('WARNING: This will re-configure all output and panel numbers with one output per row and all panels facing in an upwards direction.  Are you sure? [Y/N]', 'N');
+
+    if (sure.toUpperCase() != 'Y')
+        return;
+
+    var panelsWide = parseInt($('#LEDPanelsLayoutCols').val());
+    var panelsHigh = parseInt($('#LEDPanelsLayoutRows').val());
+
+    for (var y = 0; y < panelsHigh; y++) {
+        for (var x = 0; x < panelsWide; x++) {
+            var panel = panelsWide - x - 1;
+            $('#LEDPanelPanelNumber_' + y + '_' + panel).val(x);
+            $('#LEDPanelOutputNumber_' + y + '_' + panel).val(y);
+            $('#LEDPanelOrientation_' + y + '_' + panel).attr('src', 'images/arrow_N.png');
+            $('#LEDPanelColorOrder_' + y + '_' + panel).val('');
+        }
+    }
+    SaveChannelOutputsJSON();
+}
+
 $(document).ready(function(){
 	InitializeLEDPanels();
 	LEDPanelsConnectionChanged();
@@ -1304,7 +1325,7 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
             <div class="container-fluid settingsTable">
                 <div class="row">
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span class='ledPanelSimpleUI'><b>Panel Layout:</b></span><span class='ledPanelCanvasUI'><b>Matrix Size (WxH):</b></span></div>
-                    <div class="printSettingFieldCol col-md-3 col-lg-3"><span class='ledPanelSimpleUI'><?printLEDPanelLayoutSelect();?></span>
+                    <div class="printSettingFieldCol col-md-3 col-lg-3"><span class='ledPanelSimpleUI'><?printLEDPanelLayoutSelect();?> <input type='button' class='buttons' onClick='AutoLayoutPanels();' value='Auto Layout'></span>
                                     <span class='ledPanelCanvasUI'><span id='matrixSize'></span></span></div>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Start Channel:</b></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"><input id='LEDPanelsStartChannel' type=number min=1 max=<?= FPPD_MAX_CHANNELS ?> value='1'></div>
