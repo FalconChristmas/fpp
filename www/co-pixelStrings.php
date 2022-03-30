@@ -210,7 +210,7 @@ function pixelOutputProtocolSelect(protocols, protocol)
     if (pixelProtocols.length <= 1) {
       result += " style='display:none;'";
     }
-    result += ">\n";
+    result += " onChange='updateItemEndChannel(this);'>\n";
 
     for (i = 0; i < pixelProtocols.length; i++)
     {
@@ -301,7 +301,7 @@ function pixelOutputTableInputBrightness(brightness)
     var result = "";
     
     result += "<td>";
-    result += "<select class='vsBrightness'>";
+    result += "<select class='vsBrightness' onChange='updateItemEndChannel(this);'>";
     
     var i = 100;
     for (i = 100; i >= 5; i -= 5)
@@ -415,8 +415,8 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     result += "<td align='center' class='vsEndChannel'>" + (startChannel + (pixelCount * (colorOrder || "RGB").length)/groupCount - 1) + "</td>";
     result += pixelOutputTableInputDirection(reverse);
     result += pixelOutputTableInputOrder(colorOrder);
-    result += "<td><input type='number' class='vsStartNulls' size='2' value='" + startNulls + "' min='0' max='100' onkeypress='preventNonNumericalInput(event)'></td>";
-    result += "<td><input type='number' class='vsEndNulls' size='2' value='" + endNulls + "' min='0' max='100' onkeypress='preventNonNumericalInput(event)'></td>";
+    result += "<td><input type='number' class='vsStartNulls' size='2' value='" + startNulls + "' min='0' max='100' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);'></td>";
+    result += "<td><input type='number' class='vsEndNulls' size='2' value='" + endNulls + "' min='0' max='100' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);'></td>";
     result += "<td><input type='number' class='vsZigZag' size='3' value='" + zigZag + "' min='0' max='1600' onkeypress='preventNonNumericalInput(event)'></td>";
     result += pixelOutputTableInputBrightness(brightness);
     result += "<td><input type='number' class='vsGamma' size='3' value='" + gamma + "' min='0.1' max='5.0' step='0.01'></td>";
@@ -513,13 +513,13 @@ function selected_string_details(row) { //outputs, rowid) {
         let [numpx, maxA] = [0, 0];
         for (;;) //add all strings on this port
         {
-            const sPixelCount = parseInt(row.find('.vsPixelCount').val()) || 0;
-            const sNullNodes = parseInt(row.find('.vsNullNodes').val()) || 0;
-            const sEndNulls = parseInt(row.find('.vsEndNulls').val()) || 0;
-            const sBrightness = parseInt(row.find('.vsBrightness').val()) || 100;
-	        numpx += sPixelCount + sNullNodes + sEndNulls;
-            maxA += sPixelCount * sBrightness / 100 * pxA[1];
-            maxA += (sPixelCount + sNullNodes + sEndNulls) * pxA[0]; //off + null px take power too
+            const pixelCount = parseInt(row.find('.vsPixelCount').val()) || 0;
+            const startNulls = parseInt(row.find('.vsStartNulls').val()) || 0;
+            const endNulls = parseInt(row.find('.vsEndNulls').val()) || 0;
+            const brightness = parseInt(row.find('.vsBrightness').val()) || 100;
+            numpx += pixelCount + startNulls + endNulls;
+            maxA += pixelCount * brightness / 100 * pxA[1];
+            maxA += (startNulls + endNulls) * pxA[0];
             row = row.closest('tr').next('tr');
             if ((row.attr("id") || "").replace(/_\d+$/, "") != portid) break;
         }
