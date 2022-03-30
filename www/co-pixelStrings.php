@@ -41,11 +41,11 @@ h2.divider span {
 }
 
 /* prevent table header from scrolling: */
-#BBB48String {
+#disabled-BBB48String {
   text-align: left;
   position: relative; /* required for th sticky to work */
 }
-#BBB48String thead th {
+#disabled-BBB48String thead th {
     font-weight: bold;
     background: #fff; /* prevent add/delete circular buttons from showing through */
     position: sticky;
@@ -1766,7 +1766,7 @@ $(document).ready(function(){
                     
                         <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
                         <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
-<? if ($uiLevel >= 3) { ?>
+<? if (false && $uiLevel >= 3) { ?>
             			<input type='button' class="buttons" onClick='importStrings();' value='Import Strings'>
 <? } ?>
                         <input type='button' class="buttons btn-success ml-1" onClick='saveBBBOutputs();' value='Save'>
