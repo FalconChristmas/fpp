@@ -43,7 +43,7 @@ h2.divider span {
 /* prevent table header from scrolling: */
 .fppTableContents {
     /* no-worky: max-height: calc(90% - 20px); */
-    max-height: 400px; /* TODO: adjust for media queries? */
+    /* max-height: 400px; */ /* TODO: adjust for media queries? */
     overflow: auto;
 }
 table {
