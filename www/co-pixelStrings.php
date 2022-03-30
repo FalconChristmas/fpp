@@ -1766,7 +1766,7 @@ $(document).ready(function(){
                     
                         <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
                         <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
-<? if (false && $uiLevel >= 3) { ?>
+<? if (file_exists("/home/fpp/media/upload/xlights_rgbeffects.xml")) { ?>
             			<input type='button' class="buttons" onClick='importStrings();' value='Import Strings'>
 <? } ?>
                         <input type='button' class="buttons btn-success ml-1" onClick='saveBBBOutputs();' value='Save'>
