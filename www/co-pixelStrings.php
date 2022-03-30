@@ -1441,7 +1441,7 @@ function populatePixelStringOutputs(data) {
                     selected_string_details($(this)); //output.outputs, selectedPixelStringRowId);
                 });
 
-                setTimeout(pinTableHeader, 500);
+                //setTimeout(pinTableHeader, 500);
 
                 var key = GetBBB48StringCapeFileNameForSubType(subType);
                 var val = KNOWN_CAPES[key];
