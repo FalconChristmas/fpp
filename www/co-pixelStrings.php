@@ -581,7 +581,7 @@ function cloneSelectedString()
     clones = parseInt(clones);
     const dir = (clones < 0)? "prev": "next";
     
-    var sDescription = row.find('.vsDescription').val();
+    var sDescription = row.find('.vsDescription').val() || "";
     var sStartChannel = parseInt(row.find('.vsStartChannel').val()) || 1;
     var sPixelCount = parseInt(row.find('.vsPixelCount').val()) || 0;
     var nextRow = row.closest('tr')[dir]('tr');
@@ -594,7 +594,7 @@ function cloneSelectedString()
 
     for (i = 0; i < Math.abs(clones); i++)
     {
-        const oldname = nextRow.find(".vsDescription").val();
+        const oldname = nextRow.find(".vsDescription").val() || "";
         setRowData(nextRow,
                    row.find('.vsProtocol').val(),
 //                   sDescription + (i+1),
