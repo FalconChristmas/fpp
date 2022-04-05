@@ -85,8 +85,6 @@ std::string getFPPMediaDir(const std::string &path) {
     return FPP_MEDIA_DIR + path;
 }
 
-const char* fpp_bool_to_string[] = { "false", "true", "default" };
-
 SettingsConfig settings;
 
 SettingsConfig::SettingsConfig() {
