@@ -1,11 +1,6 @@
 ifeq '$(ARCH)' 'ODROID'
 # do something for ODROID
 
-LIBS_GPIO_ADDITIONS=-lwiringPi -lwiringPiDev
-OBJECTS_GPIO_ADDITIONS+=util/WiringPiGPIO.o
-
-CXXFLAGS_util/SPIUtils.o+=-DUSEWIRINGPI
-CXXFLAGS_util/GPIOUtils.o+=-DUSEWIRINGPI
 
 CFLAGS += \
 	-DPLATFORM_ODROID \

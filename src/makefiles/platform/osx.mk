@@ -12,8 +12,6 @@ endif
 CFLAGS += -DPLATFORM_OSX  -I$(HOMEBREW)/include -Wswitch
 LDFLAGS += -L.  -L$(HOMEBREW)/lib
 
-OBJECTS_GPIO_ADDITIONS+=util/TmpFileGPIO.o
-
 MAGICK_INCLUDE_PATH=-I$(HOMEBREW)/include/GraphicsMagick
 
 OBJECTS_fpp_so += MacOSUtils.o

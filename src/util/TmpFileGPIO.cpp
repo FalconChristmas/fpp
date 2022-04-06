@@ -36,20 +36,20 @@ static NullTmpFilePinCapabilities NULL_TMPFILE_INSTANCE;
 
 static std::vector<TmpFilePinCapabilities> TMPFILE_PINS;
 
-void TmpFilePinCapabilities::Init() {
+void TmpFilePinProvider::Init() {
     for (int x = 1; x <= 20; x++) {
         std::string p = "TF-" + std::to_string(x);
         TMPFILE_PINS.push_back(TmpFilePinCapabilities(p, x));
     }
 }
-std::vector<std::string> TmpFilePinCapabilities::getPinNames() {
+std::vector<std::string> TmpFilePinProvider::getPinNames() {
     std::vector<std::string> ret;
     for (auto& a : TMPFILE_PINS) {
         ret.push_back(a.name);
     }
     return ret;
 }
-const TmpFilePinCapabilities& TmpFilePinCapabilities::getPinByName(const std::string& name) {
+const PinCapabilities& TmpFilePinProvider::getPinByName(const std::string& name) {
     for (auto& a : TMPFILE_PINS) {
         if (a.name == name) {
             return a;
@@ -57,7 +57,7 @@ const TmpFilePinCapabilities& TmpFilePinCapabilities::getPinByName(const std::st
     }
     return NULL_TMPFILE_INSTANCE;
 }
-const TmpFilePinCapabilities& TmpFilePinCapabilities::getPinByGPIO(int i) {
+const PinCapabilities& TmpFilePinProvider::getPinByGPIO(int i) {
     for (auto& a : TMPFILE_PINS) {
         if (a.kernelGpio == i) {
             return a;
@@ -65,6 +65,6 @@ const TmpFilePinCapabilities& TmpFilePinCapabilities::getPinByGPIO(int i) {
     }
     return NULL_TMPFILE_INSTANCE;
 }
-const TmpFilePinCapabilities& TmpFilePinCapabilities::getPinByUART(const std::string& n) {
+const PinCapabilities& TmpFilePinProvider::getPinByUART(const std::string& n) {
     return NULL_TMPFILE_INSTANCE;
 }

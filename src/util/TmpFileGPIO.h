@@ -23,12 +23,17 @@ public:
     virtual int getPWMRegisterAddress() const override { return 0; };
     virtual bool supportPWM() const override { return false; };
 
-    static void Init();
-    static const TmpFilePinCapabilities& getPinByName(const std::string& name);
-    static const TmpFilePinCapabilities& getPinByGPIO(int i);
-    static const TmpFilePinCapabilities& getPinByUART(const std::string& n);
-
-    static std::vector<std::string> getPinNames();
-
     std::string filename;
+};
+class TmpFilePinProvider : public PinCapabilitiesProvider {
+public:
+    TmpFilePinProvider() {}
+    virtual ~TmpFilePinProvider() {}
+
+    void Init();
+    const PinCapabilities& getPinByName(const std::string& name);
+    const PinCapabilities& getPinByGPIO(int i);
+    const PinCapabilities& getPinByUART(const std::string& n);
+
+    std::vector<std::string> getPinNames();
 };

@@ -65,7 +65,7 @@ void PiGPIOPinCapabilities::setPWMValue(int valueNS) const {
 
 static std::vector<PiGPIOPinCapabilities> PI_PINS;
 
-void PiGPIOPinCapabilities::Init() {
+void PiGPIOPinProvider::Init() {
     if (bcm2835_init()) {
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-3", 2).setI2C(1));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-5", 3).setI2C(1));
@@ -98,7 +98,7 @@ void PiGPIOPinCapabilities::Init() {
     }
     PiFacePinCapabilities::Init();
 }
-const PinCapabilities& PiGPIOPinCapabilities::getPinByName(const std::string& name) {
+const PinCapabilities& PiGPIOPinProvider::getPinByName(const std::string& name) {
     for (auto& a : PI_PINS) {
         if (a.name == name) {
             return a;
@@ -106,16 +106,16 @@ const PinCapabilities& PiGPIOPinCapabilities::getPinByName(const std::string& na
     }
     return PiFacePinCapabilities::getPinByName(name);
 }
-const PinCapabilities& PiGPIOPinCapabilities::getPinByGPIO(int i) {
+const PinCapabilities& PiGPIOPinProvider::getPinByGPIO(int i) {
     for (auto& a : PI_PINS) {
         if (a.kernelGpio == i) {
             return a;
         }
     }
-    return PiFacePinCapabilities::getPinByGPIO(i);
+    return PiGPIOPinProvider::getPinByGPIO(i);
 }
 
-std::vector<std::string> PiGPIOPinCapabilities::getPinNames() {
+std::vector<std::string> PiGPIOPinProvider::getPinNames() {
     std::vector<std::string> ret;
     for (auto& a : PI_PINS) {
         ret.push_back(a.name);
@@ -123,6 +123,6 @@ std::vector<std::string> PiGPIOPinCapabilities::getPinNames() {
     PiFacePinCapabilities::getPinNames(ret);
     return ret;
 }
-const PinCapabilities& PiGPIOPinCapabilities::getPinByUART(const std::string& n) {
+const PinCapabilities& PiGPIOPinProvider::getPinByUART(const std::string& n) {
     return PiFacePinCapabilities::getPinByUART(n);
 }

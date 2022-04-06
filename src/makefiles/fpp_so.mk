@@ -97,6 +97,7 @@ OBJECTS_fpp_so += \
     util/SPIUtils.o \
     util/tinyexpr.o \
     util/ExpressionProcessor.o \
+	util/TmpFileGPIO.o \
     $(OBJECTS_GPIO_ADDITIONS)
 
 

@@ -184,7 +184,7 @@ static FILE* bbbPWMDutyFiles[] = { nullptr, nullptr, nullptr, nullptr, nullptr, 
 static volatile bool registersMemMapped = false;
 
 static int getBBBPWMChipNum(int pwm) {
-    static const char *bbbPWMChipNums[] = { "48300200", "48302200", "48304200" };
+    static const char* bbbPWMChipNums[] = { "48300200", "48302200", "48304200" };
     char buf[256];
     for (int x = 0; x < 10; x++) {
         sprintf(buf, "/sys/bus/platform/drivers/ehrpwm/%s.pwm/pwm/pwmchip%d", bbbPWMChipNums[pwm], x);
@@ -359,7 +359,7 @@ public:
 };
 static NullBBBPinCapabilities NULL_BBB_INSTANCE;
 
-const BBBPinCapabilities& BBBPinCapabilities::getPinByName(const std::string& name) {
+const PinCapabilities& BBBPinProvider::getPinByName(const std::string& name) {
     if (getBeagleBoneType() == PocketBeagle) {
         for (auto& a : PB_PINS) {
             if (a.name == name) {
@@ -376,7 +376,7 @@ const BBBPinCapabilities& BBBPinCapabilities::getPinByName(const std::string& na
     return NULL_BBB_INSTANCE;
 }
 
-const BBBPinCapabilities& BBBPinCapabilities::getPinByGPIO(int i) {
+const PinCapabilities& BBBPinProvider::getPinByGPIO(int i) {
     if (getBeagleBoneType() == PocketBeagle) {
         for (auto& a : PB_PINS) {
             if (a.kernelGpio == i) {
@@ -393,10 +393,10 @@ const BBBPinCapabilities& BBBPinCapabilities::getPinByGPIO(int i) {
     return NULL_BBB_INSTANCE;
 }
 
-void BBBPinCapabilities::Init() {
+void BBBPinProvider::Init() {
 }
 
-std::vector<std::string> BBBPinCapabilities::getPinNames() {
+std::vector<std::string> BBBPinProvider::getPinNames() {
     std::vector<std::string> ret;
     if (getBeagleBoneType() == PocketBeagle) {
         for (auto& a : PB_PINS) {
@@ -409,7 +409,7 @@ std::vector<std::string> BBBPinCapabilities::getPinNames() {
     }
     return ret;
 }
-const BBBPinCapabilities& BBBPinCapabilities::getPinByUART(const std::string& n) {
+const PinCapabilities& BBBPinProvider::getPinByUART(const std::string& n) {
     if (getBeagleBoneType() == PocketBeagle) {
         for (auto& a : PB_PINS) {
             if (a.uart == n) {

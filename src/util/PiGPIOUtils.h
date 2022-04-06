@@ -21,11 +21,17 @@ public:
     virtual bool supportPWM() const {
         return pwm != -1;
     }
+};
 
-    static void Init();
-    static const PinCapabilities& getPinByName(const std::string& name);
-    static const PinCapabilities& getPinByGPIO(int i);
-    static const PinCapabilities& getPinByUART(const std::string& n);
+class PiGPIOPinProvider : public PinCapabilitiesProvider {
+public:
+    PiGPIOPinProvider() {}
+    virtual ~PiGPIOPinProvider() {}
 
-    static std::vector<std::string> getPinNames();
+    void Init();
+    const PinCapabilities& getPinByName(const std::string& name);
+    const PinCapabilities& getPinByGPIO(int i);
+    const PinCapabilities& getPinByUART(const std::string& n);
+
+    std::vector<std::string> getPinNames();
 };

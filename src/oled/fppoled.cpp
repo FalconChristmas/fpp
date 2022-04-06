@@ -16,7 +16,16 @@
 #include "common.h"
 #include "settings.h"
 
+#if defined(PLATFORM_BBB)
 #include "util/BBBUtils.h"
+#define PLAT_GPIO_CLASS BBBPinProvider
+#elif defined(PLATFORM_PI)
+#include "util/PiGPIOUtils.h"
+#define PLAT_GPIO_CLASS PiGPIOPinProvider
+#else
+#include "util/TmpFileGPIO.h"
+#define PLAT_GPIO_CLASS TmpFilePinProvider
+#endif
 
 static FPPOLEDUtils* oled = nullptr;
 void sigInteruptHandler(int sig) {
@@ -32,7 +41,7 @@ void sigTermHandler(int sig) {
 }
 
 int main(int argc, char* argv[]) {
-    PinCapabilities::InitGPIO("FPPOLED");
+    PinCapabilities::InitGPIO("FPPOLED", new PLAT_GPIO_CLASS());
     printf("FPP OLED Status Display Driver\n");
     LoadSettings(argv[0]);
 

@@ -7,19 +7,6 @@
 #include "GPIOUtils.h"
 #include "commands/Commands.h"
 
-#if defined(PLATFORM_BBB)
-#include "BBBUtils.h"
-#define PLAT_GPIO_CLASS BBBPinCapabilities
-#elif defined(PLATFORM_PI)
-#include "PiGPIOUtils.h"
-#define PLAT_GPIO_CLASS PiGPIOPinCapabilities
-#elif defined(USEWIRINGPI)
-#include "WiringPiGPIO.h"
-#define PLAT_GPIO_CLASS WPPinCapabilities
-#elif defined(PLATFORM_UNKNOWN) || defined(PLATFORM_DOCKER)
-#include "TmpFileGPIO.h"
-#define PLAT_GPIO_CLASS TmpFilePinCapabilities
-#else
 // No platform information on how to control pins
 class NoPinCapabilities : public PinCapabilitiesFluent<NoPinCapabilities> {
 public:
@@ -38,35 +25,24 @@ public:
     virtual int getPWMRegisterAddress() const override { return 0; };
     virtual bool supportPWM() const override { return false; };
 
-    static void Init() {}
-    static const NoPinCapabilities& getPinByName(const std::string& name);
-    static const NoPinCapabilities& getPinByGPIO(int i);
-    static const NoPinCapabilities& getPinByUART(const std::string& n);
-    static std::vector<std::string> getPinNames();
-};
-class NullNoPinCapabilities : public NoPinCapabilities {
-public:
-    NullNoPinCapabilities() :
-        NoPinCapabilities("-none-", 0) {}
     virtual const PinCapabilities* ptr() const override { return nullptr; }
 };
-static NullNoPinCapabilities NULL_PIN_INSTANCE;
 
-const NoPinCapabilities& NoPinCapabilities::getPinByName(const std::string& name) {
-    return NULL_PIN_INSTANCE;
-}
-const NoPinCapabilities& NoPinCapabilities::getPinByGPIO(int i) {
-    return NULL_PIN_INSTANCE;
-}
-const NoPinCapabilities& NoPinCapabilities::getPinByUART(const std::string& n) {
-    return NULL_PIN_INSTANCE;
-}
+static NoPinCapabilities NULL_PIN_INSTANCE("-none-", 0);
 
-std::vector<std::string> NoPinCapabilities::getPinNames() {
-    return std::vector<std::string>();
-}
-#define PLAT_GPIO_CLASS NoPinCapabilities
-#endif
+class NoPinCapabilitiesProvider : public PinCapabilitiesProvider {
+public:
+    NoPinCapabilitiesProvider() {}
+    virtual ~NoPinCapabilitiesProvider() {}
+
+    void Init() {}
+    const NoPinCapabilities& getPinByName(const std::string& name) { return NULL_PIN_INSTANCE; }
+    const NoPinCapabilities& getPinByGPIO(int i) { return NULL_PIN_INSTANCE; }
+    const NoPinCapabilities& getPinByUART(const std::string& n) { return NULL_PIN_INSTANCE; }
+    std::vector<std::string> getPinNames() {
+        return std::vector<std::string>();
+    }
+};
 
 Json::Value PinCapabilities::toJSON() const {
     Json::Value ret;
@@ -165,9 +141,14 @@ void GPIODCapabilities::setValue(bool i) const {
 #endif
 }
 static std::vector<GPIODCapabilities> GPIOD_PINS;
+static PinCapabilitiesProvider* PIN_PROVIDER = nullptr;
 
-void PinCapabilities::InitGPIO(const std::string& process) {
+void PinCapabilities::InitGPIO(const std::string& process, PinCapabilitiesProvider* p) {
     PROCESS_NAME = process;
+    if (p == nullptr) {
+        p = new NoPinCapabilitiesProvider();
+    }
+    PIN_PROVIDER = p;
 #ifdef HASGPIOD
     int chipCount = 0;
     int pinCount = 0;
@@ -201,10 +182,10 @@ void PinCapabilities::InitGPIO(const std::string& process) {
         }
     }
 #endif
-    PLAT_GPIO_CLASS::Init();
+    PIN_PROVIDER->Init();
 }
 std::vector<std::string> PinCapabilities::getPinNames() {
-    std::vector<std::string> pn = PLAT_GPIO_CLASS::getPinNames();
+    std::vector<std::string> pn = PIN_PROVIDER->getPinNames();
     for (auto& a : GPIOD_PINS) {
         pn.push_back(a.name);
     }
@@ -217,7 +198,7 @@ const PinCapabilities& PinCapabilities::getPinByName(const std::string& n) {
             return a;
         }
     }
-    return PLAT_GPIO_CLASS::getPinByName(n);
+    return PIN_PROVIDER->getPinByName(n);
 }
 const PinCapabilities& PinCapabilities::getPinByGPIO(int i) {
     for (auto& a : GPIOD_PINS) {
@@ -225,8 +206,8 @@ const PinCapabilities& PinCapabilities::getPinByGPIO(int i) {
             return a;
         }
     }
-    return PLAT_GPIO_CLASS::getPinByGPIO(i);
+    return PIN_PROVIDER->getPinByGPIO(i);
 }
 const PinCapabilities& PinCapabilities::getPinByUART(const std::string& n) {
-    return PLAT_GPIO_CLASS::getPinByUART(n);
+    return PIN_PROVIDER->getPinByUART(n);
 }

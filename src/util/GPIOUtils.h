@@ -8,9 +8,11 @@
 #define HASGPIOD
 #endif
 
+class PinCapabilitiesProvider;
+
 class PinCapabilities {
 public:
-    static void InitGPIO(const std::string& process = "FPPD");
+    static void InitGPIO(const std::string& processName, PinCapabilitiesProvider* provider);
 
     PinCapabilities(const std::string& n, uint32_t k) :
         name(n),
@@ -69,6 +71,7 @@ public:
 
 protected:
     static void enableOledScreen(int i2cBus, bool enable);
+    static PinCapabilitiesProvider* pinProvider;
 };
 
 template<class T>
@@ -125,4 +128,17 @@ public:
 #ifdef HASGPIOD
     mutable gpiod::line line;
 #endif
+};
+
+class PinCapabilitiesProvider {
+public:
+    PinCapabilitiesProvider() {}
+    virtual ~PinCapabilitiesProvider() {}
+
+    virtual void Init() = 0;
+
+    virtual const PinCapabilities& getPinByName(const std::string& n) = 0;
+    virtual const PinCapabilities& getPinByGPIO(int i) = 0;
+    virtual const PinCapabilities& getPinByUART(const std::string& n) = 0;
+    virtual std::vector<std::string> getPinNames() = 0;
 };

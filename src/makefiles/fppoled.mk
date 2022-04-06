@@ -15,17 +15,22 @@ OBJECTS_fppoled += \
     oled/SSD1306DisplayDriver.o \
     oled/I2C1602_2004_DisplayDriver.o \
     util/GPIOUtils.o \
+	util/TmpFileGPIO.o \
     $(OBJECTS_GPIO_ADDITIONS)
 
 LIBS_fppoled = \
 	-ljsoncpp \
 	-lcurl \
-	$(LIBS_GPIO_ADDITIONS) $(LD_FLAG_FS)
+	$(LIBS_GPIO_ADDITIONS) -L. $(LIBS_GPIO_EXE_ADDITIONS) $(LD_FLAG_FS)
 
 TARGETS += fppoled
 OBJECTS_ALL+=$(OBJECTS_fppoled)
 
-fppoled: $(OBJECTS_fppoled)
+ifneq '$(ARCH)' 'OSX'
+LIBS_fppoled+=-Wl,-rpath=$(SRCDIR):.
+endif
+
+fppoled: $(OBJECTS_fppoled) $(DEPENDENCIES_GPIO_ADDITIONS)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -o $@
 
 endif

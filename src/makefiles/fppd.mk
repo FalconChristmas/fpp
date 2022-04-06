@@ -6,6 +6,7 @@ LIBS_fppd = $(NULL)
 LDFLAGS_fppd += -rdynamic $(shell curl-config --libs) \
 	$(shell GraphicsMagick++-config --ldflags --libs) \
 	$(shell GraphicsMagickWand-config --ldflags --libs) \
+	$(LIBS_GPIO_EXE_ADDITIONS) \
 	$(NULL)
 
 TARGETS += fppd
@@ -17,5 +18,5 @@ ifneq '$(ARCH)' 'OSX'
 LIBS_fpp_so+=-Wl,-rpath=$(SRCDIR):$(SRCDIR)/../external/RF24/:.
 endif
 
-fppd: $(OBJECTS_fppd) libfpp.$(SHLIB_EXT)
+fppd: $(OBJECTS_fppd) libfpp.$(SHLIB_EXT) $(DEPENDENCIES_GPIO_ADDITIONS)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -L . -l fpp $(LIBS_fpp_so) -o $@
