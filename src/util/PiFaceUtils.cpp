@@ -6,8 +6,8 @@
  * multiple Open Source licenses.  Please see the included 'LICENSES'
  * file for descriptions of what files are covered by each license.
  *
- * This source file is covered under the LGPL v2.1 as described in the
- * included LICENSE.LGPL file.
+ * This source file is covered under the GPL v2 as described in the
+ * included LICENSE.GPL file.
  */
 
 #include "fpp-pch.h"
