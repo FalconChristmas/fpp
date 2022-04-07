@@ -237,7 +237,6 @@ function setVolume($vol) {
     $status = SendCommand('v,' . $vol . ',');
 
     if ($settings["Platform"] != "MacOS") {
-        $MixerDevices[$CurrentCard] = $CurrentCard;
         $card = 0;
         if (isset($settings['AudioOutput'])) {
             $card = $settings['AudioOutput'];
