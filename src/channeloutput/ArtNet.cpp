@@ -28,10 +28,10 @@
 #include <unistd.h>
 
 #include "ArtNet.h"
-#include "e131bridge.h"
+#include "ChannelOutputSetup.h"
 #include "FPD.h"
-#include "channeloutput.h"
 #include "channeloutputthread.h"
+#include "e131bridge.h"
 #include "fpp.h"
 
 #define MAX_ARTNET_UNIVERSE_COUNT 512

@@ -23,10 +23,20 @@
 #include "BBB48String.h"
 #include "util/BBBUtils.h"
 
+#include "Plugin.h"
+class BBB48StringPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    BBB48StringPlugin() :
+        FPPPlugins::Plugin("BBB48String") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new BBB48StringOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-BBB48StringOutput* createOutputBBB48String(unsigned int startChannel,
-                                           unsigned int channelCount) {
-    return new BBB48StringOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new BBB48StringPlugin();
 }
 }
 
@@ -35,7 +45,7 @@ BBB48StringOutput* createOutputBBB48String(unsigned int startChannel,
  */
 BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
                                      unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     m_curFrame(0),
     m_pru(NULL),
     m_pruData(NULL),
@@ -236,7 +246,7 @@ int BBB48StringOutput::Init(Json::Value config) {
         m_strings.push_back(newString);
     }
 
-    int retVal = ChannelOutputBase::Init(config);
+    int retVal = ChannelOutput::Init(config);
     if (retVal == 0) {
         return 0;
     }
@@ -495,7 +505,7 @@ int BBB48StringOutput::Close(void) {
     if (!m_gpioData.gpioStringMap.empty() || !m_gpio0Data.gpioStringMap.empty()) {
         StopPRU();
     }
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 void BBB48StringOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -654,5 +664,5 @@ void BBB48StringOutput::DumpConfig(void) {
         m_strings[i]->DumpConfig();
     }
 
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }

@@ -16,11 +16,11 @@
 #include "../../external/spixels/include/led-strip.h"
 
 #include "PixelString.h"
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 
 using namespace spixels;
 
-class SpixelsOutput : public ThreadedChannelOutputBase {
+class SpixelsOutput : public ThreadedChannelOutput {
 public:
     SpixelsOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~SpixelsOutput();

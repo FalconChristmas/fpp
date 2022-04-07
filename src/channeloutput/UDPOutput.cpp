@@ -32,10 +32,20 @@
 #include "KiNet.h"
 #include "Twinkly.h"
 
+#include "Plugin.h"
+class UDPPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    UDPPlugin() :
+        FPPPlugins::Plugin("UDP") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new UDPOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-UDPOutput* createOutputUDPOutput(unsigned int startChannel,
-                                 unsigned int channelCount) {
-    return new UDPOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new UDPPlugin();
 }
 }
 
@@ -352,7 +362,7 @@ int UDPOutput::Init(Json::Value config) {
     PingControllers(true);
     PingControllers(true);
     pingThread = new std::thread(DoPingThread, this);
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 int UDPOutput::Close() {
     runPingThread = false;
@@ -363,7 +373,7 @@ int UDPOutput::Close() {
         pingThread = nullptr;
     }
     NetworkMonitor::INSTANCE.removeCallback(networkCallbackId);
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 void UDPOutput::PrepData(unsigned char* channelData) {
     if (enabled) {
@@ -710,7 +720,7 @@ bool UDPOutput::PingControllers(bool failedOnly) {
     return newOutputs;
 }
 void UDPOutput::DumpConfig() {
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
     for (auto u : outputs) {
         u->DumpConfig();
     }

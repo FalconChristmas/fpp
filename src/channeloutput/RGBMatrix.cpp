@@ -15,10 +15,20 @@
 #include "RGBMatrix.h"
 #include "overlays/PixelOverlay.h"
 
+#include "Plugin.h"
+class RGBMatrixPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    RGBMatrixPlugin() :
+        FPPPlugins::Plugin("RGBMatrix") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new RGBMatrixOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-RGBMatrixOutput* createOutputRGBMatrix(unsigned int startChannel,
-                                       unsigned int channelCount) {
-    return new RGBMatrixOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new RGBMatrixPlugin();
 }
 }
 
@@ -29,7 +39,7 @@ RGBMatrixOutput* createOutputRGBMatrix(unsigned int startChannel,
  */
 RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
                                  unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     m_canvas(NULL),
     m_rgbmatrix(NULL),
     m_colorOrder("RGB"),
@@ -237,7 +247,7 @@ int RGBMatrixOutput::Init(Json::Value config) {
                                                           "H", m_invertedData ? "BL" : "TL",
                                                           m_height, 1);
     }
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 void RGBMatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
@@ -253,7 +263,7 @@ int RGBMatrixOutput::Close(void) {
     m_rgbmatrix = nullptr;
     m_canvas = nullptr;
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 /*

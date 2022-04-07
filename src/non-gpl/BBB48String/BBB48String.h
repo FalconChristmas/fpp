@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-#include "channeloutput/ChannelOutputBase.h"
+#include "channeloutput/ChannelOutput.h"
 #include "channeloutput/PixelString.h"
 #include "util/BBBPruUtils.h"
 
@@ -36,7 +36,7 @@ typedef struct {
     uint16_t timings[MAX_WS2811_TIMINGS];
 } __attribute__((__packed__)) BBB48StringData;
 
-class BBB48StringOutput : public ChannelOutputBase {
+class BBB48StringOutput : public ChannelOutput {
 public:
     BBB48StringOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~BBB48StringOutput();

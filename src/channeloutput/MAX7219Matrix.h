@@ -11,12 +11,12 @@
  * included LICENSE.GPL file.
  */
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
 #include "util/GPIOUtils.h"
 #include "util/SPIUtils.h"
 
-class MAX7219MatrixOutput : public ChannelOutputBase {
+class MAX7219MatrixOutput : public ChannelOutput {
 public:
     MAX7219MatrixOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~MAX7219MatrixOutput();

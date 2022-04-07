@@ -19,10 +19,20 @@
 #include "rpi_ws281x.h"
 #include "util/GPIOUtils.h"
 
+#include "Plugin.h"
+class RPIWS281xPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    RPIWS281xPlugin() :
+        FPPPlugins::Plugin("RPIWS281x") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new RPIWS281xOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-RPIWS281xOutput* createOutputRPIWS281X(unsigned int startChannel,
-                                       unsigned int channelCount) {
-    return new RPIWS281xOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new RPIWS281xPlugin();
 }
 }
 
@@ -47,7 +57,7 @@ static void rpi_ws281x_ctrl_c_handler(int signum) {
  *
  */
 RPIWS281xOutput::RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_spi0(nullptr),
     m_spi1(nullptr),
     m_spi0Data(nullptr),
@@ -191,7 +201,7 @@ int RPIWS281xOutput::Init(Json::Value config) {
         return 0;
     }
     PixelString::AutoCreateOverlayModels(m_strings);
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 /*
@@ -202,7 +212,7 @@ int RPIWS281xOutput::Close(void) {
 
     ws2811_fini(&ledstring);
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 void RPIWS281xOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -293,7 +303,7 @@ void RPIWS281xOutput::DumpConfig(void) {
         m_strings[i]->DumpConfig();
     }
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }
 
 void RPIWS281xOutput::SetupCtrlCHandler(void) {

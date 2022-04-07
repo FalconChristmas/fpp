@@ -19,7 +19,7 @@
 
 #define HTTPVIRTUALDISPLAYPORT 32328
 
-class HTTPVirtualDisplayOutput : protected VirtualDisplayBaseOutput {
+class HTTPVirtualDisplayOutput : public VirtualDisplayBaseOutput {
 public:
     HTTPVirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~HTTPVirtualDisplayOutput();

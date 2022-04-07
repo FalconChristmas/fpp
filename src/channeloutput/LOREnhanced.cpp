@@ -63,15 +63,25 @@ public:
 
 /////////////////////////////////////////////////////////////////////////////
 
+#include "Plugin.h"
+class LOREnhancedPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    LOREnhancedPlugin() :
+        FPPPlugins::Plugin("LOREnhanced") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new LOREnhancedOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-LOREnhancedOutput* createLOREnhancedOutput(unsigned int startChannel,
-                                           unsigned int channelCount) {
-    return new LOREnhancedOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new LOREnhancedPlugin();
 }
 }
 
 LOREnhancedOutput::LOREnhancedOutput(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     data(nullptr) {}
 LOREnhancedOutput::~LOREnhancedOutput() {
     if (data) {
@@ -99,11 +109,11 @@ int LOREnhancedOutput::Close(void) {
 
     SerialClose(data->fd);
     data->fd = -1;
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 void LOREnhancedOutput::DumpConfig(void) {
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
     if (data) {
         LogDebug(VB_CHANNELOUT, "    filename     : %s\n", data->filename);
         LogDebug(VB_CHANNELOUT, "    fd           : %d\n", data->fd);
@@ -174,7 +184,7 @@ int LOREnhancedOutput::Init(Json::Value config) {
     data->heartbeatData[3] = 0x56;
     data->heartbeatData[4] = 0x00;
 
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 static void LOR_SendHeartbeat(LOREnhancedOutputData* privData) {

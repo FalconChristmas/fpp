@@ -1,9 +1,9 @@
 
 
 OBJECTS_fpp_so += \
-	channeloutput/ChannelOutputBase.o \
-	channeloutput/ThreadedChannelOutputBase.o \
-	channeloutput/channeloutput.o \
+	channeloutput/ChannelOutput.o \
+	channeloutput/ThreadedChannelOutput.o \
+	channeloutput/ChannelOutputSetup.o \
 	channeloutput/channeloutputthread.o \
 	channeloutput/ColorOrder.o \
 	channeloutput/FPD.o \

@@ -15,12 +15,23 @@
 #include "USBRelay.h"
 #include "serialutil.h"
 
+#include "Plugin.h"
+class USBRelayPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    USBRelayPlugin() :
+        FPPPlugins::Plugin("USBRelay") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new USBRelayOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-USBRelayOutput* createOutputUSBRelay(unsigned int startChannel,
-                                     unsigned int channelCount) {
-    return new USBRelayOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new USBRelayPlugin();
 }
 }
+
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -28,7 +39,7 @@ USBRelayOutput* createOutputUSBRelay(unsigned int startChannel,
  */
 USBRelayOutput::USBRelayOutput(unsigned int startChannel,
                                unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     m_deviceName(""),
     m_fd(-1),
     m_subType(RELAY_DVC_UNKNOWN),
@@ -119,7 +130,7 @@ int USBRelayOutput::Init(Json::Value config) {
             write(m_fd, &c_open, 1);
     }
 
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 /*
@@ -131,7 +142,7 @@ int USBRelayOutput::Close(void) {
     SerialClose(m_fd);
     m_fd = -1;
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 /*
@@ -171,5 +182,5 @@ void USBRelayOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Device Filename   : %s\n", m_deviceName.c_str());
     LogDebug(VB_CHANNELOUT, "    fd                : %d\n", m_fd);
 
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }

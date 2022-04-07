@@ -41,17 +41,28 @@
 #define MAX7219_SCAN_LIMIT 0x0B
 #define MAX7219_TEST 0x0F
 
+#include "Plugin.h"
+class MAX7219MatrixPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    MAX7219MatrixPlugin() :
+        FPPPlugins::Plugin("MAX7219Matrix") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new MAX7219MatrixOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-MAX7219MatrixOutput* createMAX7219MatrixOutput(unsigned int startChannel,
-                                               unsigned int channelCount) {
-    return new MAX7219MatrixOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new MAX7219MatrixPlugin();
 }
 }
+
 /*
  *
  */
 MAX7219MatrixOutput::MAX7219MatrixOutput(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     m_panels(1),
     m_channelsPerPixel(1),
     m_pinCS(8),
@@ -100,7 +111,7 @@ int MAX7219MatrixOutput::Init(Json::Value config) {
     WriteCommand(MAX7219_SHUTDOWN, 0x01);    // (1 == On, 0 == Off)
     WriteCommand(MAX7219_TEST, 0x00);        // Turn Off Test mode
 
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 void MAX7219MatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -113,7 +124,7 @@ void MAX7219MatrixOutput::GetRequiredChannelRanges(const std::function<void(int,
 int MAX7219MatrixOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::Close()\n");
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 /*
@@ -186,5 +197,5 @@ int MAX7219MatrixOutput::SendData(unsigned char* channelData) {
 void MAX7219MatrixOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::DumpConfig()\n");
 
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }

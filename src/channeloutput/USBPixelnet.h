@@ -13,9 +13,9 @@
 
 #include <string>
 
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 
-class USBPixelnetOutput : public ThreadedChannelOutputBase {
+class USBPixelnetOutput : public ThreadedChannelOutput {
 public:
     USBPixelnetOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~USBPixelnetOutput();

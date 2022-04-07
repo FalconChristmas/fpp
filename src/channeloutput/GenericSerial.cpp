@@ -19,17 +19,27 @@
 #include "serialutil.h"
 
 /////////////////////////////////////////////////////////////////////////////
+#include "Plugin.h"
+class GenericSerialPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    GenericSerialPlugin() :
+        FPPPlugins::Plugin("GenericSerial") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new GenericSerialOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-GenericSerialOutput* createGenericSerialOutput(unsigned int startChannel,
-                                               unsigned int channelCount) {
-    return new GenericSerialOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new GenericSerialPlugin();
 }
 }
 /*
  *
  */
 GenericSerialOutput::GenericSerialOutput(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_deviceName("UNKNOWN"),
     m_fd(-1),
     m_speed(9600),
@@ -94,7 +104,7 @@ int GenericSerialOutput::Init(Json::Value config) {
         return 0;
     }
 
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 void GenericSerialOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -111,7 +121,7 @@ int GenericSerialOutput::Close(void) {
 
     delete[] m_data;
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 /*
@@ -145,5 +155,5 @@ void GenericSerialOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Footer     : '%s'\n", m_footer.c_str());
     LogDebug(VB_CHANNELOUT, "    Packet Size: %d\n", m_packetSize);
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }

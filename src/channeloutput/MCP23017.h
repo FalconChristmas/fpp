@@ -11,10 +11,10 @@
  * included LICENSE.GPL file.
  */
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 #include "util/I2CUtils.h"
 
-class MCP23017Output : public ChannelOutputBase {
+class MCP23017Output : public ChannelOutput {
 public:
     MCP23017Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~MCP23017Output();

@@ -25,10 +25,20 @@
 //reserve the TOP 84K for DMX/PixelNet data
 #define DDR_RESERVED 84 * 1024
 
+#include "Plugin.h"
+class BBBSerialPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    BBBSerialPlugin() :
+        FPPPlugins::Plugin("BBBSerial") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new BBBSerialOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-BBBSerialOutput* createOutputBBBSerial(unsigned int startChannel,
-                                       unsigned int channelCount) {
-    return new BBBSerialOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new BBBSerialPlugin();
 }
 }
 
@@ -39,7 +49,7 @@ BBBSerialOutput* createOutputBBBSerial(unsigned int startChannel,
  */
 BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
                                  unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_pixelnet(0),
     m_lastData(NULL),
     m_curData(NULL),
@@ -248,7 +258,7 @@ int BBBSerialOutput::Init(Json::Value config) {
         }
     }
     memcpy(m_lastData, m_curData, m_outputs * sz);
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 void BBBSerialOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -287,7 +297,7 @@ int BBBSerialOutput::Close(void) {
     }
 
     LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close() done\n");
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 /*
@@ -389,5 +399,5 @@ void BBBSerialOutput::DumpConfig(void) {
                  m_pixelnet ? 4096 : 512);
     }
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }

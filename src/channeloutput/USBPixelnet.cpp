@@ -15,12 +15,23 @@
 #include "USBPixelnet.h"
 #include "serialutil.h"
 
+#include "Plugin.h"
+class USBPixelnetPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    USBPixelnetPlugin() :
+        FPPPlugins::Plugin("USBPixelnet") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new USBPixelnetOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-USBPixelnetOutput* createUSBPixelnetOutput(unsigned int startChannel,
-                                           unsigned int channelCount) {
-    return new USBPixelnetOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new USBPixelnetPlugin();
 }
 }
+
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -28,7 +39,7 @@ USBPixelnetOutput* createUSBPixelnetOutput(unsigned int startChannel,
  */
 USBPixelnetOutput::USBPixelnetOutput(unsigned int startChannel,
                                      unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_deviceName(""),
     m_outputData(NULL),
     m_pixelnetData(NULL),
@@ -103,7 +114,7 @@ int USBPixelnetOutput::Init(Json::Value config) {
         m_outputPacketSize = 4102;
     }
 
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 void USBPixelnetOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -119,7 +130,7 @@ int USBPixelnetOutput::Close(void) {
     SerialClose(m_fd);
     m_fd = -1;
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 /*
@@ -154,5 +165,5 @@ void USBPixelnetOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    fd                : %d\n", m_fd);
     LogDebug(VB_CHANNELOUT, "    Output Packet Size: %d\n", m_outputPacketSize);
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }

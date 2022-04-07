@@ -24,7 +24,7 @@
 #include "gpio.h"
 #include "httpAPI.h"
 #include "mediadetails.h"
-#include "channeloutput/channeloutput.h"
+#include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/channeloutputthread.h"
 #include "mediaoutput/mediaoutput.h"
 #include "overlays/PixelOverlay.h"
@@ -560,9 +560,11 @@ int main(int argc, char* argv[]) {
     InitMediaOutput();
     PixelOverlayManager::INSTANCE.Initialize();
     InitializeChannelOutputs();
+    PluginManager::INSTANCE.loadUserPlugins();
 
-    if (!getSettingInt("restarted"))
+    if (!getSettingInt("restarted")) {
         sequence->SendBlankingData();
+    }
     InitEffects();
 
     WriteRuntimeInfoFile(multiSync->GetSystems(true, false));

@@ -16,13 +16,13 @@
 
 #include <pthread.h>
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
-class ThreadedChannelOutputBase : public ChannelOutputBase {
+class ThreadedChannelOutput : public ChannelOutput {
 public:
-    ThreadedChannelOutputBase(unsigned int startChannel = 1,
-                              unsigned int channelCount = 1);
-    virtual ~ThreadedChannelOutputBase();
+    ThreadedChannelOutput(unsigned int startChannel = 1,
+                          unsigned int channelCount = 1);
+    virtual ~ThreadedChannelOutput();
 
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;

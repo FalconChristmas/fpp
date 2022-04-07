@@ -19,10 +19,20 @@
 #include "overlays/PixelOverlay.h"
 #include "util/BBBUtils.h"
 
+#include "Plugin.h"
+class BBBMatrixPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    BBBMatrixPlugin() :
+        FPPPlugins::Plugin("BBBMatrix") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new BBBMatrixOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-BBBMatrix* createOutputLEDscapeMatrix(unsigned int startChannel,
-                                      unsigned int channelCount) {
-    return new BBBMatrix(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new BBBMatrixPlugin();
 }
 }
 
@@ -410,7 +420,7 @@ private:
 };
 
 BBBMatrix::BBBMatrix(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     m_pru(nullptr),
     m_pruCopy(nullptr),
     m_matrix(nullptr),
@@ -988,7 +998,7 @@ int BBBMatrix::Init(Json::Value config) {
                                                           "H", m_invertedData ? "BL" : "TL",
                                                           m_height, 1);
     }
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 int BBBMatrix::Close(void) {
@@ -1010,7 +1020,7 @@ int BBBMatrix::Close(void) {
         const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
         pin.configPin("default", false);
     }
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 static int fcount = 0;
@@ -1209,5 +1219,5 @@ void BBBMatrix::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Longest Chain  : %d\n", m_longestChain);
     LogDebug(VB_CHANNELOUT, "    Inverted Data  : %d\n", m_invertedData);
 
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }

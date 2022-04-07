@@ -16,23 +16,32 @@
 #include <signal.h>
 #include <stdint.h>
 
-#include "overlays/PixelOverlay.h"
 #include "ModelPixelStrings.h"
+#include "overlays/PixelOverlay.h"
 
 /////////////////////////////////////////////////////////////////////////////
 
-extern "C" {
-ModelPixelStringsOutput* createModelPixelStringsOutput(unsigned int startChannel,
-                                                   unsigned int channelCount) {
-    return new ModelPixelStringsOutput(startChannel, channelCount);
-}
-}
+#include "Plugin.h"
+class ModelPixelStringsPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    ModelPixelStringsPlugin() :
+        FPPPlugins::Plugin("ModelPixelStrings") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new ModelPixelStringsOutput(startChannel, channelCount);
+    }
+};
 
+extern "C" {
+FPPPlugins::Plugin* createPlugin() {
+    return new ModelPixelStringsPlugin();
+}
+}
 /*
  *
  */
 ModelPixelStringsOutput::ModelPixelStringsOutput(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount) {
+    ThreadedChannelOutput(startChannel, channelCount) {
     LogDebug(VB_CHANNELOUT, "ModelPixelStringsOutput::ModelPixelStringsOutput(%u, %u)\n",
              startChannel, channelCount);
 }
@@ -94,7 +103,7 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
 
     buffer = (unsigned char*)malloc(model->getWidth() * model->getHeight() * 3);
 
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 /*
@@ -103,7 +112,7 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
 int ModelPixelStringsOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "ModelPixelStringsOutput::Close()\n");
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 void ModelPixelStringsOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -170,5 +179,5 @@ void ModelPixelStringsOutput::DumpConfig(void) {
         strings[i]->DumpConfig();
     }
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }

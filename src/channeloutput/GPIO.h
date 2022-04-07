@@ -11,10 +11,10 @@
  * included LICENSE.GPL file.
  */
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 #include "util/GPIOUtils.h"
 
-class GPIOOutput : public ChannelOutputBase {
+class GPIOOutput : public ChannelOutput {
 public:
     GPIOOutput(unsigned int startChannel, unsigned int channelCount);
     ~GPIOOutput();

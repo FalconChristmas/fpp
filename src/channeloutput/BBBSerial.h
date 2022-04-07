@@ -16,7 +16,7 @@
 
 using namespace ::std;
 
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 #include "util/BBBPruUtils.h"
 
 // structure of the data at the start of the PRU ram
@@ -30,7 +30,7 @@ typedef struct {
     volatile unsigned response;
 } __attribute__((__packed__)) BBBSerialData;
 
-class BBBSerialOutput : public ThreadedChannelOutputBase {
+class BBBSerialOutput : public ThreadedChannelOutput {
 public:
     BBBSerialOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~BBBSerialOutput();

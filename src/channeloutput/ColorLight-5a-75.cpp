@@ -56,7 +56,6 @@
  */
 #include "fpp-pch.h"
 
-
 #ifndef PLATFORM_OSX
 #include <linux/if_packet.h>
 #include <netinet/ether.h>
@@ -74,10 +73,20 @@
 #include "ColorLight-5a-75.h"
 #include "overlays/PixelOverlay.h"
 
+#include "Plugin.h"
+class ColorLight5a75Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    ColorLight5a75Plugin() :
+        FPPPlugins::Plugin("ColorLight5a75") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new ColorLight5a75Output(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-ColorLight5a75Output* createOutputColorLight5a75(unsigned int startChannel,
-                                                 unsigned int channelCount) {
-    return new ColorLight5a75Output(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new ColorLight5a75Plugin();
 }
 }
 
@@ -85,7 +94,7 @@ ColorLight5a75Output* createOutputColorLight5a75(unsigned int startChannel,
  *
  */
 ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     m_width(0),
     m_height(0),
     m_colorOrder(kColorOrderRGB),
@@ -285,12 +294,12 @@ int ColorLight5a75Output::Init(Json::Value config) {
         return 0;
     }
 #else
-    char buf[ 11 ] = { 0 };
+    char buf[11] = { 0 };
     int i = 0;
-    for (int i = 0; i < 255; i++ ) {
-        sprintf( buf, "/dev/bpf%i", i );
-        m_fd = open( buf, O_RDWR );
-        if (m_fd != -1 ) {
+    for (int i = 0; i < 255; i++) {
+        sprintf(buf, "/dev/bpf%i", i);
+        m_fd = open(buf, O_RDWR);
+        if (m_fd != -1) {
             break;
         }
     }
@@ -298,7 +307,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
         LogErr(VB_CHANNELOUT, "Error opening bpf file: %s\n", strerror(errno));
         return 0;
     }
-    
+
     struct ifreq bound_if;
     memset(&bound_if, 0, sizeof(bound_if));
     strcpy(bound_if.ifr_name, m_ifName.c_str());
@@ -426,7 +435,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
                                                           "H", m_invertedData ? "BL" : "TL",
                                                           m_height, 1);
     }
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 /*
@@ -435,7 +444,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
 int ColorLight5a75Output::Close(void) {
     LogDebug(VB_CHANNELOUT, "ColorLight5a75Output::Close()\n");
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 void ColorLight5a75Output::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -484,7 +493,6 @@ void ColorLight5a75Output::PrepData(unsigned char* channelData) {
     }
 }
 
-
 int ColorLight5a75Output::sendMessages(struct mmsghdr* msgs, int msgCount) {
 #ifdef PLATFORM_OSX
     char buf[1500];
@@ -504,7 +512,6 @@ int ColorLight5a75Output::sendMessages(struct mmsghdr* msgs, int msgCount) {
     return sendmmsg(m_fd, msgs, msgCount, MSG_DONTWAIT);
 #endif
 }
-
 
 /*
  *
@@ -578,7 +585,7 @@ void ColorLight5a75Output::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Inverted Data  : %d\n", m_invertedData);
     LogDebug(VB_CHANNELOUT, "    Interface      : %s\n", m_ifName.c_str());
 
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }
 
 /*

@@ -11,7 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
-#include "channeloutput.h"
+#include "ChannelOutputSetup.h"
 
 /* Config routine exposed so we can re-load the config on demand */
 void SendFPDConfig();

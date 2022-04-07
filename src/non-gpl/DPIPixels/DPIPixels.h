@@ -17,11 +17,11 @@
 
 #include <linux/fb.h>
 
-#include "channeloutput/ChannelOutputBase.h"
+#include "channeloutput/ChannelOutput.h"
 #include "channeloutput/PixelString.h"
 #include "util/SPIUtils.h"
 
-class DPIPixelsOutput : public ChannelOutputBase {
+class DPIPixelsOutput : public ChannelOutput {
 public:
     DPIPixelsOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~DPIPixelsOutput();
@@ -69,4 +69,3 @@ private:
     uint8_t* protoDest = nullptr;
     int protoDestExtra = 0;
 };
-

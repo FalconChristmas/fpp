@@ -11,9 +11,9 @@
  * included LICENSE.GPL file.
  */
 
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 
-class ILI9488Output : public ThreadedChannelOutputBase {
+class ILI9488Output : public ThreadedChannelOutput {
 public:
     ILI9488Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~ILI9488Output();

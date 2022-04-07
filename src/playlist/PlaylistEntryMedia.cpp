@@ -22,7 +22,7 @@ using namespace std::filesystem;
 #include "PlaylistEntryMedia.h"
 #include "Plugins.h"
 #include "mediadetails.h"
-#include "channeloutput/channeloutput.h"
+#include "channeloutput/ChannelOutputSetup.h"
 
 int PlaylistEntryMedia::m_openStartDelay = -1;
 

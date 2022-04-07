@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
 typedef enum virtualPixelColor {
     kVPC_RGB,
@@ -50,7 +50,7 @@ typedef struct virtualDisplayPixel {
     VirtualPixelColor vpc;
 } VirtualDisplayPixel;
 
-class VirtualDisplayBaseOutput : public ChannelOutputBase {
+class VirtualDisplayBaseOutput : public ChannelOutput {
 public:
     VirtualDisplayBaseOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~VirtualDisplayBaseOutput();
@@ -91,7 +91,7 @@ public:
 };
 
 inline void VirtualDisplayBaseOutput::GetPixelRGB(VirtualDisplayPixel& pixel,
-                                              unsigned char* channelData, unsigned char& r, unsigned char& g, unsigned char& b) {
+                                                  unsigned char* channelData, unsigned char& r, unsigned char& g, unsigned char& b) {
     if (pixel.vpc == kVPC_Custom) {
         r = pixel.customR;
         g = pixel.customG;

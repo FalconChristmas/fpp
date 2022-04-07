@@ -18,10 +18,20 @@
 
 #include "spixels.h"
 
+#include "Plugin.h"
+class SpixelsPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    SpixelsPlugin() :
+        FPPPlugins::Plugin("Spixels") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new SpixelsOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-SpixelsOutput* createOutputspixels(unsigned int startChannel,
-                                   unsigned int channelCount) {
-    return new SpixelsOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new SpixelsPlugin();
 }
 }
 
@@ -31,7 +41,7 @@ SpixelsOutput* createOutputspixels(unsigned int startChannel,
  *
  */
 SpixelsOutput::SpixelsOutput(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_spi(NULL) {
     LogDebug(VB_CHANNELOUT, "SpixelsOutput::SpixelsOutput(%u, %u)\n",
              startChannel, channelCount);
@@ -170,7 +180,7 @@ int SpixelsOutput::Init(Json::Value config) {
 
     LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", m_strings.size());
     PixelString::AutoCreateOverlayModels(m_strings);
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 /*
@@ -179,7 +189,7 @@ int SpixelsOutput::Init(Json::Value config) {
 int SpixelsOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "SpixelsOutput::Close()\n");
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 void SpixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -247,5 +257,5 @@ void SpixelsOutput::DumpConfig(void) {
         m_strings[i]->DumpConfig();
     }
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }

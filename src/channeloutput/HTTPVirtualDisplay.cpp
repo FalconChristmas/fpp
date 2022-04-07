@@ -21,10 +21,20 @@
 
 #include "HTTPVirtualDisplay.h"
 
+#include "Plugin.h"
+class HTTPVirtualDisplayPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    HTTPVirtualDisplayPlugin() :
+        FPPPlugins::Plugin("HTTPVirtualDisplay") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new HTTPVirtualDisplayOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-HTTPVirtualDisplayOutput* createOutputHTTPVirtualDisplay(unsigned int startChannel,
-                                                         unsigned int channelCount) {
-    return new HTTPVirtualDisplayOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new HTTPVirtualDisplayPlugin();
 }
 }
 /////////////////////////////////////////////////////////////////////////////

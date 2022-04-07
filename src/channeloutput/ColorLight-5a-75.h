@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 #include "ColorOrder.h"
 #include "Matrix.h"
 #include "PanelMatrix.h"
@@ -30,7 +30,7 @@
 #define CL5A75_0101_PACKET_DATA_LEN 98
 #define CL5A75_0AFF_PACKET_DATA_LEN 63
 
-class ColorLight5a75Output : public ChannelOutputBase {
+class ColorLight5a75Output : public ChannelOutput {
 public:
     ColorLight5a75Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~ColorLight5a75Output();

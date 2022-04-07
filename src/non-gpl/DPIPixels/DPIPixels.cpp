@@ -54,17 +54,27 @@
  *
  */
 
+#include "Plugin.h"
+class DPIPixelsOutputPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    DPIPixelsOutputPlugin() :
+        FPPPlugins::Plugin("DPIPixels") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new DPIPixelsOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-DPIPixelsOutput* createOutputDPIPixels(unsigned int startChannel,
-                                       unsigned int channelCount) {
-    return new DPIPixelsOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new DPIPixelsOutputPlugin();
 }
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 DPIPixelsOutput::DPIPixelsOutput(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount) {
+    ChannelOutput(startChannel, channelCount) {
     LogDebug(VB_CHANNELOUT, "DPIPixelsOutput::DPIPixelsOutput(%u, %u)\n",
              startChannel, channelCount);
 }
@@ -218,7 +228,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
     }
 
     PixelString::AutoCreateOverlayModels(pixelStrings);
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 int DPIPixelsOutput::Close(void) {
@@ -230,7 +240,7 @@ int DPIPixelsOutput::Close(void) {
     if (fbfd)
         close(fbfd);
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 void DPIPixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -351,7 +361,7 @@ void DPIPixelsOutput::DumpConfig(void) {
         pixelStrings[i]->DumpConfig();
     }
 
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }
 
 int DPIPixelsOutput::GetDPIPinBitPosition(std::string pinName) {
@@ -510,4 +520,3 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t* rowData, int maxString) {
 
 void DPIPixelsOutput::CompleteFrameWS281x(void) {
 }
-

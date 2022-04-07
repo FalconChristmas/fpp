@@ -22,9 +22,9 @@ using rgb_matrix::Canvas;
 using rgb_matrix::FrameCanvas;
 using rgb_matrix::RGBMatrix;
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
-class RGBMatrixOutput : public ChannelOutputBase {
+class RGBMatrixOutput : public ChannelOutput {
 public:
     RGBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~RGBMatrixOutput();

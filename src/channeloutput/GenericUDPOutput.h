@@ -11,9 +11,9 @@
  * included LICENSE.GPL file.
  */
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
-class GenericUDPOutput : public ChannelOutputBase {
+class GenericUDPOutput : public ChannelOutput {
 public:
     GenericUDPOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~GenericUDPOutput();

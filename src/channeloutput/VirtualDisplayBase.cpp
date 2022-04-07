@@ -32,8 +32,8 @@
  *
  */
 VirtualDisplayBaseOutput::VirtualDisplayBaseOutput(unsigned int startChannel,
-                                           unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+                                                   unsigned int channelCount) :
+    ChannelOutput(startChannel, channelCount),
     m_backgroundFilename("virtualdisplaybackground.jpg"),
     m_backgroundBrightness(0.5),
     m_width(1280),
@@ -105,7 +105,7 @@ int VirtualDisplayBaseOutput::Init(Json::Value config) {
     if (config.isMember("backgroundBrightness"))
         m_backgroundBrightness = 1.0 * config["backgroundBrightness"].asInt() / 100;
 
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 /*
@@ -393,7 +393,7 @@ void VirtualDisplayBaseOutput::LoadBackgroundImage(void) {
  *
  */
 void VirtualDisplayBaseOutput::DrawPixel(int rOffset, int gOffset, int bOffset,
-                                     unsigned char r, unsigned char g, unsigned char b) {
+                                         unsigned char r, unsigned char g, unsigned char b) {
     if (m_bpp == 16) {
         if ((rOffset < gOffset) && (gOffset < bOffset)) {
             *((uint16_t*)(m_virtualDisplay + rOffset)) = m_rgb565map[r >> 3][g >> 2][b >> 3];
@@ -492,5 +492,5 @@ void VirtualDisplayBaseOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    color Order   : %s\n", m_colorOrder.c_str());
     LogDebug(VB_CHANNELOUT, "    pixel count   : %d\n", m_pixels.size());
     LogDebug(VB_CHANNELOUT, "    pixel size    : %d\n", m_pixelSize);
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }

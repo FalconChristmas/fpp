@@ -20,10 +20,10 @@
 #include <thread>
 #include <vector>
 
-#include <netinet/in.h>
 #include "SysSocket.h"
+#include <netinet/in.h>
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
 typedef void CURLM;
 
@@ -101,7 +101,7 @@ protected:
     unsigned char* lastData;
 };
 
-class UDPOutput : public ChannelOutputBase {
+class UDPOutput : public ChannelOutput {
 public:
     UDPOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~UDPOutput();

@@ -17,7 +17,7 @@
 #include "PanelMatrix.h"
 #include "util/BBBPruUtils.h"
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
 //16 rows (1/16 scan) * 8bits per row
 #define MAX_STATS 16 * 8
@@ -38,7 +38,7 @@ typedef struct {
     uint32_t stats[3 * MAX_STATS]; //3 values per collection
 } __attribute__((__packed__)) BBBPruMatrixData;
 
-class BBBMatrix : public ChannelOutputBase {
+class BBBMatrix : public ChannelOutput {
 public:
     BBBMatrix(unsigned int startChannel, unsigned int channelCount);
     virtual ~BBBMatrix();

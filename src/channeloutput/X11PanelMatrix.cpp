@@ -16,10 +16,20 @@
 
 #include "X11PanelMatrix.h"
 
+#include "Plugin.h"
+class X11PanelMatrixPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    X11PanelMatrixPlugin() :
+        FPPPlugins::Plugin("X11PanelMatrix") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new X11PanelMatrixOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-X11PanelMatrixOutput* createOutputX11PanelMatrix(unsigned int startChannel,
-                                                 unsigned int channelCount) {
-    return new X11PanelMatrixOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new X11PanelMatrixPlugin();
 }
 }
 
@@ -30,7 +40,7 @@ X11PanelMatrixOutput* createOutputX11PanelMatrix(unsigned int startChannel,
  */
 X11PanelMatrixOutput::X11PanelMatrixOutput(unsigned int startChannel,
                                            unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_colorOrder("RGB"),
     m_panelWidth(32),
     m_panelHeight(16),
@@ -225,7 +235,7 @@ int X11PanelMatrixOutput::Init(Json::Value config) {
 
     XFlush(m_display);
 
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 void X11PanelMatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -250,7 +260,7 @@ int X11PanelMatrixOutput::Close(void) {
     }
     m_display = nullptr;
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 /*

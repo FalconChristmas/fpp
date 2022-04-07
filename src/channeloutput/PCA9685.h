@@ -11,10 +11,10 @@
  * included LICENSE.GPL file.
  */
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 #include "util/I2CUtils.h"
 
-class PCA9685Output : public ChannelOutputBase {
+class PCA9685Output : public ChannelOutput {
 public:
     PCA9685Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~PCA9685Output();

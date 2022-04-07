@@ -13,9 +13,9 @@
 
 #include <string>
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
-class USBRelayOutput : public ChannelOutputBase {
+class USBRelayOutput : public ChannelOutput {
 public:
     USBRelayOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~USBRelayOutput();

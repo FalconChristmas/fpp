@@ -14,10 +14,20 @@
 
 #include "GPIO.h"
 
+#include "Plugin.h"
+class GPIOPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    GPIOPlugin() :
+        FPPPlugins::Plugin("GPIO") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new GPIOOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-GPIOOutput* createGPIOOutput(unsigned int startChannel,
-                             unsigned int channelCount) {
-    return new GPIOOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new GPIOPlugin();
 }
 }
 
@@ -25,7 +35,7 @@ GPIOOutput* createGPIOOutput(unsigned int startChannel,
  *
  */
 GPIOOutput::GPIOOutput(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     m_GPIOPin(nullptr),
     m_invertOutput(0),
     m_pwm(0) {
@@ -76,7 +86,7 @@ int GPIOOutput::Init(Json::Value config) {
             m_GPIOPin->setValue(0);
     }
 
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 /*
@@ -85,7 +95,7 @@ int GPIOOutput::Init(Json::Value config) {
 int GPIOOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "GPIOOutput::Close()\n");
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 /*
@@ -119,5 +129,5 @@ void GPIOOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Inverted Output: %s\n", m_invertOutput ? "Yes" : "No");
     LogDebug(VB_CHANNELOUT, "    PWM            : %s\n", m_pwm ? "Yes" : "No");
 
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }

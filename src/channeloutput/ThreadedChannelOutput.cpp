@@ -14,11 +14,11 @@
 
 #include <sys/time.h>
 
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 
-ThreadedChannelOutputBase::ThreadedChannelOutputBase(unsigned int startChannel,
-                                                     unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+ThreadedChannelOutput::ThreadedChannelOutput(unsigned int startChannel,
+                                             unsigned int channelCount) :
+    ChannelOutput(startChannel, channelCount),
     m_threadIsRunning(0),
     m_runThread(0),
     m_dataWaiting(0),
@@ -32,14 +32,14 @@ ThreadedChannelOutputBase::ThreadedChannelOutputBase(unsigned int startChannel,
     pthread_cond_init(&m_sendCond, NULL);
 }
 
-ThreadedChannelOutputBase::~ThreadedChannelOutputBase() {
+ThreadedChannelOutput::~ThreadedChannelOutput() {
     pthread_cond_destroy(&m_sendCond);
     pthread_mutex_destroy(&m_bufLock);
     pthread_mutex_destroy(&m_sendLock);
 }
 
-int ThreadedChannelOutputBase::Init(void) {
-    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutputBase::Init()\n");
+int ThreadedChannelOutput::Init(void) {
+    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutput::Init()\n");
 
     if (m_useDoubleBuffer) {
         m_inBuf = new unsigned char[m_channelCount];
@@ -51,12 +51,12 @@ int ThreadedChannelOutputBase::Init(void) {
     return 1;
 }
 
-int ThreadedChannelOutputBase::Init(Json::Value config) {
-    return ChannelOutputBase::Init(config) && Init();
+int ThreadedChannelOutput::Init(Json::Value config) {
+    return ChannelOutput::Init(config) && Init();
 }
 
-int ThreadedChannelOutputBase::Close(void) {
-    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutputBase::Close()\n");
+int ThreadedChannelOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutput::Close()\n");
 
     StopOutputThread();
 
@@ -65,11 +65,11 @@ int ThreadedChannelOutputBase::Close(void) {
         delete[] m_outBuf;
     }
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
-int ThreadedChannelOutputBase::SendData(unsigned char* channelData) {
-    LogExcess(VB_CHANNELOUT, "ThreadedChannelOutputBase::SendData(%p)\n", channelData);
+int ThreadedChannelOutput::SendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "ThreadedChannelOutput::SendData(%p)\n", channelData);
 
     if (m_useDoubleBuffer) {
         pthread_mutex_lock(&m_bufLock);
@@ -85,8 +85,8 @@ int ThreadedChannelOutputBase::SendData(unsigned char* channelData) {
     return 0;
 }
 
-int ThreadedChannelOutputBase::SendOutputBuffer(void) {
-    LogExcess(VB_CHANNELOUT, "ChannelOutputBase::SendOutputBuffer()\n");
+int ThreadedChannelOutput::SendOutputBuffer(void) {
+    LogExcess(VB_CHANNELOUT, "ChannelOutput::SendOutputBuffer()\n");
 
     if (m_useDoubleBuffer) {
         pthread_mutex_lock(&m_bufLock);
@@ -101,8 +101,8 @@ int ThreadedChannelOutputBase::SendOutputBuffer(void) {
     return m_channelCount;
 }
 
-void ThreadedChannelOutputBase::DumpConfig(void) {
-    ChannelOutputBase::DumpConfig();
+void ThreadedChannelOutput::DumpConfig(void) {
+    ChannelOutput::DumpConfig();
     LogDebug(VB_CHANNELOUT, "    Thread Running   : %u\n", m_threadIsRunning);
     LogDebug(VB_CHANNELOUT, "    Run Thread       : %u\n", m_runThread);
     LogDebug(VB_CHANNELOUT, "    Data Waiting     : %u\n", m_dataWaiting);
@@ -111,21 +111,21 @@ void ThreadedChannelOutputBase::DumpConfig(void) {
 /*
  * pthread wrapper not a member of the class
  */
-void* RunChannelOutputBaseThread(void* data) {
-    LogDebug(VB_CHANNELOUT, "RunChannelOutputBaseThread()\n");
+static void* RunChannelOutputThread(void* data) {
+    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutput::RunChannelOutputThread()\n");
 
-    ThreadedChannelOutputBase* output = reinterpret_cast<ThreadedChannelOutputBase*>(data);
+    ThreadedChannelOutput* output = reinterpret_cast<ThreadedChannelOutput*>(data);
 
     output->OutputThread();
     return nullptr;
 }
 
-int ThreadedChannelOutputBase::StartOutputThread(void) {
-    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutputBase::StartOutputThread()\n");
+int ThreadedChannelOutput::StartOutputThread(void) {
+    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutput::StartOutputThread()\n");
 
     m_runThread = 1;
 
-    int result = pthread_create(&m_threadID, NULL, &RunChannelOutputBaseThread, this);
+    int result = pthread_create(&m_threadID, NULL, &RunChannelOutputThread, this);
 
     if (result) {
         char msg[256];
@@ -142,7 +142,7 @@ int ThreadedChannelOutputBase::StartOutputThread(void) {
             strcpy(msg, "Invalid Permissions");
             break;
         }
-        LogErr(VB_CHANNELOUT, "ERROR creating ChannelOutputBase thread: %s\n", msg);
+        LogErr(VB_CHANNELOUT, "ERROR creating ChannelOutput thread: %s\n", msg);
     }
 
     while (!m_threadIsRunning)
@@ -151,8 +151,8 @@ int ThreadedChannelOutputBase::StartOutputThread(void) {
     return 0;
 }
 
-int ThreadedChannelOutputBase::StopOutputThread(void) {
-    LogDebug(VB_CHANNELOUT, "ChannelOutputBase::StopOutputThread()\n");
+int ThreadedChannelOutput::StopOutputThread(void) {
+    LogDebug(VB_CHANNELOUT, "ChannelOutput::StopOutputThread()\n");
 
     if (!m_threadID)
         return -1;
@@ -182,21 +182,21 @@ int ThreadedChannelOutputBase::StopOutputThread(void) {
     return 0;
 }
 
-void ThreadedChannelOutputBase::OutputThread(void) {
-    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutputBase::OutputThread()\n");
+void ThreadedChannelOutput::OutputThread(void) {
+    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutput::OutputThread()\n");
 
     long long wakeTime = GetTime();
     struct timeval tv;
     struct timespec ts;
 
     m_threadIsRunning = 1;
-    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutputBase thread started\n");
+    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutput thread started\n");
 
     while (m_runThread) {
         // Wait for more data
         pthread_mutex_lock(&m_sendLock);
         long long nowTime = GetTime();
-        LogExcess(VB_CHANNELOUT, "ThreadedChannelOutputBase thread: sent: %lld, elapsed: %lld\n",
+        LogExcess(VB_CHANNELOUT, "ThreadedChannelOutput thread: sent: %lld, elapsed: %lld\n",
                   nowTime, nowTime - wakeTime);
 
         if (m_useDoubleBuffer)
@@ -233,7 +233,7 @@ void ThreadedChannelOutputBase::OutputThread(void) {
             continue;
 
         wakeTime = GetTime();
-        LogExcess(VB_CHANNELOUT, "ThreadedChannelOutputBase thread: woke: %lld\n", wakeTime);
+        LogExcess(VB_CHANNELOUT, "ThreadedChannelOutput thread: woke: %lld\n", wakeTime);
 
         // See if there is any data waiting to process or if we timed out
         if (m_useDoubleBuffer)
@@ -251,6 +251,6 @@ void ThreadedChannelOutputBase::OutputThread(void) {
         }
     }
 
-    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutputBase thread complete\n");
+    LogDebug(VB_CHANNELOUT, "ThreadedChannelOutput thread complete\n");
     m_threadIsRunning = 0;
 }

@@ -17,12 +17,23 @@
 #include "X11Matrix.h"
 #include "serialutil.h"
 
+#include "Plugin.h"
+class X11MatrixPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    X11MatrixPlugin() :
+        FPPPlugins::Plugin("X11Matrix") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new X11MatrixOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-X11MatrixOutput* createX11MatrixOutput(unsigned int startChannel,
-                                       unsigned int channelCount) {
-    return new X11MatrixOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new X11MatrixPlugin();
 }
 }
+
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -30,7 +41,7 @@ X11MatrixOutput* createX11MatrixOutput(unsigned int startChannel,
  */
 X11MatrixOutput::X11MatrixOutput(unsigned int startChannel,
                                  unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_width(0),
     m_height(0),
     m_scale(10),
@@ -120,7 +131,7 @@ int X11MatrixOutput::Init(Json::Value config) {
 
     XFlush(m_display);
 
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 /*
@@ -142,7 +153,7 @@ int X11MatrixOutput::Close(void) {
     }
     m_display = nullptr;
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 /*
@@ -213,5 +224,5 @@ void X11MatrixOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Scaled Width  : %d\n", m_scaleWidth);
     LogDebug(VB_CHANNELOUT, "    Scaled Height : %d\n", m_scaleHeight);
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }

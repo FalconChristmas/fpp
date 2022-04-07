@@ -15,11 +15,11 @@
 #include <string>
 #include <vector>
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
 class MatrixFrameBuffer;
 
-class FBMatrixOutput : public ChannelOutputBase {
+class FBMatrixOutput : public ChannelOutput {
 public:
     FBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~FBMatrixOutput();

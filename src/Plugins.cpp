@@ -40,72 +40,74 @@
 
 PluginManager PluginManager::INSTANCE;
 
-FPPPlugin::FPPPlugin(const std::string& n) :
-    name(n) {
-    reloadSettings();
-}
+namespace FPPPlugins
+{
+    Plugin::Plugin(const std::string& n) :
+        name(n) {
+        reloadSettings();
+    }
 
-void FPPPlugin::reloadSettings() {
-    settings.clear();
-    std::string dname = FPP_DIR_CONFIG("/plugin." + name);
-    if (FileExists(dname)) {
-        FILE* file = fopen(dname.c_str(), "r");
+    void Plugin::reloadSettings() {
+        settings.clear();
+        std::string dname = FPP_DIR_CONFIG("/plugin." + name);
+        if (FileExists(dname)) {
+            FILE* file = fopen(dname.c_str(), "r");
 
-        if (file != NULL) {
-            char* line = NULL;
-            size_t len = 0;
-            ssize_t read;
-            int sIndex = 0;
-            while ((read = getline(&line, &len, file)) != -1) {
-                if ((!line) || (!read) || (read == 1)) {
-                    continue;
-                }
-
-                char *key = NULL, *value = NULL; // These are values we're looking for and will
-                // run through trimwhitespace which means they
-                // must be freed before we are done.
-
-                char* token = strtok(line, "=");
-                if (!token) {
-                    continue;
-                }
-
-                key = trimwhitespace(token);
-                if (!strlen(key)) {
-                    free(key);
-                    continue;
-                }
-
-                token = strtok(NULL, "=");
-                if (!token) {
-                    fprintf(stderr, "Error tokenizing value for %s setting\n", key);
-                    free(key);
-                    continue;
-                }
-                value = trimwhitespace(token);
-
-                if (key) {
-                    if (value) {
-                        settings[key] = value;
+            if (file != NULL) {
+                char* line = NULL;
+                size_t len = 0;
+                ssize_t read;
+                int sIndex = 0;
+                while ((read = getline(&line, &len, file)) != -1) {
+                    if ((!line) || (!read) || (read == 1)) {
+                        continue;
                     }
-                    free(key);
-                    key = NULL;
+
+                    char *key = NULL, *value = NULL; // These are values we're looking for and will
+                    // run through trimwhitespace which means they
+                    // must be freed before we are done.
+
+                    char* token = strtok(line, "=");
+                    if (!token) {
+                        continue;
+                    }
+
+                    key = trimwhitespace(token);
+                    if (!strlen(key)) {
+                        free(key);
+                        continue;
+                    }
+
+                    token = strtok(NULL, "=");
+                    if (!token) {
+                        fprintf(stderr, "Error tokenizing value for %s setting\n", key);
+                        free(key);
+                        continue;
+                    }
+                    value = trimwhitespace(token);
+
+                    if (key) {
+                        if (value) {
+                            settings[key] = value;
+                        }
+                        free(key);
+                        key = NULL;
+                    }
+
+                    if (value) {
+                        free(value);
+                        value = NULL;
+                    }
                 }
 
-                if (value) {
-                    free(value);
-                    value = NULL;
+                if (line) {
+                    free(line);
                 }
+                fclose(file);
             }
-
-            if (line) {
-                free(line);
-            }
-            fclose(file);
         }
     }
 }
-
 class LifecycleCallback {
 public:
     LifecycleCallback(const std::string& name, const std::string& filename) :
@@ -161,11 +163,10 @@ const char* type_to_string[] = {
     "video",
 };
 
-class ScriptFPPPlugin : public FPPPlugin {
+class ScriptFPPPlugin : public FPPPlugins::Plugin, public FPPPlugins::PlaylistEventPlugin {
 public:
     ScriptFPPPlugin(const std::string& n, const std::string& filename, const std::string& lst) :
-        FPPPlugin(n),
-        fileName(filename) {
+        FPPPlugins::Plugin(n), FPPPlugins::PlaylistEventPlugin(), fileName(filename) {
         std::vector<std::string> types = split(lst, ',');
         for (int i = 0; i < types.size(); i++) {
             if (types[i] == "media") {
@@ -225,8 +226,7 @@ private:
     LifecycleCallback* m_lifecycleCallback = nullptr;
 };
 
-PluginManager::PluginManager() :
-    mPluginsLoaded(false) {
+PluginManager::PluginManager() {
 }
 
 class ScriptCommand : public Command {
@@ -313,6 +313,8 @@ static void LoadPluginCommands(const std::string& dir) {
 }
 
 void PluginManager::init() {
+}
+void PluginManager::loadUserPlugins() {
     DIR* dp;
     struct dirent* ep;
 
@@ -332,121 +334,14 @@ void PluginManager::init() {
                 if (!FileExists(dname))
                     continue;
             }
-
-            LogDebug(VB_PLUGIN, "Found Plugin: (%s)\n", ep->d_name);
-
-            std::string filename = FPP_DIR_PLUGIN("/" + ep->d_name + "/callbacks");
-            bool found = false;
-
-            if (FileExists(filename)) {
-                printf("Found callback with no extension");
-                found = true;
-            } else {
-                std::vector<std::string> extensions;
-                extensions.push_back(std::string(".sh"));
-                extensions.push_back(std::string(".pl"));
-                extensions.push_back(std::string(".php"));
-                extensions.push_back(std::string(".py"));
-
-                for (std::vector<std::string>::iterator i = extensions.begin(); i != extensions.end(); ++i) {
-                    std::string tmpFilename = filename + *i;
-                    if (FileExists(tmpFilename.c_str())) {
-                        filename += *i;
-                        found = true;
-                    }
-                }
-            }
-            LoadPluginCommands(ep->d_name);
-
-            std::string eventScript = FPP_DIR + "/scripts/eventScript";
-
-            if (!found) {
-                LogExcess(VB_PLUGIN, "No callbacks supported by plugin: '%s'\n", ep->d_name);
-                continue;
-            }
-
-            LogDebug(VB_PLUGIN, "Processing Callbacks (%s) for plugin: '%s'\n", filename.c_str(), ep->d_name);
-
-            int output_pipe[2], pid, bytes_read;
-            char readbuffer[128];
-            std::string callback_list = "";
-
-            if (pipe(output_pipe) == -1) {
-                LogErr(VB_PLUGIN, "Failed to make pipe\n");
-                exit(EXIT_FAILURE);
-            }
-
-            if ((pid = fork()) == -1) {
-                LogErr(VB_PLUGIN, "Failed to fork\n");
-                exit(EXIT_FAILURE);
-            }
-
-            if (pid == 0) {
-                dup2(output_pipe[1], STDOUT_FILENO);
-                close(output_pipe[1]);
-                execl(eventScript.c_str(), "eventScript", filename.c_str(), "--list", NULL);
-
-                LogErr(VB_PLUGIN, "We failed to exec our callbacks query!  %s  %s %s --list\n", eventScript.c_str(), "eventScript", filename.c_str());
-                exit(EXIT_FAILURE);
-            } else {
-                close(output_pipe[1]);
-
-                while (true) {
-                    bytes_read = read(output_pipe[0], readbuffer, sizeof(readbuffer) - 1);
-
-                    if (bytes_read <= 0)
-                        break;
-
-                    readbuffer[bytes_read] = '\0';
-                    callback_list += readbuffer;
-                }
-
-                TrimWhiteSpace(callback_list);
-
-                LogExcess(VB_PLUGIN, "Callback output: (%s)\n", callback_list.c_str());
-                wait(NULL);
-            }
-
-            ScriptFPPPlugin* spl = new ScriptFPPPlugin(ep->d_name, filename, callback_list);
-            if (spl->hasCallback()) {
-                mPlugins.push_back(spl);
-            } else {
-                for (auto& a : spl->getOtherTypes()) {
-                    if (startsWith(a, "c++")) {
-                        std::string shlibName = FPP_DIR_PLUGIN("/" + ep->d_name + "/lib" + ep->d_name + SHLIB_EXT);
-                        if (a[3] == ':') {
-                            shlibName = FPP_DIR_PLUGIN("/" + ep->d_name + "/" + a.substr(4));
-                        }
-                        void* handle = dlopen(shlibName.c_str(), RTLD_NOW);
-                        if (handle == nullptr) {
-                            LogErr(VB_PLUGIN, "Failed to load plugin shlib: %s\n", dlerror());
-                            continue;
-                        }
-                        FPPPlugin* (*fptr)();
-                        *(void**)(&fptr) = dlsym(handle, "createPlugin");
-                        if (fptr == nullptr) {
-                            LogErr(VB_PLUGIN, "Failed to find  createPlugin() function in shlib %s\n", shlibName.c_str());
-                            dlclose(handle);
-                            continue;
-                        }
-                        FPPPlugin* p = fptr();
-                        if (p == nullptr) {
-                            LogErr(VB_PLUGIN, "Failed to create plugin from shlib %s\n", shlibName.c_str());
-                            dlclose(handle);
-                            continue;
-                        }
-                        mShlibHandles.push_back(handle);
-                        mPlugins.push_back(p);
-                    }
-                }
-                delete spl;
+            if (mLoadedUserPlugins.find(ep->d_name) == mLoadedUserPlugins.end()) {
+                loadUserPlugin(ep->d_name);
             }
         }
         closedir(dp);
     } else {
         LogWarn(VB_PLUGIN, "Couldn't open the directory %s: (%d): %s\n", FPP_DIR_PLUGIN("").c_str(), errno, strerror(errno));
     }
-    mPluginsLoaded = true;
 
     return;
 }
@@ -465,66 +360,208 @@ void PluginManager::Cleanup() {
     mShlibHandles.clear();
 }
 
-bool PluginManager::hasPlugins() {
-    return mPluginsLoaded && !mPlugins.empty();
+FPPPlugins::Plugin* PluginManager::findPlugin(const std::string& name, const std::string& shlibName) {
+    for (auto& a : mPlugins) {
+        if (a->getName() == name) {
+            return a;
+        }
+    }
+    std::string libName = "lib" + (shlibName == "" ? name : shlibName) + SHLIB_EXT;
+    FPPPlugins::Plugin* p = loadSHLIBPlugin(libName);
+    if (!p) {
+        if (DirectoryExists(FPP_DIR_PLUGIN("/" + name)) && (mLoadedUserPlugins.find(name) == mLoadedUserPlugins.end())) {
+            loadUserPlugin(name);
+        }
+        for (auto& a : mPlugins) {
+            if (a->getName() == name) {
+                return a;
+            }
+        }
+    }
+    if (!p) {
+        LogErr(VB_PLUGIN, "Failed to load plugin: %s     Error: %s\n", libName, dlerror());
+    }
+    return p;
+}
+FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
+    LogDebug(VB_PLUGIN, "Found Plugin: (%s)\n", name.c_str());
+    std::string filename = FPP_DIR_PLUGIN("/" + name + "/callbacks");
+    bool found = false;
+
+    if (FileExists(filename)) {
+        printf("Found callback with no extension");
+        found = true;
+    } else {
+        std::vector<std::string> extensions;
+        extensions.push_back(std::string(".sh"));
+        extensions.push_back(std::string(".pl"));
+        extensions.push_back(std::string(".php"));
+        extensions.push_back(std::string(".py"));
+
+        for (std::vector<std::string>::iterator i = extensions.begin(); i != extensions.end(); ++i) {
+            std::string tmpFilename = filename + *i;
+            if (FileExists(tmpFilename.c_str())) {
+                filename += *i;
+                found = true;
+            }
+        }
+    }
+    LoadPluginCommands(name);
+
+    std::string eventScript = FPP_DIR + "/scripts/eventScript";
+    if (!found) {
+        LogExcess(VB_PLUGIN, "No callbacks supported by plugin: '%s'\n", name.c_str());
+        return nullptr;
+    }
+    LogDebug(VB_PLUGIN, "Processing Callbacks (%s) for plugin: '%s'\n", filename.c_str(), name.c_str());
+
+    int output_pipe[2], pid, bytes_read;
+    char readbuffer[128];
+    std::string callback_list = "";
+
+    if (pipe(output_pipe) == -1) {
+        LogErr(VB_PLUGIN, "Failed to make pipe\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if ((pid = fork()) == -1) {
+        LogErr(VB_PLUGIN, "Failed to fork\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid == 0) {
+        dup2(output_pipe[1], STDOUT_FILENO);
+        close(output_pipe[1]);
+        execl(eventScript.c_str(), "eventScript", filename.c_str(), "--list", NULL);
+
+        LogErr(VB_PLUGIN, "We failed to exec our callbacks query!  %s  %s %s --list\n", eventScript.c_str(), "eventScript", filename.c_str());
+        exit(EXIT_FAILURE);
+    } else {
+        close(output_pipe[1]);
+
+        while (true) {
+            bytes_read = read(output_pipe[0], readbuffer, sizeof(readbuffer) - 1);
+
+            if (bytes_read <= 0)
+                break;
+
+            readbuffer[bytes_read] = '\0';
+            callback_list += readbuffer;
+        }
+
+        TrimWhiteSpace(callback_list);
+
+        LogExcess(VB_PLUGIN, "Callback output: (%s)\n", callback_list.c_str());
+        wait(NULL);
+    }
+
+    ScriptFPPPlugin* spl = new ScriptFPPPlugin(name, filename, callback_list);
+    if (spl->hasCallback()) {
+        mLoadedUserPlugins.emplace(name);
+        addPlugin(spl);
+        return spl;
+    } else {
+        for (auto& a : spl->getOtherTypes()) {
+            if (startsWith(a, "c++")) {
+                std::string shlibName = FPP_DIR_PLUGIN("/" + name + "/lib" + name + SHLIB_EXT);
+                if (a[3] == ':') {
+                    shlibName = FPP_DIR_PLUGIN("/" + name + "/" + a.substr(4));
+                }
+                delete spl;
+                mLoadedUserPlugins.emplace(name);
+                return loadSHLIBPlugin(shlibName);
+            }
+        }
+        delete spl;
+    }
+    return nullptr;
 }
 
+FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName) {
+    void* handle = dlopen(shlibName.c_str(), RTLD_NOW);
+    if (handle == nullptr) {
+        return nullptr;
+    }
+    FPPPlugin* (*fptr)();
+    *(void**)(&fptr) = dlsym(handle, "createPlugin");
+    if (fptr == nullptr) {
+        LogErr(VB_PLUGIN, "Failed to find  createPlugin() function in shlib %s\n", shlibName.c_str());
+        dlclose(handle);
+        return nullptr;
+    }
+    FPPPlugin* p = fptr();
+    if (p == nullptr) {
+        LogErr(VB_PLUGIN, "Failed to create plugin from shlib %s\n", shlibName.c_str());
+        dlclose(handle);
+        return nullptr;
+    }
+    mShlibHandles.push_back(handle);
+    addPlugin(p);
+    return p;
+}
+bool PluginManager::hasPlugins() {
+    return !mPlugins.empty();
+}
+void PluginManager::addPlugin(FPPPlugins::Plugin* p) {
+    mPlugins.push_back(p);
+
+    FPPPlugin::PlaylistEventPlugin* pep = dynamic_cast<FPPPlugin::PlaylistEventPlugin*>(p);
+    if (pep) {
+        mPlaylistPlugins.push_back(pep);
+    }
+    FPPPlugin::ChannelOutputPlugin* coep = dynamic_cast<FPPPlugin::ChannelOutputPlugin*>(p);
+    if (coep) {
+        mChannelOutputPlugins.push_back(coep);
+    }
+    FPPPlugin::ChannelDataPlugin* cdp = dynamic_cast<FPPPlugin::ChannelDataPlugin*>(p);
+    if (cdp) {
+        mChannelDataPlugins.push_back(cdp);
+    }
+    FPPPlugin::APIProviderPlugin* app = dynamic_cast<FPPPlugin::APIProviderPlugin*>(p);
+    if (app) {
+        mAPIProviderPlugins.push_back(app);
+    }
+}
 void PluginManager::mediaCallback(const Json::Value& playlist, const MediaDetails& mediaDetails) {
-    if (mPluginsLoaded) {
-        for (auto a : mPlugins) {
-            a->mediaCallback(playlist, mediaDetails);
-        }
+    for (auto a : mPlaylistPlugins) {
+        a->mediaCallback(playlist, mediaDetails);
     }
 }
 void PluginManager::registerApis(httpserver::webserver* m_ws) {
-    if (mPluginsLoaded) {
-        for (auto a : mPlugins) {
-            a->registerApis(m_ws);
-        }
+    for (auto a : mAPIProviderPlugins) {
+        a->registerApis(m_ws);
     }
 }
 void PluginManager::unregisterApis(httpserver::webserver* m_ws) {
-    if (mPluginsLoaded) {
-        for (auto a : mPlugins) {
-            a->unregisterApis(m_ws);
-        }
+    for (auto a : mAPIProviderPlugins) {
+        a->unregisterApis(m_ws);
     }
 }
 void PluginManager::modifySequenceData(int ms, uint8_t* seqData) {
-    if (mPluginsLoaded) {
-        for (auto a : mPlugins) {
-            a->modifySequenceData(ms, seqData);
-        }
+    for (auto a : mChannelDataPlugins) {
+        a->modifySequenceData(ms, seqData);
     }
 }
 void PluginManager::modifyChannelData(int ms, uint8_t* seqData) {
-    if (mPluginsLoaded) {
-        for (auto a : mPlugins) {
-            a->modifyChannelData(ms, seqData);
-        }
+    for (auto a : mChannelDataPlugins) {
+        a->modifyChannelData(ms, seqData);
     }
 }
 void PluginManager::addControlCallbacks(std::map<int, std::function<bool(int)>>& callbacks) {
-    if (mPluginsLoaded) {
-        for (auto a : mPlugins) {
-            a->addControlCallbacks(callbacks);
-        }
+    for (auto a : mAPIProviderPlugins) {
+        a->addControlCallbacks(callbacks);
     }
 }
 void PluginManager::multiSyncData(const std::string& pn, uint8_t* data, int len) {
-    if (mPluginsLoaded) {
-        for (auto a : mPlugins) {
-            if (a->getName() == pn) {
-                a->multiSyncData(data, len);
-            }
+    for (auto a : mPlugins) {
+        if (a->getName() == pn) {
+            a->multiSyncData(data, len);
         }
     }
 }
 void PluginManager::playlistCallback(const Json::Value& playlist, const std::string& action, const std::string& section, int item) {
-    if (mPluginsLoaded) {
-        for (auto a : mPlugins) {
-            a->playlistCallback(playlist, action, section, item);
-        }
+    for (auto a : mPlaylistPlugins) {
+        a->playlistCallback(playlist, action, section, item);
     }
 }
 

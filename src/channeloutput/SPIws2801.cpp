@@ -17,17 +17,27 @@
 
 #define SPIWS2801_MAX_CHANNELS 1530
 
+#include "Plugin.h"
+class SPIws2801Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    SPIws2801Plugin() :
+        FPPPlugins::Plugin("SPIws2801") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new SPIws2801Output(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-SPIws2801Output* createSPIws2801Output(unsigned int startChannel,
-                                       unsigned int channelCount) {
-    return new SPIws2801Output(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new SPIws2801Plugin();
 }
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 SPIws2801Output::SPIws2801Output(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_port(-1),
     m_pi36(0),
     m_pi36Data(NULL),
@@ -74,13 +84,13 @@ int SPIws2801Output::Init(Json::Value config) {
         m_spi = nullptr;
         return 0;
     }
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 int SPIws2801Output::Close(void) {
     LogDebug(VB_CHANNELOUT, "SPIws2801Output::Close()\n");
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 void SPIws2801Output::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
@@ -119,5 +129,5 @@ void SPIws2801Output::DumpConfig(void) {
 
     LogDebug(VB_CHANNELOUT, "    port    : %d\n", m_port);
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }

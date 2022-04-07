@@ -13,7 +13,7 @@
 #include "fpp-pch.h"
 
 #include "PlaylistEntryRemap.h"
-#include "channeloutput/channeloutput.h"
+#include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/processors/RemapOutputProcessor.h"
 
 /*

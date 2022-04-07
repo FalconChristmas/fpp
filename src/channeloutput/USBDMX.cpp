@@ -20,16 +20,27 @@
 
 #define DMX_MAX_CHANNELS 512
 
+#include "Plugin.h"
+class USBDMXPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    USBDMXPlugin() :
+        FPPPlugins::Plugin("USBDMX") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new USBDMXOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-USBDMXOutput* createUSBDMXOutput(unsigned int startChannel,
-                                 unsigned int channelCount) {
-    return new USBDMXOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new USBDMXPlugin();
 }
 }
+
 /////////////////////////////////////////////////////////////////////////////
 
 USBDMXOutput::USBDMXOutput(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_dongleType(DMX_DVC_UNKNOWN),
     m_deviceName("UNKNOWN"),
     m_fd(-1) {
@@ -104,7 +115,7 @@ int USBDMXOutput::Init(Json::Value config) {
         m_dataLen = m_channelCount + 6;
     }
 
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 int USBDMXOutput::Close(void) {
@@ -112,7 +123,7 @@ int USBDMXOutput::Close(void) {
 
     SerialClose(m_fd);
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 int USBDMXOutput::RawSendData(unsigned char* channelData) {
@@ -133,9 +144,10 @@ void USBDMXOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "USBDMXOutput::DumpConfig()\n");
 
     LogDebug(VB_CHANNELOUT, "    Dongle Type: %s\n",
-             m_dongleType == DMX_DVC_PRO ? "Pro" : m_dongleType == DMX_DVC_OPEN ? "Open" : "UNKNOWN");
+             m_dongleType == DMX_DVC_PRO ? "Pro" : m_dongleType == DMX_DVC_OPEN ? "Open"
+                                                                                : "UNKNOWN");
     LogDebug(VB_CHANNELOUT, "    Device Name: %s\n", m_deviceName.c_str());
     LogDebug(VB_CHANNELOUT, "    fd         : %d\n", m_fd);
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }

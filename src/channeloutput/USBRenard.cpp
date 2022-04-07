@@ -45,10 +45,20 @@ public:
 #define PAD_DISTANCE 100
 
 /////////////////////////////////////////////////////////////////////////////
+#include "Plugin.h"
+class USBRenardPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    USBRenardPlugin() :
+        FPPPlugins::Plugin("USBRenard") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new USBRenardOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-USBRenardOutput* createRenardOutput(unsigned int startChannel,
-                                    unsigned int channelCount) {
-    return new USBRenardOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new USBRenardPlugin();
 }
 }
 
@@ -92,7 +102,7 @@ static int USBRenard_MaxChannels(USBRenardOutputData* privData) {
 }
 
 USBRenardOutput::USBRenardOutput(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     data(nullptr) {
 }
 USBRenardOutput::~USBRenardOutput() {
@@ -155,7 +165,7 @@ int USBRenardOutput::Init(Json::Value config) {
     }
     bzero(data->outputData, data->maxChannels);
 
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 int USBRenardOutput::Close(void) {
@@ -164,7 +174,7 @@ int USBRenardOutput::Close(void) {
         SerialClose(data->fd);
         data->fd = -1;
     }
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 int USBRenardOutput::SendData(unsigned char* channelData) {
@@ -219,7 +229,7 @@ int USBRenardOutput::SendData(unsigned char* channelData) {
 }
 
 void USBRenardOutput::DumpConfig(void) {
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
     if (!data)
         return;
 

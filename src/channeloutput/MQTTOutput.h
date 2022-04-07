@@ -13,9 +13,9 @@
 
 #include <string>
 
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 
-class MQTTOutput : public ThreadedChannelOutputBase {
+class MQTTOutput : public ThreadedChannelOutput {
 public:
     MQTTOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~MQTTOutput();

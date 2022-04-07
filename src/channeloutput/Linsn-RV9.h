@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 #include "ColorOrder.h"
 #include "Matrix.h"
 #include "PanelMatrix.h"
@@ -25,7 +25,7 @@
 #define LINSNRV9_HEADER_SIZE 32
 #define LINSNRV9_DATA_SIZE 1440
 
-class LinsnRV9Output : public ChannelOutputBase {
+class LinsnRV9Output : public ChannelOutput {
 public:
     LinsnRV9Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~LinsnRV9Output();

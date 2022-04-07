@@ -36,9 +36,9 @@
 
 #include "MultiSync.h"
 #include "e131defs.h"
+#include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/DDP.h"
 #include "channeloutput/Universe.h"
-#include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
 #include <ctime>
 
@@ -109,9 +109,9 @@ int CreateArtNetSocket() {
         //need to be able to send broadcase for ArtPollReply
         setsockopt(artnetSock, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
         enable = 1;
-#ifdef PLATFORM_OSX        
+#ifdef PLATFORM_OSX
         setsockopt(artnetSock, IPPROTO_UDP, UDP_NOCKSUM, (void*)&enable, sizeof enable);
-#else        
+#else
         setsockopt(artnetSock, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
 #endif
 
@@ -701,7 +701,7 @@ void Bridge_Shutdown(void) {
     bridgeSock = -1;
     ddpSock = -1;
     artnetSock = -1;
-    
+
     ArtNetOpcodeHandlers.clear();
 }
 

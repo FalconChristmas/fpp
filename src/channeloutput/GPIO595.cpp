@@ -21,10 +21,20 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
+#include "Plugin.h"
+class GPIO595Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    GPIO595Plugin() :
+        FPPPlugins::Plugin("GPIO595") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new GPIO595Output(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-GPIO595Output* createGPIO_595Output(unsigned int startChannel,
-                                    unsigned int channelCount) {
-    return new GPIO595Output(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new GPIO595Plugin();
 }
 }
 
@@ -32,7 +42,7 @@ GPIO595Output* createGPIO_595Output(unsigned int startChannel,
  *
  */
 GPIO595Output::GPIO595Output(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_clockPin(nullptr),
     m_dataPin(nullptr),
     m_latchPin(nullptr) {
@@ -77,7 +87,7 @@ int GPIO595Output::Init(Json::Value config) {
     m_dataPin->setValue(0);
     m_latchPin->setValue(1);
 
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 /*
@@ -86,7 +96,7 @@ int GPIO595Output::Init(Json::Value config) {
 int GPIO595Output::Close(void) {
     LogDebug(VB_CHANNELOUT, "GPIO595Output::Close()\n");
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 /*
@@ -129,5 +139,5 @@ void GPIO595Output::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Data Pin : %d\n", m_dataPin ? m_dataPin->kernelGpio : -1);
     LogDebug(VB_CHANNELOUT, "    Latch Pin: %d\n", m_latchPin ? m_latchPin->kernelGpio : -1);
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }

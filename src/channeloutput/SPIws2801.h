@@ -11,10 +11,10 @@
  * included LICENSE.GPL file.
  */
 
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 #include "util/SPIUtils.h"
 
-class SPIws2801Output : public ThreadedChannelOutputBase {
+class SPIws2801Output : public ThreadedChannelOutput {
 public:
     SPIws2801Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~SPIws2801Output();

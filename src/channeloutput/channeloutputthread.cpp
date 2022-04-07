@@ -22,9 +22,9 @@
 #include <thread>
 #include <unistd.h>
 
+#include "ChannelOutputSetup.h"
 #include "MultiSync.h"
 #include "Sequence.h"
-#include "channeloutput.h"
 #include "common.h"
 #include "effects.h"
 #include "fppd.h"
@@ -68,7 +68,7 @@ int ChannelOutputThreadIsRunning(void) {
 }
 
 int ChannelOutputThreadIsEnabled() {
-	return OutputFrames;
+    return OutputFrames;
 }
 
 /*

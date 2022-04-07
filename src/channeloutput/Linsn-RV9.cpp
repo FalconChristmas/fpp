@@ -54,9 +54,9 @@
 #include <netinet/ether.h>
 #else
 #include <net/bpf.h>
-#include <ifaddrs.h>
-#include <sys/socket.h>
 #include <net/if_dl.h>
+#include <sys/socket.h>
+#include <ifaddrs.h>
 #endif
 
 #include "../SysSocket.h"
@@ -69,10 +69,20 @@
 #include "Linsn-RV9.h"
 #include "overlays/PixelOverlay.h"
 
+#include "Plugin.h"
+class LinsnRV9Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    LinsnRV9Plugin() :
+        FPPPlugins::Plugin("LinsnRV9") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new LinsnRV9Output(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-LinsnRV9Output* createOutputLinsnRV9(unsigned int startChannel,
-                                     unsigned int channelCount) {
-    return new LinsnRV9Output(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new LinsnRV9Plugin();
 }
 }
 
@@ -80,7 +90,7 @@ LinsnRV9Output* createOutputLinsnRV9(unsigned int startChannel,
  *
  */
 LinsnRV9Output::LinsnRV9Output(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     m_width(0),
     m_height(0),
     m_colorOrder(kColorOrderRGB),
@@ -299,12 +309,12 @@ int LinsnRV9Output::Init(Json::Value config) {
     m_sock_addr.sll_halen = ETH_ALEN;
     memcpy(m_sock_addr.sll_addr, m_eh->ether_dhost, 6);
 #else
-    char buf[ 11 ] = { 0 };
+    char buf[11] = { 0 };
     int i = 0;
-    for (int i = 0; i < 255; i++ ) {
-        sprintf( buf, "/dev/bpf%i", i );
-        m_fd = open( buf, O_RDWR );
-        if (m_fd != -1 ) {
+    for (int i = 0; i < 255; i++) {
+        sprintf(buf, "/dev/bpf%i", i);
+        m_fd = open(buf, O_RDWR);
+        if (m_fd != -1) {
             break;
         }
     }
@@ -312,7 +322,7 @@ int LinsnRV9Output::Init(Json::Value config) {
         LogErr(VB_CHANNELOUT, "Error opening bpf file: %s\n", strerror(errno));
         return 0;
     }
-    
+
     struct ifreq bound_if;
     memset(&bound_if, 0, sizeof(bound_if));
     strcpy(bound_if.ifr_name, m_ifName.c_str());
@@ -376,7 +386,7 @@ int LinsnRV9Output::Init(Json::Value config) {
                                                           "H", m_invertedData ? "BL" : "TL",
                                                           m_height, 1);
     }
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 /*
@@ -385,7 +395,7 @@ int LinsnRV9Output::Init(Json::Value config) {
 int LinsnRV9Output::Close(void) {
     LogDebug(VB_CHANNELOUT, "LinsnRV9Output::Close()\n");
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 void LinsnRV9Output::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -438,7 +448,6 @@ int LinsnRV9Output::Send(char* buffer, int len) {
     return write(m_fd, buffer, len);
 #endif
 }
-
 
 /*
  *
@@ -518,7 +527,7 @@ void LinsnRV9Output::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Fmt D27        : 0x%02x\n",
              m_formatCodes[m_formatIndex].d27);
 
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }
 
 /*
@@ -550,7 +559,7 @@ void LinsnRV9Output::GetSrcMAC(void) {
     s = socket(AF_INET, SOCK_DGRAM, 0);
     strcpy(ifr.ifr_name, m_ifName.c_str());
     ioctl(s, SIOCGIFHWADDR, &ifr);
-    char *sa_data = ifr.ifr_hwaddr.sa_data;
+    char* sa_data = ifr.ifr_hwaddr.sa_data;
     close(s);
 #else
     char sa_data[24];
@@ -559,8 +568,8 @@ void LinsnRV9Output::GetSrcMAC(void) {
     if (getifaddrs(&iflist) == 0) {
         for (ifaddrs* cur = iflist; cur; cur = cur->ifa_next) {
             if ((cur->ifa_addr->sa_family == AF_LINK) &&
-                    (strcmp(cur->ifa_name, m_ifName.c_str()) == 0) &&
-                    cur->ifa_addr) {
+                (strcmp(cur->ifa_name, m_ifName.c_str()) == 0) &&
+                cur->ifa_addr) {
                 sockaddr_dl* sdl = (sockaddr_dl*)cur->ifa_addr;
                 memcpy(sa_data, LLADDR(sdl), sdl->sdl_alen);
                 found = true;

@@ -17,17 +17,27 @@
 #include "MQTTOutput.h"
 
 /////////////////////////////////////////////////////////////////////////////
+#include "Plugin.h"
+class MQTTPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    MQTTPlugin() :
+        FPPPlugins::Plugin("MQTT") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new MQTTOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-MQTTOutput* createMQTTOutputOutput(unsigned int startChannel,
-                                   unsigned int channelCount) {
-    return new MQTTOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new MQTTPlugin();
 }
 }
 /*
  *
  */
 MQTTOutput::MQTTOutput(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_payload("%R%,%G%,%B%"),
     m_type(OutputType::THREE_CHAN),
     m_r(0x00),
@@ -75,7 +85,7 @@ int MQTTOutput::Init(Json::Value config) {
         }
     }
 
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 void MQTTOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -88,7 +98,7 @@ void MQTTOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& a
 int MQTTOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "MQTTOutput::Close()\n");
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 /*
@@ -156,7 +166,7 @@ void MQTTOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Payload         : %s\n", m_topic.c_str());
     LogDebug(VB_CHANNELOUT, "    Type            : %d\n", (int)m_type);
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }
 
 void MQTTOutput::ReplaceValues(std::string& valueStr, uint8_t r, uint8_t g, uint8_t b, uint8_t w) {

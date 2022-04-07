@@ -20,10 +20,21 @@
 #include "FBMatrix.h"
 #include "overlays/PixelOverlay.h"
 
+#include "../Plugin.h"
+
+class FBMatrixPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    FBMatrixPlugin() :
+        FPPPlugins::Plugin("FBMatrix") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new FBMatrixOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-FBMatrixOutput* createFBMatrixOutput(unsigned int startChannel,
-                                     unsigned int channelCount) {
-    return new FBMatrixOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new FBMatrixPlugin();
 }
 }
 
@@ -238,7 +249,7 @@ static std::list<MatrixFrameBuffer*> BUFFERS;
  */
 FBMatrixOutput::FBMatrixOutput(unsigned int startChannel,
                                unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     m_frameBuffer(nullptr),
     m_width(0),
     m_height(0),
@@ -392,7 +403,7 @@ int FBMatrixOutput::Init(Json::Value config) {
                                                           "H", "TL",
                                                           m_height, 1);
     }
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 /*
@@ -410,7 +421,7 @@ int FBMatrixOutput::Close(void) {
         }
     }
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 void FBMatrixOutput::PrepData(unsigned char* channelData) {

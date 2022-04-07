@@ -25,8 +25,8 @@
 #include "Plugins.h"
 #include "effects.h"
 #include "fppd.h"
+#include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/E131.h"
-#include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
 #include "overlays/PixelOverlay.h"
 
@@ -700,7 +700,7 @@ void Sequence::CloseSequenceFile(void) {
 }
 
 void Sequence::SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t expireMS) {
-    if (m_prioritize_sequence_over_bridge && this->IsSequenceRunning() ) {
+    if (m_prioritize_sequence_over_bridge && this->IsSequenceRunning()) {
         return;
     }
 

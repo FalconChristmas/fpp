@@ -65,10 +65,20 @@
         (byte & 0x02 ? 1 : 0), \
         (byte & 0x01 ? 1 : 0)
 
+#include "Plugin.h"
+class MCP23017Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    MCP23017Plugin() :
+        FPPPlugins::Plugin("MCP23017") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new MCP23017Output(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-MCP23017Output* createMCP23017Output(unsigned int startChannel,
-                                     unsigned int channelCount) {
-    return new MCP23017Output(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new MCP23017Plugin();
 }
 }
 
@@ -76,7 +86,7 @@ MCP23017Output* createMCP23017Output(unsigned int startChannel,
  *
  */
 MCP23017Output::MCP23017Output(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     i2c(nullptr) {
     LogDebug(VB_CHANNELOUT, "MCP23017Output::MCP23017Output(%u, %u)\n",
              startChannel, channelCount);
@@ -122,7 +132,7 @@ int MCP23017Output::Init(Json::Value config) {
     i2c->writeByteData(MCP23x17_IODIRA, 0b00000000);
     i2c->writeByteData(MCP23x17_IODIRB, 0b00000000);
 
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 /*
@@ -131,7 +141,7 @@ int MCP23017Output::Init(Json::Value config) {
 int MCP23017Output::Close(void) {
     LogDebug(VB_CHANNELOUT, "MCP23017Output::Close()\n");
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 /*
@@ -174,5 +184,5 @@ void MCP23017Output::DumpConfig(void) {
 
     LogDebug(VB_CHANNELOUT, "    deviceID: %X\n", m_deviceID);
 
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }

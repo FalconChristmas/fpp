@@ -26,10 +26,10 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "ChannelOutputSetup.h"
 #include "E131.h"
 #include "FPD.h"
 #include "Universe.h"
-#include "channeloutput.h"
 #include "channeloutputthread.h"
 #include "e131defs.h"
 #include "fpp.h"

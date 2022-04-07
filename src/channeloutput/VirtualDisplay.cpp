@@ -19,10 +19,20 @@
 #include "VirtualDisplay.h"
 #include "overlays/PixelOverlay.h"
 
+#include "Plugin.h"
+class VirtualDisplayPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    VirtualDisplayPlugin() :
+        FPPPlugins::Plugin("VirtualDisplay") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new VirtualDisplayOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-VirtualDisplayOutput* createOutputVirtualDisplay(unsigned int startChannel,
-                                                     unsigned int channelCount) {
-    return new VirtualDisplayOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new VirtualDisplayPlugin();
 }
 }
 
@@ -30,7 +40,7 @@ VirtualDisplayOutput* createOutputVirtualDisplay(unsigned int startChannel,
  *
  */
 VirtualDisplayOutput::VirtualDisplayOutput(unsigned int startChannel,
-                                               unsigned int channelCount) :
+                                           unsigned int channelCount) :
     VirtualDisplayBaseOutput(startChannel, channelCount) {
     LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::VirtualDisplayOutput(%u, %u)\n",
              startChannel, channelCount);

@@ -14,10 +14,20 @@
 
 #include "PCA9685.h"
 
+#include "Plugin.h"
+class PCA9685Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    PCA9685Plugin() :
+        FPPPlugins::Plugin("PCA9685") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new PCA9685Output(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-PCA9685Output* createPCA9685Output(unsigned int startChannel,
-                                   unsigned int channelCount) {
-    return new PCA9685Output(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new PCA9685Plugin();
 }
 }
 
@@ -25,7 +35,7 @@ PCA9685Output* createPCA9685Output(unsigned int startChannel,
  *
  */
 PCA9685Output::PCA9685Output(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     i2c(nullptr) {
     LogDebug(VB_CHANNELOUT, "PCA9685Output::PCA9685Output(%u, %u)\n",
              startChannel, channelCount);
@@ -136,7 +146,7 @@ int PCA9685Output::Init(Json::Value config) {
 
     oldmode = i2c->readByteData(0xfe);
 
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 /*
@@ -145,7 +155,7 @@ int PCA9685Output::Init(Json::Value config) {
 int PCA9685Output::Close(void) {
     LogDebug(VB_CHANNELOUT, "PCA9685Output::Close()\n");
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 enum DataTypeEnum {
@@ -261,5 +271,5 @@ void PCA9685Output::DumpConfig(void) {
         LogDebug(VB_CHANNELOUT, "                ZeroType: %d\n", m_ports[x].m_zeroBehavior);
     }
 
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }

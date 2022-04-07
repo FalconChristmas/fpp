@@ -56,6 +56,7 @@ std::string GetTimeStr(std::string fmt);
 std::string GetDateStr(std::string fmt);
 
 int DirectoryExists(const char* Directory);
+int DirectoryExists(const std::string& Directory);
 int FileExists(const char* File);
 int FileExists(const std::string& File);
 int Touch(const std::string& File);

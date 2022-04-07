@@ -22,10 +22,10 @@ extern "C" {
 #include <vector>
 
 #include "PixelString.h"
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 #include "util/SPIUtils.h"
 
-class RPIWS281xOutput : public ThreadedChannelOutputBase {
+class RPIWS281xOutput : public ThreadedChannelOutput {
 public:
     RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~RPIWS281xOutput();

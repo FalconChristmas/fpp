@@ -32,10 +32,20 @@
 #define MAX_SPI_SPEED_HZ 100000
 #endif
 
+#include "Plugin.h"
+class GenericSPIPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    GenericSPIPlugin() :
+        FPPPlugins::Plugin("GenericSPI") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new GenericSPIOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-GenericSPIOutput* createGenericSPIOutput(unsigned int startChannel,
-                                         unsigned int channelCount) {
-    return new GenericSPIOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new GenericSPIPlugin();
 }
 }
 
@@ -45,7 +55,7 @@ GenericSPIOutput* createGenericSPIOutput(unsigned int startChannel,
  *
  */
 GenericSPIOutput::GenericSPIOutput(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_port(-1),
     m_speed_hz(0),
     m_spi(nullptr) {
@@ -104,7 +114,7 @@ int GenericSPIOutput::Init(Json::Value config) {
         return 0;
     }
 
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 /*
@@ -113,7 +123,7 @@ int GenericSPIOutput::Init(Json::Value config) {
 int GenericSPIOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "GenericSPIOutput::Close()\n");
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 void GenericSPIOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
@@ -142,5 +152,5 @@ void GenericSPIOutput::DumpConfig(void) {
 
     LogDebug(VB_CHANNELOUT, "    port    : %d\n", m_port);
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }

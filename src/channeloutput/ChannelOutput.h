@@ -15,11 +15,11 @@
 #include <string>
 #include <vector>
 
-class ChannelOutputBase {
+class ChannelOutput {
 public:
-    ChannelOutputBase(unsigned int startChannel = 1,
-                      unsigned int channelCount = 1);
-    virtual ~ChannelOutputBase();
+    ChannelOutput(unsigned int startChannel = 1,
+                  unsigned int channelCount = 1);
+    virtual ~ChannelOutput();
 
     unsigned int ChannelCount(void) { return m_channelCount; }
     unsigned int StartChannel(void) { return m_startChannel; }

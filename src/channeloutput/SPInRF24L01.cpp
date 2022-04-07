@@ -69,10 +69,20 @@ const uint64_t pipes[2] = {
     0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL
 };
 
+#include "Plugin.h"
+class SPInRF24L01Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    SPInRF24L01Plugin() :
+        FPPPlugins::Plugin("SPInRF24L01") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new SPInRF24L01Output(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-SPInRF24L01Output* createSPI_nRF24L01Output(unsigned int startChannel,
-                                            unsigned int channelCount) {
-    return new SPInRF24L01Output(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new SPInRF24L01Plugin();
 }
 }
 
@@ -92,7 +102,7 @@ public:
 /////////////////////////////////////////////////////////////////////////////
 
 SPInRF24L01Output::SPInRF24L01Output(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount),
+    ChannelOutput(startChannel, channelCount),
     data(nullptr) {
 }
 SPInRF24L01Output::~SPInRF24L01Output() {
@@ -174,7 +184,7 @@ int SPInRF24L01Output::Init(Json::Value config) {
         data->radio->printDetails();
     }
 
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 
 int SPInRF24L01Output::Close(void) {
@@ -182,7 +192,7 @@ int SPInRF24L01Output::Close(void) {
 
     delete data->radio;
     data->radio = NULL;
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 int SPInRF24L01Output::SendData(unsigned char* channelData) {
@@ -207,7 +217,7 @@ int SPInRF24L01Output::SendData(unsigned char* channelData) {
 }
 
 void SPInRF24L01Output::DumpConfig(void) {
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
     if (data) {
         if (data->speed == RF24_2MBPS)
             LogDebug(VB_CHANNELOUT, "    speed   : 2MBPS\n");

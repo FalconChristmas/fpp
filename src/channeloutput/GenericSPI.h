@@ -11,10 +11,10 @@
  * included LICENSE.GPL file.
  */
 
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 #include "util/SPIUtils.h"
 
-class GenericSPIOutput : public ThreadedChannelOutputBase {
+class GenericSPIOutput : public ThreadedChannelOutput {
 public:
     GenericSPIOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~GenericSPIOutput();

@@ -13,10 +13,11 @@
 
 #include <atomic>
 #include <functional>
+#include <set>
 #include <string>
 #include <vector>
 
-class FPPPlugin;
+#include "Plugin.h"
 class MediaDetails;
 
 namespace httpserver
@@ -29,6 +30,7 @@ public:
     PluginManager();
     ~PluginManager();
     void init(void);
+    void loadUserPlugins();
     void Cleanup();
 
     bool hasPlugins();
@@ -45,10 +47,21 @@ public:
     void modifySequenceData(int ms, uint8_t* seqData);
     void modifyChannelData(int ms, uint8_t* seqData);
 
+    FPPPlugins::Plugin* findPlugin(const std::string& name, const std::string& shlibName = "");
+
     static PluginManager INSTANCE;
 
 private:
-    std::vector<FPPPlugin*> mPlugins;
+    FPPPlugins::Plugin* loadSHLIBPlugin(const std::string& shlibName);
+    FPPPlugins::Plugin* loadUserPlugin(const std::string& name);
+    void addPlugin(FPPPlugins::Plugin* plugin);
+
+    std::vector<FPPPlugins::Plugin*> mPlugins;
+    std::vector<FPPPlugins::PlaylistEventPlugin*> mPlaylistPlugins;
+    std::vector<FPPPlugins::ChannelOutputPlugin*> mChannelOutputPlugins;
+    std::vector<FPPPlugins::ChannelDataPlugin*> mChannelDataPlugins;
+    std::vector<FPPPlugins::APIProviderPlugin*> mAPIProviderPlugins;
+
     std::vector<void*> mShlibHandles;
-    std::atomic_bool mPluginsLoaded;
+    std::set<std::string> mLoadedUserPlugins;
 };

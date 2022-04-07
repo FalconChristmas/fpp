@@ -95,6 +95,9 @@ int DirectoryExists(const char* Directory) {
         return 0;
     }
 }
+int DirectoryExists(const std::string& Directory) {
+    return DirectoryExists(Directory.c_str());
+}
 
 /*
  * Check if the specified file exists or not
@@ -419,9 +422,9 @@ int GetCurrentDateInt(int daysOffset) {
  */
 void CloseOpenFiles(void) {
     int maxfd = sysconf(_SC_OPEN_MAX);
-    
+
     for (int fd = 3; fd < maxfd; fd++) {
-        if (fcntl(fd, F_GETFD) != -1 ) {
+        if (fcntl(fd, F_GETFD) != -1) {
             bool doClose = false;
             struct stat statBuf;
             if (fstat(fd, &statBuf) == 0) {
@@ -431,7 +434,7 @@ void CloseOpenFiles(void) {
             struct sockaddr_in address;
             memset(&address, 0, sizeof(address));
             socklen_t addrLen = sizeof(address);
-            getsockname(fd, (struct sockaddr *)&address, &addrLen);
+            getsockname(fd, (struct sockaddr*)&address, &addrLen);
             if (address.sin_family) {
                 //its a tcp/udp socket of some sort
                 doClose = true;
@@ -1093,7 +1096,6 @@ std::vector<uint8_t> base64Decode(std::string const& encodedString) {
     }
     return ret;
 }
-
 
 static std::function<void(bool)> SHUTDOWN_HOOK;
 void ShutdownFPPD(bool restart) {

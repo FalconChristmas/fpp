@@ -13,11 +13,11 @@
 
 #include <vector>
 
-#include "overlays/PixelOverlayModel.h"
 #include "PixelString.h"
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
+#include "overlays/PixelOverlayModel.h"
 
-class ModelPixelStringsOutput : public ThreadedChannelOutputBase {
+class ModelPixelStringsOutput : public ThreadedChannelOutput {
 public:
     ModelPixelStringsOutput(unsigned int startChannel, unsigned int channelCount);
     ~ModelPixelStringsOutput();
@@ -34,10 +34,9 @@ public:
 
 private:
     std::string modelName;
-    PixelOverlayModel *model = nullptr;
+    PixelOverlayModel* model = nullptr;
 
     unsigned char* buffer = nullptr;
 
     std::vector<PixelString*> strings;
 };
-

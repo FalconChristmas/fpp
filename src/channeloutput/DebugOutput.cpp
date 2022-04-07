@@ -14,10 +14,20 @@
 
 #include "DebugOutput.h"
 
+#include "Plugin.h"
+class DebugPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    DebugPlugin() :
+        FPPPlugins::Plugin("Debug") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new DebugOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-DebugOutput* createOutputDebug(unsigned int startChannel,
-                               unsigned int channelCount) {
-    return new DebugOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new DebugPlugin();
 }
 }
 
@@ -25,7 +35,7 @@ DebugOutput* createOutputDebug(unsigned int startChannel,
  *
  */
 DebugOutput::DebugOutput(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount) {
+    ChannelOutput(startChannel, channelCount) {
     LogDebug(VB_CHANNELOUT, "DebugOutput::DebugOutput(%u, %u)\n",
              startChannel, channelCount);
 }
@@ -44,7 +54,7 @@ int DebugOutput::Init(Json::Value v) {
     LogDebug(VB_CHANNELOUT, "DebugOutput::Init()\n");
 
     // Call the base class' Init() method, do not remove this line.
-    return ChannelOutputBase::Init(v);
+    return ChannelOutput::Init(v);
 }
 
 /*
@@ -53,7 +63,7 @@ int DebugOutput::Init(Json::Value v) {
 int DebugOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "DebugOutput::Close()\n");
 
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 /*
@@ -74,5 +84,5 @@ void DebugOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "DebugOutput::DumpConfig()\n");
 
     // Call the base class' DumpConfig() method, do not remove this line.
-    ChannelOutputBase::DumpConfig();
+    ChannelOutput::DumpConfig();
 }

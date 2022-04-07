@@ -15,7 +15,7 @@
 #include "PlaylistEntrySequence.h"
 #include "fseq/FSEQFile.h"
 
-#include "channeloutput/channeloutput.h"
+#include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/channeloutputthread.h"
 
 PlaylistEntrySequence::PlaylistEntrySequence(Playlist* playlist, PlaylistEntryBase* parent) :

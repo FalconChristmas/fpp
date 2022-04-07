@@ -11,10 +11,10 @@
  * included LICENSE.GPL file.
  */
 
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 #include "util/GPIOUtils.h"
 
-class GPIO595Output : public ThreadedChannelOutputBase {
+class GPIO595Output : public ThreadedChannelOutput {
 public:
     GPIO595Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~GPIO595Output();

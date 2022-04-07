@@ -3,10 +3,20 @@
 #include "GenericUDPOutput.h"
 #include "UDPOutput.h"
 
+#include "Plugin.h"
+class GenericUDPPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    GenericUDPPlugin() :
+        FPPPlugins::Plugin("GenericUDP") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new GenericUDPOutput(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-GenericUDPOutput* createGenericUDPOutput(unsigned int startChannel,
-                                         unsigned int channelCount) {
-    return new GenericUDPOutput(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new GenericUDPPlugin();
 }
 }
 
@@ -178,7 +188,7 @@ public:
 };
 
 GenericUDPOutput::GenericUDPOutput(unsigned int startChannel, unsigned int channelCount) :
-    ChannelOutputBase(startChannel, channelCount) {
+    ChannelOutput(startChannel, channelCount) {
 }
 GenericUDPOutput::~GenericUDPOutput() {
 }
@@ -191,10 +201,10 @@ int GenericUDPOutput::Init(Json::Value config) {
     } else {
         LogErr(VB_CHANNELOUT, "GenericUDPOutput Requires the UDP outputs to be enabled\n");
     }
-    return ChannelOutputBase::Init(config);
+    return ChannelOutput::Init(config);
 }
 int GenericUDPOutput::Close(void) {
-    return ChannelOutputBase::Close();
+    return ChannelOutput::Close();
 }
 
 void GenericUDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {

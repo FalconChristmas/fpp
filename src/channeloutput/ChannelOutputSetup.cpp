@@ -24,13 +24,15 @@
 #include <sstream>
 #include <string>
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
+#include "ChannelOutputSetup.h"
 #include "Sequence.h"
 #include "Warnings.h"
-#include "channeloutput.h"
 #include "common.h"
 #include "log.h"
 #include "settings.h"
+#include "../Plugin.h"
+#include "../Plugins.h"
 #include "../config.h"
 
 //old style that still need porting
@@ -60,7 +62,7 @@ const std::vector<std::pair<uint32_t, uint32_t>>& GetOutputRanges(bool precise) 
 }
 // we'll sort the ranges that the outputs have registered and combine any overlaps
 // or close ranges to keep the range list smaller
-static void sortRanges(std::vector<std::pair<uint32_t, uint32_t>> &rngs, bool gaps) {
+static void sortRanges(std::vector<std::pair<uint32_t, uint32_t>>& rngs, bool gaps) {
     std::map<uint32_t, uint32_t> ranges;
     //sort
     for (auto& a : rngs) {
@@ -182,7 +184,7 @@ void ChannelOutputJSON2CSV(Json::Value config, char* configStr) {
     }
 }
 
-// in some of these cases, we could symlink the shlib and add additional createXXXOutput methods
+// in some of these cases, we could symlink the shlib
 static std::map<std::string, std::string> OUTPUT_REMAPS = {
     { "VirtualMatrix", "FBMatrix" },
     { "DMX-Pro", "USBDMX" },
@@ -286,32 +288,11 @@ int InitializeChannelOutputs(void) {
                     type = OUTPUT_REMAPS[type];
                 }
 
-                std::string libname = "libfpp-co-" + libnamePfx + type + SHLIB_EXT;
-                void* handle = dlopen(libname.c_str(), RTLD_NOW);
-                if (handle == NULL) {
-                    LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s - Error: %s\n", type.c_str(), dlerror());
-                    WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
-                    continue;
+                FPPPlugins::ChannelOutputPlugin* p = dynamic_cast<FPPPlugins::ChannelOutputPlugin*>(PluginManager::INSTANCE.findPlugin(libnamePfx + type, "fpp-co-" + libnamePfx + type));
+                if (p) {
+                    ChannelOutput* co = p->createChannelOutput(start, count);
+                    channelOutput.output = co;
                 }
-                ChannelOutputBase* (*fptr)(unsigned int, unsigned int);
-                std::string methodName = "createOutput" + type;
-                std::replace(methodName.begin(), methodName.end(), '-', '_');
-                *(void**)(&fptr) = dlsym(handle, methodName.c_str());
-                if (fptr == nullptr) {
-                    //some use createOutputFoo and others may use createFooOutput
-                    std::string methodName = "create" + type + "Output";
-                    std::replace(methodName.begin(), methodName.end(), '-', '_');
-                    *(void**)(&fptr) = dlsym(handle, methodName.c_str());
-                }
-                if (fptr == nullptr) {
-                    LogErr(VB_CHANNELOUT, "Could not create Channel Output type: %s\n", type.c_str());
-                    WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
-                    dlclose(handle);
-                    continue;
-                }
-                channelOutput.output = fptr(start, count);
-                channelOutput.libHandle = handle;
-
                 if (channelOutput.output) {
                     if (channelOutput.output->Init(outputs[c])) {
                         channelOutput.output->GetRequiredChannelRanges([type](int m1, int m2) {
@@ -323,9 +304,6 @@ int InitializeChannelOutputs(void) {
                     } else {
                         WarningHolder::AddWarning("Could not initialize output type " + type + ". Check logs for details.");
                         delete channelOutput.output;
-                        if (channelOutput.libHandle) {
-                            dlclose(channelOutput.libHandle);
-                        }
                     }
                 } else {
                     LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
@@ -375,7 +353,7 @@ void ResetChannelOutputFrameNumber(void) {
 
 int PrepareChannelData(char* channelData) {
     outputProcessors.ProcessData((unsigned char*)channelData);
-    for (auto &inst : channelOutputs) {
+    for (auto& inst : channelOutputs) {
         if (inst.output) {
             inst.output->PrepData((unsigned char*)channelData);
         }
@@ -397,7 +375,7 @@ int SendChannelData(const char* channelData) {
         HexDump(buf, &channelData[minimumNeededChannel], 16, VB_CHANNELDATA);
     }
 
-    for (auto &inst : channelOutputs) {
+    for (auto& inst : channelOutputs) {
         if (inst.outputOld) {
             inst.outputOld->send(
                 inst.privData,
@@ -418,7 +396,7 @@ void StartingOutput(void) {
     FPPChannelOutputInstance* output;
     int i = 0;
 
-    for (auto &inst : channelOutputs) {
+    for (auto& inst : channelOutputs) {
         if ((inst.outputOld) &&
             (inst.outputOld->startThread)) {
             //old style outputs
@@ -436,13 +414,12 @@ void StoppingOutput(void) {
     FPPChannelOutputInstance* output;
     int i = 0;
 
-    for (auto &inst : channelOutputs) {
+    for (auto& inst : channelOutputs) {
         if ((inst.outputOld) &&
             (inst.outputOld->stopThread)) {
             inst.outputOld->stopThread(inst.privData);
         } else if (inst.output) {
             inst.output->StoppingOutput();
-
         }
     }
 }
@@ -467,9 +444,6 @@ void CloseChannelOutputs(void) {
         if (channelOutputs[i].output) {
             delete channelOutputs[i].output;
             channelOutputs[i].output = NULL;
-            if (channelOutputs[i].libHandle) {
-                dlclose(channelOutputs[i].libHandle);
-            }
         }
     }
 }

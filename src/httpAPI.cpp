@@ -24,7 +24,7 @@
 #include "fpp.h"
 #include "fppd.h"
 #include "httpAPI.h"
-#include "channeloutput/channeloutput.h"
+#include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/channeloutputthread.h"
 
 #include <iomanip>

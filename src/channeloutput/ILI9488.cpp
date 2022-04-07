@@ -23,7 +23,9 @@
 // GPIO setup macros. Always use INP_GPIO(x) before using OUT_GPIO(x) or SET_GPIO_ALT(x,y)
 #define INP_GPIO(g) *(m_gpio + ((g) / 10)) &= ~(7 << (((g) % 10) * 3))
 #define OUT_GPIO(g) *(m_gpio + ((g) / 10)) |= (1 << (((g) % 10) * 3))
-#define SET_GPIO_ALT(g, a) *(m_gpio + (((g) / 10))) |= (((a) <= 3 ? (a) + 4 : (a) == 4 ? 3 : 2) << (((g) % 10) * 3))
+#define SET_GPIO_ALT(g, a) *(m_gpio + (((g) / 10))) |= (((a) <= 3 ? (a) + 4 : (a) == 4 ? 3  \
+                                                                                       : 2) \
+                                                        << (((g) % 10) * 3))
 
 #define GPIO_SET *(m_gpio + 7)  // sets   bits which are 1 ignores bits which are 0
 #define GPIO_CLR *(m_gpio + 10) // clears bits which are 1 ignores bits which are 0
@@ -59,19 +61,30 @@ const unsigned ILI_dataBits =
 const int ILI_allPins[12] = { ILI_PIN_CSX, ILI_PIN_WRX, ILI_PIN_DCX, ILI_PIN_D1, ILI_PIN_D2, ILI_PIN_D3, ILI_PIN_D4, ILI_PIN_D5, ILI_PIN_D6, ILI_PIN_D7, ILI_PIN_D8, ILI_PIN_RST };
 const int ILI_dataPins[8] = { ILI_PIN_D1, ILI_PIN_D2, ILI_PIN_D3, ILI_PIN_D4, ILI_PIN_D5, ILI_PIN_D6, ILI_PIN_D7, ILI_PIN_D8 };
 
+#include "Plugin.h"
+class ILI9488Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+public:
+    ILI9488Plugin() :
+        FPPPlugins::Plugin("ILI9488") {
+    }
+    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+        return new ILI9488Output(startChannel, channelCount);
+    }
+};
+
 extern "C" {
-ILI9488Output* createOutputILI9488(unsigned int startChannel,
-                                   unsigned int channelCount) {
-    return new ILI9488Output(startChannel, channelCount);
+FPPPlugins::Plugin* createPlugin() {
+    return new ILI9488Plugin();
 }
 }
+
 /////////////////////////////////////////////////////////////////////////////
 
 /*
  *
  */
 ILI9488Output::ILI9488Output(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutputBase(startChannel, channelCount),
+    ThreadedChannelOutput(startChannel, channelCount),
     m_initialized(0),
     m_rows(480),
     m_cols(320),
@@ -109,7 +122,7 @@ int ILI9488Output::Init(Json::Value config) {
 
     ILI9488_Init();
 
-    return ThreadedChannelOutputBase::Init(config);
+    return ThreadedChannelOutput::Init(config);
 }
 
 /*
@@ -120,7 +133,7 @@ int ILI9488Output::Close(void) {
 
     ILI9488_Cleanup();
 
-    return ThreadedChannelOutputBase::Close();
+    return ThreadedChannelOutput::Close();
 }
 
 /*
@@ -173,7 +186,7 @@ void ILI9488Output::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Rows   : %d\n", m_rows);
     LogDebug(VB_CHANNELOUT, "    Pixels : %d\n", m_pixels);
 
-    ThreadedChannelOutputBase::DumpConfig();
+    ThreadedChannelOutput::DumpConfig();
 }
 
 /*

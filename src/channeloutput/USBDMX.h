@@ -13,9 +13,9 @@
 
 #include <string>
 
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 
-class USBDMXOutput : public ThreadedChannelOutputBase {
+class USBDMXOutput : public ThreadedChannelOutput {
 public:
     USBDMXOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~USBDMXOutput();

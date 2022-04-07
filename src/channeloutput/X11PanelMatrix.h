@@ -18,9 +18,9 @@
 #include "Matrix.h"
 #include "PanelMatrix.h"
 
-#include "ThreadedChannelOutputBase.h"
+#include "ThreadedChannelOutput.h"
 
-class X11PanelMatrixOutput : public ThreadedChannelOutputBase {
+class X11PanelMatrixOutput : public ThreadedChannelOutput {
 public:
     X11PanelMatrixOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~X11PanelMatrixOutput();

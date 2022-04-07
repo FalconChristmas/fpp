@@ -11,11 +11,11 @@
  * included LICENSE.GPL file.
  */
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
 class USBRenardOutputData;
 
-class USBRenardOutput : public ChannelOutputBase {
+class USBRenardOutput : public ChannelOutput {
 public:
     USBRenardOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~USBRenardOutput();

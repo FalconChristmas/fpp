@@ -11,10 +11,10 @@
  * included LICENSE.GPL file.
  */
 
-#include "overlays/PixelOverlayModel.h"
 #include "VirtualDisplayBase.h"
+#include "overlays/PixelOverlayModel.h"
 
-class VirtualDisplayOutput : protected VirtualDisplayBaseOutput {
+class VirtualDisplayOutput : public VirtualDisplayBaseOutput {
 public:
     VirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~VirtualDisplayOutput();
@@ -26,5 +26,5 @@ public:
 
 private:
     std::string m_modelName;
-    PixelOverlayModel *m_model = nullptr;
+    PixelOverlayModel* m_model = nullptr;
 };

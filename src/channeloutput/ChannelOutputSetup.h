@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <vector>
 
-class ChannelOutputBase;
+class ChannelOutput;
 class OutputProcessors;
 
 typedef struct fppChannelOutput {
@@ -37,9 +37,8 @@ public:
     unsigned int startChannel = 0;
     unsigned int channelCount = 0;
     FPPChannelOutput* outputOld = nullptr;
-    ChannelOutputBase* output = nullptr;
+    ChannelOutput* output = nullptr;
     void* privData = nullptr;
-    void* libHandle = nullptr;
 };
 
 extern char channelData[];

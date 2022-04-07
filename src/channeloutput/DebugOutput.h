@@ -11,17 +11,17 @@
  * included LICENSE.GPL file.
  */
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
 /*
  * This DebugOutput Channel Output driver is provided for debugging
  * purposes and as a template which can be used when creating new
  * Channel Output drivers for FPP.  It reimpliments the minimal
- * methods necessary from the ChannelOutputBase class which is is
+ * methods necessary from the ChannelOutput class which is is
  * derived from.
  */
 
-class DebugOutput : public ChannelOutputBase {
+class DebugOutput : public ChannelOutput {
 public:
     DebugOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~DebugOutput();

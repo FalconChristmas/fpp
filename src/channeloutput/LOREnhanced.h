@@ -11,12 +11,12 @@
  * included LICENSE.GPL file.
  */
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
 class LOREnhancedOutputData;
 class LOREnhancedOutputUnit;
 
-class LOREnhancedOutput : public ChannelOutputBase {
+class LOREnhancedOutput : public ChannelOutput {
 public:
     LOREnhancedOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~LOREnhancedOutput();

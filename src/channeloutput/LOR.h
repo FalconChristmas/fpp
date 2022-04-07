@@ -11,11 +11,11 @@
  * included LICENSE.GPL file.
  */
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
 class LOROutputData;
 
-class LOROutput : public ChannelOutputBase {
+class LOROutput : public ChannelOutput {
 public:
     LOROutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~LOROutput();

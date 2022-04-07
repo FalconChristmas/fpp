@@ -11,11 +11,11 @@
  * included LICENSE.GPL file.
  */
 
-#include "ChannelOutputBase.h"
+#include "ChannelOutput.h"
 
 class SPInRF24L01PrivData;
 
-class SPInRF24L01Output : public ChannelOutputBase {
+class SPInRF24L01Output : public ChannelOutput {
 public:
     SPInRF24L01Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~SPInRF24L01Output();

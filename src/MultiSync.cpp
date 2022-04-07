@@ -13,8 +13,8 @@
 #include "fpp-pch.h"
 
 #include <arpa/inet.h>
-#include <netinet/in.h>
 #include <net/if.h>
+#include <netinet/in.h>
 #include <sys/types.h>
 #include <ifaddrs.h>
 #include <math.h>
@@ -32,7 +32,7 @@
 #include "NetworkController.h"
 #include "NetworkMonitor.h"
 #include "Player.h"
-#include "channeloutput/channeloutput.h"
+#include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/channeloutputthread.h"
 #include "commands/Commands.h"
 #include "mediaoutput/mediaoutput.h"
@@ -152,7 +152,7 @@ Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
     system["local"] = local ? 1 : 0;
 
     system["multiSyncCapable"] = multiSync ? 1 : 0;
-    
+
     if (local) {
         system["HostDescription"] = getSetting("HostDescription");
     }
@@ -1797,7 +1797,7 @@ void MultiSync::SendMulticastPacket(void* outBuf, int len) {
                     LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP for %s: %s\n", a.second.interfaceName.c_str(), strerror(errno));
                 }
 #ifdef PLATFORM_OSX
-                int idx = if_nametoindex( a.second.interfaceName.c_str());
+                int idx = if_nametoindex(a.second.interfaceName.c_str());
                 if (setsockopt(a.second.multicastSocket, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx)) < 0) {
                     LogErr(VB_SYNC, "Error setting IP_MULTICAST Device for %s: %s\n", a.second.interfaceName.c_str(), strerror(errno));
                 }
@@ -1805,7 +1805,7 @@ void MultiSync::SendMulticastPacket(void* outBuf, int len) {
                 if (setsockopt(a.second.multicastSocket, SOL_SOCKET, SO_BINDTODEVICE, a.second.interfaceName.c_str(), a.second.interfaceName.size()) < 0) {
                     LogErr(VB_SYNC, "Error setting IP_MULTICAST Device for %s: %s\n", a.second.interfaceName.c_str(), strerror(errno));
                 }
-#endif                
+#endif
             }
         }
 
@@ -1862,7 +1862,7 @@ bool MultiSync::FillInInterfaces() {
                 struct sockaddr_in* ba = (struct sockaddr_in*)(tmp->ifa_dstaddr);
 #else
                 struct sockaddr_in* ba = (struct sockaddr_in*)(tmp->ifa_ifu.ifu_broadaddr);
-#endif                
+#endif
                 struct sockaddr_in* sa = (struct sockaddr_in*)(tmp->ifa_addr);
 
                 NetInterfaceInfo& info = m_interfaces[tmp->ifa_name];
