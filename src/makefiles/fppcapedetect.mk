@@ -11,7 +11,7 @@ LIBS_fppcapedetect = \
 	-ljsoncpp
 
 LIBS_libfpp_capeutils_so = \
-	-ljsoncpp -lcrypto
+	-ljsoncpp -lcrypto $(LD_FLAG_FS)
 
 # At boot time, reading off the SD card is a huge bottleneck as nothing is cached
 # and all the services starting in parallel are trying to load things.

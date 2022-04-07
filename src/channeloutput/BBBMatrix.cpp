@@ -26,7 +26,7 @@ public:
         FPPPlugins::Plugin("BBBMatrix") {
     }
     virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
-        return new BBBMatrixOutput(startChannel, channelCount);
+        return new BBBMatrix(startChannel, channelCount);
     }
 };
 
