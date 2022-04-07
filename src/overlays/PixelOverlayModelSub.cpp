@@ -61,7 +61,7 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     if (!foundParent())
         return;
 
-    dirtyBuffer |= parent->needRefresh();
+    dirtyBuffer = dirtyBuffer | parent->needRefresh();
     if (!dirtyBuffer)
         return;
 
