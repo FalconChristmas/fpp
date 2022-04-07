@@ -525,7 +525,7 @@ private:
         if (buffer[0] != 'F' || buffer[1] != 'P' || buffer[2] != 'P' || buffer[3] != '0' || buffer[4] != '2') {
             printf("EEPROM header miss-match\n");
             EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
-            if (file_exists(EEPROM)) {
+            if (!file_exists(EEPROM)) {
                 EEPROM = "";
             } else {
                 printf("Using %s\n", EEPROM.c_str());
