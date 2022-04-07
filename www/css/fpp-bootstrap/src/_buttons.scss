@@ -127,6 +127,12 @@ margin-right: 0.2em;
       height: 28px; 
     }
   }
+  .circularButton-vsm {
+    transform: scale(0.7);
+    &:before{
+      transform: scale(0.7);
+    }
+  }
   .circularEditButton{
     background-color: $yellow;
     color:$yellow;

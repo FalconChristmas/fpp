@@ -9128,7 +9128,10 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
   .circularButton-sm:before {
     width: 28px;
     height: 28px; }
-
+.circularButton-vsm {
+  transform: scale(0.7); }
+  .circularButton-vsm:before {
+    transform: scale(0.7); }
 .circularEditButton {
   background-color: #F2BC5F;
   color: #F2BC5F; }
