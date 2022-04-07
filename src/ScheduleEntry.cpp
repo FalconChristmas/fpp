@@ -1,33 +1,20 @@
 /*
- *   ScheduleEntry class for the Falcon Player (FPP) 
+ * This file is part of the Falcon Player (FPP) and is Copyright (C)
+ * 2013-2022 by the Falcon Player Developers.
  *
- *   Copyright (C) 2013-2018 the Falcon Player Developers
- *      Initial development by:
- *      - David Pitts (dpitts)
- *      - Tony Mace (MyKroFt)
- *      - Mathew Mrosko (Materdaddy)
- *      - Chris Pinkham (CaptainMurdoch)
- *      For additional credits and developers, see credits.php.
+ * The Falcon Player (FPP) is free software, and is covered under
+ * multiple Open Source licenses.  Please see the included 'LICENSES'
+ * file for descriptions of what files are covered by each license.
  *
- *   The Falcon Player (FPP) is free software; you can redistribute it
- *   and/or modify it under the terms of the GNU General Public License
- *   as published by the Free Software Foundation; either version 2 of
- *   the License, or (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, see <http://www.gnu.org/licenses/>.
+ * This source file is covered under the LGPL v2.1 as described in the
+ * included LICENSE.LGPL file.
  */
 
 #include "fpp-pch.h"
 
 #include "FPPLocale.h"
 #include "ScheduleEntry.h"
-#include "sunset.h"
+#include "SunRise.h"
 #include <math.h>
 
 static time_t GetTimeOnDOW(int day, int hour, int minute, int second) {
@@ -341,6 +328,7 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, bool setStart) {
     double lon = std::stod(lonStr, &sz);
     double sunOffset = 0;
     time_t currTime = when;
+    time_t midnight = when;
     struct tm utc;
     struct tm local;
     std::string info = setStart ? startTimeStr : endTimeStr;
@@ -348,31 +336,43 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, bool setStart) {
     gmtime_r(&currTime, &utc);
     localtime_r(&currTime, &local);
 
+    int daySecond = (local.tm_hour * SECONDS_PER_HOUR) + (local.tm_min * SECONDS_PER_MINUTE) + local.tm_sec;
+
     LogExcess(VB_SCHEDULE, "Lat/Lon: %.6f, %.6f\n", lat, lon);
     LogExcess(VB_SCHEDULE, "Today (UTC) is %02d/%02d/%04d, UTC offset is %d hours\n",
               utc.tm_mon + 1, utc.tm_mday, utc.tm_year + 1900, local.tm_gmtoff / 3600);
 
-    SunSet sun(lat, lon, (int)(local.tm_gmtoff / 3600));
-    sun.setCurrentDate(utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday);
+    SunRise sr;
+    if ((info == "Dawn") || (info == "Dusk"))
+        sr.calculate(lat, lon, when + local.tm_gmtoff, TT_CIVIL);
+    else
+        sr.calculate(lat, lon, when + local.tm_gmtoff);
+
+    // Find midnight on the 'when' day
+    local.tm_hour = 0;
+    local.tm_min = 0;
+    local.tm_sec = 0;
+    midnight = mktime(&local);
 
     if (info == "SunRise")
-        sunOffset = sun.calcSunrise();
+        sunOffset = sr.riseTime - midnight;
     else if (info == "SunSet")
-        sunOffset = sun.calcSunset();
+        sunOffset = sr.setTime - midnight;
     else if (info == "Dawn")
-        sunOffset = sun.calcCivilSunrise();
+        sunOffset = sr.riseTime - midnight;
     else if (info == "Dusk")
-        sunOffset = sun.calcCivilSunset();
+        sunOffset = sr.setTime - midnight;
     else
         sunOffset = 0;
+
+    // convert sunOffset to minutes for later calculations
+    sunOffset /= 60.0;
 
     if (setStart) {
         sunOffset += startTimeOffset;
     } else {
         sunOffset += endTimeOffset;
     }
-
-    int daySecond = (local.tm_hour * SECONDS_PER_HOUR) + (local.tm_min * SECONDS_PER_MINUTE) + local.tm_sec;
 
     if (sunOffset < 0) {
         LogWarn(VB_SCHEDULE, "Sunrise calculated as before midnight last night, using 8AM.  Check your time zone to make sure it is valid.\n");

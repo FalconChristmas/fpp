@@ -1,25 +1,106 @@
-While the Falcon Player (FPP) is covered under the GPL v2 license as
-indicated in the LICENSE file and source code headers, there is some
-external code included with FPP that is covered under a different license
-due to the license restrictions from the the original authors.  These
-external code sources and any license exceptions are noted below.
+This file documents 3rd-Party files which are included in the FPP repository
+but are covered under various license by their respective Copyright owners.
+
+See the LICENSE file for information on files which are created and
+maintained by the FPP developers.
 ==============================================================================
 
-limonade - PHP REST microframework
+Included files and their applicable license info:
 
-limonade is covered by its own free software license which is included in the
-api/lib/LICENSE.limonade file.  Permission is granted for free use without
-limitations.
+src/overlays/wled/*
+    - WLED code in general is covered by the MIT license, but some files may
+      have a separate license noted in their header.  A copy of the WLED MIT
+      license is included in the wled subdirectory.
+      https://github.com/Aircoookie/WLED
 
-limonade is available from https://github.com/sofadesign/limonade
+src/SunRise.*
+    - Proprietary Open Source license by Stephen R. Schmitt and Cyrus Rahman.
+      https://github.com/signetica/SunRise
 
+src/util/bcm2835.*
+    - Copyright (C) 2011-2013 Mike McCauley.  These files are licensed under
+      the GPL v3 which is included here as LICENSE.GPLv3.
 
-==============================================================================
+src/util/tinyexpr.*
+    - Copyright (c) 2015-2018 Lewis Van Winkle
 
-SheetsJS is covered by the Apache 2.0 License - https://github.com/SheetJS/sheetjs/blob/master/LICENSE
+www/api/lib/*
+    - limonade - PHP REST microframework
+      https://github.com/sofadesign/limonade
 
-==============================================================================
+      limonade is covered by its own free software license which is included
+      in the api/lib/LICENSE.limonade file.  Permission is granted for free
+      use without limitations.
 
-FileSaver.js is covered by the MIT License - https://github.com/eligrey/FileSaver.js/blob/master/LICENSE.md
+www/css/classicTheme
+    - FIXME, are we really using this?
 
-==============================================================================
+www/css/fontawesome.all.min.css
+www/webfonts/fa-*
+    - The Font Awesome files are covered under various licenses including
+      the CC-BY, SOL-OLF, and MIC licenses as documented at
+      https://fontawesome.com/license/free
+
+www/css/fpp-bootstrap
+    - FIXME
+
+www/css/images
+    - FIXME, what in here isn't ours?
+
+www/jquery/colpick
+www/jquery/jQuery-Form-Plugin
+www/jquery/jquery.tablesorter
+    - dual-licensed under MIT/GPL, but included here via their GPL license
+
+www/jquery/jQuery.msgBox
+    - proprietary Open Source license included in
+      www/jquery/jQuery.msgBox/scripts/jquery.msgBox.js
+
+www/jqupload.php
+www/jquery/jQuery-Upload-File
+    - jQuery-Uplaod-File is covered by the MIT license.  See
+      www/jquery/jQuery-Upload-File/MIT-License.txt
+
+www/js/bootstrap.bundle.min.js
+    - MIT license
+      https://github.com/twbs/bootstrap/blob/main/LICENSE
+
+www/js/fabric.min.js
+www/js/fabric_snap.js
+    - Fabric.js is a powerful and simple JavaScript HTML5 canvas library
+      http://fabricjs.com/
+      Fabricjs is covered under a proprietary Open Source license located
+      in its github repository.  https://github.com/fabricjs/fabric.js
+
+www/js/FileSaver.min.js
+www/js/FileSaver.min.js.map
+    - FileSaver.js is covered by the MIT License
+      https://github.com/eligrey/FileSaver.js/blob/master/LICENSE.md
+
+www/js/jquery*
+    - FIXME
+
+www/js/validate.min.js
+    - MIT license as noted in source header
+
+www/js/xlsx.full.min.js
+www/js/xlsx.full.min.js.map
+    - SheetsJS is covered by the Apache 2.0 License
+      https://github.com/SheetJS/sheetjs/blob/master/LICENSE
+
+www/js/zebra_pin.min.js
+    - Covered under the GPL v3 license as noted in the source header.
+
+www/jquery/*
+    - FIXME
+
+www/lib/getid3
+    - licensed under multiple licenses as noted in www/lib/getid3/README.md
+      Used here under the GPL v2 license.
+
+www/lib/websocket_client.php
+    - MIT license, see source file header
+
+www/node_modules
+    - FIXME
+
