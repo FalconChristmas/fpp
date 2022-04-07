@@ -1,6 +1,6 @@
 ifeq '$(ARCH)' 'Raspberry Pi'
 
-OBJECTS_fpp_co_dpi_pixels_so += channeloutput/DPIPixels.o
+OBJECTS_fpp_co_dpi_pixels_so += non-gpl/DPIPixels/DPIPixels.o
 LIBS_fpp_co_dpi_pixels_so=-L. -lfpp -ljsoncpp
 
 CXXFLAGS_channeloutput/DPIPixels.o=

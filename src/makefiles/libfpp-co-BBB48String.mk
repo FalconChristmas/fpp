@@ -1,7 +1,7 @@
 # BeagleBone Black
 ifeq '$(ARCH)' 'BeagleBone Black'
 
-OBJECTS_fpp_co_BBB48String_so += channeloutput/BBB48String.o
+OBJECTS_fpp_co_BBB48String_so += non-gpl/BBB48String/BBB48String.o
 LIBS_fpp_co_BBB48String_so += -L. -lfpp -ljsoncpp
 
 TARGETS += libfpp-co-BBB48String.$(SHLIB_EXT)

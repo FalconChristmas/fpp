@@ -17,8 +17,8 @@
 
 #include <linux/fb.h>
 
-#include "ChannelOutputBase.h"
-#include "PixelString.h"
+#include "channeloutput/ChannelOutputBase.h"
+#include "channeloutput/PixelString.h"
 #include "util/SPIUtils.h"
 
 class DPIPixelsOutput : public ChannelOutputBase {

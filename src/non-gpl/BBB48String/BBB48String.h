@@ -15,8 +15,8 @@
 #include <string>
 #include <vector>
 
-#include "ChannelOutputBase.h"
-#include "PixelString.h"
+#include "channeloutput/ChannelOutputBase.h"
+#include "channeloutput/PixelString.h"
 #include "util/BBBPruUtils.h"
 
 #define MAX_WS2811_TIMINGS 128
