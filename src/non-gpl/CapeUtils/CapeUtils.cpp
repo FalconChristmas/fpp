@@ -372,6 +372,18 @@ static void removeIfExist(const std::string& src) {
         unlink(src.c_str());
     }
 }
+void setOwnerGroup(const std::string& filename) {
+    static struct passwd* pwd = getpwnam("fpp");
+    if (pwd) {
+        chown(filename.c_str(), pwd->pw_uid, pwd->pw_gid);
+    }
+}
+bool setFilePerms(const std::string& filename) {
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
+    chmod(filename.c_str(), mode);
+    setOwnerGroup(filename);
+    return true;
+}
 
 #ifdef PLATFORM_BBB
 bool isPocketBeagle() {
@@ -467,8 +479,10 @@ private:
 
                 if (target[target.length() - 1] == '/') {
                     mkdir(target.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                    setOwnerGroup(target);
                 } else {
-                    copyIfNotExist(src, target);
+                    copyFile(src, target);
+                    setFilePerms(target);
                 }
             }
             files.clear();
@@ -670,7 +684,7 @@ private:
             // not a valid signed eeprom, remove stuff that requires it
             removeIfExist(outputPath + "/tmp/cape-sensors.json");
             removeIfExist(outputPath + "/tmp/cape-inputs.json");
-            removeIfExist(outputPath + "/tmp/defaults/config/cape-sensors.json");
+            removeIfExist(outputPath + "/tmp/defaults/config/sensors.json");
         }
     }
     void processEEPROM() {
@@ -779,6 +793,7 @@ private:
                                 target = "/home/fpp/media/" + target;
                             }
                             copyFile(src, target);
+                            setFilePerms(target);
                         }
                     }
                     if (result.isMember("i2cDevices")) {
@@ -804,6 +819,7 @@ private:
                 Json::StreamWriterBuilder wbuilder;
                 std::string resultStr = Json::writeString(wbuilder, result);
                 put_file_contents(outputPath + "/tmp/cape-info.json", (const uint8_t*)resultStr.c_str(), resultStr.size());
+                setFilePerms(outputPath + "/tmp/cape-info.json");
             } else {
                 printf("Failed to parse cape-info.json: %s\n", errors.c_str());
             }
