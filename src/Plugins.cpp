@@ -379,7 +379,7 @@ FPPPlugins::Plugin* PluginManager::findPlugin(const std::string& name, const std
         }
     }
     if (!p) {
-        LogErr(VB_PLUGIN, "Failed to load plugin: %s     Error: %s\n", libName, dlerror());
+        LogErr(VB_PLUGIN, "Failed to load plugin: %s     Error: %s\n", libName.c_str(), dlerror());
     }
     return p;
 }
