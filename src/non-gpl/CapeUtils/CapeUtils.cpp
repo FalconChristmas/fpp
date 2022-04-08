@@ -424,17 +424,25 @@ public:
         mkdir(tmpPath.c_str(), 0700);
 
         findCapeEEPROM();
-        parseEEPROM();
-        processEEPROM();
-
+        if (EEPROM != "") {
+            parseEEPROM();
+            processEEPROM();
+        }
         loadFiles();
+        std::filesystem::remove_all(outputPath);
     }
 
     ~CapeInfo() {
     }
 
-    bool foundCape() {
-        return EEPROM != "";
+    CapeUtils::CapeStatus capeStatus() {
+        if (validSignature) {
+            return CapeUtils::CapeStatus::SIGNED;
+        }
+        if (!validSignature && EEPROM != "") {
+            return CapeUtils::CapeStatus::UNSIGNED;
+        }
+        return CapeUtils::CapeStatus::NOT_PRESENT;
     }
 
     bool hasFile(const std::string& path) {
@@ -477,8 +485,6 @@ private:
                 fclose(f);
             }
         }
-
-        std::filesystem::remove_all(outputPath);
     }
 
     void findCapeEEPROM() {
@@ -558,6 +564,11 @@ private:
     void parseEEPROM() {
         uint8_t* buffer = new uint8_t[32768]; //32K is the largest eeprom we support, more than enough
         FILE* file = fopen(EEPROM.c_str(), "rb");
+        if (file == nullptr) {
+            printf("Failed to open eeprom: %s\n", EEPROM.c_str());
+            printf("   error: %s\n", strerror(errno));
+            return;
+        }
         int l = fread(buffer, 1, 6, file);
 
         if (buffer[0] == 'F' && buffer[1] == 'P' && buffer[2] == 'P' && buffer[3] == '0' && buffer[4] == '2') {
@@ -700,9 +711,21 @@ private:
                     result["verifiedKeyId"] = fkeyId;
                 }
                 if (!readOnly) {
-                    if ((!hasSignature || validSignature) && result.isMember("defaultSettings")) {
-                        readSettingsFile(lines);
-
+                    readSettingsFile(lines);
+                    if (result.isMember("removeSettings")) {
+                        for (int x = 0; x < result["removeSettings"].size(); x++) {
+                            std::string v = result["removeSettings"][x].asString();
+                            std::string found = "";
+                            for (int l = 0; l < lines.size(); l++) {
+                                if (lines[l].find(v) == 0) {
+                                    lines.erase(lines.begin() + l);
+                                    settingsChanged = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (validSignature && result.isMember("defaultSettings")) {
                         std::map<std::string, std::string> defaults;
                         for (auto a : result["defaultSettings"].getMemberNames()) {
                             std::string v = result["defaultSettings"][a].asString();
@@ -717,6 +740,17 @@ private:
                                 settingsChanged = true;
                             }
                         }
+                    } else if (!hasSignature || !validSignature) {
+                        std::string v = "statsPublish";
+                        std::string found = "";
+                        for (int l = 0; l < lines.size(); l++) {
+                            if (lines[l].find(v) == 0) {
+                                lines.erase(lines.begin() + l);
+                                lines.push_back(v + " = \"Enabled\"");
+                                settingsChanged = true;
+                                break;
+                            }
+                        }
                     }
 
                     if (result.isMember("bootConfig")) {
@@ -725,22 +759,6 @@ private:
                         processBootConfig(result["bootConfig"]);
                     }
 
-                    if (result.isMember("removeSettings")) {
-                        if (lines.empty()) {
-                            readSettingsFile(lines);
-                        }
-                        for (int x = 0; x < result["removeSettings"].size(); x++) {
-                            std::string v = result["removeSettings"][x].asString();
-                            std::string found = "";
-                            for (int l = 0; l < lines.size(); l++) {
-                                if (lines[l].find(v) == 0) {
-                                    lines.erase(lines.begin() + l);
-                                    settingsChanged = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
                     if (result.isMember("modules")) {
                         //if the cape requires kernel modules, load them at this
                         //time so they will be available later
@@ -749,12 +767,12 @@ private:
                             exec(v.c_str());
                         }
                     }
-                    if ((!hasSignature || validSignature) && result.isMember("copyFiles")) {
+                    if (result.isMember("copyFiles")) {
                         //if the cape requires certain files copied into place (asoundrc for example)
                         for (auto src : result["copyFiles"].getMemberNames()) {
                             std::string target = result["copyFiles"][src].asString();
 
-                            if (src[0] != '/') {
+                            if (validSignature && (src[0] != '/')) {
                                 src = outputPath + "/" + src;
                             }
                             if (target[0] != '/') {
@@ -776,7 +794,7 @@ private:
                             close(f);
                         }
                     }
-                    if ((!hasSignature || validSignature) && result.isMember("disableOutputs")) {
+                    if (validSignature && result.isMember("disableOutputs")) {
                         disableOutputs(result["disableOutputs"]);
                     }
                     if (settingsChanged) {
@@ -806,6 +824,22 @@ private:
                 } else {
                     copyIfNotExist(src, target);
                 }
+            }
+        }
+        std::vector<std::string> files;
+        getFileList(outputPath + "/tmp/strings", "", files);
+        for (auto a : files) {
+            std::string src = outputPath + "/tmp/strings" + a;
+            Json::Value result;
+            Json::CharReaderBuilder factory;
+            std::string errors;
+            std::ifstream istream(src);
+            bool success = Json::parseFromStream(factory, istream, &result, &errors);
+            if (success) {
+                result["supportsSmartReceivers"] = validSignature;
+                Json::StreamWriterBuilder wbuilder;
+                std::string resultStr = Json::writeString(wbuilder, result);
+                put_file_contents(src, (const uint8_t*)resultStr.c_str(), resultStr.size());
             }
         }
     }
@@ -955,8 +989,8 @@ CapeInfo* CapeUtils::initCapeInfo(bool ro) {
     return capeInfo;
 }
 
-bool CapeUtils::initCape(bool readOnly) {
-    return initCapeInfo(readOnly)->foundCape();
+CapeUtils::CapeStatus CapeUtils::initCape(bool readOnly) {
+    return initCapeInfo(readOnly)->capeStatus();
 }
 
 bool CapeUtils::hasFile(const std::string& path) {
@@ -964,4 +998,58 @@ bool CapeUtils::hasFile(const std::string& path) {
 }
 std::vector<uint8_t> CapeUtils::getFile(const std::string& path) {
     return initCapeInfo(true)->getFile(path);
+}
+
+#ifdef PLATFORM_PI
+static const std::string PLATFORM_DIR = "pi";
+const std::string& getPlatformCapeDir() { return PLATFORM_DIR; }
+#elif defined(PLATFORM_BBB)
+static const std::string PLATFORM_DIR_BBB = "bbb";
+static const std::string PLATFORM_DIR_PB = "pb";
+const std::string& getPlatformCapeDir() {
+    int len = 0;
+    char* buf = (char*)get_file_contents("/proc/device-tree/model", len);
+    if (strcmp(&buf[10], "PocketBeagle") == 0) {
+        free(buf);
+        return PLATFORM_DIR_PB;
+    }
+    free(buf);
+    return PLATFORM_DIR_BBB;
+}
+
+#else
+static const std::string PLATFORM_DIR = "";
+const std::string& getPlatformCapeDir() { return PLATFORM_DIR; }
+#endif
+
+bool CapeUtils::getStringConfig(const std::string& type, Json::Value& val) {
+    Json::Value result;
+    Json::CharReaderBuilder factory;
+    std::string errors;
+
+    std::string fn = "/tmp/strings/" + type + ".json";
+    if (hasFile(fn)) {
+        const std::vector<uint8_t>& f = getFile(fn);
+        std::istringstream istream(std::string((const char*)&f[0], f.size()));
+        bool success = Json::parseFromStream(factory, istream, &val, &errors);
+        if (success) {
+            val["supportsSmartReceivers"] = capeInfo->capeStatus() == CapeUtils::CapeStatus::SIGNED;
+            return true;
+        }
+    } else {
+        fn = "/opt/fpp/capes/";
+        fn += getPlatformCapeDir();
+        fn += "/strings/" + type + ".json";
+        if (file_exists(fn)) {
+            std::ifstream istream(fn);
+            bool success = Json::parseFromStream(factory, istream, &val, &errors);
+            if (success) {
+                if (capeInfo->capeStatus() == CapeUtils::CapeStatus::UNSIGNED) {
+                    val["supportsSmartReceivers"] = false;
+                }
+                return true;
+            }
+        }
+    }
+    return false;
 }

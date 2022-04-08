@@ -60,5 +60,6 @@
         {  "pin": "P1-36" },
         {  "pin": "P2-28" },
         {  "pin": "P1-31" }
-    ]
+    ],
+    "supportsSmartReceivers": true
 }

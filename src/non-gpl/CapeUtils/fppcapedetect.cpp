@@ -15,7 +15,7 @@
 #include <stdlib.h>
 
 int main(int argc, char* argv[]) {
-    if (CapeUtils::INSTANCE.initCape(false)) {
+    if (CapeUtils::INSTANCE.initCape(false) == CapeUtils::CapeStatus::NOT_PRESENT) {
         exit(-1);
     }
 }

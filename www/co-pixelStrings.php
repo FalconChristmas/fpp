@@ -64,9 +64,9 @@ if ($settings['Platform'] == "BeagleBone Black") {
         display: none;
     }
     <?
-    }
-    if ((isSet($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {
-        // don't support virtual strings
+}
+if ((isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {
+    // don't support virtual strings
     ?>
     #BBB48String tr > th:nth-of-type(3),
     #BBB48String tr > td:nth-of-type(3) {
@@ -74,7 +74,7 @@ if ($settings['Platform'] == "BeagleBone Black") {
     }
 
     <?
-    }
+}
 ?>
 
 
@@ -92,61 +92,63 @@ if ($settings['Platform'] == "BeagleBone Black") {
 
 var KNOWN_CAPES = {
 <?
-    function sortByLongName($a, $b) {
-        return strcmp($a['longName'], $b['longName']);
-    }
-    
-    function readCapes($cd, $capes) {
-        global $settings;
-        if (is_dir($cd)){
-            if ($dh = opendir($cd)){
-                while (($file = readdir($dh)) !== false){
+function sortByLongName($a, $b)
+{
+    return strcmp($a['longName'], $b['longName']);
+}
+
+function readCapes($cd, $capes)
+{
+    global $settings;
+    if (is_dir($cd)) {
+        if ($dh = opendir($cd)) {
+            while (($file = readdir($dh)) !== false) {
+                $string = "";
+                if (substr($file, 0, 1) == '.') {
                     $string = "";
-                    if (substr($file, 0, 1) == '.') {
-                        $string = "";
-                    } else {
-                        $string = file_get_contents($cd . $file);
-//			echo "/* file len " . strlen($string) . "*/\n";
-//			echo "/* ends with '" . substr($string, -4) . "' */\n";
-                    }
-                    
-                    if ($string != "") {
-                        $json = json_decode($string, true);
-                        if ($json['numSerial'] != 0 && isSet($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported") {
-                            // unsupported
-                            continue;
-                        } else if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
-                            echo "'" . $file . "': " . $string . ",\n";
-                            $file = str_replace('-v2.j', '.j', $file);
-                            $file = str_replace('-v3.j', '.j', $file);
-                            if (!isset($capes[$file])) {
-                                $capes[$file] = $json;
-                            }
+                } else {
+                    $string = file_get_contents($cd . $file);
+//            echo "/* file len " . strlen($string) . "*/\n";
+                    //            echo "/* ends with '" . substr($string, -4) . "' */\n";
+                }
+
+                if ($string != "") {
+                    $json = json_decode($string, true);
+                    if ($json['numSerial'] != 0 && isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported") {
+                        // unsupported
+                        continue;
+                    } else if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
+                        echo "'" . $file . "': " . $string . ",\n";
+                        $file = str_replace('-v2.j', '.j', $file);
+                        $file = str_replace('-v3.j', '.j', $file);
+                        if (!isset($capes[$file])) {
+                            $capes[$file] = $json;
                         }
                     }
                 }
-                closedir($dh);
             }
+            closedir($dh);
         }
-        return $capes;
     }
-    
-    $capes = array();
-    $capes = readCapes($mediaDirectory . "/tmp/strings/", $capes);
-    if (count($capes) == 0 || $settings["showAllOptions"] == 1) {
-        if ($settings['Platform'] == "Raspberry Pi") {
-            $capedir = $fppDir . "/capes/pi/strings/";
-        } else if ($settings['Platform'] == "BeagleBone Black") {
-            $capedir = $fppDir . "/capes/bbb/strings/";
-            if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
-                $capedir = $fppDir . "/capes/pb/strings/";
-            }
-        } else {
-            $capedir = $fppDir . "/capes/virtual/strings/";
+    return $capes;
+}
+
+$capes = array();
+$capes = readCapes($mediaDirectory . "/tmp/strings/", $capes);
+if (count($capes) == 0 || $settings["showAllOptions"] == 1) {
+    if ($settings['Platform'] == "Raspberry Pi") {
+        $capedir = $fppDir . "/capes/pi/strings/";
+    } else if ($settings['Platform'] == "BeagleBone Black") {
+        $capedir = $fppDir . "/capes/bbb/strings/";
+        if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
+            $capedir = $fppDir . "/capes/pb/strings/";
         }
-        $capes = readCapes($capedir, $capes);
+    } else {
+        $capedir = $fppDir . "/capes/virtual/strings/";
     }
-    usort($capes, 'sortByLongName');
+    $capes = readCapes($capedir, $capes);
+}
+usort($capes, 'sortByLongName');
 ?>
 };
 
@@ -192,7 +194,7 @@ function pixelOutputTableHeader()
     result += "<th>Gamma</th>";
     result += "</tr>\n";
     result += "</thead>";
-    
+
     return result;
 }
 
@@ -228,7 +230,7 @@ function pixelOutputProtocolSelect(protocols, protocol)
 function pixelOutputTableInputDirection(reverse)
 {
     var result = "";
-    
+
     result += "<td>";
     result += "<select class='vsReverse'>";
     result += "<option value='0'>Forward</option>";
@@ -238,7 +240,7 @@ function pixelOutputTableInputDirection(reverse)
     result += ">Reverse</option>";
     result += "</select>";
     result += "</td>";
-    
+
     return result;
 }
 
@@ -256,7 +258,7 @@ function pixelOutputTableInputOrderOption(colorOrder, selectedColorOrder)
 function pixelOutputTableInputOrder(colorOrder)
 {
     var result = "";
-    
+
     result += "<td>";
     result += "<select class='vsColorOrder' onChange='updateItemEndChannel(this);'>";
     result += pixelOutputTableInputOrderOption('RGB', colorOrder);
@@ -265,10 +267,9 @@ function pixelOutputTableInputOrder(colorOrder)
     result += pixelOutputTableInputOrderOption('GRB', colorOrder);
     result += pixelOutputTableInputOrderOption('BGR', colorOrder);
     result += pixelOutputTableInputOrderOption('BRG', colorOrder);
-    
+
     <?
-    if ($settings['Platform'] == "BeagleBone Black")
-    {
+if ($settings['Platform'] == "BeagleBone Black") {
     ?>
         result += pixelOutputTableInputOrderOption('RGBW', colorOrder);
         result += pixelOutputTableInputOrderOption('RBGW', colorOrder);
@@ -285,22 +286,22 @@ function pixelOutputTableInputOrder(colorOrder)
         result += pixelOutputTableInputOrderOption('WBRG', colorOrder);
         result += pixelOutputTableInputOrderOption('W', colorOrder);
     <?
-    }
-    ?>
-    
+}
+?>
+
     result += "</select>";
     result += "</td>";
-    
+
     return result;
 }
 
 function pixelOutputTableInputBrightness(brightness)
 {
     var result = "";
-    
+
     result += "<td>";
     result += "<select class='vsBrightness'>";
-    
+
     var i = 100;
     for (i = 100; i >= 5; i -= 5)
     {
@@ -309,19 +310,19 @@ function pixelOutputTableInputBrightness(brightness)
             result += " selected";
         result += ">" + i + "%</option>";
     }
-    
+
     result += "</select>";
     result += "</td>";
-    
+
     return result;
 }
 
 function removeVirtualString(item)
 {
     var tr = $(item).parent().parent();
-    
+
     var id = tr.attr('id');
-    
+
     // FIXME, do we need to do anything else other than this?
     tr.remove();
 }
@@ -338,7 +339,7 @@ function addVirtualString(item)
     var tbody = row.parent();
     var desc = row.find('.vsDescription').val();
     var str = "";
-    
+
     // Find the highest string ID on this output
     var highest = 0;
     var i = maxVirtualStringsPerOutput;
@@ -352,11 +353,11 @@ function addVirtualString(item)
             break;
         }
     }
-    
+
     var sid = highest + 1;
-    
+
     str += pixelOutputTableRow(type, protocols, protocol, oid, pid, sid, desc + sid, 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, '1.0', '', hwLabel);
-    
+
     $('#' + highestId).after(str);
 }
 
@@ -379,10 +380,10 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
 {
     var result = "";
     var id = type + "_Output_" + oid + "_" + port + "_" + sid;
-    
+
     if (hwLabel == "")
         hwLabel = "" + (port+1);
-    
+
     result += "<tr id='" + id + "' type='" + type + "' oid='" + oid + "' pid='" + port + "' sid='" + sid + "' protocols='" + protocols + "' hwlabel='" + hwLabel +"'>";
 
     if (groupCount == 0) {
@@ -402,9 +403,9 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
         result += "<td ><button ";
         result += "class='circularButton circularButton-sm circularButton-visible circularVirtualStringButton circularAddButton' onClick='addVirtualString(this);'></button></td>";
     }
-    
+
     result += "<td><input type='text' class='vsDescription' size='25' maxlength='60' value='" + description + "'></td>";
-    result += "<td><input type='number' class='vsStartChannel' size='7' value='" + startChannel + "' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+    result += "<td><input type='number' class='vsStartChannel' size='7' value='" + startChannel + "' min='1' max='<?echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
     result += "<td><input type='number' class='vsPixelCount' size='4' min='1' max='1600' onkeypress='preventNonNumericalInput(event)' value='" + pixelCount + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
     result += "<td><input type='number' class='vsGroupCount' size='3' value='" + groupCount + "' min='1' max='1000' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);'></td>";
     if (groupCount == 0) {
@@ -419,7 +420,7 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     result += pixelOutputTableInputBrightness(brightness);
     result += "<td><input type='number' class='vsGamma' size='3' value='" + gamma + "' min='0.1' max='5.0' step='0.01'></td>";
     result += "</tr>\n";
-    
+
     return result;
 }
 
@@ -438,7 +439,7 @@ function setPixelStringsStartChannelOnNextRow()
         var pixelType = row.find('.vsColorOrder').val();
         var chanPerNode = (pixelType || "RGB").length;
         var nextStart = startChannel + (chanPerNode * pixelCount)/groupCount;
-        
+
         $('#pixelOutputs table tr').removeClass('selectedEntry');
 
         if (nextRow.html().indexOf('<hr>') != -1)
@@ -446,13 +447,13 @@ function setPixelStringsStartChannelOnNextRow()
         if (!nextRow.is(":visible")) {
             nextRow = nextRow.next('tr');
         }
-            
-        
+
+
 
         nextRow.find('.vsStartChannel').val(nextStart);
         nextRow.addClass('selectedEntry');
         updateRowEndChannel(nextRow);
-        
+
         selectedPixelStringRowId = nextRow.attr('id');
     }
 }
@@ -463,7 +464,7 @@ function updateRowEndChannel(row) {
     var groupCount = parseInt(row.find('.vsGroupCount').val()) || 0;
     var pixelType = row.find('.vsColorOrder').val() || "RGB";
     var chanPerNode = (pixelType || "RGB").length;
-    
+
     if (groupCount == 0) {
         groupCount = 1;
     }
@@ -474,14 +475,14 @@ function updateRowEndChannel(row) {
     if (pixelCount == 0) {
         newEnd = 0;
     }
-    
+
     row.find('.vsEndChannel').html(newEnd);
     selected_string_details(row);
 }
 
 function updateItemEndChannel(item) {
     var row = $(item).parent().parent();
-    
+
     updateRowEndChannel(row);
 }
 
@@ -566,21 +567,21 @@ function cloneSelectedString()
     var rowCount = row.parent().find('tr').length;
     var curRow = row.closest("tr")[0].rowIndex;
     var maxClone = rowCount - curRow;
-    
+
     if (maxClone == 0)
     {
         alert("No strings below to clone.");
         return;
     }
-    
+
     var clones = prompt('How many strings to clone from selected string?', maxClone);
-    
+
     if (clones == null || clones == "" || clones == 0)
         return;
-    
+
     clones = parseInt(clones);
     const dir = (clones < 0)? "prev": "next";
-    
+
     var sDescription = row.find('.vsDescription').val() || "";
     var sStartChannel = parseInt(row.find('.vsStartChannel').val()) || 1;
     var sPixelCount = parseInt(row.find('.vsPixelCount').val()) || 0;
@@ -588,7 +589,7 @@ function cloneSelectedString()
 
     if (nextRow.find('td.vsPortLabel').length == 0)
         nextRow = nextRow.closest('tr')[dir]('tr');
-    
+
 //    row.find('.vsDescription').val(sDescription + '0');
     const suffix = (sDescription.match(/(\d+)$/) || [])[1] || "0";
 
@@ -609,7 +610,7 @@ function cloneSelectedString()
                    row.find('.vsZigZag').val(),
                    row.find('.vsBrightness').val(),
                    row.find('.vsGamma').val());
-        
+
         nextRow = nextRow.closest('tr')[dir]('tr');
 
         if (nextRow.find('td.vsPortLabel').length == 0)
@@ -641,7 +642,7 @@ function getPixelStringOutputJSON()
 		for (var i = 0; i < output.outputCount; i++) {
 			var port = {};
             port.portNumber = i;
-                                  
+
             var mainrow = $('#' + output.type + "_Output_0_" + i + "_0");
             port.protocol = mainrow.find('.vsProtocol').val();
             var dtId = (i & 0xFC);
@@ -685,7 +686,7 @@ function getPixelStringOutputJSON()
                         var vs = {};
 
                         var row = $('#' + id);
-                                  
+
                         if (!row.is(":visible")) {
                             vs.pixelCount = 0;
                             vs.description = "";
@@ -914,6 +915,14 @@ function IsDifferential(subType, s) {
     }
     return false;
 }
+function SupportsSmartReceivers(subType) {
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    if (val.hasOwnProperty("supportsSmartReceivers")) {
+        return val["supportsSmartReceivers"];
+    }
+    return false;
+}
 function IsExpansion(subType, s) {
     s = s + 1;
     var subType = GetBBB48StringCapeFileName();
@@ -990,10 +999,10 @@ function addSerialOutputJSON(postData) {
 
     if (config.subType != 'off')
         config.enabled = 1;
-    
+
     if (!$('#BBB48String_enable').is(":checked"))
         config.enabled = 0;
-  
+
     if ($('#BBBSerialSelect').is(":hidden"))
         config.enabled = 0;
 
@@ -1070,7 +1079,7 @@ function BBB48StringExpansionTypeChanged(port) {
                 $('#' + type + '_Output_0_' + (port+x) + '_0').show();
             }
         }
-        
+
     } else {
         //going to differential, need to add receiver type selections
         for (var x = 0; x < num; x += 4) {
@@ -1084,8 +1093,10 @@ function BBB48StringExpansionTypeChanged(port) {
 
             str += "<select id='DifferentialType" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");'>";
             str += "<option value='0' selected> Standard</option>";
-            str += "<option value='1'>Smart v1</option>";
-            str += "<option value='2'>Smart v2</option>";
+            if (SupportsSmartReceivers(subType)) {
+                str += "<option value='1'>Smart v1</option>";
+                str += "<option value='2'>Smart v2</option>";
+            }
             str += "</select>";
             str += "&nbsp;<select id='DifferentialCount" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");' style='display: none;'>";
             str += "<option value='1' selected>1 Smart Receiver</option>";
@@ -1211,7 +1222,7 @@ function populatePixelStringOutputs(data) {
                     $('#BBB48StringSubTypeVersion').val("1.x");
                 }
                 SetupBBBSerialPorts();
-                
+
                 if (GetBBB48StringRequiresVersion()) {
                     $('#BBB48StringSubTypeVersion').show();
                     $('#versionTag').show();
@@ -1219,7 +1230,7 @@ function populatePixelStringOutputs(data) {
                     $('#BBB48StringSubTypeVersion').hide();
                     $('#versionTag').hide();
                 }
-                
+
                 if (document.getElementById("BBB48StringSubType").length == 1) {
                     $('#BBB48StringSubType').hide();
                     document.getElementById("BBB48StringSubTypeSpan").textContent = subType;
@@ -1228,8 +1239,8 @@ function populatePixelStringOutputs(data) {
                     $('#BBB48StringSubType').show();
                     $('#BBB48StringSubTypeSpan').hide();
                 }
-                
-                
+
+
                 var pixelTiming = 0;
                 if ('pixelTiming' in output) {
                     pixelTiming = output.pixelTiming;
@@ -1238,7 +1249,7 @@ function populatePixelStringOutputs(data) {
 
 
                 $('#pixelOutputs').html("");
-                
+
                 var outputCount = GetBBB48StringRows();
 
                 var str = "";
@@ -1255,8 +1266,8 @@ function populatePixelStringOutputs(data) {
                 if (output.outputs != null) {
                     sourceOutputCount = output.outputs.length;
                 }
-                
-                
+
+
                 for (var o = 0; o < outputCount; o++)
                 {
                     var protocols = GetBBB48StringProtocols(o);
@@ -1282,8 +1293,8 @@ function populatePixelStringOutputs(data) {
                             str += "<tr><td colSpan='2'><hr></td>";
                             str += "<td></td>";
                             str += "<td style='font-size:0.7em; text-align:left; white-space: nowrap;'>Expansion Type: ";
-                            
-                            
+
+
                             str += "<select id='ExpansionType" + o + "' onChange='BBB48StringExpansionTypeChanged(" + o + ");'>";
                             str += "<option value='-1'" + (expansionType == -1 ? " selected" : "") + ">None</option>";
                             str += "<option value='0'" + (expansionType == 0 ? " selected" : "") + ">Standard</option>";
@@ -1301,8 +1312,9 @@ function populatePixelStringOutputs(data) {
                             str += "<td colspan='3' style='font-size:0.7em; text-align:left; white-space: nowrap;'>Differential Receiver: ";
 
 
+                            var supportSmart = SupportsSmartReceivers(subType);
                             var diffType = 0;
-                            if (port.hasOwnProperty("differentialType"))
+                            if (supportSmart && port.hasOwnProperty("differentialType"))
                                 diffType = port["differentialType"];
 
                             var diffCount = 0;
@@ -1315,8 +1327,10 @@ function populatePixelStringOutputs(data) {
                             }
                             str += "<select id='DifferentialType" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");'>";
                             str += "<option value='0'" + (diffType == 0 ? " selected" : "") + ">Standard</option>";
-                            str += "<option value='1'" + (diffType == 1 ? " selected" : "") + ">Smart v1</option>";
-                            str += "<option value='2'" + (diffType == 2 ? " selected" : "") + ">Smart v2</option>";
+                            if (supportSmart) {
+                                str += "<option value='1'" + (diffType == 1 ? " selected" : "") + ">Smart v1</option>";
+                                str += "<option value='2'" + (diffType == 2 ? " selected" : "") + ">Smart v2</option>";
+                            }
                             str += "</select>";
                             str += "&nbsp;<select id='DifferentialCount" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");'";
                             if (diffType == 0) {
@@ -1335,7 +1349,7 @@ function populatePixelStringOutputs(data) {
 
                             str += "</td><td colSpan='9'><hr></td>";
                             str += "</tr>";
-                            
+
                             if (diffType >= 1) {
                                 loops = diffCount;
                             }
@@ -1382,11 +1396,11 @@ function populatePixelStringOutputs(data) {
                                     } else if (l == 5) {
                                         strings = port.virtualStringsF;
                                     }
-                                    
+
                                     if (strings != null && strings.length > 0) {
                                         for (var v = 0; v < strings.length; v++) {
                                             var vs = strings[v];
-                                            
+
                                             var endNulls = vs.hasOwnProperty("endNulls") ? vs.endNulls : 0;
                                             var hwLabel = GetStringHWLabel(o2);
                                             str += pixelOutputTableRow(type, protocols, protocol, l, o2, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, endNulls, vs.zigZag, vs.brightness, vs.gamma, pfx, hwLabel);
@@ -1407,7 +1421,7 @@ function populatePixelStringOutputs(data) {
                             var port = output.outputs[o];
                             for (var v = 0; v < port.virtualStrings.length; v++) {
                                 var vs = port.virtualStrings[v];
-                            
+
                                 var protocol = defProtocol;
                                 if (port["protocol"]) {
                                     protocol = port["protocol"];
@@ -1427,13 +1441,13 @@ function populatePixelStringOutputs(data) {
                 str += "</table>";
                 str += "</div>";
                 str += "</div>";
-                
+
                 $('#pixelOutputs').append(str);
-                
+
                 expansions.forEach(function(r) {
                                    BBB48StringExpansionTypeChanged(r);
                                    });
-                
+
                 $('#BBB48String').on('mousedown', 'tr', function(event, ui) {
                     $('#pixelOutputs table tr').removeClass('selectedEntry');
                     $(this).addClass('selectedEntry');
@@ -1539,11 +1553,11 @@ function ValidateBBBStrings(data) {
     }
 }
 
-<? if ($settings['Platform'] == "BeagleBone Black") { ?>
+<?if ($settings['Platform'] == "BeagleBone Black") {?>
 var PIXEL_STRING_FILE_NAME = "co-bbbStrings";
-<? } else { ?>
+<?} else {?>
 var PIXEL_STRING_FILE_NAME = "co-pixelStrings";
-<? } ?>
+<?}?>
 
 function BBB48StringSubTypeChanged()
 {
@@ -1568,14 +1582,14 @@ function BBB48StringSubTypeChanged()
         output.type = MapPixelStringType($('#BBB48StringSubType').val());
         output.subType = $('#BBB48StringSubType').val();
         <?
-        if (isset($capes[0]['pinoutVersion'])) {
-            echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
-        } else {
-            ?>
+if (isset($capes[0]['pinoutVersion'])) {
+    echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
+} else {
+    ?>
             output.pinoutVersion = "1.x";
             <?
-        }
-        ?>
+}
+?>
         defaultData.channelOutputs.push(output);
         populatePixelStringOutputs(defaultData);
     }
@@ -1587,22 +1601,28 @@ define("xLights_MODELS", "/home/fpp/media/upload/xlights_rgbeffects.xml");
 $models_err = "";
 clearstatcache(true); //TODO: is this needed?
 $models_str = file_get_contents(xLights_MODELS);
-if ($models_str == "") $models_err = "xlights_rgbeffect.xml not found.  Please upload it from your xLights folder.";
-else {
+if ($models_str == "") {
+    $models_err = "xlights_rgbeffect.xml not found.  Please upload it from your xLights folder.";
+} else {
     $sv_errh = libxml_use_internal_errors(true); //enable user error handling
     $models_xml = simplexml_load_string($models_str);
-    if (!models_xml)
+    if (!models_xml) {
         foreach (libxml_get_errors() as $error) {
             $models_err = $models_err . "\n" . $error;
         }
+    }
+
     libxml_clear_errors();
     libxml_use_internal_errors($sv_errh);
     $models_json = json_encode($models_xml);
 }
-if (!$models_json || $models_json == "") $models_json = "{}";
+if (!$models_json || $models_json == "") {
+    $models_json = "{}";
+}
+
 ?>
-const xlmodels = <? echo $models_json; ?>;
-const xlmodels_err = "<? echo $models_err; ?>";
+const xlmodels = <?echo $models_json; ?>;
+const xlmodels_err = "<?echo $models_err; ?>";
 //xlate xLights models into Pixel Strings:
 function importStrings() {
     const outtype = $('#BBB48StringSubType').val(); //"DPI24Hat"
@@ -1657,24 +1677,24 @@ function loadBBBOutputs() {
     var output = {};
     output.type = 'BBB48String';
     <?
-    if (isset($capes["F8-B"])) {
-        echo 'output.subType = "F8-B";';
+if (isset($capes["F8-B"])) {
+    echo 'output.subType = "F8-B";';
+} else {
+    echo 'output.subType = "' . $capes[0]['name'] . '";';
+    if (isset($capes[0]['pinoutVersion'])) {
+        echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
     } else {
-        echo 'output.subType = "' . $capes[0]['name'] . '";';
-        if (isset($capes[0]['pinoutVersion'])) {
-            echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
-        } else {
-            echo 'output.pinoutVersion = "1.x";';
-        }
-        if (isset($capes[0]['driver'])) {
-            echo "output.type = \"" . $capes[0]['driver'] . "\";";
-        }
+        echo 'output.pinoutVersion = "1.x";';
     }
-    ?>
+    if (isset($capes[0]['driver'])) {
+        echo "output.type = \"" . $capes[0]['driver'] . "\";";
+    }
+}
+?>
     defaultData.channelOutputs.push(output);
 
-    
-<? if ($settings['Platform'] == "BeagleBone Black") { ?>
+
+<?if ($settings['Platform'] == "BeagleBone Black") {?>
     var output = {};
     output.type = 'BBBSerial';
 <?
@@ -1686,11 +1706,11 @@ function loadBBBOutputs() {
             echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
         }
     }
-?>
+    ?>
     output.subType = 'off';
     defaultData.channelOutputs.push(output);
-<? } ?>
-    
+<?}?>
+
     populatePixelStringOutputs(defaultData);
     $.getJSON("api/channel/output/" + PIXEL_STRING_FILE_NAME, function(data) {
                 ValidateBBBStrings(data);
@@ -1699,11 +1719,11 @@ function loadBBBOutputs() {
 }
 function saveBBBOutputs() {
     var postData = getPixelStringOutputJSON();
-    
-    <? if ($settings['Platform'] == "BeagleBone Black") { ?>
+
+    <?if ($settings['Platform'] == "BeagleBone Black") {?>
     postData = addSerialOutputJSON(postData);
-    <? } ?>
-    
+    <?}?>
+
     $.post("api/channel/output/" + PIXEL_STRING_FILE_NAME, JSON.stringify(postData)).done(function(data) {
         $.jGrowl("Pixel String Output Configuration Saved",{themeState:'success'});
         SetRestartFlag(1);
@@ -1717,15 +1737,15 @@ function populateCapeList() {
     var select = document.getElementById("BBB48StringSubType");
     var option;
     <?
-    foreach ($capes as $x => $x_value) {
+foreach ($capes as $x => $x_value) {
     ?>
         option = document.createElement("option");
-        option.text = '<? print_r($x_value["longName"]) ?>';
-        option.value = '<? print_r($x_value["name"]) ?>';
+        option.text = '<?print_r($x_value["longName"])?>';
+        option.value = '<?print_r($x_value["name"])?>';
         select.appendChild(option);
     <?
-    }
-    ?>
+}
+?>
 }
 
 function pinTableHeader() {
@@ -1759,17 +1779,17 @@ $(document).ready(function(){
 
 <div id='tab-BBB48String'>
     <div id='divBBB48String'>
-    
+
         <div class="row tablePageHeader">
             <div class="col-md"><h2><span class='capeName'>String Capes</span> </h2></div>
             <div class="col-md-auto ml-lg-auto">
                 <div class="form-actions">
-                    
+
                         <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
                         <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
-<? if (file_exists("/home/fpp/media/upload/xlights_rgbeffects.xml")) { ?>
+<?if (file_exists("/home/fpp/media/upload/xlights_rgbeffects.xml")) {?>
             			<input type='button' class="buttons" onClick='importStrings();' value='Import Strings'>
-<? } ?>
+<?}?>
                         <input type='button' class="buttons btn-success ml-1" onClick='saveBBBOutputs();' value='Save'>
                 </div>
             </div>
@@ -1781,15 +1801,15 @@ $(document).ready(function(){
 
                     <div><b>Enable <span class='capeName'>String Cape</span>:</b></div>
                                     <div><input id='BBB48String_enable' type='checkbox'></div>
-                        
+
                     </div>
                 </div>
                 <div class="col-md-auto form-inline">
                     <div><b><span class='capeTypeLabel'>Cape Type</span>:</b></div>
 		    <div ><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'
-<? if (isSet($settings['cape-info']) && isset($settings['cape-info']['capeTypeTip'])) {  ?>
-title="<?= $settings['cape-info']['capeTypeTip'] ?>"
-<? } ?>
+<?if (isset($settings['cape-info']) && isset($settings['cape-info']['capeTypeTip'])) {?>
+title="<?=$settings['cape-info']['capeTypeTip']?>"
+<?}?>
                           ></select><span id='BBB48StringSubTypeSpan'> </span></div>
 
                 </div>
@@ -1803,9 +1823,9 @@ title="<?= $settings['cape-info']['capeTypeTip'] ?>"
                     </div>
                 </div>
                 <div class="col-md-auto form-inline"
-<? if ($settings['Platform'] != "BeagleBone Black") { ?>
+<?if ($settings['Platform'] != "BeagleBone Black") {?>
 style="display: none;"
-<? } ?>
+<?}?>
 >
                     <div><b>Pixel Timing:</b></div>
                     <div colspan="3"><select id='BBB48StringPixelTiming'>
@@ -1824,10 +1844,10 @@ style="display: none;"
                         <span class='capeNotes' style='display: none;'><a href='#capeNotes'>View Cape Configuration Notes</a></span>
                     </small>
 
-                    <?if ((isSet($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {  ?>
+                    <?if ((isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {?>
     <div class="alert alert-danger">Unsupported string cape.  Ports are limitted to 200 pixels, no virtual strings, and no DMX.</div>
-    
-    <? } ?>
+
+    <?}?>
                     <div id='pixelOutputs'>
 
                     </div>
@@ -1860,35 +1880,35 @@ style="display: none;"
                             <tbody>
                                 <tr id='BBBSerialOutputRow1'>
                                     <td>1</td>
-                                    <td><input id='BBBSerialStartChannel1' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel1' type='number' min='1'  max='<?=FPPD_MAX_CHANNELS?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow2'>
                                     <td>2</td>
-                                    <td><input id='BBBSerialStartChannel2' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel2' type='number' min='1'  max='<?=FPPD_MAX_CHANNELS?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow3'>
                                     <td>3</td>
-                                    <td><input id='BBBSerialStartChannel3' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel3' type='number' min='1'  max='<?=FPPD_MAX_CHANNELS?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow4'>
                                     <td>4</td>
-                                    <td><input id='BBBSerialStartChannel4' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel4' type='number' min='1'  max='<?=FPPD_MAX_CHANNELS?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow5'>
                                     <td>5</td>
-                                    <td><input id='BBBSerialStartChannel5' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel5' type='number' min='1'  max='<?=FPPD_MAX_CHANNELS?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow6'>
                                     <td>6</td>
-                                    <td><input id='BBBSerialStartChannel6' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel6' type='number' min='1'  max='<?=FPPD_MAX_CHANNELS?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow7'>
                                     <td>7</td>
-                                    <td><input id='BBBSerialStartChannel7' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel7' type='number' min='1'  max='<?=FPPD_MAX_CHANNELS?>' value='1'></td>
                                 </tr>
                                 <tr id='BBBSerialOutputRow8'>
                                     <td>8</td>
-                                    <td><input id='BBBSerialStartChannel8' type='number' min='1'  max='<?= FPPD_MAX_CHANNELS ?>' value='1'></td>
+                                    <td><input id='BBBSerialStartChannel8' type='number' min='1'  max='<?=FPPD_MAX_CHANNELS?>' value='1'></td>
                                 </tr>
                             </tbody>
                         </table>

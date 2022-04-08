@@ -22,7 +22,6 @@ if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version
     exec($SUDO . " $fppDir/scripts/upgrade_config");
 }
 
-
 $os_build = "Unknown";
 if (file_exists("/etc/fpp/rfs_version")) {
     $os_build = exec("cat /etc/fpp/rfs_version", $output, $return_val);
@@ -53,7 +52,6 @@ if ($settings["Platform"] != "MacOS") {
     $os_version = "";
     $os_build = "";
 }
-
 
 $kernel_version = exec("uname -r", $output, $return_val);
 if ($return_val != 0) {
@@ -319,15 +317,15 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
 }
 
 ?></td></tr>
-     <?if ($os_build != "") { ?><tr><td>FPP OS Build:</td><td id='osVersion'><?echo $os_build; ?></td></tr><? } ?>
+     <?if ($os_build != "") {?><tr><td>FPP OS Build:</td><td id='osVersion'><?echo $os_build; ?></td></tr><?}?>
                 <tr><td>OS Version:</td><td id='osRelease'><?echo $os_version; ?></td></tr>
     <?if (isset($serialNumber) && $serialNumber != "") {?>
             <tr><td>Hardware Serial Number:</td><td><?echo $serialNumber; ?></td></tr>
     <?}?>
                 <tr><td>Kernel Version:</td><td><?echo $kernel_version; ?></td></tr>
-<? if ($lastBoot != "") { ?>
+<?if ($lastBoot != "") {?>
                 <tr><td>System Boot Time:</td><td id='lastBoot'><?echo $lastBoot; ?></td></tr>
-<? } ?>
+<?}?>
                 <tr><td>fppd Uptime:</td><td id='fppdUptime'></td></tr>
                 <tr><td>Local Git Version:</td><td id='localGitVersion'>
     <?
@@ -358,11 +356,11 @@ if ($settings['uiLevel'] > 0) {
     $upgradeSources = array();
     $remotes = getKnownFPPSystems();
 
-if ($settings["Platform"] != "MacOS") {
-    $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
-} else {
-    $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | grep 'inet ' | awk '{print \$2}'")));
-}
+    if ($settings["Platform"] != "MacOS") {
+        $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
+    } else {
+        $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | grep 'inet ' | awk '{print \$2}'")));
+    }
     foreach ($remotes as $desc => $host) {
         if ((!in_array($host, $IPs)) && (!preg_match('/^169\.254\./', $host))) {
             $upgradeSources[$desc] = $host;
@@ -438,7 +436,10 @@ if (file_exists("/bin/findmnt")) {
                   </div>
                   </td>
                 </tr>
-                <tr><td>Root <? if ($rootDevice != "") echo "(" . $rootDevice . ")"; ?> Free Space:</td><td>
+                <tr><td>Root <?if ($rootDevice != "") {
+    echo "(" . $rootDevice . ")";
+}
+?> Free Space:</td><td>
 
     <?
 printf("%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
@@ -482,7 +483,7 @@ if (isset($settings["cape-info"])) {
         </div>
         <div class="row">
             <div class="aboutAll col-md">
-            <h2>About <?= $capeHardwareType ?> </h2>
+            <h2>About <?=$capeHardwareType?> </h2>
             <div class="container-fluid">
             <div class="row">
             <div class='<?if (isset($currentCapeInfo['vendor'])) {echo "aboutLeft col-md";} else {echo "aboutAll";}?> '>
@@ -555,9 +556,11 @@ if (isset($settings["cape-info"])) {
         </div> <!-- row -->
 
 
-
         <?
 }
+?>
+</div> <!-- row -->
+<?
 $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
 if ($settings['Platform'] == "BeagleBone Black") {
     $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
@@ -569,16 +572,16 @@ if (file_exists($eepromFile)) {
     ?>
         <div class="row">
             <div class="aboutAll col-md">
-            <br><h2>Cape/Hat Firmware Upgrade</h2>
-            <div class="container-fluid"><div class="row"><div class="aboutAll col-md">
-            <label for="firmware">Firmware file:</label><input type="file" name="firmware" id="firmware"/>&nbsp;<input type='button' class="buttons" value='Upgrade' onClick='UpgradeFirmware();'  id='UpdateFirmware'>
-            </div>
-            </div>
-            </div>
-
+                <br><h2>Cape/Hat Firmware Upgrade</h2>
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="aboutAll col-md">
+                            <label for="firmware">Firmware file:</label><input type="file" name="firmware" id="firmware"/>&nbsp;<input type='button' class="buttons" value='Upgrade' onClick='UpgradeFirmware();'  id='UpdateFirmware'>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-
             <?
 }
 ?>

@@ -21,6 +21,7 @@
 
 // FPP includes
 #include "BBB48String.h"
+#include "../CapeUtils/CapeUtils.h"
 #include "util/BBBUtils.h"
 
 #include "Plugin.h"
@@ -282,17 +283,7 @@ int BBB48StringOutput::Init(Json::Value config) {
     }
 
     Json::Value root;
-    char filename[256];
-    sprintf(filename, "/home/fpp/media/tmp/strings/%s%s.json", m_subType.c_str(), verPostf.c_str());
-    if (!FileExists(filename)) {
-        sprintf(filename, "/opt/fpp/capes/%s/strings/%s%s.json", dirname.c_str(), m_subType.c_str(), verPostf.c_str());
-    }
-
-    if (!FileExists(filename)) {
-        LogErr(VB_CHANNELOUT, "No output pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
-        return 0;
-    }
-    if (!LoadJsonFromFile(filename, root)) {
+    if (!CapeUtils::INSTANCE.getStringConfig(m_subType + verPostf, root)) {
         LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
         return 0;
     }

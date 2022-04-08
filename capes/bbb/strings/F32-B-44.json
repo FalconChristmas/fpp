@@ -82,5 +82,6 @@
         {  "pin": "P9-31" },
         {  "pin": "P9-92" },
         {  "pin": "P9-91" }
-    ]
+    ],
+    "supportsSmartReceivers": true
 }

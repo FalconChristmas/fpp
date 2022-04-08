@@ -88,5 +88,6 @@
         }
     ],
     "serial": [
-    ]
+    ],
+    "supportsSmartReceivers": true
 }

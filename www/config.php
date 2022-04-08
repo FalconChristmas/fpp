@@ -111,7 +111,7 @@ function ApprovedCape($v)
             return true;
         }
     }
-    if (isset($v["verifiedKeyId"]) && file_exists(__DIR__ . "/../scripts/keys/" . $v["verifiedKeyId"] . "_pub.pem")) {
+    if (isset($v["verifiedKeyId"]) && $v["verifiedKeyId"] != "") {
         return true;
     }
     return false;
@@ -597,8 +597,6 @@ function GetDirSetting($dir)
     return "";
 }
 
-
-
 if (file_exists($pluginDirectory)) {
     $handle = opendir($pluginDirectory);
     if ($handle) {
@@ -608,7 +606,7 @@ if (file_exists($pluginDirectory)) {
                 // Old naming convention ${MENU}_menu.inc
                 $themeInc = $pluginDirectory . "/" . $plugin . "/theme.inc.php";
                 if (file_exists($themeInc)) {
-                    include($themeInc);
+                    include $themeInc;
                 }
             }
         }

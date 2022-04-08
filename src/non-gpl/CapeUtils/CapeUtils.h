@@ -15,15 +15,28 @@
 #include <vector>
 
 class CapeInfo;
+namespace Json
+{
+    class Value;
+};
 
 class CapeUtils {
 public:
     static CapeUtils INSTANCE;
 
-    bool initCape(bool readOnly = true);
+    enum class CapeStatus {
+        NOT_PRESENT,
+        UNSIGNED,
+        UNSIGNED_WITH_KEY,
+        SIGNED
+    };
+
+    CapeStatus initCape(bool readOnly = true);
 
     bool hasFile(const std::string& path);
     std::vector<uint8_t> getFile(const std::string& path);
+
+    bool getStringConfig(const std::string& type, Json::Value& val);
 
 private:
     CapeUtils();
