@@ -76,7 +76,7 @@ static int DTStoMS(int64_t dts, int dtspersec) {
 
 class SDLInternalData {
 public:
-    SDLInternalData(int rate, int bps, bool flt) :
+    SDLInternalData(int rate, int bps, bool flt, int ch) :
         curPos(0) {
         formatContext = nullptr;
         audioCodecContext = nullptr;
@@ -98,16 +98,17 @@ public:
         currentRate = rate;
         bytesPerSample = bps;
         isSamplesFloat = flt;
+        channels = ch;
 
-        minQueueSize = rate * bps * 2 * 2; // 2 seconds of 2 channel audio
-        maxQueueSize = minQueueSize * 2;
+        minQueueSize = rate * bps * 2 * ch; // 2 seconds of 2 channel audio
+        maxQueueSize = minQueueSize * ch;
         outBuffer = new uint8_t[maxQueueSize];
     }
     ~SDLInternalData() {
         if (frame != nullptr) {
             av_free(frame);
         }
-        
+
         if (audioCodecContext) {
             avcodec_close(audioCodecContext);
             audioCodecContext = nullptr;
@@ -160,6 +161,7 @@ public:
     uint8_t* outBuffer;
     int currentRate;
     int bytesPerSample;
+    int channels;
     bool isSamplesFloat;
     int minQueueSize;
     int maxQueueSize;
@@ -277,11 +279,11 @@ public:
                                                      (const uint8_t**)frame->extended_data,
                                                      frame->nb_samples);
 
-                        outBufferPos += (outSamples * bytesPerSample * 2);
+                        outBufferPos += (outSamples * bytesPerSample * channels);
                         if (outBufferPos > maxQueueSize) {
                             AudioHasStalled = true;
                         }
-                        decodedDataLen += (outSamples * bytesPerSample * 2);
+                        decodedDataLen += (outSamples * bytesPerSample * channels);
                         av_frame_unref(frame);
                     }
                     if (packetSendCount > 1000 && lastPacketRecvCount == packetRecvCount) {
@@ -404,6 +406,7 @@ class SDL {
     SDL_AudioSpec _wanted_spec;
     int _initialisedRate;
     int _bytesPerSample;
+    int _channels;
     bool _isSampleFloat;
     SDL_AudioDeviceID audioDev;
     std::atomic_bool decoding;
@@ -418,6 +421,7 @@ public:
     int getRate() { return _initialisedRate; }
     int getBytesPerSample() { return _bytesPerSample; }
     bool isSamplesFloat() { return _isSampleFloat; }
+    int numChannels() { return _channels; }
 
     static void decodeThreadEntry(SDL* sdl) {
         sdl->runDecode();
@@ -431,7 +435,7 @@ public:
         }
         d->curPos = 0;
         if (msTime > 0) {
-            float f = msTime * 2 * d->bytesPerSample;
+            float f = msTime * d->channels * d->bytesPerSample;
             f /= 1000;
             f *= d->currentRate;
             int samplesRequired = f;
@@ -568,7 +572,7 @@ void SDL::runDecode() {
                 } else {
                     //read a little more than single
                     countRead += data->maybeFillBuffer(false);
-                    if (countRead > (data->currentRate * data->bytesPerSample * 2 / 10)) {
+                    if (countRead > (data->currentRate * data->bytesPerSample * data->channels / 10)) {
                         // read a 1/10 of a second, move on
                         bufFull = 2;
                     } else {
@@ -592,6 +596,61 @@ void SDL::runDecode() {
     _state = SDLSTATE::SDLDESTROYED;
 }
 
+static int MapToSDLChannelLayout(int i) {
+    switch (i) {
+    case 0:
+        return AV_CH_LAYOUT_STEREO;
+    case 1:
+        return AV_CH_LAYOUT_2POINT1;
+    case 2:
+        return AV_CH_LAYOUT_2_1;
+    case 3:
+        return AV_CH_LAYOUT_SURROUND;
+    case 4:
+        return AV_CH_LAYOUT_3POINT1;
+    case 5:
+        return AV_CH_LAYOUT_4POINT0;
+    case 6:
+        return AV_CH_LAYOUT_2_2;
+    case 7:
+        return AV_CH_LAYOUT_QUAD;
+    case 8:
+        return AV_CH_LAYOUT_4POINT1;
+    case 9:
+        return AV_CH_LAYOUT_5POINT0;
+    case 10:
+        return AV_CH_LAYOUT_5POINT0_BACK;
+    case 11:
+        return AV_CH_LAYOUT_5POINT1;
+    case 12:
+        return AV_CH_LAYOUT_5POINT1_BACK;
+    case 13:
+        return AV_CH_LAYOUT_6POINT1;
+    case 14:
+        return AV_CH_LAYOUT_7POINT0;
+    case 15:
+        return AV_CH_LAYOUT_7POINT1;
+    }
+    return AV_CH_LAYOUT_STEREO;
+}
+static int ChannelsForLayout(int i) {
+    if (i == 0) {
+        return 2;
+    } else if (i <= 3) {
+        return 3;
+    } else if (i <= 7) {
+        return 4;
+    } else if (i <= 10) {
+        return 5;
+    } else if (i <= 12) {
+        return 6;
+    } else if (i <= 14) {
+        return 7;
+    } else if (i <= 15) {
+        return 8;
+    }
+    return 2;
+}
 static bool noDeviceWarning = false;
 static std::string noDeviceError;
 bool SDL::openAudio() {
@@ -653,7 +712,7 @@ bool SDL::openAudio() {
             break;
         }
 
-        const char *audioDeviceName = nullptr;
+        std::string audioDeviceName;
 #ifdef PLATFORM_OSX
         std::string dev = getSetting("AudioOutput", "--System Default--");
         if (dev != "--System Default--") {
@@ -664,25 +723,45 @@ bool SDL::openAudio() {
                     audioDeviceName = SDL_GetAudioDeviceName(x, 0);
                 }
             }
-            LogDebug(VB_MEDIAOUT, "Using output device: %s\n", audioDeviceName);
+        }
+#else
+        std::string fn = "/sys/class/sound/card" + getSetting("AudioOutput", "0") + "/id";
+        std::string dev = "";
+        if (FileExists(fn)) {
+            dev = GetFileContents(fn);
+            TrimWhiteSpace(dev);
+            if (dev[dev.size() - 1] == '\n' || dev[dev.size() - 1] == '\r') {
+                dev = dev.substr(0, dev.size() - 2);
+            }
+        }
+        if (dev != "") {
+            int cnt = SDL_GetNumAudioDevices(0);
+            for (int x = 0; x < cnt; x++) {
+                std::string dn = SDL_GetAudioDeviceName(x, 0);
+                if (startsWith(dn, dev)) {
+                    audioDeviceName = dn;
+                }
+            }
         }
 #endif
-        
-        _wanted_spec.channels = 2;
+        LogDebug(VB_MEDIAOUT, "Using output device: %s\n", audioDeviceName.c_str());
+        int clayout = getSettingInt("AudioLayout");
+        _wanted_spec.channels = ChannelsForLayout(clayout);
         _wanted_spec.silence = 0;
         _wanted_spec.samples = DEFAULT_NUM_SAMPLES;
         _wanted_spec.callback = nullptr;
         _wanted_spec.userdata = nullptr;
 
         SDL_AudioSpec have;
-        audioDev = SDL_OpenAudioDevice(audioDeviceName, 0, &_wanted_spec, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+        audioDev = SDL_OpenAudioDevice(audioDeviceName == "" ? nullptr : audioDeviceName.c_str(), 0, &_wanted_spec, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE | SDL_AUDIO_ALLOW_CHANNELS_CHANGE);
         if (audioDev == 0 && !noDeviceWarning) {
             noDeviceError = "Could not open audio device - ";
             noDeviceError += SDL_GetError();
             LogErr(VB_MEDIAOUT, "%s\n", noDeviceError.c_str());
             noDeviceWarning = true;
         } else {
-            LogDebug(VB_MEDIAOUT, "Opened Audio Device -  Rates:  %d -> %d     AudioFormat:  %X -> %X \n", _wanted_spec.freq, have.freq, _wanted_spec.format, have.format);
+            LogDebug(VB_MEDIAOUT, "Opened Audio Device -  Rates:  %d -> %d     AudioFormat:  %X -> %X    Channels: %d -> %d\n",
+                     _wanted_spec.freq, have.freq, _wanted_spec.format, have.format, _wanted_spec.channels, have.channels);
             if (have.format != AUDIO_S32 && have.format != AUDIO_S16 && have.format != AUDIO_F32) {
                 //we'll only support these
                 LogDebug(VB_MEDIAOUT, "    Format not supported, will reopen\n");
@@ -700,6 +779,7 @@ bool SDL::openAudio() {
         _initialisedRate = have.freq;
         _bytesPerSample = (have.format == AUDIO_S16) ? 2 : 4;
         _isSampleFloat = (have.format == AUDIO_F32);
+        _channels = have.channels;
 
         _state = SDLSTATE::SDLOPENED;
 
@@ -835,7 +915,7 @@ SDLOutput::SDLOutput(const std::string& mediaFilename,
     sdlManager.initSDL();
     sdlManager.openAudio();
 
-    data = new SDLInternalData(sdlManager.getRate(), sdlManager.getBytesPerSample(), sdlManager.isSamplesFloat());
+    data = new SDLInternalData(sdlManager.getRate(), sdlManager.getBytesPerSample(), sdlManager.isSamplesFloat(), sdlManager.numChannels());
 
     // Initialize FFmpeg codecs
 #if LIBAVFORMAT_VERSION_MAJOR < 58
@@ -889,7 +969,8 @@ SDLOutput::SDLOutput(const std::string& mediaFilename,
     if (data->audio_stream_idx != -1) {
         int64_t in_channel_layout = av_get_default_channel_layout(data->audioCodecContext->channels);
 
-        uint64_t out_channel_layout = AV_CH_LAYOUT_STEREO;
+        int clayout = getSettingInt("AudioLayout", 0);
+        uint64_t out_channel_layout = MapToSDLChannelLayout(clayout);
         AVSampleFormat out_sample_fmt = (data->bytesPerSample == 2) ? AV_SAMPLE_FMT_S16 : (data->isSamplesFloat ? AV_SAMPLE_FMT_FLT : AV_SAMPLE_FMT_S32);
         int out_sample_rate = data->currentRate;
 
@@ -906,7 +987,7 @@ SDLOutput::SDLOutput(const std::string& mediaFilename,
         usf /= 100.0f;
         d += usf;
         data->totalLen = d;
-        data->totalDataLen = d * data->currentRate * data->bytesPerSample * 2;
+        data->totalDataLen = d * data->currentRate * data->bytesPerSample * data->channels;
     }
     if (data->video_stream_idx != -1) {
         data->video_frames = (long)data->videoStream->nb_frames;
@@ -1004,7 +1085,7 @@ int SDLOutput::Process(void) {
         long cp = data->curPos;
         data->curPosLock.unlock();
         float curtime = cp - qas;
-        curtime -= (DEFAULT_NUM_SAMPLES * 2);
+        curtime -= (DEFAULT_NUM_SAMPLES * data->channels);
 
         if (curtime < 0)
             curtime = 0;
@@ -1022,8 +1103,8 @@ int SDLOutput::Process(void) {
         }
         lastCurTime = curtime;
 
-        curtime /= data->currentRate;        //samples per sec
-        curtime /= 2 * data->bytesPerSample; //bytes per sample * 2 channels
+        curtime /= data->currentRate;                     //samples per sec
+        curtime /= data->channels * data->bytesPerSample; //bytes per sample * 2 channels
 
         m_mediaOutputStatus->mediaSeconds = curtime;
 

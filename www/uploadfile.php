@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html>
 <?php
-require_once('config.php');
+require_once 'config.php';
 ?>
 <head>
-<?php	include 'common/menuHead.inc'; ?>
+<?php	include 'common/menuHead.inc';?>
 
 
 <?php
-    exec("df -k " . $mediaDirectory . "/upload |awk '/\/dev\//{printf(\"%d\\n\", $5);}'", $output, $return_val);
-    $freespace = $output[0];
-    unset($output);
+exec("df -k " . $mediaDirectory . "/upload |awk '/\/dev\//{printf(\"%d\\n\", $5);}'", $output, $return_val);
+$freespace = $output[0];
+unset($output);
 ?>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 
 
 <script src="jquery/jQuery-Form-Plugin/js/jquery.form.js"></script>
@@ -204,7 +204,7 @@ $(function() {
         "Cancel":function(){
           AbortScriptChange();
         }
-      } 
+      }
     });
 		$('#fileEditor').fppDialog( "moveToTop" );
 	}
@@ -242,16 +242,16 @@ $(function() {
 
 <body onload="GetAllFiles();">
 <div id="bodyWrapper">
-<?php	
+<?php
 $activeParentMenuItem = 'content';
-include 'menu.inc'; ?>
+include 'menu.inc';?>
   <div class="mainContainer">
 <div class='title'>File Manager</div>
-<? if ($freespace > 95) { ?>
+<?if ($freespace > 95) {?>
   <div class="alert alert-danger" role="alert">WARNING: storage device is almost full!</div>
-    <? } ?>
+    <?}?>
   <div class="pageContent">
-    
+
     <div id="fileManager">
 
     <ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
@@ -307,13 +307,13 @@ include 'menu.inc'; ?>
                   <table id="tblSequences">
                   </table>
                 </div>
-         
+
                 <div class='form-actions'>
                   <input onclick="ClearSelections('Sequences');" class="buttons" type="button" value="Clear" />
-                  <?php if (isset($settings['fppMode']) && ($settings['fppMode'] == 'player')) { ?>
+                  <?php if (isset($settings['fppMode']) && ($settings['fppMode'] == 'player')) {?>
                   <input onclick="ButtonHandler('Sequences', 'play');" class="disableButtons singleSequencesButton" type="button"  value="Play" />
                   <input onclick="ButtonHandler('Sequences', 'playHere');" class="disableButtons singleSequencesButton" type="button"  value="Play Here" />
-                  <?php } ?>
+                  <?php }?>
                   <input onclick="ButtonHandler('Sequences', 'download');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Download" />
                   <input onclick="ButtonHandler('Sequences', 'rename');" class="disableButtons singleSequencesButton" type="button"  value="Rename" />
                   <input onclick="ButtonHandler('Sequences', 'delete');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Delete" />
@@ -322,17 +322,17 @@ include 'menu.inc'; ?>
             </div>
           </div>
         </div>
-    
+
         <div class="tab-pane fade" id="tab-audio" role="tabpanel" aria-labelledby="tab-audio-tab">
           <div id= "divMusic">
 
               <div class="backdrop">
-                <h2> Music Files (.mp3/.ogg/.m4a/.flac) </h2>
+                <h2> Music Files (.mp3/.ogg/.m4a/.flac/.aac) </h2>
                 <div id="divMusicData" class="fileManagerDivData">
                   <table id="tblMusic">
                   </table>
                 </div>
-    
+
                 <div class='form-actions'>
                   <input onclick="ClearSelections('Music');" class="buttons" type="button" value="Clear" />
                   <input onclick="ButtonHandler('Music', 'playInBrowser');" id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton" type="button"  value="Listen" />
@@ -342,20 +342,20 @@ include 'menu.inc'; ?>
                 </div>
                 <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
               </div>
-  
+
           </div>
         </div>
-    
+
         <div class="tab-pane fade" id="tab-video" role="tabpanel" aria-labelledby="tab-video-tab">
           <div id= "divVideo">
-         
+
               <div class="backdrop">
                 <h2> Video Files (.mp4/.mkv) </h2>
                 <div id="divVideoData" class="fileManagerDivData">
                   <table id="tblVideos">
                   </table>
                 </div>
-           
+
                 <div class='form-actions'>
                   <input onclick="ClearSelections('Videos');" class="buttons" type="button" value="Clear" />
                   <input onclick="ButtonHandler('Videos', 'playInBrowser');" class="disableButtons singleVideosButton" type="button"  value="View" />
@@ -369,7 +369,7 @@ include 'menu.inc'; ?>
 
           </div>
         </div>
-    
+
         <div class="tab-pane fade" id="tab-images" role="tabpanel" aria-labelledby="tab-images-tab">
           <div id= "divImage">
 
@@ -379,7 +379,7 @@ include 'menu.inc'; ?>
                   <table id="tblImages">
                   </table>
                 </div>
-     
+
                 <div class='form-actions'>
                   <input onclick="ClearSelections('Images');" class="buttons" type="button" value="Clear" />
                   <input onclick="ButtonHandler('Images', 'viewImage');" class="disableButtons singleImagesButton" type="button"  value="View" />
@@ -392,17 +392,17 @@ include 'menu.inc'; ?>
 
           </div>
         </div>
-    
+
         <div class="tab-pane fade" id="tab-effects" role="tabpanel" aria-labelledby="tab-effects-tab">
           <div id= "divEffects">
-           
+
               <div class="backdrop">
                 <h2> Effect Sequences (.eseq) </h2>
                 <div id="divEffectsData" class="fileManagerDivData">
                   <table id="tblEffects">
                   </table>
                 </div>
-         
+
                 <div class='form-actions'>
                   <input onclick="ClearSelections('Effects');" class="buttons" type="button" value="Clear" />
                   <input onclick="ButtonHandler('Effects', 'download');" class="disableButtons singleEffectsButton multiEffectsButton" type="button"  value="Download" />
@@ -411,10 +411,10 @@ include 'menu.inc'; ?>
                 </div>
                 <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
               </div>
-          
+
           </div>
         </div>
-    
+
         <div class="tab-pane fade" id="tab-scripts" role="tabpanel" aria-labelledby="tab-scripts-tab">
           <div id= "divScripts">
             <div class="backdrop">
@@ -423,7 +423,7 @@ include 'menu.inc'; ?>
                 <table id="tblScripts">
                 </table>
               </div>
-            
+
               <div class='form-actions'>
                 <input onclick="ClearSelections('Scripts');" class="buttons" type="button" value="Clear" />
                 <input onclick="ButtonHandler('Scripts', 'viewFile');" class="disableButtons singleScriptsButton" type="button"  value="View" />
@@ -438,7 +438,7 @@ include 'menu.inc'; ?>
             </div>
           </div>
         </div>
-    
+
         <div class="tab-pane fade" id="tab-logs" role="tabpanel" aria-labelledby="tab-logs-tab">
           <div id= "divLogs">
             <div class="backdrop">
@@ -447,7 +447,7 @@ include 'menu.inc'; ?>
                 <table id="tblLogs">
                 </table>
               </div>
-            
+
               <div class='form-actions'>
                 <input onclick="ClearSelections('Logs');" class="buttons" type="button" value="Clear" />
                 <input onclick="DownloadZip('Logs');" class="buttons" type="button" value="Zip" />
@@ -460,7 +460,7 @@ include 'menu.inc'; ?>
             </div>
           </div>
         </div>
-    
+
         <div class="tab-pane fade" id="tab-uploads" role="tabpanel" aria-labelledby="tab-uploads-tab">
           <div id= "divUploads">
             <div class="backdrop">
@@ -469,7 +469,7 @@ include 'menu.inc'; ?>
                 <table id="tblUploads">
                 </table>
               </div>
-            
+
               <div class='form-actions'>
                 <input onclick="ClearSelections('Uploads');" class="buttons" type="button" value="Clear" />
                 <input onclick="ButtonHandler('Uploads', 'download');" class="disableButtons singleUploadsButton multiUploadsButton" type="button"  value="Download" />
@@ -481,7 +481,7 @@ include 'menu.inc'; ?>
             </div>
           </div>
         </div>
-        
+
         <div id='fileuploader' class='ui-tabs-panel'>
             <div>Select Files</div>
         </div>
@@ -504,14 +504,16 @@ include 'menu.inc'; ?>
 </div>
 
 
-<?php	include 'common/footer.inc'; ?>
+<?php	include 'common/footer.inc';?>
 <script>
-	var activeTabNumber = 
+	var activeTabNumber =
 <?php
-	if (isset($_GET['tab']))
-		print urlencode($_GET['tab']);
-	else
-		print "0";
+if (isset($_GET['tab'])) {
+    print urlencode($_GET['tab']);
+} else {
+    print "0";
+}
+
 ?>;
 
     $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
@@ -539,7 +541,7 @@ $(document).ready(function()
       setTimeout(function(){
         GetAllFiles();
       }, 100);
-			
+
 		},
 		onError: function(files, status, errMsg) {
 			alert("Error uploading file");

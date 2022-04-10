@@ -121,8 +121,8 @@ void setVolume(int vol) {
 }
 
 static std::set<std::string> AUDIO_EXTS = {
-    "mp3", "ogg", "m4a", "m4p", "wav", "au", "wma", "flac",
-    "MP3", "OGG", "M4A", "M4P", "WAV", "AU", "WMA", "FLAC"
+    "mp3", "ogg", "m4a", "m4p", "wav", "au", "wma", "flac", "aac",
+    "MP3", "OGG", "M4A", "M4P", "WAV", "AU", "WMA", "FLAC", "AAC"
 };
 static std::map<std::string, std::string> VIDEO_EXTS = {
     { "mp4", "mp4" }, { "MP4", "mp4" }, { "avi", "avi" }, { "AVI", "avi" }, { "mov", "mov" }, { "MOV", "mov" }, { "mkv", "mkv" }, { "MKV", "mkv" }, { "mpg", "mpg" }, { "MPG", "mpg" }, { "mpeg", "mpeg" }, { "MPEG", "mpeg" }

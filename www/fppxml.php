@@ -187,7 +187,7 @@ function MoveFile()
                 error_log("Couldn't move script file");
                 exit(1);
             }
-        } else if (preg_match("/\.(mp3|ogg|m4a|wav|au|m4p|wma|flac)$/i", $file)) {
+        } else if (preg_match("/\.(mp3|ogg|m4a|wav|au|m4p|wma|flac|aac)$/i", $file)) {
             if (!rename($uploadDirectory . "/" . $file, $musicDirectory . '/' . $file)) {
                 error_log("Couldn't move music file");
                 exit(1);

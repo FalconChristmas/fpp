@@ -174,6 +174,8 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
             header('Content-type: video/mp4');
         } else if (preg_match('/wav$/i', $filename)) {
             header('Content-type: audio/wav');
+        } else if (preg_match('/aac$/i', $filename)) {
+            header('Content-type: audio/aac');
         } else if (preg_match('/mpg$/i', $filename)) {
             header('Content-type: video/mpg');
         } else if (preg_match('/mpg$/i', $filename)) {
@@ -272,7 +274,7 @@ function MoveFile()
                 $status = "ERROR: Couldn't move script file";
                 return json(array("status" => $status));
             }
-        } else if (preg_match("/\.(mp3|ogg|m4a|wav|au|m4p|wma|flac)$/i", $file)) {
+        } else if (preg_match("/\.(mp3|ogg|m4a|wav|au|m4p|wma|flac|aac)$/i", $file)) {
             if (!rename($uploadDirectory . "/" . $file, $musicDirectory . '/' . $file)) {
                 $status = "ERROR: Couldn't move music file";
                 return json(array("status" => $status));

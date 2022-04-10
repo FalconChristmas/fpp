@@ -1,8 +1,9 @@
 <?php
 include "playlistEntryTypes.php";
 
-if (!isset($simplifiedPlaylist))
-	$simplifiedPlaylist = 0;
+if (!isset($simplifiedPlaylist)) {
+    $simplifiedPlaylist = 0;
+}
 
 ?>
 
@@ -28,7 +29,7 @@ function playlistEditorDocReady() {
 			}
 		});
 	});
-    
+
     //make table rows sortable
     var sortableOptions = {
         start: function (event, ui) {
@@ -74,7 +75,7 @@ function playlistEditorDocReady() {
         connectWith: '.playlistEntriesBody',
         scroll: true
     }
-	
+
     if(hasTouch){
         $.extend(sortableOptions,{handle:'.rowGrip'});
     }
@@ -137,7 +138,7 @@ function MediaChanged()
     if (value == null)  {
         return;
     }
-    value = value.replace(/\.flac|\.ogg|\.mp3|\.mp4|\.mov|\.m4a/i, "");
+    value = value.replace(/\.flac|\.ogg|\.mp3|\.mp4|\.mov|\.m4a|\.aac/i, "");
 
 	var seq = document.getElementsByClassName("arg_sequenceName")[0];
     if (seq) {
@@ -157,16 +158,16 @@ function SequenceChanged()
     if (val == null)  {
         return;
     }
-    
+
     var value = val.replace(/\.fseq/i, "");
     var media = document.getElementsByClassName("arg_mediaName")[0];
     if (media) {
         for (var i = 0; i < media.length; i++) {
-            if (media.options[i].value.replace(/\.ogg|\.mp3|\.mp4|\.mov|\.m4a/i, "") == value)
+            if (media.options[i].value.replace(/\.ogg|\.mp3|\.mp4|\.mov|\.m4a|\.aac/i, "") == value)
                 $('.arg_mediaName').val(media.options[i].value);
         }
     }
-    
+
     $.ajax({
            dataType: "json",
            url: "api/sequence/" + val + "/meta",
@@ -225,12 +226,12 @@ $(document).ready(function() {
     CommandSelectChanged('commandSelect', 'tblCommandBody');
 });
 
-simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
+simplifiedPlaylist = <?echo $simplifiedPlaylist; ?>;
 </script>
     <span style='display: none;' id='playlistDuration'>0</span>
     <div class="playlistEditContainer">
         <div class="playlistEditForm ">
-            
+
 
             <!-- <div style="float:left;" class="playlistInfoText">
                 <table>
@@ -268,8 +269,10 @@ simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
 foreach ($playlistEntryTypes as $pet) {
     if ((!isset($pet['deprecated'])) || ($pet['deprecated'] == 0)) {
         echo "<option value='" . $pet['name'] . "'";
-        if ($pet['name'] == 'both')
+        if ($pet['name'] == 'both') {
             echo " selected";
+        }
+
         echo ">" . (isset($pet['longDescription']) ? $pet['longDescription'] : $pet['description']) . "</option>\n";
     }
 }
@@ -300,7 +303,7 @@ foreach ($playlistEntryTypes as $pet) {
                 </div>
             </div>
 
-            
+
         </div> -->
 
     </div>

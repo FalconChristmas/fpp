@@ -571,7 +571,14 @@ std::string GetFileContents(const std::string& filename) {
         in.seekg(0, std::ios::beg);
         in.read(&contents[0], contents.size());
         in.close();
-        return (contents);
+        int x = contents.size() - 1;
+        for (; x > 0; x--) {
+            if (contents[x] != 0) {
+                break;
+            }
+        }
+        contents.resize(x + 1);
+        return contents;
     }
     return "";
 }

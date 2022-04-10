@@ -72,6 +72,7 @@
                 "AudioOutput",
                 "AudioMixerDevice",
                 "AudioFormat",
+                "AudioLayout",
                 "VideoOutput",
                 "HardwareDecoding",
                 "mediaOffset",
@@ -463,6 +464,35 @@
                 "96000/S16": 7,
                 "96000/S32": 8,
                 "96000/FLT": 9
+            }
+        },
+        "AudioLayout": {
+            "name": "AudioLayout",
+            "description": "Audio Channel Layout",
+            "tip": "The Audio Channel Layout.  This controls the number of channels of audio that is output and how the channels are mapped.   Note: this only applies to SOUND files played on the master, not videos or files played on a remote.",
+            "gatherStats": true,
+            "level": 1,
+            "restart": 1,
+            "reboot": 0,
+            "default": 0,
+            "type": "select",
+            "options": {
+                "Stereo": 0,
+                "Left/Right/LFE (2.1)": 1,
+                "Left/Right/Back Center": 2,
+                "Left/Right/Front Center": 3,
+                "Left/Right/Front Center/LFE (3.1)": 4,
+                "Left/Right/Front Center/Back Center": 5,
+                "Left/Right/Side Left/Side Right": 6,
+                "Left/Right/Back Left/Back Right": 7,
+                "Left/Right/Front Center/Back Center/LFE (4.1)": 8,
+                "Left/Right/Front Center/Side Left/Side Right (5.0)": 9,
+                "Left/Right/Front Center/Side Left/Side Right/LFE (5.1)": 10,
+                "Left/Right/Front Center/Back Left/Back Right": 11,
+                "Left/Right/Front Center/Back Left/Back Right/LFE": 12,
+                "Left/Right/Front Center/Side Left/Side Right/Back Center/LFE (6.1)": 13,
+                "Left/Right/Front Center/Side Left/Side Right/Back Left/Back Right (7.0)": 14,
+                "Left/Right/Front Center/Side Left/Side Right/Back Left/Back Right/LFE (7.1)": 15
             }
         },
         "AudioMixerDevice": {
