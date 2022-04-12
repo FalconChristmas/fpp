@@ -172,7 +172,7 @@ foreach ($data["schedule"]["items"] as $item) {
             $item["args"][0],
             $data["schedule"]["entries"][$item["id"]]["repeat"] == 1 ?
                 "Repeating" : "Non-Repeating",
-            $data["schedule"]["entries"][$endItem["id"]]["stopTypeStr"]
+            $data["schedule"]["entries"][$item["id"]]["stopTypeStr"]
             );
     } else {
         printf("<td width='20px' class='borderTop borderLeft borderBottom'>&nbsp;</td>");
