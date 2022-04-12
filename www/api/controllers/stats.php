@@ -422,20 +422,22 @@ function stats_getUUID()
 function stats_getCapeInfo()
 {
     $rc = array("name" => "None");
-    if (SendVendorSerial == 1) {
+    if ($settings['SendVendorSerial'] == 1) {
         $mapping = array(
             "type" => "type",
             "cs" => "cs",
             "id" => "id",
             "name" => "name",
             "serialNumber" => "serialNumber",
-            "designer" => "designer");
+            "designer" => "designer",
+            "vendor" => "vendor");
     } else {
         $mapping = array(
             "type" => "type",
             "id" => "id",
             "name" => "name",
-            "designer" => "designer");
+            "designer" => "designer",
+            "vendor" => "vendor");
     }
 
     $data = json_decode(file_get_contents("http://localhost/api/cape"), true);

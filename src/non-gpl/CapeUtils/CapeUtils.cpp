@@ -756,14 +756,19 @@ private:
                         }
                     } else if (!hasSignature || !validSignature) {
                         std::string v = "statsPublish";
-                        std::string found = "";
+                        bool found = false;
                         for (int l = 0; l < lines.size(); l++) {
                             if (lines[l].find(v) == 0) {
-                                lines.erase(lines.begin() + l);
-                                lines.push_back(v + " = \"Enabled\"");
-                                settingsChanged = true;
+                                found = true;
                                 break;
                             }
+                        }
+                        if (!found) {
+                            lines.push_back(v + " = \"Enabled\"");
+                            settingsChanged = true;
+                        }
+                        if (result.isMember("sendStats")) {
+                            result.removeMember("sendStats");
                         }
                     }
 
