@@ -41,10 +41,10 @@ ScheduleEntry::ScheduleEntry() :
     sequence(false),
     repeat(false),
     dayIndex(0),
-    startHour(0),
+    startHour(12),
     startMinute(0),
     startSecond(0),
-    endHour(0),
+    endHour(12),
     endMinute(0),
     endSecond(0),
     startDate(0),
@@ -256,20 +256,20 @@ static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
     s = atoi(sparts[2].c_str());
 }
 
-void ScheduleEntry::pushStartEndTimes(int dow, int &delta, int deltaThreshold) {
+void ScheduleEntry::pushStartEndTimes(int dow, int& delta, int deltaThreshold) {
     time_t startTime = GetTimeOnDOW(dow, startHour, startMinute, startSecond);
     time_t endTime = GetTimeOnDOW(dow, endHour, endMinute, endSecond);
 
     if (startTimeStr.find(":") == std::string::npos) {
-        GetTimeFromSun(startTime, true);
+        GetTimeFromSun(startTime, startTimeStr, startTimeOffset, startHour, startMinute, startSecond);
     }
     if (endTimeStr.find(":") == std::string::npos) {
-        GetTimeFromSun(endTime, false);
+        GetTimeFromSun(endTime, endTimeStr, endTimeOffset, endHour, endMinute, endSecond);
     }
     if (endTime < startTime) {
         endTime += 24 * 60 * 60;
         if (endTimeStr.find(":") == std::string::npos) {
-            GetTimeFromSun(endTime, false);
+            GetTimeFromSun(endTime, endTimeStr, endTimeOffset, endHour, endMinute, endSecond);
         }
     }
 
@@ -282,15 +282,15 @@ void ScheduleEntry::pushStartEndTimes(int dow, int &delta, int deltaThreshold) {
 
     if (delta != 0) {
         // Only adjust if the threshold and start times are in the future
-	if (deltaThreshold > time(NULL)) {
-	    if (deltaThreshold > startTime && startTime > time(NULL)) {
-	        startTime += delta;
-	    }
+        if (deltaThreshold > time(NULL)) {
+            if (deltaThreshold > startTime && startTime > time(NULL)) {
+                startTime += delta;
+            }
 
-	    if (deltaThreshold > endTime) {
-	        endTime += delta;
-	    }
-	} else {
+            if (deltaThreshold > endTime) {
+                endTime += delta;
+            }
+        } else {
             // if threshold time has passed, set delta back to 0
             delta = 0;
         }
@@ -311,7 +311,9 @@ void ScheduleEntry::pushStartEndTimes(int dow, int &delta, int deltaThreshold) {
     }
 }
 
-void ScheduleEntry::GetTimeFromSun(time_t& when, bool setStart) {
+void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
+                                   const int infoOffset,
+                                   int& h, int& m, int& s) {
     time_t origWhen = when;
     std::string latStr = getSetting("Latitude");
     std::string lonStr = getSetting("Longitude");
@@ -329,30 +331,29 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, bool setStart) {
     double sunOffset = 0;
     time_t currTime = when;
     time_t midnight = when;
-    struct tm utc;
     struct tm local;
-    std::string info = setStart ? startTimeStr : endTimeStr;
+    struct tm mtm;
 
-    gmtime_r(&currTime, &utc);
     localtime_r(&currTime, &local);
+    localtime_r(&currTime, &mtm);
 
     int daySecond = (local.tm_hour * SECONDS_PER_HOUR) + (local.tm_min * SECONDS_PER_MINUTE) + local.tm_sec;
 
     LogExcess(VB_SCHEDULE, "Lat/Lon: %.6f, %.6f\n", lat, lon);
-    LogExcess(VB_SCHEDULE, "Today (UTC) is %02d/%02d/%04d, UTC offset is %d hours\n",
-              utc.tm_mon + 1, utc.tm_mday, utc.tm_year + 1900, local.tm_gmtoff / 3600);
+    LogExcess(VB_SCHEDULE, "Lookup Date is %02d/%02d/%04d\n",
+              local.tm_mon + 1, local.tm_mday, local.tm_year + 1900);
 
     SunRise sr;
     if ((info == "Dawn") || (info == "Dusk"))
-        sr.calculate(lat, lon, when + local.tm_gmtoff, TT_CIVIL);
+        sr.calculate(lat, lon, when, TT_CIVIL);
     else
-        sr.calculate(lat, lon, when + local.tm_gmtoff);
+        sr.calculate(lat, lon, when);
 
     // Find midnight on the 'when' day
-    local.tm_hour = 0;
-    local.tm_min = 0;
-    local.tm_sec = 0;
-    midnight = mktime(&local);
+    mtm.tm_hour = 0;
+    mtm.tm_min = 0;
+    mtm.tm_sec = 0;
+    midnight = mktime(&mtm);
 
     if (info == "SunRise")
         sunOffset = sr.riseTime - midnight;
@@ -368,58 +369,43 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, bool setStart) {
     // convert sunOffset to minutes for later calculations
     sunOffset /= 60.0;
 
-    if (setStart) {
-        sunOffset += startTimeOffset;
-    } else {
-        sunOffset += endTimeOffset;
-    }
+    sunOffset += infoOffset;
 
-    if (sunOffset < 0) {
-        LogWarn(VB_SCHEDULE, "Sunrise calculated as before midnight last night, using 8AM.  Check your time zone to make sure it is valid.\n");
-        if (setStart) {
-            startHour = 8;
-            startMinute = 0;
-            startSecond = 0;
+    if ((sunOffset < 0) || (sunOffset >= (24 * 60))) {
+        if (sunOffset < 0) {
+            LogWarn(VB_SCHEDULE, "%s offset calculated as %.2f minutes, using 8AM. "
+                                 "Check your time zone to make sure it is valid.\n",
+                    info.c_str(), sunOffset);
+            h = 8;
         } else {
-            endHour = 8;
-            endMinute = 0;
-            endSecond = 0;
+            LogWarn(VB_SCHEDULE, "%s offset calculated as %.2f minutes, using 8PM. "
+                                 "Check your time zone to make sure it is valid.\n",
+                    info.c_str(), sunOffset);
+            h = 20;
         }
-        when = when - daySecond + (8 * SECONDS_PER_HOUR);
-        return;
-    } else if (sunOffset >= (24 * 60 * 60)) {
-        LogWarn(VB_SCHEDULE, "Sunrise calculated as after midnight tomorrow, using 8PM.  Check your time zone to make sure it is valid.\n");
-        if (setStart) {
-            startHour = 20;
-            startMinute = 0;
-            startSecond = 0;
-        } else {
-            endHour = 20;
-            endMinute = 0;
-            endSecond = 0;
-        }
-        when = when - daySecond + (20 * SECONDS_PER_HOUR);
+        m = 0;
+        s = 0;
+
+        // FIXME, move the following to Excess once the issues are worked out with SunRise class
+        LogWarn(VB_SCHEDULE, "w: %lld, m: %lld, rt: %lld, st: %lld\n",
+                (long long)when, (long long)midnight, (long long)sr.riseTime, (long long)sr.setTime);
+        LogWarn(VB_SCHEDULE, "info: %s, infoOffset: %d, sunOffset: %.4f, lat: %.6f, lon: %.6f, date: %02d/%02d/%04d\n",
+                info.c_str(), infoOffset, sunOffset, lat, lon,
+                local.tm_mon + 1, local.tm_mday, local.tm_year + 1900);
+
+        when = when - daySecond + (h * SECONDS_PER_HOUR);
         return;
     }
 
     LogExcess(VB_SCHEDULE, "%s Time Offset: %.2f minutes\n", info.c_str(), sunOffset);
-    int hour = (int)sunOffset / 60;
-    int minute = (int)sunOffset % 60;
-    int second = (int)(((int)(sunOffset * 100) % 100) * 0.01 * 60);
+    h = (int)sunOffset / 60;
+    m = (int)sunOffset % 60;
+    s = (int)(((int)(sunOffset * 100) % 100) * 0.01 * 60);
 
-    when = when - daySecond + (hour * SECONDS_PER_HOUR) + (minute * SECONDS_PER_MINUTE) + second;
+    when = when - daySecond + (h * SECONDS_PER_HOUR) + (m * SECONDS_PER_MINUTE) + s;
 
-    LogExcess(VB_SCHEDULE, "%s is at %02d:%02d:%02d     %d\n", info.c_str(), hour, minute, second, when % 1000000);
-
-    if (setStart) {
-        startHour = hour;
-        startMinute = minute;
-        startSecond = second;
-    } else {
-        endHour = hour;
-        endMinute = minute;
-        endSecond = second;
-    }
+    LogExcess(VB_SCHEDULE, "%s on %0d/%d/%d is at %02d:%02d:%02d\n", info.c_str(),
+              local.tm_mon + 1, local.tm_mday, local.tm_year + 1900, h, m, s);
 }
 
 int ScheduleEntry::LoadFromJson(Json::Value& entry) {
@@ -549,7 +535,8 @@ Json::Value ScheduleEntry::GetJson(void) {
     e["endDate"] = endDateStr;
     e["stopType"] = stopType;
     e["stopTypeStr"] =
-        stopType == 2 ? "Graceful Loop" : stopType == 1 ? "Hard" : "Graceful";
+        stopType == 2 ? "Graceful Loop" : stopType == 1 ? "Hard"
+                                                        : "Graceful";
 
     return e;
 }

@@ -11,7 +11,7 @@
 // windows will increase interpolation error.  Useful values are probably from
 // 12 - 48 but will depend upon your application.
 
-#define SR_WINDOW   48	    // Even integer
+#define SR_WINDOW   24	    // Even integer
 
 typedef enum {
     TT_OFFICIAL,

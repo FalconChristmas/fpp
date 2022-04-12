@@ -35,7 +35,8 @@ public:
 
     void pushStartEndTimes(int day, int &delta, int deltaThreshold);
 
-    void GetTimeFromSun(time_t& when, bool setStart);
+    void GetTimeFromSun(time_t& when, const std::string info,
+                        const int infoOffset, int& h, int& m, int& s);
 
     Json::Value GetJson(void);
 
