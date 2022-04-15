@@ -566,7 +566,7 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
                 <div class="printSettingFieldCol col-md"><input type="text" name="eth_netmask" id="eth_netmask" size="15" maxlength="15"></div>
             </div>
             <div class="row" id="gatewayRow">
-                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Netmask</div></div>
+                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Gateway</div></div>
                 <div class="printSettingFieldCol col-md"><input type="text" name="eth_gateway" id="eth_gateway" size="15" maxlength="15">
     								<input type="button" class="buttons" onClick='PingIP($("#eth_gateway").val(), 3);' value='Ping'></div>
             </div>
