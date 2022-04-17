@@ -147,7 +147,7 @@ void GPIOManager::CheckGPIOInputs(void) {
     }
 }
 void GPIOManager::Cleanup() {
-#ifdef HAS_GPIOD    
+#ifdef HAS_GPIOD
     for (auto& a : eventStates) {
         if (a.gpiodLine) {
             gpiod_line_release(a.gpiodLine);
@@ -201,7 +201,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
     int i = 0;
     int enabledCount = 0;
 
-    std::string file = FPP_DIR_CONFIG("/config/gpio.json");
+    std::string file = FPP_DIR_CONFIG("/gpio.json");
     if (FileExists(file)) {
         Json::Value root;
         if (LoadJsonFromFile(file, root)) {
@@ -288,7 +288,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                                 gpiod_line_release(state.gpiodLine);
                             }
                             state.gpiodLine = nullptr;
-#endif                            
+#endif
                             pollStates.push_back(state);
                         }
                         enabledCount++;
