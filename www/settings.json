@@ -98,6 +98,7 @@
                 "statsPublish",
                 "FetchVendorLogos",
                 "SendVendorSerial",
+                "InstalledCape",
                 "Locale",
                 "TimeZone",
                 "Latitude",
@@ -1727,6 +1728,21 @@
             ],
             "type": "checkbox",
             "default": 1
+        },
+        "InstalledCape": {
+            "Name": "InstalledCape",
+            "description": "Installed Cape/Hat",
+            "tip": "Select any cape/hat installed onto this FPP device so the UI can be setup appropriately.",
+            "platforms": [
+                "BeagleBone Black",
+                "Raspberry Pi"
+            ],
+            "checkFile": [
+                "!/home/fpp/media/tmp/cape-info.json"
+            ],
+            "restart": 1,
+            "type": "select",
+            "optionsURL": "api/cape/options"
         },
         "showAllOptions": {
             "name": "showAllOptions",

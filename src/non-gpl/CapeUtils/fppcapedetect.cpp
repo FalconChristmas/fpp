@@ -12,9 +12,14 @@
  */
 
 #include "CapeUtils.h"
+#include <filesystem>
 #include <stdlib.h>
 
 int main(int argc, char* argv[]) {
+    for (const auto& entry : std::filesystem::directory_iterator("/home/fpp/media/tmp/")) {
+        std::filesystem::remove_all(entry.path());
+    }
+
     if (CapeUtils::INSTANCE.initCape(false) == CapeUtils::CapeStatus::NOT_PRESENT) {
         exit(-1);
     }

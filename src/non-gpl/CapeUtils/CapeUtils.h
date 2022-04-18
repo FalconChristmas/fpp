@@ -27,7 +27,7 @@ public:
     enum class CapeStatus {
         NOT_PRESENT,
         UNSIGNED,
-        UNSIGNED_WITH_KEY,
+        SIGNED_GENERIC,
         SIGNED
     };
 

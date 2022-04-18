@@ -57,14 +57,14 @@ function RestartNTPD()
     exec("sudo service ntp restart");
 }
 
-// Although the setting is removed, this is still used by 
+// Although the setting is removed, this is still used by
 // scripts/handle_boot_actions
 function SetNTP($value)
 {
-    if ($value == "1"){
+    if ($value == "1") {
         exec("sudo systemctl enable ntp");
         exec("sudo systemctl start ntp");
-    } else if ($value == "0"){
+    } else if ($value == "0") {
         exec("sudo systemctl stop ntp");
         exec("sudo systemctl disable ntp");
     }
@@ -87,19 +87,22 @@ function SetupHtaccess($enablePW)
     global $settings;
     $filename = $settings['mediaDirectory'] . "/config/.htaccess";
 
-    if (file_exists($filename))
+    if (file_exists($filename)) {
         unlink($filename);
+    }
 
     $data = "";
     if (PHP_SAPI != 'fpm-fcgi') // If updating this string of PHP options, also update /opt/fpp/www/.user.ini for php-fpm
+    {
         $data = "php_value max_input_vars 5000\nphp_value upload_max_filesize 4G\nphp_value post_max_size 4G\n";
+    }
 
     if ($enablePW) {
         $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\nRequire valid-user\n";
     }
 
     // can use env vars in child .htaccess using mod_setenvif
-    $data .= "SetEnvIf Host ^ LOCAL_PROTECT=" . $enablePW ."\n";
+    $data .= "SetEnvIf Host ^ LOCAL_PROTECT=" . $enablePW . "\n";
 
     // Allow open access for fppxml & fppjson
     $data .= "<FilesMatch \"^(fppjson|fppxml)\.php$\">\n";
@@ -134,19 +137,20 @@ function SetUIPassword($value)
 {
     global $settings;
 
-    if ($value == '')
+    if ($value == '') {
         $value = 'falcon';
+    }
 
     // Write a new password file, replacing odl one if exists.
     // users fpp and admin
     // BCRYPT requires apache 2.4+
     $encrypted_password = password_hash($value, PASSWORD_BCRYPT);
     $data = "admin:$encrypted_password\nfpp:$encrypted_password\n";
-    $filename =  $settings['mediaDirectory'] . "/config/.htpasswd";
+    $filename = $settings['mediaDirectory'] . "/config/.htpasswd";
 
     // Old file may have been ownedby root so file_put_contents will fail.
     if (file_exists($filename)) {
-	    unlink($filename);
+        unlink($filename);
     }
 
     file_put_contents($filename, $data);
@@ -181,47 +185,82 @@ function SetForceHDMIResolution($value, $postfix)
     }
 
     if ($parts[0] == '0') {
-        exec("sudo sed -i -e 's/^hdmi_group".$postfix."=/#hdmi_group".$postfix."=/' /boot/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^hdmi_mode".$postfix."=/#hdmi_mode".$postfix."=/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^hdmi_group" . $postfix . "=/#hdmi_group" . $postfix . "=/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "=/#hdmi_mode" . $postfix . "=/' /boot/config.txt", $output, $return_val);
     } else {
-        exec("sudo sed -i -e 's/^#hdmi_group".$postfix."=/hdmi_group".$postfix."=/' /boot/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^#hdmi_mode".$postfix."=/hdmi_mode".$postfix."=/' /boot/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^hdmi_group".$postfix."=.*/hdmi_group".$postfix."=".$parts[0]."/' /boot/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^hdmi_mode".$postfix."=.*/hdmi_mode".$postfix."=".$parts[1]."/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^#hdmi_group" . $postfix . "=/hdmi_group" . $postfix . "=/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^#hdmi_mode" . $postfix . "=/hdmi_mode" . $postfix . "=/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^hdmi_group" . $postfix . "=.*/hdmi_group" . $postfix . "=" . $parts[0] . "/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "=.*/hdmi_mode" . $postfix . "=" . $parts[1] . "/' /boot/config.txt", $output, $return_val);
     }
 }
 
-function SetWifiDrivers($value) {
+function SetWifiDrivers($value)
+{
     if ($value == "Kernel") {
-        exec("sudo rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val );
-        exec("sudo rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val );
+        exec("sudo rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val);
+        exec("sudo rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val);
         exec("sudo rm -f /etc/modprobe.d/50-8188eu.conf", $output, $return_val);
     } else {
-        exec("sudo cp " . $settings["fppDir"] . "/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
-        exec("sudo rm -f /etc/modprobe.d/blacklist-8192cu.conf", $output, $return_val );
+        exec("sudo cp " . $settings["fppDir"] . "/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val);
+        exec("sudo rm -f /etc/modprobe.d/blacklist-8192cu.conf", $output, $return_val);
         exec("sudo rm -f /etc/modprobe.d/50-8188eu.conf", $output, $return_val);
     }
 }
-
+function SetInstalledCape($value)
+{
+    global $settings;
+    if ($value == "--None--") {
+        exec("sudo rm -f " . $settings['configDirectory'] . "/cape-eeprom.bin", $output, $return_val);
+    } else {
+        $directory = $settings["fppDir"] . "/capes";
+        if ($settings['Platform'] == "Raspberry Pi") {
+            $directory = $directory . "/pi/";
+        } else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
+            $directory = $directory . "/pb/";
+        } else {
+            $directory = $directory . "/bbb/";
+        }
+        exec("sudo cp -f " . $directory . $value . "-eeprom.bin " . $settings['configDirectory'] . "/cape-eeprom.bin", $output, $return_val);
+        exec("sudo chown fpp:fpp " . $settings['configDirectory'] . "/cape-eeprom.bin", $output, $return_val);
+    }
+    exec("sudo " . $settings['fppBinDir'] . "/fppcapedetect", $output, $return_val);
+}
 /////////////////////////////////////////////////////////////////////////////
-function ApplySetting($setting, $value) {
+function ApplySetting($setting, $value)
+{
     switch ($setting) {
-        case 'ClockDate':       SetDate($value);              break;
-        case 'ClockTime':       SetTime($value);              break;
-        case 'ntp':             SetNTP($value);               break; // Still used by handle_boot_actions
-        case 'ntpServer':       SetNTPServer($value);         break;
-        case 'passwordEnable':  EnableUIPassword($value);     break;
-        case 'password':        SetUIPassword($value);        break;
-        case 'piRTC':           SetRTC($value);               break;
-        case 'TimeZone':        SetTimeZone($value);          break;
-        case 'ForceHDMI':       SetForceHDMI($value);         break;
-        case 'ForceHDMIResolution':  SetForceHDMIResolution($value, "");         break;
-        case 'ForceHDMIResolutionPort2':  SetForceHDMIResolution($value, ":1");         break;
-        case 'wifiDrivers':     SetWifiDrivers($value);       break;
+        case 'ClockDate':SetDate($value);
+            break;
+        case 'ClockTime':SetTime($value);
+            break;
+        case 'ntp':SetNTP($value);
+            break; // Still used by handle_boot_actions
+        case 'ntpServer':SetNTPServer($value);
+            break;
+        case 'passwordEnable':EnableUIPassword($value);
+            break;
+        case 'password':SetUIPassword($value);
+            break;
+        case 'piRTC':SetRTC($value);
+            break;
+        case 'TimeZone':SetTimeZone($value);
+            break;
+        case 'ForceHDMI':SetForceHDMI($value);
+            break;
+        case 'ForceHDMIResolution':SetForceHDMIResolution($value, "");
+            break;
+        case 'ForceHDMIResolutionPort2':SetForceHDMIResolution($value, ":1");
+            break;
+        case 'wifiDrivers':SetWifiDrivers($value);
+            break;
+        case 'InstalledCape':SetInstalledCape($value);
+            break;
     }
 }
 
-function setVolume($vol) {
+function setVolume($vol)
+{
     global $SUDO;
     global $settings;
 
@@ -272,5 +311,3 @@ function setVolume($vol) {
         $status = exec($SUDO . " amixer -c $card set $mixerDevice -- " . $vol . "%");
     }
 }
-
-?>

@@ -10,6 +10,7 @@ dispatch_get('/backups/list/:DeviceName', 'GetAvailableBackupsOnDevice');
 dispatch_get('/backups/devices', 'GetAvailableBackupsDevices');
 
 dispatch_get('/cape', 'GetCapeInfo');
+dispatch_get('/cape/options', 'GetCapeOptions');
 
 dispatch_get('/channel/input/stats', 'channel_input_get_stats');
 dispatch_delete('/channel/input/stats', 'channel_input_delete_stats');

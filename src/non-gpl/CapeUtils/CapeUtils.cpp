@@ -18,6 +18,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -449,7 +450,12 @@ public:
 
     CapeUtils::CapeStatus capeStatus() {
         if (validSignature) {
-            return CapeUtils::CapeStatus::SIGNED;
+            if (EEPROM.find("sys/bus/i2c") != std::string::npos) {
+                return CapeUtils::CapeStatus::SIGNED;
+            } else if (devsn != "") {
+                return CapeUtils::CapeStatus::SIGNED;
+            }
+            return CapeUtils::CapeStatus::SIGNED_GENERIC;
         }
         if (!validSignature && EEPROM != "") {
             return CapeUtils::CapeStatus::UNSIGNED;
@@ -626,6 +632,11 @@ private:
                     printf("- extracted file: %s\n", path.c_str());
                     break;
                 }
+                case 96: {
+                    capesn = read_string(file, 16);
+                    devsn = read_string(file, 42);
+                    break;
+                }
                 case 97: {
                     std::string eKey = read_string(file, 12);
                     std::string eValue = read_string(file, flen - 12);
@@ -635,7 +646,7 @@ private:
                 case 98: {
                     std::string type = read_string(file, 2);
                     if (type == "1") {
-                        if (EEPROM.find("/i2c") == std::string::npos) {
+                        if (EEPROM.find("sys/bus/i2c") == std::string::npos) {
                             validEpromLocation = false;
                         }
                     } else if (type == "2") {
@@ -646,10 +657,11 @@ private:
                         validEpromLocation = false;
                     }
 
-                    if (validEpromLocation)
+                    if (validEpromLocation) {
                         printf("- eeprom location is valid\n");
-                    else
+                    } else {
                         printf("- ERROR eeprom is NOT valid\n");
+                    }
                     break;
                 }
                 case 99: {
@@ -706,8 +718,18 @@ private:
             std::string str = buffer.str();
             bool success = reader->parse(str.c_str(), str.c_str() + str.size(), &result, &errors);
             if (success) {
+                std::set<std::string> removes;
+                if (result.isMember("removeSettings")) {
+                    for (int x = 0; x < result["removeSettings"].size(); x++) {
+                        std::string v = result["removeSettings"][x].asString();
+                        removes.insert(v);
+                    }
+                }
                 for (auto kv : extras) {
                     result[kv.first] = kv.second;
+                }
+                if (EEPROM.find("sys/bus/i2c") == std::string::npos && devsn == "" && validSignature) {
+                    removes.insert("FetchVendorLogos");
                 }
                 if (result["id"].asString() != "Unsupported" && result["id"].asString() != "Unknown") {
                     result["serialNumber"] = capesn;
@@ -726,16 +748,13 @@ private:
                 }
                 if (!readOnly) {
                     readSettingsFile(lines);
-                    if (result.isMember("removeSettings")) {
-                        for (int x = 0; x < result["removeSettings"].size(); x++) {
-                            std::string v = result["removeSettings"][x].asString();
-                            std::string found = "";
-                            for (int l = 0; l < lines.size(); l++) {
-                                if (lines[l].find(v) == 0) {
-                                    lines.erase(lines.begin() + l);
-                                    settingsChanged = true;
-                                    break;
-                                }
+                    for (auto& v : removes) {
+                        std::string found = "";
+                        for (int l = 0; l < lines.size(); l++) {
+                            if (lines[l].find(v) == 0) {
+                                lines.erase(lines.begin() + l);
+                                settingsChanged = true;
+                                break;
                             }
                         }
                     }
@@ -984,6 +1003,7 @@ private:
     std::string cape;
     std::string capev;
     std::string capesn;
+    std::string devsn;
 
     std::string fkeyId;
     std::map<std::string, std::string> extras;
@@ -1054,7 +1074,7 @@ bool CapeUtils::getStringConfig(const std::string& type, Json::Value& val) {
         std::istringstream istream(std::string((const char*)&f[0], f.size()));
         bool success = Json::parseFromStream(factory, istream, &val, &errors);
         if (success) {
-            val["supportsSmartReceivers"] = capeInfo->capeStatus() == CapeUtils::CapeStatus::SIGNED;
+            val["supportsSmartReceivers"] = capeInfo->capeStatus() >= CapeUtils::CapeStatus::SIGNED_GENERIC;
             return true;
         }
     } else {
@@ -1065,7 +1085,7 @@ bool CapeUtils::getStringConfig(const std::string& type, Json::Value& val) {
             std::ifstream istream(fn);
             bool success = Json::parseFromStream(factory, istream, &val, &errors);
             if (success) {
-                if (capeInfo->capeStatus() == CapeUtils::CapeStatus::UNSIGNED) {
+                if (capeInfo->capeStatus() <= CapeUtils::CapeStatus::UNSIGNED) {
                     val["supportsSmartReceivers"] = false;
                 }
                 return true;

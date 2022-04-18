@@ -86,7 +86,6 @@ function ReadSettingFromFile($settingName, $plugin = "")
         return false;
     }
 
-
     $settingsStr = file_get_contents($filename);
     if (!empty($settingsStr)) {
         if (preg_match("/^" . $settingName . "/m", $settingsStr)) {
@@ -239,21 +238,23 @@ function MergeDefaultsFromPluginSettings($plugin)
     global $pluginSettings;
 
     LoadPluginSettingInfos($plugin);
-    foreach($pluginSettingInfos as $key => $value) {
+    foreach ($pluginSettingInfos as $key => $value) {
         if (!isset($pluginSettings[$key]) && isset($value["default"])) {
             $pluginSettings[$key] = $value["default"];
         }
     }
 }
-function LoadPluginSettings($pluginName) {
+function LoadPluginSettings($pluginName)
+{
     global $pluginSettings, $settings;
-    $pluginConfigFile = $settings ['configDirectory'] . "/plugin." . $pluginName;
+    $pluginConfigFile = $settings['configDirectory'] . "/plugin." . $pluginName;
     if (file_exists($pluginConfigFile)) {
-	    $pluginSettings = parse_ini_file($pluginConfigFile);
+        $pluginSettings = parse_ini_file($pluginConfigFile);
     }
     MergeDefaultsFromPluginSettings($pluginName);
 }
-function ParseBooleanValue($value) {
+function ParseBooleanValue($value)
+{
     return $value == "1" || $value == "true" || $value == "TRUE" || $value == "ON" || $value == "on";
 }
 
@@ -287,7 +288,14 @@ function ShouldPrintSetting($s)
     if (isset($s['checkFile'])) {
         $checkFileOK = 0;
         foreach ($s['checkFile'] as $f) {
+            $invertCheck = false;
+            if ($f[0] == '!') {
+                $f = substr($f, 1);
+                $invertCheck = true;
+            }
             if (file_exists($f)) {
+                $checkFileOK = 1;
+            } else if ($invertCheck) {
                 $checkFileOK = 1;
             }
         }
