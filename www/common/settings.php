@@ -197,6 +197,7 @@ function SetForceHDMIResolution($value, $postfix)
 
 function SetWifiDrivers($value)
 {
+    global $settings;
     if ($value == "Kernel") {
         exec("sudo rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val);
         exec("sudo rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val);
