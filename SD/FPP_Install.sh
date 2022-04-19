@@ -167,6 +167,11 @@ while [ -n "$1" ]; do
 	esac
 done
 
+MODEL=""
+if [ -f /proc/device-tree/model ]; then
+    MODEL=$(tr -d '\0' < /proc/device-tree/model)
+fi
+
 # Attempt to detect the platform we are installing on
 if [ "x${OSID}" = "xraspbian" ]
 then
@@ -183,9 +188,9 @@ then
 elif [ ! -z "$(grep sun50iw1p1 /proc/cpuinfo)" ]
 then
 	FPPPLATFORM="Pine64"
-elif [ ! -z "$(grep sun8i /proc/cpuinfo)" ]
+elif [[ $MODEL == *"Orange"* ]];
 then
-	FPPPLATFORM="OrangePi"
+    FPPPLATFORM="OrangePi"
 elif [ "x${OSID}" = "xdebian" ]
 then
 	FPPPLATFORM="Debian"
@@ -714,6 +719,7 @@ EOF
 	'OrangePi')
 		echo "FPP - Orange Pi"
         if $isimage; then
+            apt-get remove -y network-manager
             sed -i -e "s/overlays=/overlays=i2c0 spi-spidev /" /boot/armbianEnv.txt
             echo "param_spidev_spi_bus=0" >> /boot/armbianEnv.txt
             echo "param_spidev_max_freq=25000000" >> /boot/armbianEnv.txt
