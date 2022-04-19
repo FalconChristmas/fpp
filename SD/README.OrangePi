@@ -57,8 +57,6 @@ df -k
 apt-get -y update
 apt-get -y upgrade
 
-# remove the network-manager things so reboot
-apt-get remove -y --purge --autoremove --allow-change-held-packages network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv
 shutdown -r now
 
 
