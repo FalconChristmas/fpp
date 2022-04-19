@@ -421,6 +421,7 @@ function stats_getUUID()
 
 function stats_getCapeInfo()
 {
+    global $settings;
     $rc = array("name" => "None");
     if ($settings['SendVendorSerial'] == 1) {
         $mapping = array(
