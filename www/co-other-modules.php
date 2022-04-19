@@ -114,9 +114,11 @@ class OtherBaseDevice extends OtherBase {
 
 var SPIDevices = new Array();
 <?
+$hasSPI = false;
 foreach (scandir("/dev/") as $fileName) {
     if (preg_match("/^spidev[0-9]/", $fileName)) {
         echo "SPIDevices['$fileName'] = '$fileName';\n";
+	$hasSPI = true;
     }
 }
 ?>
@@ -145,9 +147,11 @@ if (is_dir("/dev/serial/by-id")) {
 
 var I2CDevices = new Array();
 <?
+$hasI2C = false;
 foreach (scandir("/dev/") as $fileName) {
     if (preg_match("/^i2c-[0-9]/", $fileName)) {
         echo "I2CDevices['$fileName'] = '$fileName';\n";
+	$hasI2C = true;
     }
 }
 ?>
@@ -799,11 +803,15 @@ if (Object.keys(SerialDevices).length > 0) {
 
 //Outputs for Raspberry Pi or Beagle
 <?
-if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black") {
-    ?>
+if ($hasI2C) {
+?>
     output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, false, {deviceID: 0x20} , 0x20, 0x27));
-    output_modules.push(new GenericSPIDevice());
     output_modules.push(new PCA9685Output());
+<?
+}
+if ($hasSPI) {
+?> 
+    output_modules.push(new GenericSPIDevice());
 <?
 }
 ?>
