@@ -1,36 +1,53 @@
-NOTE: These are old instructions.  FPP now requires Debian/Raspbian Stretch.
-      The master branch of FPP has not been tested on the OrangePi.
 
-=============================================================================
-
-
-The Orange Pi haa been tested with the Armbian images running Debian Jessie.
+The Orange Pi haa been tested with the Armbian images running Debian Bullseye.
 These are available from https://www.armbian.com/
 Specific images names and versions are listed below.
 
-- Orange Pi Zero
-  - Armbian Debian Jessie image w/ 3.4.113 kernel
-    - Armbian_5.25_Orangepizero_Debian_jessie_default_3.4.113.7z
+- Orange Pi Zero+
+  - Armbian_22.02.1_Orangepizero_bullseye_current_5.15.25.img
 
-- Orange Pi PC
-  - ??
 
 =============================================================================
+== If the intention is to build an image similar to the Pi/BBB images,
+== then the partition will need to be resized and the auto-expand disabled
+==
+== If this is to build a personal image, these steps can be skipped
+
+Resize the root partition to 3.5GB using fdisk (substitute the proper device
+for your SD card).
+
+    fdisk /dev/sdb
+    p
+    (Note the original start block of partition 2, you will need this later)
+    d
+    1
+    n
+    p
+    1
+    (Replace 8192 with the original start block of partition 1 noted earlier)
+    8192
+    (FIXME, downsize this value once install is tested)
+    +3500M
+    p
+    w
+
+FSCK and resize the root partition (again, use your device name.
+
+    e2fsck -f /dev/sdb1
+    resize2fs /dev/sdb1
+
+
+Mount the partition and turn off the auto-resize
+mount /dev/sdb1 /mnt
+touch /mnt/root/.no_rootfs_resize
+umount /mnt
+=============================================================================
+
+
+Insert into the Orange Pi Zero and boot.
+
+
 Commands to run after boot:
-
-#######################
-# Resize root partition to 1.8GB to give room to update packages and install FPP
-------
-# Armbian (Debian Jessie)
-#
-# NOTE: Armbian includes an auto-resize script, so this step may not be
-#       needed, although we don't want the resize on official FPP SD images
-#       to keep them smaller for user downloads.
-((echo d; echo 1; echo n; echo p; echo ; echo 2048; echo "+1800M"; echo w;) | fdisk /dev/mmcblk0)
-rm /etc/*.d/*resize2fs
-
-# Reboot the Orange Pi to allow the filesystem resize to take effect.
-shutdown -r now
 
 #######################
 # After reboot
@@ -39,14 +56,14 @@ df -k
 # update packages
 apt-get -y update
 apt-get -y upgrade
+
+# remove the network-manager things so reboot
+apt-get remove -y --purge --autoremove --allow-change-held-packages network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv
 shutdown -r now
+
 
 # After reboot
 wget --no-check-certificate -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 chmod 700 ./FPP_Install.sh
-./FPP_Install.sh --build-ola
-
-edit /opt/fpp/src/controlrecv.c to comment out SO_REUSEPORT usage and recompile
-
-shutdown -r now
+./FPP_Install.sh --img
 

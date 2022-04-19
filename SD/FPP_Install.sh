@@ -472,8 +472,12 @@ case "${OSVER}" in
             systemctl enable systemd-networkd
             systemctl disable systemd-networkd-wait-online.service
             systemctl enable systemd-resolved
-            rm -f /etc/resolv.conf
-            ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+            
+            # if systemd hasn't created a new resolv.conf, don't replace it yet
+            if [ -f /run/systemd/resolve/resolv.conf ]; then
+                rm -f /etc/resolv.conf
+                ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+            fi
             
             #remove some things that were installed (not sure why)
             apt-get remove -y --purge --autoremove --allow-change-held-packages pocketsphinx-en-us guile-2.2-libs
@@ -707,15 +711,16 @@ EOF
 	'Pine64')
 		echo "FPP - Pine64"
 		;;
-	'Orange Pi')
+	'OrangePi')
 		echo "FPP - Orange Pi"
-
-		echo "FPP - Installing wiringOP (wiringPi port)"
-		cd /opt/ && git clone https://github.com/zhaolei/WiringOP && cd /opt/WiringOP && ./build
-
-		echo "FPP - Disabling stock users, use the '${FPPUSER}' user instead"
-		sed -i -e "s/^orangepi:.*/orangepi:*:16372:0:99999:7:::/" /etc/shadow
-
+        if $isimage; then
+            sed -i -e "s/overlays=/overlays=i2c0 spi-spidev /" /boot/armbianEnv.txt
+            echo "param_spidev_spi_bus=0" >> /boot/armbianEnv.txt
+            echo "param_spidev_max_freq=25000000" >> /boot/armbianEnv.txt
+            
+            sed -i -e "s/ENABLED=true/ENABLED=false/" /etc/default/armbian-ramlog
+        fi
+		
 		;;
 	'Ununtu')
 		echo "FPP - Ununtu"
@@ -815,7 +820,7 @@ adduser --uid 500 --home ${FPPHOME} --shell /bin/bash --ingroup ${FPPUSER} --gec
 adduser ${FPPUSER} adm
 adduser ${FPPUSER} sudo
 case "${FPPPLATFORM}" in
-	'Raspberry Pi'|'BeagleBone Black')
+	'Raspberry Pi'|'BeagleBone Black'|'OrangePi')
 		adduser ${FPPUSER} spi
 		adduser ${FPPUSER} gpio
 		adduser ${FPPUSER} i2c
@@ -1168,6 +1173,11 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
         systemctl unmask hostapd
         systemctl disable hostapd
     fi
+fi
+
+if $isimage; then
+    rm -f /etc/resolv.conf
+    ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
 fi
 
 ENDTIME=$(date)

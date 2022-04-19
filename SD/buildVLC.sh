@@ -20,7 +20,7 @@ fi
 
 DISABLES=""
 if [ -f /etc/fpp/desktop ]; then
-    apt-get install libxcb-composite0-dev libxcb-xkb-dev libxcb-randr0-dev libxcb-shm0-dev
+    apt-get install -y libxcb-composite0-dev libxcb-xkb-dev libxcb-randr0-dev libxcb-shm0-dev
     DISABLES=""
 else
     DISABLES="--disable-xcb"
