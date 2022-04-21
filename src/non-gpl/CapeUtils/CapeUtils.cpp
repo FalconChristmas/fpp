@@ -739,8 +739,6 @@ private:
                 std::vector<std::string> lines;
                 bool settingsChanged = false;
                 if (!validSignature) {
-                    if (result.isMember("vendor"))
-                        result.removeMember("vendor");
                     if (result.isMember("provides"))
                         result.removeMember("provides");
                     if (result.isMember("verifiedKeyId"))

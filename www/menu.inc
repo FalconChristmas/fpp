@@ -104,7 +104,8 @@ function list_plugin_entries($menu) {
 		    if ($settings['Logo'] != "") {
            echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; }
 		    if ($settings['LogoLink'] != "") echo "</a>";
-            if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image']) && $settings['FetchVendorLogos'] == 1) {
+            if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image']) 
+                && $settings['FetchVendorLogos'] == 1 && isSet($settings['cape-info']['vendor']['verifiedKeyId'])) {
                 $landing = $settings['cape-info']['vendor']['url'];
                 if (isSet($settings['cape-info']['vendor']['landingPage'])) {
                     $landing = $settings['cape-info']['vendor']['landingPage'];
