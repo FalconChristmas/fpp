@@ -323,6 +323,11 @@ void Sensors::Init() {
                 }
             }
             std::string label = path;
+            if (endsWith(label, "_THERMAL_ZONE")) {
+                label = label.substr(0, label.size() - 13);
+            } else if (endsWith(label, "_THERMAL")) {
+                label = label.substr(0, label.size() - 8);
+            }
             label += ": ";
             v["label"] = label;
             close(file);
