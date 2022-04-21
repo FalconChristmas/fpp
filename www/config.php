@@ -288,6 +288,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
     }
 } else if ($settings['Platform'] == "Armbian" || $settings['Platform'] == "OrangePi") {
     $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
+    $settings['Variant'] = $settings['SubPlatform'];
     if (preg_match('/Orange/', $settings['SubPlatform'])) {
         $settings['Logo'] = "orangepi_logo.png";
         $settings['LogoLink'] = "http://www.orangepi.org/";

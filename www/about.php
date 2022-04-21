@@ -315,7 +315,6 @@ echo $settings['Platform'];
 if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform'])) {
     echo " (" . $settings['Variant'] . ")";
 }
-
 ?></td></tr>
      <?if ($os_build != "") {?><tr><td>FPP OS Build:</td><td id='osVersion'><?echo $os_build; ?></td></tr><?}?>
                 <tr><td>OS Version:</td><td id='osRelease'><?echo $os_version; ?></td></tr>
