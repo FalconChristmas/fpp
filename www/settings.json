@@ -1292,6 +1292,7 @@
                 "Raspberry Pi": "Raspberry Pi",
                 "BeagleBone Black": "BeagleBone Black",
                 "CHIP": "CHIP",
+                "Armbian": "Armbian",
                 "Debian": "Debian",
                 "FreeBSD": "FreeBSD",
                 "Linux": "Linux",

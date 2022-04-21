@@ -11,6 +11,10 @@ else ifeq '$(ARCH)' 'Pine64'
 ISLINUX=1
 else ifeq '$(ARCH)' 'CHIP'
 ISLINUX=1
+else ifeq '$(ARCH)' 'Armbian'
+ISLINUX=1
+else ifeq '$(ARCH)' 'OrangePi'
+ISLINUX=1
 else ifeq '$(ARCH)' 'UNKNOWN'
 ISLINUX=1
 endif
@@ -31,13 +35,17 @@ BUILD_FPPOLED=1
 BUILD_FPPCAPEDETECT=1
 endif
 
-LDFLAGS_fppd += -L.
 
+LDFLAGS_fppd += -L.
 LDFLAGS_fppd += $(shell log4cpp-config --libs)
 
+OBJECTS_GPIO_ADDITIONS+=
 LIBS_GPIO_ADDITIONS+=-lgpiod -lgpiodcxx
-LDFLAGS=-lrt -lpthread
+OBJECTS_fppoled += util/SPIUtils.o
+BUILD_FPPOLED=1
+BUILD_FPPCAPEDETECT=1
 
+LDFLAGS=-lrt -lpthread
 SHLIB_EXT=so
 
 endif

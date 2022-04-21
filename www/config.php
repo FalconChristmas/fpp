@@ -286,19 +286,30 @@ if ($settings['Platform'] == "Raspberry Pi") {
         $settings['Variant'] = "UNKNOWN";
         $settings['Logo'] = "beagle_logo.png";
     }
+} else if ($settings['Platform'] == "Armbian" || $settings['Platform'] == "OrangePi") {
+    $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
+    if (preg_match('/Orange/', $settings['SubPlatform'])) {
+        $settings['Logo'] = "orangepi_logo.png";
+        $settings['LogoLink'] = "http://www.orangepi.org/";
+    } else if (preg_match('/Pine/', $settings['SubPlatform'])) {
+        $settings['Logo'] = "pine64_logo.png";
+        $settings['LogoLink'] = "https://www.pine64.org/";
+    } else if (preg_match('/ODROID/', $settings['SubPlatform'])) {
+        $settings['Logo'] = "odroid_logo.gif";
+        $settings['LogoLink'] = "http://www.hardkernel.com/main/main.php";
+    } else if (preg_match('/Banana/', $settings['SubPlatform'])) {
+        $settings['Logo'] = "debian_logo.png";
+        $settings['LogoLink'] = "http://www.banana-pi.com/eindex.asp";
+    } else {
+        $settings['Logo'] = "debian_logo.png";
+        $settings['LogoLink'] = "https://www.armbian.com/";
+    }
 } else if ($settings['Platform'] == "PogoPlug") {
     $settings['Logo'] = "pogoplug_logo.png";
     $settings['LogoLink'] = "";
 } else if ($settings['Platform'] == "ODROID") {
     $settings['Logo'] = "odroid_logo.gif";
     $settings['LogoLink'] = "http://www.hardkernel.com/main/main.php";
-} else if ($settings['Platform'] == "OrangePi") {
-    $settings['Logo'] = "orangepi_logo.png";
-    $settings['LogoLink'] = "http://www.orangepi.org/";
-    #$settings['SubPlatform'] = trim(file_get_contents("/sys/firmware/devicetree/base/model"));
-    #if (preg_match('/Orange Pi Zero/', $settings['SubPlatform'])) {
-    #    $settings['Logo'] = "orangepi_zero_logo.png";
-    #}
 } else if ($settings['Platform'] == "Pine64") {
     $settings['Logo'] = "pine64_logo.png";
     $settings['LogoLink'] = "https://www.pine64.org/";

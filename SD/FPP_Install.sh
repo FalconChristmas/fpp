@@ -171,26 +171,17 @@ MODEL=""
 if [ -f /proc/device-tree/model ]; then
     MODEL=$(tr -d '\0' < /proc/device-tree/model)
 fi
-
 # Attempt to detect the platform we are installing on
 if [ "x${OSID}" = "xraspbian" ]
 then
 	FPPPLATFORM="Raspberry Pi"
 	OSVER="debian_${VERSION_ID}"
-elif [ "x${VARIANT}" = "xDebian on C.H.I.P" ]; then
-	FPPPLATFORM="CHIP"
 elif [ -e "/sys/class/leds/beaglebone:green:usr0" ]
 then
 	FPPPLATFORM="BeagleBone Black"
-elif [ ! -z "$(grep ODROIDC /proc/cpuinfo)" ]
+elif [[ $PRETTY_NAME == *"Armbian"* ]]
 then
-	FPPPLATFORM="ODROID"
-elif [ ! -z "$(grep sun50iw1p1 /proc/cpuinfo)" ]
-then
-	FPPPLATFORM="Pine64"
-elif [[ $MODEL == *"Orange"* ]];
-then
-    FPPPLATFORM="OrangePi"
+    FPPPLATFORM="Armbian"
 elif [ "x${OSID}" = "xdebian" ]
 then
 	FPPPLATFORM="Debian"
@@ -338,7 +329,7 @@ export DEBIAN_FRONTEND=noninteractive
 case "${OSVER}" in
 	debian_11 | debian_10 | ubuntu_20.04)
 		case $FPPPLATFORM in
-			'CHIP'|'BeagleBone Black')
+			'BeagleBone Black')
 				echo "FPP - Skipping non-free for $FPPPLATFORM"
 				;;
 			*)
@@ -696,28 +687,8 @@ EOF
         rfkill unblock all
 		;;
 	#TODO
-	'CHIP')
-		echo "FPP - Reinstall chip packages that were probably removed earlier from dependencies"
-		for package in chip-exit chip-metapackage chip-configs chip-hwtest \
-						chip-input-reset chip-power chip-theme
-		do
-			apt-get -y install ${package}
-			let packages=$((${packages}+1))
-			if [ $packages -gt 10 ]; then
-				let packages=0
-				apt-get -y clean
-			fi
-		done
-		;;
-	'ODROID')
-		echo "FPP - Installing wiringPi"
-		cd /opt/ && git clone https://github.com/hardkernel/wiringPi && cd /opt/wiringPi && ./build
-		;;
-	'Pine64')
-		echo "FPP - Pine64"
-		;;
-	'OrangePi')
-		echo "FPP - Orange Pi"
+	'Armbian')
+		echo "FPP - Armbian"
         if $isimage; then
             apt-get remove -y network-manager
             sed -i -e "s/overlays=/overlays=i2c0 spi-spidev /" /boot/armbianEnv.txt
@@ -726,13 +697,23 @@ EOF
             
             sed -i -e "s/ENABLED=true/ENABLED=false/" /etc/default/armbian-ramlog
         fi
-		
 		;;
 	'Ununtu')
 		echo "FPP - Ununtu"
 		;;
 	'Debian')
 		echo "FPP - Debian"
+        if $isimage; then
+            apt-get remove -y network-manager
+            
+            if $ISARMBIAN; then
+                sed -i -e "s/overlays=/overlays=i2c0 spi-spidev /" /boot/armbianEnv.txt
+                echo "param_spidev_spi_bus=0" >> /boot/armbianEnv.txt
+                echo "param_spidev_max_freq=25000000" >> /boot/armbianEnv.txt
+            
+                sed -i -e "s/ENABLED=true/ENABLED=false/" /etc/default/armbian-ramlog
+            fi
+        fi
 		;;
 	*)
 		echo "FPP - Unknown platform"
@@ -826,7 +807,7 @@ adduser --uid 500 --home ${FPPHOME} --shell /bin/bash --ingroup ${FPPUSER} --gec
 adduser ${FPPUSER} adm
 adduser ${FPPUSER} sudo
 case "${FPPPLATFORM}" in
-	'Raspberry Pi'|'BeagleBone Black'|'OrangePi')
+	'Raspberry Pi'|'BeagleBone Black'|'Armbian')
 		adduser ${FPPUSER} spi
 		adduser ${FPPUSER} gpio
 		adduser ${FPPUSER} i2c

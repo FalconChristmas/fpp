@@ -59,7 +59,7 @@ int gettimeofday(struct timeval* tp, struct timezone* tzp) {
 #define PLATFORM_UNKNOWN
 #endif
 
-#if defined(PLATFORM_PI) || defined(PLATFORM_BBB) || defined(PLATFORM_ODROID) || defined(PLATFORM_ORANGEPI) || defined(PLATFORM_UNKNOWN) || defined(PLATFORM_DOCKER)
+#if defined(PLATFORM_PI) || defined(PLATFORM_BBB) || defined(PLATFORM_ODROID) || defined(PLATFORM_UNKNOWN) || defined(PLATFORM_DOCKER)
 //for FPP, use FPP logging
 #include "Warnings.h"
 #include "log.h"
