@@ -179,6 +179,9 @@ then
 elif [ -e "/sys/class/leds/beaglebone:green:usr0" ]
 then
 	FPPPLATFORM="BeagleBone Black"
+elif [ -f "/etc/armbian-release" ]
+then
+    FPPPLATFORM="Armbian"
 elif [[ $PRETTY_NAME == *"Armbian"* ]]
 then
     FPPPLATFORM="Armbian"
