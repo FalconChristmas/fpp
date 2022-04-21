@@ -145,12 +145,12 @@ public:
     int load(VLCInternalData* data) {
         if (vlcInstance == nullptr) {
             //const char *args[] {"-A", "alsa", "-V", "mmal_vout", nullptr};
-#ifdef PLATFORM_UNKNOWN
-            const char* dsp = getenv("DISPLAY");
-            if (dsp == nullptr) {
-                setenv("DISPLAY", ":0", true);
+            if (FileExists("/etc/fpp/desktop")) {
+                const char* dsp = getenv("DISPLAY");
+                if (dsp == nullptr) {
+                    setenv("DISPLAY", ":0", true);
+                }
             }
-#endif
 
             int hardwareDecoding = getSettingInt("HardwareDecoding", 1);
             std::vector<const char*> args;
@@ -166,7 +166,7 @@ public:
                 args.push_back("-V");
                 args.push_back("mmal_vout");
             }
-#elif defined(PLATFORM_UNKNOWN)
+#else
             args.push_back("-I");
             args.push_back("dummy");
 #endif            

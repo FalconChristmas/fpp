@@ -266,6 +266,8 @@ static void processBootConfig(Json::Value& bootConfig) {
     const std::string fileName = "/boot/config.txt";
 #elif defined(PLATFORM_BBB)
     const std::string fileName = "/boot/uEnv.txt";
+#elif defined(PLATFORM_ARMBIAN)
+    const std::string fileName = "/boot/armbianEnv.txt";
 #else
     //unknown platform
     const std::string fileName;

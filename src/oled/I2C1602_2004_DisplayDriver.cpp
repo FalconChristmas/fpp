@@ -22,10 +22,12 @@ static std::vector<unsigned int> lineOffset0x3fBacklight = { 3 };
 static std::vector<unsigned int> lineOffsets0x20 = { 15, 14, 13, 12, 11, 10, 9 };
 static std::vector<unsigned int> lineOffset0x20Backlight = { 7, 6, 8 };
 
-#ifdef PLATFORM_BBB
+#if defined(PLATFORM_BBB)
 static constexpr int DEFAULT_I2C_BUS = 2;
-#else
+#elif defined(PLATFORM_PI)
 static constexpr int DEFAULT_I2C_BUS = 1;
+#else
+static constexpr int DEFAULT_I2C_BUS = 0;
 #endif
 
 #if __has_include(<gpiod.hpp>)

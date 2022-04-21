@@ -6,11 +6,13 @@
 #include "SSD1306_OLED.h"
 
 extern I2C_DeviceT I2C_DEV_2;
-#ifdef PLATFORM_BBB
+#if defined(PLATFORM_BBB)
 #include "util/BBBUtils.h"
 #define I2C_DEV_PATH I2C_DEV2_PATH
-#else
+#elif defined(PLATFORM_PI)
 #define I2C_DEV_PATH I2C_DEV1_PATH
+#else
+#define I2C_DEV_PATH I2C_DEV0_PATH
 #endif
 
 SSD1306DisplayDriver::SSD1306DisplayDriver(int lt) :

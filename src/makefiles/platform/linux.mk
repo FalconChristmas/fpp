@@ -1,22 +1,31 @@
 #various platforms that need "generic linux flags"
 ifeq '$(ARCH)' 'Linux'
 ISLINUX=1
+CFLAGS += -DPLATFORM_UNKNOWN
 else ifeq '$(ARCH)' 'Debian'
 ISLINUX=1
+CFLAGS += -DPLATFORM_DEBIAN
 else ifeq '$(ARCH)' 'Ubuntu'
 ISLINUX=1
+CFLAGS += -DPLATFORM_UBUNTU
 else ifeq '$(ARCH)' 'Fedora'
 ISLINUX=1
+CFLAGS += -DPLATFORM_FEDORA
 else ifeq '$(ARCH)' 'Pine64'
 ISLINUX=1
+CFLAGS += -DPLATFORM_DEBIAN
 else ifeq '$(ARCH)' 'CHIP'
 ISLINUX=1
+CFLAGS += -DPLATFORM_DEBIAN
 else ifeq '$(ARCH)' 'Armbian'
 ISLINUX=1
+CFLAGS += -DPLATFORM_DEBIAN -DPLATFORM_ARMBIAN
 else ifeq '$(ARCH)' 'OrangePi'
 ISLINUX=1
+CFLAGS += -DPLATFORM_DEBIAN -DPLATFORM_ARMBIAN
 else ifeq '$(ARCH)' 'UNKNOWN'
 ISLINUX=1
+CFLAGS += -DPLATFORM_UNKNOWN
 endif
 
 ifeq '$(ISLINUX)' '1'
@@ -30,7 +39,6 @@ ifneq ($(wildcard /.dockerenv),)
 #don't build the oled/cape stuff for docker
 CFLAGS += -DPLATFORM_DOCKER
 else
-CFLAGS += -DPLATFORM_UNKNOWN
 BUILD_FPPOLED=1
 BUILD_FPPCAPEDETECT=1
 endif

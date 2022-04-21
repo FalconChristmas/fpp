@@ -26,6 +26,9 @@
 //TODO need to confirm these
 #define MIN_SPI_SPEED_HZ 1500
 #define MAX_SPI_SPEED_HZ 48000000
+#elif PLATFORM_ARMBIAN
+#define MIN_SPI_SPEED_HZ 50000
+#define MAX_SPI_SPEED_HZ 2500000
 #else
 //not sure what other platforms could be used, using safe values here
 #define MIN_SPI_SPEED_HZ 50000
