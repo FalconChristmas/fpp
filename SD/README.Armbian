@@ -1,10 +1,13 @@
+FPP on Armbian has been tested on various OrangePi SBC's running the
+"Bullseye" based Armbian images.
 
-The Orange Pi haa been tested with the Armbian images running Debian Bullseye.
 These are available from https://www.armbian.com/
 Specific images names and versions are listed below.
 
 - Orange Pi Zero+
   - Armbian_22.02.1_Orangepizero_bullseye_current_5.15.25.img
+- Orange Pi Zero 2
+  - Armbian_22.02.2_Orangepizero2_bullseye_legacy_4.9.255.img
 
 
 =============================================================================
@@ -44,14 +47,15 @@ umount /mnt
 =============================================================================
 
 
-Insert into the Orange Pi Zero and boot.
+Insert into the SBC and boot.
 
 
 Commands to run after boot:
+Login via ssh as root (default Armbian password for root is 1234)
 
 #######################
 # After reboot
-# check root filesystem size (should be ~1.8GB)
+# check root filesystem size (should be at least ~3.4GB)
 df -k
 # update packages
 apt-get -y update
@@ -60,7 +64,7 @@ apt-get -y upgrade
 shutdown -r now
 
 
-# After reboot
+# After reboot, re-loginas root and run:
 wget --no-check-certificate -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 chmod 700 ./FPP_Install.sh
 ./FPP_Install.sh --img
