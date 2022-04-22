@@ -807,7 +807,8 @@ bool UDPOutput::InitNetwork() {
     GetInterfaceAddress(e131Interface.c_str(), E131LocalAddress, NULL, NULL);
     LogDebug(VB_CHANNELOUT, "UDPLocalAddress = %s\n", E131LocalAddress);
 
-    if (strcmp(E131LocalAddress, "127.0.0.1") == 0) {
+    if (strlen(E131LocalAddress) > 3 && E131LocalAddress[0] == '1' && E131LocalAddress[1] == '2' && E131LocalAddress[2] == '7') {
+        // the entire 127.* subnet is localhost
         return -1;
     }
     memset(&localAddress, 0, sizeof(struct sockaddr_in));

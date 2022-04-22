@@ -1981,10 +1981,8 @@ int MultiSync::OpenReceiveSocket(void) {
     return 1;
 }
 bool MultiSync::isSupportedForMultisync(const char* address, const char* intface) {
-    if (!strcmp(address, "127.0.0.1")) {
-        return false;
-    }
-    if (!strcmp(address, "127.0.1.1")) {
+    if (strlen(address) > 3 && address[0] == '1' && address[1] == '2' && address[2] == '7') {
+        // the entire 127.* subnet is localhost
         return false;
     }
     if (!strncmp(intface, "usb", 3) || !strcmp(intface, "lo") || !strncmp(intface, "tether", 6) || !strncmp(intface, "SoftAp", 6)) {
