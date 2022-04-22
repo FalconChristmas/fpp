@@ -47,7 +47,7 @@ function StartFPPD()
         if ($settings["Platform"] == "MacOS") {
             exec("launchctl start falconchristmas.fppd");
         } else {
-            exec($SUDO . " ". $fppDir . "/scripts/fppd_start");
+            exec($SUDO . " " . $fppDir . "/scripts/fppd_start");
         }
         $rc = "OK";
     }
@@ -181,7 +181,7 @@ function SystemGetStatus()
     global $_GET;
 
     /*
-     * NOTE: There are some weird things here to provide backwards compatability
+     * NOTE: There are some weird things here to provide backwards compatibility
      *  - wifi data is returned in both "wifi"  and "interfaces" s
      *  - IP addresses are listed in both "interfaces" and "advanceView"."IP"
      */
@@ -315,7 +315,7 @@ function SystemGetStatus()
 
             $default_return_json['fppd'] = "Not Running";
             $default_return_json['status_name'] = $status == 'updating' ? $status : 'stopped';
-            
+
             return json(finalizeStatusJson($default_return_json));
         }
         $data = json_decode($request_content, true);
@@ -325,7 +325,7 @@ function SystemGetStatus()
 // GET /api/system/info
 function SystemGetInfo()
 {
-    $result =  GetSystemInfoJsonInternal(isset($_GET['simple']));
+    $result = GetSystemInfoJsonInternal(isset($_GET['simple']));
     return json($result);
 }
 

@@ -593,6 +593,11 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     $('#' + rowID + '_osversionRow').show();
                     $('#' + rowID + '_osversion').html(data.advancedView.OSVersion);
                 }
+                if (data.advancedView.HostDescription !== "") {
+                    var origDesc = $('#' + rowID).find('.hostDescriptionSM').html();
+                    if (origDesc == '')
+                        $('#' + rowID).find('.hostDescriptionSM').html(data.advancedView.HostDescription);
+                }
 
                 var u = "<table class='multiSyncVerboseTable'>";
                 if (typeof (data.advancedView.Utilization) !== 'undefined') {
