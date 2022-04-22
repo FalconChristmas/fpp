@@ -127,8 +127,8 @@ public:
     virtual bool getValue() const override;
     virtual void setValue(bool i) const override;
 
-    virtual bool supportsPullUp() const override { return false; }
-    virtual bool supportsPullDown() const override { return false; }
+    virtual bool supportsPullUp() const override;
+    virtual bool supportsPullDown() const override;
 
     virtual bool setupPWM(int maxValueNS = 25500) const override { return false; }
     virtual void setPWMValue(int valueNS) const override {}
@@ -136,6 +136,7 @@ public:
     virtual int getPWMRegisterAddress() const override { return 0; };
     virtual bool supportPWM() const override { return false; };
 
+    static int gpiodVersion;
 #ifdef HASGPIOD
     mutable gpiod::line line;
 #endif

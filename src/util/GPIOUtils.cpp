@@ -124,6 +124,15 @@ static const std::set<std::string> PLATFORM_IGNORES{
 // No platform information on how to control pins
 static std::string PROCESS_NAME = "FPPD";
 
+int GPIODCapabilities::gpiodVersion = 0;
+
+bool GPIODCapabilities::supportsPullUp() const {
+    return gpiodVersion >= 105;
+}
+bool GPIODCapabilities::supportsPullDown() const {
+    return gpiodVersion >= 105;
+}
+
 int GPIODCapabilities::configPin(const std::string& mode,
                                  bool directionOut) const {
 #ifdef HASGPIOD
@@ -135,6 +144,17 @@ int GPIODCapabilities::configPin(const std::string& mode,
         req.request_type = gpiod::line_request::DIRECTION_OUTPUT;
     } else {
         req.request_type = gpiod::line_request::DIRECTION_INPUT;
+
+        if (gpiodVersion >= 105) {
+            //pull up/down was added in libgpiod 1.5
+            if (mode == "gpio_pu") {
+                req.flags |= ::std::bitset<32>(GPIOD_BIT(5));
+            } else if (mode == "gpio_pd") {
+                req.flags |= ::std::bitset<32>(GPIOD_BIT(4));
+            } else {
+                req.flags |= ::std::bitset<32>(GPIOD_BIT(3));
+            }
+        }
     }
     line.request(req, 1);
 #endif
@@ -162,6 +182,33 @@ void PinCapabilities::InitGPIO(const std::string& process, PinCapabilitiesProvid
     }
     PIN_PROVIDER = p;
 #ifdef HASGPIOD
+    const char* ver = gpiod_version_string();
+    bool inMin = false;
+    int gvMaj = 0;
+    int gvMin = 0;
+
+    bool hasDot = false;
+    while (*ver) {
+        if (*ver == '.') {
+            if (inMin) {
+                while (ver[1]) {
+                    ver++;
+                }
+            } else {
+                inMin = true;
+            }
+        } else {
+            if (inMin) {
+                gvMin *= 10;
+                gvMin += *ver - '0';
+            } else {
+                gvMaj *= 10;
+                gvMaj += *ver - '0';
+            }
+        }
+        ver++;
+    }
+    GPIODCapabilities::gpiodVersion = gvMaj * 100 + gvMin;
     int chipCount = 0;
     int pinCount = 0;
     ::gpiod_chip* chip = gpiod_chip_open_by_number(0);
