@@ -65,7 +65,7 @@ jobs:
           context: .
           file: ./Docker/Dockerfile
           # Note: tags has to be all lower-case
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
           tags: ${{ env.IMAGE_REPOSITORY }}/fpp:${{ steps.extract_branch.outputs.branch }},${{ env.IMAGE_REPOSITORY }}/fpp:latest
           push: true
           cache-from: type=registry,ref=${{ env.IMAGE_REPOSITORY }}/fpp:master
