@@ -8,6 +8,16 @@ Specific images names and versions are listed below.
   - Armbian_22.02.1_Orangepizero_bullseye_current_5.15.25.img
 - Orange Pi Zero 2
   - Armbian_22.02.2_Orangepizero2_bullseye_legacy_4.9.255.img
+  
+  
+Note: this will get a BASIC FPP player running on the device.   Things like e1.31
+output, sound, etc.. will likely work.   Any hats/capes for pixels/panels, video,
+etc... will likely not work.  If you search Armbians forums, you may be able to
+get an HDMI framebuffer working on your device by editing the /boot/armbianEnv.txt
+file with settings specific to the device.   That would allow a Virtual Matrix
+to work, but not any sort of accelerated video.   You can have video redirected
+to the Virtual Matrix, but that will use software decoding/scaling.  HiDef videos
+will likely not be usable in that case.
 
 
 =============================================================================
@@ -67,5 +77,5 @@ shutdown -r now
 # After reboot, re-loginas root and run:
 wget --no-check-certificate -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 chmod 700 ./FPP_Install.sh
-./FPP_Install.sh --img
+./FPP_Install.sh
 

@@ -141,31 +141,6 @@ skip_apt_install=false
 desktop=true
 isimage=false;
 
-while [ -n "$1" ]; do
-	case $1 in
-		--skip-clone)
-			clone_fpp=false
-			shift
-			;;
-		--skip-vlc)
-			build_vlc=false
-			shift
-			;;
-		--skip-apt-install)
-			skip_apt_install=true
-			shift
-			;;
-		--img)
-			desktop=false
-            isimage=true
-			shift
-			;;
-		*)
-			echo "Unknown option $1" >&2
-			exit 1
-			;;
-	esac
-done
 
 MODEL=""
 if [ -f /proc/device-tree/model ]; then
@@ -176,15 +151,23 @@ if [ "x${OSID}" = "xraspbian" ]
 then
 	FPPPLATFORM="Raspberry Pi"
 	OSVER="debian_${VERSION_ID}"
+    isimage=true
+    desktop=false
 elif [ -e "/sys/class/leds/beaglebone:green:usr0" ]
 then
 	FPPPLATFORM="BeagleBone Black"
+    isimage=true
+    desktop=false
 elif [ -f "/etc/armbian-release" ]
 then
     FPPPLATFORM="Armbian"
+    isimage=true
+    desktop=false
 elif [[ $PRETTY_NAME == *"Armbian"* ]]
 then
     FPPPLATFORM="Armbian"
+    isimage=true
+    desktop=false
 elif [ "x${OSID}" = "xdebian" ]
 then
 	FPPPLATFORM="Debian"
@@ -197,6 +180,38 @@ then
 else
 	FPPPLATFORM="UNKNOWN"
 fi
+
+
+while [ -n "$1" ]; do
+    case $1 in
+        --skip-clone)
+            clone_fpp=false
+            shift
+            ;;
+        --skip-vlc)
+            build_vlc=false
+            shift
+            ;;
+        --skip-apt-install)
+            skip_apt_install=true
+            shift
+            ;;
+        --img)
+            desktop=false
+            isimage=true
+            shift
+            ;;
+        --no-img)
+            desktop=true
+            isimage=false
+            shift
+            ;;
+        *)
+            echo "Unknown option $1" >&2
+            exit 1
+            ;;
+    esac
+done
 
 checkTimeAgainstUSNO
 
