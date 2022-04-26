@@ -635,16 +635,22 @@ private:
                     break;
                 }
                 case 95: {
+                    std::string eKey = read_string(file, 12);
+                    std::string eValue = read_string(file, flen - 12);
                     if (hasSignature && validEpromLocation && validSignature) {
-                        std::string eKey = read_string(file, 12);
-                        std::string eValue = read_string(file, flen - 12);
                         extras[eKey].push_back(eValue);
                     }
                     break;
                 }
                 case 96: {
-                    capesn = read_string(file, 16);
-                    devsn = read_string(file, 42);
+                    if (hasSignature && validEpromLocation && validSignature) {
+                        capesn = read_string(file, 16);
+                        devsn = read_string(file, 42);
+                    } else {
+                        //skip
+                        read_string(file, 16);
+                        read_string(file, 42);
+                    }
                     break;
                 }
                 case 97: {
