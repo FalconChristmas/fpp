@@ -634,14 +634,6 @@ private:
                     printf("- extracted file: %s\n", path.c_str());
                     break;
                 }
-                case 95: {
-                    std::string eKey = read_string(file, 12);
-                    std::string eValue = read_string(file, flen - 12);
-                    if (hasSignature && validEpromLocation && validSignature) {
-                        extras[eKey].push_back(eValue);
-                    }
-                    break;
-                }
                 case 96: {
                     if (hasSignature && validEpromLocation && validSignature) {
                         capesn = read_string(file, 16);
@@ -656,7 +648,11 @@ private:
                 case 97: {
                     std::string eKey = read_string(file, 12);
                     std::string eValue = read_string(file, flen - 12);
-                    extras[eKey].push_back(eValue);
+                    if (hasSignature && validEpromLocation && validSignature) {
+                        signedExtras[eKey].push_back(eValue);
+                    } else {
+                        extras[eKey].push_back(eValue);
+                    }
                     break;
                 }
                 case 98: {
@@ -750,6 +746,20 @@ private:
                         result[kv.first] = kv.second[0];
                     }
                 }
+                if (result.isMember("signed")) {
+                    // make sure any "not really signed" extras are removed from the cape-info
+                    result.removeMember("signed");
+                }
+                for (auto kv : signedExtras) {
+                    if (kv.second.size() > 1) {
+                        for (auto e : kv.second) {
+                            result["signed"][kv.first].append(e);
+                        }
+                    } else {
+                        result["signed"][kv.first] = kv.second[0];
+                    }
+                }
+
                 if (EEPROM.find("sys/bus/i2c") == std::string::npos && devsn == "" && validSignature) {
                     removes.insert("FetchVendorLogos");
                 }
@@ -1027,6 +1037,7 @@ private:
 
     std::string fkeyId;
     std::map<std::string, std::vector<std::string>> extras;
+    std::map<std::string, std::vector<std::string>> signedExtras;
     bool validSignature = false;
     bool hasSignature = false;
     bool validEpromLocation = true;
