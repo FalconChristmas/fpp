@@ -634,6 +634,14 @@ private:
                     printf("- extracted file: %s\n", path.c_str());
                     break;
                 }
+                case 95: {
+                    if (hasSignature && validEpromLocation && validSignature) {
+                        std::string eKey = read_string(file, 12);
+                        std::string eValue = read_string(file, flen - 12);
+                        extras[eKey].push_back(eValue);
+                    }
+                    break;
+                }
                 case 96: {
                     capesn = read_string(file, 16);
                     devsn = read_string(file, 42);
@@ -642,7 +650,7 @@ private:
                 case 97: {
                     std::string eKey = read_string(file, 12);
                     std::string eValue = read_string(file, flen - 12);
-                    extras[eKey] = eValue;
+                    extras[eKey].push_back(eValue);
                     break;
                 }
                 case 98: {
@@ -728,7 +736,13 @@ private:
                     }
                 }
                 for (auto kv : extras) {
-                    result[kv.first] = kv.second;
+                    if (kv.second.size() > 1) {
+                        for (auto e : kv.second) {
+                            result[kv.first].append(e);
+                        }
+                    } else {
+                        result[kv.first] = kv.second[0];
+                    }
                 }
                 if (EEPROM.find("sys/bus/i2c") == std::string::npos && devsn == "" && validSignature) {
                     removes.insert("FetchVendorLogos");
@@ -1006,7 +1020,7 @@ private:
     std::string devsn;
 
     std::string fkeyId;
-    std::map<std::string, std::string> extras;
+    std::map<std::string, std::vector<std::string>> extras;
     bool validSignature = false;
     bool hasSignature = false;
     bool validEpromLocation = true;
