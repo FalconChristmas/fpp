@@ -35,6 +35,13 @@ if [ "$UUID" != "" ] && [ "$UUID" != "0" ]; then
     exit 0
 fi
 
+if [ -f "/proc/device-tree/serial-number" ]; then
+    UUID=$(tr -d '\0' </proc/device-tree/serial-number)
+    echo "M3-$UUID"
+    exit 0
+fi
+
+
 #
 # If all else fails, Genereate one
 #
