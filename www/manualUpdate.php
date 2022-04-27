@@ -29,7 +29,16 @@ FPP Manual Update
 ?>
 Pulling in updates...
 <?
+$startTime = microtime(true);
 system("$fppDir/scripts/git_pull");
+$endTime = microtime(true);
+$diffTime = round($endTime - $startTime);
+
+$h = floor($diffTime / 3600);
+$m = floor($diffTime % 3600 / 60);
+$s = floor($diffTime % 60);
+
+printf( "----------------------\nElapsed Time: %02d:%02d:%02d\n", $h, $m, $s);
 ?>
 ==========================================================================
 Restarting fppd...
