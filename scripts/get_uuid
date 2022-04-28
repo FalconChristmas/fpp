@@ -29,10 +29,12 @@ fi
 #
 # Try dmidecode
 #
-UUID=$(sudo dmidecode | grep -i 'serial number' | head -1 | awk '{print $3}')
-if [ "$UUID" != "" ] && [ "$UUID" != "0" ]; then
-    echo "M2-$UUID"
-    exit 0
+if [[ -f /sbin/dmidecode  || -f /usr/sbin/dmidecode ]]; then
+    UUID=$(sudo dmidecode | grep -i 'serial number' | head -1 | awk '{print $3}')
+    if [ "$UUID" != "" ] && [ "$UUID" != "0" ]; then
+        echo "M2-$UUID"
+        exit 0
+    fi
 fi
 
 if [ -f "/proc/device-tree/serial-number" ]; then
