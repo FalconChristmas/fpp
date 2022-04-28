@@ -309,6 +309,6 @@ function setVolume($vol)
         }
 
         // Why do we do this here and in fppd's settings.c
-        $status = exec($SUDO . " amixer -c $card set $mixerDevice -- " . $vol . "%");
+        $status = exec($SUDO . " amixer -c $card set '$mixerDevice' -- " . $vol . "%");
     }
 }
