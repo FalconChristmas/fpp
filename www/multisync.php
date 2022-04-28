@@ -297,7 +297,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     function isFPPBeagleBone(typeId) {
         typeId = parseInt(typeId);
 
-        if ((typeId >= 0x41) && (typeId <= 0x7F))
+        if ((typeId >= 0x41) && (typeId <= 0x5F))
             return true;
 
         return false;
