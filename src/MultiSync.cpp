@@ -338,6 +338,9 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model) {
     if (model == "MacOS") {
         return kSysTypeMacOS;
     }
+    if (model == "Armbian") {
+        return kSysTypeFPPArmbian;
+    }
     // FIXME, fill in the rest of the types
 
     return kSysTypeFPP;
@@ -350,7 +353,11 @@ bool MultiSync::FillLocalSystemInfo(void) {
     MultiSyncSystem newSystem;
 
     std::string model = GetHardwareModel();
+#ifdef PLATFORM_ARMBIAN
+    MultiSyncSystemType type = ModelStringToType("Armbian");
+#else
     MultiSyncSystemType type = ModelStringToType(model);
+#endif
 
     std::string multiSyncInterface = getSetting("MultiSyncInterface");
     char addressBuf[128];
@@ -596,6 +603,8 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local) {
         return "ESPixelStick-ESP32";
     case kSysTypeMacOS:
         return "MacOS";
+    case kSysTypeFPPArmbian:
+        return "Armbian";
     case kSysTypeSanDevices:
         return "SanDevices";
     case kSysTypeAlphaPix:

@@ -302,6 +302,22 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
         return false;
     }
+    function isFPPMac(typeId) {
+        typeId = parseInt(typeId);
+
+        if (typeId == 0x70)
+            return true;
+
+        return false;
+    }
+    function isFPPArmbian(typeId) {
+     typeId = parseInt(typeId);
+
+        if (typeId == 0x60)
+            return true;
+
+        return false;
+    }
 
     function isUnknownController(typeId) {
         typeId = parseInt(typeId);
@@ -1985,6 +2001,12 @@ $(document).ready(function() {
                             },
                     "FPP (BeagleBone)": function(e,n,f,i,$r,c,data) {
                                 return isFPPBeagleBone($r.find('span.typeId').html());
+                            },
+                    "FPP (Armbian)": function(e,n,f,i,$r,c,data) {
+                                return isFPPArmbian($r.find('span.typeId').html());
+                            },
+                    "FPP (MacOS)": function(e,n,f,i,$r,c,data) {
+                                return isFPPMac($r.find('span.typeId').html());
                             },
                     "Falcon": function(e,n,f,i,$r,c,data) {
                                 return isFalcon($r.find('span.typeId').html());

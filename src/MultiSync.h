@@ -78,6 +78,7 @@ typedef enum systemType {
     kSysTypeFPPBeagleBoneGreenWireless = 0x44,
     kSysTypeFPPPocketBeagle = 0x45,
     kSysTypeFPPSanCloudBeagleBoneEnhanced = 0x46,
+    kSysTypeFPPArmbian = 0x60,
     kSysTypeMacOS = 0x70,
     // Values under 0x80 are "FPP based" and run full FPP
     kSysTypeFalconController = 0x80,
