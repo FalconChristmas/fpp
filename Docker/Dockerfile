@@ -34,6 +34,7 @@ ADD ./ /opt/fpp/
 ADD SD/FPP_Install.sh /root/FPP_Install.sh
 RUN ( yes | /root/FPP_Install.sh $EXTRA_INSTALL_FLAG --skip-apt-install --skip-vlc ) || true
 RUN rm -rf /tmp/*
+RUN cp /opt/fpp/etc/asoundrc.plain /root/.asoundrc
 
 # this will do additional updates and create the required directories
 # and set permissions
