@@ -55,6 +55,11 @@ services:
       - FPP_DOCKER_IP=192.168.1.10
       - TZ=America/Los_Angeles
 
+    # By Default, we don't run privileged containers.  If you need to 
+    # access the sound card, this may be required.
+
+    # privileged: true
+    
     devices:
       # To pass through an audio card, entries similar to the following
       # should work.  The device names may be different depending on
@@ -77,6 +82,13 @@ services:
       #
       # Use the following config line to pass through Bus 2 Device 6:
       # - /dev/bus/usb/002/006
+      #
+      # If you wish to pass though all sound cards and USB devices
+      # these commands can be used. 
+      # - /dev/snd:/dev/snd  # Maps all hardware sound cards regardless of hardware architecture 
+      # - /dev/usb:/dev/usb  # Maps all USB sound cards regardless of hardware architecture 
+      # - /run/dbus/:/run/dbus/ # Allows FPP to use dbus to control ALSA sound cards, needs "privileged: true" above
+
 
     # Include the IP in the port list to bind to a specific IP or leave off
     # the IP and just use port:port to allow traffic on any IP.  If you are
