@@ -279,6 +279,8 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
     if [ "x${TetherEnabled}" == "x" ]; then
         TetherEnabled="";
     fi
+    
+    rm -f /etc/wpa_supplicant-wl*.conf
 
     ENABLEHOSTAPD="0"
     for f in $CONFIGS; do
