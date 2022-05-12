@@ -20,6 +20,27 @@ to the Virtual Matrix, but that will use software decoding/scaling.  HiDef video
 will likely not be usable in that case.
 
 
+Note: Certain parts of installing FPP (ex: building VLC) will utilize all cores of
+the SBC to near 100% for an extended period of time.   If the CPU does not have
+heat syncs/fans, it may shutdown in the middle of installing due to thermal limits.
+If this happens, you need to restart from a fresh image.  We'd suggest adding
+heat syncs or fans to keep thermals under control, but lowering the CPU frequency
+can also be a big help.   Before running FPP_Install.sh, run a command like:
+
+cpufreq-set -u 800000
+
+to look the CPU to 800Mhz or lower.
+
+
+
+Note eMMC: If the SBC has an eMMC and you would like to install FPP onto the eMMC, 
+you need to use armbian-config to copy the system to the eMMC.  This can be done
+before or after getting FPP up and running.   Doing it before is quicker as there
+would be less data needing to be copied, but you can install FPP on the SD
+card as normal and then use that to copy to the eMMC of multiple devices.
+
+
+
 =============================================================================
 == If the intention is to build an image similar to the Pi/BBB images,
 == then the partition will need to be resized and the auto-expand disabled

@@ -27,6 +27,11 @@ else
 fi
 
 CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
+if [[ ${MEMORY} -lt 512000 ]]; then
+    CPUS=1
+fi
+
 export LDFLAGS="-latomic"
 ./bootstrap
 export LDFLAGS="-latomic"
