@@ -3,16 +3,12 @@
 BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
+. ${BINDIR}/functions
 
 cd ${FPPDIR}/src/
 
 make clean
-
-CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
-MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
-if [[ ${MEMORY} -lt 512000 ]]; then
-    CPUS=1
-fi
+CPUS=$(ComputeMakeParallelism)
 
 make -j ${CPUS} optimized
 

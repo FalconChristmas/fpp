@@ -423,7 +423,7 @@ case "${OSVER}" in
                       flex bison pkg-config libasound2-dev python3-distutils libssl-dev"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
-            PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity"
+            PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity zram-tools"
         fi
 
         if $skip_apt_install; then
@@ -1178,6 +1178,10 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
         systemctl unmask hostapd
         systemctl disable hostapd
     fi
+    
+    echo "ALGO=zstd" >> /etc/default/zramswap
+    echo "SIZE=50" >> /etc/default/zramswap
+    echo "PRIORITY=100" >> /etc/default/zramswap
 fi
 
 if $isimage; then

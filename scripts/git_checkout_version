@@ -86,11 +86,7 @@ echo "Rebuilding binaries"
 # revert to an older version that doesn't have that script
 ${SUDO} make clean
 
-CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
-MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
-if [[ ${MEMORY} -lt 512000 ]]; then
-    CPUS=1
-fi
+CPUS=$(ComputeMakeParallelism)
 
 ${SUDO} make -j ${CPUS} optimized
 

@@ -725,6 +725,31 @@ populateCCACHE() {
     sudo ccache --set-config=hard_link=true
 }
 
+
+function ComputeMakeParallelism() {
+    local CPUS=1
+    if [ -f "/proc/cpuinfo" ]; then
+        CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+        
+        if [[ ${CPUS} -gt 1 ]]; then
+            MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
+            SWAPTOTAL=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
+            if [[ ${MEMORY} -lt 512000 ]]; then
+                # Limitted memory, if we have some swap, we'll go ahead with -j 2
+                # otherwise we'll need to stick with -j 1 or we run out of memory
+                if [[ ${SWAPTOTAL} -gt 49000 ]]; then
+                    CPUS=2
+                else
+                    CPUS=1
+                fi
+            fi
+        fi
+    else
+        CPUS=$(sysctl -n hw.ncpu)
+    fi
+    echo "$CPUS"
+}
+
 compileBinaries() {
 	cleanCompiledBinaries
     populateCCACHE
@@ -732,16 +757,8 @@ compileBinaries() {
 	# export CCACHE_LOGFILE=/tmp/cache.debug
 	export LANG=en_US.UTF-8
 	export TERM=linux
-    if [ -f "/proc/cpuinfo" ]; then
-        CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
-    else
-        CPUS=$(sysctl -n hw.ncpu)
-    fi
-
-    MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
-    if [[ ${MEMORY} -lt 512000 ]]; then
-         CPUS=1
-    fi
+ 
+    CPUS=$(ComputeMakeParallelism)
 
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
