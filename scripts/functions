@@ -376,8 +376,10 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
             # it manually
             modprobe iptable_nat
             sysctl net.ipv4.ip_forward=1
-            iptables -t nat --append POSTROUTING --out-interface ${INTERFACE} -j MASQUERADE
-            iptables --append FORWARD --in-interface ${INTERFACE} -j ACCEPT
+
+            nft add table nat
+            nft 'add chain nat postrouting { type nat hook postrouting priority 100 ; }'
+            nft add rule nat postrouting oif ${INTERFACE} masquerade
         fi
 
         echo "$ADDRESSLINES" >> $TMPFILE
