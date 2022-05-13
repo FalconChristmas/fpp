@@ -411,6 +411,16 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
                 echo "DNS=${DNS1}" >> $TMPFILE
             fi
             echo "" >> $TMPFILE
+
+            if [ ! -f "${FPPHOME}/media/config/proxies" ]; then
+                # DHCPServer is on, lets make sure proxies are enabled
+                # so they can be found via the proxies page
+                echo "RewriteEngine on" >> ${FPPHOME}/media/config/proxies
+                echo "RewriteBase /proxy/" >> ${FPPHOME}/media/config/proxies
+                echo "" >> ${FPPHOME}/media/config/proxies
+                echo 'RewriteRule ^(.*)/(.*)$  http://$1/$2  [P,L]' >> ${FPPHOME}/media/config/proxies
+                echo 'RewriteRule ^(.*)$  $1/  [R,L]' >> ${FPPHOME}/media/config/proxies
+            fi
         fi
 
         cp $TMPFILE /etc/systemd/network

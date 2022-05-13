@@ -1,26 +1,28 @@
 <!DOCTYPE html>
 <html>
-<?php 
-require_once('config.php');
-include 'common/menuHead.inc'; 
-require_once("common.php");
-    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-        $newht = "RewriteEngine on\nRewriteBase /proxy/\n\n";
-        
-        foreach( $_POST as $host ) {
-            $newht = $newht . "RewriteRule ^" . $host . "$  " . $host . "/  [R,L]\n";
-            $newht = $newht . "RewriteRule ^" . $host . "/(.*)$  http://" . $host . "/$1  [P,L]\n\n";
-        }
-        file_put_contents("$mediaDirectory/config/proxies", $newht);
+<?php
+require_once 'config.php';
+include 'common/menuHead.inc';
+require_once "common.php";
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $newht = "RewriteEngine on\nRewriteBase /proxy/\n\n";
+
+    foreach ($_POST as $host) {
+        $newht = $newht . "RewriteRule ^" . $host . "$  " . $host . "/  [R,L]\n";
+        $newht = $newht . "RewriteRule ^" . $host . "/(.*)$  http://" . $host . "/$1  [P,L]\n\n";
     }
 
-    
-    
-    if (file_exists("$mediaDirectory/config/proxies")) {
-        $hta = file("$mediaDirectory/config/proxies", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    } else {
-        $hta = array();
-    }
+    $newht = $newht . "RewriteRule ^(.*)/(.*)$  http://$1/$2  [P,L]\n";
+    $newht = $newht . "RewriteRule ^(.*)$  $1/  [R,L]\n\n";
+
+    file_put_contents("$mediaDirectory/config/proxies", $newht);
+}
+
+if (file_exists("$mediaDirectory/config/proxies")) {
+    $hta = file("$mediaDirectory/config/proxies", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+} else {
+    $hta = array();
+}
 ?>
 <head>
 <script type="text/javascript" src="js/validate.min.js"></script>
@@ -60,7 +62,7 @@ function AddProxyForHost(host) {
 }
 
 function RenumberColumns(tableName) {
-	var id = 1; 
+	var id = 1;
 	$('#' + tableName + ' tbody tr').each(function() {
 		$this = $(this);
 		$this.find("td:first").html(id);
@@ -113,24 +115,26 @@ foreach ($hta as $line) {
     if (strpos($line, 'http://') !== false) {
         $parts = preg_split("/[\s]+/", $line);
         $host = preg_split("/[\/]+/", $parts[2])[1];
-        echo "AddProxyForHost('" . $host . "');";
+        if ($host != "$1") {
+            echo "AddProxyForHost('" . $host . "');";
+        }
     }
 }
 ?>
 });
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 </head>
 <body>
 <div id="bodyWrapper">
-  <?php 
-  $activeParentMenuItem = 'status';
-  include 'menu.inc'; ?>
+  <?php
+$activeParentMenuItem = 'status';
+include 'menu.inc';?>
   <div class="mainContainer">
     <div class="title">Proxied Hosts</div>
     <div class="pageContent">
-        
+
           <div id="proxies" class="settings">
 
                 <div class="row tablePageHeader">
@@ -139,7 +143,7 @@ foreach ($hta as $line) {
 					</div>
 					<div class="col-md-auto ml-lg-auto">
 						<div class="form-actions">
-			
+
 								<input type=button value='Delete' onClick='DeleteSelectedProxy();' data-btn-enabled-class="btn-outline-danger" id='btnDelete' class='disableButtons'>
 								<button type=button value='Add' onClick='AddNewProxy();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
 								<input type=button value='Save' onClick='SetProxies();' class='buttons btn-success ml-1'>
@@ -148,7 +152,7 @@ foreach ($hta as $line) {
 					</div>
 				</div>
 				<hr>
-  
+
                 <div class="fppTableWrapper fppTableWrapperAsTable">
                     <div class='fppTableContents' role="region" aria-labelledby="proxyTable" tabindex="0">
                         <table id="proxyTable" class="fppSelectableRowTable">
@@ -164,17 +168,79 @@ foreach ($hta as $line) {
                         </table>
                     </div>
                 </div>
+<?
+$interfaces = network_list_interfaces_array();
+$dhcpIps = array();
+foreach ($interfaces as $iface) {
+    $iface = rtrim($iface, " :\n\r\t\v\x00");
+    $out = shell_exec("networkctl --no-legend -l -n 0 status " . $iface);
+    $lines = explode("\n", trim($out));
+    $inLeases = false;
+    foreach ($lines as $line) {
+        $line = trim($line);
+        //echo $line . "\n";
+
+        if (!$inLeases && startsWith($line, "Offered DHCP leases")) {
+            $inLeases = true;
+            $line = trim(substr($line, 20));
+        }
+        if ($inLeases) {
+            $pos = strpos($line, "(to ");
+            if ($pos === false) {
+                $inLeases = false;
+            } else {
+                $line = trim(substr($line, 0, $pos));
+                $dhcpIps[] = $line;
+            }
+        }
+    }
+}
+if (count($dhcpIps) > 0) {
+    ?>
+    <br>
+    <hr>
+    <div class="row tablePageHeader">
+		<div class="col-md">
+			<h3>DHCP Hosts</h3>
+		</div>
+    </div>
+
+    <div class="fppTableWrapper">
+        <div class='fppTableContents' role="region" aria-labelledby="dchpProxyTable" tabindex="0">
+            <table id="dchpProxyTable" class="fppSelectableRowTable">
+                <thead>
+                    <tr>
+                        <th>#</td>
+                        <th>IP/HostName</td>
+                    </tr>
+                </thead>
+                <tbody>
+                <?
+    $count = 1;
+    foreach ($dhcpIps as $ip) {
+        echo "<tr><td>" . $count . "</td><td><a href='proxy/" . $ip . "/'>" . $ip . "</a></td></tr>\n";
+        $count++;
+    }
+    ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <?
+}
+?>
                 <div class="backdrop">
-                        <b>Notes:</b>    
+                        <b>Notes:</b>
                         <p>This is a list of ip/hostnames for which we can reach their HTTP configuration pages via proxy through this FPP instance. <p>
                          <p>For example, if this FPP instance is used as a wireless proxy to another e1.31 controller where FPP communicates to the "show network" via the WIFI adapter and to the controller via the ethernet adapater, you can put the IP address of the e1.31 controller here and access the configuration pages by proxy without having to setup complex routing tables.
                         </p>
-                </div> 
+                </div>
           </div>
-          
+
     </div>
 </div>
-  <?php  include 'common/footer.inc'; ?>
+  <?php include 'common/footer.inc';?>
 </div>
 
 
