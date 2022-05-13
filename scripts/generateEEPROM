@@ -1,0 +1,326 @@
+#!/usr/bin/php
+<?php
+
+include_once(dirname($argv[0]) . '/../www/fppEEPROM.php');
+
+$options = GetOptions();
+
+if (isset($options['h'])) {
+    Usage();
+    exit(0);
+}
+
+if (isset($options['e'])) {
+    if (isset($options['s']))  {
+        $eeprom = new fppEEPROM;
+        $eeprom->read($options['e']);
+        $options['n'] = $eeprom->getCapeName();
+
+        CheckSerialNumber();
+        CheckOutputFilename();
+
+        printf( "Cloning %s to %s and setting serial to %s\n",
+            $options['e'], $options['o'], $options['s']);
+
+        $eeprom->clone($options['e'], $options['o'], $options['s']);
+
+        DumpEEPROMInfo($options['o']);
+
+        exit(0);
+    }
+
+    if (isset($options['i'])) {
+        DumpEEPROMInfo($options['e']);
+        exit(0);
+    }
+}
+
+if (isset($options['j'])) {
+    if ($options['j'] == 'help') {
+        UsageJSON();
+        exit(0);
+    }
+
+    ParseJSONConfig();
+}
+
+SanityCheckOptions();
+
+GenerateEEPROM();
+
+exit(0);
+
+/////////////////////////////////////////////////////////////////////////////
+
+function GenerateEEPROM() {
+    global $options;
+
+    printf( "Generating EEPROM file: %s\n", $options['o']);
+
+    if (isset($options['e']))
+        printf( "EEPROM Input : %s\n", $options['e']);
+
+    $eeprom = new fppEEPROM();
+    $eeprom->setKeyDir($options['K']);
+
+    if (isset($options['k']))
+        $eeprom->setSigningKey($options['k']);
+
+    $eeprom->setCapeName($options['n']);
+    $eeprom->setCapeVersion($options['v']);
+    $eeprom->setCapeSerial($options['s']);
+    $eeprom->setLocation($options['l']);
+
+    if (isset($options['d']))
+        $eeprom->insertFile($options['d'], 'tmp/cape-info.tgz');
+
+    $eeprom->write($options['o']);
+
+    DumpEEPROMInfo($options['o']);
+}
+
+function CloneEEPROM() {
+    global $options;
+
+    $eeprom = new fppEEPROM;
+    $eeprom->read($options['e']);
+    $options['n'] = $eeprom->getCapeName();
+
+    CheckSerialNumber();
+    CheckOutputFilename();
+
+    printf( "Cloning %s to %s and setting serial to %s\n",
+        $options['e'], $options['o'], $options['s']);
+
+    $eeprom->clone($options['e'], $options['o'], $options['s']);
+
+    DumpEEPROMInfo($options['o']);
+}
+
+function DumpEEPROMInfo($file) {
+    global $options;
+    global $argv;
+
+    if (!isset($options['K']))
+        $options['K'] = dirname($argv[0]);
+
+    printf( "Dumping info for: %s\n", $file);
+    $eeprom = new fppEEPROM();
+    $eeprom->setKeyDir($options['K']);
+    $eeprom->read($file);
+    $eeprom->dumpInfo();
+}
+
+function ParseJSONConfig() {
+    global $options;
+
+    if (!file_exists($options['j'])) {
+        printf( "JSON file %s does not exist\n", $options['j']);
+        exit(1);
+    }
+
+    $json = file_get_contents($options['j']);
+
+    $data = json_decode($json, true);
+
+    if (isset($data['capeName']) && !isset($options['n']))
+        $options['n'] = $data['capeName'];
+
+    if (isset($data['capeVersion']) && !isset($options['v']))
+        $options['v'] = $data['capeVersion'];
+
+    if (isset($data['capeSerial']) && !isset($options['s']))
+        $options['s'] = $data['capeSerial'];
+
+    if (isset($data['location']) && !isset($options['l']))
+        $options['l'] = $data['location'];
+
+    if (isset($data['directory']) && !isset($options['d']))
+        $options['d'] = $data['directory'];
+
+    if (isset($data['signingKey']) && !isset($options['k']))
+        $options['k'] = $data['signingKey'];
+
+    if (isset($data['outfile']) && !isset($options['o']))
+        $options['o'] = $data['outfile'];
+
+    if (isset($data['macInterface']) && !isset($options['m']))
+        $options['m'] = $data['macInterface'];
+}
+
+function CheckSerialNumber() {
+    global $options;
+
+    if (isset($options['m'])) {
+        $intf = "eth0";
+        if ($options['m'] != false)
+            $intf = $options['m'];
+
+        $MAC = exec("/sbin/ifconfig $intf | grep ether | awk '{print \$2}'", $output, $return_val);
+        if ($return_val != 0) {
+            unset($MAC);
+        }
+
+        if (isset($MAC)) {
+            $MAC = preg_replace('/:/', '', $MAC);
+            $options['s'] = $MAC;
+            unset($options['m']);
+        }
+    }
+
+    if (!isset($options['s']) || ($options['s'] == false)) {
+        $options['s'] = uniqid(); // date("ymdHis");
+    }
+}
+
+function CheckOutputFilename() {
+    global $options;
+
+    $suffix = '-eeprom.bin';
+    if (isset($options['k'])) {
+        $suffix = '-signed-eeprom.bin';
+    }
+
+    if (!isset($options['o'])) {
+        $options['o'] = $options['n'] . '-' . $options['s'] . $suffix;
+    }
+}
+
+function SanityCheckOptions() {
+    global $options;
+    global $argv;
+
+    if (!isset($options['n'])) {
+        printf( "Cape Name must be provided\n\n");
+        Usage();
+        exit(1);
+    }
+
+    if (isset($options['d']) && !file_exists($options['d'])) {
+        printf( "Directory '%s' does not exist\n", $options['d']);
+        exit(1);
+    }
+
+    if (!isset($options['l']))
+        $options['l'] = 'eeprom';
+
+    if (!isset($options['v']))
+        $options['v'] = '1.0';
+
+    if (!isset($options['K']))
+        $options['K'] = dirname($argv[0]);
+
+    CheckSerialNumber();
+
+    CheckOutputFilename();
+}
+
+function GetOptions() {
+    $shortOpts = "hij:e:k:K:n:v:s::m:l:V:d:o:";
+    $longOpts = Array(
+        "help",
+        "info",
+        "json:",
+        "eeprom:",
+        "key:",
+        "KeyDir:",
+        "name:",
+        "version:",
+        "serial::",
+        "mac:",
+        "location:",
+        "Variable:",
+        "directory:",
+        "output:"
+        );
+
+    $options = getopt($shortOpts, $longOpts);
+
+    foreach ($options as $key => $value) {
+        foreach ($longOpts as $longOpt) {
+            $ch = substr($longOpt, 0, 1);
+            $longOpt = preg_replace('/:*$/', '', $longOpt);
+
+            if (isset($options[$longOpt]) && !isset($options[$ch])) {
+                $options[$ch] = $options[$longOpt];
+                unset($options[$longOpt]);
+            }
+        }
+    }
+
+    return $options;
+}
+
+function UsageJSON() {
+    printf( "Sample JSON Config file Format:\n");
+    printf( "\n");
+    printf( "{\n");
+    printf( '    "capeName": "MyCapeName",' . "\n");
+    printf( '    "capeVersion": "1.0",' . "\n");
+    printf( '    "capeSerial": "0123456789",' . "\n");
+    printf( '    "location": "any",' . "\n");
+    printf( '    "directory": "MyCapeFiles",' . "\n");
+    printf( '    "outfile": "MyCape-eeprom.bin",' . "\n");
+    printf( '    "macInterface": "eth0"' . "\n");
+    printf( "}\n");
+    printf( "\n");
+    printf( "The same defaults and required vs optional status applies\n");
+    printf( "to the JSON config file as applies when providing the config\n");
+    printf( "options on the command line.\n");
+    printf( "\n");
+}
+
+function Usage() {
+    global $argv;
+    $exe = basename($argv[0]);
+
+
+    printf( "Usage: %s [OPTIONS]\n", $exe);
+    printf( "\n");
+    printf( "FPP EEPROM Creator\n");
+    printf( "\n");
+    printf( "Options:\n");
+    printf( "  -h, --help                 - This help page\n");
+    printf( "  -i, --info                 - Print info about an EEPROM\n");
+    printf( "  -j, --json JSONFILE        - JSON configuration file\n");
+    printf( "                               Use '-j help' to see an example file\n");
+    printf( "  -e, --eeprom EEPROMFILE    - Source EEPROM file\n");
+    printf( "  -k, --key KEY              - Key ID or file to use to sign EEPROM\n");
+    printf( "                               NOTE: Only developers can sign ERPROMs\n");
+    printf( "  -K, --KeyDir DIR           - Path containing key files\n");
+    printf( "                               NOTE: Only developers can sign ERPROMs\n");
+    printf( "  -n, --name CAPENAME        - Cape Name.  Required, no default.\n");
+    printf( "  -v, --version CAPEVERSION  - Cape Version.  Defaults to '1.0'\n");
+    printf( "  -s, --serial CAPESERIAL    - Cape Serial Number.  Serial defaults to a \n");
+    printf( "                               unique timestamp-based value if left off or\n");
+    printf( "                               if -s is used without specifying a SERIAL\n");
+    printf( "  -m, --mac INTERFACE        - Set Cape Serial to MAC address of INTERFACE\n");
+    printf( "  -l, --location LOCATION    - Valid location for EEPROM.\n");
+    printf( "                               Must be one of: 'any', 'eeprom', or 'file'\n");
+    printf( "                               Defaults to eeprom.\n");
+    printf( "  -V, --Variable KEY=VALUE   - Add a variable to the EEPROM\n");
+    printf( "  -d, --directory DIRECTORY  - Directory to package in EEPROM\n");
+    printf( "  -o, --output OUTPUTFILE    - File name of generated EEPROM file\n");
+    printf( "                               Defaults to CAPENAME-SERIAL-eeprom.bin\n");
+    printf( "\n");
+    printf( "Examples:\n");
+    printf( "  # Print info about an EEPROM file\n");
+    printf( "  %s -e cape-eeprom.bin -i\n", $exe);
+    printf( "\n");
+    printf( "  # Generate an EEPROM file using command line args\n");
+    printf( "  %s -n MyCape -v 1.1 -s 0123456789 -d MyCapeFiles\n", $exe);
+    printf( "  %s -n MyCape -v 1.1 -s 0123456789 -d MyCapeFiles -o cape-eeprom.bin\n", $exe);
+    printf( "\n");
+    printf( "  # Generate an EEPROM file using a JSON configuration file\n");
+    printf( "  %s -j MyCape.json\n", $exe);
+    printf( "  %s -j MyCape.json -s 0123456789\n", $exe);
+    printf( "\n");
+    printf( "  # Clone an EEPROM to a new file with a new serial number\n");
+    printf( "  %s -i MyCape-eeprom.bin -s 0123456789\n", $exe);
+    printf( "  %s -i MyCape-eeprom.bin -s\n", $exe);
+    printf( "\n");
+
+    exit(0);
+}
+
+?>
