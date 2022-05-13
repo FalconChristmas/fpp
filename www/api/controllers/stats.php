@@ -431,6 +431,7 @@ function stats_getCapeInfo()
             "name" => "name",
             "serialNumber" => "serialNumber",
             "designer" => "designer",
+            "verifiedKeyId" => "verifiedKeyId",
             "vendor" => "vendor");
     } else {
         $mapping = array(
@@ -438,6 +439,7 @@ function stats_getCapeInfo()
             "id" => "id",
             "name" => "name",
             "designer" => "designer",
+            "verifiedKeyId" => "verifiedKeyId",
             "vendor" => "vendor");
     }
 
