@@ -1180,8 +1180,10 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
     fi
     
     echo "ALGO=zstd" >> /etc/default/zramswap
-    echo "SIZE=50" >> /etc/default/zramswap
+    echo "SIZE=75" >> /etc/default/zramswap
     echo "PRIORITY=100" >> /etc/default/zramswap
+    echo "vm.swappiness=1" >> /etc/sysctl.d/10-swap.conf
+    echo "vm.vfs_cache_pressure=50" >> /etc/sysctl.d/10-swap.conf
 fi
 
 if $isimage; then
