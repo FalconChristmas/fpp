@@ -152,9 +152,7 @@ function CheckSerialNumber() {
     global $options;
 
     if (isset($options['m'])) {
-        $intf = "eth0";
-        if ($options['m'] != false)
-            $intf = $options['m'];
+        $intf = $options['m'];
 
         $MAC = exec("/sbin/ifconfig $intf | grep ether | awk '{print \$2}'", $output, $return_val);
         if ($return_val != 0) {
@@ -168,7 +166,7 @@ function CheckSerialNumber() {
         }
     }
 
-    if (!isset($options['s']) || ($options['s'] == false)) {
+    if (!isset($options['s'])) {
         $options['s'] = uniqid(); // date("ymdHis");
     }
 }
@@ -216,7 +214,7 @@ function SanityCheckOptions() {
 }
 
 function GetOptions() {
-    $shortOpts = "hij:e:k:K:n:v:s::m:l:V:d:o:";
+    $shortOpts = "hij:e:k:K:n:v:s:m:l:V:d:o:";
     $longOpts = Array(
         "help",
         "info",
@@ -226,7 +224,7 @@ function GetOptions() {
         "KeyDir:",
         "name:",
         "version:",
-        "serial::",
+        "serial:",
         "mac:",
         "location:",
         "Variable:",
@@ -292,8 +290,7 @@ function Usage() {
     printf( "  -n, --name CAPENAME        - Cape Name.  Required, no default.\n");
     printf( "  -v, --version CAPEVERSION  - Cape Version.  Defaults to '1.0'\n");
     printf( "  -s, --serial CAPESERIAL    - Cape Serial Number.  Serial defaults to a \n");
-    printf( "                               unique timestamp-based value if left off or\n");
-    printf( "                               if -s is used without specifying a SERIAL\n");
+    printf( "                               unique timestamp-based value if left off.\n");
     printf( "  -m, --mac INTERFACE        - Set Cape Serial to MAC address of INTERFACE\n");
     printf( "  -l, --location LOCATION    - Valid location for EEPROM.\n");
     printf( "                               Must be one of: 'any', 'eeprom', or 'file'\n");
