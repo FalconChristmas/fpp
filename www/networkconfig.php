@@ -330,8 +330,6 @@ function CheckDNSCallback(data) {
 	                } else {
                         setDNSWarning("");
 	                }
-	            } else if ($('#eth_static').is(':checked') && ($('#eth_gateway').val() == '')) {
-                    setDNSWarning("Warning: if any interface is using DHCP while another interface is using a static IP address, you WILL need to enter a valid Gateway address.");
 	            } else {
                     setDNSWarning("");
 	            }

@@ -318,9 +318,6 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         fi
         echo "" >> $TMPFILE
         echo "[Network]" >> $TMPFILE
-        if [ "x$GATEWAY" != "x" ]; then
-            echo "Gateway=${GATEWAY}" >> $TMPFILE
-        fi
         if [ "x$DNS1" != "x" ]; then
             echo "DNS=${DNS1}" >> $TMPFILE
         fi
@@ -371,13 +368,28 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         fi
         if [ "$IPFORWARDING" == "1" ]; then
             echo "IPForward=yes" >> $TMPFILE
+            sysctl net.ipv4.ip_forward=1
         fi
         if [ "$IPFORWARDING" == "2" ]; then
-            echo "IPMasquerade=both" >> $TMPFILE
+            # echo "IPMasquerade=both" >> $TMPFILE
+            # systemd-networkd might not have masqarate support compiled in, we'll just do
+            # it manually
+            modprobe iptable_nat
+            sysctl net.ipv4.ip_forward=1
+            iptables -t nat --append POSTROUTING --out-interface ${INTERFACE} -j MASQUERADE
+            iptables --append FORWARD --in-interface ${INTERFACE} -j ACCEPT
         fi
 
         echo "$ADDRESSLINES" >> $TMPFILE
         echo "IgnoreCarrierLoss=5s" >> $TMPFILE
+        echo "" >> $TMPFILE
+        if [ "x$GATEWAY" != "x" ]; then
+            echo "[Route]" >> $TMPFILE
+            echo "Gateway=${GATEWAY}" >> $TMPFILE
+            if [ "$ROUTEMETRIC" != "0" ]; then
+                echo "Metric=${ROUTEMETRIC}" >> $TMPFILE
+            fi
+        fi
         echo "" >> $TMPFILE
         if [ "$ROUTEMETRIC" != "0" ]; then
             echo "[DHCPv4]" >> $TMPFILE
@@ -387,7 +399,7 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
             echo "RouteMetric=${ROUTEMETRIC}" >> $TMPFILE
             echo "" >> $TMPFILE
         fi
-
+        
         if [ "$DHCPSERVER" == "1" ]; then
             echo "[DHCPServer]" >> $TMPFILE
             echo "PoolOffset=${DHCPOFFSET}" >> $TMPFILE
