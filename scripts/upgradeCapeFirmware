@@ -2,13 +2,16 @@
 <?php
 
 
-$eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
+$eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
 if (!file_exists($eepromFile)) {
-    $eepromFile  = "/sys/bus/i2c/devices/1-0050/eeprom";
-}
-if (!file_exists($eepromFile)) {
-    echo "Could not find EEPROM.  Is Cape mounted and FPP rebooted?";
-    return 1;
+    $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
+    if (!file_exists($eepromFile)) {
+        $eepromFile = '/home/fpp/media/config/cape-eeprom.bin';
+        if (!file_exists($eepromFile)) {
+            echo "Could not find EEPROM.  Is Cape mounted and FPP rebooted?";
+            return 1;
+        }
+    }
 }
 
 //backup the old firmware
@@ -19,7 +22,10 @@ if ($newFirmwareFile == 'force') {
     $newFirmwareFile = $argv[2];
 }
 
-copy($eepromFile, "/home/fpp/media/upload/cape-firmware-old.bin");
+$date = new DateTime();
+$timestamp = date_format($date, 'Ymd-His');
+
+copy($eepromFile, "/home/fpp/media/upload/cape-eeprom-Backup-" . $timestamp . ".bin");
 //copy($newFirmwareFile, "/home/fpp/media/upload/cape-firmware-new.bin");
 
 $olddata = fopen($eepromFile, 'r+b');
@@ -110,6 +116,9 @@ fwrite($olddata, pack("a6", "0"));
 fclose($newdata);
 fclose($olddata);
 
-echo "Upgrade Complete\n";
+echo "Upgrade Complete\n\n";
+echo "======================\n";
+echo "Running fppcapedetect:\n\n";
 
 system("/opt/fpp/src/fppcapedetect");
+
