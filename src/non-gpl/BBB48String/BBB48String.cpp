@@ -100,9 +100,9 @@ static void compilePRUCode(const std::vector<std::string>& sargs,
                            const std::vector<std::string>& args0,
                            const std::vector<std::string>& args1,
                            bool split) {
-    compilePRUCode("/opt/fpp/src/pru/compileWS2811x.sh", sargs, args1);
+    compilePRUCode("/opt/fpp/src/non-gpl/BBB48String/compileWS2811x.sh", sargs, args1);
     if (split) {
-        compilePRUCode("/opt/fpp/src/pru/compileWS2811x_gpio0.sh", sargs, args0);
+        compilePRUCode("/opt/fpp/src/non-gpl/BBB48String/compileWS2811x_gpio0.sh", sargs, args0);
     }
 }
 
