@@ -474,8 +474,9 @@ case "${OSVER}" in
             rm -f /etc/systemd/network/73*
             rm -f /etc/systemd/network/eth*
             rm -f /etc/systemd/network/wlan*
-            if [ ! -f /etc/systemd/network/50-default.network ]
-            then
+            rm -f /etc/systemd/network/SoftAp*
+            rm -rf /etc/wpa_supplicant/wpa_supplicant-wl*
+            if [ ! -f /etc/systemd/network/50-default.network ]; then
                 # Need to make sure there is configuration for eth0 or no connection will be
                 # setup after a reboot
                 wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
@@ -529,15 +530,18 @@ case "${FPPPLATFORM}" in
         echo "options uio_pruss extram_pool_sz=3145728" >> /etc/modprobe.d/uio_pruss.conf
 
         # need to blacklist the gyroscope and barometer on the SanCloud enhanced or it consumes some pins
-        echo "blacklist st_pressure_i2c" > /etc/modprobe.d/blacklist-gyro.conf
+        echo "blacklist st_pressure_spi" > /etc/modprobe.d/blacklist-gyro.conf
+        echo "blacklist st_pressure_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
         echo "blacklist st_pressure" >> /etc/modprobe.d/blacklist-gyro.conf
         echo "blacklist inv_mpu6050_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
+        echo "blacklist st_sensors_spi" >> /etc/modprobe.d/blacklist-gyro.conf
         echo "blacklist st_sensors_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
         echo "blacklist inv_mpu6050" >> /etc/modprobe.d/blacklist-gyro.conf
         echo "blacklist st_sensors" >> /etc/modprobe.d/blacklist-gyro.conf
 
         # need to blacklist the bluetooth on BBG Gateway or it tends to crash the kernel, we don't need it
-        echo "blacklist bluetooth" > /etc/modprobe.d/blacklist-bluetooth.conf
+        echo "blacklist btusb" > /etc/modprobe.d/blacklist-bluetooth.conf
+        echo "blacklist bluetooth" >> /etc/modprobe.d/blacklist-bluetooth.conf
         echo "blacklist hci_uart" >> /etc/modprobe.d/blacklist-bluetooth.conf
         echo "blacklist bnep" >> /etc/modprobe.d/blacklist-bluetooth.conf
         
