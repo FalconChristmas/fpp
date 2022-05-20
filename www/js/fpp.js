@@ -3836,6 +3836,7 @@ function SetSetting(key, value, restart, reboot) {
             if ((key != 'restartFlag') && (key != 'rebootFlag'))
                 $.jGrowl(key + " setting saved.", { themeState: 'success' });
 
+            settings[key] = value;
             if (restart > 0 && restart != settings['restartFlag']) {
                 SetRestartFlag(restart);
             }
@@ -6071,6 +6072,17 @@ function RefreshHeaderBar() {
         }
     }
 
+    if (data.rebootFlag != undefined) {
+        settings['rebootFlag'] = data.rebootFlag;
+    }
+
+    if (data.restartFlag != undefined) {
+        settings['restartFlag'] = data.restartFlag;
+    }
+
+    if ((data.rebootFlag != undefined) || (data.restartFlag != undefined)) {
+        CheckRestartRebootFlags();
+    }
 }
 
 /*

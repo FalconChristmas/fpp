@@ -335,8 +335,22 @@ function SystemGetInfo()
 //
 function finalizeStatusJson($obj)
 {
+    global $settings;
+
     $obj['wifi'] = network_wifi_strength_obj();
     $obj['interfaces'] = network_list_interfaces_obj();
+
+    if (isset($settings['rebootFlag'])) {
+        $obj['rebootFlag'] = intval($settings['rebootFlag']);
+    } else {
+        $obj['rebootFlag'] = 0;
+    }
+
+    if (isset($settings['restartFlag'])) {
+        $obj['restartFlag'] = intval($settings['restartFlag']);
+    } else {
+        $obj['restartFlag'] = 0;
+    }
 
     //Get the advanced info directly as an array
     $request_expert_content = GetSystemInfoJsonInternal(false);
