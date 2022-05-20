@@ -105,7 +105,7 @@ function list_plugin_entries($menu) {
            echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; }
 		    if ($settings['LogoLink'] != "") echo "</a>";
             if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image']) 
-                && $settings['FetchVendorLogos'] == 1 && isSet($settings['cape-info']['verifiedKeyId'])) {
+                && $settings['FetchVendorLogos'] == 1) {
                 $landing = $settings['cape-info']['vendor']['url'];
                 if (isSet($settings['cape-info']['vendor']['landingPage'])) {
                     $landing = $settings['cape-info']['vendor']['landingPage'];
