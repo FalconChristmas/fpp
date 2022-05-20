@@ -516,6 +516,18 @@ public:
         return EMPTY;
     }
 
+    int getLicensedOutputs() {
+        if (hasSignature && validSignature && (fkeyId != "")) {
+            if (fkeyId != "fp") {
+                return 9999;
+            } else if (signedExtras.find("licensePorts") != signedExtras.end()) {
+                return atoi(signedExtras["licensePorts"][0].c_str());
+            }
+        }
+
+        return 0;
+    }
+
 private:
     void loadFiles() {
         std::vector<std::string> files;
@@ -712,7 +724,7 @@ private:
                     if (validEpromLocation) {
                         printf("- eeprom location is valid\n");
                     } else {
-                        printf("- ERROR eeprom is NOT valid\n");
+                        printf("- ERROR eeprom location is NOT valid\n");
                     }
                     break;
                 }
@@ -738,6 +750,18 @@ private:
         }
         fclose(file);
         delete[] buffer;
+
+        if (signedExtras.find("deviceSerial") != signedExtras.end()) {
+            char serialCmd[] = "sed -n 's/^Serial.*: //p' /proc/cpuinfo";
+            std::string serialNumber = trim(exec(serialCmd));
+            if (serialNumber != signedExtras["deviceSerial"][0]) {
+                // If the device Serial Number does not match the signed Serial Number in the EEPROM, treat like an invalid signature
+                validSignature = false;
+                hasSignature = true;
+                printf("- ERROR device serial number in EEPROM (%s) does NOT match physical device (%s)\n",
+                    signedExtras["deviceSerial"][0].c_str(), serialNumber.c_str());
+            }
+        }
 
         if (!validEpromLocation) {
             //if the eeprom location is not valid, treat like an invalid signature
@@ -933,6 +957,7 @@ private:
                     mkdir(target.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
                 } else {
                     copyIfNotExist(src, target);
+                    setOwnerGroup(target);
                 }
             }
         }
@@ -1133,6 +1158,10 @@ const std::string& getPlatformCapeDir() {
 static const std::string PLATFORM_DIR = "";
 const std::string& getPlatformCapeDir() { return PLATFORM_DIR; }
 #endif
+
+int CapeUtils::getLicensedOutputs() {
+    return capeInfo->getLicensedOutputs();
+}
 
 bool CapeUtils::getStringConfig(const std::string& type, Json::Value& val) {
     Json::Value result;
