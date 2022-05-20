@@ -461,7 +461,8 @@ if ($settings['Platform'] == "BeagleBone Black") {
     if (!file_exists($eepromFile)) {
         $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
     }
-} else if (file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
+}
+if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
     $eepromFile = "/home/fpp/media/config/cape-eeprom.bin";
 }
 if (file_exists($eepromFile)) {

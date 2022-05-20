@@ -105,7 +105,7 @@ function list_plugin_entries($menu) {
            echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; }
 		    if ($settings['LogoLink'] != "") echo "</a>";
             if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image']) 
-                && $settings['FetchVendorLogos'] == 1 && isSet($settings['cape-info']['vendor']['verifiedKeyId'])) {
+                && $settings['FetchVendorLogos'] == 1 && isSet($settings['cape-info']['verifiedKeyId'])) {
                 $landing = $settings['cape-info']['vendor']['url'];
                 if (isSet($settings['cape-info']['vendor']['landingPage'])) {
                     $landing = $settings['cape-info']['vendor']['landingPage'];
@@ -307,7 +307,8 @@ if ($settings['Platform'] == "BeagleBone Black") {
     if (!file_exists($eepromFile)) {
         $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
     }
-} else if (file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
+}
+if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
     $eepromFile = "/home/fpp/media/config/cape-eeprom.bin";
 }
 
