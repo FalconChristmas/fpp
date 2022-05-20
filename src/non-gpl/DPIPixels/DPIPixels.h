@@ -15,11 +15,12 @@
 #include <string>
 #include <vector>
 
-#include <linux/fb.h>
-
 #include "channeloutput/ChannelOutput.h"
 #include "channeloutput/PixelString.h"
+#include "FrameBuffer.h"
 #include "util/SPIUtils.h"
+
+#define MAX_DPI_PIXEL_BANKS 3
 
 class DPIPixelsOutput : public ChannelOutput {
 public:
@@ -46,26 +47,30 @@ private:
     void OutputPixelRowWS281x(uint32_t* rowData, int maxString);
     void CompleteFrameWS281x(void);
 
-    std::string device = "/dev/fb1";
+    std::string device = "fb1";
     std::string protocol = "ws2811";
+    int licensedOutputs = 0;
+    bool usingSmartReceivers = false;
+    bool usingLatches = false;
+    uint8_t* onOffMap = nullptr;
 
     std::vector<PixelString*> pixelStrings;
     int bitPos[24];
 
-    int fbfd = 0;
-    char* fbp = 0;
-    int screensize = 0;
-    int pagesize = 0;
-    int page = 1;
-    int pages = 3;
-    struct fb_var_screeninfo vinfo;
-    struct fb_fix_screeninfo finfo;
+    FrameBuffer *fb;
+    int fbPage = -1;
 
     int stringCount = 0;
     int longestString = 0;
+    int longestStringInBank[MAX_DPI_PIXEL_BANKS];
+    uint32_t latchPinMask = 0x000000;
+    uint32_t latchPinMasks[MAX_DPI_PIXEL_BANKS];
 
     int protoBitsPerLine = 0;
     int protoBitOnLine = 0;
     uint8_t* protoDest = nullptr;
     int protoDestExtra = 0;
+
+    // WS281x vars
+    int fbPixelMult = 1;
 };

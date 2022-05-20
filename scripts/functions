@@ -954,6 +954,7 @@ exit(1)
 		if [ ${DPIPixels} -eq 0 ]
 		then
 			# Add our DPI Pixels config to /boot/config.txt
+            MODEL=$(cat /sys/firmware/devicetree/base/model | sed -e "s/Raspberry //" -e "s/ Model.*//" -e "s/ //")
 
             # Determine the best frame rate we can use
 cat ${FPPHOME}/media/config/co-pixelStrings.json  2> /dev/null | python -c '
@@ -983,15 +984,26 @@ exit(20)
 '
             FPS=$?
 
-            # Default to 20FPS/50ms timing just in case
-            TIMING="362 0 0 1 0  324 0 2 2 2  0 0 0  20 0 2400000 1"
-
-            case ${FPS} in
-                20) TIMING="362 0 0 1 0  324 0 2 2 2  0 0 0  20 0 2400000 1"
-                    ;;
-                40) TIMING="362 0 0 1 0  162 0 1 1 1  0 0 0  40 0 2400000 1"
-                    ;;
-            esac
+            if [ "x${FPS}" = "x40" ]
+            then
+                case ${MODEL} in
+                    Pi[4-9]) # Pi 4 (and newer?) uses a 54Mhz clock so our clock needs to be higher
+                        TIMING="724 0 1 1 1  162 0 1 1 1  0 0 0  40 0 4800000 1"
+                        ;;
+                    *) # Pi 3 and older use a 19.2Mhz clock
+                        TIMING="362 0 0 1 0  162 0 1 1 1  0 0 0  40 0 2400000 1"
+                        ;;
+                esac
+            else
+                case ${MODEL} in
+                    Pi[4-9]) # Pi 4 (and newer?) uses a 54Mhz clock so our clock needs to be higher
+                        TIMING="724 0 1 1 1  324 0 2 2 2  0 0 0  20 0 4800000 1"
+                        ;;
+                    *) # Pi 3 and older use a 19.2Mhz clock
+                        TIMING="362 0 0 1 0  324 0 2 2 2  0 0 0  20 0 2400000 1"
+                        ;;
+                esac
+            fi
 
             EXISTING_TIMINGS=""
             if [ -e "/boot/dpipixels.txt" ]
@@ -999,7 +1011,7 @@ exit(20)
                 EXISTING_TIMINGS=$(grep dpi_timings /boot/dpipixels.txt | cut -f2 -d=)
             fi
 
-            cat <<DPI_PIXELS_EOF > /boot/dpipixels.txt
+            cat <<DPI_PIXELS_EOF > /boot/dpipixels.txt.new
 ######################################################################
 # DPI Pixels framebuffer config
 # https://www.raspberrypi.com/documentation/computers/config_txt.html
@@ -1040,12 +1052,14 @@ DPI_PIXELS_EOF
             then
                 # need to reboot after adding dpipixels.txt
                 echo "include dpipixels.txt" >> /boot/config.txt
+                mv /boot/dpipixels.txt.new /boot/dpipixels.txt
                 shutdown -r now
             else
                 # dpipixels.txt already included but we need to check the timing line
                 if [ "x${TIMING}" != "x${EXISTING_TIMINGS}" ]
                 then
                     # new timings don't match existing, so reboot to apply new
+                    mv /boot/dpipixels.txt.new /boot/dpipixels.txt
                     shutdown -r now
                 fi
             fi
@@ -1059,6 +1073,9 @@ DPI_PIXELS_EOF
                 shutdown -r now
             fi
         fi
+
+        # remove new config file if it wasn't needed
+        rm /boot/dpipixels.txt.new 2> /dev/null
 	fi
 }
 

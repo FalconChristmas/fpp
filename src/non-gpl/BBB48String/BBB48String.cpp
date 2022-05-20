@@ -288,6 +288,8 @@ int BBB48StringOutput::Init(Json::Value config) {
         return 0;
     }
 
+    config["base"] = root;
+
     std::vector<int> allStringMap;
     int allMax = 0;
     for (int x = 0; x < m_strings.size(); x++) {
