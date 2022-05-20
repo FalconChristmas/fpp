@@ -110,6 +110,9 @@ function ApprovedCape($v)
             && isset($v["designer"]) && ($v["designer"] == "Unknown")) {
             return true;
         }
+        if (isset($v["vendor"]["name"]) && ($v["vendor"]["name"] == 'FalconChristmas.com')) {
+            return true;
+        }
     }
     if (isset($v["verifiedKeyId"]) && $v["verifiedKeyId"] != "") {
         return true;
