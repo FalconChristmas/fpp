@@ -10,6 +10,7 @@ require_once("common.php");
 var FBDevices = new Array();
 var FBInfo = {};
 <?
+    $showAddFBButton = 0;
     $devDir = "/dev/";
     if ($settings["Platform"] == "MacOS") {
         $devDir = $settings["framebufferControlSocketPath"];
@@ -18,6 +19,7 @@ var FBInfo = {};
         if (preg_match("/^fb[0-9]+/", $fileName)) {
             echo "FBDevices['$fileName'] = '$fileName';\n";
             echo "FBInfo['$fileName'] = {};\n";
+            $showAddFBButton = 1;
 
             if ($settings["Platform"] == "MacOS") {
                 echo "FBInfo['$fileName'].Width = 150;\n";
@@ -406,10 +408,16 @@ function AddNewModel() {
                 $(this).fppDialog("close");
             },
 
+<?
+if ($showAddFBButton) {
+?>
             FrameBuffer: function() {
                 AddNewFBModel();
                 $(this).fppDialog("close");
             },
+<?
+}
+?>
 
             SubModel: function() {
                 AddNewSubModel();
