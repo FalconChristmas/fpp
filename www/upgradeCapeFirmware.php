@@ -15,7 +15,13 @@ $unlink = 1;
 if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
     $file = $_FILES["firmware"]["tmp_name"];
 } else if (isset($_GET['filename'])) {
-    $file = $uploadDirectory . '/' . $_GET['filename'];
+    if (preg_match('/\/opt\/fpp\/capes/', $_GET['filename'])) {
+        $file = $_GET['filename'];
+        unlink('/home/fpp/media/config/co-pixelStrings.json');
+        unlink('/home/fpp/media/config/co-bbbStrings.json');
+    } else {
+        $file = $uploadDirectory . '/' . $_GET['filename'];
+    }
     $unlink = 0;
 }
 
@@ -29,7 +35,6 @@ if ($file != '') {
         unlink($file);
 
     echo "\n";
-    echo "Finished.  Please reboot.";
 } else {
     echo "ERROR: No firmware file specified.";
 }
