@@ -213,36 +213,6 @@ function UpgradeFPP() {
 
     StreamURL('manualUpdate.php?wrapped=1', 'upgradeText', 'UpgradeDone');
 }
-function UpgradeFirmwareDone() {
-    var txt = $('#upgradeText').val();
-    if (txt.includes("Cape does not match new firmware")) {
-        var arrayOfLines = txt.match(/[^\r\n]+/g);
-        var msg = "Are you sure you want to replace the firmware for cape:\n" + arrayOfLines[1] + "\n\nWith the firmware for: \n" + arrayOfLines[2] + "\n";
-        if (confirm(msg)) {
-            let formData = new FormData();
-            let firmware = document.getElementById("firmware").files[0];
-            formData.append("firmware", firmware);
-
-            $('#upgradeText').html('');
-            StreamURL('upgradeCapeFirmware.php?force=true', 'upgradeText', 'UpgradeDone', 'UpgradeDone', 'POST', formData, false, false);
-        }
-    }
-    $('#closeDialogButton').show();
-}
-function UpgradeFirmware() {
-    let firmware = document.getElementById("firmware").files[0];
-    if (firmware == "" || firmware == null) {
-        return;
-    }
-    let formData = new FormData();
-    formData.append("firmware", firmware);
-
-    $('#closeDialogButton').hide();
-    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Upgrade Cape Firmware", dialogClass: 'no-close' });
-    $('#upgradePopup').fppDialog( "moveToTop" );
-    $('#upgradeText').html('');
-    StreamURL('upgradeCapeFirmware.php', 'upgradeText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
-}
 
 </script>
 <title><?echo $pageTitle; ?></title>
@@ -467,98 +437,23 @@ if (isset($mediaDevice) && $mediaDevice != "" && $mediaDevice != $rootDevice) {
                   </td></tr>
                 <tr><td></td><td></td></tr>
     <?}?>
+
+<?
+if (!isset($settings['cape-info']) || !isset($settings['cape-info']['verifiedKeyId']) || ($settings['cape-info']['verifiedKeyId'] != 'fp')) {
+?>
+                <tr><td style='height: 50px;'></td></tr>
+                <tr><td colspan='2' style='width: 300px;'>
+                    If you would like to donate to the Falcon Player development team to help support the continued development of FPP, you can use the donate button below.<br>
+                    <form action="https://www.paypal.com/donate" method="post" target="_top"><input type="hidden" name="hosted_button_id" value="ASF9XYZ2V2F5G" /><input style="height: 60px;" type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif" border="0" name="submit" title="Donate to the Falcon Player" alt="Donate to the Falcon Player" /><img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1" /></form>
+                    </td></tr>
+<?
+}
+?>
               </table>
             </div>
         <div class="clear"></div>
         </fieldset>
-        <?
-if (isset($settings["cape-info"])) {
-    $currentCapeInfo = $settings["cape-info"];
-    $capeHardwareType = "Cape/Hat";
-    if (isset($currentCapeInfo["hardwareType"])) {
-        $capeHardwareType = $currentCapeInfo["hardwareType"];
-    }
-    ?>
-        </div>
-        <div class="row">
-            <div class="aboutAll col-md">
-            <h2>About <?=$capeHardwareType?> </h2>
-            <div class="container-fluid">
-            <div class="row">
-            <div class='<?if (isset($currentCapeInfo['vendor'])) {echo "aboutLeft col-md";} else {echo "aboutAll";}?> '>
-            <table class='tblAbout'>
-            <tr><td><b>Name:</b></td><td width="100%"><?echo $currentCapeInfo['name'] ?></td></tr>
-            <?
-    if (isset($currentCapeInfo['version'])) {
-        echo "<tr><td><b>Version:</b></td><td>" . $currentCapeInfo['version'] . "</td></tr>";
-    }
-    if (isset($currentCapeInfo['serialNumber'])) {
-        echo "<tr><td><b>Serial&nbsp;Number:</b></td><td>" . $currentCapeInfo['serialNumber'] . "</td></tr>";
-    }
-    if (isset($currentCapeInfo['designer'])) {
-        echo "<tr><td><b>Designer:</b></td><td>" . $currentCapeInfo['designer'] . "</td></tr>";
-    }
-    if (isset($currentCapeInfo['description'])) {
-        echo "<tr><td colspan=\"2\">";
-        if (isset($currentCapeInfo['vendor']) || $currentCapeInfo['name'] == "Unknown") {
-            echo $currentCapeInfo['description'];
-        } else {
-            echo htmlspecialchars($currentCapeInfo['description']);
-        }
-        echo "</td></tr>";
-    }
-    ?>
-            </table>
-            </div>
-            <?if (isset($currentCapeInfo['vendor'])) {?>
-                   <div class='aboutRight col-md'>
-                   <table class='tblAbout'>
-                        <tr><td><b>Vendor&nbsp;Name:</b></td><td><?echo $currentCapeInfo['vendor']['name'] ?></td></tr>
-                <?if (isset($currentCapeInfo['vendor']['url'])) {
-        $url = $currentCapeInfo['vendor']['url'];
-        $landing = $url;
-        if (isset($currentCapeInfo['vendor']['landingPage'])) {
-            $landing = $currentCapeInfo['vendor']['landingPage'];
-        }
-        if ($settings['SendVendorSerial'] == 1) {
-            $landing = $landing . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
-        }
-        if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "" && $settings['SendVendorSerial'] == 1) {
-            $landing = $landing . "&cs=" . $currentCapeInfo['cs'];
-        }
-        echo "<tr><td><b>Vendor&nbsp;URL:</b></td><td><a href=\"" . $landing . "\">" . $url . "</a></td></tr>";
-    }
-        if (isset($currentCapeInfo['vendor']['phone'])) {
-            echo "<tr><td><b>Phone&nbsp;Number:</b></td><td>" . $currentCapeInfo['vendor']['phone'] . "</td></tr>";
-        }
-        if (isset($currentCapeInfo['vendor']['email'])) {
-            echo "<tr><td><b>E-mail:</b></td><td><a href=\"mailto:" . $currentCapeInfo['vendor']['email'] . "\">" . $currentCapeInfo['vendor']['email'] . "</td></tr>";
-        }
-        if (isset($currentCapeInfo['vendor']['forum'])) {
-            echo "<tr><td><b>Support Forum:</b></td><td><a href=\"" . $currentCapeInfo['vendor']['forum'] . "\">" . $currentCapeInfo['vendor']['forum'] . "</td></tr>";
-        }
-        if (isset($currentCapeInfo['vendor']['image']) && $settings['FetchVendorLogos']) {
-            if ($settings['SendVendorSerial'] == 1) {
-                $iurl = $currentCapeInfo['vendor']['image'] . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
-            }
-            if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "" && $settings['SendVendorSerial'] == 1) {
-                $iurl = $iurl . "&cs=" . $currentCapeInfo['cs'];
-            }
-            echo "<tr><td colspan=\"2\"><a href=\"" . $landing . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $iurl . "\" /></a></td></tr>";
-        }?>
-                   </table>
-                   </div>
-                <?}?>
-            </div> <!-- row -->
-            </div> <!-- container -->
-            </div> <!-- col -->
-        </div> <!-- row -->
-
-
-        <?
-}
-?>
-</div> <!-- row -->
+    </div>
 <?
 $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
 if ($settings['Platform'] == "BeagleBone Black") {
@@ -566,22 +461,11 @@ if ($settings['Platform'] == "BeagleBone Black") {
     if (!file_exists($eepromFile)) {
         $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
     }
+} else if (file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
+    $eepromFile = "/home/fpp/media/config/cape-eeprom.bin";
 }
 if (file_exists($eepromFile)) {
-    ?>
-        <div class="row">
-            <div class="aboutAll col-md">
-                <br><h2>Cape/Hat Firmware Upgrade</h2>
-                <div class="container-fluid">
-                    <div class="row">
-                        <div class="aboutAll col-md">
-                            <label for="firmware">Firmware file:</label><input type="file" name="firmware" id="firmware"/>&nbsp;<input type='button' class="buttons" value='Upgrade' onClick='UpgradeFirmware();'  id='UpdateFirmware'>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-            <?
+    echo "<hr>For Cape information and EEPROM signing, go to the <a href='cape-info.php'>Cape Info</a> page.\n";
 }
 ?>
 

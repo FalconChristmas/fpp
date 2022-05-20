@@ -1701,6 +1701,19 @@ body .sm-clean a .sub-arrow {
 	color:red;
 }
 
+#bankSlider {
+    width: 800px;
+    border: 2px solid #D3D3D3 !important;
+}
+
+.inputError {
+    border:2px solid red !important;
+}
+
+.inputWarning {
+    border:2px solid #FFAC1C !important;
+}
+
 .playlist-warning::after {
 	content:"\26a0";
 	background-color: rgb(251, 255, 7);

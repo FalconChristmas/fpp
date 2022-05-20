@@ -41,11 +41,11 @@ h2.divider span {
 }
 
 /* prevent table header from scrolling: */
-#BBB48String {
+#PixelString {
   text-align: left;
   position: relative; /* required for th sticky to work */
 }
-#BBB48String thead th {
+#PixelString thead th {
     font-weight: bold;
     background: #fff; /* prevent add/delete circular buttons from showing through */
     position: sticky;
@@ -59,8 +59,8 @@ h2.divider span {
 if ($settings['Platform'] == "BeagleBone Black") {
     //  BBB only supports ws2811 at this point
     ?>
-    #BBB48String tr > th:nth-of-type(2),
-    #BBB48String tr > td:nth-of-type(2) {
+    #PixelString tr > th:nth-of-type(2),
+    #PixelString tr > td:nth-of-type(2) {
         display: none;
     }
     <?
@@ -68,8 +68,8 @@ if ($settings['Platform'] == "BeagleBone Black") {
 if ((isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {
     // don't support virtual strings
     ?>
-    #BBB48String tr > th:nth-of-type(3),
-    #BBB48String tr > td:nth-of-type(3) {
+    #PixelString tr > th:nth-of-type(3),
+    #PixelString tr > td:nth-of-type(3) {
         display: none;
     }
 
@@ -85,10 +85,7 @@ if ((isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupport
 </style>
 
 
-
-
 <script type="text/javascript">
-
 
 var KNOWN_CAPES = {
 <?
@@ -101,36 +98,46 @@ function readCapes($cd, $capes)
 {
     global $settings;
     if (is_dir($cd)) {
-        if ($dh = opendir($cd)) {
-            while (($file = readdir($dh)) !== false) {
+        $files = scandir($cd);
+        foreach ($files as $file) {
+            $string = "";
+            if (substr($file, 0, 1) == '.') {
                 $string = "";
-                if (substr($file, 0, 1) == '.') {
-                    $string = "";
-                } else {
-                    $string = file_get_contents($cd . $file);
+            } else {
+                $string = file_get_contents($cd . $file);
 //            echo "/* file len " . strlen($string) . "*/\n";
                     //            echo "/* ends with '" . substr($string, -4) . "' */\n";
-                }
+            }
 
-                if ($string != "") {
-                    $json = json_decode($string, true);
-                    if ($json['numSerial'] != 0 && isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported") {
-                        // unsupported
-                        continue;
-                    } else if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
-                        echo "'" . $file . "': " . $string . ",\n";
-                        $file = str_replace('-v2.j', '.j', $file);
-                        $file = str_replace('-v3.j', '.j', $file);
-                        if (!isset($capes[$file])) {
-                            $capes[$file] = $json;
-                        }
+            if ($string != "") {
+                $json = json_decode($string, true);
+                if ($json['numSerial'] != 0 && isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported") {
+                    // unsupported
+                    continue;
+                } else if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
+                    echo "'" . $file . "': " . $string . ",\n";
+                    $file = str_replace('-v2.j', '.j', $file);
+                    $file = str_replace('-v3.j', '.j', $file);
+                    if (!isset($capes[$file])) {
+                        $capes[$file] = $json;
                     }
                 }
             }
-            closedir($dh);
         }
     }
     return $capes;
+}
+
+$virtualEEPROMDir = '';
+if ($settings['Platform'] == "Raspberry Pi") {
+    $virtualEEPROMDir = $fppDir . '/capes/pi';
+} else if ($settings['Platform'] == "BeagleBone Black") {
+    $virtualEEPROMDir = $fppDir . '/capes/bbb';
+    if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
+        $virtualEEPROMDir = $fppDir . '/capes/pb';
+    }
+} else {
+    $virtualEEPROMDir = $fppDir . '/capes/virtual';
 }
 
 $capes = array();
@@ -152,8 +159,47 @@ usort($capes, 'sortByLongName');
 ?>
 };
 
+function showVirtualEEPROMSelect() {
+    $('.capeTypeRow').hide();
+    $('.capeEEPROMRow').show();
+}
+
+function cancelVirtualEEPROMSelect() {
+    reloadPage();
+}
+
+function CloseUpgradeDialog(reload = false) {
+    $('#upgradePopup').fppDialog('close');
+    if (reload)
+        location.reload();
+}
+
+function InstallFirmwareDone() {
+    var txt = $('#upgradeText').val();
+    if (txt.includes("Cape does not match new firmware")) {
+        var arrayOfLines = txt.match(/[^\r\n]+/g);
+        var msg = "Are you sure you want to install the virtual firmware for cape:\n" + arrayOfLines[2] + "\n\nWith the virtual firmware for: \n" + arrayOfLines[3] + "\n";
+        if (confirm(msg)) {
+            var filename = $('#virtualEEPROM').val();
+            $('#upgradeText').html('');
+            StreamURL('upgradeCapeFirmware.php?force=true&filename=' + filename, 'upgradeText', 'UpgradeDone', 'UpgradeDone', 'GET', null, false, false);
+        }
+    }
+    $('#closeDialogButton').show();
+}
+
+function InstallFirmware() {
+    var filename = $('#virtualEEPROM').val();
+
+    $('.dialogCloseButton').hide();
+    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Install Cape Firmware", dialogClass: 'no-close' });
+    $('#upgradePopup').fppDialog( "moveToTop" );
+    $('#upgradeText').html('');
+    StreamURL('upgradeCapeFirmware.php?filename=' + filename, 'upgradeText', 'InstallFirmwareDone', 'InstallFirmwareDone', 'GET', null, false, false);
+}
+
 function MapPixelStringType(type) {
-    var subType = GetBBB48StringCapeFileNameForSubType(type);
+    var subType = GetPixelStringCapeFileNameForSubType(type);
     if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].driver) {
         return KNOWN_CAPES[subType].driver;
     }
@@ -163,10 +209,10 @@ function MapPixelStringSubType(type) {
     return type;
 }
 function MapPixelStringSubTypeVersion(version) {
-    return $('#BBB48StringSubTypeVersion').val();
+    return $('#PixelStringSubTypeVersion').val();
 }
 function GetPixelStringTiming() {
-    return $('#BBB48StringPixelTiming').val();
+    return $('#PixelStringPixelTiming').val();
 }
 
 var maxVirtualStringsPerOutput = 30;
@@ -359,6 +405,8 @@ function addVirtualString(item)
     str += pixelOutputTableRow(type, protocols, protocol, oid, pid, sid, desc + sid, 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, '1.0', '', hwLabel);
 
     $('#' + highestId).after(str);
+
+    setupBankLimits();
 }
 
 //try to standardize rowid:
@@ -391,23 +439,23 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     }
     if (sid)
     {
-        result += "<td>&nbsp;</td>";
+        result += "<td>&nbsp;<span style='display: none;' class='vsPortLabel'>" + hwLabel + "" + portPfx + ")</span></td>";
         result += "<td><input type='hidden' class='vsProtocol' value='" + protocol + "'</td>";
         result += "<td><button ";
         result += "class='circularButton circularButton-sm circularVirtualStringButton circularDeleteButton' onClick='removeVirtualString(this);'></button></td>";
     }
     else
     {
-        result += "<td class='vsPortLabel' align='center'>" + hwLabel + "" + portPfx + ")</td>";
+        result += "<td class='vsPortLabel' align='center' title=''>" + hwLabel + "" + portPfx + ")</td>";
         result += "<td>" + pixelOutputProtocolSelect(protocols, protocol) + "</td>";
         result += "<td ><button ";
         result += "class='circularButton circularButton-sm circularButton-visible circularVirtualStringButton circularAddButton' onClick='addVirtualString(this);'></button></td>";
     }
 
     result += "<td><input type='text' class='vsDescription' size='25' maxlength='60' value='" + description + "'></td>";
-    result += "<td><input type='number' class='vsStartChannel' size='7' value='" + startChannel + "' min='1' max='<?echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
-    result += "<td><input type='number' class='vsPixelCount' size='4' min='1' max='1600' onkeypress='preventNonNumericalInput(event)' value='" + pixelCount + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
-    result += "<td><input type='number' class='vsGroupCount' size='3' value='" + groupCount + "' min='1' max='1000' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this);'></td>";
+    result += "<td><input type='number' class='vsStartChannel' size='7' value='" + startChannel + "' min='1' max='<?echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this); sanityCheckOutputs();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+    result += "<td><input type='number' class='vsPixelCount' size='4' min='0' max='1600' onkeypress='preventNonNumericalInput(event)' value='" + pixelCount + "' onChange='updateItemEndChannel(this); sanityCheckOutputs();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+    result += "<td><input type='number' class='vsGroupCount' size='3' value='" + groupCount + "' min='1' max='1000' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this); sanityCheckOutputs();'></td>";
     if (groupCount == 0) {
         groupCount = 1;
     }
@@ -477,7 +525,7 @@ function updateRowEndChannel(row) {
     }
 
     row.find('.vsEndChannel').html(newEnd);
-    selected_string_details(row);
+//    selected_string_details(row);
 }
 
 function updateItemEndChannel(item) {
@@ -498,9 +546,9 @@ const pxAmps = {
 function selected_string_details(row) { //outputs, rowid) {
     let details = "";
     if (!row.hasClass("selectedEntry")) return; //don't overwrite with non-selected row (this happens when edited row loses focus > new row gets focus)
-    const pins = (GetBBB48StringPins() || [])
+    const pins = (GetPixelStringPins() || [])
         .map(hdr_pin => ({hdr_pin, gpio_info: (selected_string_details.gpio || []).find(pin_info => pin_info.pin == hdr_pin)}));
-    const outtype = $('#BBB48StringSubType').val();
+    const outtype = $('#PixelStringSubType').val();
     const driver = MapPixelStringType(outtype);
     const is_dpi = driver == 'DPIPixels';
     const portid = row.attr("id").replace(/_\d+$/, "");
@@ -531,7 +579,8 @@ function selected_string_details(row) { //outputs, rowid) {
             (port_fps < 40)? "as 20": "as 40"; //TODO: add other fps if supported
         details += `<b>Port ${portinx + 1} (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"}):</b> ${plural(numpx)} pixel${plural()}, ${(frtime * 1e3).toFixed(3).replace(".000", "")} msec refresh${cfg_fps? ` (config ${cfg_fps} fps)`: ""}, ${maxA.toFixed(1).replace(".0", "")} A max`;
     }
-    $("#pixel-string-details").html(details);
+//    $("#pixel-string-details").html(details);
+    return details;
 }
 
 //keep the Grammar Police happy :)
@@ -565,57 +614,80 @@ function cloneSelectedString()
 {
     var row = $('#' + selectedPixelStringRowId);
     var rowCount = row.parent().find('tr').length;
-    var curRow = row.closest("tr")[0].rowIndex;
-    var maxClone = rowCount - curRow;
+    var curRow = row.closest("tr")[0].rowIndex - 1;
+    var rowsAbove = 0;
+    var rowsBelow = 0;
 
-    if (maxClone == 0)
-    {
-        alert("No strings below to clone.");
-        return;
+    // Calculate how many rows actually have string data on them
+    for (r = 0; r < rowCount; r++) {
+        var tRow = row.parent().find('tr').eq(r);
+        if (tRow.find('.vsPixelCount').length != 0) {
+            if (r < curRow)
+                rowsAbove--;
+            else if (r > curRow)
+                rowsBelow++;
+        }
     }
 
-    var clones = prompt('How many strings to clone from selected string?', maxClone);
+    var clones = prompt('How many strings to clone from selected string?', rowsBelow);
 
     if (clones == null || clones == "" || clones == 0)
         return;
 
     clones = parseInt(clones);
-    const dir = (clones < 0)? "prev": "next";
+
+    if ((clones > 0) && (clones > rowsBelow)) {
+        alert('Max rows to clone going down is ' + rowsBelow);
+        return;
+    }
+    if ((clones < 0) && (clones < rowsAbove)) {
+        alert('Max rows to clone going up is ' + (0-rowsAbove));
+        return;
+    }
+
+
+    var mult = (clones < 0)? -1 : 1;
 
     var sDescription = row.find('.vsDescription').val() || "";
     var sStartChannel = parseInt(row.find('.vsStartChannel').val()) || 1;
     var sPixelCount = parseInt(row.find('.vsPixelCount').val()) || 0;
-    var nextRow = row.closest('tr')[dir]('tr');
 
-    if (nextRow.find('td.vsPortLabel').length == 0)
-        nextRow = nextRow.closest('tr')[dir]('tr');
-
-//    row.find('.vsDescription').val(sDescription + '0');
     const suffix = (sDescription.match(/(\d+)$/) || [])[1] || "0";
 
-    for (i = 0; i < Math.abs(clones); i++)
+    var actRow = curRow + mult;
+    for (i = 0; i < Math.abs(clones) && (actRow >= 0) && (actRow < rowCount);)
     {
-        const oldname = nextRow.find(".vsDescription").val() || "";
-        setRowData(nextRow,
-                   row.find('.vsProtocol').val(),
-//                   sDescription + (i+1),
-                   oldname.match(/\d+$/)? oldname: oldname + (+suffix + i+1),
-                   sStartChannel + (sPixelCount * 3 * (i+1)),
-                   sPixelCount,
-                   row.find('.vsGroupCount').val(),
-                   row.find('.vsReverse').val(),
-                   row.find('.vsColorOrder').val(),
-                   row.find('.vsStartNulls').val(),
-                   row.find('.vsEndNulls').val(),
-                   row.find('.vsZigZag').val(),
-                   row.find('.vsBrightness').val(),
-                   row.find('.vsGamma').val());
+        var tRow = row.parent().find('tr').eq(actRow);
 
-        nextRow = nextRow.closest('tr')[dir]('tr');
+        var max = tRow.find('.vsPixelCount').attr('max');
+        var label = tRow.find('.vsPortLabel').html().replace(')','');
+        if (max < sPixelCount) {
+            alert('ERROR, port ' + label + ' only supports ' + max + ' pixels.');
+            return;
+        }
 
-        if (nextRow.find('td.vsPortLabel').length == 0)
-            nextRow = nextRow.closest('tr')[dir]('tr');
+        if (tRow.find('.vsPixelCount').length != 0) {
+            const oldname = tRow.find(".vsDescription").val() || "";
+            setRowData(tRow,
+                       row.find('.vsProtocol').val(),
+                       oldname.match(/\d+$/)? oldname: oldname + (+suffix + i+1),
+                       sStartChannel + (sPixelCount * 3 * (i+1)),
+                       sPixelCount,
+                       row.find('.vsGroupCount').val(),
+                       row.find('.vsReverse').val(),
+                       row.find('.vsColorOrder').val(),
+                       row.find('.vsStartNulls').val(),
+                       row.find('.vsEndNulls').val(),
+                       row.find('.vsZigZag').val(),
+                       row.find('.vsBrightness').val(),
+                       row.find('.vsGamma').val());
+            i++;
+        }
+
+        actRow += mult;
     }
+
+    sanityCheckOutputs();
 }
 
 function getPixelStringOutputJSON()
@@ -743,9 +815,9 @@ function getPixelStringOutputJSON()
 
 var PixelStringLoaded = false;
 
-function GetBBB48StringCapeFileNameForSubType(mainType) {
+function GetPixelStringCapeFileNameForSubType(mainType) {
     var subType = "";
-    var ver = $('#BBB48StringSubTypeVersion').val();
+    var ver = $('#PixelStringSubTypeVersion').val();
     if (ver == "2.x") {
         subType += "-v2";
     }
@@ -758,10 +830,10 @@ function GetBBB48StringCapeFileNameForSubType(mainType) {
         if (subType == "-v3.json") {
             subType = "-v2.json";
             ver = "2.x";
-            $('#BBB48StringSubTypeVersion').val("2.x")
+            $('#PixelStringSubTypeVersion').val("2.x")
         } else if (subType == "-v2.json") {
             subType = ".json";
-            $('#BBB48StringSubTypeVersion').val("1.x")
+            $('#PixelStringSubTypeVersion').val("1.x")
             ver = "1.x";
         } else {
             return type;
@@ -773,19 +845,19 @@ function GetBBB48StringCapeFileNameForSubType(mainType) {
 function IsPixelStringDriverType(type) {
     return  type == "BBB48String" || type == 'spixels' || type == 'RPIWS281X' || type == 'DPIPixels';
 }
-function GetBBB48StringCapeFileName() {
-    var mainType = $('#BBB48StringSubType').val();
+function GetPixelStringCapeFileName() {
+    var mainType = $('#PixelStringSubType').val();
     if (!mainType || mainType == "") {
         var first = Object.keys(KNOWN_CAPES)[0];
-        $('#BBB48StringSubType').val(KNOWN_CAPES[first].name);
+        $('#PixelStringSubType').val(KNOWN_CAPES[first].name);
         mainType = KNOWN_CAPES[first].name;
     }
-    return GetBBB48StringCapeFileNameForSubType(mainType);
+    return GetPixelStringCapeFileNameForSubType(mainType);
 }
 
 
-function GetBBB48StringRequiresVersion() {
-    var mainType = $('#BBB48StringSubType').val();
+function GetPixelStringRequiresVersion() {
+    var mainType = $('#PixelStringSubType').val();
     var v2SubType = mainType + "-v2.json";
     var v3SubType = mainType + "-v3.json";
     mainType += ".json";
@@ -805,24 +877,24 @@ function GetBBB48StringRequiresVersion() {
     return true;
 }
 
-function GetBBB48StringRows()
+function GetPixelStringRows()
 {
-    var subType = GetBBB48StringCapeFileName();
+    var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
     return (val["outputs"] || []).length;
 }
 
 //get array of header pin#s indexed by port#:
 //NOTE: used by non-BBB capes as well
-function GetBBB48StringPins()
+function GetPixelStringPins()
 {
-    const subType = GetBBB48StringCapeFileName();
+    const subType = GetPixelStringCapeFileName();
     const capeInfo = KNOWN_CAPES[subType];
     return capeInfo.outputs && (capeInfo.outputs || []).map(info => info.pin);
 }
 
-function GetBBB48StringProtocols(p) {
-    var subType = GetBBB48StringCapeFileName();
+function GetPixelStringProtocols(p) {
+    var subType = GetPixelStringCapeFileName();
     if (KNOWN_CAPES[subType]) {
         var val = KNOWN_CAPES[subType];
         if (val["outputs"][p]["protocols"]) {
@@ -834,8 +906,8 @@ function GetBBB48StringProtocols(p) {
     }
     return "ws2811";
 }
-function GetBBB48StringDefaultProtocol(p) {
-    var subType = GetBBB48StringCapeFileName();
+function GetPixelStringDefaultProtocol(p) {
+    var subType = GetPixelStringCapeFileName();
     if (KNOWN_CAPES[subType]) {
         var val = KNOWN_CAPES[subType];
         if (val["outputs"][p]["protocols"]) {
@@ -849,7 +921,7 @@ function GetBBB48StringDefaultProtocol(p) {
 }
 function GetStringHWLabel(p) {
     p += 1;
-    var subType = GetBBB48StringCapeFileName();
+    var subType = GetPixelStringCapeFileName();
     var group = {};
     if (KNOWN_CAPES[subType]) {
         var val = KNOWN_CAPES[subType];
@@ -871,7 +943,7 @@ function GetStringHWLabel(p) {
 }
 function GetGroupLabel(subType, s) {
     s = s + 1;
-    var subType = GetBBB48StringCapeFileName();
+    var subType = GetPixelStringCapeFileName();
     if (KNOWN_CAPES[subType]) {
         var val = KNOWN_CAPES[subType];
         for (instance of val["groups"]) {
@@ -884,7 +956,7 @@ function GetGroupLabel(subType, s) {
 }
 function GetGroupPortStart(subType, s) {
     s = s + 1;
-    var subType = GetBBB48StringCapeFileName();
+    var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
     for (instance of val["groups"]) {
         if ((s == instance["start"]) && instance.hasOwnProperty('portStart')) {
@@ -895,7 +967,7 @@ function GetGroupPortStart(subType, s) {
 }
 function ShouldAddBreak(subType, s) {
     s = s + 1;
-    var subType = GetBBB48StringCapeFileName();
+    var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
     for (instance of val["groups"]) {
         if (s == instance["start"]) {
@@ -906,7 +978,7 @@ function ShouldAddBreak(subType, s) {
 }
 function IsDifferential(subType, s) {
     s = s + 1;
-    var subType = GetBBB48StringCapeFileName();
+    var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
     for (instance of val["groups"]) {
         if (s == instance["start"]) {
@@ -916,7 +988,7 @@ function IsDifferential(subType, s) {
     return false;
 }
 function SupportsSmartReceivers(subType) {
-    var subType = GetBBB48StringCapeFileName();
+    var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
     if (val.hasOwnProperty("supportsSmartReceivers")) {
         return val["supportsSmartReceivers"];
@@ -925,7 +997,7 @@ function SupportsSmartReceivers(subType) {
 }
 function IsExpansion(subType, s) {
     s = s + 1;
-    var subType = GetBBB48StringCapeFileName();
+    var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
     for (instance of val["groups"]) {
         if (s == instance["start"]) {
@@ -942,9 +1014,11 @@ function IsDifferentialExpansion(isExpansion, expansionType, s) {
 }
 
 function HasSerial(subType) {
-    var subType = GetBBB48StringCapeFileName();
+    var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    return val["numSerial"] > 0;
+    if (val.hasOwnProperty('numSerial'))
+        return val["numSerial"] > 0;
+    return 0;
 }
 
 
@@ -963,9 +1037,9 @@ function BBB48SerialTypeChanged() {
 
 function SetupBBBSerialPorts()
 {
-    var subType = $('#BBB48StringSubType').val();
+    var subType = $('#PixelStringSubType').val();
 
-    var subType = GetBBB48StringCapeFileName();
+    var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
     if (HasSerial(subType)) {
         $('#BBBSerialOutputs').show();
@@ -994,13 +1068,13 @@ function addSerialOutputJSON(postData) {
     config.subType = $('#BBBSerialMode').val();
     config.startChannel = 0;
     config.channelCount = 0;
-    config.device = $('#BBB48StringSubType').val();
+    config.device = $('#PixelStringSubType').val();
     config.outputs = [];
 
     if (config.subType != 'off')
         config.enabled = 1;
 
-    if (!$('#BBB48String_enable').is(":checked"))
+    if (!$('#PixelString_enable').is(":checked"))
         config.enabled = 0;
 
     if ($('#BBBSerialSelect').is(":hidden"))
@@ -1048,9 +1122,9 @@ function addSerialOutputJSON(postData) {
     postData.channelOutputs.push(config);
     return postData;
 }
-function BBB48StringExpansionTypeChanged(port) {
+function PixelStringExpansionTypeChanged(port) {
     var num = 16;
-    var subType = GetBBB48StringCapeFileName();
+    var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
     for (instance of val["groups"]) {
         if ((port+1) == instance["start"]) {
@@ -1061,12 +1135,12 @@ function BBB48StringExpansionTypeChanged(port) {
     }
     var dt = $('#ExpansionType' + port);
     var val = parseInt(dt.val());
-    var type = MapPixelStringType($('#BBB48StringSubType').val());
+    var type = MapPixelStringType($('#PixelStringSubType').val());
 
     if (val == 0 || val == -1) {
         //droping to standard/none... need to set everything to non-smart first
         for (var x = 0; x < num; x++) {
-            BBB48StringDifferentialTypeChangedTo((port+x), 0, 0);
+            PixelStringDifferentialTypeChangedTo((port+x), 0, 0);
         }
         for (var x = 0; x < num; x++) {
             if ($('#ROW_RULER_DIFFERENTIAL_' + (port+x)).length) {
@@ -1091,14 +1165,14 @@ function BBB48StringExpansionTypeChanged(port) {
             var str = "<tr id='ROW_RULER_DIFFERENTIAL_" +o + "'><td colSpan='3'><hr></td><td></td>";
             str += "<td colspan='2' style='font-size:0.7em; text-align:left; white-space: nowrap;'>Differential Receiver: ";
 
-            str += "<select id='DifferentialType" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");'>";
+            str += "<select id='DifferentialType" + o + "' onChange='PixelStringDifferentialTypeChanged(" + o + ");'>";
             str += "<option value='0' selected> Standard</option>";
             if (SupportsSmartReceivers(subType)) {
                 str += "<option value='1'>Smart v1</option>";
                 str += "<option value='2'>Smart v2</option>";
             }
             str += "</select>";
-            str += "&nbsp;<select id='DifferentialCount" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");' style='display: none;'>";
+            str += "&nbsp;<select id='DifferentialCount" + o + "' onChange='PixelStringDifferentialTypeChanged(" + o + ");' style='display: none;'>";
             str += "<option value='1' selected>1 Smart Receiver</option>";
             str += "<option value='2'>2 Smart Receivers</option>";
             str += "<option value='3'>3 Smart Receivers</option>";
@@ -1109,7 +1183,7 @@ function BBB48StringExpansionTypeChanged(port) {
         }
     }
 }
-function BBB48StringDifferentialTypeChanged(port) {
+function PixelStringDifferentialTypeChanged(port) {
     var dt = $('#DifferentialType' + port);
     var val = parseInt(dt.val());
     var dc = $('#DifferentialCount' + port);
@@ -1137,12 +1211,14 @@ function BBB48StringDifferentialTypeChanged(port) {
     if (val == 0 || cval == 0) {
         cval = 1;
     }
-    BBB48StringDifferentialTypeChangedTo(port, val, cval);
+    PixelStringDifferentialTypeChangedTo(port, val, cval);
+
+    sanityCheckOutputs();
 }
-function BBB48StringDifferentialTypeChangedTo(port, tp, count) {
-    var protocols = GetBBB48StringProtocols(port);
-    var protocol = GetBBB48StringDefaultProtocol(port);
-    var type = MapPixelStringType($('#BBB48StringSubType').val());
+function PixelStringDifferentialTypeChangedTo(port, tp, count) {
+    var protocols = GetPixelStringProtocols(port);
+    var protocol = GetPixelStringDefaultProtocol(port);
+    var type = MapPixelStringType($('#PixelStringSubType').val());
     if (count == 0) {
         count = 1;
     }
@@ -1210,34 +1286,34 @@ function populatePixelStringOutputs(data) {
             var output = data.channelOutputs[opi];
             var type = output.type;
             if (IsPixelStringDriverType(type)) {
-                $('#BBB48String_enable').prop('checked', output.enabled);
+                $('#PixelString_enable').prop('checked', output.enabled);
                 var subType = output.subType;
-                $('#BBB48StringSubType').val(subType);
+                $('#PixelStringSubType').val(subType);
                 var version = output.pinoutVersion;
                 if (version == '3.x') {
-                    $('#BBB48StringSubTypeVersion').val("3.x");
+                    $('#PixelStringSubTypeVersion').val("3.x");
                 } else if (version == '2.x') {
-                    $('#BBB48StringSubTypeVersion').val("2.x");
+                    $('#PixelStringSubTypeVersion').val("2.x");
                 } else {
-                    $('#BBB48StringSubTypeVersion').val("1.x");
+                    $('#PixelStringSubTypeVersion').val("1.x");
                 }
                 SetupBBBSerialPorts();
 
-                if (GetBBB48StringRequiresVersion()) {
-                    $('#BBB48StringSubTypeVersion').show();
+                if (GetPixelStringRequiresVersion()) {
+                    $('#PixelStringSubTypeVersion').show();
                     $('#versionTag').show();
                 } else {
-                    $('#BBB48StringSubTypeVersion').hide();
+                    $('#PixelStringSubTypeVersion').hide();
                     $('#versionTag').hide();
                 }
 
-                if (document.getElementById("BBB48StringSubType").length == 1) {
-                    $('#BBB48StringSubType').hide();
-                    document.getElementById("BBB48StringSubTypeSpan").textContent = subType;
-                    $('#BBB48StringSubTypeSpan').show();
+                if (document.getElementById("PixelStringSubType").length == 1) {
+                    $('#PixelStringSubType').hide();
+                    document.getElementById("PixelStringSubTypeSpan").textContent = subType;
+                    $('#PixelStringSubTypeSpan').show();
                 } else {
-                    $('#BBB48StringSubType').show();
-                    $('#BBB48StringSubTypeSpan').hide();
+                    $('#PixelStringSubType').show();
+                    $('#PixelStringSubTypeSpan').hide();
                 }
 
 
@@ -1245,17 +1321,17 @@ function populatePixelStringOutputs(data) {
                 if ('pixelTiming' in output) {
                     pixelTiming = output.pixelTiming;
                 }
-                $('#BBB48StringPixelTiming').val(pixelTiming);
+                $('#PixelStringPixelTiming').val(pixelTiming);
 
 
                 $('#pixelOutputs').html("");
 
-                var outputCount = GetBBB48StringRows();
+                var outputCount = GetPixelStringRows();
 
                 var str = "";
                 str += "<div class='fppTableWrapper'>" +
-                    "<div class='fppTableContents' role='region' aria-labelledby='BBB48String' tabindex='0'>";
-                str += "<table id='BBB48String' class='fppSelectableRowTable' type='" + output.subType + "' ports='" + outputCount + "'>";
+                    "<div class='fppTableContents' role='region' aria-labelledby='PixelString' tabindex='0'>";
+                str += "<table id='PixelString' class='fppSelectableRowTable' type='" + output.subType + "' ports='" + outputCount + "'>";
                 str += pixelOutputTableHeader();
                 str += "<tbody>";
 
@@ -1270,8 +1346,8 @@ function populatePixelStringOutputs(data) {
 
                 for (var o = 0; o < outputCount; o++)
                 {
-                    var protocols = GetBBB48StringProtocols(o);
-                    var defProtocol = GetBBB48StringDefaultProtocol(o);
+                    var protocols = GetPixelStringProtocols(o);
+                    var defProtocol = GetPixelStringDefaultProtocol(o);
                     var port = {"differentialType" : 0, "expansionType" : 0};
                     var loops = 1;
                     if (o < sourceOutputCount) {
@@ -1295,7 +1371,7 @@ function populatePixelStringOutputs(data) {
                             str += "<td style='font-size:0.7em; text-align:left; white-space: nowrap;'>Expansion Type: ";
 
 
-                            str += "<select id='ExpansionType" + o + "' onChange='BBB48StringExpansionTypeChanged(" + o + ");'>";
+                            str += "<select id='ExpansionType" + o + "' onChange='PixelStringExpansionTypeChanged(" + o + ");'>";
                             str += "<option value='-1'" + (expansionType == -1 ? " selected" : "") + ">None</option>";
                             str += "<option value='0'" + (expansionType == 0 ? " selected" : "") + ">Standard</option>";
                             str += "<option value='1'" + (expansionType == 1 ? " selected" : "") + ">Differential</option>";
@@ -1325,14 +1401,14 @@ function populatePixelStringOutputs(data) {
                                 diffCount = diffType - 3
                                 diffType = 2;
                             }
-                            str += "<select id='DifferentialType" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");'>";
+                            str += "<select id='DifferentialType" + o + "' onChange='PixelStringDifferentialTypeChanged(" + o + ");'>";
                             str += "<option value='0'" + (diffType == 0 ? " selected" : "") + ">Standard</option>";
                             if (supportSmart) {
                                 str += "<option value='1'" + (diffType == 1 ? " selected" : "") + ">Smart v1</option>";
                                 str += "<option value='2'" + (diffType == 2 ? " selected" : "") + ">Smart v2</option>";
                             }
                             str += "</select>";
-                            str += "&nbsp;<select id='DifferentialCount" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");'";
+                            str += "&nbsp;<select id='DifferentialCount" + o + "' onChange='PixelStringDifferentialTypeChanged(" + o + ");'";
                             if (diffType == 0) {
                                 str +=  "style=' display: none;'";
                             }
@@ -1445,19 +1521,34 @@ function populatePixelStringOutputs(data) {
                 $('#pixelOutputs').append(str);
 
                 expansions.forEach(function(r) {
-                                   BBB48StringExpansionTypeChanged(r);
+                                   PixelStringExpansionTypeChanged(r);
                                    });
 
-                $('#BBB48String').on('mousedown', 'tr', function(event, ui) {
+                $('#PixelString').on('mousedown', 'tr', function(event, ui) {
                     $('#pixelOutputs table tr').removeClass('selectedEntry');
-                    $(this).addClass('selectedEntry');
-                    selectedPixelStringRowId = $(this).attr('id');
-                    selected_string_details($(this)); //output.outputs, selectedPixelStringRowId);
+                    if ($(this).find('.vsPixelCount').length != 0) {
+                        $(this).addClass('selectedEntry');
+                        selectedPixelStringRowId = $(this).attr('id');
+                        //selected_string_details($(this)); //output.outputs, selectedPixelStringRowId);
+                    } else {
+                        selectedPixelStringRowId = "NothingSelected";
+                    }
                 });
+
+                setTimeout(function() { 
+                    $('.vsPortLabel').tooltip({
+                        content: function() {
+                            var tip = selected_string_details($(this).parent());
+                            console.log(tip);
+                            return tip;
+                        },
+                        hide: { delay: 100 }
+                    });
+                }, 250);
 
                 //setTimeout(pinTableHeader, 500);
 
-                var key = GetBBB48StringCapeFileNameForSubType(subType);
+                var key = GetPixelStringCapeFileNameForSubType(subType);
                 var val = KNOWN_CAPES[key];
                 if (val.hasOwnProperty('notes')) {
                     $('.capeNotes').show();
@@ -1466,6 +1557,8 @@ function populatePixelStringOutputs(data) {
                     $('.capeNotes').hide();
                     $('#capeNotes').html('');
                 }
+
+                setTimeout(setupPixelLimits, 100);
             }
             if (type == 'BBBSerial') {
                 var subType = output.subType;
@@ -1521,7 +1614,7 @@ function ValidateBBBStrings(data) {
                         output.subType = "DPIPixels-24";
                     }
                 }
-                var fn = GetBBB48StringCapeFileNameForSubType(output.subType);
+                var fn = GetPixelStringCapeFileNameForSubType(output.subType);
                 if (KNOWN_CAPES[fn] == null) {
                     fn = KNOWN_CAPES[Object.keys(KNOWN_CAPES)[0]];
                     output.subType = fn.name;
@@ -1535,7 +1628,7 @@ function ValidateBBBStrings(data) {
                     }
                 }
             } else if (type == 'BBBSerial') {
-                var fn = GetBBB48StringCapeFileNameForSubType(output.device);
+                var fn = GetPixelStringCapeFileNameForSubType(output.device);
                 if (KNOWN_CAPES[fn] == null) {
                     fn = KNOWN_CAPES[Object.keys(KNOWN_CAPES)[0]];
                     output.device = fn.name;
@@ -1553,23 +1646,377 @@ function ValidateBBBStrings(data) {
     }
 }
 
+<?
+
+function getLicensedOutputs() {
+    global $settings;
+
+    if (isset($settings['cape-info']) && isset($settings['cape-info']['verifiedKeyId'])) {
+        if ($settings['cape-info']['verifiedKeyId'] != 'fp') {
+            return 9999;
+        } else if (isset($settings['cape-info']['signed']['licensePorts'])) {
+            return intval($settings['cape-info']['signed']['licensePorts']);
+        }
+    }
+
+    return 0;
+}
+
+$licensedOutputs = getLicensedOutputs();
+?>
+
+var licensedOutputs = <?=$licensedOutputs ?>;
+var capeLimitWarning = '';
+<?
+if (isset($settings['cape-info']) && ($settings['cape-info']['id'] == "Unsupported")) {
+    echo "capeLimitWarning = 'Unsupported string cape.  Ports are limitted to 200 pixels, no virtual strings, and no DMX.';\n";
+}
+?>
+
+function sanityCheckOutputs() {
+    var ok = true;
+    var rowCount = $('#pixelOutputs table tbody').find('tr').length;
+    var tbody = $('#pixelOutputs table tbody');
+
+    tbody.find('.vsPixelCount').removeClass('inputError');
+    tbody.find('.vsPixelCount').attr('title', '');
+    tbody.find('.vsStartChannel').removeClass('inputWarning');
+    tbody.find('.vsStartChannel').attr('title', '');
+
+    var outputCount = 0;
+	$('#pixelOutputs table').each(function() {
+		$this = $(this);
+        outputCount = parseInt($this.attr('ports'));
+    });
+
+    var pixelsPerOutput = [];
+    for (i = 0; i < outputCount; i++) {
+        pixelsPerOutput[i] = 0;
+    }
+
+    // Gather total pixel counts by pid
+    for (r = 0; r < rowCount; r++) {
+        var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+        if (tRow.find('.vsPixelCount').length != 0) {
+            var pid = parseInt(tRow.attr('pid'));
+
+            pixelsPerOutput[pid] += parseInt(tRow.find('.vsPixelCount').val());
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////////
+    // Check licensed outputs and error if too many pixels on unlicensed outputs
+    if (licensedOutputs < outputCount) {
+        for (r = 0; r < rowCount; r++) {
+            var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+            if (tRow.find('.vsPixelCount').length != 0) {
+                var pid = parseInt(tRow.attr('pid'));
+
+                if (((pid+1) > licensedOutputs) && (pixelsPerOutput[pid] > 50)) {
+                    tRow.find('.vsPixelCount').attr('title', 'Cape is licensed for ' + licensedOutputs + ' outputs.  Unlicensed Outputs may only use 50 pixels.');
+                    tRow.find('.vsPixelCount').addClass('inputError');
+                    ok = false;
+                }
+            }
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////////
+    // Error if using banks and limits exceeded
+    var subType = GetPixelStringCapeFileName();
+    if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].pixelLimits) {
+        for (limit of KNOWN_CAPES[subType].pixelLimits) {
+            if (limit.type == 'banks') {
+                for (b = 0; b < limit.banks.length; b++) {
+                    var bankLimit = parseInt($('#bank' + (b+1) + 'Size').html());
+                    for (i = 0; i < outputCount; i++) {
+
+                        if (limit.banks[b].includes(i) && pixelsPerOutput[i] > bankLimit) {
+                            for (r = 0; r < rowCount; r++) {
+                                var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+                                if (tRow.find('.vsPixelCount').length != 0) {
+                                    var pid = parseInt(tRow.attr('pid'));
+                                    if (pid == i) {
+                                        var title = tRow.find('.vsPixelCount').attr('title');
+                                        if (title != '')
+                                            title += '<br>';
+                                        title += 'This output is part of a Virtual String or Smart Receiver chain that exceeds the bank size';
+                                        tRow.find('.vsPixelCount').attr('title', title);
+                                        tRow.find('.vsPixelCount').addClass('inputError');
+                                    }
+                                }
+                            }
+
+                            ok = false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////////
+    // Error if pixelCount is higher than max
+    for (r = 0; r < rowCount; r++) {
+        var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+        if (parseInt(tRow.find('.vsPixelCount').val()) > parseInt(tRow.find('.vsPixelCount').attr('max'))) {
+            var title = tRow.find('.vsPixelCount').attr('title');
+            if (title != '')
+                title += '<br>';
+            title += 'Output Pixel Count exceeds max';
+            tRow.find('.vsPixelCount').attr('title', title);
+            tRow.find('.vsPixelCount').addClass('inputError');
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////////
+    // Warn on Overlapping channel ranges
+    var startChannels = [];
+    var endChannels = [];
+    var pixelCounts = [];
+
+    // Collect the start/end pairs
+    for (r = 0; r < rowCount; r++) {
+        var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+
+        startChannels[r] = 0;
+        endChannels[r] = 0;
+        pixelCounts[r] = 0;
+
+        if (tRow.find('.vsPixelCount').length != 0) {
+            startChannels[r] = parseInt(tRow.find('.vsStartChannel').val());
+            endChannels[r] = parseInt(tRow.find('.vsEndChannel').html());
+            pixelCounts[r] = parseInt(tRow.find('.vsPixelCount').val());
+        }
+    }
+
+    // Check for overlap
+    for (i = 0; i < rowCount; i++) {
+        if (startChannels[i] && endChannels[i]) {
+            for (j = 0; j < rowCount; j++) {
+                if ((i < j) &&
+                    (pixelCounts[i] && pixelCounts[j]) &&
+                    (startChannels[i] || endChannels[i] || startChannels[j] || endChannels[j]) &&
+                    (((startChannels[i] >= startChannels[j]) && (startChannels[i] <= endChannels[j])) ||
+                     ((endChannels[i] >= startChannels[j]) && (endChannels[i] <= endChannels[j])) ||
+                     ((startChannels[j] >= startChannels[i]) && (startChannels[j] <= endChannels[i])) ||
+                     ((endChannels[j] >= startChannels[i]) && (endChannels[j] <= endChannels[i])))) {
+                    var iRow = $('#pixelOutputs table tbody').find('tr').eq(i);
+                    var jRow = $('#pixelOutputs table tbody').find('tr').eq(j);
+                    var iTitle = iRow.find('.vsStartChannel').attr('title');
+                    var jTitle = jRow.find('.vsStartChannel').attr('title');
+
+                    if (iTitle != '')
+                        iTitle += '<br>';
+                    if (jTitle != '')
+                        jTitle += '<br>';
+
+                    var iLabel = iRow.find('.vsPortLabel').html().replace(')', '');
+                    var jLabel = jRow.find('.vsPortLabel').html().replace(')', '');
+                    var newTitle = '';
+                    if (iLabel != jLabel)
+                        newTitle = 'Channels for outputs ' + iLabel + ' and ' + jLabel + ' overlap.';
+                    else
+                        newTitle = 'Channels for Virtual Strings on output ' + iLabel + ' overlap.';
+
+                    iTitle += newTitle;
+                    jTitle += newTitle;
+
+                    iRow.find('.vsStartChannel').addClass('inputWarning');
+                    iRow.find('.vsStartChannel').attr('title', iTitle);
+                    jRow.find('.vsStartChannel').addClass('inputWarning');
+                    jRow.find('.vsStartChannel').attr('title', jTitle);
+                }
+            }
+        }
+    }
+
+    return ok;
+}
+
+function displayCapeLimits() {
+<?
+if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name'])) {
+    echo "return;\n";
+}
+?>
+    var outtype = $('#PixelStringSubType').val();
+    var driver = MapPixelStringType(outtype);
+
+    $('#capeLimits').hide();
+    $('#capeLicenseDiv').hide();
+    $('#capeLicenseMessageBottom').hide();
+
+    if ((driver != 'BBB48String') && (driver != 'DPIPixels'))
+        return;
+
+    if (capeLimitWarning != '') {
+        $('#capeLimits').show();
+        $('#capeLimits').html(capeLimitWarning);
+    }
+
+    var outputCount = 0;
+	$('#pixelOutputs table').each(function() {
+		$this = $(this);
+        outputCount = parseInt($this.attr('ports'));
+
+        if (licensedOutputs < outputCount) {
+            var message = '';
+            if (licensedOutputs == 0) {
+                message = "This cape EEPROM is not signed.  Output will be limited to 50 Pixels Per Output and Smart Receiver support is disabled.  See the <a href='cape-info.php'>Cape Info</a> page for more details.";
+            } else {
+                message = 'This cape is licensed for ' + licensedOutputs + ' out of ' + outputCount + ' outputs. ';
+                message += 'Outputs higher than ' + licensedOutputs + ' will be limited to 50 Pixels Per Output and will not support Smart Receivers.';
+            }
+
+            $('#capeLicenseMessageBottom').html(message);
+            $('#capeLicenseMessageBottom').show();
+
+            if (!settings.hasOwnProperty('HideLicenseWarning') || (settings['HideLicenseWarning'] == '0')) {
+                $('#capeLicenseMessage').html(message);
+                $('#capeLicenseDiv').show();
+            }
+        }
+    });
+
+}
+
+function setupBankLimits() {
+    var rowCount = $('#pixelOutputs table tbody').find('tr').length;
+    var subType = GetPixelStringCapeFileName();
+    if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].pixelLimits) {
+        for (limit of KNOWN_CAPES[subType].pixelLimits) {
+            for (b = 0; b < limit.banks.length; b++) {
+                var bankLimit = parseInt($('#bank' + (b+1) + 'Size').html());
+                for (r = 0; r < rowCount; r++) {
+                    var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+                    if (tRow.find('.vsPixelCount').length != 0) {
+                        var pid = parseInt(tRow.attr('pid'));
+                        if (licensedOutputs > pid) {
+                            if (limit.banks[b].includes(pid)) {
+                                tRow.find('.vsPixelCount').attr('max', bankLimit);
+                                tRow.find('.vsGroupCount').attr('max', bankLimit);
+                                tRow.find('.vsZigZag').attr('max', bankLimit);
+                            }
+                        } else {
+                                tRow.find('.vsPixelCount').attr('max', 50);
+                                tRow.find('.vsGroupCount').attr('max', 50);
+                                tRow.find('.vsZigZag').attr('max', 50);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    sanityCheckOutputs();
+}
+
+function setupPixelLimits() {
+    var subType = GetPixelStringCapeFileName();
+    var rowCount = $('#pixelOutputs table tbody').find('tr').length;
+    if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].pixelLimits) {
+        for (limit of KNOWN_CAPES[subType].pixelLimits) {
+            if (licensedOutputs && (limit.type == 'banks')) {
+                var bankSizes = [ 0, 0, 0 ];
+                for (r = 0; r < rowCount; r++) {
+                    var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+                    if (tRow.find('.vsPixelCount').length != 0) {
+                        var pid = parseInt(tRow.attr('pid'));
+                        var pixels = parseInt(tRow.find('.vsPixelCount').val());
+                        for (b = 0; b < limit.banks.length; b++) {
+                            if ((limit.banks[b].includes(pid)) && (pixels > bankSizes[b])) {
+                                bankSizes[b] = pixels;
+                            }
+                        }
+                    }
+                }
+
+                if (limit.banks.length == 2) {
+                    $('#bank1Size').html(bankSizes[0]);
+                    $('#bank2Size').html(bankSizes[1]);
+                    $('#bankSlider').slider({
+                        range: 'max',
+                        min: 1,
+                        max: limit.limit - 1,
+                        value: bankSizes[0],
+                        slide: function(event, ui) {
+                            var bank1Limit = parseInt(ui.value);
+                            var bank2Limit = limit.limit - 1 - bank1Limit;
+                            $('#bank1Size').html(bank1Limit);
+                            $('#bank2Size').html(bank2Limit);
+                        },
+                        stop: function(event, ui) {
+                            setupBankLimits();
+                        }
+                    });
+                    $('#bankSliderDiv').show();
+                } else if (limit.banks.length == 3) {
+                    $('#bank1Size').html(bankSizes[0]);
+                    $('#bank2Size').html(bankSizes[1]);
+                    $('#bank3Size').html(limit.limit - (bankSizes[0] + bankSizes[1] + 2));
+                    $('.bank3Class').show();
+                    $('#bankSlider').slider({
+                        range: true,
+                        min: 1,
+                        max: limit.limit - 2,
+                        values: [ bankSizes[0], (bankSizes[0] + bankSizes[1]) ],
+                        slide: function(event, ui) {
+                            var bank1Limit = parseInt(ui.values[0]);
+                            var bank2Limit = parseInt(ui.values[1]) - bank1Limit;
+                            var bank3Limit = limit.limit - 2 - bank2Limit - bank1Limit;
+                            $('#bank1Size').html(bank1Limit);
+                            $('#bank2Size').html(bank2Limit);
+                            $('#bank3Size').html(bank3Limit);
+                        },
+                        stop: function(event, ui) {
+                            setupBankLimits();
+                        }
+                    });
+                    $('#bankSliderDiv').show();
+                } else {
+                    $('#bankSliderDiv').html('<b>ERROR: This cape is configured for ' + limit.banks.length + ' banks but the UI only supports a max of 3</b>');
+                    $('#bankSliderDiv').show();
+                }
+                setTimeout(setupBankLimits, 500);
+            }
+        }
+    } else {
+        for (r = 0; r < rowCount; r++) {
+            var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+            if (tRow.find('.vsPixelCount').length != 0) {
+                var pid = parseInt(tRow.attr('pid'));
+                if (licensedOutputs <= pid) {
+                    tRow.find('.vsPixelCount').attr('max', 50);
+                    tRow.find('.vsGroupCount').attr('max', 50);
+                    tRow.find('.vsZigZag').attr('max', 50);
+                }
+            }
+        }
+
+        sanityCheckOutputs();
+    }
+}
+
 <?if ($settings['Platform'] == "BeagleBone Black") {?>
 var PIXEL_STRING_FILE_NAME = "co-bbbStrings";
 <?} else {?>
 var PIXEL_STRING_FILE_NAME = "co-pixelStrings";
 <?}?>
 
-function BBB48StringSubTypeChanged()
+function PixelStringSubTypeChanged()
 {
+    SetSetting('HideLicenseWarning', '0', 0, 0);
+
     if (PixelStringLoaded) {
         $.getJSON("api/channel/output/" + PIXEL_STRING_FILE_NAME, function(data) {
                   for (var i = 0; i < data.channelOutputs.length; i++) {
                     if (IsPixelStringDriverType(data.channelOutputs[i].type)) {
-                        data.channelOutputs[i].type = MapPixelStringType($('#BBB48StringSubType').val());
-                        data.channelOutputs[i].subType = $('#BBB48StringSubType').val();
+                        data.channelOutputs[i].type = MapPixelStringType($('#PixelStringSubType').val());
+                        data.channelOutputs[i].subType = $('#PixelStringSubType').val();
                     }
                     if (data.channelOutputs[i].type == 'BBBSerial') {
-                      data.channelOutputs[i].device = $('#BBB48StringSubType').val();
+                      data.channelOutputs[i].device = $('#PixelStringSubType').val();
                     }
                   }
                   ValidateBBBStrings(data);
@@ -1579,8 +2026,8 @@ function BBB48StringSubTypeChanged()
         var defaultData = {};
         defaultData.channelOutputs = [];
         var output = {};
-        output.type = MapPixelStringType($('#BBB48StringSubType').val());
-        output.subType = $('#BBB48StringSubType').val();
+        output.type = MapPixelStringType($('#PixelStringSubType').val());
+        output.subType = $('#PixelStringSubType').val();
         <?
 if (isset($capes[0]['pinoutVersion'])) {
     echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
@@ -1593,11 +2040,12 @@ if (isset($capes[0]['pinoutVersion'])) {
         defaultData.channelOutputs.push(output);
         populatePixelStringOutputs(defaultData);
     }
+    displayCapeLimits();
 }
 
 //get uploaded xLights models:
 <?
-define("xLights_MODELS", "/home/fpp/media/upload/xlights_rgbeffects.xml");
+define("xLights_MODELS", $mediaDirectory . "/upload/xlights_rgbeffects.xml");
 $models_err = "";
 clearstatcache(true); //TODO: is this needed?
 $models_str = file_get_contents(xLights_MODELS);
@@ -1625,7 +2073,7 @@ const xlmodels = <?echo $models_json; ?>;
 const xlmodels_err = "<?echo $models_err; ?>";
 //xlate xLights models into Pixel Strings:
 function importStrings() {
-    const outtype = $('#BBB48StringSubType').val(); //"DPI24Hat"
+    const outtype = $('#PixelStringSubType').val(); //"DPI24Hat"
     const driver = MapPixelStringType(outtype); //"DPIPixel"
     if (xlmodels_err) { alert(xlmodels_err); return; }
     xlmodels.models.model
@@ -1671,7 +2119,7 @@ function importStrings() {
     $(window).trigger('resize'); //kludge: force table to repaint
 }
 
-function loadBBBOutputs() {
+function loadPixelStringOutputs() {
     var defaultData = {};
     defaultData.channelOutputs = [];
     var output = {};
@@ -1715,9 +2163,15 @@ if (isset($capes["F8-B"])) {
     $.getJSON("api/channel/output/" + PIXEL_STRING_FILE_NAME, function(data) {
                 ValidateBBBStrings(data);
                 populatePixelStringOutputs(data)
+                displayCapeLimits();
               });
 }
-function saveBBBOutputs() {
+function savePixelStringOutputs() {
+    if (!sanityCheckOutputs()) {
+        alert('Errors found, please check highlighted cells for issues.  Warnings are highlighted in orange and Errors in red.');
+        return;
+    }
+
     var postData = getPixelStringOutputJSON();
 
     <?if ($settings['Platform'] == "BeagleBone Black") {?>
@@ -1734,7 +2188,7 @@ function saveBBBOutputs() {
 
 
 function populateCapeList() {
-    var select = document.getElementById("BBB48StringSubType");
+    var select = document.getElementById("PixelStringSubType");
     var option;
     <?
 foreach ($capes as $x => $x_value) {
@@ -1749,12 +2203,12 @@ foreach ($capes as $x => $x_value) {
 }
 
 function pinTableHeader() {
-    var zp = $.Zebra_Pin($('#BBB48String thead'), {
+    var zp = $.Zebra_Pin($('#PixelString thead'), {
         contained: true,
         top_spacing: zebraPinSubContentTop,
         onPin: function(scroll, $element) {
-                var hrow = $('#BBB48String thead.Zebra_Pin tr:first');
-                var drow = $('#BBB48String tbody tr:nth-child(2)');
+                var hrow = $('#PixelString thead.Zebra_Pin tr:first');
+                var drow = $('#PixelString tbody tr:nth-child(2)');
                 for (var i = 1; i <= hrow.find('th').length; i++) {
                     hrow.find('th:nth-child(' + i + ')').css('width', drow.find('td:nth-child(' + i + ')').outerWidth());
                 }
@@ -1770,52 +2224,81 @@ $(document).ready(function(){
 
     $.get('/api/gpio')
 	.done(data => selected_string_details.gpio = data)
-        .fail(err => DialogError("Query gpio", "Get gpio info failed: " + err));
+        .fail(err => $.jGrowl('Error: Unable to retrieve GPIO pin info.', { themeState: 'danger' }));
     populateCapeList();
-    loadBBBOutputs();
+    loadPixelStringOutputs();
 });
 
 </script>
 
-<div id='tab-BBB48String'>
-    <div id='divBBB48String'>
+<div id='tab-PixelString'>
+    <div id='divPixelString'>
 
-        <div class="row tablePageHeader">
+        <div class="row tablePageHeader capeTypeRow">
             <div class="col-md"><h2><span class='capeName'>String Capes</span> </h2></div>
             <div class="col-md-auto ml-lg-auto">
                 <div class="form-actions">
 
-                        <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
+<?
+if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name']) || file_exists($mediaDirectory . '/config/cape-eeprom.bin')) {
+    echo "<input type='button' class='buttons' onClick='showVirtualEEPROMSelect();' value='Install Virtual EEPROM'>\n";
+}
+?>
+
+                        <input type='button' class="buttons" onClick='loadPixelStringOutputs();' value='Revert'>
                         <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
-<?if (file_exists("/home/fpp/media/upload/xlights_rgbeffects.xml")) {?>
+<?if (file_exists($mediaDirectory . "/upload/xlights_rgbeffects.xml")) {?>
             			<input type='button' class="buttons" onClick='importStrings();' value='Import Strings'>
 <?}?>
-                        <input type='button' class="buttons btn-success ml-1" onClick='saveBBBOutputs();' value='Save'>
+                        <input type='button' class="buttons btn-success ml-1" onClick='savePixelStringOutputs();' value='Save'>
                 </div>
             </div>
         </div>
-        <div class="backdrop tableOptionsForm">
+        <div class="backdrop tableOptionsForm capeEEPROMRow" style='display: none;'>
+            <div class="row">
+                <div class="col-md-auto">
+                    <div>
+                        <b>Virtual EEPROM:</b>
+                        <select id='virtualEEPROM'>
+<?
+$files = scandir($virtualEEPROMDir);
+foreach ($files as $file) {
+    if (preg_match('/-eeprom.bin$/', $file)) {
+        $base = preg_replace('/-eeprom.bin/', '', $file);
+        echo "<option value='$virtualEEPROMDir/$file'>$base</option>\n";
+    }
+}
+?>
+                        </select>
+                        &nbsp;
+                        <input type='button' class='buttons' value='Cancel' onClick='cancelVirtualEEPROMSelect();'>
+                        <input type='button' class='buttons btn-success' value='Install' onClick='InstallFirmware();'>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="backdrop tableOptionsForm capeTypeRow">
             <div class="row">
                 <div class="col-md-auto">
                     <div class="backdrop-dark form-inline enableCheckboxWrapper">
 
                     <div><b>Enable <span class='capeName'>String Cape</span>:</b></div>
-                                    <div><input id='BBB48String_enable' type='checkbox'></div>
+                                    <div><input id='PixelString_enable' type='checkbox'></div>
 
                     </div>
                 </div>
                 <div class="col-md-auto form-inline">
                     <div><b><span class='capeTypeLabel'>Cape Type</span>:</b></div>
-		    <div ><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'
+		    <div ><select id='PixelStringSubType' onChange='PixelStringSubTypeChanged();'
 <?if (isset($settings['cape-info']) && isset($settings['cape-info']['capeTypeTip'])) {?>
 title="<?=$settings['cape-info']['capeTypeTip']?>"
 <?}?>
-                          ></select><span id='BBB48StringSubTypeSpan'> </span></div>
+                          ></select><span id='PixelStringSubTypeSpan'> </span></div>
 
                 </div>
                 <div class="col-md-auto form-inline">
                     <div><b id='versionTag'>Version: </b></div>
-                    <div><select id='BBB48StringSubTypeVersion'>
+                    <div><select id='PixelStringSubTypeVersion'>
                             <option value='1.x'>1.x</option>
                             <option value='2.x'>2.x</option>
                             <option value='3.x'>3.x</option>
@@ -1828,7 +2311,7 @@ style="display: none;"
 <?}?>
 >
                     <div><b>Pixel Timing:</b></div>
-                    <div colspan="3"><select id='BBB48StringPixelTiming'>
+                    <div colspan="3"><select id='PixelStringPixelTiming'>
                         <option value="0">Normal (ws281x)</option>
                         <option value="1">Slow (1903)</option>
                         </select>
@@ -1836,7 +2319,7 @@ style="display: none;"
                 </div>
             </div>
         </div>
-            <div id='divBBB48StringData'>
+            <div id='divPixelStringData' class='capeTypeRow'>
                 <div>
                     <span id="pixel-string-details" class="text-muted text-left d-block" style="float: left;"></span>
                     <small class="text-muted text-right pt-2 d-block">
@@ -1844,10 +2327,22 @@ style="display: none;"
                         <span class='capeNotes' style='display: none;'><a href='#capeNotes'>View Cape Configuration Notes</a></span>
                     </small>
 
-                    <?if ((isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {?>
-    <div class="alert alert-danger">Unsupported string cape.  Ports are limitted to 200 pixels, no virtual strings, and no DMX.</div>
+                    <div id='capeLimits' class='alert alert-danger' style='display: none;'></div>
+                    <div id='capeLicenseDiv' class='alert alert-info' style='display: none;'>
+                        <span id='capeLicenseMessage'></span>
+                        <input type='button' class='buttons btn-success' value='Hide' onClick="SetSetting('HideLicenseWarning', '1', 0, 0); $('#capeLicenseDiv').hide();" style='float: right;'>
+                    </div>
 
-    <?}?>
+                    <div id='bankSliderDiv' style='display: none;'>
+                        <b>This cape uses banks of outputs which share max pixel counts.</b>
+                        <table border=0 cellpadding=1 cellspacing=1>
+                            <tr><td><b>Bank 1 Size:</b></td><td id='bank1Size'>0</td><td style='width: 50px;'></td>
+                                <td class='bank2Class'><b>Bank 2 Size:</b></td><td id='bank2Size' class='bank2Class'>0</td><td style='width: 50px;'></td>
+                                <td class='bank3Class' style='display: none;'><b>Bank 3 Size:</b></td><td id='bank3Size' class='bank3Class' style='display: none;'>0</td></tr>
+                        </table>
+                        <div id='bankSlider'></div>
+                    </div>
+
                     <div id='pixelOutputs'>
 
                     </div>
@@ -1920,6 +2415,15 @@ style="display: none;"
 
     </div>
 </div>
+<div id='capeLicenseMessageBottom' class='capeTypeRow' style='display: none;'></div>
 <a name='capeNotes'></a>
-<span class='capeNotes' style='display: none;'><b>Cape Configuration Notes:</b><br></span>
-<span class='capeNotes' id='capeNotes' style='display: none;'></span>
+<span class='capeNotes capeTypeRow' style='display: none;'><b>Cape Configuration Notes:</b><br></span>
+<span class='capeNotes capeTypeRow' id='capeNotes' style='display: none;'></span>
+
+<div id='upgradePopup' title='FPP Upgrade' style="display: none">
+    <textarea style='width: 99%; height: 500px;' disabled id='upgradeText'>
+    </textarea>
+    <input id='closeDialogButton' type='button' class='buttons dialogCloseButton' value='Close' onClick='CloseUpgradeDialog(true);' style='display: none;'>
+    <input id='errorDialogButton' type='button' class='buttons dialogCloseButton' value='Close' onClick='CloseUpgradeDialog(false);' style='display: none;'>
+</div>
+
