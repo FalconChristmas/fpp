@@ -3824,7 +3824,7 @@ function SetSettingReboot(key, value) {
     SetSetting(key, value, 0, 1);
 }
 
-function SetSetting(key, value, restart, reboot) {
+function SetSetting(key, value, restart, reboot, hideChange = false) {
     //console.log("api/settings/", key);
     $.ajax({
         url: "api/settings/" + key,
@@ -3833,7 +3833,7 @@ function SetSetting(key, value, restart, reboot) {
         timeout: 1000,
         async: false,
         success: function () {
-            if ((key != 'restartFlag') && (key != 'rebootFlag'))
+            if ((key != 'restartFlag') && (key != 'rebootFlag') && (!hideChange))
                 $.jGrowl(key + " setting saved.", { themeState: 'success' });
 
             settings[key] = value;
