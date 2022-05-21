@@ -69,6 +69,7 @@ private:
 
     uint32_t m_curFrame;
     int m_stallCount;
+    uint32_t m_licensedOutputs;
 
     BBBPru* m_pru;
     BBB48StringData* m_pruData;

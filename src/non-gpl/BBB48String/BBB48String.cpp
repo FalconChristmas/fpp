@@ -275,18 +275,23 @@ int BBB48StringOutput::Init(Json::Value config) {
     if (getBeagleBoneType() == PocketBeagle) {
         dirname = "pb";
     }
-    if (config["pinoutVersion"].asString() == "2.x") {
-        verPostf = "-v2";
-    }
-    if (config["pinoutVersion"].asString() == "3.x") {
-        verPostf = "-v3";
-    }
 
     Json::Value root;
-    if (!CapeUtils::INSTANCE.getStringConfig(m_subType + verPostf, root)) {
-        LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
-        return 0;
+    if (!CapeUtils::INSTANCE.getStringConfig(m_subType, root)) {
+        // might have the version number on it
+        if (config["pinoutVersion"].asString() == "2.x") {
+            verPostf = "-v2";
+        }
+        if (config["pinoutVersion"].asString() == "3.x") {
+            verPostf = "-v3";
+        }
+        if (!CapeUtils::INSTANCE.getStringConfig(m_subType + verPostf, root)) {
+            LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
+            return 0;
+        }
     }
+    m_licensedOutputs = CapeUtils::INSTANCE.getLicensedOutputs();
+    m_licensedOutputs = 48; //For now until vouchers can be issued
 
     config["base"] = root;
 
@@ -298,6 +303,22 @@ int BBB48StringOutput::Init(Json::Value config) {
             const PinCapabilities& pin = PinCapabilities::getPinByName(root["outputs"][x]["pin"].asString());
             pin.configPin();
             allStringMap.push_back(x);
+            if (x >= m_licensedOutputs && m_strings[x]->m_outputChannels > 0) {
+                // apply limit
+                int pixels = 50;
+                int chanCount = 0;
+                for (auto& a : m_strings[x]->m_virtualStrings) {
+                    if (pixels <= a.pixelCount) {
+                        a.pixelCount = pixels;
+                    }
+                    pixels -= a.pixelCount;
+                    chanCount += a.pixelCount * a.channelsPerNode();
+                }
+                if (m_strings[x]->m_isSmartReceiver) {
+                    chanCount = 0;
+                }
+                m_strings[x]->m_outputChannels = chanCount;
+            }
             allMax = std::max(allMax, m_strings[x]->m_outputChannels);
             if (pin.gpioIdx == 0) {
                 m_gpio0Data.gpioStringMap.push_back(x);
