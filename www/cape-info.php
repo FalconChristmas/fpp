@@ -356,6 +356,23 @@ function UploadSignedPacket() {
     });
 }
 
+var keysVisible = 0;
+function ToggleKeyVisibility() {
+    if (keysVisible) {
+        keysVisible = 0;
+        $('#keyVisibilityIcon').removeClass('fa-eye-slash');
+        $('#keyVisibilityIcon').addClass('fa-eye');
+        $('.keyHidden').show();
+        $('.keyShow').hide();
+    } else {
+        keysVisible = 1;
+        $('#keyVisibilityIcon').addClass('fa-eye-slash');
+        $('#keyVisibilityIcon').removeClass('fa-eye');
+        $('.keyHidden').hide();
+        $('.keyShow').show();
+    }
+}
+
 function TestInternet() {
     // This variable is defined in https://api.FalconPlayer.com/js/internetTest.js included above
     if (typeof theInternetIsUp === 'undefined') {
@@ -529,15 +546,15 @@ if (isset($settings["cape-info"])) {
 
         if (isset($currentCapeInfo['signed']['licenseKey'])) {
             if (gettype($currentCapeInfo['signed']['licenseKey']) == "string") {
-                echo "<tr><td><b>License Key:</b></td><td>" . $currentCapeInfo['signed']['licenseKey'] . "</td></tr>";
+                echo "<tr><td><b>License Key: <i class='fas fa-eye' id='keyVisibilityIcon' onClick='ToggleKeyVisibility();'></i></b></td><td class='keyShow' style='display: none;'>" . $currentCapeInfo['signed']['licenseKey'] . "</td><td class='keyHidden'>******-******-******-******-******</td></tr>";
             } else {
                 $first = 1;
                 foreach ($currentCapeInfo['signed']['licenseKey'] as $key) {
                     if ($first) {
-                        echo "<tr><td><b>License Keys:</b></td><td>$key</td></tr>\n";
+                        echo "<tr><td><b>License Keys: <i class='fas fa-eye' id='keyVisibilityIcon' onClick='ToggleKeyVisibility();'></i></b></td><td class='keyShow' style='display: none;'>$key</td><td class='keyHidden'>******-******-******-******-******</td></tr>\n";
                         $first = 0;
                     } else {
-                        echo "<td></td><td>$key</td></tr>\n";
+                        echo "<td></td><td class='keyShow' style='display: none;'>$key</td><td class='keyHidden'>******-******-******-******-******</td></tr>\n";
                     }
                 }
             }
@@ -575,8 +592,10 @@ if (isset($settings["cape-info"])) {
     <br>
 
     <table <?php if ($offlineMode) echo "class='internetOnly' style='display: none;'"; ?>>
-        <tr><td><b>Order Number:</b></td><td><input id='orderNumber' size=12 maxlength=10 value=''></td></tr>
-        <tr><td><b>License Key:</b></td><td><input id='licenseKey' size=36 maxlength=34 placeholder='FPPAFK-XXXXXX-XXXXXX-XXXXXX-XXXXXX'></td></tr>
+        <tr><td><b>Order Number:</b></td><td><input id='orderNumber' type='password' size=12 maxlength=10 value=''>
+                <i class='fas fa-eye' id='orderNumberHideShow' onClick='TogglePasswordHideShow("orderNumber");'></i></td></tr>
+        <tr><td><b>License Key:</b></td><td><input id='licenseKey' type='password' size=36 maxlength=34 placeholder='FPPAFK-XXXXXX-XXXXXX-XXXXXX-XXXXXX'>
+                <i class='fas fa-eye' id='licenseKeyHideShow' onClick='TogglePasswordHideShow("licenseKey");'></i></td></tr>
         <tr><td></td><td><input type='button' class='buttons' value='Sign EEPROM' onClick='<?php if ($offlineMode) echo "SignEEPROMViaBrowser"; else echo "SignEEPROM"; ?>();'></td></tr>
     </table>
 
@@ -607,8 +626,10 @@ if ($printSigningUI && $offlineMode) {
 
                                                 <h3>Step #1: Download Signing Packet</h3>
                                                 <table>
-                                                    <tr><td><b>Order Number:</b></td><td><input id='offlineOrderNumber' size=12 maxlength=10 value=''></td></tr>
-                                                    <tr><td><b>License Key:</b></td><td><input id='offlineLicenseKey' size=36 maxlength=34 placeholder='FPPAFK-XXXXXX-XXXXXX-XXXXXX-XXXXXX'></td></tr>
+                                                    <tr><td><b>Order Number:</b></td><td><input id='offlineOrderNumber' type='password' size=12 maxlength=10 value=''>
+                                                            <i class='fas fa-eye' id='offlineOrderNumberHideShow' onClick='TogglePasswordHideShow("offlineOrderNumber");'></i></td></tr>
+                                                    <tr><td><b>License Key:</b></td><td><input id='offlineLicenseKey' type='password' size=36 maxlength=34 placeholder='FPPAFK-XXXXXX-XXXXXX-XXXXXX-XXXXXX'>
+                                                            <i class='fas fa-eye' id='offlineLicenseKeyHideShow' onClick='TogglePasswordHideShow("offlineLicenseKey");'></i></td></tr>
                                                     <tr><td colspan='2'><input type='button' class='buttons' value='Download Offline Signing Packet' onClick='DownloadOfflineSigningFile();'></td></tr>
                                                 </table>
                                                 Clicking the download button will prompt you to save a file called 'cape-signing-<?=$settings['HostName'] ?>.bin'.
