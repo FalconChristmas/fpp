@@ -1708,10 +1708,12 @@ body .sm-clean a .sub-arrow {
 
 .inputError {
     border:2px solid red !important;
+	background-color: red;
 }
 
 .inputWarning {
     border:2px solid #FFAC1C !important;
+	background-color: #FFAC1C;
 }
 
 .playlist-warning::after {

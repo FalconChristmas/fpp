@@ -159,6 +159,13 @@ usort($capes, 'sortByLongName');
 ?>
 };
 
+function isLicensedDriver(driver) {
+    if ((driver == 'BBB48String') || (driver == 'DPIPixels'))
+        return true;
+
+    return false;
+}
+
 function showVirtualEEPROMSelect() {
     $('.capeTypeRow').hide();
     $('.capeEEPROMRow').show();
@@ -545,7 +552,6 @@ const pxAmps = {
 //show details about currently selected pixel port:
 function selected_string_details(row) { //outputs, rowid) {
     let details = "";
-    if (!row.hasClass("selectedEntry")) return; //don't overwrite with non-selected row (this happens when edited row loses focus > new row gets focus)
     const pins = (GetPixelStringPins() || [])
         .map(hdr_pin => ({hdr_pin, gpio_info: (selected_string_details.gpio || []).find(pin_info => pin_info.pin == hdr_pin)}));
     const outtype = $('#PixelStringSubType').val();
@@ -578,6 +584,8 @@ function selected_string_details(row) { //outputs, rowid) {
             (port_fps < 20)? "OVERRUN": //will cause frame overrun
             (port_fps < 40)? "as 20": "as 40"; //TODO: add other fps if supported
         details += `<b>Port ${portinx + 1} (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"}):</b> ${plural(numpx)} pixel${plural()}, ${(frtime * 1e3).toFixed(3).replace(".000", "")} msec refresh${cfg_fps? ` (config ${cfg_fps} fps)`: ""}, ${maxA.toFixed(1).replace(".0", "")} A max`;
+    } else {
+        details += `<b>Port ${portinx + 1} (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"})</b>`;
     }
 //    $("#pixel-string-details").html(details);
     return details;
@@ -1353,10 +1361,13 @@ function populatePixelStringOutputs(data) {
                     if (o < sourceOutputCount) {
                         port = output.outputs[o];
                     }
-                    if (ShouldAddBreak(subType, o) || (o == 0 && IsDifferential(subType, o)) || IsDifferentialExpansion(inExpansion, expansionType, o) || IsExpansion(subType, o)) {
+                    var needsABreak = ShouldAddBreak(subType, o);
+                    if (needsABreak || (o == 0 && IsDifferential(subType, o)) || IsDifferentialExpansion(inExpansion, expansionType, o) || IsExpansion(subType, o)) {
                         var groupLabel = GetGroupLabel(subType, o);
                         if (groupLabel != '') {
                             str += "<tr><td colspan='15'><h2 class='divider'><span>" + groupLabel + "</span></h2></td></tr>";
+                        } else if (needsABreak) {
+                            str += "<tr><td colSpan='15'><hr></td></tr>";
                         }
                         if (IsExpansion(subType, o)) {
                             expansionType = port["expansionType"];
@@ -1429,8 +1440,6 @@ function populatePixelStringOutputs(data) {
                             if (diffType >= 1) {
                                 loops = diffCount;
                             }
-                        } else if ((o != 0) && (!inExpansion)) {
-                            str += "<tr><td colSpan='15'><hr></td></tr>";
                         }
                     }
                     if (loops > 1) {
@@ -1515,6 +1524,7 @@ function populatePixelStringOutputs(data) {
 
                 str += "</tbody>";
                 str += "</table>";
+                str += "<b>Mouse over the Port Number for additional Port details.</b><br>";
                 str += "</div>";
                 str += "</div>";
 
@@ -1915,7 +1925,7 @@ function setupBankLimits() {
 function setupPixelLimits() {
     var subType = GetPixelStringCapeFileName();
     var rowCount = $('#pixelOutputs table tbody').find('tr').length;
-    if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].pixelLimits) {
+    if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].hasOwnProperty('pixelLimits')) {
         for (limit of KNOWN_CAPES[subType].pixelLimits) {
             if (licensedOutputs && (limit.type == 'banks')) {
                 var bankSizes = [ 0, 0, 0 ];
@@ -1982,11 +1992,17 @@ function setupPixelLimits() {
             }
         }
     } else {
+        var outtype = $('#PixelStringSubType').val();
+        var driver = MapPixelStringType(outtype);
         for (r = 0; r < rowCount; r++) {
             var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
             if (tRow.find('.vsPixelCount').length != 0) {
                 var pid = parseInt(tRow.attr('pid'));
-                if (licensedOutputs <= pid) {
+                if (!isLicensedDriver(driver) || (pid < licensedOutputs)) {
+                    tRow.find('.vsPixelCount').attr('max', 1600);
+                    tRow.find('.vsGroupCount').attr('max', 1600);
+                    tRow.find('.vsZigZag').attr('max', 1600);
+                } else {
                     tRow.find('.vsPixelCount').attr('max', 50);
                     tRow.find('.vsGroupCount').attr('max', 50);
                     tRow.find('.vsZigZag').attr('max', 50);
@@ -2006,7 +2022,7 @@ var PIXEL_STRING_FILE_NAME = "co-pixelStrings";
 
 function PixelStringSubTypeChanged()
 {
-    SetSetting('HideLicenseWarning', '0', 0, 0);
+    SetSetting('HideLicenseWarning', '0', 0, 0, true);
 
     if (PixelStringLoaded) {
         $.getJSON("api/channel/output/" + PIXEL_STRING_FILE_NAME, function(data) {
@@ -2330,7 +2346,7 @@ style="display: none;"
                     <div id='capeLimits' class='alert alert-danger' style='display: none;'></div>
                     <div id='capeLicenseDiv' class='alert alert-info' style='display: none;'>
                         <span id='capeLicenseMessage'></span>
-                        <input type='button' class='buttons btn-success' value='Hide' onClick="SetSetting('HideLicenseWarning', '1', 0, 0); $('#capeLicenseDiv').hide();" style='float: right;'>
+                        <input type='button' class='buttons btn-success' value='Hide' onClick="SetSetting('HideLicenseWarning', '1', 0, 0, true); $('#capeLicenseDiv').hide();" style='float: right;'>
                     </div>
 
                     <div id='bankSliderDiv' style='display: none;'>
