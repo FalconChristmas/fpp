@@ -189,11 +189,6 @@ if (file_exists("/etc/fpp/platform")) {
 
 if (file_exists($mediaDirectory . "/tmp/cape-info.json")) {
     $cape_info = json_decode(file_get_contents($mediaDirectory . "/tmp/cape-info.json"), true);
-    if (isset($cape_info["vendor"])) {
-        if (!ApprovedCape($cape_info)) {
-            unset($cape_info["vendor"]);
-        }
-    }
     $settings['cape-info'] = $cape_info;
 }
 
