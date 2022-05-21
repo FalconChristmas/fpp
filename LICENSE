@@ -85,6 +85,11 @@ CC-BY-ND Components (see LICENSE.CC-BY-ND)
     sole Copyright to all files under the non-gpl directory structure
     including any user-submitted bugfixes or other modifications.
 
+    In the event that Dan and Chris both abandon the FPP project and
+    do not make any commits to the source repository for a period of
+    one year, the FPP components covered by the CC-BY-ND license
+    revert to the GPL license and are no longer covered by the CC-BY-ND.
+
 GPL Components (see LICENSE.GPL)
 
     Unless covered by one of the above examples, all other code in FPP is
