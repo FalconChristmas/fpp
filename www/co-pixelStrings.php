@@ -1898,7 +1898,9 @@ function setupBankLimits() {
     if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].pixelLimits) {
         for (limit of KNOWN_CAPES[subType].pixelLimits) {
             for (b = 0; b < limit.banks.length; b++) {
-                var bankLimit = parseInt($('#bank' + (b+1) + 'Size').html());
+                var sname = 'bank' + (b+1) + 'Size';
+                var bankLimit = parseInt($('#' + sname).html());
+                SetSetting(sname, bankLimit, 0, 0, true);
                 for (r = 0; r < rowCount; r++) {
                     var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
                     if (tRow.find('.vsPixelCount').length != 0) {
@@ -1930,14 +1932,23 @@ function setupPixelLimits() {
         for (limit of KNOWN_CAPES[subType].pixelLimits) {
             if (licensedOutputs && (limit.type == 'banks')) {
                 var bankSizes = [ 0, 0, 0 ];
-                for (r = 0; r < rowCount; r++) {
-                    var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
-                    if (tRow.find('.vsPixelCount').length != 0) {
-                        var pid = parseInt(tRow.attr('pid'));
-                        var pixels = parseInt(tRow.find('.vsPixelCount').val());
-                        for (b = 0; b < limit.banks.length; b++) {
-                            if ((limit.banks[b].includes(pid)) && (pixels > bankSizes[b])) {
-                                bankSizes[b] = pixels;
+                var savedValues = false;
+                for (b = 0; b < bankSizes.length; b++) {
+                    if (settings.hasOwnProperty('bank' + (b+1) + 'Size')) {
+                        bankSizes[b] = parseInt(settings['bank' + (b+1) + 'Size']);
+                        savedValues = true;
+                    }
+                }
+                if (!savedValues) {
+                    for (r = 0; r < rowCount; r++) {
+                        var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+                        if (tRow.find('.vsPixelCount').length != 0) {
+                            var pid = parseInt(tRow.attr('pid'));
+                            var pixels = parseInt(tRow.find('.vsPixelCount').val());
+                            for (b = 0; b < limit.banks.length; b++) {
+                                if ((limit.banks[b].includes(pid)) && (pixels > bankSizes[b])) {
+                                    bankSizes[b] = pixels;
+                                }
                             }
                         }
                     }
@@ -2351,7 +2362,7 @@ style="display: none;"
                     </div>
 
                     <div id='bankSliderDiv' style='display: none;'>
-                        <b>This cape uses banks of outputs which share max pixel counts.</b>
+                        <b>This cape config uses banks of outputs which share max pixel counts.</b>
                         <table border=0 cellpadding=1 cellspacing=1>
                             <tr><td><b>Bank 1 Size:</b></td><td id='bank1Size'>0</td><td style='width: 50px;'></td>
                                 <td class='bank2Class'><b>Bank 2 Size:</b></td><td id='bank2Size' class='bank2Class'>0</td><td style='width: 50px;'></td>
