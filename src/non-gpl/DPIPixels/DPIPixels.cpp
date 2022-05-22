@@ -180,6 +180,23 @@ int DPIPixelsOutput::Init(Json::Value config) {
             }
         }
 
+        if ((i >= licensedOutputs) && (newString->m_outputChannels > 0)) {
+            // apply limit at the source, same code as BBB48StringOutput
+            int pixels = 50;
+            int chanCount = 0;
+            for (auto& a : newString->m_virtualStrings) {
+                if (pixels <= a.pixelCount) {
+                    a.pixelCount = pixels;
+                }
+                pixels -= a.pixelCount;
+                chanCount += a.pixelCount * a.channelsPerNode();
+            }
+            if (newString->m_isSmartReceiver) {
+                chanCount = 0;
+            }
+            newString->m_outputChannels = chanCount;
+        }
+
         if (licensedOutputs && root.isMember("latches")) {
             usingLatches = true;
 
@@ -370,7 +387,6 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     long long elapsedTimeGather = 0;
     long long elapsedTimeOutput = 0;
     int maxString = stringCount;
-    int splitPixel = 0;
     int sStart = 0;
     int sEnd = stringCount;
     int ch = 0;
@@ -403,21 +419,18 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
         if (usingLatches) {
             if (y == 0) {
                 ch = 0;
-                splitPixel = 0;
                 sStart = 0;
                 sEnd = stringCount > 20 ? 20 : stringCount;
                 maxString = sEnd;
                 latchPinMask = latchPinMasks[0];
             } else if (y == longestStringInBank[0]) {
                 ch = 0;
-                splitPixel = 0;
                 sStart = 20;
                 sEnd = stringCount > 36 ? 36 : stringCount;
                 maxString = sEnd - 20;
                 latchPinMask = latchPinMasks[1];
             } else if (y == (longestStringInBank[0] + longestStringInBank[1])) {
                 ch = 0;
-                splitPixel = 0;
                 sStart = 36;
                 sEnd = stringCount > 52 ? 52 : stringCount;
                 maxString = sEnd - 36;
@@ -427,9 +440,8 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
 
         for (int s = sStart; s < sEnd; s++) {
             ps = pixelStrings[s];
-            if (((s < licensedOutputs) || (ch < 150)) && // 150 channels is 50 pixels
-                 (ps->m_outputChannels) &&
-                 ((ps->m_outputChannels / 3) > splitPixel)) {
+            if ((ps->m_outputChannels) &&
+                (ch < ps->m_outputChannels)) {
                 rowData[s - sStart] =
                     (uint32_t)ps->m_brightnessMaps[ch][channelData[ps->m_outputMap[ch]]] << 16 |
                     (uint32_t)ps->m_brightnessMaps[ch + 1][channelData[ps->m_outputMap[ch + 1]]] << 8 |
@@ -439,7 +451,6 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
 
         elapsedTimeGather += GetTime() - startTime;
 
-        splitPixel++;
         ch += 3;
 
         startTime = GetTime();
