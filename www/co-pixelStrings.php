@@ -666,15 +666,14 @@ function cloneSelectedString()
     for (i = 0; i < Math.abs(clones) && (actRow >= 0) && (actRow < rowCount);)
     {
         var tRow = row.parent().find('tr').eq(actRow);
-
-        var max = tRow.find('.vsPixelCount').attr('max');
-        var label = tRow.find('.vsPortLabel').html().replace(')','');
-        if (max < sPixelCount) {
-            alert('ERROR, port ' + label + ' only supports ' + max + ' pixels.');
-            return;
-        }
-
         if (tRow.find('.vsPixelCount').length != 0) {
+            var max = tRow.find('.vsPixelCount').attr('max');
+            var label = tRow.find('.vsPortLabel').html().replace(')','');
+            if (max < sPixelCount) {
+                alert('ERROR, port ' + label + ' only supports ' + max + ' pixels.');
+                return;
+            }
+
             const oldname = tRow.find(".vsDescription").val() || "";
             setRowData(tRow,
                        row.find('.vsProtocol').val(),
