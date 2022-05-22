@@ -1685,6 +1685,8 @@ if (isset($settings['cape-info']) && ($settings['cape-info']['id'] == "Unsupport
 
 function sanityCheckOutputs() {
     var ok = true;
+    var outtype = $('#PixelStringSubType').val();
+    var driver = MapPixelStringType(outtype);
     var rowCount = $('#pixelOutputs table tbody').find('tr').length;
     var tbody = $('#pixelOutputs table tbody');
 
@@ -1716,7 +1718,7 @@ function sanityCheckOutputs() {
 
     /////////////////////////////////////////////////////////////////////
     // Check licensed outputs and error if too many pixels on unlicensed outputs
-    if (licensedOutputs < outputCount) {
+    if (isLicensedDriver(driver) && (licensedOutputs < outputCount)) {
         for (r = 0; r < rowCount; r++) {
             var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
             if (tRow.find('.vsPixelCount').length != 0) {
