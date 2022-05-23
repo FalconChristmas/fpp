@@ -1899,6 +1899,8 @@ if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name'])) {
 
             if (!settings.hasOwnProperty('HideLicenseWarning') || (settings['HideLicenseWarning'] == '0')) {
                 $('#capeWarningsDiv').show();
+            } else {
+                $('#capeWarningsSpan').show();
             }
         }
     });
