@@ -98,6 +98,7 @@
                 "statsPublish",
                 "FetchVendorLogos",
                 "SendVendorSerial",
+                "InstalledCape",
                 "Locale",
                 "TimeZone",
                 "Latitude",
