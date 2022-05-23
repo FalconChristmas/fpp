@@ -1845,6 +1845,18 @@ function sanityCheckOutputs() {
     return ok;
 }
 
+function ToggleCapeLicenseWarningVisibility() {
+    if (settings.hasOwnProperty('HideLicenseWarning') && (parseInt(settings['HideLicenseWarning']) == 1)) {
+        SetSetting('HideLicenseWarning', '0', 0, 0, true);
+        $('#capeWarningsSpan').hide();
+        $('#capeWarningsDiv').show();
+    } else {
+        SetSetting('HideLicenseWarning', '1', 0, 0, true);
+        $('#capeWarningsSpan').show();
+        $('#capeWarningsDiv').hide();
+    }
+}
+
 function displayCapeLimits() {
 <?
 if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name'])) {
@@ -1855,8 +1867,9 @@ if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name'])) {
     var driver = MapPixelStringType(outtype);
 
     $('#capeLimits').hide();
-    $('#capeLicenseDiv').hide();
-    $('#capeLicenseMessageBottom').hide();
+    $('#capeWarningsSpan').hide();
+    $('#capeWarningsDiv').hide();
+    $('#capeWarningsMessageBottom').hide();
 
     if ((driver != 'BBB48String') && (driver != 'DPIPixels'))
         return;
@@ -1880,12 +1893,12 @@ if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name'])) {
                 message += 'Outputs higher than ' + licensedOutputs + ' will be limited to 50 Pixels Per Output and will not support Smart Receivers.';
             }
 
-            $('#capeLicenseMessageBottom').html(message);
-            $('#capeLicenseMessageBottom').show();
+            $('#capeWarningsMessageBottom').html(message);
+            $('#capeWarningsMessageBottom').show();
+            $('#capeWarningsMessage').html(message);
 
             if (!settings.hasOwnProperty('HideLicenseWarning') || (settings['HideLicenseWarning'] == '0')) {
-                $('#capeLicenseMessage').html(message);
-                $('#capeLicenseDiv').show();
+                $('#capeWarningsDiv').show();
             }
         }
     });
@@ -2360,13 +2373,14 @@ style="display: none;"
                     <span id="pixel-string-details" class="text-muted text-left d-block" style="float: left;"></span>
                     <small class="text-muted text-right pt-2 d-block">
                         Press F2 to auto set the start channel on the next row.<br>
-                        <span class='capeNotes' style='display: none;'><a href='#capeNotes'>View Cape Configuration Notes</a></span>
+                        <span class='capeNotes' style='display: none;'><a href='#capeNotes'>View Cape Configuration Notes</a><br></span>
+                        <span id='capeWarningsSpan' style='display: none;'><a href='#' onClick='ToggleCapeLicenseWarningVisibility();' class='warning-text'>View Cape Warnings</a><br></span>
                     </small>
 
                     <div id='capeLimits' class='alert alert-danger' style='display: none;'></div>
-                    <div id='capeLicenseDiv' class='alert alert-info' style='display: none;'>
-                        <span id='capeLicenseMessage'></span>
-                        <input type='button' class='buttons btn-success' value='Hide' onClick="SetSetting('HideLicenseWarning', '1', 0, 0, true); $('#capeLicenseDiv').hide();" style='float: right;'>
+                    <div id='capeWarningsDiv' class='alert alert-info' style='display: none;'>
+                        <input type='button' class='buttons btn-success' value='Hide' onClick="ToggleCapeLicenseWarningVisibility();" style='float: right;'>
+                        <span id='capeWarningsMessage'></span>
                     </div>
 
                     <div id='bankSliderDiv' style='display: none;'>
@@ -2451,7 +2465,7 @@ style="display: none;"
 
     </div>
 </div>
-<div id='capeLicenseMessageBottom' class='capeTypeRow' style='display: none;'></div>
+<div id='capeWarningsMessageBottom' class='capeTypeRow' style='display: none;'></div>
 <a name='capeNotes'></a>
 <span class='capeNotes capeTypeRow' style='display: none;'><b>Cape Configuration Notes:</b><br></span>
 <span class='capeNotes capeTypeRow' id='capeNotes' style='display: none;'></span>
