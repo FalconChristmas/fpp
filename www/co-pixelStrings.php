@@ -2269,16 +2269,22 @@ $(document).ready(function(){
 
 <?
 if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name']) || file_exists($mediaDirectory . '/config/cape-eeprom.bin')) {
-    echo "<input type='button' class='buttons' onClick='showVirtualEEPROMSelect();' value='Install Virtual EEPROM'>\n";
+    if (file_exists($mediaDirectory . '/config/cape-eeprom.bin'))
+        echo "<input type='button' class='buttons' onClick='showVirtualEEPROMSelect();' value='Change Virtual EEPROM'>\n";
+    else
+        echo "<input type='button' class='buttons' onClick='showVirtualEEPROMSelect();' value='Install Virtual EEPROM'>\n";
+}
+
+if (isset($settings['cape-info'])) {
+
+    echo "<input type='button' class='buttons' onClick='loadPixelStringOutputs();' value='Revert'>\n";
+    echo "<input type='button' class='buttons' onClick='cloneSelectedString();' value='Clone String'>\n";
+    if (file_exists($mediaDirectory . "/upload/xlights_rgbeffects.xml")) {
+        echo "<input type='button' class='buttons' onClick='importStrings();' value='Import Strings'>\n";
+    }
+    echo "<input type='button' class='buttons btn-success ml-1' onClick='savePixelStringOutputs();' value='Save'>\n";
 }
 ?>
-
-                        <input type='button' class="buttons" onClick='loadPixelStringOutputs();' value='Revert'>
-                        <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
-<?if (file_exists($mediaDirectory . "/upload/xlights_rgbeffects.xml")) {?>
-            			<input type='button' class="buttons" onClick='importStrings();' value='Import Strings'>
-<?}?>
-                        <input type='button' class="buttons btn-success ml-1" onClick='savePixelStringOutputs();' value='Save'>
                 </div>
             </div>
         </div>
@@ -2305,7 +2311,9 @@ foreach ($files as $file) {
                 </div>
             </div>
         </div>
-        <div class="backdrop tableOptionsForm capeTypeRow">
+        <div class="backdrop tableOptionsForm capeTypeRow"
+<? if (!isset($settings['cape-info'])) echo " style='display: none;'"; ?>
+        >
             <div class="row">
                 <div class="col-md-auto">
                     <div class="backdrop-dark form-inline enableCheckboxWrapper">
@@ -2347,7 +2355,7 @@ style="display: none;"
                 </div>
             </div>
         </div>
-            <div id='divPixelStringData' class='capeTypeRow'>
+            <div id='divPixelStringData' class='capeTypeRow' <? if (!isset($settings['cape-info'])) echo " style='display: none;'"; ?>>
                 <div>
                     <span id="pixel-string-details" class="text-muted text-left d-block" style="float: left;"></span>
                     <small class="text-muted text-right pt-2 d-block">
