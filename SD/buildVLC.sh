@@ -3,8 +3,8 @@
 cd /opt
 git clone https://code.videolan.org/videolan/vlc.git
 cd vlc
-# this is latest master as of 03/13/2022
-git checkout 6f82cea3b7f542d557d4ea53adcd2d65aab9f002
+# this is latest master as of 05/24/2022
+git checkout 941479da0dbd337cf26766b5341b533f098cf88b
 # this commit is causing a segfault, logged as:
 # https://code.videolan.org/videolan/vlc/-/issues/25790
 git revert --no-edit fbb54457118b61f56f4d2c12c5e7a170c04ea48d

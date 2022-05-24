@@ -283,6 +283,7 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
     rm -f /etc/wpa_supplicant-wl*.conf
 
     ENABLEHOSTAPD="0"
+    IP_FORWARD="0"
     for f in $CONFIGS; do
         unset SSID
         unset PSK
@@ -368,18 +369,18 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         fi
         if [ "$IPFORWARDING" == "1" ]; then
             echo "IPForward=yes" >> $TMPFILE
-            sysctl net.ipv4.ip_forward=1
+            IP_FORWARD="1"
         fi
         if [ "$IPFORWARDING" == "2" ]; then
             # echo "IPMasquerade=both" >> $TMPFILE
             # systemd-networkd might not have masqarate support compiled in, we'll just do
             # it manually
             modprobe iptable_nat
-            sysctl net.ipv4.ip_forward=1
+            IP_FORWARD="1"
 
             nft add table nat
             nft 'add chain nat postrouting { type nat hook postrouting priority 100 ; }'
-            nft add rule nat postrouting oif ${INTERFACE} masquerade
+            nft add rule nat postrouting of ${INTERFACE} masquerade
         fi
 
         echo "$ADDRESSLINES" >> $TMPFILE
@@ -425,6 +426,7 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
 
         cp $TMPFILE /etc/systemd/network
     done
+    sysctl net.ipv4.ip_forward=${IP_FORWARD}
 
     systemctl reload-or-restart systemd-networkd.service
     if [ "${ENABLEHOSTAPD}" = "1" ]; then
