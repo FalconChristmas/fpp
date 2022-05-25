@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 
 #include "TestPatternBase.h"
+#include "channeloutput/ChannelOutputSetup.h"
 #include "overlays/PixelOverlay.h"
 #include "overlays/PixelOverlayModel.h"
 
@@ -90,6 +91,15 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
     int start = 0;
     int end = 0;
 
+    int max = 0;
+    for (auto& a : GetOutputRanges()) {
+        int e = a.first + a.second - 1;
+        max = std::max(max, e);
+    }
+    if (max < 8) {
+        max = 8;
+    }
+
     m_channelSet.clear();
     m_channelCount = 0;
 
@@ -116,8 +126,8 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
                 if (end > 0)
                     end--;
 
-                if (end > FPPD_MAX_CHANNELS)
-                    end = FPPD_MAX_CHANNELS - 1;
+                if (end > max)
+                    end = max;
             }
         }
         m_channelSet.push_back(std::make_pair(start, end));

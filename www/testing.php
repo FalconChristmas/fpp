@@ -1,58 +1,52 @@
 <!DOCTYPE html>
 <html>
 <?php
-require_once('config.php');
-require_once('common.php');
-require_once('fppdefines.php');
+require_once 'config.php';
+require_once 'common.php';
+require_once 'fppdefines.php';
 
 function PrintSequenceOptions()
 {
-	global $sequenceDirectory;
-	$first = 1;
-	echo "<select id=\"selSequence\" size=\"1\">";
-	foreach(scandir($sequenceDirectory) as $seqFile) 
-	{
-		if($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile))
-		{
-			echo "<option value=\"" . $seqFile . "\"";
-			if ($first)
-			{
-				echo " selected";
-				$first = 0;
-			}
-			echo ">" . $seqFile . "</option>";
-		}
-	}
-	echo "</select>";
-}			
+    global $sequenceDirectory;
+    $first = 1;
+    echo "<select id=\"selSequence\" size=\"1\">";
+    foreach (scandir($sequenceDirectory) as $seqFile) {
+        if ($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile)) {
+            echo "<option value=\"" . $seqFile . "\"";
+            if ($first) {
+                echo " selected";
+                $first = 0;
+            }
+            echo ">" . $seqFile . "</option>";
+        }
+    }
+    echo "</select>";
+}
 
 $rgbLabels = array();
 $rgbColors = array();
-$rgbStr    = "RGB";
+$rgbStr = "RGB";
 $rgbColorList = "R-G-B";
 
-if (isset($settings['useRGBLabels']) && ($settings['useRGBLabels'] == '0'))
-{
-	$rgbLabels[0] = 'A';
-	$rgbLabels[1] = 'B';
-	$rgbLabels[2] = 'C';
-	$rgbColors[0] = 'A';
-	$rgbColors[1] = 'B';
-	$rgbColors[2] = 'C';
-	$rgbStr       = "ABC";
-	$rgbColorList = "A-B-C";
-}
-else
-{
-	$rgbLabels[0] = 'R';
-	$rgbLabels[1] = 'G';
-	$rgbLabels[2] = 'B';
-	$rgbColors[0] = 'Red';
-	$rgbColors[1] = 'Green';
-	$rgbColors[2] = 'Blue';
-	$rgbStr       = "RGB";
-	$rgbColorList = "R-G-B";
-	$settings['useRGBLabels'] = 1;
+if (isset($settings['useRGBLabels']) && ($settings['useRGBLabels'] == '0')) {
+    $rgbLabels[0] = 'A';
+    $rgbLabels[1] = 'B';
+    $rgbLabels[2] = 'C';
+    $rgbColors[0] = 'A';
+    $rgbColors[1] = 'B';
+    $rgbColors[2] = 'C';
+    $rgbStr = "ABC";
+    $rgbColorList = "A-B-C";
+} else {
+    $rgbLabels[0] = 'R';
+    $rgbLabels[1] = 'G';
+    $rgbLabels[2] = 'B';
+    $rgbColors[0] = 'Red';
+    $rgbColors[1] = 'Green';
+    $rgbColors[2] = 'Blue';
+    $rgbStr = "RGB";
+    $rgbColorList = "R-G-B";
+    $settings['useRGBLabels'] = 1;
 }
 
 $testStartChannel = 1;
@@ -86,12 +80,12 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 ?>
 
 <head>
-<?php include 'common/menuHead.inc'; ?>
+<?php include 'common/menuHead.inc';?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
 <link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
 <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 
 </head>
 <body onunload='DisableTestMode();'>
@@ -194,23 +188,21 @@ function UpdateStartEndFromModel()
         SetButtonIncrements();
     }
 
-	if (lastEnabledState)
-	{
-		var data = {};
+	if (lastEnabledState) {
+        var data = {
+            "command": "Test Stop",
+            "multisyncCommand": $('#multicastEnabled').is('checked'),
+            "multisyncHosts": "",
+            "args": []
+        };
 
-		data.enabled = 0;
-
-		var postData = "command=setTestMode&data=" + JSON.stringify(data);
-
-		$.post("fppjson.php", postData).done(function(data) {
+		$.post("api/command", postData).done(function(data) {
 			SetTestMode();
 //			$.jGrowl("Test Mode Disabled");
 		}).fail(function(data) {
 			DialogError("Failed to set Test Mode", "Setup failed");
 		});
-	}
-	else
-	{
+	} else {
 		SetTestMode();
 	}
 }
@@ -266,7 +258,7 @@ function GetTestMode()
 						g:data.color2,
 						b:data.color3
 					};
-					$('.color-box').colpickSetColor(rgb).css('background-color', $.colpick.rgbToHex(rgb));	
+					$('.color-box').colpickSetColor(rgb).css('background-color', $.colpick.rgbToHex(rgb));
 				}
 			}
 			else
@@ -284,7 +276,7 @@ function SetTestMode()
 {
 	var enabled = 0;
 	var mode = "singleChase";
-	var cycleMS = parseInt($('#testModeCycleMSText').html());
+	var cycleMS = $('#testModeCycleMSText').html();
 	var colorS = parseInt($('#testModeColorSText').html());
 	var colorR = parseInt($('#testModeColorRText').html());
 	var colorG = parseInt($('#testModeColorGText').html());
@@ -346,101 +338,90 @@ function SetTestMode()
 		strB = "FF0000";
 	}
 
-	if (startChannel < 1 || startChannel > maxChannel || isNaN(startChannel))
+	if (startChannel < 1 || startChannel > maxChannel || isNaN(startChannel)) {
 		startChannel = 1;
+    }
 
-	if (endChannel < 1 || endChannel > maxChannel || isNaN(endChannel))
+	if (endChannel < 1 || endChannel > maxChannel || isNaN(endChannel)) {
 		endChannel = maxChannel;
-	
-	if (endChannel < startChannel)
+    }
+
+	if (endChannel < startChannel) {
 		endChannel = startChannel;
+    }
 
 	var selected = $("#tab-channels input[type='radio']:checked");
 	if (selected.length > 0) {
 		mode = selected.val();
 	}
 
-	if ($('#testModeEnabled').is(':checked'))
+	if ($('#testModeEnabled').is(':checked')) {
 		enabled = 1;
+    }
 
-	if (enabled || lastEnabledState)
-	{
-		var data = {};
+	if (enabled || lastEnabledState) {
+        var data = {
+            "command": "Test Start",
+            "multisyncCommand": $('#multicastEnabled').is('checked'),
+            "multisyncHosts": "",
+            "args": []
+        };
 		var channelSet = "" + startChannel + "-" + endChannel;
+        data["args"].push(channelSet);
+        data["args"].push(cycleMS);
 
 		if (mode == "SingleChase") {
-			data =
-				{
-					mode: "SingleChase",
-					cycleMS: cycleMS,
-					chaseSize: chaseSize,
-					chaseValue: colorS
-				};
+            data["args"].push("Single Channel Chase");
+            data["args"].push(colorS.toString());
+            data["args"].push(chaseSize.toString());
 		} else if (mode.substring(0,9) == "RGBChase-") {
-			var colorPattern = strR + strG + strB;
-			if (mode == "RGBChase-RGB") {
-				colorPattern = strR + strG + strB;
-			} else if (mode == "RGBChase-RGBN") {
-				colorPattern = strR + strG + strB + "000000";
-			} else if (mode == "RGBChase-RGBA") {
-				colorPattern = strR + strG + strB + "FFFFFF";
-			} else if (mode == "RGBChase-RGBAN") {
-				colorPattern = strR + strG + strB + "FFFFFF000000";
-			} else if (mode == "RGBChase-RGBCustom") {
-				colorPattern = $('#testModeRGBCustomPattern').val();
-			}
-			data =
-				{
-					mode: "RGBChase",
-					subMode: mode,
-					cycleMS: cycleMS,
-					colorPattern: colorPattern
-				};
+            if (mode == "RGBChase-RGBCustom") {
+                data["args"].push("Custom Chase");
+                data["args"].push($('#testModeRGBCustomPattern').val());
+            } else {
+                data["args"].push("RGB Chase");
+                if (mode == "RGBChase-RGB") {
+                    data["args"].push("R-G-B");
+			    } else if (mode == "RGBChase-RGBN") {
+                    data["args"].push("R-G-B-None");
+			    } else if (mode == "RGBChase-RGBA") {
+                    data["args"].push("R-G-B-All");
+			    } else if (mode == "RGBChase-RGBAN") {
+                    data["args"].push("R-G-B-All-None");
+			    }
+            }
 		} else if (mode.substring(0,9) == "RGBCycle-") {
-			var colorPattern = strR + strG + strB;
-			if (mode == "RGBCycle-RGB") {
-				colorPattern = strR + strG + strB;
-			} else if (mode == "RGBCycle-RGBN") {
-				colorPattern = strR + strG + strB + "000000";
-			} else if (mode == "RGBCycle-RGBA") {
-				colorPattern = strR + strG + strB + "FFFFFF";
-			} else if (mode == "RGBCycle-RGBAN") {
-				colorPattern = strR + strG + strB + "FFFFFF000000";
-			} else if (mode == "RGBCycle-RGBCustom") {
-				colorPattern = $('#testModeRGBCycleCustomPattern').val();
-			}
-			data =
-				{
-					mode: "RGBCycle",
-					subMode: mode,
-					cycleMS: cycleMS,
-					colorPattern: colorPattern
-				};
+            if (mode == "RGBCycle-RGBCustom") {
+                data["args"].push("Custom Cycle");
+                data["args"].push($('#testModeRGBCycleCustomPattern').val());
+            } else {
+                data["args"].push("RGB Cycle");
+                if (mode == "RGBCycle-RGB") {
+                    data["args"].push("R-G-B");
+			    } else if (mode == "RGBCycle-RGBN") {
+                    data["args"].push("R-G-B-None");
+			    } else if (mode == "RGBCycle-RGBA") {
+                    data["args"].push("R-G-B-All");
+			    } else if (mode == "RGBCycle-RGBAN") {
+                    data["args"].push("R-G-B-All-None");
+			    }
+            }
 		} else if (mode == "SingleFill") {
-			data =
-				{
-					mode: "RGBFill",
-					color1: colorS,
-					color2: colorS,
-					color3: colorS
-				};
+            data["args"].push("Single Channel Fill");
+            data["args"].push(colorS.toString());
 		} else if (mode == "RGBFill") {
-			data =
-				{
-					mode: "RGBFill",
-					color1: color1,
-					color2: color2,
-					color3: color3
-				};
+            data["args"].push("RGB Single Color");
+            var c = (color1 << 16) + (color2 << 8) + color3;
+            data["args"].push("#" + c.toString(16)); //color
 		}
 
-		data.enabled = enabled;
-		data.channelSet = channelSet;
-		data.channelSetType = channelSetType;
+		//data.enabled = enabled;
+		//data.channelSet = channelSet;
+		//data.channelSetType = channelSetType;
 
 		var postData = JSON.stringify(data);
 		console.log(postData);
-		$.post("api/testmode", postData).done(function(data) {
+		$.post("api/command", postData).done(function(data) {
 			//$.jGrowl("Test Mode Set");
 			//console.log(data);
 		}).fail(function(data) {
@@ -491,8 +472,8 @@ function adjustStartChannel(mult = 1)
 
     start += delta;
 
-    if (start > <? echo FPPD_MAX_CHANNELS; ?>)
-        start = <? echo FPPD_MAX_CHANNELS; ?>;
+    if (start > <?echo FPPD_MAX_CHANNELS; ?>)
+        start = <?echo FPPD_MAX_CHANNELS; ?>;
     else if (start < 1)
         start = 1;
 
@@ -517,8 +498,8 @@ function adjustEndChannel(mult = 1)
 
     end += delta;
 
-    if (end > <? echo FPPD_MAX_CHANNELS; ?>)
-        end = <? echo FPPD_MAX_CHANNELS; ?>;
+    if (end > <?echo FPPD_MAX_CHANNELS; ?>)
+        end = <?echo FPPD_MAX_CHANNELS; ?>;
     else if (end < 1)
         end = 1;
 
@@ -584,8 +565,8 @@ function StopSequence()
 }
 function UpdateTestModeFillColors(){
 	var rgb = {
-		r:parseInt($('#testModeColorR').val()), 
-		g:parseInt($('#testModeColorG').val()), 
+		r:parseInt($('#testModeColorR').val()),
+		g:parseInt($('#testModeColorG').val()),
 		b:parseInt($('#testModeColorB').val())
 	}
 	$('#testModeColorRText').html(rgb.r);
@@ -714,7 +695,7 @@ $(document).ready(function(){
 		UpdateTestModeFillColors();
 		SetTestMode();
 	});
-	
+
 	$('.color-box').colpick({
 		layout:'rgbhex',
 		color:'ff00ff',
@@ -738,7 +719,7 @@ $(document).ready(function(){
 	}).keyup(function(){
 		$(this).colpickSetColor(this.value);
 	})
-	.css('background-color', '#ff00ff');	
+	.css('background-color', '#ff00ff');
 
 	GetTestMode();
 });
@@ -748,9 +729,9 @@ $(document).ready(function(){
 
 
 <div id="bodyWrapper">
-  <?php 
-  $activeParentMenuItem = 'status'; 
-  include 'menu.inc'; ?>
+  <?php
+$activeParentMenuItem = 'status';
+include 'menu.inc';?>
   <div class="mainContainer">
 	  <h2 class="title">Display Testing</h2>
 	  <div class="pageContent">
@@ -774,14 +755,18 @@ $(document).ready(function(){
 	<div class="tab-content">
 		<div id='tab-channels' class="tab-pane fade show active" role="tabpanel" aria-labelledby="interface-settings-tab">
 
-							
+
 				<div class="row">
 					<div class="col-md-3">
 						<div class="backdrop-dark">
 							<label for="testModeEnabled" class="mb-0 d-block">
 								<b>Enable Test Mode:</b>
 								<input type='checkbox' class="ml-1" id='testModeEnabled' onClick='SetTestMode();'>
-							</label> 
+                                &nbsp;
+                                &nbsp;
+								<b>Multicast:</b>
+								<input type='checkbox' class="ml-1" id='multicastEnabled' onClick='SetTestMode();'>
+							</label>
 						</div>
 						<div class="backdrop-dark mt-3">
 
@@ -789,21 +774,22 @@ $(document).ready(function(){
 								<div><b>Model Name:</b></div>
 								<div>
 									<select onChange='UpdateStartEndFromModel();' id='modelName'>
-													<option value='1,<?=$testEndChannel?>'>-- All Channels --</option>
+													<option value='1,<?=$testEndChannel?>'>-- All Local Channels --</option>
+													<option value='1,<?=FPPD_MAX_CHANNELS?>'>-- All Channels --</option>
 							</select>
 							</div>
 							</div>
 
-							<div class="mb-1"><b>Channel Range to Test</b><small  class="form-text text-muted">(1-<? echo FPPD_MAX_CHANNELS; ?>)  </small></div>
-							
+							<div class="mb-1"><b>Channel Range to Test</b><small  class="form-text text-muted">(1-<?echo FPPD_MAX_CHANNELS; ?>)  </small></div>
+
 							<div class="row">
 								<div class="col-6 form-group">
 									<label for="testModeStartChannel">Start Channel:</label>
-									<input class="form-control" type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
+									<input class="form-control" type='number' min='1' max='<?echo FPPD_MAX_CHANNELS; ?>' value='<?=$testStartChannel?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
 								</div>
 								<div class="col-6 form-group">
 									<label for="testModeEndChannel">End Channel:</label>
-									<input class="form-control" type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testEndChannel ?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
+									<input class="form-control" type='number' min='1' max='<?echo FPPD_MAX_CHANNELS; ?>' value='<?=$testEndChannel?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
 								</div>
 							</div>
 
@@ -813,10 +799,10 @@ $(document).ready(function(){
 									<label for='channelIncrement'>Increment:</label>
 								</div>
 								<div class="col-6 form-group">
-									<input class="form-control" type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='3' id='channelIncrement' onChange='SetButtonIncrements();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
+									<input class="form-control" type='number' min='1' max='<?echo FPPD_MAX_CHANNELS; ?>' value='3' id='channelIncrement' onChange='SetButtonIncrements();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
 								</div>
 							</div>
-					
+
 							<div class='row'>
 								<div class="col-6 form-group">
 									<label>Start Channel:</label>
@@ -867,12 +853,12 @@ $(document).ready(function(){
 							</div>
 
 							<div class="mt-2 mb-1">
-								<b >Update Interval: </b> 
-								<input id="testModeCycleMS" type="range"  min="100" max="5000" value="1000" step="100"/> 
+								<b >Update Interval: </b>
+								<input id="testModeCycleMS" type="range"  min="100" max="5000" value="1000" step="100"/>
 								<small  class="form-text text-muted">
 									<span id='testModeCycleMSText'>1000</span><span> ms</span>
 								</small>
-								
+
 							</div>
 							<div>
 
@@ -905,10 +891,10 @@ $(document).ready(function(){
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGBAN' id='RGBChase-RGBAN' onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGBAN'>Chase: R-G-B-All-None</label></div>
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGBCustom' id='RGBChase-RGBCustom' onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGBCustom'>Chase: Custom Pattern: </label></div>
 									<div class="form-group">
-				
-										<input id='testModeRGBCustomPattern' size='36' maxlength='72' type="text" value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> 
+
+										<input id='testModeRGBCustomPattern' size='36' maxlength='72' type="text" value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
 										<small  class="form-text text-muted">(6 hex digits per RGB triplet)</small>
-									</div>	
+									</div>
 
 								</div>
 							</div>
@@ -920,13 +906,13 @@ $(document).ready(function(){
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGBN' id='RGBCycle-RGBN' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGBN' >Cycle: R-G-B-None</label></div>
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGBAN' id='RGBCycle-RGBAN' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGBAN'>Cycle: R-G-B-All-None</label></div>
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGBCustom' id='RGBCycle-RGBCustom' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGBCustom'>Cycle: Custom Pattern: </label> </div>
-									
+
 									<div class="form-group">
-								
-										<input id='testModeRGBCycleCustomPattern' size='36' maxlength='72' type="text" value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> 
+
+										<input id='testModeRGBCycleCustomPattern' size='36' maxlength='72' type="text" value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
 										<small  class="form-text text-muted">(6 hex digits per RGB triplet)	</small>
-									</div>			
-									
+									</div>
+
 								</div>
 							</div>
 						</div>
@@ -948,22 +934,22 @@ $(document).ready(function(){
 							</div>
 						</div>
 							<div class="row">
-								
+
 								<div class="col-sm-4 testModeColorRange"><span>R: </span><input id="testModeColorR" type="range"  min="0" max="255" value="255" step="1"/>  <span id='testModeColorRText'>255</span><span></span></div>
 								<div class="col-sm-4 testModeColorRange"><span>G: </span><input id="testModeColorG" type="range"  min="0" max="255" value="0" step="1"/> </span> <span id='testModeColorGText'>0</span><span></span></div>
 								<div class="col-sm-4 testModeColorRange"><span>B: </span><input id="testModeColorB" type="range"  min="0" max="255" value="255" step="1"/>  <span id='testModeColorBText'>255</span><span></span></div>
-	
+
 							</div>
 						</div>
 						<hr class="mt-4 mb-4">
 						<h2>Single Channel Patterns:</h2>
 							<div class="backdrop">
-														
-				
+
+
 							<span ><b>&nbsp;Channel Data Value: </b></span>
-	
+
 							<div><input id="testModeColorS" type="range"  min="0" max="255" value="255" step="1"/> </div>
-							
+
 							<div><span  id='testModeColorSText'>255</span></div>
 
 
@@ -975,7 +961,7 @@ $(document).ready(function(){
 													<label for="SingleChase" class="custom-control-label"><b>Chase</b></label>
 												</div>
 												<div class="form-col ml-2 pt-1">
-						
+
 						Chase Size:
 						<select id='testModeChaseSize' onChange='SetTestMode();'>
 							<option value='2'>2</option>
@@ -986,7 +972,7 @@ $(document).ready(function(){
 						</select>
 </div>
 											</div>
-										
+
 
 										</div>
 										<div class="col-auto">
@@ -995,17 +981,17 @@ $(document).ready(function(){
 												<label for="SingleFill" class="custom-control-label"><b>Fill</b></label>
 											</div>
 										</div>
-									</div>	
+									</div>
 
-						
-					
+
+
 							</div>
 					</div>
 				</div>
-							
 
 
-				
+
+
 		</div>
 					<div id='tab-sequence' class="tab-pane fade" role="tabpanel" aria-labelledby="interface-settings-tab">
 						<div>
@@ -1033,19 +1019,19 @@ $(document).ready(function(){
 										<li>The Sequence Testing functionality currently only works when FPP is in an idle state and no playlists are playing.  If a playlist starts while testing a sequence, the sequence being tested will be stopped automatically.</li>
 									</ol>
 									</div>
-									
+
 
 								</div>
 						</div>
 					</div>
 				</div>
 				</div>
-			</div>	  	  
+			</div>
 	    </div>
   </div>
 
 
-  <?php include 'common/footer.inc'; ?>
+  <?php include 'common/footer.inc';?>
 </div>
 </body>
 </html>
