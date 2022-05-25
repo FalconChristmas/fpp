@@ -9,7 +9,9 @@ include 'common/menuHead.inc';
 <script>
 function skipSetup() {
     Put('api/settings/initialSetup', false, '1');
-    location.href='index.php';
+
+    var redirectURL = '<?=$_GET['redirect'] ?>';
+    location.href = (redirectURL == '') ? 'index.php' : redirectURL;
 }
 
 function initialSetupChanged() {

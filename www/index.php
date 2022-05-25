@@ -5,11 +5,6 @@
 require_once 'config.php';
 require_once 'common.php';
 
-if (!isset($settings['initialSetup'])) {
-    echo "<meta http-equiv='refresh' content='0;url=initialSetup.php' />\n";
-    exit(0);
-}
-
 include 'playlistEntryTypes.php';
 include 'common/menuHead.inc';
 ?>
