@@ -2066,7 +2066,7 @@ function PerformCopy() {
 
         storageLocation = host;
     } else {
-        storageLocation = $mediaDirectory . "/backups";
+        storageLocation = $mediaDirectory + "/backups";
     }
 
     if (direction.substring(0,4) == 'FROM') {
