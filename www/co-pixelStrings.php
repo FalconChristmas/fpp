@@ -169,6 +169,14 @@ function isLicensedDriver(driver) {
 function showVirtualEEPROMSelect() {
     $('.capeTypeRow').hide();
     $('.capeEEPROMRow').show();
+
+<?
+if (file_exists('/home/fpp/media/config/cape-eeprom.bin')) {
+    echo "\$('.capeEEPROMExistsWarning').show();\n";
+} else {
+    echo "\$('.capeEEPROMExistsWarning').hide();\n";
+}
+?>
 }
 
 function cancelVirtualEEPROMSelect() {
@@ -2322,6 +2330,7 @@ foreach ($files as $file) {
                         &nbsp;
                         <input type='button' class='buttons' value='Cancel' onClick='cancelVirtualEEPROMSelect();'>
                         <input type='button' class='buttons btn-success' value='Install' onClick='InstallFirmware();'>
+                        <span class='capeEEPROMExistsWarning' style='display: none;'><br><br><h3>Warning, changing your virtual EEPROM will clear any current string configuration information.</h3></span>
                     </div>
                 </div>
             </div>
