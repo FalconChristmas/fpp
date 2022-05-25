@@ -17,10 +17,18 @@ $channelOutputDriver = "";
 $printSigningUI = 0;
 $offlineMode = 0;
 
-$return_val = 0;
-$google_dns_ping = exec("ping -q -c 1 -W 1 8.8.8.8 > /dev/null", $output, $return_val);
-unset($output);
-if ($return_val != 0) {
+// Test to see if FPP can get to the signing API
+$curl = curl_init("https://$APIhost/js/internetTest.js");
+curl_setopt($curl, CURLOPT_HEADER, 0);
+curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 2); // Connect in 10 seconds or less
+curl_setopt($curl, CURLOPT_TIMEOUT, 5); // 1 Day Timeout to transfer
+curl_setopt($curl, CURLOPT_USERAGENT, getFPPVersion());
+curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+$request_content = curl_exec($curl);
+$rc = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+curl_close($curl);
+
+if ($rc != 200) {
     $offlineMode = 1;
 }
 
