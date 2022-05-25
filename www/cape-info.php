@@ -82,8 +82,10 @@ if (isset($settings["cape-info"])) {
                 if ($currentCapeInfo['verifiedKeyId'] == 'fp') {
                     $printSigningUI = 1;
                     if ((isset($currentCapeInfo['signed']['licensePorts'])) && ($currentCapeInfo['signed']['licensePorts'] >= 9999)) {
-                        $signingStatus .= "  This cape is already licensed for an unlimited number of outputs.  The signing inputs are shown below in case the cape needs to be re-signed.";
+                        $signingStatus .= "  This cape is already licensed for it's full set of outputs.  The signing form is shown below in case the cape EEPROM needs to be re-signed.";
                     }
+                } else {
+                    $signingStatus .= "  This cape is licensed for it's full set of outputs.";
                 }
             } else {
                 $signingStatus = sprintf( "Cape is using an <b>Unsigned</b> virtual EEPROM and the $channelOutputDriver Channel Output driver.");
@@ -96,11 +98,15 @@ if (isset($settings["cape-info"])) {
                 if ((isset($currentCapeInfo['signed']['licensePorts'])) && ($currentCapeInfo['signed']['licensePorts'] >= 9999)) {
                     $signingStatus .= "  This cape is already licensed for an unlimited number of outputs.  The signing inputs are shown below in case the cape needs to be re-signed.";
                 }
+            } else {
+                $signingStatus .= "  This cape is licensed for it's full set of outputs.";
             }
         } else {
-            $signingStatus = sprintf( "Cape is using an <b>Unsigned</b> EEPROM and the $channelOutputDriver Channel Output driver.");
+            $signingStatus = "Cape is using an <b>Unsigned</b> EEPROM and the $channelOutputDriver Channel Output driver.";
             $printSigningUI = 1;
         }
+    } else {
+        $signingStatus = "This cape is not using any Channel Output drivers which need a signed EEPROM.";
     }
 }
 
