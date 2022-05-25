@@ -195,7 +195,8 @@ function UpdateStartEndFromModel()
             "multisyncHosts": "",
             "args": []
         };
-
+		var postData = JSON.stringify(data);
+		console.log(postData);
 		$.post("api/command", postData).done(function(data) {
 			SetTestMode();
 //			$.jGrowl("Test Mode Disabled");
@@ -415,6 +416,14 @@ function SetTestMode()
             data["args"].push("#" + c.toString(16)); //color
 		}
 
+        if (!enabled) {
+            data = {
+                "command": "Test Stop",
+                "multisyncCommand": $('#multicastEnabled').is('checked'),
+                "multisyncHosts": "",
+                "args": []
+            };
+        }
 		//data.enabled = enabled;
 		//data.channelSet = channelSet;
 		//data.channelSetType = channelSetType;
