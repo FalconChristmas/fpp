@@ -98,7 +98,12 @@ $system_config_areas = array(
 			'dns' => array('type' => 'file', 'location' => $settings['configDirectory']. "/dns"),
 		),
 		'special' => true
-	)
+	),
+	'virtualEEPROM' => array(
+		'friendly_name' => 'Virtual EEPROM',
+        'file' => array(
+                'cape-eeprom.bin' => array('type' => 'file', 'location' => $settings['configDirectory'] . '/cape-eeprom.bin')),
+		'binary' => true)
 );
 
 //FPP Backup version
@@ -961,6 +966,26 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
 //		$settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
 	}
 
+	if ($restore_area_key == "virtualEEPROM" && !$restore_data_is_empty) {
+		$settings_restored[$restore_area_key]['ATTEMPT'] = true;
+		$save_result = false;
+		foreach ($system_config_areas['virtualEEPROM']['file'] as $fn => $finfo) {
+			if (isset($restore_area_data[$fn])) {
+file_put_contents("/home/fpp/media/tmp/here.$fn", json_encode($restore_area_data));
+				if (file_put_contents($finfo['location'], base64_decode($restore_area_data[$fn][0])) === false) {
+					$save_result = false;
+				} else {
+					$save_result = true;
+				}
+			}
+		}
+
+        $settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
+
+        //Set FPPD reboot flag
+        WriteSettingToFile('rebootFlag', 1);
+	}
+
     //PIXELNET/DMX (FPD) RESTORATION
 //    if ($restore_area_key == "pixelnet_DMX") {
 //        //Just overwrite the universes file
@@ -1415,6 +1440,8 @@ function performBackup($area = "all", $allowDownload = true)
 										//JSON
 										//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
 										$backup_file_data = json_decode(@file_get_contents($location_path), true);
+									} else if (isset($config_data['binary']) && $config_data['binary']) {
+										$backup_file_data = base64_encode(@file_get_contents($location_path));
 									} else {
 										//all other files are std flat files, process them into an array by splitting at line breaks
 										$backup_file_data = explode("\n", @file_get_contents($location_path));
@@ -1435,6 +1462,8 @@ function performBackup($area = "all", $allowDownload = true)
 									//JSON
 									//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
 									$backup_file_data = json_decode(@file_get_contents($sfd['location']), true);
+								} else if (isset($config_data['binary']) && $config_data['binary']) {
+									$backup_file_data = base64_encode(@file_get_contents($sfd['location']));
 								} else {
 									//all other files are std flat files, process them into an array by splitting at line breaks
 									$backup_file_data = explode("\n", @file_get_contents($sfd['location']));
@@ -1455,7 +1484,11 @@ function performBackup($area = "all", $allowDownload = true)
 						}
 
 						//Remove sensitive data
-						$tmp_settings_data[$config_key][$sfi] = remove_sensitive_data($file_data);
+						if (!isset($config_data['binary']) || !$config_data['binary']) {
+							$tmp_settings_data[$config_key][$sfi] = remove_sensitive_data($file_data);
+						} else {
+							$tmp_settings_data[$config_key][$sfi] = $file_data;
+						}
 					}
 				} else {
 					if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
@@ -1471,12 +1504,18 @@ function performBackup($area = "all", $allowDownload = true)
 							//JSON
 							//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
 							$file_data = json_decode(file_get_contents($setting_file_to_backup), true);
+						} else if (isset($config_data['binary']) && $config_data['binary']) {
+							$file_data = base64_encode(file_get_contents($setting_file_to_backup));
 						} else {
 							//all other files are std flat files, process them into an array by splitting at line breaks
 							$file_data = explode("\n", file_get_contents($setting_file_to_backup));
 						}
 						//Remove sensitive data
-						$tmp_settings_data[$config_key] = remove_sensitive_data($file_data);
+						if (!isset($config_data['binary']) || !$config_data['binary']) {
+							$tmp_settings_data[$config_key] = remove_sensitive_data($file_data);
+						} else {
+							$tmp_settings_data[$config_key] = $file_data;
+						}
 					}
 				}
 				//End for loop processing each individual "area" in order to get all areas
@@ -1536,6 +1575,8 @@ function performBackup($area = "all", $allowDownload = true)
 									//JSON
 									//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
 									$backup_file_data = json_decode(file_get_contents($location_path), true);
+								} else if (isset($tmp_config_areas[$area]['binary']) && $tmp_config_areas[$area]['binary']) {
+									$backup_file_data = base64_encode(file_get_contents($location_path));
 								} else {
 									//all other files are std flat files, process them into an array by splitting at line breaks
 									$backup_file_data = explode("\n", file_get_contents($location_path));
@@ -1556,6 +1597,8 @@ function performBackup($area = "all", $allowDownload = true)
 								//JSON
 								//channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
 								$backup_file_data = json_decode(file_get_contents($sfd['location']), true);
+							} else if (isset($tmp_config_areas[$area]['binary']) && $tmp_config_areas[$area]['binary']) {
+								$backup_file_data = base64_encode(file_get_contents($sfd['location']));
 							} else {
 								//all other files are std flat files, process them into an array by splitting at line breaks
 								$backup_file_data = explode("\n", file_get_contents($sfd['location']));
@@ -1590,7 +1633,11 @@ function performBackup($area = "all", $allowDownload = true)
 						$file_data = array($backup_file_data);
 					}
 					//Remove Sensitive data
-					$tmp_settings_data[$area][$sfi] = remove_sensitive_data($file_data);
+					if (!isset($tmp_config_areas[$area]['binary']) || !$tmp_config_areas[$area]['binary']) {
+						$tmp_settings_data[$area][$sfi] = remove_sensitive_data($file_data);
+					} else {
+						$tmp_settings_data[$area][$sfi] = $file_data;
+					}
 				}
 			} else {
 				if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
@@ -1598,11 +1645,17 @@ function performBackup($area = "all", $allowDownload = true)
 						$file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
 					} else if (in_array($area, $known_json_config_files)) {
 						$file_data = json_decode(file_get_contents($setting_file_to_backup), true);
+					} else if (isset($tmp_config_areas[$area]['binary']) && $tmp_config_areas[$area]['binary']) {
+						$file_data = base64_encode(file_get_contents($setting_file_to_backup));
 					} else {
 						$file_data = explode("\n", file_get_contents($setting_file_to_backup));
 					}
 					//Remove sensitive data
-					$tmp_settings_data[$area] = remove_sensitive_data($file_data);
+					if (!isset($tmp_config_areas[$area]['binary']) || !$tmp_config_areas[$area]['binary']) {
+						$tmp_settings_data[$area] = remove_sensitive_data($file_data);
+					} else {
+						$tmp_settings_data[$area] = $file_data;
+					}
 				}
 			}
 			//End individual / specific backup area processing
@@ -2032,6 +2085,9 @@ function GetCopyFlags() {
     }
     if (document.getElementById("backup.Videos").checked) {
         flags += " Videos";
+    }
+    if (document.getElementById("backup.EEPROM").checked) {
+        flags += " EEPROM";
     }
     if ((document.getElementById("backup.Backups").checked) &&
         (direction = document.getElementById("backup.Direction").value == 'TOUSB')) {
@@ -2501,8 +2557,12 @@ GetBackupDevices();
             </td><td width='10px'></td><td>
 				<?php PrintSettingCheckbox('Backup Music', 'backup.Music', 0, 0, 1, 0, "", "", 1, 'Music'); ?><br>
 				<?php PrintSettingCheckbox('Backup Videos', 'backup.Videos', 0, 0, 1, 0, "", "", 1, 'Videos'); ?><br>
-            </td><td width='10px'></td><td valign='top' class='copyBackups'>
-            <input type='checkbox' id='backup.Backups'>Backups <span style="color: #AA0000">*</span><br>
+            </td><td width='10px'></td><td valign='top'>
+<?php
+    $eepromValue = file_exists('/home/fpp/media/config/cape-eeprom.bin') ? 1 : 0;
+    PrintSettingCheckbox('Backup Virtual EEPROM', 'backup.EEPROM', 0, 0, 1, 0, "", "", $eepromValue, 'Virtual EEPROM');
+?>
+                <span class='copyBackups'><br><input type='checkbox' id='backup.Backups'>Backups <span style="color: #AA0000">*</span></span>
         </td></tr></table>
         </td></tr>
         <tr><td>Delete extras:</td><td><input type='checkbox' id='backup.DeleteExtra'> (Delete extra files on destination that do not exist on the source)</td></tr>

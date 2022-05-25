@@ -96,6 +96,22 @@ for action in $@; do
     "Videos")
         rsync $EXTRA_ARGS $SOURCE/videos $DEST  2>&1 | IgnoreWarnings
         ;;
+    "EEPROM")
+        if [ ! -d "$DEST/config" ]
+        then
+            mkdir $DEST/config 2> /dev/null
+            chown fpp.fpp $DEST/config 2> /dev/null
+            chmod 775 $DEST/config 2> /dev/null
+        fi
+        if [ -f "$SOURCE/config/cape-eeprom.bin" ]
+        then
+            cp -v $SOURCE/config/cape-eeprom.bin $DEST/config/  2>&1 | IgnoreWarnings
+            chown fpp.fpp $DEST/config/cape-eeprom.bin 2> /dev/null
+            chmod 664 $DEST/config/cape-eeprom.bin 2> /dev/null
+        else
+            echo "$SOURCE/config/cape-eeprom.bin does not exist, nothing to copy."
+        fi
+        ;;
     "Playlists")
         rsync $EXTRA_ARGS $SOURCE/playlists $DEST  2>&1 | IgnoreWarnings
         ;;
@@ -103,7 +119,7 @@ for action in $@; do
         rsync $EXTRA_ARGS $SOURCE/backups $DEST  2>&1 | IgnoreWarnings
         ;;
     "Configuration")
-        rsync $EXTRA_ARGS -q --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS -q --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
         ;;
     *)
         echo -n "Uknown action $action"
