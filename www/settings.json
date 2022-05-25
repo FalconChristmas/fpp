@@ -227,10 +227,10 @@
             "level": 1,
             "settings": [
                 "routeMetric",
+                "ipForwarding",
                 "dhcpServer",
                 "dhcpOffset",
-                "dhcpPoolSize",
-                "ipForwarding"
+                "dhcpPoolSize"
             ]
         }
     },
@@ -305,7 +305,7 @@
         "ipForwarding": {
             "name": "ipForwarding",
             "description": "IP Forwarding",
-            "tip": "Enable forwarding of IP packets through this interface.  Optionally support IP Masquerading",
+            "tip": "Enable forwarding of IP packets through this interface.  Optionally support IP Masquerading/NAT",
             "gatherStats": true,
             "level": 1,
             "restart": 0,
@@ -316,7 +316,7 @@
             "options": {
                 "Off": 0,
                 "Forwarding": 1,
-                "Masquerading": 2
+                "Masquerading/NAT": 2
             }
         },
         "WifiRegulatoryDomain": {

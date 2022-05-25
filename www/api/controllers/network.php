@@ -168,11 +168,68 @@ function network_get_interface()
             if (preg_match('/ESSID:/', $line) && !preg_match('/ESSID:off/', $line)) {
                 $result['CurrentSSID'] = preg_replace('/.*ESSID:"([^"]+)".*/', '$1', $line);
             }
-            if (preg_match('/Rate:/', $line)) {
+            if (preg_match('/Rate=/', $line)) {
                 $result['CurrentRate'] = preg_replace('/.*Bit Rate=([0-9\.]+) .*/', '$1', $line);
             }
         }
         unset($output);
+    }
+    if (isset($result["DHCPSERVER"]) && $result["DHCPSERVER"] == "1") {
+        $result["StaticLeases"] = array();
+        $result["CurrentLeases"] = array();
+        $leasesFile = $settings['configDirectory'] . "/leases." . $interface;
+        if (file_exists($leasesFile)) {
+            $handle = fopen($leasesFile, "r");
+            if ($handle) {
+                $mac = "";
+                $ip = "";
+                while (($line = fgets($handle)) !== false) {
+                    $line = trim($line);
+                    if ($line == "[DHCPServerStaticLease]") {
+                        $mac = "";
+                        $ip = "";
+                    } else if (startsWith($line, "MACAddress=")) {
+                        $mac = substr($line, 11);
+                    } else if (startsWith($line, "Address=")) {
+                        $ip = substr($line, 8);
+                    }
+                    if ($mac != "" && $ip != "") {
+                        $result["StaticLeases"][$ip] = $mac;
+                        $mac = "";
+                        $ip = "";
+                    }
+                }
+            }
+
+            fclose($handle);
+        }
+
+        $out = shell_exec("networkctl --no-legend -l -n 0 status " . $interface);
+        $lines = explode("\n", trim($out));
+        $inLeases = false;
+        $result["CurrentLeases"] = array();
+        foreach ($lines as $line) {
+            $line = trim($line);
+            //echo $line . "\n";
+
+            if (!$inLeases && startsWith($line, "Offered DHCP leases")) {
+                $inLeases = true;
+                $line = trim(substr($line, 20));
+            }
+            if ($inLeases) {
+                $pos = strpos($line, "(to ");
+                if ($pos === false) {
+                    $inLeases = false;
+                } else {
+                    $ip = trim(substr($line, 0, $pos));
+
+                    $mac = trim(shell_exec("arp -a  " . $ip . " | awk '{print $4;}'"));
+                    if (!isset($result["StaticLeases"][$ip]) || $result["StaticLeases"][$ip] != $mac) {
+                        $result["CurrentLeases"][$ip] = $mac;
+                    }
+                }
+            }
+        }
     }
 
     return json($result);
@@ -192,6 +249,7 @@ function network_set_interface()
     }
 
     $cfgFile = $settings['configDirectory'] . "/interface." . $data['INTERFACE'];
+    $leasesFile = $settings['configDirectory'] . "/leases." . $data['INTERFACE'];
 
     $f = fopen($cfgFile, "w");
     if ($f == false) {
@@ -224,6 +282,19 @@ function network_set_interface()
     }
     if (isset($data['DHCPSERVER'])) {
         fprintf($f, "DHCPSERVER=%d\n", $data['DHCPSERVER'] ? "1" : 0);
+        if ($data['DHCPSERVER']) {
+            if (isset($data['Leases'])) {
+                $lf = fopen($leasesFile, "w");
+                foreach ($data['Leases'] as $ip => $mac) {
+                    fprintf($lf, "[DHCPServerStaticLease]\n");
+                    fprintf($lf, "MACAddress=%s\n", $mac);
+                    fprintf($lf, "Address=%s\n\n", $ip);
+                }
+                fclose($lf);
+            } else if (file_exists($leasesFile)) {
+                unlink($leasesFile);
+            }
+        }
     }
     if (isset($data['DHCPOFFSET'])) {
         fprintf($f, "DHCPOFFSET=%d\n", $data['DHCPOFFSET']);
@@ -237,7 +308,6 @@ function network_set_interface()
     if (isset($data['IPFORWARDING'])) {
         fprintf($f, "IPFORWARDING=%d\n", $data['IPFORWARDING']);
     }
-
     fclose($f);
 
     return json(array("status" => "OK"));

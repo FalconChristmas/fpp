@@ -386,6 +386,7 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         echo "$ADDRESSLINES" >> $TMPFILE
         echo "IgnoreCarrierLoss=5s" >> $TMPFILE
         echo "" >> $TMPFILE
+
         if [ "x$GATEWAY" != "x" ]; then
             echo "[Route]" >> $TMPFILE
             echo "Gateway=${GATEWAY}" >> $TMPFILE
@@ -412,6 +413,10 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
                 echo "DNS=${DNS1}" >> $TMPFILE
             fi
             echo "" >> $TMPFILE
+            if [ -f "${FPPHOME}/media/config/leases.${INTERFACE}" ]; then
+                cat "${FPPHOME}/media/config/leases.${INTERFACE}" >> $TMPFILE
+                echo "" >> $TMPFILE
+            fi
 
             if [ ! -f "${FPPHOME}/media/config/proxies" ]; then
                 # DHCPServer is on, lets make sure proxies are enabled

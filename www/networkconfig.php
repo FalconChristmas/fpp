@@ -239,6 +239,16 @@ function SaveNetworkConfig() {
         data.HIDDEN = $('#eth_hidden').is(':checked');
 	}
 
+    data.Leases = {};
+    $('#staticLeasesTable > tbody > tr').each(function() {
+        var checkBox = $(this).find('#static_enabled');
+        if (checkBox.is(":checked")) {
+            var ip = $(this).find('#static_ip').val();
+            var mac = $(this).find('#static_mac').val();
+            data.Leases[ip] = mac;
+        }
+    })
+
 	var postData = JSON.stringify(data);
 
 	$.post("api/network/interface/" + iface, postData
@@ -450,7 +460,33 @@ function GetInterfaceInfo(data,status) {
     } else {
         $('#ipForwarding').val(0);
     }
+
+    $("#staticLeasesTable > tbody").empty();
+    if (data.DHCPSERVER && (data.DHCPSERVER == "1")) {
+        var leases = data.StaticLeases;
+        for (ip in leases) {
+            var mac = leases[ip];
+            var tr = "<tr><td><input type='checkbox' id='static_enabled' checked></td>";
+            tr += "<td><input type='text' id='static_ip' value='" + ip + "' size='16'></td>";
+            tr += "<td><input type='hidden' id='static_mac' value='" + mac + "'/>" + mac + "</td></tr>";
+            $("#staticLeasesTable > tbody").append(tr);
+        }
+        var leases = data.CurrentLeases;
+        for (ip in leases) {
+            var mac = leases[ip];
+            var tr = "<tr><td><input type='checkbox' id='static_enabled'></td>";
+            tr += "<td><input type='text' id='static_ip' value='" + ip + "' size='16'></td>";
+            tr += "<td><input type='hidden' id='static_mac' value='" + mac + "'/>" + mac + "</td></tr>";
+            $("#staticLeasesTable > tbody").append(tr);
+        }
+        $("#staticLeases").show();
+    } else {
+        $("#staticLeases").hide();
+    }
+
     UpdateChildSettingsVisibility();
+<?} else {?>
+    $("#staticLeases").hide();
 <?}?>
 	CheckDNS();
 }
@@ -592,12 +628,34 @@ function NoSaveSettingCallback() {
 }
 function dhcpServerEnabledCallback() {
     UpdatedhcpServerChildren(0);
+    if ($('#dhcpServer').is(':checked')) {
+        $("#staticLeases").show();
+    } else {
+        $("#staticLeases").hide();
+    }
 }
 </script>
 <?php
 PrintSettingGroup("advNetworkSettingsGroup", "", "", 1, "", "", true);
 ?>
-
+<div id="staticLeases">
+    <h3>Static Leases</h3>
+    <div class="fppTableWrapper">
+        <div class='fppTableContents' role="region" aria-labelledby="staticLeasesTable" tabindex="0">
+            <table id="staticLeasesTable" class="fppSelectableRowTable" style="width:500px;">
+                <thead>
+                    <tr>
+                        <th>Enable</td>
+                        <th>IP</td>
+                        <th>MAC Address</td>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
               <br>
               <input name="btnSetInterface" type="button" style="" class = "buttons btn-success" value="Update Interface" onClick="SaveNetworkConfig();">
               <input id="btnConfigNetwork" type="button" style="display: none;" class = "buttons" value="Restart Network" onClick="ApplyNetworkConfig();">
