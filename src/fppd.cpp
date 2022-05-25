@@ -273,6 +273,7 @@ bool setupExceptionHandlers() {
         // some systems extend it with non std fields, so zero everything
         memset(&act, 0, sizeof(act));
 
+        act.sa_handler = handleCrash;
         sigemptyset(&act.sa_mask);
         act.sa_flags = 0;
 
