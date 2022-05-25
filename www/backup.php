@@ -1961,7 +1961,7 @@ if ($skipHTMLCodeOutput == false) {
 <html lang="en">
 <head>
     <?php require_once 'common/menuHead.inc'; ?>
-    <title>$pageTitle</title>
+    <title><?=$pageTitle?></title>
     <!--    <script>var helpPage = "help/backup.php";</script>-->
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
