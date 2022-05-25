@@ -17,8 +17,12 @@ if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
 } else if (isset($_GET['filename'])) {
     if (preg_match('/\/opt\/fpp\/capes/', $_GET['filename'])) {
         $file = $_GET['filename'];
-        unlink('/home/fpp/media/config/co-pixelStrings.json');
-        unlink('/home/fpp/media/config/co-bbbStrings.json');
+
+        if (file_exists('/home/fpp/media/config/cape-eeprom.bin')) {
+            unlink('/home/fpp/media/config/co-bbbStrings.json');
+            unlink('/home/fpp/media/config/co-pixelStrings.json');
+        }
+
     } else {
         $file = $uploadDirectory . '/' . $_GET['filename'];
     }
