@@ -3,10 +3,12 @@
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/backups/list
 function GetAvailableBackupsFromDir($backupDir) {
+    global $settings;
+
     $excludeList = Array();
     $dirs = Array();
 
-    foreach(scandir($mediaDirectory) as $fileName) {
+    foreach(scandir($settings['mediaDirectory']) as $fileName) {
         if (($fileName != '.') &&
             ($fileName != '..')) {
             array_push($excludeList, $fileName);
@@ -36,7 +38,8 @@ function GetAvailableBackupsFromDir($backupDir) {
 }
 
 function GetAvailableBackups() {
-    return json(GetAvailableBackupsFromDir($mediaDirectory . '/backups/'));
+    global $settings;
+    return json(GetAvailableBackupsFromDir($settings['mediaDirectory'] . '/backups/'));
 }
 
 function CheckIfDeviceIsUsable($deviceName) {
