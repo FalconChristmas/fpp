@@ -13,6 +13,8 @@
 #include "fpp-pch.h"
 
 #include "TestPatternBase.h"
+#include "overlays/PixelOverlay.h"
+#include "overlays/PixelOverlayModel.h"
 
 /*
  *
@@ -94,27 +96,32 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
     std::vector<std::string> ranges = split(channelSetStr, ';');
 
     for (int r = 0; r < ranges.size(); r++) {
-        std::vector<std::string> parts = split(ranges[r], '-');
+        PixelOverlayModel* model = PixelOverlayManager::INSTANCE.getModel(ranges[r]);
+        if (model != nullptr) {
+            start = model->getStartChannel();
+            end = start + model->getChannelCount() - 1;
+        } else {
+            std::vector<std::string> parts = split(ranges[r], '-');
 
-        if (parts.size()) {
-            start = atoi(parts[0].c_str());
-            if (start > 0)
-                start--;
+            if (parts.size()) {
+                start = atoi(parts[0].c_str());
+                if (start > 0)
+                    start--;
 
-            if (parts.size() > 1)
-                end = atoi(parts[1].c_str());
-            else
-                end = start;
+                if (parts.size() > 1)
+                    end = atoi(parts[1].c_str());
+                else
+                    end = start;
 
-            if (end > 0)
-                end--;
+                if (end > 0)
+                    end--;
 
-            if (end > FPPD_MAX_CHANNELS)
-                end = FPPD_MAX_CHANNELS - 1;
-
-            m_channelSet.push_back(std::make_pair(start, end));
-            m_channelCount += end - start + 1;
+                if (end > FPPD_MAX_CHANNELS)
+                    end = FPPD_MAX_CHANNELS - 1;
+            }
         }
+        m_channelSet.push_back(std::make_pair(start, end));
+        m_channelCount += end - start + 1;
     }
 
     return 1;

@@ -32,7 +32,8 @@ public:
         Result() :
             m_contentType("text/plain") {}
         Result(const std::string& r) :
-            m_result(r) {}
+            m_result(r),
+            m_contentType("text/plain") {}
         virtual ~Result() {}
 
         virtual bool isDone() { return true; }

@@ -13,6 +13,7 @@
 
 #include <pthread.h>
 #include <stdint.h>
+#include <string>
 #include <vector>
 
 class ChannelOutput;
@@ -58,3 +59,4 @@ void StartingOutput(void);
 void StoppingOutput(void);
 
 const std::vector<std::pair<uint32_t, uint32_t>>& GetOutputRanges(bool precise = true);
+std::string GetOutputRangesAsString(bool precise = true, bool oneBased = false);

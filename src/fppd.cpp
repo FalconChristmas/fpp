@@ -566,6 +566,7 @@ int main(int argc, char* argv[]) {
         sequence->SendBlankingData();
     }
     InitEffects();
+    ChannelTester::INSTANCE.RegisterCommands();
 
     WriteRuntimeInfoFile(multiSync->GetSystems(true, false));
 

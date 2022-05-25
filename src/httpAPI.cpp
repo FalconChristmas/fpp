@@ -77,6 +77,7 @@ void APIServer::Init(void) {
     m_ws = new webserver(m_params);
 
     m_pr = new PlayerResource;
+    m_ws->register_resource("/fppd/testing", &ChannelTester::INSTANCE, true);
     m_ws->register_resource("/fppd", m_pr, true);
     m_ws->register_resource("/models", &PixelOverlayManager::INSTANCE, true);
     m_ws->register_resource("/overlays", &PixelOverlayManager::INSTANCE, true);
@@ -182,10 +183,6 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
         SetOKResult(result, "");
     } else if (url == "sequence") {
         LogDebug(VB_HTTP, "API - Getting list of running sequences\n");
-    } else if (url == "testing") {
-        LogDebug(VB_HTTP, "API - Getting test mode status\n");
-        result["config"] = LoadJsonFromString(ChannelTester::INSTANCE.GetConfig().c_str());
-        SetOKResult(result, "");
     } else {
         LogErr(VB_HTTP, "API - Error unknown GET request: %s\n", url.c_str());
 
@@ -311,8 +308,6 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(con
             int frames = atoi(url.substr(url.find("/back/") + 6).c_str());
             LogDebug(VB_HTTP, "API - Stepping sequence '%s' BACK by %d frame(s)\n", sequenceName.c_str(), frames);
         }
-    } else if (url == "testing") {
-        PostTesting(data, result);
     } else if (url == "settings/reload") {
         LogDebug(VB_HTTP, "API - Reloading all settings\n");
     } else if (replaceStart(url, "settings/reload/")) {
@@ -893,18 +888,5 @@ void PlayerResource::PostSchedule(const Json::Value data, Json::Value& result) {
         scheduler->ReloadScheduleFile();
 
         SetOKResult(result, "Schedule reload triggered");
-    }
-}
-
-/*
- *
- */
-void PlayerResource::PostTesting(const Json::Value data, Json::Value& result) {
-    std::string config = SaveJsonToString(data);
-
-    if (ChannelTester::INSTANCE.SetupTest(config)) {
-        SetOKResult(result, "Test Mode Activated");
-    } else {
-        SetOKResult(result, "Test Mode Deactivated");
     }
 }

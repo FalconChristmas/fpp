@@ -47,7 +47,6 @@ private:
     void PostOutputs(const Json::Value& data, Json::Value& result);
     void PostOutputsRemap(const Json::Value& data, Json::Value& result);
     void PostSchedule(const Json::Value data, Json::Value& result);
-    void PostTesting(const Json::Value data, Json::Value& result);
 
     void SetOKResult(Json::Value& result, const std::string& msg);
     void SetErrorResult(Json::Value& result, const int respCode, const std::string& msg);

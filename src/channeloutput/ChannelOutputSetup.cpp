@@ -60,6 +60,24 @@ const std::vector<std::pair<uint32_t, uint32_t>>& GetOutputRanges(bool precise) 
     }
     return precise ? preciseOutputRanges : outputRanges;
 }
+std::string GetOutputRangesAsString(bool precise, bool oneBased) {
+    std::string ret;
+    bool first = true;
+    int offset = oneBased ? 1 : 0;
+    for (auto& a : GetOutputRanges(precise)) {
+        if (!first) {
+            ret += ",";
+        } else {
+            first = false;
+        }
+        ret += std::to_string(a.first + offset) + "-" + std::to_string(a.first + a.second - 1 + offset);
+    }
+    if (ret == "") {
+        ret = "1-8";
+    }
+    return ret;
+}
+
 // we'll sort the ranges that the outputs have registered and combine any overlaps
 // or close ranges to keep the range list smaller
 static void sortRanges(std::vector<std::pair<uint32_t, uint32_t>>& rngs, bool gaps) {
