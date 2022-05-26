@@ -6,9 +6,10 @@ $wrapped = 0;
 if (isset($_GET['wrapped']))
     $wrapped = 1;
 
-if (!$wrapped)
+if (!$wrapped) {
   echo "<!DOCTYPE html>\n";
   echo "<html>\n";
+}
 
 $skipJSsettings = 1;
 require_once("common.php");
@@ -32,11 +33,11 @@ Copy Settings
 
 		echo "==================================================================================\n";
 
-    $command = "sudo " . __DIR__ . "/../scripts/copy_settings_to_storage.sh " . escapeshellcmd($_GET['storageLocation']) . " " . $path . " " . escapeshellcmd($_GET['direction'])  . " " . escapeshellcmd($_GET['delete']) . " " . escapeshellcmd($_GET['flags']) . " 2>&1";
+    $command = "sudo " . __DIR__ . "/../scripts/copy_settings_to_storage.sh " . escapeshellcmd($_GET['storageLocation']) . " " . $path . " " . escapeshellcmd($_GET['direction'])  . " " . escapeshellcmd($_GET['delete']) . " " . escapeshellcmd($_GET['flags']);
 
 		echo "Command: ".htmlspecialchars($command)."\n";
 		echo "----------------------------------------------------------------------------------\n";
-        system($command);
+        system($command . " 2>&1");
 		echo "\n";
 if (!$wrapped) {
 ?>

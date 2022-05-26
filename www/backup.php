@@ -2097,13 +2097,16 @@ function GetCopyFlags() {
 
 function PerformCopy() {
     var dev = document.getElementById("backup.USBDevice").value;
-    var path = document.getElementById("backup.Path").value;
+    var path = document.getElementById("backup.Path").value.replaceAll('\\', '/');
     var pathSelect = document.getElementById("backup.PathSelect").value;
     var host = document.getElementById("backup.Host").value;
     var direction = document.getElementById("backup.Direction").value;
     var flags = GetCopyFlags();
 
-    var url = "copystorage.php?direction=" + direction;
+    var url = "copystorage.php?wrapped=1&direction=" + direction;
+
+    // Substite back in case we changed \ to /
+    document.getElementById("backup.Path").value = path;
 
     if ((direction == 'TOUSB') ||
         (direction == 'FROMUSB')) {
@@ -2129,8 +2132,9 @@ function PerformCopy() {
         url += '&path=' + pathSelect;
     } else {
         if (path == '') {
-            DialogError('Copy Failed', 'No path specified');
-            return;
+            document.getElementById("backup.Path").value = '/';
+            path = '/';
+            SetSetting('backup.Path', '/', 0, 0, false);
         }
 
         url += '&path=' + path;
@@ -2156,8 +2160,20 @@ function PerformCopy() {
         }
     }
 
+    var title = (direction.substring(0,4) == 'FROM') ? "FPP File Copy Restore" : "FPP File Copy Backup";
+    $('#copyPopup').fppDialog({ height: 600, width: 900, title: title, dialogClass: 'no-close' });
+    $('#copyPopup').fppDialog( "moveToTop" );
+    $('#copyText').val('');
 
-    window.location.href = url;
+    StreamURL(url, 'copyText', 'CopyDone');
+}
+
+function CloseCopyDialog() {
+    $('#copyPopup').fppDialog('close');
+}
+
+function CopyDone() {
+    $('#closeDialogButton').show();
 }
 
 function GetBackupDevices() {
@@ -2184,9 +2200,12 @@ function GetBackupDevices() {
             }
             $('#backup\\.USBDevice').html(options);
 
-            if ((options != "") &&
-                (document.getElementById("backup.Direction").value == 'FROMUSB'))
-                GetBackupDeviceDirectories();
+            if (options != "") {
+                if (document.getElementById("backup.Direction").value == 'FROMUSB')
+                    GetBackupDeviceDirectories();
+                else if (document.getElementById("backup.Direction").value == 'TOUSB')
+                    GetRestoreDeviceDirectories();
+            }
         }).fail(function() {
             $('#backup\\.USBDevice').html('');
         });
@@ -2209,10 +2228,32 @@ function GetBackupDeviceDirectories() {
         });
 }
 
+function GetRestoreDeviceDirectories() {
+    var dev = document.getElementById("backup.USBDevice").value;
+
+    if (dev == '') {
+        $('#backup\\.PathSelect').html("<option value=''>No USB Device Selected</option>");
+        return;
+    }
+
+    $('#usbDirectories').html('');
+    $.get("api/backups/list/" + dev
+        ).done(function(data) {
+            var options = '';
+            for (i = 0; i < data.length; i++) {
+                if (data[i].substring(0,5) != 'ERROR')
+                    options += "<option value='" + data[i] + "'>" + data[i] + "</option>";
+            }
+            $('#usbDirectories').html(options);
+        });
+}
 function USBDeviceChanged() {
     var direction = document.getElementById("backup.Direction").value;
+alert('direction: ' + direction);
     if (direction == 'FROMUSB')
         GetBackupDeviceDirectories();
+    else if (direction == 'TOUSB')
+        GetRestoreDeviceDirectories();
 }
 
 function PopulateBackupDirs(data) {
@@ -2250,6 +2291,7 @@ function BackupDirectionChanged() {
             $('.copyPathSelect').hide();
             $('.copyHost').hide();
             $('.copyBackups').show();
+            GetRestoreDeviceDirectories();
             break;
         case 'FROMUSB':
             $('.copyUSB').show();
@@ -2292,7 +2334,10 @@ function BackupDirectionChanged() {
     }
 }
 
-GetBackupDevices();
+$(document).ready(function() {
+    $('#backup\\.Path').attr('list', 'usbDirectories');
+    GetBackupDevices();
+});
 
         var activeTabNumber =
 			<?php
@@ -2608,6 +2653,13 @@ $eepromValue = file_exists('/home/fpp/media/config/cape-eeprom.bin') ? 1 : 0;
     </script>
     <?php include 'common/footer.inc';?>
 </div>
+<div id='copyPopup' title='FPP Backup/Restore' style="display: none">
+    <textarea style='width: 99%; height: 93%;' disabled id='copyText'></textarea>
+    <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseCopyDialog();' style='display: none;'>
+</div>
+
+<datalist id='usbDirectories'>
+</datalist>
 </body>
 </html>
 	<?php
