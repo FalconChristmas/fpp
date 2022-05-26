@@ -26,7 +26,7 @@ wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/BBB-FlashMM
 chmod +x BBB-FlashMMC.sh
 ./BBB-FlashMMC.sh -noreboot ext4 /dev/mmcblk1
 
-#copy the ssh keys temporarily to allow it to boot quicker and avoid
+#copy the ssh keys to allow it to boot and avoid
 #having to reset known_hosts while building image
 mount -t ext4 /dev/mmcblk1p1 /mnt
 cp -a /etc/ssh/* /mnt/etc/ssh

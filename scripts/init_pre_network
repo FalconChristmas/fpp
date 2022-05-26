@@ -155,7 +155,7 @@ then
 
     if [ "${BBBMODEL}" != "PocketBeagle" ]; then
 	uboot=$(dd if=/dev/mmcblk1 count=23 skip=393488 bs=1 2>/dev/null || true)
-        if [[ $uboot != *"U-Boot 2021.10-gc2b239f"* ]]; then
+        if [[ $uboot != *"U-Boot 2022.04-g4237220"* ]]; then
             cd /opt/fpp/bin.bbb/bootloader
             dd if=MLO of=/dev/mmcblk1 count=2 seek=1 bs=128k
             dd if=u-boot.img of=/dev/mmcblk1 count=4 seek=1 bs=384k
