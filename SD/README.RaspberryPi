@@ -3,7 +3,7 @@ Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
 Install the latest Raspbian Bullseye Lite image to the SD card.  The last
-version test 2022-01-28-raspios-bullseye-armhf-lite.img
+version test 2022-04-04-raspios-bullseye-armhf-lite.img
 
 Resize the root partition to 3.5GB using fdisk (substitute the proper device
 for your SD card).
@@ -41,6 +41,11 @@ we have the partition mounted:
 	sed -i -e "s# init=/usr/lib/raspi-config/init_resize.sh##" /mnt/tmp/cmdline.txt
 	# Enable ssh by default
 	touch /mnt/tmp/ssh
+    # Add pi user, will be replaced with FPP user as part of FPP_Install.sh
+    # Issue is parts of FPP expect fpp user to be uid/gid 500/500 but
+    # raspian creates the user with 1000/1000 so letting FPP_Install create the FPP user
+    # makes sure the ids are correct
+    echo 'pi:$6$dRNoTVXaaNzLaRIx$3179MQCluSIlnJB/MvBsqLPKjj8nyZgk6F/eDCO4dhadHemapoawGN6uV2/p5JTb7jfo/Jq7yppJs1x3veUj5.' > /mnt/tmp/userconf
 	# Unmount the file system
 	umount /mnt/tmp
 	# Sync the changes so it's safe to remove the SD card

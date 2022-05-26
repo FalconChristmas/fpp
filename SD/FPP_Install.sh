@@ -49,7 +49,7 @@
 #############################################################################
 SCRIPTVER="6.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2022-04"
+FPPIMAGEVER="2022-05"
 FPPCFGVER="71"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -704,6 +704,7 @@ EOF
 			systemctl disable serial-getty@ttyAMA0.service
 			sed -i -e "s/console=serial0,115200 //" /boot/cmdline.txt
 			sed -i -e "s/autologin pi/autologin ${FPPUSER}/" /etc/systemd/system/autologin@.service
+            rm -f "/etc/systemd/system/getty@tty1.service.d/autologin.conf";
 		fi
         rm -f /var/swap
         rfkill unblock all
