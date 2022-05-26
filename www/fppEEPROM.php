@@ -19,6 +19,7 @@ class fppEEPROM {
     private $deviceSerial = '';
     private $signingKey = '';
 
+    private $dataLength = 0;
     private $data = '';
     private $varData = '';
     private $variables = Array();
@@ -106,6 +107,9 @@ class fppEEPROM {
 
             $len = intval(unpack('A6', substr($this->varData, $offset))[1]);
         }
+
+        $this->dataLength = self::FIXEDLENGTH + $offset + 6;
+        $this->data = substr($this->data, 0, $this->dataLength);
 
         return 1;
     }
@@ -559,6 +563,14 @@ class fppEEPROM {
 
     function checkSignature() {
         return $this->sigStatus;
+    }
+
+    function getSize() {
+        return $this->dataLength;
+    }
+
+    function getData() {
+        return $this->data;
     }
 
     function getCapeName() {
