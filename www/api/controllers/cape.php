@@ -77,15 +77,50 @@ function GetSigningDataHelper($returnArray = false)
 
     $eepromData = '';
     $eepromFile = GetEEPROMFilename();
+    $origEEPROM = $eepromFile;
+    $tmpEEPROM = '/home/fpp/media/config/tmpEEPROM.bin';
     if (file_exists($eepromFile)) {
+        if ($eepromFile != '/home/fpp/media/config/cape-eeprom.bin') {
+            exec("sudo dd bs=32K if=$eepromFile of=$tmpEEPROM && sudo chown fpp.fpp $tmpEEPROM");
+            $eepromFile = $tmpEEPROM;
+        }
         if (!$fh = fopen($eepromFile, 'rb')) {
             $result['Status'] = 'ERROR';
-            $result['Message'] = 'Could not open EEPROM ' . $eepromFile;
+            $result['Message'] = 'Could not open EEPROM ' . $origEEPROM;
             return json($result);
         }
 
         $eepromData = fread($fh, 32768);
         fclose($fh);
+
+        if (file_exists($tmpEEPROM))
+            unlink($tmpEEPROM);
+
+        $length = strlen($eepromData);
+        if ($length < 58) {
+            $result['Status'] = 'ERROR';
+            $result['Message'] = 'Invalid EEPROM, length too short.';
+            return json($result);
+        }
+
+        // Determine the actual data size so we can truncate our copy
+        $pos = 58;
+        $slen = intval(substr($eepromData, $pos, 6));
+        while (($slen != 0) && ($pos < $length)) {
+             $pos += 6;
+             $flag = intval(substr($eepromData, $pos, 2));
+             $pos += 2;
+             if ($flag < 50) {
+                 $pos += 64;
+             }
+             $pos += $slen;
+
+             // Read the length of the next section
+            $slen = intval(substr($eepromData, $pos, 6));
+        }
+        $length = $pos + 6;
+
+        $eepromData = substr($eepromData, 0, $length);
     } else {
         $result['Status'] = 'ERROR';
         $result['Message'] = 'Could not locate EEPROM or virtual EEPROM.';
@@ -148,7 +183,7 @@ function SignEEPROMHelper($data)
     $backup = '/home/fpp/media/upload/cape-eeprom-Backup-' . $timestamp . '.bin';
     $newFile = '/home/fpp/media/upload/cape-eeprom-Signed-' . $timestamp . '.bin';
 
-    exec("dd bs=32K if=$eepromFile of=$backup");
+    exec("sudo dd bs=32K if=$eepromFile of=$backup && sudo chown fpp.fpp $backup");
 
     if (file_exists($backup)) {
         # Write out new eeprom
@@ -168,9 +203,8 @@ function SignEEPROMHelper($data)
 
         unlink($newFile);
 
-        exec('sudo /opt/fpp/src/fppcapedetect');
-# FIXME, uncomment before commit
-#        exec('sudo systemctl restart fppd');
+        exec('sudo /opt/fpp/scripts/detect_cape');
+        exec('sudo systemctl restart fppd');
 
         $result['Status'] = 'OK';
         $result['Message'] = 'EEPROM Signed.';
