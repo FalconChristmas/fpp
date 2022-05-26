@@ -294,7 +294,9 @@ function ShouldPrintSetting($s)
                 $invertCheck = true;
             }
             if (file_exists($f)) {
-                $checkFileOK = 1;
+                if (!$invertCheck) {
+                    $checkFileOK = 1;
+                }
             } else if ($invertCheck) {
                 $checkFileOK = 1;
             }
