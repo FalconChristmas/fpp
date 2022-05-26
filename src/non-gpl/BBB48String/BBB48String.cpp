@@ -291,7 +291,6 @@ int BBB48StringOutput::Init(Json::Value config) {
         }
     }
     m_licensedOutputs = CapeUtils::INSTANCE.getLicensedOutputs();
-    m_licensedOutputs = 48; //For now until vouchers can be issued
 
     config["base"] = root;
 

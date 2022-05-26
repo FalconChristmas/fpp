@@ -132,14 +132,11 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
     licensedOutputs = CapeUtils::INSTANCE.getLicensedOutputs();
 
-    // Set to 48 temporarily until we start issuing vouchers
-    licensedOutputs = 48;
-
-//    if (licensedOutputs == 9999) {
-//        LogInfo(VB_CHANNELOUT, "Channel Output is licensed for unlimited outputs\n");
-//    } else {
-//        LogInfo(VB_CHANNELOUT, "Channel Output is licensed for %d outputs\n", licensedOutputs);
-//    }
+    //if (licensedOutputs == 9999) {
+    //    LogInfo(VB_CHANNELOUT, "Channel Output is licensed for unlimited outputs\n");
+    //} else {
+    //    LogInfo(VB_CHANNELOUT, "Channel Output is licensed for %d outputs\n", licensedOutputs);
+    //}
 
     if (!CapeUtils::INSTANCE.getStringConfig(subType, root)) {
         LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s\n", subType.c_str());
@@ -284,7 +281,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
             int start = -1;
             for (auto& a : pixelStrings[s]->m_gpioCommands) {
                 if (a.type == 0) {
-// FIXME, does this work?????
+                    // FIXME, does this work?????
                     start = a.channelOffset;
                 } else if ((a.type == 1) && (start != -1)) {
                     usingSmartReceivers = true;
@@ -393,7 +390,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
 
 #ifdef USE_AUTO_SYNC
     fbPage = fb->Page(true);
-//LogInfo(VB_CHANNELOUT, "%d - PrepData() checking page\n", fbPage);
+    //LogInfo(VB_CHANNELOUT, "%d - PrepData() checking page\n", fbPage);
 
     if (fb->IsDirty(fbPage)) {
         LogErr(VB_CHANNELOUT, "FB Page %d is dirty, output thread isn't keeping up!\n", fbPage);
@@ -478,10 +475,9 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
 }
 
 int DPIPixelsOutput::SendData(unsigned char* channelData) {
-
 #ifdef USE_AUTO_SYNC
     if (fbPage >= 0) {
-//LogInfo(VB_CHANNELOUT, "%d - SendData() marking page dirty\n", fbPage);
+        //LogInfo(VB_CHANNELOUT, "%d - SendData() marking page dirty\n", fbPage);
         fb->SetDirty(fbPage);
         fbPage = -1;
     }
@@ -759,7 +755,7 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t* rowData, int maxString) {
             *(protoDest++) = (onOff >> 8);
             *(protoDest++) = (onOff);
 #ifdef TEST_USING_X11
-        // This is just a slowdown and unneeded when not testing
+            // This is just a slowdown and unneeded when not testing
             protoDest += fb->BytesPerPixel() - 3;
 #endif
         }
