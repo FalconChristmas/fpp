@@ -21,12 +21,14 @@ fi
 
 if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
     # need to install the bootloader that goes with this version of the os
-    cd /opt/backup/uboot
-    dd if=MLO of=/dev/mmcblk1 seek=1 bs=128k
-    dd if=u-boot.img of=/dev/mmcblk1 seek=1 bs=384k
-    dd if=MLO of=/dev/mmcblk0 seek=1 bs=128k
-    dd if=u-boot.img of=/dev/mmcblk0 seek=1 bs=384k
-    cd /
+    if [ -f "/opt/u-boot/bb-u-boot-am335x-evm/install.sh" ]; then
+        /opt/u-boot/bb-u-boot-am335x-evm/install.sh
+    else
+        dd if=/opt/backup/uboot/MLO of=/dev/mmcblk1  count=2 seek=1 conv=notrunc bs=128k
+        dd if=/opt/backup/uboot/u-boot.img of=/dev/mmcblk1  count=4 seek=1 conv=notrunc bs=384k
+        dd if=/opt/backup/uboot/MLO of=/dev/mmcblk0  count=2 seek=1 conv=notrunc bs=128k
+        dd if=/opt/backup/uboot/u-boot.img of=/dev/mmcblk0  count=4 seek=1 conv=notrunc bs=384k
+    fi
 fi
 
 # temporarily copy the ssh keys

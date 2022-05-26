@@ -22,8 +22,12 @@ echo "Installing bootloader "
 echo ""
 
 #install bootloader
-dd if=/opt/backup/uboot/MLO of=${DEVICE} count=1 seek=1 conv=notrunc bs=128k
-dd if=/opt/backup/uboot/u-boot.img of=${DEVICE} count=2 seek=1 conv=notrunc bs=384k
+if [ -f "/opt/u-boot/bb-u-boot-am335x-evm/install.sh" ]; then
+    /opt/u-boot/bb-u-boot-am335x-evm/install.sh
+else
+    dd if=/opt/backup/uboot/MLO of=${DEVICE} count=2 seek=1 conv=notrunc bs=128k
+    dd if=/opt/backup/uboot/u-boot.img of=${DEVICE} count=4 seek=1 conv=notrunc bs=384k
+fi
 
 
 if [ "$PARTS" != "1" ]; then
