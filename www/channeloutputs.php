@@ -226,18 +226,12 @@ $(document).ready(function(){
                     <?
                 }
             }
-			if (in_array('all', $currentCapeInfo["provides"])
-			|| in_array('panels', $currentCapeInfo["provides"])
-			|| !in_array('strings', $currentCapeInfo["provides"])) {
-				?>
+			?>
 						<li class="nav-item">
 							<a class="nav-link" id="tab-LEDPanels-tab" tabType='panels' data-toggle="pill" href='#tab-LEDPanels' role="tab" aria-controls="tab-LEDPanels">
 								LED Panels
 							</a>
 						</li>
-				<?
-				}
-				?>
 						<li class="nav-item">
 							<a class="nav-link" id="tab-other-tab" tabType='other' data-toggle="pill" href='#tab-other' role="tab" aria-controls="tab-other">
 								Other
@@ -278,18 +272,12 @@ $(document).ready(function(){
             <?
             }
         }
-
-		if (in_array('all', $currentCapeInfo["provides"]) 
-		    || in_array('panels', $currentCapeInfo["provides"])
-		    || !in_array('strings', $currentCapeInfo["provides"])) {
-			?>
-				<div class="tab-pane fade" id="tab-LEDPanels" role="tabpanel" aria-labelledby="tab-LEDPanels-tab">
-					<? include_once('co-ledPanels.php'); ?>			
-				</div>
-			<?
-		}
-		
 		?>
+
+			<div class="tab-pane fade" id="tab-LEDPanels" role="tabpanel" aria-labelledby="tab-LEDPanels-tab">
+				<? include_once('co-ledPanels.php'); ?>			
+			</div>
+		
 			<div class="tab-pane fade" id="tab-other" role="tabpanel" aria-labelledby="tab-other-tab">
 				<? include_once("co-other.php"); ?>			
 			</div>
