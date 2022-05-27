@@ -106,7 +106,7 @@ if (isset($settings["cape-info"])) {
             $printSigningUI = 1;
         }
     } else {
-        $signingStatus = "This cape is not using any Channel Output drivers which need a signed EEPROM.";
+        $signingStatus = "This cape is not using any Channel Output drivers which need a signed EEPROM.  If you believe it should be, go to the Pixel Strings config page and re-save the string configs and check back here.";
     }
 }
 
@@ -321,6 +321,13 @@ function SignEEPROM() {
     $('#licenseKey').val(key); // Save the toUpperCase()-ed value
     var url = 'api/cape/eeprom/sign/' + key + '/' + order;
 
+    $('.dialogCloseButton').hide();
+    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Sign Cape EEPROM", dialogClass: 'no-close' });
+    $('#upgradePopup').fppDialog( "moveToTop" );
+    $('#upgradeText').html('Signing Status:\n');
+
+    $('#upgradeText').append('Contacting FPP signing API\n');
+
     $.ajax({
         url: url,
         type: 'POST',
@@ -329,13 +336,17 @@ function SignEEPROM() {
         dataType: 'json',
         success: function (data) {
             if (data.Status == 'OK') {
-                reloadPage();
+                SetRebootFlag();
+                $('#upgradeText').append('Signing Complete.  Please reboot.\n');
+                $('#closeDialogButton').show();
             } else {
-                alert('ERROR signing EEPROM: ' + data.Message);
+                $('#upgradeText').append('\nERROR signing EEPROM:\n\n' + data.Message);
+                $('#errorDialogButton').show();
             }
         },
         error: function () {
-            $.jGrowl('Error calling signing API', { themeState: 'danger' });
+            $('#upgradeText').append('\nERROR calling signing API\n');
+            $('#errorDialogButton').show();
         }
     });
 }
