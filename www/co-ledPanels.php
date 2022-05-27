@@ -1244,6 +1244,20 @@ $(document).ready(function(){
     } else {
         $('.ledPanelCanvasUI').hide();
     }
+
+<?
+    if ((in_array('all', $currentCapeInfo["provides"])) ||
+        (in_array('panels', $currentCapeInfo["provides"]))) {
+?>
+    if (currentCapeName != "" && currentCapeName != "Unknown") {
+        $('.capeNamePanels').html(currentCapeName);
+        $('.capeTypeLabel').html("Cape Config");
+    }
+
+<?
+    }
+?>
+
 });
 
 </script>
@@ -1251,7 +1265,7 @@ $(document).ready(function(){
 <div id='tab-LEDPanels'>
 	<div id='divLEDPanels'>
         <div class="row tablePageHeader">
-            <div class="col-md"><h2><span class='capeName'>LED Panels</span> </h2></div>
+            <div class="col-md"><h2><span class='capeNamePanels'>LED Panels</span> </h2></div>
             <div class="col-md-auto ml-lg-auto">
                 <div class="form-actions">
                     <input type='button' class="buttons btn-success ml-1" onClick='SaveChannelOutputsJSON();' value='Save'>
@@ -1262,7 +1276,7 @@ $(document).ready(function(){
             <div class="row">
                 <div class="col-md-auto">
                     <div class="backdrop-dark form-inline enableCheckboxWrapper">
-                        <div><b>Enable <span class='capeName'>Led Panels</span>:&nbsp;</b></div><div><input id='LEDPanelsEnabled' type='checkbox'></div>
+                        <div><b>Enable <span class='capeNamePanels'>Led Panels</span>:&nbsp;</b></div><div><input id='LEDPanelsEnabled' type='checkbox'></div>
                     </div>
                 </div>
                 <div class="col-md-auto form-inline">

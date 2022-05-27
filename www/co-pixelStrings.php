@@ -2268,7 +2268,7 @@ function pinTableHeader() {
 
 $(document).ready(function(){
     if (currentCapeName != "" && currentCapeName != "Unknown") {
-        $('.capeName').html(currentCapeName);
+        $('.capeNamePixels').html(currentCapeName);
         $('.capeTypeLabel').html("Cape Config");
     }
 
@@ -2285,7 +2285,7 @@ $(document).ready(function(){
     <div id='divPixelString'>
 
         <div class="row tablePageHeader capeTypeRow">
-            <div class="col-md"><h2><span class='capeName'>String Capes</span> </h2></div>
+            <div class="col-md"><h2><span class='capeNamePixels'>String Capes</span> </h2></div>
             <div class="col-md-auto ml-lg-auto">
                 <div class="form-actions">
 
@@ -2346,7 +2346,7 @@ foreach ($files as $file) {
                 <div class="col-md-auto">
                     <div class="backdrop-dark form-inline enableCheckboxWrapper">
 
-                    <div><b>Enable <span class='capeName'>String Cape</span>:</b></div>
+                    <div><b>Enable <span class='capeNamePixels'>String Cape</span>:</b></div>
                                     <div><input id='PixelString_enable' type='checkbox'></div>
 
                     </div>
