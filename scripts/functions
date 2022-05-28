@@ -362,6 +362,7 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
                 echo "" >> ${WPATMPFILE}
                 cp $WPATMPFILE /etc/wpa_supplicant
                 systemctl enable "wpa_supplicant@${INTERFACE}.service"
+                systemctl reload-or-restart "wpa_supplicant@${INTERFACE}.service"
             fi
         fi
         if [ "$DHCPSERVER" == "1" ]; then
