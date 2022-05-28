@@ -610,6 +610,7 @@ MaybeEnableTethering() {
             echo "EmitDNS=no" >> $TMPFILE
             
             cp $TMPFILE /etc/systemd/network
+            systemctl reload-or-restart systemd-networkd.service
             systemctl reload-or-restart hostapd.service
         else
             TetherTechnology=$(getSetting TetherTechnology)
