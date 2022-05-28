@@ -5,7 +5,7 @@ if ! id | grep -q root; then
 	exit
 fi
 
-wdir="/opt/u-boot/bb-u-boot-am335x-evm"
+wdir="/opt/fpp/bin.bbb/bootloader"
 
 if [ -b /dev/mmcblk0 ] ; then
 	echo "dd if=${wdir}/MLO of=/dev/mmcblk0 count=1 seek=1 bs=128k"

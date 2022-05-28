@@ -1190,7 +1190,11 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
     echo "vm.swappiness=1" >> /etc/sysctl.d/10-swap.conf
     echo "vm.vfs_cache_pressure=50" >> /etc/sysctl.d/10-swap.conf
 fi
-
+if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
+    # Bootloader on recent bullseye images does NOT boot on Beagles, use a version we
+    # know works
+    /opt/fpp/bin.bbb/bootloader/install.sh
+fi
 if $isimage; then
     rm -f /etc/resolv.conf
     ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf

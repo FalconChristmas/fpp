@@ -157,8 +157,7 @@ then
 	uboot=$(dd if=/dev/mmcblk1 count=32 skip=393248 bs=1 2>/dev/null || true)
         if [[ $uboot != *"U-Boot 2019.04-g72e2ec7"* ]]; then
             cd /opt/fpp/bin.bbb/bootloader
-            dd if=MLO of=/dev/mmcblk1 count=2 seek=1 bs=128k
-            dd if=u-boot.img of=/dev/mmcblk1 count=4 seek=1 bs=384k
+            /opt/fpp/bin.bbb/bootloader/install.sh
             echo 'rebootFlag = "1"' >> /home/fpp/media/settings
         fi
     fi

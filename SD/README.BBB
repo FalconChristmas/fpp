@@ -56,13 +56,6 @@ rm -rf /lib/modules/$(uname -r)
 rm -rf /boot/dtbs/$(uname -r)
 rm -rf /boot/initrd.img*
 
-cd /opt/u-boot/bb-u-boot-am335x-evm
-./install.sh
-
-cd /opt/backup/uboot
-cp /opt/u-boot/bb-u-boot-am335x-evm/* .
-
-
 # remove a bunch of source that is not needed, free's up space
 rm -f /etc/modules-load.d/roboticscape_modules.conf
 rm -rf /usr/local/lib/node_modules
@@ -90,6 +83,7 @@ rm -rf /opt/cloud9
 rm -rf /etc/avahi/services/cloud9.service
 rm -f /var/local/bb_usb_mass_storage.img
 rm -f /etc/bbb.io/templates/beaglebone-getting-started-2022-01-12.img
+rm -rf /opt/u-boot
 
 # blacklist  bluetooth (needed if making image on BBGG or BBBW)
 echo "blacklist bluetooth" > /etc/modprobe.d/blacklist-bluetooth.conf
