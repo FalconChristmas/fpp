@@ -119,7 +119,7 @@ for action in $@; do
         rsync $EXTRA_ARGS $SOURCE/backups $DEST  2>&1 | IgnoreWarnings
         ;;
     "Configuration")
-        rsync $EXTRA_ARGS -q --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
         ;;
     *)
         echo -n "Uknown action $action"
