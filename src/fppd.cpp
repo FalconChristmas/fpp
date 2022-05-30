@@ -40,14 +40,14 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <Magick++.h>
 #include <execinfo.h>
+#include <filesystem>
 #include <pthread.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
-
-#include <Magick++.h>
 
 #include "NetworkMonitor.h"
 #include "falcon.h"
@@ -258,6 +258,18 @@ static void handleCrash(int s) {
 
     int crashLog = getSettingInt("ShareCrashData", 3);
     if (crashLog >= 1) {
+        std::set<std::string> filenames;
+        std::string mediaDir = getFPPMediaDir();
+        std::string cdir = mediaDir + "/crashes";
+        for (const auto& entry : std::filesystem::directory_iterator(cdir)) {
+            filenames.insert(entry.path());
+        }
+        while (filenames.size() > 10) {
+            std::string f = *filenames.begin();
+            unlink(f.c_str());
+            filenames.erase(filenames.begin());
+        }
+
         char tbuffer[32];
         time_t rawtime;
         time(&rawtime);
@@ -282,9 +294,7 @@ static void handleCrash(int s) {
         sprintf(zfName, "crashes/fpp-%s-%s-%s.zip", sysType, getFPPVersion(), tbuffer);
 
         char zName[1024];
-        std::string mediaDir = getFPPMediaDir();
         chdir(mediaDir.c_str());
-        std::string cdir = mediaDir + "/crashes";
         mkdir(cdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         SetFilePerms(cdir, true);
         sprintf(zName, "zip -r %s /tmp/fppd_crash.log", zfName);
