@@ -242,13 +242,55 @@ static void handleCrash(int s) {
         void* callstack[128];
         int i, frames = backtrace(callstack, 128);
         char** strs = backtrace_symbols(callstack, frames);
+        int fd = open("/tmp/fppd_crash.log", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
         for (i = 0; i < frames; i++) {
             LogErr(VB_ALL, "  %s\n", strs[i]);
         }
         for (i = 0; i < frames; i++) {
             printf("  %s\n", strs[i]);
+            write(fd, strs[i], strlen(strs[i]));
+            write(fd, "\n", 1);
         }
+        write(fd, "\n", 1);
+        close(fd);
         free(strs);
+    }
+
+    int crashLog = getSettingInt("ShareCrashData", 3);
+    if (crashLog >= 1) {
+        char tbuffer[32];
+        time_t rawtime;
+        time(&rawtime);
+        const auto timeinfo = localtime(&rawtime);
+        strftime(tbuffer, sizeof(tbuffer), "%Y-%m-%d_%H-%M-%S", timeinfo);
+        char zName[1024];
+        chdir("/home/fpp/media");
+#ifdef PLATFORM_ARMBIAN
+        char sysType[] = "Armbian";
+#elif defined(PLATFORM_BBB)
+        char sysType[] = "BBB";
+#elif defined(PLATFORM_PI)
+        char sysType[] = "Pi";
+#elif defined(PLATFORM_OSX)
+        char sysType[] = "MacOS";
+#elif defined(PLATFORM_DOCKER)
+        char sysType[] = "Docker";
+#elif defined(PLATFORM_DEBIAN)
+        char sysType[] = "Debian";
+#else
+        char sysType[] = "Unknown";
+#endif
+
+        sprintf(zName, "zip -r upload/fpp-%s-%s-%s.zip /tmp/fppd_crash.log", sysType, getFPPVersion(), tbuffer);
+        if (crashLog > 1) {
+            strcat(zName, " settings");
+            if (crashLog > 2) {
+                strcat(zName, " config tmp logs/fppd.log");
+            }
+        }
+        system(zName);
+        sprintf(zName, "curl https://dankulp.com/crashUpload/index.php -F userfile=@upload/fpp-%s-%s-%s.zip", sysType, getFPPVersion(), tbuffer);
+        system(zName);
     }
     inCrashHandler = false;
     runMainFPPDLoop = 0;

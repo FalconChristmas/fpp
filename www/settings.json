@@ -96,6 +96,7 @@
                 "HostName",
                 "HostDescription",
                 "statsPublish",
+                "ShareCrashData",
                 "FetchVendorLogos",
                 "SendVendorSerial",
                 "InstalledCape",
@@ -150,6 +151,7 @@
             "description": "Privacy",
             "settings": [
                 "statsPublish",
+                "ShareCrashData",
                 "FetchVendorLogos",
                 "SendVendorSerial"
             ]
@@ -1717,6 +1719,20 @@
                 "Raspberry Pi"
             ],
             "type": "checkbox"
+        },
+        "ShareCrashData": {
+            "name": "ShareCrashData",
+            "description": "Share Crash Data with FPP Developers",
+            "gatherStats": true,
+            "tip": "Automatically create crash reports and send to the FPP developers if a crash occurs.  Can select to send just the stack traces or optionally include additional configuration files to help reproduce.",
+            "type": "select",
+            "options": {
+                "Disabled": "0",
+                "Stack Traces Only": "1",
+                "Include settings": "2",
+                "Include settings and configurations": "3"
+            },
+            "default": 3
         },
         "SendVendorSerial": {
             "name": "SendVendorSerial",
