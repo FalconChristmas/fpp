@@ -78,8 +78,8 @@ void TrimWhiteSpace(std::string& s);
 
 uint8_t ReverseBitsInByte(uint8_t n);
 
-bool SetFilePerms(const std::string& filename);
-bool SetFilePerms(const char* file);
+bool SetFilePerms(const std::string& filename, bool exBit = false);
+bool SetFilePerms(const char* file, bool exBit = false);
 
 void MergeJsonValues(Json::Value& a, Json::Value& b);
 Json::Value LoadJsonFromFile(const std::string& filename);

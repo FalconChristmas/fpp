@@ -156,6 +156,10 @@ $(function() {
         HandleMouseClick(event, $(this), 'Uploads');
     });
 
+    $('#tblCrashes').on('mousedown', 'tr', function(event,ui){
+        HandleMouseClick(event, $(this), 'Crashes');
+    });
+
   });
 
   function GetAllFiles() {
@@ -167,6 +171,7 @@ $(function() {
 	GetFiles('Scripts');
 	GetFiles('Logs');
 	GetFiles('Uploads');
+	GetFiles('Crashes');
   }
 
 	function RunScript(scriptName)
@@ -293,6 +298,11 @@ include 'menu.inc';?>
       <li class="nav-item">
         <a class="nav-link " id="tab-uploads-tab" data-toggle="pill" href="#tab-uploads" role="tab" aria-controls="tab-uploads">
         Uploads
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link " id="tab-crashes-tab" data-toggle="pill" href="#tab-crashes" role="tab" aria-controls="tab-crashes">
+        Crash Reports
         </a>
       </li>
     </ul>
@@ -481,7 +491,24 @@ include 'menu.inc';?>
             </div>
           </div>
         </div>
+        <div class="tab-pane fade" id="tab-crashes" role="tabpanel" aria-labelledby="tab-crashes-tab">
+          <div id= "divCrashes">
+            <div class="backdrop">
+              <legend> Crash Reports </legend>
+              <div id="divUploadsData" class="fileManagerDivData">
+                <table id="tblCrashes">
+                </table>
+              </div>
 
+              <div class='form-actions'>
+                <input onclick="ClearSelections('Crashes');" class="buttons" type="button" value="Clear" />
+                <input onclick="ButtonHandler('Crashes', 'download');" class="disableButtons singleCrashesButton multiCrashesButton" type="button"  value="Download" />
+                <input onclick="ButtonHandler('Crashes', 'delete');" class="disableButtons singleCrashesButton multiCrashesButton" type="button"  value="Delete" />
+              </div>
+              <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
+            </div>
+          </div>
+        </div>
         <div id='fileuploader' class='ui-tabs-panel'>
             <div>Select Files</div>
         </div>

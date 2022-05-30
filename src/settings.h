@@ -15,9 +15,8 @@
 #include <stdbool.h>
 #include <string>
 
-
-std::string getFPPDDir(const std::string &path = "");
-std::string getFPPMediaDir(const std::string &path = "");
+std::string getFPPDDir(const std::string& path = "");
+std::string getFPPMediaDir(const std::string& path = "");
 
 #define FPP_DIR getFPPDDir()
 #define FPP_DIR_MEDIA(a) getFPPMediaDir(a)
@@ -30,6 +29,7 @@ std::string getFPPMediaDir(const std::string &path = "");
 #define FPP_DIR_SCRIPT(a) getFPPMediaDir(std::string("/scripts") + a)
 #define FPP_DIR_SEQUENCE(a) getFPPMediaDir(std::string("/sequences") + a)
 #define FPP_DIR_VIDEO(a) getFPPMediaDir(std::string("/videos") + a)
+#define FPP_DIR_CRASHES(a) getFPPMediaDir(std::string("/crashes") + a)
 #define FPP_FILE_LOG getFPPMediaDir("/logs/fppd.log")
 #define FPP_FILE_PIXELNET getFPPMediaDir("/config/Falcon.FPDV1")
 #define FPP_FILE_SETTINGS getFPPMediaDir("/settings")
@@ -66,7 +66,7 @@ char* modeToString(int mode);
 const std::string getFPPmodeStr(FPPMode mode = UNKNOWN_MODE);
 
 // Action functions
-int LoadSettings(const char *base);
+int LoadSettings(const char* base);
 int SaveSettings();
 void UpgradeSettings();
 int SetSetting(const std::string key, const std::string value);

@@ -361,5 +361,13 @@ function finalizeStatusJson($obj)
     //Add data into the final response, since we have the status as an array already then just add the expert view
     //Add a new key for the expert data to the original data array
     $obj['advancedView'] = $request_expert_content;
+
+    if (is_dir($settings['mediaDirectory'] . "/crashes")) {
+        $num = count(glob($settings['mediaDirectory'] . "/crashes/*.zip"));
+        if ($num > 0) {
+            $obj["warnings"][] = "There are <a href='uploadfile.php#tab-crashes'>crash reports</a> available, please submit to FPP developers or delete.";
+        }
+    }
+
     return $obj;
 }

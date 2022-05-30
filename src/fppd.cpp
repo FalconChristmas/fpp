@@ -263,8 +263,6 @@ static void handleCrash(int s) {
         time(&rawtime);
         const auto timeinfo = localtime(&rawtime);
         strftime(tbuffer, sizeof(tbuffer), "%Y-%m-%d_%H-%M-%S", timeinfo);
-        char zName[1024];
-        chdir("/home/fpp/media");
 #ifdef PLATFORM_ARMBIAN
         char sysType[] = "Armbian";
 #elif defined(PLATFORM_BBB)
@@ -280,8 +278,16 @@ static void handleCrash(int s) {
 #else
         char sysType[] = "Unknown";
 #endif
+        char zfName[128];
+        sprintf(zfName, "crashes/fpp-%s-%s-%s.zip", sysType, getFPPVersion(), tbuffer);
 
-        sprintf(zName, "zip -r upload/fpp-%s-%s-%s.zip /tmp/fppd_crash.log", sysType, getFPPVersion(), tbuffer);
+        char zName[1024];
+        std::string mediaDir = getFPPMediaDir();
+        chdir(mediaDir.c_str());
+        std::string cdir = mediaDir + "/crashes";
+        mkdir(cdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        SetFilePerms(cdir, true);
+        sprintf(zName, "zip -r %s /tmp/fppd_crash.log", zfName);
         if (crashLog > 1) {
             strcat(zName, " settings");
             if (crashLog > 2) {
@@ -289,7 +295,8 @@ static void handleCrash(int s) {
             }
         }
         system(zName);
-        sprintf(zName, "curl https://dankulp.com/crashUpload/index.php -F userfile=@upload/fpp-%s-%s-%s.zip", sysType, getFPPVersion(), tbuffer);
+        SetFilePerms(zfName);
+        sprintf(zName, "curl https://dankulp.com/crashUpload/index.php -F userfile=@%s", zfName);
         system(zName);
     }
     inCrashHandler = false;

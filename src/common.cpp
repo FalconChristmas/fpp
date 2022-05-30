@@ -599,21 +599,25 @@ bool PutFileContents(const std::string& filename, const std::string& str) {
     return false;
 }
 
-bool SetFilePerms(const std::string& filename) {
+bool SetFilePerms(const std::string& filename, bool exBit) {
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
+    if (exBit) {
+        mode |= S_IRWXU | S_IRWXG | S_IXOTH;
+    }
     chmod(filename.c_str(), mode);
-
+#ifndef PLATFORM_OSX
     struct passwd* pwd = getpwnam("fpp");
     if (pwd) {
         chown(filename.c_str(), pwd->pw_uid, pwd->pw_gid);
     }
+#endif
 
     return true;
 }
 
-bool SetFilePerms(const char* file) {
+bool SetFilePerms(const char* file, bool exBit) {
     const std::string filename = file;
-    return SetFilePerms(filename);
+    return SetFilePerms(filename, exBit);
 }
 
 /////////////////////////////////////////////////////////////////////////////
