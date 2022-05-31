@@ -368,19 +368,21 @@ function SetTestMode()
             "args": []
         };
 		var channelSet = "" + startChannel + "-" + endChannel;
-        data["args"].push(channelSet);
         data["args"].push(cycleMS);
 
 		if (mode == "SingleChase") {
             data["args"].push("Single Channel Chase");
+            data["args"].push(channelSet);
             data["args"].push(colorS.toString());
             data["args"].push(chaseSize.toString());
 		} else if (mode.substring(0,9) == "RGBChase-") {
             if (mode == "RGBChase-RGBCustom") {
                 data["args"].push("Custom Chase");
+                data["args"].push(channelSet);
                 data["args"].push($('#testModeRGBCustomPattern').val());
             } else {
                 data["args"].push("RGB Chase");
+                data["args"].push(channelSet);
                 if (mode == "RGBChase-RGB") {
                     data["args"].push("R-G-B");
 			    } else if (mode == "RGBChase-RGBN") {
@@ -394,9 +396,11 @@ function SetTestMode()
 		} else if (mode.substring(0,9) == "RGBCycle-") {
             if (mode == "RGBCycle-RGBCustom") {
                 data["args"].push("Custom Cycle");
+                data["args"].push(channelSet);
                 data["args"].push($('#testModeRGBCycleCustomPattern').val());
             } else {
                 data["args"].push("RGB Cycle");
+                data["args"].push(channelSet);
                 if (mode == "RGBCycle-RGB") {
                     data["args"].push("R-G-B");
 			    } else if (mode == "RGBCycle-RGBN") {
@@ -409,9 +413,11 @@ function SetTestMode()
             }
 		} else if (mode == "SingleFill") {
             data["args"].push("Single Channel Fill");
+            data["args"].push(channelSet);
             data["args"].push(colorS.toString());
 		} else if (mode == "RGBFill") {
             data["args"].push("RGB Single Color");
+            data["args"].push(channelSet);
             var c = (color1 << 16) + (color2 << 8) + color3;
             data["args"].push("#" + c.toString(16)); //color
 		}
@@ -769,12 +775,8 @@ include 'menu.inc';?>
 					<div class="col-md-3">
 						<div class="backdrop-dark">
 							<label for="testModeEnabled" class="mb-0 d-block">
-								<b>Enable Test Mode:</b>
-								<input type='checkbox' class="ml-1" id='testModeEnabled' onClick='SetTestMode();'>
-                                &nbsp;
-                                &nbsp;
-								<b>Multicast:</b>
-								<input type='checkbox' class="ml-1" id='multicastEnabled' onClick='SetTestMode();'>
+								<div><b>Enable Test Mode:</b>&nbsp;<input type='checkbox' class="ml-1" id='testModeEnabled' onClick='SetTestMode();'></div>
+								<div><b>Multicast:</b>&nbsp;<input type='checkbox' class="ml-1" id='multicastEnabled' onClick='SetTestMode();'></div>
 							</label>
 						</div>
 						<div class="backdrop-dark mt-3">

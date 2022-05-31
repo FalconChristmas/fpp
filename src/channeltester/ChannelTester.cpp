@@ -70,8 +70,6 @@ class StartTestingCommand : public Command {
 public:
     StartTestingCommand() :
         Command("Test Start") {
-        std::string rng = GetOutputRangesAsString(false, true);
-        args.push_back(CommandArg("ChannelRange", "datalist", "Channel Range/Model").setDefaultValue(rng).setContentListUrl("api/models?simple=true", false));
         args.push_back(CommandArg("UpdateInterval", "int", "Update Interval (ms)").setDefaultValue("1000").setRange(100, 10000));
         args.push_back(CommandArg("TestPattern", "subcommand", "Test Pattern").setContentListUrl("api/fppd/testing/tests/"));
     }
@@ -109,8 +107,8 @@ public:
         //}
         Json::Value config;
         config["enabled"] = 1;
-        config["cycleMS"] = std::stoi(args[1], nullptr, 10);
-        std::string effect = args[2];
+        config["cycleMS"] = std::stoi(args[0], nullptr, 10);
+        std::string effect = args[1];
         config["colorPattern"] = "";
         if (effect == "RGB Chase") {
             config["mode"] = "RGBChase";
@@ -146,7 +144,7 @@ public:
             config["color2"] = v;
             config["color3"] = v;
         }
-        config["channelSet"] = args[0];
+        config["channelSet"] = args[2];
         config["channelSetType"] = "channelRange";
         ChannelTester::INSTANCE.SetupTest(config);
         return std::make_unique<Result>("Started");
@@ -176,6 +174,16 @@ const std::shared_ptr<httpserver::http_response> ChannelTester::render_GET(const
         result.append("Single Channel Fill");
     } else if (plen == 4) {
         std::string effect = req.get_path_pieces()[3];
+        Json::Value vcr;
+        vcr["allowBlanks"] = false;
+        vcr["contentListUrl"] = "api/models?simple=true";
+        std::string rng = GetOutputRangesAsString(false, true);
+        vcr["default"] = rng;
+        vcr["description"] = "Channel Range/Model";
+        vcr["name"] = "ChannelRange";
+        vcr["optional"] = false;
+        vcr["type"] = "datalist";
+        result["args"].append(vcr);
         if (effect == "RGB Chase") {
             Json::Value v;
             v["description"] = "Chase Type";
