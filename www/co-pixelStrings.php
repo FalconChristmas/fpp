@@ -1301,6 +1301,9 @@ function populatePixelStringOutputs(data) {
             var type = output.type;
             if (IsPixelStringDriverType(type)) {
                 $('#PixelString_enable').prop('checked', output.enabled);
+                if (output.enabled) {
+                    $("#tab-strings-LI").show();
+                }
                 var subType = output.subType;
                 $('#PixelStringSubType').val(subType);
                 var version = output.pinoutVersion;
