@@ -20,7 +20,8 @@
 #define MAX_PANELS_PER_OUTPUT 24
 #define MAX_MATRIX_PANELS (MAX_MATRIX_OUTPUTS * MAX_PANELS_PER_OUTPUT)
 
-typedef struct ledPanel {
+class LEDPanel {
+public:    
     int output;
     int chain;
     int width;
@@ -32,7 +33,10 @@ typedef struct ledPanel {
     FPPColorOrder colorOrder;
 
     std::vector<int> pixelMap;
-} LEDPanel;
+
+    void drawNumber(int v, int x, int y, unsigned char* channelData);
+    void drawTestPattern(unsigned char* channelData, int cycleNum, int testType);
+};
 
 class PanelMatrix {
 public:

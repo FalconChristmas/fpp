@@ -43,6 +43,11 @@ public:
     BBBMatrix(unsigned int startChannel, unsigned int channelCount);
     virtual ~BBBMatrix();
 
+    virtual std::string GetOutputType() const override {
+        return "BBB Panels";
+    }
+
+
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
@@ -54,6 +59,9 @@ public:
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
+
+    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, int testType) override;
+    virtual bool SupportsTesting() const override { return  true; }
 private:
     void calcBrightnessFlags(std::vector<std::string>& sargs);
     void printStats();

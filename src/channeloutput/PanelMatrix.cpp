@@ -201,3 +201,165 @@ int PanelMatrix::CalculateMaps(void) {
 
     return 1;
 }
+
+
+void LEDPanel::drawTestPattern(unsigned char* channelData, int cycleNum, int testType) {
+    unsigned char clr[3];
+    switch (cycleNum % 3) {
+    case 0:
+        clr[0] = clr[2] = 0;
+        clr[1] = 255;
+        break;
+    case 1:
+        clr[2] = clr[1] = 0;
+        clr[0] = 255;
+        break;
+    default:
+        clr[0] = clr[1] = 0;
+        clr[2] = 255;
+        break;
+    }
+    for (int y = 0; y < (height / 2); y++) {
+        int yw1 = y * width * 3;
+        int yw2 = (y + (height / 2)) * width * 3;
+
+        for (int x = 0; x < width; ++x) {
+            int r = 0, g = 0, b = 0;
+            int r2 = 0, g2 = 0, b2 = 0;
+            if (x == 0) {
+                r = r2 = clr[0];
+                g = g2 = clr[1];
+                b = b2 = clr[2];
+            }
+            if (x == (width - 1)) {
+                r = r2 = clr[1];                        
+                g = g2 = clr[2];
+                b = b2 = clr[0];
+            }
+            if (y == 0) {
+                r = clr[2];                        
+                g = clr[0];
+                b = clr[1];
+            }
+            if (y == (height/2 -1)) {
+                r2 = clr[2];                        
+                g2 = clr[0];
+                b2 = clr[1];
+            }
+            if (x == y) {
+                r = g = b = 255;
+            }
+
+            if (x >= (width/2-2) && x <= (width/2+1)) {
+                if (y <= 1) {
+                    r2 = g2 = b2 = 255;
+                } else if (y >= (height/2 - 2)) {
+                    r = g = b = 255;
+                }
+            }
+
+            channelData[pixelMap[yw1 + x * 3]] = r;
+            channelData[pixelMap[yw1 + x * 3 + 1]] = g;
+            channelData[pixelMap[yw1 + x * 3 + 2]] = b;
+
+            channelData[pixelMap[yw2 + x * 3]] = r2;
+            channelData[pixelMap[yw2 + x * 3 + 1]] = g2;
+            channelData[pixelMap[yw2 + x * 3 + 2]] = b2;
+        }
+    }
+}
+
+
+void LEDPanel::drawNumber(int v, int x, int y, unsigned char* channelData) {
+    if (v >= 20) {
+        drawNumber(2, x, y, channelData);
+        x += 4;
+        v -= 20;
+    }
+    if (v >= 10) {
+        drawNumber(1, x, y, channelData);
+        x += 2;
+        v -= 10;
+    }
+    int yw1;
+    if (v == 1) {
+        for (int yo = 0; yo < 5; yo++) {
+            int yw1 = (y + yo) * width * 3;
+            channelData[pixelMap[yw1 + x * 3]] = 255;
+            channelData[pixelMap[yw1 + x * 3 + 1]] = 255;
+            channelData[pixelMap[yw1 + x * 3 + 2]] = 255;
+        }
+        return;
+    }
+    if (v == 4) {
+        for (int yo = 0; yo < 5; yo++) {
+            int yw1 = (y + yo) * width * 3;
+            channelData[pixelMap[yw1 + (x + 2) * 3]] = 255;
+            channelData[pixelMap[yw1 + (x + 2) * 3 + 1]] = 255;
+            channelData[pixelMap[yw1 + (x + 2) * 3 + 2]] = 255;
+            if (yo < 3) {
+                channelData[pixelMap[yw1 + x * 3]] = 255;
+                channelData[pixelMap[yw1 + x * 3 + 1]] = 255;
+                channelData[pixelMap[yw1 + x * 3 + 2]] = 255;
+            }
+        }
+        yw1 = (y + 2) * width * 3;
+        for (int x2 = 0; x2 < 3; x2++) {
+            channelData[pixelMap[yw1 + (x + x2) * 3]] = 255;
+            channelData[pixelMap[yw1 + (x + x2) * 3 + 1]] = 255;
+            channelData[pixelMap[yw1 + (x + x2) * 3 + 2]] = 255;
+        }
+        return;
+    }
+    if (v == 7) {
+        for (int yo = 0; yo < 5; yo++) {
+            int yw1 = (y + yo) * width * 3;
+            channelData[pixelMap[yw1 + (x + 2) * 3]] = 255;
+            channelData[pixelMap[yw1 + (x + 2) * 3 + 1]] = 255;
+            channelData[pixelMap[yw1 + (x + 2) * 3 + 2]] = 255;
+        }
+        yw1 = y * width * 3;
+        for (int x2 = 0; x2 < 3; x2++) {
+            channelData[pixelMap[yw1 + (x + x2) * 3]] = 255;
+            channelData[pixelMap[yw1 + (x + x2) * 3 + 1]] = 255;
+            channelData[pixelMap[yw1 + (x + x2) * 3 + 2]] = 255;
+        }
+        return;    
+    }
+    yw1 = y * width * 3;
+    for (int x2 = 0; x2 < 3; x2++) {
+        channelData[pixelMap[yw1 + (x + x2) * 3]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + 1]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + 2]] = 255;
+
+        channelData[pixelMap[yw1 + (x + x2) * 3 + width * 6]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + 1 + width * 6]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + 2 + width * 6]] = 255;
+
+        channelData[pixelMap[yw1 + (x + x2) * 3 + width * 12]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + 1 + width * 12]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + 2 + width * 12]] = 255;
+    }
+    yw1 = (y + 1) * width * 3;
+    if (v == 5 || v  == 6 || v == 9 || v == 8) {
+        channelData[pixelMap[yw1 + x * 3]] = 255;
+        channelData[pixelMap[yw1 + x * 3 + 1]] = 255;
+        channelData[pixelMap[yw1 + x * 3 + 2]] = 255;
+    }
+    if (v == 2 || v  == 3 || v == 9 || v == 8) {
+        channelData[pixelMap[yw1 + (x + 2) * 3]] = 255;
+        channelData[pixelMap[yw1 + (x + 2) * 3 + 1]] = 255;
+        channelData[pixelMap[yw1 + (x + 2) * 3 + 2]] = 255;
+    }
+    yw1 = (y + 3) * width * 3;
+    if (v == 2 || v  == 6 || v == 8) {
+        channelData[pixelMap[yw1 + x * 3]] = 255;
+        channelData[pixelMap[yw1 + x * 3 + 1]] = 255;
+        channelData[pixelMap[yw1 + x * 3 + 2]] = 255;
+    }
+    if (v == 3 || v == 5 || v  == 6 || v == 8 | v == 9) {
+        channelData[pixelMap[yw1 + (x + 2) * 3]] = 255;
+        channelData[pixelMap[yw1 + (x + 2) * 3 + 1]] = 255;
+        channelData[pixelMap[yw1 + (x + 2) * 3 + 2]] = 255;
+    }
+}
