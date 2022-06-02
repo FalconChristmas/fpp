@@ -2098,7 +2098,12 @@ if (isset($capes[0]['pinoutVersion'])) {
 define("xLights_MODELS", $mediaDirectory . "/upload/xlights_rgbeffects.xml");
 $models_err = "";
 clearstatcache(true); //TODO: is this needed?
-$models_str = file_get_contents(xLights_MODELS);
+$models_json = "";
+if (file_exists(xLights_MODELS)) {
+    $models_str = file_get_contents(xLights_MODELS);
+} else {
+    $models_str = "";
+}
 if ($models_str == "") {
     $models_err = "xlights_rgbeffect.xml not found.  Please upload it from your xLights folder.";
 } else {
@@ -2117,6 +2122,7 @@ if ($models_str == "") {
 if (!$models_json || $models_json == "") {
     $models_json = "{}";
 }
+
 
 ?>
 const xlmodels = <?echo $models_json; ?>;

@@ -350,8 +350,10 @@ function DrawLEDPanelTable()
 function InitializeLEDPanels()
 {
 	if (("LEDPanelMatrix-Enabled" in channelOutputsLookup) &&
-			(channelOutputsLookup["LEDPanelMatrix-Enabled"]))
+			(channelOutputsLookup["LEDPanelMatrix-Enabled"])) {
 		$('#LEDPanelsEnabled').prop('checked', true);
+        $('#tab-LEDPanels-LI').show();
+    }
 
 	if ("LEDPanelMatrix" in channelOutputsLookup)
 	{

@@ -34,6 +34,8 @@ if (!isset($currentCapeInfo['provides'])) {
 } else if (isset($settings["showAllOptions"]) && $settings["showAllOptions"] == 1) {
     $currentCapeInfo['provides'][] = "all";
     $currentCapeInfo['provides'][] = "fpd";
+} else if ($uiLevel >= 1) { 
+    $currentCapeInfo['provides'][] = "all";
 }
 
 ?>
@@ -190,17 +192,65 @@ $(document).ready(function(){
 <div id='channelOutputManager'>
 		<h1 class='title'>Channel Outputs</h1>
 		<div class="pageContent">
+<?
+            $lpTabStyle = " hidden";
+            $stringTabStyle = " hidden";
+            $e131TabStyle = " hidden";
+            $e131TabStyleActive = "";
+            $lpTabStyleActive = "";
+            $stringTabStyleActive = "";
+
+			if (in_array('all', $currentCapeInfo["provides"])) {
+                $lpTabStyle = "";
+                $e131TabStyle = "";  
+                $stringTabStyle = "";  
+            } else {
+                if (in_array('strings', $currentCapeInfo["provides"])) {
+                    $stringTabStyle = "";
+                }
+                if (in_array('panels', $currentCapeInfo["provides"])
+			        || !in_array('strings', $currentCapeInfo["provides"])) {
+                    $lpTabStyle = "";
+                }
+                if (!in_array('panels', $currentCapeInfo["provides"])
+			        && !in_array('strings', $currentCapeInfo["provides"])) {
+                    $e131TabStyle = "";
+                }
+            }
+            if ($e131TabStyle == "") {
+                $e131TabStyleActive = "active";
+            } else if ($stringTabStyle == "") {
+                $stringTabStyleActive = "active";
+            } else if ($lpTabStyle == "") {
+                $lpTabStyleActive = "active";
+            }
+?>
 
 			<ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
-              <li class="nav-item">
-                <a class="nav-link active" id="tab-e131-tab" tabType='UDP' data-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
+              <li class="nav-item <?=$e131TabStyle?>" id="tab-e131-LI">
+                <a class="nav-link <?=$e131TabStyleActive?>" id="tab-e131-tab" tabType='UDP' data-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
 					E1.31 / ArtNet / DDP / KiNet
 				</a>
               </li>
 
 		<?
-			if ($settings['Platform'] == "Raspberry Pi")
-			{
+
+            if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
+                ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
+                if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+                    $stringTabText="Pixel Strings";
+                    if (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")
+                        $stringTabText=$currentCapeInfo["name"];
+                    ?>
+                    <li class="nav-item <?=$stringTabStyle?>" id="tab-strings-LI" >
+                        <a class="nav-link <?=$stringTabStyleActive?>" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
+                            <? echo $stringTabText; ?>
+                        </a>
+                    </li>
+                    <?
+                }
+            }
+			if ($settings['Platform'] == "Raspberry Pi") {
 				if (in_array('fpd', $currentCapeInfo["provides"])) {
 					?>
 						<li class="nav-item">
@@ -210,34 +260,13 @@ $(document).ready(function(){
 						</li>
 					<?
 				}
-			}
-            if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
-                ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
-                if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-                    $stringTabText="Pixel Strings";
-                    if (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")
-                        $stringTabText=$currentCapeInfo["name"];
-                    ?>
-                    <li class="nav-item">
-                        <a class="nav-link" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
-                            <? echo $stringTabText; ?>
-                        </a>
-                    </li>
-                    <?
-                }
-            }
-			if (in_array('all', $currentCapeInfo["provides"])
-			|| in_array('panels', $currentCapeInfo["provides"])
-			|| !in_array('strings', $currentCapeInfo["provides"])) {
+			}            
 				?>
-						<li class="nav-item">
-							<a class="nav-link" id="tab-LEDPanels-tab" tabType='panels' data-toggle="pill" href='#tab-LEDPanels' role="tab" aria-controls="tab-LEDPanels">
+						<li class="nav-item <?=$lpTabStyle?>" id="tab-LEDPanels-LI">
+							<a class="nav-link <?=$lpTabStyleActive?>" id="tab-LEDPanels-tab" tabType='panels' data-toggle="pill" href='#tab-LEDPanels' role="tab" aria-controls="tab-LEDPanels">
 								LED Panels
 							</a>
 						</li>
-				<?
-				}
-				?>
 						<li class="nav-item">
 							<a class="nav-link" id="tab-other-tab" tabType='other' data-toggle="pill" href='#tab-other' role="tab" aria-controls="tab-other">
 								Other
@@ -248,7 +277,7 @@ $(document).ready(function(){
 		<!-- --------------------------------------------------------------------- -->
 
 		<div class="tab-content" id="channelOutputTabsContent">
-			<div class="tab-pane fade show active" id="tab-e131" role="tabpanel" aria-labelledby="tab-e131-tab">
+			<div class="tab-pane fade show <?=$e131TabStyleActive?>" id="tab-e131" role="tabpanel" aria-labelledby="tab-e131-tab">
 				<? include_once('co-universes.php'); ?>
 			</div>
 
@@ -257,8 +286,17 @@ $(document).ready(function(){
 
 		<?
 		
-		if ($settings['Platform'] == "Raspberry Pi")
-		{
+        if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
+            ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
+            if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+            ?>
+                <div class="tab-pane fade show  <?=$stringTabStyleActive?>" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
+                    <? include_once('co-pixelStrings.php'); ?>
+                </div>
+            <?
+            }
+        }
+        if ($settings['Platform'] == "Raspberry Pi") {
 		    if (in_array('fpd', $currentCapeInfo["provides"])) {
 				?>
 					<div class="tab-pane fade" id="tab-fpd" role="tabpanel" aria-labelledby="tab-fpd-tab">
@@ -267,29 +305,11 @@ $(document).ready(function(){
 				<?
 		    }
 		}
+        ?>
 
-        if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
-            ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
-            if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-            ?>
-                <div class="tab-pane fade" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
-                    <? include_once('co-pixelStrings.php'); ?>
-                </div>
-            <?
-            }
-        }
-
-		if (in_array('all', $currentCapeInfo["provides"]) 
-		    || in_array('panels', $currentCapeInfo["provides"])
-		    || !in_array('strings', $currentCapeInfo["provides"])) {
-			?>
-				<div class="tab-pane fade" id="tab-LEDPanels" role="tabpanel" aria-labelledby="tab-LEDPanels-tab">
-					<? include_once('co-ledPanels.php'); ?>			
-				</div>
-			<?
-		}
-		
-		?>
+            <div class="tab-pane fade <?=$lpTabStyleActive?>" id="tab-LEDPanels" role="tabpanel" aria-labelledby="tab-LEDPanels-tab">
+                <? include_once('co-ledPanels.php'); ?>			
+            </div>
 			<div class="tab-pane fade" id="tab-other" role="tabpanel" aria-labelledby="tab-other-tab">
 				<? include_once("co-other.php"); ?>			
 			</div>

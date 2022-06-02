@@ -2637,6 +2637,7 @@ function populateUniverseData(data, reload, input) {
     var ecb = $('#E131Enabled');
     if (channelData.enabled == 1) {
         ecb.prop('checked', true);
+        $('#tab-e131-LI').show();
         if (!input) {
             $('#outputOffWarning').hide();
         }
