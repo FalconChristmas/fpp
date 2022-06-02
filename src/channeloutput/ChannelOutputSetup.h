@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <set>
 
 class ChannelOutput;
 class OutputProcessors;
@@ -51,7 +52,8 @@ extern OutputProcessors outputProcessors;
 int InitializeChannelOutputs(void);
 int PrepareChannelData(char* channelData);
 int SendChannelData(const char* channelData);
-void OverlayOutputTestData(unsigned char *channelData, int cycleCnt, int testType);
+void OverlayOutputTestData(std::set<std::string> types, unsigned char *channelData, int cycleCnt, int testType);
+std::set<std::string> GetOutputTypes();
 void CloseChannelOutputs(void);
 void SetChannelOutputFrameNumber(int frameNumber);
 void ResetChannelOutputFrameNumber(void);

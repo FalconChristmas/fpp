@@ -146,7 +146,8 @@ public:
             config["color3"] = v;
         } else if (effect == "Output Specific") {
             config["mode"] = "Outputs";
-            int v = std::stoi(args[2], nullptr, 10);
+            config["outputs"] = args[2];
+            int v = std::stoi(args[3], nullptr, 10);
             config["type"] = v;
         }
         if (effect != "Output Specific") {
@@ -192,7 +193,7 @@ const std::shared_ptr<httpserver::http_response> ChannelTester::render_GET(const
             vcr["name"] = "ChannelRange";
             vcr["optional"] = false;
             vcr["type"] = "datalist";
-            result["args"].append(vcr);
+            result["args"].append(vcr);           
         }
         if (effect == "RGB Chase") {
             Json::Value v;
@@ -271,6 +272,19 @@ const std::shared_ptr<httpserver::http_response> ChannelTester::render_GET(const
             v["max"] = 255;
             result["args"].append(v);
         } else if (effect == "Output Specific") {
+            Json::Value vcr;
+            vcr["allowBlanks"] = false;
+            vcr["contents"].append("--ALL--");
+            for (auto &a : GetOutputTypes()) {
+                vcr["contents"].append(a);
+            }
+            vcr["default"] = "--ALL--";
+            vcr["description"] = "Output Types";
+            vcr["name"] = "OutputTypes";
+            vcr["optional"] = false;
+            vcr["type"] = "string";
+            result["args"].append(vcr);
+
             Json::Value v;
             v["description"] = "Test Type";
             v["name"] = "TestType";

@@ -41,6 +41,10 @@ public:
     BBB48StringOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~BBB48StringOutput();
 
+    virtual std::string GetOutputType() const {
+        return "BBB Pixel Strings";
+    }
+
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
@@ -51,6 +55,7 @@ public:
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
     virtual void OverlayTestData(unsigned char* channelData, int cycleNum, int testType) override;
+    virtual bool SupportsTesting() const { return  true; }
 
 private:
     void StopPRU(bool wait = true);

@@ -598,6 +598,8 @@ void BBB48StringOutput::prepData(FrameData& d, unsigned char* channelData) {
                 } else if (maxOut) {
                     *c = brightness[clr[maxOut % 3]];
                     --maxOut;
+                } else {
+                    *c = brightness[0];
                 }
                 c += numStrings;
             }

@@ -22,7 +22,12 @@ OutputTester::~OutputTester() {
 
 }
 int OutputTester::Init(Json::Value config) {
+    outputTypes.clear();
     testType = config["type"].asInt();
+    std::string s = config["outputs"].asString();
+    if (s != "--ALL--" && s != "") {
+        outputTypes.insert(s);
+    }
     return TestPatternBase::Init(config);
 }
 int OutputTester::SetupTest(void) {
@@ -33,7 +38,7 @@ void OutputTester::CycleData(void) {
 }
 int OutputTester::OverlayTestData(char* channelData) {
     if (m_testEnabled) {
-        OverlayOutputTestData((unsigned char*)channelData, cycleCount, testType);
+        OverlayOutputTestData(outputTypes, (unsigned char*)channelData, cycleCount, testType);
     }
     return TestPatternBase::OverlayTestData(channelData);
 }

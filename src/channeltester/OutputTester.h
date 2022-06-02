@@ -34,4 +34,5 @@ private:
 
     int testType = 1;
     int cycleCount = 0;
+    std::set<std::string> outputTypes;
 };
