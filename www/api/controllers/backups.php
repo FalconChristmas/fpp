@@ -115,7 +115,7 @@ function GetAvailableBackupsOnDevice() {
         $mountCmd = "mount -t btrfs -o noatime,nodiratime,compress=zstd,nofail /dev/$deviceName /mnt/tmp";
     } else if ((preg_match('/FAT/', $fsType)) ||
                (preg_match('/DOS/', $fsType))) {
-        $mountCmd = "mount -t auto -o noatime,nodiratime,exec,nofail,flush,uid=500,gid=500 /dev/$deviceName /mnt/tmp";
+        $mountCmd = "mount -t auto -o noatime,nodiratime,exec,nofail,uid=500,gid=500 /dev/$deviceName /mnt/tmp";
     } else {
         // Default to ext4
         $mountCmd = "mount -t ext4 -o noatime,nodiratime,nofail /dev/$deviceName /mnt/tmp";
