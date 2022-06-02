@@ -51,6 +51,7 @@ extern OutputProcessors outputProcessors;
 int InitializeChannelOutputs(void);
 int PrepareChannelData(char* channelData);
 int SendChannelData(const char* channelData);
+void OverlayOutputTestData(unsigned char *channelData, int cycleCnt, int testType);
 void CloseChannelOutputs(void);
 void SetChannelOutputFrameNumber(int frameNumber);
 void ResetChannelOutputFrameNumber(void);

@@ -21,6 +21,7 @@
 #include "RGBCycle.h"
 #include "RGBFill.h"
 #include "SingleChase.h"
+#include "OutputTester.h"
 
 ChannelTester ChannelTester::INSTANCE;
 
@@ -143,8 +144,14 @@ public:
             config["color1"] = v;
             config["color2"] = v;
             config["color3"] = v;
+        } else if (effect == "Output Specific") {
+            config["mode"] = "Outputs";
+            int v = std::stoi(args[2], nullptr, 10);
+            config["type"] = v;
         }
-        config["channelSet"] = args[2];
+        if (effect != "Output Specific") {
+            config["channelSet"] = args[2];
+        }
         config["channelSetType"] = "channelRange";
         ChannelTester::INSTANCE.SetupTest(config);
         return std::make_unique<Result>("Started");
@@ -172,18 +179,21 @@ const std::shared_ptr<httpserver::http_response> ChannelTester::render_GET(const
         result.append("RGB Single Color");
         result.append("Single Channel Chase");
         result.append("Single Channel Fill");
+        result.append("Output Specific");
     } else if (plen == 4) {
         std::string effect = req.get_path_pieces()[3];
-        Json::Value vcr;
-        vcr["allowBlanks"] = false;
-        vcr["contentListUrl"] = "api/models?simple=true";
-        std::string rng = GetOutputRangesAsString(false, true);
-        vcr["default"] = rng;
-        vcr["description"] = "Channel Range/Model";
-        vcr["name"] = "ChannelRange";
-        vcr["optional"] = false;
-        vcr["type"] = "datalist";
-        result["args"].append(vcr);
+        if (effect != "Output Specific") {
+            Json::Value vcr;
+            vcr["allowBlanks"] = false;
+            vcr["contentListUrl"] = "api/models?simple=true";
+            std::string rng = GetOutputRangesAsString(false, true);
+            vcr["default"] = rng;
+            vcr["description"] = "Channel Range/Model";
+            vcr["name"] = "ChannelRange";
+            vcr["optional"] = false;
+            vcr["type"] = "datalist";
+            result["args"].append(vcr);
+        }
         if (effect == "RGB Chase") {
             Json::Value v;
             v["description"] = "Chase Type";
@@ -260,6 +270,16 @@ const std::shared_ptr<httpserver::http_response> ChannelTester::render_GET(const
             v["min"] = 0;
             v["max"] = 255;
             result["args"].append(v);
+        } else if (effect == "Output Specific") {
+            Json::Value v;
+            v["description"] = "Test Type";
+            v["name"] = "TestType";
+            v["optional"] = false;
+            v["type"] = "range";
+            v["default"] = "1";
+            v["min"] = 1;
+            v["max"] = 2;
+            result["args"].append(v);
         } else {
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Test Pattern " + effect + " not found", 400, "text/plain"));
         }
@@ -322,6 +342,8 @@ int ChannelTester::SetupTest(const Json::Value& config) {
                 m_testPattern = new TestPatternRGBFill();
             else if (patternName == "RGBCycle")
                 m_testPattern = new TestPatternRGBCycle();
+            else if (patternName == "Outputs")
+                m_testPattern = new OutputTester();
         }
 
         if (m_testPattern) {

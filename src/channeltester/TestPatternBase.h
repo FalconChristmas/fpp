@@ -28,7 +28,7 @@ public:
     virtual int SetupTest(void);
 
     int SetChannelSet(std::string channelSetStr);
-    int OverlayTestData(char* channelData);
+    virtual int OverlayTestData(char* channelData);
     void DisableTest(void) { m_testEnabled = 0; }
 
     virtual void DumpConfig(void);

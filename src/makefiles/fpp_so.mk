@@ -21,6 +21,7 @@ OBJECTS_fpp_so += \
     channeloutput/processors/ThreeToFourOutputProcessor.o \
 	channeloutput/processors/OverrideZeroOutputProcessor.o \
 	channeltester/ChannelTester.o \
+	channeltester/OutputTester.o \
 	channeltester/TestPatternBase.o \
 	channeltester/RGBChase.o \
 	channeltester/RGBCycle.o \

@@ -68,14 +68,21 @@ int TestPatternBase::Init(Json::Value config) {
         m_nextCycleTime = GetTime() + (m_cycleMS * 1000);
     }
 
-    if (m_channelSetStr != config["channelSet"].asString()) {
-        m_channelSetStr = config["channelSet"].asString();
-        SetChannelSet(m_channelSetStr);
+    if (config.isMember("channelSet")) {
+        if (m_channelSetStr != config["channelSet"].asString()) {
+            m_channelSetStr = config["channelSet"].asString();
+            SetChannelSet(m_channelSetStr);
+            m_configChanged = 1;
+        }
+    } else if (m_channelSetStr != "") {
+        m_channelSetStr = "";
         m_configChanged = 1;
+        m_channelSet.clear();
     }
 
-    if (m_configChanged)
+    if (m_configChanged) {
         SetupTest();
+    }
 
     m_testEnabled = 1;
 

@@ -369,6 +369,14 @@ void ResetChannelOutputFrameNumber(void) {
     mediaElapsedSeconds = 0.0;
 }
 
+void OverlayOutputTestData(unsigned char *channelData, int cycleCnt, int testType) {
+    for (auto& inst : channelOutputs) {
+        if (inst.output) {
+            inst.output->OverlayTestData(channelData, cycleCnt, testType);
+        }
+    }
+}
+
 int PrepareChannelData(char* channelData) {
     outputProcessors.ProcessData((unsigned char*)channelData);
     for (auto& inst : channelOutputs) {

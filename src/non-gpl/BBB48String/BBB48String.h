@@ -50,6 +50,8 @@ public:
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
+    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, int testType) override;
+
 private:
     void StopPRU(bool wait = true);
     int StartPRU(bool both);
@@ -76,6 +78,9 @@ private:
 
     BBBPru* m_pru0;
     BBB48StringData* m_pru0Data;
+
+    int m_testCycle = -1;
+    int m_testType = 0;
 
     void prepData(FrameData& d, unsigned char* channelData);
     void sendData(FrameData& d, uintptr_t* dptr);
