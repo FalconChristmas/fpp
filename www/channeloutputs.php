@@ -275,9 +275,18 @@ $(document).ready(function(){
 					</ul>
 
 		<!-- --------------------------------------------------------------------- -->
+<?
+if ($e131TabStyle == "") {
+    $e131TabStyleActive = "show active";
+} else if ($stringTabStyle == "") {
+    $stringTabStyleActive = "show active";
+} else if ($lpTabStyle == "") {
+    $lpTabStyleActive = "show active";
+}
+?>
 
 		<div class="tab-content" id="channelOutputTabsContent">
-			<div class="tab-pane fade show <?=$e131TabStyleActive?>" id="tab-e131" role="tabpanel" aria-labelledby="tab-e131-tab">
+			<div class="tab-pane fade <?=$e131TabStyleActive?>" id="tab-e131" role="tabpanel" aria-labelledby="tab-e131-tab">
 				<? include_once('co-universes.php'); ?>
 			</div>
 
@@ -290,7 +299,7 @@ $(document).ready(function(){
             ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
             if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
             ?>
-                <div class="tab-pane fade show  <?=$stringTabStyleActive?>" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
+                <div class="tab-pane fade <?=$stringTabStyleActive?>" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
                     <? include_once('co-pixelStrings.php'); ?>
                 </div>
             <?
