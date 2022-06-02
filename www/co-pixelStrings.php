@@ -504,19 +504,20 @@ function setPixelStringsStartChannelOnNextRow()
 
         $('#pixelOutputs table tr').removeClass('selectedEntry');
 
-        if (nextRow.html().indexOf('<hr>') != -1)
+        while ((nextRow.find('.vsStartChannel').length == 0) && (nextRow.next('tr').length)) {
             nextRow = nextRow.next('tr');
+        }
         if (!nextRow.is(":visible")) {
             nextRow = nextRow.next('tr');
         }
-
-
 
         nextRow.find('.vsStartChannel').val(nextStart);
         nextRow.addClass('selectedEntry');
         updateRowEndChannel(nextRow);
 
         selectedPixelStringRowId = nextRow.attr('id');
+
+        sanityCheckOutputs();
     }
 }
 
@@ -1375,8 +1376,6 @@ function populatePixelStringOutputs(data) {
                         var groupLabel = GetGroupLabel(subType, o);
                         if (groupLabel != '') {
                             str += "<tr><td colspan='15'><h2 class='divider'><span>" + groupLabel + "</span></h2></td></tr>";
-                        } else if (needsABreak) {
-                            str += "<tr><td colSpan='15'><hr></td></tr>";
                         }
                         if (IsExpansion(subType, o)) {
                             expansionType = port["expansionType"];
@@ -2342,7 +2341,7 @@ foreach ($files as $file) {
                         <input type='button' class='buttons' value='Cancel' onClick='cancelVirtualEEPROMSelect();'>
                         <input type='button' class='buttons btn-success' value='Install' onClick='InstallFirmware();'>
 <? if (file_exists('/home/fpp/media/config/cape-eeprom.bin')) { ?>
-                        <br><br><h3>Warning, changing your virtual EEPROM will clear any current string configuration information.</h3>
+                        <br><br><h3>Warning, changing your virtual EEPROM will clear any current string configuration information and may trigger a reboot.</h3>
 <? } ?>
                     </div>
                 </div>
