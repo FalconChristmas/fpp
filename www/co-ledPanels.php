@@ -1184,9 +1184,9 @@ function PanelSubtypeChanged() {
     html += "<option value='32x16x2x1'>32x16 1/2 Scan AB</option>"
     html += "<option value='32x32x16'>32x32 1/16 Scan</option>"
     html += "<option value='64x32x16'>64x32 1/16 Scan</option>"
-    <?    if(strpos(isset($settings['Variant']) ? $settings['Variant'] : '', 'PocketBeagle') !== false)  {?>
+    <?if (strpos(isset($settings['Variant']) ? $settings['Variant'] : '', 'PocketBeagle') !== false) {?>
     html += "<option value='64x64x32'>64x64 1/32 Scan</option>"
-    <?    }?>
+    <?}?>
     html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
     html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
     html += "<option value='40x20x5'>40x20 1/5 Scan</option>"
@@ -1232,6 +1232,24 @@ function AutoLayoutPanels() {
     }
     SaveChannelOutputsJSON();
 }
+function TogglePanelTestPattern() {
+    var val = $("#PanelTestPatternButton").val();
+    if (val == "Test Pattern") {
+        $("#PanelTestPatternButton").val("Stop Pattern");
+        var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["1000","Output Specific","--ALL--","1"]}';
+        $.post("api/command", data
+	    ).done(function(data) {
+	    }).fail(function() {
+	    });
+    } else {
+        $("#PanelTestPatternButton").val("Test Pattern");
+        var data = '{"command":"Test Stop","multisyncCommand":false,"multisyncHosts":"","args":[]}';
+        $.post("api/command", data
+	    ).done(function(data) {
+	    }).fail(function() {
+	    });
+    }
+}
 
 $(document).ready(function(){
 	InitializeLEDPanels();
@@ -1248,16 +1266,16 @@ $(document).ready(function(){
     }
 
 <?
-    if ((in_array('all', $currentCapeInfo["provides"])) ||
-        (in_array('panels', $currentCapeInfo["provides"]))) {
-?>
+if ((in_array('all', $currentCapeInfo["provides"])) ||
+    (in_array('panels', $currentCapeInfo["provides"]))) {
+    ?>
     if (currentCapeName != "" && currentCapeName != "Unknown") {
         $('.capeNamePanels').html(currentCapeName);
         $('.capeTypeLabel').html("Cape Config");
     }
 
 <?
-    }
+}
 ?>
 
 });
@@ -1270,6 +1288,7 @@ $(document).ready(function(){
             <div class="col-md"><h2><span class='capeNamePanels'>LED Panels</span> </h2></div>
             <div class="col-md-auto ml-lg-auto">
                 <div class="form-actions">
+                    <input id="PanelTestPatternButton" type='button' class="buttons ml-1" onClick='TogglePanelTestPattern();' value='Test Pattern'>
                     <input type='button' class="buttons btn-success ml-1" onClick='SaveChannelOutputsJSON();' value='Save'>
                 </div>
             </div>
@@ -1344,7 +1363,7 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
                     <div class="printSettingFieldCol col-md-3 col-lg-3"><span class='ledPanelSimpleUI'><?printLEDPanelLayoutSelect();?> <input type='button' class='buttons' onClick='AutoLayoutPanels();' value='Auto Layout'></span>
                                     <span class='ledPanelCanvasUI'><span id='matrixSize'></span></span></div>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Start Channel:</b></div>
-                    <div class="printSettingFieldCol col-md-3 col-lg-3"><input id='LEDPanelsStartChannel' type=number min=1 max=<?= FPPD_MAX_CHANNELS ?> value='1'></div>
+                    <div class="printSettingFieldCol col-md-3 col-lg-3"><input id='LEDPanelsStartChannel' type=number min=1 max=<?=FPPD_MAX_CHANNELS?> value='1'></div>
                 </div>
                 <div class="row">
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Single Panel Size (WxH):</b></div>

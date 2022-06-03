@@ -246,8 +246,14 @@ void LEDPanel::drawTestPattern(unsigned char* channelData, int cycleNum, int tes
                 g2 = clr[0];
                 b2 = clr[1];
             }
-            if (x == y) {
-                r = g = b = 255;
+            if (x == (2*y) || x == (2*y+1)) {
+                r = g = 255;
+            }
+            if (x == (2*(height/2 - 1 - y))) {
+                b2 = g2 = 255;
+            }
+            if (x == (2*(height/2 - 1 - y) + 1)) {
+                b2 = g2 = 255;
             }
 
             if (x >= (width/2-2) && x <= (width/2+1)) {

@@ -35,6 +35,10 @@ public:
     ColorLight5a75Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~ColorLight5a75Output();
 
+    virtual std::string GetOutputType() const override {
+        return "ColorLight Panels";
+    }
+
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
@@ -45,6 +49,8 @@ public:
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
+    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, int testType) override;
+    virtual bool SupportsTesting() const override { return  true; }
 private:
     void SetHostMACs(void* data);
     int sendMessages(struct mmsghdr* msgs, int cnt);
