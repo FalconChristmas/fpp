@@ -33,6 +33,11 @@ if (isset($options['e'])) {
         DumpEEPROMInfo($options['e']);
         exit(0);
     }
+
+    if (isset($options['x'])) {
+        ExtractFiles($options['e']);
+        exit(0);
+    }
 }
 
 if (isset($options['j'])) {
@@ -109,6 +114,20 @@ function DumpEEPROMInfo($file) {
     $eeprom->setKeyDir($options['K']);
     $eeprom->read($file);
     $eeprom->dumpInfo();
+}
+
+function ExtractFiles($file) {
+    global $options;
+    global $argv;
+    $dir = $options['x'];
+
+    system("mkdir -p $dir");
+
+    printf( "Extracting files from %s to %s\n", $file, $dir);
+    $eeprom = new fppEEPROM();
+    $eeprom->read($file);
+
+    $eeprom->extractFiles($dir);
 }
 
 function ParseJSONConfig() {
@@ -214,7 +233,7 @@ function SanityCheckOptions() {
 }
 
 function GetOptions() {
-    $shortOpts = "hij:e:k:K:n:v:s:m:l:V:d:o:";
+    $shortOpts = "hij:e:k:K:n:v:s:m:l:V:d:o:x:";
     $longOpts = Array(
         "help",
         "info",
@@ -229,7 +248,8 @@ function GetOptions() {
         "location:",
         "Variable:",
         "directory:",
-        "output:"
+        "output:",
+        "xtract:"
         );
 
     $options = getopt($shortOpts, $longOpts);
@@ -313,8 +333,8 @@ function Usage() {
     printf( "  %s -j MyCape.json -s 0123456789\n", $exe);
     printf( "\n");
     printf( "  # Clone an EEPROM to a new file with a new serial number\n");
-    printf( "  %s -i MyCape-eeprom.bin -s 0123456789\n", $exe);
-    printf( "  %s -i MyCape-eeprom.bin -s\n", $exe);
+    printf( "  %s -e MyCape-eeprom.bin -s 0123456789\n", $exe);
+    printf( "  %s -e MyCape-eeprom.bin -s\n", $exe);
     printf( "\n");
 
     exit(0);

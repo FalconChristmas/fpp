@@ -56,6 +56,7 @@ class fppEEPROM {
                 case 0:
                 case 1:
                 case 2:
+                case 3:
                         $filename = unpack('A64', substr($this->varData, $offset))[1];
                         $offset += 64;
 
@@ -515,6 +516,7 @@ class fppEEPROM {
                     case 0:
                     case 1:
                     case 2:
+                    case 3:
                             printf( "<tr><th align='left'>%sVar Data %02d len %d:</th><td><b>File</b></td></tr>\n", $indent, $e['code'], $e['length']);
                             printf( "<tr><th align='right'>%sFilename:</th><td>%s</td></tr>\n", $indent, $e['destination']);
                             break;
@@ -532,6 +534,46 @@ class fppEEPROM {
         }
 
         echo "</table>\n";
+    }
+
+    function extractFiles($dir) {
+        for ($v = 0; $v < 2; $v++) {
+            $vars = Array();
+            if ($v == 1) {
+                $vars = $this->signedVars;
+
+                if ($this->deviceSerial != '') {
+                    # Generate data for Cape and Device Serial Numbers
+                    $len = 16 + 42;
+                    $sigData = pack("a6a2a16a42", $len, 96, $this->capeSerial, $this->deviceSerial);
+                }
+            } else {
+                $vars = $this->variables;
+            }
+
+            for ($i = 0; $i < count($vars); $i++) {
+                $e = $vars[$i];
+                $code = '' . $e['code'];
+
+                switch ($vars[$i]['code']) {
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 3:
+                            $filename = $e['destination'];
+                            $subdir = dirname($filename);
+                            $file = basename($filename);
+                            system("mkdir -p $dir/$subdir");
+
+                            printf( "- Writing %s/%s\n", $dir, $filename);
+
+                            $len = $e['length'];
+                            $fdata = pack("C$len", ...$e['fileData']);
+                            file_put_contents("$dir/$filename", $fdata);
+                            break;
+                }
+            }
+        }
     }
 
     function setKeyDir($dir) {
