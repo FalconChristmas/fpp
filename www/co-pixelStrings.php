@@ -182,8 +182,10 @@ function CloseUpgradeDialog(reload = false) {
 }
 
 function RemoveVirtualEEPROM() {
-    DeleteFile("config", null, "cape-eeprom.bin");
-    DeleteFile("tmp", null, "cape-info.json");
+    DeleteFile("config", null, "cape-eeprom.bin", true);
+    DeleteFile("config", null, "co-pixelStrings.json", true);
+    DeleteFile("config", null, "co-bbbStrings.json", true);
+    DeleteFile("tmp", null, "cape-info.json", true);
     SetRebootFlag();
     reloadPage();
 }
@@ -204,6 +206,11 @@ function InstallFirmwareDone() {
 
 function InstallFirmware() {
     var filename = $('#virtualEEPROM').val();
+
+    if (filename == '') {
+        alert('You must select a Virtual EEPROM from the list.');
+        return;
+    }
 
     $('.dialogCloseButton').hide();
     $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Install Cape Firmware", dialogClass: 'no-close' });
@@ -2324,12 +2331,30 @@ if (isset($settings['cape-info'])) {
                     <div>
                         <b>Virtual EEPROM:</b>
                         <select id='virtualEEPROM'>
+                            <option value=''>-- Choose a Virtual EEPROM --</option>
 <?
+$virtName = '';
+if (file_exists('/home/fpp/media/config/cape-eeprom.bin')) {
+    $edata = file_get_contents('/home/fpp/media/config/cape-eeprom.bin');
+    $virtName = unpack('a26', substr($edata, 6, 26));
+}
+
 $files = scandir($virtualEEPROMDir);
 foreach ($files as $file) {
     if (preg_match('/-eeprom.bin$/', $file)) {
         $base = preg_replace('/-eeprom.bin/', '', $file);
-        echo "<option value='$virtualEEPROMDir/$file'>$base</option>\n";
+
+        if ($virtName != '') {
+            $edata = file_get_contents($virtualEEPROMDir . '/' . $file);
+            $tmpName = unpack('a26', substr($edata, 6, 26));
+            if ($virtName == $tmpName)
+                $selected = 'selected';
+            else
+                $selected = '';
+        } else {
+            $selected = ($base == 'PiHat') ? 'selected' : '';
+        }
+        printf( "<option value='$virtualEEPROMDir/$file' %s>$base</option>\n", $selected);
     }
 }
 ?>
@@ -2341,7 +2366,7 @@ foreach ($files as $file) {
                         <input type='button' class='buttons' value='Cancel' onClick='cancelVirtualEEPROMSelect();'>
                         <input type='button' class='buttons btn-success' value='Install' onClick='InstallFirmware();'>
 <? if (file_exists('/home/fpp/media/config/cape-eeprom.bin')) { ?>
-                        <br><br><h3>Warning, changing your virtual EEPROM will clear any current string configuration information and may trigger a reboot.</h3>
+                        <br><br><h3>Warning, changing or removing the virtual EEPROM will clear any current string configuration information and may trigger a reboot.</h3>
 <? } ?>
                     </div>
                 </div>

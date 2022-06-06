@@ -2909,6 +2909,10 @@ function postUniverseJSON(input) {
 
 }
 
+function validateEmail(email) {
+    return email.match(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/);
+}
+
 function validateUniverseData() {
     var i;
     var txtUniverse;
@@ -4720,7 +4724,7 @@ function ViewFileImpl(url, file) {
     $('#fileViewer').fppDialog("moveToTop");
 }
 
-function DeleteFile(dir, row, file) {
+function DeleteFile(dir, row, file, silent = false) {
     if (file.indexOf("/") > -1) {
         alert("You can not delete this file.");
         return;
@@ -4733,10 +4737,12 @@ function DeleteFile(dir, row, file) {
         if (data.status == "OK") {
             $(row).remove();
         } else {
-            DialogError("ERROR", "Error deleting file \"" + file + "\": " + data.status);
+            if (!silent)
+                DialogError("ERROR", "Error deleting file \"" + file + "\": " + data.status);
         }
     }).fail(function () {
-        DialogError("ERROR", "Error deleting file: " + file);
+        if (!silent)
+            DialogError("ERROR", "Error deleting file: " + file);
     });
 }
 
