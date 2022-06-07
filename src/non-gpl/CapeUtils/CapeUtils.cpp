@@ -1009,10 +1009,6 @@ private:
         return result != "" && result.find("--") == std::string::npos;
     }
     std::string checkUnsupported(const std::string& orig, int i2cbus) {
-        if (HasI2CDevice(0x3c, i2cbus)) {
-            // there is an oled so some sort of cape is present, we just don't know anything about it
-            return "/opt/fpp/capes/other/Unknown-eeprom.bin";
-        }
         return orig;
     }
     void readSettingsFile(std::vector<std::string>& lines) {
