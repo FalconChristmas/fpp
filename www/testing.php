@@ -600,10 +600,12 @@ $(document).ready(function(){
             modelInfos = data;
 
             for (var i = 0; i < modelInfos.length; i++) {
-                modelInfos[i].EndChannel = modelInfos[i].StartChannel + modelInfos[i].ChannelCount - 1;
-                modelInfos[i].ChannelsPerString = parseInt(modelInfos[i].ChannelCount / modelInfos[i].StringCount);
-                var option = "<option value='" + i + "'>" + modelInfos[i].Name + "</option>\n";
-                $('#modelName').append(option);
+                if ((modelInfos[i].Type != 'FB') && (modelInfos[i].Type != 'Sub')) {
+                    modelInfos[i].EndChannel = modelInfos[i].StartChannel + modelInfos[i].ChannelCount - 1;
+                    modelInfos[i].ChannelsPerString = parseInt(modelInfos[i].ChannelCount / modelInfos[i].StringCount);
+                    var option = "<option value='" + i + "'>" + modelInfos[i].Name + "</option>\n";
+                    $('#modelName').append(option);
+                }
             }
         },
         error: function () {
