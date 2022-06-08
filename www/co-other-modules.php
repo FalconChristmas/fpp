@@ -607,6 +607,11 @@ class VirtualMatrixDevice extends OtherBaseDevice {
         }
         return true;
     }
+
+    SetDefaults(row) {
+        super.SetDefaults(row);
+        $(row).find('input.count').val(PixelOverlayModelChannels[this._config.modelName]);
+    }
 }
 
 
