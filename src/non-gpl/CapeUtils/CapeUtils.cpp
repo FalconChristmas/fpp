@@ -259,6 +259,50 @@ static uint8_t* get_file_contents(const std::string& path, int& len) {
     return data;
 }
 
+#ifdef PLATFORM_PI
+static const std::string PLATFORM_DIR = "pi";
+const std::string& getPlatformCapeDir() { return PLATFORM_DIR; }
+#elif defined(PLATFORM_BBB)
+static const std::string PLATFORM_DIR_BBB = "bbb";
+static const std::string PLATFORM_DIR_PB = "pb";
+const std::string& getPlatformCapeDir() {
+    int len = 0;
+    char* buf = (char*)get_file_contents("/proc/device-tree/model", len);
+    if (strcmp(&buf[10], "PocketBeagle") == 0) {
+        free(buf);
+        return PLATFORM_DIR_PB;
+    }
+    free(buf);
+    return PLATFORM_DIR_BBB;
+}
+
+#else
+static const std::string PLATFORM_DIR = "";
+const std::string& getPlatformCapeDir() { return PLATFORM_DIR; }
+#endif
+
+
+static bool LoadJsonFromFile(const std::string& filename, Json::Value& root) {
+    if (!file_exists(filename)) {
+        return false;
+    }
+    int len = 0;
+    char *data = (char *)get_file_contents(filename, len);
+
+    Json::CharReaderBuilder builder;
+    Json::CharReader* reader = builder.newCharReader();
+    std::string errors;
+    builder["collectComments"] = false;
+    bool success = reader->parse(data, data + len, &root, &errors);
+    delete reader;
+
+    free(data);
+    if (!success) {
+        printf("Failed to parse %s: %s\n", filename.c_str(), errors.c_str());
+    }
+    return success;
+}
+
 static void disableOutputs(Json::Value& disables) {
     for (int x = 0; x < disables.size(); x++) {
         std::string file = disables[x]["file"].asString();
@@ -467,6 +511,32 @@ void ConfigureI2C1BusPins(bool enable) {
 #endif
 }
 
+static std::map<std::string, std::string> CONFIG_EEPROM_UPGRADE_MAP = {
+    {"RPIWS281X:PiHat", "PiHat"},
+    {"spixels:spixels", "spixels"},
+    {"RPIWS281X:rPi-MFC", "rPi-MFC"},
+    {"RPIWS281X:rPi-28D", "rPi-28D"},
+    {"BBB48String:F8-B", "F8-B"},
+    {"BBB48String:F8-B-16", "F8-B"},
+    {"BBB48String:F8-B-20", "F8-B"},
+    {"BBB48String:F8-B-EXP", "F8-B"},
+    {"BBB48String:F8-B-EXP-32", "F8-B"},
+    {"BBB48String:F8-B-EXP-36", "F8-B"},
+    {"BBB48String:F16-B", "F16-B"},
+    {"BBB48String:F16-B-32", "F16-B"},
+    {"BBB48String:F16-B-48", "F16-B"},
+    {"BBB48String:F4-B", "F4-B"},
+    {"BBB48String:F32-B", "F-32"},
+    {"BBB48String:F32-B-44", "F-32"},
+    {"BBB48String:F32-B-48", "F-32"},
+    {"BBB48String:RGBCape24", "RGB-123"},
+    {"BBB48String:RGBCape48A", "RGB-123"},
+    {"BBB48String:RGBCape48C", "RGB-123"},
+    {"BBB48String:RGBCape48F", "RGB-123"},
+    {"BBB48String:PB16", "PB16"},
+    {"BBB48String:PB16-EXP", "PB16"}
+};
+
 class CapeInfo {
 public:
     CapeInfo(bool ro) :
@@ -610,6 +680,9 @@ private:
         }
         if (!file_exists(EEPROM)) {
             EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
+        }
+        if (!file_exists(EEPROM)) {
+            EEPROM = mapV5Config(EEPROM);
         }
         if (!file_exists(EEPROM)) {
             EEPROM = checkUnsupported(EEPROM, bus);
@@ -775,25 +848,13 @@ private:
             removeIfExist(outputPath + "/tmp/defaults/config/sensors.json");
         }
     }
+
     void processEEPROM() {
         // if the cape-info has default settings and those settings are not already set, set them
         // also put the serialNumber into the cape-info for display
         if (file_exists(outputPath + "/tmp/cape-info.json")) {
-            // We would prefer to use LoadJsonFromFile() here, but we want to
-            // keep fppcapedetect small and using the helper would mean pulling
-            // in common.o and other dependencies.
             Json::Value result;
-            Json::CharReaderBuilder builder;
-            Json::CharReader* reader = builder.newCharReader();
-            std::string errors;
-            std::ifstream istream(outputPath + "/tmp/cape-info.json");
-            std::stringstream buffer;
-            buffer << istream.rdbuf();
-            istream.close();
-
-            std::string str = buffer.str();
-            bool success = reader->parse(str.c_str(), str.c_str() + str.size(), &result, &errors);
-            if (success) {
+            if (LoadJsonFromFile(outputPath + "/tmp/cape-info.json", result)) {
                 std::set<std::string> removes;
                 if (result.isMember("removeSettings")) {
                     for (int x = 0; x < result["removeSettings"].size(); x++) {
@@ -938,8 +999,6 @@ private:
                 std::string resultStr = Json::writeString(wbuilder, result);
                 put_file_contents(outputPath + "/tmp/cape-info.json", (const uint8_t*)resultStr.c_str(), resultStr.size());
                 setFilePerms(outputPath + "/tmp/cape-info.json");
-            } else {
-                printf("Failed to parse cape-info.json: %s\n", errors.c_str());
             }
         } else {
             printf("Did not find cape-info.json\n");
@@ -1009,6 +1068,44 @@ private:
         return result != "" && result.find("--") == std::string::npos;
     }
     std::string checkUnsupported(const std::string& orig, int i2cbus) {
+        return orig;
+    }
+
+    std::string mapV5Config(const std::string& orig) {
+        std::string stringsConfigFile = "";
+        std::string platformDir = "/opt/fpp/capes/" + getPlatformCapeDir();
+#if defined(PLATFORM_BBB)
+        stringsConfigFile = "/home/fpp/media/config/co-bbbStrings.json";
+#elif defined(PLATFORM_PI)
+        stringsConfigFile = "/home/fpp/media/config/co-pixelStrings.json";
+#endif
+        if (file_exists(stringsConfigFile)) {
+            Json::Value root;
+            if (LoadJsonFromFile(stringsConfigFile, root)) {
+                if (root["channelOutputs"][0]["enabled"].asInt()) {
+                    std::string type = root["channelOutputs"][0]["type"].asString();
+                    std::string subtype = root["channelOutputs"][0]["subType"].asString();
+                    std::string pinout = "1.x";
+                    if (root["channelOutputs"][0].isMember("pinoutVersion")) {
+                        pinout = root["channelOutputs"][0]["pinoutVersion"].asString();
+                    }
+                    std::string key = type + ":" + subtype;
+                    std::string newEeprom = CONFIG_EEPROM_UPGRADE_MAP[key];
+                    if (pinout == "2.x") {
+                        newEeprom += "v2";
+                    }
+                    if (file_exists(platformDir + "/" + newEeprom + "-eeprom.bin")) {
+                        //found a virtual eeprom, install it and use it
+                        printf("Installing new virtual eeprom based on prior string configuration: %s\n", newEeprom.c_str());
+                        newEeprom = platformDir + "/" + newEeprom + "-eeprom.bin";
+                        copyFile(newEeprom, "/home/fpp/media/config/cape-eeprom.bin");
+                        setFilePerms("/home/fpp/media/config/cape-eeprom.bin");
+                        readOnly = false;
+                        return "/home/fpp/media/config/cape-eeprom.bin";
+                    }
+                }
+            }
+        }
         return orig;
     }
     void readSettingsFile(std::vector<std::string>& lines) {
@@ -1132,28 +1229,6 @@ bool CapeUtils::hasFile(const std::string& path) {
 std::vector<uint8_t> CapeUtils::getFile(const std::string& path) {
     return initCapeInfo(true)->getFile(path);
 }
-
-#ifdef PLATFORM_PI
-static const std::string PLATFORM_DIR = "pi";
-const std::string& getPlatformCapeDir() { return PLATFORM_DIR; }
-#elif defined(PLATFORM_BBB)
-static const std::string PLATFORM_DIR_BBB = "bbb";
-static const std::string PLATFORM_DIR_PB = "pb";
-const std::string& getPlatformCapeDir() {
-    int len = 0;
-    char* buf = (char*)get_file_contents("/proc/device-tree/model", len);
-    if (strcmp(&buf[10], "PocketBeagle") == 0) {
-        free(buf);
-        return PLATFORM_DIR_PB;
-    }
-    free(buf);
-    return PLATFORM_DIR_BBB;
-}
-
-#else
-static const std::string PLATFORM_DIR = "";
-const std::string& getPlatformCapeDir() { return PLATFORM_DIR; }
-#endif
 
 int CapeUtils::getLicensedOutputs() {
     return capeInfo->getLicensedOutputs();
