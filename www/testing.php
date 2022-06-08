@@ -171,8 +171,8 @@ function UpdateStartEndFromModel()
         SetButtonIncrements();
     } else {
         var id = parseInt(val);
-        $('#testModeStartChannel').val(modelInfos[id].StartChannel + 1);
-        $('#testModeEndChannel').val(modelInfos[id].EndChannel + 1);
+        $('#testModeStartChannel').val(modelInfos[id].StartChannel);
+        $('#testModeEndChannel').val(modelInfos[id].EndChannel);
 
         if (modelInfos[id].StringCount > 1) {
             $('#startString').attr('max', modelInfos[id].StringCount);
