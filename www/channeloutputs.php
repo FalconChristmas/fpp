@@ -237,16 +237,23 @@ $(document).ready(function(){
 
             if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
                 ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
-                $stringTabText="Pixel Strings";
-                if (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown" && $stringTabStyle == "")
-                    $stringTabText=$currentCapeInfo["name"];
-                ?>
-                <li class="nav-item <?=$stringTabStyle?>" id="tab-strings-LI" >
-                    <a class="nav-link <?=$stringTabStyleActive?>" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
-                        <? echo $stringTabText; ?>
-                    </a>
-                </li>
-                <?
+                if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+                    $stringTabText="Pixel Strings";
+                    if ((isset($settings['cape-info'])) &&
+                        ((in_array('all', $settings['cape-info']["provides"])) || (in_array('strings', $settings['cape-info']["provides"]))) &&
+                        (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")) {
+                        $stringTabText = $currentCapeInfo["name"];
+                        if (in_array('all', $settings['cape-info']["provides"]) || in_array('panels', $settings['cape-info']["provides"]))
+                            $stringTabText .= " Pixel Strings";
+                    }
+                    ?>
+                    <li class="nav-item <?=$stringTabStyle?>" id="tab-strings-LI" >
+                        <a class="nav-link <?=$stringTabStyleActive?>" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
+                            <? echo $stringTabText; ?>
+                        </a>
+                    </li>
+                    <?
+                }
             }
 			if ($settings['Platform'] == "Raspberry Pi") {
 				if (in_array('fpd', $currentCapeInfo["provides"])) {
@@ -258,11 +265,20 @@ $(document).ready(function(){
 						</li>
 					<?
 				}
-			}            
+            }
+
+            $ledTabText="LED Panels";
+            if ((isset($settings['cape-info'])) &&
+                ((in_array('all', $settings['cape-info']["provides"])) || (in_array('panels', $settings['cape-info']["provides"]))) &&
+                (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")) {
+                $ledTabText = $currentCapeInfo["name"];
+                if (in_array('all', $settings['cape-info']["provides"]) || in_array('strings', $settings['cape-info']["provides"]))
+                    $ledTabText .= " LED Panels";
+            }
 				?>
 						<li class="nav-item <?=$lpTabStyle?>" id="tab-LEDPanels-LI">
 							<a class="nav-link <?=$lpTabStyleActive?>" id="tab-LEDPanels-tab" tabType='panels' data-toggle="pill" href='#tab-LEDPanels' role="tab" aria-controls="tab-LEDPanels">
-								LED Panels
+                                <? echo $ledTabText; ?>
 							</a>
 						</li>
 						<li class="nav-item">
