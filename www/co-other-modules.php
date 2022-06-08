@@ -103,8 +103,10 @@ class OtherBaseDevice extends OtherBase {
     }
 
     CanAddNewOutput() {
-        if (this._devices[0] == "No Devices" || Object.keys(this._devices).length == 0)
+        if (this._devices[0] == "No Devices" || Object.keys(this._devices).length == 0) {
+            alert('There are no available devices for this channel output type.');
             return false;
+        }
         return true;
     }
 }
@@ -597,6 +599,14 @@ class VirtualMatrixDevice extends OtherBaseDevice {
         result.invert = cell.find('input.invert').is(':checked');
 
         return result;
+    }
+
+    CanAddNewOutput() {
+        if (this._devices[0] == "No Devices" || Object.keys(this._devices).length == 0) {
+            alert('There are no Pixel Overlay Models defined.  You must create a Pixel Overlay Model first, then you can create a Virtual Matrix to use the Pixel Overlay Model as output.');
+            return false;
+        }
+        return true;
     }
 }
 
