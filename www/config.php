@@ -237,7 +237,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
     } else if (preg_match('/Pi 3 Model B/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 3 Model B";
         $settings['Logo'] = "Raspberry_Pi_3.png";
-    } else if (preg_match('/Pi 4/', $settings['SubPlatform'])) {
+    } else if (preg_match('/Pi 4/', $settings['SubPlatform']) || preg_match('/Pi Compute Module 4/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 4";
         $settings['Logo'] = "Raspberry_Pi_4.png";
     } else if (preg_match('/Pi Zero 2/', $settings['SubPlatform'])) {
