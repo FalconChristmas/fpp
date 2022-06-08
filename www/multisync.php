@@ -554,8 +554,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 			$('#' + rowID + '_elapsed').html(elapsed);
 
             if (data.warnings != null && data.warnings.length > 0) {
-               var result_style = document.getElementById(rowID + '_warnings').style;
-               result_style.display = 'table-row';
+               $('#' + rowID + '_warnings').removeAttr('style'); // Remove 'display: none' style
 
                // Handle tablesorter bug not assigning same color to child rows
                if ($('#' + rowID).hasClass('odd'))
@@ -566,8 +565,6 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 wHTML += "<span class='warning-text'>" + data.warnings[i] + "</span><br>";
                }
                $('#' + rowID + '_warningCell').html(wHTML);
-            } else {
-               var result_style = document.getElementById(rowID + '_warnings').style;
             }
             rowSpanSet(rowID);
 
@@ -1988,7 +1985,7 @@ $(document).ready(function() {
         },
         widgetOptions: {
             filter_childRows     : true,
-            filter_childByColumn : true,
+            filter_childByColumn : false,
             filter_childWithSibs : false,
             filter_saveFilters   : true,
             filter_functions: {
@@ -1996,7 +1993,7 @@ $(document).ready(function() {
                     "FPP (All)": function(e,n,f,i,$r,c,data) {
                                 return isFPP($r.find('span.typeId').html());
                             },
-                    "FPP (Pi)": function(e,n,f,i,$r,c,data) {
+                    "FPP (Raspberry Pi)": function(e,n,f,i,$r,c,data) {
                                 return isFPPPi($r.find('span.typeId').html());
                             },
                     "FPP (BeagleBone)": function(e,n,f,i,$r,c,data) {
