@@ -188,13 +188,24 @@ FBInfo['x11'].Height = 480;
 ?>
 
 var PixelOverlayModels = new Array();
+var PixelOverlayModelChannels = new Array();
 <?
-$json = file_get_contents('http://localhost/api/models?simple=true');
+$json = file_get_contents('http://localhost/api/models');
 $models = json_decode($json, true);
 foreach ($models as $model) {
-    echo "PixelOverlayModels['$model'] = '$model';\n";
+    $modelName = $model['Name'];
+
+    if (($model['Type'] == 'FB') || ($model['Type'] == 'Sub')) {
+        // FIXME, need to handle pixelSize here
+        echo "PixelOverlayModels['$modelName'] = '$modelName (" . $model['Width'] . 'x' . $model['Height'] . ")';\n";
+        echo "PixelOverlayModelChannels['$modelName'] = " . $model['ChannelCount'] . ";\n";
+    }
 }
 ?>
+
+function selectedModelChanged(item) {
+    $(item).parent().parent().find('input.count').val(PixelOverlayModelChannels[$(item).val()]);
+}
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -561,29 +572,29 @@ class VirtualDisplayDevice extends OtherBaseDevice {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// X11 Virtual Matrix Output
-class X11VirtualMatrixDevice extends OtherBase {
+// Virtual Matrix Output
+class VirtualMatrixDevice extends OtherBaseDevice {
 
-    constructor(name="X11Matrix", friendlyName="X11 Virtual Matrix", maxChannels=73728, fixedStart=true, fixedChans=true,
-                config={title: "X11 Virtual Matrix", scale:6, width:192, height: 128}) {
-        super(name, friendlyName, maxChannels, fixedStart, fixedChans, config);
+    constructor(name="VirtualMatrix", friendlyName="Virtual Matrix", maxChannels=FPPD_MAX_CHANNELS, fixedStart=true, fixedChans=true,
+                config={modelName: '', invert: false}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, PixelOverlayModels, config);
+
+        if (Object.keys(PixelOverlayModels).length > 0)
+            this._config.modelName = Object.keys(PixelOverlayModels)[0];
     }
 
     PopulateHTMLRow(config) {
-        var result = super.PopulateHTMLRow(config);
-        result += "Title:&nbsp;<input type='text' name='x11title' class='x11title' value='"+config.title+"'>&nbsp;";
-        result += "Width:&nbsp;<input type='number' name='width' min='1' max='1920' class='width' value='"+config.width+"'  onChange='VirtualMatrixLayoutChanged(this);'>&nbsp;";
-        result += "Height:&nbsp;<input type='number' name='height' min='1' max='1080' class='height' value='"+config.height+"' onChange='VirtualMatrixLayoutChanged(this);'>&nbsp;";
-        result += "Scale:&nbsp;<input type='number' name='scale' min='1' max='25' class='scale' value='"+config.scale+"'>&nbsp;";
+        var result = CreateSelect(this._devices, config.modelName, 'Pixel Overlay Model', '', 'device', 'selectedModelChanged(this);') + "&nbsp;";
+        result += "Invert:&nbsp;<input type='checkbox' class='invert'";
+        if (config.invert)
+            result += " checked";
+        result += ">";
         return result;
     }
 
     GetOutputConfig(result, cell) {
-        result = super.GetOutputConfig(result, cell);
-        result.title = cell.find("input.x11title").val();
-        result.width = parseInt(cell.find("input.width").val());
-        result.height = parseInt(cell.find("input.height").val());
-        result.scale = parseInt(cell.find("input.scale").val());
+        result.modelName = cell.find('select.device').val();
+        result.invert = cell.find('input.invert').is(':checked');
 
         return result;
     }
@@ -826,12 +837,6 @@ if ($settings['Platform'] == "Raspberry Pi") {
 ?>
     output_modules.push(new GenericUDPDevice());
     output_modules.push(new VirtualDisplayDevice());
-
-<?
-if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux")) {
-    echo "output_modules.push(new X11VirtualMatrixDevice());";
-}
-?>
-
+    output_modules.push(new VirtualMatrixDevice());
 
 </script>

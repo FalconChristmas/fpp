@@ -11,13 +11,11 @@
  * included LICENSE.GPL file.
  */
 
-#include <linux/fb.h>
 #include <string>
 #include <vector>
 
 #include "ChannelOutput.h"
-
-class MatrixFrameBuffer;
+#include "overlays/PixelOverlayModel.h"
 
 class FBMatrixOutput : public ChannelOutput {
 public:
@@ -35,17 +33,13 @@ public:
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
 private:
-    MatrixFrameBuffer* m_frameBuffer;
+    std::string modelName;
+    PixelOverlayModel *model = nullptr;
 
-    int m_width;
-    int m_height;
-    int m_xoff;
-    int m_yoff;
-    int m_useRGB;
-    int m_inverted;
-    std::string m_device;
+    unsigned char* buffer = nullptr;
 
-    uint16_t*** m_rgb565map;
-    std::vector<int> m_xpos;
-    std::vector<int> m_ypos;
+    int width = 0;
+    int height = 0;
+    int inverted = 0;
 };
+

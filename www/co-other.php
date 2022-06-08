@@ -69,152 +69,6 @@ function NewUSBConfig() {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Virtual Matrix Output
-//
-function VirtualMatrixLayoutChanged(item) {
-	var width = $(item).parent().parent().find("input.width").val();
-	var height = $(item).parent().parent().find("input.height").val();
-	var channels = width * height * 3;
-
-	$(item).parent().parent().find("input.count").val(channels);
-}
-
-function VirtualMatrixColorOrderSelect(colorOrder) {
-	var result = "";
-
-	result += " Color&nbsp;Order:&nbsp;<select class='colorOrder'>";
-	result += "<option value='RGB'";
-
-	if (colorOrder == 'RGB')
-		result += " selected";
-
-	result += ">RGB</option><option value='BGR'";
-
-	if (colorOrder != 'RGB')
-		result += " selected";
-
-	result += ">BGR</option></select>";
-
-	return result;
-}
-function OnVirtualMatrixScalingChange(item) {
-    var val = $(item).val();
-    if (val == "None") {
-        $(item).parent().parent().find("span.VirtualMatrixOffset").show();
-    } else {
-        $(item).parent().parent().find("span.VirtualMatrixOffset").hide();
-    }
-}
-function VirtualMatrixScalingSelect(scaling) {
-    var result = "";
-
-    result += " Scaling:&nbsp;<select class='scaling' onchange='OnVirtualMatrixScalingChange(this);'>";
-    result += "<option value='Hardware'";
-
-    if (scaling == 'Hardware')
-        result += " selected";
-    result += ">Hardware</option><option value='Software'";
-    if (scaling == 'Software')
-        result += " selected";
-    result += ">Software</option><option value='None'";
-    if (scaling == 'None')
-        result += " selected";
-    result += ">None</option></select>";
-    return result;
-}
-function VirtualMatrixConfig(config) {
-    if (config.xoff == null) {
-        config.xoff = 0;
-    }
-    if (config.yoff == null) {
-        config.yoff = 0;
-    }
-
-    var vmDesc = config.description == null ? "VirtualMatrix" : config.description;
-    var result = "Description:&nbsp;<input type='text' class='description' value='" + vmDesc + "' size='30' maxlength='50'/><br>";
-	result += "Width:&nbsp;<input type='text' size='3' maxlength='4' class='width' value='" + config.width + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
-				"&nbsp;Height:&nbsp;<input type='text' size='3' maxlength='4' class='height' value='" + config.height + "' onChange='VirtualMatrixLayoutChanged(this);'>";
-
-	result += VirtualMatrixColorOrderSelect(config.colorOrder);
-	result += "<br>Invert:&nbsp;<input type=checkbox class='invert'";
-	if (config.invert)
-		result += " checked='checked'";
-	result += ">&nbsp;";
-	result += DeviceSelect(FBDevices, config.device) + "&nbsp;";
-    result += VirtualMatrixScalingSelect(config.scaling);
-
-    result += "<br><span class='VirtualMatrixOffset' id='VirtualMatrixOffset' ";
-    if (config.scaling != "None") {
-        result += "style='display: none;'";
-    }
-    result += ">X&nbsp;offset:&nbsp;<input type='number' class='xoff' min='0' max='4096' value='" + config.xoff + "'/> ";
-    result += "Y&nbsp;offset:&nbsp;<input type='number' class='yoff' min='0' max='4096' value='" + config.yoff + "'/>";
-    result += "</span>";
-
-	return result;
-}
-
-function NewVirtualMatrixConfig() {
-	var config = {};
-
-	config.width = 32;
-	config.height = 16;
-	config.layout = "32x16";
-	config.colorOrder = "RGB";
-	config.invert = 0;
-	config.device = "fb0";
-    config.scaling = "Hardware";
-    config.xoff = 0;
-    config.yoff = 0;
-    config.description = "";
-
-	return VirtualMatrixConfig(config);
-}
-
-function GetVirtualMatrixOutputConfig(result, cell) {
-	$cell = $(cell);
-	var width = $cell.find("input.width").val();
-
-	if (width == "")
-		return "";
-
-	var height = $cell.find("input.height").val();
-
-	if (height == "")
-		return "";
-
-	var colorOrder = $cell.find("select.colorOrder").val();
-
-	if (colorOrder == "")
-		return "";
-
-	var device = $cell.find("select.device").val();
-	if (device == "")
-		return "fb0";
-
-    var scaling = $cell.find("select.scaling").val();
-    if (scaling == "")
-        return "Hardware";
-
-	var invert = 0;
-	if ($cell.find("input.invert").is(":checked"))
-		invert = 1;
-
-	result.width = parseInt(width);
-	result.height = parseInt(height);
-	result.layout = width + "x" + height;
-	result.colorOrder = colorOrder;
-	result.invert = invert;
-	result.device = device;
-    result.scaling = scaling;
-    result.xoff = parseInt($cell.find("input.xoff").val());
-    result.yoff = parseInt($cell.find("input.yoff").val());
-    result.description = $cell.find("input.description").val();
-
-	return result;
-}
-
-/////////////////////////////////////////////////////////////////////////////
 // Generic Serial
 
 var GenericSerialSpeeds = new Array();
@@ -760,16 +614,14 @@ function PopulateChannelOutputTable(data) {
 			let output_module = output_modules.find(obj => obj.typeName == type);
 			///////
 
-            if ((type == 'HTTPVirtualDisplay') ||
-                (type == 'VirtualMatrix')) {
+            if (type == 'HTTPVirtualDisplay') {
                 startDisabled = " disabled='disabled'";
             }
 
 			if ((type == 'USBRelay') ||
                 (type == 'Pixelnet-Lynx') ||
                 (type == 'Pixelnet-Open') ||
-                (type == 'MAX7219Matrix') ||
-                (type == 'VirtualMatrix')) {
+                (type == 'MAX7219Matrix')) {
                 countDisabled = " disabled='disabled'";
             }
 
@@ -806,8 +658,6 @@ function PopulateChannelOutputTable(data) {
                 newRow += MAX7219MatrixConfig(output);
             } else if (type == "USBRelay") {
                 newRow += USBRelayConfig(output);
-            } else if (type == "VirtualMatrix") {
-                newRow += VirtualMatrixConfig(output);
             } else if (output_module != undefined){
 				///////new way
 				newRow += output_module.PopulateHTMLRow(output);
@@ -960,14 +810,6 @@ function SaveOtherChannelOutputs() {
 				return;
 			}
 			maxChannels = 8;
-		} else if (type == "VirtualMatrix") {
-			config = GetVirtualMatrixOutputConfig(config, $this.find("td:nth-child(6)"));
-			if (config == "") {
-				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid Virtual Matrix Config");
-				return;
-			}
-			maxChannels = 500000;
 		} else if (output_modules.find(obj => obj.typeName == type) != undefined){
 			///////new method
 			let output_module = output_modules.find(obj => obj.typeName == type);
@@ -1041,10 +883,6 @@ function AddOtherTypeOptions(row, type) {
 	} else if (type == "USBRelay") {
 		config += NewUSBRelayConfig();
 		row.find("td input.count").val("2");
-		row.find("td input.count").prop('disabled', true);
-	} else if ((type == "VirtualMatrix") || (type == "FBMatrix")) {
-		config += NewVirtualMatrixConfig();
-		row.find("td input.count").val("1536");
 		row.find("td input.count").prop('disabled', true);
 	} else if (output_modules.find(obj => obj.typeName == type) != undefined) {
 		///////new method
@@ -1121,9 +959,6 @@ if ($settings['Platform'] == "Raspberry Pi") {
 <?
 }
 ?>
-        if (Object.keys(FBDevices).length > 0) {
-            newRow += "<option value='VirtualMatrix'>Virtual Matrix</option>";
-        }
         newRow += "<option value='HTTPVirtualDisplay'>HTTP Virtual Display</option>";
         newRow += "</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
 			"<td style='vertical-align:top'><input class='start' type='text' size=7 maxlength=7 value='' style='display: none;'></td>" +
