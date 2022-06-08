@@ -2305,8 +2305,9 @@ function pinTableHeader() {
 
 $(document).ready(function(){
 <?
-if ((in_array('all', $currentCapeInfo["provides"])) ||
-    (in_array('strings', $currentCapeInfo["provides"]))) {
+if ((isset($settings['cape-info'])) &&
+    ((in_array('all', $settings['cape-info']["provides"])) ||
+     (in_array('strings', $settings['cape-info']["provides"])))) {
     ?>
     if (currentCapeName != "" && currentCapeName != "Unknown") {
         $('.capeNamePixels').html(currentCapeName);
