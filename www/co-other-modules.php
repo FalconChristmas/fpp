@@ -198,7 +198,6 @@ foreach ($models as $model) {
     $modelName = $model['Name'];
 
     if (($model['Type'] == 'FB') || ($model['Type'] == 'Sub')) {
-        // FIXME, need to handle pixelSize here
         echo "PixelOverlayModels['$modelName'] = '$modelName (" . $model['Width'] . 'x' . $model['Height'] . ")';\n";
         echo "PixelOverlayModelChannels['$modelName'] = " . $model['ChannelCount'] . ";\n";
     }
