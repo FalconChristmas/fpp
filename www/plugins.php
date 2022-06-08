@@ -151,6 +151,24 @@ function FindPluginInfo(plugin) {
 	return -1;
 }
 
+function InsertPluginTableItem(tableName, key, html) {
+    var i = 0;
+    var strcmp = new Intl.Collator(undefined, {numeric:true, sensitivity:'base'}).compare;
+    $('#' + tableName).children('div').each(function(item) {
+        if ((i > 0) && (i < 9999)) {
+            var title = $(this).find('.pluginTitle').html();
+            if (title && strcmp(title, key) >= 0) {
+                $(html).insertBefore(this);
+                i = 9999;
+            }
+        }
+        i++;
+    });
+    if (i < 9999) {
+        $('#' + tableName).append(html);
+    }
+}
+
 var firstInstalled = 1;
 var firstCompatible = 1;
 var firstUntested = 1;
@@ -299,10 +317,10 @@ function LoadPlugin(data, insert = false) {
 		if (firstInstalled)
 			firstInstalled = 0;
 
-		$('#installedPlugins').append(html);
-
 		if (compatibleVersion == -1)
-			$('#installedPlugins').append('<div class="row"><div class="col" class="bad">WARNING: This plugin is already installed, but may be incompatible with this FPP version or platform.</div></div>');
+			html += '<div class="row"><div class="col" class="bad">WARNING: This plugin is already installed, but may be incompatible with this FPP version or platform.</div></div>';
+
+		InsertPluginTableItem('installedPlugins', data.name, html);
 	}
 	else if (data.repoName == 'fpp-plugin-Template')
 	{
@@ -317,8 +335,7 @@ function LoadPlugin(data, insert = false) {
 			firstUntested = 0;
 		}
 
-
-		$('#untestedPlugins').append(html);
+		InsertPluginTableItem('untestedPlugins', data.name, html);
 	}
 	else if (compatibleVersion != -1)
 	{
@@ -330,7 +347,7 @@ function LoadPlugin(data, insert = false) {
 			$('#pluginTable').children(':first-child').after(html);
 			document.getElementById("pluginTable").scrollIntoView();
 		} else {
-			$('#pluginTable').append(html);
+			InsertPluginTableItem('pluginTable', data.name, html);
 		}
 	}
 	else
@@ -341,8 +358,7 @@ function LoadPlugin(data, insert = false) {
 			firstIncompatible = 0;
 		}
 
-
-		$('#incompatiblePlugins').append(html);
+		InsertPluginTableItem('incompatiblePlugins', data.name, html);
 	}
 }
 
