@@ -600,7 +600,7 @@ $(document).ready(function(){
             modelInfos = data;
 
             for (var i = 0; i < modelInfos.length; i++) {
-                if ((modelInfos[i].Type != 'FB') && (modelInfos[i].Type != 'Sub')) {
+                if (modelInfos[i].StartChannel > 0) {
                     modelInfos[i].EndChannel = modelInfos[i].StartChannel + modelInfos[i].ChannelCount - 1;
                     modelInfos[i].ChannelsPerString = parseInt(modelInfos[i].ChannelCount / modelInfos[i].StringCount);
                     var option = "<option value='" + i + "'>" + modelInfos[i].Name + "</option>\n";
