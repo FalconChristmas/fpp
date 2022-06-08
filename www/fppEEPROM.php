@@ -197,7 +197,13 @@ class fppEEPROM {
                     case 98:
                             # Regenerate data for location
                             $len = 2;
-                            $tdata = pack('a6a2a2', $len, $code, $e['location']);
+
+                            if ($e['location'] == self::LOC_FILE) {
+                                // If location is 'file', force to 'any' so can also be written to an EEPROM
+                                $tdata = pack('a6a2a2', $len, $code, self::LOC_ANY);
+                            } else {
+                                $tdata = pack('a6a2a2', $len, $code, $e['location']);
+                            }
 
                             if ($v == 1) {
                                 $sigData .= $tdata;
