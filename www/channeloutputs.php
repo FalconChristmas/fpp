@@ -237,18 +237,16 @@ $(document).ready(function(){
 
             if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
                 ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
-                if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-                    $stringTabText="Pixel Strings";
-                    if (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")
-                        $stringTabText=$currentCapeInfo["name"];
-                    ?>
-                    <li class="nav-item <?=$stringTabStyle?>" id="tab-strings-LI" >
-                        <a class="nav-link <?=$stringTabStyleActive?>" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
-                            <? echo $stringTabText; ?>
-                        </a>
-                    </li>
-                    <?
-                }
+                $stringTabText="Pixel Strings";
+                if (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown" && $stringTabStyle == "")
+                    $stringTabText=$currentCapeInfo["name"];
+                ?>
+                <li class="nav-item <?=$stringTabStyle?>" id="tab-strings-LI" >
+                    <a class="nav-link <?=$stringTabStyleActive?>" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
+                        <? echo $stringTabText; ?>
+                    </a>
+                </li>
+                <?
             }
 			if ($settings['Platform'] == "Raspberry Pi") {
 				if (in_array('fpd', $currentCapeInfo["provides"])) {
@@ -297,13 +295,11 @@ if ($e131TabStyle == "") {
 		
         if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
             ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
-            if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
             ?>
-                <div class="tab-pane fade <?=$stringTabStyleActive?>" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
-                    <? include_once('co-pixelStrings.php'); ?>
-                </div>
+            <div class="tab-pane fade <?=$stringTabStyleActive?>" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
+                <? include_once('co-pixelStrings.php'); ?>
+            </div>
             <?
-            }
         }
         if ($settings['Platform'] == "Raspberry Pi") {
 		    if (in_array('fpd', $currentCapeInfo["provides"])) {

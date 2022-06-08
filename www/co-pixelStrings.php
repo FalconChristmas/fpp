@@ -871,8 +871,10 @@ function GetPixelStringCapeFileName() {
     var mainType = $('#PixelStringSubType').val();
     if (!mainType || mainType == "") {
         var first = Object.keys(KNOWN_CAPES)[0];
-        $('#PixelStringSubType').val(KNOWN_CAPES[first].name);
-        mainType = KNOWN_CAPES[first].name;
+        if (first) {
+            $('#PixelStringSubType').val(KNOWN_CAPES[first].name);
+            mainType = KNOWN_CAPES[first].name;
+        }
     }
     return GetPixelStringCapeFileNameForSubType(mainType);
 }
@@ -903,7 +905,10 @@ function GetPixelStringRows()
 {
     var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    return (val["outputs"] || []).length;
+    if (val) {
+        return (val["outputs"] || []).length;
+    }
+    return 4;
 }
 
 //get array of header pin#s indexed by port#:
@@ -912,7 +917,10 @@ function GetPixelStringPins()
 {
     const subType = GetPixelStringCapeFileName();
     const capeInfo = KNOWN_CAPES[subType];
-    return capeInfo.outputs && (capeInfo.outputs || []).map(info => info.pin);
+    if (capeInfo) {
+        return capeInfo.outputs && (capeInfo.outputs || []).map(info => info.pin);
+    }
+    return [];
 }
 
 function GetPixelStringProtocols(p) {
@@ -980,9 +988,11 @@ function GetGroupPortStart(subType, s) {
     s = s + 1;
     var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    for (instance of val["groups"]) {
-        if ((s == instance["start"]) && instance.hasOwnProperty('portStart')) {
-            return instance['portStart'];
+    if (val) {
+        for (instance of val["groups"]) {
+            if ((s == instance["start"]) && instance.hasOwnProperty('portStart')) {
+                return instance['portStart'];
+            }
         }
     }
     return 0;
@@ -991,9 +1001,11 @@ function ShouldAddBreak(subType, s) {
     s = s + 1;
     var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    for (instance of val["groups"]) {
-        if (s == instance["start"]) {
-            return true;
+    if (val) {
+        for (instance of val["groups"]) {
+            if (s == instance["start"]) {
+                return true;
+            }
         }
     }
     return false;
@@ -1002,9 +1014,11 @@ function IsDifferential(subType, s) {
     s = s + 1;
     var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    for (instance of val["groups"]) {
-        if (s == instance["start"]) {
-            return instance["type"] == "differential";
+    if (val) {
+        for (instance of val["groups"]) {
+            if (s == instance["start"]) {
+                return instance["type"] == "differential";
+            }
         }
     }
     return false;
@@ -1012,7 +1026,7 @@ function IsDifferential(subType, s) {
 function SupportsSmartReceivers(subType) {
     var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    if (val.hasOwnProperty("supportsSmartReceivers")) {
+    if (val && val.hasOwnProperty("supportsSmartReceivers")) {
         return val["supportsSmartReceivers"];
     }
     return false;
@@ -1021,9 +1035,11 @@ function IsExpansion(subType, s) {
     s = s + 1;
     var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    for (instance of val["groups"]) {
-        if (s == instance["start"]) {
-            return instance["type"] == "expansion";
+    if (val) {
+        for (instance of val["groups"]) {
+            if (s == instance["start"]) {
+                return instance["type"] == "expansion";
+            }
         }
     }
     return false;
@@ -1038,8 +1054,9 @@ function IsDifferentialExpansion(isExpansion, expansionType, s) {
 function HasSerial(subType) {
     var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    if (val.hasOwnProperty('numSerial'))
+    if (val && val.hasOwnProperty('numSerial')) {
         return val["numSerial"] > 0;
+    }
     return 0;
 }
 
@@ -1308,10 +1325,11 @@ function populatePixelStringOutputs(data) {
             var output = data.channelOutputs[opi];
             var type = output.type;
             if (IsPixelStringDriverType(type)) {
-                $('#PixelString_enable').prop('checked', output.enabled);
                 if (output.enabled) {
                     $("#tab-strings-LI").show();
                 }
+
+                $('#PixelString_enable').prop('checked', output.enabled);
                 var subType = output.subType;
                 $('#PixelStringSubType').val(subType);
                 var version = output.pinoutVersion;
@@ -1575,7 +1593,7 @@ function populatePixelStringOutputs(data) {
 
                 var key = GetPixelStringCapeFileNameForSubType(subType);
                 var val = KNOWN_CAPES[key];
-                if (val.hasOwnProperty('notes')) {
+                if (val && val.hasOwnProperty('notes')) {
                     $('.capeNotes').show();
                     $('#capeNotes').html(val.notes);
                 } else {
@@ -1642,9 +1660,11 @@ function ValidateBBBStrings(data) {
                 var fn = GetPixelStringCapeFileNameForSubType(output.subType);
                 if (KNOWN_CAPES[fn] == null) {
                     fn = KNOWN_CAPES[Object.keys(KNOWN_CAPES)[0]];
-                    output.subType = fn.name;
-                    if (typeof fn.pinoutVersion !== 'undefined') {
-                        output.pinoutVersion = fn.pinoutVersion;
+                    if (fn) {
+                        output.subType = fn.name;
+                        if (typeof fn.pinoutVersion !== 'undefined') {
+                            output.pinoutVersion = fn.pinoutVersion;
+                        }
                     }
                 } else {
                     fn = KNOWN_CAPES[fn];
@@ -1656,9 +1676,11 @@ function ValidateBBBStrings(data) {
                 var fn = GetPixelStringCapeFileNameForSubType(output.device);
                 if (KNOWN_CAPES[fn] == null) {
                     fn = KNOWN_CAPES[Object.keys(KNOWN_CAPES)[0]];
-                    output.device = fn.name;
-                    if (typeof fn.pinoutVersion !== 'undefined') {
-                        output.pinoutVersion = fn.pinoutVersion;
+                    if (fn) {
+                        output.device = fn.name;
+                        if (typeof fn.pinoutVersion !== 'undefined') {
+                            output.pinoutVersion = fn.pinoutVersion;
+                        }
                     }
                 } else {
                     fn = KNOWN_CAPES[fn];
