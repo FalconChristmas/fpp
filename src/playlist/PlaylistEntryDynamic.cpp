@@ -17,14 +17,12 @@
 #include "PlaylistEntryCommand.h"
 #include "PlaylistEntryDynamic.h"
 #include "PlaylistEntryEffect.h"
-#include "PlaylistEntryMQTT.h"
 #include "PlaylistEntryMedia.h"
 #include "PlaylistEntryPause.h"
 #include "PlaylistEntryRemap.h"
 #include "PlaylistEntryScript.h"
 #include "PlaylistEntrySequence.h"
 #include "PlaylistEntryURL.h"
-#include "PlaylistEntryVolume.h"
 
 /*
  *
@@ -347,8 +345,6 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr) {
             playlistEntry = new PlaylistEntryEffect(m_parentPlaylist);
         else if (pe["type"].asString() == "media")
             playlistEntry = new PlaylistEntryMedia(m_parentPlaylist);
-        else if (pe["type"].asString() == "mqtt")
-            playlistEntry = new PlaylistEntryMQTT(m_parentPlaylist);
         else if (pe["type"].asString() == "pause")
             playlistEntry = new PlaylistEntryPause(m_parentPlaylist);
         else if (pe["type"].asString() == "remap")
@@ -359,8 +355,6 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr) {
             playlistEntry = new PlaylistEntrySequence(m_parentPlaylist);
         else if (pe["type"].asString() == "url")
             playlistEntry = new PlaylistEntryURL(m_parentPlaylist);
-        else if (pe["type"].asString() == "volume")
-            playlistEntry = new PlaylistEntryVolume(m_parentPlaylist);
         else {
             LogErr(VB_PLAYLIST, "Invalid Playlist Entry Type: %s\n", pe["type"].asString().c_str());
             ClearPlaylistEntries();

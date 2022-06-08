@@ -290,45 +290,6 @@
             }
         }
     },
-    "event": {
-        "name": "event",
-        "description": "Event",
-        "deprecated": 1,
-        "args" : {
-            "majorID": {
-                "name": "majorID",
-                "description": "Major ID",
-                "type": "int",
-                "min": 1,
-                "max": 255,
-                "default": 1,
-                "optional": false
-            },
-            "minorID": {
-                "name": "minorID",
-                "description": "Minor ID",
-                "type": "int",
-                "min": 1,
-                "max": 255,
-                "default": 1,
-                "optional": false
-            },
-            "desc": {
-                "name": "desc",
-                "description": "Description",
-                "type": "string",
-                "optional": true,
-                "simpleUI": true
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
     "command": {
         "name": "command",
         "description": "FPP Command",
@@ -444,34 +405,6 @@
                 "type": "string",
                 "contentListUrl": "api/options/PlaylistVideoOutput",
                 "optional": true
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "mqtt": {
-        "name": "mqtt",
-        "description": "MQTT",
-        "deprecated": 1,
-        "args": {
-            "topic": {
-                "name": "topic",
-                "type": "string",
-                "description": "Topic",
-                "optional": false,
-                "simpleUI": true
-            },
-            "message": {
-                "name": "message",
-                "type": "string",
-                "description": "Message",
-                "optional": false,
-                "simpleUI": true
             },
             "note": {
                 "name": "note",
@@ -719,30 +652,6 @@
                 "description": "POST Data",
                 "type": "string",
                 "optional": false
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "volume": {
-        "name": "volume",
-        "description": "Volume",
-        "deprecated": 1,
-        "args": {
-            "volume": {
-                "name": "volume",
-                "description": "Volume",
-                "type": "int",
-                "min": 0,
-                "max": 100,
-                "default": 80,
-                "optional": false,
-                "simpleUI": true
             },
             "note": {
                 "name": "note",

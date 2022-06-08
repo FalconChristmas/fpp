@@ -75,7 +75,6 @@ OBJECTS_fpp_so += \
 	playlist/PlaylistEntryEffect.o \
 	playlist/PlaylistEntryImage.o \
 	playlist/PlaylistEntryMedia.o \
-	playlist/PlaylistEntryMQTT.o \
 	playlist/PlaylistEntryPause.o \
 	playlist/PlaylistEntryPlaylist.o \
 	playlist/PlaylistEntryPlugin.o \
@@ -83,7 +82,6 @@ OBJECTS_fpp_so += \
 	playlist/PlaylistEntryScript.o \
 	playlist/PlaylistEntrySequence.o \
 	playlist/PlaylistEntryURL.o \
-	playlist/PlaylistEntryVolume.o \
 	Plugins.o \
 	Scheduler.o \
 	ScheduleEntry.o \

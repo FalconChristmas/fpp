@@ -29,7 +29,6 @@
 #include "PlaylistEntryDynamic.h"
 #include "PlaylistEntryEffect.h"
 #include "PlaylistEntryImage.h"
-#include "PlaylistEntryMQTT.h"
 #include "PlaylistEntryMedia.h"
 #include "PlaylistEntryPause.h"
 #include "PlaylistEntryPlaylist.h"
@@ -38,7 +37,6 @@
 #include "PlaylistEntryScript.h"
 #include "PlaylistEntrySequence.h"
 #include "PlaylistEntryURL.h"
-#include "PlaylistEntryVolume.h"
 
 static std::list<Playlist*> PL_CLEANUPS;
 Playlist* playlist = NULL;
@@ -372,8 +370,6 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry) {
         result = new PlaylistEntryImage(this);
     else if (entry["type"].asString() == "media")
         result = new PlaylistEntryMedia(this);
-    else if (entry["type"].asString() == "mqtt")
-        result = new PlaylistEntryMQTT(this);
     else if (entry["type"].asString() == "pause")
         result = new PlaylistEntryPause(this);
     else if (entry["type"].asString() == "playlist")
@@ -388,8 +384,6 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry) {
         result = new PlaylistEntrySequence(this);
     else if (entry["type"].asString() == "url")
         result = new PlaylistEntryURL(this);
-    else if (entry["type"].asString() == "volume")
-        result = new PlaylistEntryVolume(this);
     else if (entry["type"].asString() == "command")
         result = new PlaylistEntryCommand(this);
     else {
