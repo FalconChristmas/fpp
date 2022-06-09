@@ -42,7 +42,7 @@ dispatch_get('/events/:eventId/trigger', 'event_trigger');
 
 dispatch_get('/files/:DirName', 'GetFiles');
 dispatch_get('/file/move/:fileName', 'MoveFile'); // keep above file/:DirName
-dispatch_get('/files/zip/:DirName', 'GetZipDir');
+dispatch_get('/files/zip/:DirNames', 'GetZipDir');
 dispatch_post('/file/:DirName/copy/:source/:dest', 'files_copy');
 dispatch_post('/file/:DirName/rename/:source/:dest', 'files_rename');
 dispatch_get('/file/:DirName/:Name', 'GetFile');

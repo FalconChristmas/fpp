@@ -291,14 +291,22 @@ function MoveFile()
     return json(array("status" => $status));
 }
 
-/// GET /api/files/zip/:DirName
+/// GET /api/files/zip/:DirNames
 function GetZipDir()
 {
     global $mediaDirectory;
-    $dirName = params("DirName");
 
+    $dirNames = params("DirNames");
+    $dirNameArray = explode(',',$dirNames);
+
+    if(count($dirNameArray) == 1) {
+        $zipName = $dirNames;
+    } else {
+        $zipName = "all";
+    }
+    
     // Re-format the file name
-    $filename = tempnam("/tmp", "FPP_$dirName");
+    $filename = tempnam("/tmp", "FPP_$zipName");
 
     // Create the object
     $zip = new ZipArchive();
@@ -306,32 +314,35 @@ function GetZipDir()
         exit("Cannot open '$filename'\n");
     }
 
-    //Logs and Config are special
-    if ($dirName == "Logs") {
-        ZipLogs($zip);
-    } else if ($dirName == "Config") {
-        ZipConfigs($zip);
-    } else {
-        if (file_exists("$mediaDirectory/$dirName")) {
-            ZipDirectory($zip, "$mediaDirectory/$dirName");
+    foreach ($dirNameArray as $dirName) {
+
+        //Logs and Config are special
+        if (strtolower($dirName) == "logs") {
+            ZipLogs($zip);
+        } else if (strtolower($dirName) == "config") {
+            ZipConfigs($zip);
         } else {
-            $zip->close();
-            return json(array("status" => "Directory does not exist: $dirName"));
+            $dir = GetDirSetting($dirName);
+            if (file_exists($dir) && $dir != "" ) {
+                ZipDirectory($zip, $dirName, $dir);
+            } else {
+                $zip->close();
+                return json(array("status" => "Directory not found: Name:$dirName, Path:$dir"));
+            }
         }
     }
-
+    
     $zip->close();
 
     $timestamp = gmdate('Ymd.Hi');
 
     header('Content-type: application/zip');
-    header('Content-disposition: attachment;filename=FPP_' . $dirName . '_' . $timestamp . '.zip');
+    header('Content-disposition: attachment;filename=FPP_' . $zipName . '_' . $timestamp . '.zip');
     ob_clean();
     flush();
     readfile($filename);
     unlink($filename);
     exit();
-
 }
 
 function ZipLogs($zip)
@@ -358,22 +369,22 @@ function ZipLogs($zip)
         if ($file == "." || $file == ".." || in_array($file, $ignore_files)) {
             continue;
         }
-        $zip->addFile($logDirectory . '/' . $file, "Logs/" . $file);
+        $zip->addFile($logDirectory . '/' . $file, "logs/" . $file);
     }
 
     if (is_readable("/var/log/messages")) {
-        $zip->addFile("/var/log/messages", "Logs/messages.log");
+        $zip->addFile("/var/log/messages", "logs/messages.log");
     }
 
     if (is_readable("/var/log/syslog")) {
-        $zip->addFile("/var/log/syslog", "Logs/syslog.log");
+        $zip->addFile("/var/log/syslog", "logs/syslog.log");
     }
 
     exec("cat /proc/asound/cards", $output, $return_val);
     if ($return_val != 0) {
         error_log("Unable to read alsa cards");
     } else {
-        $zip->addFromString("Logs/asound/cards", implode("\n", $output) . "\n");
+        $zip->addFromString("logs/asound/cards", implode("\n", $output) . "\n");
     }
     unset($output);
 
@@ -381,7 +392,7 @@ function ZipLogs($zip)
     if ($return_val != 0) {
         error_log("Unable to get a git status for logs");
     } else {
-        $zip->addFromString("Logs/git_status.txt", implode("\n", $output) . "\n");
+        $zip->addFromString("logs/git_status.txt", implode("\n", $output) . "\n");
     }
     unset($output);
 
@@ -389,7 +400,7 @@ function ZipLogs($zip)
     if ($return_val != 0) {
         error_log("Unable to get a git diff for logs");
     } else {
-        $zip->addFromString("Logs/fpp_git.diff", implode("\n", $output) . "\n");
+        $zip->addFromString("logs/fpp_git.diff", implode("\n", $output) . "\n");
     }
     unset($output);
 }
@@ -420,6 +431,7 @@ function ZipConfigs($zip)
         "pixelnetDMX",
         "settings",
         "universes",
+        "fpp-info.json",
     );
 
     foreach ($files as $file) {
@@ -432,7 +444,7 @@ function ZipConfigs($zip)
             } else {
                 $fileData = ScrubFile("$mediaDirectory/$file");
             }
-            $zip->addFromString("Config/$file", $fileData);
+            $zip->addFromString("$file", $fileData);
         }
     }
 
@@ -441,18 +453,19 @@ function ZipConfigs($zip)
     if ($return_val != 0) {
         error_log("Unable to read /root/.asoundrc");
     } else {
-        $zip->addFromString("Config/asoundrc", implode("\n", $output) . "\n");
+        $zip->addFromString("asoundrc", implode("\n", $output) . "\n");
     }
     unset($output);
 }
 
-function ZipDirectory($zip, $directory)
+function ZipDirectory($zip, $name, $directory)
 {
+    global $mediaDirectory;
     foreach (scandir($directory) as $file) {
         if ($file == "." || $file == ".." ) {
             continue;
         }
-        $zip->addFile($directory . '/' . $file, $directory . '/' . $file);
+        $zip->addFile("$directory/$file" , "$name/$file");
     }
 }
 

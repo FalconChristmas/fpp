@@ -261,10 +261,10 @@
             }
         },
         {
-            "endpoint": "files/zip/:DirName",
+            "endpoint": "files/zip/:DirNames",
             "methods": {
                 "GET": {
-                    "desc": "Downloads all files in the specified directory in zip format. (Currently only supported where DirName == Logs)",
+                    "desc": "Downloads all files in the specified directory in zip format. Supports comma separated list of directories.",
                     "output": "A Zip file"
                 }
             }

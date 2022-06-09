@@ -509,8 +509,6 @@ $settings['effectDirectory'] = $effectDirectory;
 $settings['eventDirectory'] = $eventDirectory;
 $settings['logDirectory'] = $logDirectory;
 $settings['uploadDirectory'] = $uploadDirectory;
-$settings['playlistDirectory'] = $playlistDirectory;
-$settings['pluginDirectory'] = $pluginDirectory;
 $settings['docsDirectory'] = $docsDirectory;
 $settings['fppRfsVersion'] = $fppRfsVersion;
 $settings['exim4Directory'] = $exim4Directory;
@@ -626,6 +624,10 @@ function GetDirSetting($dir)
         return GetSettingValue('mediaDirectory') . '/tmp';
     } else if ($dir == 'crashes') {
         return GetSettingValue('mediaDirectory') . '/crashes';
+    } else if ($dir == 'playlists') {
+        return GetSettingValue('playlistDirectory');
+    } else if ($dir == 'plugins') {
+        return GetSettingValue('pluginDirectory');
     }
     return "";
 }
