@@ -908,7 +908,7 @@ function GetPixelStringRows()
     if (val) {
         return (val["outputs"] || []).length;
     }
-    return 4;
+    return -1;
 }
 
 //get array of header pin#s indexed by port#:
@@ -1370,6 +1370,13 @@ function populatePixelStringOutputs(data) {
                 $('#pixelOutputs').html("");
 
                 var outputCount = GetPixelStringRows();
+                var sourceOutputCount = output.outputCount;
+                if (output.outputs != null) {
+                    sourceOutputCount = output.outputs.length;
+                }
+                if (outputCount < 0) {
+                    outputCount = sourceOutputCount;
+                }
 
                 var str = "";
                 str += "<div class='fppTableWrapper'>" +
@@ -1381,10 +1388,6 @@ function populatePixelStringOutputs(data) {
                 var expansions = [];
                 var expansionType = 0;
                 var inExpansion = false;
-                var sourceOutputCount = output.outputCount;
-                if (output.outputs != null) {
-                    sourceOutputCount = output.outputs.length;
-                }
 
 
                 for (var o = 0; o < outputCount; o++)

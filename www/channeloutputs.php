@@ -237,8 +237,8 @@ $(document).ready(function(){
 
             if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
                 ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
+                $stringTabText="Pixel Strings";
                 if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-                    $stringTabText="Pixel Strings";
                     if ((isset($settings['cape-info'])) &&
                         ((in_array('all', $settings['cape-info']["provides"])) || (in_array('strings', $settings['cape-info']["provides"]))) &&
                         (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")) {
@@ -246,14 +246,14 @@ $(document).ready(function(){
                         if (in_array('all', $settings['cape-info']["provides"]) || in_array('panels', $settings['cape-info']["provides"]))
                             $stringTabText .= " Pixel Strings";
                     }
-                    ?>
-                    <li class="nav-item <?=$stringTabStyle?>" id="tab-strings-LI" >
-                        <a class="nav-link <?=$stringTabStyleActive?>" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
-                            <? echo $stringTabText; ?>
-                        </a>
-                    </li>
-                    <?
                 }
+                ?>
+                <li class="nav-item <?=$stringTabStyle?>" id="tab-strings-LI" >
+                    <a class="nav-link <?=$stringTabStyleActive?>" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
+                        <? echo $stringTabText; ?>
+                    </a>
+                </li>
+                <?
             }
 			if ($settings['Platform'] == "Raspberry Pi") {
 				if (in_array('fpd', $currentCapeInfo["provides"])) {
