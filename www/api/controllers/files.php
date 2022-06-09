@@ -294,10 +294,54 @@ function MoveFile()
 /// GET /api/files/zip/:DirName
 function GetZipDir()
 {
+    global $mediaDirectory;
+    $dirName = params("DirName");
+
+    // Re-format the file name
+    $filename = tempnam("/tmp", "FPP_$dirName");
+
+    // Create the object
+    $zip = new ZipArchive();
+    if ($zip->open($filename, ZIPARCHIVE::CREATE) !== true) {
+        exit("Cannot open '$filename'\n");
+    }
+
+    //Logs and Config are special
+    if ($dirName == "Logs") {
+        ZipLogs($zip);
+    } else if ($dirName == "Config") {
+        ZipConfigs($zip);
+    } else {
+        if (file_exists("$mediaDirectory/$dirName")) {
+            ZipDirectory($zip, "$mediaDirectory/$dirName");
+        } else {
+            $zip->close();
+            return json(array("status" => "Directory does not exist: $dirName"));
+        }
+    }
+
+    $zip->close();
+
+    $timestamp = gmdate('Ymd.Hi');
+
+    header('Content-type: application/zip');
+    header('Content-disposition: attachment;filename=FPP_' . $dirName . '_' . $timestamp . '.zip');
+    ob_clean();
+    flush();
+    readfile($filename);
+    unlink($filename);
+    exit();
+
+}
+
+function ZipLogs($zip)
+{
     global $SUDO;
     global $settings;
     global $logDirectory;
     global $mediaDirectory;
+
+    ZipConfigs($zip);
 
     $ignore_files = array(
         "git_branch.log", // No longer generated
@@ -305,26 +349,11 @@ function GetZipDir()
         "git_fetch.log", // No longer generated
     );
 
-    $dirName = params("DirName");
-    if ($dirName != "Logs") {
-        return json(array("status" => "Unsupported Directory"));
-    }
-
-    // Rest of this is only applicable for "Logs"
-
-    // Re-format the file name
-    $filename = tempnam("/tmp", "FPP_Logs");
-
     // Gather troubleshooting commands output
     $cmd = "php " . $settings['fppDir'] . "/www/troubleshootingText.php > " . $settings['mediaDirectory'] . "/logs/troubleshootingCommands.log";
     exec($cmd, $output, $return_val);
     unset($output);
 
-    // Create the object
-    $zip = new ZipArchive();
-    if ($zip->open($filename, ZIPARCHIVE::CREATE) !== true) {
-        exit("Cannot open '$filename'\n");
-    }
     foreach (scandir($logDirectory) as $file) {
         if ($file == "." || $file == ".." || in_array($file, $ignore_files)) {
             continue;
@@ -339,6 +368,36 @@ function GetZipDir()
     if (is_readable("/var/log/syslog")) {
         $zip->addFile("/var/log/syslog", "Logs/syslog.log");
     }
+
+    exec("cat /proc/asound/cards", $output, $return_val);
+    if ($return_val != 0) {
+        error_log("Unable to read alsa cards");
+    } else {
+        $zip->addFromString("Logs/asound/cards", implode("\n", $output) . "\n");
+    }
+    unset($output);
+
+    exec("/usr/bin/git --work-tree=" . gitBaseDirectory() . "/ status", $output, $return_val);
+    if ($return_val != 0) {
+        error_log("Unable to get a git status for logs");
+    } else {
+        $zip->addFromString("Logs/git_status.txt", implode("\n", $output) . "\n");
+    }
+    unset($output);
+
+    exec("/usr/bin/git --work-tree=" . gitBaseDirectory() . "/ diff", $output, $return_val);
+    if ($return_val != 0) {
+        error_log("Unable to get a git diff for logs");
+    } else {
+        $zip->addFromString("Logs/fpp_git.diff", implode("\n", $output) . "\n");
+    }
+    unset($output);
+}
+
+function ZipConfigs($zip)
+{
+    global $SUDO;
+    global $mediaDirectory;
 
     $files = array(
         "channelmemorymaps",
@@ -385,43 +444,16 @@ function GetZipDir()
         $zip->addFromString("Config/asoundrc", implode("\n", $output) . "\n");
     }
     unset($output);
+}
 
-    exec("cat /proc/asound/cards", $output, $return_val);
-    if ($return_val != 0) {
-        error_log("Unable to read alsa cards");
-    } else {
-        $zip->addFromString("Logs/asound/cards", implode("\n", $output) . "\n");
+function ZipDirectory($zip, $directory)
+{
+    foreach (scandir($directory) as $file) {
+        if ($file == "." || $file == ".." ) {
+            continue;
+        }
+        $zip->addFile($directory . '/' . $file, $directory . '/' . $file);
     }
-    unset($output);
-
-    exec("/usr/bin/git --work-tree=" . gitBaseDirectory() . "/ status", $output, $return_val);
-    if ($return_val != 0) {
-        error_log("Unable to get a git status for logs");
-    } else {
-        $zip->addFromString("Logs/git_status.txt", implode("\n", $output) . "\n");
-    }
-    unset($output);
-
-    exec("/usr/bin/git --work-tree=" . gitBaseDirectory() . "/ diff", $output, $return_val);
-    if ($return_val != 0) {
-        error_log("Unable to get a git diff for logs");
-    } else {
-        $zip->addFromString("Logs/fpp_git.diff", implode("\n", $output) . "\n");
-    }
-    unset($output);
-
-    $zip->close();
-
-    $timestamp = gmdate('Ymd.Hi');
-
-    header('Content-type: application/zip');
-    header('Content-disposition: attachment;filename=FPP_Logs_' . $timestamp . '.zip');
-    ob_clean();
-    flush();
-    readfile($filename);
-    unlink($filename);
-    exit();
-
 }
 
 function DeleteFile()
