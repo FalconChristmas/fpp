@@ -576,7 +576,7 @@ class VirtualDisplayDevice extends OtherBaseDevice {
 // Virtual Matrix Output
 class VirtualMatrixDevice extends OtherBaseDevice {
 
-    constructor(name="VirtualMatrix", friendlyName="Virtual Matrix", maxChannels=FPPD_MAX_CHANNELS, fixedStart=true, fixedChans=true,
+    constructor(name="VirtualMatrix", friendlyName="Virtual Matrix", maxChannels=FPPD_MAX_CHANNELS, fixedStart=false, fixedChans=true,
                 config={modelName: '', invert: false}) {
         super(name, friendlyName, maxChannels, fixedStart, fixedChans, PixelOverlayModels, config);
 
