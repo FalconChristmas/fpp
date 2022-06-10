@@ -315,6 +315,9 @@ function Usage() {
     printf( "  -l, --location LOCATION    - Valid location for EEPROM.\n");
     printf( "                               Must be one of: 'any', 'eeprom', or 'file'\n");
     printf( "                               Defaults to eeprom.\n");
+    printf( "                               WARNING: This field must be correct if the\n");
+    printf( "                               EEPROM is signed or it will be treated as\n");
+    printf( "                               if it were unsigned by FPP.\n");
     printf( "  -V, --Variable KEY=VALUE   - Add a variable to the EEPROM\n");
     printf( "  -d, --directory DIRECTORY  - Directory to package in EEPROM\n");
     printf( "  -o, --output OUTPUTFILE    - File name of generated EEPROM file\n");
