@@ -6,7 +6,10 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/functions
 
 # Clear any restart flag
-sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
+if [ "x$(grep '^restartFlag.*[1-9]' /home/fpp/media/settings)" != "x" ]
+then
+    sed -i -e "s/^restartFlag .*/restartFlag = \"0\"/" ${FPPHOME}/media/settings
+fi
 
 echo "Setup channel outputs"
 setupChannelOutputs
