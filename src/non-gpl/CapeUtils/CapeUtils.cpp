@@ -856,6 +856,10 @@ private:
             Json::Value result;
             if (LoadJsonFromFile(outputPath + "/tmp/cape-info.json", result)) {
                 std::set<std::string> removes;
+                if (hasSignature) {
+                    result["validEepromLocation"] = validEpromLocation;
+                }
+                result["eepromLocation"] = EEPROM;
                 if (result.isMember("removeSettings")) {
                     for (int x = 0; x < result["removeSettings"].size(); x++) {
                         std::string v = result["removeSettings"][x].asString();
