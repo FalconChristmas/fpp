@@ -66,17 +66,17 @@ function UploadConfigFile()
 
     $result = Array();
     
-	$fileName = params(0);
-	if (preg_match('/\//', $fileName))
+	$baseFile = params(0);
+	if (preg_match('/\//', $baseFile))
 	{
-		// FileName contains a subdir, so create if needed
-		$subDir = $settings['configDirectory'] . '/' . $fileName;
+		// baseFile contains a subdir, so create if needed
+		$subDir = $settings['configDirectory'] . '/' . $baseFile;
 		$subDir = preg_replace('/\/[^\/]*$/', '', $subDir);
 
 		mkdir($subDir, 0755, true);
 	}
 
-	$fileName = $settings['configDirectory'] . '/' . $fileName;
+	$fileName = $settings['configDirectory'] . '/' . $baseFile;
 
 	$f = fopen($fileName, "w");
 	if ($f)
@@ -95,7 +95,11 @@ function UploadConfigFile()
 	{
 		$result['Status'] = 'Error';
 		$result['Message'] = 'Unable to open file for writing';
-	}
+    }
+
+    if ($baseFile == 'authorized_keys') {
+        system("sudo /opt/fpp/scripts/installSSHKeys");
+    }
 
 	return json($result);
 }

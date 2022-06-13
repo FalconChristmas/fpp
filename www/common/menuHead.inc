@@ -1,6 +1,6 @@
 <?
 // Switch to Initial Setup page if needed, but come back here when done
-if (((!isset($settings['initialSetup'])) || ($settings['initialSetup'] == '0')) && (basename($_SERVER['PHP_SELF']) != "initialSetup.php")) {
+if (((!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == '0')) && (basename($_SERVER['PHP_SELF']) != "initialSetup.php")) {
     echo "<meta http-equiv='refresh' content='0;url=initialSetup.php?redirect=" . preg_replace('/^\//', '', $_SERVER['PHP_SELF']) . "' />\n";
     exit(0);
 }

@@ -156,6 +156,32 @@ function SetUIPassword($value)
     file_put_contents($filename, $data);
 }
 
+function EnableOSPassword($value)
+{
+    global $settings;
+
+    $password = '';
+
+    if ($value == '1') {
+        $password = ReadSettingFromFile('osPassword');
+    }
+
+    if ($password == '') {
+        $password = 'falcon';
+    }
+
+    system("echo 'fpp:$password' | sudo chpasswd");
+}
+
+function SetOSPassword($value)
+{
+    if ($value == '') {
+        $value = 'falcon';
+    }
+
+    system("echo 'fpp:$value' | sudo chpasswd");
+}
+
 function SetForceHDMI($value)
 {
 
@@ -242,6 +268,10 @@ function ApplySetting($setting, $value)
         case 'passwordEnable':EnableUIPassword($value);
             break;
         case 'password':SetUIPassword($value);
+            break;
+        case 'osPasswordEnable':EnableOSPassword($value);
+            break;
+        case 'osPassword':SetOSPassword($value);
             break;
         case 'piRTC':SetRTC($value);
             break;

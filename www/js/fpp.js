@@ -444,6 +444,133 @@ function TogglePasswordHideShow(setting) {
     }
 }
 
+function ConfirmPasswordEnable()
+{
+    var password = $('#password').val();
+    var value = $('#passwordEnable').val();
+
+    if ((value == '1') &&
+        ((password == '') ||
+         (confirm('Click "OK" to reset the existing password to "falcon" before enabling, click "Cancel" to reuse the existing saved password.  Warning: If you do not know the existing password, enabling without resetting could lock you out of the system.  The default password is "falcon" if you have not previously set a UI password.')))) {
+        $('#password').val('falcon');
+        window["passwordChanged"]();
+        $('#passwordVerify').val('falcon');
+        window["passwordVerifyChanged"]();
+    }
+
+    window["passwordEnableChanged"]();
+
+    if (password == '') {
+        alert('UI Password enabled using default password of "falcon"');
+    }
+
+    if (value == '0') {
+        $('.passwordEnableChild').hide();
+    } else if (value == '1') {
+        $('.passwordEnableChild').show();
+    }
+}
+
+function ValidatePassword(password)
+{
+    // Allow minimum of 6 so default 'falcon' password is valid
+    if (password.length < 6) {
+        DialogError('Password Length', 'Password Length should be 6 or more characters');
+        return 0;
+    }
+
+    return 1;
+}
+
+function CheckPassword()
+{
+    var password = $('#password').val();
+    var passwordVerify = $('#passwordVerify').val();
+
+    if (password == passwordVerify) {
+        if (ValidatePassword(password)) {
+            window["passwordVerifyChanged"]();
+            window["passwordChanged"]();
+        }
+    } else {
+        $('#passwordVerify').val('');
+        $('#passwordVerify').focus();
+    }
+}
+
+function CheckPasswordVerify()
+{
+    var password = $('#password').val();
+    var passwordVerify = $('#passwordVerify').val();
+
+    if (password == passwordVerify) {
+        if (ValidatePassword(password)) {
+            window["passwordVerifyChanged"]();
+            window["passwordChanged"]();
+        }
+    } else {
+        $('#password').val('');
+        $('#password').focus();
+    }
+}
+
+function ConfirmOSPasswordEnable()
+{
+    var password = $('#osPassword').val();
+    var value = $('#osPasswordEnable').val();
+
+    if (((value == '1') && (password == '')) || (value == '0')) {
+        $('#osPassword').val('falcon');
+        window["osPasswordChanged"]();
+        $('#osPasswordVerify').val('falcon');
+        window["osPasswordVerifyChanged"]();
+    }
+
+    window["osPasswordEnableChanged"]();
+
+    if ((password == '') || (value == '0')) {
+        alert('OS Password set to default password of "falcon"');
+    }
+
+    if (value == '0') {
+        $('.osPasswordEnableChild').hide();
+    } else if (value == '1') {
+        $('.osPasswordEnableChild').show();
+    }
+}
+
+function CheckOSPassword()
+{
+    var password = $('#osPassword').val();
+    var passwordVerify = $('#osPasswordVerify').val();
+
+    if (password == passwordVerify) {
+        if (ValidatePassword(password)) {
+            window["osPasswordVerifyChanged"]();
+            window["osPasswordChanged"]();
+        }
+    } else {
+        $('#osPasswordVerify').val('');
+        $('#osPasswordVerify').focus();
+    }
+}
+
+function CheckOSPasswordVerify()
+{
+    var password = $('#osPassword').val();
+    var passwordVerify = $('#osPasswordVerify').val();
+
+    if (password == passwordVerify) {
+        if (ValidatePassword(password)) {
+            window["osPasswordVerifyChanged"]();
+            window["osPasswordChanged"]();
+        }
+    } else {
+        $('#osPassword').val('');
+        $('#osPassword').focus();
+    }
+}
+
 function RegexCheckData(regexStr, value, desc, hideValue = false) {
     var regex = new RegExp(regexStr);
 
@@ -6240,4 +6367,5 @@ function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, d
 function DeviceSelect(deviceArray = ["No Devices"], currentValue, onselect = "") {
     return CreateSelect(deviceArray, currentValue, "Port", "-- Port --", "device", onselect);
 }
+
 

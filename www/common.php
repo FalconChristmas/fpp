@@ -44,7 +44,7 @@ function getFileList($dir, $ext)
     return $i;
 }
 
-function ScrubFile($filename, $taboo = array("emailpass", "emailgpass", "MQTTPassword", "password", "passwordVerify"))
+function ScrubFile($filename, $taboo = array("emailpass", "emailgpass", "MQTTPassword", "password", "passwordVerify", "osPassword", "osPasswordVerify"))
 {
     if (!file_exists($filename)) {
         return "";
@@ -347,6 +347,7 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
 {
     global $settings;
     global $settingInfos;
+    global $pluginSettingInfos;
 
     LoadSettingInfos();
 
@@ -359,7 +360,12 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
         return;
     }
 
-    $s = $settingInfos[$setting];
+    if ($plugin == '') {
+        $s = $settingInfos[$setting];
+    } else {
+        $s = $pluginSettingInfos[$setting];
+    }
+
     $level = isset($s['level']) ? $s['level'] : 0;
     $reloadUI = isset($s['reloadUI']) ? $s['reloadUI'] : 0;
     $textOnRight = isset($s['textOnRight']) ? $s['textOnRight'] : 0;
@@ -645,7 +651,7 @@ function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $chec
                 echo "    if (mode != 1) {\n";
                 foreach ($v as $name) {
                     echo "$('#" . $name . "Row').hide();\n";
-                    echo "hiddenChildren.$name = 1\n";
+                    echo "hiddenChildren.$name = 1;\n";
                 }
                 echo "    }\n";
                 echo "}\n";
@@ -770,7 +776,7 @@ function PrintSettingSelectInternal($title, $setting, $restart = 1, $reboot = 0,
             echo "    if (mode != 1) {\n";
             foreach ($v as $name) {
                 echo "$('#" . $name . "Row').hide();\n";
-                echo "hiddenChildren.$name = 1\n";
+                echo "hiddenChildren.$name = 1;\n";
             }
             echo "    }\n";
             echo "}\n";
@@ -950,7 +956,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
             echo "    if (mode != 1) {\n";
             foreach ($v as $name) {
                 echo "$('#" . $name . "Row').hide();\n";
-                echo "hiddenChildren.$name = 1\n";
+                echo "hiddenChildren.$name = 1;\n";
             }
             echo "    }\n";
             echo "}\n";

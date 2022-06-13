@@ -1,0 +1,31 @@
+#!/bin/bash
+
+KEYFILE="/home/fpp/media/config/authorized_keys"
+
+if [ ! -f "${KEYFILE}" ]
+then
+    echo "ERROR, ${KEYFILE} does not exist"
+    exit 0
+fi
+
+######################################################
+# Function to install, usage: InstallKeys DIR USER
+InstallKeys() {
+    DIR=$1
+    USER=$2
+
+    mkdir -p ${DIR}/.ssh
+
+    chown ${USER}.${USER} ${DIR}/.ssh ${DIR}/.ssh/*
+    chmod 700 ${DIR}/.ssh
+
+    cp ${KEYFILE} ${DIR}/.ssh/authorized_keys
+    chmod 600 ${DIR}/.ssh/*
+}
+
+######################################################
+# Install the authorized_keys file
+
+InstallKeys /root root
+InstallKeys /home/fpp fpp
+

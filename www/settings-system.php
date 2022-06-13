@@ -1,9 +1,20 @@
 <?
 $skipJSsettings = 1;
 require_once('common.php');
+
+$showOSSecurity = 0;
+if (file_exists('/etc/fpp/platform') && !file_exists('/.dockerenv'))
+    $showOSSecurity = 1;
 ?>
 
 <script>
+function SaveSSHKeys() {
+    var keys = $('#sshKeys').val();
+    var result = Post('api/configfile/authorized_keys', false, keys);
+    if (result.Status == 'OK')
+        $.jGrowl("Keys Saved", { themeState: 'success' });
+}
+
 function KioskInstallDone() {
     SetRebootFlag();
     $('#kioskCloseDialogButton').show();
@@ -33,6 +44,14 @@ function CloseKioskDialog() {
     SetRebootFlag();
 }
 
+<? if ($showOSSecurity) { ?>
+$( document ).ready(function() {
+    if ($('#osPasswordEnable').val() == '1') {
+        $('.osPasswordEnableChild').show();
+    }
+});
+<? } ?>
+
 </script>
 <?
 if (file_exists("/.dockerenv") || $settings["IsDesktop"]) {
@@ -44,6 +63,30 @@ PrintSettingGroup('BBBLeds');
 
 $extraData = "<div class='form-actions'><input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'></div>";
 PrintSettingGroup('geolocation', $extraData);
+
+if ($showOSSecurity) {
+?>
+    <b>OS Password</b><br>
+<?
+    PrintSetting('osPasswordEnable');
+?>
+    <div class='row osPasswordEnableChild' style='display: none;'>
+        <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+            <div class='description'><i class="fas fa-fw fa-nbsp ui-level-0"></i>Username
+            </div>
+        </div>
+        <div class='printSettingFieldCol col-md'><input disabled value='fpp' size='5'></div>
+    </div>
+<?
+    PrintSetting('osPassword');
+    PrintSetting('osPasswordVerify');
+?>
+    <br>
+    <b>SSH Keys</b> (root and fpp users)<br>
+    <textarea  id='sshKeys' style='width: 100%;' rows='10'><?  echo shell_exec('sudo cat /root/.ssh/authorized_keys'); ?></textarea>
+    <input type='button' class='buttons' value='Save Keys' onClick='SaveSSHKeys();'><br><br>
+<?
+}
 
 if (($settings['uiLevel'] >= 1) && ($settings['Platform'] == "Raspberry Pi")) {
 ?>

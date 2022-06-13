@@ -1609,6 +1609,42 @@
             "step": 1,
             "suffix": "ms"
         },
+        "osPassword": {
+            "name": "osPassword",
+            "description": "OS Password",
+            "tip": "OS Password for 'fpp' user, used when logging in via SSH.",
+            "type": "password",
+            "size": 32,
+            "maxlength": 32,
+            "onChange": "CheckOSPassword"
+        },
+        "osPasswordEnable": {
+            "name": "osPasswordEnable",
+            "description": "Set OS password",
+            "tip": "Set password used for system access",
+            "gatherStats": true,
+            "type": "select",
+            "options": {
+                "Default (falcon)": "0",
+                "Custom": "1"
+            },
+            "onChange": "ConfirmOSPasswordEnable",
+            "children": {
+                "1": [
+                    "osPassword",
+                    "osPasswordVerify"
+                ]
+            }
+        },
+        "osPasswordVerify": {
+            "name": "osPasswordVerify",
+            "description": "OS Verify Password",
+            "tip": "Verify the OS Password.",
+            "type": "password",
+            "size": 32,
+            "maxlength": 32,
+            "onChange": "CheckOSPasswordVerify"
+        },
         "pauseBackgroundEffects": {
             "name": "pauseBackgroundEffects",
             "description": "Pause background effects during FSEQ playback",
@@ -1631,7 +1667,11 @@
             "description": "Enable UI password",
             "tip": "Enable password protection on the FPP UI",
             "gatherStats": true,
-            "type": "checkbox",
+            "type": "select",
+            "options": {
+                "Disabled": "0",
+                "Enabled": "1"
+            },
             "onChange": "ConfirmPasswordEnable",
             "children": {
                 "1": [
