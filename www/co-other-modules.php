@@ -198,7 +198,9 @@ foreach ($models as $model) {
     $modelName = $model['Name'];
 
     if (($model['Type'] == 'FB') || ($model['Type'] == 'Sub')) {
-        echo "PixelOverlayModels['$modelName'] = '$modelName (" . $model['Width'] . 'x' . $model['Height'] . ")';\n";
+        $width = intval($model['Width'] / $model['PixelSize']);
+        $height = intval($model['Height'] / $model['PixelSize']);
+        echo "PixelOverlayModels['$modelName'] = '$modelName (" . $width . 'x' . $height . ")';\n";
         echo "PixelOverlayModelChannels['$modelName'] = " . $model['ChannelCount'] . ";\n";
     }
 }
@@ -611,6 +613,11 @@ class VirtualMatrixDevice extends OtherBaseDevice {
     SetDefaults(row) {
         super.SetDefaults(row);
         $(row).find('input.count').val(PixelOverlayModelChannels[this._config.modelName]);
+    }
+
+    RowAdded(row) {
+        super.RowAdded(row);
+        $(row).find('input.count').val(PixelOverlayModelChannels[$(row).find('select.device').val()]);
     }
 }
 

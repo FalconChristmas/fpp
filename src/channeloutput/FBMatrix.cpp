@@ -75,6 +75,9 @@ int FBMatrixOutput::Init(Json::Value config) {
     width = model->getWidth();
     height = model->getHeight();
 
+    // Calculate channel count from the model size
+    m_channelCount = width * height * 3;
+
     inverted = config["invert"].asInt();
 
     if (m_channelCount != (width * height * 3)) {
