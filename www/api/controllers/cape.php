@@ -209,7 +209,6 @@ function SignEEPROMHelper($data)
         unlink($newFile);
 
         exec('sudo /opt/fpp/scripts/detect_cape');
-        exec('sudo systemctl restart fppd');
 
         $result['Status'] = 'OK';
         $result['Message'] = 'EEPROM Signed.';
