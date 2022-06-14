@@ -82,7 +82,9 @@ if ($showOSSecurity) {
     PrintSetting('osPasswordVerify');
 ?>
     <br>
-    <b>SSH Keys</b> (root and fpp users)<br>
+    <b>SSH Keys</b> (root and fpp users)
+    <img id="ssh_img" title="Add optional SSH key(s) for passwordless SSH authentication." src="images/redesign/help-icon.svg" width=22 height=22>
+    <span id="ssh_tip" class="tooltip" style="display: none">Add optional SSH key(s) for passwordless SSH authentication.</span><br>
     <textarea  id='sshKeys' style='width: 100%;' rows='10'><?  echo shell_exec('sudo cat /root/.ssh/authorized_keys'); ?></textarea>
     <input type='button' class='buttons' value='Save Keys' onClick='SaveSSHKeys();'><br><br>
 <?

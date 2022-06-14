@@ -1621,7 +1621,7 @@
         "osPasswordEnable": {
             "name": "osPasswordEnable",
             "description": "Set OS password",
-            "tip": "Set password used for system access",
+            "tip": "Changing the OS password is not normally needed unless your FPP instance is connected to a public network.  The default password is 'falcon', but you may select 'Custom' to allow choosing a custom password.  The OS password can always be changed via the FPP UI even if you do not remember the OS password.",
             "gatherStats": true,
             "type": "select",
             "options": {
@@ -1649,7 +1649,7 @@
             "name": "pauseBackgroundEffects",
             "description": "Pause background effects during FSEQ playback",
             "gatherStats": true,
-            "tip": "Background effects normally continue to run when a sequence is playing.  This setting instructs FPP to pause all background effects when a sequence is running.  When the sequence stops running, the background effects resume playback.",
+            "tip": "Background effects normally continue to run when a sequence is playing.  This setting instructs FPP to pause all background effects when a sequence is running.  When the sequence stops running, the background effects resume playback.  Most users do not need to set a UI password, this setting allows the user to set a UI password to make the system more secure.",
             "restart": 2,
             "type": "checkbox"
         },
@@ -1665,7 +1665,7 @@
         "passwordEnable": {
             "name": "passwordEnable",
             "description": "Enable UI password",
-            "tip": "Enable password protection on the FPP UI",
+            "tip": "Enabling UI Password is not normally needed unless you are connected to a public network. If you set a UI password, you will need to make sure that you remember this password so you and other applications, like xLights, will be able to access the UI when needed. Select 'Disabled' to disable password protection. Select 'Enabled' to allow choosing a UI password",
             "gatherStats": true,
             "type": "select",
             "options": {
