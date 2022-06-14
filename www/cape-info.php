@@ -584,14 +584,25 @@ if (isset($settings["cape-info"])) {
     if (isset($currentCapeInfo['designer'])) {
         echo "<tr><td><b>Designer:</b></td><td>" . $currentCapeInfo['designer'] . "</td></tr>";
     }
-    if (isset($currentCapeInfo['verifiedKeyId'])) {
-        echo "<tr><td><b>Key ID:</b></td><td>" . $currentCapeInfo['verifiedKeyId'] . "</td></tr>";
+    if ((isset($currentCapeInfo['verifiedKeyId'])) && (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels'))) {
+        $key = $currentCapeInfo['verifiedKeyId'];
+        if ($key == 'fp') {
+            if (isset($currentCapeInfo['signed']['licensePorts'])) {
+                echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>" . $currentCapeInfo['signed']['licensePorts'] . " (signed by 'fp' key)</td></tr>";
+            } else {
+                echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>Unknown, licensePorts setting does not exist but signed by 'fp' key.</td></tr>";
+            }
+        } else {
+            echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>Unlimited ('$key' key)</td></tr>";
+        }
+    } else if (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels')) {
+        echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>None, cape EEPROM is not signed.</td></tr>";
     }
     if (isset($currentCapeInfo['validEepromLocation']) && !$currentCapeInfo['validEepromLocation']) {
         echo "<tr><td><b>EEPROM:</b></td><td>Location is INVALID and EEPROM will be treated as unsigned.</td></tr>";
     }
     if ($channelOutputDriver != '') {
-        echo "<tr><td><b>Channel&nbsp;Output:</b></td><td>" . $channelOutputDriver . "</td></tr>";
+        echo "<tr><td><b>Output&nbsp;Driver:</b></td><td>" . $channelOutputDriver . "</td></tr>";
     }
     if (isset($currentCapeInfo['description'])) {
         echo "<tr><td colspan=\"2\">";
