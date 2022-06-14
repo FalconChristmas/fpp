@@ -588,9 +588,9 @@ if (isset($settings["cape-info"])) {
         $key = $currentCapeInfo['verifiedKeyId'];
         if ($key == 'fp') {
             if (isset($currentCapeInfo['signed']['licensePorts'])) {
-                echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>" . $currentCapeInfo['signed']['licensePorts'] . " (signed by 'fp' key)</td></tr>";
+                echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>" . $currentCapeInfo['signed']['licensePorts'] . " ('fp' key)</td></tr>";
             } else {
-                echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>Unknown, licensePorts setting does not exist but signed by 'fp' key.</td></tr>";
+                echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>Unknown, licensePorts setting does not exist ('fp' key)</td></tr>";
             }
         } else {
             echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>Unlimited ('$key' key)</td></tr>";
@@ -598,11 +598,20 @@ if (isset($settings["cape-info"])) {
     } else if (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels')) {
         echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>None, cape EEPROM is not signed.</td></tr>";
     }
-    if (isset($currentCapeInfo['validEepromLocation']) && !$currentCapeInfo['validEepromLocation']) {
-        echo "<tr><td><b>EEPROM:</b></td><td>Location is INVALID and EEPROM will be treated as unsigned.</td></tr>";
-    }
     if ($channelOutputDriver != '') {
         echo "<tr><td><b>Output&nbsp;Driver:</b></td><td>" . $channelOutputDriver . "</td></tr>";
+    }
+    if (((!isset($currentCapeInfo['verifiedKeyId'])) || ($currentCapeInfo['verifiedKeyId'] == 'fp')) && isset($currentCapeInfo['eepromLocation'])) {
+        $locationMsg = '';
+        if (!$currentCapeInfo['validEepromLocation']) {
+            $locationMsg = ' - <b>Warning:</b> Location flag specified in EEPROM<br>does not match actual EEPROM location.';
+        }
+
+        $location = 'Physical';
+        if (preg_match('/cape-eeprom.bin/', $currentCapeInfo['eepromLocation'])) {
+            $location = 'File';
+        }
+        echo "<tr><td valign='top'><b>EEPROM&nbsp;Location:</b></td><td>$location$locationMsg</td></tr>";
     }
     if (isset($currentCapeInfo['description'])) {
         echo "<tr><td colspan=\"2\">";
