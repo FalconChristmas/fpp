@@ -10,6 +10,7 @@ dispatch_get('/backups/list/:DeviceName', 'GetAvailableBackupsOnDevice');
 dispatch_get('/backups/devices', 'GetAvailableBackupsDevices');
 
 dispatch_get('/cape', 'GetCapeInfo');
+dispatch_post('/cape/eeprom/voucher', 'RedeemVoucher');
 dispatch_post('/cape/eeprom/sign/:key/:order', 'SignEEPROM');
 dispatch_get('/cape/eeprom/signingData/:key/:order', 'GetSigningData');
 dispatch_get('/cape/eeprom/signingFile/:key/:order', 'GetSigningFile');

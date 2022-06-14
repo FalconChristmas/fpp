@@ -57,10 +57,14 @@ function GetEEPROMFilename()
     return $eepromFile;
 }
 
-function GetSigningDataHelper($returnArray = false)
+function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
 {
-    $key = strtoupper(params('key'));
-    $order = params('order');
+    if (($key == '') && ($order == '')) {
+        $key = strtoupper(params('key'));
+        $order = params('order');
+    } else {
+        $key = strtoupper($key);
+    }
 
     $result = Array();
 
@@ -220,8 +224,10 @@ function SignEEPROMHelper($data)
 
 /////////////////////////////////////////////////////////////////////////////
 // POST /api/cape/eeprom/sign/:key/:order
-function SignEEPROM()
+function SignEEPROM($key = '', $order = '')
 {
+    global $settings;
+
     $APIhost = 'api.FalconPlayer.com';
     if (isset($settings['SigningAPIHost']))
         $APIhost = $settings['SigningAPIHost'];
@@ -229,7 +235,7 @@ function SignEEPROM()
     $url = "https://$APIhost/api/fpp/eeprom/sign";
     $result = Array();
 
-    $data = GetSigningDataHelper(true);
+    $data = GetSigningDataHelper(true, $key, $order);
 
     if (!isset($data['key']))
         return $data;
@@ -290,6 +296,71 @@ function PostSigningData()
     $data = json_decode($postJSON, true);
 
     return SignEEPROMHelper($data);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// POST /api/cape/eeprom/voucher
+function RedeemVoucher()
+{
+    global $settings;
+
+    $APIhost = 'api.FalconPlayer.com';
+    if (isset($settings['SigningAPIHost']))
+        $APIhost = $settings['SigningAPIHost'];
+
+    $url = "https://$APIhost/api/fpp/voucher/redeem";
+
+    $postJSON = '';
+    $postdata = fopen("php://input", "r");
+    while ($data = fread($postdata, 1024*16)) {
+        $postJSON .= $data;
+    }
+    fclose($postdata);
+
+    $data = json_decode($postJSON, true);
+
+    if ((!isset($data['voucher'])) ||
+        (!isset($data['first_name'])) ||
+        (!isset($data['last_name'])) ||
+        (!isset($data['email'])) ||
+        (!isset($data['password']))) {
+        $result = array();
+        $result['Status'] = 'ERROR';
+        $result['Message'] = 'Missing input data.  Must include voucher, first_name, last_name, email, password';
+        return json($result);
+    }
+
+    $options = Array(
+        'http' => Array(
+            'method' => 'POST',
+            'header' => 'Content-Type: application/json',
+            'content' => $postJSON
+        )
+    );
+
+    $context = stream_context_create($options);
+    $replyStr = file_get_contents($url, false, $context);
+
+    if ($replyStr === FALSE) {
+        $result['Status'] = 'ERROR';
+        $result['Message'] = "Could not contact signing website https://$APIhost";
+        return json($result);
+    }
+
+    $reply = json_decode($replyStr, true);
+
+    if ($reply['Status'] != 'OK') {
+        $result['Status'] = 'ERROR';
+        $result['Message'] = "Signing website returned an error: " . $reply['Message'];
+        return json($result);
+    }
+
+    $result['Status'] = 'OK';
+    $result['Message'] = '';
+    $result['key'] = $reply['key'];
+    $result['order'] = $reply['order'];
+
+    return json($result);
 }
 
 ?>

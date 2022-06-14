@@ -20,8 +20,8 @@ $offlineMode = 0;
 // Test to see if FPP can get to the signing API
 $curl = curl_init("https://$APIhost/js/internetTest.js");
 curl_setopt($curl, CURLOPT_HEADER, 0);
-curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 2); // Connect in 10 seconds or less
-curl_setopt($curl, CURLOPT_TIMEOUT, 5); // 1 Day Timeout to transfer
+curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
+curl_setopt($curl, CURLOPT_TIMEOUT, 5);
 curl_setopt($curl, CURLOPT_USERAGENT, getFPPVersion());
 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
 $request_content = curl_exec($curl);
@@ -88,8 +88,12 @@ if (isset($settings["cape-info"])) {
                     $signingStatus .= "  This cape is licensed for it's full set of outputs.";
                 }
             } else {
-                $signingStatus = sprintf( "Cape is using an <b>Unsigned</b> virtual EEPROM and the $channelOutputDriver Channel Output driver.");
-                $printSigningUI = 1;
+                if (isset($currentCapeInfo['validEepromLocation']) && !$currentCapeInfo['validEepromLocation']) {
+                    $signingStatus .= "<b>WARNING: The location field specified in this EEPROM is invalid so the EEPROM is being treated as unsigned.</b>";
+                } else {
+                    $signingStatus = sprintf( "Cape is using an <b>Unsigned</b> virtual EEPROM and the $channelOutputDriver Channel Output driver.");
+                    $printSigningUI = 1;
+                }
             }
         } else if (isset($currentCapeInfo['verifiedKeyId'])) {
             $signingStatus = sprintf( "Cape EEPROM is signed using the '%s' key and uses the %s Channel Output driver.", $currentCapeInfo['verifiedKeyId'], $channelOutputDriver);
@@ -183,6 +187,88 @@ function UpgradeFirmware() {
     $('#upgradePopup').fppDialog( "moveToTop" );
     $('#upgradeText').html('');
     StreamURL('upgradeCapeFirmware.php', 'upgradeText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
+}
+
+function RedeemVoucher() {
+    var voucherNumber = $('#voucherNumber').val().toUpperCase();
+    var fname = $('#voucherFName').val();
+    var lname = $('#voucherLName').val();
+    var email = $('#voucherEmail').val();
+    var password = $('#voucherPassword').val();
+    var alphanumeric = /^[\p{L}\p{N}]+$/u;
+    var passwordAllowed = /^[-\p{L}\p{N}_#@!\$%^&*()]+$/u;
+
+    if (!(/^[-A-Z0-9]+$/.test(voucherNumber))) {
+        alert('Invalid Voucher Number.  The Voucher Number field should contain only the letters, numbers, and hypens.');
+        return;
+    }
+
+    if (!fname.match(alphanumeric)) {
+        alert('Invalid characters in first name.');
+        return;
+    }
+
+    if (!lname.match(alphanumeric)) {
+        alert('Invalid characters in last name.');
+        return;
+    }
+
+    if (!validateEmail(email)) {
+        alert('Invalid Email address.');
+        return;
+    }
+
+    if ((!password.match(passwordAllowed)) || (password.length < 8)) {
+        alert('Invalid characters in password or length too short.  Passwords should be at least 8 characters long and may contain only letters, numbers, and any of the following characters         -_#@!\$%^&*()');
+        return;
+    }
+
+    $('#voucherNumber').val(voucherNumber); // Save the toUpperCase()-ed value
+    var url = 'api/cape/eeprom/voucher';
+
+    $('.dialogCloseButton').hide();
+    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Redeem Voucher", dialogClass: 'no-close' });
+    $('#upgradePopup').fppDialog( "moveToTop" );
+    $('#upgradeText').html('Voucher Redemption Status:\n');
+
+    $('#upgradeText').append('- Contacting API to redeem voucher\n');
+
+    data = {};
+    data.voucher = voucherNumber;
+    data.first_name = fname;
+    data.last_name = lname;
+    data.email = email;
+    data.password = password;
+
+    dataStr = JSON.stringify(data);
+
+    $.ajax({
+        url: url,
+        type: 'POST',
+        data: dataStr,
+        contentType: 'application/json',
+        async: true,
+        dataType: 'json',
+        success: function (data) {
+            if (data.Status == 'OK') {
+                $('#upgradeText').append('- Voucher Redeemed Successfully\n');
+                $('#upgradeText').append('  - Order Number: ' + data.order + '\n');
+                $('#upgradeText').append('  - License Key: ' + data.key + '\n');
+                $('#upgradeText').append('\nProceeding to sign EEPROM with new order and key info.\n\n');
+
+                SetSetting('voucherRedeemed', '1', true);
+
+                SignEEPROMHelper(data.key, data.order, true);
+            } else {
+                $('#upgradeText').append('\nERROR redeeming voucher:\n\n' + data.Message);
+                $('#errorDialogButton').show();
+            }
+        },
+        error: function () {
+            $('#upgradeText').append('\nERROR calling signing API\n');
+            $('#errorDialogButton').show();
+        }
+    });
 }
 
 function DownloadOfflineSigningFile() {
@@ -302,6 +388,34 @@ function SignEEPROMViaBrowser() {
     });
 }
 
+function SignEEPROMHelper(key, order, redirect=false) {
+    var url = 'api/cape/eeprom/sign/' + key + '/' + order;
+
+    $('#upgradeText').append('- Contacting API to sign EEPROM\n');
+
+    $.ajax({
+        url: url,
+        type: 'POST',
+        data: '',
+        async: true,
+        dataType: 'json',
+        success: function (data) {
+            if (data.Status == 'OK') {
+                SetRebootFlag();
+                $('#upgradeText').append('- Signing Complete.  Please reboot.\n\nYou may also check the <b>EEPROM Signature</b> tab prior to reboot to confirm the EEPROM was signed.');
+                $('#closeDialogButton').show();
+            } else {
+                $('#upgradeText').append('\nERROR signing EEPROM:\n\n' + data.Message);
+                $('#errorDialogButton').show();
+            }
+        },
+        error: function () {
+            $('#upgradeText').append('\nERROR calling signing API\n');
+            $('#errorDialogButton').show();
+        }
+    });
+}
+
 function SignEEPROM() {
     var order = $('#orderNumber').val();
     var orderRegex = /^[0-9]+$/;
@@ -319,36 +433,13 @@ function SignEEPROM() {
     }
 
     $('#licenseKey').val(key); // Save the toUpperCase()-ed value
-    var url = 'api/cape/eeprom/sign/' + key + '/' + order;
 
     $('.dialogCloseButton').hide();
     $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Sign Cape EEPROM", dialogClass: 'no-close' });
     $('#upgradePopup').fppDialog( "moveToTop" );
     $('#upgradeText').html('Signing Status:\n');
 
-    $('#upgradeText').append('Contacting FPP signing API\n');
-
-    $.ajax({
-        url: url,
-        type: 'POST',
-        data: '',
-        async: true,
-        dataType: 'json',
-        success: function (data) {
-            if (data.Status == 'OK') {
-                SetRebootFlag();
-                $('#upgradeText').append('Signing Complete.  Please reboot.\n');
-                $('#closeDialogButton').show();
-            } else {
-                $('#upgradeText').append('\nERROR signing EEPROM:\n\n' + data.Message);
-                $('#errorDialogButton').show();
-            }
-        },
-        error: function () {
-            $('#upgradeText').append('\nERROR calling signing API\n');
-            $('#errorDialogButton').show();
-        }
-    });
+    SignEEPROMHelper(key, order);
 }
 
 function UploadSignedPacket() {
@@ -446,7 +537,8 @@ if (isset($settings["cape-info"])) {
                                     </a>
                                 </li>
 <?php
-    if ($printSigningUI && $offlineMode) {
+    if ($printSigningUI) {
+       if ($offlineMode) {
 ?>
                                 <li class='nav-item'>
                                     <a class="nav-link" id="eeprom-offline-tab" data-toggle="pill" href="#eeprom-offline" role="tab" aria-controls="eeprom-offline">
@@ -454,6 +546,15 @@ if (isset($settings["cape-info"])) {
                                     </a>
                                 </li>
 <?php
+        } else if (((!isset($settings['voucherRedeemed'])) || ($settings['voucherRedeemed'] != '1')) && ((!isset($currentCapeInfo['verifiedKeyId'])) || ($currentCapeInfo['verifiedKeyId'] != 'fp'))) {
+?>
+                                <li class='nav-item'>
+                                    <a class="nav-link" id="eeprom-voucher-tab" data-toggle="pill" href="#eeprom-voucher" role="tab" aria-controls="eeprom-voucher">
+                                        Voucher Redemption
+                                    </a>
+                                </li>
+<?php
+        }
     }
 ?>
                                 <li class='nav-item'>
@@ -485,6 +586,9 @@ if (isset($settings["cape-info"])) {
     }
     if (isset($currentCapeInfo['verifiedKeyId'])) {
         echo "<tr><td><b>Key ID:</b></td><td>" . $currentCapeInfo['verifiedKeyId'] . "</td></tr>";
+    }
+    if (isset($currentCapeInfo['validEepromLocation']) && !$currentCapeInfo['validEepromLocation']) {
+        echo "<tr><td><b>EEPROM:</b></td><td>Location is INVALID and EEPROM will be treated as unsigned.</td></tr>";
     }
     if ($channelOutputDriver != '') {
         echo "<tr><td><b>Channel&nbsp;Output:</b></td><td>" . $channelOutputDriver . "</td></tr>";
@@ -613,7 +717,6 @@ if (isset($settings["cape-info"])) {
         if ($offlineMode)
             echo "If <b>neither</b> your FPP instance or your browser can reach the internet, you will need to use the 'Offline Signing' tab.  ";
 ?>
-        See the <b>NOTES</b> section below for more information.<br>
     <br>
 
     <table <?php if ($offlineMode) echo "class='internetOnly' style='display: none;'"; ?>>
@@ -642,7 +745,8 @@ if (isset($settings["cape-info"])) {
                                     </div>
                                 </div>
 <?php
-if ($printSigningUI && $offlineMode) {
+if ($printSigningUI) {
+   if ($offlineMode) {
 ?>
                                 <div class="tab-pane fade show" id="eeprom-offline" role="tabpanel" aria-labelledby="eeprom-offline-tab">
                                     <div class="container-fluid">
@@ -657,7 +761,7 @@ if ($printSigningUI && $offlineMode) {
                                                             <i class='fas fa-eye' id='offlineLicenseKeyHideShow' onClick='TogglePasswordHideShow("offlineLicenseKey");'></i></td></tr>
                                                     <tr><td colspan='2'><input type='button' class='buttons' value='Download Offline Signing Packet' onClick='DownloadOfflineSigningFile();'></td></tr>
                                                 </table>
-                                                Clicking the download button will prompt you to save a file called 'cape-signing-<?=$settings['HostName'] ?>.bin'.
+                                                Clicking the download button will prompt you to save a file called 'cape-signing-<?=$settings['HostName'] ?>.bin'.  Some browsers may be setup to automatically save downloaded files.  If you are not prompted to save the file, check your Download directory for the file.
 
                                                 <hr>
                                                 <h3>Step #2: Get the packet signed.</h3>
@@ -671,6 +775,37 @@ if ($printSigningUI && $offlineMode) {
                                     </div>
                                 </div>
 <?php
+   } else if ((!isset($settings['voucherRedeemed'])) || ($settings['voucherRedeemed'] != '1')) {
+?>
+                                <div class="tab-pane fade show" id="eeprom-voucher" role="tabpanel" aria-labelledby="eeprom-voucher-tab">
+                                    <div class="container-fluid">
+                                        <div class="row">
+                                            <div class="aboutAll col-md">
+                                                If you have a License Key voucher, you may use this page to redeem the voucher for a License Key
+                                                to enable full functionality of your cape.<br>
+                                                <br>
+                                                <b>NOTE: If you do not already have an account at
+                                                <a href='https://shop.FalconPlayer.com'>https://shop.FalconPlayer.com</a>, one will be automatically
+                                                created for you using the email address and password provided.  If you already have an account,
+                                                you must supply the password for that account below.
+                                                </b>
+
+                                                <table>
+                                                    <tr><td><b>Voucher Number:</b></td><td><input id='voucherNumber' type='password' size=18 maxlength=16 value=''>
+                                                            <i class='fas fa-eye' id='voucherNumberHideShow' onClick='TogglePasswordHideShow("voucherNumber");'></i></td></tr>
+                                                    <tr><td><b>First Name:</b></td><td><input id='voucherFName' type='text' size=36 maxlength=34></td></tr>
+                                                    <tr><td><b>Last Name:</b></td><td><input id='voucherLName' type='text' size=36 maxlength=34></td></tr>
+                                                    <tr><td><b>Email:</b></td><td><input id='voucherEmail' type='text' size=36 maxlength=34></td></tr>
+                                                    <tr><td><b>Password:</b></td><td><input id='voucherPassword' type='password' size=36 maxlength=34 value=''>
+                                                            <i class='fas fa-eye' id='voucherPasswordHideShow' onClick='TogglePasswordHideShow("voucherPassword");'></i></td></tr>
+                                                    <tr><td colspan='2'><input type='button' class='buttons' value='Redeem Voucher' onClick='RedeemVoucher();'></td></tr>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+<?php
+    }
 }
 ?>
 
