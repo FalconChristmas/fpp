@@ -48,7 +48,7 @@ function GetInstalledPlugins() {
 }
 
 function GetPluginList() {
-	var url = 'https://raw.githubusercontent.com/FalconChristmas/fpp-pluginList/master/pluginList.json';
+	var url = 'https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/pluginList.json';
 	$.ajax({
 		url: url,
 		dataType: 'json',
