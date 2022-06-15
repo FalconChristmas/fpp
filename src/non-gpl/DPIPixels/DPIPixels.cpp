@@ -268,7 +268,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
             longestString = 0;
             for (int b = 0; b < MAX_DPI_PIXEL_BANKS; b++)
-                longestString + longestStringInBank[b];
+                longestString += longestStringInBank[b];
 
             LogDebug(VB_CHANNELOUT, "Running in latch mode, Longest Strings on each split: %d/%d/%d, total counting padding = %d\n",
                      longestStringInBank[0], longestStringInBank[1], longestStringInBank[2], longestString);
@@ -281,7 +281,6 @@ int DPIPixelsOutput::Init(Json::Value config) {
             int start = -1;
             for (auto& a : pixelStrings[s]->m_gpioCommands) {
                 if (a.type == 0) {
-                    // FIXME, does this work?????
                     start = a.channelOffset;
                 } else if ((a.type == 1) && (start != -1)) {
                     usingSmartReceivers = true;
