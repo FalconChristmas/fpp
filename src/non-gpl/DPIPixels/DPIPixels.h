@@ -57,7 +57,7 @@ private:
     std::vector<PixelString*> pixelStrings;
     int bitPos[24];
 
-    FrameBuffer *fb;
+    FrameBuffer *fb = nullptr;
     int fbPage = -1;
 
     int stringCount = 0;
