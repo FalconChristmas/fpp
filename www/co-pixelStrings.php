@@ -668,14 +668,26 @@ function cloneSelectedString()
         return;
     }
 
-
     var mult = (clones < 0)? -1 : 1;
 
     var sDescription = row.find('.vsDescription').val() || "";
     var sStartChannel = parseInt(row.find('.vsStartChannel').val()) || 1;
     var sPixelCount = parseInt(row.find('.vsPixelCount').val()) || 0;
+    var startValue = parseInt((sDescription.match(/(\d+)$/) || ['1'])[0] || '0') + 1;
+    var highValue = (mult * clones) + startValue - 1;
 
-    const suffix = (sDescription.match(/(\d+)$/) || [])[1] || "0";
+    var pad = '0';
+    if (highValue < 9)
+        pad = '0';
+    else if (highValue < 99)
+        pad = '00';
+    else if (highValue < 999)
+        pad = '000';
+    else
+        pad = '0000';
+
+    sDescription = sDescription.replace(/(\d+)$/, '');
+    row.find('.vsDescription').val(sDescription + (pad + (startValue - 1)).slice(-pad.length));
 
     var actRow = curRow + mult;
     for (i = 0; i < Math.abs(clones) && (actRow >= 0) && (actRow < rowCount);)
@@ -689,10 +701,9 @@ function cloneSelectedString()
                 return;
             }
 
-            const oldname = tRow.find(".vsDescription").val() || "";
             setRowData(tRow,
                        row.find('.vsProtocol').val(),
-                       oldname.match(/\d+$/)? oldname: oldname + (+suffix + i+1),
+                       sDescription + (pad + (i + startValue)).slice(-pad.length),
                        sStartChannel + (sPixelCount * 3 * (i+1)),
                        sPixelCount,
                        row.find('.vsGroupCount').val(),
