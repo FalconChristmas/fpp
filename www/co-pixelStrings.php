@@ -1653,6 +1653,7 @@ function populatePixelStringOutputs(data) {
         }
     }
 }
+
 function ValidateBBBStrings(data) {
     if ("channelOutputs" in data) {
         PixelStringLoaded = true;
@@ -1995,6 +1996,7 @@ function setupBankLimits() {
 function setupPixelLimits() {
     var subType = GetPixelStringCapeFileName();
     var rowCount = $('#pixelOutputs table tbody').find('tr').length;
+    $('#bankSliderDiv').hide();
     if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].hasOwnProperty('pixelLimits')) {
         for (limit of KNOWN_CAPES[subType].pixelLimits) {
             if (licensedOutputs && (limit.type == 'banks')) {
