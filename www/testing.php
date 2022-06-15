@@ -778,7 +778,7 @@ include 'menu.inc';?>
 						<div class="backdrop-dark">
 							<label for="testModeEnabled" class="mb-0 d-block">
 								<div><b>Enable Test Mode:</b>&nbsp;<input type='checkbox' class="ml-1" id='testModeEnabled' onClick='SetTestMode();'></div>
-								<div><b>Multicast:</b>&nbsp;<input type='checkbox' class="ml-1" id='multicastEnabled' onClick='SetTestMode();'></div>
+								<div><b>Multisync:</b>&nbsp;<input type='checkbox' class="ml-1" id='multicastEnabled' onClick='SetTestMode();'></div>
 							</label>
 						</div>
 						<div class="backdrop-dark mt-3">
