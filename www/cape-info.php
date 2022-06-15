@@ -162,11 +162,18 @@ function UpgradeFirmwareDone() {
     var txt = $('#upgradeText').val();
     if (txt.includes("Cape does not match new firmware")) {
         var arrayOfLines = txt.match(/[^\r\n]+/g);
-        var msg = "Are you sure you want to replace the firmware for cape:\n" + arrayOfLines[1] + "\n\nWith the firmware for: \n" + arrayOfLines[2] + "\n";
+        var msg = "Are you sure you want to replace the firmware for cape:\n" + arrayOfLines[2] + "\n\nWith the firmware for: \n" + arrayOfLines[3] + "\n";
         if (confirm(msg)) {
-            let formData = new FormData();
+            var eepromFile = $('#eepromList').val();
             let firmware = document.getElementById("firmware").files[0];
-            formData.append("firmware", firmware);
+
+            let formData = new FormData();
+
+            if (eepromFile != '') {
+                formData.append("filename", eepromFile);
+            } else {
+                formData.append("firmware", firmware);
+            }
 
             $('#upgradeText').html('');
             StreamURL('upgradeCapeFirmware.php?force=true', 'upgradeText', 'UpgradeDone', 'UpgradeDone', 'POST', formData, false, false);
@@ -175,18 +182,83 @@ function UpgradeFirmwareDone() {
     $('#closeDialogButton').show();
 }
 function UpgradeFirmware() {
+    var eepromFile = $('#eepromList').val();
     let firmware = document.getElementById("firmware").files[0];
-    if (firmware == "" || firmware == null) {
+    if ((eepromFile == '') && (firmware == "" || firmware == null)) {
+        alert('You must choose a downloadable file from the list or pick a local file to upload.');
         return;
     }
-    let formData = new FormData();
-    formData.append("firmware", firmware);
 
     $('.dialogCloseButton').hide();
     $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Upgrade Cape Firmware", dialogClass: 'no-close' });
     $('#upgradePopup').fppDialog( "moveToTop" );
     $('#upgradeText').html('');
+
+    let formData = new FormData();
+
+    if (eepromFile != '') {
+        formData.append("filename", eepromFile);
+    } else {
+        formData.append("firmware", firmware);
+    }
+
     StreamURL('upgradeCapeFirmware.php', 'upgradeText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
+}
+
+function GetDownloadableEEPROMList() {
+    $.get('https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromList.json', function(dataStr) {
+        var data = JSON.parse(dataStr);
+        var devMode = (settings['uiLevel'] && (parseInt(settings['uiLevel']) == 3));
+        var options = '';
+        for (c = 0; c < data.length; c++) {
+            if (devMode || (data[c].cape == settings['cape-info']['name'])) {
+                for (i = 0; i < data[c].eeproms.length; i++) {
+                    options += "<option value='" + data[c].eeproms[i].url + "'>" + data[c].cape + ' - ' + data[c].eeproms[i].description + '</option>';
+                }
+            }
+        }
+
+        if (options != '') {
+            $('#eepromList').append(options);
+            $('#eepromList').removeAttr('disabled');
+        } else {
+            $('#eepromList').html("<option value=''>-- No available downloads --</option>");
+        }
+    });
+}
+
+function eepromListChanged() {
+    $('#firmware').val('');
+
+    if ($('#eepromList').val() == '') {
+        $('#UpdateFirmware').removeClass('btn-success');
+        $('#UpdateFirmware').attr('disabled', 'disabled');
+    } else {
+        $('#UpdateFirmware').addClass('btn-success');
+        $('#UpdateFirmware').removeAttr('disabled');
+    }
+}
+
+function firmwareChanged() {
+    $('#eepromList').val('');
+
+    if ($('#filename').val() == '') {
+        $('#UpdateFirmware').removeClass('btn-success');
+        $('#UpdateFirmware').attr('disabled', 'disabled');
+    } else {
+        $('#UpdateFirmware').addClass('btn-success');
+        $('#UpdateFirmware').removeAttr('disabled');
+    }
+}
+
+function backupChanged() {
+    if ($('#backupFile').val() == '') {
+        $('#RestoreFirmware').removeClass('btn-success');
+        $('#RestoreFirmware').attr('disabled', 'disabled');
+    } else {
+        $('#RestoreFirmware').addClass('btn-success');
+        $('#RestoreFirmware').removeAttr('disabled');
+    }
 }
 
 function RedeemVoucher() {
@@ -500,6 +572,7 @@ function TestInternet() {
 }
 
 $(document).ready(function() {
+    GetDownloadableEEPROMList();
     setTimeout(function() { TestInternet(); }, 100);
 });
 
@@ -603,7 +676,7 @@ if (isset($settings["cape-info"])) {
     }
     if (((!isset($currentCapeInfo['verifiedKeyId'])) || ($currentCapeInfo['verifiedKeyId'] == 'fp')) && isset($currentCapeInfo['eepromLocation'])) {
         $locationMsg = '';
-        if (!$currentCapeInfo['validEepromLocation']) {
+        if (isset($currentCapeInfo['validEepromLocation']) && !$currentCapeInfo['validEepromLocation']) {
             $locationMsg = ' - <b>Warning:</b> Location flag specified in EEPROM<br>does not match actual EEPROM location.';
         }
 
@@ -834,17 +907,19 @@ if ($printSigningUI) {
                                     <div class="container-fluid">
                                         <div class="row">
                                             <div class="aboutLeft col-md">
-                                                Select a local file to upgrade EEPROM firmware:<br>
-                                                <input type="file" name="firmware" id="firmware"/ style='padding-left: 0px;'><br>
-                                                <input type='button' class="buttons" value='Upgrade' onClick='UpgradeFirmware();' id='UpdateFirmware'>
+                                                Select a downloadable EEPROM image or a local file to upgrade EEPROM firmware:<br>
+                                                <select id='eepromList' disabled onChange='eepromListChanged();'>
+                                                    <option value=''>-- Download firmware --</option>
+                                                </select><br>
+                                                <input type="file" name="firmware" id="firmware" style='padding-left: 0px;' onChange='firmwareChanged();'><br>
+                                                <input type='button' class="buttons" value='Upgrade' onClick='UpgradeFirmware();' id='UpdateFirmware' disabled>
                                             </div>
                                             <div class="aboutRight col-md">
                                                 Select a backup EEPROM firmware to restore:<br>
-                                                <select id='backupFile'>
+                                                <select id='backupFile' onChange='backupChanged();'>
+                                                    <option value=''>-- Choose a backup EEPROM to restore --</option>
 <?php
 $files = scandir('/home/fpp/media/upload/', SCANDIR_SORT_DESCENDING);
-$restoreDisabled = 'disabled';
-
 foreach ($files as $file) {
     if (preg_match('/^cape-eeprom-Backup-.*\.bin$/', $file)) {
         $restoreDisabled = '';
@@ -854,7 +929,7 @@ foreach ($files as $file) {
 closedir($dir);
 ?>
                                                 </select><br>
-                                                <input type='button' class="buttons" value='Restore' onClick='RestoreFirmware();' id='RestoreFirmware' <?php echo $restoreDisabled; ?>><br>
+                                                <input type='button' class="buttons" value='Restore' onClick='RestoreFirmware();' id='RestoreFirmware' disabled style='margin-top: 0.33rem !important;'><br>
                                             </div>
                                         </div>
                                         <br>

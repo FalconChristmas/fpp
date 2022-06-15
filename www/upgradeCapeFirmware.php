@@ -14,9 +14,17 @@ $file = '';
 $unlink = 1;
 if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
     $file = $_FILES["firmware"]["tmp_name"];
-} else if (isset($_GET['filename'])) {
-    if (preg_match('/\/opt\/fpp\/capes/', $_GET['filename'])) {
-        $file = $_GET['filename'];
+} else if (isset($_POST['filename']) || isset($_GET['filename'])) {
+    $unlink = 0;
+
+    $fn = isset($_GET['filename']) ? $_GET['filename'] : $_POST['filename'];
+
+    if (preg_match('/^http/', $fn)) {
+        $file = '/home/fpp/media/tmp/tmp-eeprom.bin';
+        system("/usr/bin/wget -O $file " . $fn);
+        $unlink = 1;
+    } else if (preg_match('/\/opt\/fpp\/capes/', $fn)) {
+        $file = $fn;
 
         if (file_exists('/home/fpp/media/config/cape-eeprom.bin')) {
             unlink('/home/fpp/media/config/co-bbbStrings.json');
@@ -24,9 +32,8 @@ if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
         }
 
     } else {
-        $file = $uploadDirectory . '/' . $_GET['filename'];
+        $file = $uploadDirectory . '/' . $fn;
     }
-    $unlink = 0;
 }
 
 if ($file != '') {
