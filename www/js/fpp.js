@@ -456,13 +456,10 @@ function ConfirmPasswordEnable()
         window["passwordChanged"]();
         $('#passwordVerify').val('falcon');
         window["passwordVerifyChanged"]();
+        password = 'falcon';
     }
 
     window["passwordEnableChanged"]();
-
-    if (password == '') {
-        alert('UI Password enabled using default password of "falcon"');
-    }
 
     if (value == '0') {
         $('.passwordEnableChild').hide();
@@ -524,6 +521,7 @@ function ConfirmOSPasswordEnable()
         window["osPasswordChanged"]();
         $('#osPasswordVerify').val('falcon');
         window["osPasswordVerifyChanged"]();
+        password = 'falcon';
     }
 
     window["osPasswordEnableChanged"]();
