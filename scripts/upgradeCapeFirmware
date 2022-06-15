@@ -108,7 +108,7 @@ if ($oldcape != $newcape || $oldcapev != $newcapev) {
 //skip over the serial number
 $newcapesn = trim(fread($newdata, 16)); // cape serial# + nulls
 $oldcapesn = trim(fread($olddata, 16)); // cape serial# + nulls
-if (($eepromFile == '/home/fpp/media/config/cape-eeprom.bin') && preg_match('/^0*$/', $oldcapesn)) {
+if (($eepromFile == '/home/fpp/media/config/cape-eeprom.bin') && preg_match('/^0*$/', $oldcapesn) && ($oldcape == $newcape)) {
     fseek($olddata, -16, SEEK_CUR);
     fwrite($olddata, pack("a16", $newcapesn));
 }
