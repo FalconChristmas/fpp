@@ -137,9 +137,10 @@ function showHideOsSelect() {
 function AppendGithubOS() {
     showHideOsSelect();
     $.get("api/git/releases/os", function(data) {
+        var devMode = (settings['uiLevel'] && (parseInt(settings['uiLevel']) == 3));
         if ("files" in data) {
             for (const file of data["files"]) {
-                if (! file["downloaded"]) {
+                if (!file["downloaded"] && (devMode || !file['filename'].match(/-v?(4\.|5\.[0-4])/))) {
                     osAssetMap[file["asset_id"]] = {
                         name: file["filename"],
                         url: file["url"]
