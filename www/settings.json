@@ -166,6 +166,7 @@
                 "Locale",
                 "screensaver",
                 "ForceHDMI",
+                "EnableBBBHDMI",
                 "ForceHDMIResolution",
                 "ForceHDMIResolutionPort2",
                 "LEDDisplayType",
@@ -923,23 +924,54 @@
             ],
             "type": "checkbox"
         },
+        "EnableBBBHDMI": {
+            "name": "EnableBBBHDMI",
+            "description": "Enable HDMI Display",
+            "gatherStats": true,
+            "tip": "Enables the HDMI port on the BeagleBone.  WARNING: when enabled, many of the GPIO pins are disabled which will prevent most Caped from functioning.",
+            "reboot": 1,
+            "platforms": [
+                "BeagleBone Black"
+            ],
+            "variants": {
+                "BeagleBone Black": [
+                    "BeagleBone Black",
+                    "BeagleBone Black Wireless",
+                    "SanCloud BeagleBone Enhanced"    
+                ]
+            },
+            "children": {
+                "1": [
+                    "ForceHDMIResolution"
+                ]
+            },
+            "type": "checkbox"
+        },
         "ForceHDMIResolution": {
             "name": "ForceHDMIResolution",
             "description": "Force HDMI Resolution",
             "gatherStats": true,
-            "tip": "Force the Raspberry Pi to set the HDMI output to the give resolution.  The default is whatever settings the monitor reports at bootup time.",
+            "tip": "Force the HDMI output to the given resolution.  The default is whatever settings the monitor reports at bootup time.",
             "reboot": 1,
             "platforms": [
-                "Raspberry Pi"
+                "Raspberry Pi",
+                "BeagleBone Black"
             ],
+            "variants": {
+                "BeagleBone Black": [
+                    "BeagleBone Black",
+                    "BeagleBone Black Wireless",
+                    "SanCloud BeagleBone Enhanced"    
+                ]
+            },
             "type": "select",
-            "optionsURL": "hdmi_table.json"
+            "optionsURL": "hdmi_table.json.php"
         },
         "ForceHDMIResolutionPort2": {
             "name": "ForceHDMIResolutionPort2",
             "gatherStats": true,
             "description": "Force Port 2 HDMI Resolution",
-            "tip": "Force the Raspberry Pi 4's second HDMI to the give resolution.  The default is whatever settings the monitor reports at bootup time.",
+            "tip": "Force the Raspberry Pi 4's second HDMI to the given resolution.  The default is whatever settings the monitor reports at bootup time.",
             "reboot": 1,
             "platforms": [
                 "Raspberry Pi"
@@ -948,7 +980,7 @@
                 "/dev/fb1"
             ],
             "type": "select",
-            "optionsURL": "hdmi_table.json"
+            "optionsURL": "hdmi_table.json.php"
         },
         "gitBranch": {
             "name": "gitBranch",

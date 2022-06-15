@@ -333,6 +333,28 @@ function ShouldPrintSetting($s)
             return false;
         }
     }
+    if (isset($s['variants']) && isset($s['variants'][$settings['Platform']])) {
+        $hasNonExclusion = false;
+        $hasAll = false;
+        $hasVariant = false;
+        foreach ($s['variants'][$settings['Platform']] as $variant) {
+            if (("!" . $settings['Variant']) == $variant) {
+                return false;
+            }
+            if ($variant[0] != "!") {
+                $hasNonExclusion = true;
+            }
+            if ($variant == "ALL") {
+                $hasAll = true;
+            }
+            if ($variant == $settings['Variant']) {
+                $hasVariant = true;
+            }
+        }
+        if (!$hasAll && !$hasVariant && $hasNonExclusion) {
+            return false;
+        }
+    }
     if (isset($s['settingValues'])) {
         foreach ($s['settingValues'] as $key => $value) {
             if (!isset($settings[$key]) || ($settings[$key] != $value)) {

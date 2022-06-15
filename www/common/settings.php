@@ -199,25 +199,42 @@ function SetForceHDMI($value)
         exec("sudo sed -i -e 's/^hdmi_force_hotplug/#hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
     }
 }
+function SetEnableBBBHDMI($value)
+{
+    if ($value == '1') {
+        exec("sudo sed -i -e 's/^disable_uboot_overlay_video/#disable_uboot_overlay_video/' /boot/uEnv.txt", $output, $return_val);
+    } else {
+        exec("sudo sed -i -e 's/#disable_uboot_overlay_video/disable_uboot_overlay_video/' /boot/uEnv.txt", $output, $return_val);
+    }
+}
 function SetForceHDMIResolution($value, $postfix)
 {
-    $parts = explode(":", $value);
+    global $settings;
 
-    if (strpos(file_get_contents("/boot/config.txt"), "hdmi_group:1") == false) {
-        exec("sudo sed -i -e 's/hdmi_group=\(.*\)$/hdmi_group=\\1\\nhdmi_group:1=0/' /boot/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/hdmi_mode=\(.*\)$/hdmi_mode=\\1\\nhdmi_mode:1=0/' /boot/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^hdmi_group:1/#hdmi_group:1/' /boot/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^hdmi_mode:1/#hdmi_mode:1/' /boot/config.txt", $output, $return_val);
-    }
-
-    if ($parts[0] == '0') {
-        exec("sudo sed -i -e 's/^hdmi_group" . $postfix . "=/#hdmi_group" . $postfix . "=/' /boot/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "=/#hdmi_mode" . $postfix . "=/' /boot/config.txt", $output, $return_val);
+    if ($settings["Platform"] == "BeagleBone Black") {
+        exec("sudo sed -i -e 's/^cmdline\(.*\) video=HDMI-A-1:\([A-Za-z@0-9]*\)\(.*\)/cmdline\\1 \\3/' /boot/uEnv.txt", $output, $return_val);
+        exec("sudo sed -i 's/[ \\t]*$//' /boot/uEnv.txt", $output, $return_val);
+        if ($value != 'Default') {
+            exec("sudo sed -i -e 's/^cmdline\(.*\)/cmdline\\1 video=HDMI-A-1:" . $value . "/' /boot/uEnv.txt", $output, $return_val);
+        }
     } else {
-        exec("sudo sed -i -e 's/^#hdmi_group" . $postfix . "=/hdmi_group" . $postfix . "=/' /boot/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^#hdmi_mode" . $postfix . "=/hdmi_mode" . $postfix . "=/' /boot/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^hdmi_group" . $postfix . "=.*/hdmi_group" . $postfix . "=" . $parts[0] . "/' /boot/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "=.*/hdmi_mode" . $postfix . "=" . $parts[1] . "/' /boot/config.txt", $output, $return_val);
+        $parts = explode(":", $value);
+        if (strpos(file_get_contents("/boot/config.txt"), "hdmi_group:1") == false) {
+            exec("sudo sed -i -e 's/hdmi_group=\(.*\)$/hdmi_group=\\1\\nhdmi_group:1=0/' /boot/config.txt", $output, $return_val);
+            exec("sudo sed -i -e 's/hdmi_mode=\(.*\)$/hdmi_mode=\\1\\nhdmi_mode:1=0/' /boot/config.txt", $output, $return_val);
+            exec("sudo sed -i -e 's/^hdmi_group:1/#hdmi_group:1/' /boot/config.txt", $output, $return_val);
+            exec("sudo sed -i -e 's/^hdmi_mode:1/#hdmi_mode:1/' /boot/config.txt", $output, $return_val);
+        }
+    
+        if ($parts[0] == '0') {
+            exec("sudo sed -i -e 's/^hdmi_group" . $postfix . "=/#hdmi_group" . $postfix . "=/' /boot/config.txt", $output, $return_val);
+            exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "=/#hdmi_mode" . $postfix . "=/' /boot/config.txt", $output, $return_val);
+        } else {
+            exec("sudo sed -i -e 's/^#hdmi_group" . $postfix . "=/hdmi_group" . $postfix . "=/' /boot/config.txt", $output, $return_val);
+            exec("sudo sed -i -e 's/^#hdmi_mode" . $postfix . "=/hdmi_mode" . $postfix . "=/' /boot/config.txt", $output, $return_val);
+            exec("sudo sed -i -e 's/^hdmi_group" . $postfix . "=.*/hdmi_group" . $postfix . "=" . $parts[0] . "/' /boot/config.txt", $output, $return_val);
+            exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "=.*/hdmi_mode" . $postfix . "=" . $parts[1] . "/' /boot/config.txt", $output, $return_val);
+        }    
     }
 }
 
@@ -278,6 +295,8 @@ function ApplySetting($setting, $value)
         case 'TimeZone':SetTimeZone($value);
             break;
         case 'ForceHDMI':SetForceHDMI($value);
+            break;
+        case 'EnableBBBHDMI':SetEnableBBBHDMI($value);
             break;
         case 'ForceHDMIResolution':SetForceHDMIResolution($value, "");
             break;
