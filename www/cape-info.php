@@ -205,15 +205,15 @@ function UpgradeFirmware() {
     StreamURL('upgradeCapeFirmware.php', 'upgradeText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
 }
 
+var eepromList = [];
 function GetDownloadableEEPROMList() {
     $.get('https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromList.json', function(dataStr) {
-        var data = JSON.parse(dataStr);
-        var devMode = (settings['uiLevel'] && (parseInt(settings['uiLevel']) == 3));
+        eepromList = JSON.parse(dataStr);
         var options = '';
-        for (c = 0; c < data.length; c++) {
-            if (devMode || (data[c].cape == settings['cape-info']['name'])) {
-                for (i = 0; i < data[c].eeproms.length; i++) {
-                    options += "<option value='" + data[c].eeproms[i].url + "'>" + data[c].cape + ' - ' + data[c].eeproms[i].description + '</option>';
+        for (c = 0; c < eepromList.length; c++) {
+            if (eepromList[c].cape == settings['cape-info']['name']) {
+                for (i = 0; i < eepromList[c].eeproms.length; i++) {
+                    options += "<option value='" + eepromList[c].eeproms[i].url + "'>" + eepromList[c].cape + ' - ' + eepromList[c].eeproms[i].description + '</option>';
                 }
             }
         }
@@ -222,9 +222,39 @@ function GetDownloadableEEPROMList() {
             $('#eepromList').append(options);
             $('#eepromList').removeAttr('disabled');
         } else {
-            $('#eepromList').html("<option value=''>-- No available downloads --</option>");
+            $('#eepromList').html("<option value=''>-- No available downloads for this cape --</option>");
         }
     });
+}
+
+function filterEEPROMListChanged() {
+    var options = '';
+    var showAll = false;
+
+    if (!eepromList.length)
+        return;
+
+    if ($('#filterEEPROMList').is(':checked')) {
+        showAll = true;
+        $('#eepromList').removeAttr('disabled');
+    }
+
+    for (c = 0; c < eepromList.length; c++) {
+        if (showAll || (eepromList[c].cape == settings['cape-info']['name'])) {
+            for (i = 0; i < eepromList[c].eeproms.length; i++) {
+                options += "<option value='" + eepromList[c].eeproms[i].url + "'>" + eepromList[c].cape + ' - ' + eepromList[c].eeproms[i].description + '</option>';
+            }
+        }
+    }
+
+    if (options != '') {
+        options = "<option value=''>-- Download firmware --</option>" + options;
+        $('#eepromList').html(options);
+    } else {
+        $('#eepromList').html("<option value=''>-- No available downloads for this cape --</option>");
+    }
+
+    eepromListChanged();
 }
 
 function eepromListChanged() {
@@ -910,7 +940,7 @@ if ($printSigningUI) {
                                                 Select a downloadable EEPROM image or a local file to upgrade EEPROM firmware:<br>
                                                 <select id='eepromList' disabled onChange='eepromListChanged();'>
                                                     <option value=''>-- Download firmware --</option>
-                                                </select><br>
+                                                </select><? if ($uiLevel >= 1) { ?>&nbsp;<input type='checkbox' id='filterEEPROMList' onChange='filterEEPROMListChanged();'>&nbsp;Show&nbsp;ALL<? } ?><br>
                                                 <input type="file" name="firmware" id="firmware" style='padding-left: 0px;' onChange='firmwareChanged();'><br>
                                                 <input type='button' class="buttons" value='Upgrade' onClick='UpgradeFirmware();' id='UpdateFirmware' disabled>
                                             </div>
