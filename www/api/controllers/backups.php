@@ -27,7 +27,8 @@ function GetAvailableBackupsFromDir($backupDir) {
             foreach (scandir($backupDir . '/' . $fileName) as $subfileName) {
                 if (($subfileName != '.') &&
                     ($subfileName != '..') &&
-                    (!in_array($subfileName, $excludeList))) {
+                    (!in_array($subfileName, $excludeList)) &&
+                    (is_dir($backupDir . '/' . $fileName . '/' . $subfileName))) {
                     array_push($dirs, $fileName . '/' . $subfileName);
                 }
             }
