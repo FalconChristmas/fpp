@@ -128,10 +128,9 @@ foreach (scandir("/dev/") as $fileName) {
 var SerialDevices = new Array();
 <?
 foreach (scandir("/dev/") as $fileName) {
-    if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
+    if ((preg_match("/^ttySC?[0-9]+/", $fileName)) ||
         (preg_match("/^ttyACM[0-9]+/", $fileName)) ||
         (preg_match("/^ttyO[0-9]/", $fileName)) ||
-        (preg_match("/^ttyS[0-9]/", $fileName)) ||
         (preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
         (preg_match("/^ttyUSB[0-9]+/", $fileName))) {
         echo "SerialDevices['$fileName'] = '$fileName';\n";
