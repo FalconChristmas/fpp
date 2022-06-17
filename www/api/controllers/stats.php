@@ -78,6 +78,18 @@ function stats_network()
 
     $rc['wifi'] = json_decode(file_get_contents("http://localhost/api/network/wifi/strength"), true);
 
+    $interfaces = json_decode(file_get_contents("http://localhost/api/network/interface"), true);
+    foreach ($interfaces as $i) {
+        $name = $i['ifname'];
+        $rc['interfaces'][$name]['operstate'] = $i['operstate'];
+        $rc['interfaces'][$name]['config'] = $i['config'];
+        unset($rc['interfaces'][$name]['config']['PSK']);
+        unset($rc['interfaces'][$name]['config']['SSID']);
+        unset($rc['interfaces'][$name]['config']['ADDRESS']);
+        unset($rc['interfaces'][$name]['config']['NETMASK']);
+        unset($rc['interfaces'][$name]['config']['GATEWAY']);
+    }
+
     return $rc;
 }
 
@@ -123,11 +135,11 @@ function stats_memory()
                 if (preg_match("/([0-9]*) pages with a page size of ([0-9]*).*/", $row, $matches) == 1) {
                     $totalPages = intval($matches[1]);
                     $pageSize = intval($matches[2]);
-                    $rc['MemTotal'] = strval($pageSize*$totalPages/1024);
-                } else  if (preg_match("/^(.*): ([0-9]*)/", $row, $matches) == 1) {
+                    $rc['MemTotal'] = strval($pageSize * $totalPages / 1024);
+                } else if (preg_match("/^(.*): ([0-9]*)/", $row, $matches) == 1) {
                     $key = $matches[1];
                     $value = intval($matches[2]);
-                    
+
                     if ($key == "Pages active") {
                         $rc["Active"] = strval($pageSize * $value / 1024);
                     } else if ($key == "Pages inactive") {
@@ -136,7 +148,7 @@ function stats_memory()
                         $rc["Cached"] = strval($pageSize * $value / 1024);
                     } else if ($key == "Pages free") {
                         $rc["MemFree"] = strval($pageSize * $value / 1024);
-                        $rc['MemAvailable'] = strval($pageSize * $value /1024);
+                        $rc['MemAvailable'] = strval($pageSize * $value / 1024);
                     }
                 }
             }
@@ -412,7 +424,7 @@ function stats_getPlugins()
 function stats_getUUID()
 {
     global $fppDir;
-    
+
     $output = array();
     exec($fppDir . "/scripts/get_uuid", $output);
 
