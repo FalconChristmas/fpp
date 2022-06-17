@@ -997,7 +997,7 @@ exit(20)
             then
                 case ${MODEL} in
                     Pi[4-9]) # Pi 4 (and newer?) uses a 54Mhz clock so our clock needs to be higher
-                        TIMING="724 0 1 1 1  162 0 1 1 1  0 0 0  40 0 4800000 1"
+                        TIMING="722 0 0 1 0  162 0 1 1 1  0 0 0  40 0 4800000 1"
                         ;;
                     *) # Pi 3 and older use a 19.2Mhz clock
                         TIMING="362 0 0 1 0  162 0 1 1 1  0 0 0  40 0 2400000 1"
@@ -1006,7 +1006,7 @@ exit(20)
             else
                 case ${MODEL} in
                     Pi[4-9]) # Pi 4 (and newer?) uses a 54Mhz clock so our clock needs to be higher
-                        TIMING="724 0 1 1 1  324 0 2 2 2  0 0 0  20 0 4800000 1"
+                        TIMING="722 0 0 1 0  324 0 2 2 2  0 0 0  20 0 4800000 1"
                         ;;
                     *) # Pi 3 and older use a 19.2Mhz clock
                         TIMING="362 0 0 1 0  324 0 2 2 2  0 0 0  20 0 2400000 1"

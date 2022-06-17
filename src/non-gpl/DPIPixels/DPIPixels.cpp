@@ -557,7 +557,7 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
 #ifdef TEST_USING_X11
         return true;
 #endif
-        if ((fb->Width() == 362) || (fb->Width() == 724)) {
+        if ((fb->Width() == 362) || (fb->Width() == 722)) {
             if (fb->Height() == 162) {
                 if (longestString <= 800)
                     return true;
@@ -600,7 +600,7 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
     if (!usingLatches)
         latchPinMask = 0x000000;
 
-    if (fb->Width() == 724)
+    if (fb->Width() == 722)
         fbPixelMult = 2;
 
     // Each WS bit is three (or 6 on Pi4) FB pixels, but skip first/last FB pixel
