@@ -80,6 +80,8 @@ if ($showOSSecurity) {
 <?
     PrintSetting('osPassword');
     PrintSetting('osPasswordVerify');
+
+    if ($uiLevel >= 1) {
 ?>
     <br>
     <b>SSH Keys</b> (root and fpp users)
@@ -88,6 +90,7 @@ if ($showOSSecurity) {
     <textarea  id='sshKeys' style='width: 100%;' rows='10'><?  echo shell_exec('sudo cat /root/.ssh/authorized_keys'); ?></textarea>
     <input type='button' class='buttons' value='Save Keys' onClick='SaveSSHKeys();'><br><br>
 <?
+    }
 }
 
 if (($settings['uiLevel'] >= 1) && ($settings['Platform'] == "Raspberry Pi")) {
