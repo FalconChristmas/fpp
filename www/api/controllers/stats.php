@@ -466,6 +466,7 @@ function stats_getCapeInfo()
 function stats_getSettings()
 {
     global $settings;
+    global $settingsFile;
     $rc = array();
     $safeSettings = array();
     $allSettings = json_decode(file_get_contents($settings['wwwDir'] . "/settings.json"), true);
@@ -474,7 +475,9 @@ function stats_getSettings()
             $safeSettings[$name] = $name;
         }
     }
-    validateAndAdd($rc, $settings, $safeSettings);
+
+    $tmpSettings = parse_ini_file($settingsFile);
+    validateAndAdd($rc, $tmpSettings, $safeSettings);
 
     return $rc;
 }
