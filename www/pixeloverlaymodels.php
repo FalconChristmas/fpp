@@ -197,8 +197,14 @@ function PopulateChannelMemMapTable(data) {
                 var pWidth = parseInt(model.Width / model.PixelSize);
                 var pHeight = parseInt(model.Height / model.PixelSize);
                 var channels = pWidth * pHeight * 3;
+                var select = CreateSelect(FBDevices, model.Device, '', '-- Port --', 'device', 'DeviceChanged(this);');
+
+                if (model.autoCreated) {
+                    select = select.replace('<select ', '<select disabled ');
+                }
+
                 postr += "<td><span class='hidden type'>FB</span>FrameBuffer</td>" + 
-                    "<td>" + CreateSelect(FBDevices, model.Device, '', '-- Port --', 'device', 'DeviceChanged(this);') + "</td>" +
+                    "<td>" + select + "</td>" +
                     "<td class='channels'>" + channels + "</td>" +
                     "<td colspan='3'>Size: <input class='width' type='number' min='8' max='4096' step='8' value='" + model.Width + "'" + attr + " onChange='WidthOrHeightModified(this);'> <b>X</b>" +
                     "<input class='height' type='number' min='8' max='2160' step='8' value='" + model.Height + "'" + attr + " onChange='WidthOrHeightModified(this);'>";
@@ -213,8 +219,13 @@ function PopulateChannelMemMapTable(data) {
                     "<td>";
                 break;
             case "Sub":
+                var select = CreateSelect(PixelOverlayModels, model.Parent, '', '-- Parent --', 'parent', '');
+                if (model.autoCreated) {
+                    select = select.replace('<select ', '<select disabled ');
+                }
+
                 postr += "<td><span class='hidden type'>Sub</span>Sub-Model</td>" +
-                    "<td>" + CreateSelect(PixelOverlayModels, model.Parent, '', '-- Parent --', 'parent', '') + "</td>" +
+                    "<td>" + select + "</td>" +
                     "<td class='channels'>" + (model.Width * model.Height * 3) + "</td><td>3</td>" +
                     "<td>xOffset: <input class='xOffset' type='number' min='0' max='4096' value='" + model.XOffset + "'" + attr + "></td>" +
                     "<td>yOffset: <input class='yOffset' type='number' min='0' max='2160' value='" + model.YOffset + "'" + attr + "></td>" +
