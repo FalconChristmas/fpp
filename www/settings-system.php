@@ -84,6 +84,7 @@ if ($showOSSecurity) {
     if ($uiLevel >= 1) {
 ?>
     <br>
+    <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1" title="Advanced Level Setting"></i>
     <b>SSH Keys</b> (root and fpp users)
     <img id="ssh_img" title="Add optional SSH key(s) for passwordless SSH authentication." src="images/redesign/help-icon.svg" width=22 height=22>
     <span id="ssh_tip" class="tooltip" style="display: none">Add optional SSH key(s) for passwordless SSH authentication.</span><br>
@@ -95,6 +96,7 @@ if ($showOSSecurity) {
 
 if (($settings['uiLevel'] >= 1) && ($settings['Platform'] == "Raspberry Pi")) {
 ?>
+    <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1" title="Advanced Level Setting"></i>
     <b>Kiosk Frontend</b><br>
     The Kiosk frontend installs a bunch of extra packages and sets up Chrome running on the local HDMI port to
     allow FPP to be configured and monitored from a keyboard and mouse connected to the Pi's USB ports.  The
