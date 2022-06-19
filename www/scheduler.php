@@ -264,18 +264,18 @@ function SetRowDateTimeFieldVisibility(row) {
         row.find('.holEndDate').show();
     }
     
-    var re = new RegExp(/[0-9]:[0-9]/);
+    var re = new RegExp(/(dawn|sunrise|sunset|dusk)/i);
     var startTime = row.find('.schStartTime').val();
     if (startTime.match(re)) {
-        row.find('.startOffset').hide();
-    } else {
         row.find('.startOffset').show();
+    } else {
+        row.find('.startOffset').hide();
     }
     var endTime = row.find('.schEndTime').val();
     if (endTime.match(re)) {
-        row.find('.endOffset').hide();
-    } else {
         row.find('.endOffset').show();
+    } else {
+        row.find('.endOffset').hide();
     }
 }
 
@@ -416,10 +416,11 @@ function ScheduleEntryTypeChanged(item)
 function TimeChanged(item)
 {
     var val = $(item).val();
-    if (val.includes(":")) {
-        $(item).parent().find('.offset').hide();
-    } else {
+    var re = new RegExp(/(dawn|sunrise|sunset|dusk)/i);
+    if (val.match(re)) {
         $(item).parent().find('.offset').show();
+    } else {
+        $(item).parent().find('.offset').hide();
     }
 }
 
