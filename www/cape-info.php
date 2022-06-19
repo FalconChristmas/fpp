@@ -181,7 +181,7 @@ function UpgradeFirmwareDone() {
     }
     $('#closeDialogButton').show();
 }
-function UpgradeFirmware() {
+function UpgradeFirmware(force = false) {
     var eepromFile = $('#eepromList').val();
     let firmware = document.getElementById("firmware").files[0];
     if ((eepromFile == '') && (firmware == "" || firmware == null)) {
@@ -202,7 +202,11 @@ function UpgradeFirmware() {
         formData.append("firmware", firmware);
     }
 
-    StreamURL('upgradeCapeFirmware.php', 'upgradeText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
+    var forceOpt = '';
+    if (force)
+        forceOpt = '?force=true';
+
+    StreamURL('upgradeCapeFirmware.php' + forceOpt, 'upgradeText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
 }
 
 var eepromList = [];
@@ -976,11 +980,38 @@ closedir($dir);
         </div>
 <?
 } else {
-?>
-    <h3>No Cape or Hat found.</h3>
+    $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
+    if (!file_exists($eepromFile)) {
+        $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
+        if (!file_exists($eepromFile)) {
+            $eepromFile = '';
+        }
+    }
 
-    Does your cape have a physical EEPROM or did you install a virtual EEPROM on the <a href='initialSetup.php'>Initial Setup</a> page?
+    if ($eepromFile != '') {
+?>
+                                <div class="tab-pane fade show" id="eeprom-upgrade" role="tabpanel" aria-labelledby="eeprom-upgrade-tab">
+                                    <h2>EEPROM Install</h2>
+                                    <div class="container-fluid">
+                                        <div class="row">
+                                            <div class="aboutLeft col-md">
+                                                Your cape appears to have an unprogrammed physical EEPROM installed.  You may upload an EEPROM .bin file here to program the EEPROM.<br>
+                                                <input type="text" id="eepromList" style='display: none;'>
+                                                <input type="file" name="firmware" id="firmware" style='padding-left: 0px;' onChange='firmwareChanged();'><br>
+                                                <input type='button' class="buttons" value='Upgrade' onClick='UpgradeFirmware(true);' id='UpdateFirmware' disabled>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 <?
+    } else {
+?>
+    <h3>No Cape or Hat EEPROM found.</h3>
+
+    Unable to find a physical or virtual EEPROM.  If you have a cape without a physical EEPROM installed,
+    you will need to select a virtual EEPROM from the Pixel Strings Channel Output configuration page.
+<?
+    }
 }
 ?>
     </div>
