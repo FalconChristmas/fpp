@@ -28,6 +28,7 @@ stdbuf --output=0 --error=0 chroot /mnt /opt/fpp/SD/upgradeOS-part2.sh
 
 echo "Done copy, unmounting filesystems"
 sync
+umount /mnt/proc
 umount /mnt/dev
 umount /mnt/tmp
 umount /mnt/mnt/boot
