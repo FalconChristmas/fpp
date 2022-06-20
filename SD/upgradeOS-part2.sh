@@ -36,7 +36,7 @@ rm -f mnt/lib/arm-linux-gnueabihf/librtmp.so.1
 rm -f mnt/usr/bin/dc mnt/usr/bin/bc mnt/usr/bin/hardlink mnt/usr/bin/lua5*
 
 #copy everything other than fstab and the persistent net names
-stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-after --exclude=var/lib/connman --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/*-fpp-*
+stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-after --exclude=var/lib/connman --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh
 
 #restore the ssh keys
 echo "Restoring ssh keys"
