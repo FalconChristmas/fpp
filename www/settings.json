@@ -977,9 +977,11 @@
             "platforms": [
                 "Raspberry Pi"
             ],
-            "checkFile": [
-                "/dev/fb1"
-            ],
+            "variants": {
+                "Raspberry Pi": [
+                    "Pi 4"
+                ]
+            },
             "type": "select",
             "optionsURL": "hdmi_table.json.php"
         },
