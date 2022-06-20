@@ -141,7 +141,10 @@ void CommandManager::addCommand(Command* cmd) {
     commands[cmd->name] = cmd;
 }
 void CommandManager::removeCommand(Command* cmd) {
-    commands.erase(commands.find(cmd->name));
+    auto a = commands.find(cmd->name);
+    if (a != commands.end()) {
+        commands.erase(a);
+    }
 }
 
 Json::Value CommandManager::getDescriptions() {

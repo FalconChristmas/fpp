@@ -82,12 +82,14 @@ function stats_network()
     foreach ($interfaces as $i) {
         $name = $i['ifname'];
         $rc['interfaces'][$name]['operstate'] = $i['operstate'];
-        $rc['interfaces'][$name]['config'] = $i['config'];
-        unset($rc['interfaces'][$name]['config']['PSK']);
-        unset($rc['interfaces'][$name]['config']['SSID']);
-        unset($rc['interfaces'][$name]['config']['ADDRESS']);
-        unset($rc['interfaces'][$name]['config']['NETMASK']);
-        unset($rc['interfaces'][$name]['config']['GATEWAY']);
+        if (isset($rc['interfaces'][$name]['config'])) {
+            $rc['interfaces'][$name]['config'] = $i['config'];
+            unset($rc['interfaces'][$name]['config']['PSK']);
+            unset($rc['interfaces'][$name]['config']['SSID']);
+            unset($rc['interfaces'][$name]['config']['ADDRESS']);
+            unset($rc['interfaces'][$name]['config']['NETMASK']);
+            unset($rc['interfaces'][$name]['config']['GATEWAY']);
+        }
     }
 
     return $rc;
