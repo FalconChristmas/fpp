@@ -763,7 +763,7 @@ button.ui-datepicker-current {
                                 </span>
                             </td>
                             <td><input class='time schStartTime' type='text' size='6' onChange='TimeChanged(this);' />
-<span class='offset startOffset'><br>+<input class='schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
+<span class='offset startOffset'><br><input class='schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
                             <td><select class='schType' onChange='ScheduleEntryTypeChanged(this);'>
                                 <option value='playlist'>Playlist</option>
                                 <option value='sequence'>Sequence</option>
