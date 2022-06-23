@@ -210,10 +210,11 @@ include 'menu.inc';
 
 <?php
 if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) :
-    ?>
-<div id='upgradeFlag' class="alert alert-danger" role="alert">
+?>
+<div id='spaceFlag' class="alert alert-danger" role="alert">
      SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
      file system or create a new storage partition.
+     <input type='button' class='buttons btn-success' style='float: right' value='Leave Unused' onClick='SetSetting("LastBlock", "0", 0, 0); $("#spaceFlag").hide();'>
 </div>
 <?php endif; ?>
 
