@@ -380,8 +380,8 @@ void DPIPixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int
 void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     PixelString* ps = NULL;
     long long startTime = 0;
-    long long elapsedTimeGather = 0;
-    long long elapsedTimeOutput = 0;
+//    long long elapsedTimeGather = 0;
+//    long long elapsedTimeOutput = 0;
     int maxString = stringCount;
     int sStart = 0;
     int sEnd = stringCount;
@@ -445,7 +445,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
             }
         }
 
-        elapsedTimeGather += GetTime() - startTime;
+//        elapsedTimeGather += GetTime() - startTime;
 
         ch += 3;
 
@@ -454,14 +454,14 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
         if (protocol == "ws2811")
             OutputPixelRowWS281x(rowData, maxString);
 
-        elapsedTimeOutput += GetTime() - startTime;
+//        elapsedTimeOutput += GetTime() - startTime;
     }
 
     if (protocol == "ws2811")
         CompleteFrameWS281x();
 
     // FIXME, clean up these hexdumps after done testing
-    uint8_t* fbp = fb->BufferPage(fbPage);
+    //uint8_t* fbp = fb->BufferPage(fbPage);
     //HexDump("fb data:", fbp, 216, VB_CHANNELOUT);
     //HexDump("fb 1st line:", fbp, fb->RowStride(), VB_CHANNELOUT);
     //HexDump("fb 2nd line:", fbp + fb->RowStride(), fb->RowStride(), VB_CHANNELOUT);
@@ -469,8 +469,8 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     //HexDump("fb 11th line:", fbp + fb->RowStride() * 10, fb->RowStride(), VB_CHANNELOUT);
 
     // FIXME, comment these (and the GetTime() calls above) out once testing is done.
-    LogDebug(VB_CHANNELOUT, "Elapsed Time for data gather     : %lldus\n", elapsedTimeGather);
-    LogDebug(VB_CHANNELOUT, "Elapsed Time for bit manipulation: %lldus\n", elapsedTimeOutput);
+    //LogDebug(VB_CHANNELOUT, "Elapsed Time for data gather     : %lldus\n", elapsedTimeGather);
+    //LogDebug(VB_CHANNELOUT, "Elapsed Time for bit manipulation: %lldus\n", elapsedTimeOutput);
 }
 
 int DPIPixelsOutput::SendData(unsigned char* channelData) {
