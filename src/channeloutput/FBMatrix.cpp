@@ -60,8 +60,49 @@ int FBMatrixOutput::Init(Json::Value config) {
         modelName = config["modelName"].asString();
 
     if (modelName == "") {
-        LogErr(VB_PLAYLIST, "Empty Pixel Overlay Model name\n");
-        return 0;
+        int width = 0;
+        int height = 0;
+        int scaling = 1;
+        std::string device;
+
+        if ((config.isMember("width")) &&
+            (config.isMember("height")) &&
+            (config.isMember("scaling")) &&
+            (config.isMember("device"))) {
+            width = config["width"].asInt();
+            height = config["height"].asInt();
+            scaling = config["scaling"].asInt();
+            device = config["device"].asString();
+
+            if (width && height && (device != "")) {
+                if (scaling == 0)
+                    scaling = 1;
+
+                // Check for an existing model on this device
+
+                // Create a new model for this device
+                replaceStart(device, "/dev/");
+                modelName = "FB - ";
+                modelName += device;
+
+                Json::Value val;
+                val["Name"] = modelName;
+                val["Type"] = "FB";
+                val["Width"] = width;
+                val["Height"] = height;
+                val["PixelSize"] = scaling;
+                val["Device"] = device;
+                val["autoCreated"] = true;
+
+                PixelOverlayManager::INSTANCE.addModel(val);
+            } else {
+                LogErr(VB_PLAYLIST, "Empty Pixel Overlay Model name\n");
+                return 0;
+            }
+        } else {
+            LogErr(VB_PLAYLIST, "Empty Pixel Overlay Model name\n");
+            return 0;
+        }
     }
 
     model = PixelOverlayManager::INSTANCE.getModel(modelName);
@@ -87,22 +128,6 @@ int FBMatrixOutput::Init(Json::Value config) {
 
     buffer = new unsigned char[width * height * 3];
 
-    if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
-        std::string dd = "VirtualMatrix";
-        if (config.isMember("description")) {
-            dd = config["description"].asString();
-        }
-        std::string desc = dd;
-        int count = 0;
-        while (PixelOverlayManager::INSTANCE.getModel(desc) != nullptr) {
-            count++;
-            desc = dd + "-" + std::to_string(count);
-        }
-        PixelOverlayManager::INSTANCE.addAutoOverlayModel(desc,
-                                                          m_startChannel, m_channelCount, 3,
-                                                          "H", "TL",
-                                                          height, 1);
-    }
     return ChannelOutput::Init(config);
 }
 
@@ -155,7 +180,7 @@ void FBMatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)
  */
 void FBMatrixOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "VirtualMatrixOutput::DumpConfig()\n");
-    LogDebug(VB_CHANNELOUT, "    model  : %d\n", modelName.c_str());
+    LogDebug(VB_CHANNELOUT, "    model  : %s\n", modelName.c_str());
     LogDebug(VB_CHANNELOUT, "    width  : %d\n", width);
     LogDebug(VB_CHANNELOUT, "    height : %d\n", height);
 }

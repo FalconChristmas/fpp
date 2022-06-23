@@ -6325,7 +6325,7 @@ function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, d
     }
     result += ">";
 
-    if (currentValue === "")
+    if ((currentValue === "") && (!('' in optionArray)))
         result += "<option value=''>" + dropDownTitle + "</option>";
 
     var found = 0;

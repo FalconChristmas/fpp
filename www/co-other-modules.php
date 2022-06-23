@@ -196,7 +196,7 @@ $models = json_decode($json, true);
 foreach ($models as $model) {
     $modelName = $model['Name'];
 
-    if (($model['Type'] == 'FB') || ($model['Type'] == 'Sub')) {
+    if ((($model['Type'] == 'FB') || ($model['Type'] == 'Sub')) && ($modelName != 'FB - fb0') && ($modelName != 'FB - fb1')) {
         $width = intval($model['Width'] / $model['PixelSize']);
         $height = intval($model['Height'] / $model['PixelSize']);
         echo "PixelOverlayModels['$modelName'] = '$modelName (" . $width . 'x' . $height . ")';\n";
@@ -204,10 +204,6 @@ foreach ($models as $model) {
     }
 }
 ?>
-
-function selectedModelChanged(item) {
-    $(item).parent().parent().find('input.count').val(PixelOverlayModelChannels[$(item).val()]);
-}
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -575,22 +571,71 @@ class VirtualDisplayDevice extends OtherBaseDevice {
 
 /////////////////////////////////////////////////////////////////////////////
 // Virtual Matrix Output
+
+function VirtualMatrixSelectedModelChanged(item) {
+    var value = $(item).val();
+
+    if (value != '') {
+        $(item).parent().find('.fbInfo').hide();
+        $(item).parent().parent().find('input.count').val(PixelOverlayModelChannels[$(item).val()]);
+    } else {
+        $(item).parent().find('.fbInfo').show();
+        VirtualMatrixLayoutChanged($(item).parent().parent().find('.width'));
+    }
+
+}
+
+function VirtualMatrixLayoutChanged(item) {
+    var width = $(item).parent().find('.width').val();
+    var height = $(item).parent().find('.height').val();
+    var scaling = $(item).parent().find('.scaling').val();
+    var channels = width * height * 3 / scaling / scaling;
+
+    $(item).parent().parent().parent().find('.count').val(channels);
+}
+
 class VirtualMatrixDevice extends OtherBaseDevice {
 
     constructor(name="VirtualMatrix", friendlyName="Virtual Matrix", maxChannels=FPPD_MAX_CHANNELS, fixedStart=false, fixedChans=true,
                 config={modelName: '', invert: false}) {
         super(name, friendlyName, maxChannels, fixedStart, fixedChans, PixelOverlayModels, config);
 
-        if (Object.keys(PixelOverlayModels).length > 0)
-            this._config.modelName = Object.keys(PixelOverlayModels)[0];
+        if (Object.keys(PixelOverlayModels).length > 1)
+            this._config.modelName = Object.keys(PixelOverlayModels)[1];
     }
 
     PopulateHTMLRow(config) {
-        var result = CreateSelect(this._devices, config.modelName, 'Pixel Overlay Model', '', 'device', 'selectedModelChanged(this);') + "&nbsp;";
+        var tmpDevices = [];
+        tmpDevices[''] = '-- Auto Create --';
+        tmpDevices.concat(this._devices);
+
+        var result = CreateSelect(tmpDevices, config.modelName, 'Pixel Overlay Model', '', 'device', 'VirtualMatrixSelectedModelChanged(this);') + "&nbsp;";
         result += "Invert:&nbsp;<input type='checkbox' class='invert'";
         if (config.invert)
             result += " checked";
         result += ">";
+
+        var width = 1920;
+        var height = 1080;
+        var scaling = 16;
+        var device = 'fb0';
+        var hidden = "style='display: none;'";
+
+        if (config.modelName == '') {
+            width = config.width;
+            height = config.height;
+            scaling = config.scaling;
+            device = config.device;
+            hidden = '';
+        }
+
+        result += "<span class='fbInfo' " + hidden + "> Device: "
+            + CreateSelect(FBDevices, device.replace('/dev/', ''), '', '', 'fbDevice', '')
+            + " Width: <input type='number' min='8' max='4096' step='8' class='width' value='" + width + "' onChange='VirtualMatrixLayoutChanged(this);'>"
+            + " Height: <input type='number' min='8' max='2160' step='8' class='height' value='" + height + "' onChange='VirtualMatrixLayoutChanged(this);'>"
+            + " Scale: <input type='number' min='1' max='64' class='scaling' value='" + scaling + "' onChange='VirtualMatrixLayoutChanged(this);'>"
+            + "</span>";
+
         return result;
     }
 
@@ -598,25 +643,32 @@ class VirtualMatrixDevice extends OtherBaseDevice {
         result.modelName = cell.find('select.device').val();
         result.invert = cell.find('input.invert').is(':checked');
 
-        return result;
-    }
-
-    CanAddNewOutput() {
-        if (this._devices[0] == "No Devices" || Object.keys(this._devices).length == 0) {
-            alert('There are no Pixel Overlay Models defined.  You must create a Pixel Overlay Model first, then you can create a Virtual Matrix to use the Pixel Overlay Model as output.');
-            return false;
+        if (result.modelName == '') {
+            result.device = cell.find('select.fbDevice').val();
+            result.width = parseInt(cell.find('input.width').val());
+            result.height = parseInt(cell.find('input.height').val());
+            result.scaling = parseInt(cell.find('input.scaling').val());
         }
-        return true;
+
+        return result;
     }
 
     SetDefaults(row) {
         super.SetDefaults(row);
-        $(row).find('input.count').val(PixelOverlayModelChannels[this._config.modelName]);
+        if (this._config.modelName != '') {
+            $(row).find('input.count').val(PixelOverlayModelChannels[this._config.modelName]);
+        } else {
+            VirtualMatrixLayoutChanged($(row).find('.width'));
+        }
     }
 
     RowAdded(row) {
         super.RowAdded(row);
-        $(row).find('input.count').val(PixelOverlayModelChannels[$(row).find('select.device').val()]);
+        if ($(row).find('.device').val() != '') {
+            $(row).find('input.count').val(PixelOverlayModelChannels[$(row).find('.device').val()]);
+        } else {
+            VirtualMatrixLayoutChanged($(row).find('.width'));
+        }
     }
 }
 
