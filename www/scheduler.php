@@ -170,8 +170,10 @@ function AddScheduleEntry(data = {}) {
         SetScheduleInputNames();
     }
 
-    SetupDatePicker(row);
+    SetupTimePicker($(row).find('.time'));
+    SetupDatePicker($(row).find('.date'));
 }
+
 function formatDate(date) {
     var d = new Date(date),
         month = '' + (d.getMonth() + 1),
@@ -284,6 +286,11 @@ function SetScheduleInputNames() {
 		SetRowDateTimeFieldVisibility($(this));
 	});
 
+    SetupDatePicker("#tblScheduleBody > tr > td > input.date");
+}
+
+function SetupTimePicker(item)
+{
     var seconds = '';
     if ((settings.hasOwnProperty('ScheduleSeconds')) && (settings['ScheduleSeconds'] == 1))
         seconds = ':s';
@@ -298,10 +305,11 @@ function SetScheduleInputNames() {
         }
     }
 
-	$('.time').timepicker({
+	$(item).timepicker({
 		'timeFormat': timeFormat,
 		'typeaheadHighlight': false,
-		'show2400': true,
+        'show2400': true,
+        'useSelect': true,
 		'noneOption': [
 				{
 					'label': 'Dawn',
@@ -321,8 +329,6 @@ function SetScheduleInputNames() {
 				}
 			]
 		});
-
-    SetupDatePicker("#tblScheduleBody > tr > td > input.date");
 }
 
 function SetupDatePicker(item)
