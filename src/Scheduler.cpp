@@ -299,7 +299,8 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
         entry->pushStartEndTimes(-1, timeDelta, timeDeltaThreshold);
 
     if ((entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY)) {
-        for (int weekOffset = 0; weekOffset <= 28; weekOffset += 7) {
+        int scheduleDistance = getSettingInt("ScheduleDistance");
+        for (int weekOffset = 0; weekOffset <= scheduleDistance; weekOffset += 7) {
             if (dayIndex & INX_DAY_MASK_SUNDAY)
                 entry->pushStartEndTimes(INX_SUN + weekOffset, timeDelta, timeDeltaThreshold);
 

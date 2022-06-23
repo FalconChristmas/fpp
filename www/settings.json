@@ -162,6 +162,7 @@
                 "fppMode",
                 "MultiSyncEnabled",
                 "DisableScheduler",
+                "ScheduleDistance",
                 "ScheduleSeconds",
                 "Locale",
                 "screensaver",
@@ -1771,6 +1772,22 @@
             "max": 9999,
             "step": 1,
             "suffix": "ms"
+        },
+        "ScheduleDistance": {
+            "name": "ScheduleDistance",
+            "description": "Scheduler max distance to schedule out",
+            "tip": "This setting allows adjusting the approximate distance into the future that the scheduler will look when calculating the next scheduled items.  The default is 4 weeks but may be slightly longer based on the current weekday.",
+            "type": "select",
+            "level": 1,
+            "restart": 2,
+            "options": {
+                "4 Weeks": "28",
+                "8 Weeks": "56",
+                "3 Months": "92",
+                "6 Months": "183",
+                "1 Year": "365"
+            },
+            "default": "28"
         },
         "ScheduleSeconds": {
             "name": "ScheduleSeconds",
