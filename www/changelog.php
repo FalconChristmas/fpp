@@ -14,7 +14,11 @@ error_reporting(E_ALL);
 
 $fpp_version = "v" . getFPPVersion();
 
-$logCmd = "git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ log --pretty=format:'%h - %<|(30)%an - %<|(46)%ar - %s' | cut -c1-140 | head -200";
+$limit=200;
+if (isset($_GET['limit']))
+    $limit = intval($_GET['limit']);
+
+$logCmd = "git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ log --pretty=format:'%h - %<|(30)%an - %<|(46)%ar - %s' | cut -c1-140 | head -$limit";
 
 $git_log = "";
 
