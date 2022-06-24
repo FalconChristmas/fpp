@@ -158,33 +158,13 @@ foreach (scandir("/dev/") as $fileName) {
 ?>
 
 var FBDevices = new Array();
-var FBInfo = {};
 <?
 if ($settings["Platform"] != "MacOS") {
     foreach (scandir("/dev/") as $fileName) {
         if (preg_match("/^fb[0-9]+/", $fileName)) {
             echo "FBDevices['$fileName'] = '$fileName';\n";
-            echo "FBInfo['$fileName'] = {};\n";
-
-            $geometry = exec("fbset -i -fb /dev/$fileName | grep geometry", $output, $return_val);
-            if ($return_val == 0) {
-                $parts = preg_split("/\s+/", preg_replace('/^ *geometry */', '', $geometry));
-                if (count($parts) > 3) {
-                    echo "FBInfo['$fileName'].Width = " . $parts[0] . ";\n";
-                    echo "FBInfo['$fileName'].Height = " . $parts[1] . ";\n";
-                }
-            }
         }
     }
-}
-
-if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'))) {
-?>
-FBDevices['x11'] = 'x11';
-FBInfo['x11'] = {};
-FBInfo['x11'].Width = 640;
-FBInfo['x11'].Height = 480;
-<?
 }
 ?>
 
@@ -549,7 +529,7 @@ class VirtualDisplayDevice extends OtherBaseDevice {
     }
 
     PopulateHTMLRow(config) {
-        var result = CreateSelect(this._devices, config.ModelName, 'Pixel Overlay Model', '', 'device') + "&nbsp;";
+        var result = CreateSelect(this._devices, config.ModelName, 'Model', '', 'device') + "&nbsp;";
         result += "Pixel Size:&nbsp;<select class='pixelSize'>";
         for (i = 1; i <= 3; i++) {
             result += "<option value='" + i + "'";
@@ -605,19 +585,25 @@ class VirtualMatrixDevice extends OtherBaseDevice {
     }
 
     PopulateHTMLRow(config) {
-        var tmpDevices = [];
+        var tmpDevices = {};
         tmpDevices[''] = '-- Auto Create --';
-        tmpDevices.concat(this._devices);
+        var keys = Object.keys(this._devices);
+        for (var i = 0; i < keys.length; i++) {
+            tmpDevices[keys[i]] = this._devices[keys[i]];
+        }
 
-        var result = CreateSelect(tmpDevices, config.modelName, 'Pixel Overlay Model', '', 'device', 'VirtualMatrixSelectedModelChanged(this);') + "&nbsp;";
+        if (!config.hasOwnProperty('modelName'))
+            config.modelName = '';
+
+        var result = CreateSelect(tmpDevices, config.modelName, 'Model', '', 'device', 'VirtualMatrixSelectedModelChanged(this);') + "&nbsp;";
         result += "Invert:&nbsp;<input type='checkbox' class='invert'";
         if (config.invert)
             result += " checked";
         result += ">";
 
-        var width = 1920;
-        var height = 1080;
-        var scaling = 16;
+        var width = 192;
+        var height = 108;
+        var scaling = 1;
         var device = 'fb0';
         var hidden = "style='display: none;'";
 
@@ -625,8 +611,10 @@ class VirtualMatrixDevice extends OtherBaseDevice {
             if (config.hasOwnProperty('device') && (config.device != '')) {
                 width = config.width;
                 height = config.height;
-                scaling = config.scaling;
                 device = config.device;
+
+                if (!isNaN(parseInt(config.scaling)))
+                    scaling = config.scaling;
             }
 
             hidden = '';
@@ -634,10 +622,10 @@ class VirtualMatrixDevice extends OtherBaseDevice {
 
         result += "<span class='fbInfo' " + hidden + "> Device: "
             + CreateSelect(FBDevices, device.replace('/dev/', ''), '', '', 'fbDevice', '')
-            + " Width: <input type='number' min='8' max='4096' step='8' class='width' value='" + width + "' onChange='VirtualMatrixLayoutChanged(this);'>"
-            + " Height: <input type='number' min='8' max='2160' step='8' class='height' value='" + height + "' onChange='VirtualMatrixLayoutChanged(this);'>"
-            + " Scale: <input type='number' min='1' max='64' class='scaling' value='" + scaling + "' onChange='VirtualMatrixLayoutChanged(this);'>"
-            + "</span>";
+            + " Size: <input type='number' min='8' max='4096' step='8' class='width' value='" + width + "' onChange='VirtualMatrixLayoutChanged(this);'>"
+            + " <b>X</b> <input type='number' min='8' max='2160' step='8' class='height' value='" + height + "' onChange='VirtualMatrixLayoutChanged(this);'>"
+            + " Pixel Size: <input type='number' min='1' max='64' class='scaling' value='" + scaling + "' onChange='VirtualMatrixLayoutChanged(this);'>"
+            + "</span><img class='cmdTmplTooltipIcon' title='This is the tool tip' src='images/redesign/help-icon.svg' width=22 height=22 style='float: right;'>";
 
         return result;
     }

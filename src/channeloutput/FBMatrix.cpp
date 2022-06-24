@@ -71,20 +71,20 @@ int FBMatrixOutput::Init(Json::Value config) {
             (config.isMember("device"))) {
             width = config["width"].asInt();
             height = config["height"].asInt();
-            scaling = config["scaling"].asInt();
             device = config["device"].asString();
 
-            if (width && height && (device != "")) {
+            if (config["scaling"].isNumeric()) {
+                scaling = config["scaling"].asInt();
+
                 if (scaling == 0)
                     scaling = 1;
+            }
 
-                // Check for an existing model on this device
+            replaceStart(device, "/dev/");
+            modelName = "FB - ";
+            modelName += device;
 
-                // Create a new model for this device
-                replaceStart(device, "/dev/");
-                modelName = "FB - ";
-                modelName += device;
-
+            if (width && height && (device != "") && !PixelOverlayManager::INSTANCE.getModel(modelName)) {
                 Json::Value val;
                 val["Name"] = modelName;
                 val["Type"] = "FB";
