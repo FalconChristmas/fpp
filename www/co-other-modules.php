@@ -622,10 +622,13 @@ class VirtualMatrixDevice extends OtherBaseDevice {
         var hidden = "style='display: none;'";
 
         if (config.modelName == '') {
-            width = config.width;
-            height = config.height;
-            scaling = config.scaling;
-            device = config.device;
+            if (config.hasOwnProperty('device') && (config.device != '')) {
+                width = config.width;
+                height = config.height;
+                scaling = config.scaling;
+                device = config.device;
+            }
+
             hidden = '';
         }
 
@@ -669,6 +672,14 @@ class VirtualMatrixDevice extends OtherBaseDevice {
         } else {
             VirtualMatrixLayoutChanged($(row).find('.width'));
         }
+    }
+
+    CanAddNewOutput() {
+        if (Object.keys(this._devices).length || Object.keys(FBDevices).length) {
+            return true;
+        }
+        alert('There are no Pixel Overlay Models defined and no FrameBuffer devices available.');
+        return false;
     }
 }
 
