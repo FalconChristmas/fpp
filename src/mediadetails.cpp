@@ -59,23 +59,32 @@ void MediaDetails::ParseMedia(const char *mediaFilename)
 
     LogDebug(VB_MEDIAOUT, "ParseMedia(%s)\n", mediaFilename);
 
-    if (snprintf(fullMediaPath, 2048, "%s", FPP_DIR_MUSIC("/" + mediaFilename).c_str()) >= 2048) {
-        LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
-            mediaFilename);
-        return;
-    }
+    if ((mediaFilename[0] == '/') && FileExists(mediaFilename)) {
+        if (strlen(mediaFilename) > 2047) {
+            LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, path name too long\n",
+                mediaFilename);
+            return;
+        }
+        strcpy(fullMediaPath, mediaFilename);
+    } else {
+        if (snprintf(fullMediaPath, 2048, "%s", FPP_DIR_MUSIC("/" + mediaFilename).c_str()) >= 2048) {
+            LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
+                mediaFilename);
+            return;
+        }
 
-    if (!FileExists(fullMediaPath)) {
-		if (snprintf(fullMediaPath, 2048, "%s", FPP_DIR_VIDEO("/" + mediaFilename).c_str()) >= 2048) {
-			LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
-				mediaFilename);
-			return;
-		}
+        if (!FileExists(fullMediaPath)) {
+            if (snprintf(fullMediaPath, 2048, "%s", FPP_DIR_VIDEO("/" + mediaFilename).c_str()) >= 2048) {
+                LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
+                    mediaFilename);
+                return;
+            }
 
-		if (!FileExists(fullMediaPath)) {
-			LogErr(VB_MEDIAOUT, "Unable to find %s media file to parse meta data\n", mediaFilename);
-			return;
-		}
+            if (!FileExists(fullMediaPath)) {
+                LogErr(VB_MEDIAOUT, "Unable to find %s media file to parse meta data\n", mediaFilename);
+                return;
+            }
+        }
     }
 
 	Clear();
