@@ -526,10 +526,6 @@ function ConfirmOSPasswordEnable()
 
     window["osPasswordEnableChanged"]();
 
-    if ((password == '') || (value == '0')) {
-        alert('OS Password set to default password of "falcon"');
-    }
-
     if (value == '0') {
         $('.osPasswordEnableChild').hide();
     } else if (value == '1') {
