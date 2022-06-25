@@ -10,6 +10,10 @@ if (isset($_GET['os'])) {
     $baseFile = escapeshellcmd($_GET['os']);
 }
 
+if (isset($_GET['downloadOnly'])) {
+    $applyUpdate = false;
+}
+
 if (isset($_GET['wrapped'])) {
     $wrapped = 1;
 }
@@ -66,11 +70,10 @@ if (preg_match('/^https?:/', $_GET['os'])) {
     }
 
 }
-?>
-==========================================================================
-Upgrading OS:
-<?
+
 if ($applyUpdate) {
+    echo "==========================================================================\n";
+    echo "Upgrading OS:\n";
     $TMP_FILE = "/home/fpp/media/tmp/upgradeOS-part1.sh";
     echo ("Checking for previous $TMP_FILE\n");
     if (file_exists($TMP_FILE)) {
@@ -84,19 +87,19 @@ if ($applyUpdate) {
 } else {
     echo ("Skipping update\n");
 }
-?>
-==========================================================================
-<?
+
 if (!$wrapped) {
     ?>
 </pre>
+==========================================================================
 <b>Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot</b>
 <a href='index.php'>Go to FPP Main Status Page</a><br>
 <a href='about.php'>Go back to FPP About page</a><br>
 </body>
 </html>
 <?
-} else {
+} else if ($applyUpdate) {
+    echo "==========================================================================\n";
     echo "Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot\n";
 }
 while (@ob_end_flush());

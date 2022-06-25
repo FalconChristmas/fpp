@@ -192,6 +192,10 @@ function UpgradeOS() {
     var os = $('#OSSelect').val();
     var osName = os;
     var extra = "";
+
+    if (os == '')
+        return;
+
     if (os in osAssetMap) {
         osName = osAssetMap[os].name;
         os = osAssetMap[os].url;
@@ -203,6 +207,45 @@ function UpgradeOS() {
         $('#upgradeText').html('');
 
         StreamURL('upgradeOS.php?wrapped=1&os=' + os, 'upgradeText', 'UpgradeDone');
+    }
+}
+
+function DownloadOS() {
+    var os = $('#OSSelect').val();
+    var osName = os;
+    var extra = "";
+
+    if (os == '')
+        return;
+
+    if (os in osAssetMap) {
+        osName = osAssetMap[os].name;
+        os = osAssetMap[os].url;
+
+        $('#closeDialogButton').hide();
+        $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP Download OS Image", dialogClass: 'no-close' });
+        $('#upgradePopup').fppDialog( "moveToTop" );
+        $('#upgradeText').html('');
+
+        StreamURL('upgradeOS.php?wrapped=1&downloadOnly=1&os=' + os, 'upgradeText', 'UpgradeDone');
+    } else {
+        alert('This fppos image has already been downloaded.');
+    }
+}
+
+function OSSelectChanged() {
+    var os = $('#OSSelect').val();
+
+    if (os == '') {
+        $('#OSUpgrade').attr('disabled', 'disabled');
+        $('#OSDownload').attr('disabled', 'disabled');
+    } else {
+        $('#OSUpgrade').removeAttr('disabled');
+        if (os in osAssetMap) {
+            $('#OSDownload').removeAttr('disabled');
+        } else {
+            $('#OSDownload').attr('disabled', 'disabled');
+        }
     }
 }
 
@@ -343,11 +386,12 @@ if ($settings['uiLevel'] > 0) {
 }
 
 $osUpdateFiles = preg_grep("/^" . $settings['OSImagePrefix'] . "-/", getFileList($uploadDirectory, "fppos"));
-echo "<tr id='osSelectRow'><td>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect'>\n";
+echo "<tr id='osSelectRow'><td style='vertical-align: top;'>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect' onChange='OSSelectChanged();'>\n";
+echo "<option value=''>-- Choose an OS Version --</option>\n";
 foreach ($osUpdateFiles as $key => $value) {
     echo "<option value='" . $value . "'>" . $value . "</option>\n";
 }
-echo "</select>&nbsp;<input type='button' value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'></td></tr>";
+echo "</select><br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'>&nbsp;<input type='button' disabled value='Download Only' onClick='DownloadOS();' class='buttons' id='OSDownload'></td></tr>";
 ?>
                 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
                 <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>
