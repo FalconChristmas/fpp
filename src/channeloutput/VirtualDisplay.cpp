@@ -61,18 +61,64 @@ VirtualDisplayOutput::~VirtualDisplayOutput() {
 int VirtualDisplayOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::Init()\n");
 
+    // Check for old config names
     if (config.isMember("ModelName"))
         m_modelName = config["ModelName"].asString();
+    if (config.isMember("PixelSize"))
+        m_pixelSize = config["PixelSize"].asInt();
+
+    // Check for new config names
+    if (config.isMember("modelName"))
+        m_modelName = config["modelName"].asString();
+    if (config.isMember("pixelSize"))
+        m_pixelSize = config["pixelSize"].asInt();
 
     if (m_modelName == "") {
-        LogErr(VB_PLAYLIST, "Empty Pixel Overlay Model name\n");
+        int width = 0;
+        int height = 0;
+        std::string device;
+
+        if ((config.isMember("width")) &&
+            (config.isMember("height")) &&
+            (config.isMember("device"))) {
+            width = config["width"].asInt();
+            height = config["height"].asInt();
+            device = config["device"].asString();
+
+            replaceStart(device, "/dev/");
+            m_modelName = "FB - ";
+            m_modelName += device;
+
+            if (width && height && (device != "") && !PixelOverlayManager::INSTANCE.getModel(m_modelName)) {
+                Json::Value val;
+                val["Name"] = m_modelName;
+                val["Type"] = "FB";
+                val["Width"] = width;
+                val["Height"] = height;
+                val["PixelSize"] = 1;
+                val["Device"] = device;
+                val["autoCreated"] = true;
+
+                PixelOverlayManager::INSTANCE.addModel(val);
+            } else {
+                LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
+                return 0;
+            }
+        } else {
+            LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
+            return 0;
+        }
+    }
+
+    if (m_modelName == "") {
+        LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
         return 0;
     }
 
     m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
 
     if (!m_model) {
-        LogErr(VB_PLAYLIST, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
+        LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
         return 0;
     }
 
