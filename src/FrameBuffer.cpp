@@ -195,13 +195,13 @@ int FrameBuffer::FBInit(const Json::Value& config) {
  *
  */
 int FrameBuffer::InitializeFrameBuffer(void) {
-    LogDebug(VB_PLAYLIST, "Using FrameBuffer device %s\n", m_device.c_str());
+    LogDebug(VB_CHANNELOUT, "Using FrameBuffer device %s\n", m_device.c_str());
 
     std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/" + m_device;
 #ifndef USE_FRAMEBUFFER_SOCKET
     m_fbFd = open(devString.c_str(), O_RDWR);
     if (!m_fbFd) {
-        LogErr(VB_PLAYLIST, "Error opening FrameBuffer device: %s\n", devString.c_str());
+        LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", devString.c_str());
         return 0;
     }
 
@@ -370,14 +370,14 @@ int FrameBuffer::InitializeFrameBuffer(void) {
 
     m_fbFd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (m_fbFd < 0) {
-        LogErr(VB_PLAYLIST, "Error opening FrameBuffer device: %s\n", devString.c_str());
+        LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", devString.c_str());
         return 0;
     }
 
     std::string shmFile = "/fpp/" + m_device + "-buffer";
     shmemFile = shm_open(shmFile.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
     if (shmemFile == -1) {
-        LogErr(VB_PLAYLIST, "Error creating shared memory buffer: %s   %s\n", shmFile.c_str(), strerror(errno));
+        LogErr(VB_CHANNELOUT, "Error creating shared memory buffer: %s   %s\n", shmFile.c_str(), strerror(errno));
         close(m_fbFd);
         m_fbFd = -1;
         return 0;
@@ -390,7 +390,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     }
     m_buffer = (uint8_t*)mmap(NULL, m_bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, shmemFile, 0);
     if (m_buffer == MAP_FAILED) {
-        LogErr(VB_PLAYLIST, "Error mmap buffer: %s    %s\n", shmFile.c_str(), strerror(errno));
+        LogErr(VB_CHANNELOUT, "Error mmap buffer: %s    %s\n", shmFile.c_str(), strerror(errno));
         close(m_fbFd);
         m_fbFd = -1;
         close(shmemFile);
@@ -905,7 +905,10 @@ void FrameBuffer::SyncDisplay(bool pageChanged) {
         // Wait for vsync
         int dummy = 0;
         //LogInfo(VB_CHANNELOUT, "%s - %d - SyncDisplay() waiting for vsync\n", m_device.c_str(), m_cPage);
-        ioctl(m_fbFd, FBIO_WAITFORVSYNC, &dummy);
+
+        // FBIO_WAITFORVSYNC causes DPIPixels on fb1 to not work when fb0 is in use for Virtual Matrix
+        // or Virtual Display.  It shouldn't be needed since we are using page flipping.
+        // ioctl(m_fbFd, FBIO_WAITFORVSYNC, &dummy);
 
         // Pan the display to the new page
         //LogInfo(VB_CHANNELOUT, "%s - %d - SyncDisplay() flipping to cPage\n", m_device.c_str(), m_cPage);
