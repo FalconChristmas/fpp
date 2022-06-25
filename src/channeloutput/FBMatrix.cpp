@@ -96,11 +96,11 @@ int FBMatrixOutput::Init(Json::Value config) {
 
                 PixelOverlayManager::INSTANCE.addModel(val);
             } else {
-                LogErr(VB_PLAYLIST, "Empty Pixel Overlay Model name\n");
+                LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
                 return 0;
             }
         } else {
-            LogErr(VB_PLAYLIST, "Empty Pixel Overlay Model name\n");
+            LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
             return 0;
         }
     }
@@ -108,7 +108,7 @@ int FBMatrixOutput::Init(Json::Value config) {
     model = PixelOverlayManager::INSTANCE.getModel(modelName);
 
     if (!model) {
-        LogErr(VB_PLAYLIST, "Invalid Pixel Overlay Model: '%s'\n", modelName.c_str());
+        LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", modelName.c_str());
         return 0;
     }
 
