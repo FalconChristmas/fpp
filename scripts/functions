@@ -1194,12 +1194,26 @@ echo 0 > /sys/class/graphics/fbcon/cursor_blink
 SCREENSAVER=$(getSetting screensaver)
 if [ "x${SCREENSAVER}" = "x1" ]
 then
-        echo "FPP - Turning ON screen blanking"
-        TERM=linux setterm --clear all --blank 1  >> /dev/tty0
-        sleep 5
-        dd if=/dev/zero of=/dev/fb0 > /dev/null 2>&1
+        SCREENSAVERTIMEOUT=$(getSetting screensaverTimeout)
+        if [ "x${SCREENSAVERTIMEOUT}" = "x" ]
+        then
+            SCREENSAVERTIMEOUT=0
+        fi
+
+        echo "FPP - Screen blanking set to ${SCREENSAVERTIMEOUT} minute(s)"
+
+        if [ "x${SCREENSAVERTIMEOUT}" = "x0" ]
+        then
+            # set future timeouts to 1 but blank fb0 now
+            TERM=linux setterm --clear all --blank 1  >> /dev/tty0
+            sleep 5
+            dd if=/dev/zero of=/dev/fb0 > /dev/null 2>&1
+        else
+            # set timeout to desired number of minutes
+            TERM=linux setterm --clear all --blank ${SCREENSAVERTIMEOUT}  >> /dev/tty0
+        fi
 else
-        echo "FPP - Turning OFF screen blanking"
+        echo "FPP - Screen blanking deactivated"
         TERM=linux setterm --blank 0  >> /dev/tty0
 fi
 }

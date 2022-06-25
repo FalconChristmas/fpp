@@ -166,6 +166,7 @@
                 "ScheduleSeconds",
                 "Locale",
                 "screensaver",
+                "screensaverTimeout",
                 "ForceHDMI",
                 "EnableBBBHDMI",
                 "ForceHDMIResolution",
@@ -1805,11 +1806,32 @@
             "description": "Blank screen on startup",
             "gatherStats": true,
             "tip": "Enable screensaver to blank the Raspberry Pi display after startup.  This is useful when you have a projector attached to the HDMI/composite output and do not want the boot screen text console to display on the projector when no video is playing.",
+            "type": "checkbox",
             "reboot": 1,
             "platforms": [
                 "Raspberry Pi"
             ],
-            "type": "checkbox"
+            "children": {
+                "1": [
+                    "screensaverTimeout"
+                ]
+            }
+        },
+        "screensaverTimeout": {
+            "name": "screensaverTimeout",
+            "description": "Inactivity timeout for screen blanking",
+            "tip": "If 'Blank screen on startup' is enabled, the screen will be blanked after this many minutes of inactivity.",
+            "reboot": 1,
+            "platforms": [
+                "Raspberry Pi"
+            ],
+            "level": 3,
+            "default": 1,
+            "type": "number",
+            "min": 0,
+            "max": 60,
+            "step": 1,
+            "unit": "minute"
         },
         "ShareCrashData": {
             "name": "ShareCrashData",
