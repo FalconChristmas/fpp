@@ -1778,8 +1778,8 @@
         },
         "ScheduleDistance": {
             "name": "ScheduleDistance",
-            "description": "Scheduler max distance to schedule out",
-            "tip": "This setting allows adjusting the approximate distance into the future that the scheduler will look when calculating the next scheduled items.  The default is 4 weeks but may be slightly longer based on the current weekday.",
+            "description": "Scheduler max timeframe to schedule out",
+            "tip": "This setting allows adjusting the approximate timeframe into the future that the scheduler will look when calculating the next scheduled items.  The default is 4 weeks but may be slightly longer based on the current weekday.",
             "type": "select",
             "level": 1,
             "restart": 2,
