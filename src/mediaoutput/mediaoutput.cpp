@@ -142,10 +142,24 @@ std::string GetVideoFilenameForMedia(const std::string& filename, std::string& e
     std::string oext = filename.substr(found + 1);
     std::string lext = toLowerCopy(oext);
     std::string bfile = filename.substr(0, found + 1);
+    std::string hbfile = bfile;
     std::string videoPath = FPP_DIR_VIDEO("/" + bfile);
+    
+    std::string hostname = getSetting("HostName");
+    std::string hostVideoPath = "";
+    if (hostname != "") {
+        hostVideoPath = videoPath.substr(0, videoPath.length() - 2) + "-" + hostname + ".";
+        hbfile = filename.substr(0, found) + "-" + hostname + ".";
+    }
 
     if (IsExtensionVideo(lext)) {
-        if (FileExists(videoPath + oext)) {
+        if (hostVideoPath != "" && FileExists(hostVideoPath + oext)) {
+            ext = lext;
+            result = hbfile + oext;
+        } else if (hostVideoPath != "" && FileExists(hostVideoPath + lext)) {
+            ext = lext;
+            result = hbfile + lext;
+        } else if (FileExists(videoPath + oext)) {
             ext = lext;
             result = bfile + oext;
         } else if (FileExists(videoPath + lext)) {
@@ -154,7 +168,11 @@ std::string GetVideoFilenameForMedia(const std::string& filename, std::string& e
         }
     } else if (IsExtensionAudio(lext)) {
         for (auto& n : VIDEO_EXTS) {
-            if (FileExists(videoPath + n.first)) {
+            if (FileExists(hostVideoPath + n.first)) {
+                ext = n.second;
+                result = hbfile + n.first;
+                return result;
+            } else if (FileExists(videoPath + n.first)) {
                 ext = n.second;
                 result = bfile + n.first;
                 return result;
@@ -164,12 +182,34 @@ std::string GetVideoFilenameForMedia(const std::string& filename, std::string& e
 
     return result;
 }
-bool HasAudio(const std::string& mediaFilename) {
+bool HasAudioForMedia(std::string& mediaFilename) {
     std::string fullMediaPath = mediaFilename;
-    if (!FileExists(mediaFilename)) {
-        fullMediaPath = FPP_DIR_MUSIC("/" + mediaFilename);
+    
+    std::string hostname = getSetting("HostName");
+    if (hostname != "") {
+        std::size_t found = mediaFilename.find_last_of(".");
+        std::string hostMediaPath = mediaFilename.substr(0, found) + "-" + hostname + mediaFilename.substr(found);
+        if (FileExists(hostMediaPath)) {
+            mediaFilename = hostMediaPath;
+            return true;
+        }
+        hostMediaPath = FPP_DIR_MUSIC("/" + hostMediaPath);
+        if (FileExists(hostMediaPath)) {
+            mediaFilename = hostMediaPath;
+            return true;
+        }
     }
-    return FileExists(fullMediaPath);
+    
+    if (FileExists(mediaFilename)) {
+        return true;
+    }
+    fullMediaPath = FPP_DIR_MUSIC("/" + mediaFilename);
+    if (FileExists(fullMediaPath)) {
+        mediaFilename = fullMediaPath;
+        return true;
+    }
+    mediaFilename = "";
+    return false;
 }
 bool HasVideoForMedia(std::string& filename) {
     std::string ext;
@@ -233,10 +273,8 @@ int OpenMediaOutput(const char* filename) {
     if (getFPPmode() == REMOTE_MODE) {
         std::string orgTmp = tmpFile;
         tmpFile = GetVideoFilenameForMedia(tmpFile, ext);
-        if (tmpFile == "") {
-            if (HasAudio(orgTmp)) {
-                tmpFile = orgTmp;
-            }
+        if (tmpFile == "" && HasAudioForMedia(orgTmp)) {
+            tmpFile = orgTmp;
         }
 
         if (tmpFile == "") {
@@ -304,8 +342,10 @@ int OpenMediaOutput(const char* filename) {
 bool MatchesRunningMediaFilename(const char* filename) {
     if (mediaOutput) {
         std::string tmpFile = filename;
-        if (mediaOutput->m_mediaFilename == tmpFile || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
-            return true;
+        if (HasAudioForMedia(tmpFile)) {
+            if (mediaOutput->m_mediaFilename == tmpFile || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
+                return true;
+            }
         }
         if (HasVideoForMedia(tmpFile)) {
             if (mediaOutput->m_mediaFilename == tmpFile || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {

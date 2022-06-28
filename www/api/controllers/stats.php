@@ -81,7 +81,9 @@ function stats_network()
     $interfaces = json_decode(file_get_contents("http://localhost/api/network/interface"), true);
     foreach ($interfaces as $i) {
         $name = $i['ifname'];
-        $rc['interfaces'][$name]['operstate'] = $i['operstate'];
+        if (isset($i['operstate'])) {
+            $rc['interfaces'][$name]['operstate'] = $i['operstate'];
+        }
         if (isset($rc['interfaces'][$name]['config'])) {
             $rc['interfaces'][$name]['config'] = $i['config'];
             unset($rc['interfaces'][$name]['config']['PSK']);
