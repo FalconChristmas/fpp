@@ -307,6 +307,7 @@ function SystemGetStatus()
         curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+        curl_setopt($curl, CURLOPT_TIMEOUT_MS, 3000);
         $request_content = curl_exec($curl);
         curl_close($curl);
 
