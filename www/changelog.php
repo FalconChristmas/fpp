@@ -18,7 +18,7 @@ $limit=200;
 if (isset($_GET['limit']))
     $limit = intval($_GET['limit']);
 
-$logCmd = "git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ log --pretty=format:'%h - %<|(30)%an - %<|(46)%ar - %s' | cut -c1-140 | head -$limit";
+$logCmd = "git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ log --pretty=format:'%h - %<|(30)%an - %<|(46)%ai - %s' | cut -c1-140 | head -$limit";
 
 $git_log = "";
 
