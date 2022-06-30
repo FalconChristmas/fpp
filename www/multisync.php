@@ -573,6 +573,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 		if (data.advancedView.hasOwnProperty('Platform')) {
 			$('#' + rowID + '_platform').html(data.advancedView.Platform);
 	        }
+		if (data.advancedView.hasOwnProperty('Variant') && (data.advancedView.Variant != '')) {
+			$('#' + rowID + '_variant').html(data.advancedView.Variant);
+	        }
 
                 var updatesAvailable = 0;
                 if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
