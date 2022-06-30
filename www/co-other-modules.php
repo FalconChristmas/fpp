@@ -221,7 +221,7 @@ class OtherAutoFBBaseDevice extends OtherBaseDevice {
         super.SetDefaults(row);
         if (this._config.modelName != '') {
             $(row).find('input.count').val(PixelOverlayModelChannels[this._config.modelName]);
-        } else {
+        } else if (this._updateChannelCount) {
             $(row).find("input.count").val(this._defaultWidth * this._defaultHeight * 3 / this._defaultScaling / this._defaultScaling);
         }
     }
