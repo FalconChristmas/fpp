@@ -4791,7 +4791,7 @@ function RenameFile(dir, file) {
 }
 
 function DownloadFile(dir, file) {
-    location.href = "api/file/" + dir + "/" + encodeURIComponent(file);
+    location.href = "api/file/" + dir + "/" + encodeURIComponent(file.replace(/\//g, '_'));
 }
 
 function DownloadFiles(dir, files) {
@@ -4814,11 +4814,11 @@ function ViewImage(file) {
 }
 
 function ViewFile(dir, file) {
-    var url = "api/file/" + dir + "/" + encodeURIComponent(file);
+    var url = "api/file/" + dir + "/" + encodeURIComponent(file.replace(/\//g, '_'));
     ViewFileImpl(url, file);
 }
 function TailFile(dir, file, lines) {
-    var url = "api/file/" + dir + "/" + encodeURIComponent(file) + "?tail=" + lines;
+    var url = "api/file/" + dir + "/" + encodeURIComponent(file.replace(/\//g, '_')) + "?tail=" + lines;
     //console.log(url);
     ViewFileImpl(url, file);
 }

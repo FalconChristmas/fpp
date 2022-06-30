@@ -159,6 +159,11 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         return;
     }
 
+    if ($isLog && (substr($filename, 0, 9) == "_var_log_")) {
+        $dir = "/var/log";
+        $filename = substr($filename, 9);
+    }
+
     if ($play) {
         if (preg_match('/mp3$/i', $filename)) {
             header('Content-type: audio/mp3');
@@ -196,11 +201,6 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
     } else {
         header('Content-type: application/binary');
         header('Content-disposition: attachment;filename="' . $filename . '"');
-    }
-
-    if ($isLog && (substr($filename, 0, 9) == "/var/log/")) {
-        $dir = "/var/log";
-        $filename = basename($filename);
     }
 
     ob_clean();
