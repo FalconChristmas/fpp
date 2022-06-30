@@ -123,6 +123,7 @@ class OtherAutoFBBaseDevice extends OtherBaseDevice {
         this._updateChannelCount = true;
         this._defaultWidth = 1920;
         this._defaultHeight = 1080;
+        this._defaultScaling = 1;
     }
 
     PopulateHTMLRow(config) {
@@ -164,7 +165,7 @@ class OtherAutoFBBaseDevice extends OtherBaseDevice {
 
         var width = this._defaultWidth;
         var height = this._defaultHeight;
-        var scaling = 1;
+        var scaling = this._defaultScaling;
         var device = 'fb0';
         var hidden = "style='display: none;'";
 
@@ -221,7 +222,7 @@ class OtherAutoFBBaseDevice extends OtherBaseDevice {
         if (this._config.modelName != '') {
             $(row).find('input.count').val(PixelOverlayModelChannels[this._config.modelName]);
         } else {
-            AutoFBDeviceLayoutChanged($(row).find('.width'));
+            $(row).find("input.count").val(this._defaultWidth * this._defaultHeight * 3 / this._defaultScaling / this._defaultScaling);
         }
     }
 
