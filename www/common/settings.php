@@ -307,6 +307,17 @@ function ApplySetting($setting, $value)
         case 'InstalledCape':SetInstalledCape($value);
             break;
     }
+
+    if (preg_match('/^Service_(rsync|smbd_nmbd|vsftpd)$/', $setting)) {
+        $services = preg_split('/_/', preg_replace("/^Service_/", "", $setting));
+        foreach ($services as $service) {
+            if ($value == '0') {
+                exec( "sudo systemctl --now disable $service");
+            } else if ($value == '1') {
+                exec( "sudo systemctl --now enable $service");
+            }
+        }
+    }
 }
 
 function setVolume($vol)

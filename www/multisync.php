@@ -839,7 +839,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     majorVersion = parseInt(versionParts[0]);
 
                 if ((isFPP(data[i].typeId))) {
-                    newRow += "<td><table class='multiSyncVerboseTable'><tr><td>FPP:</td><td id='" + rowID + "_version'>" + data[i].version + "</td></tr><tr><td>OS:</td><td id='" + rowID + "_osversion'></td></tr></table></td>";
+                    newRow += "<td><table class='multiSyncVerboseTable'><tr><td>FPP:</td><td id='" + rowID + "_version'>" + data[i].version.replace('.x-master', '.x').replace(/-g[A-Za-z0-9]*/, '').replace('-dirty', "<br><a href='settings.php#settings-developer'>Modified</a>") + "</td></tr><tr><td>OS:</td><td id='" + rowID + "_osversion'></td></tr></table></td>";
                 } else {
                     newRow += "<td id='" + rowID + "_version'>" + data[i].version + "</td>";
                 }
@@ -1876,12 +1876,14 @@ include 'menu.inc';?>
                 <div class="container-fluid" id = 'copyOSOptionsDetails'>
                     <span class="warning-text">No .fppos files found on this system.</span>
                 </div>
+                <b>The rsync daemon must be enabled on the remote system(s) to use this functionality.  rsync can be enabled by going to the System tab on the Settings page of the remote system.</b>
             </div>
             <span class='actionOptions' id='copyOptions'>
                 <br>
         <?php
 PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
 ?>
+                <b>The rsync daemon must be enabled on the remote system(s) to use this functionality.  rsync can be enabled by going to the System tab on the Settings page of the remote system.</b>
             </span>
         </div>
 

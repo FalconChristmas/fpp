@@ -820,6 +820,7 @@ if $isimage; then
     echo "FPP - Copying rsync daemon config files into place"
     sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsync > /etc/default/rsync
     sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsyncd.conf > /etc/rsyncd.conf
+    systemctl disable rsync
 fi
 
 #######################################
@@ -910,12 +911,11 @@ if $isimage; then
     sed -i -e "s/.*anonymous_enable.*/anonymous_enable=NO/" /etc/vsftpd.conf
     sed -i -e "s/.*local_enable.*/local_enable=YES/" /etc/vsftpd.conf
     sed -i -e "s/.*write_enable.*/write_enable=YES/" /etc/vsftpd.conf
-    service vsftpd restart
-fi
+    systemctl disable vsftpd
 
-#######################################
-echo "FPP - Configuring Samba"
-cat <<-EOF >> /etc/samba/smb.conf
+    #######################################
+    echo "FPP - Configuring Samba"
+    cat <<-EOF >> /etc/samba/smb.conf
 
 [FPP]
   comment = FPP Media Share
@@ -932,13 +932,10 @@ cat <<-EOF >> /etc/samba/smb.conf
 
 EOF
 
-case "${OSVER}" in
-	debian_11 |  debian_10 | ubuntu_20.04)
-		systemctl restart smbd.service
-		systemctl restart nmbd.service
-		;;
-esac
+    systemctl disable smbd
+    systemctl disable nmbd
 
+fi
 
 #######################################
 # Fix sudoers to not require password
@@ -1132,7 +1129,6 @@ systemctl enable fpprtc.service
 systemctl enable fppoled.service
 systemctl enable fppd.service
 systemctl enable fpp_postnetwork.service
-systemctl enable rsync
 
 if $isimage; then
     cp /opt/fpp/etc/update-RTC /etc/cron.daily

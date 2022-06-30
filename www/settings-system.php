@@ -109,6 +109,9 @@ if (($settings['uiLevel'] >= 1) && ($settings['Platform'] == "Raspberry Pi")) {
         echo "<input type='button' class='buttons' value='Enable Kiosk' onClick='EnableKiosk();'>";
     }
 }
+
+echo "<br><br>\n";
+PrintSettingGroup('services');
 ?>
 
 

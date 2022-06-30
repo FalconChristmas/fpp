@@ -156,6 +156,14 @@
                 "SendVendorSerial"
             ]
         },
+        "services": {
+            "description": "OS Services",
+            "settings": [
+                "Service_rsync",
+                "Service_smbd_nmbd",
+                "Service_vsftpd"
+            ]
+        },
         "system": {
             "description": "System Settings",
             "settings": [
@@ -1832,6 +1840,41 @@
             "max": 60,
             "step": 1,
             "unit": "minute"
+        },
+        "Service_rsync": {
+            "name": "Service_rsync",
+            "description": "Enable rsync",
+            "gatherStats": true,
+            "tip": "The rsync daemon is used to receive synced files from other FPP systems.  You must enable rsync on the <b>destination</b> FPP system if you are using the MultiSync page to copy sequences, media, OS, and other files between FPP instances.",
+            "type": "checkbox",
+            "default": "0",
+            "platforms": [
+                "!MacOS"
+            ]
+        },
+        "Service_smbd_nmbd": {
+            "name": "Service_smbd_nmbd",
+            "description": "Enable Samba/CIFS",
+            "gatherStats": true,
+            "tip": "The Samba daemon can be used to remotely access the files on a FPP system via the SMB/CIFS protocol.",
+            "level": 1,
+            "type": "checkbox",
+            "default": "0",
+            "platforms": [
+                "!MacOS"
+            ]
+        },
+        "Service_vsftpd": {
+            "name": "Service_vsftpd",
+            "description": "Enable FTP",
+            "gatherStats": true,
+            "tip": "The FTP daemon can be used to remotely access the files on a FPP system via the FTP protocol.",
+            "level": 1,
+            "type": "checkbox",
+            "default": "0",
+            "platforms": [
+                "!MacOS"
+            ]
         },
         "ShareCrashData": {
             "name": "ShareCrashData",
