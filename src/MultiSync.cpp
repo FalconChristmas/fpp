@@ -1081,9 +1081,10 @@ void MultiSync::PeriodicPing() {
         lock.unlock();
         Ping();
     }
-    //every 10 minutes we'll loop through real quick and check for remote instances
+    //every minute we'll loop through real quick and check for remote instances
     //we haven't heard from in a while
-    lpt = m_lastCheckTime + 60 * 10;
+    lpt = m_lastCheckTime + 60 ;
+    bool superLongGap = false;
     if (lpt < (unsigned long)t) {
         m_lastCheckTime = (unsigned long)t;
         //anything we haven't heard from in 80 minutes we will re-ping to force
@@ -1092,23 +1093,32 @@ void MultiSync::PeriodicPing() {
         //have caused at least 4 pings to have been sent.  If it has responded
         //to any of those 4, it's got to be down/gone.   Remove it.
         unsigned long timeoutRemove = (unsigned long)t - 60 * 120;
+	//if we hadn't heard from them in 10 hours, it's likely a clock change
+        //event, we'll resend a ping out to all to hopefully get everything
+        //updated and new timestamps
+        unsigned long timeoutRePingAll = (unsigned long)t - 60 * 600;
         std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
         for (auto it = m_remoteSystems.begin(); it != m_remoteSystems.end();) {
             if (it->lastSeen < timeoutRemove) {
                 LogInfo(VB_SYNC, "Have not seen %s in over 2 hours, removing\n", it->address.c_str());
                 m_remoteSystems.erase(it);
+                if (it->lastSeen < timeoutRePingAll) {
+                    superLongGap = true;
+                }
             } else if (it->lastSeen < timeoutRePing) {
                 if (it->multiSync) {
                     PingSingleRemote(*it, 1);
                 } else {
                     PingSingleRemoteViaHTTP(it->address);
                 }
-
                 ++it;
             } else {
                 ++it;
             }
         }
+    }
+    if (superLongGap) {
+	Ping(1);
     }
 }
 
