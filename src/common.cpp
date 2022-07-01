@@ -912,7 +912,6 @@ size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp) {
 
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const unsigned int timeout) {
     CURL* curl = curl_easy_init();
-    struct curl_slist* headers = NULL;
     std::string userAgent = "FPP/";
     userAgent += getFPPVersionTriplet();
 
@@ -927,21 +926,25 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
     status = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, urlWriteData);
     if (status != CURLE_OK) {
         LogErr(VB_GENERAL, "curl_easy_setopt() Error setting write callback function: %s\n", curl_easy_strerror(status));
+        curl_easy_cleanup(curl);
         return false;
     }
 
     status = curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resp);
     if (status != CURLE_OK) {
         LogErr(VB_GENERAL, "curl_easy_setopt() Error setting class pointer: %s\n", curl_easy_strerror(status));
+        curl_easy_cleanup(curl);
         return false;
     }
 
     status = curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     if (status != CURLE_OK) {
         LogErr(VB_GENERAL, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
+        curl_easy_cleanup(curl);
         return false;
     }
-
+    
+    struct curl_slist* headers = NULL;
     if (startsWith(data, "{") && endsWith(data, "}")) {
         headers = curl_slist_append(headers, "Accept: application/json");
         headers = curl_slist_append(headers, "Content-Type: application/json");
@@ -952,6 +955,8 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
         status = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
         if (status != CURLE_OK) {
             LogErr(VB_GENERAL, "curl_easy_setopt() Error setting postfields data: %s\n", curl_easy_strerror(status));
+            curl_slist_free_all(headers);
+            curl_easy_cleanup(curl);
             return false;
         }
     }
@@ -973,6 +978,8 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
     status = curl_easy_perform(curl);
     if (status != CURLE_OK) {
         LogErr(VB_GENERAL, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
         return false;
     }
 
@@ -980,7 +987,6 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-
     return true;
 }
 
