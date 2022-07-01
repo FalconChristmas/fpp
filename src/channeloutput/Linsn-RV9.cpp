@@ -408,9 +408,9 @@ void LinsnRV9Output::OverlayTestData(unsigned char* channelData, int cycleNum, i
         for (int i = 0; i < panelsOnOutput; i++) {
             int panel = m_panelMatrix->m_outputPanels[output][i];
 
-            m_panelMatrix->m_panels[panel].drawTestPattern(channelData, cycleNum, testType);
-            m_panelMatrix->m_panels[panel].drawNumber(output + 1, m_panelWidth/2 + 1, 2, channelData);
-            m_panelMatrix->m_panels[panel].drawNumber(i + 1, m_panelWidth/2 + 8, 2, channelData);            
+            m_panelMatrix->m_panels[panel].drawTestPattern(channelData + m_startChannel, cycleNum, testType);
+            m_panelMatrix->m_panels[panel].drawNumber(output + 1, m_panelWidth/2 + 1, 2, channelData + m_startChannel);
+            m_panelMatrix->m_panels[panel].drawNumber(i + 1, m_panelWidth/2 + 8, 2, channelData + m_startChannel);
         }
     }
 }

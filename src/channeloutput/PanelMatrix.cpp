@@ -219,47 +219,63 @@ void LEDPanel::drawTestPattern(unsigned char* channelData, int cycleNum, int tes
         clr[2] = 255;
         break;
     }
-    for (int y = 0; y < (height / 2); y++) {
-        int yw1 = y * width * 3;
-        int yw2 = (y + (height / 2)) * width * 3;
 
-        for (int x = 0; x < width; ++x) {
+    int actualHeight = height;
+    int actualWidth = width;
+
+    if ((orientation == 'L') || (orientation == 'R')) {
+        actualHeight = width;
+        actualWidth = height;
+    }
+
+    for (int y = 0; y < (actualHeight / 2); y++) {
+        int yw1 = y * actualWidth * 3;
+        int yw2 = (y + (actualHeight / 2)) * actualWidth * 3;
+
+        for (int x = 0; x < actualWidth; ++x) {
             int r = 0, g = 0, b = 0;
             int r2 = 0, g2 = 0, b2 = 0;
+            // Left Column
             if (x == 0) {
                 r = r2 = clr[0];
                 g = g2 = clr[1];
                 b = b2 = clr[2];
             }
-            if (x == (width - 1)) {
+            // Right Column
+            if (x == (actualWidth - 1)) {
                 r = r2 = clr[1];                        
                 g = g2 = clr[2];
                 b = b2 = clr[0];
             }
+            // Top Row (for yw1)
             if (y == 0) {
                 r = clr[2];                        
                 g = clr[0];
                 b = clr[1];
             }
-            if (y == (height/2 -1)) {
+            // Bottom Row (for yw2)
+            if (y == (actualHeight/2 -1)) {
                 r2 = clr[2];                        
                 g2 = clr[0];
                 b2 = clr[1];
             }
+            // Diagonal Top-Left to Middle
             if (x == (2*y) || x == (2*y+1)) {
                 r = g = 255;
             }
-            if (x == (2*(height/2 - 1 - y))) {
+            // Diagonal Bottom-Left to Middle (part1)
+            if (x == (2*(actualHeight/2 - 1 - y))) {
                 b2 = g2 = 255;
             }
-            if (x == (2*(height/2 - 1 - y) + 1)) {
+            // Diagonal Bottom-Left to Middle (part2)
+            if (x == (2*(actualHeight/2 - 1 - y) + 1)) {
                 b2 = g2 = 255;
             }
-
-            if (x >= (width/2-2) && x <= (width/2+1)) {
+            // Square in middle
+            if (x >= (actualWidth/2-2) && x <= (actualWidth/2+1)) {
                 if (y <= 1) {
                     r2 = g2 = b2 = 255;
-                } else if (y >= (height/2 - 2)) {
+                } else if (y >= (actualHeight/2 - 2)) {
                     r = g = b = 255;
                 }
             }
@@ -287,10 +303,17 @@ void LEDPanel::drawNumber(int v, int x, int y, unsigned char* channelData) {
         x += 2;
         v -= 10;
     }
+
     int yw1;
+    int actualWidth = width;
+
+    if ((orientation == 'L') || (orientation == 'R')) {
+        actualWidth = height;
+    }
+
     if (v == 1) {
         for (int yo = 0; yo < 5; yo++) {
-            int yw1 = (y + yo) * width * 3;
+            int yw1 = (y + yo) * actualWidth * 3;
             channelData[pixelMap[yw1 + x * 3]] = 255;
             channelData[pixelMap[yw1 + x * 3 + 1]] = 255;
             channelData[pixelMap[yw1 + x * 3 + 2]] = 255;
@@ -299,7 +322,7 @@ void LEDPanel::drawNumber(int v, int x, int y, unsigned char* channelData) {
     }
     if (v == 4) {
         for (int yo = 0; yo < 5; yo++) {
-            int yw1 = (y + yo) * width * 3;
+            int yw1 = (y + yo) * actualWidth * 3;
             channelData[pixelMap[yw1 + (x + 2) * 3]] = 255;
             channelData[pixelMap[yw1 + (x + 2) * 3 + 1]] = 255;
             channelData[pixelMap[yw1 + (x + 2) * 3 + 2]] = 255;
@@ -309,7 +332,7 @@ void LEDPanel::drawNumber(int v, int x, int y, unsigned char* channelData) {
                 channelData[pixelMap[yw1 + x * 3 + 2]] = 255;
             }
         }
-        yw1 = (y + 2) * width * 3;
+        yw1 = (y + 2) * actualWidth * 3;
         for (int x2 = 0; x2 < 3; x2++) {
             channelData[pixelMap[yw1 + (x + x2) * 3]] = 255;
             channelData[pixelMap[yw1 + (x + x2) * 3 + 1]] = 255;
@@ -319,12 +342,12 @@ void LEDPanel::drawNumber(int v, int x, int y, unsigned char* channelData) {
     }
     if (v == 7) {
         for (int yo = 0; yo < 5; yo++) {
-            int yw1 = (y + yo) * width * 3;
+            int yw1 = (y + yo) * actualWidth * 3;
             channelData[pixelMap[yw1 + (x + 2) * 3]] = 255;
             channelData[pixelMap[yw1 + (x + 2) * 3 + 1]] = 255;
             channelData[pixelMap[yw1 + (x + 2) * 3 + 2]] = 255;
         }
-        yw1 = y * width * 3;
+        yw1 = y * actualWidth * 3;
         for (int x2 = 0; x2 < 3; x2++) {
             channelData[pixelMap[yw1 + (x + x2) * 3]] = 255;
             channelData[pixelMap[yw1 + (x + x2) * 3 + 1]] = 255;
@@ -332,21 +355,21 @@ void LEDPanel::drawNumber(int v, int x, int y, unsigned char* channelData) {
         }
         return;    
     }
-    yw1 = y * width * 3;
+    yw1 = y * actualWidth * 3;
     for (int x2 = 0; x2 < 3; x2++) {
         channelData[pixelMap[yw1 + (x + x2) * 3]] = 255;
         channelData[pixelMap[yw1 + (x + x2) * 3 + 1]] = 255;
         channelData[pixelMap[yw1 + (x + x2) * 3 + 2]] = 255;
 
-        channelData[pixelMap[yw1 + (x + x2) * 3 + width * 6]] = 255;
-        channelData[pixelMap[yw1 + (x + x2) * 3 + 1 + width * 6]] = 255;
-        channelData[pixelMap[yw1 + (x + x2) * 3 + 2 + width * 6]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + actualWidth * 6]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + 1 + actualWidth * 6]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + 2 + actualWidth * 6]] = 255;
 
-        channelData[pixelMap[yw1 + (x + x2) * 3 + width * 12]] = 255;
-        channelData[pixelMap[yw1 + (x + x2) * 3 + 1 + width * 12]] = 255;
-        channelData[pixelMap[yw1 + (x + x2) * 3 + 2 + width * 12]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + actualWidth * 12]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + 1 + actualWidth * 12]] = 255;
+        channelData[pixelMap[yw1 + (x + x2) * 3 + 2 + actualWidth * 12]] = 255;
     }
-    yw1 = (y + 1) * width * 3;
+    yw1 = (y + 1) * actualWidth * 3;
     if (v == 5 || v  == 6 || v == 9 || v == 8) {
         channelData[pixelMap[yw1 + x * 3]] = 255;
         channelData[pixelMap[yw1 + x * 3 + 1]] = 255;
@@ -357,7 +380,7 @@ void LEDPanel::drawNumber(int v, int x, int y, unsigned char* channelData) {
         channelData[pixelMap[yw1 + (x + 2) * 3 + 1]] = 255;
         channelData[pixelMap[yw1 + (x + 2) * 3 + 2]] = 255;
     }
-    yw1 = (y + 3) * width * 3;
+    yw1 = (y + 3) * actualWidth * 3;
     if (v == 2 || v  == 6 || v == 8) {
         channelData[pixelMap[yw1 + x * 3]] = 255;
         channelData[pixelMap[yw1 + x * 3 + 1]] = 255;

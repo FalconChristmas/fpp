@@ -456,10 +456,14 @@ void ColorLight5a75Output::OverlayTestData(unsigned char* channelData, int cycle
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         for (int i = 0; i < panelsOnOutput; i++) {
             int panel = m_panelMatrix->m_outputPanels[output][i];
+            int chain = (m_longestChain - 1) - m_panelMatrix->m_panels[panel].chain - 1;
 
-            m_panelMatrix->m_panels[panel].drawTestPattern(channelData, cycleNum, testType);
-            m_panelMatrix->m_panels[panel].drawNumber(output + 1, m_panelWidth/2 + 1, 2, channelData);
-            m_panelMatrix->m_panels[panel].drawNumber(i + 1, m_panelWidth/2 + 8, 2, channelData);            
+            if (m_flippedLayout)
+                chain = m_panelMatrix->m_panels[panel].chain;
+
+            m_panelMatrix->m_panels[panel].drawTestPattern(channelData + m_startChannel, cycleNum, testType);
+            m_panelMatrix->m_panels[panel].drawNumber(output + 1, m_panelWidth/2 + 1, 2, channelData + m_startChannel);
+            m_panelMatrix->m_panels[panel].drawNumber(chain + 1, m_panelWidth/2 + 8, 2, channelData + m_startChannel);
         }
     }
 }
