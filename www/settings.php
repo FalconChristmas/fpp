@@ -156,7 +156,7 @@ include 'menu.inc';?>
                             System
                             </a>
                         </li>
-                        <?if ($uiLevel >= 1 || $tabId == "Storage") {?>
+                        <?if ($uiLevel >= 3 || $tabId == "Developer") {?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-developer-tab" data-toggle="tab" href="#settings-developer" data-option="Developer" role="tab" aria-controls="settings-developer" aria-selected="true">
                             Developer

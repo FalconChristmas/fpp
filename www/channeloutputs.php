@@ -34,8 +34,14 @@ if (!isset($currentCapeInfo['provides'])) {
 } else if (isset($settings["showAllOptions"]) && $settings["showAllOptions"] == 1) {
     $currentCapeInfo['provides'][] = "all";
     $currentCapeInfo['provides'][] = "fpd";
-} else if ($uiLevel >= 1) { 
+} else if ($uiLevel >= 2) { 
     $currentCapeInfo['provides'][] = "all";
+} else if ($uiLevel == 1) {
+    if (!isset($currentCapeInfo['provides']) || count($currentCapeInfo['provides']) == 0) {
+        $currentCapeInfo['provides'][] = "all";
+    } else {
+        $currentCapeInfo['provides'][] = "udp";
+    }
 }
 
 ?>
@@ -205,6 +211,9 @@ $(document).ready(function(){
                 $e131TabStyle = "";  
                 $stringTabStyle = "";  
             } else {
+                if (in_array('udp', $currentCapeInfo["provides"])) {
+                    $e131TabStyle = "";
+                }
                 if (in_array('strings', $currentCapeInfo["provides"])) {
                     $stringTabStyle = "";
                 }
