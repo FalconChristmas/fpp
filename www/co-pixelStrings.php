@@ -2126,7 +2126,7 @@ function PixelStringSubTypeChanged()
         output.type = MapPixelStringType($('#PixelStringSubType').val());
         output.subType = $('#PixelStringSubType').val();
         <?
-if (isset($capes[0]['pinoutVersion'])) {
+if (count($capes) > 0 && isset($capes[0]['pinoutVersion'])) {
     echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
 } else {
     ?>
@@ -2230,7 +2230,7 @@ function loadPixelStringOutputs() {
     <?
 if (isset($capes["F8-B"])) {
     echo 'output.subType = "F8-B";';
-} else {
+} else if (count($capes) > 0) {
     echo 'output.subType = "' . $capes[0]['name'] . '";';
     if (isset($capes[0]['pinoutVersion'])) {
         echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
@@ -2240,6 +2240,9 @@ if (isset($capes["F8-B"])) {
     if (isset($capes[0]['driver'])) {
         echo "output.type = \"" . $capes[0]['driver'] . "\";";
     }
+} else {
+    echo 'output.subType = "";';
+    echo 'output.pinoutVersion = "1.x";';
 }
 ?>
     defaultData.channelOutputs.push(output);
@@ -2249,7 +2252,7 @@ if (isset($capes["F8-B"])) {
     var output = {};
     output.type = 'BBBSerial';
 <?
-    if (isset($capes["F8-B"])) {
+    if (count($capes) == 0 || isset($capes["F8-B"])) {
         echo 'output.subType = "F8-B";';
     } else {
         echo 'output.subType = "' . $capes[0]['name'] . '";';
