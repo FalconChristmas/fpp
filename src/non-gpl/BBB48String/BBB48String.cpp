@@ -596,10 +596,10 @@ void BBB48StringOutput::prepData(FrameData& d, unsigned char* channelData) {
                 if (m_testCycle < 0 || cn >= FPPD_MAX_CHANNELS) {
                     *c = brightness[channelData[cn]];
                 } else if (maxOut) {
-                    *c = brightness[clr[maxOut % 3]];
+                    *c = brightness[255];
                     --maxOut;
                 } else {
-                    *c = brightness[0];
+                    *c = brightness[clr[cn % 3]];
                 }
                 c += numStrings;
             }

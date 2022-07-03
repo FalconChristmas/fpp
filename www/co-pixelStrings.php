@@ -236,6 +236,25 @@ function GetPixelStringTiming() {
     return $('#PixelStringPixelTiming').val();
 }
 
+function TogglePixelTestPattern() {
+    var val = $("#PixelTestPatternButton").val();
+    if (val == "Test Pattern") {
+        $("#PixelTestPatternButton").val("Stop Pattern");
+        var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["1000","Output Specific","--ALL--","1"]}';
+        $.post("api/command", data
+	    ).done(function(data) {
+	    }).fail(function() {
+	    });
+    } else {
+        $("#PixelTestPatternButton").val("Test Pattern");
+        var data = '{"command":"Test Stop","multisyncCommand":false,"multisyncHosts":"","args":[]}';
+        $.post("api/command", data
+	    ).done(function(data) {
+	    }).fail(function() {
+	    });
+    }
+}
+
 var maxVirtualStringsPerOutput = 30;
 var selectedPixelStringRowId = "NothingSelected";
 
@@ -2362,7 +2381,9 @@ if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name']) || 
 }
 
 if (isset($settings['cape-info'])) {
-
+    if ($settings['Platform'] == "BeagleBone Black") {
+        echo "<input type='button' id='PixelTestPatternButton' class='buttons m1-1' onClick='TogglePixelTestPattern();' value='Test Pattern'>\n";
+    }
     echo "<input type='button' class='buttons' onClick='loadPixelStringOutputs();' value='Revert'>\n";
     echo "<input type='button' class='buttons' onClick='cloneSelectedString();' value='Clone String'>\n";
     if (file_exists($mediaDirectory . "/upload/xlights_rgbeffects.xml")) {
