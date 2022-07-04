@@ -425,6 +425,9 @@ case "${OSVER}" in
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity zram-tools"
         fi
+        if [ ! $desktop ]; then
+            PACKAGE_LIST="$PACKAGE_LIST networkd-dispatcher"
+        fi
 
         if $skip_apt_install; then
             PACKAGE_LIST=""
@@ -487,7 +490,8 @@ case "${OSVER}" in
             systemctl enable systemd-networkd
             systemctl disable systemd-networkd-wait-online.service
             systemctl enable systemd-resolved
-            
+            systemctl enable networkd-dispatcher
+
             # if systemd hasn't created a new resolv.conf, don't replace it yet
             if [ -f /run/systemd/resolve/resolv.conf ]; then
                 rm -f /etc/resolv.conf
@@ -1120,6 +1124,7 @@ if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
     sed -i -e "s/getty.target//g" /lib/systemd/system/fppd.service
 fi
 cp /opt/fpp/etc/avahi/* /etc/avahi/services
+cp /opt/fpp/etc/networkd-dispatcher/routable.d/* /etc/networkd-dispatcher/routable.d
 
 systemctl disable mosquitto
 systemctl daemon-reload
