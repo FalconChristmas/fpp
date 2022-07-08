@@ -621,7 +621,7 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
                 orientation = "V";
             }
 
-            if (channelCount > 0) {
+            if ((channelCount > 0) && ((*vs.begin())->receiverNum == -1)) {
                 PixelOverlayManager::INSTANCE.addAutoOverlayModel(name, startChannel, channelCount, channelsPerNode, orientation,
                                                                   startLocation, strings, strands);
             }
