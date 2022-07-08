@@ -1,0 +1,20 @@
+{
+    "name": "sample-bbb-strings",
+    "longName": "Sample BBB Strings",
+    "numSerial": 1,
+    "outputs": [
+        {  "pin": "P8-08" },
+        {  "pin": "P8-10" },
+        {  "pin": "P8-14" },
+        {  "pin": "P8-18" }
+    ],
+    "groups": [
+        {
+            "start": 1,
+            "count": 4
+        }
+    ],
+    "serial": [
+        { "pin": "P9-25" }
+    ]
+}

@@ -1,0 +1,30 @@
+{
+    "id": "sample-pi-strings",
+    "version": "1.0",
+    "name": "sample-pi-strings",
+    "defaultSettings": {
+        "LEDDisplayType" : "1"
+    },
+    "provides": [
+        "strings"
+    ],
+    "description": "The sample-pi-strings cape supports 24 WS281x string outputs.",
+    "designer": "Your Name",
+    "disableOutputs" :
+    [
+        {
+            "file" : "config/co-pixelStrings.json",
+            "type" : "spixels"
+        },
+        {
+            "file" : "config/channeloutputs.json",
+            "type" : "LEDPanelMatrix",
+            "subType" : "RGBMatrix"
+        }
+    ],
+    "vendor": {
+        "name": "Your Company",
+        "url": "https://www.yoursite.com/",
+        "image": "https://www.yoursite.com/path/to/some/logo.png"
+    }
+}

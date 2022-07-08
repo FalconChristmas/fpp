@@ -1,0 +1,27 @@
+{
+    "id": "sample-bbb-strings",
+    "version": "1.0",
+    "name": "sample-bbb-strings",
+	"sendStats": 1,
+    "defaultSettings": {
+        "LEDDisplayType" : "1"
+    },
+    "provides": [
+        "strings"
+    ],
+    "description": "The sample-bbb-strings cape supports 2 WS281x string outputs.",
+    "designer": "Your Name",
+    "disableOutputs" :
+    [
+        {
+            "file" : "config/channeloutputs.json",
+            "type" : "LEDPanelMatrix",
+            "subType" : "BBBMatrix"
+        }
+    ],
+    "vendor": {
+        "name": "Your Company",
+        "url": "https://www.yoursite.com/",
+        "image": "https://www.yoursite.com/path/to/some/logo.png"
+    }
+}

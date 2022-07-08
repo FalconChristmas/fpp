@@ -1,0 +1,54 @@
+{
+	"channelOutputs": [
+		{
+			"type": "DPIPixels",
+			"subType": "sample-pi-strings",
+			"pinoutVersion": "1.x",
+			"enabled": 1,
+			"startChannel": 1,
+			"channelCount": -1,
+			"outputCount": 2,
+			"pixelTiming": 0,
+			"outputs": [
+				{
+					"portNumber": 0,
+					"protocol": "ws2811",
+					"virtualStrings": [
+						{
+							"description": "String #0",
+							"startChannel": 0,
+							"pixelCount": 50,
+							"groupCount": 1,
+							"reverse": 0,
+							"colorOrder": "RGB",
+							"nullNodes": 0,
+							"endNulls": 0,
+							"zigZag": 0,
+							"brightness": 100,
+							"gamma": "1.0"
+						}
+					]
+				},
+				{
+					"portNumber": 1,
+					"protocol": "ws2811",
+					"virtualStrings": [
+						{
+							"description": "String #1",
+							"startChannel": 150,
+							"pixelCount": 50,
+							"groupCount": 1,
+							"reverse": 0,
+							"colorOrder": "RGB",
+							"nullNodes": 0,
+							"endNulls": 0,
+							"zigZag": 0,
+							"brightness": 100,
+							"gamma": "1.0"
+						}
+					]
+				}
+			]
+		}
+	]
+}

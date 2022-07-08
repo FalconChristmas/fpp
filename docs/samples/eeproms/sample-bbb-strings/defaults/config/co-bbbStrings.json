@@ -1,0 +1,152 @@
+{
+	"channelOutputs": [
+		{
+			"type": "BBB48String",
+			"subType": "sample-bbb-strings",
+			"pinoutVersion": "1.x",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": -1,
+			"outputCount": 4,
+			"pixelTiming": 0,
+			"outputs": [
+				{
+					"portNumber": 0,
+					"protocol": "ws2811",
+					"virtualStrings": [
+						{
+							"description": "",
+							"startChannel": 0,
+							"pixelCount": 50,
+							"groupCount": 1,
+							"reverse": 0,
+							"colorOrder": "RGB",
+							"nullNodes": 0,
+							"endNulls": 0,
+							"zigZag": 0,
+							"brightness": 100,
+							"gamma": "1.0"
+						}
+					]
+				},
+				{
+					"portNumber": 1,
+					"protocol": "ws2811",
+					"virtualStrings": [
+						{
+							"description": "1",
+							"startChannel": 150,
+							"pixelCount": 50,
+							"groupCount": 1,
+							"reverse": 0,
+							"colorOrder": "RGB",
+							"nullNodes": 0,
+							"endNulls": 0,
+							"zigZag": 0,
+							"brightness": 100,
+							"gamma": "1.0"
+						}
+					]
+				},
+				{
+					"portNumber": 2,
+					"protocol": "ws2811",
+					"virtualStrings": [
+						{
+							"description": "2",
+							"startChannel": 300,
+							"pixelCount": 50,
+							"groupCount": 1,
+							"reverse": 0,
+							"colorOrder": "RGB",
+							"nullNodes": 0,
+							"endNulls": 0,
+							"zigZag": 0,
+							"brightness": 100,
+							"gamma": "1.0"
+						}
+					]
+				},
+				{
+					"portNumber": 3,
+					"protocol": "ws2811",
+					"virtualStrings": [
+						{
+							"description": "3",
+							"startChannel": 450,
+							"pixelCount": 50,
+							"groupCount": 1,
+							"reverse": 0,
+							"colorOrder": "RGB",
+							"nullNodes": 0,
+							"endNulls": 0,
+							"zigZag": 0,
+							"brightness": 100,
+							"gamma": "1.0"
+						}
+					]
+				}
+			],
+			"serialInUse": false
+		},
+		{
+			"type": "BBBSerial",
+			"enabled": 0,
+			"pinoutVersion": "1.x",
+			"subType": "off",
+			"startChannel": 1,
+			"channelCount": 4096,
+			"device": "sample-bbb-strings",
+			"outputs": [
+				{
+					"outputNumber": 0,
+					"startChannel": 1,
+					"outputType": "off",
+					"channelCount": 4096
+				},
+				{
+					"outputNumber": 1,
+					"startChannel": 1,
+					"outputType": "off",
+					"channelCount": 4096
+				},
+				{
+					"outputNumber": 2,
+					"startChannel": 1,
+					"outputType": "off",
+					"channelCount": 4096
+				},
+				{
+					"outputNumber": 3,
+					"startChannel": 1,
+					"outputType": "off",
+					"channelCount": 4096
+				},
+				{
+					"outputNumber": 4,
+					"startChannel": 1,
+					"outputType": "off",
+					"channelCount": 4096
+				},
+				{
+					"outputNumber": 5,
+					"startChannel": 1,
+					"outputType": "off",
+					"channelCount": 4096
+				},
+				{
+					"outputNumber": 6,
+					"startChannel": 1,
+					"outputType": "off",
+					"channelCount": 4096
+				},
+				{
+					"outputNumber": 7,
+					"startChannel": 1,
+					"outputType": "off",
+					"channelCount": 4096
+				}
+			]
+		}
+	]
+}
