@@ -1342,7 +1342,7 @@ function PixelStringDifferentialTypeChangedTo(port, tp, count) {
             $('#' + type + '_Output_' + (x-1) + '_' + (port + 3) + '_' + j).after(str);
         } else {
             for (var y = 0; y < 4; y++) {
-                var newLabel = "" + (port + 1 + y) + label + ")";
+                var newLabel = GetStringHWLabel(port+y) + label + ")";
                 $('#' + type + '_Output_' + x + '_' + (port + y) + '_0 td:first').html(newLabel);
             }
         }
