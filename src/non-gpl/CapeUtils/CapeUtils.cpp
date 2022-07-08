@@ -915,7 +915,7 @@ private:
                             }
                         }
                     }
-                    if (validSignature && result.isMember("defaultSettings")) {
+                    if (result.isMember("defaultSettings")) {
                         std::map<std::string, std::string> defaults;
                         for (auto a : result["defaultSettings"].getMemberNames()) {
                             std::string v = result["defaultSettings"][a].asString();
