@@ -154,3 +154,40 @@ public:
     virtual const PinCapabilities& getPinByUART(const std::string& n) = 0;
     virtual std::vector<std::string> getPinNames() = 0;
 };
+
+// No platform information on how to control pins
+class NoPinCapabilities : public PinCapabilitiesFluent<NoPinCapabilities> {
+public:
+    NoPinCapabilities(const std::string& n, uint32_t kg) :
+        PinCapabilitiesFluent(n, kg) {}
+
+    virtual int configPin(const std::string& mode = "gpio",
+                          bool directionOut = true) const override { return 0; }
+
+    virtual bool getValue() const override { return false; }
+    virtual void setValue(bool i) const override {}
+
+    virtual bool setupPWM(int maxValueNS = 25500) const override { return false; }
+    virtual void setPWMValue(int valueNS) const override {}
+
+    virtual int getPWMRegisterAddress() const override { return 0; };
+    virtual bool supportPWM() const override { return false; };
+
+    virtual const PinCapabilities* ptr() const override { return nullptr; }
+};
+
+class NoPinCapabilitiesProvider : public PinCapabilitiesProvider {
+public:
+    NoPinCapabilitiesProvider() {}
+    virtual ~NoPinCapabilitiesProvider() {}
+
+    void Init() {}
+    const NoPinCapabilities& getPinByName(const std::string& name);
+    const NoPinCapabilities& getPinByGPIO(int i);
+    const NoPinCapabilities& getPinByUART(const std::string& n);
+    std::vector<std::string> getPinNames() {
+        return std::vector<std::string>();
+    }
+};
+
+

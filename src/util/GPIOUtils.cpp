@@ -20,41 +20,12 @@
 #include "commands/Commands.h"
 
 // No platform information on how to control pins
-class NoPinCapabilities : public PinCapabilitiesFluent<NoPinCapabilities> {
-public:
-    NoPinCapabilities(const std::string& n, uint32_t kg) :
-        PinCapabilitiesFluent(n, kg) {}
-
-    virtual int configPin(const std::string& mode = "gpio",
-                          bool directionOut = true) const override { return 0; }
-
-    virtual bool getValue() const override { return false; }
-    virtual void setValue(bool i) const override {}
-
-    virtual bool setupPWM(int maxValueNS = 25500) const override { return false; }
-    virtual void setPWMValue(int valueNS) const override {}
-
-    virtual int getPWMRegisterAddress() const override { return 0; };
-    virtual bool supportPWM() const override { return false; };
-
-    virtual const PinCapabilities* ptr() const override { return nullptr; }
-};
-
 static NoPinCapabilities NULL_PIN_INSTANCE("-none-", 0);
 
-class NoPinCapabilitiesProvider : public PinCapabilitiesProvider {
-public:
-    NoPinCapabilitiesProvider() {}
-    virtual ~NoPinCapabilitiesProvider() {}
+const NoPinCapabilities& NoPinCapabilitiesProvider::getPinByName(const std::string& name) { return NULL_PIN_INSTANCE; }
+const NoPinCapabilities& NoPinCapabilitiesProvider::getPinByGPIO(int i) { return NULL_PIN_INSTANCE; }
+const NoPinCapabilities& NoPinCapabilitiesProvider::getPinByUART(const std::string& n) { return NULL_PIN_INSTANCE; }
 
-    void Init() {}
-    const NoPinCapabilities& getPinByName(const std::string& name) { return NULL_PIN_INSTANCE; }
-    const NoPinCapabilities& getPinByGPIO(int i) { return NULL_PIN_INSTANCE; }
-    const NoPinCapabilities& getPinByUART(const std::string& n) { return NULL_PIN_INSTANCE; }
-    std::vector<std::string> getPinNames() {
-        return std::vector<std::string>();
-    }
-};
 
 Json::Value PinCapabilities::toJSON() const {
     Json::Value ret;

@@ -20,7 +20,7 @@ $count = 0;
 foreach($gpiojson as $gpio) {
     $pinName = $gpio['pin'];
     $gpioNum = $gpio['gpio'];
-    $pinNameClean = str_replace("-", "_", $pinName);
+    $pinNameClean = preg_replace('/[-\.]/', "_", $pinName);
     if ($count != 0) {
         echo ",\n";
     }
@@ -161,7 +161,7 @@ extraCommands = [
         foreach($gpiojson as $gpio) {
             $pinName = $gpio['pin'];
             $gpioNum = $gpio['gpio'];
-            $pinNameClean = str_replace("-", "_", $pinName);
+            $pinNameClean = preg_replace('/[-\.]/', "_", $pinName);
             $style = " evenRow";
             if ($count % 2 == 0) {
                 $style = " oddRow";
@@ -236,8 +236,7 @@ extraCommands = [
             $x = 0;
             foreach($gpioInputJson as $gpio) {
                 $pinName = $gpio['pin'];
-                $pinNameClean = str_replace("-", "_", $pinName);
-                
+                $pinNameClean = preg_replace('/[-\.]/', "_", $pinName);
                 
                 if ($gpio['enabled'] == true) {
                     echo "$('#gpio_" . $pinNameClean . "_enabled').prop('checked', true);\n";

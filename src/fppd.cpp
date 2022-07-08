@@ -69,6 +69,8 @@ extern "C" {
 #elif defined(PLATFORM_PI)
 #include "util/PiGPIOUtils.h"
 #define PLAT_GPIO_CLASS PiGPIOPinProvider
+#elif defined(GPIOD_CHIPS) && GPIOD_CHIPS > 0
+#define PLAT_GPIO_CLASS NoPinCapabilitiesProvider
 #else
 #include "util/TmpFileGPIO.h"
 #define PLAT_GPIO_CLASS TmpFilePinProvider
