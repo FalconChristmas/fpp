@@ -44,6 +44,59 @@ function CloseKioskDialog() {
     SetRebootFlag();
 }
 
+var resetAreas = ['config', 'media', 'sequence', 'playlists', 'channeloutputs', 'schedule', 'settings', 'uploads', 'logs', 'plugins', 'pluginConfigs', 'user'];
+function ResetAllChanged() {
+    var checked = $('#rc_all').is(':checked');
+
+    for (var i = 0; i < resetAreas.length; i++) {
+        $('#rc_' + resetAreas[i]).prop('checked', checked);
+    }
+}
+
+function ShowResetConfigPopup() {
+    $('#resetConfigMenu').show();
+    $('#resetCloseDialogButton').show();
+    $('#resetPopup').fppDialog({ height: 600, width: 900, title: "Reset FPP Config", dialogClass: 'no-close' });
+    $('#resetPopup').fppDialog( "moveToTop" );
+    $('#resetConfigText').hide();
+    $('#resetConfigText').val('');
+}
+
+function ResetConfig() {
+    if (confirm('Are you sure you want to reset the speficied FPP config areas?')) {
+        $('#resetConfigMenu').hide();
+        $('#resetConfigText').show();
+        $('#resetCloseDialogButton').hide();
+
+        var args = '';
+
+        if ($('#rc_all').is(':checked')) {
+            args = '?areas=all';
+        } else {
+            for (var i = 0; i < resetAreas.length; i++) {
+                if ($('#rc_' + resetAreas[i]).is(':checked'))
+                    args += resetAreas[i] + ',';
+            }
+
+            if (args != '')
+                args = '?areas=' + args + 'dummy';
+        }
+
+
+        StreamURL('resetConfig.php' + args, 'resetConfigText', 'ResetConfigDone');
+    }
+}
+
+function ResetConfigDone() {
+    SetRebootFlag();
+    $('#resetCloseDialogButton').show();
+}
+
+function CloseResetDialog() {
+    $('#resetPopup').fppDialog('close');
+    SetRebootFlag();
+}
+
 <? if ($showOSSecurity) { ?>
 $( document ).ready(function() {
     if ($('#osPasswordEnable').val() == '1') {
@@ -112,13 +165,55 @@ if (($settings['uiLevel'] >= 1) && ($settings['Platform'] == "Raspberry Pi")) {
 
 echo "<br><br>\n";
 PrintSettingGroup('services');
+
+if ($settings['uiLevel'] >= 1) {
 ?>
-
-
-
+<input type='button' class='buttons' onClick='ShowResetConfigPopup();' value='Reset FPP Config'>
+<?
+}
+?>
 
 <div id='kioskPopup' title='Kiosk Frontend' style="display: none">
     <textarea style='width: 99%; height: 94%;' disabled id='kioskInstallText'>
     </textarea>
     <input id='kioskCloseDialogButton' type='button' class='buttons' value='Close' onClick='CloseKioskDialog();' style='display: none;'>
 </div>
+
+<div id='resetPopup' title='Reset FPP Config' style="display: none">
+    <span id='resetConfigMenu'>
+        <b>Choose areas to reset:</b><br>
+        <input type='checkbox' id='rc_all' onClick='ResetAllChanged();'> - Everything (includes everything below)<br>
+        <table border=0 cellpadding=2>
+            <tr><td valign='top'><b>FPP</b><br>
+                    <input type='checkbox' id='rc_config'> - Configuration Files<br>
+                    <input type='checkbox' id='rc_channeloutputs'> - Channel Outputs<br>
+                    <input type='checkbox' id='rc_logs'> - Logs<br>
+                    <input type='checkbox' id='rc_media'> - Media Files (audio, video, image)<br>
+                    <input type='checkbox' id='rc_playlists'> - Playlists<br>
+                    </td>
+                <td width='10px'></td>
+                <td valign='top'><br>
+                    <input type='checkbox' id='rc_schedule'> - Schedule<br>
+                    <input type='checkbox' id='rc_sequence'> - Sequence and Effects Files<br>
+                    <input type='checkbox' id='rc_settings'> - Settings<br>
+                    <input type='checkbox' id='rc_uploads'> - Uploads<br>
+                    </td>
+                <td width='10px'></td>
+                <td valign='top'><b>Plugins</b><br>
+                    <input type='checkbox' id='rc_plugins'> - Installed Plugins<br>
+                    <input type='checkbox' id='rc_pluginConfigs'> - Plugin Config Files<br>
+                    </td>
+                <td width='10px'></td>
+                <td valign='top'><b>OS</b><br>
+                    <input type='checkbox' id='rc_user'> - root and fpp user files (ssh keys, bash history)<br>
+                    </td>
+            </tr>
+        </table>
+        <br>
+        <input type='button' class='buttons' onClick='ResetConfig();' value='Reset'>
+    </span>
+    <textarea style='width: 99%; height: 92%;' disabled id='resetConfigText' style='display: none;'>
+    </textarea>
+    <input id='resetCloseDialogButton' type='button' class='buttons' value='Close' onClick='CloseResetDialog();' style='display: none;'>
+</div>
+
