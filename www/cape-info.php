@@ -215,7 +215,7 @@ function GetDownloadableEEPROMList() {
         eepromList = JSON.parse(dataStr);
         var options = '';
         for (c = 0; c < eepromList.length; c++) {
-            if (eepromList[c].cape == settings['cape-info']['name']) {
+            if (!('cape-info' in settings) || (eepromList[c].cape == settings['cape-info']['name'])) {
                 for (i = 0; i < eepromList[c].eeproms.length; i++) {
                     options += "<option value='" + eepromList[c].eeproms[i].url + "'>" + eepromList[c].cape + ' - ' + eepromList[c].eeproms[i].description + '</option>';
                 }
@@ -226,8 +226,9 @@ function GetDownloadableEEPROMList() {
             $('#eepromList').append(options);
             $('#eepromList').removeAttr('disabled');
         } else {
-            $('#eepromList').html("<option value=''>-- No available downloads for this cape --</option>");
+            $('#eepromList').html("<option value=''>-- No available downloads --</option>");
         }
+        $('#eepromList').show();
     });
 }
 
@@ -995,8 +996,10 @@ closedir($dir);
                                     <div class="container-fluid">
                                         <div class="row">
                                             <div class="aboutLeft col-md">
-                                                Your cape appears to have an unprogrammed physical EEPROM installed.  You may upload an EEPROM .bin file here to program the EEPROM.<br>
-                                                <input type="text" id="eepromList" style='display: none;'>
+                                                Your cape appears to have an unprogrammed physical EEPROM installed. Select a downloadable EEPROM image or a local file to program the EEPROM:<br>
+                                                <select id='eepromList' disabled onChange='eepromListChanged();'>
+                                                    <option value=''>-- Download firmware --</option>
+                                                </select><br>
                                                 <input type="file" name="firmware" id="firmware" style='padding-left: 0px;' onChange='firmwareChanged();'><br>
                                                 <input type='button' class="buttons" value='Upgrade' onClick='UpgradeFirmware(true);' id='UpdateFirmware' disabled>
                                             </div>
