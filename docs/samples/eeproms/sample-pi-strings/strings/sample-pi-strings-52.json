@@ -1,0 +1,110 @@
+{
+    "name": "sample-pi-strings-52",
+    "longName": "sample-pi-strings - 52 Strings",
+    "notes": "Sample config with latches and expansion boards, includes port prefixes and port start addresses for expansions.",
+    "driver": "DPIPixels",
+    "numSerial": 0,
+    "outputs": [
+        {  "pin": "P1-7" },
+        {  "pin": "P1-29" },
+        {  "pin": "P1-31" },
+        {  "pin": "P1-26" },
+        {  "pin": "P1-24" },
+        {  "pin": "P1-21" },
+        {  "pin": "P1-19" },
+        {  "pin": "P1-23" },
+        {  "pin": "P1-32" },
+        {  "pin": "P1-33" },
+        {  "pin": "P1-8" },
+        {  "pin": "P1-10" },
+        {  "pin": "P1-36" },
+        {  "pin": "P1-11" },
+        {  "pin": "P1-12" },
+        {  "pin": "P1-35" },
+
+        {  "pin": "P1-38" },
+        {  "pin": "P1-40" },
+        {  "pin": "P1-15" },
+        {  "pin": "P1-16" },
+
+        {  "sharedOutput": 0 },
+        {  "sharedOutput": 1 },
+        {  "sharedOutput": 2 },
+        {  "sharedOutput": 3 },
+        {  "sharedOutput": 4 },
+        {  "sharedOutput": 5 },
+        {  "sharedOutput": 6 },
+        {  "sharedOutput": 7 },
+        {  "sharedOutput": 8 },
+        {  "sharedOutput": 9 },
+        {  "sharedOutput": 10 },
+        {  "sharedOutput": 11 },
+        {  "sharedOutput": 12 },
+        {  "sharedOutput": 13 },
+        {  "sharedOutput": 14 },
+        {  "sharedOutput": 15 },
+
+        {  "sharedOutput": 0 },
+        {  "sharedOutput": 1 },
+        {  "sharedOutput": 2 },
+        {  "sharedOutput": 3 },
+        {  "sharedOutput": 4 },
+        {  "sharedOutput": 5 },
+        {  "sharedOutput": 6 },
+        {  "sharedOutput": 7 },
+        {  "sharedOutput": 8 },
+        {  "sharedOutput": 9 },
+        {  "sharedOutput": 10 },
+        {  "sharedOutput": 11 },
+        {  "sharedOutput": 12 },
+        {  "sharedOutput": 13 },
+        {  "sharedOutput": 14 },
+        {  "sharedOutput": 15 }
+    ],
+    "groups": [
+        {
+            "start": 1,
+            "count": 16,
+            "label": "String Ports #1-16"
+        },
+        {
+            "start": 17,
+            "count": 4,
+            "type": "differential",
+            "label": "Differential Port #1"
+        },
+        {
+            "start": 21,
+            "count": 16,
+            "portStart": 1,
+			"portPrefix": "S",
+            "type": "expansion",
+            "label": "Expansion Board #1"
+        },
+        {
+            "start": 37,
+            "count": 16,
+            "portStart": 1,
+			"portPrefix": "S",
+            "type": "expansion",
+            "label": "Expansion Board #2"
+        }
+    ],
+    "latches": [
+        "P1-13",
+        "P1-37",
+        "P1-22"
+    ],
+    "pixelLimits": [
+        {
+            "type": "banks",
+            "limit": 1600,
+            "banks": [
+                [  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ],
+                [ 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35 ],
+                [ 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51 ]
+            ]
+        }
+    ]
+}
+
