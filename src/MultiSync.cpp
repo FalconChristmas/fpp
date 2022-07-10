@@ -949,6 +949,7 @@ void MultiSync::DiscoverViaHTTP(const std::set<std::string>& ipSet, const std::s
         curl_easy_setopt(handles[ips], CURLOPT_WRITEDATA, &ipList[ips]);
         curl_easy_setopt(handles[ips], CURLOPT_ACCEPT_ENCODING, "");
         curl_easy_setopt(handles[ips], CURLOPT_TCP_FASTOPEN, 1L);
+        curl_easy_setopt(handles[ips], CURLOPT_HTTP09_ALLOWED, 1L);
 
         curl_multi_add_handle(multi_handle, handles[ips]);
         if ((ips % 10) == 0) {
