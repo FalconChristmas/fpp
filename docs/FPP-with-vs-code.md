@@ -22,8 +22,12 @@ alone allows for web development with FPP.
 
 Basic steps:
 1) Edit "/etc/ssh/sshd_config" to set PermitRootLogin to yes
-2) Set the root password (passwd)
-3) Install the Remote-SSH extension into VSC
+2) Restart ssh ```sudo service sshd restart```
+3) Set the root password (passwd) ```sudo passwd root```
+4) Install the Remote-SSH extension into VSC
+5) Remote-SSH: Add New Host, ```ssh root@x.x.x.x```
+6) Remote-SSH: Connect to New Host
+7) Remote-SSH: Open Folder, ```/opt/fpp/```
 
 ## Compiling FPPD
 The default vscode tasks that we currently have setup include a "clean" target and a "make debug" target.  
