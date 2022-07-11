@@ -414,6 +414,10 @@ function ManualLoadInfo() {
 
 	if (url.indexOf('://') > -1)
 	{
+		if (url.indexOf('https://github.com/') > -1) {
+			url = url.replace(/https:\/\/github.com\//, 'https://raw.githubusercontent.com/').replace(/\/blob\//, '/');
+		}
+
 		$('html,body').css('cursor','wait');
 		$.ajax({
 			url: url,
