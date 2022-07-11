@@ -119,7 +119,7 @@ bool NetworkController::DetectFalconController(const std::string& ip,
                                                const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a Falcon controller\n", ip.c_str());
 
-    std::regex re("\"css/falcon.css\"|\"/f16v2.js\"");
+    std::regex re("\"css/falcon.css\"|\"/f16v2.js\"|\"js\/cntrlr_(\\d+).js\"");
     std::cmatch m;
 
     if (!std::regex_search(html.c_str(), m, re))
@@ -136,8 +136,18 @@ bool NetworkController::DetectFalconController(const std::string& ip,
     if (urlGet(url, resp)) {
         std::size_t fStart = resp.find("<p>");
         if (fStart != std::string::npos) {
-            std::size_t fEnd;
-            typeId = (systemType)(atoi(resp.substr(fStart + 3).c_str()) + 0x80);
+            typeId = (systemType)(atoi(getSimpleXMLTag(resp, "p").c_str()));
+            
+            if (typeId == kSysTypeFalconController) { //v4 is just 0x80
+                if(getSimpleXMLTag(resp, "np") == "16") {
+                    typeId = kSysTypeFalconF16v4;
+                } else if(getSimpleXMLTag(resp, "np") == "48") {
+                    typeId = kSysTypeFalconF48v4;
+                }
+            } else { // v3 and below, 0x80 + p tag
+                typeId = (systemType)(atoi(resp.substr(fStart + 3).c_str()) + 0x80);
+            }
+
             typeStr = MultiSync::GetTypeString(typeId);
 
             version = getSimpleXMLTag(resp, "fv");
@@ -156,6 +166,13 @@ bool NetworkController::DetectFalconController(const std::string& ip,
 
                     if (startsWith(version, "- "))
                         version.erase(0, 2);
+                }
+            } else  if ((typeId == kSysTypeFalconF16v4) ||
+                (typeId == kSysTypeFalconF48v4)) {
+                hostname = getSimpleXMLTag(resp, "n");
+                std::size_t spacePos = version.find(" ");
+                if (spacePos != std::string::npos) {
+                    majorVersion = atoi(version.substr(spacePos + 1).c_str());
                 }
             } else {
                 hostname = getSimpleXMLTag(resp, "n");
