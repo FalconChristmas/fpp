@@ -119,7 +119,7 @@ bool NetworkController::DetectFalconController(const std::string& ip,
                                                const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a Falcon controller\n", ip.c_str());
 
-    std::regex re("\"css/falcon.css\"|\"/f16v2.js\"|\"js\/cntrlr_(\\d+).js\"");
+    std::regex re("\"css/falcon.css\"|\"/f16v2.js\"|\"js/cntrlr_(\\d+).js\"");
     std::cmatch m;
 
     if (!std::regex_search(html.c_str(), m, re))
