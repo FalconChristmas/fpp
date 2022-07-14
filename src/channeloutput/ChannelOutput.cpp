@@ -16,6 +16,7 @@
 #include <errno.h>
 
 #include "ChannelOutput.h"
+#include "util/GPIOUtils.h"
 
 ChannelOutput::ChannelOutput(unsigned int startChannel,
                              unsigned int channelCount) :
@@ -33,6 +34,49 @@ int ChannelOutput::Init(Json::Value config) {
     m_outputType = config["type"].asString();
     if (m_channelCount == -1)
         m_channelCount = 0;
+
+    if (config.isMember("base")) {
+        if (config["base"].isMember("gpios")) {
+            Json::Value gpios = config["base"]["gpios"];
+            std::string pinName;
+            for (int i = 0; i < gpios.size(); i++) {
+                pinName = gpios[i]["pin"].asString();
+
+                if (gpios[i].isMember("mode")) {
+                    const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+
+                    std::string pinMode = gpios[i]["mode"].asString();
+
+                    if ((pinMode == "gpio") || (pinMode == "gpio_pu") || (pinMode == "gpio_pd")) {
+                        std::string pinDirection = gpios[i]["direction"].asString();
+                        if (pinDirection == "out") {
+                            pin.configPin(pinMode, true);
+                        } else if (pinDirection == "in") {
+                            pin.configPin(pinMode, false);
+                        } else {
+                            LogErr(VB_CHANNELOUT, "Invalid pin direction of '%s' on GPIO pin %s\n", pinDirection.c_str(), pinName.c_str());
+                            continue;
+                        }
+
+                        if (gpios[i].isMember("value")) {
+                            int value = gpios[i]["value"].asInt();
+
+                            if (value == 0) {
+                                pin.setValue(false);
+                            } else if (value == 1) {
+                                pin.setValue(true);
+                            } else {
+                                LogErr(VB_CHANNELOUT, "Invalid pin value of '%d' on GPIO pin %s\n", value, pinName.c_str());
+                                continue;
+                            }
+                        }
+                    } else {
+                        pin.configPin(pinMode);
+                    }
+                }
+            }
+        }
+    }
 
     DumpConfig();
     return 1;

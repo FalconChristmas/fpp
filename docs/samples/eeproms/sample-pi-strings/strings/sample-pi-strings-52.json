@@ -95,6 +95,50 @@
         "P1-37",
         "P1-22"
     ],
+    "gpios": [
+        {
+            "comment": "SAMPLE: Set pin P1-28 to PWM mode, Not sure why we would need this, but it would be possible",
+            "pin": "P1-28",
+            "mode": "pwm"
+        },
+        {
+            "comment": "SAMPLE: Set pin P1-28 to DPI mode, Not sure why we would need this, but it would be possible",
+            "pin": "P1-28",
+            "mode": "dpi"
+        },
+        {
+            "comment": "SAMPLE: Set pin P1-28 as gpio output, do not initialize the state",
+            "pin": "P1-28",
+            "mode": "gpio",
+            "direction": "out"
+        },
+        {
+            "comment": "SAMPLE: Set pin P1-28 as gpio output, initialize to 1",
+            "pin": "P1-28",
+            "mode": "gpio",
+            "direction": "out",
+            "value": 1
+        },
+        {
+            "comment": "SAMPLE: Set pin P1-28 as a gpio input",
+            "pin": "P1-28",
+            "mode": "gpio",
+            "direction": "in"
+        },
+        {
+            "comment": "SAMPLE: Set pin P1-28 as a gpio input with internal pull-up enabled",
+            "pin": "P1-28",
+            "mode": "gpio_pu",
+            "direction": "in"
+        },
+        {
+            "comment": "SAMPLE: Set pin P1-28 as gpio output, initialize to 1",
+            "pin": "P1-28",
+            "mode": "gpio",
+            "direction": "out",
+            "value": 0
+        }
+    ],
     "pixelLimits": [
         {
             "type": "banks",
