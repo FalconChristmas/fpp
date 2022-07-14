@@ -32,7 +32,7 @@ Stopping fppd...
 if (file_exists("/.dockerenv")) {
     system($SUDO . " " . $settings['fppDir'] . "/scripts/fppd_stop");
 } else if ($settings["Platform"] == "MacOS") {
-    exex("launchctl stop falconchristmas.fppd");
+    exec("launchctl stop falconchristmas.fppd");
 } else {
     exec($SUDO . " systemctl stop fppd");
 }
