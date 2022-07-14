@@ -2,7 +2,7 @@
 OBJECTS_fppd = fppd.o
 LIBS_fppd = $(NULL)
 
-GPIOD_CHIPS = $(shell (which gpiodetect > /dev/null && gpiodetect) | wc -l)
+GPIOD_CHIPS = $(shell (which gpiodetect > /dev/null && gpiodetect) | wc -l | xargs)
 
 LDFLAGS_fppd += -rdynamic $(shell curl-config --libs) \
 	$(shell GraphicsMagick++-config --ldflags --libs) \
