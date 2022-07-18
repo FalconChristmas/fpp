@@ -160,7 +160,7 @@ usort($capes, 'sortByLongName');
 };
 
 function isLicensedDriver(driver) {
-    if ((driver == 'BBB48String') || (driver == 'DPIPixels'))
+    if ((driver == 'BBB48String') || (driver == 'DPIPixels') || (driver == 'BBShiftString'))
         return true;
 
     return false;
@@ -619,7 +619,10 @@ function selected_string_details(row) { //outputs, rowid) {
             (port_fps < 40)? "as 20": "as 40"; //TODO: add other fps if supported
         details += `<b>Port ${portinx + 1} (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"}):</b> ${plural(numpx)} pixel${plural()}, ${(frtime * 1e3).toFixed(3).replace(".000", "")} msec refresh${cfg_fps? ` (config ${cfg_fps} fps)`: ""}, ${maxA.toFixed(1).replace(".0", "")} A max`;
     } else {
-        details += `<b>Port ${portinx + 1} (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"})</b>`;
+        details += `<b>Port ${portinx + 1}`;
+        if (hdr_name) {
+            details += `(${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"})</b>`;
+        }
     }
 //    $("#pixel-string-details").html(details);
     return details;
@@ -895,7 +898,7 @@ function GetPixelStringCapeFileNameForSubType(mainType) {
     return type;
 }
 function IsPixelStringDriverType(type) {
-    return  type == "BBB48String" || type == 'spixels' || type == 'RPIWS281X' || type == 'DPIPixels';
+    return  type == "BBShiftString" || type == "BBB48String" || type == 'spixels' || type == 'RPIWS281X' || type == 'DPIPixels';
 }
 function GetPixelStringCapeFileName() {
     var mainType = $('#PixelStringSubType').val();
@@ -1946,7 +1949,7 @@ if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name'])) {
     $('#capeWarningsDiv').hide();
     $('#capeWarningsMessageBottom').hide();
 
-    if ((driver != 'BBB48String') && (driver != 'DPIPixels'))
+    if ((driver != 'BBB48String') && (driver != 'DPIPixels') && (driver != "BBShiftString"))
         return;
 
     if (capeLimitWarning != '') {

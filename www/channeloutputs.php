@@ -78,14 +78,6 @@ function UpdateChannelOutputLookup()
 					= channelOutputs.channelOutputs[i].panels[p];
 			}
 		}
-		else if (channelOutputs.channelOutputs[i].type == "BBB48String")
-		{
-			channelOutputsLookup["BBB48String"] = channelOutputs.channelOutputs[i];
-		}
-		else if (channelOutputs.channelOutputs[i].type == "BBBSerial")
-		{
-			channelOutputsLookup["BBBSerial"] = channelOutputs.channelOutputs[i];
-		}
 	}
 }
 
