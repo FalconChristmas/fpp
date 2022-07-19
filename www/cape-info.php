@@ -305,6 +305,11 @@ function RedeemVoucher() {
     var alphanumeric = /^[\p{L}\p{N}]+$/u;
     var passwordAllowed = /^[-\p{L}\p{N}_#@!\$%^&*()]+$/u;
 
+    if (voucherNumber == 'SUDCAEPP') {
+        alert("Thank you for reading the FPP Manual, but voucher ID 'SUDCAEPP' is for documentation use only and is not valid.  Please enter a valid voucher ID.");
+        return;
+    }
+
     if (!(/^[-A-Z0-9]+$/.test(voucherNumber))) {
         alert('Invalid Voucher Number.  The Voucher Number field should contain only the letters, numbers, and hypens.');
         return;
