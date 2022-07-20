@@ -223,9 +223,14 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
     int nonZeroStrings = 0;
     for (int s = 0; s < stringCount; s++) {
-        if ((pixelStrings[s]->m_outputChannels / 3) > 0) {
+        int pixelCount = 0;
+        for (auto& a : pixelStrings[s]->m_virtualStrings) {
+            if ((a.receiverNum == -1) && (a.pixelCount > 0))
+                pixelCount += a.pixelCount;
+        }
+        if (pixelCount) {
             LogExcess(VB_CHANNELOUT, "   Enabling Pin %s for DPI output since it has %d pixels configured\n",
-                outputPinMap[s].c_str(), pixelStrings[s]->m_outputChannels / 3);
+                outputPinMap[s].c_str(), pixelCount);
 
             const PinCapabilities& pin = PinCapabilities::getPinByName(outputPinMap[s]);
             pin.configPin("dpi");
