@@ -7,7 +7,7 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 		git submodule init && \
 		git submodule update
 
-../external/RF24/librf24-bcm.so: ../external/RF24/.git
+../external/RF24/librf24-bcm.so: ../external/RF24/.git $(PCH_FILE)
 	@echo "Building RF24 library"
 	@CC="ccache gcc" CXX="ccache g++" $(MAKE) -C ../external/RF24/
 	@ln -s librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
@@ -20,7 +20,7 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 		git submodule init && \
 		git submodule update
 
-../external/rpi-rgb-led-matrix/lib/librgbmatrix.a: ../external/rpi-rgb-led-matrix/.git
+../external/rpi-rgb-led-matrix/lib/librgbmatrix.a: ../external/rpi-rgb-led-matrix/.git  $(PCH_FILE)
 	@echo "Building rpi-rgb-led-matrix library"
 	@if [ -e ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so ]; then rm ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so; fi
 	@CC="ccache gcc" CXX="ccache g++" $(MAKE) -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a
@@ -32,7 +32,7 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 		git submodule init && \
 		git submodule update
 
-../external/rpi_ws281x/libws2811.a: ../external/rpi_ws281x/.git
+../external/rpi_ws281x/libws2811.a: ../external/rpi_ws281x/.git  $(PCH_FILE)
 	@echo "Building libws2811"
 	@cd ../external/rpi_ws281x/ && \
 		gcc -c -o rpihw.o rpihw.c && \
@@ -50,7 +50,7 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 		git submodule init && \
 		git submodule update
 
-../external/spixels/lib/libspixels.a: ../external/spixels/.git
+../external/spixels/lib/libspixels.a: ../external/spixels/.git  $(PCH_FILE)
 	@echo "Building spixels library"
 	@CC="ccache gcc" CXX="ccache g++" $(MAKE) -C ../external/spixels/lib/
 

@@ -38,6 +38,7 @@ endif
 ifeq '$(CXXCOMPILER)' 'g++'
     GCCVERSIONGTEQ9:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 9)
     # Common CFLAGS
+    PCH_FILE=fpp-pch.h.gch
     CFLAGS+=-fpch-preprocess
     OPTIMIZE_FLAGS=-O3 -Wno-psabi
     debug: OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
