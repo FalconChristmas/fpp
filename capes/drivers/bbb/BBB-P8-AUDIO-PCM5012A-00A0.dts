@@ -1,0 +1,97 @@
+/*
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/am33xx.h>
+#include <dt-bindings/board/am335x-bbw-bbb-base.h>
+
+/ {
+	compatible = "ti,beaglebone", "ti,beaglebone-black", "ti,beaglebone-green";
+
+	/* identification */
+	part-number = "BBB-AUDIO-PCM5012A";
+	version = "00A0", "A0";
+
+	/* state the resources this cape uses */
+	exclusive-use =
+		/* the pin header uses */
+		"P8.37",	/* mcasp0: mcasp0_aclkx */
+		"P8.38",	/* mcasp0: mcasp0_fsx */
+		"P8.36",	/* mcasp0: mcasp0_axr0 */
+		"mcasp0";
+
+	/*
+	 * Free up the pins used by the cape from the pinmux helpers.
+	 */
+	fragment@0 {
+		target = <&ocp>;
+		__overlay__ {
+			P8_36_pinmux { status = "disabled"; };	/* mcasp0_axr0 */
+			P8_38_pinmux { status = "disabled"; };	/* mcasp0_fsx */
+			P8_37_pinmux { status = "disabled"; };	/* mcasp0_aclkx */
+		};
+	};
+
+	fragment@1 {
+		target = <&am33xx_pinmux>;
+		__overlay__ {
+			bone_audio_cape_audio_pins: pinmux_bone_audio_cape_audio_pins {
+				pinctrl-single,pins = <
+					BONE_P8_37(PIN_INPUT_PULLDOWN | MUX_MODE3)	/* mcasp0_aclkx */
+					BONE_P8_38(PIN_INPUT_PULLDOWN | MUX_MODE3)	/* mcasp0_fsx */
+					BONE_P8_36(PIN_INPUT_PULLDOWN | MUX_MODE3)	/* mcasp0_axr0 */
+				>;
+			};
+		};
+	};
+
+	fragment@2 {
+		target-path="/";
+		__overlay__ {
+			pcm5102a: pcm5102a {
+                              #sound-dai-cells = <0>;
+                              compatible = "ti,pcm5102a";
+                        };
+			sound {
+				compatible = "simple-audio-card";
+				simple-audio-card,format = "i2s";
+				simple-audio-card,cpu {
+					sound-dai = <&mcasp0>;
+					bitclock-master;
+				        bitclock-inversion;
+				        frame-master;
+                                        /* 24576000 11289600      24000000 */
+				        system-clock-frequency = <24000000>;
+				        system-clock-direction-out;
+				};
+
+				simple-audio-card,codec {
+					sound-dai = <&pcm5102a>;
+				};
+			};
+		};
+	};
+	fragment@3 {
+		target = <&mcasp0>;
+		__overlay__ {
+			#sound-dai-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&bone_audio_cape_audio_pins>;
+			status = "okay";
+			op-mode = <0>;	/* MCASP_IIS_MODE */
+			tdm-slots = <2>;
+			num-serializer = <2>;
+                        serial-dir = <1 0>;
+                        tx-num-evt = <1>;
+                        rx-num-evt = <0>;
+		};
+	};
+};
