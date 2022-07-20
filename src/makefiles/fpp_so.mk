@@ -125,7 +125,7 @@ ifneq ($(wildcard /usr/local/include/vlc/vlc.h),)
 LIBS_fpp_so += -lvlc
 endif
 
-util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
+util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk $(PCH_FILE)
 	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 TARGETS += libfpp.$(SHLIB_EXT)

@@ -14,7 +14,7 @@ LIBS_fsequtils = \
 TARGETS += fsequtils
 OBJECTS_ALL+=$(OBJECTS_fsequtils)
 
-fsequtils: $(OBJECTS_fsequtils)
+fsequtils: $(OBJECTS_fsequtils) $(PCH_FILE)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -o $@
 
 fseq/%.o: fseq/%.cpp fseq/%.h fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
