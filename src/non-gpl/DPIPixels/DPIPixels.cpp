@@ -13,6 +13,8 @@
 
 #include "fpp-pch.h"
 
+#include <vector>
+
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -132,12 +134,6 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
     licensedOutputs = CapeUtils::INSTANCE.getLicensedOutputs();
 
-    //if (licensedOutputs == 9999) {
-    //    LogInfo(VB_CHANNELOUT, "Channel Output is licensed for unlimited outputs\n");
-    //} else {
-    //    LogInfo(VB_CHANNELOUT, "Channel Output is licensed for %d outputs\n", licensedOutputs);
-    //}
-
     if (!CapeUtils::INSTANCE.getStringConfig(subType, root)) {
         LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s\n", subType.c_str());
         return 0;
@@ -152,6 +148,8 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
     memset(&latchPinMasks, 0, sizeof(latchPinMasks));
     memset(&longestStringInBank, 0, sizeof(longestStringInBank));
+
+    std::vector<std::string> outputPinMap;
 
     for (int i = 0; i < config["outputs"].size(); i++) {
         Json::Value s = config["outputs"][i];
@@ -170,11 +168,16 @@ int DPIPixelsOutput::Init(Json::Value config) {
             std::string pinName = root["outputs"][i]["pin"].asString();
 
             if (pinName[0] == 'P') {
-                const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
-                pin.configPin("dpi");
-
                 bitPos[i] = GetDPIPinBitPosition(pinName);
+
+                outputPinMap.push_back(pinName);
+            } else {
+                outputPinMap.push_back("");
             }
+        } else if (root["outputs"][i].isMember("sharedOutput")) {
+            outputPinMap.push_back(outputPinMap[root["outputs"][i]["sharedOutput"].asInt()]);
+        } else {
+            outputPinMap.push_back("");
         }
 
         if ((i >= licensedOutputs) && (newString->m_outputChannels > 0)) {
@@ -217,7 +220,22 @@ int DPIPixelsOutput::Init(Json::Value config) {
     }
 
     stringCount = pixelStrings.size();
-    LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels configured\n", stringCount);
+
+    int nonZeroStrings = 0;
+    for (int s = 0; s < stringCount; s++) {
+        if ((pixelStrings[s]->m_outputChannels / 3) > 0) {
+            LogExcess(VB_CHANNELOUT, "   Enabling Pin %s for DPI output since it has %d pixels configured\n",
+                outputPinMap[s].c_str(), pixelStrings[s]->m_outputChannels / 3);
+
+            const PinCapabilities& pin = PinCapabilities::getPinByName(outputPinMap[s]);
+            pin.configPin("dpi");
+
+            nonZeroStrings++;
+        }
+    }
+
+    LogDebug(VB_CHANNELOUT, "   Found %d strings (out of %d total) that have 1 or more pixels configured\n",
+        nonZeroStrings, stringCount);
 
     if (stringCount > licensedOutputs) {
         std::string warning;
