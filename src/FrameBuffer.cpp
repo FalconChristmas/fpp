@@ -306,6 +306,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     m_buffer = (uint8_t*)mmap(0, m_bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
 
     if ((char*)m_buffer == (char*)-1) {
+        m_buffer = nullptr;
         LogErr(VB_CHANNELOUT, "Error, unable to map framebuffer device %s\n", devString.c_str());
         DestroyFrameBuffer();
         return 0;
