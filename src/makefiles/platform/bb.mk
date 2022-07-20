@@ -15,4 +15,7 @@ BUILD_FPPCAPEDETECT=1
 
 LDFLAGS=-lrt -lpthread
 SHLIB_EXT=so
+
+# Beagles are ALL armv7a processors with neon
+CFLAGS+=-march=armv7-a+neon -mfpu=neon
 endif

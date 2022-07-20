@@ -594,8 +594,10 @@ public:
                 return atoi(signedExtras["licensePorts"][0].c_str());
             }
         }
-
         return 0;
+    }
+    const std::string &getKeyId() const {
+        return fkeyId;
     }
 
 private:
@@ -1234,6 +1236,10 @@ std::vector<uint8_t> CapeUtils::getFile(const std::string& path) {
 
 int CapeUtils::getLicensedOutputs() {
     return capeInfo->getLicensedOutputs();
+}
+
+std::string CapeUtils::getKeyId() {
+    return capeInfo->getKeyId();
 }
 
 bool CapeUtils::getStringConfig(const std::string& type, Json::Value& val) {

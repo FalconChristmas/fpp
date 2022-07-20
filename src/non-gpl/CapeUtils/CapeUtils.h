@@ -37,6 +37,7 @@ public:
     std::vector<uint8_t> getFile(const std::string& path);
 
     int getLicensedOutputs();
+    std::string getKeyId();
     bool getStringConfig(const std::string& type, Json::Value& val);
 
 private:
