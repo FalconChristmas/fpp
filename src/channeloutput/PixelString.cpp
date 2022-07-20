@@ -227,8 +227,9 @@ int PixelString::Init(Json::Value config) {
     // Initialize all maps to an unused location which should be zero.
     // We need this so that null nodes in the middle of a string are sent
     // all zeroes to keep them dark.
-    for (int i = 0; i < m_outputChannels; i++)
+    for (int i = 0; i < m_outputChannels; i++) {
         m_outputMap[i] = FPPD_OFF_CHANNEL;
+    }
 
     int offset = 0;
     int mapIndex = 0;
@@ -236,12 +237,13 @@ int PixelString::Init(Json::Value config) {
     m_brightnessMaps = (uint8_t**)calloc(1, sizeof(uint8_t*) * m_outputChannels);
 
     for (int i = 0; i < m_virtualStrings.size(); i++) {
+        m_virtualStrings[i].chMap = &m_outputMap[offset];
         offset += m_virtualStrings[i].startNulls * m_virtualStrings[i].channelsPerNode();
-
+        int start = offset;
         SetupMap(offset, m_virtualStrings[i]);
         offset += m_virtualStrings[i].pixelCount * m_virtualStrings[i].channelsPerNode();
         offset += m_virtualStrings[i].endNulls * m_virtualStrings[i].channelsPerNode();
-
+        m_virtualStrings[i].chMapCount = offset - start;
         for (int j = 0; j < ((m_virtualStrings[i].startNulls * m_virtualStrings[i].channelsPerNode()) + (m_virtualStrings[i].pixelCount * m_virtualStrings[i].channelsPerNode()) + (m_virtualStrings[i].endNulls * m_virtualStrings[i].channelsPerNode())); j++)
             m_brightnessMaps[mapIndex++] = m_virtualStrings[i].brightnessMap;
     }

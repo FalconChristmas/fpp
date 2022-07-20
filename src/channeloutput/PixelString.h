@@ -44,6 +44,9 @@ public:
     uint8_t toggleCount;
     uint8_t leadOutCount;
     std::string description;
+
+    int *chMap;
+    int chMapCount;
 };
 
 class GPIOCommand {
