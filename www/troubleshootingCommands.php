@@ -55,11 +55,15 @@ $commands = array(
     'Midi Devices' => 'aseqdump -l',
 
     // Video
-    'Video' => 'fbset -s',
+    'Video' => 'test -e /dev/fb0 && echo "/dev/fb0" && fbset -s -fb /dev/fb0 ; test -e /dev/fb1 && echo "/dev/fb1" && fbset -s -fb /dev/fb1',
 
-    // Kernel
+    // OS, Kernel, and SD image
+    'OS Version' => 'test -e /etc/os-release && cat /etc/os-release',
     'Kernel Version' => 'uname -a',
     'Kernel Modules' => 'lsmod',
+    'Image Version' => 'cat /etc/fpp/rfs_version',
+    'Image Platform' => 'cat /etc/fpp/platform',
+    'Image Config Version' => 'cat /etc/fpp/config_version',
 
     // i2c
     'i2cdetect' => $SUDO . ' i2cdetect -y -r ' . $i2cDevice,
