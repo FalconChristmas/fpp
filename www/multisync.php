@@ -1739,6 +1739,30 @@ function copyFailed(id) {
         $('#fppSystemsTableWrapper').addClass('fppTableWrapperErrored');
 }
 
+function addProxyForIP(rowID) {
+    var ip = ipFromRowID(rowID);
+    		$.post("api/proxies/" + ip,  "AddProxy").done(function(data) {
+			$.jGrowl("Proxy Set");
+			console.log(data);
+		}).fail(function(data) {
+			DialogError("Failed to set Proxy", "Post failed");
+		});
+}
+
+function proxySelectedIPs() {
+    $('input.remoteCheckbox').each(function() {
+        if ($(this).is(":checked")) {
+            var rowID = $(this).closest('tr').attr('id');
+            if ($('#' + rowID).hasClass('filtered')) {
+                return true;
+            }
+
+            $(this).prop('checked', false);
+            addProxyForIP(rowID);
+        }
+    });
+}
+
 function clearSelected() {
     // clear all entries, even if filtered
     $('input.remoteCheckbox').prop('checked', false);
@@ -1782,6 +1806,7 @@ function performMultiAction() {
         case 'shutdown':       shutdownSelectedSystems();       break;
         case 'remoteMode':     setSelectedSystemsMode('8');     break;
         case 'playerMode':     setSelectedSystemsMode('2');     break;
+        case 'addProxy':          proxySelectedIPs();                    break;
         default:               alert('You must select an action first.'); break;
     }
 
@@ -1862,6 +1887,7 @@ include 'menu.inc';?>
                         <option value='copyOSFiles'>Copy OS Upgrade Files</option>
                         <option value='playerMode'>Set to Player</option>
                         <option value='remoteMode'>Set to Remote</option>
+                        <option value='addProxy'>Add as Proxy</option>
                     </select>
                     <button id='performActionButton' type='button' class='buttons btn-success' value='Run' onClick='performMultiAction();'><i class="fas fa-chevron-right"></i> Run</button>
                     <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>

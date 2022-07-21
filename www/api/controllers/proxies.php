@@ -48,7 +48,7 @@ function AddProxy()
 {
     $pip = params('ProxyIp');
     $proxies = LoadProxyList();
-    if (in_array($pip, $proxies)) {
+    if (!in_array($pip, $proxies)) {
         $proxies[] = $pip;
     }
     WriteProxyFile($proxies);
