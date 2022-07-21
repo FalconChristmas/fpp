@@ -9,12 +9,10 @@
  * This source file is covered under the LGPL v2.1 as described in the
  * included LICENSE.LGPL file.
  */
-
-#include <regex>
-
 #include "fpp-pch.h"
 
 #include "NetworkController.h"
+#include "util/RegExCache.h"
 
 NetworkController::NetworkController(const std::string& ipStr) :
     ip(ipStr),
@@ -119,10 +117,10 @@ bool NetworkController::DetectFalconController(const std::string& ip,
                                                const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a Falcon controller\n", ip.c_str());
 
-    std::regex re("\"css/falcon.css\"|\"/f16v2.js\"|\"js/cntrlr_(\\d+).js\"");
+    RegExCache re("\"css/falcon.css\"|\"/f16v2.js\"|\"js/cntrlr_(\\d+).js\"");
     std::cmatch m;
 
-    if (!std::regex_search(html.c_str(), m, re))
+    if (!std::regex_search(html.c_str(), m, *re.regex))
         return false;
 
     LogExcess(VB_SYNC, "%s is potentially a Falcon controller, checking further\n", ip.c_str());
@@ -199,10 +197,10 @@ bool NetworkController::DetectFalconController(const std::string& ip,
 bool NetworkController::DetectSanDevicesController(const std::string& ip,
                                                    const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a SanDevices controller\n", ip.c_str());
-    std::regex re("Controller Model (E[0-9]+)");
+    RegExCache re("Controller Model (E[0-9]+)");
     std::cmatch m;
 
-    if (!std::regex_search(html.c_str(), m, re))
+    if (!std::regex_search(html.c_str(), m, *re.regex))
         return false;
 
     LogExcess(VB_SYNC, "%s is potentially a SanDevices controller, checking further\n", ip.c_str());
@@ -213,11 +211,11 @@ bool NetworkController::DetectSanDevicesController(const std::string& ip,
     typeStr = m[1];
     systemMode = BRIDGE_MODE;
 
-    std::regex v4re("Firmware Version:</th></td><td></td><td>([0-9]+.[0-9]+)</td>");
-    std::regex v5re("Firmware Version:</th></td><td>([0-9]+.[0-9]+)</td>");
+    RegExCache v4re("Firmware Version:</th></td><td></td><td>([0-9]+.[0-9]+)</td>");
+    RegExCache v5re("Firmware Version:</th></td><td>([0-9]+.[0-9]+)</td>");
 
-    if ((std::regex_search(html.c_str(), m, v4re)) ||
-        (std::regex_search(html.c_str(), m, v5re))) {
+    if ((std::regex_search(html.c_str(), m, *v4re.regex)) ||
+        (std::regex_search(html.c_str(), m, *v5re.regex))) {
         version = m[1];
 
         if (version != "") {
@@ -241,10 +239,7 @@ bool NetworkController::DetectESPixelStickController(const std::string& ip,
                                                      const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is running ESPixelStick firmware\n", ip.c_str());
 
-    std::regex re("\"esps.js\"");
-    std::cmatch m;
-
-    if (!std::regex_search(html.c_str(), m, re))
+    if (!contains(html, "\"esps.js\""))
         return false;
 
     LogExcess(VB_SYNC, "%s is potentially an ESPixelStick, checking further\n", ip.c_str());
@@ -278,11 +273,12 @@ bool NetworkController::DetectESPixelStickController(const std::string& ip,
 
 bool NetworkController::DetectAlphaPixController(const std::string& ip, const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a AlphaPix controller\n", ip.c_str());
-    std::regex re("AlphaPix (\\d+|Flex|Evolution)");
-    std::regex re2("(\\d+) Port Ethernet to SPI Controller");
+    
+    RegExCache re("AlphaPix (\\d+|Flex|Evolution)");
+    RegExCache re2("(\\d+) Port Ethernet to SPI Controller");
     std::cmatch m;
 
-    if ((!std::regex_search(html.c_str(), m, re)) && (!std::regex_search(html.c_str(), m, re2)))
+    if ((!std::regex_search(html.c_str(), m, *re.regex)) && (!std::regex_search(html.c_str(), m, *re2.regex)))
         return false;
 
     LogExcess(VB_SYNC, "%s is potentially a AlphaPix controller, checking further\n", ip.c_str());
@@ -293,9 +289,9 @@ bool NetworkController::DetectAlphaPixController(const std::string& ip, const st
     typeStr = m[1];
     systemMode = BRIDGE_MODE;
 
-    std::regex vre("Currently Installed Firmware Version:  ([0-9]+.[0-9]+)");
+    RegExCache vre("Currently Installed Firmware Version:  ([0-9]+.[0-9]+)");
 
-    if (std::regex_search(html.c_str(), m, vre)) {
+    if (std::regex_search(html.c_str(), m, *vre.regex)) {
         version = m[1];
 
         if (version != "") {
@@ -317,12 +313,9 @@ bool NetworkController::DetectAlphaPixController(const std::string& ip, const st
 
 bool NetworkController::DetectHinksPixController(const std::string& ip, const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a HinksPix controller\n", ip.c_str());
-    std::regex re("HinksPix Config");
-    std::cmatch m;
-
-    if (!std::regex_search(html.c_str(), m, re))
+    if (!contains(html, "HinksPix Config")) {
         return false;
-
+    }
     LogExcess(VB_SYNC, "%s is potentially a HinksPix controller, checking further\n", ip.c_str());
 
     vendor = "HolidayCoro";
@@ -338,10 +331,11 @@ bool NetworkController::DetectHinksPixController(const std::string& ip, const st
 bool NetworkController::DetectDIYLEDExpressController(const std::string& ip,
                                                       const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a DIYLEDExpress controller\n", ip.c_str());
-    std::regex re("DIYLEDExpress E1.31 Bridge Configuration Page");
+    
+    RegExCache re("DIYLEDExpress E1.31 Bridge Configuration Page");
     std::cmatch m;
 
-    if (!std::regex_search(html.c_str(), m, re))
+    if (!std::regex_search(html.c_str(), m, *re.regex))
         return false;
 
     LogExcess(VB_SYNC, "%s is potentially a DIYLEDExpress controller, checking further\n", ip.c_str());
@@ -353,9 +347,9 @@ bool NetworkController::DetectDIYLEDExpressController(const std::string& ip,
     systemMode = BRIDGE_MODE;
 
     //Firmware Rev: 4.02
-    std::regex vre("Firmware Rev: ([0-9]+.[0-9]+)");
+    RegExCache vre("Firmware Rev: ([0-9]+.[0-9]+)");
 
-    if (std::regex_search(html.c_str(), m, vre)) {
+    if (std::regex_search(html.c_str(), m, *vre.regex)) {
         version = m[1];
 
         if (version != "") {

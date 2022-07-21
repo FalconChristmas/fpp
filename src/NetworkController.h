@@ -11,10 +11,6 @@
  * included LICENSE.LGPL file.
  */
 
-#include <string>
-
-#include "fpp-pch.h"
-
 #include "MultiSync.h"
 
 class NetworkController {

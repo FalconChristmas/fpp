@@ -16,7 +16,6 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <regex>
 #include <time.h>
 
 #include "Playlist.h"
@@ -37,6 +36,7 @@
 #include "PlaylistEntryScript.h"
 #include "PlaylistEntrySequence.h"
 #include "PlaylistEntryURL.h"
+#include "../util/RegExCache.h"
 
 static std::list<Playlist*> PL_CLEANUPS;
 Playlist* playlist = NULL;
@@ -235,10 +235,10 @@ Json::Value Playlist::LoadJSON(const char* filename) {
 std::string sanitizeMediaName(std::string mediaName) {
     LogDebug(VB_PLAYLIST, "Searching for Media File (%s)\n", mediaName.c_str());
     // Same regex as PHP's sanitizeFilename
-    std::regex re("([^\\w\\s\\d\\-_~,;\\[\\]\\(\\).])");
+    RegExCache rec("([^\\w\\s\\d\\-_~,;\\[\\]\\(\\).])");
     // Check raw format for older Music uploads
     std::string tmpMedia = FPP_DIR_MUSIC("/" + mediaName);
-    std::string tmpMedialClean = std::regex_replace(mediaName, re, "");
+    std::string tmpMedialClean = std::regex_replace(mediaName, *rec.regex, "");
 
     LogDebug(VB_PLAYLIST, "SanitizeMedia: Checking Raw Music (%s)\n", tmpMedia.c_str());
     if (FileExists(tmpMedia)) {
@@ -246,7 +246,7 @@ std::string sanitizeMediaName(std::string mediaName) {
     }
 
     // Try Cleaned Music
-    tmpMedia = FPP_DIR_MUSIC("/" + std::regex_replace(mediaName, re, ""));
+    tmpMedia = FPP_DIR_MUSIC("/" + tmpMedialClean);
     LogDebug(VB_PLAYLIST, "SanitizeMedia: Checking Cleaned Music (%s)\n", tmpMedia.c_str());
     if (FileExists(tmpMedia)) {
         return tmpMedialClean;
@@ -260,7 +260,7 @@ std::string sanitizeMediaName(std::string mediaName) {
     }
 
     // Try cleaned video file
-    tmpMedia = FPP_DIR_VIDEO("/" + std::regex_replace(mediaName, re, ""));
+    tmpMedia = FPP_DIR_VIDEO("/" + tmpMedialClean);
     LogDebug(VB_PLAYLIST, "SanitizeMedia: Checking Clean Video (%s)\n", tmpMedia.c_str());
     if (FileExists(tmpMedia)) {
         return tmpMedialClean;
