@@ -1742,8 +1742,6 @@ function copyFailed(id) {
 function addProxyForIP(rowID) {
     var ip = ipFromRowID(rowID);
     		$.post("api/proxies/" + ip,  "AddProxy").done(function(data) {
-			$.jGrowl("Proxy Set");
-			console.log(data);
 		}).fail(function(data) {
 			DialogError("Failed to set Proxy", "Post failed");
 		});
