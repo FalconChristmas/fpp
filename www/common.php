@@ -1030,10 +1030,16 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     </script>
 ";
 
+    echo "<input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' ";
+
+    if (isset($sData['step']) && $sData['step'] != 1) {
+        echo "step='" . $sData['step'] . "' ";
+    }
+
     if (isset($sData['onChange'])) {
-        echo "<input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $sData['onChange'] . "();' value=\"";
+        echo "onChange='" . $sData['onChange'] . "();' value=\"";
     } else {
-        echo "<input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $changedFunction . "();' value=\"";
+        echo "onChange='" . $changedFunction . "();' value=\"";
     }
 
     $curValue = "";
