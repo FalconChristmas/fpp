@@ -168,7 +168,10 @@ PrintSettingGroup('services');
 
 if ($settings['uiLevel'] >= 1) {
 ?>
-<input type='button' class='buttons' onClick='ShowResetConfigPopup();' value='Reset FPP Config'>
+&nbsp<i class="fas fa-fw fa-graduation-cap ui-level-1"></i>
+&nbsp<input type='button' class='buttons' onClick='ShowResetConfigPopup();' value='Reset FPP Config'>
+<img id="Reset_fpp_img" title="This will allow you to reset your controller to factory settings. 
+You can individually select what settings you want to reset." src="images/redesign/help-icon.svg" class="icon-help" exifid="912897540" oldsrc="http://192.168.1.200/images/redesign/help-icon.svg">
 <?
 }
 ?>
