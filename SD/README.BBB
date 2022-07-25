@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# am335x-debian-11.3-minimal-armhf-2022-05-01-2gb.img
-# from https://rcn-ee.net/rootfs/bb.org/testing/2022-05-01/bullseye-minimal/
+# am335x-debian-11.3-minimal-armhf-2022-07-01-2gb.img
+# from https://rcn-ee.net/rootfs/bb.org/testing/2022-07-01/bullseye-minimal/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 

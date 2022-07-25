@@ -160,8 +160,9 @@ echo "Installing bootloader "
 echo ""
 
 #install bootloader
+if [ -f  /opt/fpp/bin.bbb/bootloader/install.sh ]; then
 /opt/fpp/bin.bbb/bootloader/install.sh
-
+fi
 
 if [ "$1" = "btrfs" ]; then
     prepareBTRFSPartitions
