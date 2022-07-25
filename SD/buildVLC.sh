@@ -3,8 +3,8 @@
 cd /opt
 git clone https://code.videolan.org/videolan/vlc.git
 cd vlc
-# this is latest master as of 05/24/2022
-git checkout 941479da0dbd337cf26766b5341b533f098cf88b
+# this is latest master as of 07/25/2022
+git checkout 61556384147016a0a43351af9c13f1a898c85a89
 # this commit is causing a segfault, logged as:
 # https://code.videolan.org/videolan/vlc/-/issues/25790
 git revert --no-edit fbb54457118b61f56f4d2c12c5e7a170c04ea48d
@@ -41,4 +41,11 @@ make install
 ldconfig
 cd /opt
 rm -rf vlc
+
+cat > /usr/local/include/vlc/fpp-vlc-build.h << EOF
+#pragma once
+#define FPP_VLC_DATE 20220725
+#define LIBVLC_MEDIA_NEWPATH(a, b) libvlc_media_new_path(b)
+#define LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(a, b) libvlc_media_player_new_from_media(a, b)
+EOF
 
