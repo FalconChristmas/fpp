@@ -44,12 +44,13 @@ function CloseKioskDialog() {
     SetRebootFlag();
 }
 
-var resetAreas = ['config', 'media', 'sequence', 'playlists', 'channeloutputs', 'schedule', 'settings', 'uploads', 'logs', 'plugins', 'pluginConfigs', 'user'];
+var resetAreas = ['config', 'network', 'media', 'sequence', 'playlists', 'channeloutputs', 'schedule', 'settings', 'uploads', 'logs', 'plugins', 'pluginConfigs', 'user'];
 function ResetAllChanged() {
     var checked = $('#rc_all').is(':checked');
 
     for (var i = 0; i < resetAreas.length; i++) {
-        $('#rc_' + resetAreas[i]).prop('checked', checked);
+        if (resetAreas[i] != 'network')
+            $('#rc_' + resetAreas[i]).prop('checked', checked);
     }
 }
 
@@ -185,10 +186,11 @@ You can individually select what settings you want to reset." src="images/redesi
 <div id='resetPopup' title='Reset FPP Config' style="display: none">
     <span id='resetConfigMenu'>
         <b>Choose areas to reset:</b><br>
-        <input type='checkbox' id='rc_all' onClick='ResetAllChanged();'> - Everything (includes everything below)<br>
+        <input type='checkbox' id='rc_all' onClick='ResetAllChanged();'> - Everything (includes everything below except network)<br>
         <table border=0 cellpadding=2>
             <tr><td valign='top'><b>FPP</b><br>
-                    <input type='checkbox' id='rc_config'> - Configuration Files<br>
+                    <input type='checkbox' id='rc_config'> - Configuration Files (excludes network)<br>
+                    <input type='checkbox' id='rc_network'> - Network Config Files<br>
                     <input type='checkbox' id='rc_channeloutputs'> - Channel Outputs<br>
                     <input type='checkbox' id='rc_logs'> - Logs<br>
                     <input type='checkbox' id='rc_media'> - Media Files (audio, video, image)<br>
@@ -208,7 +210,8 @@ You can individually select what settings you want to reset." src="images/redesi
                     </td>
                 <td width='10px'></td>
                 <td valign='top'><b>OS</b><br>
-                    <input type='checkbox' id='rc_user'> - root and fpp user files (ssh keys, bash history)<br>
+                    <input type='checkbox' id='rc_user'> - root and fpp user files<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(ssh keys, bash history)<br>
                     </td>
             </tr>
         </table>

@@ -29,11 +29,14 @@ $files['config'] = array(
     'config/dns',
     'config/gpio.json',
     'config/instantCommand.json',
-    'config/interface.*',
     'config/model-overlays.json',
     'config/virtualdisplaymap',
     'fpp-info.json',
     'exim4/*'
+);
+$files['network'] = array(
+    'config/interface.*',
+    '/var/lib/connman/fpp.config'
 );
 $files['media'] = array(
     'images/*',
