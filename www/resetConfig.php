@@ -84,11 +84,12 @@ $files['user'] = array(
     '/root/.ssh/known_hosts'
 );
 
-# fill out our 'all' category with everything else
+# fill out our 'all' category with everything else except Networking
 foreach ($files as $k => $v) {
     if ($k != 'all') {
         foreach ($v as $f) {
-            array_push($files['all'], $f);
+            if ($f != 'network')
+                array_push($files['all'], $f);
         }
     }
 }
