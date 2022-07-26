@@ -58,7 +58,7 @@ Do a system upgrade to make sure everything is at the latest versions
     sudo apt-get update
     sudo apt-get upgrade
     sudo apt-get clean
-    localectl set-locale LANG="en_US.UTF-8"
+    sudo localectl set-locale LANG="en_US.UTF-8"
 
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
 

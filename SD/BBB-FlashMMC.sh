@@ -2,6 +2,8 @@
 
 export PARTSIZE=""
 export DOREBOOT="y"
+export CLEARFPP="n"
+
 if [ "$1" == "-s" ]; then
     PARTSIZE=$2
     shift; shift;
@@ -11,6 +13,10 @@ if [ "$1" == "-noreboot" ]; then
   shift;
 fi
 
+if [ "$1" == "-clear" ]; then
+  CLEARFPP="y"
+  shift;
+fi
 
 DEVICE=$2
 if [ "x${DEVICE}" == "x" ]; then
@@ -222,7 +228,27 @@ rm -rf /tmp/rootfs/var/lib/connman/eth*
 find /tmp/rootfs/var/log/  -type f -delete
 rm -rf /tmp/rootfs/home/fpp/media/logs/*
 rm -f /tmp/rootfs/root/.bash_history
-rm -f /tmp/rootfs/home/fpp/.bash_history
+
+
+if [ "$CLEARFPP" == "y" ]; then
+    rm -f /tmp/rootfs/home/fpp/.bash_history
+    rm -f /tmp/rootfs/home/fpp/media/settings
+    rm -f /tmp/rootfs/home/fpp/media/config/*
+    rm -f /tmp/rootfs/home/fpp/media/sequences/*
+    rm -f /tmp/rootfs/home/fpp/media/music/*
+    rm -f /tmp/rootfs/home/fpp/media/logs/*
+    rm -f /tmp/rootfs/home/fpp/media/tmp/*
+    rm -f /tmp/rootfs/home/fpp/media/images/*
+    rm -f /tmp/rootfs/home/fpp/media/effects/*
+    rm -f /tmp/rootfs/home/fpp/media/cache/*
+    rm -f /tmp/rootfs/home/fpp/media/backups/*
+    rm -f /tmp/rootfs/home/fpp/media/playlists/*
+    rm -f /tmp/rootfs/home/fpp/media/plugins/*
+    rm -f /tmp/rootfs/home/fpp/media/scripts/*
+    rm -f /tmp/rootfs/home/fpp/media/videos/*
+    rm -f /tmp/rootfs/home/fpp/media/uploads/*
+fi
+
 
 
 echo "---------------------------------------"
