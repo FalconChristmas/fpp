@@ -84,18 +84,9 @@ If you are installing to create a SD image zip, do the following:
 	# Reboot to make sure things take
 	sudo shutdown -r now
 
-	Once the Pi reboots, login as the new fpp user and run the following:
+	Once the Pi reboots, login as the new fpp user and check to make sure everything
+    is up and running and working properly
 
-	# Reset the SSH keys
-	sudo rm -rf /etc/ssh/ssh_host*key*
-	# Remove old pi user's home directory
-	sudo rm -rf /home/pi
-	# Clean up fppd logs
-	sudo systemctl stop fppd.service
-	sudo systemctl stop apache2.service
-	cd /home/fpp/media/logs ; ls -al ; /bin/ls -1 | while read FILE; do > ${FILE}; done ; ls -al
-	# Zero out free space so the SD image will compress better
-	sudo dd if=/dev/zero of=zero.dd bs=4M ; sudo rm zero.dd ; df -k
 	# Shutdown the Pi
 	sudo shutdown -h now
 
@@ -104,10 +95,22 @@ the proper device name for your SD card in place of '/dev/sdg'):
 
 	NOTE: The 3800 on the "BLOCK=" line below must be at least the new size of the
 	      second partition created at the top of this document using fdisk.
+    NOTE: the linux system needs to have zerofree and squashfs-tools installed
+       apt-get install zerofree squashfs-tools
 
-	VERSION=v5.0-Pi
+    DEVICE=/dev/sdg
+    mount "${DEVICE}2" /mnt
+    rm -rf /mnt/home/pi
+    rm -f /mnt/home/fpp/media/settings
+    rm -f /mnt/home/fpp/media/config/*
+    rm -f /mnt/home/fpp/media/logs/*
+    rm -f /mnt/var/logs/*
+    rm -f /mnt/etc/ssh/*key*
+    umount /mnt
+    zerofree -v "${DEVICE}2"
+	VERSION=v6.0-Pi
 	BLOCKS=3800
-	sudo time dd if=/dev/sdg bs=1M count=${BLOCKS} > FPP-${VERSION}.img
+	sudo time dd if=${DEVICE} bs=1M count=${BLOCKS} > FPP-${VERSION}.img
 	time zip -9 FPP-$VERSION.zip FPP-${VERSION}.img
 	unzip -v FPP-$VERSION.zip
 
@@ -117,75 +120,6 @@ for testing/release.
 
 # To create the squashfs image needed for OS updates
 # On a separate Linux box:  (this will take a LOOOONG time)
-apt-get install squashfs-tools
 mount /dev/sda2 /mnt
 mount /dev/sda1 /mnt/boot
-mksquashfs /mnt /home/fpp/media/Pi-5.0.fppos -b 512K -comp xz
-
-=============================================================================
-
-ALPHA set of instructions for switching Pi root file system to btrfs. The
-current SD images will still use ext4.
-
-NOTE: There are several known issues with this, including the fact that
-upgrading the kernel will prevent the Pi from booting because the initrd may
-not be rebuilt and the initrd filename in config.txt will be incorrect.
-
-# update /boot/cmdline.txt to change root location to "root=/dev/mmcblk0p2"
-
-sudo apt-get update
-sudo apt-get -y install btrfs-tools btrfs-progs
-
-# append "btrfs" to /etc/initramfs-tools/modules
-echo "btrfs" | sudo tee -a /etc/initramfs-tools/modules
-
-#make sure we have the latest supported bootloader and kernel
-sudo apt-get dist-upgrade -y
-sudo apt-get install --reinstall raspberrypi-bootloader raspberrypi-kernel
-
-sudo update-initramfs -c -k `uname -r`
-
-# update /boot/config.txt to add 'initramfs initrd.img-4.14.18+' (or correct
-# kernel version) to the end of the file
-
-# reboot to make sure system still boots correctly
-
-# now copy /dev/mmcblk0p2, reformat as btfs, mount with compress option,
-# and copy data back.  NOTE: This should be done on a newer system so that
-# 'zstd' compression is used instead of zlib or lzo
-
-sudo mkfs.btrfs -L root -f /dev/sdg2
-sudo mount -o compress /dev/sdg2 /mnt/tmp
-
-sudo losetup /dev/loop0 ${IMGFILE}
-sudo kpartx -av /dev/loop0
-sudo mount /dev/mapper/loop0p2 /mnt/tmp2
-sudo rsync -avxHW /mnt/tmp2/ /mnt/tmp/
-sudo umount /mnt/tmp2
-sudo kpartx -d /dev/loop0
-sudo losetup -d /dev/loop0
-
-# update /mnt/tmp/etc/fstab to set btrfs filesystem and compress mount option
-/dev/mmcblk0p2  /               btrfs   compress=zstd,noatime  0    1
-
-# also update /boot to read-only at the same time.
-
-sudo umount /mnt/tmp
-
-# boot the SD up in the Pi
-
-TODO
-- setup something to rebuild the initrd and update /boot/config.txt whenever a
-  new kernel is installed.
-
-
-Attempt to expand root filesystem to fill SD card
-sudo sfdisk --force --no-reread /dev/mmcblk0 <<-EOF
-8192,85045,0x0C,*
-94208,,,-
-EOF
-
-sudo partprobe /dev/mmcblk0
-
-sudo btrfs filesystem resize max /
-
+mksquashfs /mnt /home/fpp/media/Pi-6.0.fppos -b 512K -comp xz

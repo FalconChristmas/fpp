@@ -1190,6 +1190,12 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
     echo "PRIORITY=100" >> /etc/default/zramswap
     echo "vm.swappiness=1" >> /etc/sysctl.d/10-swap.conf
     echo "vm.vfs_cache_pressure=50" >> /etc/sysctl.d/10-swap.conf
+    
+    if $isimage; then
+        # make sure the existing users are completely removed
+        rm -rf /home/pi
+        rm -rf /home/debian
+    fi
 fi
 if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
     # Bootloader on recent bullseye images does NOT boot on Beagles, use a version we
