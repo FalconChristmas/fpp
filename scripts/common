@@ -139,7 +139,7 @@ getSetting() {
 	SETTING=$1
 	if [ -f "${CFGFILE}" ]
 	then
-		grep -i "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//" -e 's/"//g'
+		grep -i --binary-files=text "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//" -e 's/"//g'
 	fi
 }
 
@@ -163,5 +163,6 @@ setSetting() {
             sed -i -e "/^${SETTING} *= *\"/d" ${CFGFILE}
         fi
         echo "${SETTING} = \"${VALUE}\"" >> ${CFGFILE}
+        sed -i 's/\x0//g' ${CFGFILE}
     fi
 }
