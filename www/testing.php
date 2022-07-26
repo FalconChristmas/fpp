@@ -191,7 +191,7 @@ function UpdateStartEndFromModel()
 	if (lastEnabledState) {
         var data = {
             "command": "Test Stop",
-            "multisyncCommand": $('#multisyncEnabled').is('checked'),
+            "multisyncCommand": $('#multisyncEnabled').is(':checked'),
             "multisyncHosts": "",
             "args": []
         };
