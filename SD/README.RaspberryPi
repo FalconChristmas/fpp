@@ -98,23 +98,23 @@ the proper device name for your SD card in place of '/dev/sdg'):
     NOTE: the linux system needs to have zerofree and squashfs-tools installed
        apt-get install zerofree squashfs-tools
 
-    DEVICE=/dev/sdg
+    DEVICE=/dev/sdc
+    VERSION=v6.0
+    BLOCKS=3800
     mount "${DEVICE}2" /mnt
+    rm -rf /mnt/usr/src/linux-headers-*
     rm -rf /mnt/home/pi
     rm -f /mnt/home/fpp/media/settings
     rm -f /mnt/home/fpp/media/config/*
     rm -f /mnt/home/fpp/media/logs/*
-    rm -f /mnt/var/logs/*
+    rm -f /mnt/var/log/*
     rm -f /mnt/etc/ssh/*key*
     umount /mnt
     zerofree -v "${DEVICE}2"
-	VERSION=v6.0-Pi
-	BLOCKS=3800
-	sudo time dd if=${DEVICE} bs=1M count=${BLOCKS} > FPP-${VERSION}.img
-	time zip -9 FPP-$VERSION.zip FPP-${VERSION}.img
-	unzip -v FPP-$VERSION.zip
+	sudo time dd if=${DEVICE} of=FPP-${VERSION}-Pi.img bs=1M count=${BLOCKS}
+	time zip -9 FPP-$VERSION-Pi.img.zip FPP-${VERSION}-Pi.img
 
-This will create a file called FPP-${VERSION}.zip that can be distributed
+This will create a file called FPP-${VERSION}-Pi.img.zip that can be distributed
 for testing/release.
 
 
@@ -122,4 +122,6 @@ for testing/release.
 # On a separate Linux box:  (this will take a LOOOONG time)
 mount /dev/sda2 /mnt
 mount /dev/sda1 /mnt/boot
-mksquashfs /mnt /home/fpp/media/Pi-6.0.fppos -b 512K -comp xz
+mksquashfs /mnt ~/Pi-${VERSION}.fppos -b 512K -comp xz
+cd /mnt/root
+tar -czf ~/ccache-Pi-2022.x-${VERSION}.tar.gz .ccache
