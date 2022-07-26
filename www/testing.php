@@ -363,7 +363,7 @@ function SetTestMode()
 	if (enabled || lastEnabledState) {
         var data = {
             "command": "Test Start",
-            "multisyncCommand": $('#multicastEnabled').is('checked'),
+            "multisyncCommand": $('#multicastEnabled').is(':checked'),
             "multisyncHosts": "",
             "args": []
         };
