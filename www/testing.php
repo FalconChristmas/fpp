@@ -191,7 +191,7 @@ function UpdateStartEndFromModel()
 	if (lastEnabledState) {
         var data = {
             "command": "Test Stop",
-            "multisyncCommand": $('#multicastEnabled').is('checked'),
+            "multisyncCommand": $('#multisyncEnabled').is('checked'),
             "multisyncHosts": "",
             "args": []
         };
@@ -363,7 +363,7 @@ function SetTestMode()
 	if (enabled || lastEnabledState) {
         var data = {
             "command": "Test Start",
-            "multisyncCommand": $('#multicastEnabled').is(':checked'),
+            "multisyncCommand": $('#multisyncEnabled').is(':checked'),
             "multisyncHosts": "",
             "args": []
         };
@@ -425,7 +425,7 @@ function SetTestMode()
         if (!enabled) {
             data = {
                 "command": "Test Stop",
-                "multisyncCommand": $('#multicastEnabled').is('checked'),
+                "multisyncCommand": $('#multisyncEnabled').is(':checked'),
                 "multisyncHosts": "",
                 "args": []
             };
@@ -778,7 +778,7 @@ include 'menu.inc';?>
 						<div class="backdrop-dark">
 							<label for="testModeEnabled" class="mb-0 d-block">
 								<div><b>Enable Test Mode:</b>&nbsp;<input type='checkbox' class="ml-1" id='testModeEnabled' onClick='SetTestMode();'></div>
-								<div><b>Multisync:</b>&nbsp;<input type='checkbox' class="ml-1" id='multicastEnabled' onClick='SetTestMode();'></div>
+								<div><b>Multisync:</b>&nbsp;<input type='checkbox' class="ml-1" id='multisyncEnabled' onClick='SetTestMode();'></div>
 							</label>
 						</div>
 						<div class="backdrop-dark mt-3">
