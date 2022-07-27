@@ -99,7 +99,7 @@ the proper device name for your SD card in place of '/dev/sdg'):
        apt-get install zerofree squashfs-tools
 
     DEVICE=/dev/sdc
-    VERSION=v6.0
+    VERSION=6.0
     BLOCKS=3800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
@@ -111,8 +111,8 @@ the proper device name for your SD card in place of '/dev/sdg'):
     rm -f /mnt/etc/ssh/*key*
     umount /mnt
     zerofree -v "${DEVICE}2"
-	sudo time dd if=${DEVICE} of=FPP-${VERSION}-Pi.img bs=1M count=${BLOCKS}
-	time zip -9 FPP-$VERSION-Pi.img.zip FPP-${VERSION}-Pi.img
+	sudo time dd if=${DEVICE} of=FPP-v${VERSION}-Pi.img bs=1M count=${BLOCKS}
+	time zip -9 FPP-v$VERSION-Pi.img.zip FPP-v${VERSION}-Pi.img
 
 This will create a file called FPP-${VERSION}-Pi.img.zip that can be distributed
 for testing/release.
@@ -120,8 +120,11 @@ for testing/release.
 
 # To create the squashfs image needed for OS updates
 # On a separate Linux box:  (this will take a LOOOONG time)
-mount /dev/sda2 /mnt
-mount /dev/sda1 /mnt/boot
-mksquashfs /mnt ~/Pi-${VERSION}.fppos -b 512K -comp xz
+mount ${DEVICE}2 /mnt
+mount ${DEVICE}1 /mnt/boot
+mksquashfs /mnt Pi-${VERSION}.fppos -b 512K -comp xz
 cd /mnt/root
-tar -czf ~/ccache-Pi-2022.x-${VERSION}.tar.gz .ccache
+tar -czf ~/ccache-Pi-2022.x-v${VERSION}.tar.gz .ccache
+cd ~
+umount /mnt/boot
+umount /mnt

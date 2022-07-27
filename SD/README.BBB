@@ -115,18 +115,11 @@ dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=3800
 /opt/fpp/SD/BBB-FlashMMC.sh -s 3500M -noreboot -clear ext4 /dev/mmcblk0
 rmdir /tmp/rootfs
 
-#On a MAC, the resulting SD cards can be used to create an image via:
-# use diskutil list to get the disk name (/dev/rdisk3)
-sudo dd if=/dev/rdisk3 of=FPP-v6.0-BBB.img bs=1m count=3572
-
-
-# For btrfs:
-
-dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=2000
-/opt/fpp/SD/BBB-FlashMMC.sh -s 1750M -noreboot -clear btrfs /dev/mmcblk0
-
-sudo dd if=/dev/rdisk3 of=FPP-v6.0-BBB-btrfs.img bs=1m count=2000
-
+# Put the SD card back in a Linux system and run the following (substitute
+# the proper device name for your SD card in place of '/dev/sdc'):
+VERSION=6.0
+DEVICE=/dev/sdc
+sudo dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 
 
 # To create the squashfs image needed for OS updates
@@ -134,5 +127,9 @@ sudo dd if=/dev/rdisk3 of=FPP-v6.0-BBB-btrfs.img bs=1m count=2000
 # mksquashfs is multithreaded so its recommended to use a multicore
 # box for this and not an actual BBB
 apt-get install squashfs-tools
-mount /dev/sda1 /mnt
-mksquashfs /mnt /home/fpp/media/BBB-6.0.fppos -b 512K -comp xz
+mount ${DEVICE}1 /mnt
+mksquashfs /mnt BBB-${VERSION}.fppos -b 512K -comp xz
+cd /mnt/root
+tar -czf ~/ccache-BBB-2022.x-v${VERSION}.tar.gz .ccache
+cd ~
+umount /mnt
