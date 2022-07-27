@@ -50,7 +50,7 @@
 SCRIPTVER="6.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="2022-07"
-FPPCFGVER="71"
+FPPCFGVER="72"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -1108,6 +1108,9 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     sed -i -e "s+#uboot_overlay_pru=AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+g" /boot/uEnv.txt
     echo "bootdelay=0" >> /boot/uEnv.txt
     echo "#cmdline=init=/opt/fpp/SD/BBB-AutoFlash.sh" >> /boot/uEnv.txt
+
+    # remove the udev rules that create the SoftAp interface on the bbbw and bbggw
+    rm -f /etc/udev/rules.d/*SoftAp*
 fi
 
 if $isimage; then
