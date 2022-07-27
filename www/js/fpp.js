@@ -3071,7 +3071,7 @@ function validateUniverseData() {
         // size
         txtSize = document.getElementById("txtSize[" + i + "]");
         var max = 512;
-        if (universeType == 4 || universeType == 5) {
+        if (universeType == 4 || universeType == 5 || universeType == 8) {
             max = FPPD_MAX_CHANNELS;
         }
         if (!validateNumber(txtSize, 1, max)) {
