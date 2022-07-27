@@ -381,7 +381,7 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
 
             nft add table nat
             nft 'add chain nat postrouting { type nat hook postrouting priority 100 ; }'
-            nft add rule nat postrouting of ${INTERFACE} masquerade
+            nft add rule nat postrouting oif ${INTERFACE} masquerade
         fi
 
         echo "$ADDRESSLINES" >> $TMPFILE
