@@ -238,6 +238,7 @@ static void handleCrash(int s) {
         return;
     }
     inCrashHandler = true;
+    int crashLog = getSettingInt("ShareCrashData", 3);
     LogErr(VB_ALL, "Crash handler called:  %d\n", s);
 
     if (!dumpstack_gdb()) {
@@ -257,14 +258,24 @@ static void handleCrash(int s) {
         close(fd);
         free(strs);
     }
-
-    int crashLog = getSettingInt("ShareCrashData", 3);
     if (crashLog >= 1) {
         std::set<std::string> filenames;
         std::string mediaDir = getFPPMediaDir();
         std::string cdir = mediaDir + "/crashes";
+
+        chdir(mediaDir.c_str());
+        mkdir(cdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        SetFilePerms(cdir, true);
+
+        bool hasRecent = false;
         for (const auto& entry : std::filesystem::directory_iterator(cdir)) {
             filenames.insert(entry.path());
+            auto ftime = entry.last_write_time();
+            auto stm = std::chrono::file_clock::to_sys(ftime);
+            auto tdiff = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - stm);            
+            if (tdiff.count() < 60) {
+                hasRecent = true;
+            }
         }
         while (filenames.size() > 10) {
             std::string f = *filenames.begin();
@@ -272,48 +283,50 @@ static void handleCrash(int s) {
             filenames.erase(filenames.begin());
         }
 
-        char tbuffer[32];
-        time_t rawtime;
-        time(&rawtime);
-        const auto timeinfo = localtime(&rawtime);
-        strftime(tbuffer, sizeof(tbuffer), "%Y-%m-%d_%H-%M-%S", timeinfo);
+        if (!hasRecent) {
+            char tbuffer[32];
+            time_t rawtime;
+            time(&rawtime);
+            const auto timeinfo = localtime(&rawtime);
+            strftime(tbuffer, sizeof(tbuffer), "%Y-%m-%d_%H-%M-%S", timeinfo);
 #ifdef PLATFORM_ARMBIAN
-        char sysType[] = "Armbian";
+            char sysType[] = "Armbian";
 #elif defined(PLATFORM_BBB)
-        char sysType[] = "BBB";
+            char sysType[] = "BBB";
 #elif defined(PLATFORM_PI)
-        char sysType[] = "Pi";
+            char sysType[] = "Pi";
 #elif defined(PLATFORM_OSX)
-        char sysType[] = "MacOS";
+            char sysType[] = "MacOS";
 #elif defined(PLATFORM_DOCKER)
-        char sysType[] = "Docker";
+            char sysType[] = "Docker";
 #elif defined(PLATFORM_DEBIAN)
-        char sysType[] = "Debian";
+            char sysType[] = "Debian";
 #else
-        char sysType[] = "Unknown";
+            char sysType[] = "Unknown";
 #endif
-        char zfName[128];
-        sprintf(zfName, "crashes/fpp-%s-%s-%s.zip", sysType, getFPPVersion(), tbuffer);
+            char zfName[128];
+            sprintf(zfName, "crashes/fpp-%s-%s-%s.zip", sysType, getFPPVersion(), tbuffer);
 
-        char zName[1024];
-        chdir(mediaDir.c_str());
-        mkdir(cdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        SetFilePerms(cdir, true);
-        sprintf(zName, "zip -r %s /tmp/fppd_crash.log", zfName);
-        if (crashLog > 1) {
-            strcat(zName, " settings");
-            if (crashLog > 2) {
-                strcat(zName, " config tmp logs/fppd.log");
+            char zName[1024];
+            sprintf(zName, "zip -r %s /tmp/fppd_crash.log", zfName);
+            if (crashLog > 1) {
+                strcat(zName, " settings");
+                if (crashLog > 2) {
+                    strcat(zName, " config tmp logs/fppd.log");
+                }
             }
+            system(zName);
+            SetFilePerms(zfName);
+            sprintf(zName, "curl https://dankulp.com/crashUpload/index.php -F userfile=@%s", zfName);
+            system(zName);
+        } else {
+            LogErr(VB_ALL, "Very recent crash report found, not uploading\n");
         }
-        system(zName);
-        SetFilePerms(zfName);
-        sprintf(zName, "curl https://dankulp.com/crashUpload/index.php -F userfile=@%s", zfName);
-        system(zName);
     }
     inCrashHandler = false;
     runMainFPPDLoop = 0;
     if (s != SIGQUIT && s != SIGUSR1) {
+        WarningHolder::StopNotifyThread();
         exit(-1);
     }
 }
