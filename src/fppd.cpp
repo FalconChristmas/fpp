@@ -278,7 +278,6 @@ static void handleCrash(int s) {
             auto stm = std::chrono::file_clock::to_sys(ftime);
 #endif
             auto tdiff = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - stm);            
-            printf("tdiff: %d\n", tdiff.count());
             if (tdiff.count() < 60) {
                 hasRecent = true;
             }
