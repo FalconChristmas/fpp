@@ -271,8 +271,14 @@ static void handleCrash(int s) {
         for (const auto& entry : std::filesystem::directory_iterator(cdir)) {
             filenames.insert(entry.path());
             auto ftime = entry.last_write_time();
+#if defined(PLATFORM_OSX)
+            std::time_t tt = decltype(ftime)::clock::to_time_t(ftime);
+            auto stm = std::chrono::system_clock::from_time_t(tt);
+#else
             auto stm = std::chrono::file_clock::to_sys(ftime);
+#endif
             auto tdiff = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - stm);            
+            printf("tdiff: %d\n", tdiff.count());
             if (tdiff.count() < 60) {
                 hasRecent = true;
             }
