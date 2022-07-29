@@ -3,6 +3,8 @@ Description=FPPd
 After=network.target generic-board-startup.service remote-fs.target getty.target fpp_postnetwork.service
 Requires=network.target 
 DefaultDependencies=no
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
