@@ -208,7 +208,6 @@ bool HasAudioForMedia(std::string& mediaFilename) {
         mediaFilename = fullMediaPath;
         return true;
     }
-    mediaFilename = "";
     return false;
 }
 bool HasVideoForMedia(std::string& filename) {
