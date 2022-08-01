@@ -317,7 +317,7 @@ static void handleCrash(int s) {
             if (crashLog > 1) {
                 strcat(zName, " settings");
                 if (crashLog > 2) {
-                    strcat(zName, " config tmp logs/fppd.log");
+                    strcat(zName, " config tmp logs/fppd.log logs/apache2-error.log playlists");
                 }
             }
             system(zName);
