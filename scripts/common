@@ -136,11 +136,13 @@ teeOutput() {
 }
 
 getSetting() {
-	SETTING=$1
-	if [ -f "${CFGFILE}" ]
-	then
-		grep -i --binary-files=text "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//" -e 's/"//g'
-	fi
+    SETTING=$1
+    if [ -f "${CFGFILE}" ]; then
+        exec {FD}<$CFGFILE
+        flock -n ${FD} || exit 1
+        grep -i --binary-files=text "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//" -e 's/"//g'
+        flock -u ${FD}
+    fi
 }
 
 # getSettingInfo SETTING_NAME ATTRIBUTE_NAME
@@ -158,11 +160,14 @@ setSetting() {
     VALUE=$2
     
     if [ -f "${CFGFILE}" ]; then
+        exec {FD}<$CFGFILE
+        flock -n ${FD} || exit 1
         OLD=$(getSetting $SETTING)
         if [ "x${OLD}" != "x" ]; then
             sed -i -e "/^${SETTING} *= *\"/d" ${CFGFILE}
         fi
         echo "${SETTING} = \"${VALUE}\"" >> ${CFGFILE}
         sed -i 's/\x0//g' ${CFGFILE}
+        flock -u ${FD}
     fi
 }
