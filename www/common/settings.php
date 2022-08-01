@@ -116,7 +116,7 @@ function SetupHtaccess($enablePW)
     // Don't block Fav icon
     $data .= "<FilesMatch \"^(favicon)\.ico$\">\nAllow from All\nSatisfy Any\n</FilesMatch>\n";
 
-    file_put_contents($filename, $data);
+    file_put_contents($filename, $data, LOCK_EX);
 }
 
 function EnableUIPassword($value)
@@ -153,7 +153,7 @@ function SetUIPassword($value)
         unlink($filename);
     }
 
-    file_put_contents($filename, $data);
+    file_put_contents($filename, $data, LOCK_EX);
 }
 
 function EnableOSPassword($value)

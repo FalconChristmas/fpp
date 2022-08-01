@@ -85,8 +85,14 @@ function ReadSettingFromFile($settingName, $plugin = "")
     if (!file_exists($filename)) {
         return false;
     }
-
-    $settingsStr = file_get_contents($filename);
+    $fd = @fopen($filename, "r");
+    $settingsStr = "";
+    if ($fd) {
+        flock($fd, LOCK_SH);
+        $settingsStr = file_get_contents($filename);
+        flock($fd, LOCK_UN);
+        fclose($fd);
+    }
     if (!empty($settingsStr)) {
         if (preg_match("/^" . $settingName . "/m", $settingsStr)) {
             $result = preg_match("/^" . $settingName . "\s*=(\s*\S*\w*)/m", $settingsStr, $output_array);
@@ -123,7 +129,7 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
     foreach ($tmpSettings as $key => $value) {
         $settingsStr .= $key . " = \"" . $value . "\"\n";
     }
-    file_put_contents($filename, $settingsStr);
+    file_put_contents($filename, $settingsStr, LOCK_EX);
 }
 
 function DeleteSettingFromFile($settingName, $plugin = "")
@@ -142,7 +148,7 @@ function DeleteSettingFromFile($settingName, $plugin = "")
     foreach ($tmpSettings as $key => $value) {
         $settingsStr .= $key . " = \"" . $value . "\"\n";
     }
-    file_put_contents($filename, $settingsStr);
+    file_put_contents($filename, $settingsStr, LOCK_EX);
 }
 
 function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaultValue = "")
@@ -1348,7 +1354,7 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
             $duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);
 
             $return_duration = $duration_seconds;
-            file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT));
+            file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT), LOCK_EX);
         }
     } else {
         //else cache exists and is valid, replaces/append duration to it
@@ -1364,7 +1370,7 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
                 $duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);
                 $return_duration = $duration_seconds;
 
-                file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT));
+                file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT), LOCK_EX);
             }
         }
     }
@@ -1477,7 +1483,7 @@ function file_cache($cache_name, $data_to_cache, $cache_age = 90)
             $cache_data_return = $data_to_cache;
 
 //            exec("echo \"$data_to_cache\" | sudo tee $file_path", $output, $return_val);
-            file_put_contents($file_path, $data_to_cache);
+            file_put_contents($file_path, $data_to_cache, LOCK_EX);
         }
     } else {
         //else cache exists and is valid, replaces/append duration to it
@@ -1500,7 +1506,7 @@ function file_cache($cache_name, $data_to_cache, $cache_age = 90)
             $cache_data_return = $data_to_cache;
 
 //            exec("echo \"$data_to_cache\" | sudo tee $file_path", $output, $return_val);
-            file_put_contents($file_path, $data_to_cache);
+            file_put_contents($file_path, $data_to_cache, LOCK_EX);
         }
     }
     return $cache_data_return;
@@ -1568,7 +1574,7 @@ function get_server_cpu_usage()
     if (!file_exists("/tmp/cpustats.txt")) {
         $ostats = get_cpu_stats();
         $vs = sprintf("%d %d %d %d %d %d %d", $ostats[0], $ostats[1], $ostats[2], $ostats[3], $ostats[4], $ostats[5], $ostats[6]);
-        @file_put_contents("/tmp/cpustats.txt", $vs);
+        @file_put_contents("/tmp/cpustats.txt", $vs, LOCK_EX);
         usleep(10000);
     } else {
         $statLine = @file_get_contents("/tmp/cpustats.txt");
@@ -1576,7 +1582,7 @@ function get_server_cpu_usage()
     }
     $stats = get_cpu_stats();
     $vs = sprintf("%d %d %d %d %d %d %d", $stats[0], $stats[1], $stats[2], $stats[3], $stats[4], $stats[5], $stats[6]);
-    @file_put_contents("/tmp/cpustats.txt", $vs);
+    @file_put_contents("/tmp/cpustats.txt", $vs, LOCK_EX);
 
     $user = $stats[0] - $ostats[0];
     $nice = $stats[1] - $ostats[1];
