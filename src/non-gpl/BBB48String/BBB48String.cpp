@@ -295,6 +295,7 @@ int BBB48StringOutput::Init(Json::Value config) {
     config["base"] = root;
 
     std::vector<int> allStringMap;
+    std::string outputList;
     int allMax = 0;
     for (int x = 0; x < m_strings.size(); x++) {
         if (m_strings[x]->m_outputChannels > 0) {
@@ -307,14 +308,22 @@ int BBB48StringOutput::Init(Json::Value config) {
                 int pixels = 50;
                 int chanCount = 0;
                 for (auto& a : m_strings[x]->m_virtualStrings) {
-                    if (pixels <= a.pixelCount) {
+                    if (pixels < a.pixelCount) {
                         a.pixelCount = pixels;
+                        if (outputList != "") {
+                            outputList += ", ";
+                        }
+                        outputList += std::to_string(x + 1);
                     }
                     pixels -= a.pixelCount;
                     chanCount += a.pixelCount * a.channelsPerNode();
                 }
                 if (m_strings[x]->m_isSmartReceiver) {
                     chanCount = 0;
+                    if (outputList != "") {
+                        outputList += ", ";
+                    }
+                    outputList += std::to_string(x + 1);
                 }
                 m_strings[x]->m_outputChannels = chanCount;
             }
@@ -328,6 +337,16 @@ int BBB48StringOutput::Init(Json::Value config) {
             }
         }
     }
+
+    if (outputList != "") {
+        std::string warning = "BBB48String is licensed for ";
+        warning += std::to_string(m_licensedOutputs);
+        warning += " outputs, but one or more outputs is configured for more than 50 pixels.  Output(s): ";
+        warning += outputList;
+        WarningHolder::AddWarning(warning);
+        LogWarn(VB_CHANNELOUT, "WARNING: %s\n", warning.c_str());
+    }
+
     if (m_gpioData.gpioStringMap.empty()) {
         m_gpioData.gpioStringMap = m_gpio0Data.gpioStringMap;
         m_gpioData.maxStringLen = m_gpio0Data.maxStringLen;
