@@ -353,6 +353,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 
 $fd = @fopen($settingsFile, "r");
 if ($fd) {
+    flock($fd, LOCK_SH);
     do {
         global $settings;
         global $fppMode, $volume, $settingsFile;
@@ -472,7 +473,7 @@ if ($fd) {
                 break;
         }
     } while ($data != null);
-
+    flock($fd, LOCK_UN);
     fclose($fd);
 }
 

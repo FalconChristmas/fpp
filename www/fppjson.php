@@ -190,7 +190,7 @@ function SetPluginJSON()
     
     $cfgFile = $settings['configDirectory'] . "/plugin." . $plugin . ".json";
     $js = json_decode(file_get_contents("php://input"), true);
-    file_put_contents($cfgFile, json_encode($js, JSON_PRETTY_PRINT));
+    file_put_contents($cfgFile, json_encode($js, JSON_PRETTY_PRINT), LOCK_EX);
 
     return GetPluginJSON();
 }
@@ -441,7 +441,7 @@ function SetChannelOutputs()
 	$data = stripslashes($args['data']);
 	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
 
-	file_put_contents($settings[$file], $data);
+	file_put_contents($settings[$file], $data, LOCK_EX);
 
 	GetChannelOutputs();
 }
