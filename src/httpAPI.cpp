@@ -499,10 +499,11 @@ inline std::string secondsToTime(int i) {
  */
 void PlayerResource::GetCurrentStatus(Json::Value& result) {
     LogDebug(VB_HTTP, "API - Getting fppd status\n");
+    static std::string UUID = getSetting("SystemUUID");
 
     int mode = getFPPmode();
     result["fppd"] = "running";
-    result["uuid"] = getSetting("SystemUUID");
+    result["uuid"] = UUID;
     result["mode"] = mode;
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
     result["status"] = Player::INSTANCE.GetStatus();

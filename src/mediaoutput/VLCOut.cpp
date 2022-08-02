@@ -126,6 +126,12 @@ static void logCallback(void* data, int level, const libvlc_log_t* ctx,
             if (str == "cannot connect to session bus: Unable to autolaunch a dbus-daemon without a $DISPLAY for X11") {
                 return;
             }
+            if (str == "kms window error: cannot open /dev/dri/card0") {
+                return;
+            }
+            if (str == "cannot open /dev/dri/card0") {
+                return;
+            }
             LogWarn(VB_MEDIAOUT, "%s\n", buf);
         }
         break;
