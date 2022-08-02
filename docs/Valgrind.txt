@@ -1,0 +1,8 @@
+The version of Valgrind that is installable via apt-get is way too old (over 8 years old) 
+and will not really work for FPP.   Many false positives occur, bunch of unhandled syscalls, 
+etc...   Building a more recent version of Valgrind from source is required:
+
+Grab the current release from https://valgrind.org/downloads/current.html
+Extract to a directory in /opt, run "./configure" and then "make ; make install"
+
+

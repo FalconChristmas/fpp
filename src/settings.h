@@ -69,8 +69,8 @@ const std::string getFPPmodeStr(FPPMode mode = UNKNOWN_MODE);
 int LoadSettings(const char* base);
 int SaveSettings();
 void UpgradeSettings();
-int SetSetting(const std::string key, const std::string value);
-int SetSetting(const std::string key, const int value);
+int SetSetting(const std::string &key, const std::string &value);
+int SetSetting(const std::string &key, const int value);
 
 // Setters & Getters
 std::string getSetting(const char* setting, const char* defaultVal = "");

@@ -24,8 +24,6 @@
 
 
 Scheduler* scheduler = NULL;
-int timeDelta = 0;
-time_t timeDeltaThreshold = 0;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -53,6 +51,8 @@ Scheduler::Scheduler() :
     m_loadSchedule(true),
     m_lastLoadDate(0),
     m_lastProcTime(0),
+    m_timeDelta(0),
+    m_timeDeltaThreshold(0),
     m_forcedNextPlaylist(SCHEDULE_INDEX_INVALID) {
     RegisterCommands();
 
@@ -284,11 +284,11 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
 
         // Schedule yesterday if needed to handle midnight crossovers
         if (dayOffset)
-            entry->pushStartEndTimes(now.tm_wday - 1, timeDelta, timeDeltaThreshold);
+            entry->pushStartEndTimes(now.tm_wday - 1, m_timeDelta, m_timeDeltaThreshold);
 
         // Schedule out 5 weeks
         for (int i = now.tm_wday + dayOffset; i <= 35 ; i += 2) {
-            entry->pushStartEndTimes(i, timeDelta, timeDeltaThreshold);
+            entry->pushStartEndTimes(i, m_timeDelta, m_timeDeltaThreshold);
         }
 
         break;
@@ -296,31 +296,31 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
 
     // Special case if today is Sunday, handle any Saturday night crossovers
     if (now.tm_wday == 0)
-        entry->pushStartEndTimes(-1, timeDelta, timeDeltaThreshold);
+        entry->pushStartEndTimes(-1, m_timeDelta, m_timeDeltaThreshold);
 
     if ((entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY)) {
         int scheduleDistance = getSettingInt("ScheduleDistance");
         for (int weekOffset = 0; weekOffset <= scheduleDistance; weekOffset += 7) {
             if (dayIndex & INX_DAY_MASK_SUNDAY)
-                entry->pushStartEndTimes(INX_SUN + weekOffset, timeDelta, timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_SUN + weekOffset, m_timeDelta, m_timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_MONDAY)
-                entry->pushStartEndTimes(INX_MON + weekOffset, timeDelta, timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_MON + weekOffset, m_timeDelta, m_timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_TUESDAY)
-                entry->pushStartEndTimes(INX_TUE + weekOffset, timeDelta, timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_TUE + weekOffset, m_timeDelta, m_timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_WEDNESDAY)
-                entry->pushStartEndTimes(INX_WED + weekOffset, timeDelta, timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_WED + weekOffset, m_timeDelta, m_timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_THURSDAY)
-                entry->pushStartEndTimes(INX_THU + weekOffset, timeDelta, timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_THU + weekOffset, m_timeDelta, m_timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_FRIDAY)
-                entry->pushStartEndTimes(INX_FRI + weekOffset, timeDelta, timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_FRI + weekOffset, m_timeDelta, m_timeDeltaThreshold);
 
             if (dayIndex & INX_DAY_MASK_SATURDAY)
-                entry->pushStartEndTimes(INX_SAT + weekOffset, timeDelta, timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_SAT + weekOffset, m_timeDelta, m_timeDeltaThreshold);
         }
     }
 
@@ -1009,8 +1009,8 @@ Json::Value Scheduler::GetSchedule() {
 }
 
 void Scheduler::SetTimeDelta(int delta, int timeLimit) {
-    timeDelta = timeDelta + delta;
-    timeDeltaThreshold = time(NULL) + timeLimit;
+    m_timeDelta = m_timeDelta + delta;
+    m_timeDeltaThreshold = time(NULL) + timeLimit;
     // Trigger a reload the next time Scheduler::ScheduleProc() is called
     m_loadSchedule = true;
 }
@@ -1076,10 +1076,10 @@ public:
         if (args.size() < 1) {
             return std::make_unique<Command::ErrorResult>("Command needs at least 1 argument, found " + std::to_string(args.size()));
         }
-	if (Player::INSTANCE.AdjustPlaylistStopTime(std::stoi(args[0]))) {
+        if (Player::INSTANCE.AdjustPlaylistStopTime(std::stoi(args[0]))) {
             if (args.size() > 1) {
                 if (std::stoi(args[1]) != 0) {
-	            scheduler->SetTimeDelta(std::stoi(args[0]),std::stoi(args[1]));
+                    scheduler->SetTimeDelta(std::stoi(args[0]),std::stoi(args[1]));
                 }
             }
             return std::make_unique<Command::Result>("Schedule Updated");

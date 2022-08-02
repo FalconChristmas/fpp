@@ -109,8 +109,8 @@ private:
     bool m_schedulerDisabled;
     bool m_loadSchedule;
     int m_lastLoadDate;
-    int timeDelta;
-    time_t timeDeltaThreshold;
+    int m_timeDelta;
+    time_t m_timeDeltaThreshold;
 
     time_t m_lastProcTime;
 
