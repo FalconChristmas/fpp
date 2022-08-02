@@ -509,8 +509,8 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
             }
             write(fp, req.get_content().c_str(), req.get_content().length());
             close(fp);
-            std::unique_lock<std::mutex> lock(modelsLock);
-            loadModelMap();
+            std::string nvresults;
+            urlPut("http://127.0.0.1/api/settings/restartFlag", "1", nvresults);
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
         } else if (req.get_path_pieces().size() == 1) {
             char filename[2048];
@@ -523,8 +523,8 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
             }
             write(fp, req.get_content().c_str(), req.get_content().length());
             close(fp);
-            std::unique_lock<std::mutex> lock(modelsLock);
-            loadModelMap();
+            std::string nvresults;
+            urlPut("http://127.0.0.1/api/settings/restartFlag", "1", nvresults);
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
         }
     }
