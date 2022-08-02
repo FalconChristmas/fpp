@@ -567,9 +567,12 @@ function stats_universe_out()
                 ++$activeRowCount;
                 $universeCount += $row["universeCount"];
                 $channelCount += ($row["universeCount"] * $row["channelCount"]);
-                $deDupeCount += $row["deDuplicate"];
-                $monitorCount += $row["monitor"];
-
+                if (isset($row["deDuplicate"])) {
+                    $deDupeCount += $row["deDuplicate"];
+                }
+                if (isset($row["monitor"])) {
+                    $monitorCount += $row["monitor"];
+                }
                 $type = "type_" . strval($row['type']);
                 if (!isset($rowType[$type])) {
                     $rowType[$type] = 0;

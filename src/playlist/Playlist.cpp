@@ -1308,7 +1308,6 @@ Json::Value Playlist::GetCurrentEntry(void) {
 
     if (m_currentState == "idle" || m_currentSection == nullptr)
         return result;
-
     result = m_currentSection->at(m_sectionPosition)->GetConfig();
 
     return result;
@@ -1465,9 +1464,9 @@ Json::Value Playlist::GetMqttStatusJSON(void) {
  */
 Json::Value Playlist::GetInfo(void) {
     Json::Value result;
-
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    
     result["currentState"] = m_currentState;
-
     if (m_currentState == "idle") {
         result["name"] = "";
         result["desc"] = "";
