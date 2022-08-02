@@ -206,13 +206,13 @@ char* modeToString(int mode) {
     return strdup("unknown");
 }
 
-int SetSetting(const std::string key, const int value) {
+int SetSetting(const std::string &key, const int value) {
     return SetSetting(key, std::to_string(value));
 }
 
 static std::map<std::string, std::string> UPDATES;
 
-int SetSetting(const std::string key, const std::string value) {
+int SetSetting(const std::string &key, const std::string &value) {
     settings.settings[key] = value;
 
     if (key == "fppMode") {
@@ -274,8 +274,12 @@ int LoadSettings(const char *base) {
                                              // must be freed before we are done.
 
             char* token = strtok(line, "=");
-            if (!token)
+            if (!token) {
+                if (line) {
+                   free(line);
+                }
                 continue;
+            }
 
             key = trimwhitespace(token);
             if (!strlen(key)) {
