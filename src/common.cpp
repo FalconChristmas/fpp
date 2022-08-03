@@ -416,7 +416,34 @@ int GetCurrentDateInt(int daysOffset) {
 
     return result;
 }
+std::string secondsToTime(int i) {
+    std::stringstream sstr;
 
+    if (i > (24 * 60 * 60)) {
+        int days = i / (24 * 60 * 60);
+        sstr << days;
+        if (days == 1)
+            sstr << " day, ";
+        else
+            sstr << " days, ";
+
+        i = i % (24 * 60 * 60);
+    }
+
+    if (i > (60 * 60)) {
+        int hour = i / (60 * 60);
+        sstr << std::setw(2) << std::setfill('0') << hour;
+        sstr << ":";
+        i = i % (60 * 60);
+    }
+
+    int min = i / 60;
+    int sec = i % 60;
+    sstr << std::setw(2) << std::setfill('0') << min;
+    sstr << ":";
+    sstr << std::setw(2) << std::setfill('0') << sec;
+    return sstr.str();
+}
 /*
  * Close all open file descriptors (used after fork())
  */

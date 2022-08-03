@@ -312,8 +312,8 @@ int VLCOutput::Start(int msTime) {
         }
 
         int seconds = data->length / 1000;
-        m_mediaOutputStatus->secondsTotal = seconds / 60;
-        m_mediaOutputStatus->minutesTotal = seconds % 60;
+        m_mediaOutputStatus->minutesTotal = seconds / 60;
+        m_mediaOutputStatus->secondsTotal = seconds % 60;
 
         m_mediaOutputStatus->secondsRemaining = seconds;
         m_mediaOutputStatus->subSecondsRemaining = 0;
@@ -344,8 +344,8 @@ int VLCOutput::Process(void) {
         if (!data->length) {
             data->length = libvlc_media_player_get_length(data->vlcPlayer);
             int seconds = data->length / 1000;
-            m_mediaOutputStatus->secondsTotal = seconds / 60;
-            m_mediaOutputStatus->minutesTotal = seconds % 60;
+            m_mediaOutputStatus->secondsTotal = seconds % 60;
+            m_mediaOutputStatus->minutesTotal = seconds / 60;
 
             m_mediaOutputStatus->secondsRemaining = seconds;
             m_mediaOutputStatus->subSecondsRemaining = 0;

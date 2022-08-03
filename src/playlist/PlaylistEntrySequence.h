@@ -41,7 +41,7 @@ public:
 
     void disableAdjustTiming() { m_adjustTiming = false; }
 
-    std::string GetSequenceName(void) { return m_sequenceName; }
+    const std::string &GetSequenceName(void) const { return m_sequenceName; }
 
 private:
     long long m_startTme;

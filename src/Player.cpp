@@ -291,6 +291,10 @@ int Player::Cleanup(void) {
     return playlist->Cleanup();
 }
 
+void Player::GetCurrentStatus(Json::Value& result) {
+    playlist->GetCurrentStatus(result);
+}
+
 Json::Value Player::GetStatusJSON() {
     Json::Value result;
     Json::Value playlists(Json::arrayValue);

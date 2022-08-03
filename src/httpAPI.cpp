@@ -466,34 +466,7 @@ inline std::string toStdStringAndFree(char* v) {
     free(v);
     return s;
 }
-inline std::string secondsToTime(int i) {
-    std::stringstream sstr;
 
-    if (i > (24 * 60 * 60)) {
-        int days = i / (24 * 60 * 60);
-        sstr << days;
-        if (days == 1)
-            sstr << " day, ";
-        else
-            sstr << " days, ";
-
-        i = i % (24 * 60 * 60);
-    }
-
-    if (i > (60 * 60)) {
-        int hour = i / (60 * 60);
-        sstr << std::setw(2) << std::setfill('0') << hour;
-        sstr << ":";
-        i = i % (60 * 60);
-    }
-
-    int min = i / 60;
-    int sec = i % 60;
-    sstr << std::setw(2) << std::setfill('0') << min;
-    sstr << ":";
-    sstr << std::setw(2) << std::setfill('0') << sec;
-    return sstr.str();
-}
 /*
  *
  */
@@ -575,7 +548,6 @@ void PlayerResource::GetCurrentStatus(Json::Value& result) {
         }
     }
 #endif
-
     double days = ((double)timeDiff) / 86400;
     double hours = ((double)(totalseconds % 86400)) / 3600;
     int seconds = totalseconds % 86400 % 3600;
@@ -612,22 +584,6 @@ void PlayerResource::GetCurrentStatus(Json::Value& result) {
         result["MQTT"]["connected"] = mqtt->IsConnected();
     }
 
-    // base data returned by all the other modes
-    result["current_playlist"]["playlist"] = "";
-    result["current_playlist"]["description"] = "";
-    result["current_playlist"]["type"] = "";
-    result["current_playlist"]["index"] = "0";
-    result["current_playlist"]["count"] = "0";
-    result["current_sequence"] = "";
-    result["current_song"] = "";
-    result["seconds_played"] = "0";
-    result["seconds_remaining"] = "0";
-    result["time_elapsed"] = "00:00";
-    result["time_remaining"] = "00:00";
-
-    std::string NextPlaylist = scheduler->GetNextPlaylistName();
-    std::string NextPlaylistStart = scheduler->GetNextPlaylistStartStr();
-
     if (getFPPmode() == REMOTE_MODE) {
         int secsElapsed = 0;
         int secsRemaining = 0;
@@ -659,71 +615,13 @@ void PlayerResource::GetCurrentStatus(Json::Value& result) {
         result["seconds_remaining"] = std::to_string(secsRemaining);
         result["time_elapsed"] = secondsToTime(secsElapsed);
         result["time_remaining"] = secondsToTime(secsRemaining);
-    } else if (Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) {
-        result["next_playlist"]["playlist"] = NextPlaylist;
-        result["next_playlist"]["start_time"] = NextPlaylistStart;
-        result["repeat_mode"] = "0";
-        result["scheduler"] = scheduler->GetInfo();
     } else {
-        Json::Value pl = Player::INSTANCE.GetInfo();
-        if (pl["currentEntry"].isMember("dynamic")) {
-            pl["currentEntry"] = pl["currentEntry"]["dynamic"];
-        }
-        result["repeat_mode"] = pl["repeat"].asInt();
+        std::string NextPlaylist = scheduler->GetNextPlaylistName();
+        std::string NextPlaylistStart = scheduler->GetNextPlaylistStartStr();
         result["next_playlist"]["playlist"] = NextPlaylist;
         result["next_playlist"]["start_time"] = NextPlaylistStart;
 
-        std::string plname = pl["name"].asString();
-        plname = plname.substr(plname.find_last_of("\\/") + 1);
-
-        if (!endsWith(plname, ".fseq"))
-            plname = plname.substr(0, plname.find_last_of("."));
-
-        result["current_playlist"]["playlist"] = plname;
-        result["current_playlist"]["description"] = pl["desc"];
-        result["current_playlist"]["index"] = std::to_string(Player::INSTANCE.GetPosition());
-        result["current_playlist"]["count"] = std::to_string(pl["size"].asInt());
-        result["current_playlist"]["type"] = pl["currentEntry"]["type"].asString();
-
-        int secsElapsed = 0;
-        int secsRemaining = 0;
-
-        std::string currentSeq;
-        std::string currentSong;
-
-        if ((pl["currentEntry"]["type"] == "both") ||
-            (pl["currentEntry"]["type"] == "media")) {
-            currentSeq = pl["currentEntry"]["type"].asString() == "both"
-                             ? pl["currentEntry"]["sequence"]["sequenceName"].asString()
-                             : "";
-            currentSong = pl["currentEntry"]["type"].asString() == "both"
-                              ? pl["currentEntry"]["media"]["mediaFilename"].asString()
-                              : pl["currentEntry"]["mediaFilename"].asString();
-
-            secsElapsed = pl["currentEntry"]["type"].asString() == "both"
-                              ? pl["currentEntry"]["media"]["secondsElapsed"].asInt()
-                              : pl["currentEntry"]["secondsElapsed"].asInt();
-            secsRemaining = pl["currentEntry"]["type"].asString() == "both"
-                                ? pl["currentEntry"]["media"]["secondsRemaining"].asInt()
-                                : pl["currentEntry"]["secondsRemaining"].asInt();
-        } else if (pl["currentEntry"]["type"] == "sequence") {
-            currentSeq = pl["currentEntry"]["sequenceName"].asString();
-            secsElapsed = sequence->m_seqMSElapsed / 1000;
-            secsRemaining = sequence->m_seqMSRemaining / 1000;
-        } else if (pl["currentEntry"]["type"] == "script") {
-            currentSeq = pl["currentEntry"]["scriptFilename"].asString();
-            secsElapsed = pl["currentEntry"]["secondsElapsed"].asInt();
-        } else {
-            secsElapsed = pl["currentEntry"]["type"].asString() == "pause" ? pl["currentEntry"]["duration"].asInt() - pl["currentEntry"]["remaining"].asInt() : 0;
-            secsRemaining = pl["currentEntry"]["type"].asString() == "pause" ? pl["currentEntry"]["remaining"].asInt() : 0;
-        }
-        result["current_sequence"] = currentSeq;
-        result["current_song"] = currentSong;
-        result["seconds_played"] = std::to_string(secsElapsed);
-        result["seconds_elapsed"] = std::to_string(secsElapsed);
-        result["seconds_remaining"] = std::to_string(secsRemaining);
-        result["time_elapsed"] = secondsToTime(secsElapsed);
-        result["time_remaining"] = secondsToTime(secsRemaining);
+        Player::INSTANCE.GetCurrentStatus(result);
         result["scheduler"] = scheduler->GetInfo();
     }
 }

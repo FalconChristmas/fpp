@@ -120,6 +120,13 @@ void PlaylistEntryScript::Dump(void) {
     LogDebug(VB_PLAYLIST, "Blocking       : %d\n", m_blocking);
 }
 
+uint64_t PlaylistEntryScript::GetElapsedMS() {
+    long long t = GetTime();
+    t -= m_startTime;
+    t /= 1000;
+    return t;
+}
+
 /*
  *
  */

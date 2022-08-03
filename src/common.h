@@ -71,6 +71,7 @@ int CurrentDateInRange(int startDate, int endDate);
 int DateInRange(time_t when, int startDate, int endDate);
 int DateInRange(int currentDate, int startDate, int endDate);
 void CloseOpenFiles(void);
+std::string secondsToTime(int i);
 
 std::string GetFileContents(const std::string& filename);
 bool PutFileContents(const std::string& filename, const std::string& str);
