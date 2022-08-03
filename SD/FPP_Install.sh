@@ -410,7 +410,7 @@ case "${OSVER}" in
                       apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
                       fbi fbset file flite ca-certificates lshw gettext wget \
-                      build-essential ffmpeg gcc g++ gdb ccache vim vim-common bison flex device-tree-compiler dh-autoreconf \
+                      build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
                       git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
                       mp3info exim4 dhcp-helper parprouted bridge-utils libiio-utils \
@@ -424,6 +424,8 @@ case "${OSVER}" in
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity zram-tools"
+        else
+            PACKAGE_LIST="$PACKAGE_LIST ccache"
         fi
         if [ ! $desktop ]; then
             PACKAGE_LIST="$PACKAGE_LIST networkd-dispatcher"
@@ -903,6 +905,11 @@ sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 # Configure ccache
 echo "FPP - Configuring ccache"
 mkdir -p /root/.ccache
+if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
+    # On Beagle/Pi, we'll use a newer ccache to allow developer sharing of the cache
+    cd /opt/fpp/SD
+    ./buildCCACHE.sh
+fi
 ccache -M 350M
 ccache --set-config=temporary_dir=/tmp
 ccache --set-config=sloppiness=pch_defines,time_macros
