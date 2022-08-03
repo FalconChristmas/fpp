@@ -149,6 +149,11 @@ int PlaylistEntryMedia::StartPlaying(void) {
     }
 
     float f = mediaOutputStatus.mediaSeconds * 1000;
+    if (m_duration == 0) {
+        float f = mediaOutputStatus.minutesTotal * 60 + mediaOutputStatus.secondsTotal;
+        f *= 1000;
+        m_duration = f;
+    }
     if (f > m_duration) {
         m_duration = f;
     }
@@ -199,6 +204,11 @@ uint64_t PlaylistEntryMedia::GetLengthInMS() {
         MediaDetails details;
         details.ParseMedia(m_mediaFilename.c_str());
         m_duration = details.lengthMS;
+        if (m_duration == 0) {
+            float f = mediaOutputStatus.minutesTotal * 60 + mediaOutputStatus.secondsTotal;
+            f *= 1000;
+            m_duration = f;
+        }
     }
     return m_duration;
 }
@@ -206,6 +216,15 @@ uint64_t PlaylistEntryMedia::GetElapsedMS() {
     if (m_mediaOutput) {
         float f = mediaOutputStatus.secondsElapsed * 1000;
         f += mediaOutputStatus.subSecondsElapsed * 10; // subSec is in 1/100th second
+        if (IsPaused()) {
+            f = m_pausedStatus.secondsElapsed * 1000;
+            f += m_pausedStatus.subSecondsElapsed * 10; // subSec is in 1/100th second
+        }
+        if (m_duration == 0) {
+            float f = mediaOutputStatus.minutesTotal * 60 + mediaOutputStatus.secondsTotal;
+            f *= 1000;
+            m_duration = f;
+        }
         if (f > m_duration) {
             m_duration = f;
         }

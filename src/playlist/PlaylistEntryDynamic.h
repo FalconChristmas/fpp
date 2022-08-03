@@ -34,6 +34,7 @@ public:
 
     virtual Json::Value GetConfig(void) override;
 
+    PlaylistEntryBase* GetCurrentEntry();
 private:
     int ReadFromCommand(void);
     int ReadFromFile(void);

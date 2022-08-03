@@ -71,6 +71,7 @@ public:
     void RestartItem(void);
     void PrevItem(void);
 
+    void GetCurrentStatus(Json::Value& result);
     Json::Value GetCurrentEntry(void);
     Json::Value GetInfo(void);
     std::string GetPlaylistName(void) { return m_name; }

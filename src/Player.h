@@ -80,6 +80,7 @@ public:
     int Cleanup();
 
     Json::Value GetStatusJSON();
+    void GetCurrentStatus(Json::Value& result);
 
     virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
     virtual const std::shared_ptr<httpserver::http_response> render_POST(const httpserver::http_request& req) override;

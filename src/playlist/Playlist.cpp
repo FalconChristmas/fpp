@@ -1459,6 +1459,78 @@ Json::Value Playlist::GetMqttStatusJSON(void) {
     return result;
 }
 
+
+void Playlist::GetCurrentStatus(Json::Value& result) {
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (m_currentState == "idle" || m_currentSection == nullptr) {
+        result["repeat_mode"] = "0";
+        result["current_playlist"]["description"] = "";
+        result["current_playlist"]["playlist"] = "";
+        result["current_playlist"]["count"] = "0";
+        result["current_playlist"]["index"] = "0";
+        result["current_playlist"]["type"] = "";
+
+        result["current_sequence"] = "";
+        result["current_song"] = "";
+        result["seconds_played"] = "0";
+        result["seconds_remaining"] = "0";
+        result["time_elapsed"] = "00:00";
+        result["time_remaining"] = "00:00";
+        return;
+    }
+
+    std::string plname = m_name;
+    result["repeat_mode"] = m_repeat;
+    result["current_playlist"]["description"] = m_desc;
+    result["current_playlist"]["count"] = std::to_string(GetSize());
+    result["current_playlist"]["index"] = std::to_string(GetPosition());
+
+    auto ple = m_currentSection->at(m_sectionPosition);
+    std::string type = ple->GetType();
+
+    while (type == "dynamic") {
+        PlaylistEntryDynamic *dyn = dynamic_cast<PlaylistEntryDynamic*>(ple);
+        ple = dyn->GetCurrentEntry();
+        type = ple->GetType();
+    }
+
+    plname = plname.substr(plname.find_last_of("\\/") + 1);
+    if (!endsWith(plname, ".fseq")) {
+        plname = plname.substr(0, plname.find_last_of("."));
+    }
+    result["current_playlist"]["playlist"] = plname;
+    result["current_playlist"]["type"] = type;
+
+    int secsElapsed = (int)(ple->GetElapsedMS() / 1000);
+    int secsRemaining = (int)((ple->GetLengthInMS() - ple->GetElapsedMS()) / 1000);
+    std::string currentSeq;
+    std::string currentSong;
+    if (type == "media") {
+        PlaylistEntryMedia *med = dynamic_cast<PlaylistEntryMedia*>(ple);
+        currentSong = med->GetMediaName();
+    } else if (type == "both") {
+        PlaylistEntryBoth *both = dynamic_cast<PlaylistEntryBoth*>(ple);
+        currentSeq = both->GetSequenceName();
+        currentSong = both->GetMediaName();
+    } else if (type == "sequence") {
+        PlaylistEntrySequence *seq = dynamic_cast<PlaylistEntrySequence*>(ple);
+        currentSeq = seq->GetSequenceName();
+        secsElapsed = sequence->m_seqMSElapsed / 1000;
+        secsRemaining = sequence->m_seqMSRemaining / 1000;
+    } else if (type == "script") {
+        PlaylistEntryScript *scr = dynamic_cast<PlaylistEntryScript*>(ple);
+        currentSeq = scr->GetScriptName();
+    }
+    result["current_sequence"] = currentSeq;
+    result["current_song"] = currentSong;
+    result["seconds_played"] = std::to_string(secsElapsed);
+    result["seconds_elapsed"] = std::to_string(secsElapsed);
+    result["seconds_remaining"] = std::to_string(secsRemaining);
+    result["time_elapsed"] = secondsToTime(secsElapsed);
+    result["time_remaining"] = secondsToTime(secsRemaining);
+}
+
+
 /*
  *
  */
