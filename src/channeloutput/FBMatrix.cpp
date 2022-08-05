@@ -128,6 +128,23 @@ int FBMatrixOutput::Init(Json::Value config) {
 
     buffer = new unsigned char[width * height * 3];
 
+    if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
+        std::string dd = "VirtualMatrix";
+        if (config.isMember("description")) {
+            dd = config["description"].asString();
+        }
+        std::string desc = dd;
+        int count = 0;
+        while (PixelOverlayManager::INSTANCE.getModel(desc) != nullptr) {
+            count++;
+            desc = dd + "-" + std::to_string(count);
+        }
+        PixelOverlayManager::INSTANCE.addAutoOverlayModel(desc,
+                                                          m_startChannel, m_channelCount, 3,
+                                                          "H", "TL",
+                                                          height, 1);
+    }
+
     return ChannelOutput::Init(config);
 }
 
