@@ -147,19 +147,32 @@ int RPIWS281xOutput::Init(Json::Value config) {
         if (!newString->Init(s))
             return 0;
 
+        int channelsPerNode {3};
+        if(!newString->m_virtualStrings.empty()) {
+            channelsPerNode = newString->m_virtualStrings.front().channelsPerNode();
+        } else {
+             LogDebug(VB_CHANNELOUT, "RPIWS281xOutput:: no virtual Strings, odd\n");
+        }
+
         std::string pinName = root["outputs"][i]["pin"].asString();
         if (pinName[0] == 'P') {
             const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
             if (i == 0) {
                 ledstring.channel[0].gpionum = pin.gpio;
-                ledstring.channel[0].count = newString->m_outputChannels / 3;
+                ledstring.channel[0].count = newString->m_outputChannels / channelsPerNode;
                 offsets[i] = 0;
                 ledstringCount = 1;
+                if(channelsPerNode == 4) {
+                    ledstring.channel[0].strip_type = SK6812_STRIP_RGBW;
+                }
             } else {
                 ledstring.channel[1].gpionum = pin.gpio;
-                ledstring.channel[1].count = newString->m_outputChannels / 3;
+                ledstring.channel[1].count = newString->m_outputChannels / channelsPerNode;
                 offsets[i] = 1;
                 ledstringCount = 1;
+                if(channelsPerNode == 4) {
+                    ledstring.channel[1].strip_type = SK6812_STRIP_RGBW;
+                }
             }
         } else {
             //spi
@@ -235,26 +248,27 @@ void RPIWS281xOutput::GetRequiredChannelRanges(const std::function<void(int, int
     }
 }
 void RPIWS281xOutput::PrepData(unsigned char* channelData) {
-    unsigned char* c = channelData;
-    unsigned int r = 0;
-    unsigned int g = 0;
-    unsigned int b = 0;
-
-    PixelString* ps = NULL;
-    int inCh = 0;
 
     for (int s = 0; s < m_strings.size(); s++) {
-        ps = m_strings[s];
-        inCh = 0;
+        PixelString* ps = m_strings[s];
+        int inCh {0};
+
+        int channelsPerNode {3};
+        if(!ps->m_virtualStrings.empty()) {
+            channelsPerNode = ps->m_virtualStrings.front().channelsPerNode();
+        }
         if (offsets[s] < 2) {
+            int index{ offsets[s] == 0 ? 0 : 1 };
             for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++) {
-                r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-                g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-                b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-                if (offsets[s] == 0) {
-                    ledstring.channel[0].leds[pix] = (r << 16) | (g << 8) | (b);
+                unsigned int r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+                unsigned int g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+                unsigned int b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+
+                if (channelsPerNode == 3) {
+                    ledstring.channel[index].leds[pix] = (r << 16) | (g << 8) | (b);
                 } else {
-                    ledstring.channel[1].leds[pix] = (r << 16) | (g << 8) | (b);
+                    unsigned int w = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+                    ledstring.channel[index].leds[pix] = (r << 24) | (g << 16) | (b << 16) | (w);
                 }
             }
         } else {
