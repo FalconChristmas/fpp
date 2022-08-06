@@ -268,7 +268,7 @@ void RPIWS281xOutput::PrepData(unsigned char* channelData) {
                     ledstring.channel[index].leds[pix] = (r << 16) | (g << 8) | (b);
                 } else {
                     unsigned int w = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-                    ledstring.channel[index].leds[pix] = (r << 24) | (g << 16) | (b << 16) | (w);
+                    ledstring.channel[index].leds[pix] = (r << 24) | (g << 16) | (b << 8) | (w);
                 }
             }
         } else {
