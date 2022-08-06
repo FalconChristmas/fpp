@@ -2461,7 +2461,11 @@ function UpgradeFPPVersion(newVersion) {
 }
 
 function ChangeGitBranch(newBranch) {
-    location.href = "changebranch.php?branch=" + newBranch;
+    if (confirm("Are you really sure you want to switch to the '" + newBranch + "' branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue.")) {
+        location.href = "changebranch.php?branch=" + newBranch;
+    } else {
+        location.reload(true);
+    }
 }
 
 function RebuildFPPSource() {
