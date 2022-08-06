@@ -24,7 +24,8 @@ function SendTestEmail() {
         type: 'POST',
         async: true,
         success: function(data) {
-            $.jGrowl("Test Email sent.",{themeState:'success'});
+            if (data.stderr) DialogError('Error sending email', data.stderr); //no, it wasn't successful
+            else $.jGrowl("Test Email sent.",{themeState:'success'});
         },
         error: function() {
             DialogError('Error sending email', 'Error sending email');
