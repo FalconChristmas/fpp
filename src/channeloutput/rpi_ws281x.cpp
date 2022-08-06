@@ -258,7 +258,7 @@ void RPIWS281xOutput::PrepData(unsigned char* channelData) {
             channelsPerNode = ps->m_virtualStrings.front().channelsPerNode();
         }
         if (offsets[s] < 2) {
-            int index{ offsets[s] == 0 ? 0 : 1 };
+            int index{ offsets[s] };
             for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++) {
                 unsigned int r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
                 unsigned int g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
