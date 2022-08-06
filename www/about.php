@@ -184,6 +184,9 @@ function UpdateVersionInfo() {
 }
 
 function UpgradeDone() {
+    if (statusTimeout === null)
+        LoadSystemStatus();
+
     UpdateVersionInfo();
     $('#closeDialogButton').show();
 }
@@ -205,6 +208,9 @@ function UpgradeOS() {
         $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP OS Upgrade", dialogClass: 'no-close' });
         $('#upgradePopup').fppDialog( "moveToTop" );
         $('#upgradeText').html('');
+
+        clearTimeout(statusTimeout);
+        statusTimeout = null;
 
         StreamURL('upgradeOS.php?wrapped=1&os=' + os, 'upgradeText', 'UpgradeDone');
     }
@@ -254,6 +260,9 @@ function UpgradeFPP() {
     $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP Upgrade", dialogClass: 'no-close' });
     $('#upgradePopup').fppDialog( "moveToTop" );
     $('#upgradeText').html('');
+
+    clearTimeout(statusTimeout);
+    statusTimeout = null;
 
     StreamURL('manualUpdate.php?wrapped=1', 'upgradeText', 'UpgradeDone');
 }
