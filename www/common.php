@@ -2109,30 +2109,62 @@ function network_wifi_strength_obj()
                 $obj->level = intval($parts[3]);
                 $obj->unit = "dBm";
                 $obj->noise = intval($parts[4]);
+                $obj->desc = '';
 
-                if ($obj->level >= 0) {
-                    $obj->unit = "pct";
-                    if ($obj->level >= 79) {
-                        $obj->desc = "excellent";
-                    } elseif ($obj->level > 66) {
-                        $obj->desc = "good";
-                    } elseif ($obj->level > 48) {
-                        $obj->desc = "fair";
-                    } else {
-                        $obj->desc = "weak";
-                    }
-                } else {
+                $output = exec("iwconfig " . $obj->interface . " | grep 'Link Quality' | cut -f2 -d= | awk '{print \$1}'");
 
-                    if ($obj->level > -50) {
-                        $obj->desc = "excellent";
-                    } elseif ($obj->level > -60) {
-                        $obj->desc = "good";
-                    } elseif ($obj->level > -70) {
-                        $obj->desc = "fair";
-                    } else {
-                        $obj->desc = "weak";
+                if ($output != '') {
+                    $pparts = preg_split('/\//', trim($output));
+                    $pct = intval($pparts[0]);
+                    $max = intval($pparts[1]);
+                    if (($pct > 0) && ($max > 0)) {
+                        if ($max != 100) {
+                            $pct = intval($pct * 100.0 / $max);
+                        }
+                        $obj->pct = $pct;
+
+                        if ($obj->level >= 0) {
+                            $obj->unit = "pct";
+                            $obj->level = $pct;
+                        }
+
+                        if ($obj->pct >= 79) {
+                            $obj->desc = "excellent";
+                        } elseif ($obj->pct > 66) {
+                            $obj->desc = "good";
+                        } elseif ($obj->pct > 48) {
+                            $obj->desc = "fair";
+                        } else {
+                            $obj->desc = "weak";
+                        }
                     }
                 }
+
+                if ($obj->desc == '') {
+                    if ($obj->level >= 0) {
+                        $obj->unit = "pct";
+                        if ($obj->level >= 79) {
+                            $obj->desc = "excellent";
+                        } elseif ($obj->level > 66) {
+                            $obj->desc = "good";
+                        } elseif ($obj->level > 48) {
+                            $obj->desc = "fair";
+                        } else {
+                            $obj->desc = "weak";
+                        }
+                    } else {
+                        if ($obj->level > -50) {
+                            $obj->desc = "excellent";
+                        } elseif ($obj->level > -60) {
+                            $obj->desc = "good";
+                        } elseif ($obj->level > -70) {
+                            $obj->desc = "fair";
+                        } else {
+                            $obj->desc = "weak";
+                        }
+                    }
+                }
+
                 array_push($rc, $obj);
             }
         }

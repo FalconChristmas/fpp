@@ -536,8 +536,15 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 var wifi_html = [];
                 data.wifi.forEach(function(w) {
                     wifi_html.push('<span title="');
-                    wifi_html.push(w.level);
-                    wifi_html.push(w.unit);
+                    if (w.pct) {
+                        wifi_html.push(w.pct + '%');
+                        if (w.unit == 'dBm') {
+                            wifi_html.push(' ' + w.level + 'dBm');
+                        }
+                    } else {
+                        wifi_html.push(w.level + w.unit);
+                    }
+
                     wifi_html.push('" class="wifi-icon wifi-');
                     wifi_html.push(w.desc);
                     wifi_html.push('"></span>');
