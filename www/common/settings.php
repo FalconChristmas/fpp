@@ -98,23 +98,19 @@ function SetupHtaccess($enablePW)
     }
 
     if ($enablePW) {
-        $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\nRequire valid-user\n";
+        $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\n";
+        $data .= "<RequireAny>\n  <RequireAll>\n    Require local\n  </RequireAll>\n  <RequireAll>\n    Require valid-user\n  </RequireAll>\n</RequireAny>\n";
+    } else {
+        $data .= "Allow from All\nSatisfy Any\n";
     }
 
     // can use env vars in child .htaccess using mod_setenvif
     $data .= "SetEnvIf Host ^ LOCAL_PROTECT=" . $enablePW . "\n";
 
-    // Allow open access for fppxml & fppjson
-    $data .= "<FilesMatch \"^(fppjson|fppxml)\.php$\">\n";
-    if ($enablePW) {
-        $data .= "<RequireAny>\n  <RequireAll>\n    Require local\n  </RequireAll>\n  <RequireAll>\n    Require valid-user\n  </RequireAll>\n</RequireAny>\n";
-    } else {
-        $data .= "Allow from All\nSatisfy Any\n";
-    }
-    $data .= "</FilesMatch>\n";
-
     // Don't block Fav icon
-    $data .= "<FilesMatch \"^(favicon)\.ico$\">\nAllow from All\nSatisfy Any\n</FilesMatch>\n";
+    if ($enablePW) {
+        $data .= "<FilesMatch \"^(favicon)\.ico$\">\nAllow from All\nSatisfy Any\n</FilesMatch>\n";
+    }
 
     file_put_contents($filename, $data, LOCK_EX);
 }
