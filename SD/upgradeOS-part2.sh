@@ -25,7 +25,7 @@ if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
 fi
 
 # temporarily copy the ssh keys
-echo "Saving ssh keys"
+echo "Saving system ssh keys"
 mkdir tmp/ssh
 cp -a mnt/etc/ssh/*key* tmp/ssh
 
@@ -35,11 +35,18 @@ rm -f mnt/bin/ping
 rm -f mnt/lib/arm-linux-gnueabihf/librtmp.so.1
 rm -f mnt/usr/bin/dc mnt/usr/bin/bc mnt/usr/bin/hardlink mnt/usr/bin/lua5*
 
+SKIPFPP=""
+BRANCH=$(cd /mnt/opt/fpp/ && git branch --no-color | grep '^\*' | sed -e 's/^\* //')
+if [ "${BRANCH}" = "master" ]
+then
+    SKIPFPP="--exclude=opt/fpp"
+fi
+
 #copy everything other than fstab and the persistent net names
-stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-after --exclude=var/lib/connman --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh
+stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-after --exclude=var/lib/connman --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh ${SKIPFPP}
 
 #restore the ssh keys
-echo "Restoring ssh keys"
+echo "Restoring system ssh keys"
 cp -a tmp/ssh/* mnt/etc/ssh
 
 sync
