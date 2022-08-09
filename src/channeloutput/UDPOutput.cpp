@@ -309,12 +309,12 @@ int UDPOutput::Init(Json::Value config) {
         if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
             GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
             myIps.emplace(address);
-            if (e131Interface == "") {
+            if ((e131Interface == "") && (strcmp(tmp->ifa_name, "lo"))) {
                 if (firstInterface == "") {
                     firstInterface = tmp->ifa_name;
                 }
                 if (tmp->ifa_name[0] == 'e') {
-                    e131Interface = firstInterface;
+                    e131Interface = tmp->ifa_name;
                 }
             }
         }
