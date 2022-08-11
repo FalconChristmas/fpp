@@ -105,7 +105,7 @@ uint64_t PlaylistEntryPause::GetLengthInMS() {
 uint64_t PlaylistEntryPause::GetElapsedMS() {
     long long now = GetTimeMS();
     if (m_isStarted && m_isPlaying) {
-        return now - m_endTime;
+        return now - m_startTime;
     }
     return 0;
 }
