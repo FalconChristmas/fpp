@@ -11,6 +11,14 @@ then
     sed -i -e "s/^restartFlag .*/restartFlag = \"0\"/" ${FPPHOME}/media/settings
 fi
 
+# Check to make sure we are running the latest apache config
+cmp /opt/fpp/etc/apache2.site /etc/apache2/sites-enabled/000-default.conf
+if [ $? -ne 0 ]
+then
+    cat /opt/fpp/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
+    setSetting rebootFlag 1
+fi
+
 echo "Setup channel outputs"
 setupChannelOutputs
 
