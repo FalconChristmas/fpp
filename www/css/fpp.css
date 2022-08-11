@@ -1125,10 +1125,32 @@ body .sm-clean a .sub-arrow {
 	text-align: center;
   }
 
+  #scrollTopButton {
+    display: none;
+    position: fixed;
+    top: 72px;
+    right: 5px;
+    z-index: 9999;
+    background-color: red;
+    color: white;
+  }
+
+  #scrollTopButton:hover {
+    background-color: #555;
+  }
+
+  .scrollTopButtonHidden {
+    display: none;
+  }
+
   @media all and (min-width: 991px) {
 	  #navbarNavDropdown{
 		  margin-top: 0.25em;
 	  }
+
+      .scrollTopButtonShowing {
+          display: block !important;
+      }
   }
   @media all and (max-width: 990px) {
 
@@ -1155,6 +1177,9 @@ body .sm-clean a .sub-arrow {
 	  padding: 15px;
 	}
 
+    .scrollTopButtonShowing {
+      display: none !important;
+    }
 
 	#fppMenu .navbar-collapse {
 	  position: fixed;

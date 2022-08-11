@@ -82,6 +82,8 @@ $(function () {
     LoadSystemStatus();
     CheckBrowser();
     CheckRestartRebootFlags();
+
+    window.onscroll = function() { checkScrollTopButton(); };
 });
 
 function getManualLink() {
@@ -6364,6 +6366,24 @@ function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, d
 
 function DeviceSelect(deviceArray = ["No Devices"], currentValue, onselect = "") {
     return CreateSelect(deviceArray, currentValue, "Port", "-- Port --", "device", onselect);
+}
+
+function checkScrollTopButton() {
+    var limit = 40;
+    var btn = $('#scrollTopButton');
+
+    if (document.body.scrollTop > limit || document.documentElement.scrollTop > limit) {
+        btn.addClass('scrollTopButtonShowing');
+        btn.removeClass('scrollTopButtonHidden');
+    } else {
+        btn.removeClass('scrollTopButtonShowing');
+        btn.addClass('scrollTopButtonHidden');
+    }
+}
+
+function scrollToTop() {
+    document.body.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
 }
 
 
