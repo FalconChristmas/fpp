@@ -5,6 +5,7 @@ $lastUpdate = time();
 $applyUpdate = true;
 $wrapped = 0;
 $baseFile = "unknown";
+$keepOptFPP = 0;
 
 if (isset($_GET['os'])) {
     $baseFile = escapeshellcmd($_GET['os']);
@@ -16,6 +17,10 @@ if (isset($_GET['downloadOnly'])) {
 
 if (isset($_GET['wrapped'])) {
     $wrapped = 1;
+}
+
+if (isset($_GET['keepOptFPP'])) {
+    $keepOptFPP = 1;
 }
 
 if (!$wrapped) {
@@ -81,6 +86,11 @@ if ($applyUpdate) {
         system($SUDO . " rm $TMP_FILE");
     }
     copy("$fppDir/SD/upgradeOS-part1.sh", $TMP_FILE);
+    if ($keepOptFPP) {
+        system($SUDO . " touch /home/fpp/media/tmp/keepOptFPP");
+    } else {
+        system($SUDO . " rm /home/fpp/media/tmp/keepOptFPP");
+    }
     chmod($TMP_FILE, 0775);
     #system($SUDO . " stdbuf --output=L --error=L $TMP_FILE /home/fpp/media/upload/$baseFile");
     system($SUDO . " $TMP_FILE /home/fpp/media/upload/$baseFile");

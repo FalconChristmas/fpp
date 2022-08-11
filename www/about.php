@@ -4,10 +4,12 @@
 require_once 'common.php';
 require_once 'config.php';
 
+writeFPPVersionJavascriptFunctions();
+
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 
-$fpp_version = "v" . getFPPVersion();
+$fpp_version = getFPPVersion();
 
 if (file_exists("/proc/cpuinfo")) {
     $serialNumber = exec("sed -n 's/^Serial.*: //p' /proc/cpuinfo", $output, $return_val);
@@ -199,6 +201,11 @@ function UpgradeOS() {
     if (os == '')
         return;
 
+    var keepOptFPP = '';
+    if ($('#keepOptFPP').is(':checked')) {
+        keepOptFPP = '&keepOptFPP=1';
+    }
+
     if (os in osAssetMap) {
         osName = osAssetMap[os].name;
         os = osAssetMap[os].url;
@@ -212,7 +219,7 @@ function UpgradeOS() {
         clearTimeout(statusTimeout);
         statusTimeout = null;
 
-        StreamURL('upgradeOS.php?wrapped=1&os=' + os, 'upgradeText', 'UpgradeDone');
+        StreamURL('upgradeOS.php?wrapped=1&os=' + os + keepOptFPP, 'upgradeText', 'UpgradeDone');
     }
 }
 
@@ -400,7 +407,13 @@ echo "<option value=''>-- Choose an OS Version --</option>\n";
 foreach ($osUpdateFiles as $key => $value) {
     echo "<option value='" . $value . "'>" . $value . "</option>\n";
 }
-echo "</select><br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'>&nbsp;<input type='button' disabled value='Download Only' onClick='DownloadOS();' class='buttons' id='OSDownload'></td></tr>";
+echo "</select><span";
+if (getFPPBranch() != 'master') {
+    echo " style='display: none;'";
+}
+echo ">&nbsp;&nbsp;Preserve /opt/fpp <input type='checkbox' id='keepOptFPP'><img id='keepOptFPP_img' title='Preserve the FPP version in /opt/fpp across fppos upgrade.' src='images/redesign/help-icon.svg' class='icon-help'></span>";
+
+echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'>&nbsp;<input type='button' disabled value='Download Only' onClick='DownloadOS();' class='buttons' id='OSDownload'></td></tr>";
 ?>
                 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
                 <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>

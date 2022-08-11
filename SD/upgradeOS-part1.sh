@@ -18,15 +18,30 @@ echo "BootActions = \"settings\"" >> /home/fpp/media/settings
 #but the caps (getcap) might be different
 rm -f /bin/ping
 
+echo "----------"
+echo "Mounting filesystems for copy"
 mount -o bind / /mnt/mnt
 mount -o bind /boot /mnt/mnt/boot
 mount -t tmpfs tmpfs /mnt/tmp
 mount -o bind /dev /mnt/dev
 mount -o bind /proc /mnt/proc
 
-stdbuf --output=0 --error=0 chroot /mnt /opt/fpp/SD/upgradeOS-part2.sh
+if [ -f /home/fpp/media/tmp/keepOptFPP ]
+then
+    # If we are on master and keeping /opt/fpp, run the existing part2 script
+    echo "keepOptFPP flag exists, script will not copy /opt/fpp from image"
+    echo "Passing control to existing upgradeOS-part2.sh from /opt/fpp"
+    stdbuf --output=0 --error=0 chroot /mnt /mnt/opt/fpp/SD/upgradeOS-part2.sh
+else
+    # Not keeping /opt/fpp, so run part2 included in the fppos image
+    echo "Passing control to upgradeOS-part2.sh from fppos image"
+    stdbuf --output=0 --error=0 chroot /mnt /opt/fpp/SD/upgradeOS-part2.sh
+fi
 
-echo "Done copy, unmounting filesystems"
+echo "----------"
+echo "Control returned from upgradeOS-part2.sh script, resuming upgradeOS-part1.sh"
+
+echo "Copy done, unmounting filesystems"
 sync
 umount /mnt/proc
 umount /mnt/dev
@@ -36,7 +51,7 @@ umount /mnt/mnt
 
 sync
 
-echo "Please Reboot...."
+echo "Please reboot if the system does not do so automatically"
 
 exec 0>&- # close stdin
 exec 1>&- # close stdout
