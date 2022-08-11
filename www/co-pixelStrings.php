@@ -621,7 +621,7 @@ function selected_string_details(row) { //outputs, rowid) {
     } else {
         details += `<b>Port ${portinx + 1}`;
         if (hdr_name) {
-            details += `(${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"})</b>`;
+            details += ` (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"})</b>`;
         }
     }
 //    $("#pixel-string-details").html(details);
@@ -1347,9 +1347,14 @@ function PixelStringDifferentialTypeChangedTo(port, tp, count) {
             }
             $('#' + type + '_Output_' + (x-1) + '_' + (port + 3) + '_' + j).after(str);
         } else {
-            for (var y = 0; y < 4; y++) {
-                var newLabel = GetStringHWLabel(port+y) + label + ")";
-                $('#' + type + '_Output_' + x + '_' + (port + y) + '_0 td:first').html(newLabel);
+            if (tp >= 1) {
+                for (var y = 0; y < 4; y++) {
+                    var newLabel = GetStringHWLabel(port+y) + label + ")";
+                    $('#' + type + '_Output_' + x + '_' + (port + y) + '_0 td:first').html(newLabel);
+                }
+            } else {
+                var newLabel = GetStringHWLabel(port) + ")";
+                $('#' + type + '_Output_' + x + '_' + (port) + '_0 td:first').html(newLabel);
             }
         }
     }
