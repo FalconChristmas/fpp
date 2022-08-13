@@ -502,6 +502,54 @@ case "${OSVER}" in
             
             #remove some things that were installed (not sure why)
             apt-get remove -y --purge --autoremove --allow-change-held-packages pocketsphinx-en-us guile-2.2-libs
+
+            if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
+                echo "FPP - Applying updates to allow optional boot from USB on Pi 4 (and up)"
+
+                # Update /etc/fstab to use PARTUUID for / and /boot
+                BOOTLINE=$(grep "^[^#].* /boot " /etc/fstab | sed -e "s;^[^#].* /boot ;LABEL=boot /boot ;")
+                ROOTLINE=$(grep "^[^#].* /  " /etc/fstab | sed -e "s;^[^#].* / ;LABEL=rootfs / ;")
+                echo "    - Updating /etc/fstab"
+                sed -i -e "\;^[^#].* /boot ;a ${BOOTLINE}" -e "\;^[^#].* / ;a ${ROOTLINE}" -e "s;^/dev/\(.*\) /boot ;#/dev/\1 /boot ;" -e "s;^/dev/\(.*\) / ;#/dev/\1 / ;" /etc/fstab
+
+                # Create two different cmdline.txt files for USB and SD boot
+                echo "    - Creating /boot/cmdline.* configs"
+                cat /boot/cmdline.txt | sed -e "s/root=\/dev\/[a-zA-Z0-9]*\([0-9]\) /root=\/dev\/sda\1 /" > /boot/cmdline.usb
+                cat /boot/cmdline.txt | sed -e "s/root=\/dev\/[a-zA-Z0-9]*\([0-9]\) /root=\/dev\/mmcblk0p\1 /" > /boot/cmdline.sd
+
+                # Create two batch files to switch back and forth between USB and SD boot
+                echo "    - Creating /boot/boot_*.bat scripts"
+                cat > /boot/boot_usb.bat <<EOF
+@echo off
+rem This script will switch /boot/cmdline.txt to boot from a USB
+rem drive which will show up as /dev/sda inside the OS.
+
+@echo Copying USB boot config file into place.
+copy /y cmdline.usb cmdline.txt
+@echo.
+
+@echo Copy complete.
+@echo.
+
+set /p DUMMY=Hit ENTER to continue...
+EOF
+
+                cat > /boot/boot_sd.bat <<EOF
+@echo off
+rem This script will switch /boot/cmdline.txt to boot from a SD
+rem card which will show up as /dev/mmcblk0 inside the OS.
+
+@echo Copying (micro)SD boot config file into place.
+copy /y cmdline.sd cmdline.txt
+@echo.
+
+@echo Copy complete.
+@echo.
+
+set /p DUMMY=Hit ENTER to continue...
+EOF
+
+            fi
         fi
 
 		;;
