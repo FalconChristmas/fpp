@@ -19,7 +19,7 @@ then
 	exec /usr/bin/php "$@"
 elif [ "x${EXT}" = "xpy" ]
 then
-	exec /usr/bin/python "$@"
+	exec /usr/bin/python3 "$@"
 elif [ -x $1 ]
 then
 	EXECUTABLE=$1
