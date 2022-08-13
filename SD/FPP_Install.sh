@@ -50,7 +50,7 @@
 SCRIPTVER="6.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="2022-07"
-FPPCFGVER="72"
+FPPCFGVER="74"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -413,7 +413,7 @@ case "${OSVER}" in
                       build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
                       git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
-                      mp3info exim4 dhcp-helper parprouted bridge-utils libiio-utils \
+                      mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils \
                       php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-xml \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
@@ -957,6 +957,11 @@ echo "${FPPUSER} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 if $isimage; then
     #######################################
     # Setup mail
+    echo "FPP - Adding missing exim4 log directory"
+    mkdir /var/log/exim4
+    chown Debian-exim /var/log/exim4
+    chgrp Debian-exim /var/log/exim4
+
     echo "FPP - Updating exim4 config file"
     cat <<-EOF > /etc/exim4/update-exim4.conf.conf
 # /etc/exim4/update-exim4.conf.conf
