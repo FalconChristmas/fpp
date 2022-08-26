@@ -1807,8 +1807,8 @@ function SetPlaylistItemMetaData(row) {
                     row.find('.psiData').append('<div style="color: #FF0000; font-weight: bold;">ERROR: Image File "' + file + '" Not Found</div>');
                 }
             },
-            error: function () {
-                DialogError('Failed to Query Image', "Error: Unable to query list of images");
+            error: function (...args) {
+                DialogError('Failed to Query Image', "Error: Unable to query list of images" + show_details(args));
             }
         });
     } else if (type == 'playlist') {
@@ -2137,8 +2137,8 @@ function SavePlaylistAs(name, options, callback) {
                 callback();
             }
         },
-        error: function () {
-            DialogError('Unable to save playlist', "Error: Unable to save playlist.");
+        error: function (...args) {
+            DialogError('Unable to save playlist', "Error: Unable to save playlist." + show_details(args));
         }
     });
 
@@ -2320,8 +2320,8 @@ function DeleteNamedPlaylist(name, options) {
             PopulateLists(options);
             $.jGrowl("Playlist Deleted", { themeState: 'success' });
         },
-        error: function () {
-            DialogError('Error Deleting Playlist', "Error deleting '" + name + "' playlist");
+        error: function (...args) {
+            DialogError('Error Deleting Playlist', "Error deleting '" + name + "' playlist" + show_details(args));
         }
     });
 }
@@ -3188,8 +3188,8 @@ function GetPlaylistArray(callback) {
                 callback();
             }
         },
-        error: function () {
-            DialogError('Load Playlists', 'Error loading list of playlists');
+        error: function (...args) {
+            DialogError('Load Playlists', 'Error loading list of playlists' + show_details(args));
         }
     });
 }
@@ -3203,8 +3203,8 @@ function GetSequenceArray() {
         success: function (data) {
             sequenceArray = data;
         },
-        error: function () {
-            DialogError('Load Sequences', 'Error loading list of sequences');
+        error: function (...args) {
+            DialogError('Load Sequences', 'Error loading list of sequences' + show_details(args));
         }
     });
 }
@@ -3228,10 +3228,23 @@ function GetFiles(dir) {
             });
         },
         error: function (x, t, e) {
-            DialogError('Load Files', 'Error loading list of files in ' + dir + ' directory');
+            DialogError('Load Files', 'Error loading list of files in ' + dir + ' directory' + show_details([x, t, e]));
         }
 
     });
+}
+
+//show error details:
+const WANT_DETAILS = true; //false; //TODO: maybe use config setting?
+function show_details(args) {
+    if (!WANT_DETAILS || !args || !args.length) return "";
+    if (typeof args[0] == "object" && args[0].responseText) {
+        return args[0].responseText; } //show most useful part
+    const retval = [""];
+    args.forEach(arg =>
+        retval.push(typeof arg + ": " +
+            JSON.stringify(arg).replace(/^(?<=.{200})[\s\S]+$/, " ..."))); //truncate if long
+    return retval.join("<br/>");
 }
 
 function moveFile(file) {
@@ -4324,8 +4337,8 @@ function Reboot() {
                         location.href = "index.php";
                     }, 60000);
                 },
-                error: function () {
-                    DialogError('Command failed', 'Reboot Command failed');
+                error: function (...args) {
+                    DialogError('Command failed', 'Reboot Command failed' + show_details(args));
                 }
 
             });
@@ -4342,8 +4355,8 @@ function Shutdown() {
                 //Show FPP is rebooting notification for 60 seconds then reload the page
                 $.jGrowl('FPP is shutting down..', { life: 60000, themeState: 'detract' });
             },
-            error: function () {
-                DialogError('Command failed', 'Shutdown Command failed');
+            error: function (...args) {
+                DialogError('Command failed', 'Shutdown Command failed' + show_details(args));
             }
 
         });
@@ -5925,8 +5938,8 @@ function RunCommandJSON(cmdJSON) {
         success: function (data) {
             $.jGrowl('Command ran', { themeState: 'success' });
         },
-        error: function () {
-            DialogError('Command failed', 'api/command call failed');
+        error: function (...args) {
+            DialogError('Command failed', 'api/command call failed' + show_details(args));
         }
     });
 }
