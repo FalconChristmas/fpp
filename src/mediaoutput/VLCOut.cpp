@@ -16,12 +16,36 @@
  */
 #include "fpp-pch.h"
 
+#if __has_include(<vlc/vlc.h>)
+
+#include <vlc/libvlc_version.h>
 #include <vlc/vlc.h>
 
 #include "VLCOut.h"
 
 #include "MultiSync.h"
 #include "channeloutput/channeloutputthread.h"
+
+#if LIBVLC_VERSION_MAJOR > 3
+#define MEDIA_PLAYER_SET_TIME(a, b) libvlc_media_player_set_time(a, b, false)
+#define MEDIA_PLAYER_STOP(a) libvlc_media_player_stop_async(a)
+#else
+#define MEDIA_PLAYER_SET_TIME(a, b) libvlc_media_player_set_time(a, b)
+#define MEDIA_PLAYER_STOP(a) libvlc_media_player_stop(a)
+#endif
+
+// recent versions of VLC have renamed libvlc_MediaPlayerEndReached to libvlc_MediaPlayerStopping
+// but that breaks compiling.  It is the next enum after libvlc_MediaPlayerBackward so we'll
+// grab it that way
+#define STOPPINGENUM (libvlc_MediaPlayerBackward + 1)
+
+#if __has_include(<vlc/fpp-vlc-build.h>)
+#include <vlc/fpp-vlc-build.h>
+#else
+#define LIBVLC_MEDIA_NEWPATH(a, b) libvlc_media_new_path(a, b)
+#define LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(a, b) libvlc_media_player_new_from_media(b)
+#endif
+
 
 class VLCInternalData {
 public:
@@ -73,8 +97,8 @@ public:
 
 static std::string currentMediaFilename;
 
-void logCallback(void* data, int level, const libvlc_log_t* ctx,
-                 const char* fmt, va_list args) {
+static void logCallback(void* data, int level, const libvlc_log_t* ctx,
+                        const char* fmt, va_list args) {
     switch (level) {
     case LIBVLC_DEBUG:
         if (WillLog(LOG_EXCESSIVE, VB_MEDIAOUT)) {
@@ -106,6 +130,12 @@ void logCallback(void* data, int level, const libvlc_log_t* ctx,
             if (str == "cannot connect to session bus: Unable to autolaunch a dbus-daemon without a $DISPLAY for X11") {
                 return;
             }
+            if (str == "kms window error: cannot open /dev/dri/card0") {
+                return;
+            }
+            if (str == "cannot open /dev/dri/card0") {
+                return;
+            }
             LogWarn(VB_MEDIAOUT, "%s\n", buf);
         }
         break;
@@ -133,60 +163,77 @@ public:
     int load(VLCInternalData* data) {
         if (vlcInstance == nullptr) {
             //const char *args[] {"-A", "alsa", "-V", "mmal_vout", nullptr};
-#ifdef PLATFORM_UNKNOWN
-            const char* dsp = getenv("DISPLAY");
-            if (dsp == nullptr) {
-                setenv("DISPLAY", ":0", true);
+            if (FileExists("/etc/fpp/desktop")) {
+                const char* dsp = getenv("DISPLAY");
+                if (dsp == nullptr) {
+                    setenv("DISPLAY", ":0", true);
+                }
             }
-#endif
-            const char* args[]{ "-A", "alsa", "--no-osd",
+
+            int hardwareDecoding = getSettingInt("HardwareDecoding", 1);
+            std::vector<const char*> args;
+            args.push_back("--no-osd");
+            if (!hardwareDecoding) {
+                args.push_back("--no-hw-dec");
+            }
+            args.push_back("-A");
+            args.push_back("alsa");
 #ifdef PLATFORM_PI
-                                "-V", "mmal_vout",
-#elif defined(PLATFORM_UNKNOWN)
-                                "-I", "dummy",
-#endif
-                                nullptr };
-            int argc = 0;
-            while (args[argc]) {
-                argc++;
+            if (hardwareDecoding) {
+                args.push_back("-V");
+                args.push_back("mmal_vout");
             }
-            vlcInstance = libvlc_new(argc, args);
+#else
+            args.push_back("-I");
+            args.push_back("dummy");
+#endif            
+            args.push_back(nullptr);
+            vlcInstance = libvlc_new(args.size() - 1, &args[0]);
 
-            libvlc_log_set(vlcInstance, logCallback, this);
+            if (vlcInstance) {
+                libvlc_log_set(vlcInstance, logCallback, this);
+            } else {
+                WarningHolder::AddWarningTimeout("Could not create Video Ouput Device.", 60);
+            }
         }
-        data->media = libvlc_media_new_path(vlcInstance, data->fullMediaPath.c_str());
-        data->vlcPlayer = libvlc_media_player_new_from_media(data->media);
-        libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerEndReached, stoppedEventCallBack, data);
-        libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
-        data->length = libvlc_media_player_get_length(data->vlcPlayer);
+        if (vlcInstance) {
+            data->media = LIBVLC_MEDIA_NEWPATH(vlcInstance, data->fullMediaPath.c_str());
+            data->vlcPlayer = LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(vlcInstance, data->media);
+            libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), STOPPINGENUM, stoppedEventCallBack, data);
+            libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
+            data->length = libvlc_media_player_get_length(data->vlcPlayer);
 
-        std::string cardType = getSetting("AudioCardType");
-        if (cardType.find("Dummy") == 0) {
-            WarningHolder::AddWarningTimeout("Outputting Audio to Dummy device.", 60);
+            std::string cardType = getSetting("AudioCardType");
+            if (cardType.find("Dummy") == 0) {
+                WarningHolder::AddWarningTimeout("Outputting Audio to Dummy device.", 60);
+            }
+            return 0;
         }
-
-        return 0;
+        return 1;
     }
     int start(VLCInternalData* data, int startPos) {
-        libvlc_media_player_play(data->vlcPlayer);
-        if (startPos) {
-            libvlc_media_player_set_time(data->vlcPlayer, startPos, false);
+        if (data->vlcPlayer) {
+            libvlc_media_player_play(data->vlcPlayer);
+            if (startPos) {
+                MEDIA_PLAYER_SET_TIME(data->vlcPlayer, startPos);
+            }
+            data->length = libvlc_media_player_get_length(data->vlcPlayer);
+            return 0;
         }
-        data->length = libvlc_media_player_get_length(data->vlcPlayer);
-        return 0;
+        return 1;
     }
     int restart(VLCInternalData* data) {
         if (data->vlcPlayer) {
             libvlc_media_player_set_media(data->vlcPlayer, data->media);
             libvlc_media_player_play(data->vlcPlayer);
-            libvlc_media_player_set_time(data->vlcPlayer, 0, false);
+            MEDIA_PLAYER_SET_TIME(data->vlcPlayer, 0);
         }
         return 0;
     }
 
     int stop(VLCInternalData* data) {
         if (data->vlcPlayer) {
-            libvlc_media_player_stop_async(data->vlcPlayer);
+            MEDIA_PLAYER_STOP(data->vlcPlayer);
             libvlc_media_player_release(data->vlcPlayer);
             data->vlcPlayer = nullptr;
             /*
@@ -259,11 +306,14 @@ VLCOutput::~VLCOutput() {
 int VLCOutput::Start(int msTime) {
     LogDebug(VB_MEDIAOUT, "VLCOutput::Start(%X, %d) %0.3f\n", data, msTime, m_mediaOutputStatus->mediaSeconds);
     if (data) {
-        vlcManager.start(data, msTime);
+        if (vlcManager.start(data, msTime)) {
+            m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+            return 0;
+        }
 
         int seconds = data->length / 1000;
-        m_mediaOutputStatus->secondsTotal = seconds / 60;
-        m_mediaOutputStatus->minutesTotal = seconds % 60;
+        m_mediaOutputStatus->minutesTotal = seconds / 60;
+        m_mediaOutputStatus->secondsTotal = seconds % 60;
 
         m_mediaOutputStatus->secondsRemaining = seconds;
         m_mediaOutputStatus->subSecondsRemaining = 0;
@@ -285,7 +335,7 @@ int VLCOutput::Stop(void) {
 
 int VLCOutput::Process(void) {
     //LogExcess(VB_MEDIAOUT, "VLCOutput::Process(%X) %0.3f\n", data, m_mediaOutputStatus->mediaSeconds);
-    if (!data) {
+    if (!data || !data->vlcPlayer) {
         return 0;
     }
 
@@ -294,8 +344,8 @@ int VLCOutput::Process(void) {
         if (!data->length) {
             data->length = libvlc_media_player_get_length(data->vlcPlayer);
             int seconds = data->length / 1000;
-            m_mediaOutputStatus->secondsTotal = seconds / 60;
-            m_mediaOutputStatus->minutesTotal = seconds % 60;
+            m_mediaOutputStatus->secondsTotal = seconds % 60;
+            m_mediaOutputStatus->minutesTotal = seconds / 60;
 
             m_mediaOutputStatus->secondsRemaining = seconds;
             m_mediaOutputStatus->subSecondsRemaining = 0;
@@ -442,7 +492,7 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             // **note** if VLC 'seeking' ever gets fixed, this threshold should be lowered to around 3 seconds
             int ms = std::round(masterMediaPosition * 1000);
             LogDebug(VB_MEDIAOUT, "Diff: %d	Very far, jumping to: %0.3f	(currently at %0.3f)\n", rawdiff, masterMediaPosition, m_mediaOutputStatus->mediaSeconds);
-            libvlc_media_player_set_time(data->vlcPlayer, ms, false);
+            MEDIA_PLAYER_SET_TIME(data->vlcPlayer, ms);
             libvlc_media_player_set_rate(data->vlcPlayer, 1.0);
             lastRates.push_back(1.0);
             rateSum += 1.0;
@@ -552,3 +602,5 @@ void VLCOutput::SetVolumeAdjustment(int volAdj) {
         libvlc_media_player_set_equalizer(data->vlcPlayer, data->equalizer);
     }
 }
+
+#endif
