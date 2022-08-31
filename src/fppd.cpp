@@ -271,7 +271,7 @@ static void handleCrash(int s) {
         for (const auto& entry : std::filesystem::directory_iterator(cdir)) {
             filenames.insert(entry.path());
             auto ftime = entry.last_write_time();
-#if defined(PLATFORM_OSX)
+#if defined(PLATFORM_OSX) || (__GNUC__ <= 8)
             std::time_t tt = decltype(ftime)::clock::to_time_t(ftime);
             auto stm = std::chrono::system_clock::from_time_t(tt);
 #else
