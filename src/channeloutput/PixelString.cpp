@@ -35,7 +35,7 @@ constexpr uint32_t SMART_RECEIVER_LEADIN = 6 * 3;
 constexpr uint32_t SMART_RECEIVER_LEN = 6 * 3;
 constexpr uint32_t SMART_RECEIVER_LEADOUT = 6 * 3;
 
-constexpr uint32_t SMART_RECEIVER_V2_GAP = 5 * 3;
+constexpr uint32_t SMART_RECEIVER_V2_GAP = 10;
 
 #define CHECKPS_SETTING(SETTING)                                            \
     if (SETTING) {                                                          \
