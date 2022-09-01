@@ -10,8 +10,8 @@ pcm.dmixer {
 	slave {
 		pcm "pcmdev"
 		period_time 0
-		period_size 128
-		buffer_size 1024
+		period_size 1024
+		buffer_size 2048
 		rate 44100
 	}
 	slowptr false
