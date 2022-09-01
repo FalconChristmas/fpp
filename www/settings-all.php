@@ -6,17 +6,10 @@ require_once('config.php');
 require_once('common.php');
 include('common/menuHead.inc');
 
-?>
-<link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
-<link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
-<link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
-<script type="text/javascript" src="js/jquery.timepicker.js"></script>
-<script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title><? echo $pageTitle; ?></title>
-</head>
-
-<?php
+$storageUILevel = 1;
+if (isset($settings["LastBlock"]) && $settings['LastBlock'] > 0 && $settings['LastBlock'] < 7200000) {
+    $storageUILevel = 0;
+}
 $pages = array(
     array("name" => "playback", "title" => "Playback", ui => 0 ),
     array("name" => "av", "title" => "Audio/Video", ui => 0 ),
@@ -26,12 +19,19 @@ $pages = array(
     array("name" => "mqtt", "title" => "MQTT", ui => 0 ),
     array("name" => "output", "title" => "Input/Output", ui => 1 ),
     array("name" => "logs", "title" => "Logging", ui => 1 ),
-    array("name" => "storage", "title" => "Storage", ui => 1 ),
+    array("name" => "storage", "title" => "Storage", ui => $storageUILevel ),
     array("name" => "system", "title" => "System", ui => 0 ),
     array("name" => "developer", "title" => "Developer", ui => 1 )
 );
 ?>
-
+<link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
+<link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
+<link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
+<script type="text/javascript" src="js/jquery.timepicker.js"></script>
+<script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title><? echo $pageTitle; ?></title>
+</head>
 <body>
 <div id="bodyWrapper">
 <?php include 'menu.inc'; ?>

@@ -80,6 +80,10 @@ $tabId = "Playback";
 if (isset($_GET['tab'])) {
     $tabId = $_GET['tab'];
 }
+$storageUILevel = 1;
+if (isset($settings["LastBlock"]) && $settings['LastBlock'] > 0 && $settings['LastBlock'] < 7200000) {
+    $storageUILevel = 0;
+}
 ?>
 
 <body>
@@ -144,7 +148,7 @@ include 'menu.inc';?>
                                 Logging
                             </a>
                         </li>
-                        <?if ($uiLevel >= 1 || $tabId == "Storage") {?>
+                        <?if ($uiLevel >= $storageUILevel || $tabId == "Storage") {?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-storage-tab" data-toggle="tab" href="#settings-storage" data-option="Storage" role="tab" aria-controls="settings-storage" aria-selected="true">
                             Storage
@@ -209,7 +213,7 @@ if ($uiLevel >= 1 || $tabId == "Output") {
 }
 
 $tabIDs["Logging"] = $id++;
-if ($uiLevel >= 1 || $tabId == "Storage") {
+if ($uiLevel >= $storageUILevel || $tabId == "Storage") {
     $tabIDs["Storage"] = $id++;
 }
 
