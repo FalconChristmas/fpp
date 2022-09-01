@@ -749,10 +749,12 @@ populateCCACHE() {
         curl  -f --fail-early $FULLURL --output "/tmp/$FILETOGET"
 
         if [ -f "/tmp/$FILETOGET" ]; then
+            sudo cp /root/.ccache/ccache.conf /tmp
             sudo tar -x -z -C /root -f "/tmp/$FILETOGET"
             rm -f "/tmp/$FILETOGET"
             sudo mv $ETAG_GIT $ETAG_LOCAL
             sudo chmod 644 $ETAG_LOCAL
+            sudo cp /tmp/ccache.conf /root/.ccache/ccache.conf
         fi
     fi
 
