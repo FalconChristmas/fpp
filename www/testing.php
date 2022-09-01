@@ -743,7 +743,27 @@ $(document).ready(function(){
 
 </script>
 
+<style>
+#testModeColorR::-webkit-slider-thumb {
+   background-color: #FF0000;
+}
+#testModeColorG::-webkit-slider-thumb {
+   background-color: #00FF00;
+}
+#testModeColorB::-webkit-slider-thumb {
+   background-color: #0000FF;
+}
 
+#testModeColorR::-moz-range-thumb {
+    background-color: #FF0000;
+}
+#testModeColorG::-moz-range-thumb {
+    background-color: #00FF00;
+}
+#testModeColorB::-moz-range-thumb {
+    background-color: #0000FF;
+}
+</style>
 
 <div id="bodyWrapper">
   <?php
