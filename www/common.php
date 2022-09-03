@@ -1740,7 +1740,7 @@ function get_remote_git_version($git_branch)
             if ($return_val == 0) {
                 //Google DNS Ping success
                 // this can take a couple seconds to complete so we'll cache it
-                $git_remote_version = exec("ping -q -c 1 $origin > /dev/null && (git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+                $git_remote_version = exec("(git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
                 if ($return_val != 0) {
                     $git_remote_version = "Unknown";
                 }
