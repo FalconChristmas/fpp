@@ -97,6 +97,8 @@ function getFileCount($dir)
     return $i;
 }
 
+$uploadDirectory = $mediaDirectory . "/upload";
+$freeSpace = disk_free_space($uploadDirectory);
 ?>
 
 <head>
@@ -128,7 +130,7 @@ this.value = default_value;
 });
 
 function showHideOsSelect() {
-    if ($('#OSSelect option').length > 0) {
+    if ($('#OSSelect option').length > 1) {
         $('#osSelectRow').show();
     } else {
         $('#osSelectRow').hide();
@@ -138,6 +140,10 @@ function showHideOsSelect() {
 
 function AppendGithubOS() {
     showHideOsSelect();
+<?
+// we want at least a GB in order to be able to download the fppos and have space to then apply it
+if ($freeSpace > 1000000000) {
+?>
     $.get("api/git/releases/os", function(data) {
         var devMode = (settings['uiLevel'] && (parseInt(settings['uiLevel']) == 3));
         if ("files" in data) {
@@ -157,6 +163,7 @@ function AppendGithubOS() {
         }
         showHideOsSelect();
     });
+<? } ?>
 }
 
 function CloseUpgradeDialog() {
@@ -248,7 +255,12 @@ function DownloadOS() {
 
 function OSSelectChanged() {
     var os = $('#OSSelect').val();
-
+<?
+// we want at least a 200MB in order to be able to apply the fppos
+if ($freeSpace > 200000000) {
+    echo  "os = '';\n";
+}
+?>
     if (os == '') {
         $('#OSUpgrade').attr('disabled', 'disabled');
         $('#OSDownload').attr('disabled', 'disabled');

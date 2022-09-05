@@ -180,6 +180,12 @@ function list_plugin_entries($menu) {
 <?
 		}
 	}
+$freeSpace = disk_free_space($mediaDirectory);
+if ($freeSpace < 50000000) {
+?>
+  <div class="alert alert-danger"><b>WARNING:</b> <?= $mediaDirectory ?> is running low on space.  Problems may occur with saving settings or uploading content.</div>
+<?
+}
 ?>
 <!--
   <div id='upgradeFlag' class="alert detract"><span class='inlineBlock'>FPP v5.1 is available for install</span><span class='inlineBlock'><button name="btnUpgrade" type="button" onClick="ViewReleaseNotes('5.1');"  class = "buttons btn-outline-light" ><i class='fas fa-fw fa-sync fa-nbsp'></i>Upgrade FPP</button></span></div>
