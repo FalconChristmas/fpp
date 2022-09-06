@@ -80,6 +80,7 @@ int USBDMXOutput::Init(Json::Value config) {
     if ((m_deviceName == "UNKNOWN") ||
         (m_dongleType == DMX_DVC_UNKNOWN)) {
         LogErr(VB_CHANNELOUT, "Invalid Config.  Unknown device or type.\n");
+        WarningHolder::AddWarning("USBDMX: Invalid Config.  Unknown device or type.");
         return 0;
     }
     m_deviceName = "/dev/" + m_deviceName;
@@ -93,6 +94,7 @@ int USBDMXOutput::Init(Json::Value config) {
     if (m_fd < 0) {
         LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
                errno, m_deviceName.c_str(), strerror(errno));
+        WarningHolder::AddWarning("USBDMX: Error opening device: " +  m_deviceName);
         return 0;
     }
 

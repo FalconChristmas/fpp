@@ -287,6 +287,7 @@ int BBB48StringOutput::Init(Json::Value config) {
         }
         if (!CapeUtils::INSTANCE.getStringConfig(m_subType + verPostf, root)) {
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
+            WarningHolder::AddWarning("BBB48String: Could not read pin configuration for " + m_subType + verPostf);
             return 0;
         }
     }
@@ -450,6 +451,7 @@ int BBB48StringOutput::Init(Json::Value config) {
 
     compilePRUCode(args, split0args, split1args, !hasSerial);
     if (!StartPRU(!hasSerial)) {
+        WarningHolder::AddWarning("BBB48String: Could not start PRU");
         return 0;
     }
 

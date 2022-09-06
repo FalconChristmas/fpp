@@ -163,6 +163,7 @@ int LOREnhancedOutput::Init(Json::Value config) {
 
     if (deviceName == "UNKNOWN") {
         LogErr(VB_CHANNELOUT, "Missing Device Name\n");
+        WarningHolder::AddWarning("LOREnhanced: Missing Device Name");
         return 0;
     }
 
@@ -173,6 +174,7 @@ int LOREnhancedOutput::Init(Json::Value config) {
     if (data->fd < 0) {
         LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
                errno, data->filename, strerror(errno));
+        WarningHolder::AddWarning("LOREnhanced: Error opening device: " + deviceName);
         return 0;
     }
 

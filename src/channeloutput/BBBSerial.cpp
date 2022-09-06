@@ -202,7 +202,7 @@ int BBBSerialOutput::Init(Json::Value config) {
 
         outputFile.close();
     } else {
-        LogErr(VB_CHANNELOUT, "No output pin configuration for %s%s\n", device.c_str(), verPostf.c_str());
+        WarningHolder::AddWarning("BBBSerial: No output pin configuration for  " + device + verPostf);
         return 0;
     }
 
@@ -228,6 +228,7 @@ int BBBSerialOutput::Init(Json::Value config) {
     compileSerialPRUCode(args);
     if (!FileExists(pru_program.c_str())) {
         LogErr(VB_CHANNELOUT, "%s does not exist!\n", pru_program.c_str());
+        WarningHolder::AddWarning("BBBSerial: Could not compile PRU program");
         return 0;
     }
     LogDebug(VB_CHANNELOUT, "Using program %s\n", pru_program.c_str());

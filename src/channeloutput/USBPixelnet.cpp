@@ -91,6 +91,7 @@ int USBPixelnetOutput::Init(Json::Value config) {
     if (m_fd < 0) {
         LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
                errno, m_deviceName.c_str(), strerror(errno));
+        WarningHolder::AddWarning("USBPixelNet: Error opening device: " +  m_deviceName);
     }
 
     if (m_dongleType == PIXELNET_DVC_LYNX) {

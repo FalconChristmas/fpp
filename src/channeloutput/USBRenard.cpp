@@ -153,6 +153,7 @@ int USBRenardOutput::Init(Json::Value config) {
         LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
                errno, data->filename, strerror(errno));
 
+        WarningHolder::AddWarning("USBRenard: Error opening device: " +  deviceName);
         return 0;
     }
 

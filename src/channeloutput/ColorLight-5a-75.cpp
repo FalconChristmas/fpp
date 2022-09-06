@@ -269,6 +269,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     // Open our raw socket
     if ((m_fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
         LogErr(VB_CHANNELOUT, "Error creating raw socket: %s\n", strerror(errno));
+        WarningHolder::AddWarning("ColorLight: Error creating raw socket");
         return 0;
     }
 
@@ -278,6 +279,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     if (ioctl(m_fd, SIOCGIFINDEX, &m_if_idx) < 0) {
         LogErr(VB_CHANNELOUT, "Error getting index of %s interface: %s\n",
                m_ifName.c_str(), strerror(errno));
+        WarningHolder::AddWarning("ColorLight: Error getting index of interface " + m_ifName);
         return 0;
     }
 
@@ -291,6 +293,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     // Force packets out the desired interface
     if ((bind(m_fd, (struct sockaddr*)&m_sock_addr, sizeof(m_sock_addr))) == -1) {
         LogErr(VB_CHANNELOUT, "bind() failed\n");
+        WarningHolder::AddWarning("ColorLight: Could not bind to interface " + m_ifName);
         return 0;
     }
 #else

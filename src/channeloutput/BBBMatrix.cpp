@@ -708,11 +708,13 @@ int BBBMatrix::Init(Json::Value config) {
     bool isPWM = false;
     if (!FileExists(filename)) {
         LogErr(VB_CHANNELOUT, "No output pin configuration for %s - %s\n", name.c_str(), filename);
+        WarningHolder::AddWarning("BBBMatrix: No output pin configuration for " + name);
         return 0;
     } else {
         LogDebug(VB_CHANNELOUT, "Using panel pinout from %s\n", filename);
         if (!LoadJsonFromFile(filename, root)) {
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s - %s\n", name.c_str(), filename);
+            WarningHolder::AddWarning("BBBMatrix: Could not read pin configuration for " + name);
             return 0;
         }
         std::string longName = root["longName"].asString();

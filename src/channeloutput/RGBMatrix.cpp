@@ -90,7 +90,6 @@ int RGBMatrixOutput::Init(Json::Value config) {
 
     if (!m_panelMatrix) {
         LogErr(VB_CHANNELOUT, "Unable to create PanelMatrix\n");
-
         return 0;
     }
 
@@ -189,7 +188,7 @@ int RGBMatrixOutput::Init(Json::Value config) {
     m_rgbmatrix = RGBMatrix::CreateFromOptions(options, runtimeOptions);
     if (!m_rgbmatrix) {
         LogErr(VB_CHANNELOUT, "Unable to create RGBMatrix instance\n");
-
+        WarningHolder::AddWarning("Unable to create RGBMatrix instance from options");
         return 0;
     }
 

@@ -97,10 +97,12 @@ int FBMatrixOutput::Init(Json::Value config) {
                 PixelOverlayManager::INSTANCE.addModel(val);
             } else {
                 LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
+                WarningHolder::AddWarning("VirtualMatrix: Empty Pixel Overlay Model name");
                 return 0;
             }
         } else {
             LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
+            WarningHolder::AddWarning("VirtualMatrix: Empty Pixel Overlay Model name");
             return 0;
         }
     }
@@ -109,6 +111,7 @@ int FBMatrixOutput::Init(Json::Value config) {
 
     if (!model) {
         LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", modelName.c_str());
+        WarningHolder::AddWarning("VirtualMatrix: Invalid Pixel Overlay Model: " + modelName);
         return 0;
     }
 
@@ -123,6 +126,7 @@ int FBMatrixOutput::Init(Json::Value config) {
 
     if (m_channelCount != (width * height * 3)) {
         LogErr(VB_CHANNELOUT, "Error, channel count is incorrect\n");
+        WarningHolder::AddWarning("VirtualMatrix: Invalid Pixel Overlay Model: " + modelName);
         return 0;
     }
 

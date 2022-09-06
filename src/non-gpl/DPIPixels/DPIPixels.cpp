@@ -136,6 +136,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
     if (!CapeUtils::INSTANCE.getStringConfig(subType, root)) {
         LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s\n", subType.c_str());
+        WarningHolder::AddWarning("DPIPixels: Could not read pin configuration for " + subType);
         return 0;
     }
 
@@ -351,11 +352,13 @@ int DPIPixelsOutput::Init(Json::Value config) {
     fb = new FrameBuffer();
     if (!fb->FBInit(fbConfig)) {
         LogErr(VB_CHANNELOUT, "Error: cannot open FrameBuffer device for %s.\n", device.c_str());
+        WarningHolder::AddWarning("DPIPixels: Could not open FrameBuffer device for " + device);
         return 0;
     }
 
     if (!FrameBufferIsConfigured()) {
         LogErr(VB_CHANNELOUT, "Error: FrameBuffer %s is not configured for DPI Pixels.\n", device.c_str());
+        WarningHolder::AddWarning("DPIPixels: FrameBuffer " + device + " is not configured for DPI Pixels");
         return 0;
     }
 
@@ -367,6 +370,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
     if (!initOK) {
         LogErr(VB_CHANNELOUT, "Error initializing pixel protocol, Channel Output will be disabled.\n");
+        WarningHolder::AddWarning("DPIPixels: Error initializing pixel protocol");
         return 0;
     }
 

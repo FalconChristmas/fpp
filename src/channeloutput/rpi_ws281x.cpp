@@ -118,10 +118,12 @@ int RPIWS281xOutput::Init(Json::Value config) {
     }
     if (!FileExists(filename)) {
         LogErr(VB_CHANNELOUT, "No output pin configuration for %s%s\n", subType.c_str(), verPostf.c_str());
+        WarningHolder::AddWarning("RPIWS281x: No output pin configuration for: " + subType + verPostf);
         return 0;
     }
     if (!LoadJsonFromFile(filename, root)) {
         LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", subType.c_str(), verPostf.c_str());
+        WarningHolder::AddWarning("RPIWS281x: Could not read pin configuration for: " + subType + verPostf);
         return 0;
     }
 
@@ -211,6 +213,7 @@ int RPIWS281xOutput::Init(Json::Value config) {
     int res = ws2811_init(&ledstring);
     if (res) {
         LogErr(VB_CHANNELOUT, "ws2811_init() failed with error: %d\n", res);
+        WarningHolder::AddWarning("RPIWS281x: ws2811_init() failed.  Error code: " + std::to_string(res));
         return 0;
     }
     PixelString::AutoCreateOverlayModels(m_strings);

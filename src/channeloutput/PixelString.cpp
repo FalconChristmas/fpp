@@ -28,6 +28,7 @@ constexpr uint32_t SMART_RECEIVER_V2_GAP = 10;
 #define CHECKPS_SETTING(SETTING)                                            \
     if (SETTING) {                                                          \
         LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING); \
+        WarningHolder::AddWarning("Invalid PixelString Config: " + std::string(#SETTING)); \
         return 0;                                                           \
     }
 
