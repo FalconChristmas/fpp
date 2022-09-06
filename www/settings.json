@@ -940,6 +940,7 @@
             "gatherStats": true,
             "tip": "Enables the HDMI port on the BeagleBone.  WARNING: when enabled, many of the GPIO pins are disabled which will prevent most Capes from functioning.",
             "reboot": 1,
+            "level": 1,
             "platforms": [
                 "BeagleBone Black"
             ],
