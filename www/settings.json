@@ -938,7 +938,7 @@
             "name": "EnableBBBHDMI",
             "description": "Enable HDMI Display",
             "gatherStats": true,
-            "tip": "Enables the HDMI port on the BeagleBone.  WARNING: when enabled, many of the GPIO pins are disabled which will prevent most Caped from functioning.",
+            "tip": "Enables the HDMI port on the BeagleBone.  WARNING: when enabled, many of the GPIO pins are disabled which will prevent most Capes from functioning.",
             "reboot": 1,
             "platforms": [
                 "BeagleBone Black"
