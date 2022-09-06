@@ -773,6 +773,7 @@ EOF
             echo "param_spidev_max_freq=25000000" >> /boot/armbianEnv.txt
             
             sed -i -e "s/ENABLED=true/ENABLED=false/" /etc/default/armbian-ramlog
+            
         fi
 		;;
 	'Ununtu')
@@ -910,6 +911,9 @@ if $isimage; then
 
     echo "FPP - Cleaning up /root/.cpanm to save space on the SD image"
     rm -rf /root/.cpanm
+    
+    echo "FPP - Enabling legacy WiFi drivers"
+    sed -i -e "s@^ExecStart.*@ExecStart=/sbin/wpa_supplicant -c/etc/wpa_supplicant/wpa_supplicant-%I.conf -Dnl80211,wext -i%I@" "/lib/systemd/system/wpa_supplicant@.service"
 fi
 
 
