@@ -177,5 +177,9 @@ if [ ! -f /etc/fpp/desktop ]; then
 applyScreenBlankSetting
 fi
 
+# Make sure modules and configuration required for channel outputs
+# is handled
+setupChannelOutputs
+
 #make sure the entire media dir and subdirs is writable by fpp user
 chown -R ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
