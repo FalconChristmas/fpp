@@ -3102,7 +3102,7 @@ function validateIPaddress(id, allowHostnames = false) {
 
     var isIpRegex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
     // hostnames must begin with a letter, contain only letters/numbers/hyphens, and end with a letter or number
-    var isHostnameRegex = /^[a-zA-Z][-a-zA-Z0-9]*[a-zA-Z0-9]$/;
+    var isHostnameRegex = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
     var rc = false;
     if (ip == "" || (allowHostnames && isHostnameRegex.test(ip)) || isIpRegex.test(ip)) {
         ipb.style.border = "#D2D2D2 1px solid";
