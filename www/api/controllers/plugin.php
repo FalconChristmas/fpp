@@ -226,7 +226,8 @@ function UpgradePlugin()
             $install_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
         }
         if (file_exists($install_script)) {
-            system($SUDO . " " . $install_script . "  FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src", $return_val);
+            echo "Running install script " . $install_script;
+            system($SUDO . "  FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src " . $install_script, $return_val);
         }
         return "\nDone\n";
     }
@@ -241,7 +242,7 @@ function UpgradePlugin()
         $install_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
     }
     if (file_exists($install_script)) {
-        exec($SUDO . " " . $install_script . "  FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src", $return_val);
+        exec($SUDO . "  FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src " . $install_script, $return_val);
     }
 
 	if ($return_val == 0) {
