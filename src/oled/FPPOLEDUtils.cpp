@@ -312,7 +312,22 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
         if (LoadJsonFromFile(file, root)) {
             for (int x = 0; x < root["inputs"].size(); x++) {
                 InputAction* action = new InputAction();
-                action->pin = root["inputs"][x]["pin"].asString();
+                std::string pin = root["inputs"][x]["pin"].asString();
+                for (auto &a : actions) {
+                    if (a->pin == pin && action) {
+                        delete action;
+                        action = nullptr;
+                        printf("Skipping %s.  Already configured for actions: ", pin.c_str());
+                        for (auto aa : a->actions) {
+                            printf("%s ", aa->action.c_str());
+                        }
+                        printf("\n");
+                    }
+                }
+                if (action == nullptr) {
+                    continue;
+                }
+                action->pin = pin;
                 action->mode = root["inputs"][x]["mode"].asString();
                 action->gpiodLine = nullptr;
                 if (action->mode.find("gpio") != std::string::npos) {
@@ -429,8 +444,8 @@ gpiod_chip* FPPOLEDUtils::getChip(const std::string& n) {
 void FPPOLEDUtils::run() {
     char vbuffer[256];
     setupControlPin("/home/fpp/media/tmp/cape-info.json");
-    bool needsPolling = parseInputActions("/home/fpp/media/tmp/cape-inputs.json");
-    needsPolling |= parseInputActionFromGPIO("/home/fpp/media/config/gpio.json");
+    bool needsPolling = parseInputActionFromGPIO("/home/fpp/media/config/gpio.json");
+    needsPolling |= parseInputActions("/home/fpp/media/tmp/cape-inputs.json");
     std::vector<struct pollfd> fdset(actions.size());
 
     if (actions.size() == 0 && _ledType == 0) {
