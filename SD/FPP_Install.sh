@@ -49,7 +49,7 @@
 #############################################################################
 SCRIPTVER="6.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2022-07"
+FPPIMAGEVER="2022-09"
 FPPCFGVER="74"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -382,6 +382,14 @@ case "${OSVER}" in
 		echo "FPP - Removing anything left that wasn't explicity removed"
 		apt-get -y --purge autoremove
 
+        if $isimage; then
+            echo "FPP - Enable backports"
+            echo "#Backports" >> /etc/apt/sources.list
+            echo "deb http://deb.debian.org/debian bullseye-backports main contrib non-free" >> /etc/apt/sources.list
+            echo "deb-src http://deb.debian.org/debian bullseye-backports main contrib non-free" >> /etc/apt/sources.list
+            apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 648ACFD622F3D138 0E98404D386FA1D9
+        fi
+
 		echo "FPP - Updating package list"
 		apt-get update
 
@@ -436,7 +444,10 @@ case "${OSVER}" in
         else
             apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${PACKAGE_LIST}
         fi
-
+        if $isimage; then
+            # Since we rely heavily on systemd-networkd and wpasupplicant for networking features, grab the latest backports
+            apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t bullseye-backports install systemd wpasupplicant
+        fi
         echo "FPP - Cleaning up after installing packages"
         apt-get -y clean
 
