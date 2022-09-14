@@ -598,7 +598,7 @@ function selected_string_details(row) { //outputs, rowid) {
     const pxA = [pxAmps["null_" + protocol] || 0, pxAmps[protocol] || 0];
     const hdr_name = (pins[portinx] || {}).hdr_pin, gpio_name = ((pins[portinx] || {}).gpio_info || {}).gpio;
     if (is_dpi) {
-//use on-screen values (might not be saved yet):
+        //use on-screen values (might not be saved yet):
         let [numpx, maxA] = [0, 0];
         for (;;) //add all strings on this port
         {
@@ -618,11 +618,14 @@ function selected_string_details(row) { //outputs, rowid) {
             (port_fps < 20)? "OVERRUN": //will cause frame overrun
             (port_fps < 40)? "as 20": "as 40"; //TODO: add other fps if supported
         details += `<b>Port ${portinx + 1} (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"}):</b> ${plural(numpx)} pixel${plural()}, ${(frtime * 1e3).toFixed(3).replace(".000", "")} msec refresh${cfg_fps? ` (config ${cfg_fps} fps)`: ""}, ${maxA.toFixed(1).replace(".0", "")} A max`;
+    } else if (driver == 'BBShiftString') {
+        details += `<b>Port ${portinx + 1}</b>`;
     } else {
         details += `<b>Port ${portinx + 1}`;
         if (hdr_name) {
-            details += ` (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"})</b>`;
+            details += ` (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"})`;            
         }
+        details += '</b>';
     }
 //    $("#pixel-string-details").html(details);
     return details;
@@ -1389,6 +1392,11 @@ function populatePixelStringOutputs(data) {
                 } else {
                     $('#PixelStringSubTypeVersion').hide();
                     $('#versionTag').hide();
+                }
+                if (type == "BBB48String") {
+                    $('#BBPixelTiming').show();
+                } else {
+                    $('#BBPixelTiming').hide();                    
                 }
 
                 if (document.getElementById("PixelStringSubType").length == 1) {
@@ -2466,7 +2474,7 @@ foreach ($files as $file) {
                     </div>
                 </div>
                 <div class="col-md-auto form-inline">
-                    <div><b><span class='capeTypeLabel'>Cape Type</span>:</b></div>
+                    <div><b><span class='capeTypeLabel'>Cape Type</span>:&nbsp;</b></div>
 		    <div ><select id='PixelStringSubType' onChange='PixelStringSubTypeChanged();'
 <?if (isset($settings['cape-info']) && isset($settings['cape-info']['capeTypeTip'])) {?>
 title="<?=$settings['cape-info']['capeTypeTip']?>"
@@ -2483,7 +2491,7 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                         </select>
                     </div>
                 </div>
-                <div class="col-md-auto form-inline"
+                <div class="col-md-auto form-inline" id="BBPixelTiming"
 <?if ($settings['Platform'] != "BeagleBone Black") {?>
 style="display: none;"
 <?}?>
