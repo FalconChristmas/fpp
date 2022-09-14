@@ -2111,12 +2111,15 @@ function network_wifi_strength_obj()
                 $obj->noise = intval($parts[4]);
                 $obj->desc = '';
 
-                $output = exec("iwconfig " . $obj->interface . " | grep 'Link Quality' | cut -f2 -d= | awk '{print \$1}'");
+                $output = exec("iwconfig " . $obj->interface . " | grep 'Link Quality' | cut -f2 -d: | cut -f2 -d= | awk '{print \$1}'");
 
                 if ($output != '') {
                     $pparts = preg_split('/\//', trim($output));
                     $pct = intval($pparts[0]);
-                    $max = intval($pparts[1]);
+                    $max = 100;
+                    if (count($pparts) > 1) {
+                        $max = intval($pparts[1]);
+                    }
                     if (($pct > 0) && ($max > 0)) {
                         if ($max != 100) {
                             $pct = intval($pct * 100.0 / $max);
