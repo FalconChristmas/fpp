@@ -38,7 +38,7 @@ we have the partition mounted:
 	# Backup the cmdline.txt file
 	cp /mnt/tmp/cmdline.txt /mnt/tmp/cmdline.org
 	# Disable the auto-resize of the root partition
-	sed -i -e "s# init=/usr/lib/raspi-config/init_resize.sh##" /mnt/tmp/cmdline.txt
+	sed -i -e "s# init=/usr/lib/raspberrypi-sys-mods/firstboot##" /mnt/tmp/cmdline.txt
 	# Enable ssh by default
 	touch /mnt/tmp/ssh
     # Add pi user, will be replaced with FPP user as part of FPP_Install.sh
