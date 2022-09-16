@@ -29,7 +29,7 @@ can also be a big help.   Before running FPP_Install.sh, run a command like:
 
 cpufreq-set -u 800000
 
-to look the CPU to 800Mhz or lower.
+to lock the CPU to 800Mhz or lower.
 
 
 
