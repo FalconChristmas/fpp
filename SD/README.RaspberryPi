@@ -98,17 +98,19 @@ the proper device name for your SD card in place of '/dev/sdg'):
     NOTE: the linux system needs to have zerofree and squashfs-tools installed
        apt-get install zerofree squashfs-tools
 
-    DEVICE=/dev/sdc
+    DEVICE=/dev/sdb
     VERSION=6.1
     BLOCKS=3800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
     rm -rf /mnt/home/pi
+    rm -f /mnt/home/fpp/.bash_history
     rm -f /mnt/home/fpp/media/settings
     rm -f /mnt/home/fpp/media/config/*
     rm -f /mnt/home/fpp/media/logs/*
     rm -f /mnt/var/log/*
     rm -f /mnt/etc/ssh/*key*
+    rm -f /mnt/root/.bash_history
     umount /mnt
     zerofree -v "${DEVICE}2"
 	sudo time dd if=${DEVICE} of=FPP-v${VERSION}-Pi.img bs=1M count=${BLOCKS}

@@ -21,6 +21,7 @@ InstallKeys() {
 
     cp ${KEYFILE} ${DIR}/.ssh/authorized_keys
     chmod 600 ${DIR}/.ssh/*
+    chown ${USER}.${USER} ${DIR}/.ssh/authorized_keys
 }
 
 ######################################################
