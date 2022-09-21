@@ -87,15 +87,22 @@ if [ ${HASSOUND} -eq 1 ]; then
         setSetting AudioCard0Type "unknown"
     fi
     
-    if [ -f "/home/fpp/media/tmp/asoundrc" -a "$CARDID" == "0" ]; then
-        # if the selected card is the built in card and the cape provides the required asoundrc
-        # then we will use that.   Various capes may need special alsa configuration in order
-        # to properly be able to have volume control work
-        cp -f "/home/fpp/media/tmp/asoundrc" /root/.asoundrc
+    CARDTYPE=$(aplay -l | grep "^card $CARDID" | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//'  -e 's@/@@' -e 's/=//' | uniq | colrm 1 2)
+    echo "Found card type: $CARDTYPE"
+    if [ -f "/home/fpp/media/tmp/asoundrc" ]; then
+        if [[ $CARDTYPE =~ "pcm5102" ]]; then
+            # if the selected card is the built in card and the cape provides the required asoundrc
+            # then we will use that. Various capes may need special alsa configuration in order
+            # to properly be able to have volume control work
+            echo "Using Cape Provided asoundrc"
+            cp -f "/home/fpp/media/tmp/asoundrc" /root/.asoundrc
+        else
+            cp /opt/fpp/etc/asoundrc.dmix /root/.asoundrc
+        fi
     else
         # reset back to default asoundrc and set the card
         rm -f /root/.asoundrc
-        if [ "$CARD0STR" == "bcm2" ]; then
+        if [[ "$CARDTYPE" =~ "bcm2" ]]; then
             # dmix doesn't work with the Pi's onboard audio connector
             cp /opt/fpp/etc/asoundrc.plain /root/.asoundrc
         else
@@ -137,13 +144,11 @@ if [ ${HASSOUND} -eq 1 ]; then
             echo "Did not find mixer device $MIXERDEVICE, resetting to default"
             MIXERDEVICE=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
             setSetting AudioMixerDevice $MIXERDEVICE
-    fi
+        fi
     fi
 
     amixer -c ${CARDID} set ${MIXERDEVICE} ${VOLUME}% > /dev/null 2>&1
     
-    CARDTYPE=$(aplay -l | grep "^card $CARDID" | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//'  -e 's@/@@' -e 's/=//' | uniq | colrm 1 2)
-    echo "Found card type: $CARDTYPE"
     setSetting AudioCardType "$CARDTYPE"
 fi
 
