@@ -257,7 +257,7 @@ function OSSelectChanged() {
     var os = $('#OSSelect').val();
 <?
 // we want at least a 200MB in order to be able to apply the fppos
-if ($freeSpace > 200000000) {
+if ($freeSpace < 200000000) {
     echo  "os = '';\n";
 }
 ?>
