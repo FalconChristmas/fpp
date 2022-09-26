@@ -1033,8 +1033,8 @@
             "restart": 2,
             "default": "38.938524",
             "type": "text",
-            "size": 11,
-            "maxlength": 11
+            "size": 15,
+            "maxlength": 15
         },
         "LEDDisplayType": {
             "name": "LEDDisplayType",
@@ -1321,8 +1321,8 @@
             "restart": 2,
             "default": "-104.600945",
             "type": "text",
-            "size": 11,
-            "maxlength": 11
+            "size": 15,
+            "maxlength": 15
         },
         "masqUIPlatform": {
             "name": "masqUIPlatform",
