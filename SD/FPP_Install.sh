@@ -526,7 +526,7 @@ case "${OSVER}" in
                 BOOTLINE=$(grep "^[^#].* /boot " /etc/fstab | sed -e "s;^[^#].* /boot ;LABEL=boot /boot ;")
                 ROOTLINE=$(grep "^[^#].* /  " /etc/fstab | sed -e "s;^[^#].* / ;LABEL=rootfs / ;")
                 echo "    - Updating /etc/fstab"
-                sed -i -e "\;^[^#].* /boot ;a ${BOOTLINE}" -e "\;^[^#].* / ;a ${ROOTLINE}" -e "s;^/dev/\(.*\) /boot ;#/dev/\1 /boot ;" -e "s;^/dev/\(.*\) / ;#/dev/\1 / ;" /etc/fstab
+                sed -i -e "s;^[^#].* /boot .*;${BOOTLINE};" -e "s;^[^#].* / .*;${ROOTLINE};" /etc/fstab
 
                 # Create two different cmdline.txt files for USB and SD boot
                 echo "    - Creating /boot/cmdline.* configs"

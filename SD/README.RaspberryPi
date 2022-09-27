@@ -48,6 +48,9 @@ we have the partition mounted:
     echo 'pi:$6$dRNoTVXaaNzLaRIx$3179MQCluSIlnJB/MvBsqLPKjj8nyZgk6F/eDCO4dhadHemapoawGN6uV2/p5JTb7jfo/Jq7yppJs1x3veUj5.' > /mnt/tmp/userconf
 	# Unmount the file system
 	umount /mnt/tmp
+    # make sure the labels are set
+    dosfslabel /dev/sdb1 boot
+    e2label /dev/sdg2 rootfs
 	# Sync the changes so it's safe to remove the SD card
 	sync
 
