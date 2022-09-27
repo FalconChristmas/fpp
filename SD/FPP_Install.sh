@@ -49,7 +49,7 @@
 #############################################################################
 SCRIPTVER="6.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2022-09"
+FPPIMAGEVER="2022-09b"
 FPPCFGVER="74"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -445,8 +445,13 @@ case "${OSVER}" in
             apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${PACKAGE_LIST}
         fi
         if $isimage; then
-            # Since we rely heavily on systemd-networkd and wpasupplicant for networking features, grab the latest backports
-            apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t bullseye-backports install systemd wpasupplicant
+            if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
+                apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install systemd wpasupplicant
+            else
+                # Since we rely heavily on systemd-networkd and wpasupplicant for networking features, grab the latest backports
+                # This cannot work on Raspberry Pi as the Pi Zero and older Pi's are armv6 and bullseye-backports is armv7
+                apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t bullseye-backports install systemd wpasupplicant
+            fi
         fi
         echo "FPP - Cleaning up after installing packages"
         apt-get -y clean
