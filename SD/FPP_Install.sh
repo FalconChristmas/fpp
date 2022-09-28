@@ -1191,6 +1191,36 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
 
     # remove the udev rules that create the SoftAp interface on the bbbw and bbggw
     rm -f /etc/udev/rules.d/*SoftAp*
+    
+    #cleanout some DRI files that are not needed at all on Beagle hardware
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/r?00*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/rad*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/nouveau*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/rockchip*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/st*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/ili*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/imx*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/exy*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/etn*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/hx*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/kirin*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/rcar*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/mediatek*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/tegra*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/komeda*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/v3d*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/vc4*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/virtio*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/zink*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/lima*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/panfrost*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/armada*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/mi0283qt*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/pl111*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/msm*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/mcde*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/meson*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/ingenic*
 fi
 
 if $isimage; then
