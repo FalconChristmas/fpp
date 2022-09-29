@@ -270,12 +270,7 @@ int BBB48StringOutput::Init(Json::Value config) {
         }
     }
 
-    std::string dirname = "bbb";
     std::string verPostf = "";
-    if (getBeagleBoneType() == PocketBeagle) {
-        dirname = "pb";
-    }
-
     Json::Value root;
     if (!CapeUtils::INSTANCE.getStringConfig(m_subType, root)) {
         // might have the version number on it

@@ -21,6 +21,7 @@
 #include "BBBSerial.h"
 
 #include "util/BBBUtils.h"
+#include "../non-gpl/CapeUtils/CapeUtils.h"
 
 //reserve the TOP 84K for DMX/PixelNet data
 #define DDR_RESERVED 84 * 1024
@@ -160,51 +161,41 @@ int BBBSerialOutput::Init(Json::Value config) {
         args.push_back("-DRUNNING_ON_PRU0");
     }
 
-    std::string dirname = "bbb";
     std::string verPostf = "";
-    if (getBeagleBoneType() == PocketBeagle) {
-        dirname = "pb";
-    }
-    if (config["pinoutVersion"].asString() == "2.x") {
-        verPostf = "-v2";
-    }
-    if (config["pinoutVersion"].asString() == "3.x") {
-        verPostf = "-v3";
-    }
-    Json::Value root;
-    char filename[256];
     std::string device = config["device"].asString();
-    sprintf(filename, "/home/fpp/media/tmp/strings/%s%s.json", device.c_str(), verPostf.c_str());
-    if (!FileExists(filename)) {
-        sprintf(filename, "/opt/fpp/capes/%s/strings/%s%s.json", dirname.c_str(), device.c_str(), verPostf.c_str());
-    }
-    int maxOut = 8;
-    int countOut = 0;
-    if (FileExists(filename)) {
-        if (!LoadJsonFromFile(filename, root)) {
+    Json::Value root;
+    if (!CapeUtils::INSTANCE.getStringConfig(device, root)) {
+        // might have the version number on it
+        if (config["pinoutVersion"].asString() == "2.x") {
+            verPostf = "-v2";
+        }
+        if (config["pinoutVersion"].asString() == "3.x") {
+            verPostf = "-v3";
+        }
+        if (!CapeUtils::INSTANCE.getStringConfig(device + verPostf, root)) {
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", device.c_str(), verPostf.c_str());
+            WarningHolder::AddWarning("BBBSerial: Could not read pin configuration for " + device + verPostf);
             return 0;
         }
-        std::ofstream outputFile;
-        outputFile.open("/tmp/SerialPinConfiguration.hp", std::ofstream::out | std::ofstream::trunc);
-
-        maxOut = root["serial"].size();
-        for (int x = 0; x < root["serial"].size(); x++) {
-            const PinCapabilities& pin = PinCapabilities::getPinByName(root["serial"][x]["pin"].asString());
-            if (m_startChannels[x] >= 0) {
-                pin.configPin(mode);
-                countOut++;
-            }
-            outputFile << "#define ser" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpioIdx) << "\n";
-            outputFile << "#define ser" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
-            outputFile << "#define ser" << std::to_string(x + 1) << "_pru30  " << std::to_string(pin.pruPin) << "\n\n";
-        }
-
-        outputFile.close();
-    } else {
-        WarningHolder::AddWarning("BBBSerial: No output pin configuration for  " + device + verPostf);
-        return 0;
     }
+
+    int maxOut = 8;
+    int countOut = 0;
+    std::ofstream outputFile;
+    outputFile.open("/tmp/SerialPinConfiguration.hp", std::ofstream::out | std::ofstream::trunc);
+
+    maxOut = root["serial"].size();
+    for (int x = 0; x < root["serial"].size(); x++) {
+        const PinCapabilities& pin = PinCapabilities::getPinByName(root["serial"][x]["pin"].asString());
+        if (m_startChannels[x] >= 0) {
+            pin.configPin(mode);
+            countOut++;
+        }
+        outputFile << "#define ser" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpioIdx) << "\n";
+        outputFile << "#define ser" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
+        outputFile << "#define ser" << std::to_string(x + 1) << "_pru30  " << std::to_string(pin.pruPin) << "\n\n";
+    }
+    outputFile.close();
 
     for (int xx = maxOut; xx < m_outputs; xx++) {
         m_startChannels[xx] = -1;
