@@ -743,7 +743,7 @@ PrintSettingGroup('tethering');
     <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Clearing out persistent device names can cause interfaces to use different configuration and become unavailable.  Do you wish to proceed?</p>
     </div>
     <div id="dialog-create-persistent" style="display: none">
-        <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating persisten device names can make it harder to add new network devices or replace existing devices in the future.  Do you wish to proceed?</p>
+        <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating persistent device names can make it harder to add new network devices or replace existing devices in the future.  Do you wish to proceed?</p>
     </div>
 
 </div>
