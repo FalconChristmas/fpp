@@ -15,8 +15,6 @@ if (isset($_GET['ip']))
 
 if (isset($_GET['count']))
 	$count = $_GET['count'];
-
-$ip = preg_replace('/[^-a-z0-9\.]/', '', $ip);
 ?>
 
 <head>
