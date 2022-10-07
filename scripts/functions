@@ -396,8 +396,16 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
             fi
         fi
         echo "" >> $TMPFILE
-        if [ "$ROUTEMETRIC" != "0" ]; then
+
+        if [ "$PROTO" == "dhcp" ]; then
             echo "[DHCPv4]" >> $TMPFILE
+            echo "ClientIdentifier=mac" >> $TMPFILE
+            echo "" >> $TMPFILE
+        fi
+        if [ "$ROUTEMETRIC" != "0" && "$PROTO" != "dhcp" ]; then
+            echo "[DHCPv4]" >> $TMPFILE
+        fi
+        if [ "$ROUTEMETRIC" != "0" ]; then
             echo "RouteMetric=${ROUTEMETRIC}" >> $TMPFILE
             echo "" >> $TMPFILE
             echo "[IPv6AcceptRA]" >> $TMPFILE
