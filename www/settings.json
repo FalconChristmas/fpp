@@ -86,7 +86,8 @@
                 "blankBetweenSequences",
                 "pauseBackgroundEffects",
                 "openStartDelay",
-                "remoteOffset"
+                "remoteOffset",
+                "localOverride"
             ]
         },
         "initialSetup": {
@@ -651,6 +652,17 @@
             "restart": 2,
             "type": "checkbox"
         },
+        "localOverride": {
+            "name": "localOverride",
+            "description": "Local sequences override remote",
+            "gatherStats": true,
+            "tip": "This instructs FPP to allow local sequences to override remote sequences for when you have an interactive show that may affect the props on this controller.",
+            "restart": 2,
+            "type": "checkbox",
+            "fppModes": [
+                "remote"
+            ]
+        },
         "bridgeDataPriority": {
             "name": "bridgeDataPriority",
             "description": "Bridge Data Priority",
@@ -948,7 +960,7 @@
                 "BeagleBone Black": [
                     "BeagleBone Black",
                     "BeagleBone Black Wireless",
-                    "SanCloud BeagleBone Enhanced"    
+                    "SanCloud BeagleBone Enhanced"
                 ]
             },
             "children": {
@@ -972,7 +984,7 @@
                 "BeagleBone Black": [
                     "BeagleBone Black",
                     "BeagleBone Black Wireless",
-                    "SanCloud BeagleBone Enhanced"    
+                    "SanCloud BeagleBone Enhanced"
                 ]
             },
             "type": "select",
