@@ -51,7 +51,7 @@ if (isset($settings["cape-info"])) {
         if (isset($data['channelOutputs'])) {
             foreach ($data['channelOutputs'] as $co) {
                 if (isset($co['type'])) {
-                    if (($co['type'] == 'BBB48String') || ($co['type'] == 'DPIPixels')) {
+                    if (($co['type'] == 'BBB48String') || ($co['type'] == 'DPIPixels') || ($co['type'] == 'BBShiftString')) {
                         $channelOutputDriver = $co['type'];
                     }
                 }
@@ -66,7 +66,8 @@ if (isset($settings["cape-info"])) {
                 $data = json_decode($json, true);
                 if ((isset($data['driver'])) &&
                     (($data['driver'] == 'DPIPixels') ||
-                     ($data['driver'] == 'BBB48String'))) {
+                     ($data['driver'] == 'BBB48String') ||
+                     ($data['driver'] == 'BBShiftString'))) {
                      $channelOutputDriver = $data['driver'];
                      break;
                 }
@@ -74,7 +75,7 @@ if (isset($settings["cape-info"])) {
         }
     }
 
-    if (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels')) {
+    if (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels') || ($channelOutputDriver == 'BBShiftString')) {
         $channelOutputDriverStr = "  This cape uses the $channelOutputDriver Channel Output driver.";
         if ($currentCapeInfo['serialNumber'] == 'FPP-INTERNAL') {
             if (isset($currentCapeInfo['verifiedKeyId'])) {
@@ -697,7 +698,7 @@ if (isset($settings["cape-info"])) {
     if (isset($currentCapeInfo['designer'])) {
         echo "<tr><td><b>Designer:</b></td><td>" . $currentCapeInfo['designer'] . "</td></tr>";
     }
-    if ((isset($currentCapeInfo['verifiedKeyId'])) && (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels'))) {
+    if ((isset($currentCapeInfo['verifiedKeyId'])) && (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels') || ($channelOutputDriver == 'BBShiftString'))) {
         $key = $currentCapeInfo['verifiedKeyId'];
         if ($key == 'fp') {
             if (isset($currentCapeInfo['signed']['licensePorts'])) {
@@ -708,7 +709,7 @@ if (isset($settings["cape-info"])) {
         } else {
             echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>Unlimited ('$key' key)</td></tr>";
         }
-    } else if (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels')) {
+    } else if (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels') || ($channelOutputDriver == 'BBShiftString') ) {
         echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>None, cape EEPROM is not signed.</td></tr>";
     }
     if ($channelOutputDriver != '') {
