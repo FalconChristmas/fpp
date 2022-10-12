@@ -382,7 +382,7 @@ case "${OSVER}" in
 		echo "FPP - Removing anything left that wasn't explicity removed"
 		apt-get -y --purge autoremove
 
-        if $isimage; then
+        if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
             echo "FPP - Enable backports"
             echo "#Backports" >> /etc/apt/sources.list
             echo "deb http://deb.debian.org/debian bullseye-backports main contrib non-free" >> /etc/apt/sources.list
@@ -413,16 +413,25 @@ case "${OSVER}" in
 
 		echo "FPP - Installing required packages"
 		# Install 10 packages, then clean to lower total disk space required
+  
+        PHPVER=""
+        if [ "${OSVER}" == "ubuntu_22.04" ]; then
+            PHPVER="7.4"
+            apt install software-properties-common apt-transport-https -y
+            add-apt-repository ppa:ondrej/php -y
+            apt-get -y update
+            apt-get -y upgrade
+        fi
 
         PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
-                      apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php \
+                      apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php${PHPVER} \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
                       fbi fbset file flite ca-certificates lshw gettext wget \
                       build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
                       git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
                       mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils \
-                      php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-xml \
+                      php${PHPVER} php${PHPVER}-cli php${PHPVER}-common php${PHPVER}-curl php${PHPVER}-pear php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
                       git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping \
@@ -445,12 +454,12 @@ case "${OSVER}" in
             apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${PACKAGE_LIST}
         fi
         if $isimage; then
-            if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
-                apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install systemd wpasupplicant
-            else
+        if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
                 # Since we rely heavily on systemd-networkd and wpasupplicant for networking features, grab the latest backports
                 # This cannot work on Raspberry Pi as the Pi Zero and older Pi's are armv6 and bullseye-backports is armv7
                 apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t bullseye-backports install systemd wpasupplicant
+            else
+                apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install systemd wpasupplicant
             fi
         fi
         echo "FPP - Cleaning up after installing packages"
