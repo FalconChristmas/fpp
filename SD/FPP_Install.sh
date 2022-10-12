@@ -345,7 +345,7 @@ cd /opt 2> /dev/null || mkdir /opt
 export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
-	debian_11 | debian_10 | ubuntu_20.04)
+	debian_11 | debian_10 | ubuntu_20.04 | ubuntu_22.04)
 		case $FPPPLATFORM in
 			'BeagleBone Black')
 				echo "FPP - Skipping non-free for $FPPPLATFORM"
@@ -1138,7 +1138,7 @@ sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf
 rm /etc/apache2/conf-enabled/other-vhosts-access-log.conf
 
 case "${OSVER}" in
-	debian_11 |  debian_10 | ununtu_20.04)
+	debian_11 |  debian_10 | ununtu_20.04 | ubuntu_22.04)
 		systemctl enable apache2.service
 		;;
 esac
