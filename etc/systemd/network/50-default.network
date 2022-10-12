@@ -6,3 +6,6 @@ RequiredForOnline=no
 
 [Network]
 DHCP=ipv4
+
+[DHCPv4]
+ClientIdentifier=mac
