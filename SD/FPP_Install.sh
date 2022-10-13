@@ -431,13 +431,13 @@ case "${OSVER}" in
                       git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
                       mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils \
-                      php${PHPVER} php${PHPVER}-cli php${PHPVER}-common php${PHPVER}-curl php${PHPVER}-pear php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml \
+                      php${PHPVER} php${PHPVER}-cli php${PHPVER}-common php${PHPVER}-curl php-pear php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
                       git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev \
-                      flex bison pkg-config libasound2-dev python3-distutils libssl-dev"
+                      flex bison pkg-config libasound2-dev python3-distutils libssl-dev libtool"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity zram-tools"
@@ -467,7 +467,7 @@ case "${OSVER}" in
 
 
 		echo "FPP - Installing libhttpserver 0.18.2"
-		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.18.2 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
+		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.18.2 && ./bootstrap && autoupdate && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
         echo "FPP - Configuring shellinabox to use /var/tmp"
         echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
