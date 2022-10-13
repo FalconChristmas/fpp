@@ -454,7 +454,7 @@ case "${OSVER}" in
             apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${PACKAGE_LIST}
         fi
         if $isimage; then
-        if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
+            if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
                 # Since we rely heavily on systemd-networkd and wpasupplicant for networking features, grab the latest backports
                 # This cannot work on Raspberry Pi as the Pi Zero and older Pi's are armv6 and bullseye-backports is armv7
                 apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t bullseye-backports install systemd wpasupplicant
@@ -526,7 +526,7 @@ case "${OSVER}" in
             fi
             
             #remove some things that were installed (not sure why)
-            apt-get remove -y --purge --autoremove --allow-change-held-packages pocketsphinx-en-us guile-2.2-libs
+            apt-get remove -y --purge --autoremove --allow-change-held-packages pocketsphinx-en-us
 
             if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
                 echo "FPP - Applying updates to allow optional boot from USB on Pi 4 (and up)"
