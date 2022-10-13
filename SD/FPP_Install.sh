@@ -1097,6 +1097,7 @@ EOF
     #######################################
     # Config fstab to mount some filesystems as tmpfs
     echo "FPP - Configuring tmpfs filesystems"
+    sed -i 's|tmpfs\s*/tmp\s*tmpfs.*||g' /etc/fstab
     echo "#####################################" >> /etc/fstab
     echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
     echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
@@ -1301,11 +1302,6 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
         echo "DAEMON_CONF=\"/etc/hostapd/hostapd.conf\"" >> /etc/default/hostapd
     fi
     
-    if $isimage; then
-        systemctl disable dnsmasq
-        systemctl unmask hostapd
-        systemctl disable hostapd
-    fi
     
     echo "ALGO=zstd" >> /etc/default/zramswap
     echo "SIZE=75" >> /etc/default/zramswap
@@ -1318,6 +1314,11 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
         rm -rf /home/pi
         rm -rf /home/debian
     fi
+fi
+if $isimage; then
+    systemctl disable dnsmasq
+    systemctl unmask hostapd
+    systemctl disable hostapd
 fi
 if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
     # Bootloader on recent bullseye images does NOT boot on Beagles, use a version we
