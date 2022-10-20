@@ -29,6 +29,7 @@ Timers::~Timers() {
     timers.clear();
 }
 void Timers::addTimer(const std::string &name, long long fireTimeMS, std::function<void()>& callback) {
+    std::unique_lock<std::mutex> l(lock);
     if (!name.empty()) {
         for (auto &a : timers) {
             if (a->id == name) {
@@ -51,6 +52,7 @@ void Timers::addTimer(const std::string &name, long long fireTimeMS, const std::
     if (preset == "") {
         return;
     }
+    std::unique_lock<std::mutex> l(lock);
     if (!name.empty()) {
         for (auto &a : timers) {
             if (a->id == name) {
@@ -70,6 +72,7 @@ void Timers::addTimer(const std::string &name, long long fireTimeMS, const std::
 }
 
 void Timers::fireTimersInternal(long long t) {
+    std::unique_lock<std::mutex> l(lock);
     int m = timers.size();
     bool fired = false;
     for (int x = 0; x < m; ++x) {

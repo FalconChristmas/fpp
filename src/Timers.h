@@ -47,9 +47,12 @@ private:
         std::function<void()> callback;
     };
     std::vector<TimerInfo*> timers;
+    std::mutex lock;
 
 
     void fireTimersInternal(long long t);
+
+    // these methods must be called with the lock held
     void fireTimer(TimerInfo *);
     void updateTimers();
 };
