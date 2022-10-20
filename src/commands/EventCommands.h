@@ -22,6 +22,19 @@ public:
 
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
+class TriggerPresetInFutureCommand : public Command {
+public:
+    TriggerPresetInFutureCommand() :
+        Command("Trigger Command Preset In Future") {
+        args.push_back(CommandArg("id", "string", "Idnetifier"));
+        args.push_back(CommandArg("ms", "int", "MS In Future").setRange(0, 86400000));
+        args.push_back(CommandArg("name", "datalist", "Preset Name").setContentListUrl("api/commandPresets?names=true"));
+    }
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
+
 class TriggerRemotePresetCommand : public Command {
 public:
     TriggerRemotePresetCommand() :
@@ -52,7 +65,20 @@ public:
 
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+class TriggerMultiplePresetsCommand : public Command {
+public:
+    TriggerMultiplePresetsCommand() :
+        Command("Trigger Multiple Command Presets") {
+        args.push_back(CommandArg("NameA", "datalist", "Preset Name 1").setContentListUrl("api/commandPresets?names=true"));
+        args.push_back(CommandArg("NameB", "datalist", "Preset Name 2").setContentListUrl("api/commandPresets?names=true"));
+        args.push_back(CommandArg("NameC", "datalist", "Preset Name 3").setContentListUrl("api/commandPresets?names=true"));
+        args.push_back(CommandArg("NameD", "datalist", "Preset Name 4").setContentListUrl("api/commandPresets?names=true"));
+        args.push_back(CommandArg("NameE", "datalist", "Preset Name 5").setContentListUrl("api/commandPresets?names=true"));
+        args.push_back(CommandArg("NameF", "datalist", "Preset Name 6").setContentListUrl("api/commandPresets?names=true"));
+    }
 
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
 class TriggerMultiplePresetSlotsCommand : public Command {
 public:
     TriggerMultiplePresetSlotsCommand() :

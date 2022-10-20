@@ -55,6 +55,7 @@
 #include "channeloutput/FPD.h"
 #include "sensors/Sensors.h"
 #include "util/GPIOUtils.h"
+#include "Timers.h"
 #include <getopt.h>
 
 #include <curl/curl.h>
@@ -789,7 +790,6 @@ void MainLoop(void) {
     }
     epoll_event events[MAX_EVENTS];
 #endif
-
     multiSync->Discover();
 
     LogInfo(VB_GENERAL, "Checking MQTT\n");
@@ -851,7 +851,6 @@ void MainLoop(void) {
         if (getFPPmode() & PLAYER_MODE) {
             if (Player::INSTANCE.IsPlaying()) {
                 if (prevFPPstatus == FPP_STATUS_IDLE) {
-                    //					Player::INSTANCE.Start();
                     sleepms = 10;
                 }
 
@@ -924,6 +923,7 @@ void MainLoop(void) {
                 publishReason = "normal";
             }
         }
+        Timers::INSTANCE.fireTimers();
         GPIOManager::INSTANCE.CheckGPIOInputs();
     }
     close(epollf);

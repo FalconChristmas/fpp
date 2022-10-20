@@ -90,6 +90,7 @@ OBJECTS_fpp_so += \
 	Sequence.o \
 	settings.o \
 	SunRise.o \
+	Timers.o \
 	Warnings.o \
     util/GPIOUtils.o \
     util/I2CUtils.o \

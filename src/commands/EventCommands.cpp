@@ -15,6 +15,7 @@
 #include "EventCommands.h"
 #include "effects.h"
 #include "scripts.h"
+#include "Timers.h"
 
 std::unique_ptr<Command::Result> TriggerPresetCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
@@ -24,6 +25,16 @@ std::unique_ptr<Command::Result> TriggerPresetCommand::run(const std::vector<std
         return std::make_unique<Command::Result>("Preset Triggered");
     else
         return std::make_unique<Command::ErrorResult>("Not found");
+}
+std::unique_ptr<Command::Result> TriggerPresetInFutureCommand::run(const std::vector<std::string>& args) {
+    if (args.size() != 3) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+    long long t = GetTimeMS();
+    int val = std::atoi(args[1].c_str());
+    long long tv = t + val;
+    Timers::INSTANCE.addTimer(args[0], tv, args[2]);
+    return std::make_unique<Command::Result>("Timer Started");
 }
 std::unique_ptr<Command::Result> TriggerRemotePresetCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 2) {
@@ -64,6 +75,17 @@ std::unique_ptr<Command::Result> TriggerMultiplePresetSlotsCommand::run(const st
     for (auto& a : args) {
         if (a.length() > 0) {
             CommandManager::INSTANCE.TriggerPreset(std::atoi(a.c_str()));
+        }
+    }
+    return std::make_unique<Command::Result>("Presets Triggered");
+}
+std::unique_ptr<Command::Result> TriggerMultiplePresetsCommand::run(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+    for (auto& a : args) {
+        if (!a.empty()) {
+            CommandManager::INSTANCE.TriggerPreset(a);
         }
     }
     return std::make_unique<Command::Result>("Presets Triggered");

@@ -98,7 +98,9 @@ void CommandManager::Init() {
     addCommand(new PlaylistPauseCommand());
     addCommand(new PlaylistResumeCommand());
     addCommand(new TriggerPresetCommand());
+    addCommand(new TriggerPresetInFutureCommand());
     addCommand(new TriggerPresetSlotCommand());
+    addCommand(new TriggerMultiplePresetsCommand());
     addCommand(new TriggerMultiplePresetSlotsCommand());
     addCommand(new RunScriptEvent());
     addCommand(new StartEffectCommand());
