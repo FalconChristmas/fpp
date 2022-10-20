@@ -15,212 +15,113 @@
 
 class TriggerPresetCommand : public Command {
 public:
-    TriggerPresetCommand() :
-        Command("Trigger Command Preset") {
-        args.push_back(CommandArg("name", "datalist", "Preset Name").setContentListUrl("api/commandPresets?names=true"));
-    }
-
+    TriggerPresetCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
 class TriggerPresetInFutureCommand : public Command {
 public:
-    TriggerPresetInFutureCommand() :
-        Command("Trigger Command Preset In Future") {
-        args.push_back(CommandArg("id", "string", "Idnetifier"));
-        args.push_back(CommandArg("ms", "int", "MS In Future").setRange(0, 86400000));
-        args.push_back(CommandArg("name", "datalist", "Preset Name").setContentListUrl("api/commandPresets?names=true"));
-    }
-
+    TriggerPresetInFutureCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
 class TriggerRemotePresetCommand : public Command {
 public:
-    TriggerRemotePresetCommand() :
-        Command("Remote Trigger Command Preset") {
-        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
-        args.push_back(CommandArg("name", "string", "Preset Name"));
-    }
-
+    TriggerRemotePresetCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
 class TriggerPresetSlotCommand : public Command {
 public:
-    TriggerPresetSlotCommand() :
-        Command("Trigger Command Preset Slot") {
-        args.push_back(CommandArg("slot", "int", "Preset Slot").setRange(1, 255));
-    }
-
+    TriggerPresetSlotCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
 class TriggerRemotePresetSlotCommand : public Command {
 public:
-    TriggerRemotePresetSlotCommand() :
-        Command("Remote Trigger Command Preset Slot") {
-        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
-        args.push_back(CommandArg("slot", "int", "Preset Slot").setRange(1, 255));
-    }
-
+    TriggerRemotePresetSlotCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
 class TriggerMultiplePresetsCommand : public Command {
 public:
-    TriggerMultiplePresetsCommand() :
-        Command("Trigger Multiple Command Presets") {
-        args.push_back(CommandArg("NameA", "datalist", "Preset Name 1").setContentListUrl("api/commandPresets?names=true"));
-        args.push_back(CommandArg("NameB", "datalist", "Preset Name 2").setContentListUrl("api/commandPresets?names=true"));
-        args.push_back(CommandArg("NameC", "datalist", "Preset Name 3").setContentListUrl("api/commandPresets?names=true"));
-        args.push_back(CommandArg("NameD", "datalist", "Preset Name 4").setContentListUrl("api/commandPresets?names=true"));
-        args.push_back(CommandArg("NameE", "datalist", "Preset Name 5").setContentListUrl("api/commandPresets?names=true"));
-        args.push_back(CommandArg("NameF", "datalist", "Preset Name 6").setContentListUrl("api/commandPresets?names=true"));
-    }
-
+    TriggerMultiplePresetsCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
 class TriggerMultiplePresetSlotsCommand : public Command {
 public:
-    TriggerMultiplePresetSlotsCommand() :
-        Command("Trigger Multiple Command Preset Slots") {
-        args.push_back(CommandArg("SlotA", "int", "Preset Slot A").setRange(1, 255));
-        args.push_back(CommandArg("SlotB", "int", "Preset Slot B").setRange(1, 255));
-        args.push_back(CommandArg("SlotC", "int", "Preset Slot C").setRange(1, 255));
-        args.push_back(CommandArg("SlotD", "int", "Preset Slot D").setRange(1, 255));
-    }
-
+    TriggerMultiplePresetSlotsCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
 class RunScriptEvent : public Command {
 public:
-    RunScriptEvent() :
-        Command("Run Script") {
-        args.push_back(CommandArg("script", "string", "Script Name").setContentListUrl("api/scripts"));
-        args.push_back(CommandArg("args", "string", "Script Arguments").setAdjustable());
-        args.push_back(CommandArg("env", "string", "Environment Variables"));
-    }
-
+    RunScriptEvent();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 class RunRemoteScriptEvent : public Command {
 public:
-    RunRemoteScriptEvent() :
-        Command("Remote Run Script") {
-        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
-        args.push_back(CommandArg("script", "string", "Script Name"));
-        args.push_back(CommandArg("args", "string", "Script Arguments").setAdjustable());
-        args.push_back(CommandArg("env", "string", "Environment Variables"));
-    }
-
+    RunRemoteScriptEvent();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
 class StartEffectCommand : public Command {
 public:
-    StartEffectCommand() :
-        Command("Effect Start") {
-        args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects"));
-        args.push_back(CommandArg("startChannel", "int", "Start Channel"));
-        args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
-        args.push_back(CommandArg("bg", "bool", "Background"));
-        args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
-    }
-
+    StartEffectCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
 class StartFSEQAsEffectCommand : public Command {
 public:
-    StartFSEQAsEffectCommand() :
-        Command("FSEQ Effect Start") {
-        args.push_back(CommandArg("effect", "string", "FSEQ Name").setContentListUrl("api/sequence"));
-        args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
-        args.push_back(CommandArg("bg", "bool", "Background"));
-    }
-
+    StartFSEQAsEffectCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
 class StopEffectCommand : public Command {
 public:
-    StopEffectCommand() :
-        Command("Effect Stop", "Stop the specified effect.") {
-        args.push_back(CommandArg("effect", "datalist", "Effect Name").setContentListUrl("api/effects/ALL"));
-    }
-
+    StopEffectCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
 class StopAllEffectsCommand : public Command {
 public:
-    StopAllEffectsCommand() :
-        Command("Effects Stop", "Stop all running effects.") {
-    }
-
+    StopAllEffectsCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
 class StopFSEQAsEffectCommand : public Command {
 public:
-    StopFSEQAsEffectCommand() :
-        Command("FSEQ Effect Stop") {
-        args.push_back(CommandArg("effect", "string", "FSEQ Name").setContentListUrl("api/sequence"));
-    }
-
+    StopFSEQAsEffectCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
 class StartRemoteEffectCommand : public Command {
 public:
-    StartRemoteEffectCommand() :
-        Command("Remote Effect Start") {
-        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
-        args.push_back(CommandArg("effect", "string", "Effect Name"));
-        args.push_back(CommandArg("startChannel", "int", "Start Channel"));
-        args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
-        args.push_back(CommandArg("bg", "bool", "Background"));
-    }
-
+    StartRemoteEffectCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
 class StartRemoteFSEQEffectCommand : public Command {
 public:
-    StartRemoteFSEQEffectCommand() :
-        Command("Remote FSEQ Effect Start") {
-        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
-        args.push_back(CommandArg("fseq", "string", "FSEQ Name"));
-        args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
-        args.push_back(CommandArg("bg", "bool", "Background"));
-    }
-
+    StartRemoteFSEQEffectCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
 class StopRemoteEffectCommand : public Command {
 public:
-    StopRemoteEffectCommand() :
-        Command("Remote Effect Stop") {
-        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
-        args.push_back(CommandArg("effect", "string", "Effect Name"));
-    }
-
+    StopRemoteEffectCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
 class StartRemotePlaylistCommand : public Command {
 public:
-    StartRemotePlaylistCommand() :
-        Command("Remote Playlist Start") {
-        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
-        args.push_back(CommandArg("playlist", "string", "Playlist Name"));
-        args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
-        args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
-    }
-
+    StartRemotePlaylistCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
 class AllLightsOffCommand : public Command {
 public:
-    AllLightsOffCommand() :
-        Command("All Lights Off", "Turn all lights off.") {
-    }
-
+    AllLightsOffCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };

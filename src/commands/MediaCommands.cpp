@@ -16,6 +16,10 @@
 
 #include "MediaCommands.h"
 
+SetVolumeCommand::SetVolumeCommand() :
+    Command("Volume Set", "Sets the volume to the specific value. (0 - 100)") {
+    args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100).setDefaultValue("70").setGetAdjustableValueURL("api/fppd/volume?simple=true"));
+}
 std::unique_ptr<Command::Result> SetVolumeCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -24,6 +28,11 @@ std::unique_ptr<Command::Result> SetVolumeCommand::run(const std::vector<std::st
     int v = std::atoi(args[0].c_str());
     setVolume(v);
     return std::make_unique<Command::Result>("Volume Set");
+}
+
+AdjustVolumeCommand::AdjustVolumeCommand() :
+    Command("Volume Adjust", "Adjust volume either up or down by the given amount. (-100 - 100)") {
+    args.push_back(CommandArg("volume", "int", "Volume").setRange(-100, 100).setDefaultValue("0"));
 }
 std::unique_ptr<Command::Result> AdjustVolumeCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
@@ -35,6 +44,11 @@ std::unique_ptr<Command::Result> AdjustVolumeCommand::run(const std::vector<std:
     setVolume(v);
     return std::make_unique<Command::Result>("Volume Set");
 }
+
+IncreaseVolumeCommand::IncreaseVolumeCommand() :
+    Command("Volume Increase", "Increases the volume by the given amount (0 - 100)") {
+    args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100).setDefaultValue("0"));
+}
 std::unique_ptr<Command::Result> IncreaseVolumeCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -43,6 +57,11 @@ std::unique_ptr<Command::Result> IncreaseVolumeCommand::run(const std::vector<st
     v += std::atoi(args[0].c_str());
     setVolume(v);
     return std::make_unique<Command::Result>("Volume Set");
+}
+
+DecreaseVolumeCommand::DecreaseVolumeCommand() :
+    Command("Volume Decrease", "Decreases the volume by the given amount (0 - 100)") {
+    args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100).setDefaultValue("0"));
 }
 std::unique_ptr<Command::Result> DecreaseVolumeCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
@@ -175,10 +194,15 @@ private:
     bool m_isDone;
 };
 
+URLCommand::URLCommand() :
+    Command("URL") {
+    args.push_back(CommandArg("name", "string", "URL"));
+    args.push_back(CommandArg("method", "string", "Method").setContentList({ "GET", "POST" }).setDefaultValue("GET"));
+    args.push_back(CommandArg("data", "string", "Post Data"));
+}
 std::unique_ptr<Command::Result> URLCommand::run(const std::vector<std::string>& args) {
     return std::make_unique<CURLResult>(args);
 }
-
 
 #ifdef HAS_VLC
 class VLCPlayData : public VLCOutput {
@@ -193,7 +217,6 @@ public:
 };
 std::mutex runningMediaLock;
 std::map<std::string, VLCPlayData*> runningCommandMedia;
-
 
 VLCPlayData::VLCPlayData(const std::string& file, int l, int vol) :
     VLCOutput(file, &status, "--hdmi--"),
@@ -229,6 +252,12 @@ void VLCPlayData::Stopped() {
     th.detach();
 }
 
+PlayMediaCommand::PlayMediaCommand() :
+    Command("Play Media", "Plays the media in the background") {
+    args.push_back(CommandArg("media", "string", "Media").setContentListUrl("api/media"));
+    args.push_back(CommandArg("loop", "int", "Loop Count").setRange(1, 100).setDefaultValue("1"));
+    args.push_back(CommandArg("volume", "int", "Volume Adjust").setRange(-100, 100).setDefaultValue("0"));
+}
 std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::string>& args) {
     int loop = std::atoi(args[1].c_str());
     int volAdjust = 0;
@@ -244,6 +273,10 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     return std::make_unique<Command::Result>("Playing");
 }
 
+StopMediaCommand::StopMediaCommand() :
+    Command("Stop Media", "Stops the media in the background started via a command") {
+    args.push_back(CommandArg("media", "string", "Media").setContentListUrl("api/media"));
+}
 std::unique_ptr<Command::Result> StopMediaCommand::run(const std::vector<std::string>& args) {
     if (args.size() == 0) {
         return std::make_unique<Command::Result>("Invalid Number of Arguments");
@@ -267,6 +300,9 @@ std::unique_ptr<Command::Result> StopMediaCommand::run(const std::vector<std::st
     return std::make_unique<Command::Result>(rc);
 }
 
+StopAllMediaCommand::StopAllMediaCommand() :
+    Command("Stop All Media", "Stops all running media was was created via a Command") {
+}
 std::unique_ptr<Command::Result> StopAllMediaCommand::run(const std::vector<std::string>& args) {
     runningMediaLock.lock();
     for (const auto& item : runningCommandMedia) {

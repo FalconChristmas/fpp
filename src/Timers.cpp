@@ -28,10 +28,10 @@ Timers::~Timers() {
     }
     timers.clear();
 }
-void Timers::addTimer(const std::string &name, long long fireTimeMS, std::function<void()>& callback) {
+void Timers::addTimer(const std::string& name, long long fireTimeMS, std::function<void()>& callback) {
     std::unique_lock<std::mutex> l(lock);
     if (!name.empty()) {
-        for (auto &a : timers) {
+        for (auto& a : timers) {
             if (a->id == name) {
                 a->fireTimeMS = fireTimeMS;
                 a->callback = callback;
@@ -41,20 +41,20 @@ void Timers::addTimer(const std::string &name, long long fireTimeMS, std::functi
             }
         }
     }
-    TimerInfo *i = new TimerInfo;
+    TimerInfo* i = new TimerInfo;
     i->id = name;
     i->callback = callback;
     i->fireTimeMS = fireTimeMS;
     timers.push_back(i);
     updateTimers();
 }
-void Timers::addTimer(const std::string &name, long long fireTimeMS, const std::string &preset) {
+void Timers::addTimer(const std::string& name, long long fireTimeMS, const std::string& preset) {
     if (preset == "") {
         return;
     }
     std::unique_lock<std::mutex> l(lock);
     if (!name.empty()) {
-        for (auto &a : timers) {
+        for (auto& a : timers) {
             if (a->id == name) {
                 a->fireTimeMS = fireTimeMS;
                 a->commandPreset = preset;
@@ -63,7 +63,7 @@ void Timers::addTimer(const std::string &name, long long fireTimeMS, const std::
             }
         }
     }
-    TimerInfo *i = new TimerInfo;
+    TimerInfo* i = new TimerInfo;
     i->id = name;
     i->commandPreset = preset;
     i->fireTimeMS = fireTimeMS;
@@ -104,7 +104,7 @@ void Timers::updateTimers() {
     }
 }
 
-void Timers::fireTimer(TimerInfo *t) {
+void Timers::fireTimer(TimerInfo* t) {
     if (t->commandPreset.empty()) {
         t->callback();
     } else {

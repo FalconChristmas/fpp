@@ -13,9 +13,14 @@
 #include "fpp-pch.h"
 
 #include "EventCommands.h"
+#include "Timers.h"
 #include "effects.h"
 #include "scripts.h"
-#include "Timers.h"
+
+TriggerPresetCommand::TriggerPresetCommand() :
+    Command("Trigger Command Preset") {
+    args.push_back(CommandArg("name", "datalist", "Preset Name").setContentListUrl("api/commandPresets?names=true"));
+}
 
 std::unique_ptr<Command::Result> TriggerPresetCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
@@ -26,6 +31,13 @@ std::unique_ptr<Command::Result> TriggerPresetCommand::run(const std::vector<std
     else
         return std::make_unique<Command::ErrorResult>("Not found");
 }
+
+TriggerPresetInFutureCommand::TriggerPresetInFutureCommand() :
+    Command("Trigger Command Preset In Future") {
+    args.push_back(CommandArg("id", "string", "Idnetifier"));
+    args.push_back(CommandArg("ms", "int", "MS In Future").setRange(0, 86400000));
+    args.push_back(CommandArg("name", "datalist", "Preset Name").setContentListUrl("api/commandPresets?names=true"));
+}
 std::unique_ptr<Command::Result> TriggerPresetInFutureCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 3) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -35,6 +47,12 @@ std::unique_ptr<Command::Result> TriggerPresetInFutureCommand::run(const std::ve
     long long tv = t + val;
     Timers::INSTANCE.addTimer(args[0], tv, args[2]);
     return std::make_unique<Command::Result>("Timer Started");
+}
+
+TriggerRemotePresetCommand::TriggerRemotePresetCommand() :
+    Command("Remote Trigger Command Preset") {
+    args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+    args.push_back(CommandArg("name", "string", "Preset Name"));
 }
 std::unique_ptr<Command::Result> TriggerRemotePresetCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 2) {
@@ -47,6 +65,10 @@ std::unique_ptr<Command::Result> TriggerRemotePresetCommand::run(const std::vect
     return CommandManager::INSTANCE.runRemoteCommand(args[0], "Trigger Command Preset", newargs);
 }
 
+TriggerPresetSlotCommand::TriggerPresetSlotCommand() :
+    Command("Trigger Command Preset Slot") {
+    args.push_back(CommandArg("slot", "int", "Preset Slot").setRange(1, 255));
+}
 std::unique_ptr<Command::Result> TriggerPresetSlotCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 1) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -56,6 +78,12 @@ std::unique_ptr<Command::Result> TriggerPresetSlotCommand::run(const std::vector
         return std::make_unique<Command::Result>("Preset Triggered");
     else
         return std::make_unique<Command::ErrorResult>("Not found");
+}
+
+TriggerRemotePresetSlotCommand::TriggerRemotePresetSlotCommand() :
+    Command("Remote Trigger Command Preset Slot") {
+    args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+    args.push_back(CommandArg("slot", "int", "Preset Slot").setRange(1, 255));
 }
 std::unique_ptr<Command::Result> TriggerRemotePresetSlotCommand::run(const std::vector<std::string>& args) {
     if (args.size() != 2) {
@@ -68,6 +96,13 @@ std::unique_ptr<Command::Result> TriggerRemotePresetSlotCommand::run(const std::
     return CommandManager::INSTANCE.runRemoteCommand(args[0], "Trigger Command Preset Slot", newargs);
 }
 
+TriggerMultiplePresetSlotsCommand::TriggerMultiplePresetSlotsCommand() :
+    Command("Trigger Multiple Command Preset Slots") {
+    args.push_back(CommandArg("SlotA", "int", "Preset Slot A").setRange(1, 255));
+    args.push_back(CommandArg("SlotB", "int", "Preset Slot B").setRange(1, 255));
+    args.push_back(CommandArg("SlotC", "int", "Preset Slot C").setRange(1, 255));
+    args.push_back(CommandArg("SlotD", "int", "Preset Slot D").setRange(1, 255));
+}
 std::unique_ptr<Command::Result> TriggerMultiplePresetSlotsCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -78,6 +113,16 @@ std::unique_ptr<Command::Result> TriggerMultiplePresetSlotsCommand::run(const st
         }
     }
     return std::make_unique<Command::Result>("Presets Triggered");
+}
+
+TriggerMultiplePresetsCommand::TriggerMultiplePresetsCommand() :
+    Command("Trigger Multiple Command Presets") {
+    args.push_back(CommandArg("NameA", "datalist", "Preset Name 1").setContentListUrl("api/commandPresets?names=true"));
+    args.push_back(CommandArg("NameB", "datalist", "Preset Name 2").setContentListUrl("api/commandPresets?names=true"));
+    args.push_back(CommandArg("NameC", "datalist", "Preset Name 3").setContentListUrl("api/commandPresets?names=true"));
+    args.push_back(CommandArg("NameD", "datalist", "Preset Name 4").setContentListUrl("api/commandPresets?names=true"));
+    args.push_back(CommandArg("NameE", "datalist", "Preset Name 5").setContentListUrl("api/commandPresets?names=true"));
+    args.push_back(CommandArg("NameF", "datalist", "Preset Name 6").setContentListUrl("api/commandPresets?names=true"));
 }
 std::unique_ptr<Command::Result> TriggerMultiplePresetsCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
@@ -91,6 +136,12 @@ std::unique_ptr<Command::Result> TriggerMultiplePresetsCommand::run(const std::v
     return std::make_unique<Command::Result>("Presets Triggered");
 }
 
+RunScriptEvent::RunScriptEvent() :
+    Command("Run Script") {
+    args.push_back(CommandArg("script", "string", "Script Name").setContentListUrl("api/scripts"));
+    args.push_back(CommandArg("args", "string", "Script Arguments").setAdjustable());
+    args.push_back(CommandArg("env", "string", "Environment Variables"));
+}
 std::unique_ptr<Command::Result> RunScriptEvent::run(const std::vector<std::string>& args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -113,6 +164,14 @@ std::unique_ptr<Command::Result> RunScriptEvent::run(const std::vector<std::stri
     return std::make_unique<Command::Result>("Script Started");
 }
 
+StartEffectCommand::StartEffectCommand() :
+    Command("Effect Start") {
+    args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects"));
+    args.push_back(CommandArg("startChannel", "int", "Start Channel"));
+    args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
+    args.push_back(CommandArg("bg", "bool", "Background"));
+    args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
+}
 std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -154,6 +213,12 @@ std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::
     return std::make_unique<Command::Result>("Effect Started");
 }
 
+StartFSEQAsEffectCommand::StartFSEQAsEffectCommand() :
+    Command("FSEQ Effect Start") {
+    args.push_back(CommandArg("effect", "string", "FSEQ Name").setContentListUrl("api/sequence"));
+    args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
+    args.push_back(CommandArg("bg", "bool", "Background"));
+}
 std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -172,6 +237,10 @@ std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector
     return std::make_unique<Command::Result>("Effect Started");
 }
 
+StopEffectCommand::StopEffectCommand() :
+    Command("Effect Stop", "Stop the specified effect.") {
+    args.push_back(CommandArg("effect", "datalist", "Effect Name").setContentListUrl("api/effects/ALL"));
+}
 std::unique_ptr<Command::Result> StopEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -181,9 +250,17 @@ std::unique_ptr<Command::Result> StopEffectCommand::run(const std::vector<std::s
     return std::make_unique<Command::Result>("Effect Stopped");
 }
 
+StopAllEffectsCommand::StopAllEffectsCommand() :
+    Command("Effects Stop", "Stop all running effects.") {
+}
 std::unique_ptr<Command::Result> StopAllEffectsCommand::run(const std::vector<std::string>& args) {
     StopAllEffects();
     return std::make_unique<Command::Result>("Effects Stopped");
+}
+
+StopFSEQAsEffectCommand::StopFSEQAsEffectCommand() :
+    Command("FSEQ Effect Stop") {
+    args.push_back(CommandArg("effect", "string", "FSEQ Name").setContentListUrl("api/sequence"));
 }
 std::unique_ptr<Command::Result> StopFSEQAsEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
@@ -194,6 +271,14 @@ std::unique_ptr<Command::Result> StopFSEQAsEffectCommand::run(const std::vector<
     return std::make_unique<Command::Result>("Effect Stopped");
 }
 
+StartRemoteEffectCommand::StartRemoteEffectCommand() :
+    Command("Remote Effect Start") {
+    args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+    args.push_back(CommandArg("effect", "string", "Effect Name"));
+    args.push_back(CommandArg("startChannel", "int", "Start Channel"));
+    args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
+    args.push_back(CommandArg("bg", "bool", "Background"));
+}
 std::unique_ptr<Command::Result> StartRemoteEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -203,6 +288,14 @@ std::unique_ptr<Command::Result> StartRemoteEffectCommand::run(const std::vector
         newargs.push_back(args[x]);
     }
     return CommandManager::INSTANCE.runRemoteCommand(args[0], "Effect Start", newargs);
+}
+
+StartRemoteFSEQEffectCommand::StartRemoteFSEQEffectCommand() :
+    Command("Remote FSEQ Effect Start") {
+    args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+    args.push_back(CommandArg("fseq", "string", "FSEQ Name"));
+    args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
+    args.push_back(CommandArg("bg", "bool", "Background"));
 }
 std::unique_ptr<Command::Result> StartRemoteFSEQEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
@@ -214,6 +307,12 @@ std::unique_ptr<Command::Result> StartRemoteFSEQEffectCommand::run(const std::ve
     }
     return CommandManager::INSTANCE.runRemoteCommand(args[0], "FSEQ Effect Start", newargs);
 }
+
+StopRemoteEffectCommand::StopRemoteEffectCommand() :
+    Command("Remote Effect Stop") {
+    args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+    args.push_back(CommandArg("effect", "string", "Effect Name"));
+}
 std::unique_ptr<Command::Result> StopRemoteEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -224,6 +323,14 @@ std::unique_ptr<Command::Result> StopRemoteEffectCommand::run(const std::vector<
     }
     return CommandManager::INSTANCE.runRemoteCommand(args[0], "Effect Stop", newargs);
 }
+
+StartRemotePlaylistCommand::StartRemotePlaylistCommand() :
+    Command("Remote Playlist Start") {
+    args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+    args.push_back(CommandArg("playlist", "string", "Playlist Name"));
+    args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
+    args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
+}
 std::unique_ptr<Command::Result> StartRemotePlaylistCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -233,6 +340,14 @@ std::unique_ptr<Command::Result> StartRemotePlaylistCommand::run(const std::vect
         newargs.push_back(args[x]);
     }
     return CommandManager::INSTANCE.runRemoteCommand(args[0], "Start Playlist", newargs);
+}
+
+RunRemoteScriptEvent::RunRemoteScriptEvent() :
+    Command("Remote Run Script") {
+    args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+    args.push_back(CommandArg("script", "string", "Script Name"));
+    args.push_back(CommandArg("args", "string", "Script Arguments").setAdjustable());
+    args.push_back(CommandArg("env", "string", "Environment Variables"));
 }
 std::unique_ptr<Command::Result> RunRemoteScriptEvent::run(const std::vector<std::string>& args) {
     if (args.empty()) {
@@ -245,6 +360,9 @@ std::unique_ptr<Command::Result> RunRemoteScriptEvent::run(const std::vector<std
     return CommandManager::INSTANCE.runRemoteCommand(args[0], "Run Script", newargs);
 }
 
+AllLightsOffCommand::AllLightsOffCommand() :
+    Command("All Lights Off", "Turn all lights off.") {
+}
 std::unique_ptr<Command::Result> AllLightsOffCommand::run(const std::vector<std::string>& args) {
     sequence->SendBlankingData();
     return std::make_unique<Command::Result>("All Lights Off");

@@ -73,9 +73,9 @@ int ExtGPIO(int gpio, char* mode, int value) {
     return retval;
 }
 
-class GPIOCommand : public Command {
+class FPPGPIOCommand : public Command {
 public:
-    GPIOCommand() :
+    FPPGPIOCommand() :
         Command("GPIO") {
         args.push_back(CommandArg("pin", "string", "Pin").setContentListUrl("api/gpio?list=true"));
         args.push_back(CommandArg("on", "bool", "On"));
@@ -111,7 +111,7 @@ void GPIOManager::Initialize(std::map<int, std::function<bool(int)>>& callbacks)
     SetupGPIOInput(callbacks);
     std::vector<std::string> pins = PinCapabilities::getPinNames();
     if (!pins.empty()) {
-        CommandManager::INSTANCE.addCommand(new GPIOCommand());
+        CommandManager::INSTANCE.addCommand(new FPPGPIOCommand());
     }
 }
 void GPIOManager::CheckGPIOInputs(void) {

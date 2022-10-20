@@ -11,7 +11,6 @@
  * included LICENSE.LGPL file.
  */
 
-
 class Timers {
 public:
     static Timers INSTANCE;
@@ -28,13 +27,12 @@ public:
         }
     }
 
-    void addTimer(const std::string &name, long long fireTimeMS, std::function<void()>& callback);
-    void addTimer(const std::string &name, long long fireTimeMS, const std::string &preset);
+    void addTimer(const std::string& name, long long fireTimeMS, std::function<void()>& callback);
+    void addTimer(const std::string& name, long long fireTimeMS, const std::string& preset);
 
-private:    
+private:
     bool hasTimers = false;
     long long nextTimer = 0;
-
 
     class TimerInfo {
     public:
@@ -42,17 +40,16 @@ private:
         ~TimerInfo() {}
 
         std::string id;
-        long long   fireTimeMS;
+        long long fireTimeMS;
         std::string commandPreset;
         std::function<void()> callback;
     };
     std::vector<TimerInfo*> timers;
     std::mutex lock;
 
-
     void fireTimersInternal(long long t);
 
     // these methods must be called with the lock held
-    void fireTimer(TimerInfo *);
+    void fireTimer(TimerInfo*);
     void updateTimers();
 };
