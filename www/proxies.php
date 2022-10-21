@@ -233,7 +233,7 @@ if (count($dhcpIps) > 0) {
                 <div class="backdrop">
                         <b>Notes:</b>
                         <p>This is a list of ip/hostnames for which we can reach their HTTP configuration pages via proxy through this FPP instance. <p>
-                         <p>For example, if this FPP instance is used as a wireless proxy to another e1.31 controller where FPP communicates to the "show network" via the WIFI adapter and to the controller via the ethernet adapater, you can put the IP address of the e1.31 controller here and access the configuration pages by proxy without having to setup complex routing tables.
+                         <p>For example, if this FPP instance is used as a wireless proxy to another e1.31 controller where FPP communicates to the "show network" via the WIFI adapter and to the controller via the ethernet adapter, you can put the IP address of the e1.31 controller here and access the configuration pages by proxy without having to setup complex routing tables.
                         </p>
                 </div>
           </div>
