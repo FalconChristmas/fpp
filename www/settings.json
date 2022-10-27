@@ -948,7 +948,7 @@
                 "BeagleBone Black": [
                     "BeagleBone Black",
                     "BeagleBone Black Wireless",
-                    "SanCloud BeagleBone Enhanced"    
+                    "SanCloud BeagleBone Enhanced"
                 ]
             },
             "children": {
@@ -972,7 +972,7 @@
                 "BeagleBone Black": [
                     "BeagleBone Black",
                     "BeagleBone Black Wireless",
-                    "SanCloud BeagleBone Enhanced"    
+                    "SanCloud BeagleBone Enhanced"
                 ]
             },
             "type": "select",
@@ -1694,7 +1694,7 @@
             "name": "pauseBackgroundEffects",
             "description": "Pause background effects during FSEQ playback",
             "gatherStats": true,
-            "tip": "Background effects normally continue to run when a sequence is playing.  This setting instructs FPP to pause all background effects when a sequence is running.  When the sequence stops running, the background effects resume playback.  Most users do not need to set a UI password, this setting allows the user to set a UI password to make the system more secure.",
+            "tip": "Background effects normally continue to run when a sequence is playing.  This setting instructs FPP to pause all background effects when a sequence is running.  When the sequence stops running, the background effects resume playback.",
             "restart": 2,
             "type": "checkbox"
         },
