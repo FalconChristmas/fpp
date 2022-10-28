@@ -75,13 +75,17 @@ wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 wmm_enabled=0
 ignore_broadcast_ssid=0
-reassociation_deadline=3000
-pmk_r1_push=1
-ft_over_ds=0
-bss_transition=1
 wpa_group_rekey=3600
 wpa_gmk_rekey=86400
 EOF
+
+    HOSTAPDVER=`hostapd -v 2>&1 | colrm 1 9 | colrm 4 | colrm 2 2 | head -1`
+    if [ "$HOSTAPDVER" -lt "30" ]; then
+	echo "reassociation_deadline=3000" >> /etc/hostapd/hostapd.conf
+	echo "pmk_r1_push=1" >> /etc/hostapd/hostapd.conf
+	echo "ft_over_ds=0" >> /etc/hostapd/hostapd.conf
+	echo "bss_transition=1" >> /etc/hostapd/hostapd.conf
+    fi
 }
 
 SetupFPPNetworkConfigViaConnMann() {
@@ -251,6 +255,7 @@ declare -A NETMASK2SUBNET=(
 )
 fi
 SetupFPPNetworkConfigViaSystemdNetworkd() {
+    SYSCTRLVERSION=`systemctl --version | colrm 1 8 | colrm 4 | head -1`
     CONFIGS=`ls ${FPPHOME}/media/config/interface.w*; ls ${FPPHOME}/media/config/interface.e*`
     DEFGW="none"
     DNS1=""
@@ -385,7 +390,9 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         fi
 
         echo "$ADDRESSLINES" >> $TMPFILE
-        echo "IgnoreCarrierLoss=5s" >> $TMPFILE
+        if [ "$SYSCTRLVERSION" -gt "250" ]; then
+             echo "IgnoreCarrierLoss=5s" >> $TMPFILE
+        fi
         echo "" >> $TMPFILE
 
         if [ "x$GATEWAY" != "x" ]; then

@@ -551,10 +551,11 @@ function CreatePersistentNetNames()
         exec($cmd, $output, $return_val);
         
         $cont = "[Match]\nMACAddress=" . $output[0];
+       $cont = $cont . "\nPermanentMACAddress=" . $output[0];
         if (substr($iface, 0, strlen("wl")) === "wl") {
             $cont = $cont . "\nOriginalName=wl*";
         }
-        $cont = $cont . "\n[Link]\nName=" . $iface . "\n";
+        $cont = $cont . "\n\n[Link]\nName=" . $iface . "\n";
         file_put_contents("/tmp/5" . strval($count) . "-fpp-" . $iface . ".link", $cont);
         shell_exec("sudo mv /tmp/5" . strval($count) . "-fpp-" . $iface . ".link /etc/systemd/network/");
 
