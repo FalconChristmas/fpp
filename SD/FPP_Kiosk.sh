@@ -1,4 +1,5 @@
 #!/bin/sh
+apt-get update
 apt-get install -y --no-install-recommends xserver-xorg x11-xserver-utils xinit openbox
 apt-get install -y --no-install-recommends chromium-browser
 apt-get clean
