@@ -448,6 +448,8 @@ void Playlist::ReloadIfNeeded(void) {
 void Playlist::SwitchToMainPlaylist(void) {
     LogDebug(VB_PLAYLIST, "Switching to MainPlaylist\n");
 
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+
     m_currentSectionStr = "MainPlaylist";
     m_currentSection = &m_mainPlaylist;
     m_sectionPosition = 0;
@@ -460,6 +462,8 @@ void Playlist::SwitchToMainPlaylist(void) {
 void Playlist::SwitchToLeadOut(void) {
     LogDebug(VB_PLAYLIST, "Switching to LeadOut\n");
 
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+
     m_currentSectionStr = "LeadOut";
     m_currentSection = &m_leadOut;
     m_sectionPosition = 0;
@@ -471,6 +475,8 @@ void Playlist::SwitchToLeadOut(void) {
  */
 int Playlist::Start(void) {
     LogDebug(VB_PLAYLIST, "Playlist::Start()\n");
+
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
     if ((!m_leadIn.size()) &&
         (!m_mainPlaylist.size()) &&
@@ -574,6 +580,7 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop) {
     if (m_status == FPP_STATUS_PLAYLIST_PAUSED && this == playlist) {
         Resume();
     }
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
     std::map<std::string, std::string> keywords;
     keywords["PLAYLIST_NAME"] = m_name;
@@ -598,6 +605,7 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop) {
 void Playlist::Pause() {
     LogDebug(VB_PLAYLIST, "Playlist::Pause called on %s\n", m_filename.c_str());
     if (IsPlaying()) {
+        std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
         if (m_currentSection->at(m_sectionPosition)->IsPlaying()) {
             m_currentSection->at(m_sectionPosition)->Pause();
             if (m_currentSection->at(m_sectionPosition)->IsPaused()) {
@@ -609,6 +617,7 @@ void Playlist::Pause() {
 void Playlist::Resume() {
     LogDebug(VB_PLAYLIST, "Playlist::Resume called on %s\n", m_filename.c_str());
     if (IsPlaying()) {
+        std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
         if (m_status == FPP_STATUS_PLAYLIST_PAUSED) {
             m_currentSection->at(m_sectionPosition)->Resume();
             m_status = FPP_STATUS_PLAYLIST_PLAYING;
@@ -682,6 +691,7 @@ int Playlist::Process(void) {
 
     Playlist* pl = nullptr;
     if (m_currentSection->at(m_sectionPosition)->IsPaused() && ((pl = SwitchToInsertedPlaylist()) != nullptr)) {
+        std::unique_lock<std::recursive_mutex> lck(pl->m_playlistMutex);
         pl->Start();
         return pl->Process();
     }
@@ -1459,7 +1469,6 @@ Json::Value Playlist::GetMqttStatusJSON(void) {
     return result;
 }
 
-
 void Playlist::GetCurrentStatus(Json::Value& result) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (m_currentState == "idle" || m_currentSection == nullptr) {
@@ -1489,7 +1498,7 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     std::string type = ple->GetType();
 
     while (type == "dynamic") {
-        PlaylistEntryDynamic *dyn = dynamic_cast<PlaylistEntryDynamic*>(ple);
+        PlaylistEntryDynamic* dyn = dynamic_cast<PlaylistEntryDynamic*>(ple);
         ple = dyn->GetCurrentEntry();
         type = ple->GetType();
     }
@@ -1506,19 +1515,19 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     std::string currentSeq;
     std::string currentSong;
     if (type == "media") {
-        PlaylistEntryMedia *med = dynamic_cast<PlaylistEntryMedia*>(ple);
+        PlaylistEntryMedia* med = dynamic_cast<PlaylistEntryMedia*>(ple);
         currentSong = med->GetMediaName();
     } else if (type == "both") {
-        PlaylistEntryBoth *both = dynamic_cast<PlaylistEntryBoth*>(ple);
+        PlaylistEntryBoth* both = dynamic_cast<PlaylistEntryBoth*>(ple);
         currentSeq = both->GetSequenceName();
         currentSong = both->GetMediaName();
     } else if (type == "sequence") {
-        PlaylistEntrySequence *seq = dynamic_cast<PlaylistEntrySequence*>(ple);
+        PlaylistEntrySequence* seq = dynamic_cast<PlaylistEntrySequence*>(ple);
         currentSeq = seq->GetSequenceName();
         secsElapsed = sequence->m_seqMSElapsed / 1000;
         secsRemaining = sequence->m_seqMSRemaining / 1000;
     } else if (type == "script") {
-        PlaylistEntryScript *scr = dynamic_cast<PlaylistEntryScript*>(ple);
+        PlaylistEntryScript* scr = dynamic_cast<PlaylistEntryScript*>(ple);
         currentSeq = scr->GetScriptName();
     }
     result["current_sequence"] = currentSeq;
@@ -1530,14 +1539,13 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     result["time_remaining"] = secondsToTime(secsRemaining);
 }
 
-
 /*
  *
  */
 Json::Value Playlist::GetInfo(void) {
     Json::Value result;
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
-    
+
     result["currentState"] = m_currentState;
     if (m_currentState == "idle") {
         result["name"] = "";
