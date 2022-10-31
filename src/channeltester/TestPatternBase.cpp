@@ -137,6 +137,9 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
                     end = max;
             }
         }
+        if (end < start) {
+            end = start;
+        }
         m_channelSet.push_back(std::make_pair(start, end));
         m_channelCount += end - start + 1;
     }
