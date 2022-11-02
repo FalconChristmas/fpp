@@ -85,6 +85,7 @@ void CommandManager::Init() {
     addCommand(new StartPlaylistAtRandomCommand());
     addCommand(new InsertPlaylistCommand());
     addCommand(new InsertPlaylistImmediate());
+    addCommand(new InsertRandomItemFromPlaylistCommand());
 #ifdef HAS_VLC
     addCommand(new PlayMediaCommand());
     /* These too are currently disabled because stopping a Video

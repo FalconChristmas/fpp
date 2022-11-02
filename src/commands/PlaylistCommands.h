@@ -78,6 +78,11 @@ public:
     InsertPlaylistImmediate();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+class InsertRandomItemFromPlaylistCommand : public Command {
+public:
+    InsertRandomItemFromPlaylistCommand();
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
 
 class PlaylistPauseCommand : public Command {
 public:

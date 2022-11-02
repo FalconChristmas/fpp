@@ -232,6 +232,25 @@ std::unique_ptr<Command::Result> InsertPlaylistImmediate::run(const std::vector<
     return std::make_unique<Command::Result>("Playlist Inserted");
 }
 
+InsertRandomItemFromPlaylistCommand::InsertRandomItemFromPlaylistCommand() :
+    Command("Insert Random Item From Playlist", "Run a random item from the given playlist.  When complete, resumes the original playlist.") {
+    args.push_back(CommandArg("name", "string", "Playlist Name")
+                       .setContentListUrl("api/playlists/playable"));
+    args.push_back(CommandArg("immediate", "bool", "Immediate", true).setDefaultValue("false"));
+}
+std::unique_ptr<Command::Result> InsertRandomItemFromPlaylistCommand::run(const std::vector<std::string>& args) {
+    bool immediate = false;
+    if (args.size() > 1) {
+        immediate = args[1] == "true" || args[1] == "1";
+    }
+    if (immediate) {
+        Player::INSTANCE.InsertPlaylistImmediate(args[0], -2, 0);
+    } else {
+        Player::INSTANCE.InsertPlaylistAsNext(args[0], -2, 0);
+    }
+    return std::make_unique<Command::Result>("Playlist Inserted");
+}
+
 PlaylistPauseCommand::PlaylistPauseCommand() :
     Command("Pause Playlist") {
 }
