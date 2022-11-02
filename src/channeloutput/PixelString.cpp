@@ -607,15 +607,22 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
             auto& vs = m.second;
 
             uint32_t startChannel = FPPD_MAX_CHANNELS;
-            uint32_t channelsPerNode = (*vs.begin())->channelsPerNode();
+            uint32_t channelsPerNode = 0;
             std::string orientation = "H";
             std::string startLocation = "BL";
             uint32_t strings = vs.size();
             uint32_t strands = 1;
             uint32_t maxChan = 0;
+            int8_t rn = -1;
             for (auto& a : vs) {
-                startChannel = std::min(startChannel, (uint32_t)a->startChannel);
-                maxChan = a->startChannel + a->pixelCount * a->channelsPerNode();
+                if (a) {
+                    startChannel = std::min(startChannel, (uint32_t)a->startChannel);
+                    maxChan = a->startChannel + a->pixelCount * a->channelsPerNode();
+                    channelsPerNode = std::max(channelsPerNode, (uint32_t)a->channelsPerNode());
+                    rn = std::max(rn, a->receiverNum);
+                } else {
+                    --strings;
+                }
             }
             int32_t channelCount = maxChan - startChannel;
 
@@ -624,7 +631,7 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
                 orientation = "V";
             }
 
-            if ((channelCount > 0) && ((*vs.begin())->receiverNum == -1)) {
+            if ((channelCount > 0) && (rn == -1)) {
                 PixelOverlayManager::INSTANCE.addAutoOverlayModel(name, startChannel, channelCount, channelsPerNode, orientation,
                                                                   startLocation, strings, strands);
             }
