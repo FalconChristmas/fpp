@@ -128,9 +128,9 @@ buf[9] = App/Hardware Type
            - 0x88 - F16v4
            - 0x89 - F48v4
          - 0xA0-0xAF = Experience Lights
-           - 0x80 - Genius Pixel 16
-           - 0x81 - Genius Pixel 8
-           - 0x82 - Genius Long Range
+           - 0xA0 - Genius Pixel 16
+           - 0xA1 - Genius Pixel 8
+           - 0xA2 - Genius Long Range
          - 0xC0-0xFF = Other systems
            - 0xC1 - xSchedule
            - 0xC2 - ESPixelStick - ESP8266
