@@ -584,6 +584,12 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local) {
         return "Falcon F16v4";
     case kSysTypeFalconF48v4:
         return "Falcon F48v4";
+    case kSysTypeExperienceGP16:
+        return "Genius Pixel 16";
+    case kSysTypeExperienceGP8:
+        return "Genius Pixel 8";
+    case kSysTypeExperienceGLR:
+        return "Genius Long Range";
     case kSysTypeOtherSystem:
         return "Other Unknown System";
     case kSysTypeFPPBeagleBoneBlack:

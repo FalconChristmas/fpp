@@ -116,7 +116,7 @@ buf[9] = App/Hardware Type
            - 0x46 - SanCloud Beaglebone Enhanced
          - 0x60 - Armbian
          - 0x70 - MacOS
-         - 0x80-0xCF = Falcon Hardware
+         - 0x80-0x0F = Falcon Hardware
            - 0x80 - Unknown Falcon Controller
            - 0x81 - F16v2-B
            - 0x82 - F4v2-64M
@@ -127,6 +127,10 @@ buf[9] = App/Hardware Type
            - 0x87 - F48
            - 0x88 - F16v4
            - 0x89 - F48v4
+         - 0xA0-0xAF = Experience Lights
+           - 0x80 - Genius Pixel 16
+           - 0x81 - Genius Pixel 8
+           - 0x82 - Genius Long Range
          - 0xC0-0xFF = Other systems
            - 0xC1 - xSchedule
            - 0xC2 - ESPixelStick - ESP8266
