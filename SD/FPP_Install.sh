@@ -49,7 +49,7 @@
 #############################################################################
 SCRIPTVER="6.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2022-09b"
+FPPIMAGEVER="2022-11"
 FPPCFGVER="74"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
