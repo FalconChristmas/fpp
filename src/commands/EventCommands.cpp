@@ -34,7 +34,7 @@ std::unique_ptr<Command::Result> TriggerPresetCommand::run(const std::vector<std
 
 TriggerPresetInFutureCommand::TriggerPresetInFutureCommand() :
     Command("Trigger Command Preset In Future") {
-    args.push_back(CommandArg("id", "string", "Idnetifier"));
+    args.push_back(CommandArg("id", "string", "Identifier"));
     args.push_back(CommandArg("ms", "int", "MS In Future").setRange(0, 86400000));
     args.push_back(CommandArg("name", "datalist", "Preset Name").setContentListUrl("api/commandPresets?names=true"));
 }
