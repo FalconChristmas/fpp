@@ -910,13 +910,15 @@ addgroup --gid 500 ${FPPUSER}
 adduser --uid 500 --home ${FPPHOME} --shell /bin/bash --ingroup ${FPPUSER} --gecos "Falcon Player" --disabled-password ${FPPUSER}
 adduser ${FPPUSER} adm
 adduser ${FPPUSER} sudo
-case "${FPPPLATFORM}" in
-	'Raspberry Pi'|'BeagleBone Black'|'Armbian')
-		adduser ${FPPUSER} spi
-		adduser ${FPPUSER} gpio
-		adduser ${FPPUSER} i2c
-		;;
-esac
+if compgen -G "/dev/gpiochip*" > /dev/null; then
+    adduser ${FPPUSER} gpio
+fi
+if compgen -G "/dev/i2c*" > /dev/null; then
+    adduser ${FPPUSER} i2c
+fi
+if compgen -G "/dev/spidev*" > /dev/null; then
+    adduser ${FPPUSER} spi
+fi
 adduser ${FPPUSER} video
 adduser ${FPPUSER} audio
 # FIXME, use ${FPPUSER} here instead of hardcoding

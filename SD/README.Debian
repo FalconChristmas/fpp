@@ -1,0 +1,61 @@
+FPP on Debian has been tested on various SBC's and other devices running the
+"Bullseye" based Debian images.
+
+In general, using the "smallest" Debian image available is best.  If there is a "cli"
+or "minimal" image, they work best.  "server" images are usually OK.  Desktop images
+contain a lot of extra packages.  While they will work, if you don't plan on having a
+desktop environment on it, they will waste a lot of space.
+  
+Note: this will get a BASIC FPP player running on the device.   Things like e1.31
+output, sound, etc.. will likely work.   Any hats/capes for pixels/panels, video,
+etc... will likely not work. HDMI output MAY work, but may also require updates
+to "env" files in /boot to properly configure.  Search forums/google for instructions
+for your particular device.
+
+
+Note: Certain parts of installing FPP (ex: building VLC) will utilize all cores of
+the SBC to near 100% for an extended period of time.   If the CPU does not have
+heat syncs/fans, it may shutdown in the middle of installing due to thermal limits.
+If this happens, you need to restart from a fresh image.  We'd suggest adding
+heat syncs or fans to keep thermals under control, but lowering the CPU frequency
+can also be a big help.   Before running FPP_Install.sh, run a command like:
+
+cpufreq-set -u 800000
+
+to lock the CPU to 800Mhz or lower.
+
+
+
+=============================================================================
+
+
+Insert into the SBC and boot.
+
+
+Commands to run after boot:
+Login via ssh as root (check you image on how to login as root, many will require
+logging in via a default user/password and then "sudo bash")
+
+#######################
+# After reboot
+# check root filesystem size (should be at least ~3.4GB)
+df -k
+# update packages
+apt-get -y update
+apt-get -y upgrade
+
+shutdown -r now
+
+
+# After reboot, re-loginas root and run:
+wget --no-check-certificate -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+chmod 700 ./FPP_Install.sh
+
+#if you intend for FPP to take over the entire device including networking, run:
+./FPP_Install.sh --img
+#otherwise, run:
+./FPP_Install.sh
+# Without the --img flag, FPP will not control things like networking, video, etc... which is more suitable
+# if the device will be used in docker or other containers or as a desktop environment with FPP running in the background
+
+
