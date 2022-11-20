@@ -30,6 +30,8 @@ fppdLog.txt
 _notes
 www/.htpasswd
 www/.config.php
+www/.htaccess
+www/proxy/.htaccess
 www/fppversion.php
 www/fppdefines.php
 www/media_root.txt

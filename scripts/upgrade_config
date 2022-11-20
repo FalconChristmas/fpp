@@ -8,13 +8,10 @@ if [ "$1" != "-notee" ]; then
     teeOutput
 fi
 
+ln -f -s "${MEDIADIR}/config/.htaccess" "${FPPDIR}/www/.htaccess"
+ln -f -s "${MEDIADIR}/config/proxies" "${FPPDIR}/www/proxy/.htaccess"
+
 echo "Checking config version"
-
-if [ ${FPPVERSION} -lt 10 ]; then
-	echo "$0: Unable to upgrade FPP below Alpha 0.1.0, please upgrade your SD image"
-	exit 1
-fi
-
 export FPPVERSION
 
 ########################################################################

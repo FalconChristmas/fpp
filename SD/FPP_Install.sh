@@ -973,6 +973,9 @@ echo >> ${FPPHOME}/.bashrc
 mkdir ${FPPHOME}/media/logs
 chown fpp.fpp ${FPPHOME}/media/logs
 
+ln -f -s "${FPPHOME}/media/config/.htaccess" /opt/fpp/www/.htaccess
+ln -f -s "${FPPHOME}/media/config/proxies" /opt/fpp/www/proxy/.htaccess
+
 #######################################
 # Configure log rotation
 echo "FPP - Configuring log rotation"
