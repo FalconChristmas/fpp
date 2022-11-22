@@ -28,6 +28,9 @@ if [ ! -f /etc/fpp/desktop ]; then
     DetectNetworkModules
 fi
 
+# cleanup any kiosk mode files that will be recreated but can cause issues
+rm -rf /home/fpp/.config/chromium/Singleton*
+
 checkAudioConfig
 
 aplay -l 2>&1 | grep -q "no soundcards"
