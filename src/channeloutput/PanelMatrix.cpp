@@ -361,32 +361,34 @@ void LEDPanel::drawNumber(int v, int x, int y, unsigned char* channelData) {
         channelData[pixelMap[yw1 + (x + x2) * 3 + 1]] = 255;
         channelData[pixelMap[yw1 + (x + x2) * 3 + 2]] = 255;
 
-        channelData[pixelMap[yw1 + (x + x2) * 3 + actualWidth * 6]] = 255;
-        channelData[pixelMap[yw1 + (x + x2) * 3 + 1 + actualWidth * 6]] = 255;
-        channelData[pixelMap[yw1 + (x + x2) * 3 + 2 + actualWidth * 6]] = 255;
+        if (x2 != 1 || v != 0) {
+            channelData[pixelMap[yw1 + (x + x2) * 3 + actualWidth * 6]] = 255;
+            channelData[pixelMap[yw1 + (x + x2) * 3 + 1 + actualWidth * 6]] = 255;
+            channelData[pixelMap[yw1 + (x + x2) * 3 + 2 + actualWidth * 6]] = 255;
+        }
 
         channelData[pixelMap[yw1 + (x + x2) * 3 + actualWidth * 12]] = 255;
         channelData[pixelMap[yw1 + (x + x2) * 3 + 1 + actualWidth * 12]] = 255;
         channelData[pixelMap[yw1 + (x + x2) * 3 + 2 + actualWidth * 12]] = 255;
     }
     yw1 = (y + 1) * actualWidth * 3;
-    if (v == 5 || v  == 6 || v == 9 || v == 8) {
+    if (v == 5 || v  == 6 || v == 9 || v == 8 || v == 0) {
         channelData[pixelMap[yw1 + x * 3]] = 255;
         channelData[pixelMap[yw1 + x * 3 + 1]] = 255;
         channelData[pixelMap[yw1 + x * 3 + 2]] = 255;
     }
-    if (v == 2 || v  == 3 || v == 9 || v == 8) {
+    if (v == 2 || v  == 3 || v == 9 || v == 8 || v == 0) {
         channelData[pixelMap[yw1 + (x + 2) * 3]] = 255;
         channelData[pixelMap[yw1 + (x + 2) * 3 + 1]] = 255;
         channelData[pixelMap[yw1 + (x + 2) * 3 + 2]] = 255;
     }
     yw1 = (y + 3) * actualWidth * 3;
-    if (v == 2 || v  == 6 || v == 8) {
+    if (v == 2 || v  == 6 || v == 8 || v == 0) {
         channelData[pixelMap[yw1 + x * 3]] = 255;
         channelData[pixelMap[yw1 + x * 3 + 1]] = 255;
         channelData[pixelMap[yw1 + x * 3 + 2]] = 255;
     }
-    if (v == 3 || v == 5 || v  == 6 || v == 8 | v == 9) {
+    if (v == 3 || v == 5 || v  == 6 || v == 8 | v == 9 || v == 0) {
         channelData[pixelMap[yw1 + (x + 2) * 3]] = 255;
         channelData[pixelMap[yw1 + (x + 2) * 3 + 1]] = 255;
         channelData[pixelMap[yw1 + (x + 2) * 3 + 2]] = 255;
