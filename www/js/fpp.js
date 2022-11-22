@@ -1574,6 +1574,7 @@ function PlaylistTypeChanged() {
     }
 
     oldPlaylistEntryType = type;
+    UpdateChildVisibility();
 }
 
 function PlaylistNameOK(name) {
@@ -5103,7 +5104,7 @@ function UpdateChildVisibility() {
     var pet = playlistEntryTypes[$('#pe_type').val()];
     var keys = Object.keys(pet.args);
     var shown = [];
-
+    var hidden = [];
     for (var i = 0; i < keys.length; i++) {
         var a = pet.args[keys[i]];
         if (typeof a['children'] === 'object') {
@@ -5112,19 +5113,23 @@ function UpdateChildVisibility() {
             for (var c = 0; c < ckeys.length; c++) {
                 for (var x = 0; x < a.children[ckeys[c]].length; x++) {
                     if (val == ckeys[c]) {
-                        if ($('.arg_row_' + a.name).is(":visible")) {
+                        if (!hidden.includes(a.name)) {
                             $('.arg_row_' + a.children[ckeys[c]][x]).show();
                             shown.push(a.children[ckeys[c]][x]);
                         } else {
                             $('.arg_row_' + a.children[ckeys[c]][x]).hide();
+                            hidden.push(a.children[ckeys[c]][x]);
                         }
                     } else {
                         if (!shown.includes(a.children[ckeys[c]][x])) {
                             $('.arg_row_' + a.children[ckeys[c]][x]).hide();
+                            hidden.push(a.children[ckeys[c]][x]);
                         }
                     }
                 }
             }
+        } else if (!hidden.includes(a.name)) {
+            $('.arg_row_' + a.name).show();
         }
     }
 }

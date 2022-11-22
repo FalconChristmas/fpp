@@ -2690,3 +2690,42 @@ a.api-anchor {
     padding-right: 0.65rem;
 }
 
+@media (min-width: 800px) {
+  .modal-dialog {
+    max-width: 700px;
+    margin: 1.75rem auto;
+    margin-top: 70px;
+  }
+  .modal-dialog-scrollable {
+    max-height: calc(100% - 3.5rem); }
+    .modal-dialog-scrollable .modal-content {
+      max-height: calc(100vh - 3.5rem); }
+  .modal-dialog-centered {
+    min-height: calc(100% - 3.5rem); }
+    .modal-dialog-centered::before {
+      height: calc(100vh - 3.5rem);
+      height: -webkit-min-content;
+      height: -moz-min-content;
+      height: min-content; }
+  .modal-sm {
+    max-width: 300px; } }
+
+@media (min-width: 900px) {
+  .modal-dialog {
+    max-width: 750px;
+    margin: 1.75rem auto;
+    margin-top: 70px;
+  }
+  .modal-dialog-scrollable {
+    max-height: calc(100% - 3.5rem); }
+    .modal-dialog-scrollable .modal-content {
+      max-height: calc(100vh - 3.5rem); }
+  .modal-dialog-centered {
+    min-height: calc(100% - 3.5rem); }
+    .modal-dialog-centered::before {
+      height: calc(100vh - 3.5rem);
+      height: -webkit-min-content;
+      height: -moz-min-content;
+      height: min-content; }
+  .modal-sm {
+    max-width: 300px; } }

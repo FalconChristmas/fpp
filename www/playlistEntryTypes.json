@@ -18,9 +18,7 @@
                         "endTime"
                     ],
                     "Loop": [
-                        "loopTest",
-                        "iterationStart",
-                        "iterationCount"
+                        "loopTest"
                     ],
                     "MQTT": [
                         "mqttTopic",
