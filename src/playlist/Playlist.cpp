@@ -670,12 +670,15 @@ int Playlist::Process(void) {
 
     //LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
 
-    while (!PL_CLEANUPS.empty()) {
-        Playlist* p = PL_CLEANUPS.front();
-        delete p;
-        PL_CLEANUPS.pop_front();
+    if (!PL_CLEANUPS.empty()) {
+        PL_CLEANUPS.sort();
+        PL_CLEANUPS.unique();
+        while (!PL_CLEANUPS.empty()) {
+            Playlist* p = PL_CLEANUPS.front();
+            delete p;
+            PL_CLEANUPS.pop_front();
+        }
     }
-
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
     if (m_currentSection == nullptr || m_sectionPosition >= m_currentSection->size()) {
@@ -891,7 +894,7 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
             playlist = pl;
             return playlist;
         } else {
-            delete pl;
+            PL_CLEANUPS.push_back(pl);
         }
     }
     return nullptr;
