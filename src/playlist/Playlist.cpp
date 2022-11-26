@@ -216,6 +216,9 @@ Json::Value Playlist::LoadJSON(const char* filename) {
     Json::Value root;
 
     if (!LoadJsonFromFile(filename, root)) {
+        std::string warn = "Could not load playlist ";
+        warn += filename;
+        WarningHolder::AddWarningTimeout(warn, 30);
         LogErr(VB_PLAYLIST, "Error loading %s\n", filename);
         return root;
     }
@@ -481,6 +484,10 @@ int Playlist::Start(void) {
     if ((!m_leadIn.size()) &&
         (!m_mainPlaylist.size()) &&
         (!m_leadOut.size())) {
+        
+        std::string warn = "Playlist " + GetPlaylistName() + " is empty. Nothing to play.";
+        WarningHolder::AddWarningTimeout(warn, 30);
+
         SetIdle();
         return 0;
     }
@@ -887,6 +894,7 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
         } else {
             pl = new Playlist(this);
         }
+        std::string plname = m_insertedPlaylist;
         pl->Play(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition, 0, m_scheduleEntry, m_insertedPlaylistEndPosition);
         m_insertedPlaylist = "";
         if (pl->IsPlaying()) {
