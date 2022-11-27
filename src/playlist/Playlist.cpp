@@ -856,6 +856,13 @@ int Playlist::Process(void) {
             m_currentSection->at(m_sectionPosition)->StartPlaying();
         }
 
+        while (!startNewPlaylistFilename.empty()) {
+            StopNow(1);
+            std::string nm = startNewPlaylistFilename;
+            startNewPlaylistFilename = "";
+            Play(nm.c_str(), startNewPlaylistPosition, startNewPlaylistRepeat, startNewPlaylistScheduleEntry, startNewPlaylistEndPosition);
+        }
+        
         PluginManager::INSTANCE.playlistCallback(GetInfo(), "playing", m_currentSectionStr, m_sectionPosition);
         if (mqtt) {
             mqtt->Publish("playlist/section/status", m_currentSectionStr);
@@ -1041,8 +1048,22 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
             Start();
             return 1;
         } else if (m_currentSection) {
-            StopNow(1);
-            sleep(1);
+            PlaylistEntryCommand *pec = dynamic_cast<PlaylistEntryCommand*>(m_currentSection->at(m_sectionPosition));
+            PlaylistEntryScript *pes = dynamic_cast<PlaylistEntryScript*>(m_currentSection->at(m_sectionPosition));
+            if (pec || pes) {
+                // We cannot stop the current playlist and start a new one as the entry itself will be deleted
+                // while within a method of the entry.   Thus, we'll record the settings and then
+                // stop the playlist when safe to do so.
+                startNewPlaylistFilename = filename;
+                startNewPlaylistPosition = position;
+                startNewPlaylistRepeat = repeat;
+                startNewPlaylistScheduleEntry = scheduleEntry;
+                startNewPlaylistEndPosition = endPosition;
+                return 1;
+            } else {
+                StopNow(1);
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
         }
     }
     m_scheduleEntry = scheduleEntry;

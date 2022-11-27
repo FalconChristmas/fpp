@@ -140,6 +140,12 @@ private:
     std::string m_insertedPlaylist;
     int m_insertedPlaylistPosition;
     int m_insertedPlaylistEndPosition;
+    
+    std::string startNewPlaylistFilename;
+    int startNewPlaylistPosition = 0;
+    int startNewPlaylistRepeat = 0;
+    int startNewPlaylistScheduleEntry = 0;
+    int startNewPlaylistEndPosition = 0;
 
     std::recursive_mutex m_playlistMutex;
 
