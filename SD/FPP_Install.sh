@@ -63,7 +63,24 @@ PATH=$PATH:/usr/sbin:/sbin
 
 # CPU Count
 CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
-
+if [[ ${CPUS} -gt 1 ]]; then
+    MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
+    if [[ ${MEMORY} -lt 425000 ]]; then
+        # very limited memory, only use one core or we'll fail or
+        # will be very slow as we constantly swap in/out
+        CPUS=1
+    elif [[ ${MEMORY} -lt 512000 ]]; then
+        SWAPTOTAL=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
+        # Limited memory, if we have some swap, we'll go ahead with -j 2
+        # otherwise we'll need to stick with -j 1 or we run out of memory
+        if [[ ${SWAPTOTAL} -gt 49000 ]]; then
+            CPUS=2
+        else
+            CPUS=1
+        fi
+    fi
+fi
+        
 #############################################################################
 # Some Helper Functions
 #############################################################################
