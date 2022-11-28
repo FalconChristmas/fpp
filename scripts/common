@@ -170,10 +170,16 @@ setSetting() {
         fi
         OLD=$(getSetting $SETTING)
         if [ "x${OLD}" != "x" ]; then
-            sed -i -e "/^${SETTING} *= *\"/d" ${CFGFILE}
+            if [ "${FPPPLATFORM}" == "MacOS" ]; then
+                sed -i '' -e "/^${SETTING} *= */d" ${CFGFILE}
+            else
+                sed -i -e "/^${SETTING} *= */d" ${CFGFILE}
+            fi
         fi
         echo "${SETTING} = \"${VALUE}\"" >> ${CFGFILE}
-        sed -i 's/\x0//g' ${CFGFILE}
+        if [ "${FPPPLATFORM}" != "MacOS" ]; then
+            sed -i 's/\x0//g' ${CFGFILE}
+        fi
         if [ -f "/usr/bin/flock" ]; then
             flock -u ${FD}
         fi
