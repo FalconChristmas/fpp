@@ -391,7 +391,12 @@ case "${OSVER}" in
         if $skip_apt_install; then
             PACKAGE_REMOVE=""
         fi
+        
         if [ "x${PACKAGE_REMOVE}" != "x" ]; then
+            # Need to make sure there is configuration for eth0 or uninstalling dhcpclient will cause network to drop
+            rm -f /etc/systemd/network/50-default.network
+            wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+
             apt-get remove -y --purge --autoremove --allow-change-held-packages ${PACKAGE_REMOVE}
         fi
         
