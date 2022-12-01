@@ -396,8 +396,13 @@ case "${OSVER}" in
             # Need to make sure there is configuration for eth0 or uninstalling dhcpclient will cause network to drop
             rm -f /etc/systemd/network/50-default.network
             wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
-
+            systemctl reload systemd-networkd
             apt-get remove -y --purge --autoremove --allow-change-held-packages ${PACKAGE_REMOVE}
+            systemctl restart systemd-networkd
+            systemctl restart systemd-resolvd
+
+            systemctl enable systemd-networkd
+            systemctl enable systemd-resolvd
         fi
         
 
