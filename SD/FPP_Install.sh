@@ -403,6 +403,9 @@ case "${OSVER}" in
 
             systemctl enable systemd-networkd
             systemctl enable systemd-resolvd
+
+            echo "FPP - Sleeping 5 seconds to make sure network is available"
+            sleep 5
         fi
         
 
