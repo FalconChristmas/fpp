@@ -131,7 +131,7 @@ fi
     LASTBLOCK=$(getSetting LastBlock)
     if [ "x${LASTBLOCK}" != "x0" ]
     then
-        LASTBLOCK=$(sfdisk -q -l -o end /dev/mmcblk0 2>/dev/null | | tail -n 1)
+        LASTBLOCK=$(sfdisk -q -l -o end /dev/mmcblk0 2>/dev/null | tail -n 1)
         if [ "$LASTBLOCK" == "" ]; then
             LASTBLOCK=0
         fi
