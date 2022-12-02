@@ -115,7 +115,6 @@ int FBMatrixOutput::Init(Json::Value config) {
         return 0;
     }
 
-    model->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
     width = model->getWidth();
     height = model->getHeight();
 
@@ -148,7 +147,6 @@ int FBMatrixOutput::Init(Json::Value config) {
                                                           "H", "TL",
                                                           height, 1);
     }
-
     return ChannelOutput::Init(config);
 }
 
@@ -188,7 +186,9 @@ void FBMatrixOutput::PrepData(unsigned char* channelData) {
 
 int FBMatrixOutput::SendData(unsigned char* channelData) {
     model->setData(buffer);
-
+    if (model->getState() == 0) {
+        model->doOverlay(channelData);
+    }
     return m_channelCount;
 }
 

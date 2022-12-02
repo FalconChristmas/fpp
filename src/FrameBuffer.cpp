@@ -258,7 +258,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     m_vInfo.yoffset = 0;
 
     if (m_autoSync) {
-        m_cPage = 1; // Drawwing will be on the second page first
+        m_cPage = 1; // Drawing will be on the second page first
         m_pPage = 1; // Producer gets Page(true) then NextPage(true) after checking if page is clean
     }
 
@@ -282,7 +282,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
         close(m_fbFd);
         return 0;
     }
-
+    m_bpp = m_vInfo.bits_per_pixel;
     if (devString == "/dev/fb0") {
         m_ttyFd = open("/dev/console", O_RDWR);
         if (!m_ttyFd) {
@@ -300,7 +300,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     }
 
     m_rowStride = m_fInfo.line_length;
-    m_rowPadding = m_rowStride - (m_width * 3);
+    m_rowPadding = m_rowStride - (m_width * m_bpp / 8);
     m_pageSize = m_vInfo.yres * m_fInfo.line_length;
     m_bufferSize = m_pageSize * m_pages;
     m_buffer = (uint8_t*)mmap(0, m_bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
