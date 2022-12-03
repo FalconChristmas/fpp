@@ -127,6 +127,12 @@ ifneq ($(wildcard /usr/local/include/vlc/vlc.h),)
 LIBS_fpp_so += -lvlc
 endif
 
+ifneq ($(wildcard /usr/include/libdrm/drm.h),)
+CXXFLAGS_FrameBuffer.o += -I/usr/include/libdrm
+CXXFLAGS_overlays/PixelOverlay.o  += -I/usr/include/libdrm
+CXXFLAGS_overlays/PixelOverlayModelFB.o  += -I/usr/include/libdrm
+endif
+
 util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk $(PCH_FILE)
 	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
 

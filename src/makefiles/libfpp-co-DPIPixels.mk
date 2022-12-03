@@ -3,7 +3,11 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 OBJECTS_fpp_co_dpi_pixels_so += non-gpl/DPIPixels/DPIPixels.o
 LIBS_fpp_co_dpi_pixels_so=-L. -lfpp -ljsoncpp -lfpp_capeutils -Wl,-rpath=$(SRCDIR):.
 
-CXXFLAGS_channeloutput/DPIPixels.o += -Wno-address-of-packed-member
+CXXFLAGS_non-gpl/DPIPixels/DPIPixels.o += -Wno-address-of-packed-member
+
+ifneq ($(wildcard /usr/include/libdrm/drm.h),)
+CXXFLAGS_non-gpl/DPIPixels/DPIPixels.o += -I/usr/include/libdrm
+endif
 
 TARGETS += libfpp-co-DPIPixels.$(SHLIB_EXT)
 OBJECTS_ALL+=$(OBJECTS_fpp_co_dpi_pixels_so)

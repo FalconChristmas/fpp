@@ -1,45 +1,41 @@
 <!DOCTYPE html>
 <html>
 <?php
-require_once("common.php");
+require_once "common.php";
 
 ?>
 <head>
-<?php include 'common/menuHead.inc'; ?>
+<?php include 'common/menuHead.inc';?>
 <script language="Javascript">
 var FBDevices = new Array();
 var FBInfo = {};
 <?
-    $showAddFBButton = 0;
-    $devDir = "/dev/";
-    if ($settings["Platform"] == "MacOS") {
-        $devDir = $settings["framebufferControlSocketPath"];
-    }
-    foreach (scandir($devDir) as $fileName) {
-        if (preg_match("/^fb[0-9]+/", $fileName)) {
-            echo "FBDevices['$fileName'] = '$fileName';\n";
-            echo "FBInfo['$fileName'] = {};\n";
-            $showAddFBButton = 1;
+$showAddFBButton = 0;
 
-            if ($settings["Platform"] == "MacOS") {
-                echo "FBInfo['$fileName'].Width = 150;\n";
-                echo "FBInfo['$fileName'].Height = 100;\n";
-            } else {
-                $geometry = exec("fbset -i -fb /dev/$fileName | grep geometry", $output, $return_val);
-                if ($return_val == 0) {
-                    $parts = preg_split("/\s+/", preg_replace('/^ *geometry */', '', $geometry));
-                    if (count($parts) > 3) {
-                        echo "FBInfo['$fileName'].Width = " . $parts[0] . ";\n";
-                        echo "FBInfo['$fileName'].Height = " . $parts[1] . ";\n";
-                    }
-                }
+exec($SUDO . " " . $settings["fppBinDir"] . "/fpp -FB", $output, $return_val);
+$js = json_decode($output[0]);
+foreach ($js as $fileName) {
+    echo "FBDevices['$fileName'] = '$fileName';\n";
+    echo "FBInfo['$fileName'] = {};\n";
+    $showAddFBButton = 1;
+
+    if ($settings["Platform"] == "MacOS" || !file_exists("/dev/$fileName")) {
+        echo "FBInfo['$fileName'].Width = 150;\n";
+        echo "FBInfo['$fileName'].Height = 100;\n";
+    } else {
+        $geometry = exec("fbset -i -fb /dev/$fileName | grep geometry", $output, $return_val);
+        if ($return_val == 0) {
+            $parts = preg_split("/\s+/", preg_replace('/^ *geometry */', '', $geometry));
+            if (count($parts) > 3) {
+                echo "FBInfo['$fileName'].Width = " . $parts[0] . ";\n";
+                echo "FBInfo['$fileName'].Height = " . $parts[1] . ";\n";
             }
         }
     }
-
+}
 
 if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'))) {
-?>
+    ?>
 FBDevices['x11'] = 'x11';
 FBInfo['x11'] = {};
 FBInfo['x11'].Width = 640;
@@ -83,7 +79,7 @@ function GetOrientationInput(currentValue, attr) {
 
 		str += ">" + options[key] + "</option>";
 	}
-    
+
 	str += "</select>";
 
 	return str;
@@ -203,7 +199,7 @@ function PopulateChannelMemMapTable(data) {
                     select = select.replace('<select ', '<select disabled ');
                 }
 
-                postr += "<td><span class='hidden type'>FB</span>FrameBuffer</td>" + 
+                postr += "<td><span class='hidden type'>FB</span>FrameBuffer</td>" +
                     "<td>" + select + "</td>" +
                     "<td class='channels'>" + channels + "</td>" +
                     "<td colspan='3'>Size: <input class='width' type='number' min='8' max='4096' step='8' value='" + model.Width + "'" + attr + " onChange='WidthOrHeightModified(this);'> <b>X</b>" +
@@ -361,7 +357,7 @@ function AddNewChannelModel() {
         "<tr id='row'" + currentRows + " class='fppTableRow'>" +
             "<td class='center' valign='middle'><div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>"  +
             "<td><input class='blk' type='text' size='31' maxlength='31' value=''></td>" +
-            "<td><span class='hidden type'>Channel</span>Channel</td>" + 
+            "<td><span class='hidden type'>Channel</span>Channel</td>" +
             "<td><input class='start' type='text' size='7' maxlength='7' value=''></td>" +
             "<td><input class='cnt' type='text' size='6' maxlength='6' value=''></td>" +
             "<td><input class='cpn' type='number' min='1' max='4' value='3'></td>" +
@@ -380,7 +376,7 @@ function AddNewFBModel() {
         "<tr id='row'" + currentRows + " class='fppTableRow'>" +
             "<td class='center' valign='middle'><div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>"  +
             "<td><input class='blk' type='text' size='31' maxlength='31' value='" + device + "'></td>" +
-            "<td><span class='hidden type'>FB</span>FrameBuffer</td>" + 
+            "<td><span class='hidden type'>FB</span>FrameBuffer</td>" +
             "<td>" + CreateSelect(FBDevices, device, '', '-- Port --', 'device', 'DeviceChanged(this);') + "</td>" +
             "<td class='channels'>" + (FBInfo[device].Width * FBInfo[device].Height * 3) + "</td>" +
             "<td colspan='3'>Size: <input class='width' type='number' min='0' max='4096' step='8' value='" + FBInfo[device].Width + "' onChange='WidthOrHeightModified(this);'> <b>X</b>" +
@@ -421,7 +417,7 @@ function AddNewModel() {
 
 <?
 if ($showAddFBButton) {
-?>
+    ?>
             FrameBuffer: function() {
                 AddNewFBModel();
                 $(this).fppDialog("close");
@@ -465,17 +461,17 @@ $(document).tooltip();
 
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 </head>
 <body>
 	<div id="bodyWrapper">
-		<?php 
-		$activeParentMenuItem = 'input-output';
-		include 'menu.inc'; ?>
+		<?php
+$activeParentMenuItem = 'input-output';
+include 'menu.inc';?>
   <div class="mainContainer">
 	<h1 class="title">Pixel Overlay Models</h1>
 	<div class="pageContent">
-		
+
 
 		<div id="time" class="settings">
 
@@ -485,7 +481,7 @@ $(document).tooltip();
 					</div>
 					<div class="col-md-auto ml-lg-auto">
 						<div class="form-actions">
-			
+
 								<input type=button value='Delete' onClick='DeleteSelectedMemMap();' data-btn-enabled-class="btn-outline-danger" id='btnDelete' class='disableButtons'>
 								<button type=button value='Add' onClick='AddNewModel();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
 								<input type=button value='Save' onClick='SetChannelMemMaps();' class='buttons btn-success ml-1'>
@@ -552,7 +548,7 @@ $(document).tooltip();
 	</div>
 </div>
 
-		<?php	include 'common/footer.inc'; ?>
+		<?php	include 'common/footer.inc';?>
 	</div>
 
 <script language="Javascript">

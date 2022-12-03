@@ -24,7 +24,34 @@
 #include "common.h"
 #include "log.h"
 
-#define FB_CURRENT_PAGE_PTR (m_buffer + (m_pageSize * m_cPage))
+#define FB_CURRENT_PAGE_PTR (m_pageBuffers[m_cPage])
+
+#ifdef HAS_DRM
+static std::string GetConnectorType(uint32_t i) {
+    switch (i) {
+        case DRM_MODE_CONNECTOR_VGA: return "VGA";
+        case DRM_MODE_CONNECTOR_DVII: return "DVII";
+        case DRM_MODE_CONNECTOR_DVID: return "DVID";
+        case DRM_MODE_CONNECTOR_DVIA: return "DVIA";
+        case DRM_MODE_CONNECTOR_Composite: return "Composite";
+        case DRM_MODE_CONNECTOR_SVIDEO: return "SVIDEO";
+        case DRM_MODE_CONNECTOR_LVDS: return "LVDS";
+        case DRM_MODE_CONNECTOR_Component: return "Component";
+        case DRM_MODE_CONNECTOR_9PinDIN: return "9PinDIN";
+        case DRM_MODE_CONNECTOR_DisplayPort: return "DisplayPort";
+        case DRM_MODE_CONNECTOR_HDMIA: return "HDMIA";
+        case DRM_MODE_CONNECTOR_HDMIB: return "HDMIB";
+        case DRM_MODE_CONNECTOR_TV: return "TV";
+        case DRM_MODE_CONNECTOR_eDP: return "eDP";
+        case DRM_MODE_CONNECTOR_VIRTUAL: return "VIRTUAL";
+        case DRM_MODE_CONNECTOR_DSI: return "DSI";
+        case DRM_MODE_CONNECTOR_DPI: return "DPI";
+        case DRM_MODE_CONNECTOR_WRITEBACK: return "WRITEBACK";
+        case DRM_MODE_CONNECTOR_SPI: return "SPI";
+    }
+    return "unknown";
+}
+#endif
 
 /*
  * Usage:
@@ -46,7 +73,7 @@
  *   copy data to BufferPage(page)
  *   SetDirty(page)
  * FrameBuffer::SyncLoop*():
- * - if page m_cPage is dirty, then output and incremenet else just sleep/wait
+ * - if page m_cPage is dirty, then output and increment else just sleep/wait
  *
  */
 
@@ -196,9 +223,160 @@ int FrameBuffer::FBInit(const Json::Value& config) {
  */
 int FrameBuffer::InitializeFrameBuffer(void) {
     LogDebug(VB_CHANNELOUT, "Using FrameBuffer device %s\n", m_device.c_str());
-
-    std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/" + m_device;
 #ifndef USE_FRAMEBUFFER_SOCKET
+#ifdef HAS_DRM
+    if (InitializeFrameBufferDRM()) {
+        return 1;
+    }
+#endif    
+    return InitializeFrameBufferIOCTL();
+#else
+    return InitializeFrameBufferSocket();
+#endif
+}
+
+void FrameBuffer::DestroyFrameBuffer(void) {
+    if (m_buffer) {
+        memset(m_buffer, 0, m_bufferSize);
+        munmap(m_buffer, m_bufferSize);
+    }
+
+
+#ifdef USE_FRAMEBUFFER_SOCKET
+    DestroyFrameBufferSocket();
+#else
+#ifdef HAS_DRM
+    DestroyFrameBufferDRM();
+#endif
+    if (m_fbFd != -1) {
+        close(m_fbFd);
+        m_fbFd = -1;
+    }
+    DestroyFrameBufferIOCTL();
+
+    if (m_rgb565map) {
+        for (int r = 0; r < 32; r++) {
+            for (int g = 0; g < 64; g++) {
+                delete[] m_rgb565map[r][g];
+            }
+
+            delete[] m_rgb565map[r];
+        }
+
+        delete[] m_rgb565map;
+    }
+
+    if (m_lastFrame)
+        delete[] m_lastFrame;
+#endif
+}
+
+
+#ifdef USE_FRAMEBUFFER_SOCKET
+int FrameBuffer::InitializeFrameBufferSocket(void) {
+    std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/" + m_device;
+    m_pages = 3;
+    m_bpp = 32;
+    m_rowStride = m_width * 4;
+    m_rowPadding = 0;
+    m_pageSize = m_width * m_height * 4;
+    m_bufferSize = m_pageSize * m_pages;
+
+    m_fbFd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if (m_fbFd < 0) {
+        LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", devString.c_str());
+        return 0;
+    }
+
+    std::string shmFile = "/fpp/" + m_device + "-buffer";
+    shmemFile = shm_open(shmFile.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    if (shmemFile == -1) {
+        LogErr(VB_CHANNELOUT, "Error creating shared memory buffer: %s   %s\n", shmFile.c_str(), strerror(errno));
+        close(m_fbFd);
+        m_fbFd = -1;
+        return 0;
+    }
+    if (ftruncate(shmemFile, m_bufferSize) == -1) {
+        close(shmemFile);
+        shm_unlink(shmFile.c_str());
+        shmemFile = shm_open(shmFile.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+        ftruncate(shmemFile, m_bufferSize);
+    }
+    m_buffer = (uint8_t*)mmap(NULL, m_bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, shmemFile, 0);
+    if (m_buffer == MAP_FAILED) {
+        LogErr(VB_CHANNELOUT, "Error mmap buffer: %s    %s\n", shmFile.c_str(), strerror(errno));
+        close(m_fbFd);
+        m_fbFd = -1;
+        close(shmemFile);
+        shmemFile = -1;
+        shm_unlink(shmFile.c_str());
+        m_buffer = nullptr;
+        return 0;
+    }
+    memset(m_buffer, 0, m_bufferSize);
+
+    memset(&dev_address, 0, sizeof(struct sockaddr_un));
+    dev_address.sun_family = AF_UNIX;
+    strcpy(dev_address.sun_path, devString.c_str());
+
+    targetExists = FileExists(dev_address.sun_path);
+    sendFramebufferConfig();
+    return 1;
+}
+void FrameBuffer::sendFramebufferConfig() {
+    // CMD 1 : send the w/h/pages so the framebuffer can setup
+    uint16_t data[4] = { 1, (uint16_t)m_width, (uint16_t)m_height, (uint16_t)m_pages };
+
+    struct msghdr msg = { 0 };
+    char buf[CMSG_SPACE(sizeof(shmemFile))];
+    memset(buf, '\0', sizeof(buf));
+
+    struct iovec io = { .iov_base = data, .iov_len = sizeof(data) };
+
+    msg.msg_iov = &io;
+    msg.msg_iovlen = 1;
+    msg.msg_control = buf;
+    msg.msg_controllen = sizeof(buf);
+
+    struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    cmsg->cmsg_len = CMSG_LEN(sizeof(shmemFile));
+
+    memmove(CMSG_DATA(cmsg), &shmemFile, sizeof(shmemFile));
+    msg.msg_controllen = CMSG_SPACE(sizeof(shmemFile));
+
+    msg.msg_name = &dev_address;
+    msg.msg_namelen = sizeof(dev_address);
+    sendmsg(m_fbFd, &msg, 0);
+}
+
+void FrameBuffer::sendFramebufferFrame() {
+    // CMD 2 - sync, param is page#
+    bool fe = FileExists(dev_address.sun_path);
+    if (!targetExists && fe) {
+        sendFramebufferConfig();
+        targetExists = true;
+    } else if (!fe) {
+        targetExists = false;
+    }
+    if (targetExists) {
+        uint16_t data[2] = { 2, (uint16_t)m_cPage };
+        sendto(m_fbFd, data, sizeof(data), 0, (struct sockaddr*)&dev_address, sizeof(dev_address));
+    }
+}
+void FrameBuffer::DestroyFrameBufferSocket(void) {
+    if (shmemFile != -1) {
+        close(shmemFile);
+        std::string shmFile = m_device + "-buffer";
+        shm_unlink(shmFile.c_str());
+        shmemFile = -1;
+    }
+}
+
+#else 
+int FrameBuffer::InitializeFrameBufferIOCTL(void) {
+    std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/" + m_device;
     m_fbFd = open(devString.c_str(), O_RDWR);
     if (!m_fbFd) {
         LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", devString.c_str());
@@ -313,6 +491,10 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     }
 
     memset(m_buffer, 0, m_bufferSize);
+    m_pageBuffers[0] = m_buffer;
+    if (m_pages == 2) {
+        m_pageBuffers[1] = m_buffer + m_pageSize;    
+    }
 
     if (m_bpp == 16) {
         LogExcess(VB_CHANNELOUT, "Generating RGB565Map for Bitfield offset info:\n");
@@ -361,121 +543,10 @@ int FrameBuffer::InitializeFrameBuffer(void) {
             }
         }
     }
-#else
-    m_pages = 3;
-    m_bpp = 32;
-    m_rowStride = m_width * 4;
-    m_rowPadding = 0;
-    m_pageSize = m_width * m_height * 4;
-    m_bufferSize = m_pageSize * m_pages;
-
-    m_fbFd = socket(AF_UNIX, SOCK_DGRAM, 0);
-    if (m_fbFd < 0) {
-        LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", devString.c_str());
-        return 0;
-    }
-
-    std::string shmFile = "/fpp/" + m_device + "-buffer";
-    shmemFile = shm_open(shmFile.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-    if (shmemFile == -1) {
-        LogErr(VB_CHANNELOUT, "Error creating shared memory buffer: %s   %s\n", shmFile.c_str(), strerror(errno));
-        close(m_fbFd);
-        m_fbFd = -1;
-        return 0;
-    }
-    if (ftruncate(shmemFile, m_bufferSize) == -1) {
-        close(shmemFile);
-        shm_unlink(shmFile.c_str());
-        shmemFile = shm_open(shmFile.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-        ftruncate(shmemFile, m_bufferSize);
-    }
-    m_buffer = (uint8_t*)mmap(NULL, m_bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, shmemFile, 0);
-    if (m_buffer == MAP_FAILED) {
-        LogErr(VB_CHANNELOUT, "Error mmap buffer: %s    %s\n", shmFile.c_str(), strerror(errno));
-        close(m_fbFd);
-        m_fbFd = -1;
-        close(shmemFile);
-        shmemFile = -1;
-        shm_unlink(shmFile.c_str());
-        m_buffer = nullptr;
-        return 0;
-    }
-    memset(m_buffer, 0, m_bufferSize);
-
-    memset(&dev_address, 0, sizeof(struct sockaddr_un));
-    dev_address.sun_family = AF_UNIX;
-    strcpy(dev_address.sun_path, devString.c_str());
-
-    targetExists = FileExists(dev_address.sun_path);
-    sendFramebufferConfig();
-#endif
     return 1;
 }
 
-#ifdef USE_FRAMEBUFFER_SOCKET
-void FrameBuffer::sendFramebufferConfig() {
-    // CMD 1 : send the w/h/pages so the framebuffer can setup
-    uint16_t data[4] = { 1, (uint16_t)m_width, (uint16_t)m_height, (uint16_t)m_pages };
-
-    struct msghdr msg = { 0 };
-    char buf[CMSG_SPACE(sizeof(shmemFile))];
-    memset(buf, '\0', sizeof(buf));
-
-    struct iovec io = { .iov_base = data, .iov_len = sizeof(data) };
-
-    msg.msg_iov = &io;
-    msg.msg_iovlen = 1;
-    msg.msg_control = buf;
-    msg.msg_controllen = sizeof(buf);
-
-    struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
-    cmsg->cmsg_level = SOL_SOCKET;
-    cmsg->cmsg_type = SCM_RIGHTS;
-    cmsg->cmsg_len = CMSG_LEN(sizeof(shmemFile));
-
-    memmove(CMSG_DATA(cmsg), &shmemFile, sizeof(shmemFile));
-    msg.msg_controllen = CMSG_SPACE(sizeof(shmemFile));
-
-    msg.msg_name = &dev_address;
-    msg.msg_namelen = sizeof(dev_address);
-    sendmsg(m_fbFd, &msg, 0);
-}
-
-void FrameBuffer::sendFramebufferFrame() {
-    // CMD 2 - sync, param is page#
-    bool fe = FileExists(dev_address.sun_path);
-    if (!targetExists && fe) {
-        sendFramebufferConfig();
-        targetExists = true;
-    } else if (!fe) {
-        targetExists = false;
-    }
-    if (targetExists) {
-        uint16_t data[2] = { 2, (uint16_t)m_cPage };
-        sendto(m_fbFd, data, sizeof(data), 0, (struct sockaddr*)&dev_address, sizeof(dev_address));
-    }
-}
-#endif
-
-void FrameBuffer::DestroyFrameBuffer(void) {
-    if (m_buffer) {
-        memset(m_buffer, 0, m_bufferSize);
-        munmap(m_buffer, m_bufferSize);
-    }
-
-    if (m_fbFd != -1) {
-        close(m_fbFd);
-        m_fbFd = -1;
-    }
-
-#ifdef USE_FRAMEBUFFER_SOCKET
-    if (shmemFile != -1) {
-        close(shmemFile);
-        std::string shmFile = m_device + "-buffer";
-        shm_unlink(shmFile.c_str());
-        shmemFile = -1;
-    }
-#else
+void FrameBuffer::DestroyFrameBufferIOCTL(void) {
     if (m_ttyFd != -1) {
         // Show the text console
         ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
@@ -484,23 +555,155 @@ void FrameBuffer::DestroyFrameBuffer(void) {
         close(m_ttyFd);
         m_ttyFd = -1;
     }
+}
 
-    if (m_rgb565map) {
-        for (int r = 0; r < 32; r++) {
-            for (int g = 0; g < 64; g++) {
-                delete[] m_rgb565map[r][g];
+#ifdef HAS_DRM
+int FrameBuffer::InitializeFrameBufferDRM(void) {
+    if (!drmAvailable()) {
+        return 0;
+    }
+    for (int x = 0; x < 10; x++)  {
+        std::string dev = "/dev/dri/card";
+        dev += std::to_string(x);
+        if (FileExists(dev)) {
+            int fd = open(dev.c_str(), O_RDWR);
+            drmSetMaster(fd);
+            auto res = drmModeGetResources(fd);
+            drmModeConnectorPtr connector = 0;
+            for (int i = 0; i < res->count_connectors; i++) {
+                char name[32];
+
+                connector = drmModeGetConnectorCurrent(fd, res->connectors[i]);
+                if (!connector) {
+                    continue;
+                }
+                std::string fbd = GetConnectorType(connector->connector_type) + "-" + std::to_string(connector->connector_type_id);
+                if (fbd == m_device) {
+                    LogDebug(VB_CHANNELOUT, "Using FrameBuffer for %s\n", fbd.c_str());
+                    LogDebug(VB_CHANNELOUT, "  Modes:\n");
+                    m_connector = connector;
+
+                    drmModeEncoderPtr encoder = drmModeGetEncoder(fd, connector->encoder_id);
+                    m_crtc = drmModeGetCrtc(fd, encoder->crtc_id);
+
+                    drmModeModeInfoPtr resolution = 0;
+                    m_mode = 0;
+                    for (int i = 0; i < connector->count_modes; i++) {
+                        resolution = &connector->modes[i];
+                        LogDebug(VB_CHANNELOUT, "    %d x %d   %d   %s\n", resolution->hdisplay, resolution->vdisplay, resolution->vrefresh,
+                            (resolution->type & DRM_MODE_TYPE_PREFERRED) ? "(preferred)" : "");
+
+                        if (resolution->hdisplay >= m_width && resolution->vdisplay >= m_height) {
+                            m_mode = i;
+                        }
+                    }
+
+                    drm_mode_create_dumb dumb_framebuffer;
+                    memset(&dumb_framebuffer, 0, sizeof(dumb_framebuffer));
+                    dumb_framebuffer.width = connector->modes[m_mode].hdisplay;
+                    dumb_framebuffer.height = connector->modes[m_mode].vdisplay;
+                    dumb_framebuffer.bpp = 32;
+                    dumb_framebuffer.flags = 0;
+
+                    int err = drmIoctl(fd, DRM_IOCTL_MODE_CREATE_DUMB, &dumb_framebuffer);
+                    if (err) {
+                        LogWarn(VB_CHANNELOUT, "DRM Create framebuffer failed (err=%d)\n", err);
+                        return 0;
+                    }
+                    m_bufferHandles[0] = 0;
+                    err = drmModeAddFB(fd, dumb_framebuffer.width, dumb_framebuffer.height, 24, 32,
+                        dumb_framebuffer.pitch, dumb_framebuffer.handle, &m_bufferHandles[0]);
+                    struct drm_mode_map_dumb mapReq = {  dumb_framebuffer.handle, 0, 0 };
+                    err = drmIoctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &mapReq);
+                    if (err) {
+                        LogWarn(VB_CHANNELOUT, "DRM map framebuffer failed (err=%d)\n", err);
+                        return 0;
+                    }
+
+                    m_pageBuffers[0] = (uint8_t*)mmap(0, dumb_framebuffer.size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, mapReq.offset);
+                    if (m_pageBuffers[0] == MAP_FAILED) {
+                        err = errno;
+                        LogWarn(VB_CHANNELOUT, "DRM mmap framebuffer failed (err=%d)\n", err);
+                        return 0;
+                    }
+                    m_pages = 2;
+
+                    memset(&dumb_framebuffer, 0, sizeof(dumb_framebuffer));
+                    dumb_framebuffer.width = connector->modes[m_mode].hdisplay;
+                    dumb_framebuffer.height = connector->modes[m_mode].vdisplay;
+                    dumb_framebuffer.bpp = 32;
+                    dumb_framebuffer.flags = 0;
+                    err = drmIoctl(fd, DRM_IOCTL_MODE_CREATE_DUMB, &dumb_framebuffer);
+                    if (err) {
+                        m_pages = 1;
+                        LogWarn(VB_CHANNELOUT, "DRM Create framebuffer failed (err=%d). Using single page.\n", err);
+                    } else {
+                        m_bufferHandles[1] = 0;
+                        err = drmModeAddFB(fd, dumb_framebuffer.width, dumb_framebuffer.height, 24, 32,
+                            dumb_framebuffer.pitch, dumb_framebuffer.handle, &m_bufferHandles[1]);
+                        struct drm_mode_map_dumb mapReq2 = {  dumb_framebuffer.handle, 0, 0 };
+                        err = drmIoctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &mapReq2);
+                        if (err) {
+                            m_pages = 1;
+                            LogWarn(VB_CHANNELOUT, "DRM mmap framebuffer failed (err=%d). Using single page.\n", err);
+                        }
+
+                        m_pageBuffers[1] = (uint8_t*)mmap(0, dumb_framebuffer.size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, mapReq2.offset);
+                        if (m_pageBuffers[1] == MAP_FAILED) {
+                            m_pages = 1;
+                            err = errno;
+                            LogWarn(VB_CHANNELOUT, "DRM mmap framebuffer failed (err=%d). Using single page.\n", err);
+                        }
+                    }
+
+                    usingDRM = true;
+
+                    m_cPage = 0;
+                    m_pPage = 0;
+                    m_bpp = 32;
+                    m_rowStride = dumb_framebuffer.pitch;
+                    m_rowPadding = m_rowStride - (m_width * m_bpp / 8);
+                    m_pageSize = dumb_framebuffer.size;
+                    m_bufferSize = dumb_framebuffer.size;
+                    drmModeSetCrtc(m_fbFd, m_crtc->crtc_id, m_bufferHandles[0], 0, 0, &m_connector->connector_id, 1, &m_connector->modes[m_mode]);
+
+                } else {
+                    drmModeFreeConnector(connector);
+                }
             }
-
-            delete[] m_rgb565map[r];
+            drmModeFreeResources(res);
+            drmDropMaster(fd);
+            if (!usingDRM) {
+                close(fd);
+            } else {
+                m_fbFd = fd;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+void FrameBuffer::DestroyFrameBufferDRM(void) {
+    if (usingDRM) {
+        if (m_pageBuffers[0]) {
+            memset(m_pageBuffers[0], 0, m_bufferSize);
+            munmap(m_pageBuffers[0], m_bufferSize);
+            struct drm_mode_destroy_dumb d = { m_bufferHandles[0] };
+            ioctl(m_fbFd, DRM_IOCTL_MODE_DESTROY_DUMB, &d);
+        }
+        if (m_pageBuffers[1]) {
+            memset(m_pageBuffers[1], 0, m_bufferSize);
+            munmap(m_pageBuffers[1], m_bufferSize);
+            struct drm_mode_destroy_dumb d2 = { m_bufferHandles[1] };
+            ioctl(m_fbFd, DRM_IOCTL_MODE_DESTROY_DUMB, &d2);
         }
 
-        delete[] m_rgb565map;
+        drmModeFreeConnector(m_connector);
     }
-
-    if (m_lastFrame)
-        delete[] m_lastFrame;
-#endif
 }
+#endif
+#endif
+
 
 #ifdef USE_X11
 int FrameBuffer::InitializeX11Window(void) {
@@ -750,7 +953,7 @@ void FrameBuffer::SyncLoopFB() {
     int dummy = 0;
 
     if (m_pages == 1) {
-        // using /dev/fb* and only one page so writes are immediate, no need to sync
+        // using /dev/fb* and only one page so writes are immediate, no need to sync   
         return;
     }
 
@@ -758,7 +961,9 @@ void FrameBuffer::SyncLoopFB() {
         // Wait for vsync
         dummy = 0;
         //LogInfo(VB_CHANNELOUT, "%s - %d - waiting for vsync\n", m_device.c_str(), m_cPage);
-        ioctl(m_fbFd, FBIO_WAITFORVSYNC, &dummy);
+        if (!usingDRM) {
+            ioctl(m_fbFd, FBIO_WAITFORVSYNC, &dummy);
+        }
 
         // Allow the producer to catch up if needed
         if (!m_dirtyPages[m_cPage] && m_dirtyPages[(m_cPage + 1) % m_pages])
@@ -767,10 +972,25 @@ void FrameBuffer::SyncLoopFB() {
         if (m_dirtyPages[m_cPage]) {
             // Pan the display to the page
             //LogInfo(VB_CHANNELOUT, "%s - %d - flipping to cPage\n", m_device.c_str(), m_cPage);
-            m_vInfo.yoffset = m_vInfo.yres * m_cPage;
-            ioctl(m_fbFd, FBIOPAN_DISPLAY, &m_vInfo);
+            if (usingDRM) {
+#ifdef HAS_DRM
+                static int first = true;
+                drmSetMaster(m_fbFd);
 
-            //LogInfo(VB_CHANNELOUT, "%s - %d - marking clear and bumping cPage\n", m_device.c_str(), m_cPage);
+                if (first) {
+                    drmModeSetCrtc(m_fbFd, m_crtc->crtc_id, m_bufferHandles[m_cPage], 0, 0, &m_connector->connector_id, 1, &m_connector->modes[m_mode]);
+                    first = false;
+                } else {
+                    drmModePageFlip(m_fbFd, m_crtc->crtc_id, m_bufferHandles[m_cPage], 0, nullptr);
+                }
+                drmDropMaster(m_fbFd);
+#endif
+            } else {
+                m_vInfo.yoffset = m_vInfo.yres * m_cPage;
+                ioctl(m_fbFd, FBIOPAN_DISPLAY, &m_vInfo);
+
+                //LogInfo(VB_CHANNELOUT, "%s - %d - marking clear and bumping cPage\n", m_device.c_str(), m_cPage);
+            }
             m_dirtyPages[m_cPage] = 0;
             NextPage();
         }
@@ -894,15 +1114,30 @@ void FrameBuffer::SyncDisplay(bool pageChanged) {
         XUnlockDisplay(m_display);
 #endif
     } else if (m_fbFd != -1) {
-        if (m_pages == 1)
-            return;
-
         if (!pageChanged)
             return;
 
+        if (m_pages == 1)
+            return;
 #ifdef USE_FRAMEBUFFER_SOCKET
         sendFramebufferFrame();
 #else
+#ifdef HAS_DRM
+        if (usingDRM) {
+            static int first = true;
+            drmSetMaster(m_fbFd);
+
+            if (first) {
+                drmModeSetCrtc(m_fbFd, m_crtc->crtc_id, m_bufferHandles[m_cPage], 0, 0, &m_connector->connector_id, 1, &m_connector->modes[m_mode]);
+                first = false;
+            } else {
+                drmModePageFlip(m_fbFd, m_crtc->crtc_id, m_bufferHandles[m_cPage], 0, nullptr);
+            }
+            drmDropMaster(m_fbFd);
+            return;
+        }
+#endif
+
         // Wait for vsync
         int dummy = 0;
         //LogInfo(VB_CHANNELOUT, "%s - %d - SyncDisplay() waiting for vsync\n", m_device.c_str(), m_cPage);

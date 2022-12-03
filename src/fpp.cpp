@@ -16,6 +16,12 @@
 #include "fppversion.h"
 #include "command.h"
 
+#if __has_include(<xf86drm.h>)
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+#define HAS_DRM
+#endif
+
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -34,6 +40,71 @@ void SetupDomainSocket(void);
 void Usage(char *appname);
 
 socklen_t address_length;
+
+#ifdef HAS_DRM
+static std::string GetConnectorType(uint32_t i) {
+    switch (i) {
+        case DRM_MODE_CONNECTOR_VGA: return "VGA";
+        case DRM_MODE_CONNECTOR_DVII: return "DVII";
+        case DRM_MODE_CONNECTOR_DVID: return "DVID";
+        case DRM_MODE_CONNECTOR_DVIA: return "DVIA";
+        case DRM_MODE_CONNECTOR_Composite: return "Composite";
+        case DRM_MODE_CONNECTOR_SVIDEO: return "SVIDEO";
+        case DRM_MODE_CONNECTOR_LVDS: return "LVDS";
+        case DRM_MODE_CONNECTOR_Component: return "Component";
+        case DRM_MODE_CONNECTOR_9PinDIN: return "9PinDIN";
+        case DRM_MODE_CONNECTOR_DisplayPort: return "DisplayPort";
+        case DRM_MODE_CONNECTOR_HDMIA: return "HDMIA";
+        case DRM_MODE_CONNECTOR_HDMIB: return "HDMIB";
+        case DRM_MODE_CONNECTOR_TV: return "TV";
+        case DRM_MODE_CONNECTOR_eDP: return "eDP";
+        case DRM_MODE_CONNECTOR_VIRTUAL: return "VIRTUAL";
+        case DRM_MODE_CONNECTOR_DSI: return "DSI";
+        case DRM_MODE_CONNECTOR_DPI: return "DPI";
+        case DRM_MODE_CONNECTOR_WRITEBACK: return "WRITEBACK";
+        case DRM_MODE_CONNECTOR_SPI: return "SPI";
+    }
+    return "unknown";
+}
+#endif
+void GetFrameBufferDevices(Json::Value &v) {
+    std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/";
+    for (int x = 0; x < 10; x++) {
+        std::string fb = "fb";
+        fb += std::to_string(x);
+        if (FileExists(devString + fb)) {
+            v.append(fb);
+        }
+    }
+#ifdef HAS_DRM
+    for (int x = 0; x < 10; x++) {
+        std::string dev = "/dev/dri/card";
+        dev += std::to_string(x);
+        if (FileExists(dev)) {
+            int fd = open(dev.c_str(), O_RDWR);
+
+            auto res = drmModeGetResources(fd);
+            drmModeConnectorPtr connector = 0;
+            for (int i = 0; i < res->count_connectors; i++) {
+                char name[32];
+
+                connector = drmModeGetConnectorCurrent(fd, res->connectors[i]);
+                if (!connector) {
+                    continue;
+                }
+                if (connector->count_modes) {
+                    std::string fb = GetConnectorType(connector->connector_type) + "-" + std::to_string(connector->connector_type_id);
+                    v.append(fb);
+                }
+
+                drmModeFreeConnector(connector);
+            }
+            close(fd);
+        }
+    }
+#endif
+}
+
 
 int main (int argc, char *argv[])
 {
@@ -199,6 +270,11 @@ int main (int argc, char *argv[])
         urlPost("http://localhost/api/command", js, resp);
         printf("Result: %s\n", resp.c_str());
         return 0;
+    } else if((strncmp(argv[1],"-FB",3) == 0)) {
+        Json::Value val;
+        GetFrameBufferDevices(val);
+        std::string js = SaveJsonToString(val);
+        printf("%s", js.c_str());
     } else {
         Usage(argv[0]);
     }
@@ -325,5 +401,6 @@ void Usage(char *appname)
 "  -g GPIO MODE VALUE           - Set the given GPIO to VALUE applicable to the given MODEs defined above\n"
 "                                 VALUE is ignored for Input mode\n"
 "  -C FPPCOMMAND ARG1 ARG2 ...  - Trigger the FPP Command\n"
+"  -FB                          - Query usable framebuffer devices"
 "\n", appname);
 }

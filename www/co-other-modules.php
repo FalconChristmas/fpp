@@ -278,7 +278,7 @@ $hasSPI = false;
 foreach (scandir("/dev/") as $fileName) {
     if (preg_match("/^spidev[0-9]/", $fileName)) {
         echo "SPIDevices['$fileName'] = '$fileName';\n";
-	$hasSPI = true;
+        $hasSPI = true;
     }
 }
 ?>
@@ -310,19 +310,17 @@ $hasI2C = false;
 foreach (scandir("/dev/") as $fileName) {
     if (preg_match("/^i2c-[0-9]/", $fileName)) {
         echo "I2CDevices['$fileName'] = '$fileName';\n";
-	$hasI2C = true;
+        $hasI2C = true;
     }
 }
 ?>
 
 var FBDevices = new Array();
 <?
-if ($settings["Platform"] != "MacOS") {
-    foreach (scandir("/dev/") as $fileName) {
-        if (preg_match("/^fb[0-9]+/", $fileName)) {
-            echo "FBDevices['$fileName'] = '$fileName';\n";
-        }
-    }
+exec($SUDO . " " . $settings["fppBinDir"] . "/fpp -FB", $output, $return_val);
+$js = json_decode($output[0]);
+foreach ($js as $devname) {
+    echo "FBDevices['$devname'] = '$devname';\n";
 }
 ?>
 
@@ -924,13 +922,13 @@ if (Object.keys(SerialDevices).length > 0) {
 //Outputs for Raspberry Pi or Beagle
 <?
 if ($hasI2C) {
-?>
+    ?>
     output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, false, {deviceID: 0x20} , 0x20, 0x27));
     output_modules.push(new PCA9685Output());
 <?
 }
 if ($hasSPI) {
-?> 
+    ?>
     output_modules.push(new GenericSPIDevice());
 <?
 }

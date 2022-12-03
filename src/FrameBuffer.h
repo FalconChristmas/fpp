@@ -25,6 +25,11 @@
 #else
 #include <linux/fb.h>
 #include <linux/kd.h>
+#if __has_include(<xf86drm.h>)
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+#define HAS_DRM
+#endif
 #endif
 #ifdef USE_X11
 #include <X11/Xlib.h>
@@ -124,6 +129,17 @@ private:
 
     int InitializeFrameBuffer(void);
     void DestroyFrameBuffer(void);
+#ifdef USE_FRAMEBUFFER_SOCKET
+    int InitializeFrameBufferSocket(void);
+    void DestroyFrameBufferSocket(void);
+#else
+    int InitializeFrameBufferIOCTL(void);
+    void DestroyFrameBufferIOCTL(void);
+    #ifdef HAS_DRM
+    int InitializeFrameBufferDRM(void);
+    void DestroyFrameBufferDRM(void);
+    #endif
+#endif    
 
     std::string m_name;
     std::string m_device;
@@ -135,6 +151,7 @@ private:
     int m_bpp = -1;
     uint8_t* m_buffer = nullptr;
     uint8_t* m_outputBuffer = nullptr;
+    uint8_t* m_pageBuffers[2] = { nullptr, nullptr} ;
     int m_pageSize = 0;
 
     int m_pixelSize = 1;
@@ -167,6 +184,14 @@ private:
     int m_rowPadding = 0;
     int m_frameSize = 0;
     uint8_t* m_lastFrame = nullptr;
+
+    bool usingDRM = false;
+#ifdef HAS_DRM
+    drmModeConnectorPtr m_connector = nullptr;
+    drmModeCrtcPtr m_crtc = nullptr;
+    uint32_t m_mode = 0;
+    uint32_t m_bufferHandles[2] = {0, 0};
+#endif    
 
 #ifdef USE_FRAMEBUFFER_SOCKET
     void SyncLoopFBSocket();
