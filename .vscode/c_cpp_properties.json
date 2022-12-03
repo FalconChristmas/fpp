@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/src/**",
                 "/usr/include/c++/10",
-                "/usr/include/arm-linux-gnueabihf/c++/10"
+                "/usr/include/arm-linux-gnueabihf/c++/10",
+                "/usr/include/libdrm"
             ],
             "defines": [
                 "PLATFORM_BBB",

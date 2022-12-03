@@ -84,6 +84,10 @@ void GetFrameBufferDevices(Json::Value &v) {
             int fd = open(dev.c_str(), O_RDWR);
 
             auto res = drmModeGetResources(fd);
+            if (res == nullptr) {
+                close(fd);
+                continue;
+            }
             drmModeConnectorPtr connector = 0;
             for (int i = 0; i < res->count_connectors; i++) {
                 char name[32];
