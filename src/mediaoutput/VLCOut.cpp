@@ -189,6 +189,28 @@ public:
             args.push_back("macosx");
             args.push_back("-f");
 #endif
+
+            std::string extraArgs = getSetting("VLCOptions");
+            char *eargsPtr = strdupa(extraArgs.c_str());
+            char *p2 = eargsPtr;
+            if (*p2) {
+                args.push_back(p2);
+            }
+            while (*p2) {
+                if (*p2 == ' ') {
+                    while (*p2 == ' ') {
+                        *p2 = 0;
+                        p2++;
+                    }
+                    if (*p2) {
+                        args.push_back(p2);
+                        p2++;
+                    }
+                } else {
+                    p2++;
+                }
+            }
+
             args.push_back(nullptr);
             vlcInstance = libvlc_new(args.size() - 1, &args[0]);
 

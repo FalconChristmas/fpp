@@ -75,6 +75,7 @@
                 "AudioLayout",
                 "VideoOutput",
                 "HardwareDecoding",
+                "VLCOptions",
                 "mediaOffset",
                 "remoteIgnoreSync",
                 "disableIPAnnouncement"
@@ -2143,6 +2144,20 @@
             "default": 1,
             "level": 1,
             "restart": 2
+        },
+        "VLCOptions": {
+            "name": "VLCOptions",
+            "description": "Extra VLC Options",
+            "gatherStats": true,
+            "tip": "Extra options to pass to VLC.  Some hardware may require options to configure the display, scaling, etc...  Example: --kms-drm-chroma XR24 to force RGBA.",
+            "type": "text",
+            "size": 64,
+            "maxlength": 256,
+            "level": 1,
+            "restart": 2,
+            "platforms": [
+                "!MacOS"
+            ]
         },
         "TimeZone": {
             "name": "TimeZone",

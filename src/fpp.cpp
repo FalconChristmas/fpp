@@ -54,8 +54,8 @@ static std::string GetConnectorType(uint32_t i) {
         case DRM_MODE_CONNECTOR_Component: return "Component";
         case DRM_MODE_CONNECTOR_9PinDIN: return "9PinDIN";
         case DRM_MODE_CONNECTOR_DisplayPort: return "DisplayPort";
-        case DRM_MODE_CONNECTOR_HDMIA: return "HDMIA";
-        case DRM_MODE_CONNECTOR_HDMIB: return "HDMIB";
+        case DRM_MODE_CONNECTOR_HDMIA: return "HDMI-A";
+        case DRM_MODE_CONNECTOR_HDMIB: return "HDMI-B";
         case DRM_MODE_CONNECTOR_TV: return "TV";
         case DRM_MODE_CONNECTOR_eDP: return "eDP";
         case DRM_MODE_CONNECTOR_VIRTUAL: return "VIRTUAL";
