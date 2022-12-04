@@ -8,7 +8,9 @@ Specific images names and versions are listed below.
   - Armbian_22.02.1_Orangepizero_bullseye_current_5.15.25.img
 - Orange Pi Zero 2
   - Armbian_22.02.2_Orangepizero2_bullseye_legacy_4.9.255.img
-  
+- LePotato
+  - Armbian_22.11.1_Lepotato_bullseye_current_5.19.17_minimal.img
+ 
   
 Note: this will get a BASIC FPP player running on the device.   Things like e1.31
 output, sound, etc.. will likely work.   Any hats/capes for pixels/panels, video,
@@ -17,7 +19,10 @@ get an HDMI framebuffer working on your device by editing the /boot/armbianEnv.t
 file with settings specific to the device.   That would allow a Virtual Matrix
 to work, but not any sort of accelerated video.   You can have video redirected
 to the Virtual Matrix, but that will use software decoding/scaling.  HiDef videos
-will likely not be usable in that case.
+will likely not be usable in that case.   In some cases, custom args can be sent
+into VLC to direct video to a specific DRI device or use a specific pixel format.
+On LePotato, you can try:
+--kms-device /dev/dri/card1 --kms-connector HDMI-A-1 --kms-drm-chroma XR24
 
 
 Note: Certain parts of installing FPP (ex: building VLC) will utilize all cores of

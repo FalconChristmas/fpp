@@ -399,11 +399,15 @@ case "${OSVER}" in
             wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
             systemctl reload systemd-networkd
             apt-get remove -y --purge --autoremove --allow-change-held-packages ${PACKAGE_REMOVE}
+            
+            systemctl unmask systemd-networkd
+            systemctl unmask systemd-resolved
+
             systemctl restart systemd-networkd
-            systemctl restart systemd-resolvd
+            systemctl restart systemd-resolved
 
             systemctl enable systemd-networkd
-            systemctl enable systemd-resolvd
+            systemctl enable systemd-resolved
 
             echo "FPP - Sleeping 5 seconds to make sure network is available"
             sleep 5
