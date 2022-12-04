@@ -363,7 +363,7 @@ cd /opt 2> /dev/null || mkdir /opt
 export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
-	debian_11 | debian_10 | ubuntu_20.04 | ubuntu_22.10)
+	debian_11 | debian_10 | ubuntu_20.04 | ubuntu_22.04 | ubuntu_22.10)
 		case $FPPPLATFORM in
 			'BeagleBone Black')
 				echo "FPP - Skipping non-free for $FPPPLATFORM"
@@ -475,6 +475,9 @@ case "${OSVER}" in
         else
             PACKAGE_LIST="$PACKAGE_LIST ccache"
         fi
+        if [ "$FPPPLATFORM" != "BeagleBone Black" ]; then
+            PACKAGE_LIST="$PACKAGE_LIST libva-dev"
+        fi
         if [ ! $desktop ]; then
             PACKAGE_LIST="$PACKAGE_LIST networkd-dispatcher"
         fi
@@ -498,7 +501,7 @@ case "${OSVER}" in
 
 
 		echo "FPP - Installing libhttpserver 0.18.2"
-		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.18.2 && ./bootstrap && autoupdate && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
+		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.18.2 && ./bootstrap && autoupdate && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr --disable-examples && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
         echo "FPP - Configuring shellinabox to use /var/tmp"
         echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
@@ -909,6 +912,9 @@ sh scripts/upgrade_config -notee
 
 #######################################
 PHPDIR="/etc/php/7.4"
+if [ "${OSVER}" == "ubuntu_22.10" ]; then
+    PHPDIR="/etc/php/8.1"
+fi
 
 echo "FPP - Allowing short tags in PHP"
 FILES="cli/php.ini apache2/php.ini"
@@ -1187,7 +1193,7 @@ sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf
 rm /etc/apache2/conf-enabled/other-vhosts-access-log.conf
 
 case "${OSVER}" in
-	debian_11 |  debian_10 | ununtu_20.04 | ubuntu_22.10)
+	debian_11 |  debian_10 | ununtu_20.04 | ubuntu_22.04 | ubuntu_22.10)
 		systemctl enable apache2.service
 		;;
 esac

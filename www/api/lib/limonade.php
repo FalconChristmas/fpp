@@ -1281,7 +1281,7 @@ function route_build($method, $path_or_array, $callback, $options = array())
 
   if($path[0] == "^")
   {
-    if($path{strlen($path) - 1} != "$") $path .= "$";
+    if($path[strlen($path) - 1] != "$") $path .= "$";
      $pattern = "#".$path."#i";
   }
   else if(empty($path) || $path == "/")
