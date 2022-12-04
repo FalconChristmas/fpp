@@ -34,7 +34,8 @@ function network_wifi_scan()
 
     $cmd = "sudo /sbin/iw dev $interface scan";
     exec($cmd, $output);
-    if (strpos($output, "Network is down") !== false) {
+    $outputLine1 = $output[0];
+    if (strpos($outputLine1, "Network is down") !== false) {
         exec("sudo /sbin/ifconfig $interface up", $output);
 
         $output = array();
