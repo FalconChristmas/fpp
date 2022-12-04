@@ -14,7 +14,9 @@
 //                                                            ///
 /////////////////////////////////////////////////////////////////
 
-
+if (!defined('GETID3_INCLUDEPATH')) { // prevent path-exposing attacks that access modules directly on public webservers
+	exit;
+}
 class getid3_pcd extends getid3_handler
 {
 	public $ExtractData = 0;
@@ -48,9 +50,11 @@ class getid3_pcd extends getid3_handler
 		if ($this->ExtractData > 3) {
 
 			$this->error('Cannot extract PSD image data for detail levels above BASE (level-3) because encrypted with Kodak-proprietary compression/encryption.');
+			return false;
 
 		} elseif ($this->ExtractData > 0) {
 
+			$PCD_levels    = array();
 			$PCD_levels[1] = array( 192,  128, 0x02000); // BASE/16
 			$PCD_levels[2] = array( 384,  256, 0x0B800); // BASE/4
 			$PCD_levels[3] = array( 768,  512, 0x30000); // BASE
@@ -76,11 +80,11 @@ class getid3_pcd extends getid3_handler
 
 				for ($x = 0; $x < $PCD_width; $x++) {
 					if ($PCDisVertical) {
-						$info['pcd']['data'][$PCD_width - $x][$y]     = $this->YCbCr2RGB(ord($PCD_data_Y1{$x}), ord($PCD_data_Cb{(int) floor($x / 2)}), ord($PCD_data_Cr{(int) floor($x / 2)}));
-						$info['pcd']['data'][$PCD_width - $x][$y + 1] = $this->YCbCr2RGB(ord($PCD_data_Y2{$x}), ord($PCD_data_Cb{(int) floor($x / 2)}), ord($PCD_data_Cr{(int) floor($x / 2)}));
+						$info['pcd']['data'][$PCD_width - $x][$y]     = $this->YCbCr2RGB(ord($PCD_data_Y1[$x]), ord($PCD_data_Cb[(int) floor($x / 2)]), ord($PCD_data_Cr[(int) floor($x / 2)]));
+						$info['pcd']['data'][$PCD_width - $x][$y + 1] = $this->YCbCr2RGB(ord($PCD_data_Y2[$x]), ord($PCD_data_Cb[(int) floor($x / 2)]), ord($PCD_data_Cr[(int) floor($x / 2)]));
 					} else {
-						$info['pcd']['data'][$y][$x]                  = $this->YCbCr2RGB(ord($PCD_data_Y1{$x}), ord($PCD_data_Cb{(int) floor($x / 2)}), ord($PCD_data_Cr{(int) floor($x / 2)}));
-						$info['pcd']['data'][$y + 1][$x]              = $this->YCbCr2RGB(ord($PCD_data_Y2{$x}), ord($PCD_data_Cb{(int) floor($x / 2)}), ord($PCD_data_Cr{(int) floor($x / 2)}));
+						$info['pcd']['data'][$y][$x]                  = $this->YCbCr2RGB(ord($PCD_data_Y1[$x]), ord($PCD_data_Cb[(int) floor($x / 2)]), ord($PCD_data_Cr[(int) floor($x / 2)]));
+						$info['pcd']['data'][$y + 1][$x]              = $this->YCbCr2RGB(ord($PCD_data_Y2[$x]), ord($PCD_data_Cb[(int) floor($x / 2)]), ord($PCD_data_Cr[(int) floor($x / 2)]));
 					}
 				}
 			}
@@ -100,6 +104,7 @@ class getid3_pcd extends getid3_handler
 
 		}
 
+		return false;
 	}
 
 	/**

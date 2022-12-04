@@ -31,6 +31,11 @@
  * A CueSheet class used to open and parse cuesheets.
  *
  */
+
+if (!defined('GETID3_INCLUDEPATH')) { // prevent path-exposing attacks that access modules directly on public webservers
+	exit;
+}
+
 class getid3_cue extends getid3_handler
 {
 	public $cuesheet = array();
@@ -89,10 +94,10 @@ class getid3_cue extends getid3_handler
 	{
 		//-1 means still global, all others are track specific
 		$track_on = -1;
+		$currentFile = null;
 
-		for ($i=0; $i < count($file); $i++)
-		{
-			list($key) = explode(' ', strtolower($file[$i]), 2);
+		foreach ($file as $line) {
+			list($key) = explode(' ', strtolower($line), 2);
 			switch ($key)
 			{
 				case 'catalog':
@@ -101,25 +106,25 @@ class getid3_cue extends getid3_handler
 				case 'performer':
 				case 'songwriter':
 				case 'title':
-					$this->parseString($file[$i], $track_on);
+					$this->parseString($line, $track_on);
 					break;
 				case 'file':
-					$currentFile = $this->parseFile($file[$i]);
+					$currentFile = $this->parseFile($line);
 					break;
 				case 'flags':
-					$this->parseFlags($file[$i], $track_on);
+					$this->parseFlags($line, $track_on);
 					break;
 				case 'index':
 				case 'postgap':
 				case 'pregap':
-					$this->parseIndex($file[$i], $track_on);
+					$this->parseIndex($line, $track_on);
 					break;
 				case 'rem':
-					$this->parseComment($file[$i], $track_on);
+					$this->parseComment($line, $track_on);
 					break;
 				case 'track':
 					$track_on++;
-					$this->parseTrack($file[$i], $track_on);
+					$this->parseTrack($line, $track_on);
 					if (isset($currentFile)) // if there's a file
 					{
 						$this->cuesheet['tracks'][$track_on]['datafile'] = $currentFile;
@@ -127,7 +132,7 @@ class getid3_cue extends getid3_handler
 					break;
 				default:
 					//save discarded junk and place string[] with track it was found in
-					$this->parseGarbage($file[$i], $track_on);
+					$this->parseGarbage($line, $track_on);
 					break;
 			}
 		}

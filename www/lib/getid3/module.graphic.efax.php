@@ -14,6 +14,9 @@
 //                                                            ///
 /////////////////////////////////////////////////////////////////
 
+if (!defined('GETID3_INCLUDEPATH')) { // prevent path-exposing attacks that access modules directly on public webservers
+	exit;
+}
 
 class getid3_efax extends getid3_handler
 {
@@ -46,8 +49,6 @@ class getid3_efax extends getid3_handler
 
 		$this->error('eFax parsing not enabled in this version of getID3() ['.$this->getid3->version().']');
 		return false;
-
-		return true;
 	}
 
 }

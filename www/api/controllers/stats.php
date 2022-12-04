@@ -295,7 +295,6 @@ function addMultiSyncUUID(&$data)
         if (!isset($system['uuid']) || $system['uuid'] === "") {
             $missing[$system['address']] = "1";
         }
-        array_push($rc, $rec);
     }
     // Find missing UUIDs
     if (count($missing) > 0) {

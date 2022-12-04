@@ -14,6 +14,9 @@
 //                                                            ///
 /////////////////////////////////////////////////////////////////
 
+if (!defined('GETID3_INCLUDEPATH')) { // prevent path-exposing attacks that access modules directly on public webservers
+	exit;
+}
 getid3_lib::IncludeDependency(GETID3_INCLUDEPATH.'module.audio.mp3.php', __FILE__, true);
 
 class getid3_mpeg extends getid3_handler
@@ -90,11 +93,9 @@ class getid3_mpeg extends getid3_handler
 					break;
 
 				case 0xB3: // sequence_header_code
-					/*
-					Note: purposely doing the less-pretty (and probably a bit slower) method of using string of bits rather than bitwise operations.
-					      Mostly because PHP 32-bit doesn't handle unsigned integers well for bitwise operation.
-					      Also the MPEG stream is designed as a bitstream and often doesn't align nicely with byte boundaries.
-					*/
+					// Note: purposely doing the less-pretty (and probably a bit slower) method of using string of bits rather than bitwise operations.
+					// Mostly because PHP 32-bit doesn't handle unsigned integers well for bitwise operation.
+					// Also the MPEG stream is designed as a bitstream and often doesn't align nicely with byte boundaries.
 					$info['video']['codec'] = 'MPEG-1'; // will be updated if extension_start_code found
 
 					$bitstream = getid3_lib::BigEndian2Bin(substr($MPEGstreamData, $StartCodeOffset + 4, 8));
@@ -393,7 +394,7 @@ $PackedElementaryStream['additional_header_bytes'] = $additional_header_bytes;
 					$info['mpeg']['packed_elementary_streams'][$PackedElementaryStream['stream_type']][$PackedElementaryStream['stream_id']][] = $PackedElementaryStream;
 */
 					$getid3_temp = new getID3();
-					$getid3_temp->openfile($this->getid3->filename);
+					$getid3_temp->openfile($this->getid3->filename, $this->getid3->info['filesize'], $this->getid3->fp);
 					$getid3_temp->info = $info;
 					$getid3_mp3 = new getid3_mp3($getid3_temp);
 					for ($i = 0; $i <= 7; $i++) {
@@ -521,7 +522,7 @@ echo 'average_File_bitrate = '.number_format(array_sum($vbr_bitrates) / count($v
 	 * @param int    $bits_to_read
 	 * @param bool $return_singlebit_as_boolean
 	 *
-	 * @return bool|float|int
+	 * @return bool|int
 	 */
 	private function readBitsFromStream(&$bitstream, &$bitstreamoffset, $bits_to_read, $return_singlebit_as_boolean=true) {
 		$return = bindec(substr($bitstream, $bitstreamoffset, $bits_to_read));
@@ -545,6 +546,7 @@ echo 'average_File_bitrate = '.number_format(array_sum($vbr_bitrates) / count($v
 		$VideoBitrate = max(min($VideoBitrate / 1000, 10000), 10); // limit to range of 10kbps -  10Mbps (beyond that curves flatten anyways, no big loss)
 
 
+		$OverheadMultiplierByBitrate      = array();
 		//OMBB[audiobitrate]              = array(video-10kbps,       video-100kbps,      video-1000kbps,     video-10000kbps)
 		$OverheadMultiplierByBitrate[32]  = array(0, 0.9676287944368530, 0.9802276264360310, 0.9844916183244460, 0.9852821845179940);
 		$OverheadMultiplierByBitrate[48]  = array(0, 0.9779100089209830, 0.9787770035359320, 0.9846738664076130, 0.9852683013799960);
@@ -622,7 +624,7 @@ echo 'average_File_bitrate = '.number_format(array_sum($vbr_bitrates) / count($v
 
 	/**
 	 * @param int $rawaspectratio
-     * @param int $mpeg_version
+	 * @param int $mpeg_version
 	 *
 	 * @return string
 	 */

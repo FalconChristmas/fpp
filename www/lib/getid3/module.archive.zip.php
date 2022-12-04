@@ -14,6 +14,9 @@
 //                                                            ///
 /////////////////////////////////////////////////////////////////
 
+if (!defined('GETID3_INCLUDEPATH')) { // prevent path-exposing attacks that access modules directly on public webservers
+	exit;
+}
 
 class getid3_zip extends getid3_handler
 {
@@ -92,19 +95,39 @@ class getid3_zip extends getid3_handler
 						}
 					}
 
+					// check for EPUB files
+					if (!empty($info['zip']['entries'][0]['filename']) &&
+						($info['zip']['entries'][0]['filename'] == 'mimetype') &&
+						($info['zip']['entries'][0]['compression_method'] == 'store') &&
+						($info['zip']['entries'][0]['uncompressed_size'] == 20) &&
+						isset($info['zip']['entries'][0]['data_offset'])) {
+							// http://idpf.org/epub/30/spec/epub30-ocf.html
+							// "3.3 OCF ZIP Container Media Type Identification
+							//  OCF ZIP Containers must include a mimetype file as the first file in the Container, and the contents of this file must be the MIME type string application/epub+zip.
+							//  The contents of the mimetype file must not contain any leading padding or whitespace, must not begin with the Unicode signature (or Byte Order Mark),
+							//  and the case of the MIME type string must be exactly as presented above. The mimetype file additionally must be neither compressed nor encrypted,
+							//  and there must not be an extra field in its ZIP header."
+							$this->fseek($info['zip']['entries'][0]['data_offset']);
+							if ($this->fread(20) == 'application/epub+zip') {
+								$info['fileformat'] = 'zip.epub';
+								$info['mime_type'] = 'application/epub+zip';
+							}
+					}
+
+					// check for Office Open XML files (e.g. .docx, .xlsx)
 					if (!empty($info['zip']['files']['[Content_Types].xml']) &&
 					    !empty($info['zip']['files']['_rels']['.rels'])      &&
 					    !empty($info['zip']['files']['docProps']['app.xml']) &&
 					    !empty($info['zip']['files']['docProps']['core.xml'])) {
-						   // http://technet.microsoft.com/en-us/library/cc179224.aspx
-						   $info['fileformat'] = 'zip.msoffice';
-						   if (!empty($ThisFileInfo['zip']['files']['ppt'])) {
-						      $info['mime_type'] = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-						   } elseif (!empty($ThisFileInfo['zip']['files']['xl'])) {
-						      $info['mime_type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-						   } elseif (!empty($ThisFileInfo['zip']['files']['word'])) {
-						      $info['mime_type'] = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-						   }
+							// http://technet.microsoft.com/en-us/library/cc179224.aspx
+							$info['fileformat'] = 'zip.msoffice';
+							if (!empty($info['zip']['files']['ppt'])) {
+								$info['mime_type'] = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+							} elseif (!empty($info['zip']['files']['xl'])) {
+								$info['mime_type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+							} elseif (!empty($info['zip']['files']['word'])) {
+								$info['mime_type'] = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+							}
 					}
 
 					return true;
@@ -208,6 +231,7 @@ class getid3_zip extends getid3_handler
 	 * @return array|false
 	 */
 	public function ZIPparseLocalFileHeader() {
+		$LocalFileHeader = array();
 		$LocalFileHeader['offset'] = $this->ftell();
 
 		$ZIPlocalFileHeader = $this->fread(30);
@@ -306,6 +330,7 @@ class getid3_zip extends getid3_handler
 	 * @return array|false
 	 */
 	public function ZIPparseCentralDirectory() {
+		$CentralDirectory = array();
 		$CentralDirectory['offset'] = $this->ftell();
 
 		$ZIPcentralDirectory = $this->fread(46);
@@ -365,6 +390,7 @@ class getid3_zip extends getid3_handler
 	 * @return array|false
 	 */
 	public function ZIPparseEndOfCentralDirectory() {
+		$EndOfCentralDirectory = array();
 		$EndOfCentralDirectory['offset'] = $this->ftell();
 
 		$ZIPendOfCentralDirectory = $this->fread(22);

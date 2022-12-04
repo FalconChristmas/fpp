@@ -14,6 +14,9 @@
 //                                                            ///
 /////////////////////////////////////////////////////////////////
 
+if (!defined('GETID3_INCLUDEPATH')) { // prevent path-exposing attacks that access modules directly on public webservers
+	exit;
+}
 
 class getid3_png extends getid3_handler
 {
@@ -54,6 +57,7 @@ class getid3_png extends getid3_handler
 		}
 
 		while ((($this->ftell() - (strlen($PNGfiledata) - $offset)) < $info['filesize'])) {
+			$chunk = array();
 			$chunk['data_length'] = getid3_lib::BigEndian2Int(substr($PNGfiledata, $offset, 4));
 			if ($chunk['data_length'] === false) {
 				$this->error('Failed to read data_length at offset '.$offset);
@@ -63,7 +67,13 @@ class getid3_png extends getid3_handler
 			$truncated_data = false;
 			while (((strlen($PNGfiledata) - $offset) < ($chunk['data_length'] + 4)) && ($this->ftell() < $info['filesize'])) {
 				if (strlen($PNGfiledata) < $this->max_data_bytes) {
-					$PNGfiledata .= $this->fread($this->getid3->fread_buffer_size());
+					$str = $this->fread($this->getid3->fread_buffer_size());
+					if (strlen($str) > 0) {
+						$PNGfiledata .= $str;
+					} else {
+						$this->warning('At offset '.$offset.' chunk "'.substr($PNGfiledata, $offset, 4).'" no more data to read, data chunk will be truncated at '.(strlen($PNGfiledata) - 8).' bytes');
+						break;
+					}
 				} else {
 					$this->warning('At offset '.$offset.' chunk "'.substr($PNGfiledata, $offset, 4).'" exceeded max_data_bytes value of '.$this->max_data_bytes.', data chunk will be truncated at '.(strlen($PNGfiledata) - 8).' bytes');
 					break;
@@ -593,23 +603,18 @@ class getid3_png extends getid3_handler
 		switch ($color_type) {
 			case 0: // Each pixel is a grayscale sample.
 				return $bit_depth;
-				break;
 
 			case 2: // Each pixel is an R,G,B triple
 				return 3 * $bit_depth;
-				break;
 
 			case 3: // Each pixel is a palette index; a PLTE chunk must appear.
 				return $bit_depth;
-				break;
 
 			case 4: // Each pixel is a grayscale sample, followed by an alpha sample.
 				return 2 * $bit_depth;
-				break;
 
 			case 6: // Each pixel is an R,G,B triple, followed by an alpha sample.
 				return 4 * $bit_depth;
-				break;
 		}
 		return false;
 	}

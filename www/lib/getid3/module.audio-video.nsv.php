@@ -14,6 +14,9 @@
 //                                                            ///
 /////////////////////////////////////////////////////////////////
 
+if (!defined('GETID3_INCLUDEPATH')) { // prevent path-exposing attacks that access modules directly on public webservers
+	exit;
+}
 
 class getid3_nsv extends getid3_handler
 {
@@ -51,7 +54,6 @@ class getid3_nsv extends getid3_handler
 			default:
 				$this->error('Expecting "NSVs" or "NSVf" at offset '.$info['avdataoffset'].', found "'.getid3_lib::PrintHexBytes($NSVheader).'"');
 				return false;
-				break;
 		}
 
 		if (!isset($info['nsv']['NSVf'])) {

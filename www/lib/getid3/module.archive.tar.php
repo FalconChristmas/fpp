@@ -19,6 +19,9 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+if (!defined('GETID3_INCLUDEPATH')) { // prevent path-exposing attacks that access modules directly on public webservers
+	exit;
+}
 
 class getid3_tar extends getid3_handler
 {
@@ -44,13 +47,13 @@ class getid3_tar extends getid3_handler
 			// check the block
 			$checksum = 0;
 			for ($i = 0; $i < 148; $i++) {
-				$checksum += ord($buffer{$i});
+				$checksum += ord($buffer[$i]);
 			}
 			for ($i = 148; $i < 156; $i++) {
 				$checksum += ord(' ');
 			}
 			for ($i = 156; $i < 512; $i++) {
-				$checksum += ord($buffer{$i});
+				$checksum += ord($buffer[$i]);
 			}
 			$attr    = unpack($unpack_header, $buffer);
 			$name    =       (isset($attr['fname']  ) ? trim($attr['fname']  ) : '');
@@ -138,6 +141,9 @@ class getid3_tar extends getid3_handler
 		else                    $type='u'; // UNKNOWN
 
 		// Determine permissions
+		$owner            = array();
+		$group            = array();
+		$world            = array();
 		$owner['read']    = (($mode & 00400) ? 'r' : '-');
 		$owner['write']   = (($mode & 00200) ? 'w' : '-');
 		$owner['execute'] = (($mode & 00100) ? 'x' : '-');

@@ -224,7 +224,7 @@ HC_NTPOffset() {
     PrintItemHead "Time Offset"
 
     # ntpq is not fully reliable, additional verification may be required
-    offsets=$(ntpq -nc peers | tail -n +3 | cut -c 62-66 | tr -d '-')
+    offsets=$(ntpq -nc peers | tail -n +3 | cut -c 62-66 | tr -d '\.-')
 
     STATUS=1
     STATUSSTR="Your time is accurate"
