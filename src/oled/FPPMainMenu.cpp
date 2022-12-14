@@ -132,8 +132,82 @@ public:
 private:
 };
 
+class ResetPage : public MenuOLEDPage {
+public:
+    ResetPage(OLEDPage* parent) :
+        MenuOLEDPage("Reset FPP", {"Perform Reset", "Back", "-------------", "All", "  Networking", "  Configuration", "  Outputs", "  Settings", "  Sequences", "  Media", "  Playlists", "  Schedule"}, parent) {
+            this->autoDelete();
+        };
+    virtual ~ResetPage() {}
+
+    virtual void itemSelected(const std::string& item) override {
+        if (item == "Back") {
+            SetCurrentPage(parent);
+            return;
+        } else if (item == "Perform Reset") {
+            PromptOLEDPage *p = new PromptOLEDPage("Reset FPP?", "Reset FPP?", "", { "No", "Yes" }, [this] (const std::string &i) {
+                if (i == "No") {
+                    SetCurrentPage(parent);
+                } else if (i == "Yes") {
+                    performReset();
+                }
+            });
+            p->autoDelete();
+            SetCurrentPage(p);
+        } else if (item == "All") {
+            for (int x = 4; x < items.size(); x++) {
+                items[x][0] = '*';
+            }
+            display();
+        } else if (item[0] != '-') {
+            for (auto &a : items) {
+                if (a == item) {
+                    a[0] = item[0] == ' ' ? '*' : ' ';
+                }
+            }
+            display();
+        }
+    }
+
+    void performReset() {
+        std::string areas;
+        printf("Performing reset\n");
+        for (int x = 4; x < items.size(); x++) {
+            if (items[x][0] == '*') {
+                std::string i = items[x].substr(2);
+                if (i == "Networking") {
+                    areas += "networking,";
+                } else if (i == "Configuration") {
+                    areas += "config,";
+                } else if (i == "Outputs") {
+                    areas += "channeloutputs,";
+                } else if (i == "Settings") {
+                    areas += "settings,";
+                } else if (i == "Sequences") {
+                    areas += "sequences,";
+                } else if (i == "Media") {
+                    areas += "media,";
+                } else if (i == "Playlists") {
+                    areas += "playlists,";
+                } else if (i == "Schedule") {
+                    areas += "schedule,";
+                }
+            }
+        }
+        if (!areas.empty()) {
+            areas = areas.substr(0, areas.length() - 1);
+            std::string url = "http://127.0.0.1/resetConfig.php?areas=" + areas;
+            std::string d = doCurlGet(url, 10000);
+            printf("%s\n", d.c_str());
+        }
+        SetCurrentPage(parent);
+    }
+
+};
+
+
 FPPMainMenu::FPPMainMenu(FPPStatusOLEDPage* p) :
-    MenuOLEDPage("Main Menu", { "FPP Mode", "Tethering", "Testing", "Reboot", "Shutdown", "About", "Back" }, p),
+    MenuOLEDPage("Main Menu", { "FPP Mode", "Tethering", "Testing", "Reboot", "Shutdown", "Reset", "About", "Back" }, p),
     aboutPage(nullptr),
     statusPage(p) {
 }
@@ -170,7 +244,7 @@ void FPPMainMenu::displaying() {
             items.push_back("Network");
         }
     }
-    std::vector<std::string> it = { "Tethering", "Testing", "Reboot", "Shutdown", "About", "Back" };
+    std::vector<std::string> it = { "Tethering", "Testing", "Reboot", "Shutdown", "Reset", "About", "Back" };
     items.insert(std::end(items), std::begin(it), std::end(it));
 
     MenuOLEDPage::displaying();
@@ -200,6 +274,9 @@ void FPPMainMenu::itemSelected(const std::string& item) {
         SetCurrentPage(pg);
     } else if (item == "Network") {
         FPPNetworkOLEDPage* pg = new FPPNetworkOLEDPage(this);
+        SetCurrentPage(pg);
+    } else if (item == "Reset") {
+        ResetPage* pg = new ResetPage(this);
         SetCurrentPage(pg);
     } else if (item == "Testing") {
         FPPStatusOLEDPage* sp = statusPage;
