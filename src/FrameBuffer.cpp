@@ -24,6 +24,8 @@
 #include "common.h"
 #include "log.h"
 
+#include "Warnings.h"
+
 #define FB_CURRENT_PAGE_PTR (m_pageBuffers[m_cPage])
 
 #ifdef HAS_DRM
@@ -588,6 +590,11 @@ int FrameBuffer::InitializeFrameBufferDRM(void) {
                     m_connector = connector;
 
                     drmModeEncoderPtr encoder = drmModeGetEncoder(fd, connector->encoder_id);
+                    if (encoder == nullptr) {
+                        LogWarn(VB_CHANNELOUT, "DRM Could not get encoder.\n");
+                        WarningHolder::AddWarning("Could not initialize framebuffer for " + m_device);
+                        return 0;
+                    }
                     m_crtc = drmModeGetCrtc(fd, encoder->crtc_id);
 
                     drmModeModeInfoPtr resolution = 0;
@@ -612,6 +619,7 @@ int FrameBuffer::InitializeFrameBufferDRM(void) {
                     int err = drmIoctl(fd, DRM_IOCTL_MODE_CREATE_DUMB, &dumb_framebuffer);
                     if (err) {
                         LogWarn(VB_CHANNELOUT, "DRM Create framebuffer failed (err=%d)\n", err);
+                        WarningHolder::AddWarning("Could not initialize framebuffer for " + m_device);
                         return 0;
                     }
                     m_bufferHandles[0] = 0;
@@ -621,6 +629,7 @@ int FrameBuffer::InitializeFrameBufferDRM(void) {
                     err = drmIoctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &mapReq);
                     if (err) {
                         LogWarn(VB_CHANNELOUT, "DRM map framebuffer failed (err=%d)\n", err);
+                        WarningHolder::AddWarning("Could not initialize framebuffer for " + m_device);
                         return 0;
                     }
 
