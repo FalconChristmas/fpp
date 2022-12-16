@@ -331,10 +331,10 @@ $json = file_get_contents('http://localhost/api/models');
 $models = json_decode($json, true);
 foreach ($models as $model) {
     $modelName = $model['Name'];
-
+    $pixelSize = isset($model['PixelSize']) ? $model['PixelSize'] : 1;
     if ((($model['Type'] == 'FB') || ($model['Type'] == 'Sub')) && ($modelName != 'FB - fb0') && ($modelName != 'FB - fb1')) {
-        $width = intval($model['Width'] / $model['PixelSize']);
-        $height = intval($model['Height'] / $model['PixelSize']);
+        $width = intval($model['Width'] / $pixelSize);
+        $height = intval($model['Height'] / $pixelSize);
         echo "PixelOverlayModels['$modelName'] = '$modelName (" . $width . 'x' . $height . ")';\n";
         echo "PixelOverlayModelChannels['$modelName'] = " . $model['ChannelCount'] . ";\n";
     }

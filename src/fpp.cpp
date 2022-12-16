@@ -277,8 +277,12 @@ int main (int argc, char *argv[])
     } else if((strncmp(argv[1],"-FB",3) == 0)) {
         Json::Value val;
         GetFrameBufferDevices(val);
-        std::string js = SaveJsonToString(val);
-        printf("%s", js.c_str());
+        if (val.size() == 0) {
+            printf("[]");
+        } else {
+            std::string js = SaveJsonToString(val);
+            printf("%s", js.c_str());
+        }
     } else {
         Usage(argv[0]);
     }

@@ -75,8 +75,7 @@ if [ "x${ANSWER}" != "xY" -a "x${ANSWER}" != "xy" ]; then
     echo
     exit
 fi
-brew install php@7.4 git httpd ffmpeg ccache make sdl2 zstd wget taglib mosquitto jsoncpp libhttpserver graphicsmagick
-brew link --force --overwrite php@7.4
+brew install php git httpd ffmpeg ccache make sdl2 zstd wget taglib mosquitto jsoncpp libhttpserver graphicsmagick
 echo ""
 ccache -M 350M
 ccache --set-config=temporary_dir=/tmp
@@ -136,7 +135,7 @@ sed -i -e "s+DirectoryIndex index.*+DirectoryIndex index.php index.html+g" $HTTP
 sed -i -e "s+${BREWLOC}/var/www+${MEDIADIR}/fpp/www+g" $HTTPCONF
 sed -i -e "s+${BREWLOC}/var/log/httpd/+${MEDIADIR}/logs/apache2-+g" $HTTPCONF
 sed -i -e "s/AllowOverride None/AllowOverride All/1" $HTTPCONF
-echo "LoadModule php7_module ${BREWLOC}/opt/php@7.4/lib/httpd/modules/libphp7.so" >> $HTTPCONF
+echo "LoadModule php_module ${BREWLOC}/lib/httpd/modules/libphp.so" >> $HTTPCONF
 echo "<FilesMatch \.php\$>" >> $HTTPCONF
 echo "    SetHandler application/x-httpd-php" >> $HTTPCONF
 echo "</FilesMatch>" >> $HTTPCONF
@@ -144,7 +143,7 @@ echo "ServerName localhost" >> $HTTPCONF
 
 
 echo "Configuring PHP"
-PHPCONF="${BREWLOC}/etc/php/7.4/php.ini"
+PHPCONF="${BREWLOC}/etc/php/8.1/php.ini"
 sed -i -e "s/^max_execution_time =.*/max_execution_time = 1000/g" $PHPCONF
 sed -i -e "s/^max_input_time =.*/max_input_time = 900/g" $PHPCONF
 sed -i -e "s/^.*max_input_vars =.*/max_input_vars = 5000/g" $PHPCONF
