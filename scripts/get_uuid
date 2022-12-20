@@ -30,7 +30,13 @@ fi
 # Try dmidecode
 #
 if [[ -f /sbin/dmidecode  || -f /usr/sbin/dmidecode ]]; then
-    UUID=$(sudo dmidecode | grep -i 'serial number' | head -1 | awk '{print $3}')
+    UUID=$(sudo dmidecode | grep -i 'serial number'| head -1 | awk '{print $3}')
+    if [[ "$UUID" =~ ^\$\(.* ]]; then
+        UUID=$(sudo dmidecode | grep -i 'UUID' | head -1 | awk '{print $2}')
+    fi
+    if [ "$UUID" == "" ] || [ "$UUID" == "0" ] || [ "$UUID" == "Serial" ] || [ "$UUID" == "123456789" ] || [[ "$UUID" =~ ^00*0 ]]; then
+        UUID=$(sudo dmidecode | grep -i 'UUID' | head -1 | awk '{print $2}')
+    fi
     if [ "$UUID" != "" ] && [ "$UUID" != "0" ]; then
         echo "M2-$UUID"
         exit 0
