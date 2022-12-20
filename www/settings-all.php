@@ -7,7 +7,7 @@ require_once('common.php');
 include('common/menuHead.inc');
 
 $storageUILevel = 1;
-if (isset($settings["LastBlock"]) && $settings['LastBlock'] > 0 && $settings['LastBlock'] < 7200000) {
+if (isset($settings["LastBlock"]) && $settings['LastBlock'] > 0 && $settings['LastBlock'] < 8000000) {
     $storageUILevel = 0;
 }
 $pages = array(

@@ -33,7 +33,7 @@ include 'menu.inc'; ?>
         <div id="healthCheck" class="">
 
 <?php
-if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
+if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 8000000) {
 ?>
 <div id='upgradeFlag' class="alert alert-danger" role="alert">
      SD card has unused space.  Go to
