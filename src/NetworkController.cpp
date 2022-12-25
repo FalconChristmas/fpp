@@ -212,7 +212,7 @@ bool NetworkController::DetectSanDevicesController(const std::string& ip,
     systemMode = BRIDGE_MODE;
 
     RegExCache v4re("Firmware Version:</th></td><td></td><td>([0-9]+.[0-9]+)</td>");
-    RegExCache v5re("Firmware Version:</th></td><td>([0-9]+.[0-9]+)</td>");
+    RegExCache v5re("Firmware Version:</th></td><td>\\s?([0-9]+.[0-9]+)(-W\\d+)?</td>");
 
     if ((std::regex_search(html.c_str(), m, *v4re.regex)) ||
         (std::regex_search(html.c_str(), m, *v5re.regex))) {
