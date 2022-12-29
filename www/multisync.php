@@ -364,6 +364,16 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         return false;
     }
 
+    function isGenius(typeId) {
+        typeId = parseInt(typeId);
+
+        if (typeId == 0xA0 || typeId == 0xA1 || typeId == 0xA2)
+            return true;
+
+        return false;
+    }
+
+
     function isWLED(typeId) {
         typeId = parseInt(typeId);
 
@@ -2049,6 +2059,9 @@ $(document).ready(function() {
                             },
                     "ESPixelStick": function(e,n,f,i,$r,c,data) {
                                 return isESPixelStick($r.find('span.typeId').html());
+                            },
+                    "Genius": function(e,n,f,i,$r,c,data) {
+                                return isGenius($r.find('span.typeId').html());
                             },
                     "SanDevices": function(e,n,f,i,$r,c,data) {
                                 return isSanDevices($r.find('span.typeId').html());
