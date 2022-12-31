@@ -28,6 +28,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     display: none;
 }
 </style>
+
 <script>
     var hostRows = new Object();
     var rowSpans = new Object();
@@ -1850,9 +1851,10 @@ include 'menu.inc';?>
     <h1 class="title">FPP MultiSync</h1>
         <div class="pageContent">
 
+        <?PrintSetting('MultiSyncEnabled');?>
+        <span class="pr-1">&nbsp &nbsp &nbsp Auto Refresh Stats &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp</span> <?PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled');?>
+        <p>
         	<div id="uifppsystems" class="settings">
-
-
                     <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
                         <div class='fppTableContents' role="region" aria-labelledby="fppSystemsTable" tabindex="0">
         			<table id='fppSystemsTable' cellpadding='3'>
@@ -1882,11 +1884,10 @@ include 'menu.inc';?>
         <div class="multisyncAdvancedFormActions row">
             <div class="form-actions col-md">
             <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
-            <i class="fas fa-cog"></i> Settings</button>
+            <i class="fas fa-cog"></i> More Settings</button>
             <button id='exportStatsButton' type='button' class='buttons' value='Export' onClick='exportMultisync();'><i class="fas fa-scroll"></i> Export </button>
             <button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
             <div class="ml-2">
-            <span  class="pr-1">Auto Refresh Stats</span> <?PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled');?>
             </div>
             </div>
             <div class="col-md-auto">
@@ -1938,7 +1939,6 @@ PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
                 <div class="container-fluid settingsTable">
 
                                 <?
-PrintSetting('MultiSyncEnabled');
 PrintSetting('MultiSyncExternalIPAddress');
 PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
 PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
