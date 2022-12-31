@@ -328,16 +328,20 @@ int UDPOutput::Init(Json::Value config) {
         e131Interface = "eth0";
     }
 
+    bool disableFakeBridges = getSettingInt("DisableFakeNetworkBridges");
+
     for (auto o : outputs) {
         if (o->IsPingable() && o->active) {
-            std::string host = o->ipAddress;
-            if (myIps.find(host) != myIps.end()) {
-                // trying to send UDP data to myself, that's bad.  Disable
-                std::string msg = "UDP Output set to send data to myself.  Disabling ";
-                msg += host.c_str();
-                LogWarn(VB_CHANNELOUT, msg.c_str());
-                WarningHolder::AddWarning(msg);
-                o->active = false;
+            if (!disableFakeBridges) {
+                std::string host = o->ipAddress;
+                if (myIps.find(host) != myIps.end()) {
+                    // trying to send UDP data to myself, that's bad.  Disable
+                    std::string msg = "UDP Output set to send data to myself.  Disabling ";
+                    msg += host.c_str();
+                    LogWarn(VB_CHANNELOUT, msg.c_str());
+                    WarningHolder::AddWarning(msg);
+                    o->active = false;
+                }
             }
         }
     }
