@@ -1623,7 +1623,7 @@
         },
         "MultiSyncRefreshStatus": {
             "name": "MultiSyncRefreshStatus",
-            "description": "Auto refresh status of FPP Systems",
+            "description": "Auto refresh Multisync Screen",
             "tip": "Auto refresh status of FPP Systems.  The Simple View refreshes every second and Advanced View refreshes every 5 seconds.",
             "type": "checkbox"
         },

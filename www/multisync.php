@@ -1852,7 +1852,7 @@ include 'menu.inc';?>
         <div class="pageContent">
 
         <?PrintSetting('MultiSyncEnabled');?>
-        <span class="pr-1">&nbsp &nbsp &nbsp Auto Refresh Stats &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp</span> <?PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled');?>
+        <?PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled');?>
         <p>
         	<div id="uifppsystems" class="settings">
                     <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
