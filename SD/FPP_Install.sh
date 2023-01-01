@@ -191,6 +191,9 @@ then
 elif [ "x${OSID}" = "xubuntu" ]
 then
 	FPPPLATFORM="Ubuntu"
+elif [ "x${OSID}" = "xlinuxmint" ]
+then
+	FPPPLATFORM="Mint"
 elif [ "x${OSID}" = "xfedora" ]
 then
     FPPPLATFORM="Fedora"
@@ -242,6 +245,7 @@ echo "FPP Branch       : ${FPPBRANCH}"
 echo "Operating System : ${PRETTY_NAME}"
 echo "Platform         : ${FPPPLATFORM}"
 echo "OS Version       : ${OSVER}"
+echo "OS ID            : ${OSID}"
 echo "Image            : ${isimage}"
 echo "============================================================"
 #############################################################################
@@ -363,7 +367,7 @@ cd /opt 2> /dev/null || mkdir /opt
 export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
-	debian_11 | debian_10 | ubuntu_20.04 | ubuntu_22.04 | ubuntu_22.10)
+	debian_11 | debian_10 | ubuntu_20.04 | ubuntu_22.04 | ubuntu_22.10 | linuxmint_21)
 		case $FPPPLATFORM in
 			'BeagleBone Black')
 				echo "FPP - Skipping non-free for $FPPPLATFORM"
@@ -450,8 +454,9 @@ case "${OSVER}" in
 		# Install 10 packages, then clean to lower total disk space required
   
         PHPVER=""
-        if [ "${OSVER}" == "ubuntu_22.04" ]; then
+        if [ "${OSVER}" == "ubuntu_22.04" -o "${OSVER}" == "linuxmint_21" ]; then
             PHPVER="7.4"
+            echo "FPP - Forceing PHP 7.4"
             apt install software-properties-common apt-transport-https -y
             add-apt-repository ppa:ondrej/php -y
             apt-get -y update
@@ -839,8 +844,11 @@ EOF
             
         fi
 		;;
-	'Ununtu')
-		echo "FPP - Ununtu"
+	'Ubuntu')
+		echo "FPP - Ubuntu"
+		;;
+    'Mint')
+		echo "FPP - Mint"
 		;;
 	'Debian')
 		echo "FPP - Debian"
@@ -1197,7 +1205,7 @@ sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf
 rm /etc/apache2/conf-enabled/other-vhosts-access-log.conf
 
 case "${OSVER}" in
-	debian_11 |  debian_10 | ununtu_20.04 | ubuntu_22.04 | ubuntu_22.10)
+	debian_11 |  debian_10 | ununtu_20.04 | ubuntu_22.04 | ubuntu_22.10 | linuxmint_21)
 		systemctl enable apache2.service
 		;;
 esac

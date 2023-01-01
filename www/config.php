@@ -284,7 +284,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
         $settings['Variant'] = "UNKNOWN";
         $settings['Logo'] = "beagle_logo.png";
     }
-} else if ($settings['Platform'] == "Debian" || $settings['Platform'] == "Ubuntu" || $settings['Platform'] == "Armbian" || $settings['Platform'] == "OrangePi") {
+} else if ($settings['Platform'] == "Debian" || $settings['Platform'] == "Ubuntu" || $settings['Platform'] == "Mint" || $settings['Platform'] == "Armbian" || $settings['Platform'] == "OrangePi") {
     $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
     $settings['Variant'] = $settings['SubPlatform'];
     if (preg_match('/Orange/', $settings['SubPlatform'])) {
@@ -305,6 +305,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
     } else if ($settings['Platform'] == "Ubuntu") {
         $settings['Logo'] = "ubuntu_logo.png";
         $settings['LogoLink'] = "https://ubuntu.com/";
+    } else if ($settings['Platform'] == "Mint") {
+        $settings['Logo'] = "mint_logo.png";
+        $settings['LogoLink'] = "https://linuxmint.com/";
     } else {
         $settings['Logo'] = "debian_logo.png";
         $settings['LogoLink'] = "https://www.armbian.com/";

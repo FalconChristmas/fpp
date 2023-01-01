@@ -8,6 +8,9 @@ CFLAGS += -DPLATFORM_DEBIAN
 else ifeq '$(ARCH)' 'Ubuntu'
 ISLINUX=1
 CFLAGS += -DPLATFORM_UBUNTU
+else ifeq '$(ARCH)' 'Mint'
+ISLINUX=1
+CFLAGS += -DPLATFORM_MINT
 else ifeq '$(ARCH)' 'Fedora'
 ISLINUX=1
 CFLAGS += -DPLATFORM_FEDORA
