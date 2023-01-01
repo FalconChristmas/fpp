@@ -782,12 +782,14 @@ include 'menu.inc';?>
 					Channel Testing
 				</a>
 			</li>
-			<li class="nav-item">
-				<a class="nav-link" id="tab-sequence-tab" data-toggle="tab" href="#tab-sequence" role="tab" aria-controls="tab-sequence" aria-selected="true">
+			<?php if (isset($settings['fppMode']) && ($settings['fppMode'] == 'player')) {?>
+		        <li class="nav-item">
+				    <a class="nav-link" id="tab-sequence-tab" data-toggle="tab" href="#tab-sequence" role="tab" aria-controls="tab-sequence" aria-selected="true">
 				Sequence
-				</a>
-			</li>
-		</ul>
+				    </a>
+			    </li>
+    		<?php }?>
+			</ul>
 
 	<div class="tab-content">
 		<div id='tab-channels' class="tab-pane fade show active" role="tabpanel" aria-labelledby="interface-settings-tab">
