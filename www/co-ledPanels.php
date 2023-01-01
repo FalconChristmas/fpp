@@ -1193,6 +1193,7 @@ function PanelSubtypeChanged() {
     <?} else {?>
     html +="<option value='32x16x8'>32x16 1/8 Scan</option>"
     html +="<option value='32x16x4'>32x16 1/4 Scan</option>"
+    html +="<option value='32x16x2'>32x16 1/2 Scan</option>"
     html +="<option value='32x32x16'>32x32 1/16 Scan</option>"
     html +="<option value='32x32x8'>32x32 1/8 Scan</option>"
     html +="<option value='64x32x16'>64x32 1/16 Scan</option>"
@@ -1268,7 +1269,7 @@ $(document).ready(function(){
 <?
 if ((isset($settings['cape-info'])) &&
     ((in_array('all', $settings['cape-info']["provides"])) ||
-     (in_array('panels', $settings['cape-info']["provides"])))) {
+        (in_array('panels', $settings['cape-info']["provides"])))) {
     ?>
     if (currentCapeName != "" && currentCapeName != "Unknown") {
         $('.capeNamePanels').html(currentCapeName);
