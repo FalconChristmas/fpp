@@ -7,8 +7,8 @@ error_reporting(E_ALL);
 
 <head>
 <?php
-require_once('config.php');
-require_once('common.php');
+require_once 'config.php';
+require_once 'common.php';
 
 include 'common/menuHead.inc';
 
@@ -159,7 +159,7 @@ function AddScheduleEntry(data = {}) {
     else
         row.find('.schEndTime').val(Convert24HToUIFormat(data.endTime));
     row.find('.schEndTime').trigger('change');
-    
+
     if (data.endTimeOffset != null) row.find('.schEndTimeOffset').val(data.endTimeOffset);
     if (data.startTimeOffset != null) row.find('.schStartTimeOffset').val(data.startTimeOffset);
 
@@ -178,14 +178,14 @@ function formatDate(date) {
         day = '' + d.getDate(),
         year = d.getFullYear();
 
-    if (month.length < 2) 
+    if (month.length < 2)
         month = '0' + month;
-    if (day.length < 2) 
+    if (day.length < 2)
         day = '0' + day;
 
     return [year, month, day].join('-');
 }
- 
+
 function getSchedule()
 {
     $('#tblScheduleBody').empty();
@@ -263,7 +263,7 @@ function SetRowDateTimeFieldVisibility(row) {
         row.find('.schEndDate').hide();
         row.find('.holEndDate').show();
     }
-    
+
     var re = new RegExp(/(dawn|sunrise|sunset|dusk)/i);
     var startTime = row.find('.schStartTime').val();
     if (startTime.match(re)) {
@@ -416,11 +416,23 @@ function ScheduleEntryTypeChanged(item)
 function TimeChanged(item)
 {
     var val = $(item).val();
-    var re = new RegExp(/(dawn|sunrise|sunset|dusk)/i);
-    if (val.match(re)) {
+    var re1 = new RegExp(/(dawn|sunrise|sunset|dusk)/i);
+    var re2 = new RegExp(/(12:00 Mid|[0[1-9]|1[0-2]]:[0-5][0-9] [AM|Am|am|PM|Pm|pm])/i);
+    if (val.match(re1)) {
         $(item).parent().find('.offset').show();
-    } else {
+    } else if (val.match(re2)) {
         $(item).parent().find('.offset').hide();
+    } else {
+        $(item).val("0:00:00");
+    }
+}
+
+function DateChanged(item)
+{
+    var val = $(item).val();
+    var re = new RegExp(/^\d{4}[-/]\d{2}[-/]\d{2}$/i);
+    if (!val.match(re)) {
+        $(item).val(MAXYEAR + "-12-31");
     }
 }
 
@@ -612,7 +624,7 @@ $(document).ready(function(){
         $('#tblScheduleBody').sortable(sortableOptions).disableSelection();
 });
 </script>
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 <style>
 .clear {
 	clear: both;
@@ -666,12 +678,12 @@ button.ui-datepicker-current {
 
 <body onload="PopulateCommandListCache(); getSchedule();">
 <div id="bodyWrapper">
-  <?php	
-  $activeParentMenuItem = 'content';
-  include 'menu.inc'; ?>
+  <?php
+$activeParentMenuItem = 'content';
+include 'menu.inc';?>
   <div class="mainContainer">
       <h1 class="title">Scheduler</h1>
-      <div class="pageContent"> 
+      <div class="pageContent">
           <div>
             <div class="row tablePageHeader">
                 <div class="col">
@@ -691,7 +703,7 @@ button.ui-datepicker-current {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class='largeonly'><button type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'><i class="fas fa-fw fa-calendar-alt"></i>Preview</button></div>
                         <div class='largeonly'><button class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"><i class="fas fa-redo"></i> Reload</button></div>
                         <div class='largeonly'><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');"/></div>
@@ -710,7 +722,7 @@ button.ui-datepicker-current {
             </div>
             <div class='fppTableWrapper'>
                 <div class='fppTableContents'  role="region" aria-labelledby="tblSchedule" tabindex="0">
-                    
+
                     <table class='fppTableRowTemplate template-tblScheduleBody'>
                         <tr class='rowScheduleDetails'>
                             <td class='center' valign="middle">
@@ -719,8 +731,8 @@ button.ui-datepicker-current {
                                 </div>
                             </td>
                             <td class='center' ><input class='schEnable' type='checkbox' /></td>
-                            <td><input class='date schStartDate' type='text' size='9'  /></td>
-                            <td><input class='date schEndDate' type='text' size='9' /></td>
+                            <td><input class='date schStartDate' type='text' size='9' onChange='DateChanged(this);' /></td>
+                            <td><input class='date schEndDate' type='text' size='9' onChange='DateChanged(this);' /></td>
                             <td><select class='schDay' onChange='ScheduleDaysSelectChanged(this);'>
                                     <option value='7'>Everyday</option>
                                     <option value='0'>Sunday</option>
@@ -786,7 +798,7 @@ button.ui-datepicker-current {
                                 </select>
                             </td>
                             <td class='schOptionsCommand' colspan='2'>
-                                <select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
+                                <select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><?echo $commandOptions; ?></select>
                                 <img class='cmdTmplTooltipIcon' title='' src='images/redesign/help-icon.svg' width=22 height=22>
                                 <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
                                 <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".cmdTmplJSON").text());'>
@@ -834,8 +846,8 @@ button.ui-datepicker-current {
                 </div>
     	    </div>
     	<div>
-        <div style="margin-bottom:10px;"><?php PrintSetting('DisableScheduler'); ?></div>
-     
+        <div style="margin-bottom:10px;"><?php PrintSetting('DisableScheduler');?></div>
+
 
             <div class="backdrop">
                 <b>Notes</b>:
@@ -847,16 +859,16 @@ button.ui-datepicker-current {
                 </ul>
             </div>
 
- 
+
 
 
 
             </div>
 
       </div>
-      
+
   </div>
-  <?php	include 'common/footer.inc'; ?>
+  <?php	include 'common/footer.inc';?>
 </div>
 </body>
 </html>
