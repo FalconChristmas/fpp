@@ -49,8 +49,8 @@ FPPPlugins::Plugin* createPlugin() {
 }
 }
 
-static inline std::string createWarning(const std::string& host, const std::string& type) {
-    return "Cannot Ping " + type + " Channel Data Target " + host;
+static inline std::string createWarning(const std::string& host, const std::string& type, const std::string& description) {
+    return "Cannot Ping " + type + " Channel Data Target " + host + " " + description;
 }
 
 static void DoPingThread(UDPOutput* output) {
@@ -645,8 +645,8 @@ bool UDPOutput::PingControllers(bool failedOnly) {
                 done[host] = p;
             }
             if (p > 0 && !o->valid) {
-                WarningHolder::RemoveWarning(createWarning(host, o->GetOutputTypeString()));
-                LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
+                WarningHolder::RemoveWarning(createWarning(host, o->GetOutputTypeString(), o->description));
+                LogWarn(VB_CHANNELOUT, "Could ping host %s %s, re-adding to outputs\n",
                         host.c_str());
                 newOutputs = true;
                 o->failCount = 0;
@@ -669,7 +669,7 @@ bool UDPOutput::PingControllers(bool failedOnly) {
                 } else if (o->valid && (o->failCount == 3)) {
                     // two shorter pings, a HEAD request, and one long ping failed
                     // must not be valid anymore
-                    WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString()));
+                    WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString(),o->description));
                     LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
                             host.c_str());
                     newOutputs = true;
@@ -702,7 +702,7 @@ bool UDPOutput::PingControllers(bool failedOnly) {
                                         if (!o->valid) {
                                             o->valid = true;
                                             newOutputs = true;
-                                            WarningHolder::RemoveWarning(createWarning(o->ipAddress, o->GetOutputTypeString()));
+                                            WarningHolder::RemoveWarning(createWarning(o->ipAddress, o->GetOutputTypeString(), o->description));
                                             LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
                                                     o->ipAddress.c_str());
                                         }
