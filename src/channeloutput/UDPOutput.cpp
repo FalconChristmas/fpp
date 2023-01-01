@@ -646,7 +646,7 @@ bool UDPOutput::PingControllers(bool failedOnly) {
             }
             if (p > 0 && !o->valid) {
                 WarningHolder::RemoveWarning(createWarning(host, o->GetOutputTypeString(), o->description));
-                LogWarn(VB_CHANNELOUT, "Could ping host %s %s, re-adding to outputs\n",
+                LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
                         host.c_str());
                 newOutputs = true;
                 o->failCount = 0;
@@ -669,7 +669,7 @@ bool UDPOutput::PingControllers(bool failedOnly) {
                 } else if (o->valid && (o->failCount == 3)) {
                     // two shorter pings, a HEAD request, and one long ping failed
                     // must not be valid anymore
-                    WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString(),o->description));
+                    WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString(), o->description));
                     LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
                             host.c_str());
                     newOutputs = true;
