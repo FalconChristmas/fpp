@@ -3210,6 +3210,21 @@ function GetSequenceArray() {
     });
 }
 
+var mediaArray = [];
+function GetMediaArray() {
+    $.ajax({
+        dataType: "json",
+        url: "api/media",
+        async: false,
+        success: function (data) {
+            mediaArray = data;
+        },
+        error: function () {
+            DialogError('Load Media', 'Error loading list of media');
+        }
+    });
+}
+
 function GetFiles(dir) {
     $.ajax({
         dataType: "json",
@@ -4217,6 +4232,15 @@ function PopulatePlaylists(sequencesAlso, options) {
         }
 
         playlistOptionsText += "</optgroup>";
+
+        playlistOptionsText += "</optgroup><optgroup label='Media'>";
+        GetMediaArray();
+
+        for (j = 0; j < mediaArray.length; j++) {
+            playlistOptionsText += "<option value=\"" + mediaArray[j] + "\">" + mediaArray[j] + "</option>";
+        }
+
+        playlistOptionsText += "</optgroup>";    
     }
 
     $('#playlistSelect').html(playlistOptionsText);
