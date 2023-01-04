@@ -344,28 +344,30 @@ int Playlist::Load(const char* filename) {
         mp.append(pe);
         root["mainPlaylist"] = mp;
     
-    } else if (endsWith(tmpFilename, ".mp3") || (endsWith(tmpFilename, ".mp4"))) {
-        root["name"] = tmpFilename;
-        root["repeat"] = 0;
-        root["loopCount"] = 0;
-
-        Json::Value mp(Json::arrayValue);
-        Json::Value pe;
-
-        pe["type"] = "media";
-        pe["mediaName"] = tmpFilename;
-
-        LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s\n", tmpFilename.c_str());
-        
-        pe["enabled"] = 1;
-        pe["playOnce"] = 0;
-        pe["videoOut"] = "--Default--";
-        mp.append(pe);
-        root["mainPlaylist"] = mp;
-
     } else {
-        m_filename = FPP_DIR_PLAYLIST("/" + filename + ".json");
-        root = LoadJSON(m_filename.c_str());
+        if (IsExtensionAudio(GetFileExtension(tmpFilename)) || IsExtensionVideo(GetFileExtension(tmpFilename))) {
+           root["name"] = tmpFilename;
+           root["repeat"] = 0;
+           root["loopCount"] = 0;
+
+           Json::Value mp(Json::arrayValue);
+           Json::Value pe;
+
+           pe["type"] = "media";
+           pe["mediaName"] = tmpFilename;
+
+           LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s\n", tmpFilename.c_str());
+        
+           pe["enabled"] = 1;
+           pe["playOnce"] = 0;
+           pe["videoOut"] = "--Default--";
+           mp.append(pe);
+           root["mainPlaylist"] = mp;
+   
+        } else {
+           m_filename = FPP_DIR_PLAYLIST("/" + filename + ".json");
+           root = LoadJSON(m_filename.c_str());
+        }
     }
 
     int res = Load(root);
