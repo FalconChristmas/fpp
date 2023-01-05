@@ -313,7 +313,7 @@ void PlaylistEntryBranch::Dump(void) {
         LogDebug(VB_PLAYLIST, "True Branch PList : %s\n", m_trueBranchPlaylist.c_str());
         break;
     default:
-        LogDebug(VB_PLAYLIST, "ERROR Uknown True branch type: %d\n", (int)m_trueNextBranchType);
+        LogDebug(VB_PLAYLIST, "ERROR Unknown True branch type: %d\n", (int)m_trueNextBranchType);
         break;
     }
 
@@ -329,7 +329,7 @@ void PlaylistEntryBranch::Dump(void) {
         LogDebug(VB_PLAYLIST, "False Branch PList: %s\n", m_falseBranchPlaylist.c_str());
         break;
     default:
-        LogDebug(VB_PLAYLIST, "ERROR Uknown False branch type: %d\n", (int)m_falseNextBranchType);
+        LogDebug(VB_PLAYLIST, "ERROR Unknown False branch type: %d\n", (int)m_falseNextBranchType);
         break;
     }
 }
