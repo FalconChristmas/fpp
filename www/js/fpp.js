@@ -83,7 +83,7 @@ $(function () {
     CheckBrowser();
     CheckRestartRebootFlags();
 
-    window.onscroll = function() { checkScrollTopButton(); };
+    window.onscroll = function () { checkScrollTopButton(); };
 });
 
 function getManualLink() {
@@ -446,14 +446,13 @@ function TogglePasswordHideShow(setting) {
     }
 }
 
-function ConfirmPasswordEnable()
-{
+function ConfirmPasswordEnable() {
     var password = $('#password').val();
     var value = $('#passwordEnable').val();
 
     if ((value == '1') &&
         ((password == '') ||
-         (confirm('Click "OK" to reset the existing password to "falcon" before enabling, click "Cancel" to reuse the existing saved password.  Warning: If you do not know the existing password, enabling without resetting could lock you out of the system.  The default password is "falcon" if you have not previously set a UI password.')))) {
+            (confirm('Click "OK" to reset the existing password to "falcon" before enabling, click "Cancel" to reuse the existing saved password.  Warning: If you do not know the existing password, enabling without resetting could lock you out of the system.  The default password is "falcon" if you have not previously set a UI password.')))) {
         $('#password').val('falcon');
         window["passwordChanged"]();
         $('#passwordVerify').val('falcon');
@@ -470,8 +469,7 @@ function ConfirmPasswordEnable()
     }
 }
 
-function ValidatePassword(password)
-{
+function ValidatePassword(password) {
     // Allow minimum of 6 so default 'falcon' password is valid
     if (password.length < 6) {
         DialogError('Password Length', 'Password Length should be 6 or more characters');
@@ -481,8 +479,7 @@ function ValidatePassword(password)
     return 1;
 }
 
-function CheckPassword()
-{
+function CheckPassword() {
     var password = $('#password').val();
     var passwordVerify = $('#passwordVerify').val();
 
@@ -497,8 +494,7 @@ function CheckPassword()
     }
 }
 
-function CheckPasswordVerify()
-{
+function CheckPasswordVerify() {
     var password = $('#password').val();
     var passwordVerify = $('#passwordVerify').val();
 
@@ -513,8 +509,7 @@ function CheckPasswordVerify()
     }
 }
 
-function ConfirmOSPasswordEnable()
-{
+function ConfirmOSPasswordEnable() {
     var password = $('#osPassword').val();
     var value = $('#osPasswordEnable').val();
 
@@ -535,8 +530,7 @@ function ConfirmOSPasswordEnable()
     }
 }
 
-function CheckOSPassword()
-{
+function CheckOSPassword() {
     var password = $('#osPassword').val();
     var passwordVerify = $('#osPasswordVerify').val();
 
@@ -551,8 +545,7 @@ function CheckOSPassword()
     }
 }
 
-function CheckOSPasswordVerify()
-{
+function CheckOSPasswordVerify() {
     var password = $('#osPassword').val();
     var passwordVerify = $('#osPasswordVerify').val();
 
@@ -4061,6 +4054,14 @@ function ReloadSettingOptions(settingName) {
     });
 }
 
+function setTopScrollText(text = "Top") {
+    if ((settings['restartFlag'] != 0) || (settings['rebootFlag'] != 0)) {
+        text = "See Alert";
+    }
+
+    $("#scrollTopButton").html(text);
+}
+
 function ClearRestartFlag() {
     settings['restartFlag'] = 0;
     SetSetting('restartFlag', 0, 0, 0);
@@ -4095,6 +4096,7 @@ function SetRebootFlag() {
 
 function CheckRestartRebootFlags() {
     if (settings['disableUIWarnings'] == 1) {
+        setTopScrollText("Top");
         $('#restartFlag').hide();
         $('#rebootFlag').hide();
         return;
@@ -4112,6 +4114,9 @@ function CheckRestartRebootFlags() {
     else {
         $('#rebootFlag').hide();
     }
+
+    // Adjust the scroll up text to match state.
+    setTopScrollText();
 }
 
 function RestartFPPD() {
@@ -4240,7 +4245,7 @@ function PopulatePlaylists(sequencesAlso, options) {
             playlistOptionsText += "<option value=\"" + mediaArray[j] + "\">" + mediaArray[j] + "</option>";
         }
 
-        playlistOptionsText += "</optgroup>";    
+        playlistOptionsText += "</optgroup>";
     }
 
     $('#playlistSelect').html(playlistOptionsText);
@@ -5579,8 +5584,8 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             line += "    $('#" + ID + "CurrentValue').html(val);";
             line += "}";
             line += "</script>"
-            line += "<span>" + val['min'] + "<input type='range' class='arg_" + val['name'] 
-                 + " cmdArgSlider' id='" + ID + "' min='" + val['min'] + "' max='" + val['max'] + "'";
+            line += "<span>" + val['min'] + "<input type='range' class='arg_" + val['name']
+                + " cmdArgSlider' id='" + ID + "' min='" + val['min'] + "' max='" + val['max'] + "'";
             var vl = "&nbsp;(<span id='" + ID + "CurrentValue'>";
             if (dv != "") {
                 line += " value='" + dv + "'";
