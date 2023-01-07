@@ -1335,20 +1335,26 @@ body .sm-clean a .sub-arrow {
 	display: none;
 }
 
+.scrollTopButtonShowing {
+	display: block !important;
+}
+
+
 @media all and (min-width: 991px) {
 	#navbarNavDropdown {
 		margin-top: 0.25em;
 	}
 
-	.scrollTopButtonShowing {
-		display: block !important;
-	}
 }
 
 @media all and (max-width: 990px) {
 
 	.header {
 		padding-right: 56px;
+	}
+
+	#scrollTopButton {
+		top: 5px;
 	}
 
 	[class*="navbar-expand-"]>.container,
@@ -1368,10 +1374,6 @@ body .sm-clean a .sub-arrow {
 
 	.navbar .navbar-collapse .navbar-nav>li.button-container {
 		padding: 15px;
-	}
-
-	.scrollTopButtonShowing {
-		display: none !important;
 	}
 
 	#fppMenu .navbar-collapse {
