@@ -80,7 +80,8 @@ if ($applyUpdate) {
     copy("$fppDir/SD/upgradeOS-part1.sh", $TMP_FILE);
     chmod($TMP_FILE, 0775);
     #system($SUDO . " stdbuf --output=L --error=L $TMP_FILE /home/fpp/media/upload/$baseFile");
-    system($SUDO . " $TMP_FILE /home/fpp/media/upload/$baseFile");
+    $return_code = 0;
+    system($SUDO . " $TMP_FILE /home/fpp/media/upload/$baseFile",$return_code);
 } else {
     echo ("Skipping update\n");
 }
@@ -96,14 +97,19 @@ if (!$wrapped) {
 </body>
 </html>
 <?
-} else {
+} else if ($applyUpdate && ($return_code == 0)) {
+    echo "==========================================================================\n";
     echo "Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot\n";
+} else {
+    echo "==========================================================================\n";
+    echo "FPP UPGRADE FAILED\n";
+    echo "==========================================================================\n";
 }
 while (@ob_end_flush());
 flush();
 session_write_close();
 
-if ($applyUpdate) {
+if ($applyUpdate && ($return_code == 0)) {
     sleep(3);
     system($SUDO . " shutdown -r now");
 }
