@@ -51,6 +51,7 @@ dispatch_delete('/file/:DirName/:Name', 'DeleteFile');
 
 dispatch_get('/git/originLog', 'GetGitOriginLog');
 dispatch_get('/git/releases/os', 'GitOSReleases');
+dispatch_get('/git/releases/sizes', 'GitOSReleaseSizes');
 dispatch_get('/git/reset', 'GitReset');
 dispatch_get('/git/status', 'GitStatus');
 
