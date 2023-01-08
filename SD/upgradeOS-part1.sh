@@ -1,5 +1,24 @@
 #!/bin/bash
 
+FPPOS=`/usr/bin/basename $1`
+GITHUBSIZE=`curl -fsSL http://127.0.0.1/api/git/releases/sizes | grep ${FPPOS} | awk -F, '{print $2}'`
+OURSIZE=`/usr/bin/stat -c %s $1`
+
+if ! [[ $GITHUBSIZE =~ ^-?[0-9]+$ ]];
+then
+  echo "Couldn't get fppos size from Github, attempting upgrade anyway"
+else
+  if [ "$OURSIZE" -lt "$GITHUBSIZE" ];
+  then
+    echo "Download size seems too small. Our size: $OURSIZE, Github size: $GITHUBSIZE deleting $1"
+    echo "Please try to download the fppos again"
+    rm $1
+    exit 1;
+  else
+    echo "fppos size matches Github, continuing"
+  fi
+fi
+
 mount $1 /mnt
 
 ORIGTYPE=$(</etc/fpp/platform)
