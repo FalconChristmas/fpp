@@ -90,6 +90,7 @@ function GitOSReleases()
                         $row["url"] = $file["browser_download_url"];
                         $row["asset_id"] = $file["id"];
                         $row["downloaded"] = in_array($name, $existingFiles);
+                        $row["size"] = $file["size"];
                         array_push($releases, $row);
                     }
                 }
