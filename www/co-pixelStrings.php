@@ -1356,8 +1356,10 @@ function PixelStringDifferentialTypeChangedTo(port, tp, count) {
                     $('#' + type + '_Output_' + x + '_' + (port + y) + '_0 td:first').html(newLabel);
                 }
             } else {
-                var newLabel = GetStringHWLabel(port) + ")";
-                $('#' + type + '_Output_' + x + '_' + (port) + '_0 td:first').html(newLabel);
+                for (var y = 0; y < 4; y++) {
+		            var newLabel = GetStringHWLabel(port+y) + ")";
+                    $('#' + type + '_Output_' + x + '_' + (port + y) + '_0 td:first').html(newLabel);
+                }
             }
         }
     }
