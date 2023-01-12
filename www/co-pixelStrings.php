@@ -106,7 +106,7 @@ function readCapes($cd, $capes)
             } else {
                 $string = file_get_contents($cd . $file);
 //            echo "/* file len " . strlen($string) . "*/\n";
-                    //            echo "/* ends with '" . substr($string, -4) . "' */\n";
+                //            echo "/* ends with '" . substr($string, -4) . "' */\n";
             }
 
             if ($string != "") {
@@ -623,7 +623,7 @@ function selected_string_details(row) { //outputs, rowid) {
     } else {
         details += `<b>Port ${portinx + 1}`;
         if (hdr_name) {
-            details += ` (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"})`;            
+            details += ` (${(gpio_name !== null)? "GPIO" + gpio_name + " on ": ""}${hdr_name || "UNKNOWN PIN!"})`;
         }
         details += '</b>';
     }
@@ -1398,7 +1398,7 @@ function populatePixelStringOutputs(data) {
                 if (type == "BBB48String") {
                     $('#BBPixelTiming').show();
                 } else {
-                    $('#BBPixelTiming').hide();                    
+                    $('#BBPixelTiming').hide();
                 }
 
                 if (document.getElementById("PixelStringSubType").length == 1) {
@@ -1632,7 +1632,7 @@ function populatePixelStringOutputs(data) {
                     }
                 });
 
-                setTimeout(function() { 
+                setTimeout(function() {
                     $('.vsPortLabel').tooltip({
                         content: function() {
                             var tip = selected_string_details($(this).parent());
@@ -1750,7 +1750,8 @@ function ValidateBBBStrings(data) {
 
 <?
 
-function getLicensedOutputs() {
+function getLicensedOutputs()
+{
     global $settings;
 
     if (isset($settings['cape-info']) && isset($settings['cape-info']['verifiedKeyId'])) {
@@ -1767,7 +1768,7 @@ function getLicensedOutputs() {
 $licensedOutputs = getLicensedOutputs();
 ?>
 
-var licensedOutputs = <?=$licensedOutputs ?>;
+var licensedOutputs = <?=$licensedOutputs?>;
 var capeLimitWarning = '';
 <?
 if (isset($settings['cape-info']) && ($settings['cape-info']['id'] == "Unsupported")) {
@@ -1782,11 +1783,6 @@ function sanityCheckOutputs() {
     var rowCount = $('#pixelOutputs table tbody').find('tr').length;
     var tbody = $('#pixelOutputs table tbody');
 
-    tbody.find('.vsPixelCount').removeClass('inputError');
-    tbody.find('.vsPixelCount').attr('title', '');
-    tbody.find('.vsStartChannel').removeClass('inputWarning');
-    tbody.find('.vsStartChannel').attr('title', '');
-
     var outputCount = 0;
 	$('#pixelOutputs table').each(function() {
 		$this = $(this);
@@ -1794,17 +1790,61 @@ function sanityCheckOutputs() {
     });
 
     var pixelsPerOutput = [];
+    var startChannels = [];
+    var endChannels = [];
+    var pixelCounts = [];
+    var pids = [];
+    var scTitles = [];
+    var pcTitles = [];
+    var pcNodes = [];
+    var scNodes = [];
+    var pcMaxes = [];
+    var labels = [];
     for (i = 0; i < outputCount; i++) {
         pixelsPerOutput[i] = 0;
     }
 
-    // Gather total pixel counts by pid
+    var isLicensed = isLicensedDriver(driver);
+
+    /////////////////////////////////////////////////////////////////////
+
+    // Collect the start/end pairs and total pixel counts by pid
     for (r = 0; r < rowCount; r++) {
         var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
-        if (tRow.find('.vsPixelCount').length != 0) {
-            var pid = parseInt(tRow.attr('pid'));
 
-            pixelsPerOutput[pid] += parseInt(tRow.find('.vsPixelCount').val());
+        startChannels[r] = 0;
+        endChannels[r] = 0;
+        pixelCounts[r] = 0;
+        pcMaxes[r] = 0;
+        scTitles[r] = "";
+        pcTitles[r] = "";
+        pids[r] = -1;
+        labels[r] = "";
+        pcNodes[r] = null;
+        scNodes[r] = null;
+
+        if (tRow.find('.vsPixelCount').length != 0) {
+            var scNode = tRow.find('.vsStartChannel');
+            scNodes[r] = scNode;
+            scNode.removeClass("inputWarning");
+            startChannels[r] = parseInt(scNode.val());
+
+            var pcNode = tRow.find('.vsPixelCount');
+            pcNodes[r] = pcNode;
+            pcNode.removeClass("inputError");
+            pixelCounts[r] = parseInt(pcNode.val());
+            pcMaxes[r] = parseInt(pcNode.attr("max"));
+
+            endChannels[r] = parseInt(tRow.find('.vsEndChannel').html());
+
+            var pid = parseInt(tRow.attr('pid'));
+            pixelsPerOutput[pid] += pixelCounts[r];
+            pids[r] = pid;
+
+            labels[r] = tRow.find('.vsPortLabel').html().replace(')', '');
+
+            pcNodes[r].attr('title', '');
+            scNodes[r].attr('title', '');
         }
     }
 
@@ -1812,13 +1852,11 @@ function sanityCheckOutputs() {
     // Check licensed outputs and error if too many pixels on unlicensed outputs
     if (isLicensedDriver(driver) && (licensedOutputs < outputCount)) {
         for (r = 0; r < rowCount; r++) {
-            var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
-            if (tRow.find('.vsPixelCount').length != 0) {
-                var pid = parseInt(tRow.attr('pid'));
-
+            if (pids[r] != -1) {
+                var pid = pids[r];
                 if (((pid+1) > licensedOutputs) && (pixelsPerOutput[pid] > 50)) {
-                    tRow.find('.vsPixelCount').attr('title', 'Cape is licensed for ' + licensedOutputs + ' outputs.  Unlicensed Outputs may only use 50 pixels.');
-                    tRow.find('.vsPixelCount').addClass('inputError');
+                    pcTitles[r] = 'Cape is licensed for ' + licensedOutputs + ' outputs.  Unlicensed Outputs may only use 50 pixels.';
+                    pcNodes[r].addClass('inputError');
                     ok = false;
                 }
             }
@@ -1837,16 +1875,15 @@ function sanityCheckOutputs() {
 
                         if (limit.banks[b].includes(i) && pixelsPerOutput[i] > bankLimit) {
                             for (r = 0; r < rowCount; r++) {
-                                var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
-                                if (tRow.find('.vsPixelCount').length != 0) {
-                                    var pid = parseInt(tRow.attr('pid'));
+                                if (pcNodes[r] != null) {
+                                    var pid = pids[r];
                                     if (pid == i) {
-                                        var title = tRow.find('.vsPixelCount').attr('title');
+                                        var title = pcTitles[r];
                                         if (title != '')
                                             title += '<br>';
                                         title += 'This output is part of a Virtual String or Smart Receiver chain that exceeds the bank size';
-                                        tRow.find('.vsPixelCount').attr('title', title);
-                                        tRow.find('.vsPixelCount').addClass('inputError');
+                                        pcTitles[r] = title;
+                                        ncNodes[r].addClass('inputError');
                                     }
                                 }
                             }
@@ -1862,38 +1899,17 @@ function sanityCheckOutputs() {
     /////////////////////////////////////////////////////////////////////
     // Error if pixelCount is higher than max
     for (r = 0; r < rowCount; r++) {
-        var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
-        if (parseInt(tRow.find('.vsPixelCount').val()) > parseInt(tRow.find('.vsPixelCount').attr('max'))) {
-            var title = tRow.find('.vsPixelCount').attr('title');
+        if (pixelCounts[r] > pcMaxes[r]) {
+            var title = pcTitles[r];
             if (title != '')
                 title += '<br>';
             title += 'Output Pixel Count exceeds max';
-            tRow.find('.vsPixelCount').attr('title', title);
-            tRow.find('.vsPixelCount').addClass('inputError');
+            pcTitles[r] = title;
+            pcNodes[r].addClass('inputError');
         }
     }
 
-    /////////////////////////////////////////////////////////////////////
     // Warn on Overlapping channel ranges
-    var startChannels = [];
-    var endChannels = [];
-    var pixelCounts = [];
-
-    // Collect the start/end pairs
-    for (r = 0; r < rowCount; r++) {
-        var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
-
-        startChannels[r] = 0;
-        endChannels[r] = 0;
-        pixelCounts[r] = 0;
-
-        if (tRow.find('.vsPixelCount').length != 0) {
-            startChannels[r] = parseInt(tRow.find('.vsStartChannel').val());
-            endChannels[r] = parseInt(tRow.find('.vsEndChannel').html());
-            pixelCounts[r] = parseInt(tRow.find('.vsPixelCount').val());
-        }
-    }
-
     // Check for overlap
     for (i = 0; i < rowCount; i++) {
         if (startChannels[i] && endChannels[i]) {
@@ -1905,33 +1921,36 @@ function sanityCheckOutputs() {
                      ((endChannels[i] >= startChannels[j]) && (endChannels[i] <= endChannels[j])) ||
                      ((startChannels[j] >= startChannels[i]) && (startChannels[j] <= endChannels[i])) ||
                      ((endChannels[j] >= startChannels[i]) && (endChannels[j] <= endChannels[i])))) {
-                    var iRow = $('#pixelOutputs table tbody').find('tr').eq(i);
-                    var jRow = $('#pixelOutputs table tbody').find('tr').eq(j);
-                    var iTitle = iRow.find('.vsStartChannel').attr('title');
-                    var jTitle = jRow.find('.vsStartChannel').attr('title');
 
-                    if (iTitle != '')
-                        iTitle += '<br>';
-                    if (jTitle != '')
-                        jTitle += '<br>';
+                    var iTitle = scTitles[i];
+                    var jTitle = scTitles[j];
 
-                    var iLabel = iRow.find('.vsPortLabel').html().replace(')', '');
-                    var jLabel = jRow.find('.vsPortLabel').html().replace(')', '');
+                    if (scTitles[i] != '')
+                        scTitles[i] += '<br>';
+                    if (scTitles[j] != '')
+                        scTitles[j] += '<br>';
+
+                    var iLabel = labels[i];
+                    var jLabel = labels[j];
                     var newTitle = '';
                     if (iLabel != jLabel)
                         newTitle = 'Channels for outputs ' + iLabel + ' and ' + jLabel + ' overlap.';
                     else
                         newTitle = 'Channels for Virtual Strings on output ' + iLabel + ' overlap.';
 
-                    iTitle += newTitle;
-                    jTitle += newTitle;
-
-                    iRow.find('.vsStartChannel').addClass('inputWarning');
-                    iRow.find('.vsStartChannel').attr('title', iTitle);
-                    jRow.find('.vsStartChannel').addClass('inputWarning');
-                    jRow.find('.vsStartChannel').attr('title', jTitle);
+                    scTitles[i] += newTitle;
+                    scTitles[j] += newTitle;
+                    scNodes[i].addClass('inputWarning');
+                    scNodes[j].addClass('inputWarning');
                 }
             }
+        }
+    }
+
+    for (r = 0; r < rowCount; r++) {
+        if (startChannels[r] && endChannels[r]) {
+            pcNodes[r].attr('title', pcTitles[r]);
+            scNodes[r].attr('title', scTitles[r]);
         }
     }
 
@@ -2210,7 +2229,6 @@ if (!$models_json || $models_json == "") {
     $models_json = "{}";
 }
 
-
 ?>
 const xlmodels = <?echo $models_json; ?>;
 const xlmodels_err = "<?echo $models_err; ?>";
@@ -2366,7 +2384,7 @@ $(document).ready(function(){
 <?
 if ((isset($settings['cape-info'])) &&
     ((in_array('all', $settings['cape-info']["provides"])) ||
-     (in_array('strings', $settings['cape-info']["provides"])))) {
+        (in_array('strings', $settings['cape-info']["provides"])))) {
     ?>
     if (currentCapeName != "" && currentCapeName != "Unknown") {
         $('.capeNamePixels').html(currentCapeName);
@@ -2395,10 +2413,12 @@ if ((isset($settings['cape-info'])) &&
 
 <?
 if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name']) || file_exists($mediaDirectory . '/config/cape-eeprom.bin')) {
-    if (file_exists($mediaDirectory . '/config/cape-eeprom.bin'))
+    if (file_exists($mediaDirectory . '/config/cape-eeprom.bin')) {
         echo "<input type='button' class='buttons' onClick='showVirtualEEPROMSelect();' value='Change Virtual EEPROM'>\n";
-    else
+    } else {
         echo "<input type='button' class='buttons' onClick='showVirtualEEPROMSelect();' value='Install Virtual EEPROM'>\n";
+    }
+
 }
 
 if (isset($settings['cape-info'])) {
@@ -2438,33 +2458,38 @@ foreach ($files as $file) {
         if ($virtName != '') {
             $edata = file_get_contents($virtualEEPROMDir . '/' . $file);
             $tmpName = unpack('a26', substr($edata, 6, 26));
-            if ($virtName == $tmpName)
+            if ($virtName == $tmpName) {
                 $selected = 'selected';
-            else
+            } else {
                 $selected = '';
+            }
+
         } else {
             $selected = ($base == 'PiHat') ? 'selected' : '';
         }
-        printf( "<option value='$virtualEEPROMDir/$file' %s>$base</option>\n", $selected);
+        printf("<option value='$virtualEEPROMDir/$file' %s>$base</option>\n", $selected);
     }
 }
 ?>
                         </select>
                         &nbsp;
-<? if (file_exists('/home/fpp/media/config/cape-eeprom.bin')) { ?>
+<?if (file_exists('/home/fpp/media/config/cape-eeprom.bin')) {?>
                         <input type='button' class='buttons' value='Remove Existing' onClick='RemoveVirtualEEPROM();'>
-<? } ?>
+<?}?>
                         <input type='button' class='buttons' value='Cancel' onClick='cancelVirtualEEPROMSelect();'>
                         <input type='button' class='buttons btn-success' value='Install' onClick='InstallFirmware();'>
-<? if (file_exists('/home/fpp/media/config/cape-eeprom.bin')) { ?>
+<?if (file_exists('/home/fpp/media/config/cape-eeprom.bin')) {?>
                         <br><br><h3>Warning, changing or removing the virtual EEPROM will clear any current string configuration information and may trigger a reboot.</h3>
-<? } ?>
+<?}?>
                     </div>
                 </div>
             </div>
         </div>
         <div class="backdrop tableOptionsForm capeTypeRow"
-<? if (!isset($settings['cape-info'])) echo " style='display: none;'"; ?>
+<?if (!isset($settings['cape-info'])) {
+    echo " style='display: none;'";
+}
+?>
         >
             <div class="row">
                 <div class="col-md-auto">
@@ -2507,7 +2532,10 @@ style="display: none;"
                 </div>
             </div>
         </div>
-            <div id='divPixelStringData' class='capeTypeRow' <? if (!isset($settings['cape-info'])) echo " style='display: none;'"; ?>>
+            <div id='divPixelStringData' class='capeTypeRow' <?if (!isset($settings['cape-info'])) {
+    echo " style='display: none;'";
+}
+?>>
                 <div>
                     <span id="pixel-string-details" class="text-muted text-left d-block" style="float: left;"></span>
                     <small class="text-muted text-right pt-2 d-block">
