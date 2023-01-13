@@ -1636,7 +1636,6 @@ function populatePixelStringOutputs(data) {
                     $('.vsPortLabel').tooltip({
                         content: function() {
                             var tip = selected_string_details($(this).parent());
-                            console.log(tip);
                             return tip;
                         },
                         hide: { delay: 100 }
