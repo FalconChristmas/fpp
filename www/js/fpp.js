@@ -4126,14 +4126,18 @@ function RestartFPPD() {
     if ((settings['restartFlag'] == 2) || (settings['restartFlag'] == 0))
         args = "?quick=1";
 
+
+    clearTimeout(statusTimeout);
     $('html,body').css('cursor', 'wait');
     $.get("api/system/fppd/restart" + args
     ).done(function () {
         $('html,body').css('cursor', 'auto');
         $.jGrowl('FPPD Restarted', { themeState: 'success' });
         ClearRestartFlag();
+        LoadSystemStatus();
     }).fail(function () {
         $('html,body').css('cursor', 'auto');
+        LoadSystemStatus();
 
         //If fail, the FPP may have rebooted (eg.FPPD triggering a reboot due to disabling soundcard or activating Pi Pixel output
         //start polling and see if we can wait for the FPP to come back up
