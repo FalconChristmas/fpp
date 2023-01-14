@@ -236,17 +236,15 @@ function GetPixelStringTiming() {
     return $('#PixelStringPixelTiming').val();
 }
 
-function TogglePixelTestPattern() {
-    var val = $("#PixelTestPatternButton").val();
-    if (val == "Test Pattern") {
-        $("#PixelTestPatternButton").val("Stop Pattern");
-        var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["1000","Output Specific","--ALL--","1"]}';
+function SetPixelTestPattern() {
+    var val = $("#PixelTestPatternType").val();
+    if (val != "0") {
+        var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["1000","Output Specific","--ALL--","' + val + '"]}';
         $.post("api/command", data
 	    ).done(function(data) {
 	    }).fail(function() {
 	    });
     } else {
-        $("#PixelTestPatternButton").val("Test Pattern");
         var data = '{"command":"Test Stop","multisyncCommand":false,"multisyncHosts":"","args":[]}';
         $.post("api/command", data
 	    ).done(function(data) {
@@ -2421,9 +2419,7 @@ if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name']) || 
 }
 
 if (isset($settings['cape-info'])) {
-    if ($settings['Platform'] == "BeagleBone Black") {
-        echo "<input type='button' id='PixelTestPatternButton' class='buttons m1-1' onClick='TogglePixelTestPattern();' value='Test Pattern'>\n";
-    }
+
     echo "<input type='button' class='buttons' onClick='loadPixelStringOutputs();' value='Revert'>\n";
     echo "<input type='button' class='buttons' onClick='cloneSelectedString();' value='Clone String'>\n";
     if (file_exists($mediaDirectory . "/upload/xlights_rgbeffects.xml")) {
@@ -2517,7 +2513,7 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                         </select>
                     </div>
                 </div>
-                <div class="col-md-auto form-inline" id="BBPixelTiming"
+                <div class="col-md-auto form-inline mr-auto" id="BBPixelTiming"
 <?if ($settings['Platform'] != "BeagleBone Black") {?>
 style="display: none;"
 <?}?>
@@ -2529,6 +2525,18 @@ style="display: none;"
                         </select>
                     </div>
                 </div>
+
+                <?if ($settings['Platform'] == "BeagleBone Black") {?>
+                <div class="col-md-auto form-inline" id="PixelTestPatternDiv">
+                   <div><b>Testing:</b></div>
+                    <select id='PixelTestPatternType' onchange='SetPixelTestPattern();'>
+                    <option value='0'>Off</option>
+                    <option value='1'>Port Number</option>
+                    <option value='2'>Pixel Count by Port</option>
+                    <option value='3'>Pixel Count by String</option>
+                    </select>
+                </div>
+                <?}?>
             </div>
         </div>
             <div id='divPixelStringData' class='capeTypeRow' <?if (!isset($settings['cape-info'])) {

@@ -22,6 +22,7 @@
 // FPP includes
 #include "BBB48String.h"
 #include "../CapeUtils/CapeUtils.h"
+#include "channeloutput/stringtesters/PixelStringTester.h"
 #include "util/BBBUtils.h"
 
 #include "Plugin.h"
@@ -561,7 +562,7 @@ void BBB48StringOutput::OverlayTestData(unsigned char* channelData, int cycleNum
     m_testType = testType;
 
     // We won't overlay the data here because we could have multiple strings
-    // pointing at the same channel range so a per-port test cannot 
+    // pointing at the same channel range so a per-port test cannot
     // be done via channel ranges.  We'll record the test information and use
     // that in prepData
 }
@@ -573,51 +574,36 @@ void BBB48StringOutput::prepData(FrameData& d, unsigned char* channelData) {
 
     PixelString* ps = NULL;
     uint8_t* c = NULL;
-    int inCh;
-
-    unsigned char clr[3];
-    if (m_testCycle >= 0) {
-        switch (m_testCycle % 3) {
-        case 0:
-            clr[0] = clr[2] = 0;
-            clr[1] = 255;
-            break;
-        case 1:
-            clr[2] = clr[1] = 0;
-            clr[0] = 255;
-            break;
-        default:
-            clr[0] = clr[1] = 0;
-            clr[2] = 255;
-            break;
-        }
-    }
 
     int numStrings = d.gpioStringMap.size();
     for (int s = 0; s < numStrings; s++) {
         int idx = d.gpioStringMap[s];
         if (idx >= 0) {
             ps = m_strings[idx];
-            int maxOut = ps->m_outputChannels;
-            if (m_testCycle >= 0) {
-                maxOut = (idx + 1) * 3;
-            }
             c = out + s;
-            inCh = 0;
 
-            for (int p = 0; p < ps->m_outputChannels; p++) {
-                int cn = ps->m_outputMap[inCh++];
-                uint8_t* brightness = ps->m_brightnessMaps[p];
-
-                if (m_testCycle < 0 || cn >= FPPD_MAX_CHANNELS) {
-                    *c = brightness[channelData[cn]];
-                } else if (maxOut) {
-                    *c = brightness[255];
-                    --maxOut;
-                } else {
-                    *c = brightness[clr[cn % 3]];
+            bool output = true;
+            if (m_testType && m_testCycle >= 0) {
+                PixelStringTester* tester = PixelStringTester::getPixelStringTester(m_testType);
+                if (tester) {
+                    uint8_t* d = PixelStringTester::getPixelStringTester(m_testType)->createTestData(ps, m_testCycle, channelData);
+                    uint8_t* d2 = d;
+                    for (int p = 0; p < ps->m_outputChannels; p++) {
+                        *c = *d2;
+                        c += numStrings;
+                        ++d2;
+                    }
+                    delete[] d;
+                    output = false;
                 }
-                c += numStrings;
+            }
+            if (output) {
+                for (int p = 0; p < ps->m_outputChannels; p++) {
+                    int cn = ps->m_outputMap[p];
+                    uint8_t* brightness = ps->m_brightnessMaps[p];
+                    *c = brightness[channelData[cn]];
+                    c += numStrings;
+                }
             }
         }
     }

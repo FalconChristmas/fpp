@@ -13,8 +13,8 @@
 
 #include "fpp-pch.h"
 
-#include <arm_neon.h>
 #include <sys/wait.h>
+#include <arm_neon.h>
 #include <tuple>
 
 #include <chrono>
@@ -22,8 +22,8 @@
 // FPP includes
 #include "BBShiftString.h"
 #include "../CapeUtils/CapeUtils.h"
+#include "channeloutput/stringtesters/PixelStringTester.h"
 #include "util/BBBUtils.h"
-
 
 #include "Plugin.h"
 class BBShiftStringPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
@@ -42,9 +42,8 @@ FPPPlugins::Plugin* createPlugin() {
 }
 }
 
- 
-BBShiftStringOutput::BBShiftStringOutput(unsigned int startChannel, unsigned int channelCount)
-    : ChannelOutput(startChannel, channelCount) {
+BBShiftStringOutput::BBShiftStringOutput(unsigned int startChannel, unsigned int channelCount) :
+    ChannelOutput(startChannel, channelCount) {
     LogDebug(VB_CHANNELOUT, "BBShiftStringOutput::BBShiftStringOutput(%u, %u)\n",
              startChannel, channelCount);
 }
@@ -61,7 +60,7 @@ BBShiftStringOutput::~BBShiftStringOutput() {
         delete m_pru1.pru;
 }
 
-static void compilePRUCode(const char* program, const std::string &pru, const std::vector<std::string>& sargs, const std::vector<std::string>& args1) {
+static void compilePRUCode(const char* program, const std::string& pru, const std::vector<std::string>& sargs, const std::vector<std::string>& args1) {
     std::string log;
 
     char* args[sargs.size() + 4 + args1.size()];
@@ -90,18 +89,16 @@ static void compilePRUCode(const char* program, const std::string &pru, const st
     }
 }
 
-
 void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& pfx) {
-
     union {
         uint32_t r = 0;
-        uint8_t  b[4];
+        uint8_t b[4];
     } r45[2];
 
     std::map<int, std::vector<std::tuple<int, int, GPIOCommand>>> sizes;
     int bmask = 0x1;
     for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
-        for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {            
+        for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
             int pc = d.stringMap[y][x];
             if (pc >= 0) {
                 for (auto& a : m_strings[pc]->m_gpioCommands) {
@@ -111,8 +108,8 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
                 int idx = x / 4;
                 r45[idx].b[breg] |= bmask;
             }
-        }    
-        bmask <<= 1;            
+        }
+        bmask <<= 1;
     }
     d.pruData->commandTable[0] = r45[0].r;
     d.pruData->commandTable[1] = r45[1].r;
@@ -123,7 +120,7 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
         if (min != d.maxStringLen) {
             d.pruData->commandTable[curCommandTable++] = min;
             for (auto& t : i->second) {
-                auto [ y, x, cmd ] = t;
+                auto [y, x, cmd] = t;
 
                 int reg = (x / 4);
                 int breg = x % 4;
@@ -142,7 +139,6 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
         i++;
     }
 }
-
 
 /*
  *
@@ -215,7 +211,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
             int pru = root["outputs"][x]["pru"].asInt();
             int pin = root["outputs"][x]["pin"].asInt();
             int pinIdx = root["outputs"][x]["index"].asInt();
-            
+
             //printf("pru: %d  pin: %d  idx: %d\n", pru, pin, pinIdx);
             if (x >= m_licensedOutputs && m_strings[x]->m_outputChannels > 0) {
                 // apply limit
@@ -255,7 +251,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
     }
 
     // give each area two chunks (frame flipping) of DDR memory
-    uint8_t *start =  m_pru0.pru ?  m_pru0.pru->ddr :  m_pru1.pru->ddr;
+    uint8_t* start = m_pru0.pru ? m_pru0.pru->ddr : m_pru1.pru->ddr;
     m_pru0.frameSize = NUM_STRINGS_PER_PIN * MAX_PINS_PER_PRU * m_pru0.maxStringLen;
     m_pru0.curData = start;
     // leave a full memory page between to avoid conflicts
@@ -264,7 +260,6 @@ int BBShiftStringOutput::Init(Json::Value config) {
 
     m_pru0.channelData = (uint8_t*)calloc(1, m_pru0.frameSize);
     m_pru0.formattedData = (uint8_t*)calloc(1, m_pru0.frameSize);
-
 
     m_pru1.frameSize = NUM_STRINGS_PER_PIN * MAX_PINS_PER_PRU * m_pru1.maxStringLen;
     m_pru1.curData = m_pru0.lastData + offset;
@@ -299,7 +294,7 @@ int BBShiftStringOutput::StartPRU() {
         m_pru1.pruData->command = 0;
         m_pru1.pruData->address_dma = m_pru1.pru->ddr_addr;
         createOutputLengths(m_pru1, "pru1");
-        
+
         m_pru1.pru->run("/tmp/BBShiftString_pru1.out");
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -343,7 +338,7 @@ void BBShiftStringOutput::StopPRU(bool wait) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             cnt++;
             __asm__ __volatile__("" ::
-                                    : "memory");
+                                     : "memory");
         }
         m_pru1.pru->stop();
         delete m_pru1.pru;
@@ -377,11 +372,11 @@ void BBShiftStringOutput::GetRequiredChannelRanges(const std::function<void(int,
     for (int s = 0; s < m_strings.size(); s++) {
         ps = m_strings[s];
 
-        for (auto &vs : ps->m_virtualStrings) {
+        for (auto& vs : ps->m_virtualStrings) {
             int min = FPPD_MAX_CHANNELS;
             int max = -1;
 
-            int *map = vs.chMap;
+            int* map = vs.chMap;
             for (int c = 0; c < vs.chMapCount; c++) {
                 int ch = map[c];
                 if (ch < FPPD_MAX_CHANNELS) {
@@ -390,7 +385,7 @@ void BBShiftStringOutput::GetRequiredChannelRanges(const std::function<void(int,
                 }
             }
             if (min < max) {
-               addRange(min, max);
+                addRange(min, max);
             }
         }
     }
@@ -400,7 +395,7 @@ void BBShiftStringOutput::OverlayTestData(unsigned char* channelData, int cycleN
     m_testType = testType;
 
     // We won't overlay the data here because we could have multiple strings
-    // pointing at the same channel range so a per-port test cannot 
+    // pointing at the same channel range so a per-port test cannot
     // be done via channel ranges.  We'll record the test information and use
     // that in prepData
 }
@@ -417,50 +412,35 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
     uint8_t* frame = NULL;
     uint8_t value;
 
-    unsigned char clr[3];
-    if (m_testCycle >= 0) {
-        switch (m_testCycle % 3) {
-        case 0:
-            clr[0] = clr[2] = 0;
-            clr[1] = 255;
-            break;
-        case 1:
-            clr[2] = clr[1] = 0;
-            clr[0] = 255;
-            break;
-        default:
-            clr[0] = clr[1] = 0;
-            clr[2] = 255;
-            break;
-        }
-    }
-    for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {        
+    for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
         uint8_t pinMask = 1 << y;
         for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
-            int idx = d.stringMap[y][x] ;
+            int idx = d.stringMap[y][x];
             frame = out + x + (y * NUM_STRINGS_PER_PIN);
             if (idx != -1) {
                 ps = m_strings[idx];
-                int maxOut = ps->m_outputChannels;
-                if (m_testCycle >= 0) {
-                    maxOut = (idx + 1) * 3;
+                bool output = true;
+                if (m_testType && m_testCycle >= 0) {
+                    PixelStringTester* tester = PixelStringTester::getPixelStringTester(m_testType);
+                    if (tester) {
+                        uint8_t* d = PixelStringTester::getPixelStringTester(m_testType)->createTestData(ps, m_testCycle, channelData);
+                        uint8_t* d2 = d;
+                        int maxOut = ps->m_outputChannels;
+                        for (int p = 0; p < maxOut; p++) {
+                            *frame = *d2;
+                            frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+                            ++d2;
+                        }
+                        delete[] d;
+                        output = false;
+                    }
                 }
-                for (auto &vs : ps->m_virtualStrings) {
-                    int *map = vs.chMap;
-                    uint8_t *brightness = vs.brightnessMap;
-                    if (m_testCycle < 0 || vs.receiverNum >= 0) {
+                if (output) {
+                    for (auto& vs : ps->m_virtualStrings) {
+                        int* map = vs.chMap;
+                        uint8_t* brightness = vs.brightnessMap;
                         for (int ch = 0; ch < vs.chMapCount; ch++) {
                             *frame = brightness[channelData[map[ch]]];
-                            frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
-                        }
-                    } else {
-                        for (int ch = 0; ch < vs.chMapCount; ch++) {
-                            if (maxOut) {
-                                *frame = brightness[255];
-                                --maxOut;
-                            } else {
-                                *frame = brightness[clr[ch % 3]];
-                            }
                             frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
                         }
                     }
@@ -491,7 +471,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
     // NEON version of above.   On 64bit arm, the above will likely work
     // just as well.  On 32bit, the 64bit shifts above take 3 instructions
     // so if we use NEON, we can leverage the 64bit NEON registers
-    uint8_t *iframe = d.formattedData;
+    uint8_t* iframe = d.formattedData;
     uint8x8_t buf[8];
     for (int p = 0; p < d.maxStringLen; p++) {
         buf[0] = vld1_u8(&out[0]);
@@ -502,15 +482,15 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
         buf[5] = vld1_u8(&out[40]);
         buf[6] = vld1_u8(&out[48]);
         buf[7] = vld1_u8(&out[56]);
-                    
+
         uint8x8_t tmp = vsli_n_u8(buf[0], buf[1], 1);
         tmp = vsli_n_u8(tmp, buf[2], 2);
         tmp = vsli_n_u8(tmp, buf[3], 3);
         tmp = vsli_n_u8(tmp, buf[4], 4);
         tmp = vsli_n_u8(tmp, buf[5], 5);
         tmp = vsli_n_u8(tmp, buf[6], 6);
-        vst1_u8(&iframe[7*8], vsli_n_u8(tmp, buf[7], 7));
-                                        
+        vst1_u8(&iframe[7 * 8], vsli_n_u8(tmp, buf[7], 7));
+
         tmp = vshr_n_u8(buf[0], 1);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[1], 1), 1);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[2], 1), 2);
@@ -518,8 +498,8 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[4], 1), 4);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[5], 1), 5);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[6], 1), 6);
-        vst1_u8(&iframe[6*8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 1), 7));
-                    
+        vst1_u8(&iframe[6 * 8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 1), 7));
+
         tmp = vshr_n_u8(buf[0], 2);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[1], 2), 1);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[2], 2), 2);
@@ -527,7 +507,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[4], 2), 4);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[5], 2), 5);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[6], 2), 6);
-        vst1_u8(&iframe[5*8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 2), 7));
+        vst1_u8(&iframe[5 * 8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 2), 7));
 
         tmp = vshr_n_u8(buf[0], 3);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[1], 3), 1);
@@ -536,7 +516,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[4], 3), 4);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[5], 3), 5);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[6], 3), 6);
-        vst1_u8(&iframe[4*8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 3), 7));
+        vst1_u8(&iframe[4 * 8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 3), 7));
 
         tmp = vshr_n_u8(buf[0], 4);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[1], 4), 1);
@@ -545,7 +525,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[4], 4), 4);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[5], 4), 5);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[6], 4), 6);
-        vst1_u8(&iframe[3*8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 4), 7));
+        vst1_u8(&iframe[3 * 8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 4), 7));
 
         tmp = vshr_n_u8(buf[0], 5);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[1], 5), 1);
@@ -554,7 +534,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[4], 5), 4);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[5], 5), 5);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[6], 5), 6);
-        vst1_u8(&iframe[2*8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 5), 7));
+        vst1_u8(&iframe[2 * 8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 5), 7));
 
         tmp = vshr_n_u8(buf[0], 6);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[1], 6), 1);
@@ -563,7 +543,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[4], 6), 4);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[5], 6), 5);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[6], 6), 6);
-        vst1_u8(&iframe[1*8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 6), 7));
+        vst1_u8(&iframe[1 * 8], vsli_n_u8(tmp, vshr_n_u8(buf[7], 6), 7));
 
         tmp = vshr_n_u8(buf[0], 7);
         tmp = vsli_n_u8(tmp, vshr_n_u8(buf[1], 7), 1);
@@ -578,7 +558,6 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
         out += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
     }
     memcpy(d.curData, d.formattedData, d.frameSize);
-
 }
 
 void BBShiftStringOutput::PrepData(unsigned char* channelData) {
