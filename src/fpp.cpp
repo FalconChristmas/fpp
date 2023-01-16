@@ -67,13 +67,18 @@ static std::string GetConnectorType(uint32_t i) {
     return "unknown";
 }
 #endif
-void GetFrameBufferDevices(Json::Value &v) {
+void GetFrameBufferDevices(Json::Value &v, bool debug) {
     std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/";
     for (int x = 0; x < 10; x++) {
         std::string fb = "fb";
         fb += std::to_string(x);
         if (FileExists(devString + fb)) {
-            v.append(fb);
+            if (debug) {
+                Json::Value v2(Json::objectValue);
+                v[fb] = v2;
+            } else {
+                v.append(fb);
+            }
         }
     }
 #ifdef HAS_DRM
@@ -83,11 +88,28 @@ void GetFrameBufferDevices(Json::Value &v) {
         if (FileExists(dev)) {
             int fd = open(dev.c_str(), O_RDWR);
 
-            auto res = drmModeGetResources(fd);
+            drmModeResPtr res = drmModeGetResources(fd);
             if (res == nullptr) {
                 close(fd);
                 continue;
             }
+
+            std::set<std::string> formats;
+            drmModePlaneResPtr planeRes = drmModeGetPlaneResources(fd);
+            for (int i = 0; i < planeRes->count_planes; i++) {
+                drmModePlanePtr plane = drmModeGetPlane(fd, planeRes->planes[i]);
+                //printf("plane %d: %X  (crtc %X)\n", i, plane->plane_id, plane->crtc_id);
+                //printf("  %dx%d   %dx%d\n", plane->crtc_x, plane->crtc_y, plane->x, plane->y);
+                for (int f = 0; f < plane->count_formats; f++) {
+                    uint32_t buf[2] = {0, 0};
+                    buf[0] = plane->formats[f];
+                    std::string s = std::string((const char *)buf);
+                    formats.emplace(s);
+                    //printf("    Format %s\n", buf);
+                }
+                drmModeFreePlane(plane);
+            }
+            drmModeFreePlaneResources(planeRes);
             drmModeConnectorPtr connector = 0;
             for (int i = 0; i < res->count_connectors; i++) {
                 char name[32];
@@ -98,7 +120,22 @@ void GetFrameBufferDevices(Json::Value &v) {
                 }
                 if (connector->count_modes) {
                     std::string fb = GetConnectorType(connector->connector_type) + "-" + std::to_string(connector->connector_type_id);
-                    v.append(fb);
+                    if (debug) {
+                        Json::Value vm;
+                        for (int i = 0; i < connector->count_modes; i++) {
+                            auto resolution = &connector->modes[i];
+                            std::string s = std::to_string(resolution->hdisplay) + "x" + std::to_string(resolution->vdisplay) + " " 
+                                + std::to_string(resolution->vrefresh) + "hz" + ((resolution->type & DRM_MODE_TYPE_PREFERRED) ? " (preferred)" : "");
+                            vm["modes"].append(s);
+                        }
+                        for (auto &a : formats) {
+                            vm["formats"].append(a);
+                        }
+                        v[fb] = vm;
+                    } else {
+                        v.append(fb);
+                    }
+
                 }
 
                 drmModeFreeConnector(connector);
@@ -274,9 +311,18 @@ int main (int argc, char *argv[])
         urlPost("http://localhost/api/command", js, resp);
         printf("Result: %s\n", resp.c_str());
         return 0;
+    } else if((strncmp(argv[1],"-FBdebug",8) == 0)) {
+        Json::Value val;
+        GetFrameBufferDevices(val, true);
+        if (val.size() == 0) {
+            printf("[]");
+        } else {
+            std::string js = SaveJsonToString(val);
+            printf("%s", js.c_str());
+        }
     } else if((strncmp(argv[1],"-FB",3) == 0)) {
         Json::Value val;
-        GetFrameBufferDevices(val);
+        GetFrameBufferDevices(val, false);
         if (val.size() == 0) {
             printf("[]");
         } else {

@@ -209,7 +209,7 @@ include 'menu.inc';
 <h1 class="title statusTitle">Status <span class="statusHostname"><?=$settings["HostName"]?></span></h1>
 
 <?php
-if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) :
+if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 8000000) :
 ?>
 <div id='spaceFlag' class="alert alert-danger" role="alert">
      SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the

@@ -57,19 +57,6 @@ function RestartNTPD()
     exec("sudo service ntp restart");
 }
 
-// Although the setting is removed, this is still used by
-// scripts/handle_boot_actions
-function SetNTP($value)
-{
-    if ($value == "1") {
-        exec("sudo systemctl enable ntp");
-        exec("sudo systemctl start ntp");
-    } else if ($value == "0") {
-        exec("sudo systemctl stop ntp");
-        exec("sudo systemctl disable ntp");
-    }
-}
-
 function SetNTPServer($value)
 {
     if ($value != '') {
@@ -274,8 +261,6 @@ function ApplySetting($setting, $value)
             break;
         case 'ClockTime':SetTime($value);
             break;
-        case 'ntp':SetNTP($value);
-            break; // Still used by handle_boot_actions
         case 'ntpServer':SetNTPServer($value);
             break;
         case 'passwordEnable':EnableUIPassword($value);

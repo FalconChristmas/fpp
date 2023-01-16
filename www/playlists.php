@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html>
 <?php
-require_once('config.php');
-require_once('common.php');
+require_once 'config.php';
+require_once 'common.php';
 
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 
 ?>
 <head>
-<?php include 'common/menuHead.inc'; ?>
+<?php include 'common/menuHead.inc';?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 <?
 if (isset($_GET['playlist'])) {
-?>
+    ?>
 <script>
-    var initialPlaylist = "<? echo htmlspecialchars($_GET['playlist']); ?>";
+    var initialPlaylist = "<?echo htmlspecialchars($_GET['playlist']); ?>";
 </script>
 <?
 }
@@ -24,7 +24,7 @@ if (isset($_GET['playlist'])) {
 <script>
     function LoadInitialPlaylist() {
         $('#playlistSelect').val(initialPlaylist).trigger('change');
-        
+
     }
     function handleDeleteButtonClick(name = ""){
             if (name == "") {
@@ -62,7 +62,7 @@ if (isset($_GET['playlist'])) {
                 $playlistCol.append($playlistCard);
                 $playlistCard.append($playlistCardHeading);
                 $playlistCard.append($playlistActions);
-  
+
                 $('.playlistSelectBody').append($playlistCol)
             })
 
@@ -73,6 +73,8 @@ if (isset($_GET['playlist'])) {
         })
 
         $('.playlistAddNewBtn').click(function(){
+
+            $('#txtAddPlaylistName').val(""); // BUG #1391
 
             $('.playlistAdd').fppDialog({
                 title:'Add a New Playlist',
@@ -145,7 +147,7 @@ if (isset($_GET['playlist'])) {
                 footer: playlistEntriesAddNewFooter
             });
         });
-        
+
         $('.savePlaylistBtn').click(function(){
             SavePlaylist($('#txtPlaylistName').val())
         })
@@ -160,7 +162,7 @@ if (isset($_GET['playlist'])) {
             LoadInitialPlaylist();
         }else{
             $('#playlistSelect').prepend('<option value="" disabled selected>Select a Playlist</option>');
-        } 
+        }
 
     })
 </script>
@@ -172,7 +174,7 @@ if (isset($_GET['playlist'])) {
 <div id="bodyWrapper">
 <?php
 $activeParentMenuItem = 'content';
-include 'menu.inc'; ?>
+include 'menu.inc';?>
   <div class="mainContainer">
         <h1 class="title">Playlists</h1>
         <div class='pageContent'>
@@ -196,13 +198,13 @@ include 'menu.inc'; ?>
                             </div>
 
                     </div>
-                 
+
                     <div class="playlistSelectBody row">
                         <div class="col-md-4 skeleton-loader"><div class="sk-block sk-card"></div></div>
                         <div class="col-md-4 skeleton-loader"><div class="sk-block sk-card"></div></div>
                         <div class="col-md-4 skeleton-loader"><div class="sk-block sk-card"></div></div>
                         <div class="col-md-4 skeleton-loader"><div class="sk-block sk-card"></div></div>
-                        
+
                     </div>
 
 
@@ -213,7 +215,7 @@ include 'menu.inc'; ?>
                 <div class="playlistCreateContainer hidden">
                     <b>Enter new playlist name</b><br/>
                     <input id="txtNewPlaylistName" class="default-value form-control" type="text" value="Enter Playlist Name" size="40" maxlength="64" onChange='CreateNewPlaylist();'/>
-               
+
                 </div>
                 <div class='clear'></div>
 
@@ -242,7 +244,7 @@ include 'menu.inc'; ?>
                                     Playlist Actions
                                 </button>
                                 <div class="dropdown-menu playlistEditMoreButtonMenu" aria-labelledby="playlistEditMoreButton">
-                                    
+
                                     <a href="#" value="Copy" onclick="CopyPlaylist();"  class="dropdown-item">Copy Playlist</a>
                                     <a href="#" value="Rename" onclick="RenamePlaylist();"  class="dropdown-item ">Rename Playlist</a>
                                     <a href="#" value="Randomize" onclick="RandomizePlaylistEntries();"  class="dropdown-item ">Randomize Playlist</a>
@@ -257,7 +259,7 @@ include 'menu.inc'; ?>
 
                     </div>
                     <div class="playlistEditorPanel backdrop">
-                        <? include_once('playlistEditor.php'); ?>
+                        <?include_once 'playlistEditor.php';?>
                     </div>
                 </div>
 
@@ -300,13 +302,13 @@ include 'menu.inc'; ?>
                     </select>
                 </div>
                 <div>
-                    <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
+                    <?PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled');?>
                 </div>
             </div>
 
         </div>
     </div>
-<?php include 'common/footer.inc'; ?>
+<?php include 'common/footer.inc';?>
 </div>
 </body>
 </html>

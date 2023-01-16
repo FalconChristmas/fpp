@@ -10,7 +10,6 @@ require_once('/opt/fpp/www/common/settings.php');
 
 function HandleSettings() {
     global $settings;
-    ApplySetting("ntp", "1"); // Always enabled now
     if (array_key_exists("TimeZone", $settings)) ApplySetting("TimeZone", $settings["TimeZone"]);
     if (array_key_exists("ntpServer", $settings)) ApplySetting("ntpServer", $settings["ntpServer"]);
     if (array_key_exists("ForceHDMI", $settings)) ApplySetting("ForceHDMI", $settings["ForceHDMI"]);

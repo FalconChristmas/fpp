@@ -74,6 +74,8 @@ void CloseOpenFiles(void);
 std::string secondsToTime(int i);
 
 std::string GetFileContents(const std::string& filename);
+std::string GetFileExtension(const std::string& filename);
+
 bool PutFileContents(const std::string& filename, const std::string& str);
 void TrimWhiteSpace(std::string& s);
 

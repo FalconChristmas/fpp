@@ -90,6 +90,7 @@ function GitOSReleases()
                         $row["url"] = $file["browser_download_url"];
                         $row["asset_id"] = $file["id"];
                         $row["downloaded"] = in_array($name, $existingFiles);
+                        $row["size"] = $file["size"];
                         array_push($releases, $row);
                     }
                 }
@@ -100,6 +101,45 @@ function GitOSReleases()
     }
 
     return json($rc);
+}
+
+// GET http://fpp/api/git/releases/sizes
+// Returns fppos file sizes
+// Should re-write this to call GetOSReleases() and parse instead of hitting github directly.
+function GitOSReleaseSizes()
+{
+    global $settings;
+
+    $curl = curl_init();
+    curl_setopt($curl, CURLOPT_URL, "https://api.github.com/repos/FalconChristmas/fpp/releases?per_page=100");
+    curl_setopt($curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 6.2; WOW64; rv:17.0) Gecko/20100101 Firefox/17.0");
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 4000);
+    $request_content = curl_exec($curl);
+    curl_close($curl);
+
+    $rc = "";
+  
+    if ($request_content != false) {
+        $data = json_decode($request_content, true);
+        foreach ($data as $r) {
+            if (isset($r["assets"]) && $settings['OSImagePrefix'] != "") {
+                foreach ($r["assets"] as $file) {
+                    $name = $file["name"];
+                    if (endsWith($name, ".fppos") && startsWith($name, $settings['OSImagePrefix'])) {
+			           $rc = $rc . $name . "," . $file["size"] . "\n";
+                    }
+                }
+            }
+        }
+      
+    } else {
+        $rc = "Error: " . curl_error($curl) . "\n";
+    }
+
+    return $rc;
 }
 
 ?>

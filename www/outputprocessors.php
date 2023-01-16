@@ -398,8 +398,8 @@ function RenumberColumns(tableName) {
 }
 function DeleteSelectedProcessor() {
 	if (tableInfo.selected >= 0) {
-		$('#outputProcessors tbody tr:nth-child(' + (tableInfo.selected+1) + ')').remove();
-		tableInfo.selected = -1;
+	    $('#outputProcessors .selectedEntry').remove();
+        tableInfo.selected = -1;
 		SetButtonState("#btnDelete", "disable");
         RenumberColumns("outputProcessors");
 	}
@@ -420,7 +420,25 @@ $(document).ready(function(){
 
 });
 
-$(document).tooltip();
+        $('#outputProcessorsBody').tooltip({
+            content: function() {
+                return $(this).attr('title');
+            }
+        });
+
+        $(function() {
+            $('#outputProcessorsBody').on('mousedown', 'tr', function(event,ui) {
+                HandleTableRowMouseClick(event, $(this));
+
+                console.log(event.target.nodeName);
+
+                if ($('#outputProcessorsBody > tr.selectedEntry').length > 0) {
+                    EnableButtonClass('btnDelete');
+                } else {
+                    DisableButtonClass('btnDelete');
+                }
+            });
+        });
 
 </script>
 

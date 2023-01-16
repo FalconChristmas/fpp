@@ -1150,3 +1150,9 @@ void ShutdownFPPD(bool restart) {
 void RegisterShutdownHandler(const std::function<void(bool)> hook) {
     SHUTDOWN_HOOK = hook;
 }
+
+std::string GetFileExtension(const std::string& filename) {
+    if(filename.find_last_of(".") != std::string::npos)
+       return filename.substr(filename.find_last_of(".")+1);
+    return "";
+}

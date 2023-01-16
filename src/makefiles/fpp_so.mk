@@ -20,6 +20,9 @@ OBJECTS_fpp_so += \
     channeloutput/processors/ColorOrderOutputProcessor.o \
     channeloutput/processors/ThreeToFourOutputProcessor.o \
 	channeloutput/processors/OverrideZeroOutputProcessor.o \
+	channeloutput/stringtesters/PixelCountStringTester.o \
+	channeloutput/stringtesters/PixelStringTester.o \
+	channeloutput/stringtesters/PortNumberStringTester.o \
 	channeltester/ChannelTester.o \
 	channeltester/OutputTester.o \
 	channeltester/TestPatternBase.o \
