@@ -8,6 +8,8 @@
 static constexpr int LED_TYPE_0x20_1602 = 11;
 static constexpr int LED_TYPE_0x3f_1602 = 12;
 static constexpr int LED_TYPE_0x3f_2004 = 13;
+static constexpr int LED_TYPE_0x27_PCF_1602 = 14;
+static constexpr int LED_TYPE_0x27_PCF_2004 = 15;
 
 static constexpr int RS_PIN = 0;
 static constexpr int RW_PIN = 1;
@@ -40,13 +42,13 @@ I2C1602_2004_DisplayDriver::I2C1602_2004_DisplayDriver(int lt) :
 I2C1602_2004_DisplayDriver::~I2C1602_2004_DisplayDriver() {
 }
 int I2C1602_2004_DisplayDriver::getWidth() {
-    if (ledType == LED_TYPE_0x20_1602 || ledType == LED_TYPE_0x3f_1602) {
+    if (ledType == LED_TYPE_0x20_1602 || ledType == LED_TYPE_0x3f_1602 || ledType == LED_TYPE_0x27_PCF_1602) {
         return 16 * 6;
     }
     return 20 * 6;
 }
 int I2C1602_2004_DisplayDriver::getHeight() {
-    if (ledType == LED_TYPE_0x20_1602 || ledType == LED_TYPE_0x3f_1602) {
+    if (ledType == LED_TYPE_0x20_1602 || ledType == LED_TYPE_0x3f_1602 || ledType == LED_TYPE_0x27_PCF_1602) {
         return 16;
     }
     return 32;
@@ -135,6 +137,10 @@ bool I2C1602_2004_DisplayDriver::initialize(int& i2cBus) {
         lineOffsets = lineOffsets0x20;
         blOffset = lineOffset0x20Backlight;
         BACKLIGHTONVALUE = 0;
+    }
+    if (ledType == LED_TYPE_0x27_PCF_1602 || ledType == LED_TYPE_0x27_PCF_2004) {
+        device = 0x27;
+        deviceType = "pcf8574";
     }
     i2cBus = findI2CDeviceBus(device);
     if (i2cBus == -1) {
