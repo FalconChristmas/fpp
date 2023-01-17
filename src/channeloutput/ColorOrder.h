@@ -13,15 +13,36 @@
 
 #include <string>
 
-typedef enum FPPColorOrder {
-    kColorOrderRGB = 0,
-    kColorOrderRBG,
-    kColorOrderGRB,
-    kColorOrderGBR,
-    kColorOrderBRG,
-    kColorOrderBGR,
-    kColorOrderONE
-} FPPColorOrder;
+
+class FPPColorOrder {
+public:
+    enum Value {
+        kColorOrderRGB = 0,
+        kColorOrderRBG,
+        kColorOrderGRB,
+        kColorOrderGBR,
+        kColorOrderBRG,
+        kColorOrderBGR,
+        kColorOrderONE
+    };
+
+    FPPColorOrder() = default;
+    constexpr FPPColorOrder(Value order) : value(order) { }
+
+    constexpr operator Value() const { return value; }
+    explicit operator bool() const = delete;  
+
+    constexpr bool operator==(FPPColorOrder a) const { return value == a.value; }
+    constexpr bool operator==(Value a) const { return value == a; }
+    constexpr bool operator!=(FPPColorOrder a) const { return value != a.value; }
+    constexpr bool operator!=(Value a) const { return value != a; }
+
+    int redOffset();
+    int greenOffset();
+    int blueOffset();
+private:
+    Value value;
+};
 
 FPPColorOrder ColorOrderFromString(const std::string& colorOrderStr);
 const std::string ColorOrderToString(FPPColorOrder colorOrder);

@@ -239,7 +239,7 @@ function GetPixelStringTiming() {
 function SetPixelTestPattern() {
     var val = $("#PixelTestPatternType").val();
     if (val != "0") {
-        var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["1000","Output Specific","--ALL--","' + val + '"]}';
+        var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["2000","Output Specific","--ALL--","' + val + '"]}';
         $.post("api/command", data
 	    ).done(function(data) {
 	    }).fail(function() {
@@ -2534,6 +2534,10 @@ style="display: none;"
                     <option value='1'>Port Number</option>
                     <option value='2'>Pixel Count by Port</option>
                     <option value='3'>Pixel Count by String</option>
+                    <option value='4'>Red Fade</option>
+                    <option value='5'>Green Fade</option>
+                    <option value='6'>Blue Fade</option>
+                    <option value='7'>White Fade</option>
                     </select>
                 </div>
                 <?}?>

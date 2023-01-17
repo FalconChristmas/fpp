@@ -15,6 +15,7 @@
 #include "PixelStringTester.h"
 
 #include "PixelCountStringTester.h"
+#include "PixelFadeStringTester.h"
 #include "PortNumberStringTester.h"
 
 void PixelStringTester::fillInSmartReceiver(PixelString* ps, VirtualString& vs, uint8_t* inChannelData, uint32_t& offset, uint8_t*& outChannelData) const {
@@ -31,7 +32,11 @@ PixelStringTester* PixelStringTester::getPixelStringTester(int i) {
         nullptr, // 0 position is OFF
         &OutputPortNumberPixelStringTester::INSTANCE,
         &PixelCountPixelStringTester::INSTANCE_BYPORT,
-        &PixelCountPixelStringTester::INSTANCE_BYSTRING
+        &PixelCountPixelStringTester::INSTANCE_BYSTRING,
+        &PixelFadeStringTester::INSTANCE_RED,
+        &PixelFadeStringTester::INSTANCE_GREEN,
+        &PixelFadeStringTester::INSTANCE_BLUE,
+        &PixelFadeStringTester::INSTANCE_WHITE
     };
     if (i < TESTERS.size()) {
         return TESTERS[i];

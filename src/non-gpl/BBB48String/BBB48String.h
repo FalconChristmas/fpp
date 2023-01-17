@@ -54,7 +54,7 @@ public:
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, int testType) override;
+    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) override;
     virtual bool SupportsTesting() const { return  true; }
 
 private:
@@ -86,6 +86,7 @@ private:
 
     int m_testCycle = -1;
     int m_testType = 0;
+    float m_testPercent = 0.0f;
 
     void prepData(FrameData& d, unsigned char* channelData);
     void sendData(FrameData& d, uintptr_t* dptr);

@@ -13,9 +13,17 @@
 
 #include "PixelStringTester.h"
 
-class OutputPortNumberPixelStringTester : public PixelStringTester {
+class PixelFadeStringTester : public PixelStringTester {
+protected:
+    PixelFadeStringTester(int tp) :
+        PixelStringTester(), fadeType(tp) {}
+
+    const int fadeType;
 public:
     virtual uint8_t* createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData) const override;
 
-    static OutputPortNumberPixelStringTester INSTANCE;
+    static PixelFadeStringTester INSTANCE_RED;
+    static PixelFadeStringTester INSTANCE_GREEN;
+    static PixelFadeStringTester INSTANCE_BLUE;
+    static PixelFadeStringTester INSTANCE_WHITE;
 };

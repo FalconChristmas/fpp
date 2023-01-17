@@ -49,7 +49,7 @@ VirtualString::VirtualString() :
     pixelCount(0),
     groupCount(0),
     reverse(0),
-    colorOrder(kColorOrderRGB),
+    colorOrder(FPPColorOrder::kColorOrderRGB),
     startNulls(0),
     endNulls(0),
     zigZag(0),
@@ -68,7 +68,7 @@ VirtualString::VirtualString(int r) :
     pixelCount(0),
     groupCount(0),
     reverse(0),
-    colorOrder(kColorOrderRGB),
+    colorOrder(FPPColorOrder::kColorOrderRGB),
     startNulls(0),
     endNulls(0),
     zigZag(0),
@@ -109,7 +109,7 @@ int VirtualString::channelsPerNode() const {
     if (receiverNum >= 0) {
         return 1;
     }
-    if (colorOrder == kColorOrderONE) {
+    if (colorOrder == FPPColorOrder::kColorOrderONE) {
         return 1;
     }
     return whiteOffset == -1 ? 3 : 4;
@@ -423,30 +423,30 @@ void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
             ch = vs.startChannel + (p * vs.channelsPerNode());
         }
 
-        if (vs.colorOrder == kColorOrderONE) {
+        if (vs.colorOrder == FPPColorOrder::kColorOrderONE) {
             m_outputMap[offset++] = ch;
         } else {
-            if (vs.colorOrder == kColorOrderRGB) {
+            if (vs.colorOrder == FPPColorOrder::kColorOrderRGB) {
                 ch1 = ch;
                 ch2 = ch + 1;
                 ch3 = ch + 2;
-            } else if (vs.colorOrder == kColorOrderRBG) {
+            } else if (vs.colorOrder == FPPColorOrder::kColorOrderRBG) {
                 ch1 = ch;
                 ch2 = ch + 2;
                 ch3 = ch + 1;
-            } else if (vs.colorOrder == kColorOrderGRB) {
+            } else if (vs.colorOrder == FPPColorOrder::kColorOrderGRB) {
                 ch1 = ch + 1;
                 ch2 = ch;
                 ch3 = ch + 2;
-            } else if (vs.colorOrder == kColorOrderGBR) {
+            } else if (vs.colorOrder == FPPColorOrder::kColorOrderGBR) {
                 ch1 = ch + 1;
                 ch2 = ch + 2;
                 ch3 = ch;
-            } else if (vs.colorOrder == kColorOrderBRG) {
+            } else if (vs.colorOrder == FPPColorOrder::kColorOrderBRG) {
                 ch1 = ch + 2;
                 ch2 = ch;
                 ch3 = ch + 1;
-            } else if (vs.colorOrder == kColorOrderBGR) {
+            } else if (vs.colorOrder == FPPColorOrder::kColorOrderBGR) {
                 ch1 = ch + 2;
                 ch2 = ch + 1;
                 ch3 = ch;

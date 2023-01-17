@@ -165,27 +165,27 @@ int PanelMatrix::CalculateMaps(void) {
                 mOffset *= 3;
                 pOffset *= 3;
 
-                if (colorOrder == kColorOrderRGB) {
+                if (colorOrder == FPPColorOrder::kColorOrderRGB) {
                     m_panels[panel].pixelMap[pOffset] = mOffset;
                     m_panels[panel].pixelMap[pOffset + 1] = mOffset + 1;
                     m_panels[panel].pixelMap[pOffset + 2] = mOffset + 2;
-                } else if (colorOrder == kColorOrderRBG) {
+                } else if (colorOrder == FPPColorOrder::kColorOrderRBG) {
                     m_panels[panel].pixelMap[pOffset] = mOffset;
                     m_panels[panel].pixelMap[pOffset + 2] = mOffset + 1;
                     m_panels[panel].pixelMap[pOffset + 1] = mOffset + 2;
-                } else if (colorOrder == kColorOrderGRB) {
+                } else if (colorOrder == FPPColorOrder::kColorOrderGRB) {
                     m_panels[panel].pixelMap[pOffset + 1] = mOffset;
                     m_panels[panel].pixelMap[pOffset] = mOffset + 1;
                     m_panels[panel].pixelMap[pOffset + 2] = mOffset + 2;
-                } else if (colorOrder == kColorOrderGBR) {
+                } else if (colorOrder == FPPColorOrder::kColorOrderGBR) {
                     m_panels[panel].pixelMap[pOffset + 2] = mOffset;
                     m_panels[panel].pixelMap[pOffset] = mOffset + 1;
                     m_panels[panel].pixelMap[pOffset + 1] = mOffset + 2;
-                } else if (colorOrder == kColorOrderBRG) {
+                } else if (colorOrder == FPPColorOrder::kColorOrderBRG) {
                     m_panels[panel].pixelMap[pOffset + 1] = mOffset;
                     m_panels[panel].pixelMap[pOffset + 2] = mOffset + 1;
                     m_panels[panel].pixelMap[pOffset] = mOffset + 2;
-                } else if (colorOrder == kColorOrderBGR) {
+                } else if (colorOrder == FPPColorOrder::kColorOrderBGR) {
                     m_panels[panel].pixelMap[pOffset + 2] = mOffset;
                     m_panels[panel].pixelMap[pOffset + 1] = mOffset + 1;
                     m_panels[panel].pixelMap[pOffset] = mOffset + 2;

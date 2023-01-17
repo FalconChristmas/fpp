@@ -93,7 +93,7 @@ LinsnRV9Output::LinsnRV9Output(unsigned int startChannel, unsigned int channelCo
     ChannelOutput(startChannel, channelCount),
     m_width(0),
     m_height(0),
-    m_colorOrder(kColorOrderRGB),
+    m_colorOrder(FPPColorOrder::kColorOrderRGB),
     m_fd(-1),
     m_header(NULL),
     m_data(NULL),
@@ -402,7 +402,7 @@ void LinsnRV9Output::GetRequiredChannelRanges(const std::function<void(int, int)
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
-void LinsnRV9Output::OverlayTestData(unsigned char* channelData, int cycleNum, int testType) {
+void LinsnRV9Output::OverlayTestData(unsigned char* channelData, int cycleNum, float pct, int testType) {
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         for (int i = 0; i < panelsOnOutput; i++) {

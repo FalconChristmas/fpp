@@ -35,10 +35,15 @@ int OutputTester::SetupTest(void) {
 }
 void OutputTester::CycleData(void) {
     cycleCount++;
+    startMS = GetTimeMS();
 }
 int OutputTester::OverlayTestData(char* channelData) {
     if (m_testEnabled) {
-        OverlayOutputTestData(outputTypes, (unsigned char*)channelData, cycleCount, testType);
+        uint64_t now = GetTimeMS();
+        int offset = now - startMS;
+        float pct = offset;
+        pct /= m_cycleMS;
+        OverlayOutputTestData(outputTypes, (unsigned char*)channelData, cycleCount, pct, testType);
     }
     return TestPatternBase::OverlayTestData(channelData);
 }

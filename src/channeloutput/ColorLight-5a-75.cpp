@@ -97,7 +97,7 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
     ChannelOutput(startChannel, channelCount),
     m_width(0),
     m_height(0),
-    m_colorOrder(kColorOrderRGB),
+    m_colorOrder(FPPColorOrder::kColorOrderRGB),
     m_fd(-1),
     m_rowSize(0),
     m_panelWidth(0),
@@ -454,7 +454,7 @@ void ColorLight5a75Output::GetRequiredChannelRanges(const std::function<void(int
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
-void ColorLight5a75Output::OverlayTestData(unsigned char* channelData, int cycleNum, int testType) {
+void ColorLight5a75Output::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         for (int i = 0; i < panelsOnOutput; i++) {

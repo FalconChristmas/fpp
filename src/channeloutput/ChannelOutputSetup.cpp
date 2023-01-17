@@ -369,11 +369,11 @@ void ResetChannelOutputFrameNumber(void) {
     mediaElapsedSeconds = 0.0;
 }
 
-void OverlayOutputTestData(std::set<std::string> types, unsigned char *channelData, int cycleCnt, int testType) {
+void OverlayOutputTestData(std::set<std::string> types, unsigned char *channelData, int cycleCnt, float percentOfCycle, int testType) {
     for (auto& inst : channelOutputs) {
         if (inst.output && inst.output->SupportsTesting()
             && (types.empty() || types.find(inst.output->GetOutputType()) != types.end())) {
-            inst.output->OverlayTestData(channelData, cycleCnt, testType);
+            inst.output->OverlayTestData(channelData, cycleCnt, percentOfCycle, testType);
         }
     }
 }

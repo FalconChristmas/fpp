@@ -390,9 +390,10 @@ void BBShiftStringOutput::GetRequiredChannelRanges(const std::function<void(int,
         }
     }
 }
-void BBShiftStringOutput::OverlayTestData(unsigned char* channelData, int cycleNum, int testType) {
+void BBShiftStringOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
     m_testCycle = cycleNum;
     m_testType = testType;
+    m_testPercent = percentOfCycle;
 
     // We won't overlay the data here because we could have multiple strings
     // pointing at the same channel range so a per-port test cannot
@@ -423,7 +424,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
                 if (m_testType && m_testCycle >= 0) {
                     PixelStringTester* tester = PixelStringTester::getPixelStringTester(m_testType);
                     if (tester) {
-                        uint8_t* d = PixelStringTester::getPixelStringTester(m_testType)->createTestData(ps, m_testCycle, channelData);
+                        uint8_t* d = PixelStringTester::getPixelStringTester(m_testType)->createTestData(ps, m_testCycle, m_testPercent, channelData);
                         uint8_t* d2 = d;
                         int maxOut = ps->m_outputChannels;
                         for (int p = 0; p < maxOut; p++) {

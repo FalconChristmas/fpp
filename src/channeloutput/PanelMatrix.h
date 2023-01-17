@@ -44,7 +44,7 @@ public:
     ~PanelMatrix();
 
     int AddPanel(int output, int chain, char orientation,
-                 int xOffset, int yOffset, FPPColorOrder colorOrder = kColorOrderRGB);
+                 int xOffset, int yOffset, FPPColorOrder colorOrder = FPPColorOrder::kColorOrderRGB);
 
     int ConfigurePanels(std::string layout);
 

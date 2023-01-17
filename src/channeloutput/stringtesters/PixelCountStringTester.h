@@ -21,7 +21,7 @@ protected:
     const bool m_byString;
 
 public:
-    virtual uint8_t* createTestData(PixelString* ps, int cycleCount, uint8_t* inChannelData) const override;
+    virtual uint8_t* createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData) const override;
 
     static PixelCountPixelStringTester INSTANCE_BYSTRING;
     static PixelCountPixelStringTester INSTANCE_BYPORT;

@@ -265,7 +265,7 @@ int RGBMatrixOutput::Close(void) {
     return ChannelOutput::Close();
 }
 
-void RGBMatrixOutput::OverlayTestData(unsigned char* channelData, int cycleNum, int testType) {
+void RGBMatrixOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         for (int i = 0; i < panelsOnOutput; i++) {

@@ -14,46 +14,93 @@
 
 FPPColorOrder ColorOrderFromString(const std::string& colorOrderStr) {
     if (colorOrderStr == "RGB")
-        return kColorOrderRGB;
+        return FPPColorOrder::kColorOrderRGB;
 
     if (colorOrderStr == "RBG")
-        return kColorOrderRBG;
+        return FPPColorOrder::kColorOrderRBG;
 
     if (colorOrderStr == "GRB")
-        return kColorOrderGRB;
+        return FPPColorOrder::kColorOrderGRB;
 
     if (colorOrderStr == "GBR")
-        return kColorOrderGBR;
+        return FPPColorOrder::kColorOrderGBR;
 
     if (colorOrderStr == "BRG")
-        return kColorOrderBRG;
+        return FPPColorOrder::kColorOrderBRG;
 
     if (colorOrderStr == "BGR")
-        return kColorOrderBGR;
+        return FPPColorOrder::kColorOrderBGR;
 
     if (colorOrderStr == "W")
-        return kColorOrderONE;
+        return FPPColorOrder::kColorOrderONE;
 
-    return kColorOrderRGB;
+    return FPPColorOrder::kColorOrderRGB;
 }
 
 const std::string ColorOrderToString(FPPColorOrder colorOrder) {
     switch (colorOrder) {
-    case kColorOrderRGB:
+    case FPPColorOrder::kColorOrderRGB:
         return std::string("RGB");
-    case kColorOrderRBG:
+    case FPPColorOrder::kColorOrderRBG:
         return std::string("RBG");
-    case kColorOrderGBR:
+    case FPPColorOrder::kColorOrderGBR:
         return std::string("GBR");
-    case kColorOrderGRB:
+    case FPPColorOrder::kColorOrderGRB:
         return std::string("GRB");
-    case kColorOrderBGR:
+    case FPPColorOrder::kColorOrderBGR:
         return std::string("BGR");
-    case kColorOrderBRG:
+    case FPPColorOrder::kColorOrderBRG:
         return std::string("BRG");
-    case kColorOrderONE:
+    case FPPColorOrder::kColorOrderONE:
         return std::string("W");
     }
 
     return std::string("UNKNOWN");
+}
+
+
+int FPPColorOrder::redOffset() {
+    switch (value) {
+        case FPPColorOrder::kColorOrderONE:
+        case FPPColorOrder::kColorOrderRGB:
+        case FPPColorOrder::kColorOrderRBG:
+            return 0;
+        case FPPColorOrder::kColorOrderGRB:
+        case FPPColorOrder::kColorOrderBRG:
+            return 1;
+        case FPPColorOrder::kColorOrderGBR:
+        case FPPColorOrder::kColorOrderBGR:
+            return 2;
+    }
+    return 0;
+}
+int FPPColorOrder::greenOffset() {
+    switch (value) {
+        case FPPColorOrder::kColorOrderONE:
+        case FPPColorOrder::kColorOrderGRB:
+        case FPPColorOrder::kColorOrderGBR:
+            return 0;
+        case FPPColorOrder::kColorOrderRGB:
+        case FPPColorOrder::kColorOrderBGR:
+            return 1;
+        case FPPColorOrder::kColorOrderBRG:
+        case FPPColorOrder::kColorOrderRBG:
+            return 2;
+    }
+    return 0;
+}
+int FPPColorOrder::blueOffset() {
+    switch (value) {
+        case FPPColorOrder::kColorOrderONE:
+        case FPPColorOrder::kColorOrderBRG:
+        case FPPColorOrder::kColorOrderBGR:
+            return 0;
+        case FPPColorOrder::kColorOrderGBR:
+        case FPPColorOrder::kColorOrderRBG:
+            return 1;
+        case FPPColorOrder::kColorOrderRGB:
+        case FPPColorOrder::kColorOrderGRB:
+            return 2;
+    }
+    return 0;
 }
