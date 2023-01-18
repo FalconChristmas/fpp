@@ -414,22 +414,17 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     }
 
     var ipRows = new Object();
-	function getFPPSystemInfo(ip) {
-		$.get(wrapUrlWithProxy(ip) + "/fppjson.php?command=getHostNameInfo", function(data) {
-            if (ipRows.hasOwnProperty(ip)) {
-                var rowID = ipRows[ip];
-                var origDesc = $('#' + rowID).find('.hostDescriptionSM').html();
-                if (origDesc == '')
-                    $('#' + rowID).find('.hostDescriptionSM').html(data.HostDescription);
-            }
-            validateMultiSyncSettings();
-		});
-	}
 
     var refreshTimer = null;
+    var geniusRefreshTimer = null;
+    var wledRefreshTimer = null;
     function clearRefreshTimers() {
         clearTimeout(refreshTimer);
+        clearTimeout(geniusRefreshTimer);
+        clearTimeout(wledRefreshTimer);
         refreshTimer = null;
+        geniusRefreshTimer = null;
+        wledRefreshTimer = null;
     }
     var unavailables = [];
 
@@ -441,13 +436,16 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             delete refreshTimer;
             refreshTimer = null;
         }
-           ipAddresses.forEach(function(entry) {
-               ips += "&ip[]=" + entry;
+        ipAddresses.forEach(function(entry) {
+            ips += "&ip[]=" + entry;
 	   });
 	} else {
         ips = "&ip[]=" + ipAddresses;
     }
-    $.get("api/system/status?ip=" + ips + '&advancedView=true')
+    if (ips == "") {
+        return;
+    }
+    $.get("api/system/status?type=FPP" + ips)
     .done(function(alldata) {
         systemStatusCache = alldata;
         jQuery.each(alldata, function(ip, data) {
@@ -714,7 +712,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 		});
 
         validateMultiSyncSettings();
-	} // end of "api/system/status?ip=" + ips + '&advancedView=true'
+	} // end of "api/system/status?ip=" + ips
 
     function ipLink(ip) {
         return "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip) + "/' ip='" + ip + "'>" + ip + "</a>";
@@ -727,6 +725,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         var uniqueHosts = new Object();
 
         var fppIpAddresses = [];
+        var wledIpAddresses = [];
+        var geniusIpAddresses = [];
 		var remotes = [];
 		if ((settings['MultiSyncEnabled'] == '1') &&
             (settings['fppMode'] == 'player')) {
@@ -782,12 +782,15 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             var newHost = 1;
             var hostRowKey = ip.replace(/\./g, '_');
 
-            var hostKey = data[i].hostname + '_' + data[i].version + '_' + data[i].fppModeString + '_' + data[i].channelRanges;
+            var hostname = data[i].hostname;
+            if (hostname == "") {
+                hostname = ip;
+            }
+            var hostKey = hostname + '_' + data[i].version + '_' + data[i].fppModeString + '_' + data[i].channelRanges;
             hostKey = hostKey.replace(/[^a-zA-Z0-9]/, '_');
 
             hostRows[hostRowKey] = rowID;
 
-            var hostname = data[i].hostname;
             if (data[i].local) {
                 hostname = "<b>" + hostname + "</b>";
             } else {
@@ -818,7 +821,6 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                 if (isFPP(data[i].typeId)) {
                     fppIpAddresses.push(ip);
-                    getFPPSystemInfo(ip);
                 }
             } else {
                 uniqueHosts[hostKey] = rowID;
@@ -837,7 +839,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                 rowSpans[rowID] = 1;
 
-		var ipTxt = data[i].local ? data[i].address : ipLink(data[i].address);
+		        var ipTxt = data[i].local ? data[i].address : ipLink(data[i].address);
 
                 if ((data[i].fppModeString == 'remote') && (star != ""))
                     ipTxt = "<small class='hostDescriptionSM'>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
@@ -888,26 +890,26 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                 if (isFPP(data[i].typeId)) {
                     fppIpAddresses.push(ip);
-                    getFPPSystemInfo(ip);
                 } else if (isESPixelStick(data[i].typeId)) {
                     if ((majorVersion == 3) || (majorVersion == 0)) {
                         getESPixelStickBridgeStatus(ip);
                     } else {
                         fppIpAddresses.push(ip);
-                        getFPPSystemInfo(ip);
                     }
                 } else if (isFalcon(data[i].typeId)) {
                     getFalconControllerStatus(ip);
                 } else if (isFalconV4(data[i].typeId)) {
                     getFalconV4ControllerStatus(ip);
                 } else if (isWLED(data[i].typeId)) {
-                    getWLEDControllerStatus(ip);
+                    wledIpAddresses.push(ip);
+                } else if (isGenius(data[i].typeId)) {
+                    geniusIpAddresses.push(ip);
                 }
             }
         }
         getFPPSystemStatus(fppIpAddresses, false);
-
-
+        getWLEDControllerStatus(wledIpAddresses, false);
+        getGeniusControllerStatus(geniusIpAddresses, false);
 
         var extraRemotes = [];
         var origExtra = "";
@@ -1186,23 +1188,36 @@ function getFalconV4ControllerStatus(ip) {
     });
 }
 
-function getWLEDControllerStatus(ip) {
 
-$.ajax({
-        url: wrapUrlWithProxy(ip) + '/json/info',
-            method: 'GET',
-            contentType: 'application/json',
-            dataType: 'json',
-            success: function(data) {
+function getWLEDControllerStatus(ipAddresses, refreshing = false) {
+	ips = "";
+	if (Array.isArray(ipAddresses)) {
+        if (wledRefreshTimer != null) {
+            clearTimeout(wledRefreshTimer);
+            delete wledRefreshTimer;
+            wledRefreshTimer = null;
+        }
+        ipAddresses.forEach(function(entry) {
+            ips += "&ip[]=" + entry;
+	    });
+	} else {
+        ips = "&ip[]=" + ipAddresses;
+    }
+    if (ips == "") {
+        return;
+    }
+    $.get("api/system/status?type=WLED" + ips)
+    .done(function(alldata) {
+        systemStatusCache = alldata;
+        jQuery.each(alldata, function(ip, data) {
+            if (data == null || data == "" || data == "null") {
+                return;
+            }
             var ips = ip.replace(/\./g, '_');
+            var rssi = data.wifi.rssi;
+            var quality = data.wifi.signal;
 
-            var result = JSON.stringify(data);
-            var s = JSON.parse(result);
-
-            var rssi = s.wifi.rssi;
-            var quality = s.wifi.signal;
-
-            var t=parseInt(s.uptime);
+            var t=parseInt(data.uptime);
             var days=Math.floor(t/86400);
             var hours=Math.floor((t-86400*days)/3600);
             var mins=Math.floor((t-86400*days-3600*hours)/60);
@@ -1219,6 +1234,65 @@ $.ajax({
             u += "</table>";
 
             $('#advancedViewUtilization_fpp_' + ips).html(u);
+            $('#fpp_' + ips + '_status').html(data.status_name);
+        });
+
+        if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+			wledRefreshTimer = setTimeout(function() {getWLEDControllerStatus(ipAddresses, true);}, 2000);
+        }
+    });
+}
+
+function getGeniusControllerStatus(ipAddresses, refreshing = false) {
+	ips = "";
+	if (Array.isArray(ipAddresses)) {
+        if (geniusRefreshTimer != null) {
+            clearTimeout(geniusRefreshTimer);
+            delete geniusRefreshTimer;
+            geniusRefreshTimer = null;
+        }
+        ipAddresses.forEach(function(entry) {
+            ips += "&ip[]=" + entry;
+	    });
+	} else {
+        ips = "&ip[]=" + ipAddresses;
+    }
+    if (ips == "") {
+        return;
+    }
+    $.get("api/system/status?type=Genius" + ips)
+    .done(function(alldata) {
+        systemStatusCache = alldata;
+        jQuery.each(alldata, function(ip, data) {
+            if (data == null || data == "" || data == "null") {
+                return;
+            }
+            var ips = ip.replace(/\./g, '_');
+            var t = data.system.uptime_seconds;
+            var days = Math.floor(t/86400);
+            var hours = Math.floor((t-86400*days)/3600);
+            var mins = Math.floor((t-86400*days-3600*hours)/60);
+
+            var uptime = '';
+            uptime += (days + " days, ");
+            uptime += ("0" + hours).slice(-2) + ":";
+            uptime += ("0" + mins ).slice(-2);
+
+            var u = "<table class='multiSyncVerboseTable'>";
+           //u += "<tr><td>RSSI:</td><td>" + rssi + "dBm / " + quality + "%</td></tr>";
+            u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
+            u += "</table>";
+            $('#advancedViewUtilization_fpp_' + ips).html(u);
+
+            var origDesc = $('#fpp_' + ips + '_desc').html();
+            if (origDesc == '') {
+                $('#fpp_' + ips + '_desc').html(data.system.friendly_name);
+            }
+            $('#fpp_' + ips + '_status').html(data.status_name);
+        });
+
+        if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+			geniusRefreshTimer = setTimeout(function() {getGeniusControllerStatus(ipAddresses, true);}, 2000);
         }
     });
 }
@@ -1226,6 +1300,8 @@ $.ajax({
 function RefreshStats() {
     var keys = Object.keys(hostRows);
     var ips = [];
+    var gips = [];
+    var wips = [];
 
     for (var i = 0; i < keys.length; i++) {
         var rowID = hostRows[keys[i]];
@@ -1236,7 +1312,6 @@ function RefreshStats() {
         var version = $('#' + rowID).find('.version').html();
         if (isFPP(typeId)) {
             ips.push(ip);
-            getFPPSystemInfo(ip);
         } else if (isESPixelStick(typeId)) {
             var versionParts = version.split('.');
             var majorVersion = parseInt(versionParts[0]);
@@ -1244,17 +1319,20 @@ function RefreshStats() {
                 getESPixelStickBridgeStatus(ip);
             } else {
                 ips.push(ip);
-                getFPPSystemInfo(ip);
             }
         } else if (isFalcon(typeId)) {
             getFalconControllerStatus(ip);
         } else if (isFalconV4(typeId)) {
             getFalconV4ControllerStatus(ip);
         } else if (isWLED(typeId)) {
-            getWLEDControllerStatus(ip);
+            wips.push(ip);
+        } else if (isGenius(typeId)) {
+            gips.push(ip);
         }
     }
     getFPPSystemStatus(ips, true);
+    getGeniusControllerStatus(gips, true);
+    getWLEDControllerStatus(wips, true);
 }
 
 function autoRefreshToggled() {

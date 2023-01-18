@@ -216,6 +216,10 @@ function SystemGetStatus()
     //if the ip= argument supplied
     if (isset($_GET['ip'])) {
         $ipAddresses = $_GET['ip'];
+        $type = "FPP";
+        if (isset($_GET['type'])) {
+            $type = $_GET['type'];
+        }
         $isArray = true;
         if (!is_array($ipAddresses)) {
             $ipAddresses = array();
@@ -230,12 +234,13 @@ function SystemGetStatus()
         foreach ($ipAddresses as $ip) {
             //validate IP address is a valid IPv4 address - possibly overkill but have seen IPv6 addresses polled
             if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                //Make the request - also send across whether advancedView data is requested so it's returned all in 1 request
-
-                // TODO: For FPPD 6.0, this should be moved to the new API.
-                // On 5.0 Boxes it is just a redirect back to http://localhost/api/system/status
-                // Retained for backwards compatibility
-                $curl = curl_init("http://" . $ip . "/fppjson.php?command=getFPPstatus&advancedView=true");
+                if ($type == "Genius") {
+                    $curl = curl_init("http://" . $ip . "/api/state");
+                } else if ($type == "WLED") {
+                    $curl = curl_init("http://" . $ip . "/json/info");
+                } else {
+                    $curl = curl_init("http://" . $ip . "/api/system/status");
+                }
                 curl_setopt($curl, CURLOPT_FAILONERROR, true);
                 curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
                 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -265,36 +270,16 @@ function SystemGetStatus()
             } else if (strpos($request_content, 'Not Running') !== false) {
                 $result[$ip]["status_name"] = "not running";
             } else {
-                $content = json_decode($request_content);
-
-                if (strpos($request_content, 'advancedView') === false) {
-                    //Work around for older versioned devices where the advanced data was pulled in separately rather than being
-                    //included (when requested) with the standard data via getFPPStatus
-                    //If were in advanced view and the request_content doesn't have the 'advancedView' key (this is included when requested with the standard data) then we're dealing with a older version
-                    //that's using the expertView key and was being obtained separately
-
-                    $curl2 = curl_init("http://" . $ip . "/fppjson.php?command=getSysInfo");
-                    curl_setopt($curl2, CURLOPT_FAILONERROR, true);
-                    curl_setopt($curl2, CURLOPT_FOLLOWLOCATION, true);
-                    curl_setopt($curl2, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($curl2, CURLOPT_CONNECTTIMEOUT_MS, 250);
-                    curl_setopt($curl2, CURLOPT_TIMEOUT_MS, 3000);
-                    $request_expert_content = curl_exec($curl2);
-                    curl_close($curl2);
-                    //check we have valid data
-                    if ($request_expert_content === false) {
-                        $request_expert_content = array();
-                    }
-                    //Add data into the final response, since getFPPStatus returns JSON, decode into array, add data, encode back to json
-                    //Add a new key for the advanced data, also decode it as it's an array
-                    $content['advancedView'] = json_decode($request_expert_content, true);
+                $content = json_decode($request_content, true);
+                if (!isset($content["status_name"])) {
+                    $content["status_name"] = "Running";
                 }
                 $result[$ip] = $content;
             }
             curl_multi_remove_handle($curlmulti, $curl);
         }
         curl_multi_close($curlmulti);
-        if (!$isArray) {
+        if (!$isArray && count($ipAddresses) > 0 && $ipAddresses[0] != "") {
             $result = $result[$ipAddresses[0]];
         }
         return json($result);

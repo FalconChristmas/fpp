@@ -293,15 +293,19 @@ function addMultiSyncUUID(&$data)
         $rec = array();
         validateAndAdd($rec, $system, $mapping);
         if (!isset($system['uuid']) || $system['uuid'] === "") {
-            $missing[$system['address']] = "1";
+            $missing[$system['address']] = $system['typeId'];
         }
     }
     // Find missing UUIDs
     if (count($missing) > 0) {
         $curlmulti = curl_multi_init();
         $curls = array();
-        foreach ($missing as $ip => $value) {
-            $curl = curl_init("http://" . $ip . "/api/fppd/status");
+        foreach ($missing as $ip => $tid) {
+            if ($tid >= 160 && $tid < 170) {
+                $curl = curl_init("http://" . $ip . "/update/identity");
+            } else {
+                $curl = curl_init("http://" . $ip . "/api/fppd/status");
+            }
             curl_setopt($curl, CURLOPT_FAILONERROR, true);
             curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -326,6 +330,12 @@ function addMultiSyncUUID(&$data)
                 $missing[$ip] = "Not Set";
                 if (isset($content['uuid'])) {
                     $missing[$ip] = $content['uuid'];
+                } else if (isset($content['id'])) {
+                    if (isset($content['hardware'])) {
+                        $missing[$ip] = $content['hardware'] . "-" . $content['id'];
+                    } else {
+                        $missing[$ip] = $content['id'];
+                    }
                 }
             }
             curl_multi_remove_handle($curlmulti, $curl);
