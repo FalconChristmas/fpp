@@ -46,7 +46,7 @@ all: gitsubmodules $(TARGETS)
 .PHONY: gitsubmodules
 ifneq '$(SUBMODULES)' ''
 gitsubmodules:
-	@! ping -q -c 1 github.com > /dev/null 2>&1 || (cd ..; \
+	@! curl -S -s -o /dev/null -m 2 https://github.com/FalconChristmas/fpp/blob/master/README.md 2>&1 || (cd ..; \
 		for submodule in $(SUBMODULES); do \
 			git submodule sync $$submodule; \
 		done; \

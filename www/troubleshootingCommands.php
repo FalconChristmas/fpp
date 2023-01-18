@@ -24,7 +24,7 @@ $commands = array(
     'Wireless' => '(iwconfig ; echo ; echo ; cat /proc/net/wireless)',
     'Routing' => 'netstat -rn',
     'Default Gateway' => 'ping -c 1 $(netstat -rn | grep \'^0.0.0.0\' | awk \'{print $2}\')',
-    'Internet Access' => 'ping -c 1 github.com',
+    'Internet Access' => 'curl -S -s -o /dev/null -m 2 https://github.com/FalconChristmas/fpp/blob/master/README.md 2>&1 ; if [ "$?" -eq "0" ]; then echo "GitHub reachable: **YES**" ; else echo "GitHub Reachable: ** NO **"; fi',
 
     // Disk
     'Block Devices' => $SUDO . ' lsblk -l',
