@@ -8,6 +8,12 @@ require_once '../common.php';
 dispatch_get('/backups/list', 'GetAvailableBackups');
 dispatch_get('/backups/list/:DeviceName', 'GetAvailableBackupsOnDevice');
 dispatch_get('/backups/devices', 'GetAvailableBackupsDevices');
+dispatch_post('/backups/configuration', 'MakeJSONBackup');
+dispatch_get('/backups/configuration/list', 'GetAvailableJSONBackups');
+dispatch_get('/backups/configuration/list/:DeviceName', 'GetAvailableJSONBackupsOnDevice');
+dispatch_post('/backups/configuration/restore/:Directory/:BackupFilename', 'RestoreJsonBackup');
+dispatch_get('/backups/configuration/:Directory/:BackupFilename', 'DownloadJsonBackup');
+dispatch_delete('/backups/configuration/:Directory/:BackupFilename', 'DeleteJsonBackup');
 
 dispatch_get('/cape', 'GetCapeInfo');
 dispatch_post('/cape/eeprom/voucher', 'RedeemVoucher');

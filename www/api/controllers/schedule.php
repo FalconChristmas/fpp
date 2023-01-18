@@ -36,6 +36,9 @@ function SaveSchedule() {
         fclose($postdata);
         fclose($f);
 
+        //Trigger a JSON Configuration Backup
+        GenerateBackupViaAPI('Schedule was modified.');
+
         return GetSchedule();
     }
 

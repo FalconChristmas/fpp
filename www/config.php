@@ -583,6 +583,9 @@ if ($debug) {
 
 $uiLevel = $settings['uiLevel'];
 
+//Set the default timezone in PHP to match the currently set system timezone
+date_default_timezone_set($settings['TimeZone']);
+
 //
 // Didn't want to wait and check if ntp is synced
 // (takes too long). These dates will periodically need updated
@@ -597,6 +600,7 @@ if ($year < 2021 || $year > 2030) {
     define('MAXYEAR', date('Y') + 5);
 }
 
+//Load the Interface locale
 LoadLocale();
 
 /////////////////////////////////////////////////////////////////////////////
@@ -624,7 +628,23 @@ function GetDirSetting($dir)
         return GetSettingValue('docsDirectory');
     } else if ($dir == "config") {
         return GetSettingValue('configDirectory');
-    } else if ($dir == 'tmp') {
+	} else if ($dir == "jsonbackups") {
+		return GetSettingValue('configDirectory') . "/backups";
+	} else if ($dir == "jsonbackupsalternate") {
+		//default is the systems hostname
+		$fileCopy_BackupPath = GetSettingValue('HostName');
+
+		//If the File Copy Backup path has been modified from it's default of being the hostname, it's value will be saved
+		//use this in the path when looking for backups as they'll be copied there either manually (via use interaction of the file copy page) or via automatically via a the auto setting backup system
+		//this keeps things consistent and we know where things may be
+        $backup_path = GetSettingValue('backup.Path');
+		if (isset($backup_path) && !empty($backup_path)) {
+			$fileCopy_BackupPath = $backup_path;
+		}
+
+		//build out the path to the alternative location as it's slightly custom
+		return "/mnt/tmp/" . $fileCopy_BackupPath . "/config/backups";
+	} else if ($dir == 'tmp') {
         return GetSettingValue('mediaDirectory') . '/tmp';
     } else if ($dir == 'crashes') {
         return GetSettingValue('mediaDirectory') . '/crashes';

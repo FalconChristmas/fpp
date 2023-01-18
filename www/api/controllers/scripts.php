@@ -50,6 +50,9 @@ function script_save()
             $result['status'] = "OK";
             $result['scriptName'] = $scriptName;
             $result['scriptBody'] = $content;
+
+			//Trigger a JSON Configuration Backup
+			GenerateBackupViaAPI('Script ' . $scriptName . ' was modified.');
         } else {
             $script_writable = is_writable($filename);
             $script_directory_writable = is_writable($settings['scriptDirectory']);
@@ -101,6 +104,9 @@ function scripts_install_remote()
     $filename = params('filename');
 
     exec("$SUDO $fppDir/scripts/installScript \"$category\" \"$filename\"");
+
+	//Trigger a JSON Configuration Backup
+	GenerateBackupViaAPI($category . ' script ' . $filename . ' content was installed.');
 
     return json(array("status" => "OK"));
 }

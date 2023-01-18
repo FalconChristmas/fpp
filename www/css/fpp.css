@@ -2441,6 +2441,58 @@ input[type=search].tablesorter-filter:disabled {
 	padding-bottom: 0.8em;
 }
 
+.table-download-existing-backups-container, .table-restore-existing-backups-container {
+	overflow-y: scroll;
+	max-height: 220px;
+}
+
+.table-download-existing-backups, .table-restore-existing-backups {
+	width: 100%;
+}
+
+#table-download-existing-backups-content, #table-restore-existing-backups-conten {
+}
+
+#table-download-existing-backups-content > tr, #table-restore-existing-backups-content > tr {
+	border-bottom: #0a0a0a solid 1px;
+
+}
+
+#table-download-existing-backups-content > tr > td, #table-restore-existing-backups-content > tr > td {
+	padding-top: 0;
+	padding-bottom: 0;
+}
+
+#backup-file-date {
+	font-size: 0.9em;
+}
+
+#backup-file-configuration-change {
+	font-size: 0.9em;
+}
+
+#backup-file-configuration-actions {
+	font-size: 0.9em;
+}
+
+.backup-file-configuration-actions-button-loading:before {
+	content: '';
+	display: inline-block;
+	color: #F63939;
+	width: 16px;
+	height: 16px;
+	opacity: 1;
+	vertical-align: middle;
+	/*margin-left: 0.5em;*/
+	border: .25em solid currentColor;
+	border-right-color: transparent;
+	border-radius: 50%;
+	-webkit-animation: spinner-border .75s linear infinite;
+	animation: spinner-border .75s linear infinite;
+	transition: 0.3s opacity ease-out;
+	transition-delay: 0.5s;
+}
+
 #CopyFlagsTable input {
 	margin: 0.4em;
 }
