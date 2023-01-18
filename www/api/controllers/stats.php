@@ -73,7 +73,7 @@ function stats_network()
     $rc = array();
     $output = array();
 
-    exec("ping -c 1 -q -W 2 github.com", $output, $exitCode);
+    exec("curl -s -m 2 https://github.com/FalconChristmas/fpp/blob/master/README.md", $output, $exitCode);
     $rc['github_access'] = ($exitCode == 0 ? true : false);
 
     $rc['wifi'] = json_decode(file_get_contents("http://localhost/api/network/wifi/strength"), true);
