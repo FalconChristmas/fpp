@@ -39,11 +39,14 @@ if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
 if ($file != '') {
     echo "Upgrading firmware.....\n";
     echo "\n";
+    flush();
     system("sudo /opt/fpp/scripts/upgradeCapeFirmware " . $force . $file, $retval);
     WriteSettingToFile('rebootFlag', 1);
+    flush();
 
-    if ($unlink)
+    if ($unlink && file_exists($file)) {
         unlink($file);
+    }
 
     echo "\n";
 } else {

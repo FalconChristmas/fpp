@@ -8,14 +8,24 @@ require_once 'common.php';
 require_once 'config.php';
 
 $APIhost = 'api.FalconPlayer.com';
-if (isset($settings['SigningAPIHost']))
+if (isset($settings['SigningAPIHost'])) {
     $APIhost = $settings['SigningAPIHost'];
+}
 
 $channelOutputDriver = "";
 
 // Set either of these to 1 for testing
 $printSigningUI = 0;
 $offlineMode = 0;
+
+// attempt to find a physical eeprom
+$eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
+if (!file_exists($eepromFile)) {
+    $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
+    if (!file_exists($eepromFile)) {
+        $eepromFile = '';
+    }
+}
 
 // Test to see if FPP can get to the signing API
 $curl = curl_init("https://$APIhost/js/internetTest.js");
@@ -33,7 +43,7 @@ if ($rc != 200) {
 }
 
 $capeHardwareType = "Cape/Hat";
-$currentCapeInfo = Array();
+$currentCapeInfo = array();
 if (isset($settings["cape-info"])) {
     $currentCapeInfo = $settings["cape-info"];
     if (isset($currentCapeInfo["hardwareType"])) {
@@ -59,17 +69,19 @@ if (isset($settings["cape-info"])) {
         }
     } else {
         $path = $mediaDirectory . "/tmp/strings/";
-        $files = scandir($path);
-        foreach ($files as $file) {
-            if (substr($file, 0, 1) != '.') {
-                $json = file_get_contents($path . $file);
-                $data = json_decode($json, true);
-                if ((isset($data['driver'])) &&
-                    (($data['driver'] == 'DPIPixels') ||
-                     ($data['driver'] == 'BBB48String') ||
-                     ($data['driver'] == 'BBShiftString'))) {
-                     $channelOutputDriver = $data['driver'];
-                     break;
+        if (is_dir($path)) {
+            $files = scandir($path);
+            foreach ($files as $file) {
+                if (substr($file, 0, 1) != '.') {
+                    $json = file_get_contents($path . $file);
+                    $data = json_decode($json, true);
+                    if ((isset($data['driver'])) &&
+                        (($data['driver'] == 'DPIPixels') ||
+                            ($data['driver'] == 'BBB48String') ||
+                            ($data['driver'] == 'BBShiftString'))) {
+                        $channelOutputDriver = $data['driver'];
+                        break;
+                    }
                 }
             }
         }
@@ -79,7 +91,7 @@ if (isset($settings["cape-info"])) {
         $channelOutputDriverStr = "  This cape uses the $channelOutputDriver Channel Output driver.";
         if ($currentCapeInfo['serialNumber'] == 'FPP-INTERNAL') {
             if (isset($currentCapeInfo['verifiedKeyId'])) {
-                $signingStatus = sprintf( "Cape is using a virtual EEPROM signed with the '%s' key and the %s Channel Output driver.", $currentCapeInfo['verifiedKeyId'], $channelOutputDriver);
+                $signingStatus = sprintf("Cape is using a virtual EEPROM signed with the '%s' key and the %s Channel Output driver.", $currentCapeInfo['verifiedKeyId'], $channelOutputDriver);
                 if ($currentCapeInfo['verifiedKeyId'] == 'fp') {
                     $printSigningUI = 1;
                     if ((isset($currentCapeInfo['signed']['licensePorts'])) && ($currentCapeInfo['signed']['licensePorts'] >= 9999)) {
@@ -92,12 +104,12 @@ if (isset($settings["cape-info"])) {
                 if (isset($currentCapeInfo['validEepromLocation']) && !$currentCapeInfo['validEepromLocation']) {
                     $signingStatus .= "<b>WARNING: The location field specified in this EEPROM is invalid so the EEPROM is being treated as unsigned.</b>";
                 } else {
-                    $signingStatus = sprintf( "Cape is using an <b>Unsigned</b> virtual EEPROM and the $channelOutputDriver Channel Output driver.");
+                    $signingStatus = sprintf("Cape is using an <b>Unsigned</b> virtual EEPROM and the $channelOutputDriver Channel Output driver.");
                     $printSigningUI = 1;
                 }
             }
         } else if (isset($currentCapeInfo['verifiedKeyId'])) {
-            $signingStatus = sprintf( "Cape EEPROM is signed using the '%s' key and uses the %s Channel Output driver.", $currentCapeInfo['verifiedKeyId'], $channelOutputDriver);
+            $signingStatus = sprintf("Cape EEPROM is signed using the '%s' key and uses the %s Channel Output driver.", $currentCapeInfo['verifiedKeyId'], $channelOutputDriver);
             if ($currentCapeInfo['verifiedKeyId'] == 'fp') {
                 $printSigningUI = 1;
                 if ((isset($currentCapeInfo['signed']['licensePorts'])) && ($currentCapeInfo['signed']['licensePorts'] >= 9999)) {
@@ -122,7 +134,7 @@ if (isset($settings["cape-info"])) {
 include 'common/menuHead.inc';
 ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<script language='Javascript' src='https://<?=$APIhost ?>/js/internetTest.js?ref=<?php echo time(); ?>'></script>
+<script language='Javascript' src='https://<?=$APIhost?>/js/internetTest.js?ref=<?php echo time(); ?>'></script>
 <script language="Javascript">
 
 function CloseUpgradeDialog(reload = false) {
@@ -165,7 +177,7 @@ function UpgradeFirmwareDone() {
         var arrayOfLines = txt.match(/[^\r\n]+/g);
         var msg = "Are you sure you want to replace the firmware for cape:\n" + arrayOfLines[2] + "\n\nWith the firmware for: \n" + arrayOfLines[3] + "\n";
         if (confirm(msg)) {
-            var eepromFile = $('#eepromList').val();
+            var eepromFile = $('#eepromVendorCapeVersions').val();
             let firmware = document.getElementById("firmware").files[0];
 
             let formData = new FormData();
@@ -183,7 +195,7 @@ function UpgradeFirmwareDone() {
     $('#closeDialogButton').show();
 }
 function UpgradeFirmware(force = false) {
-    var eepromFile = $('#eepromList').val();
+    var eepromFile = $('#eepromVendorCapeVersions').val();
     let firmware = document.getElementById("firmware").files[0];
     if ((eepromFile == '') && (firmware == "" || firmware == null)) {
         alert('You must choose a downloadable file from the list or pick a local file to upload.');
@@ -211,72 +223,114 @@ function UpgradeFirmware(force = false) {
 }
 
 var eepromList = [];
+var hasPhysicalEEPROM = <?echo $eepromFile == '' ? "false" : "true" ?>;
+
 function GetDownloadableEEPROMList() {
-    $.get('https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromList.json', function(dataStr) {
-        eepromList = JSON.parse(dataStr);
-        var options = '';
-        for (c = 0; c < eepromList.length; c++) {
-            if (!('cape-info' in settings) || (eepromList[c].cape == settings['cape-info']['name'])) {
-                for (i = 0; i < eepromList[c].eeproms.length; i++) {
-                    options += "<option value='" + eepromList[c].eeproms[i].url + "'>" + eepromList[c].cape + ' - ' + eepromList[c].eeproms[i].description + '</option>';
-                }
+    $.get('https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromVendors.json', function(eepromVendors) {
+        if (typeof eepromVendors === 'string') {
+            eepromVendors = JSON.parse(eepromVendors);
+        }
+        for (var vendor in eepromVendors["vendors"]) {
+            if (eepromVendors["vendors"][vendor].url != "") {
+                $.get(eepromVendors["vendors"][vendor].url, function(eepromjson) {
+                    if (typeof eepromjson === 'string') {
+                        eepromjson = JSON.parse(eepromjson);
+                    }
+                    var vendName = eepromjson.name;
+                    if ("url" in eepromjson) {
+                        vendName += " (" + eepromjson.url + ")";
+                    }
+                    eepromList[vendName] = eepromjson["capes"];
+                    var options = "<option value='" + vendName+ "'>" + vendName + '</option>';
+                    $('#eepromVendorList').append(options);
+                    $('#eepromVendorList').removeAttr('disabled');
+                    $('#eepromVendorList').show();
+                });
             }
         }
-
-        if (options != '') {
-            $('#eepromList').append(options);
-            $('#eepromList').removeAttr('disabled');
-        } else {
-            $('#eepromList').html("<option value=''>-- No available downloads --</option>");
-        }
-        $('#eepromList').show();
     });
 }
 
-function filterEEPROMListChanged() {
-    var options = '';
-    var showAll = false;
-
-    if (!eepromList.length)
-        return;
-
-    if ($('#filterEEPROMList').is(':checked')) {
-        showAll = true;
-        $('#eepromList').removeAttr('disabled');
-    }
-
-    for (c = 0; c < eepromList.length; c++) {
-        if (showAll || (eepromList[c].cape == settings['cape-info']['name'])) {
-            for (i = 0; i < eepromList[c].eeproms.length; i++) {
-                options += "<option value='" + eepromList[c].eeproms[i].url + "'>" + eepromList[c].cape + ' - ' + eepromList[c].eeproms[i].description + '</option>';
+function eepromVendorListChanged() {
+    var vendor = $('#eepromVendorList').val();
+    if (vendor in  eepromList) {
+        var eepromVendorCape = $('#eepromVendorCapes');
+        eepromVendorCape.empty();
+        var capes = eepromList[vendor];
+        for (cape in capes) {
+            var capeObj = capes[cape];
+            var valid = true;
+            if ("location" in capeObj) {
+                if (hasPhysicalEEPROM && capeObj.location == "virtual") {
+                    valid = false;
+                }
+                if (!hasPhysicalEEPROM && capeObj.location == "eeprom") {
+                    valid = false;
+                }
+            }
+            if ("platforms" in capeObj) {
+                var plat = capeObj.platforms;
+                if (settings["Platform"] == "BeagleBone Black") {
+                    if (!plat.includes(settings["Variant"])) {
+                        valid = false;
+                    }
+                } else {
+                    if (!plat.includes(settings["Platform"])
+                       && !plat.includes(settings["Variant"])) {
+                        valid = false;
+                    }
+                }
+            }
+            if (valid) {
+                var option = "<option value='" + cape + "'>" + cape + "</option>";
+                eepromVendorCape.append(option);
+                eepromVendorCape.removeAttr('disabled');
             }
         }
-    }
-
-    if (options != '') {
-        options = "<option value=''>-- Download firmware --</option>" + options;
-        $('#eepromList').html(options);
     } else {
-        $('#eepromList').html("<option value=''>-- No available downloads for this cape --</option>");
+        $('#eepromVendorCapes').empty();
+        $('#eepromVendorCapes').append("<option>-- Select Vendor --</option>");
+        $('#eepromVendorCapes').prop('disabled', true);
     }
-
-    eepromListChanged();
+    eepromVendorCapeChanged();
 }
-
-function eepromListChanged() {
-    $('#firmware').val('');
-
-    if ($('#eepromList').val() == '') {
+function eepromVendorCapeChanged() {
+    var vendor = $('#eepromVendorList').val();
+    if (vendor in  eepromList) {
+        var capeName = $('#eepromVendorCapes').val();
+        var eepromVendorCapeVersions = $('#eepromVendorCapeVersions');
+        eepromVendorCapeVersions.empty();
+        if (capeName in eepromList[vendor]) {
+            for (v in eepromList[vendor][capeName]["versions"]) {
+                var option = "<option value='" + eepromList[vendor][capeName]["versions"][v].url + "'>" + v + "</option>";
+                eepromVendorCapeVersions.append(option);
+                eepromVendorCapeVersions.removeAttr('disabled');
+            }
+        } else {
+            $('#eepromVendorCapeVersions').append("<option value=''>-- Select Vendor/Cape --</option>");
+            $('#eepromVendorCapeVersions').prop('disabled', true);
+        }
+    } else {
+        $('#eepromVendorCapeVersions').empty();
+        $('#eepromVendorCapeVersions').append("<option value=''>-- Select Vendor/Cape --</option>");
+        $('#eepromVendorCapeVersions').prop('disabled', true);
+    }
+    eepromVendorCapeVersionChanged();
+}
+function eepromVendorCapeVersionChanged() {
+    var url = $('#eepromVendorCapeVersions').val();
+    if (url == '') {
         $('#UpdateFirmware').removeClass('btn-success');
         $('#UpdateFirmware').attr('disabled', 'disabled');
     } else {
+        $('#firmware').val('');
         $('#UpdateFirmware').addClass('btn-success');
         $('#UpdateFirmware').removeAttr('disabled');
     }
 }
 
 function firmwareChanged() {
-    $('#eepromList').val('');
+    $('#eepromVendorList').val('').trigger("change");;
 
     if ($('#filename').val() == '') {
         $('#UpdateFirmware').removeClass('btn-success');
@@ -445,7 +499,7 @@ function SignEEPROMViaBrowser() {
             if (data.hasOwnProperty('key')) {
                 $('#upgradeText').append('- Uploading signing packet to signing API\n');
                 $.ajax({
-                    url: 'https://<?=$APIhost ?>/api/fpp/eeprom/sign',
+                    url: 'https://<?=$APIhost?>/api/fpp/eeprom/sign',
                     type: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify(data),
@@ -630,11 +684,11 @@ $activeParentMenuItem = 'help';
 include 'menu.inc';
 ?>
     <div class="mainContainer">
-        <div class="title"><?=$capeHardwareType ?> Info</div>
+        <div class="title"><?=$capeHardwareType?> Info</div>
         <div class="pageContent">
 <?
 if (isset($settings["cape-info"])) {
-?>
+    ?>
             <div>
                 <div style="overflow: hidden; padding: 10px;">
                     <div class='eepromTabs'>
@@ -651,26 +705,26 @@ if (isset($settings["cape-info"])) {
                                     </a>
                                 </li>
 <?php
-    if ($printSigningUI) {
-       if ($offlineMode) {
-?>
+if ($printSigningUI) {
+        if ($offlineMode) {
+            ?>
                                 <li class='nav-item'>
                                     <a class="nav-link" id="eeprom-offline-tab" data-toggle="pill" href="#eeprom-offline" role="tab" aria-controls="eeprom-offline">
                                         Offline Signing
                                     </a>
                                 </li>
 <?php
-        } else if (((!isset($settings['voucherRedeemed'])) || ($settings['voucherRedeemed'] != '1')) && ((!isset($currentCapeInfo['verifiedKeyId'])) || ($currentCapeInfo['verifiedKeyId'] != 'fp'))) {
-?>
+} else if (((!isset($settings['voucherRedeemed'])) || ($settings['voucherRedeemed'] != '1')) && ((!isset($currentCapeInfo['verifiedKeyId'])) || ($currentCapeInfo['verifiedKeyId'] != 'fp'))) {
+            ?>
                                 <li class='nav-item'>
                                     <a class="nav-link" id="eeprom-voucher-tab" data-toggle="pill" href="#eeprom-voucher" role="tab" aria-controls="eeprom-voucher">
                                         Voucher Redemption
                                     </a>
                                 </li>
 <?php
-        }
+}
     }
-?>
+    ?>
                                 <li class='nav-item'>
                                     <a class="nav-link" id="eeprom-upgrade-tab" data-toggle="pill" href="#eeprom-upgrade" role="tab" aria-controls="eeprom-upgrade">
                                         EEPROM Upgrade
@@ -689,7 +743,7 @@ if (isset($settings["cape-info"])) {
                         <table class='tblAbout'>
                             <tr><td><b>Name:</b></td><td width="100%"><?echo $currentCapeInfo['name'] ?></td></tr>
 <?php
-    if (isset($currentCapeInfo['version'])) {
+if (isset($currentCapeInfo['version'])) {
         echo "<tr><td><b>Version:</b></td><td>" . $currentCapeInfo['version'] . "</td></tr>";
     }
     if (isset($currentCapeInfo['serialNumber'])) {
@@ -709,7 +763,7 @@ if (isset($settings["cape-info"])) {
         } else {
             echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>Unlimited ('$key' key)</td></tr>";
         }
-    } else if (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels') || ($channelOutputDriver == 'BBShiftString') ) {
+    } else if (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels') || ($channelOutputDriver == 'BBShiftString')) {
         echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>None, cape EEPROM is not signed.</td></tr>";
     }
     if ($channelOutputDriver != '') {
@@ -736,17 +790,17 @@ if (isset($settings["cape-info"])) {
         }
         echo "</td></tr>";
     }
-?>
+    ?>
                         </table>
                     </div>
 <?php
-    if (isset($currentCapeInfo['vendor'])) {
-?>
+if (isset($currentCapeInfo['vendor'])) {
+        ?>
                    <div class='aboutRight col-md'>
                        <table class='tblAbout'>
                             <tr><td><b>Vendor&nbsp;Name:</b></td><td><?echo $currentCapeInfo['vendor']['name'] ?></td></tr>
 <?php
-        if (isset($currentCapeInfo['vendor']['url'])) {
+if (isset($currentCapeInfo['vendor']['url'])) {
             $url = $currentCapeInfo['vendor']['url'];
             $landing = $url;
             if (isset($currentCapeInfo['vendor']['landingPage'])) {
@@ -778,12 +832,12 @@ if (isset($settings["cape-info"])) {
             }
             echo "<tr><td colspan=\"2\"><a href=\"" . $landing . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $iurl . "\" /></a></td></tr>";
         }
-?>
+        ?>
                        </table>
                    </div>
 <?
     }
-?>
+    ?>
                </div>
            </div>
                                 </div>
@@ -793,72 +847,91 @@ if (isset($settings["cape-info"])) {
                                             <div class="aboutAll col-md">
 <?php
 if (isset($settings["cape-info"])) {
-    echo $signingStatus . "<br>";
-?>
+        echo $signingStatus . "<br>";
+        ?>
     <br>
     <table>
 <?php
-    $printBreak = 0;
-    if (isset($currentCapeInfo['signed'])) {
-        if (isset($currentCapeInfo['signed']['licensePorts'])) {
-            $outputs = $currentCapeInfo['signed']['licensePorts'];
-            if ($outputs == 9999)
-                $outputs = "Unlimited";
-            echo "<tr><td><b>Licensed Outputs:</b></td><td>$outputs</td></tr>";
-        }
+$printBreak = 0;
+        if (isset($currentCapeInfo['signed'])) {
+            if (isset($currentCapeInfo['signed']['licensePorts'])) {
+                $outputs = $currentCapeInfo['signed']['licensePorts'];
+                if ($outputs == 9999) {
+                    $outputs = "Unlimited";
+                }
 
-        if (isset($currentCapeInfo['signed']['licenseKey'])) {
-            if (gettype($currentCapeInfo['signed']['licenseKey']) == "string") {
-                echo "<tr><td><b>License Key: <i class='fas fa-eye' id='keyVisibilityIcon' onClick='ToggleKeyVisibility();'></i></b></td><td class='keyShow' style='display: none;'>" . $currentCapeInfo['signed']['licenseKey'] . "</td><td class='keyHidden'>******-******-******-******-******</td></tr>";
-            } else {
-                $first = 1;
-                foreach ($currentCapeInfo['signed']['licenseKey'] as $key) {
-                    if ($first) {
-                        echo "<tr><td><b>License Keys: <i class='fas fa-eye' id='keyVisibilityIcon' onClick='ToggleKeyVisibility();'></i></b></td><td class='keyShow' style='display: none;'>$key</td><td class='keyHidden'>******-******-******-******-******</td></tr>\n";
-                        $first = 0;
-                    } else {
-                        echo "<td></td><td class='keyShow' style='display: none;'>$key</td><td class='keyHidden'>******-******-******-******-******</td></tr>\n";
+                echo "<tr><td><b>Licensed Outputs:</b></td><td>$outputs</td></tr>";
+            }
+
+            if (isset($currentCapeInfo['signed']['licenseKey'])) {
+                if (gettype($currentCapeInfo['signed']['licenseKey']) == "string") {
+                    echo "<tr><td><b>License Key: <i class='fas fa-eye' id='keyVisibilityIcon' onClick='ToggleKeyVisibility();'></i></b></td><td class='keyShow' style='display: none;'>" . $currentCapeInfo['signed']['licenseKey'] . "</td><td class='keyHidden'>******-******-******-******-******</td></tr>";
+                } else {
+                    $first = 1;
+                    foreach ($currentCapeInfo['signed']['licenseKey'] as $key) {
+                        if ($first) {
+                            echo "<tr><td><b>License Keys: <i class='fas fa-eye' id='keyVisibilityIcon' onClick='ToggleKeyVisibility();'></i></b></td><td class='keyShow' style='display: none;'>$key</td><td class='keyHidden'>******-******-******-******-******</td></tr>\n";
+                            $first = 0;
+                        } else {
+                            echo "<td></td><td class='keyShow' style='display: none;'>$key</td><td class='keyHidden'>******-******-******-******-******</td></tr>\n";
+                        }
                     }
                 }
             }
-        }
 
-        if ($currentCapeInfo['serialNumber'] == 'FPP-INTERNAL') {
-            if (isset($currentCapeInfo['signed']['capeSerial']))
-                echo "<tr><td><b>Licensed Serial:</b></td><td>" . $currentCapeInfo['signed']['capeSerial'] . "</td></tr>";
-            if (isset($currentCapeInfo['signed']['deviceSerial']))
-                echo "<tr><td><b>Licensed Device:</b></td><td>" . $currentCapeInfo['signed']['deviceSerial'] . "</td></tr>";
-        }
+            if ($currentCapeInfo['serialNumber'] == 'FPP-INTERNAL') {
+                if (isset($currentCapeInfo['signed']['capeSerial'])) {
+                    echo "<tr><td><b>Licensed Serial:</b></td><td>" . $currentCapeInfo['signed']['capeSerial'] . "</td></tr>";
+                }
 
-        if (isset($currentCapeInfo['signed']['signTime'])) {
-            echo "<tr><td><b>EEPROM Signed at:</b></td><td>" . date('Y-m-d h:i:s A T', $currentCapeInfo['signed']['signTime']) . "</td></tr>";
-        }
+                if (isset($currentCapeInfo['signed']['deviceSerial'])) {
+                    echo "<tr><td><b>Licensed Device:</b></td><td>" . $currentCapeInfo['signed']['deviceSerial'] . "</td></tr>";
+                }
 
-        $printBreak = 1;
-    }
-?>
+            }
+
+            if (isset($currentCapeInfo['signed']['signTime'])) {
+                echo "<tr><td><b>EEPROM Signed at:</b></td><td>" . date('Y-m-d h:i:s A T', $currentCapeInfo['signed']['signTime']) . "</td></tr>";
+            }
+
+            $printBreak = 1;
+        }
+        ?>
     </table>
 <?php
-    if ($printBreak)
-        echo "<br>\n";
+if ($printBreak) {
+            echo "<br>\n";
+        }
 
-    if ($printSigningUI) {
-        if (!isset($currentCapeInfo['verifiedKeyId']))
-            echo "<b>NOTE: This cape is using an unsigned EEPROM and the $channelOutputDriver Channel Output driver which operates in a limited manner until the EEPROM is signed.  Pixel outputs will be limited to 50 pixels per output and smart receivers will be disabled.</b><br><br>\n";
-?>
+        if ($printSigningUI) {
+            if (!isset($currentCapeInfo['verifiedKeyId'])) {
+                echo "<b>NOTE: This cape is using an unsigned EEPROM and the $channelOutputDriver Channel Output driver which operates in a limited manner until the EEPROM is signed.  Pixel outputs will be limited to 50 pixels per output and smart receivers will be disabled.</b><br><br>\n";
+            }
+
+            ?>
     You may sign the EEPROM using a license key purchased from <a href='https://shop.FalconPlayer.com' target='_blank'>https://shop.FalconPlayer.com</a>.  Once you have purchased a license key, enter the Order Number and License Key below.
 <?php
-        if ($offlineMode)
-            echo "If <b>neither</b> your FPP instance or your browser can reach the internet, you will need to use the 'Offline Signing' tab.  ";
-?>
+if ($offlineMode) {
+                echo "If <b>neither</b> your FPP instance or your browser can reach the internet, you will need to use the 'Offline Signing' tab.  ";
+            }
+
+            ?>
     <br>
 
-    <table <?php if ($offlineMode) echo "class='internetOnly' style='display: none;'"; ?>>
+    <table <?php if ($offlineMode) {
+                echo "class='internetOnly' style='display: none;'";
+            }
+            ?>>
         <tr><td><b>Order Number:</b></td><td><input id='orderNumber' type='password' size=12 maxlength=10 value=''>
                 <i class='fas fa-eye' id='orderNumberHideShow' onClick='TogglePasswordHideShow("orderNumber");'></i></td></tr>
         <tr><td><b>License Key:</b></td><td><input id='licenseKey' type='password' size=36 maxlength=34 placeholder='FPPAFK-XXXXXX-XXXXXX-XXXXXX-XXXXXX'>
                 <i class='fas fa-eye' id='licenseKeyHideShow' onClick='TogglePasswordHideShow("licenseKey");'></i></td></tr>
-        <tr><td></td><td><input type='button' class='buttons' value='Sign EEPROM' onClick='<?php if ($offlineMode) echo "SignEEPROMViaBrowser"; else echo "SignEEPROM"; ?>();'></td></tr>
+        <tr><td></td><td><input type='button' class='buttons' value='Sign EEPROM' onClick='<?php if ($offlineMode) {
+                echo "SignEEPROMViaBrowser";
+            } else {
+                echo "SignEEPROM";
+            }
+            ?>();'></td></tr>
     </table>
 
     <br>
@@ -868,11 +941,11 @@ if (isset($settings["cape-info"])) {
         <li>If you receive errors activating a license key, email <a href='mailto: support@falconplayer.com'>support@falconplayer.com</a> with information regarding your order number and license key.</li>
     </ul>
 <?php
-    }
-} else {
-    echo "No EEPROM info found.";
 }
-?>
+    } else {
+        echo "No EEPROM info found.";
+    }
+    ?>
 
                                             </div>
                                         </div>
@@ -880,8 +953,8 @@ if (isset($settings["cape-info"])) {
                                 </div>
 <?php
 if ($printSigningUI) {
-   if ($offlineMode) {
-?>
+        if ($offlineMode) {
+            ?>
                                 <div class="tab-pane fade show" id="eeprom-offline" role="tabpanel" aria-labelledby="eeprom-offline-tab">
                                     <div class="container-fluid">
                                         <div class="row">
@@ -895,7 +968,7 @@ if ($printSigningUI) {
                                                             <i class='fas fa-eye' id='offlineLicenseKeyHideShow' onClick='TogglePasswordHideShow("offlineLicenseKey");'></i></td></tr>
                                                     <tr><td colspan='2'><input type='button' class='buttons' value='Download Offline Signing Packet' onClick='DownloadOfflineSigningFile();'></td></tr>
                                                 </table>
-                                                Clicking the download button will prompt you to save a file called 'cape-signing-<?=$settings['HostName'] ?>.bin'.  Some browsers may be setup to automatically save downloaded files.  If you are not prompted to save the file, check your Download directory for the file.
+                                                Clicking the download button will prompt you to save a file called 'cape-signing-<?=$settings['HostName']?>.bin'.  Some browsers may be setup to automatically save downloaded files.  If you are not prompted to save the file, check your Download directory for the file.
 
                                                 <hr>
                                                 <h3>Step #2: Get the packet signed.</h3>
@@ -909,8 +982,8 @@ if ($printSigningUI) {
                                     </div>
                                 </div>
 <?php
-   } else if ((!isset($settings['voucherRedeemed'])) || ($settings['voucherRedeemed'] != '1')) {
-?>
+} else if ((!isset($settings['voucherRedeemed'])) || ($settings['voucherRedeemed'] != '1')) {
+            ?>
                                 <div class="tab-pane fade show" id="eeprom-voucher" role="tabpanel" aria-labelledby="eeprom-voucher-tab">
                                     <div class="container-fluid">
                                         <div class="row">
@@ -939,36 +1012,48 @@ if ($printSigningUI) {
                                     </div>
                                 </div>
 <?php
-    }
 }
-?>
+    }
+    ?>
 
                                 <div class="tab-pane fade show" id="eeprom-upgrade" role="tabpanel" aria-labelledby="eeprom-upgrade-tab">
                                     <h2>EEPROM Upgrade / Restore</h2>
                                     <div class="container-fluid">
                                         <div class="row">
-                                            <div class="aboutLeft col-md">
+                                            <div class="aboutLeft col-8">
                                                 Select a downloadable EEPROM image or a local file to upgrade EEPROM firmware:<br>
-                                                <select id='eepromList' disabled onChange='eepromListChanged();'>
-                                                    <option value=''>-- Download firmware --</option>
-                                                </select><? if ($uiLevel >= 1) { ?>&nbsp;<input type='checkbox' id='filterEEPROMList' onChange='filterEEPROMListChanged();'>&nbsp;Show&nbsp;ALL<? } ?><br>
+                                                <div><b>Vendor:</b>&nbsp;
+                                                    <select id='eepromVendorList' disabled onChange='eepromVendorListChanged();'>
+                                                        <option value=''>-- Select Vendor --</option>
+                                                    </select><br>
+                                                    <b>Cape/Hat:</b>&nbsp;
+                                                    <select id='eepromVendorCapes' disabled onChange='eepromVendorCapeChanged();'>
+                                                        <option value=''>-- Select Cape --</option>
+                                                    </select><br>
+                                                    <b>Version:</b>&nbsp;
+                                                    <select id='eepromVendorCapeVersions' disabled onChange='eepromVendorCapeVersionChanged();'>
+                                                        <option value=''>-- Select Version --</option>
+                                                    </select><br>
+                                                </div>
+
+                                                <br>
                                                 <input type="file" name="firmware" id="firmware" style='padding-left: 0px;' onChange='firmwareChanged();'><br>
                                                 <input type='button' class="buttons" value='Upgrade' onClick='UpgradeFirmware();' id='UpdateFirmware' disabled>
                                             </div>
-                                            <div class="aboutRight col-md">
+                                            <div class="aboutRight col-4">
                                                 Select a backup EEPROM firmware to restore:<br>
                                                 <select id='backupFile' onChange='backupChanged();'>
                                                     <option value=''>-- Choose a backup EEPROM to restore --</option>
 <?php
 $files = scandir('/home/fpp/media/upload/', SCANDIR_SORT_DESCENDING);
-foreach ($files as $file) {
-    if (preg_match('/^cape-eeprom-Backup-.*\.bin$/', $file)) {
-        $restoreDisabled = '';
-        printf( "<option value='%s'>%s</option>\n", $file, $file);
+    foreach ($files as $file) {
+        if (preg_match('/^cape-eeprom-Backup-.*\.bin$/', $file)) {
+            $restoreDisabled = '';
+            printf("<option value='%s'>%s</option>\n", $file, $file);
+        }
     }
-}
-closedir($dir);
-?>
+    closedir($dir);
+    ?>
                                                 </select><br>
                                                 <input type='button' class="buttons" value='Restore' onClick='RestoreFirmware();' id='RestoreFirmware' disabled style='margin-top: 0.33rem !important;'><br>
                                             </div>
@@ -987,25 +1072,28 @@ closedir($dir);
         </div>
 <?
 } else {
-    $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
-    if (!file_exists($eepromFile)) {
-        $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
-        if (!file_exists($eepromFile)) {
-            $eepromFile = '';
-        }
-    }
-
     if ($eepromFile != '') {
-?>
+        ?>
                                 <div class="tab-pane fade show" id="eeprom-upgrade" role="tabpanel" aria-labelledby="eeprom-upgrade-tab">
                                     <h2>EEPROM Install</h2>
                                     <div class="container-fluid">
                                         <div class="row">
                                             <div class="aboutLeft col-md">
                                                 Your cape appears to have an unprogrammed physical EEPROM installed. Select a downloadable EEPROM image or a local file to program the EEPROM:<br>
-                                                <select id='eepromList' disabled onChange='eepromListChanged();'>
-                                                    <option value=''>-- Download firmware --</option>
-                                                </select><br>
+                                                <div><b>Vendor:</b>&nbsp;
+                                                    <select id='eepromVendorList' disabled onChange='eepromVendorListChanged();'>
+                                                        <option value=''>-- Select Vendor --</option>
+                                                    </select>&nbsp;&nbsp;
+                                                    <b>Cape/Hat:</b>&nbsp;
+                                                    <select id='eepromVendorCapes' disabled onChange='eepromVendorCapeChanged();'>
+                                                        <option value=''>-- Select Cape --</option>
+                                                    </select>&nbsp;&nbsp;
+                                                    <b>Version:</b>&nbsp;
+                                                    <select id='eepromVendorCapeVersions' disabled onChange='eepromVendorCapeVersionChanged();'>
+                                                        <option value=''>-- Select Version --</option>
+                                                    </select>&nbsp;&nbsp;
+                                                </div>
+                                                </br>
                                                 <input type="file" name="firmware" id="firmware" style='padding-left: 0px;' onChange='firmwareChanged();'><br>
                                                 <input type='button' class="buttons" value='Upgrade' onClick='UpgradeFirmware(true);' id='UpdateFirmware' disabled>
                                             </div>
@@ -1014,7 +1102,7 @@ closedir($dir);
                                 </div>
 <?
     } else {
-?>
+        ?>
     <h3>No Cape or Hat EEPROM found.</h3>
 
     Unable to find a physical or virtual EEPROM.  If you have a cape without a physical EEPROM installed,
