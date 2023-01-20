@@ -2490,7 +2490,11 @@ function JSONConfigBackupUSBDeviceChanged() {
         success: function(data){
             $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
 
-            $.jGrowl('JSON Configuration Backups will now be copied to: ' + storage_location, {themeState: 'success'});
+            if (storage_location !== "none"){
+                $.jGrowl('JSON Configuration Backups will now be copied to: ' + storage_location, {themeState: 'success'});
+            }else{
+                $.jGrowl('JSON Configuration Backups will no longer be copied to an additional storage device: ', {themeState: 'detract'});
+            }
 
             //Only copy existing backup files to the selected storage if something  other than no device has been selected
             //so for exmaple only do the initial  copy if going from none -> sda1

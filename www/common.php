@@ -2519,10 +2519,6 @@ function GenerateBackupViaAPI($backup_comment = "Created via API")
 	);
 	$context = stream_context_create($options);
 
-	//Call the endpoint
-	error_log($url);
-
-
 	if (file_get_contents($url, false, $context) !== FALSE) {
 		DoJsonBackupToUSB();
 	}else{
@@ -2548,9 +2544,6 @@ function DoJsonBackupToUSB(){
 
         //Build up the URL, include the necessary params so we can call it and have JSON Backups copied across
 		$url = 'http://localhost/copystorage.php?wrapped=1&direction=TOUSB&path=' . urlencode($fileCopy_BackupPath) . '&storageLocation=' . $selected_jsonConfigBackupUSBLocation . '&flags=JsonBackups&delete=no';
-
-		error_log('Calling copystorage.php');
-		error_log($url);
 
 		if (file_get_contents($url, false) === FALSE) {
 			/* Handle error */
