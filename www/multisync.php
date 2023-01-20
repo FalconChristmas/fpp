@@ -19,7 +19,6 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 <script type="text/javascript" src="js/xlsx.full.min.js" async></script>
 <script type="text/javascript" src="js/FileSaver.min.js" async></script>
 
-
 <title><?echo $pageTitle; ?></title>
 <style>
 
@@ -1422,6 +1421,19 @@ function ipFromRowID(id) {
 
     return ip;
 }
+function ipOrHostnameFromRowID(id) {
+<?if ($_SERVER['SERVER_NAME'] != $_SERVER['SERVER_ADDR']) {?>
+    // Hitting the FPP instance via Hostname, not Ip address.  Thus, we need to use
+    // hostnames for the remotes as well or CORS will trigger
+    var ip = $('#' + id + "_hostname").html();
+    if (ip == "") {
+        ip = $('#' + id).attr('ip');
+    }
+<?} else {?>
+    var ip = $('#' + id).attr('ip');
+<?}?>
+    return ip;
+}
 
 var streamCount = 0;
 function EnableDisableStreamButtons() {
@@ -1495,7 +1507,7 @@ function upgradeSystem(rowID) {
     showLogsRow(rowID);
     addLogsDivider(rowID);
 
-    var ip = ipFromRowID(rowID);
+    var ip = ipOrHostnameFromRowID(rowID);
     StreamURL(wrapUrlWithProxy(ip) + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'upgradeDone', 'upgradeFailed');
 }
 
