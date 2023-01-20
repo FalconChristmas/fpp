@@ -474,9 +474,7 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     }
 
     if (!entry.isMember("startDate") || (entry["startDate"].asString() == "")) {
-        LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
-               playlist.c_str());
-        return 0;
+        entry["startDate"] = "2019-01-01";
     }
     startDateStr = entry["startDate"].asString();
     std::string tempStr = CheckHoliday(startDateStr);
@@ -489,9 +487,7 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     }
 
     if (!entry.isMember("endDate") || (entry["endDate"].asString() == "")) {
-        LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
-               playlist.c_str());
-        return 0;
+        entry["endDate"] = "2099-12-31";
     }
     endDateStr = entry["endDate"].asString();
     tempStr = CheckHoliday(endDateStr);
