@@ -215,31 +215,25 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 function GetAvailableJSONBackups(){
 	global $settings;
 
-	//default is the systems hostname
-	$fileCopy_BackupPath = $settings['HostName'];
-
-	//If the File Copy Backup path has been modified from it's default of being the hostname, it's value will be saved
-	//use this in the path when looking for backups as they'll be copied there either manually (via use interaction of the file copy page) or via automatically via a the auto setting backup system
-	//this keeps things consistent and we know where things may be
-	if (isset($settings['backup.Path']) && !empty($settings['backup.Path'])) {
-		$fileCopy_BackupPath = $settings['backup.Path'];
-	}
-
-
 	$json_config_backup_filenames_on_alternative = array();
 	$json_config_backup_filenames_clean = array();
 
+	//Get the full directory path for the type of directory type we're processing
+	$dir_jsonbackups = GetDirSetting('JsonBackups');
 
 	//Grabs only the array keys which contain the JSON filenames
-	$json_config_backup_filenames = (read_directory_files($settings['configDirectory'] . "/backups", true, true, 'asc'));
+	$json_config_backup_filenames = (read_directory_files($dir_jsonbackups, true, true, 'asc'));
 	//Process the backup files to extra some info about them
-	$json_config_backup_filenames = process_jsonbackup_file_data_helper($json_config_backup_filenames, $settings['configDirectory'] . "/backups/");
+	$json_config_backup_filenames = process_jsonbackup_file_data_helper($json_config_backup_filenames, $dir_jsonbackups);
 
+	//See what backups are stored on the selected storage device if it's value is set
 	if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation'])) {
+		$dir_jsonbackupsalternate = GetDirSetting('JsonBackupsAlternate');
+
 		//$settings['jsonConfigBackupUSBLocation'] is the selected alternative drive to stop backups to
-		$json_config_backup_filenames_on_alternative = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'read_directory_files', array('/mnt/tmp/' . $fileCopy_BackupPath . '/config/backups', true, true, 'asc'));
+		$json_config_backup_filenames_on_alternative = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'read_directory_files', array($dir_jsonbackupsalternate, true, true, 'asc'));
 		//Process the backup files to extra some info about them
-		$json_config_backup_filenames_on_alternative = process_jsonbackup_file_data_helper($json_config_backup_filenames_on_alternative, 'mnt/tmp/' . $fileCopy_BackupPath.'/config/backups/');
+		$json_config_backup_filenames_on_alternative = process_jsonbackup_file_data_helper($json_config_backup_filenames_on_alternative, $dir_jsonbackupsalternate);
 	}
 	//Merge the results together, if t he same backup name exists in the alternative backup location it will overwrite the record from the local cnfig directory
 	$json_config_backup_filenames_clean = array_merge($json_config_backup_filenames, $json_config_backup_filenames_on_alternative);
@@ -268,7 +262,7 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 		$backup_alternative = false;
 		$backup_filepath = $source_directory;
 		//Check to see if the source direct is the same as the default or not, if it is't then the the directory is the alternative backup directory (USB or something)
-		if ($source_directory !== $settings['configDirectory'] . "/backups/") {
+		if ($source_directory !== GetDirSetting('JsonBackups')) {
 			$backup_alternative = true;
 		}
 
@@ -341,17 +335,10 @@ function GetAvailableJSONBackupsOnDevice(){
 	global $SUDO, $settings;
 	$deviceName = params('DeviceName');
 
-	//default is the systems hostname
-	$fileCopy_BackupPath = $settings['HostName'];
+	//Get the full directory path for the type of directory type we're processing
+	$dir_jsonbackupsalternate = GetDirSetting('JsonBackupsAlternate');
 
-	//If the File Copy Backup path has been modified from it's default of being the hostname, it's value will be saved
-	//use this in the path when looking for backups as they'll be copied there either manually (via use interaction of the file copy page) or via automatically via a the auto setting backup system
-	//this keeps things consistent and we know where things may be
-	if (isset($settings['backup.Path']) && !empty($settings['backup.Path'])) {
-		$fileCopy_BackupPath = $settings['backup.Path'];
-	}
-
-	$json_config_backup_filenames = DriveMountHelper($deviceName, 'read_directory_files', array('/mnt/tmp/' . $fileCopy_BackupPath . '/config/backups', false, true));
+	$json_config_backup_filenames = DriveMountHelper($deviceName, 'read_directory_files', array($dir_jsonbackupsalternate, false, true));
 
 	//do some additional massaging of the data
 	$json_config_backup_filenames = array_keys($json_config_backup_filenames);
@@ -386,20 +373,12 @@ function RestoreJsonBackup(){
 	//Filename of the backup to restore
 	$restore_from_filename = params('BackupFilename');
 
-	//default is the systems hostname
-	$fileCopy_BackupPath = $settings['HostName'];
-
-	//If the File Copy Backup path has been modified from it's default of being the hostname, it's value will be saved
-	//use this in the path when looking for backups as they'll be copied there either manually (via use interaction of the file copy page) or via automatically via a the auto setting backup system
-	//this keeps things consistent and we know where things may be
-	if (isset($settings['backup.Path']) && !empty($settings['backup.Path'])) {
-		$fileCopy_BackupPath = $settings['backup.Path'];
-	}
-
+	//Get the full directory path for the type of directory type we're processing
+	$dir = GetDirSetting($restore_from_directory);
+	$fullPath = "$dir/$restore_from_filename";
 
 	$file_contents_decoded = null;
 	$restore_status = array('success' => 'Failed', 'message' => '');
-
 
 	//check that the area supplied is not empty, if so then assume we're restoring all araeas
 	if (empty($area_to_restore)) {
@@ -415,8 +394,7 @@ function RestoreJsonBackup(){
 		//Read in the backup file and json_decode the contents
 		if (strtolower($restore_from_directory) === 'jsonbackups') {
 			//get load the file from the config directory
-			$file_contents = file_get_contents($settings['configDirectory'] . "/backups/" . $restore_from_filename);
-
+			$file_contents = file_get_contents($fullPath);
 
 			if ($file_contents !== FALSE) {
 				//decode back into an array
@@ -424,12 +402,12 @@ function RestoreJsonBackup(){
 			} else {
 				//file_get_contents will return false if it couldn't read the file so
 				$restore_status['success'] = "Ok";
-				$restore_status['message'] = 'Backup File ' . $settings['configDirectory'] . "/backups/" . $restore_from_filename . ' could not be read.';
+				$restore_status['message'] = 'Backup File ' . $fullPath . ' could not be read.';
 			}
 		} else if ((strtolower($restore_from_directory) === 'jsonbackupsalternate')) {
 			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation'])) {
 				//Mount and read the json backup from the jsonConfigBackupUSBLocation location
-				$file_contents = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_get_contents', array('/mnt/tmp/' . $fileCopy_BackupPath . '/config/backups/' . $restore_from_filename));
+				$file_contents = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_get_contents', array($fullPath));
 
 				//If the file was read ok, $file_contents will be false if there was issue reading the file
 				if ($file_contents !== FALSE) {
@@ -438,7 +416,7 @@ function RestoreJsonBackup(){
 				} else {
 					//file_get_contents will return false if it couldn't read the file so
 					$restore_status['success'] = "Ok";
-					$restore_status['message'] = 'Backup File ' . '/mnt/tmp/' . $fileCopy_BackupPath . '/config/backups/' . $restore_from_filename . ' could not be read.';
+					$restore_status['message'] = 'Backup File ' . $fullPath . ' could not be read.';
 				}
 			}
 		}
@@ -469,6 +447,7 @@ function DownloadJsonBackup(){
 	$dirName = params("Directory");
 	$fileName = params("BackupFilename");
 
+	//Get the full directory path for the type of directory type we're processing
 	$dir = GetDirSetting($dirName);
 	$fullPath = "$dir/$fileName";
 
@@ -523,12 +502,16 @@ function DeleteJsonBackup(){
 	$dirName = params("Directory");
 	$fileName = params("BackupFilename");
 
+	//Get the full directory path for the type of directory type we're processing
 	$dir = GetDirSetting($dirName);
 	$fullPath = "$dir/$fileName";
+
 	$fileDeleted = false;
+	$fileExists_alt = false;
+	$dir_alt = $fullPath_alt = "";
 
 	if (strtolower($dirName) == "jsonbackups") {
-		//Check if the file exists, we can use file_exists directly on the path for normal jsonhackups as it's going to be in the /home/fpp directory
+		//Check if the file exists, we can use file_exists directly on the path for normal jsonhackups as it's going to be in the /home/fpp/media directory
 		$fileExists = file_exists($fullPath);
 
 	} elseif (strtolower($dirName) == "jsonbackupsalternate") {
@@ -552,6 +535,18 @@ function DeleteJsonBackup(){
 			//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
 			// Mount the drive and delete the file
 			$fileDeleted = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'unlink', array($fullPath));
+
+			//ALSO check if the file exists in the /home/fpp/media location, because the backup we're deleting could have been copied to USB from location
+			//and we want to delete it in both
+			$dir_alt = GetDirSetting('JsonBackups');
+			$fullPath_alt = "$dir_alt/$fileName";
+			$fileExists_alt = file_exists($fullPath_alt);
+			//If the file exists in /home/media then delete it also as we want to delete copies of the file in both locations
+			//it will exist in both locations if a USB device is selected to copy backups to
+			if($fileExists_alt == true){
+				//delete it
+				unlink($fullPath_alt);
+			}
 		}
 
 		if ($fileDeleted) {

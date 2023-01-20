@@ -2518,7 +2518,10 @@ function GenerateBackupViaAPI($backup_comment = "Created via API")
 		)
 	);
 	$context = stream_context_create($options);
+
 	//Call the endpoint
+	error_log($url);
+
 
 	if (file_get_contents($url, false, $context) !== FALSE) {
 		DoJsonBackupToUSB();
@@ -2532,15 +2535,8 @@ function DoJsonBackupToUSB(){
     global $settings;
     //Gather some setting that will assist in making a copy of the backups
 	$selected_jsonConfigBackupUSBLocation = $settings['jsonConfigBackupUSBLocation'];
-	$fileCopy_BackupPath = $settings['HostName'];
-	$tmp_fileCopy_BackupPath = $settings['backup.Path'];
-
-	//If the File Copy Backup path has been modified from it's default of being the hostname, it's value will be saved
-	//use this in the path when looking for backups as they'll be copied there either manually (via use interaction of the file copy page) or via automatically via a the auto setting backup system
-	//this keeps things consistent and we know where things may be
-	if (isset($tmp_fileCopy_BackupPath) && !empty($tmp_fileCopy_BackupPath)) {
-		$fileCopy_BackupPath = $tmp_fileCopy_BackupPath;
-	}
+    //Folder under which the backups will be stored on the selected storeage device
+	$fileCopy_BackupPath = 'Automatic_Backups';
 
 	//first check if the jsonConfigBackupUSBLocation setting is valid
 	if (
@@ -2550,7 +2546,7 @@ function DoJsonBackupToUSB(){
 	) {
 		//Make a call to the copystorage.php page (i.e the File Copy Backup page)
 
-		//http://its-fpp-wifi.iot.home.lan/copystorage.php?wrapped=1&direction=TOUSB&path=ITS-FPP_Config&storageLocation=sda1&flags=JsonBackups&delete=no
+        //Build up the URL, include the necessary params so we can call it and have JSON Backups copied across
 		$url = 'http://localhost/copystorage.php?wrapped=1&direction=TOUSB&path=' . urlencode($fileCopy_BackupPath) . '&storageLocation=' . $selected_jsonConfigBackupUSBLocation . '&flags=JsonBackups&delete=no';
 
 		error_log('Calling copystorage.php');

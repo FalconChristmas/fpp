@@ -2494,12 +2494,12 @@ function JSONConfigBackupUSBDeviceChanged() {
 
             //Only copy existing backup files to the selected storage if something  other than no device has been selected
             //so for exmaple only do the initial  copy if going from none -> sda1
-            if (storage_location !== "none"){
-                //Make a call to the API responsible for copying the backups to the specified storage device
-                CopyBackupsToUSBHelper();
-            }
+            // if (storage_location !== "none"){
+            //     //Make a call to the API responsible for copying the backups to the specified storage device
+            //     CopyBackupsToUSBHelper();
+            // }
 
-            //Reload the list of JSON backups on the device
+            //Reload the list of JSON backups on the device, it will now show backups on the selected device
             GetJSONConfigBackupList();
         },
         error: function(data) {
@@ -2513,24 +2513,24 @@ function JSONConfigBackupUSBDeviceChanged() {
     });
 }
 
-function CopyBackupsToUSBHelper(){
-    //Get the backup path from the File Copy Backup page
-    var backup_path = $('#backup\\.Path').val()
-    var selected_jsonConfigBackupUSBLocation = $('#jsonConfigbackup\\.USBDevice').val()
-
-    //Generate the URL
-    var url = 'copystorage.php?wrapped=1&direction=TOUSB&path=' + encodeURIComponent(backup_path) + '&storageLocation=' + selected_jsonConfigBackupUSBLocation + '&flags=JsonBackups&delete=no';
-
-    $.ajax({
-        url: url,
-        type: 'GET',
-        success: function(data){
-            },
-            error: function(data) {
-            //do nothing
-         }
-    });
-}
+// function CopyBackupsToUSBHelper(){
+//     //Get the backup path from the File Copy Backup page
+//     var backup_path = $('#backup\\.Path').val()
+//     var selected_jsonConfigBackupUSBLocation = $('#jsonConfigbackup\\.USBDevice').val()
+//
+//     //Generate the URL
+//     var url = 'copystorage.php?wrapped=1&direction=TOUSB&path=' + encodeURIComponent(backup_path) + '&storageLocation=' + selected_jsonConfigBackupUSBLocation + '&flags=JsonBackups&delete=no';
+//
+//     $.ajax({
+//         url: url,
+//         type: 'GET',
+//         success: function(data){
+//             },
+//             error: function(data) {
+//             //do nothing
+//          }
+//     });
+// }
 
 function GetJSONConfigBackupDevice() {
     $.ajax({
