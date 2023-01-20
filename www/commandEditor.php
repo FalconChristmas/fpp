@@ -34,7 +34,15 @@ function CommandEditorSetup(target, data, callback, cancelCallback, args)
         });
     }
 
-    LoadCommandList($('#editorCommand'));
+    if (args.hasOwnProperty("validCommands")) {
+        PopulateCommandListCache();
+        var cmds = args["validCommands"];
+        for (i = 0; i < cmds.length; i++) {
+            $("#editorCommand").append("<option value='" + cmds[i] + "'>" + cmds[i] + "</option>");
+        }
+    } else {
+        LoadCommandList($('#editorCommand'));
+    }
 
     $('#btnSaveEditorCommand').val(args.saveButton);
     $('#btnCancelCommandEditor').val(args.cancelButton);
