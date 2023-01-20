@@ -447,7 +447,7 @@ void Usage(char *appname)
 "                                 start channel set to CH and optional\n"
 "                                 looping if LOOP is set to 1\n"
 "  -E EFFECTNAME                - Stop Effect EFFECTNAME\n"
-"  -t Slot#                     - Trigger FPP Command Preset in Slot#\n"
+"  -t CommandPresetSlot         - Trigger FPP Command Preset via Slot # or Preset Name\n"
 "  -G GPIO MODE                 - Configure the given GPIO to MODE. MODEs include:\n"
 "                                 Input    - Set to Input. For PiFace inputs this only enables the pull-up\n"
 "                                 Output   - Set to Output. (This is not needed for PiFace outputs)\n"
