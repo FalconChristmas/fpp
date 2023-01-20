@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 
 #include <arpa/inet.h>
+#include <curl/curl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -21,10 +22,8 @@
 #include <errno.h>
 #include <netdb.h>
 #include <signal.h>
-#include <curl/curl.h>
 
 #include "Twinkly.h"
-
 
 static const std::string TWINKLYTYPE = "Twinkly";
 
@@ -33,12 +32,12 @@ constexpr int HEADER_LEN = (1 + TOKEN_LEN + 2 + 1);
 
 constexpr uint32_t MAXPACKETS = 40 * 60 * 60 * 4; //about 4 hours at 40fps,
 
-
 const std::string& TwinklyOutputData::GetOutputTypeString() const {
     return TWINKLYTYPE;
 }
 
-TwinklyOutputData::TwinklyOutputData(const Json::Value& config) : UDPOutputData(config) {
+TwinklyOutputData::TwinklyOutputData(const Json::Value& config) :
+    UDPOutputData(config) {
     memset((char*)&twinklyAddress, 0, sizeof(sockaddr_in));
     twinklyAddress.sin_family = AF_INET;
     twinklyAddress.sin_port = htons(TWINKLY_PORT);
@@ -49,11 +48,11 @@ TwinklyOutputData::TwinklyOutputData(const Json::Value& config) : UDPOutputData(
         active = false;
     }
 
-    portCount = (channelCount + 899) / 900 ;
+    portCount = (channelCount + 899) / 900;
 
     twinklyIovecs = (struct iovec*)calloc(portCount * 2, sizeof(struct iovec));
     twinklyBuffers = (uint8_t**)calloc(portCount, sizeof(unsigned char*));
-    
+
     int chanToOutput = channelCount;
     int chan = startChannel - 1;
     for (int x = 0; x < portCount; x++) {
@@ -70,7 +69,7 @@ TwinklyOutputData::TwinklyOutputData(const Json::Value& config) : UDPOutputData(
         twinklyIovecs[x * 2].iov_len = HEADER_LEN;
         twinklyIovecs[x * 2 + 1].iov_base = nullptr;
         twinklyIovecs[x * 2 + 1].iov_len = chanToOutput >= 900 ? 900 : chanToOutput;
-        
+
         if (chanToOutput >= 900) {
             chanToOutput -= 900;
             chan += 900;
@@ -97,7 +96,7 @@ void TwinklyOutputData::PrepareData(unsigned char* channelData, UDPOutputMessage
             //need to re-authenticate or lights will stop eventually
             StartingOutput();
         }
-        
+
         int start = 0;
         struct mmsghdr msg;
         memset(&msg, 0, sizeof(msg));
@@ -159,10 +158,9 @@ size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp) {
 
     return size * nmemb;
 }
-Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string &path, const std::string &data) {
+Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string& path, const std::string& data) {
     std::string url = "http://" + ipAddress + "/" + path;
-    
-    
+
     CURL* curl = curl_easy_init();
     struct curl_slist* headers = NULL;
     std::string userAgent = "FPP/";
@@ -173,6 +171,7 @@ Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string &path,
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, urlWriteData);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resp);
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     if (startsWith(data, "{") && endsWith(data, "}")) {
         headers = curl_slist_append(headers, "Accept: application/json");
         headers = curl_slist_append(headers, "Content-Type: application/json");
@@ -184,7 +183,7 @@ Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string &path,
     if (headers) {
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     }
-    
+
     if (isPost) {
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
         curl_easy_setopt(curl, CURLOPT_POST, 1);
@@ -193,7 +192,6 @@ Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string &path,
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)5);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 2);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent.c_str());
-
 
     status = curl_easy_perform(curl);
     if (status != CURLE_OK) {

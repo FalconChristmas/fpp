@@ -52,7 +52,7 @@ int PlaylistEntryURL::Init(Json::Value& config) {
     }
 
     CURLcode status;
-
+    curl_easy_setopt(m_curl, CURLOPT_NOSIGNAL, 1);
     status = curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, &PlaylistEntryURL::write_data);
     if (status != CURLE_OK) {
         LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting write callback function: %s\n", curl_easy_strerror(status));

@@ -82,6 +82,7 @@ FPPStatusOLEDPage::FPPStatusOLEDPage() :
     _iterationCount(0),
     _hasSensors(false) {
     curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:32322/fppd/status");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 50);
@@ -546,6 +547,7 @@ void FPPStatusOLEDPage::runTest(const std::string& test) {
 
     buffer.clear();
     CURL* curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost/api/testmode");
 
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -577,8 +579,7 @@ static inline void ltrim(std::string& s) {
 static inline void rtrim(std::string& s) {
     s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
                 return !std::isspace(ch);
-            })
-                .base(),
+            }).base(),
             s.end());
 }
 // trim from both ends (in place)

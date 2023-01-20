@@ -960,6 +960,7 @@ void MultiSync::DiscoverViaHTTP(const std::set<std::string>& ipSet, const std::s
         curl_easy_setopt(handles[ips], CURLOPT_ACCEPT_ENCODING, "");
         curl_easy_setopt(handles[ips], CURLOPT_TCP_FASTOPEN, 1L);
         curl_easy_setopt(handles[ips], CURLOPT_HTTP09_ALLOWED, 1L);
+        curl_easy_setopt(handles[ips], CURLOPT_NOSIGNAL, 1);
 
         curl_multi_add_handle(multi_handle, handles[ips]);
         if ((ips % 10) == 0) {
@@ -1094,7 +1095,7 @@ void MultiSync::PeriodicPing() {
     }
     //every minute we'll loop through real quick and check for remote instances
     //we haven't heard from in a while
-    lpt = m_lastCheckTime + 60 ;
+    lpt = m_lastCheckTime + 60;
     bool superLongGap = false;
     if (lpt < (unsigned long)t) {
         m_lastCheckTime = (unsigned long)t;
@@ -1104,7 +1105,7 @@ void MultiSync::PeriodicPing() {
         //have caused at least 4 pings to have been sent.  If it has responded
         //to any of those 4, it's got to be down/gone.   Remove it.
         unsigned long timeoutRemove = (unsigned long)t - 60 * 120;
-	//if we hadn't heard from them in 10 hours, it's likely a clock change
+        //if we hadn't heard from them in 10 hours, it's likely a clock change
         //event, we'll resend a ping out to all to hopefully get everything
         //updated and new timestamps
         unsigned long timeoutRePingAll = (unsigned long)t - 60 * 600;
@@ -1129,7 +1130,7 @@ void MultiSync::PeriodicPing() {
         }
     }
     if (superLongGap) {
-	Ping(1);
+        Ping(1);
     }
 }
 

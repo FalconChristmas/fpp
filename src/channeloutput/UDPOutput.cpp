@@ -293,7 +293,7 @@ int UDPOutput::Init(Json::Value config) {
         useThreadedOutput = config["threaded"].asInt() ? true : false;
     }
     if (config.isMember("interface")) {
-        e131Interface = config["interface"].asString();
+        outInterface = config["interface"].asString();
     }
 
     std::set<std::string> myIps;
@@ -309,23 +309,23 @@ int UDPOutput::Init(Json::Value config) {
         if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
             GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
             myIps.emplace(address);
-            if ((e131Interface == "") && (strcmp(tmp->ifa_name, "lo"))) {
+            if ((outInterface == "") && (strcmp(tmp->ifa_name, "lo"))) {
                 if (firstInterface == "") {
                     firstInterface = tmp->ifa_name;
                 }
                 if (tmp->ifa_name[0] == 'e') {
-                    e131Interface = tmp->ifa_name;
+                    outInterface = tmp->ifa_name;
                 }
             }
         }
         tmp = tmp->ifa_next;
     }
     freeifaddrs(interfaces);
-    if (e131Interface == "") {
-        e131Interface = firstInterface;
+    if (outInterface == "") {
+        outInterface = firstInterface;
     }
-    if (e131Interface == "") {
-        e131Interface = "eth0";
+    if (outInterface == "") {
+        outInterface = "eth0";
     }
 
     bool disableFakeBridges = getSettingInt("DisableFakeNetworkBridges");
@@ -347,14 +347,19 @@ int UDPOutput::Init(Json::Value config) {
     }
 
     std::function<void(NetworkMonitor::NetEventType, int, const std::string&)> f = [this](NetworkMonitor::NetEventType i, int up, const std::string& s) {
-        std::string interface = e131Interface;
+        std::string interface = outInterface;
         if (s == interface && i == NetworkMonitor::NetEventType::NEW_ADDR && up) {
-            LogInfo(VB_CHANNELOUT, "UDP Interface %s now up\n", s.c_str());
-            PingControllers();
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            InitNetwork();
+            if (!interfaceUp) {
+                LogInfo(VB_CHANNELOUT, "UDP Interface %s now up\n", s.c_str());
+                PingControllers();
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                InitNetwork();
+            } else {
+                pingThreadCondition.notify_all();
+            }
         } else if (s == interface && i == NetworkMonitor::NetEventType::DEL_ADDR) {
             LogInfo(VB_CHANNELOUT, "UDP Interface %s now down\n", s.c_str());
+            interfaceUp = false;
             CloseNetwork();
         }
     };
@@ -663,6 +668,7 @@ bool UDPOutput::PingControllers(bool failedOnly) {
                         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
                         curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000);
                         curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+                        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
                         curl_multi_add_handle(m_curlm, curl);
                         curls[host] = curl;
                     }
@@ -808,7 +814,7 @@ bool UDPOutput::InitNetwork() {
     }
 
     char E131LocalAddress[16];
-    GetInterfaceAddress(e131Interface.c_str(), E131LocalAddress, NULL, NULL);
+    GetInterfaceAddress(outInterface.c_str(), E131LocalAddress, NULL, NULL);
     LogDebug(VB_CHANNELOUT, "UDPLocalAddress = %s\n", E131LocalAddress);
 
     if (strlen(E131LocalAddress) > 3 && E131LocalAddress[0] == '1' && E131LocalAddress[1] == '2' && E131LocalAddress[2] == '7') {

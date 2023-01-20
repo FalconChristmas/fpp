@@ -99,6 +99,7 @@ public:
             data = args[2];
         }
         m_curl = curl_easy_init();
+        curl_easy_setopt(m_curl, CURLOPT_NOSIGNAL, 1);
 
         CURLcode status;
         status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());

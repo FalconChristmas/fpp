@@ -970,7 +970,7 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
         curl_easy_cleanup(curl);
         return false;
     }
-    
+
     struct curl_slist* headers = NULL;
     if (startsWith(data, "{") && endsWith(data, "}")) {
         headers = curl_slist_append(headers, "Accept: application/json");
@@ -987,9 +987,9 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
             return false;
         }
     }
-
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)timeout);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 2);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
 
     if (method == "POST")
         curl_easy_setopt(curl, CURLOPT_POST, 1);
@@ -1152,7 +1152,7 @@ void RegisterShutdownHandler(const std::function<void(bool)> hook) {
 }
 
 std::string GetFileExtension(const std::string& filename) {
-    if(filename.find_last_of(".") != std::string::npos)
-       return filename.substr(filename.find_last_of(".")+1);
+    if (filename.find_last_of(".") != std::string::npos)
+        return filename.substr(filename.find_last_of(".") + 1);
     return "";
 }

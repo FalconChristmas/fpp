@@ -131,7 +131,8 @@ public:
 private:
     int SendMessages(unsigned int key, SendSocketInfo* socketInfo, std::vector<struct mmsghdr>& sendmsgs);
     struct sockaddr_in localAddress;
-    std::string e131Interface;
+    std::string outInterface;
+    bool interfaceUp = true;
 
     bool InitNetwork();
     SendSocketInfo* findOrCreateSocket(unsigned int key, int sc = 1);

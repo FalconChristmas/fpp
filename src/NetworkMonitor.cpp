@@ -54,6 +54,7 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>>& callbacks) {
             bool OK = true;
             for (h = (struct nlmsghdr*)buf; OK && NLMSG_OK(h, (unsigned int)status); h = NLMSG_NEXT(h, status)) {
                 //Finish reading
+                //LogInfo(VB_GENERAL, "Type: %d    Flags: %X\n", h->nlmsg_type, h->nlmsg_flags);
                 switch (h->nlmsg_type) {
                 case NLMSG_DONE:
                     OK = false;
@@ -93,7 +94,7 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>>& callbacks) {
         }
         return false;
     };
-#endif    
+#endif
 }
 void NetworkMonitor::callCallbacks(NetEventType nl, int up, const std::string& n) {
     for (auto& cb : callbacks) {

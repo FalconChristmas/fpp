@@ -19,6 +19,7 @@ static int curlBufferWriter(char* data, size_t size, size_t nmemb,
 
 static std::string escapeURL(const std::string& url) {
     CURL* curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     char* output = curl_easy_escape(curl, url.c_str(), url.length());
     std::string ret = output;
     curl_free(output);
@@ -31,6 +32,7 @@ static std::string doCurlGet(const std::string& url, int timeout = 250) {
     CURL* curl = curl_easy_init();
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlBufferWriter);
@@ -135,9 +137,9 @@ private:
 class ResetPage : public MenuOLEDPage {
 public:
     ResetPage(OLEDPage* parent) :
-        MenuOLEDPage("Reset FPP", {"Perform Reset", "Back", "-------------", "All", "  Networking", "  Configuration", "  Outputs", "  Settings", "  Sequences", "  Media", "  Playlists", "  Schedule"}, parent) {
-            this->autoDelete();
-        };
+        MenuOLEDPage("Reset FPP", { "Perform Reset", "Back", "-------------", "All", "  Networking", "  Configuration", "  Outputs", "  Settings", "  Sequences", "  Media", "  Playlists", "  Schedule" }, parent) {
+        this->autoDelete();
+    };
     virtual ~ResetPage() {}
 
     virtual void itemSelected(const std::string& item) override {
@@ -145,7 +147,7 @@ public:
             SetCurrentPage(parent);
             return;
         } else if (item == "Perform Reset") {
-            PromptOLEDPage *p = new PromptOLEDPage("Reset FPP?", "Reset FPP?", "", { "No", "Yes" }, [this] (const std::string &i) {
+            PromptOLEDPage* p = new PromptOLEDPage("Reset FPP?", "Reset FPP?", "", { "No", "Yes" }, [this](const std::string& i) {
                 if (i == "No") {
                     SetCurrentPage(parent);
                 } else if (i == "Yes") {
@@ -160,7 +162,7 @@ public:
             }
             display();
         } else if (item[0] != '-') {
-            for (auto &a : items) {
+            for (auto& a : items) {
                 if (a == item) {
                     a[0] = item[0] == ' ' ? '*' : ' ';
                 }
@@ -202,9 +204,7 @@ public:
         }
         SetCurrentPage(parent);
     }
-
 };
-
 
 FPPMainMenu::FPPMainMenu(FPPStatusOLEDPage* p) :
     MenuOLEDPage("Main Menu", { "FPP Mode", "Tethering", "Testing", "Reboot", "Shutdown", "Reset", "About", "Back" }, p),
@@ -280,18 +280,19 @@ void FPPMainMenu::itemSelected(const std::string& item) {
         SetCurrentPage(pg);
     } else if (item == "Testing") {
         FPPStatusOLEDPage* sp = statusPage;
-        MenuOLEDPage* pg = new MenuOLEDPage("Test", { "Off", "White", "Red", "Green", "Blue", "R-G-B Cycle", "R-G-B-W Cycle", "R-G-B-W-N Cycle", "R-G-B Chase", "R-G-B-W Chase", "R-G-B-W-N Chase", "Back" }, [this, sp](const std::string& item) {
-            if (item == "Back") {
-                SetCurrentPage(this);
-                return;
-            }
-            sp->runTest(item);
-            if (item == "Off") {
-                SetCurrentPage(this);
-                return;
-            }
-        },
-                                            this);
+        MenuOLEDPage* pg = new MenuOLEDPage(
+            "Test", { "Off", "White", "Red", "Green", "Blue", "R-G-B Cycle", "R-G-B-W Cycle", "R-G-B-W-N Cycle", "R-G-B Chase", "R-G-B-W Chase", "R-G-B-W-N Chase", "Back" }, [this, sp](const std::string& item) {
+                if (item == "Back") {
+                    SetCurrentPage(this);
+                    return;
+                }
+                sp->runTest(item);
+                if (item == "Off") {
+                    SetCurrentPage(this);
+                    return;
+                }
+            },
+            this);
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "Tethering") {
@@ -308,39 +309,40 @@ void FPPMainMenu::itemSelected(const std::string& item) {
         int tt = getSettingInt("TetherTechnology");
         options[tm][0] = '*';
         options[tt + 3][0] = '*';
-        MenuOLEDPage* pg = new MenuOLEDPage("Tethering", options, [this, sp](const std::string& item) {
-            if (item != " Back") {
-                std::string nitem = item.substr(1);
-                std::string nvdata;
-                std::string nvresults;
-                std::string nv = "http://127.0.0.1/api/settings/EnableTethering";
-                if (nitem == "Automatic") {
-                    nvdata = "0";
-                } else if (nitem == "On") {
+        MenuOLEDPage* pg = new MenuOLEDPage(
+            "Tethering", options, [this, sp](const std::string& item) {
+                if (item != " Back") {
+                    std::string nitem = item.substr(1);
+                    std::string nvdata;
+                    std::string nvresults;
+                    std::string nv = "http://127.0.0.1/api/settings/EnableTethering";
+                    if (nitem == "Automatic") {
+                        nvdata = "0";
+                    } else if (nitem == "On") {
+                        nvdata = "1";
+                    } else if (nitem == "Off") {
+                        nvdata = "2";
+                    } else if (nitem == "HostApd") {
+                        nv = "http://127.0.0.1/api/settings/TetherTechnology";
+                        nvdata = "0";
+                    } else if (nitem == "ConnMan") {
+                        nv = "http://127.0.0.1/api/settings/TetherTechnology";
+                        nvdata = "1";
+                    } else {
+                        nvdata = "0";
+                    }
+                    urlPut(nv, nvdata, nvresults);
                     nvdata = "1";
-                } else if (nitem == "Off") {
-                    nvdata = "2";
-                } else if (nitem == "HostApd") {
-                    nv = "http://127.0.0.1/api/settings/TetherTechnology";
-                    nvdata = "0";
-                } else if (nitem == "ConnMan") {
-                    nv = "http://127.0.0.1/api/settings/TetherTechnology";
-                    nvdata = "1";
-                } else {
-                    nvdata = "0";
-                }
-                urlPut(nv, nvdata, nvresults);
-                nvdata = "1";
-                urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
+                    urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
 
-                RebootPromptPage* pg = new RebootPromptPage("Reboot Required", "Reboot FPPD?", this);
-                pg->autoDelete();
-                SetCurrentPage(pg);
-            } else {
-                SetCurrentPage(this);
-            }
-        },
-                                            this);
+                    RebootPromptPage* pg = new RebootPromptPage("Reboot Required", "Reboot FPPD?", this);
+                    pg->autoDelete();
+                    SetCurrentPage(pg);
+                } else {
+                    SetCurrentPage(this);
+                }
+            },
+            this);
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "FPP Mode") {
@@ -356,23 +358,24 @@ void FPPMainMenu::itemSelected(const std::string& item) {
         } else {
             options[0][0] = '*';
         }
-        MenuOLEDPage* pg = new MenuOLEDPage("FPPD Mode", options, [this, sp](const std::string& item) {
-            if (item != " Back") {
-                std::string nitem = item.substr(1);
-                std::string nv = "http://127.0.0.1/fppxml.php?command=setFPPDmode&mode=";
-                if (nitem == "Remote") {
-                    nv += "8";
+        MenuOLEDPage* pg = new MenuOLEDPage(
+            "FPPD Mode", options, [this, sp](const std::string& item) {
+                if (item != " Back") {
+                    std::string nitem = item.substr(1);
+                    std::string nv = "http://127.0.0.1/fppxml.php?command=setFPPDmode&mode=";
+                    if (nitem == "Remote") {
+                        nv += "8";
+                    } else {
+                        nv += "2";
+                    }
+                    doCurlGet(nv);
+                    doCurlGet("http://127.0.0.1/api/system/fppd/restart", 10000);
+                    SetCurrentPage(sp);
                 } else {
-                    nv += "2";
+                    SetCurrentPage(this);
                 }
-                doCurlGet(nv);
-                doCurlGet("http://127.0.0.1/api/system/fppd/restart", 10000);
-                SetCurrentPage(sp);
-            } else {
-                SetCurrentPage(this);
-            }
-        },
-                                            this);
+            },
+            this);
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "Bridge Stats") {
@@ -391,21 +394,22 @@ void FPPMainMenu::itemSelected(const std::string& item) {
             }
             playlists.push_back("Back");
             FPPStatusOLEDPage* sp = statusPage;
-            MenuOLEDPage* pg = new MenuOLEDPage("Playlist", playlists, [sp](const std::string& item) {
-                if (item == "-Stop Now-") {
-                    std::string url = "http://127.0.0.1/api/playlists/stop";
-                    doCurlGet(url, 1000);
-                } else if (item == "-Stop Gracefully-") {
-                    std::string url = "http://127.0.0.1/api/playlists/stopgracefully";
-                    doCurlGet(url, 1000);
-                } else if (item != "Back") {
-                    std::string escItem = escapeURL(item);
-                    std::string url = "http://127.0.0.1/api/playlist/" + escItem + "/start";
-                    doCurlGet(url, 1000);
-                }
-                SetCurrentPage(sp);
-            },
-                                                this);
+            MenuOLEDPage* pg = new MenuOLEDPage(
+                "Playlist", playlists, [sp](const std::string& item) {
+                    if (item == "-Stop Now-") {
+                        std::string url = "http://127.0.0.1/api/playlists/stop";
+                        doCurlGet(url, 1000);
+                    } else if (item == "-Stop Gracefully-") {
+                        std::string url = "http://127.0.0.1/api/playlists/stopgracefully";
+                        doCurlGet(url, 1000);
+                    } else if (item != "Back") {
+                        std::string escItem = escapeURL(item);
+                        std::string url = "http://127.0.0.1/api/playlist/" + escItem + "/start";
+                        doCurlGet(url, 1000);
+                    }
+                    SetCurrentPage(sp);
+                },
+                this);
             pg->autoDelete();
             SetCurrentPage(pg);
         }
