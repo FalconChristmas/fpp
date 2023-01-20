@@ -1941,8 +1941,10 @@ include 'menu.inc';?>
     <h1 class="title">FPP MultiSync</h1>
         <div class="pageContent">
 
+        <div class='container-fluid settingsTable settingsGroupTable'>
         <?PrintSetting('MultiSyncEnabled');?>
         <?PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled');?>
+        </div>
         <p>
         	<div id="uifppsystems" class="settings">
                     <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
