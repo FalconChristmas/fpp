@@ -354,6 +354,7 @@ int UDPOutput::Init(Json::Value config) {
                 PingControllers();
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
                 InitNetwork();
+                interfaceUp = true;
             } else {
                 pingThreadCondition.notify_all();
             }
@@ -365,6 +366,9 @@ int UDPOutput::Init(Json::Value config) {
     };
     networkCallbackId = NetworkMonitor::INSTANCE.registerCallback(f);
 
+    // We are going to initialize everything and Ping the outputs
+    // so we'll assume the interface is Up.
+    interfaceUp = true;
     InitNetwork();
     // need to do three pings to detect down hosts
     PingControllers();
