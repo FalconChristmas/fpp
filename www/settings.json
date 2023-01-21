@@ -1382,9 +1382,9 @@
         },
         "MQTTFrequency": {
             "name": "MQTTFrequency",
-            "description": "Publish Frequency",
+            "description": "Publish Playlist Frequency",
             "gatherStats": true,
-            "tip": "Optional frequency to publish FPP status to MQTT Broker.  Zero indicates that the status will only be published on demand.",
+            "tip": "Optional frequency to publish FPP Playlist Statistics to MQTT Broker.  Zero indicates that the status will not be published but is available on demand",
             "restart": 2,
             "default": 0,
             "type": "number",
