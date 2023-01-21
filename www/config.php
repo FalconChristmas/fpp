@@ -631,16 +631,8 @@ function GetDirSetting($dir)
 	} else if ($dir == "jsonbackups") {
 		return GetSettingValue('configDirectory') . "/backups";
 	} else if ($dir == "jsonbackupsalternate") {
-		//default is the systems hostname
+		//Folder Location on the alternate store under which the backups are stored
 		$fileCopy_BackupPath = 'Automatic_Backups';
-
-		//If the File Copy Backup path has been modified from it's default of being the hostname, it's value will be saved
-		//use this in the path when looking for backups as they'll be copied there either manually (via use interaction of the file copy page) or via automatically via a the auto setting backup system
-		//this keeps things consistent and we know where things may be
-//        $backup_path = GetSettingValue('backup.Path');
-//		if (isset($backup_path) && !empty($backup_path)) {
-//			$fileCopy_BackupPath = $backup_path;
-//		}
 
 		//build out the path to the alternative location as it's slightly custom
 		return "/mnt/tmp/" . $fileCopy_BackupPath . "/config/backups";

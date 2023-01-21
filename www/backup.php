@@ -2492,16 +2492,28 @@ function JSONConfigBackupUSBDeviceChanged() {
 
             if (storage_location !== "none"){
                 $.jGrowl('JSON Configuration Backups will now be copied to: ' + storage_location, {themeState: 'success'});
+
+                //Pop a dialog and let the user choose if they want to copy backups to USB
+                //Only copy existing backup files to the selected storage if something  other than no device has been selected
+                //so for exmaple only do the initial  copy if going from none -> sda1
+                $('#dialog_copyToUsb').fppDialog({
+                    title: 'Copy Backups to USB?',
+                    width: 400,
+                    autoResize: true,
+                    closeOnEscape: false,
+                    buttons: {
+                        'Yes Copy To USB': function () {
+                            CopyBackupsToUSBHelper();
+                            $(this).fppDialog("close");
+                        },
+                        'Not Right Now': function () {
+                            $(this).fppDialog("close");
+                        }
+                    }
+                });
             }else{
                 $.jGrowl('JSON Configuration Backups will no longer be copied to an additional storage device: ', {themeState: 'detract'});
             }
-
-            //Only copy existing backup files to the selected storage if something  other than no device has been selected
-            //so for exmaple only do the initial  copy if going from none -> sda1
-            // if (storage_location !== "none"){
-            //     //Make a call to the API responsible for copying the backups to the specified storage device
-            //     CopyBackupsToUSBHelper();
-            // }
 
             //Reload the list of JSON backups on the device, it will now show backups on the selected device
             GetJSONConfigBackupList();
@@ -2517,26 +2529,29 @@ function JSONConfigBackupUSBDeviceChanged() {
     });
 }
 
-// function CopyBackupsToUSBHelper(){
-//     //Get the backup path from the File Copy Backup page
-//     var backup_path = $('#backup\\.Path').val()
-//     var selected_jsonConfigBackupUSBLocation = $('#jsonConfigbackup\\.USBDevice').val()
-//
-//     //Generate the URL
-//     var url = 'copystorage.php?wrapped=1&direction=TOUSB&path=' + encodeURIComponent(backup_path) + '&storageLocation=' + selected_jsonConfigBackupUSBLocation + '&flags=JsonBackups&delete=no';
-//
-//     $.ajax({
-//         url: url,
-//         type: 'GET',
-//         success: function(data){
-//             },
-//             error: function(data) {
-//             //do nothing
-//          }
-//     });
-// }
+function CopyBackupsToUSBHelper(){
+    //Get the backup path from the File Copy Backup page
+    var selected_jsonConfigBackupUSBLocation = $('#jsonConfigbackup\\.USBDevice').val()
+
+    //Generate the URL
+    var url = 'copystorage.php?wrapped=1&direction=TOUSB&path=' + 'Automatic_Backups' + '&storageLocation=' + selected_jsonConfigBackupUSBLocation + '&flags=JsonBackups&delete=no';
+
+    $.ajax({
+        url: url,
+        type: 'GET',
+        success: function(data){
+            $.jGrowl('JSON Configuration Backups copied to: ' + selected_jsonConfigBackupUSBLocation, {themeState: 'success'});
+        },
+        error: function(data) {
+            //do nothing
+         }
+    });
+}
 
 function GetJSONConfigBackupDevice() {
+    //Add a the loading spinner to show something is happening
+    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('backup-file-configuration-actions-button-loading');
+
     $.ajax({
         url: 'api/settings/jsonConfigBackupUSBLocation',
         type: 'GET',
@@ -2544,11 +2559,15 @@ function GetJSONConfigBackupDevice() {
             if (typeof (data.value) !== "" || typeof (data.value) !== "undefined"){
                 //Change the JSON Config backup location to the one set by the user if a valid value is set
                 $('#jsonConfigbackup\\.USBDevice option[value="'+data.value+'"]').attr('selected', true);
+                //
+                $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
             }
         },
         error: function(data) {
             //do nothing
             DialogError('JSON Configuration Backup Storage Location', 'Failed to read additional storage location.');
+
+            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
         }
     });
 }
@@ -3259,24 +3278,43 @@ $eepromValue = file_exists('/home/fpp/media/config/cape-eeprom.bin') ? 1 : 0;
                     </div>
                     </div>
                 </div>
-            <div id="dialog" title="Warning!" style="display:none">
+            <div id="dialogSensitiveDetails" title="Warning!" style="display:none">
                 <p>Un-checking this box will disable protection (automatic removal) of sensitive data like passwords.
-                    <br/> <br/>
+                    <br>
                     <b>ONLY</b> Un-check this if you want to be able make an exact clone of settings to another FPP.
-                    <br/> <br/>
+                    <br>
                     <b>NOTE:</b> The backup will include passwords in plaintext, you assume full responsibility for this
                     file.
+                    <br>
                 </p>
             </div>
+
+            <div id="dialog_copyToUsb" title="Do You To Copy Existing Backups to USB?" style="display:none">
+                <p>Do you want to perform an initial copy of any existing backups on SD card to the chosen USB device?.
+                    <br>
+                    <b>If Yes</b>, any existing JSON Setting backups on the SD card will be copied to the selected USB storage device.
+                    <br>
+                    <b>If No</b>, backups will copied across on any future setting change.
+                </p>
+            </div>
+
         </div>
     </div>
     <script>
         $('#dataProtect').click(function () {
             var checked = $(this).is(':checked');
             if (!checked) {
-                $("#dialog").fppDialog({
-                    width: 580,
-                    height: 280
+
+                $('#dialogSensitiveDetails').fppDialog({
+                    title: 'Sensitive Details Will Not Be Protected',
+                    width: 400,
+                    autoResize: true,
+                    closeOnEscape: false,
+                    buttons: {
+                        Ok: function () {
+                            $(this).fppDialog("close");
+                        }
+                    }
                 });
             }
         });
