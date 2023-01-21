@@ -2463,6 +2463,10 @@ input[type=search].tablesorter-filter:disabled {
 	padding-bottom: 0;
 }
 
+.table-download-existing-backups-legend{
+	padding-top: 8px;
+}
+
 #backup-file-date {
 	font-size: 0.9em;
 }

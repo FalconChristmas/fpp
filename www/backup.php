@@ -3080,6 +3080,19 @@ foreach ($settings_restored as $area_restored => $success) {
                                                     </table>
                                                 </div>
                                             </div>
+
+                                            <div class="row">
+                                                <div class="col-md-6 text-center table-download-existing-backups-legend">
+                                                    <span>
+                                                        <i class="fas fa-sd-card"></i> - Located On FPP Storage Device
+                                                    </span>
+                                                </div>
+                                                <div class="col-md-6 text-center table-download-existing-backups-legend">
+                                                    <span><i class="fas fa-hdd">
+                                                        </i> - Located On Alternate Backup Location
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
