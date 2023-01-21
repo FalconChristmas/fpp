@@ -1499,6 +1499,12 @@ function addLogsDivider(rowID) {
         $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
 }
 
+function upgradeSystemByHostname(id) {
+    id = id.replace('_logText', '');
+    var ip = ipOrHostnameFromRowID(id);
+    StreamURL(wrapUrlWithProxy(ip) + '/manualUpdate.php?wrapped=1', id + '_logText', 'upgradeDone', 'upgradeFailed');
+}
+
 function upgradeSystem(rowID) {
     $('#' + rowID).find('input.remoteCheckbox').prop('checked', false);
 
@@ -1508,8 +1514,8 @@ function upgradeSystem(rowID) {
     showLogsRow(rowID);
     addLogsDivider(rowID);
 
-    var ip = ipOrHostnameFromRowID(rowID);
-    StreamURL(wrapUrlWithProxy(ip) + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'upgradeDone', 'upgradeFailed');
+    var ip = ipFromRowID(rowID);
+    StreamURL(wrapUrlWithProxy(ip) + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'upgradeDone', 'upgradeSystemByHostname');
 }
 
 function showWaitingOnOriginUpdate(rowID, origin) {
