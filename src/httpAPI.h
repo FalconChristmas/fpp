@@ -50,8 +50,6 @@ private:
 
     void SetOKResult(Json::Value& result, const std::string& msg);
     void SetErrorResult(Json::Value& result, const int respCode, const std::string& msg);
-
-    std::time_t startupTime;
 };
 
 class APIServer {

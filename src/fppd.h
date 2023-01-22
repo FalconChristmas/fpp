@@ -10,9 +10,11 @@
  * This source file is covered under the GPL v2 as described in the
  * included LICENSE.GPL file.
  */
- 
+
 #include "channeltester/ChannelTester.h"
 
 void CreateDaemon(void);
 void CheckExistanceOfDirectoriesAndFiles();
 void ShutdownFPPD(bool restart = false);
+void GetCurrentFPPDStatus(Json::Value& result);
+void SetFPPDStartupTime();

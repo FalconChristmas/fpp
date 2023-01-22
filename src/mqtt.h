@@ -47,7 +47,8 @@ public:
     void HandleConnect();
     bool IsConnected();
 
-    void PublishStatus();
+    void PublishPlaylistStatus();
+    void PublishFPPDStatus();
     void SetReady();
 
     void CacheSetMessage(std::string& topic, std::string& message);

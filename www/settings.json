@@ -126,6 +126,7 @@
                 "MQTTPassword",
                 "MQTTCaFile",
                 "MQTTFrequency",
+                "MQTTStatusFrequency",
                 "MQTTSubscribe"
             ]
         },
@@ -1384,7 +1385,7 @@
             "name": "MQTTFrequency",
             "description": "Publish Playlist Frequency",
             "gatherStats": true,
-            "tip": "Optional frequency to publish FPP Playlist Statistics to MQTT Broker.  Zero indicates that the status will not be published but is available on demand",
+            "tip": "Optional frequency to publish FPP Playlist status to MQTT Broker.  Zero indicates that the status will not be published but is available on demand",
             "restart": 2,
             "default": 0,
             "type": "number",
@@ -1460,6 +1461,18 @@
             "size": 32,
             "maxlength": 100,
             "type": "text"
+        },
+        "MQTTStatusFrequency": {
+            "name": "MQTTStatusFrequency",
+            "description": "Publish Status Frequency",
+            "gatherStats": true,
+            "tip": "Optional frequency to publish FPP status Json to MQTT Broker.  Zero indicates that the status will not be published",
+            "restart": 2,
+            "default": 0,
+            "type": "number",
+            "min": 0,
+            "max": 3600,
+            "step": 1
         },
         "MQTTUsername": {
             "name": "MQTTUsername",

@@ -17,6 +17,7 @@
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "command.h"
+#include "common.h"
 #include "e131bridge.h"
 #include "effects.h"
 #include "fpp.h"
@@ -35,6 +36,7 @@
 #else
 #include <sys/epoll.h>
 #include <sys/prctl.h>
+#include <sys/sysinfo.h>
 #include <syscall.h>
 #endif
 #include <sys/stat.h>
@@ -50,12 +52,12 @@
 #include <stdbool.h>
 
 #include "NetworkMonitor.h"
+#include "Timers.h"
 #include "falcon.h"
 #include "fppd.h"
 #include "channeloutput/FPD.h"
 #include "sensors/Sensors.h"
 #include "util/GPIOUtils.h"
-#include "Timers.h"
 #include <getopt.h>
 
 #include <curl/curl.h>
@@ -77,6 +79,7 @@ extern "C" {
 #define PLAT_GPIO_CLASS TmpFilePinProvider
 #endif
 
+std::time_t startupTime;
 pid_t pid, sid;
 volatile int runMainFPPDLoop = 1;
 volatile bool restartFPPD = 0;
@@ -278,7 +281,7 @@ static void handleCrash(int s) {
 #else
             auto stm = std::chrono::file_clock::to_sys(ftime);
 #endif
-            auto tdiff = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - stm);            
+            auto tdiff = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - stm);
             if (tdiff.count() < 60) {
                 hasRecent = true;
             }
@@ -999,5 +1002,167 @@ void PublishStatsBackground(std::string reason) {
         }
     } else {
         LogDebug(VB_GENERAL, "PublishStats called, but not been 10 days yet.\n");
+    }
+}
+
+void SetFPPDStartupTime() {
+    startupTime = std::time(nullptr);
+}
+
+/*
+ Build a Status JSON String
+*/
+void GetCurrentFPPDStatus(Json::Value& result) {
+    static std::string UUID = getSetting("SystemUUID");
+
+    int mode = getFPPmode();
+    result["fppd"] = "running";
+    result["uuid"] = UUID;
+    result["mode"] = mode;
+    result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
+    result["status"] = Player::INSTANCE.GetStatus();
+    result["bridging"] = HasBridgeData();
+    result["multisync"] = multiSync->isMultiSyncEnabled();
+
+    if (ChannelTester::INSTANCE.Testing()) {
+        result["status_name"] = "testing";
+    } else {
+        switch (result["status"].asInt()) {
+        case FPP_STATUS_IDLE:
+            result["status_name"] = "idle";
+            break;
+        case FPP_STATUS_PLAYLIST_PLAYING:
+            result["status_name"] = "playing";
+            break;
+        case FPP_STATUS_STOPPING_GRACEFULLY:
+            result["status_name"] = "stopping gracefully";
+            break;
+        case FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP:
+            result["status_name"] = "stopping gracefully after loop";
+            break;
+        case FPP_STATUS_STOPPING_NOW:
+            result["status_name"] = "stopping now";
+            break;
+        case FPP_STATUS_PLAYLIST_PAUSED:
+            result["status_name"] = "paused";
+            break;
+        default:
+            result["status_name"] = "unknown";
+        }
+    }
+
+    result["volume"] = getVolume();
+
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    std::stringstream sstr;
+    sstr << std::put_time(&tm, "%a %b %d %H:%M:%S %Z %Y");
+    std::string str = sstr.str();
+    result["time"] = str;
+
+    std::string fmt = getSetting("TimeFormat");
+    replaceAll(fmt, "%M", "%M:%S");
+    result["timeStrFull"] = GetTimeStr(fmt.c_str());
+    result["timeStr"] = GetTimeStr(getSetting("TimeFormat"));
+    result["dateStr"] = GetDateStr(getSetting("DateFormat"));
+
+    std::time_t timeDiff = std::time(nullptr) - startupTime;
+    int totalseconds = (int)timeDiff;
+
+#ifdef PLATFORM_OSX
+    struct timeval boot;
+    struct timeval now;
+    int mib[] = { CTL_KERN, KERN_BOOTTIME };
+    size_t size = sizeof(boot);
+    if (sysctl(mib, 2, &boot, &size, 0, 0) == 0 && gettimeofday(&now, 0)) {
+        uint64_t uptime_micro = (now.tv_sec * 1000000 + now.tv_usec) - (boot.tv_sec * 1000000 + boot.tv_usec);
+        totalseconds = (int)(uptime_micro / 1000000);
+    }
+#else
+    struct sysinfo sysInf;
+    if (sysinfo(&sysInf) == 0) {
+        int uptimeSecs = sysInf.uptime;
+        if (uptimeSecs < totalseconds) {
+            startupTime = std::time(nullptr);
+            timeDiff = std::time(nullptr) - startupTime;
+            totalseconds = (int)timeDiff;
+        }
+    }
+#endif
+    double days = ((double)timeDiff) / 86400;
+    double hours = ((double)(totalseconds % 86400)) / 3600;
+    int seconds = totalseconds % 86400 % 3600;
+    double minutes = ((double)seconds) / 60;
+    seconds = seconds % 60;
+
+    result["uptime"] = secondsToTime((int)timeDiff);
+    result["uptimeTotalSeconds"] = (int)timeDiff;
+    result["uptimeSeconds"] = seconds;
+    result["uptimeDays"] = days;
+    result["uptimeMinutes"] = minutes;
+    result["uptimeHours"] = hours;
+    result["uptimeDays"] = days;
+
+    std::stringstream totalTime;
+    totalTime << (int)days << " days, " << (int)hours << " hours, " << (int)minutes << " minutes, " << seconds << " seconds";
+    result["uptimeStr"] = totalTime.str();
+
+    Sensors::INSTANCE.reportSensors(result);
+    std::list<std::string> warnings = WarningHolder::GetWarnings();
+    for (auto& warn : warnings) {
+        result["warnings"].append(warn);
+    }
+    if (mode == 1) {
+        //bridge mode only returns the base information
+        return;
+    }
+
+    // MQTT
+    result["MQTT"]["configured"] = false;
+    result["MQTT"]["connected"] = false;
+    if (mqtt) {
+        result["MQTT"]["configured"] = true;
+        result["MQTT"]["connected"] = mqtt->IsConnected();
+    }
+
+    if (getFPPmode() == REMOTE_MODE) {
+        int secsElapsed = 0;
+        int secsRemaining = 0;
+        std::string seqFilename;
+        std::string mediaFilename;
+        if (sequence->IsSequenceRunning()) {
+            seqFilename = sequence->m_seqFilename;
+            secsElapsed = sequence->m_seqMSElapsed / 1000;
+            secsRemaining = sequence->m_seqMSRemaining / 1000;
+        }
+        if (mediaOutput) {
+            mediaFilename = mediaOutput->m_mediaFilename;
+            secsElapsed = mediaOutputStatus.secondsElapsed;
+            secsRemaining = mediaOutputStatus.secondsRemaining;
+        }
+
+        if (seqFilename != "" || mediaFilename != "") {
+            result["status"] = 1;
+            result["status_name"] = "playing";
+        }
+
+        result["playlist"] = seqFilename;
+        result["sequence_filename"] = seqFilename;
+        result["media_filename"] = mediaFilename;
+        result["current_sequence"] = seqFilename;
+        result["current_song"] = mediaFilename;
+        result["seconds_played"] = std::to_string(secsElapsed);
+        result["seconds_elapsed"] = std::to_string(secsElapsed);
+        result["seconds_remaining"] = std::to_string(secsRemaining);
+        result["time_elapsed"] = secondsToTime(secsElapsed);
+        result["time_remaining"] = secondsToTime(secsRemaining);
+    } else {
+        std::string NextPlaylist = scheduler->GetNextPlaylistName();
+        std::string NextPlaylistStart = scheduler->GetNextPlaylistStartStr();
+        result["next_playlist"]["playlist"] = NextPlaylist;
+        result["next_playlist"]["start_time"] = NextPlaylistStart;
+
+        Player::INSTANCE.GetCurrentStatus(result);
+        result["scheduler"] = scheduler->GetInfo();
     }
 }

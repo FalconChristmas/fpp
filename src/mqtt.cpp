@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 #include "fppd.h"
+#include <algorithm>
+#include <climits>
 
 #include "Player.h"
 #include "effects.h"
@@ -451,8 +453,9 @@ void MosquittoClient::SetReady() {
         m_canProcessMessages = true;
         mosquitto_message_callback_set(m_mosq, mosq_msg_callback);
 
-        int frequency = getSettingInt("MQTTFrequency");
-        if (frequency > 0) {
+        int playlistFrequency = getSettingInt("MQTTFrequency");
+        int statusFrequency = getSettingInt("MQTTStatusFrequency");
+        if ((playlistFrequency > 0) || (statusFrequency > 0)) {
             // create  background Publish Thread
             int result = pthread_create(&m_mqtt_publish_t, NULL, &RunMqttPublishThread, (void*)this);
             if (result != 0) {
@@ -598,7 +601,7 @@ void MosquittoClient::MessageCallback(void* obj, const struct mosquitto_message*
             message->topic);
 }
 
-void MosquittoClient::PublishStatus() {
+void MosquittoClient::PublishPlaylistStatus() {
     if (!m_isConnected) {
         return;
     }
@@ -607,6 +610,18 @@ void MosquittoClient::PublishStatus() {
     std::stringstream buffer;
     buffer << json << std::endl;
     Publish("playlist_details", buffer.str());
+}
+
+void MosquittoClient::PublishFPPDStatus() {
+    if (!m_isConnected) {
+        return;
+    }
+    Json::Value json;
+    GetCurrentFPPDStatus(json);
+
+    std::stringstream buffer;
+    buffer << json << std::endl;
+    Publish("fppd_status", buffer.str());
 }
 
 void MosquittoClient::CacheSetMessage(std::string& topic, std::string& message) {
@@ -641,20 +656,43 @@ void* RunMqttPublishThread(void* data) {
     sleep(3); // Give everything time to start up
 
     MosquittoClient* me = (MosquittoClient*)data;
-    int frequency = getSettingInt("MQTTFrequency");
-    if (frequency < 0) {
-        frequency = 0;
+    int playlistFrequency = getSettingInt("MQTTFrequency");
+    int statusFrequency = getSettingInt("MQTTStatusFrequency");
+    if (playlistFrequency < 0) {
+        playlistFrequency = 0;
     }
-    LogInfo(VB_CONTROL, "Starting Publish Thread with Frequency: %d\n", frequency);
-    if (frequency == 0) {
+    if (statusFrequency < 0) {
+        statusFrequency = 0;
+    }
+
+    LogInfo(VB_CONTROL, "Starting Publish Thread with Playlist Frequency: %d and Status Frequency %d\n", playlistFrequency, statusFrequency);
+    if ((playlistFrequency == 0) && (statusFrequency == 0)) {
         // kill thread
-        LogInfo(VB_CONTROL, "Stopping MQWTT Publish Thread as frequency is zero.\nc");
+        LogInfo(VB_CONTROL, "Stopping MQTT Publish Thread as frequency is zero.\nc");
         return 0;
     }
 
-    // Loop for ever
+    // Loop for ever  We are running both publishes in one thread
+    // just to minimize the number of threads
+    time_t lastStatus = std::time(0);
+    time_t lastPlaylist = std::time(0);
     while (true) {
-        sleep(frequency);
-        me->PublishStatus();
+        time_t now = std::time(0);
+        int statusDiff = statusFrequency == 0 ? INT_MIN : (int)(now - lastStatus);
+        int playlistDiff = playlistFrequency == 0 ? INT_MIN : (int)(now - lastPlaylist);
+        if (playlistDiff >= playlistFrequency) {
+            me->PublishPlaylistStatus();
+            lastPlaylist = now;
+            playlistDiff = 0;
+        }
+        if (statusDiff >= statusFrequency) {
+            me->PublishFPPDStatus();
+            lastStatus = now;
+            statusDiff = 0;
+        }
+        int playlistSleep = playlistFrequency == 0 ? INT_MAX : (playlistFrequency - playlistDiff);
+        int statusSleep = statusFrequency == 0 ? INT_MAX : (statusFrequency - statusDiff);
+
+        sleep(std::min(playlistSleep, statusSleep));
     }
 }

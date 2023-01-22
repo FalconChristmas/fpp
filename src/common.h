@@ -131,3 +131,9 @@ std::vector<uint8_t> base64Decode(std::string const& encodedString);
 
 void ShutdownFPPD(bool restart);
 void RegisterShutdownHandler(const std::function<void(bool)> hook);
+
+inline std::string toStdStringAndFree(char* v) {
+    std::string s = v;
+    free(v);
+    return s;
+}

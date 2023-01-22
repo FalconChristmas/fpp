@@ -29,7 +29,171 @@ FPP will published the following sub_topics (using the full topic format) if MQT
 */playlist/media/title - Title of the audio / video media being displayed
 */playlist/media/status - filename of the current audio/movie
 */playlist/media/artist - The artist listing in the audio / video file being played
-*/playlist_details - If the MQTT Publish Frequence option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified. 
+*/playlist_details - If the MQTT Playlist Publish Frequency option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified. 
+*/fppd_status - If the MQTT Status Publish Frequency option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified. 
+
+Message Example for fppd_status
+---------------------------------------------
+{
+   "MQTT":{
+      "configured":false,
+      "connected":false
+   },
+   "bridging":false,
+   "current_playlist":{
+      "count":"0",
+      "description":"",
+      "index":"0",
+      "playlist":"",
+      "type":""
+   },
+   "current_sequence":"",
+   "current_song":"",
+   "dateStr":"Sat Jan 21",
+   "fppd":"running",
+   "mode":2,
+   "mode_name":"player",
+   "multisync":false,
+   "next_playlist":{
+      "playlist":"No playlist scheduled.",
+      "start_time":""
+   },
+   "repeat_mode":"0",
+   "scheduler":{
+      "enabled":1,
+      "nextPlaylist":{
+         "playlistName":"No playlist scheduled.",
+         "scheduledStartTime":0,
+         "scheduledStartTimeStr":""
+      },
+      "status":"idle"
+   },
+   "seconds_played":"0",
+   "seconds_remaining":"0",
+   "sensors":[
+      {
+         "formatted":"51.0",
+         "label":"CPU: ",
+         "postfix":"",
+         "prefix":"",
+         "value":51.002,
+         "valueType":"Temperature"
+      }
+   ],
+   "status":0,
+   "status_name":"idle",
+   "time":"Sat Jan 21 18:45:03 EST 2023",
+   "timeStr":"06:45 PM",
+   "timeStrFull":"06:45:03 PM",
+   "time_elapsed":"00:00",
+   "time_remaining":"00:00",
+   "uptime":"7 days, 06:51:26",
+   "uptimeDays":7.285717592592593,
+   "uptimeHours":6.857222222222222,
+   "uptimeMinutes":51.43333333333333,
+   "uptimeSeconds":26,
+   "uptimeStr":"7 days, 6 hours, 51 minutes, 26 seconds",
+   "uptimeTotalSeconds":629486,
+   "uuid":"M1-000000009c265065",
+   "volume":70,
+   "wifi":[
+      
+   ],
+   "interfaces":[
+      {
+         "ifindex":2,
+         "ifname":"wlan0",
+         "flags":[
+            "BROADCAST",
+            "MULTICAST"
+         ],
+         "mtu":1500,
+         "qdisc":"noop",
+         "operstate":"DOWN",
+         "group":"default",
+         "txqlen":1000,
+         "link_type":"ether",
+         "address":"b8:27:eb:73:05:30",
+         "broadcast":"ff:ff:ff:ff:ff:ff",
+         "addr_info":[
+            
+         ]
+      },
+      {
+         "ifindex":3,
+         "ifname":"eth0",
+         "flags":[
+            "BROADCAST",
+            "MULTICAST",
+            "UP",
+            "LOWER_UP"
+         ],
+         "mtu":1500,
+         "qdisc":"pfifo_fast",
+         "operstate":"UP",
+         "group":"default",
+         "txqlen":1000,
+         "link_type":"ether",
+         "address":"b8:27:eb:26:50:65",
+         "broadcast":"ff:ff:ff:ff:ff:ff",
+         "addr_info":[
+            {
+               "family":"inet",
+               "local":"192.168.1.146",
+               "prefixlen":24,
+               "broadcast":"192.168.1.255",
+               "scope":"global",
+               "dynamic":true,
+               "label":"eth0",
+               "valid_life_time":5062,
+               "preferred_life_time":5062
+            }
+         ]
+      }
+   ],
+   "rebootFlag":0,
+   "restartFlag":0,
+   "advancedView":{
+      "HostName":"FPPtest",
+      "HostDescription":"",
+      "Platform":"Raspberry Pi",
+      "Variant":"Pi 3 Model B",
+      "Mode":"player",
+      "Version":"6.x-master-659-g8a48f06f",
+      "Branch":"master",
+      "multisync":false,
+      "OSVersion":"v2022-11",
+      "OSRelease":"Raspbian GNU\/Linux 11 (bullseye)",
+      "channelRanges":"0-7",
+      "majorVersion":6,
+      "minorVersion":1000,
+      "typeId":8,
+      "uuid":"M1-000000009c265065",
+      "Utilization":{
+         "CPU":4.827586206896555,
+         "Memory":14.83697358389021,
+         "Uptime":"7 days",
+         "Disk":{
+            "Media":{
+               "Free":26331074560,
+               "Total":31109500928
+            },
+            "Root":{
+               "Free":26331074560,
+               "Total":31109500928
+            }
+         }
+      },
+      "Kernel":"5.15.74-v7+",
+      "LocalGitVersion":"8a48f06",
+      "RemoteGitVersion":"6a9abe4",
+      "UpgradeSource":"github.com",
+      "IPs":[
+         "192.168.1.146"
+      ]
+   }
+}
+
 
 
 Message Example for playlist_details
