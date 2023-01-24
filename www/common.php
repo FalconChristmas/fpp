@@ -2501,7 +2501,7 @@ function read_directory_files($directory, $return_data = true, $sort_by_date = f
 /**
  * Makes a POST Call to the api/backups/configuration to generate a JSON Configuration backup with a option comment
  * @param $backup_comment string Optional Comment that will be inserted into the JSON backup file
- * @return void
+ * @return bool
  */
 function GenerateBackupViaAPI($backup_comment = "Created via API")
 {
@@ -2520,19 +2520,29 @@ function GenerateBackupViaAPI($backup_comment = "Created via API")
 	$context = stream_context_create($options);
 
 	if (file_get_contents($url, false, $context) !== FALSE) {
-		DoJsonBackupToUSB();
+        //API now does this directly itself, so all we have to do is call it and let it do it's thing
+        //it still calls this same function
+//		DoJsonBackupToUSB();
+
+		return true;
 	}else{
 		/* Handle error */
 		error_log('GenerateBackupViaAPI: Something went wrong trying to call backups API to make a settings backup. (' . json_encode(['url' => $url, 'options' => $options]));
+        return false;
 	}
 }
 
+/**
+ * Copy JSON Settings backups to the specified alternate location if set.
+ * @return bool
+ */
 function DoJsonBackupToUSB(){
     global $settings;
     //Gather some setting that will assist in making a copy of the backups
 	$selected_jsonConfigBackupUSBLocation = $settings['jsonConfigBackupUSBLocation'];
     //Folder under which the backups will be stored on the selected storeage device
 	$fileCopy_BackupPath = 'Automatic_Backups';
+	$result = false;
 
 	//first check if the jsonConfigBackupUSBLocation setting is valid
 	if (
@@ -2542,7 +2552,7 @@ function DoJsonBackupToUSB(){
 	) {
 		//Make a call to the copystorage.php page (i.e the File Copy Backup page)
 
-        //Build up the URL, include the necessary params so we can call it and have JSON Backups copied across
+		//Build up the URL, include the necessary params so we can call it and have JSON Backups copied across
 		$url = 'http://localhost/copystorage.php?wrapped=1&direction=TOUSB&path=' . urlencode($fileCopy_BackupPath) . '&storageLocation=' . $selected_jsonConfigBackupUSBLocation . '&flags=JsonBackups&delete=no';
 
 		if (file_get_contents($url, false) === FALSE) {
@@ -2554,8 +2564,12 @@ function DoJsonBackupToUSB(){
 						'fileCopy_BackupPath' => $fileCopy_BackupPath
 					]
 				));
+		} else {
+			$result = true;
 		}
 	} else {
+		$result = false;
+
 		/* Handle error */
 		error_log('DoJsonBackupToUSB: Something went wrong trying to call filecopy endpoint. jsonConfigBackupUSBLocation not specified or missing fileCopy_BackupPath. (' . json_encode(
 				[
@@ -2564,6 +2578,8 @@ function DoJsonBackupToUSB(){
 				]
 			));
 	}
+
+	return $result;
 }
 
 /**

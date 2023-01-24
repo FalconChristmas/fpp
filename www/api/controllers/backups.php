@@ -302,10 +302,10 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 function MakeJSONBackup()
 {
 	global $settings, $skipJSsettings,
-		   $mediaDirectory,$eventDirectory, $playlistDirectory, $scriptDirectory, $settingsFile,
+		   $mediaDirectory, $eventDirectory, $playlistDirectory, $scriptDirectory, $settingsFile,
 		   $skipHTMLCodeOutput,
 		   $system_config_areas, $known_json_config_files, $known_ini_config_files,
-		   $backup_errors,$backup_error_string,
+		   $backup_errors, $backup_error_string,
 		   $sensitive_data, $protectSensitiveData,
 		   $fpp_backup_version, $fpp_backup_prompt_download,
 		   $fpp_backup_max_age, $fpp_backup_min_number_kept,
@@ -314,11 +314,26 @@ function MakeJSONBackup()
 	//Get the backup comment out of the post data
 	$backup_comment = file_get_contents('php://input');
 
+	$toUSBResult = false;
+
 	//Include the FPP backup script
-	require_once  "../backup.php";
+	require_once "../backup.php";
 
 	//Create the backup and return the status
 	$backup_creation_status = performBackup('all', false, $backup_comment);
+
+	if (array_key_exists('success', $backup_creation_status) && $backup_creation_status['success'] == true) {
+		$toUSBResult = DoJsonBackupToUSB();
+		if ($toUSBResult){
+			$backup_creation_status['copied_to_usb'] = true;
+		}else{
+			$backup_creation_status['copied_to_usb'] = false;
+		}
+	} else {
+		/* Handle error */
+		error_log('MakeJSONBackup: Something went wrong trying to call backups API to make a settings backup. (' . json_encode(['result' => $backup_creation_status]));
+		$backup_creation_status['copied_to_usb'] = false;
+	}
 
 	//Return the result which contains the success of the backup and the path which it was written to;
 	return json($backup_creation_status);
