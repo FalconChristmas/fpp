@@ -22,7 +22,6 @@
 #include "command.h"
 #include "fpp.h"
 
-
 Scheduler* scheduler = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -287,7 +286,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
             entry->pushStartEndTimes(now.tm_wday - 1, m_timeDelta, m_timeDeltaThreshold);
 
         // Schedule out 5 weeks
-        for (int i = now.tm_wday + dayOffset; i <= 35 ; i += 2) {
+        for (int i = now.tm_wday + dayOffset; i <= 35; i += 2) {
             entry->pushStartEndTimes(i, m_timeDelta, m_timeDeltaThreshold);
         }
 
@@ -896,7 +895,8 @@ Json::Value Scheduler::GetInfo(void) {
 
             int stopType = Player::INSTANCE.GetStopMethod();
             cp["stopType"] = stopType;
-            cp["stopTypeStr"] = stopType == 2 ? "Graceful Loop" : stopType == 1 ? "Hard" : "Graceful";
+            cp["stopTypeStr"] = stopType == 2 ? "Graceful Loop" : stopType == 1 ? "Hard"
+                                                                                : "Graceful";
 
             result["status"] = "playing";
         } else {
@@ -1068,8 +1068,8 @@ class ExtendScheduleCommand : public ScheduleCommand {
 public:
     ExtendScheduleCommand(Scheduler* s) :
         ScheduleCommand("Extend Schedule", s) {
-	args.push_back(CommandArg("Seconds","int", "Extend for Seconds").setRange(-12 * 60 * 60, 12 * 60 * 60).setDefaultValue("300").setAdjustable());
-        args.push_back(CommandArg("Limit","int", "For schedule events occurring in the next x Seconds").setRange(-12 * 60 * 60, 12 * 60 * 60).setDefaultValue("0").setAdjustable());
+        args.push_back(CommandArg("Seconds", "int", "Extend for Seconds").setRange(-12 * 60 * 60, 12 * 60 * 60).setDefaultValue("300").setAdjustable());
+        args.push_back(CommandArg("Limit", "int", "For schedule events occurring in the next x Seconds").setRange(-12 * 60 * 60, 12 * 60 * 60).setDefaultValue("0").setAdjustable());
     }
 
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
@@ -1079,7 +1079,7 @@ public:
         if (Player::INSTANCE.AdjustPlaylistStopTime(std::stoi(args[0]))) {
             if (args.size() > 1) {
                 if (std::stoi(args[1]) != 0) {
-                    scheduler->SetTimeDelta(std::stoi(args[0]),std::stoi(args[1]));
+                    scheduler->SetTimeDelta(std::stoi(args[0]), std::stoi(args[1]));
                 }
             }
             return std::make_unique<Command::Result>("Schedule Updated");

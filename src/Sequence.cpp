@@ -28,6 +28,7 @@
 #include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/E131.h"
 #include "channeloutput/channeloutputthread.h"
+#include "channeltester/ChannelTester.h"
 #include "overlays/PixelOverlay.h"
 
 using namespace std::literals;
@@ -256,16 +257,16 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     if (!FileExists(tmpFilename)) {
         std::string warning = "Sequence file ";
         warning += tmpFilename;
-	    warning += " does not exist\n";
-      
+        warning += " does not exist\n";
+
         if (getFPPmode() == REMOTE_MODE) {
             LogDebug(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
-            WarningHolder::AddWarningTimeout(warning,600);
-	} else {
+            WarningHolder::AddWarningTimeout(warning, 600);
+        } else {
             LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
-            WarningHolder::AddWarningTimeout(warning,30);
-    }
-    
+            WarningHolder::AddWarningTimeout(warning, 30);
+        }
+
         m_seqStarting = 0;
         return 0;
     }

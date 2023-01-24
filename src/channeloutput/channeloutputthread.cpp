@@ -27,12 +27,11 @@
 #include "Sequence.h"
 #include "common.h"
 #include "effects.h"
-#include "fppd.h"
 #include "log.h"
 #include "settings.h"
-#include "overlays/PixelOverlay.h"
-
+#include "../channeltester/ChannelTester.h"
 #include "mediaoutput/SDLOut.h"
+#include "overlays/PixelOverlay.h"
 
 /* used by external sync code */
 float RefreshRate = 20;

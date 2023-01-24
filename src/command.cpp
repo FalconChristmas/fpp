@@ -20,11 +20,11 @@
 #include "effects.h"
 #include "falcon.h"
 #include "fpp.h"
-#include "fppd.h"
 #include "gpio.h"
 #include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/E131.h"
 #include "channeloutput/FPD.h"
+#include "channeltester/ChannelTester.h"
 #include "mediaoutput/mediaoutput.h"
 
 #include <sys/select.h>

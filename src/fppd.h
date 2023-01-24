@@ -11,10 +11,4 @@
  * included LICENSE.GPL file.
  */
 
-#include "channeltester/ChannelTester.h"
-
 void CreateDaemon(void);
-void CheckExistanceOfDirectoriesAndFiles();
-void ShutdownFPPD(bool restart = false);
-void GetCurrentFPPDStatus(Json::Value& result);
-void SetFPPDStartupTime();

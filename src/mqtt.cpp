@@ -21,6 +21,8 @@
 
 #define FALCON_TOPIC "falcon/player"
 
+extern void GetCurrentFPPDStatus(Json::Value& result);
+
 MosquittoClient* mqtt = NULL;
 
 class MQTTCommand : public Command {

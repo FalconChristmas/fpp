@@ -129,8 +129,10 @@ bool urlDelete(const std::string url, std::string& resp);
 std::string base64Encode(uint8_t const* bytes_to_encode, unsigned int in_len);
 std::vector<uint8_t> base64Decode(std::string const& encodedString);
 
-void ShutdownFPPD(bool restart);
+void ShutdownFPPD(bool restart = false);
 void RegisterShutdownHandler(const std::function<void(bool)> hook);
+
+void GetCurrentFPPDStatus(Json::Value& result);
 
 inline std::string toStdStringAndFree(char* v) {
     std::string s = v;
