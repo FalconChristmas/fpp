@@ -254,11 +254,18 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
         CheckForHostSpecificFile(getSetting("HostName").c_str(), tmpFilename);
 
     if (!FileExists(tmpFilename)) {
-        if (getFPPmode() == REMOTE_MODE)
+        std::string warning = "Sequence file ";
+        warning += tmpFilename;
+	    warning += " does not exist\n";
+      
+        if (getFPPmode() == REMOTE_MODE) {
             LogDebug(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
-        else
+            WarningHolder::AddWarningTimeout(warning,600);
+	} else {
             LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
-
+            WarningHolder::AddWarningTimeout(warning,30);
+    }
+    
         m_seqStarting = 0;
         return 0;
     }
