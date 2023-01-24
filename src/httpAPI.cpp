@@ -14,6 +14,8 @@
 
 #ifdef PLATFORM_OSX
 #include <sys/sysctl.h>
+#else
+#include <sys/sysinfo.h>
 #endif
 
 #include "MultiSync.h"
@@ -28,7 +30,6 @@
 #include "channeloutput/channeloutputthread.h"
 #include "channeltester/ChannelTester.h"
 
-#include <sys/sysinfo.h>
 #include <iomanip>
 #include <sstream>
 
