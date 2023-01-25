@@ -261,15 +261,29 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
         if (getFPPmode() == REMOTE_MODE) {
             LogDebug(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
-            WarningHolder::AddWarningTimeout(warning, 600);
+
+            // Look for fallback.fseq instead
+            strcpy(tmpFilename, FPP_DIR_SEQUENCE("/fallback.fseq").c_str());
+
+            if (!FileExists(tmpFilename)) {
+              LogDebug(VB_SEQUENCE, "Fallback Sequence file %s does not exist\n", tmpFilename);
+              WarningHolder::AddWarningTimeout(warning,60);
+              m_seqStarting = 0;
+              return 0;
+
+            } else {
+                m_seqFilename = "fallback.fseq";
+                LogDebug(VB_SEQUENCE, "Playing Fallback Sequence file %s\n", tmpFilename);
+            }
+
         } else {
             LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
-            WarningHolder::AddWarningTimeout(warning, 30);
+            WarningHolder::AddWarningTimeout(warning, 60);
+            m_seqStarting = 0;
+            return 0;
         }
-
-        m_seqStarting = 0;
-        return 0;
     }
+
     if (multiSync->isMultiSyncEnabled()) {
         seqLock.unlock();
         multiSync->SendSeqOpenPacket(filename);
@@ -343,7 +357,7 @@ void Sequence::StartSequence(const std::string& filename, int frameNumber) {
         CloseSequenceFile();
         OpenSequenceFile(filename, frameNumber);
     }
-    if (sequence->m_seqFilename == filename) {
+    if ((sequence->m_seqFilename == filename) || (sequence->m_seqFilename == "fallback.fseq")) {
         StartSequence();
         if (frameNumber != 0) {
             SeekSequenceFile(frameNumber);

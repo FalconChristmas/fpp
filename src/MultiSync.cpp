@@ -2216,7 +2216,7 @@ void MultiSync::StartSyncedSequence(const char* filename) {
     LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
 
     ResetMasterPosition();
-    if (!sequence->IsSequenceRunning(filename)) {
+    if (!sequence->IsSequenceRunning(filename) && !sequence->IsSequenceRunning("fallback.fseq")) {
         sequence->StartSequence(filename, 0);
     }
 }
@@ -2309,7 +2309,7 @@ void MultiSync::SyncSyncedSequence(const char* filename, int frameNumber, float 
     LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f)\n",
               filename, frameNumber, secondsElapsed);
 
-    if (!sequence->IsSequenceRunning(filename)) {
+    if (!sequence->IsSequenceRunning(filename) && !sequence->IsSequenceRunning("fallback.fseq")) {
         sequence->StartSequence(filename, frameNumber);
     }
     if (sequence->IsSequenceRunning(filename)) {
