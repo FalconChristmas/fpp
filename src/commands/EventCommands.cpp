@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "overlays/PixelOverlay.h"
+#include "overlays/PixelOverlayModel.h"
 #include "EventCommands.h"
 #include "Timers.h"
 #include "effects.h"
@@ -171,6 +173,7 @@ StartEffectCommand::StartEffectCommand() :
     args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
     args.push_back(CommandArg("bg", "bool", "Background"));
     args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
+    args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", ""));
 }
 std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
@@ -182,6 +185,7 @@ std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::
     bool bg = false;
     bool iNR = false;
     bool isRunning = false;
+    std::string Model = "";
 
     if (args.size() > 1) {
         startChannel = std::atoi(args[1].c_str());
@@ -194,6 +198,18 @@ std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::
     }
     if (args.size() > 4) {
         iNR = args[4] == "true" || args[4] == "1";
+    }
+    if (args.size() > 5) {
+	    Model = args[5].c_str();
+        if (Model != "") {
+            auto m_model = PixelOverlayManager::INSTANCE.getModel(Model);
+            if (!m_model) {
+               LogErr(VB_COMMAND, "Invalid Pixel Overlay Model: '%s'\n", Model.c_str());
+            } else {
+               LogDebug(VB_COMMAND, "Overlay Model start channel modified to be : '%i'\n", m_model->getStartChannel() + startChannel);
+               startChannel = m_model->getStartChannel() + startChannel;
+            }
+        }
     }
 
     const Json::Value RunningEffects = GetRunningEffectsJson();
