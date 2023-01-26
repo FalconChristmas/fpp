@@ -583,6 +583,9 @@ if ($debug) {
 
 $uiLevel = $settings['uiLevel'];
 
+//Set the default timezone in PHP to match the currently set system timezone
+date_default_timezone_set($settings['TimeZone']);
+
 //
 // Didn't want to wait and check if ntp is synced
 // (takes too long). These dates will periodically need updated
@@ -597,6 +600,7 @@ if ($year < 2021 || $year > 2030) {
     define('MAXYEAR', date('Y') + 5);
 }
 
+//Load the Interface locale
 LoadLocale();
 
 /////////////////////////////////////////////////////////////////////////////
@@ -624,7 +628,15 @@ function GetDirSetting($dir)
         return GetSettingValue('docsDirectory');
     } else if ($dir == "config") {
         return GetSettingValue('configDirectory');
-    } else if ($dir == 'tmp') {
+	} else if ($dir == "jsonbackups") {
+		return GetSettingValue('configDirectory') . "/backups";
+	} else if ($dir == "jsonbackupsalternate") {
+		//Folder Location on the alternate store under which the backups are stored
+		$fileCopy_BackupPath = 'Automatic_Backups';
+
+		//build out the path to the alternative location as it's slightly custom
+		return "/mnt/tmp/" . $fileCopy_BackupPath . "/config/backups";
+	} else if ($dir == 'tmp') {
         return GetSettingValue('mediaDirectory') . '/tmp';
     } else if ($dir == 'crashes') {
         return GetSettingValue('mediaDirectory') . '/crashes';

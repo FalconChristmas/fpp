@@ -138,6 +138,9 @@ function network_save_dns()
         $data['DNS1'], $data['DNS2']);
     fclose($f);
 
+	//Trigger a JSON Configuration Backup
+	GenerateBackupViaAPI('DNS Configuration was modified.');
+
     return json(array("status" => "OK", "DNS" => $data));
 }
 

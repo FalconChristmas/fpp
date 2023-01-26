@@ -9,6 +9,185 @@
             }
         },
         {
+            "endpoint": "backups/devices",
+            "methods": {
+                "GET": {
+                    "desc": "Returns a list of devices like USBs or SSDs attached to the system which can be used",
+                    "output": [
+                        {
+                            "name": "sda1",
+                            "size": 7.5,
+                            "model": "Cruzer Blade",
+                            "vendor": "SanDisk"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "backups/configuration",
+            "methods": {
+                "POST": {
+                    "desc": "Generate a new JSON Settings backup for all settings areas. If a Alternate Backup Location has been set, the backup is also copied to that location.",
+                    "input": "The describing comment to be added to the backup",
+                    "output": {
+                        "success": true,
+                        "backup_file_path": "/home/fpp/media/config/backups/FPP_all-backup_v6_20230124212305.json",
+                        "copied_to_usb": true
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "backups/configuration/list",
+            "methods": {
+                "GET": {
+                    "desc": "Gets a list of JSON Configuration backups stored locally or if set Alternate Backup Device is set, a list of backups on local and USB",
+                    "output": [
+                        {
+                            "backup_alternative_location": false,
+                            "backup_filedirectory": "/home/fpp/media/config/backups",
+                            "backup_filename": "FPP_all-backup_v6_20230124212305.json",
+                            "backup_comment": "FPP Settings - Disable Scheduler setting was set to ( 0 ).",
+                            "backup_time": "Tue Jan 24 21:23:05 2023",
+                            "backup_time_unix": "1674559385"
+                        },
+                        {
+                            "backup_alternative_location": true,
+                            "backup_filedirectory": "/mnt/tmp/Automatic_Backups/config/backups",
+                            "backup_filename": "FPP_all-backup_v6_20230124210519.json",
+                            "backup_comment": "Schedule was modified.",
+                            "backup_time": "Tue Jan 24 21:05:19 2023",
+                            "backup_time_unix": "1674558319"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "backups/configuration/list/:DeviceName",
+            "methods": {
+                "GET": {
+                    "desc": "Returns a list of JSON Configuration files on a specified device (i.e a alternate storage device). Available can be devices obtained from '/backups/devices' or the current set device via the jsonConfigBackupUSBLocation setting value.",
+                    "output": [
+                        "FPP_all-backup_v6_20230114025351.json",
+                        "FPP_all-backup_v6_20230114025354.json",
+                        "FPP_all-backup_v6_20230114214459.json",
+                        "FPP_all-backup_v6_20230114215622.json"
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "backups/configuration/:Directory/:BackupFilename",
+            "methods": {
+                "GET": {
+                    "desc": "Downloads a specific JSON Backup, Directory is are either JsonBackups (local) or JsonAlternateBackup (configured alternate device). API backups/configuration/list can be used to get valid directories and files.",
+                    "output": "Contents of the specified JSON Settings backup as a download"
+                },
+                "DELETE": {
+                    "desc": "Deletes a specific JSON Backup, Directory is are either JsonBackups (local) or JsonAlternateBackup (configured alternate device). API backups/configuration/list can be used to get valid directories and files.",
+                    "output": {
+                        "status": "OK",
+                        "file": "FPP_all-backup_v6_20230124210514.json",
+                        "dir": "JsonBackupsAlternate"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "backups/configuration/restore/:Directory/:BackupFilename",
+            "methods": {
+                "POST": {
+                    "desc": "Restored the specified JSON Backup, Directory is either JsonBackups (local) or JsonAlternateBackup (configured alternate device). API backups/configuration/list can be used to get valid directories and files.",
+                    "output": {
+                        "success": true,
+                        "message": {
+                            "channelInputs": {
+                                "ATTEMPT": true,
+                                "SUCCESS": true
+                            },
+                            "channelOutputs": {
+                                "universes": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                },
+                                "falcon_pixelnet_DMX": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                },
+                                "pixel_strings": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                },
+                                "led_panels": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                },
+                                "other": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                }
+                            },
+                            "misc_configs": {
+                                "configs": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": false
+                                }
+                            },
+                            "outputProcessors": {
+                                "ATTEMPT": true,
+                                "SUCCESS": true
+                            },
+                            "show_setup": {
+                                "events": {
+                                    "SUCCESS": false
+                                },
+                                "playlist": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                },
+                                "schedule": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                },
+                                "scripts": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                }
+                            },
+                            "settings": {
+                                "system_settings": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                },
+                                "commandPresets": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                },
+                                "proxies": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                },
+                                "email": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                },
+                                "timezone": {
+                                    "ATTEMPT": true,
+                                    "SUCCESS": true
+                                }
+                            },
+                            "virtualEEPROM": {
+                                "ATTEMPT": true,
+                                "SUCCESS": true
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "commands",
             "fppd": true,
             "methods": {

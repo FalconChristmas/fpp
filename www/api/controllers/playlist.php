@@ -199,6 +199,9 @@ function playlist_insert()
     if ($f) {
         fwrite($f, $json);
         fclose($f);
+
+		//Trigger a JSON Configuration Backup
+		GenerateBackupViaAPI('Playlist ' . $playlistName . ' was created.');
     } else {
         $playlist['Status'] = 'Error';
         $playlist['Message'] = 'Unable to open file for writing';
@@ -340,6 +343,9 @@ function playlist_update()
     if ($f) {
         fwrite($f, $json);
         fclose($f);
+
+		//Trigger a JSON Configuration Backup
+		GenerateBackupViaAPI('Playlist ' . $playlistName . ' was updated.');
     } else {
         $playlist['Status'] = 'Error';
         $playlist['Message'] = 'Unable to open file for writing';
@@ -365,6 +371,9 @@ function playlist_delete()
         } else {
             $resp['Status'] = 'OK';
             $resp['Message'] = '';
+
+			//Trigger a JSON Configuration Backup
+			GenerateBackupViaAPI('Playlist ' . $playlistName . ' was deleted.');
         }
     } else {
         $resp['Status'] = 'Error';
@@ -407,6 +416,9 @@ function PlaylistSectionInsertItem()
             $resp['Message'] = '';
             $resp['playlistName'] = $playlistName;
             $resp['sectionName'] = $sectionName;
+
+			//Trigger a JSON Configuration Backup
+			GenerateBackupViaAPI('Playlist ' . $playlistName . ' content was modified.');
         } else {
             $playlist['Status'] = 'Error';
             $playlist['Message'] = 'Unable to open file for writing';

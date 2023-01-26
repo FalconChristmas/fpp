@@ -16,6 +16,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $newht = $newht . "RewriteRule ^(.*)$  $1/  [R,L]\n\n";
 
     file_put_contents("$mediaDirectory/config/proxies", $newht);
+
+	//Trigger a JSON Configuration Backup
+	GenerateBackupViaAPI('Proxy hosts were modified.');
 }
 
 if (file_exists("$mediaDirectory/config/proxies")) {

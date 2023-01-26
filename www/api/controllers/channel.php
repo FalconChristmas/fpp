@@ -61,6 +61,9 @@ function channel_put_pixelnetDMX()
         return json(array("status" => $status));
     }
 
+	//Trigger a JSON Configuration Backup
+	GenerateBackupViaAPI('PixelnetDMX Output was modified.');
+
     return json(array("status" => "OK"));
 }
 
@@ -186,6 +189,9 @@ function channel_save_output_processors()
 
     file_put_contents($settings['outputProcessorsFile'], $data);
 
+	//Trigger a JSON Configuration Backup
+	GenerateBackupViaAPI('Channel Output Processor was modified.');
+
     return channel_get_output_processors();
 }
 
@@ -263,6 +269,10 @@ function channel_save_output()
         $data = file_get_contents('php://input');
         $data = prettyPrintJSON(stripslashes($data));
         file_put_contents($settings[$file], $data);
+
+		//Trigger a JSON Configuration Backup
+		GenerateBackupViaAPI('Channel output ' . $file . ' was modified.');
+
         return channel_get_output();
     } else {
         return json(array("status" => "ERROR file not supported: " . $file));

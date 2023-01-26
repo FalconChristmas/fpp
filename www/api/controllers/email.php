@@ -10,6 +10,9 @@ function ConfigureEmail() {
     $result['Status'] = 'OK';
     $result['Message'] = '';
 
+    //Trigger a JSON Configuration Backup
+    GenerateBackupViaAPI('Email Configuration was modified.');
+
     return json($result);
 }
 

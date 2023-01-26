@@ -118,6 +118,15 @@ for action in $@; do
     "Backups")
         rsync $EXTRA_ARGS $SOURCE/backups $DEST  2>&1 | IgnoreWarnings
         ;;
+    "JsonBackups")
+        if [ ! -d "$DEST/config/backups" ]
+        then
+            mkdir -p $DEST/config/backups 2> /dev/null
+            chown fpp.fpp $DEST/config/backups 2> /dev/null
+            chmod 775 $DEST/config/backups 2> /dev/null
+        fi
+        rsync $EXTRA_ARGS $SOURCE/config/backups $DEST/config  2>&1 | IgnoreWarnings
+        ;;
     "Configuration")
         rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
         ;;

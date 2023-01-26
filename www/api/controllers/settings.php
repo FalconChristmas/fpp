@@ -134,6 +134,12 @@ function PutSetting() {
 		SendCommand("SetSetting,$setting,$value,");
 	}
 
+	//If the setting being set isn't the reboot or restart flag (we don't want to trigger a backup on these)
+	if (in_array(ltrim(rtrim($setting)), array('restartFlag', 'rebootFlag', 'currentHeaderSensor')) === FALSE) {
+		//Make a call to the configuration backup API endpoint so we can generate a backup
+		$backup_comment = GenerateBackupComment($setting, $value);
+		GenerateBackupViaAPI($backup_comment);
+	}
 
     $status = array("status"=> "OK");
     return json($status);

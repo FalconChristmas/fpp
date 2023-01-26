@@ -52,6 +52,10 @@ function AddProxy()
         $proxies[] = $pip;
     }
     WriteProxyFile($proxies);
+
+	//Trigger a JSON Configuration Backup
+	GenerateBackupViaAPI('Proxy ' . $pip . ' was added.');
+
     return json($proxies);
 }
 
@@ -61,6 +65,10 @@ function DeleteProxy()
     $proxies = LoadProxyList();
     $proxies = array_diff($proxies, array($pip));
     WriteProxyFile($proxies);
+
+	//Trigger a JSON Configuration Backup
+	GenerateBackupViaAPI('Proxy ' . $pip . ' was deleted.');
+
     return json($proxies);
 }
 

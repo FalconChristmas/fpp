@@ -2443,4 +2443,171 @@ function GetSystemInfoJsonInternal($simple = false)
     return $result;
 }
 
+/**
+ * Looks in a directory and reads file contents of files within it
+ * @param $directory String directory to search in
+ * @param $return_data Boolean switch to include file data
+ * @param $sort_by_date bool Boolean sort results by date
+ * @param $sort_order string Order to sort the dates by, DEFAULT is  oldest to newest
+ * @return array Array of file names and respective data
+ */
+function read_directory_files($directory, $return_data = true, $sort_by_date = false, $sort_order = 'desc')
+{
+	$file_list = array();
+	$file_data = false;
+
+	if ($handle = opendir($directory)) {
+		while (false !== ($file = readdir($handle))) {
+			// do something with the file
+			// note that '.' and '..' is returned even
+			// if file isn't this directory or its parent, add it to the results
+			// also must include ._* files as binary files that OSX may create
+			if ($file[0] != "." || (strlen($file) > 1 && $file[1] != "." && $file[1] != "_")) {
+				// collect the filenames & data
+				if ($return_data == true) {
+					$file_data = explode("\n", file_get_contents($directory . '/' . $file));
+				}
+
+				$file_list[$file] = $file_data;
+			}
+		}
+		closedir($handle);
+	}
+
+	//Sort the results if sort flag  is true
+	if ($sort_by_date == true) {
+		//Modified version of https://stackoverflow.com/questions/2667065/sort-files-by-date-in-php
+		//newest to  oldest
+		if($sort_order==='asc'){
+			//uksort to sort by key & insert our directory variable
+			uksort($file_list, function ($a, $b) use ($directory) {
+				return filemtime($directory . "/" . $b) - filemtime($directory . "/" . $a);
+			});
+        }
+
+		//oldest to newest
+		if($sort_order==='desc'){
+
+			//uksort to sort by key & insert our directory variable
+			uksort($file_list, function ($a, $b) use ($directory) {
+				return filemtime($directory . "/" . $a) - filemtime($directory . "/" . $b);
+			});
+        }
+	}
+
+	return $file_list;
+}
+
+/**
+ * Makes a POST Call to the api/backups/configuration to generate a JSON Configuration backup with a option comment
+ * @param $backup_comment string Optional Comment that will be inserted into the JSON backup file
+ * @return bool
+ */
+function GenerateBackupViaAPI($backup_comment = "Created via API")
+{
+	$url = 'http://localhost/api/backups/configuration';
+	$data = array($backup_comment);
+
+	//https://stackoverflow.com/questions/5647461/how-do-i-send-a-post-request-with-php
+	// use key 'http' even if you send the request to https://...
+	$options = array(
+		'http' => array(
+			'header' => "Content-type: text/plain",
+			'method' => 'POST',
+			'content' => $backup_comment
+		)
+	);
+	$context = stream_context_create($options);
+
+	if (file_get_contents($url, false, $context) !== FALSE) {
+        //API now does this directly itself, so all we have to do is call it and let it do it's thing
+        //it still calls this same function
+//		DoJsonBackupToUSB();
+
+		return true;
+	}else{
+		/* Handle error */
+		error_log('GenerateBackupViaAPI: Something went wrong trying to call backups API to make a settings backup. (' . json_encode(['url' => $url, 'options' => $options]));
+        return false;
+	}
+}
+
+/**
+ * Copy JSON Settings backups to the specified alternate location if set.
+ * @return bool
+ */
+function DoJsonBackupToUSB(){
+    global $settings;
+    //Gather some setting that will assist in making a copy of the backups
+	$selected_jsonConfigBackupUSBLocation = $settings['jsonConfigBackupUSBLocation'];
+    //Folder under which the backups will be stored on the selected storeage device
+	$fileCopy_BackupPath = 'Automatic_Backups';
+	$result = false;
+
+	//first check if the jsonConfigBackupUSBLocation setting is valid
+	if (
+		(isset($selected_jsonConfigBackupUSBLocation) && !empty($selected_jsonConfigBackupUSBLocation) && strtolower($selected_jsonConfigBackupUSBLocation) !== 'none')
+		&&
+		(isset($fileCopy_BackupPath))
+	) {
+		//Make a call to the copystorage.php page (i.e the File Copy Backup page)
+
+		//Build up the URL, include the necessary params so we can call it and have JSON Backups copied across
+		$url = 'http://localhost/copystorage.php?wrapped=1&direction=TOUSB&path=' . urlencode($fileCopy_BackupPath) . '&storageLocation=' . $selected_jsonConfigBackupUSBLocation . '&flags=JsonBackups&delete=no';
+
+		if (file_get_contents($url, false) === FALSE) {
+			/* Handle error */
+			error_log('DoJsonBackupToUSB: Something went wrong trying to call filecopy endpoint to copy JSON Backups to the specified device. (' . json_encode(
+					[
+						'url' => $url,
+						'jsonConfigBackupUSBLocation' => $selected_jsonConfigBackupUSBLocation,
+						'fileCopy_BackupPath' => $fileCopy_BackupPath
+					]
+				));
+		} else {
+			$result = true;
+		}
+	} else {
+		$result = false;
+
+		/* Handle error */
+		error_log('DoJsonBackupToUSB: Something went wrong trying to call filecopy endpoint. jsonConfigBackupUSBLocation not specified or missing fileCopy_BackupPath. (' . json_encode(
+				[
+					'jsonConfigBackupUSBLocation' => $selected_jsonConfigBackupUSBLocation,
+					'fileCopy_BackupPath' => $fileCopy_BackupPath
+				]
+			));
+	}
+
+	return $result;
+}
+
+/**
+ * Helper function used to generate a nice string about what the setting is, which can be used for the comment of what the backup is
+ * @param $setting_name
+ * @param $setting_value
+ * @return string
+ */
+function GenerateBackupComment($setting_name, $setting_value)
+{
+	$backup_comment = "FPP Settings - ";
+	//Read in the setting JSON file to assist with generating backup comment in relation to what setting was changed
+	$settings_json = json_decode(file_get_contents("./settings.json"), true);
+	//Try find  the setting name passed via Params in this array
+	if (is_array($settings_json) && array_key_exists($setting_name, $settings_json['settings'])) {
+		if (array_key_exists('description', $settings_json['settings'][$setting_name])) {
+			$settings_description = $settings_json['settings'][$setting_name]['description'];
+
+			$backup_comment .= $settings_description . " setting was set to ( " . $setting_value . " ).";
+
+		} else {
+			$backup_comment .= "Setting " . $setting_name . " was set to (" . $setting_value . ").";
+		}
+	} else {
+		$backup_comment .= "Setting " . $setting_name . " was set to (" . $setting_value . ").";
+	}
+
+	return $backup_comment;
+}
+
 ?>
