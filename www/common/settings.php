@@ -60,9 +60,9 @@ function RestartNTPD()
 function SetNTPServer($value)
 {
     if ($value != '') {
-        exec("sudo sed -i '/^server.*/d' /etc/ntp.conf ; sudo sed -i '\$s/\$/\\nserver $value iburst/' /etc/ntp.conf");
+        exec("sudo sed -i '/^server.*/d' /etc/ntp.conf ; sudo sed -i '/^pool.*/d' /etc/ntp.conf ; sudo sed -i '\$s/\$/\\nserver $value iburst/' /etc/ntp.conf");
     } else {
-        exec("sudo sed -i '/^server.*/d' /etc/ntp.conf ; sudo sed -i '\$s/\$/\\nserver 0.debian.pool.ntp.org iburst\\nserver 1.debian.pool.ntp.org iburst\\nserver 2.debian.pool.ntp.org iburst\\nserver 3.debian.pool.ntp.org iburst\\n/' /etc/ntp.conf");
+        exec("sudo sed -i '/^server.*/d' /etc/ntp.conf ; sudo sed -i '/^pool.*/d' /etc/ntp.conf ; sudo sed -i '\$s/\$/\\npool 0.debian.pool.ntp.org iburst\\npool 1.debian.pool.ntp.org iburst\\npool 2.debian.pool.ntp.org iburst\\npool 3.debian.pool.ntp.org iburst\\n/' /etc/ntp.conf");
     }
 
     // Note: Assume NTP is always enabled now.
