@@ -509,23 +509,23 @@ function GetFileInfo(&$list, $dirName, $fileName)
         $cache_duration = media_duration_cache($fileName, null, $filesize);
         //cache duration will be null if not in cache, then retrieve it
         if ($cache_duration == null) {
-            //Include our getid3 library for media
-            require_once '../lib/getid3/getid3.php';
-            //Instantiate getID3 object
-            $getID3 = new getID3;
-            //Get the media duration from file
-            $ThisFileInfo = $getID3->analyze($fileFullName);
+           
+            $resp = GetMetaDataFromFFProbe($fileName);
+
+			//cache it
+			media_duration_cache($fileName, $resp['format']['duration'], $filesize);
+
             //cache it
-            if (isset($ThisFileInfo['playtime_seconds'])) {
-                media_duration_cache($fileName, $ThisFileInfo['playtime_seconds'], $filesize);
+            if (isset($resp['format']['duration'])) {
+                media_duration_cache($fileName, $resp['format']['duration'], $filesize);
             }
 
         } else {
-            $ThisFileInfo['playtime_seconds'] = $cache_duration;
+            $resp['format']['duration'] = $cache_duration;
         }
 
-        if (isset($ThisFileInfo['playtime_seconds'])) {
-            $current["playtimeSeconds"] = human_playtime($ThisFileInfo['playtime_seconds']);
+        if (isset($resp['format']['duration'])) {
+            $current["playtimeSeconds"] = human_playtime($resp['format']['duration']);
         } else {
             $current["playtimeSeconds"] = "Unknown";
         }

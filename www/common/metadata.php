@@ -31,18 +31,10 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 		$cache_duration = media_duration_cache($mediaName, null, $media_filesize);
 		//cache duration will be null if not in cache, then retrieve it
 		if ($cache_duration == NULL) {
-			//Include our getid3 library for media
-            if (file_exists('./lib/getid3/getid3.php'))
-    			require_once('./lib/getid3/getid3.php');
-            else
-    			require_once('../lib/getid3/getid3.php');
+			$resp = GetMetaDataFromFFProbe($mediaName);
 
-			//Instantiate getID3 object
-			$getID3 = new getID3;
-
-			$ThisFileInfo = $getID3->analyze($settings['musicDirectory'] . "/" . $mediaName);
 			//cache it
-			media_duration_cache($mediaName, $ThisFileInfo['playtime_seconds'], $media_filesize);
+			media_duration_cache($mediaName, $resp[$mediaName]['format']['duration'], $media_filesize);
 		} else {
 			$ThisFileInfo['playtime_seconds'] = $cache_duration;
 		}
@@ -56,23 +48,16 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 		$cache_duration = media_duration_cache($mediaName, null, $media_filesize);
 		//cache duration will be null if not in cache, then retrieve it
 		if ($cache_duration == NULL) {
-			//Include our getid3 library for media
-			if (file_exists('./lib/getid3/getid3.php'))
-				require_once('./lib/getid3/getid3.php');
-			else
-				require_once('../lib/getid3/getid3.php');
+            $resp = GetMetaDataFromFFProbe($mediaName);
 
-			//Instantiate getID3 object
-			$getID3 = new getID3;
-
-			$ThisFileInfo = $getID3->analyze($settings['videoDirectory'] . "/" . $mediaName);
 			//cache it
-			media_duration_cache($mediaName, $ThisFileInfo['playtime_seconds'], $media_filesize);
+			media_duration_cache($mediaName, $resp['format']['duration'], $media_filesize);
 		} else {
-			$ThisFileInfo['playtime_seconds'] = $cache_duration;
+			$resp['format']['duration'] = $cache_duration;
 		}
 
-		$total_duration = $ThisFileInfo['playtime_seconds'] + $total_duration;
+		$total_duration = $resp['format']['duration'] + $total_duration;
+		
 	} else if (file_exists($settings['sequenceDirectory'] . "/" . $mediaName)) {
 		//Check Sequence directory
 		$sequence_info = get_sequence_file_info($mediaName);
