@@ -3066,6 +3066,7 @@ function GetBackupHostBackupDirs() {
 
 function BackupDirectionChanged() {
     var direction = document.getElementById("backup.Direction").value;
+    var host = document.getElementById("backup.Host").value;
 
     switch (direction) {
         case 'TOUSB':
@@ -3105,6 +3106,8 @@ function BackupDirectionChanged() {
             $('.copyPathSelect').hide();
             $('.copyHost').show();
             $('.copyBackups').hide();
+            //Check if remote has rsynd enabled
+            CheckRemoteHasRsyncdEnabled(host);
             break;
         case 'FROMREMOTE':
             $('.copyUSB').hide();
@@ -3113,8 +3116,41 @@ function BackupDirectionChanged() {
             $('.copyHost').show();
             $('.copyBackups').hide();
             GetBackupHostBackupDirs();
+            //Check if remote has rsynd enabled
+            CheckRemoteHasRsyncdEnabled(host);
             break;
     }
+}
+
+function CheckRemoteHasRsyncdEnabled(host) {
+    //Read the the setting value for whether the Rsync Daemon is enabled on the host
+    //if it isn't prompt the user that this needs to be enabled before copy TO or FROM the remote host can happen
+    $.ajax({
+        url: 'api/settings/Service_rsync',
+        type: 'GET',
+        success: function (data) {
+            if (typeof (data) !== "undefined") {
+                var rsyncd_setting_value = data['value'];
+                if (rsyncd_setting_value === 0 || rsyncd_setting_value === '0') {
+                    //remove the warning text in case it's hanging around from a previous host
+                    $('.host_rsyncd_warning').remove();
+                    //rsynd is disabled on host, add a warning next to the selected host
+                    $('#backup\\.Host').after('<span class="host_rsyncd_warning"><b>WARNING!</b> Rsync server is disabled on remote host, please enable rsync under FPP Settings -> System -> OS Services on ' + host + ' </span');
+                    //<span><b>WARNING!</b> Rsync server is disabled on this host, please enable under FPP Settings -> System -> OS Services on *host*</span
+                }else{
+                    //remove the warning text in case it's hanging around from a previous host
+                    $('.host_rsyncd_warning').remove();
+                }
+            }else{
+                //something went wrong
+                $.jGrowl('Error occurred reading the Service_rsync value from host - ' + host, {themeState: 'danger'});
+            }
+        },
+        error: function (data) {
+            //something went wrong
+            $.jGrowl('Error occurred reading the Service_rsync value from host - ' + host, {themeState: 'danger'});
+        }
+    });
 }
 
 $(document).ready(function() {

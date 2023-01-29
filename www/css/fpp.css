@@ -2497,6 +2497,15 @@ input[type=search].tablesorter-filter:disabled {
 	transition-delay: 0.5s;
 }
 
+.host_rsyncd_warning {
+	font-size: 0.8em;
+	padding-left: 10px;
+}
+
+.host_rsyncd_warning b {
+	color: #F63939 !important;
+}
+
 #CopyFlagsTable input {
 	margin: 0.4em;
 }
