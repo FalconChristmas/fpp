@@ -44,10 +44,27 @@ if [ -d "/boot/fpp" ]; then
     fi
 fi
 
+# Grab hostname for settings and apply to system if required
+OLDHOSTNAME=`/bin/cat /etc/hostname`
+
+if [ -f "/home/fpp/media/settings" ]; then
+    NEWHOSTNAME=`grep "^HostName" /home/fpp/media/settings | cut -f2 -d=| sed -e "s/[^-a-zA-Z0-9-]//g"`
+    if [ "${OLDHOSTNAME}" != "${NEWHOSTNAME}" ]; then
+        if [ "${NEWHOSTNAME}" != "" ]; then
+            echo Changing hostname from ${OLDHOSTNAME} to ${NEWHOSTNAME}
+            echo ${NEWHOSTNAME} > /etc/hostname
+            sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts
+            echo "127.0.1.1	" ${NEWHOSTNAME} >>/etc/hosts
+            /usr/bin/hostname ${NEWHOSTNAME}
+        fi
+    fi
+fi
+
+
 # Run any user boot-time scripts
 runBootHookScripts
 
 # On systems running Stretch, the fpp_init is called prior to network
 # so we can use the opportunity to configure the network adapapters
 # and DNS and other hardware
-.  ${BINDIR}/init_pre_network
+#.  ${BINDIR}/init_pre_network

@@ -596,14 +596,6 @@ function SetSetting()
 		SendCommand("LogLevel,$setting,$value,");
 	} else if ($setting == "HostName") {
 		$value = preg_replace("/[^-a-zA-Z0-9]/", "", $value);
-		exec(	$SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
-			$SUDO . " sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
-			$SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts ; " .
-			$SUDO . " hostname $value ; " .
-			$SUDO . " /etc/init.d/avahi-daemon restart ;" .
-			$SUDO . " systemctl restart avahi-daemon.service",
-			$output, $return_val);
-		sleep(1); // Give Avahi time to restart before we return
 	} else if ($setting == "EnableRouting") {
 		if ($value != "1")
 		{
