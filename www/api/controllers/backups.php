@@ -305,9 +305,9 @@ function MakeJSONBackup()
 		   $mediaDirectory, $eventDirectory, $playlistDirectory, $scriptDirectory, $settingsFile,
 		   $skipHTMLCodeOutput,
 		   $system_config_areas, $known_json_config_files, $known_ini_config_files,
-		   $backup_errors, $backup_error_string,
+		   $backup_errors, $backup_error_string, $backups_verbose_logging,
 		   $sensitive_data, $protectSensitiveData,
-		   $fpp_backup_version, $fpp_backup_prompt_download,
+		   $fpp_backup_version, $fpp_major_version, $fpp_backup_prompt_download,
 		   $fpp_backup_max_age, $fpp_backup_min_number_kept,
 		   $fpp_backup_location, $fpp_backup_location_alternate_drive;
 
@@ -371,11 +371,11 @@ function RestoreJsonBackup(){
 		   $mediaDirectory,$eventDirectory, $playlistDirectory, $scriptDirectory, $settingsFile, $scheduleFile, $fppDir,
 		   $skipHTMLCodeOutput,
 		   $system_config_areas, $known_json_config_files, $known_ini_config_files,
-		   $backup_errors,$backup_error_string,
+		   $backup_errors,$backup_error_string, $backups_verbose_logging,
 		   $keepMasterSlaveSettings, $keepNetworkSettings, $uploadData_IsProtected, $settings_restored,
 		   $network_settings_restored, $network_settings_restored_post_apply, $network_settings_restored_applied_ips,
 		   $sensitive_data, $protectSensitiveData,
-		   $fpp_backup_version, $fpp_backup_prompt_download,
+		   $fpp_backup_version, $fpp_major_version, $fpp_backup_prompt_download,
 		   $fpp_backup_max_age, $fpp_backup_min_number_kept,
 		   $fpp_backup_location, $fpp_backup_location_alternate_drive,
 		   $args;

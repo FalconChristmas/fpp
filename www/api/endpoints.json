@@ -42,7 +42,7 @@
             "endpoint": "backups/configuration/list",
             "methods": {
                 "GET": {
-                    "desc": "Gets a list of JSON Configuration backups stored locally or if set Alternate Backup Device is set, a list of backups on local and USB",
+                    "desc": "Gets a list of JSON Configuration backups stored locally or if an Alternate Backup Device is set, a list of backups on local and USB",
                     "output": [
                         {
                             "backup_alternative_location": false,
@@ -99,88 +99,102 @@
             "endpoint": "backups/configuration/restore/:Directory/:BackupFilename",
             "methods": {
                 "POST": {
-                    "desc": "Restored the specified JSON Backup, Directory is either JsonBackups (local) or JsonAlternateBackup (configured alternate device). API backups/configuration/list can be used to get valid directories and files.",
+                    "desc": "Restored the specified JSON Backup, Directory is either JsonBackups (local) or JsonAlternateBackup (configured alternate device). API backups/configuration/list can be used to get valid directory and file combinations.",
                     "output": {
                         "success": true,
                         "message": {
-                            "channelInputs": {
-                                "ATTEMPT": true,
-                                "SUCCESS": true
-                            },
-                            "channelOutputs": {
-                                "universes": {
+                            "success": true,
+                            "message": {
+                                "channelInputs": {
+                                    "VALID_DATA": true,
                                     "ATTEMPT": true,
                                     "SUCCESS": true
                                 },
-                                "falcon_pixelnet_DMX": {
+                                "channelOutputs": {
+                                    "universes": {
+                                        "VALID_DATA": true,
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    },
+                                    "falcon_pixelnet_DMX": {
+                                        "VALID_DATA": true,
+                                        "ATTEMPT": true,
+                                        "SUCCESS": {
+                                            "Falcon.FPDV1": true
+                                        }
+                                    },
+                                    "pixel_strings": {
+                                        "VALID_DATA": true,
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    },
+                                    "led_panels": {
+                                        "VALID_DATA": true,
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    },
+                                    "other": {
+                                        "VALID_DATA": true,
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    }
+                                },
+                                "misc_configs": {
+                                    "configs": {
+                                        "VALID_DATA": false,
+                                        "SUCCESS": false
+                                    }
+                                },
+                                "outputProcessors": {
+                                    "VALID_DATA": true,
                                     "ATTEMPT": true,
                                     "SUCCESS": true
                                 },
-                                "pixel_strings": {
-                                    "ATTEMPT": true,
-                                    "SUCCESS": true
+                                "show_setup": {
+                                    "playlist": {
+                                        "VALID_DATA": true,
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    },
+                                    "schedule": {
+                                        "VALID_DATA": true,
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    },
+                                    "scripts": {
+                                        "VALID_DATA": true,
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    }
                                 },
-                                "led_panels": {
-                                    "ATTEMPT": true,
-                                    "SUCCESS": true
+                                "settings": {
+                                    "VALID_DATA": true,
+                                    "system_settings": {
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    },
+                                    "commandPresets": {
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    },
+                                    "proxies": {
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    },
+                                    "email": {
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    },
+                                    "timezone": {
+                                        "ATTEMPT": true,
+                                        "SUCCESS": true
+                                    }
                                 },
-                                "other": {
+                                "virtualEEPROM": {
+                                    "VALID_DATA": true,
                                     "ATTEMPT": true,
                                     "SUCCESS": true
                                 }
-                            },
-                            "misc_configs": {
-                                "configs": {
-                                    "ATTEMPT": true,
-                                    "SUCCESS": false
-                                }
-                            },
-                            "outputProcessors": {
-                                "ATTEMPT": true,
-                                "SUCCESS": true
-                            },
-                            "show_setup": {
-                                "events": {
-                                    "SUCCESS": false
-                                },
-                                "playlist": {
-                                    "ATTEMPT": true,
-                                    "SUCCESS": true
-                                },
-                                "schedule": {
-                                    "ATTEMPT": true,
-                                    "SUCCESS": true
-                                },
-                                "scripts": {
-                                    "ATTEMPT": true,
-                                    "SUCCESS": true
-                                }
-                            },
-                            "settings": {
-                                "system_settings": {
-                                    "ATTEMPT": true,
-                                    "SUCCESS": true
-                                },
-                                "commandPresets": {
-                                    "ATTEMPT": true,
-                                    "SUCCESS": true
-                                },
-                                "proxies": {
-                                    "ATTEMPT": true,
-                                    "SUCCESS": true
-                                },
-                                "email": {
-                                    "ATTEMPT": true,
-                                    "SUCCESS": true
-                                },
-                                "timezone": {
-                                    "ATTEMPT": true,
-                                    "SUCCESS": true
-                                }
-                            },
-                            "virtualEEPROM": {
-                                "ATTEMPT": true,
-                                "SUCCESS": true
                             }
                         }
                     }

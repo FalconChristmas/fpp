@@ -56,7 +56,7 @@ $system_config_areas = array(
         'friendly_name' => 'Channel Outputs (Universe, Falcon, LED Panels, etc.)',
         'file' => array(
             'universes' => array('type' => 'file', 'location' => $settings['universeOutputs']),
-            'falcon_pixelnet_DMX' => array('type' => 'function', 'location' => array('backup' => 'LoadPixelnetDMXFile_FPDv1', 'restore' => 'SavePixelnetDMXFile_FPDv1')),
+            'falcon_pixelnet_DMX' => array('type' => 'function', 'location' => array('backup' => 'LoadPixelnetDMXFiles', 'restore' => 'SavePixelnetDMXFiles')),
             'pixel_strings' => array('type' => 'file', 'location' => $settings['co-pixelStrings']),
             'bbb_strings' => array('type' => 'file', 'location' => $settings['co-bbbStrings']),
             'led_panels' => array('type' => 'file', 'location' => $settings['channelOutputsJSON']),
@@ -119,21 +119,30 @@ $system_config_areas = array(
         'binary' => true),
 );
 
-//FPP Backup version
+//FPP Backup version - This is used for tracking the CURRENT backup file format or "backup" version as we may move things around and need backwards compatibility when restoring older version
+//When restoring, this value is read from the uploaded file and in processRestoreData() used to decide on what extra massaging old data needs to work with the current script
 $fpp_backup_version = "6";
-//FPP Backup Alternate storage location
-$fpp_backup_location_alternate_drive = ReadSettingFromFile('jsonConfigBackupUSBLocation');
-//FPP Backup files directory
-if ($fpp_backup_location_alternate_drive !== "" && !empty($fpp_backup_location_alternate_drive)) {
-	$fpp_backup_location_alternate_drive = '/mnt/' . $fpp_backup_location_alternate_drive . "/config/backups";
-}
+
+//The v4, v5, vX that appears in backup filename was originally using $fpp_backup_version but to save user confusion will now match the FPP major version
+//it was originally intended as a visual aid to help discern between different backup versions.
+$fpp_major_version = collectFppMajorVersion();
+
+//Directory where backups will be saved
 $fpp_backup_location = $settings['configDirectory'] . "/backups";
-//Flag whether the users browser will download the JSON file
+//Flag whether the users browser will download the JSON file - default to always download, this is forced off when calling via API for example
 $fpp_backup_prompt_download = true;
+
+/////////////////////
+/// HOUSE KEEPING ///
 //Max age for stored settings backup files, Default: 90 days
 $fpp_backup_max_age = 90;
-//Minimum number of backups we want to keep, this works with max age to ensure we have at least some backups left and not wipe out all of them if they were all old. Default: 14
-$fpp_backup_min_number_kept = 14;
+//Minimum number of backups we want to keep, this works with max age to ensure we have at least some backups left and not wipe out all of them if they were all old. Default: 45
+$fpp_backup_min_number_kept = 45;
+
+////////////////////
+/// DEBUGGING
+$backups_verbose_logging = false;
+
 //Hold any backup error messages here
 $backup_errors = array();
 
@@ -397,6 +406,7 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
 				}
 			}
 			//Version 4-6 so far don't need any compatibility fixes when being restored
+            //Handling of version differences is also done in processRestoreData()
 
 			//Remove the platform key as it's not used for anything yet
 			unset($file_contents_decoded['platform']);
@@ -573,9 +583,6 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
         $restore_area_key = $restore_area;
     }
 
-    //set the initial value
-    $settings_restored[$restore_area_key] = $save_result;
-
     //Check to see if the area data contains the area_data or system_settings keys
     //break them out if so & overwrite $restore_area_data with the actual area data
     if (array_key_exists('area_data', $restore_area_data) && array_key_exists('system_settings', $restore_area_data)) {
@@ -586,6 +593,10 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
     //Should probably skip restoring data if the restore data is actually empty (maybe no config existed when the backup was made)
     //this is also avoid false negatives of restore failures for areas where there wasn't any data to restore
     $restore_data_is_empty = (empty($restore_area_data) || is_null($restore_area_data)) ? true : false;
+
+    //set some initial values
+    $settings_restored[$restore_area_key] = $save_result;
+    $settings_restored[$restore_area_key]['VALID_DATA'] = !$restore_data_is_empty; //Negate the value as this described is the data is empty or not, so false is valid data, true means data was empty so it isn't valid data
 
     //////////////////////////////////
     //// Handle processing of each restore area
@@ -686,7 +697,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
             $restore_type = $restore_areas_data['type'];
             $final_file_restore_data = "";
 
-            //If $restore_area_sub_key is empty then no sub-area has been chosen -- restore as normal and restore all sub areas
+            //If $restore_area_sub_key is empty then no sub-area has been chosen -- restore as normal and restore all sub areas, which should be everything under $system_config_areas['channelOutputs']
             //Or if $restore_area_sub_key is equal to the $show_setup_area_index we're on, then restore just this area because it matches users selection
             //and break the loop
             if ($restore_area_sub_key == "" || ($restore_area_sub_key == $restore_areas_idx)) {
@@ -746,49 +757,90 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                                     }
                                 }
 
-                                //if restore sub-area is the schedule, determine how to restore it based on the $backup_version
+                                //RESTORE TWEAKS FOR SPECIFIC VERSIONS
                                 //Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
                                 //Version 3 backups need to restore the schedule to it's new json location
+                                //Version 4 backups - nothing changed
+                                //Version 5 backups - FPD/Falcon Pixlenet at the root of ['channelOutputs']['falcon_pixelnet_DMX'] is FPDv1 data
+                                //Version 6 backups - FPD/Falcon Pixlenet DMX data is keyed by the file it came from to more easily support a future version
+                                //                  - ['channelOutputs']['falcon_pixelnet_DMX'] will contain an additional key for each FPD file read
+                                //                  - eg Falcon.FPDV1 and in the future Falcon.F16V2
+
+                                //if restore sub-area is the schedule, determine how to restore it based on the $backup_version
                                 if (strtolower($restore_areas_idx) == "schedule") {
                                     if ($backup_version == 2) {
                                         //Override the restore location so we write to the old schedule file, FPPD will convert this to the new json file
                                         $restore_location = $scheduleFile;
                                     }
 //                                    else if ($backup_version == 3){
-                                    //                                        //restore it to the new json file - don't adjust the path it'll go to configured path
-                                    //                                    }
+//                                    //restore it to the new json file - don't adjust the path it'll go to configured path
+//                                    }
                                 }
 
+                                //if restore sub-area is falcon_pixelnet_DMX (under channelOutputs), determine how to restore it based on the $backup_version
+                                if (strtolower($restore_areas_idx) == "falcon_pixelnet_dmx") {
+                                    //For FPD, backups from version 5 and under contain Falcon.FPDV1 data at it's root, extract and re-key the data, so it can be used correctly by the restore function
+                                    //This change was also made part way through the usage of version 6, we can check the version and presence of the Falcon.FPDV1 key and do the same thing
+                                    if ($backup_version <= 5 || ($backup_version == 6 and !array_key_exists('Falcon.FPDV1', $final_file_restore_data))) {
+                                        $FPD_temp = array('Falcon.FPDV1' => $final_file_restore_data);
+                                        $final_file_restore_data = $FPD_temp;
+                                    }
+                                }
+
+                                ///////////////////////////////////////////////////
+                                //////////////////////////////////////////////////
                                 //If we have data then write to where it needs to go
-                                if (!empty($final_file_restore_data) && ($restore_type == "dir" || $restore_type == "file")) {
-                                    $settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
+                                if (!empty($final_file_restore_data)) {
+                                    //Set we have valid ata
+                                    $settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = true;
 
-                                    //Work out what method we need to use to get the data back out into the correct format
-                                    if (in_array($restore_area_data_index, $known_json_config_files)) {
-                                        //JSON
-                                        $final_file_restore_data = prettyPrintJSON(json_encode($final_file_restore_data));
-                                    }
-                                    //Save out the file
-                                    if (file_put_contents($restore_location, $final_file_restore_data) === false) {
-                                        $save_result = false;
+                                    //Decide what action to take based on the restore type
+                                    if (($restore_type == "dir" || $restore_type == "file")) {
+                                        $settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
+
+                                        //Work out what method we need to use to get the data back out into the correct format
+                                        if (in_array($restore_area_data_index, $known_json_config_files)) {
+                                            //JSON
+                                            $final_file_restore_data = prettyPrintJSON(json_encode($final_file_restore_data));
+                                        }
+                                        //Save out the file
+                                        if (file_put_contents($restore_location, $final_file_restore_data) === false) {
+                                            $save_result = false;
+                                        } else {
+                                            $save_result = true;
+                                        }
+                                    } //If restore type is function
+                                    else if ($restore_type == "function") {
+                                        $settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
+
+                                        $restore_function = $restore_areas_data['location']['restore'];
+                                        //if we have valid data and the function exists, call it
+                                        if (function_exists($restore_function)) {
+                                            $save_result = $restore_function($final_file_restore_data);
+                                        }
                                     } else {
-                                        $save_result = true;
-                                    }
-                                } //If restore type is function
-                                else if ($restore_type == "function") {
-                                    $settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
-
-                                    $restore_function = $restore_areas_data['location']['restore'];
-                                    //if we have valid ata and the function exists, call it
-                                    if (function_exists($restore_function) && !empty($final_file_restore_data)) {
-                                        $save_result = $restore_function($final_file_restore_data);
+                                        //Unlikely - but no match on restore type
+                                        $save_result = false;
                                     }
                                 } else {
-                                    $save_result = false;
+                                    //Restore data is still empty after massaging
+                                    $settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = false;
                                 }
                             }
+                        } else {
+                            //Not an array, we need an array here, so data is not valid
+                            $settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = false;
                         }
                         $settings_restored[$restore_area_key][$restore_area_data_index]['SUCCESS'] = $save_result;
+
+                        //Cheat and remove the success key if no attempt was even made (no attempt key) and there was no valid data
+                        //meaning that we didn't even try, this check is done after the key and value is set because $restore_area_data_index might not exist at all if the ATTEMPT or VALID_DATA key was set
+                        if (!array_key_exists('ATTEMPT', $settings_restored[$restore_area_key][$restore_area_data_index])
+                            &&
+                            !array_key_exists('VALID_DATA', $settings_restored[$restore_area_key][$restore_area_data_index])) {
+                            unset($settings_restored[$restore_area_key][$restore_area_data_index]);
+                        }
+
                         break; //break after data is restored for this section
                     }
                 }
@@ -861,7 +913,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
         $restore_areas = $system_config_areas[$restore_area_key]['file'];
 
         //Check what subkey was selected
-        //search through the files that should of been backed up
+        //search through the files that should have been backed up
         //and then loop over the restore data and match up the data and restore it
         foreach ($restore_areas as $restore_areas_idx => $restore_areas_data) {
             $restore_data = array();
@@ -1049,7 +1101,8 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
     }
 
     //Network Settings (Wired and WiFi)
-    if ($restore_area_key == "network" && !$restore_data_is_empty) { //If the user doesn't want to keep the existing network settings, we can overwrite them
+    if ($restore_area_key == "network" && !$restore_data_is_empty) {
+        //If the user doesn't want to keep the existing network settings, we can overwrite them
         if ($keepNetworkSettings == false) {
 
             //check the supplied network data for any extra interfaces over the std eth0 and wlan0
@@ -1182,7 +1235,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
     //        $settings_restored[$restore_area_key] = $save_result;
     //    }
 
-    //finally if there was no data for the restore area remove it's key for tracking attemps, this is fine here as the seperate restore area tests above will avoid restore areas with no data
+    //finally if there was no data for the restore area remove it's key for tracking attempts, this is fine here as the seperate restore area tests above will avoid restore areas with no data
     if ($restore_data_is_empty) {
         unset($settings_restored[$restore_area_key]);
     }
@@ -1444,8 +1497,71 @@ function RestoreConfigFolderConfigs($restore_data)
 }
 
 /**
+ * This function acts as a wrapper to collect the Falcon.FPDV1 and Falcon.FPDV2 files
+ * @return array
+ */
+function LoadPixelnetDMXFiles()
+{
+    global $settings;
+
+    $FPD_V1_data = array();
+    $FPD_V2_data = array();
+    $return_data = array();
+
+    //check if the FPDV1 file exists
+    if (file_exists($settings['configDirectory'] . "/Falcon.FPDV1")) {
+        $FPD_V1_data = LoadPixelnetDMXFile_FPDv1();
+        //If data is valid put into return array to be saved into the JSON file
+        if (is_array($FPD_V1_data) && !empty($FPD_V1_data)) {
+            $return_data['Falcon.FPDV1'] = $FPD_V1_data;
+        }
+    }
+
+    if (file_exists($settings['configDirectory'] . "/Falcon.F16V2-alpha") || file_exists($settings['configDirectory'] . "/Falcon.F16V2")) {
+        $FPD_V2_data = LoadPixelnetDMXFile_FPDV2();
+
+        //If data is valid put into return array to be saved into the JSON file
+        if (is_array($FPD_V1_data) && !empty($FPD_V1_data)) {
+            $return_data['Falcon.F16V2'] = $FPD_V2_data;
+        }
+    }
+    return $return_data;
+}
+
+/**
+ * This function acts as a wrapper to restore the Falcon.FPDV1 and Falcon.FPDV2 files
+ * depending on what restore data is available, we'll call the relevant function to restore data data
+ * @param $restore_data array FPD data to restore
+ * @return array
+ */
+function SavePixelnetDMXFiles($restore_data)
+{
+    $FPD_V1_Restore_data = false;
+    $FPD_V2_Restore_data = false;
+    $write_status_arr = array();
+
+    //check if the FPDV1 file exists
+    if (array_key_exists('Falcon.FPDV1', $restore_data) && !empty($restore_data['Falcon.FPDV1'])) {
+        $FPD_V1_Restore_data = SavePixelnetDMXFile_FPDv1($restore_data['Falcon.FPDV1']);
+        $write_status_arr['Falcon.FPDV1'] = $FPD_V1_Restore_data;
+    }
+
+    if (array_key_exists('Falcon.F16V2-alpha', $restore_data) && !empty($restore_data['Falcon.F16V2-alpha'])) {
+        $FPD_V2_Restore_data = SavePixelnetDMXFile_F16v2Alpha($restore_data['Falcon.F16V2-alpha']);
+
+        $write_status_arr['Falcon.F16V2-alpha'] = $FPD_V2_Restore_data;
+    } else if (array_key_exists('Falcon.F16V2', $restore_data) && !empty($restore_data['Falcon.F16V2'])) {
+        $FPD_V2_Restore_data = SavePixelnetDMXFile_F16v2Alpha($restore_data['Falcon.F16V2']);
+
+        $write_status_arr['Falcon.F16V2'] = $FPD_V2_Restore_data;
+    }
+
+    return $write_status_arr;
+}
+
+/**
  * Reads the Falcon.FPDV1 - Falcon Pixelnet/DMX file
- * extracted & modified from LoadPixelnetDMXFile() in ./fppxml.php
+ * extracted & modified from channel_get_pixelnetDMX() in /api/controllers/channel.php
  *
  * @return array|void
  */
@@ -1457,17 +1573,20 @@ function LoadPixelnetDMXFile_FPDv1()
     //Store data in an array instead of session
     $return_data = array();
 
-    if (@filesize($settings['configDirectory'] . "/Falcon.FPDV1") < 1024) {
-        return $return_data;
-    }
+//    if (@filesize($settings['configDirectory'] . "/Falcon.FPDV1") < 1024) {
+//        return $return_data;
+//    }
 
     $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "rb");
     if ($f == false) {
         fclose($f);
-        return;
-    }
-
-    if ($f != false) {
+        //No file exists add one and save to new file.
+        $address = 1;
+        for ($i = 0; $i < 12; $i++) {
+            $return_data[] = new PixelnetDMXentry(1, 0, $address);
+            $address += 4096;
+        }
+    } else {
         $s = fread($f, 1024);
         fclose($f);
         $sarr = unpack("C*", $s);
@@ -1481,7 +1600,7 @@ function LoadPixelnetDMXFile_FPDv1()
             $startAddress = $sarr[$outputOffset + 1];
             $startAddress += $sarr[$outputOffset + 2] * 256;
             $type = $sarr[$outputOffset + 3];
-            $return_data[$i] = new PixelnetDMXentry($active, $type, $startAddress);
+            $return_data[] = new PixelnetDMXentry($active, $type, $startAddress);
         }
     }
 
@@ -1489,8 +1608,21 @@ function LoadPixelnetDMXFile_FPDv1()
 }
 
 /**
+ * TODO Reads the Falcon.FPDV2 - Falcon Pixelnet/DMX file
+ * extracted & modified from channel_get_pixelnetDMX() in /api/controllers/channel.php
+ *
+ * @return array|void
+ */
+function LoadPixelnetDMXFile_FPDV2()
+{
+    //TODO (doesn't appear to be any code to reference for reading these files in /api/controllers/channel.php),, channel_get_pixelnetDMX() in the API is currently only reading the FPDv1 file
+    return null;
+}
+
+
+/**
  * Restores the FPDv1 channel data from the supplied array
- * extracted & modified from LoadPixelnetDMXFile() in ./fppxml.php
+ * extracted & modified from SaveFPDv1() in /api/controllers/channel.php
  *
  * @param $restore_data array FPDv1 data to restore
  * @return bool Success state file write
@@ -1516,27 +1648,26 @@ function SavePixelnetDMXFile_FPDv1($restore_data)
         $carr[$i++] = 0x55;
         $carr[$i++] = 0xCC;
 
-//    $_SESSION['PixelnetDMXentries']=NULL;
         for ($o = 0; $o < $outputCount; $o++) {
-            // Active Output
-            if (isset($restore_data[$o]['active']) && ($restore_data[$o]['active'] == '1' || intval($restore_data[$o]['active']) == 1)) {
+
+            // Active
+            $active = 0;
+            $carr[$i++] = 0;
+            if (isset($restore_data[$o]['active']) && ($restore_data[$o]['active'] || $restore_data[$o]['active'] == '1' || intval($restore_data[$o]['active']) == 1)) {
                 $active = 1;
-                $carr[$i++] = 1;
-            } else {
-                $active = 0;
-                $carr[$i++] = 0;
+                $carr[$i - 1] = 1;
             }
+
             // Start Address
             $startAddress = intval($restore_data[$o]['startAddress']);
             $carr[$i++] = $startAddress % 256;
             $carr[$i++] = $startAddress / 256;
+
             // Type
             $type = intval($restore_data[$o]['type']);
             $carr[$i++] = $type;
-//        $_SESSION['PixelnetDMXentries'][] = new PixelnetDMXentry($active,$type,$startAddress);
         }
         $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "wb");
-//        fwrite($f, implode(array_map("chr", $carr)), 1024);
 
         if (fwrite($f, implode(array_map("chr", $carr)), 1024) === false) {
             $write_status = false;
@@ -1546,7 +1677,74 @@ function SavePixelnetDMXFile_FPDv1($restore_data)
 
         fclose($f);
 //    SendCommand('w');
+
     }
+    return $write_status;
+}
+
+/**
+ * Restores the FPDv2 channel data from the supplied array
+ * extracted & modified from SaveFPDv1() in /api/controllers/channel.php
+ *
+ * @param $restore_data array FPDv2 data to restore
+ * @return bool Success state file write
+ */
+function SavePixelnetDMXFile_F16v2Alpha($restore_data)
+{
+    global $settings;
+    $outputCount = 16;
+    $write_status = false;
+
+    if (!empty($restore_data) && is_array($restore_data)) {
+        $carr = array();
+        for ($i = 0; $i < 1024; $i++) {
+            $carr[$i] = 0x0;
+        }
+
+        $i = 0;
+
+        // Header
+        $carr[$i++] = 0x55;
+        $carr[$i++] = 0x55;
+        $carr[$i++] = 0x55;
+        $carr[$i++] = 0x55;
+        $carr[$i++] = 0x55;
+        $carr[$i++] = 0xCD;
+
+        // Some byte
+        $carr[$i++] = 0x01;
+
+        for ($o = 0; $o < $outputCount; $o++) {
+            $cur = $restore_data[$o];
+            $nodeCount = $cur['nodeCount'];
+            $carr[$i++] = intval($nodeCount % 256);
+            $carr[$i++] = intval($nodeCount / 256);
+
+            $startChannel = $cur['startChannel'] - 1; // 0-based values in config file
+            $carr[$i++] = intval($startChannel % 256);
+            $carr[$i++] = intval($startChannel / 256);
+
+            // Node Type is set on groups of 4 ports
+            $carr[$i++] = intval($cur['nodeType']);
+
+            $carr[$i++] = intval($cur['rgbOrder']);
+            $carr[$i++] = intval($cur['direction']);
+            $carr[$i++] = intval($cur['groupCount']);
+            $carr[$i++] = intval($cur['nullNodes']);
+        }
+
+        $f = fopen($settings['configDirectory'] . "/Falcon.F16V2-alpha", "wb");
+
+        if (fwrite($f, implode(array_map("chr", $carr)), 1024) === false) {
+            $write_status = false;
+        } else {
+            $write_status = true;
+        }
+
+        fclose($f);
+//	SendCommand('w');
+    }
+
     return $write_status;
 }
 
@@ -1866,7 +2064,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
  */
 function doBackupDownload($settings_data, $area)
 {
-    global $settings, $protectSensitiveData, $fpp_backup_version, $fpp_backup_prompt_download, $fpp_backup_location, $backup_errors;
+    global $settings, $protectSensitiveData, $fpp_major_version, $fpp_backup_prompt_download, $fpp_backup_location, $backup_errors;
 
     if (!empty($settings_data)) {
         //is sensitive data removed (selectively used on restore to skip some processes)
@@ -1876,7 +2074,7 @@ function doBackupDownload($settings_data, $area)
 
         //Once we have all the settings, process the array and dump it back to the user
         //filename
-        $backup_fname = $settings['HostName'] . "_" . $area . "-backup_" . "v" . $fpp_backup_version . "_";
+        $backup_fname = $settings['HostName'] . "_" . $area . "-backup_" . "v" . $fpp_major_version . "_";
         //change filename if sensitive data is not protected
         if ($protectSensitiveData == false) {
             $backup_fname .= "unprotected_";
@@ -2109,35 +2307,66 @@ function changeLocalFPPBackupFileLocation($new_location)
  */
 function pruneOrRemoveAgedBackupFiles()
 {
-    global $fpp_backup_max_age, $fpp_backup_min_number_kept, $fpp_backup_location;
+    global $fpp_backup_max_age, $fpp_backup_min_number_kept, $fpp_backup_location, $backups_verbose_logging;
 
-    //gets all the files in the configs/backup directory
-    $config_dir_files = read_directory_files($fpp_backup_location, false, true);
+    //gets all the files in the configs/backup directory via the API now since it will look in multiple areas
+	$config_dir_files = file_get_contents('http://localhost/api/backups/configuration/list');
+	$config_dir_files = json_decode($config_dir_files, true);
 
-    //If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop procesing
+    //If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop processing
     if (count($config_dir_files) < $fpp_backup_min_number_kept) {
-        $aged_backup_removal_message = "SETTINGS BACKUP: Not removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are less than the minimum backups we want to keep ($fpp_backup_min_number_kept)";
+        $aged_backup_removal_message = "SETTINGS BACKUP: Not removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are (".count($config_dir_files).") backups available and this is less than the minimum backups we want to keep ($fpp_backup_min_number_kept)";
         error_log($aged_backup_removal_message);
         return;
     }
 
+    //Reverse the results so we get oldest to newest, the API by default returns results with newest first
+	$config_dir_files = array_reverse($config_dir_files);
+
     //loop over the backup files we've found
-    foreach ($config_dir_files as $backup_filename => $backup_data) {
+    foreach ($config_dir_files as $backup_file_index => $backup_file_meta_data) {
+        $backup_filename = $backup_file_meta_data['backup_filename'];
+
         if ((stripos(strtolower($backup_filename), "-backup_") !== false) && (stripos(strtolower($backup_filename), ".json") !== false)) {
             //File is one of our backup files, this check is just in case there is other json files in this directory placed there by the user which we want to avoid touching.
 
             //reconstruct the path
-            $backup_file_location = $fpp_backup_location . "/" . $backup_filename;
-            //backup max_age time in seconds, since we dealing with UNIX epoc time
+            $backup_file_location = $backup_file_meta_data['backup_filedirectory'];
+            $backup_file_path = $backup_file_location . $backup_filename;
+            //Backup Directory
+            $backup_directory = !$backup_file_meta_data['backup_alternative_location'] ? 'JsonBackups' : 'JsonBackupsAlternate';
+            //Collect the backup file
+            $backup_time = $backup_file_meta_data['backup_time_unix'];
+            //backup max_age time in seconds, since we are dealing with UNIX epoc time
             $backup_max_age_seconds = ($fpp_backup_max_age * 86400);
 
             //Check the age of the file by checking the file modification time compared to now
-            if ((time() - filemtime($backup_file_location)) > ($backup_max_age_seconds)) {
-                //Not what happened in the logs also
-                $aged_backup_removal_message = "SETTINGS BACKUP: Removed old JSON settings backup file ($backup_file_location) since it was " . ceil((time() - filemtime($backup_file_location)) / 86400) . " days old. Max age is $fpp_backup_max_age days.";
-                error_log($aged_backup_removal_message);
-                //Remove the file
-                unlink($backup_file_location);
+            if ((time() - ($backup_time)) > ($backup_max_age_seconds)) {
+                //Remove the file via API instead
+                //Build the URL
+                $url = 'http://localhost/api/backups/configuration/' . $backup_directory . '/' . $backup_filename;
+                //options for the request
+                $options = array(
+                    'http' => array(
+                        'header' => "Content-type: text/plain",
+                        'method' => 'DELETE'
+                    )
+                );
+                $context = stream_context_create($options);
+
+                if (file_get_contents($url, false, $context) !== FALSE) {
+                    //Note what happened in the logs also
+                    $aged_backup_removal_message = "SETTINGS BACKUP: Removed old JSON settings backup file ($backup_file_path) since it was " . ceil((time() - ($backup_time)) / 86400) . " days old. Max age is $fpp_backup_max_age days.";
+                    error_log($aged_backup_removal_message);
+                } else {
+                    $aged_backup_removal_message = "SETTINGS BACKUP: Something went wrong pruning old JSON settings backup files.";
+                    error_log($aged_backup_removal_message);
+                }
+            } else {
+                if ($backups_verbose_logging == true) {
+                    $aged_backup_removal_message = "SETTINGS BACKUP: NOT REMOVING backup file ($backup_file_path) since it is only " . ceil((time() - ($backup_time)) / 86400) . " days old.";
+                    error_log($aged_backup_removal_message);
+                }
             }
         }
     }
@@ -2152,6 +2381,28 @@ function preventPromptUserBrowserDownloadBackup()
     global $fpp_backup_prompt_download;
     //
     $fpp_backup_prompt_download = false;
+}
+
+/**
+ * Extracts the FPP Major version
+ * @return array|mixed|string|string[]
+ */
+function collectFppMajorVersion(){
+	//First try get the FPP version and break it down so we can get the major version
+	$fpp_version = explode(".",getFPPVersion());
+	$fpp_major_version = 0;
+
+	//If explode worked correctly, the major version will be at indec 0
+	if (array_key_exists(0, $fpp_version)) {
+		$fpp_major_version = $fpp_version[0];
+	} else {
+		//Else something went wrong, try get the FPP version from the GIT Branch
+		//replace the v in e.g v6.3 so we just have the digit
+		$fpp_git_branch = str_replace("v", "", explode(".", getFPPBranch()));
+		$fpp_major_version = $fpp_git_branch[0];
+	}
+
+	return $fpp_major_version;
 }
 
 /**
