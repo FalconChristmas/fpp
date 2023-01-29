@@ -44,7 +44,7 @@ if [ -d "/boot/fpp" ]; then
     fi
 fi
 
-# Grab hostname for settings and apply to system if required
+# Grab hostname from settings and apply to system if required
 OLDHOSTNAME=`/bin/cat /etc/hostname`
 
 if [ -f "/home/fpp/media/settings" ]; then

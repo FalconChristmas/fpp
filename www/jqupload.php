@@ -3,7 +3,7 @@
 // This file is based on upload.php from jQuery-Upload-File.  It has been
 // modified slightly to fit FPP usage requirements.
 //
-// jQuery-Uplaod-File is covered by the MIT license, so this file falls under
+// jQuery-Upload-File is covered by the MIT license, so this file falls under
 // that license instead of the GPL.  See
 // fpp/www/jquery/jQuery-Upload-File/MIT-License.txt
 //
