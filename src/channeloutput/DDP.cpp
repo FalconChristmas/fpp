@@ -46,7 +46,7 @@
  *               x:      reserved for future use (set to zero)
  *               ttt:    type, 0 = greyscale, 1 = rgb, 2 = hsl?
  *               bbb:    bits per pixel:
- *                       0=1, 1=4, 2=8, 3=16, 4=24, 5=32, 6=48, 7=64
+ *                       0=undefined, 1=1, 2=4, 3=8, 4=16, 5=24, 6=32
  *
  *   byte  3:    Source or Destination ID
  *               0 = reserved
@@ -153,7 +153,7 @@ DDPOutputData::DDPOutputData(const Json::Value& config) :
         ddpIovecs[x * 2 + 1].iov_base = nullptr;
 
         ddpBuffers[x][0] = DDP_FLAGS1_VER1;
-        ddpBuffers[x][2] = 1;
+        ddpBuffers[x][2] = 0;
         ddpBuffers[x][3] = DDP_ID_DISPLAY;
         int pktSize = DDP_CHANNELS_PER_PACKET;
         if (x == (pktCount - 1)) {
