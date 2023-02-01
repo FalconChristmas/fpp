@@ -15,12 +15,6 @@ $nonXML = array(
     "viewRemoteScript" => 1,
 );
 
-$a = session_id();
-if (empty($a)) {
-    session_start();
-}
-$_SESSION['session_id'] = session_id();
-
 $command_array = array(
     //"getFiles" => 'GetFiles', // /api/files/:dirName
     //"getZip" => 'GetZip',

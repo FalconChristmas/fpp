@@ -58,7 +58,8 @@
 define('LIMONADE',              '0.5.0');
 define('LIM_NAME',              'Un grand cru qui sait se faire attendre');
 define('LIM_START_MICROTIME',   microtime(true));
-define('LIM_SESSION_NAME',      'LIMONADE'.str_replace('.','x',LIMONADE));
+//define('LIM_SESSION_NAME',      'LIMONADE'.str_replace('.','x',LIMONADE));
+define('LIM_SESSION_NAME',      false);
 define('LIM_SESSION_FLASH_KEY', '_lim_flash_messages');
 if(function_exists('memory_get_usage'))
 	define('LIM_START_MEMORY',      memory_get_usage());

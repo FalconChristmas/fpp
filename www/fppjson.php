@@ -7,14 +7,6 @@ require_once('common/settings.php');
 require_once('commandsocket.php');
 require_once('universeentry.php');
 
-$a = session_id();
-if(empty($a))
-{
-	session_start();
-}
-$_SESSION['session_id'] = session_id();
-
-
 $command_array = Array(
 	//"getOutputProcessors" => 'GetOutputProcessors', // replaced by GET /api/channel/output/processors
 	//"setOutputProcessors" => 'SetOutputProcessors', // replaced by POST /api/channel/output/processors
@@ -352,66 +344,6 @@ function GetChannelOutputsJSON()
 	}
 
 	returnJSONStr($jsonStr);
-}
-
-/////////////////////////////////////////////////////////////////////////////
-function SaveUniversesToFile($enabled, $input)
-{
-	global $settings;
-
-	$universeJSON = sprintf(
-		"{\n" .
-		"	\"%s\": [\n" .
-		"		{\n" .
-		"			\"type\": \"universes\",\n" .
-		"			\"enabled\": %d,\n" .
-		"			\"startChannel\": 1,\n" .
-		"			\"channelCount\": -1,\n" .
-		"			\"universes\": [\n",
-		$input ? "channelInputs" : "channelOutputs", $enabled);
-
-	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
-	{
-		if ($i > 0)
-			$universeJSON .= ",\n";
-
-		$universeJSON .= sprintf(
-		"				{\n" .
-		"					\"active\": %d,\n" .
-		"					\"description\": \"%s\",\n" .
-		"					\"id\": %d,\n" .
-		"					\"startChannel\": %d,\n" .
-		"					\"channelCount\": %d,\n" .
-		"					\"type\": %d,\n" .
-		"					\"address\": \"%s\",\n" .
-		"					\"priority\": %d\n" .
-		"				}",
-			$_SESSION['UniverseEntries'][$i]->active,
-			$_SESSION['UniverseEntries'][$i]->desc,
-			$_SESSION['UniverseEntries'][$i]->universe,
-			$_SESSION['UniverseEntries'][$i]->startAddress,
-			$_SESSION['UniverseEntries'][$i]->size,
-			$_SESSION['UniverseEntries'][$i]->type,
-			$_SESSION['UniverseEntries'][$i]->unicastAddress,
-			$_SESSION['UniverseEntries'][$i]->priority);
-	}
-
-	$universeJSON .=
-		"\n" .
-		"			]\n" .
-		"		}\n" .
-		"	]\n" .
-		"}\n";
-
-    $filename = $settings['universeOutputs'];
-    if ($input)
-        $filename = $settings['universeInputs'];
-
-	$f = fopen($filename,"w") or exit("Unable to open file! : " . $filename);
-	fwrite($f, $universeJSON);
-	fclose($f);
-
-	return $universeJSON;
 }
 
 /////////////////////////////////////////////////////////////////////////////
