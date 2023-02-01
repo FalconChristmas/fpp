@@ -60,12 +60,14 @@ setupRTC () {
     1)
       # rasClock chip
       echo "FPP - Configuring RTC, Setting to rasClock/${I2CBUS}"
+      modprobe rtc-pcf2127 2> /dev/null
       echo "pcf2127 0x51" > /sys/bus/i2c/devices/${I2CBUS}/new_device
       sleep 1
       ;;
     2)
       # DS1307 chip
       echo "FPP - Configuring RTC, Setting to DS1307/${I2CBUS}"
+      modprobe rtc-ds1307 2> /dev/null
       echo "ds1307 0x68" > /sys/bus/i2c/devices/${I2CBUS}/new_device
       sleep 1
       ;;
@@ -78,12 +80,14 @@ setupRTC () {
     4)
       # AdaFruit
       echo "FPP - Configuring RTC, Settting to pcf8523/${I2CBUS}"
+      modprobe rtc-pcf8523 2> /dev/null
       echo "pcf8523 0x68" > /sys/bus/i2c/devices/${I2CBUS}/new_device
       sleep 1
       ;;
     5)
       # pcf85363
       echo "FPP - Configuring RTC, Settting to pcf85363/${I2CBUS}"
+      modprobe rtc-pcf85363 2> /dev/null
       echo "pcf85363 0x51" > /sys/bus/i2c/devices/${I2CBUS}/new_device
       sleep 1
       ;;
