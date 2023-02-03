@@ -5,15 +5,16 @@ require_once '../common/metadata.php';
 
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/media
-function GetMedia() {
+function GetMedia()
+{
     global $settings;
-    $files = Array();
-    
+    $files = array();
+
     $dir = $settings['musicDirectory'];
     foreach (glob($dir . "/*") as $filename) {
         array_push($files, basename($filename));
     }
-    
+
     $dir = $settings['videoDirectory'];
     foreach (glob($dir . "/*") as $filename) {
         array_push($files, basename($filename));
@@ -26,31 +27,33 @@ function GetMedia() {
 
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/media/:MediaName/duration
-function GetMediaDuration() {
+function GetMediaDuration()
+{
     global $settings;
-    $resp = Array();
+    $resp = array();
 
     $file = params('MediaName');
 
     $resp = getMediaDurationInfo($file, true);
 
-    if ($resp[$file]['duration'] < 0)
-        halt(404, "Not found: ". $file);
-    else
+    if ($resp[$file]['duration'] < 0) {
+        halt(404, "Not found: " . $file);
+    } else {
         return json($resp);
+    }
+
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/media/:MediaName/meta
-function GetMediaMetaData() {
+function GetMediaMetaData()
+{
     global $settings;
-    $resp = Array();
+    $resp = array();
 
     $file = params('MediaName');
 
-    $resp = GetMetaDataFromFFprobe($file);
+    $resp = GetMetaDataFromFFProbe($file);
 
     return json($resp);
 }
-
-?>
