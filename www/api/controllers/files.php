@@ -297,14 +297,14 @@ function GetZipDir()
     global $mediaDirectory;
 
     $dirNames = params("DirNames");
-    $dirNameArray = explode(',',$dirNames);
+    $dirNameArray = explode(',', $dirNames);
 
-    if(count($dirNameArray) == 1) {
+    if (count($dirNameArray) == 1) {
         $zipName = $dirNames;
     } else {
         $zipName = "all";
     }
-    
+
     // Re-format the file name
     $filename = tempnam("/tmp", "FPP_$zipName");
 
@@ -323,7 +323,7 @@ function GetZipDir()
             ZipConfigs($zip);
         } else {
             $dir = GetDirSetting($dirName);
-            if (file_exists($dir) && $dir != "" ) {
+            if (file_exists($dir) && $dir != "") {
                 ZipDirectory($zip, $dirName, $dir);
             } else {
                 $zip->close();
@@ -331,7 +331,7 @@ function GetZipDir()
             }
         }
     }
-    
+
     $zip->close();
 
     $timestamp = gmdate('Ymd.Hi');
@@ -462,10 +462,10 @@ function ZipDirectory($zip, $name, $directory)
 {
     global $mediaDirectory;
     foreach (scandir($directory) as $file) {
-        if ($file == "." || $file == ".." ) {
+        if ($file == "." || $file == "..") {
             continue;
         }
-        $zip->addFile("$directory/$file" , "$name/$file");
+        $zip->addFile("$directory/$file", "$name/$file");
     }
 }
 
@@ -509,11 +509,8 @@ function GetFileInfo(&$list, $dirName, $fileName)
         $cache_duration = media_duration_cache($fileName, null, $filesize);
         //cache duration will be null if not in cache, then retrieve it
         if ($cache_duration == null) {
-           
-            $resp = GetMetaDataFromFFProbe($fileName);
 
-			//cache it
-			media_duration_cache($fileName, $resp['format']['duration'], $filesize);
+            $resp = GetMetaDataFromFFProbe($fileName);
 
             //cache it
             if (isset($resp['format']['duration'])) {
