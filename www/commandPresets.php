@@ -141,13 +141,13 @@ $(document).ready(function() {
 });
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 </head>
 <body onLoad="LoadCommandList($('#newEventCommand')); LoadCommands();">
 <div id="bodyWrapper">
-<?php 
+<?php
 $activeParentMenuItem = 'status';
-include 'menu.inc'; ?>
+include 'menu.inc';?>
   <div class="mainContainer">
 	  <h2 class="title">Command Presets</h2>
 	  <div class="pageContent">
@@ -192,7 +192,7 @@ include 'menu.inc'; ?>
                         <tr>
                             <td class='center' valign='middle'><div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>
                             <td><input type='text' size='32' maxlength='64' class='cmdTmplName' list='PresetTriggerNames'></td>
-                            <td><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
+                            <td><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><?echo $commandOptions; ?></select>
                                 <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
                                 <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".cmdTmplJSON").text());'>
                                 <img class='cmdTmplTooltipIcon' title='' src='images/redesign/help-icon.svg' width=22 height=22>
@@ -210,7 +210,7 @@ include 'menu.inc'; ?>
                                 <th class="tblCommandsHeadGrip"></th>
                                 <th>Preset Name</th>
                                 <th>FPP Command</th>
-                                <th>Preset<br>Slot # <img id='presetSlot_img' title="The Preset Slot number is used along with the Command Preset Control Channel to allow FPP Command Presets to be triggered by sequence or incoming network data.  Set to '0' to disable."  width=22 height=22 src='images/redesign/help-icon.svg'></th>
+                                <th>Preset<br>Slot # <img id='presetSlot_img' title="The Preset Slot number is used along with the 'Trigger Command Preset Slot' FPP Command to allow FPP Command Presets to be triggered via API.  Set to '0' to disable."  width=22 height=22 src='images/redesign/help-icon.svg'></th>
                             </tr>
                         </thead>
                         <tbody id="tblCommandsBody" width="100%">
@@ -219,11 +219,11 @@ include 'menu.inc'; ?>
                 </div>
             </div>
 		</div>
-  
+
         <div class="backdrop">
             <b>Notes:</b>
             <ul>
-                <li>The Command Preset Control Channel is defined on the 'Input/Output' tab of the <a href='settings.php#settings-output'>settings page</a>.</li>
+                <li>Presets can be triggered based on channel data by defining a "Command Channel" output on the Channel Outputs page.</li>
                 <li>Predefined Preset Names are automatically triggered within FPP when the action described occurs.</li>
             </ul>
 
@@ -233,7 +233,7 @@ include 'menu.inc'; ?>
   </div>
   </div>
   </div>
-  <?php	include 'common/footer.inc'; ?>
+  <?php	include 'common/footer.inc';?>
 </div>
 
 <datalist id='PresetTriggerNames'>

@@ -50,7 +50,6 @@ Sequence::Sequence() :
     m_seqSingleStep(0),
     m_seqSingleStepBack(0),
     m_seqRefreshRate(20),
-    m_seqLastControlValue(0),
     m_remoteBlankCount(0),
     m_readThread(nullptr),
     m_lastFrameRead(-1),
@@ -560,7 +559,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
     }
 }
 
-void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
+void Sequence::ProcessSequenceData(int ms) {
     static unsigned int controlChannel = (unsigned int)getSettingInt("PresetControlChannel");
 
     if (m_dataProcessed) {
@@ -636,18 +635,6 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
         PixelOverlayManager::INSTANCE.doOverlays((uint8_t*)m_seqData);
     }
 
-    if (checkControlChannels && !m_dataProcessed && controlChannel) {
-        unsigned char thisValue = (unsigned char)m_seqData[controlChannel - 1];
-
-        if (m_seqLastControlValue != thisValue) {
-            m_seqLastControlValue = thisValue;
-
-            if (m_seqLastControlValue) {
-                CommandManager::INSTANCE.TriggerPreset(m_seqLastControlValue);
-            }
-        }
-    }
-
     if (ChannelTester::INSTANCE.Testing())
         ChannelTester::INSTANCE.OverlayTestData(m_seqData);
 
@@ -673,7 +660,7 @@ void Sequence::SendBlankingData(void) {
     if (ChannelOutputThreadIsRunning() && ChannelOutputThreadIsEnabled()) {
         ForceChannelOutputNow();
     } else {
-        ProcessSequenceData(0, 0);
+        ProcessSequenceData(0);
         SendSequenceData();
     }
 }

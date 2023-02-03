@@ -341,10 +341,6 @@ int InitializeChannelOutputs(void) {
         LogInfo(VB_CHANNELOUT, "OutputProcessor:  Determined range needed %d - %d\n", m1, m2);
         addRange(m1, m2);
     });
-    if (getSettingInt("PresetControlChannel")) {
-        int val = getSettingInt("PresetControlChannel");
-        addRange(val, val);
-    }
     sortRanges(outputRanges, false);
     sortRanges(preciseOutputRanges, true);
     for (auto& r : preciseOutputRanges) {

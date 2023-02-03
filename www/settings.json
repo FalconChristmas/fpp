@@ -1759,19 +1759,6 @@
             "type": "select",
             "optionsURL": "api/settings/RTC/options"
         },
-        "PresetControlChannel": {
-            "name": "PresetControlChannel",
-            "description": "Command Preset Control Channel",
-            "tip": "The Command Preset Control Channel allows FPP Command Presets to be triggered by sequence or incoming network data.  Set to '0' to disable.",
-            "gatherStats": true,
-            "level": 0,
-            "restart": 2,
-            "default": 0,
-            "type": "number",
-            "min": 0,
-            "max": 8388608,
-            "step": 1
-        },
         "remoteIgnoreSync": {
             "name": "remoteIgnoreSync",
             "description": "Ignore Media Sync Packets",

@@ -902,6 +902,73 @@ class MQTTOutput extends OtherBase {
     }
 }
 
+<?
+$commandPresetsFile = file_get_contents($settings['configDirectory'] . "/commandPresets.json");
+echo "var commandPresets = " . $commandPresetsFile . ";\n";
+?>
+function CreatePesetRow(config) {
+
+    var rest = "<div class='row presetRow justify-content-start' id='presetRow'>";
+    rest += "<div class='col-sm-3'>&nbsp;</div>";
+    rest += "<div class='col-sm-2'><input id='channelValue' type='number' min='1' max='255' value='" + config.value + "'></div>";
+    rest += "<div class='col-sm-3'><select id='presetName'>";
+    rest += "<option value='' " + (config.preset == "" ? "selected" : "") + ">--Select Command Preset--</option>";
+    var commands = commandPresets.commands;
+    for (a in commands) {
+        var n = commands[a].command;
+        rest += "<option value='" + n + "' " + (config.preset == n ? "selected" : "") + ">" + n + "</option>";
+    }
+    rest += "</select></div>";
+    rest += "<div class='col-sm-4'></div>";
+    rest += "</div>";
+    return rest;
+}
+function AddPresetValue(button) {
+    var container = button.parentElement.parentElement.parentElement;
+    var config = new Object();
+    config.value = 1;
+    config.preset = "";
+    container.innerHTML += CreatePesetRow(config);
+}
+
+class ControlChannelOutput extends OtherBase {
+    constructor(name="ControlChannel", friendlyName="Control Channel", maxChannels=1, fixedStart=false, fixedChans=true, config={}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, config);
+    }
+    PopulateHTMLRow(config) {
+        var result = super.PopulateHTMLRow(config);
+        result += "<div class='container' id='presetRows'>";
+        result += "<div class='row'>";
+        result += "<div class='col-sm-3'><button id='btnAddPreset' class='buttons btn-outline-success' type='button' value='Add' onclick='AddPresetValue(this);'><i class='fas fa-plus'></i> Add</button></div>"
+        result += "<div class='col-sm-2'><b>Channel Value</b></div>";
+        result += "<div class='col-sm-3'><b>Preset</b></div>";
+        result += "<div class='col-sm-4'></div>";
+        result += "</div>";
+        for (var a in config.values) {
+            result += CreatePesetRow(config.values[a]);
+        }
+        result += "</div>";
+        return result;
+    }
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+        result["values"] = [];
+        var rows = cell.find("div.presetRow");
+        rows.each( function() {
+            var chan = $(this).find('#channelValue');
+            var preset = $(this).find("#presetName");
+            var chanNum = chan.val();
+            if (chanNum != "") {
+                var obj = new Object();
+                obj["preset"] = preset.val();
+                obj["value"] = parseInt(chan.val());
+                result["values"].push(obj);
+            }
+        });
+
+        return result;
+    }
+}
 
 /////////////////////////////////////////////////////////////////////////////
 //populate the output devices
@@ -913,7 +980,7 @@ if (GPIOPins.size > 0) {
     output_modules.push(new GPIOOutputDevice());
     output_modules.push(new GPIO595OutputDevice());
 }
-
+output_modules.push(new ControlChannelOutput());
 output_modules.push(new MQTTOutput());
 if (Object.keys(SerialDevices).length > 0) {
     output_modules.push(new LOREnhanced());

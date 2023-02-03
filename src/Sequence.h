@@ -41,7 +41,7 @@ public:
     int OpenSequenceFile(const std::string& filename, int startFrame = 0, int startSecond = -1);
     void StartSequence(const std::string& filename, int startFrame);
     void StartSequence();
-    void ProcessSequenceData(int ms, int checkControlChannels = 1);
+    void ProcessSequenceData(int ms);
     void SeekSequenceFile(int frameNumber);
     void ReadSequenceData(bool forceFirstFrame = false);
     void SendSequenceData(void);
@@ -93,7 +93,6 @@ private:
     int m_seqSingleStep;
     int m_seqSingleStepBack;
     float m_seqRefreshRate;
-    unsigned char m_seqLastControlValue;
     int m_remoteBlankCount;
     bool m_dataProcessed;
     int m_numSeek;

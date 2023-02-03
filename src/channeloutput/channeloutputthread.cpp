@@ -160,7 +160,7 @@ void* RunChannelOutputThread(void* data) {
                 if (!sequence->IsSequenceRunning()) {
                     msTime = mediaElapsedSeconds * 1000;
                 }
-                sequence->ProcessSequenceData(msTime, 1);
+                sequence->ProcessSequenceData(msTime);
             }
             if (getFPPmode() == REMOTE_MODE && !doForceOutput) {
                 // Sleep about 1 seconds waiting for the master
@@ -190,7 +190,7 @@ void* RunChannelOutputThread(void* data) {
         }
         if (!sequence->hasBridgeData()) {
             //if bridging, we'll have to process later
-            sequence->ProcessSequenceData(msTime, 1);
+            sequence->ProcessSequenceData(msTime);
         }
         processTime = GetTime();
 
