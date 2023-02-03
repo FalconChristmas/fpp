@@ -915,7 +915,7 @@ function CreatePesetRow(config) {
     rest += "<option value='' " + (config.preset == "" ? "selected" : "") + ">--Select Command Preset--</option>";
     var commands = commandPresets.commands;
     for (a in commands) {
-        var n = commands[a].command;
+        var n = commands[a].name;
         rest += "<option value='" + n + "' " + (config.preset == n ? "selected" : "") + ">" + n + "</option>";
     }
     rest += "</select></div>";
