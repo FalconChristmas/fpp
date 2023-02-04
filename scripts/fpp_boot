@@ -79,7 +79,7 @@ if [ ${HASSOUND} -eq 1 ]; then
     if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
         CARD0STR=$(aplay -l | grep "^card $CARDID" | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq | colrm 1 2 | colrm 5)
         if [ "$CARD0STR" == "bcm2" ]; then
-            if [ "$CARDID" == "0"]; then
+            if [ "$CARDID" == "0" ]; then
                 VOLUME=$(echo "scale=2 ; ${VOLUME} / 2.0 + 50" | bc)
             fi
             setSetting AudioCard0Type $CARD0STR
