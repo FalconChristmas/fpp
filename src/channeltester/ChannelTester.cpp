@@ -188,7 +188,7 @@ const std::shared_ptr<httpserver::http_response> ChannelTester::render_GET(const
             vcr["allowBlanks"] = false;
             vcr["contentListUrl"] = "api/models?simple=true";
             std::string rng = GetOutputRangesAsString(false, true);
-            vcr["default"] = rng;
+            vcr["contents"].append(rng.c_str());
             vcr["description"] = "Channel Range/Model";
             vcr["name"] = "ChannelRange";
             vcr["optional"] = false;
