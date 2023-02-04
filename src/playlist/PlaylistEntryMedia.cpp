@@ -72,6 +72,9 @@ int PlaylistEntryMedia::Init(Json::Value& config) {
             return 0;
         }
     } else {
+        if (config.isMember("mediaPrefix")) {
+            m_mediaPrefix = config["mediaPrefix"].asString();
+        }
         if (GetFileList()) {
             m_mediaFilename = GetNextRandomFile();
         } else {
@@ -392,7 +395,15 @@ int PlaylistEntryMedia::GetFileList(void) {
 
     for (auto& cp : recursive_directory_iterator(dir)) {
         std::string entry = cp.path().string();
-        m_files.push_back(entry);
+         
+        if (!m_mediaPrefix.empty()) {
+             if (cp.is_regular_file() && cp.path().stem().string().find(m_mediaPrefix) == 0) {
+                 LogDebug(VB_PLAYLIST, "match: %s\n", cp.path().c_str());
+                 m_files.push_back(entry);
+             }
+        } else {
+            m_files.push_back(entry);
+        }
     }
 
     LogDebug(VB_PLAYLIST, "%d files in %s directory\n", m_files.size(), dir.c_str());

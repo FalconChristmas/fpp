@@ -383,7 +383,13 @@
                 "children": {
                     "single": [
                         "mediaName"
-                    ]
+                    ],
+		    "randomVideo": [
+ 			"mediaPrefix"
+		    ],
+		    "randomAudio": [
+ 			"mediaPrefix"
+		    ]
                 },
                 "optional": false,
                 "simpleUI": true
@@ -396,6 +402,13 @@
                 "onChange": "MediaChanged",
                 "optional": true,
                 "simpleUI": true
+            },
+            "mediaPrefix": {
+                "name": "mediaPrefix",
+                "description": "Play files starting with this prefix only",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             },
             "videoOut": {
                 "name": "videoOut",

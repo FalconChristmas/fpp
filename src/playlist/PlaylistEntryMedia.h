@@ -58,6 +58,7 @@ private:
     std::string GetNextRandomFile(void);
 
     std::string m_mediaFilename;
+    std::string m_mediaPrefix;
     std::string m_videoOutput;
     MediaOutputBase* m_mediaOutput;
     pthread_mutex_t m_mediaOutputLock;
