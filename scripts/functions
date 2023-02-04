@@ -811,7 +811,7 @@ function ComputeMakeParallelism() {
 }
 
 compileBinaries() {
-	cleanCompiledBinaries
+    cleanCompiledBinaries
     populateCCACHE
 
 	# export CCACHE_LOGFILE=/tmp/cache.debug
