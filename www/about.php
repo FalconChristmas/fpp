@@ -106,9 +106,11 @@ $freeSpace = disk_free_space($uploadDirectory);
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <script language="Javascript">
 var osAssetMap={};
+var originalFPPOS;
 $(document).ready(function() {
 OnSystemStatusChange(updateSensorStatus)
 UpdateVersionInfo();
+originalFPPOS = $('#OSSelect').html();
 AppendGithubOS();
 GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
 GetItemCount('api/configfile/schedule.json', 'scheduleCount');
@@ -144,7 +146,15 @@ function AppendGithubOS() {
 // we want at least a GB in order to be able to download the fppos and have space to then apply it
 if ($freeSpace > 1000000000) {
 ?>
-    $.get("api/git/releases/os", function(data) {
+    var allPlatforms = '';
+
+    if ($('#allPlatforms').is(':checked')) {
+        allPlatforms = 'api/git/releases/os/all';
+    } else {
+        allPlatforms = 'api/git/releases/os';
+    }
+
+    $.get(allPlatforms, function(data) {
         var devMode = (settings['uiLevel'] && (parseInt(settings['uiLevel']) == 3));
         if ("files" in data) {
             for (const file of data["files"]) {
@@ -286,6 +296,13 @@ function UpgradeFPP() {
     StreamURL('manualUpdate.php?wrapped=1', 'upgradeText', 'UpgradeDone');
 }
 
+function UpdatePlatforms() {  
+    var allPlatforms = '';
+    $('#OSSelect').html(originalFPPOS);
+    AppendGithubOS();
+}
+
+
 </script>
 <title><?echo $pageTitle; ?></title>
 <style>
@@ -413,7 +430,7 @@ if ($settings['uiLevel'] > 0) {
     <?
 }
 
-$osUpdateFiles = preg_grep("/^" . $settings['OSImagePrefix'] . "-/", getFileList($uploadDirectory, "fppos"));
+$osUpdateFiles = getFileList($uploadDirectory, "fppos");
 echo "<tr id='osSelectRow'><td style='vertical-align: top;'>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect' onChange='OSSelectChanged();'>\n";
 echo "<option value=''>-- Choose an OS Version --</option>\n";
 foreach ($osUpdateFiles as $key => $value) {
@@ -423,7 +440,12 @@ echo "</select><span";
 if (getFPPBranch() != 'master') {
     echo " style='display: none;'";
 }
-echo ">&nbsp;&nbsp;Preserve /opt/fpp <input type='checkbox' id='keepOptFPP'><img id='keepOptFPP_img' title='Preserve the FPP version in /opt/fpp across fppos upgrade.' src='images/redesign/help-icon.svg' class='icon-help'></span>";
+echo ">&nbsp&nbsp;";
+if ($settings['uiLevel'] > 0) {
+    echo "<br>Show All Platforms <input type='checkbox' id='allPlatforms' onClick='UpdatePlatforms();'><img id='allPlatforms_img' title='Show both BBB & Pi downloads' src='images/redesign/help-icon.svg' class='icon-help'></span>";
+}
+echo "&nbsp;&nbsp;<br>Preserve /opt/fpp <input type='checkbox' id='keepOptFPP'><img id='keepOptFPP_img' title='Preserve the FPP version in /opt/fpp across fppos upgrade.' src='images/redesign/help-icon.svg' class='icon-help'></span>";
+
 
 echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'>&nbsp;<input type='button' disabled value='Download Only' onClick='DownloadOS();' class='buttons' id='OSDownload'></td></tr>";
 ?>
