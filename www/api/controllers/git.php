@@ -56,6 +56,7 @@ function GitOSReleases()
 {
     global $settings;
     global $uploadDirectory;
+    $platforms = params('All');
 
     $existingFiles = getFileList($uploadDirectory, "fppos");
 
@@ -79,19 +80,31 @@ function GitOSReleases()
         $rc["downloaded"] = $existingFiles;
         $releases = array();
         foreach ($data as $r) {
-            if (isset($r["assets"]) && $settings['OSImagePrefix'] != "") {
+            if (isset($r["assets"]) && $settings['OSImagePrefix'] != "" ) {
                 foreach ($r["assets"] as $file) {
                     $name = $file["name"];
-                    if (endsWith($name, ".fppos") && startsWith($name, $settings['OSImagePrefix'])) {
-                        $row = array();
-                        $row["tag"] = $r["tag_name"];
-                        $row["release_name"] = $r["name"];
-                        $row["filename"] = $name;
-                        $row["url"] = $file["browser_download_url"];
-                        $row["asset_id"] = $file["id"];
-                        $row["downloaded"] = in_array($name, $existingFiles);
-                        $row["size"] = $file["size"];
-                        array_push($releases, $row);
+                    if (endsWith($name, ".fppos")) {
+                        if ($platforms == "all") {
+                            $row = array();
+                            $row["tag"] = $r["tag_name"];
+                            $row["release_name"] = $r["name"];
+                            $row["filename"] = $name;
+                            $row["url"] = $file["browser_download_url"];
+                            $row["asset_id"] = $file["id"];
+                            $row["downloaded"] = in_array($name, $existingFiles);
+                            $row["size"] = $file["size"];
+                            array_push($releases, $row);
+                        } else if (startsWith($name, $settings['OSImagePrefix'])) {
+                            $row = array();
+                            $row["tag"] = $r["tag_name"];
+                            $row["release_name"] = $r["name"];
+                            $row["filename"] = $name;
+                            $row["url"] = $file["browser_download_url"];
+                            $row["asset_id"] = $file["id"];
+                            $row["downloaded"] = in_array($name, $existingFiles);
+                            $row["size"] = $file["size"];
+                            array_push($releases, $row);
+                        }
                     }
                 }
             }

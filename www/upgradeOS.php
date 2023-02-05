@@ -36,7 +36,7 @@ if (!$wrapped) {
     ?>
 <head>
 <title>
-FPP OS Uprade
+FPP OS Upgrade
 </title>
 </head>
 <body>
@@ -45,7 +45,7 @@ Image: <?echo strip_tags($_GET['os']); ?><br>
 <pre>
 <?
 } else {
-    echo "FPP OS Upgrade\n";
+    echo "\nFPP OS Upgrade\n";
     echo "Image: " . strip_tags($_GET['os']) . "\n";
 }
 
@@ -112,6 +112,8 @@ if (!$wrapped) {
 } else if ($applyUpdate && ($return_code == 0)) {
     echo "==========================================================================\n";
     echo "Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot\n";
+} else if (!$applyUpdate) {
+    echo "==========================================================================\n";
 } else {
     echo "==========================================================================\n";
     echo "FPP UPGRADE FAILED\n";

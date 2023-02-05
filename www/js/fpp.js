@@ -3250,9 +3250,14 @@ function show_details(args) {
     if (typeof args[0] == "object" && args[0].responseText) {
         return args[0].responseText; } //show most useful part
     const retval = [""];
-    args.forEach(arg =>
-        retval.push(typeof arg + ": " +
-            JSON.stringify(arg).replace(/^(?<=.{200})[\s\S]+$/, " ..."))); //truncate if long
+    args.forEach(function(arg) {
+        var js = JSON.stringify(arg);
+        if (js.length > 200) {
+            js = js.substr(0, 200) + " ...";
+        }
+        retval.push(typeof arg + ": " + js);
+    });
+    console.log(arg);
     return retval.join("<br/>");
 }
 
