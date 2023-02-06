@@ -79,3 +79,21 @@ $commands = array(
     'FPP OLED Logs' => $SUDO . ' journalctl -u fppoled | tail -20 ',
     'FPP FPPD Logs' => $SUDO . ' journalctl -u fppd | tail -20 ',
 );
+
+if ($settings['Platform'] != "MacOS") {
+
+    $poss_paths = explode(":", getenv("PATH"));
+    $gpio_present = 0;
+    foreach ($poss_paths as $path) {
+        if (file_exists($path . "/gpiodetect") && $gpio_present == 0) {
+            $gpio_present = 1;
+        }
+    }
+    if ($gpio_present == 1) {
+        // GPIO Detect
+        $commands['GPIO'] = $SUDO . ' gpiodetect ';
+
+        // GPIO Info
+        $commands['GPIO Info'] = $SUDO . ' gpioinfo ';
+    }
+}
