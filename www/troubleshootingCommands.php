@@ -68,6 +68,12 @@ $commands = array(
     // i2c
     'i2cdetect' => $SUDO . ' i2cdetect -y -r ' . $i2cDevice,
 
+    // GPIO Detect
+    'GPIO' => $SUDO . ' gpiodetect ',
+
+    // GPIO Info
+    'GPIO Info' => $SUDO . ' gpioinfo ',
+
     // Processes
     'Processes' => 'ps -edaf --forest', // Keep this last since it is so long
 
