@@ -110,18 +110,21 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
     if (parts.size() != 4) {
         if (!GetIPForHost(this->address)) {
             LogErr(VB_SYNC, "Error looking up hostname: %s\n", address.c_str());
-            this->ipa = 0;
-            this->ipb = 0;
-            this->ipc = 0;
-            this->ipd = 0;
         } else {
             parts = split(this->address, '.');
         }
     }
-    this->ipa = atoi(parts[0].c_str());
-    this->ipb = atoi(parts[1].c_str());
-    this->ipc = atoi(parts[2].c_str());
-    this->ipd = atoi(parts[3].c_str());
+    if (parts.size() >= 4) {
+        this->ipa = atoi(parts[0].c_str());
+        this->ipb = atoi(parts[1].c_str());
+        this->ipc = atoi(parts[2].c_str());
+        this->ipd = atoi(parts[3].c_str());
+    } else {
+        this->ipa = 0;
+        this->ipb = 0;
+        this->ipc = 0;
+        this->ipd = 0;
+    }
 }
 
 Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
