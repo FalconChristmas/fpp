@@ -118,7 +118,7 @@ static bool dumpstack_gdb(void) {
     char pid_buf[30];
     snprintf(pid_buf, sizeof(pid_buf), "%d", getpid());
     char thread_buf[30];
-    snprintf(thread_buf, sizeof(buf), "(LWP %ld)", syscall(__NR_gettid));
+    snprintf(thread_buf, sizeof(thread_buf), "(LWP %ld)", syscall(__NR_gettid));
     char name_buf[512];
     name_buf[readlink("/proc/self/exe", name_buf, 511)] = 0;
 
