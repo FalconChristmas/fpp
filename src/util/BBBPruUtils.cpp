@@ -278,7 +278,7 @@ int BBBPru::run(const std::string& program) {
 
     /*
     char bname[50];
-    sprintf(bname,"/tmp/pru-%d.bin", pru_num);
+    snprintf(bname, sizeof(bname), "/tmp/pru-%d.bin", pru_num);
     fhand = open(bname, O_CREAT | O_RDWR);
     write(fhand, prus[pru_num].instructionRam, 3000);
     close(fhand);

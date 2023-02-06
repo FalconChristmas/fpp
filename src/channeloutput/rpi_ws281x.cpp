@@ -112,9 +112,9 @@ int RPIWS281xOutput::Init(Json::Value config) {
     if (config["pinoutVersion"].asString() == "3.x") {
         verPostf = "-v3";
     }
-    sprintf(filename, "/home/fpp/media/tmp/strings/%s%s.json", subType.c_str(), verPostf.c_str());
+    snprintf(filename, sizeof(filename), "/home/fpp/media/tmp/strings/%s%s.json", subType.c_str(), verPostf.c_str());
     if (!FileExists(filename)) {
-        sprintf(filename, "/opt/fpp/capes/pi/strings/%s%s.json", subType.c_str(), verPostf.c_str());
+        snprintf(filename, sizeof(filename), "/opt/fpp/capes/pi/strings/%s%s.json", subType.c_str(), verPostf.c_str());
     }
     if (!FileExists(filename)) {
         LogErr(VB_CHANNELOUT, "No output pin configuration for %s%s\n", subType.c_str(), verPostf.c_str());

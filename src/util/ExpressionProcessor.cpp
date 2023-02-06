@@ -55,7 +55,7 @@ public:
         if (expr) {
             double d = te_eval(expr);
             char buf[30];
-            sprintf(buf, "%lf", d);
+            snprintf(buf, sizeof(buf), "%lf", d);
             int len = strlen(buf);
             for (int x = len - 1; x >= 0; x--) {
                 if (buf[x] == '.' || buf[x] == ',') {

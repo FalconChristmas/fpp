@@ -210,10 +210,10 @@ int BBBSerialOutput::Init(Json::Value config) {
         if (maxLen < 1 || maxLen > 512) {
             maxLen = 512;
         }
-        sprintf(buf, "-DDATALEN=%d", (maxLen + 1));
+        snprintf(buf, sizeof(buf), "-DDATALEN=%d", (maxLen + 1));
         args.push_back(buf);
     }
-    sprintf(buf, "-DNUMOUT=%d", maxOut);
+    snprintf(buf, sizeof(buf), "-DNUMOUT=%d", maxOut);
     args.push_back(buf);
 
     compileSerialPRUCode(args);

@@ -26,7 +26,7 @@ public:
     virtual int SetupTest(void) override;
     virtual void DumpConfig(void) override;
     
-    virtual int OverlayTestData(char* channelData);
+    virtual int OverlayTestData(char* channelData) override;
 
 private:
     void CycleData(void) override;

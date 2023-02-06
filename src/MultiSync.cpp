@@ -249,12 +249,12 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
              address.c_str(), hostname.c_str(), version.c_str(), model.c_str(),
              ranges.c_str(), uuid.c_str(), multiSync ? "true" : "false");
 
-    char timeStr[32];
+    char timeStr[34];
     memset(timeStr, 0, sizeof(timeStr));
     time_t t = time(NULL);
     struct tm tm;
     localtime_r(&t, &tm);
-    sprintf(timeStr, "%4d-%.2d-%.2d %.2d:%.2d:%.2d",
+    snprintf(timeStr, sizeof(timeStr), "%4d-%.2d-%.2d %.2d:%.2d:%.2d",
             1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday,
             tm.tm_hour, tm.tm_min, tm.tm_sec);
 
@@ -642,7 +642,7 @@ static std::string createRanges(std::vector<std::pair<uint32_t, uint32_t>> range
         if (!first) {
             range += ",";
         }
-        sprintf(buf, "%d-%d", a.first, (a.first + a.second - 1));
+        snprintf(buf, sizeof(buf), "%d-%d", a.first, (a.first + a.second - 1));
         range += buf;
         first = false;
     }
@@ -951,7 +951,7 @@ void MultiSync::DiscoverViaHTTP(const std::set<std::string>& ipSet, const std::s
         ipList[ips] = ip;
         m_httpResponses.erase(ip);
 
-        sprintf(url, "http://%s/", ip.c_str());
+        snprintf(url, sizeof(url), "http://%s/", ip.c_str());
         curl_easy_setopt(handles[ips], CURLOPT_URL, url);
         curl_easy_setopt(handles[ips], CURLOPT_CONNECTTIMEOUT_MS, 1000L);
         curl_easy_setopt(handles[ips], CURLOPT_TIMEOUT_MS, 5000L);
@@ -2697,11 +2697,11 @@ Json::Value MultiSyncStats::toJSON() {
     result["sourceIP"] = sourceIP;
     result["hostname"] = hostname;
 
-    char timeStr[32];
+    char timeStr[34];
     memset(timeStr, 0, sizeof(timeStr));
     struct tm tm;
     localtime_r(&lastReceiveTime, &tm);
-    sprintf(timeStr, "%4d-%.2d-%.2d %.2d:%.2d:%.2d",
+    snprintf(timeStr,sizeof(timeStr), "%4d-%.2d-%.2d %.2d:%.2d:%.2d",
             1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday,
             tm.tm_hour, tm.tm_min, tm.tm_sec);
 

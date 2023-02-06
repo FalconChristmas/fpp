@@ -1044,7 +1044,7 @@ private:
 
     bool waitForI2CBus(int i2cBus) {
         char buf[256];
-        sprintf(buf, "/sys/bus/i2c/devices/i2c-%d/new_device", i2cBus);
+        snprintf(buf, sizeof(buf), "/sys/bus/i2c/devices/i2c-%d/new_device", i2cBus);
 
         bool has0 = access("/sys/bus/i2c/devices/i2c-0/new_device", F_OK) != -1;
 
@@ -1067,7 +1067,7 @@ private:
 
     bool HasI2CDevice(int i, int i2cBus) {
         char buf[256];
-        sprintf(buf, "i2cdetect -y -r %d 0x%X 0x%X", i2cBus, i, i);
+        snprintf(buf, sizeof(buf), "i2cdetect -y -r %d 0x%X 0x%X", i2cBus, i, i);
         std::string result = exec(buf);
         return result != "" && result.find("--") == std::string::npos;
     }

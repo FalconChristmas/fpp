@@ -428,7 +428,7 @@ void CommandManager::LoadPresets() {
 
         for (int major = 1; major <= 25; major++) {
             for (int minor = 1; minor <= 25; minor++) {
-                sprintf(id, "%02d_%02d", major, minor);
+                snprintf(id, sizeof(id), "%02d_%02d", major, minor);
                 std::string filename = FPP_DIR_MEDIA(std::string("/events/") + id + ".fevt");
 
                 if (FileExists(filename)) {

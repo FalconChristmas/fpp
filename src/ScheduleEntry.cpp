@@ -519,10 +519,10 @@ Json::Value ScheduleEntry::GetJson(void) {
 
     e["day"] = dayIndex;
 
-    sprintf(timeText, "%02d:%02d:%02d", startHour, startMinute, startSecond);
+    snprintf(timeText, sizeof(timeText), "%02d:%02d:%02d", startHour, startMinute, startSecond);
     e["startTime"] = timeText;
 
-    sprintf(timeText, "%02d:%02d:%02d", endHour, endMinute, endSecond);
+    snprintf(timeText, sizeof(timeText), "%02d:%02d:%02d", endHour, endMinute, endSecond);
     e["endTime"] = timeText;
 
     e["repeat"] = (int)repeat;

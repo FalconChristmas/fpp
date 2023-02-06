@@ -359,12 +359,12 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
             m_virtualDisplay[m_pixels[i].g] = g;
             m_virtualDisplay[m_pixels[i].b] = b;
 
-            sprintf(color, "%c%c%c", base64[r], base64[g], base64[b]);
+            snprintf(color, sizeof(color), "%c%c%c", base64[r], base64[g], base64[b]);
             colorStr = color;
 
             y = m_previewHeight - m_pixels[i].y;
             if (m_pixels[i].x >= 4095)
-                sprintf(loc, "%c%c%c%c%c%c",
+                snprintf(loc, sizeof(loc), "%c%c%c%c%c%c",
                         base64[(m_pixels[i].x >> 12) & 0x3f],
                         base64[(m_pixels[i].x >> 6) & 0x3f],
                         base64[(m_pixels[i].x) & 0x3f],
@@ -372,7 +372,7 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
                         base64[(y >> 6) & 0x3f],
                         base64[(y)&0x3f]);
             else
-                sprintf(loc, "%c%c%c%c",
+                snprintf(loc, sizeof(loc), "%c%c%c%c",
                         base64[(m_pixels[i].x >> 6) & 0x3f],
                         base64[(m_pixels[i].x) & 0x3f],
                         base64[(y >> 6) & 0x3f],

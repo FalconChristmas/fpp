@@ -116,9 +116,9 @@ static int IsDebuggerPresent() {
 static bool dumpstack_gdb(void) {
 #ifndef PLATFORM_OSX
     char pid_buf[30];
-    sprintf(pid_buf, "%d", getpid());
+    snprintf(pid_buf, sizeof(pid_buf), "%d", getpid());
     char thread_buf[30];
-    sprintf(thread_buf, "(LWP %ld)", syscall(__NR_gettid));
+    snprintf(thread_buf, sizeof(buf), "(LWP %ld)", syscall(__NR_gettid));
     char name_buf[512];
     name_buf[readlink("/proc/self/exe", name_buf, 511)] = 0;
 
@@ -205,7 +205,7 @@ static bool dumpstack_gdb(void) {
                 timeout_pid1 = 0;
                 //printf("Sending SIGKILL to worker_pid's children\n");
                 if (worker_pid) {
-                    sprintf(tmp, "pkill -KILL -P %d", worker_pid);
+                    snprintf(tmp, sizeof(tmp), "pkill -KILL -P %d", worker_pid);
                     int ret = system(tmp);
                 }
             } else if (timeout_pid2 && waitpid(timeout_pid2, &status, WNOHANG)) {
@@ -314,10 +314,10 @@ static void handleCrash(int s) {
             char sysType[] = "Unknown";
 #endif
             char zfName[128];
-            sprintf(zfName, "crashes/fpp-%s-%s-%s.zip", sysType, getFPPVersion(), tbuffer);
+            snprintf(zfName, sizeof(zfName), "crashes/fpp-%s-%s-%s.zip", sysType, getFPPVersion(), tbuffer);
 
             char zName[1024];
-            sprintf(zName, "zip -r %s /tmp/fppd_crash.log", zfName);
+            snprintf(zName, sizeof(zfName), "zip -r %s /tmp/fppd_crash.log", zfName);
             if (crashLog > 1) {
                 strcat(zName, " settings");
                 if (crashLog > 2) {
@@ -326,7 +326,7 @@ static void handleCrash(int s) {
             }
             system(zName);
             SetFilePerms(zfName);
-            sprintf(zName, "curl https://dankulp.com/crashUpload/index.php -F userfile=@%s", zfName);
+            snprintf(zName, sizeof(zfName), "curl https://dankulp.com/crashUpload/index.php -F userfile=@%s", zfName);
             system(zName);
         } else {
             LogErr(VB_ALL, "Very recent crash report found, not uploading\n");

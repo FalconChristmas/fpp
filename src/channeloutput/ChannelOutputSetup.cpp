@@ -402,7 +402,7 @@ int SendChannelData(const char* channelData) {
     if (WillLog(LOG_DEBUG, VB_CHANNELDATA)) {
         uint32_t minimumNeededChannel = GetOutputRanges(false)[0].first;
         char buf[128];
-        sprintf(buf, "Channel Data starting at channel %d", minimumNeededChannel);
+        snprintf(buf, sizeof(buf), "Channel Data starting at channel %d", minimumNeededChannel);
         HexDump(buf, &channelData[minimumNeededChannel], 16, VB_CHANNELDATA);
     }
 

@@ -230,7 +230,7 @@ int FPPStatusOLEDPage::getLinesPage1(std::vector<std::string>& lines,
             i *= 1.8;
             i += 32;
             char buf[25];
-            sprintf(buf, "%.1f", i);
+            snprintf(buf, sizeof(buf), "%.1f", i);
             line += buf;
             line += "F)";
         } else {

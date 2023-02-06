@@ -382,7 +382,7 @@ bool Bridge_Initialize_Internal() {
             if (InputUniverses[i].type == E131_TYPE_MULTICAST) {
                 UniverseOctet[0] = InputUniverses[i].universe / 256;
                 UniverseOctet[1] = InputUniverses[i].universe % 256;
-                sprintf(strMulticastGroup, "239.255.%d.%d", UniverseOctet[0], UniverseOctet[1]);
+                snprintf(strMulticastGroup, sizeof(strMulticastGroup), "239.255.%d.%d", UniverseOctet[0], UniverseOctet[1]);
                 mreq.imr_multiaddr.s_addr = inet_addr(strMulticastGroup);
 
                 LogInfo(VB_E131BRIDGE, "Adding group %s\n", strMulticastGroup);

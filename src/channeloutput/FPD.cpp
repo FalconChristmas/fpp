@@ -235,7 +235,7 @@ void CreatePixelnetDMXfile(const char* file) {
 
     fwrite(settings, 1, 1024, fp);
     fclose(fp);
-    sprintf(command, "sudo chmod 775 %s", file);
+    snprintf(command, sizeof(command), "sudo chmod 775 %s", file);
     system(command);
 }
 

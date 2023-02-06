@@ -185,37 +185,37 @@ int main (int argc, char *argv[])
     // Stop gracefully - example "fpp -S"
     else if(strncmp(argv[1],"-S",2) == 0)
     {
-      sprintf(command,"StopGracefully");
+      snprintf(command, sizeof(command), "StopGracefully");
       SendCommand(command);
     }
     // Stop gracefully After Loop - example "fpp -L"
     else if(strncmp(argv[1],"-L",2) == 0)
     {
-      sprintf(command,"StopGracefullyAfterLoop");
+      snprintf(command, sizeof(command), "StopGracefullyAfterLoop");
       SendCommand(command);
     }
     // Stop now - example "fpp -d"
     else if(strncmp(argv[1],"-d",2) == 0)
     {
-      sprintf(command,"StopNow");
+      snprintf(command, sizeof(command),"StopNow");
       SendCommand(command);
     }
     // Shutdown fppd daemon
     else if(strncmp(argv[1],"-q",2) == 0)
     {
-      sprintf(command,"q");
+      snprintf(command, sizeof(command),"q");
       SendCommand(command);
     }
     // Restart fppd daemon
     else if(strncmp(argv[1],"-r",2) == 0)
     {
-      sprintf(command,"restart");
+      snprintf(command, sizeof(command),"restart");
       SendCommand(command);
     }
     // Reload schedule example "fpp -R"
     else if(strncmp(argv[1],"-R",2) == 0)
     {
-      sprintf(command,"R");
+      snprintf(command, sizeof(command),"R");
       SendCommand(command);
     }
     else if((strncmp(argv[1],"-c",2) == 0) && argc > 2)
@@ -225,15 +225,15 @@ int main (int argc, char *argv[])
       else if (!strcmp(argv[2], "prev"))
         strcpy(command,"PrevPlaylistItem");
       else if (!strcmp(argv[2], "pause"))
-        sprintf(command,"ToggleSequencePause");
+        snprintf(command, sizeof(command),"ToggleSequencePause");
       else if (!strcmp(argv[2], "step"))
-        sprintf(command,"SingleStepSequence");
+        snprintf(command, sizeof(command),"SingleStepSequence");
       else if (!strcmp(argv[2], "stepback"))
-        sprintf(command,"SingleStepSequenceBack");
+        snprintf(command, sizeof(command),"SingleStepSequenceBack");
       else if (!strcmp(argv[2], "stop"))
-        sprintf(command,"StopNow");
+        snprintf(command, sizeof(command),"StopNow");
       else if (!strcmp(argv[2], "graceful"))
-        sprintf(command,"StopGracefully");
+        snprintf(command, sizeof(command),"StopGracefully");
       SendCommand(command);
     }
     // Start an effect - example "fpp -e effectName"
@@ -283,7 +283,7 @@ int main (int argc, char *argv[])
         s = strchr(s+1, ',');
       }
 
-      sprintf(command,"LogMask,%s,", newMask);
+      snprintf(command, sizeof(command),"LogMask,%s,", newMask);
       SendCommand(command);
     }
     // Configure the given GPIO to the given mode

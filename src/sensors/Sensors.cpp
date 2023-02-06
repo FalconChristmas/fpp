@@ -165,7 +165,7 @@ public:
     }
     bool HasI2CDevice(int i2cBus) {
         char buf[256];
-        sprintf(buf, "i2cdetect -y -r %d %s %s", i2cBus, address.c_str(), address.c_str());
+        snprintf(buf, sizeof(buf), "i2cdetect -y -r %d %s %s", i2cBus, address.c_str(), address.c_str());
         std::string result = exec(buf);
         return result.find("--") == std::string::npos;
     }
@@ -228,7 +228,7 @@ public:
     virtual double getValue() override {
         if (file == -1 && errcount < 10) {
             char path[256];
-            sprintf(path, "/sys/bus/iio/devices/iio:device0/in_voltage%s_raw", address.c_str());
+            snprintf(path, sizeof(path), "/sys/bus/iio/devices/iio:device0/in_voltage%s_raw", address.c_str());
             //need to use low level calls for reading from sysfs
             //to avoid any buffering that ifstream does
             if (FileExists(path)) {
@@ -300,13 +300,13 @@ Sensors Sensors::INSTANCE;
 void Sensors::Init() {
     int i = 0;
     char path[256] = { 0 };
-    sprintf(path, "/sys/class/thermal/thermal_zone%d/temp", i);
+    snprintf(path, sizeof(path), "/sys/class/thermal/thermal_zone%d/temp", i);
     while (FileExists(path)) {
         Json::Value v;
         v["path"] = path;
         v["valueType"] = "Temperature";
 
-        sprintf(path, "/sys/class/thermal/thermal_zone%d/type", i);
+        snprintf(path, sizeof(path), "/sys/class/thermal/thermal_zone%d/type", i);
         if (FileExists(path)) {
             int file = open(path, O_RDONLY);
             int r = read(file, path, 30);
@@ -336,7 +336,7 @@ void Sensors::Init() {
         }
         sensors.push_back(new ThermalSensor(v));
         i++;
-        sprintf(path, "/sys/class/thermal/thermal_zone%d/temp", i);
+        snprintf(path, sizeof(path), "/sys/class/thermal/thermal_zone%d/temp", i);
     }
 }
 void Sensors::Close() {

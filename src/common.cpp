@@ -137,39 +137,39 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
     char tmpStr[150];
 
     if (strlen(title)) {
-        sprintf(tmpStr, "%s: (%d bytes)\n", title, len);
+        snprintf(tmpStr, sizeof(tmpStr), "%s: (%d bytes)\n", title, len);
         LogInfo(facility, tmpStr);
     }
 
     while (l < len) {
         if (x == 0) {
-            sprintf(tmpStr, "%06x: ", i);
+            snprintf(tmpStr, sizeof(tmpStr), "%06x: ", i);
         }
 
         if (x < 16) {
-            sprintf(tmpStr + strlen(tmpStr), "%02x ", *ch & 0xFF);
+            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "%02x ", *ch & 0xFF);
             str[x] = *ch;
             x++;
             i++;
         } else {
-            sprintf(tmpStr + strlen(tmpStr), "   ");
+            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "   ");
             for (; x > 0; x--) {
                 if (str[16 - x] == '%' || str[16 - x] == '\\') {
                     //these are escapes for the Log call, so don't display them
-                    sprintf(tmpStr + strlen(tmpStr), ".");
+                    snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), ".");
                 } else if (isgraph(str[16 - x]) || str[16 - x] == ' ') {
-                    sprintf(tmpStr + strlen(tmpStr), "%c", str[16 - x]);
+                    snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "%c", str[16 - x]);
                 } else {
-                    sprintf(tmpStr + strlen(tmpStr), ".");
+                    snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), ".");
                 }
             }
 
-            sprintf(tmpStr + strlen(tmpStr), "\n");
+            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "\n");
             LogInfo(facility, tmpStr);
             x = 0;
 
-            sprintf(tmpStr, "%06x: ", i);
-            sprintf(tmpStr + strlen(tmpStr), "%02x ", *ch & 0xFF);
+            snprintf(tmpStr, sizeof(tmpStr), "%06x: ", i);
+            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "%02x ", *ch & 0xFF);
             str[x] = *ch;
             x++;
             i++;
@@ -179,21 +179,21 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
         ch++;
     }
     for (y = x; y < 16; y++) {
-        sprintf(tmpStr + strlen(tmpStr), "   ");
+        snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "   ");
     }
-    sprintf(tmpStr + strlen(tmpStr), "   ");
+    snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "   ");
     for (y = 0; y < x; y++) {
         if (str[y] == '%' || str[y] == '\\') {
             //these are escapes for the Log call, so don't display them
-            sprintf(tmpStr + strlen(tmpStr), ".");
+            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), ".");
         } else if (isgraph(str[y]) || str[y] == ' ') {
-            sprintf(tmpStr + strlen(tmpStr), "%c", str[y]);
+            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "%c", str[y]);
         } else {
-            sprintf(tmpStr + strlen(tmpStr), ".");
+            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), ".");
         }
     }
 
-    sprintf(tmpStr + strlen(tmpStr), "\n");
+    snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "\n");
     LogInfo(facility, tmpStr);
 }
 
@@ -853,10 +853,10 @@ std::string ReplaceKeywords(std::string str, std::map<std::string, std::string>&
     localtime_r(&currTime, &now);
     char tmpStr[20];
 
-    sprintf(tmpStr, "%02d:%02d:%02d", now.tm_hour, now.tm_min, now.tm_sec);
+    snprintf(tmpStr, sizeof(tmpStr), "%02d:%02d:%02d", now.tm_hour, now.tm_min, now.tm_sec);
     ReplaceString(str, "%TIME%", tmpStr);
 
-    sprintf(tmpStr, "%04d-%02d-%02d", now.tm_year + 1900, now.tm_mon + 1, now.tm_mday);
+    snprintf(tmpStr, sizeof(tmpStr), "%04d-%02d-%02d", now.tm_year + 1900, now.tm_mon + 1, now.tm_mday);
     ReplaceString(str, "%DATE%", tmpStr);
 
     ReplaceString(str, "%FPP_VERSION%", getFPPVersionTriplet());

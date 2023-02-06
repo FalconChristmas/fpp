@@ -312,7 +312,7 @@ int LinsnRV9Output::Init(Json::Value config) {
     char buf[11] = { 0 };
     int i = 0;
     for (int i = 0; i < 255; i++) {
-        sprintf(buf, "/dev/bpf%i", i);
+        snprintf(buf, sizeof(buf), "/dev/bpf%i", i);
         m_fd = open(buf, O_RDWR);
         if (m_fd != -1) {
             break;

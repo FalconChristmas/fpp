@@ -262,9 +262,9 @@ public:
             char mediaDir[1024];
             char fppDir[1024];
             char pluginDir[1024];
-            sprintf(mediaDir, "MEDIADIR=%s", getFPPMediaDir().c_str());
-            sprintf(fppDir, "FPPDIR=%s", getFPPDDir().c_str());
-            sprintf(pluginDir, "SCRIPTDIR=%s", directory.c_str());
+            snprintf(mediaDir, sizeof(mediaDir), "MEDIADIR=%s", getFPPMediaDir().c_str());
+            snprintf(fppDir, sizeof(fppDir), "FPPDIR=%s", getFPPDDir().c_str());
+            snprintf(pluginDir, sizeof(pluginDir), "SCRIPTDIR=%s", directory.c_str());
             envs.push_back(mediaDir);
             envs.push_back(fppDir);
             envs.push_back(pluginDir);

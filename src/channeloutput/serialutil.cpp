@@ -88,7 +88,7 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output) {
     // some devices may multiplex pins and need to
     // specifically configure the output pin as a uart instead of gpio
     char buf[256];
-    sprintf(buf, "%s-tx", &device[5]); // "ttyS1-tx" or "ttyUSB0-tx"
+    snprintf(buf, sizeof(buf), "%s-tx", &device[5]); // "ttyS1-tx" or "ttyUSB0-tx"
     PinCapabilities::getPinByUART(buf).configPin("uart");
 
     int fd = 0;

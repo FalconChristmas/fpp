@@ -29,7 +29,7 @@ SPIUtils::SPIUtils(int c, int baud) {
     file = -1;
 #ifdef HAS_SPI
     char spiFileName[64];
-    sprintf(spiFileName, "/dev/spidev0.%d", channel);
+    snprintf(spiFileName, sizeof(spiFileName), "/dev/spidev0.%d", channel);
     file = open(spiFileName, O_RDWR);
     if (file >= 0) {
         int mode = 0;

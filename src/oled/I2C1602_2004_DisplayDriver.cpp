@@ -68,7 +68,7 @@ static std::string exec(const std::string& cmd) {
 }
 static bool HasI2CDevice(int i, int i2cBus) {
     char buf[256];
-    sprintf(buf, "i2cdetect -y -r %d 0x%X 0x%X", i2cBus, i, i);
+    snprintf(buf, sizeof(buf), "i2cdetect -y -r %d 0x%X 0x%X", i2cBus, i, i);
     std::string result = exec(buf);
     return result.find("--") == std::string::npos;
 }
@@ -147,9 +147,9 @@ bool I2C1602_2004_DisplayDriver::initialize(int& i2cBus) {
         return false;
     }
     char buf[128];
-    sprintf(buf, "/sys/bus/i2c/devices/i2c-%d/new_device", i2cBus);
+    snprintf(buf, sizeof(buf), "/sys/bus/i2c/devices/i2c-%d/new_device", i2cBus);
     int f = open(buf, O_WRONLY);
-    sprintf(buf, "%s 0x%02X", deviceType.c_str(), device);
+    snprintf(buf, sizeof(buf), "%s 0x%02X", deviceType.c_str(), device);
     write(f, buf, strlen(buf));
     close(f);
     sleep(1);

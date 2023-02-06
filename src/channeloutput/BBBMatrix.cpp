@@ -217,10 +217,10 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
 
     for (auto b : m_bitOrder) {
         int idx = m_colorDepth - b - 1;
-        sprintf(buf, "-DBRIGHTNESS%d=%d", x, brightnessValues[idx]);
+        snprintf(buf, sizeof(buf), "-DBRIGHTNESS%d=%d", x, brightnessValues[idx]);
 
         sargs.push_back(buf);
-        sprintf(buf, "-DDELAY%d=%d", x, delayValues[idx]);
+        snprintf(buf, sizeof(buf), "-DDELAY%d=%d", x, delayValues[idx]);
         sargs.push_back(buf);
         x--;
     }
@@ -695,15 +695,15 @@ int BBBMatrix::Init(Json::Value config) {
     char filename[256];
     int minPort[4] = { 99, 99, 99, 99 };
     int pru = 0;
-    sprintf(filename, "/home/fpp/media/tmp/panels/%s.json", name.c_str());
+    snprintf(filename, sizeof(filename), "/home/fpp/media/tmp/panels/%s.json", name.c_str());
     if (!FileExists(filename)) {
-        sprintf(filename, "/home/fpp/media/tmp/panels/CapePanels.json", dirname.c_str());
+        snprintf(filename, sizeof(filename), "/home/fpp/media/tmp/panels/CapePanels.json", dirname.c_str());
         if (FileExists(filename)) {
             name = "CapePanels";
         }
     }
     if (!FileExists(filename)) {
-        sprintf(filename, "/opt/fpp/capes/%s/panels/%s.json", dirname.c_str(), name.c_str());
+        snprintf(filename, sizeof(filename), "/opt/fpp/capes/%s/panels/%s.json", dirname.c_str(), name.c_str());
     }
     bool isPWM = false;
     if (!FileExists(filename)) {
@@ -794,15 +794,15 @@ int BBBMatrix::Init(Json::Value config) {
     if (m_singlePRU) {
         compileArgs.push_back("-DSINGLEPRU");
     }
-    sprintf(buf, "-DRUNNING_ON_PRU%d", pru);
+    snprintf(buf, sizeof(buf), "-DRUNNING_ON_PRU%d", pru);
     compileArgs.push_back(buf);
-    sprintf(buf, "-DRUNNING_ON_PRU=%d", pru);
+    snprintf(buf, sizeof(buf), "-DRUNNING_ON_PRU=%d", pru);
     compileArgs.push_back(buf);
-    sprintf(buf, "-DOUTPUTS=%d", m_outputs);
+    snprintf(buf, sizeof(buf), "-DOUTPUTS=%d", m_outputs);
     compileArgs.push_back(buf);
-    sprintf(buf, "-DROWS=%d", m_panelScan);
+    snprintf(buf, sizeof(buf), "-DROWS=%d", m_panelScan);
     compileArgs.push_back(buf);
-    sprintf(buf, "-DBITS=%d", m_colorDepth);
+    snprintf(buf, sizeof(buf), "-DBITS=%d", m_colorDepth);
     compileArgs.push_back(buf);
     int tmp = m_longestChain * m_panelWidth;
     if (m_panelScan * 4 == m_panelHeight) {
@@ -810,7 +810,7 @@ int BBBMatrix::Init(Json::Value config) {
     } else if (m_panelScan * 8 == m_panelHeight) {
         tmp *= 4;
     }
-    sprintf(buf, "-DROW_LEN=%d", tmp);
+    snprintf(buf, sizeof(buf), "-DROW_LEN=%d", tmp);
     compileArgs.push_back(buf);
     if (isPWM) {
         compileArgs.push_back("-DUSING_PWM");
@@ -824,7 +824,7 @@ int BBBMatrix::Init(Json::Value config) {
 
     calcBrightnessFlags(compileArgs);
     if (m_printStats) {
-        sprintf(buf, "-DENABLESTATS=1", m_outputs);
+        snprintf(buf, sizeof(buf), "-DENABLESTATS=1", m_outputs);
         compileArgs.push_back("-DENABLESTATS=1");
     }
 

@@ -198,7 +198,7 @@ static int getBBBPWMChipNum(int pwm) {
     static const char* bbbPWMChipNums[] = { "48300200", "48302200", "48304200" };
     char buf[256];
     for (int x = 0; x < 10; x++) {
-        sprintf(buf, "/sys/bus/platform/drivers/ehrpwm/%s.pwm/pwm/pwmchip%d", bbbPWMChipNums[pwm], x);
+        snprintf(buf, sizeof(buf), "/sys/bus/platform/drivers/ehrpwm/%s.pwm/pwm/pwmchip%d", bbbPWMChipNums[pwm], x);
         if (access(buf, F_OK) == 0) {
             return x;
         }
@@ -240,7 +240,7 @@ int BBBPinCapabilities::configPin(const std::string& mode,
 
     char dir_name[128];
 
-    sprintf(dir_name, "/sys/class/gpio/gpio%u/direction", kernelGpio);
+    snprintf(dir_name, sizeof(dir_name), "/sys/class/gpio/gpio%u/direction", kernelGpio);
     if (access(dir_name, F_OK) == -1) {
         // not exported, we need to export it
         FILE* dir = fopen("/sys/class/gpio/export", "w");

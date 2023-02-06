@@ -402,7 +402,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                     actions.push_back(action);
                 } else if (action->mode == "ain") {
                     char path[256];
-                    sprintf(path, "/sys/bus/iio/devices/iio:device0/in_voltage%d_raw", root["inputs"][x]["input"].asInt());
+                    snprintf(path, sizeof(path), "/sys/bus/iio/devices/iio:device0/in_voltage%d_raw", root["inputs"][x]["input"].asInt());
                     if (FileExists(path)) {
                         action->file = open(path, O_RDONLY);
                         for (int a = 0; a < root["inputs"][x]["actions"].size(); a++) {
