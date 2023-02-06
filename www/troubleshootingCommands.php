@@ -81,10 +81,19 @@ $commands = array(
 );
 
 if ($settings['Platform'] != "MacOS") {
-        
-    // GPIO Detect
-    $commands['GPIO'] = $SUDO . ' gpiodetect ';
 
-    // GPIO Info
-    $commands['GPIO Info'] = $SUDO . ' gpioinfo ';
+    $poss_paths = explode(":", getenv("PATH"));
+    $gpio_present = 0;
+    foreach ($poss_paths as $path) {
+        if (file_exists($path . "/gpiodetect") && $gpio_present == 0) {
+            $gpio_present = 1;
+        }
     }
+    if ($gpio_present == 1) {
+        // GPIO Detect
+        $commands['GPIO'] = $SUDO . ' gpiodetect ';
+
+        // GPIO Info
+        $commands['GPIO Info'] = $SUDO . ' gpioinfo ';
+    }
+}
