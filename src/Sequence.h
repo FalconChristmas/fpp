@@ -17,8 +17,10 @@
 #include <atomic>
 #include <condition_variable>
 #include <list>
+#include <map>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 #include "fseq/FSEQFile.h"
 
@@ -69,6 +71,7 @@ public:
     void SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t expireMS);
 
 private:
+    void ProcessVariableHeaders();
     void SetLastFrameData(FSEQFile::FrameData* data);
     bool m_prioritize_sequence_over_bridge;
 
@@ -114,6 +117,9 @@ private:
     std::condition_variable frameLoadSignal;
     std::condition_variable frameLoadedSignal;
 
+    std::map<uint32_t, std::vector<std::string>> commandPresets;
+    std::map<uint32_t, std::vector<std::string>> effectsOn;
+    std::map<uint32_t, std::vector<std::string>> effectsOff;
 public:
     void ReadFramesLoop();
 };

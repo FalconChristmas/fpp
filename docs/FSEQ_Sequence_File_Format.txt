@@ -65,14 +65,16 @@ With FSEQ files, the total header length is limitted to 65535 bytes
 (two bytes in the headaer for the sequence data offset). This needs
 to include all the variable headers, the sparse range table, the
 compressed block index table, etc...   Thus, to accomodate larger
-and more variable headers, starting in FSEQ 2.2, if the "len"
-bytes of the variable header is 0xFFFF, then the header is
-treated as follows:
-    vh[0] = 0xFF
-    vh[1] = 0xFF
-    vh[2] = code0 (ex: 's')
-    vh[3] = code1 (ex: 'p')
-    vh[4-11] = uint64_t offset into the file of the actual data
-    vh[12-15] = uint32_t length of header data
+and more variable headers, starting in FSEQ 2.2, if the "code" for
+the header is ED, the actual data for the header is stored elsewhere.
+  - 'ED' - Extended Data
+    vh[0] = 18
+    vh[1] = 00
+    vh[2] = 'E';
+    vh[3] = 'D';
+    vh[4] = code0 (ex: 's')
+    vh[5] = code1 (ex: 'p')
+    vh[6-13] = uint64_t offset into the file of the actual data
+    vh[14-17] = uint32_t length of header data
 Normally, the actual data of for the header is written to the
 file immediately after the channel data.

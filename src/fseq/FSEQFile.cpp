@@ -126,23 +126,23 @@ inline void DumpHeader(const char* title, unsigned char data[], int len) {
     int x = 0;
     char tmpStr[128];
 
-    sprintf(tmpStr, "%s: (%d bytes)\n", title, len);
+    snprintf(tmpStr, 128, "%s: (%d bytes)\n", title, len);
     LogInfo(VB_ALL, tmpStr);
 
     for (int y = 0; y < len; y++) {
         if (x == 0) {
-            sprintf(tmpStr, "%06x: ", y);
+            snprintf(tmpStr, 128, "%06x: ", y);
         }
-        sprintf(tmpStr + strlen(tmpStr), "%02x ", (int)(data[y] & 0xFF));
+        snprintf(tmpStr + strlen(tmpStr), 128 - strlen(tmpStr), "%02x ", (int)(data[y] & 0xFF));
         x++;
         if (x == 16) {
             x = 0;
-            sprintf(tmpStr + strlen(tmpStr), "\n");
+            snprintf(tmpStr + strlen(tmpStr), 128 - strlen(tmpStr), "\n");
             LogInfo(VB_ALL, tmpStr);
         }
     }
     if (x != 0) {
-        sprintf(tmpStr + strlen(tmpStr), "\n");
+        snprintf(tmpStr + strlen(tmpStr), 128 - strlen(tmpStr), "\n");
         LogInfo(VB_ALL, tmpStr);
     }
 }
@@ -153,7 +153,7 @@ inline uint64_t GetTime(void) {
     return now_tv.tv_sec * 1000000LL + now_tv.tv_usec;
 }
 
-inline long roundTo4(long i) {
+inline long roundTo4Internal(long i) {
     long remainder = i % 4;
     if (remainder == 0) {
         return i;
@@ -446,29 +446,60 @@ void FSEQFile::preload(uint64_t pos, uint64_t size) {
 #endif
 }
 
-inline bool isRecognizedVariableHeader(uint8_t a, uint8_t b) {
+inline bool isRecognizedStringVariableHeader(uint8_t a, uint8_t b) {
     // mf - media filename
     // sp - sequence producer
     // see https://github.com/FalconChristmas/fpp/blob/master/docs/FSEQ_Sequence_File_Format.txt#L48 for more information
     return (a == 'm' && b == 'f') || (a == 's' && b == 'p');
 }
+inline bool isRecognizedBinaryVariableHeader(uint8_t a, uint8_t b) {
+    // FC - FPP Commands
+    // FE - FPP Effects
+    // ED - Extended data
+    return (a == 'F' && b == 'C') || (a == 'F' && b == 'E') || (a == 'E' && b == 'D');
+}
 
 void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int readIndex) {
-    const int VariableLengthSize = 2, VariableCodeSize = 2;
+    const int VariableCodeSize = 2;
+    const int VariableLengthSize = 2;
 
     // when encoding, the header size is rounded to the nearest multiple of 4
     // this comparison ensures that there is enough bytes left to at least constitute a 2 byte length + 2 byte code
     while (readIndex + FSEQ_VARIABLE_HEADER_SIZE < header.size()) {
-        const int dataLength = read2ByteUInt(&header[readIndex]) - FSEQ_VARIABLE_HEADER_SIZE;
-
+        int dataLength = read2ByteUInt(&header[readIndex]);
         readIndex += VariableLengthSize;
 
-        if (dataLength <= 0) {
-            LogErr(VB_SEQUENCE, "VariableHeader has 0 length data: %c%c\n", header[readIndex], header[readIndex + 1]);
+        uint8_t code0 = header[readIndex];
+        uint8_t code1 = header[readIndex + 1];
+        readIndex += VariableCodeSize;
 
+        VariableHeader vheader;
+        vheader.code[0] = code0;
+        vheader.code[1] = code1;
+        if (dataLength <= FSEQ_VARIABLE_HEADER_SIZE) {
             // empty data, advance only the length of the 2 byte code
+            LogInfo(VB_SEQUENCE, "VariableHeader has 0 length data: %c%c", code0, code1);
+        } else if (code0 == 'E' && code1 == 'D') {
+            // The actual data is elsewhere in the file
+            code0 = header[readIndex];
+            code1 = header[readIndex + 1];
             readIndex += VariableCodeSize;
-        } else if (readIndex + VariableCodeSize + dataLength > header.size()) {
+            vheader.code[0] = code0;
+            vheader.code[1] = code1;
+            vheader.extendedData = true;
+
+            uint64_t offset;
+            memcpy(&offset, &header[readIndex], 8);
+            uint32_t len;
+            memcpy(&len, &header[readIndex + 8], 4);
+            vheader.data.resize(len);
+
+            uint64_t t = tell();
+            seek(offset, SEEK_SET);
+            read(&vheader.data[0], len);
+            seek(t, SEEK_SET);
+            readIndex += 12;
+        } else if (readIndex + (dataLength - FSEQ_VARIABLE_HEADER_SIZE) > header.size()) {
             // ensure the data length is contained within the header
             // this is primarily protection against hand modified, or corrupted, sequence files
             LogErr(VB_SEQUENCE, "VariableHeader '%c%c' has out of bounds data length: %d bytes, max length: %d bytes\n", header[readIndex], header[readIndex + 1], readIndex + VariableCodeSize + dataLength, header.size());
@@ -478,8 +509,10 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
             return;
         } else {
             // log when reading unrecongized variable headers
-            if (!isRecognizedVariableHeader(header[readIndex], header[readIndex + 1])) {
-                LogDebug(VB_SEQUENCE, "Unrecognized VariableHeader code: %c%c, length: %d bytes\n", header[readIndex], header[readIndex + 1], dataLength);
+            if (!isRecognizedStringVariableHeader(header[readIndex], header[readIndex + 1])) {
+                if (!isRecognizedBinaryVariableHeader(header[readIndex], header[readIndex + 1])) {
+                    LogDebug(VB_SEQUENCE, "Unrecognized VariableHeader code: %c%c, length: %d bytes\n", header[readIndex], header[readIndex + 1], dataLength);
+                }
             } else {
                 // print a warning if the data is not null terminated
                 // this is to assist debugging potential string related issues
@@ -491,19 +524,11 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
                     LogErr(VB_SEQUENCE, "VariableHeader %c%c data is not NULL terminated!\n", header[readIndex], header[readIndex + 1]);
                 }
             }
-
-            VariableHeader vheader;
-
-            memcpy(&vheader.code[0], &header[readIndex], VariableCodeSize);
-
-            // advance the length of the 2 byte code
-            // readIndex is now the first byte of the data
-            readIndex += VariableCodeSize;
+            dataLength -= FSEQ_VARIABLE_HEADER_SIZE;
 
             vheader.data.resize(dataLength);
             memcpy(&vheader.data[0], &header[readIndex], dataLength);
 
-            m_variableHeaders.push_back(vheader);
 
             LogDebug(VB_SEQUENCE, "Read VariableHeader: %c%c, length: %d bytes\n", vheader.code[0], vheader.code[1], dataLength);
 
@@ -511,6 +536,7 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
             // readIndex now points at the next VariableHeader's length (if any)
             readIndex += dataLength;
         }
+        m_variableHeaders.push_back(vheader);
     }
 }
 void FSEQFile::finalize() {
@@ -538,7 +564,7 @@ void V1FSEQFile::writeHeader() {
     }
 
     // Round to a product of 4 for better memory alignment
-    m_seqChanDataOffset = roundTo4(headerSize);
+    m_seqChanDataOffset = roundTo4Internal(headerSize);
 
     // Use m_seqChanDataOffset for buffer size to avoid additional writes or buffer allocations
     // It also comes pre-memory aligned to avoid additional padding
@@ -598,8 +624,8 @@ void V1FSEQFile::writeHeader() {
     }
 
     // Validate final write position matches expected channel data offset
-    if (roundTo4(writePos) != m_seqChanDataOffset) {
-        LogErr(VB_SEQUENCE, "Final write position (%d, roundTo4 = %d) does not match channel data offset (%d)! This means the header size failed to compute an accurate buffer size.\n", writePos, roundTo4(writePos), m_seqChanDataOffset);
+    if (roundTo4Internal(writePos) != m_seqChanDataOffset) {
+        LogErr(VB_SEQUENCE, "Final write position (%d, roundTo4 = %d) does not match channel data offset (%d)! This means the header size failed to compute an accurate buffer size.\n", writePos, roundTo4Internal(writePos), m_seqChanDataOffset);
     }
 
     // Write full header at once
@@ -749,7 +775,6 @@ public:
 
     virtual uint32_t computeMaxBlocks(int max = 255) { return 0; }
     virtual void addFrame(uint32_t frame, const uint8_t* data) = 0;
-    virtual void finalize() = 0;
     virtual std::string GetType() const = 0;
 
     int seek(uint64_t location, int origin) {
@@ -770,8 +795,27 @@ public:
 
     virtual void prepareRead(uint32_t frame) {}
 
-    V2FSEQFile* m_file;
-    uint64_t m_seqChanDataOffset;
+    virtual void finalize() {
+        if (!m_file->getVariableHeaders().empty()) {
+            for (int x = 0; x < m_variableHeaderOffsets.size(); x++) {
+                if (m_variableHeaderOffsets[x] != 0) {
+                    uint64_t curEnd = tell();
+                    auto &h = m_file->getVariableHeaders()[x];
+                    write(&h.data[0], h.data.size());
+                    size_t cur = tell();
+                    uint64_t off = m_variableHeaderOffsets[x];
+                    seek(off, SEEK_SET);
+                    write(&curEnd, 8);
+                    seek(cur, SEEK_SET);
+                }
+            }
+        }
+    }
+
+    V2FSEQFile* m_file = nullptr;
+    uint64_t m_seqChanDataOffset = 0;
+    
+    std::vector<uint64_t> m_variableHeaderOffsets;
 };
 
 class V2NoneCompressionHandler : public V2Handler {
@@ -830,8 +874,6 @@ public:
             }
         }
     }
-
-    virtual void finalize() override {}
 };
 class V2CompressedHandler : public V2Handler {
 public:
@@ -896,7 +938,7 @@ public:
     }
 
     virtual void finalize() override {
-        uint64_t curr = tell();
+        uint64_t lastFrame = tell();
         uint64_t off = V2FSEQ_HEADER_SIZE;
         seek(off, SEEK_SET);
         int count = m_file->m_frameOffsets.size();
@@ -916,7 +958,7 @@ public:
             m_file->m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(0, seqChanDataOffset));
             count++;
         }
-        m_file->m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(99999999, curr));
+        m_file->m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(99999999, lastFrame));
         for (int x = 0; x < count; x++) {
             uint8_t buf[8];
             uint32_t frame = m_file->m_frameOffsets[x].first;
@@ -930,7 +972,9 @@ public:
             //printf("%d    %d: %d\n", x, frame, len);
         }
         m_file->m_frameOffsets.pop_back();
-        seek(curr, SEEK_SET);
+
+        seek(lastFrame, SEEK_SET);
+        V2Handler::finalize();
     }
 
     virtual void prepareRead(uint32_t frame) override {
@@ -1090,7 +1134,7 @@ public:
 
             uint64_t len = m_file->m_frameOffsets[m_curBlock + 1].second;
             len -= m_file->m_frameOffsets[m_curBlock].second;
-            int max = m_file->getNumFrames() * m_file->getChannelCount();
+            uint64_t max = m_file->getNumFrames() * m_file->getChannelCount();
             if (len > max) {
                 len = max;
             }
@@ -1173,9 +1217,9 @@ public:
             uint64_t offset = tell();
             //LogDebug(VB_SEQUENCE, "  Preparing to create a compressed block of data starting at frame %d, offset  %" PRIu64 ".\n", frame, offset);
             m_file->m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(frame, offset));
-            int clevel = m_file->m_compressionLevel == -99 ? 1 : m_file->m_compressionLevel;
+            int clevel = m_file->m_compressionLevel == -99 ? 2 : m_file->m_compressionLevel;
             if (clevel < -25 || clevel > 25) {
-                clevel = 1;
+                clevel = 2;
             }
             if (frame == 0 && (ZSTD_versionNumber() > 10305)) {
                 // first frame needs to be grabbed as fast as possible
@@ -1247,8 +1291,8 @@ public:
         V2CompressedHandler::finalize();
     }
 
-    ZSTD_CStream* m_cctx;
-    ZSTD_DStream* m_dctx;
+    ZSTD_CStream* m_cctx = nullptr;
+    ZSTD_DStream* m_dctx = nullptr;
     ZSTD_outBuffer_s m_outBuffer;
     ZSTD_inBuffer_s m_inBuffer;
 };
@@ -1340,9 +1384,9 @@ public:
             memset(m_stream, 0, sizeof(z_stream));
         }
         if (m_curFrameInBlock == 0) {
-            int clevel = m_file->m_compressionLevel == -99 ? 1 : m_file->m_compressionLevel;
+            int clevel = m_file->m_compressionLevel == -99 ? 3 : m_file->m_compressionLevel;
             if (clevel < 0 || clevel > 9) {
-                clevel = 1;
+                clevel = 3;
             }
             deflateInit(m_stream, clevel);
             m_stream->next_out = m_outBuffer;
@@ -1490,11 +1534,31 @@ void V2FSEQFile::writeHeader() {
     // Channel data offset is the headerSize plus size of variable headers
     // Round to a product of 4 for better memory alignment
     m_seqChanDataOffset = headerSize;
-    m_seqChanDataOffset += m_variableHeaders.size() * FSEQ_VARIABLE_HEADER_SIZE;
+    uint64_t seqChanDataOffset2 = headerSize;
     for (auto& a : m_variableHeaders) {
-        m_seqChanDataOffset += a.data.size();
+        uint32_t sze = a.data.size() + FSEQ_VARIABLE_HEADER_SIZE;
+        if (a.extendedData) {
+            seqChanDataOffset2 += FSEQ_VARIABLE_HEADER_SIZE + 14;
+            m_seqChanDataOffset += FSEQ_VARIABLE_HEADER_SIZE + 14;
+        } else if (sze <= (14 + FSEQ_VARIABLE_HEADER_SIZE)) {
+            // smaller than the extended data type so would never be output
+            // as extended data
+            m_seqChanDataOffset += sze;
+            seqChanDataOffset2 += sze; // smaller than the shifted size
+        } else {
+            // could potentially be placed in the extended area if the header is too large
+            // record both sizes to compare later
+            m_seqChanDataOffset += sze;
+            seqChanDataOffset2 += FSEQ_VARIABLE_HEADER_SIZE + 14; //64bit offset into file, 32bit length, new 2byte code
+        }
     }
-    m_seqChanDataOffset = roundTo4(m_seqChanDataOffset);
+    bool forceExtended = false;
+    if (m_seqVersionMinor >= 2 && (m_seqChanDataOffset >= 0xFFFF)) {
+        // beyond the byte header size.  The variable header data will need to be stored elsewhere
+        m_seqChanDataOffset = seqChanDataOffset2;
+        forceExtended = true;
+    }
+    m_seqChanDataOffset = roundTo4Internal(m_seqChanDataOffset);
 
     // Use m_seqChanDataOffset for buffer size to avoid additional writes or buffer allocations
     // It also comes pre-memory aligned to avoid adding padding
@@ -1557,18 +1621,45 @@ void V2FSEQFile::writeHeader() {
 
     // Variable headers
     // 4 byte size minimum (2 byte length + 2 byte code)
+    int idx = 0;
+    m_handler->m_variableHeaderOffsets.resize(m_variableHeaders.size());
     for (auto& a : m_variableHeaders) {
         uint32_t len = FSEQ_VARIABLE_HEADER_SIZE + a.data.size();
+        bool doExtended = a.extendedData;
+        if (!doExtended && forceExtended && len > 18) {
+            // longer than the extended header and we need to save space
+            doExtended = true;
+        }
+        if (doExtended) {
+            len = 14 + FSEQ_VARIABLE_HEADER_SIZE;
+        }
         write2ByteUInt(&header[writePos], len);
-        header[writePos + 2] = a.code[0];
-        header[writePos + 3] = a.code[1];
-        memcpy(&header[writePos + FSEQ_VARIABLE_HEADER_SIZE], &a.data[0], a.data.size());
-        writePos += len;
+        writePos += 2;
+        if (doExtended) {
+            header[writePos] = 'E';
+            header[writePos + 1] = 'D';
+            writePos += 2;
+        }
+        header[writePos] = a.code[0];
+        header[writePos + 1] = a.code[1];
+        writePos += 2;
+        if (doExtended) {
+            memset(&header[writePos], 0, 8);
+            m_handler->m_variableHeaderOffsets[idx] = writePos;
+            writePos += 8; //file position
+            write4ByteUInt(&header[writePos], a.data.size());
+            writePos += 4;
+        } else {
+            m_handler->m_variableHeaderOffsets[idx] = 0;
+            memcpy(&header[writePos], &a.data[0], a.data.size());
+            writePos += a.data.size();
+        }
+        ++idx;
     }
 
     // Validate final write position matches expected channel data offset
-    if (roundTo4(writePos) != m_seqChanDataOffset) {
-        LogErr(VB_SEQUENCE, "Final write position (%d, roundTo4 = %d) does not match channel data offset (%d)! This means the header size failed to compute an accurate buffer size.\n", writePos, roundTo4(writePos), m_seqChanDataOffset);
+    if (roundTo4Internal(writePos) != m_seqChanDataOffset) {
+        LogErr(VB_SEQUENCE, "Final write position (%d, roundTo4 = %d) does not match channel data offset (%d)! This means the header size failed to compute an accurate buffer size.\n", writePos, roundTo4Internal(writePos), m_seqChanDataOffset);
     }
 
     // Write full header at once
@@ -1586,7 +1677,7 @@ V2FSEQFile::V2FSEQFile(const std::string& fn, FILE* file, const std::vector<uint
     FSEQFile(fn, file, header),
     m_compressionType(none),
     m_handler(nullptr) {
-    if (m_seqVersionMajor == 2 && m_seqVersionMinor > 1) {
+    if (m_seqVersionMajor == 2 && m_seqVersionMinor > 2) {
         LogErr(VB_SEQUENCE, "Unknown minor version: %d.  FSEQ may not load properly.\n", m_seqVersionMinor);
     }
 

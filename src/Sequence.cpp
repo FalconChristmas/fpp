@@ -324,6 +324,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     m_seqSingleStep = 0;
     m_seqSingleStepBack = 0;
     m_dataProcessed = false;
+    ProcessVariableHeaders();
     ReadSequenceData(true);
     seqLock.unlock();
     StartChannelOutputThread();
@@ -333,6 +334,45 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     LogDebug(VB_SEQUENCE, "seqMSDuration         : %d\n", m_seqMSDuration);
     LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
     return 1;
+}
+void Sequence::ProcessVariableHeaders() {
+    for (auto &vh : m_seqFile->getVariableHeaders()) {
+        if (vh.code[0] == 'F') {
+            if (vh.code[1] == 'C' || vh.code[1] == 'E') {
+                uint8_t *data = (uint8_t*)(&vh.data[0]);
+                if (data[0] != 1) continue;  //version flag, only understand v1 right now
+                uint32_t *uintData = (uint32_t*)&data[1];
+                int count = *uintData;
+                std::string ips = "";
+                if (data[5]) {
+                    ips = std::string((const char *)&data[5]);
+                    //TODO - process ips to see if we are actually supposed to run these commands/effects
+                    //    Not supported in xLights yet
+                }
+                data += 6 + ips.length();
+                for (int x = 0; x < count; x++) {
+                    std::string cmd = std::string((const char *)data);
+                    data += cmd.length() + 1;
+                    uintData = (uint32_t*)data;
+                    int cc = uintData[0];
+                    data += 4;
+                    for (int cc1 = 0; cc1 < cc; cc1++) {
+                        uintData = (uint32_t*)data;
+                        uint32_t start = uintData[0];
+                        uint32_t end = uintData[1];
+                        if (vh.code[1] == 'C') {
+                            commandPresets[start].push_back(cmd);
+                            commandPresets[end].push_back(cmd + "_END");
+                        } else {
+                            effectsOn[start].push_back(cmd);
+                            effectsOff[end].push_back(cmd);
+                        }
+                        data += 8;
+                    }
+                }
+            }
+        }
+    }
 }
 
 void Sequence::StartSequence() {
@@ -560,8 +600,6 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
 }
 
 void Sequence::ProcessSequenceData(int ms) {
-    static unsigned int controlChannel = (unsigned int)getSettingInt("PresetControlChannel");
-
     if (m_dataProcessed) {
         // we shouldn't normally be reprocessing the same data, so
         // if we are then see if we can start with a pristine copy
@@ -644,7 +682,30 @@ void Sequence::ProcessSequenceData(int ms) {
     m_dataProcessed = true;
 }
 
-void Sequence::SendSequenceData(void) {
+void Sequence::SendSequenceData() {
+    if (m_lastFrameData) {
+        std::map<std::string, std::string> keywords;
+        keywords["SEQUENCE_NAME"] = m_seqFilename;
+        uint32_t frame = m_lastFrameData->frame;
+        const auto &p = commandPresets.find(frame);
+        if (p != commandPresets.end()) {
+            for (auto &cmd : p->second) {
+                CommandManager::INSTANCE.TriggerPreset(cmd, keywords);
+            }
+        }
+        const auto &eop = effectsOn.find(frame);
+        if (p != effectsOn.end()) {
+            for (auto &eff : eop->second) {
+                StartEffect(eff, 0, 1);
+            }
+        }
+        const auto &efp = effectsOff.find(frame);
+        if (efp != effectsOff.end()) {
+            for (auto &eff : efp->second) {
+                StopEffect(eff);
+            }
+        }
+    }
     SendChannelData(m_seqData);
 }
 
@@ -687,6 +748,9 @@ void Sequence::CloseSequenceFile(void) {
         std::map<std::string, std::string> keywords;
         keywords["SEQUENCE_NAME"] = m_seqFilename;
         CommandManager::INSTANCE.TriggerPreset("SEQUENCE_STOPPED", keywords);
+        commandPresets.clear();
+        effectsOn.clear();
+        effectsOff.clear();
     }
     readLock.unlock();
 
