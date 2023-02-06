@@ -79,3 +79,12 @@ $commands = array(
     'FPP OLED Logs' => $SUDO . ' journalctl -u fppoled | tail -20 ',
     'FPP FPPD Logs' => $SUDO . ' journalctl -u fppd | tail -20 ',
 );
+
+if ($settings['Platform'] != "MacOS") {
+        
+    // GPIO Detect
+    $commands['GPIO'] = $SUDO . ' gpiodetect ';
+
+    // GPIO Info
+    $commands['GPIO Info'] = $SUDO . ' gpioinfo ';
+    }
