@@ -31,7 +31,7 @@
 <div class="footerLink">
 <a href='<?= $themeInfo["FOOTER_URL"] ?>'><?= $themeInfo["FOOTER_URL_TEXT"] ?></a>
 <?
-if ($themeInfo["FOOTER_URL_TEXT"] != "www.falconchristmas.com") {
+if ($themeInfo["FOOTER_URL_TEXT"] != "www.falconplayer.com") {
     echo "<br>\n<p style='font-size: 70%'>Powered by FPP</p>\n";
 }
 ?>

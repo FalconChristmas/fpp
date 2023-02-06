@@ -243,6 +243,31 @@ function network_get_interface()
     return json($result);
 }
 
+// GET /network/interface/add/:interface
+function network_add_interface()
+{
+    global $settings;
+
+    $interface = params('interface');
+
+    if (preg_match('/^[a-z]+[0-9]+$/', $interface)) {
+        $cfgFile = $settings['configDirectory'] . "/interface." . $interface;
+        if (!file_exists($cfgFile)) {
+            if (touch($cfgFile)) {
+                $result = array("status" => "New Blank Interface created");
+            } else {
+                $result = array("status" => "ERROR: could not create new Interface");
+            }
+        } else {
+            $result = array("status" => "ERROR: Interface already exists");
+        }
+    } else {
+        $result = array("status" => "ERROR: must be in format <a-z><0-9> eg wlan0 or eth1 etc");
+    }
+
+    return json($result);
+}
+
 // POST /network/interface/:interface
 function network_set_interface()
 {

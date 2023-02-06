@@ -29,15 +29,29 @@ $(document).ready(function() {
 
 <?php
 
-function PopulateInterfaces()
-{
+function PopulateInterfaces($uiLevel, $configDirectory) {
+    
     $first = 1;
     $interfaces = network_list_interfaces_array();
+    $interfaces = array_map(function($value) {
+         return preg_replace("/:$/", "", $value);
+    }, $interfaces);
+
     foreach ($interfaces as $iface) {
-        $iface = preg_replace("/:$/", "", $iface);
         $ifaceChecked = $first ? " selected" : "";
         echo "<option value='" . $iface . "'" . $ifaceChecked . ">" . $iface . "</option>";
         $first = 0;
+    }
+
+    if ($uiLevel >= 1) {
+            foreach (scandir($configDirectory) as $interface_file) {
+            if (preg_match("/^interface\..*/", $interface_file)) {
+                 $interface_file = preg_replace("/^interface\./", "", $interface_file);
+                 if (array_search($interface_file, $interfaces) === false) {
+                     echo "<option value='" . $interface_file . "'>" . $interface_file . " (not detected)</option>";
+                 }
+             }
+        }
     }
 }
 
@@ -267,6 +281,25 @@ function SaveNetworkConfig() {
 	}).fail(function() {
 		DialogError("Save Network Config", "Save Failed");
 	});
+}
+
+function AddInterface() {
+    $('#dialog-addinterface').fppDialog({
+        resizeable: false,
+        height: 300,
+        width: 500,
+        modal: true,
+        buttons: {
+            "OK" : function() {
+                $(this).fppDialog("close");
+                var newInterfaceName = $(this).find(".newInterfaceName").val();
+                $.get("api/network/interface/add/" + newInterfaceName, "", function() {location.reload(true);});
+            },
+            "Cancel" : function() {
+            $(this).fppDialog("close");
+            }
+        }
+    });
 }
 
 function CreatePersistentNames() {
@@ -581,7 +614,7 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
             <div class="row"><div class="printSettingLabelCol col-md-8">Select an interface name to configure the network information for that interface.</div></div>
             <div class="row" id="selInterfacesRow">
                 <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Interface Name</div></div>
-                <div class="printSettingFieldCol col-md"><select id ="selInterfaces"  class='multiSelect' size='3' style="width:10em;"  onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></div>
+                <div class="printSettingFieldCol col-md"><select id ="selInterfaces"  class='multiSelect' size='3' style="width:13em;"  onChange='LoadNetworkConfig();'><?php PopulateInterfaces($uiLevel, $configDirectory);?></select></div>
             </div>
             <div class="row" id="interfaceConfigTypeRow">
                 <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Interface Mode</div></div>
@@ -660,7 +693,11 @@ PrintSettingGroup("advNetworkSettingsGroup", "", "", 1, "", "", true);
               <input name="btnSetInterface" type="button" style="" class = "buttons btn-success" value="Update Interface" onClick="SaveNetworkConfig();">
               <input id="btnConfigNetwork" type="button" style="display: none;" class = "buttons" value="Restart Network" onClick="ApplyNetworkConfig();">
 
-            &nbsp; &nbsp; &nbsp;<input id="btnConfigNetworkPersist" type="button"  class = "buttons" value="Create Persistent Names" onClick="CreatePersistentNames();">
+            &nbsp; &nbsp; &nbsp;
+<?if ($settings['uiLevel'] >= 1) {?>
+            <input name="btnAddInterface" type="button" style="" class = "buttons" value="Add New Interface" onClick="AddInterface();">
+<?}?>
+            &nbsp;<input id="btnConfigNetworkPersist" type="button"  class = "buttons" value="Create Persistent Names" onClick="CreatePersistentNames();">
             &nbsp;<input id="btnConfigNetworkPersistClear" type="button" class = "buttons" value="Clear Persistent Names" onClick="ClearPersistentNames();">
 
             </div>
@@ -744,6 +781,10 @@ PrintSettingGroup('tethering');
     </div>
     <div id="dialog-create-persistent" style="display: none">
         <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating persistent device names can make it harder to add new network devices or replace existing devices in the future.  Do you wish to proceed?</p>
+    </div>
+    <div id="dialog-addinterface" title="Add New Interface" style="display: none">
+        <span>Enter name for the new interface (eg wlan0 or eth0 etc):</span>
+        <input name="newInterfaceName" type="text" style="z-index:10000; width: 95%" class="newInterfaceName" value="">
     </div>
 
 </div>

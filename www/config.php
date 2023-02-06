@@ -33,8 +33,8 @@ $settings = array();
 $pluginSettings = array();
 $themeInfo = array();
 
-$themeInfo["FOOTER_URL"] = "http://www.falconchristmas.com";
-$themeInfo["FOOTER_URL_TEXT"] = "www.falconchristmas.com";
+$themeInfo["FOOTER_URL"] = "https://www.falconplayer.com";
+$themeInfo["FOOTER_URL_TEXT"] = "www.falconplayer.com";
 
 $themeInfo["HEADER_LOGO1"] = "images/redesign/falconlogo.svg";
 $themeInfo["HEADER_LOGO2"] = "images/redesign/fpp-logo.svg";
