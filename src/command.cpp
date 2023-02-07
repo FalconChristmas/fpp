@@ -116,8 +116,9 @@ char* ProcessCommand(char* command, char* response) {
     if (!strcmp(CommandStr, "s")) {
         NextPlaylist = scheduler->GetNextPlaylistName();
         NextPlaylistStart = scheduler->GetNextPlaylistStartStr();
+        m_localOverride = getSettingInt("localOverride");
         if (Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) {
-            if (getFPPmode() == REMOTE_MODE) {
+            if (getFPPmode() == REMOTE_MODE && (m_localOverride && !sequence->IsSequenceRunning() || !m_localOverride)) {
                 int secsElapsed = 0;
                 int secsRemaining = 0;
                 char seqFilename[1024];

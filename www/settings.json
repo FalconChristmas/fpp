@@ -87,7 +87,8 @@
                 "blankBetweenSequences",
                 "pauseBackgroundEffects",
                 "openStartDelay",
-                "remoteOffset"
+                "remoteOffset",
+                "localOverride"
             ]
         },
         "initialSetup": {
@@ -652,6 +653,17 @@
             "tip": "Blank Between Sequences instructs FPP to send blanking data out all channel outputs between each sequence played in a playlist.  This can be used to turn off all the lights after each sequence if the sequences do not end with all channels turned off.",
             "restart": 2,
             "type": "checkbox"
+        },
+        "localOverride": {
+            "name": "localOverride",
+            "description": "Local sequences override remote",
+            "gatherStats": true,
+            "tip": "This instructs FPP to allow local sequences to override remote sequences for when you have an interactive show that may affect the props on this controller.",
+            "restart": 2,
+            "type": "checkbox",
+            "fppModes": [
+                "remote"
+            ]
         },
         "bridgeDataPriority": {
             "name": "bridgeDataPriority",
