@@ -15,7 +15,6 @@
 #define COMMAND_SUCCESS 1
 
 int Command_Initialize();
-int m_localOverride;
 void CloseCommand();
 void CommandProc();
 char* ProcessCommand(char* command, char* response);
