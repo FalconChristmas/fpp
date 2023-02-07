@@ -2638,10 +2638,10 @@ function CopyDone() {
 function GetBackupDevices() {
     $('#backup\\.USBDevice').html('<option>Loading...</option>');
     //Add a loading spinner to show something is happening on the JSON Backup page dropdown list
-    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('backup-file-configuration-actions-button-loading');
+    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
     //Also do the same for the file copy list these both use the same functions and deal with the same data
     //Add a loading spinner to show something is happening
-    $('#backup\\.USBDevice').parent().closest('td').addClass('backup-file-configuration-actions-button-loading');
+    $('#backup\\.USBDevice').parent().closest('td').addClass('fpp-backup-action-loading');
 
     $.get("api/backups/devices"
         ).done(function(data) {
@@ -2670,10 +2670,10 @@ function GetBackupDevices() {
             $('#jsonConfigbackup\\.USBDevice').html(default_none_selected_option + options);
 
             //Remove the loading spinner
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
             //Also do the same for the file copy list these both use the same functions and deal with the same data
             //Add a loading spinner to show something is happening
-            $('#backup\\.USBDevice').parent().closest('td').removeClass('backup-file-configuration-actions-button-loading');
+            $('#backup\\.USBDevice').parent().closest('td').removeClass('fpp-backup-action-loading');
 
             if (options != "") {
                     if (document.getElementById("backup.Direction").value == 'FROMUSB')
@@ -2741,7 +2741,7 @@ function JSONConfigBackupUSBDeviceChanged() {
     var storage_location = document.getElementById("jsonConfigbackup.USBDevice").value;
 
     //Add a loading spinner to indicate the setting is being saved
-    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('backup-file-configuration-actions-button-loading');
+    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
 
     //Write setting to system
     $.ajax({
@@ -2749,7 +2749,7 @@ function JSONConfigBackupUSBDeviceChanged() {
         type: 'PUT',
         data: storage_location,
         success: function(data){
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
 
             if (storage_location !== "none"){
                 $.jGrowl('JSON Configuration Backups will now be copied to: ' + storage_location, {themeState: 'success'});
@@ -2780,7 +2780,7 @@ function JSONConfigBackupUSBDeviceChanged() {
             GetJSONConfigBackupList();
         },
         error: function(data) {
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
 
             DialogError('JSON Configuration Backup Storage Location', 'Failed to set additional storage location.');
 
@@ -2811,7 +2811,7 @@ function CopyBackupsToUSBHelper(){
 
 function GetJSONConfigBackupDevice() {
     //Add a the loading spinner to show something is happening
-    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('backup-file-configuration-actions-button-loading');
+    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
 
     $.ajax({
         url: 'api/settings/jsonConfigBackupUSBLocation',
@@ -2821,14 +2821,14 @@ function GetJSONConfigBackupDevice() {
                 //Change the JSON Config backup location to the one set by the user if a valid value is set
                 $('#jsonConfigbackup\\.USBDevice option[value="'+data.value+'"]').attr('selected', true);
                 //
-                $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+                $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
             }
         },
         error: function(data) {
             //do nothing
             DialogError('JSON Configuration Backup Storage Location', 'Failed to read additional storage location.');
 
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
         }
     });
 }
@@ -2994,7 +2994,7 @@ function DeleteJsonBackupFile(dir, row, file, silent = false) {
     }
 
     //Add a loading  spinner to the delete button for the row we're deleting to add some feedback to the user something is happening
-    $( row + ' .deleteConfigButton > i').addClass('backup-file-configuration-actions-button-loading');
+    $( row + ' .deleteConfigButton > i').addClass('fpp-backup-action-loading');
 
     $.ajax({
         url: "api/backups/configuration/" + dir + "/" + encodeURIComponent(file),
@@ -3019,7 +3019,7 @@ function RestoreJsonBackup(directory, filename, row){
     //validate directory and filename are not emptry
     if (typeof (selected_restore_area) && (typeof (directory) !== 'undefined' && typeof (filename) !== 'undefined')) {
         //Add a loading  spinner to the delete button for the row we're deleting to add some feedback to the user something is happening
-        $( row + ' .restoreJsonConfigActionButton > i').addClass('backup-file-configuration-actions-button-loading');
+        $( row + ' .restoreJsonConfigActionButton > i').addClass('fpp-backup-action-loading');
 
         //all the API backend to do the restore
         $.ajax({
@@ -3029,7 +3029,7 @@ function RestoreJsonBackup(directory, filename, row){
             processData: false,
             success: function (data) {
                 //Remove the loading spinner
-                $( row + ' .restoreJsonConfigActionButton > i').removeClass('backup-file-configuration-actions-button-loading');
+                $( row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
 
                 if (data.success === true) {
                     $.jGrowl('Successfully restored selected backup: ', {themeState: 'success'});
@@ -3039,7 +3039,7 @@ function RestoreJsonBackup(directory, filename, row){
             },
             error: function (data) {
                 //Remove the loading spinner also if we fail
-                $( row + ' .restoreJsonConfigActionButton > i').removeClass('backup-file-configuration-actions-button-loading');
+                $( row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
 
                 DialogError('Error occurred attempting to restore data', data.message);
             }
@@ -3070,15 +3070,15 @@ function GetBackupDirsViaAPI(host, remoteStorageSelected = '') {
     }
 
     //Add a loading spinner to show the user something is happening
-    $('#backup\\.PathSelect').parent().closest('td').addClass('backup-file-configuration-actions-button-loading');
+    $('#backup\\.PathSelect').parent().closest('td').addClass('fpp-backup-action-loading');
 
     $.get(url
     ).done(function (data) {
         PopulateBackupDirs(data);
-        $('#backup\\.PathSelect').parent().closest('td').removeClass('backup-file-configuration-actions-button-loading');
+        $('#backup\\.PathSelect').parent().closest('td').removeClass('fpp-backup-action-loading');
     }).fail(function () {
         $('#backup\\.PathSelect').html('');
-        $('#backup\\.PathSelect').parent().closest('td').removeClass('backup-file-configuration-actions-button-loading');
+        $('#backup\\.PathSelect').parent().closest('td').removeClass('fpp-backup-action-loading');
     });
 }
 
@@ -3207,7 +3207,7 @@ function GetRemoteHostUSBStorage() {
 
     // $('#backup\\.USBDevice').html('<option>Loading...</option>');
     //Add a loading spinner to show something is happening
-    $('#backup\\.RemoteStorage').parent().closest('td').addClass('backup-file-configuration-actions-button-loading');
+    $('#backup\\.RemoteStorage').parent().closest('td').addClass('fpp-backup-action-loading');
 
     $.get(requestUrl
     ).done(function (data) {
@@ -3234,7 +3234,7 @@ function GetRemoteHostUSBStorage() {
         $('#backup\\.RemoteStorage').html(default_none_selected_option + options);
 
         //Remove the loading spinner
-        $('#backup\\.RemoteStorage').parent().closest('td').removeClass('backup-file-configuration-actions-button-loading');
+        $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
 
         if (options !== "") {
             //After populating the list, Get the currently set remote host storage device
@@ -3251,12 +3251,12 @@ function backupRemoteStorageChanged() {
     var value = encodeURIComponent($('#backup\\.RemoteStorage').val());
 
     //Add the loading spinner
-    $('#backup\\.RemoteStorage').parent().closest('td').addClass('backup-file-configuration-actions-button-loading');
+    $('#backup\\.RemoteStorage').parent().closest('td').addClass('fpp-backup-action-loading');
 
     //do a ajax call to save the setting
     $.get('fppjson.php?command=setSetting&plugin=&key=backup.RemoteStorage&value=' + value)
         .done(function () {
-            $('#backup\\.RemoteStorage').parent().closest('td').removeClass('backup-file-configuration-actions-button-loading');
+            $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
 
             $.jGrowl('Remote Backup Storage saved', {themeState: 'success'});
             settings['backup.RemoteStorage'] = value;
@@ -3266,14 +3266,14 @@ function backupRemoteStorageChanged() {
         }).fail(function () {
         DialogError('Remote Backup Storage', 'Failed to save Backup Storage');
         //remove the spinner
-        $('#backup\\.RemoteStorage').parent().closest('td').removeClass('backup-file-configuration-actions-button-loading');
+        $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
     });
 }
 
 //Get the current setting for the remote hosts remote backup storage device (where the file copy will go to)
 function GetBackupRemoteStorageDevice() {
     //Add a the loading spinner to show something is happening
-    $('#backup\\.RemoteStorage').parent().closest('div').addClass('backup-file-configuration-actions-button-loading');
+    $('#backup\\.RemoteStorage').parent().closest('div').addClass('fpp-backup-action-loading');
 
     $.ajax({
         url: 'api/settings/backup.RemoteStorage',
@@ -3283,7 +3283,7 @@ function GetBackupRemoteStorageDevice() {
                 //Change the JSON Config backup location to the one set by the user if a valid value is set
                 $('#backup\\.RemoteStorage option[value="' + data.value + '"]').attr('selected', true);
                 //
-                $('#backup\\.RemoteStorage').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+                $('#backup\\.RemoteStorage').parent().closest('div').removeClass('fpp-backup-action-loading');
 
                 //Get the backup directories avaiable on the selected storage device if were restoring from remote,
                 if (document.getElementById("backup.Direction").value == 'FROMREMOTE') {
@@ -3299,7 +3299,7 @@ function GetBackupRemoteStorageDevice() {
             //do nothing
             DialogError('Remote Host Backup Storage Location', 'Failed to read remote storage location.');
 
-            $('#backup\\.RemoteStorage').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+            $('#backup\\.RemoteStorage').parent().closest('div').removeClass('fpp-backup-action-loading');
         }
     });
 }
