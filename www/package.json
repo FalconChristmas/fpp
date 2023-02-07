@@ -6,7 +6,7 @@
   "devDependencies": {
     "autoprefixer": "^10.4.2",
     "bootstrap": "^4.6.1",
-    "browser-sync": "^2.27.7",
+    "browser-sync": "^2.27.11",
     "gulp": "^4.0.2",
     "gulp-plumber": "^1.2.1",
     "gulp-postcss": "^9.0.1",
