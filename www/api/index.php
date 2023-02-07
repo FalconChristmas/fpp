@@ -8,6 +8,8 @@ require_once '../common.php';
 dispatch_get('/backups/list', 'GetAvailableBackups');
 dispatch_get('/backups/list/:DeviceName', 'GetAvailableBackupsOnDevice');
 dispatch_get('/backups/devices', 'GetAvailableBackupsDevices');
+dispatch_post('/backups/devices/mount/:DeviceName/:MountLocation', 'MountDevice');
+dispatch_post('/backups/devices/unmount/:DeviceName/:MountLocation', 'UnmountDevice');
 dispatch_post('/backups/configuration', 'MakeJSONBackup');
 dispatch_get('/backups/configuration/list', 'GetAvailableJSONBackups');
 dispatch_get('/backups/configuration/list/:DeviceName', 'GetAvailableJSONBackupsOnDevice');
