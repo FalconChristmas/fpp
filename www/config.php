@@ -1,5 +1,7 @@
 <?php
 
+setlocale(LC_CTYPE, "en_US.UTF-8");
+
 $SUDO = "sudo";
 $debug = false;
 $fppRfsVersion = "Unknown";
