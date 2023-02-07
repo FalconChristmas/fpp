@@ -284,8 +284,9 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
     if [ "x${TetherEnabled}" == "x" ]; then
         TetherEnabled="";
     fi
-    
+
     rm -f /etc/wpa_supplicant-wl*.conf
+    rm -f /etc/wpa_supplicant/wpa_supplicant-wl*.conf
 
     ENABLEHOSTAPD="0"
     IP_FORWARD="0"
@@ -409,7 +410,7 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
             echo "ClientIdentifier=mac" >> $TMPFILE
             echo "" >> $TMPFILE
         fi
-        if [ "$ROUTEMETRIC" != "0" && "$PROTO" != "dhcp" ]; then
+        if [[ "$ROUTEMETRIC" != "0" && "$PROTO" != "dhcp" ]]; then
             echo "[DHCPv4]" >> $TMPFILE
         fi
         if [ "$ROUTEMETRIC" != "0" ]; then
@@ -445,7 +446,7 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
             fi
         fi
 
-        cp $TMPFILE /etc/systemd/network
+        cp -f $TMPFILE /etc/systemd/network
     done
     sysctl net.ipv4.ip_forward=${IP_FORWARD}
 
@@ -458,7 +459,9 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
     fi
 }
 SetupFPPNetworkConfig () {
-    rfkill unblock wifi; rfkill unblock all
+    if [ -f /sbin/rfkill ]; then
+        rfkill unblock wifi; rfkill unblock all
+    fi
     if [ -f /usr/bin/connmanctl ]; then
         SetupFPPNetworkConfigViaConnMann
         ENABLEROUTING=$(getSetting EnableRouting)
