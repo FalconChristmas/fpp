@@ -56,7 +56,14 @@ function ScrubFile($filename, $taboo = array("emailpass", "emailgpass", "MQTTPas
         // Need to scrub .json as well at some point
         $dataStr = file_get_contents($filename);
     } else {
-        $data = parse_ini_file($filename);
+        $data = [];
+        $fd = @fopen($filename, "r");
+        if ($fd) {
+            flock($fd, LOCK_SH);
+            $data = parse_ini_file($filename);
+            flock($fd, LOCK_UN);
+            fclose($fd);
+        }
 
         foreach ($taboo as $key) {
             if (array_key_exists($key, $data)) {
@@ -121,15 +128,19 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
         $filename = $settings['configDirectory'] . "/plugin." . $plugin;
     }
 
-    $settingsStr = "";
-    if (file_exists($filename)) {
-        $tmpSettings = parse_ini_file($filename);
+    $fd = @fopen($filename, "c+");
+    flock($fd, LOCK_EX);
+    $tmpSettings = parse_ini_file($filename);
+    if ($tmpSettings[$settingName] != $setting) {
+        $tmpSettings[$settingName] = $setting;
+        $settingsStr = "";
+        foreach ($tmpSettings as $key => $value) {
+            $settingsStr .= $key . " = \"" . $value . "\"\n";
+        }
+        file_put_contents($filename, $settingsStr);
     }
-    $tmpSettings[$settingName] = $setting;
-    foreach ($tmpSettings as $key => $value) {
-        $settingsStr .= $key . " = \"" . $value . "\"\n";
-    }
-    file_put_contents($filename, $settingsStr, LOCK_EX);
+    flock($fd, LOCK_UN);
+    fclose($fd);
 }
 
 function DeleteSettingFromFile($settingName, $plugin = "")
@@ -142,13 +153,19 @@ function DeleteSettingFromFile($settingName, $plugin = "")
         $filename = $settings['configDirectory'] . "/plugin." . $plugin;
     }
 
-    $settingsStr = "";
+    $fd = @fopen($filename, "c+");
+    flock($fd, LOCK_EX);
     $tmpSettings = parse_ini_file($filename);
-    unset($tmpSettings[$settingName]);
-    foreach ($tmpSettings as $key => $value) {
-        $settingsStr .= $key . " = \"" . $value . "\"\n";
+    if (isset($tmpSettings[$settingName])) {
+        unset($tmpSettings[$settingName]);
+        $settingsStr = "";
+        foreach ($tmpSettings as $key => $value) {
+            $settingsStr .= $key . " = \"" . $value . "\"\n";
+        }
+        file_put_contents($filename, $settingsStr);
     }
-    file_put_contents($filename, $settingsStr, LOCK_EX);
+    flock($fd, LOCK_UN);
+    fclose($fd);
 }
 
 function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaultValue = "")
@@ -255,7 +272,14 @@ function LoadPluginSettings($pluginName)
     global $pluginSettings, $settings;
     $pluginConfigFile = $settings['configDirectory'] . "/plugin." . $pluginName;
     if (file_exists($pluginConfigFile)) {
-        $pluginSettings = parse_ini_file($pluginConfigFile);
+        $pluginSettings = [];
+        $fd = @fopen($filename, "r");
+        if ($fd) {
+            flock($fd, LOCK_SH);
+            $pluginSettings = parse_ini_file($pluginConfigFile);
+            flock($fd, LOCK_UN);
+            fclose($fd);
+        }
     }
     MergeDefaultsFromPluginSettings($pluginName);
 }
@@ -2453,49 +2477,49 @@ function GetSystemInfoJsonInternal($simple = false)
  */
 function read_directory_files($directory, $return_data = true, $sort_by_date = false, $sort_order = 'desc')
 {
-	$file_list = array();
-	$file_data = false;
+    $file_list = array();
+    $file_data = false;
 
-	if ($handle = opendir($directory)) {
-		while (false !== ($file = readdir($handle))) {
-			// do something with the file
-			// note that '.' and '..' is returned even
-			// if file isn't this directory or its parent, add it to the results
-			// also must include ._* files as binary files that OSX may create
-			if ($file[0] != "." || (strlen($file) > 1 && $file[1] != "." && $file[1] != "_")) {
-				// collect the filenames & data
-				if ($return_data == true) {
-					$file_data = explode("\n", file_get_contents($directory . '/' . $file));
-				}
+    if ($handle = opendir($directory)) {
+        while (false !== ($file = readdir($handle))) {
+            // do something with the file
+            // note that '.' and '..' is returned even
+            // if file isn't this directory or its parent, add it to the results
+            // also must include ._* files as binary files that OSX may create
+            if ($file[0] != "." || (strlen($file) > 1 && $file[1] != "." && $file[1] != "_")) {
+                // collect the filenames & data
+                if ($return_data == true) {
+                    $file_data = explode("\n", file_get_contents($directory . '/' . $file));
+                }
 
-				$file_list[$file] = $file_data;
-			}
-		}
-		closedir($handle);
-	}
+                $file_list[$file] = $file_data;
+            }
+        }
+        closedir($handle);
+    }
 
-	//Sort the results if sort flag  is true
-	if ($sort_by_date == true) {
-		//Modified version of https://stackoverflow.com/questions/2667065/sort-files-by-date-in-php
-		//newest to  oldest
-		if($sort_order==='asc'){
-			//uksort to sort by key & insert our directory variable
-			uksort($file_list, function ($a, $b) use ($directory) {
-				return filemtime($directory . "/" . $b) - filemtime($directory . "/" . $a);
-			});
+    //Sort the results if sort flag  is true
+    if ($sort_by_date == true) {
+        //Modified version of https://stackoverflow.com/questions/2667065/sort-files-by-date-in-php
+        //newest to  oldest
+        if ($sort_order === 'asc') {
+            //uksort to sort by key & insert our directory variable
+            uksort($file_list, function ($a, $b) use ($directory) {
+                return filemtime($directory . "/" . $b) - filemtime($directory . "/" . $a);
+            });
         }
 
-		//oldest to newest
-		if($sort_order==='desc'){
+        //oldest to newest
+        if ($sort_order === 'desc') {
 
-			//uksort to sort by key & insert our directory variable
-			uksort($file_list, function ($a, $b) use ($directory) {
-				return filemtime($directory . "/" . $a) - filemtime($directory . "/" . $b);
-			});
+            //uksort to sort by key & insert our directory variable
+            uksort($file_list, function ($a, $b) use ($directory) {
+                return filemtime($directory . "/" . $a) - filemtime($directory . "/" . $b);
+            });
         }
-	}
+    }
 
-	return $file_list;
+    return $file_list;
 }
 
 /**
@@ -2505,81 +2529,82 @@ function read_directory_files($directory, $return_data = true, $sort_by_date = f
  */
 function GenerateBackupViaAPI($backup_comment = "Created via API")
 {
-	$url = 'http://localhost/api/backups/configuration';
-	$data = array($backup_comment);
+    $url = 'http://localhost/api/backups/configuration';
+    $data = array($backup_comment);
 
-	//https://stackoverflow.com/questions/5647461/how-do-i-send-a-post-request-with-php
-	// use key 'http' even if you send the request to https://...
-	$options = array(
-		'http' => array(
-			'header' => "Content-type: text/plain",
-			'method' => 'POST',
-			'content' => $backup_comment
-		)
-	);
-	$context = stream_context_create($options);
+    //https://stackoverflow.com/questions/5647461/how-do-i-send-a-post-request-with-php
+    // use key 'http' even if you send the request to https://...
+    $options = array(
+        'http' => array(
+            'header' => "Content-type: text/plain",
+            'method' => 'POST',
+            'content' => $backup_comment,
+        ),
+    );
+    $context = stream_context_create($options);
 
-	if (file_get_contents($url, false, $context) !== FALSE) {
+    if (file_get_contents($url, false, $context) !== false) {
         //API now does this directly itself, so all we have to do is call it and let it do it's thing
         //it still calls this same function
-//		DoJsonBackupToUSB();
+        //        DoJsonBackupToUSB();
 
-		return true;
-	}else{
-		/* Handle error */
-		error_log('GenerateBackupViaAPI: Something went wrong trying to call backups API to make a settings backup. (' . json_encode(['url' => $url, 'options' => $options]));
+        return true;
+    } else {
+        /* Handle error */
+        error_log('GenerateBackupViaAPI: Something went wrong trying to call backups API to make a settings backup. (' . json_encode(['url' => $url, 'options' => $options]));
         return false;
-	}
+    }
 }
 
 /**
  * Copy JSON Settings backups to the specified alternate location if set.
  * @return bool
  */
-function DoJsonBackupToUSB(){
+function DoJsonBackupToUSB()
+{
     global $settings;
     //Gather some setting that will assist in making a copy of the backups
-	$selected_jsonConfigBackupUSBLocation = $settings['jsonConfigBackupUSBLocation'];
+    $selected_jsonConfigBackupUSBLocation = $settings['jsonConfigBackupUSBLocation'];
     //Folder under which the backups will be stored on the selected storeage device
-	$fileCopy_BackupPath = 'Automatic_Backups';
-	$result = false;
+    $fileCopy_BackupPath = 'Automatic_Backups';
+    $result = false;
 
-	//first check if the jsonConfigBackupUSBLocation setting is valid
-	if (
-		(isset($selected_jsonConfigBackupUSBLocation) && !empty($selected_jsonConfigBackupUSBLocation) && strtolower($selected_jsonConfigBackupUSBLocation) !== 'none')
-		&&
-		(isset($fileCopy_BackupPath))
-	) {
-		//Make a call to the copystorage.php page (i.e the File Copy Backup page)
+    //first check if the jsonConfigBackupUSBLocation setting is valid
+    if (
+        (isset($selected_jsonConfigBackupUSBLocation) && !empty($selected_jsonConfigBackupUSBLocation) && strtolower($selected_jsonConfigBackupUSBLocation) !== 'none')
+        &&
+        (isset($fileCopy_BackupPath))
+    ) {
+        //Make a call to the copystorage.php page (i.e the File Copy Backup page)
 
-		//Build up the URL, include the necessary params so we can call it and have JSON Backups copied across
-		$url = 'http://localhost/copystorage.php?wrapped=1&direction=TOUSB&path=' . urlencode($fileCopy_BackupPath) . '&storageLocation=' . $selected_jsonConfigBackupUSBLocation . '&flags=JsonBackups&delete=no';
+        //Build up the URL, include the necessary params so we can call it and have JSON Backups copied across
+        $url = 'http://localhost/copystorage.php?wrapped=1&direction=TOUSB&path=' . urlencode($fileCopy_BackupPath) . '&storageLocation=' . $selected_jsonConfigBackupUSBLocation . '&flags=JsonBackups&delete=no';
 
-		if (file_get_contents($url, false) === FALSE) {
-			/* Handle error */
-			error_log('DoJsonBackupToUSB: Something went wrong trying to call filecopy endpoint to copy JSON Backups to the specified device. (' . json_encode(
-					[
-						'url' => $url,
-						'jsonConfigBackupUSBLocation' => $selected_jsonConfigBackupUSBLocation,
-						'fileCopy_BackupPath' => $fileCopy_BackupPath
-					]
-				));
-		} else {
-			$result = true;
-		}
-	} else {
-		$result = false;
+        if (file_get_contents($url, false) === false) {
+            /* Handle error */
+            error_log('DoJsonBackupToUSB: Something went wrong trying to call filecopy endpoint to copy JSON Backups to the specified device. (' . json_encode(
+                [
+                    'url' => $url,
+                    'jsonConfigBackupUSBLocation' => $selected_jsonConfigBackupUSBLocation,
+                    'fileCopy_BackupPath' => $fileCopy_BackupPath,
+                ]
+            ));
+        } else {
+            $result = true;
+        }
+    } else {
+        $result = false;
 
-		/* Handle error */
-		error_log('DoJsonBackupToUSB: Something went wrong trying to call filecopy endpoint. jsonConfigBackupUSBLocation not specified or missing fileCopy_BackupPath. (' . json_encode(
-				[
-					'jsonConfigBackupUSBLocation' => $selected_jsonConfigBackupUSBLocation,
-					'fileCopy_BackupPath' => $fileCopy_BackupPath
-				]
-			));
-	}
+        /* Handle error */
+        error_log('DoJsonBackupToUSB: Something went wrong trying to call filecopy endpoint. jsonConfigBackupUSBLocation not specified or missing fileCopy_BackupPath. (' . json_encode(
+            [
+                'jsonConfigBackupUSBLocation' => $selected_jsonConfigBackupUSBLocation,
+                'fileCopy_BackupPath' => $fileCopy_BackupPath,
+            ]
+        ));
+    }
 
-	return $result;
+    return $result;
 }
 
 /**
@@ -2590,24 +2615,24 @@ function DoJsonBackupToUSB(){
  */
 function GenerateBackupComment($setting_name, $setting_value)
 {
-	$backup_comment = "FPP Settings - ";
-	//Read in the setting JSON file to assist with generating backup comment in relation to what setting was changed
-	$settings_json = json_decode(file_get_contents("./settings.json"), true);
-	//Try find  the setting name passed via Params in this array
-	if (is_array($settings_json) && array_key_exists($setting_name, $settings_json['settings'])) {
-		if (array_key_exists('description', $settings_json['settings'][$setting_name])) {
-			$settings_description = $settings_json['settings'][$setting_name]['description'];
+    $backup_comment = "FPP Settings - ";
+    //Read in the setting JSON file to assist with generating backup comment in relation to what setting was changed
+    $settings_json = json_decode(file_get_contents("./settings.json"), true);
+    //Try find  the setting name passed via Params in this array
+    if (is_array($settings_json) && array_key_exists($setting_name, $settings_json['settings'])) {
+        if (array_key_exists('description', $settings_json['settings'][$setting_name])) {
+            $settings_description = $settings_json['settings'][$setting_name]['description'];
 
-			$backup_comment .= $settings_description . " setting was set to ( " . $setting_value . " ).";
+            $backup_comment .= $settings_description . " setting was set to ( " . $setting_value . " ).";
 
-		} else {
-			$backup_comment .= "Setting " . $setting_name . " was set to (" . $setting_value . ").";
-		}
-	} else {
-		$backup_comment .= "Setting " . $setting_name . " was set to (" . $setting_value . ").";
-	}
+        } else {
+            $backup_comment .= "Setting " . $setting_name . " was set to (" . $setting_value . ").";
+        }
+    } else {
+        $backup_comment .= "Setting " . $setting_name . " was set to (" . $setting_value . ").";
+    }
 
-	return $backup_comment;
+    return $backup_comment;
 }
 
 ?>

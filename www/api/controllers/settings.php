@@ -1,13 +1,15 @@
 <?
 
-function ReadSettingsJSON() {
+function ReadSettingsJSON()
+{
     global $settings;
     $json = file_get_contents($settings['fppDir'] . '/www/settings.json');
 
     return json_decode($json, true);
 }
 
-function GetSetting() {
+function GetSetting()
+{
     global $settings;
 
     $sInfos = ReadSettingsJSON();
@@ -16,11 +18,12 @@ function GetSetting() {
     if (isset($sInfos['settings'][$settingName])) {
         $sInfo = $sInfos['settings'][$settingName];
     } else {
-        $sInfo = Array();
+        $sInfo = array();
     }
 
-    if (isset($settings[$settingName]))
+    if (isset($settings[$settingName])) {
         $sInfo['value'] = $settings[$settingName];
+    }
 
     if (isset($sInfo['optionsURL'])) {
         $json = "";
@@ -36,35 +39,35 @@ function GetSetting() {
     return json($sInfo);
 }
 
-function PutSetting() {
+function PutSetting()
+{
     global $SUDO;
     $value = file_get_contents('php://input');
     $setting = params('SettingName');
 
-	WriteSettingToFile($setting, $value);
-    
+    WriteSettingToFile($setting, $value);
+
     if (startsWith($setting, "LogLevel")) {
-		SendCommand("LogLevel,$setting,$value,");
-	} else if ($setting == "HostName") {
-		$value = preg_replace("/[^-a-zA-Z0-9]/", "", $value);
-		exec(	$SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
-			$SUDO . " sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
-			$SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts ; " .
-			$SUDO . " hostname $value ; " .
-			$SUDO . " /etc/init.d/avahi-daemon restart ;" .
-			$SUDO . " systemctl restart avahi-daemon.service",
-			$output, $return_val);
-		sleep(1); // Give Avahi time to restart before we return
-	} else if ($setting == "EnableRouting") {
-		if ($value != "1")
-		{
-			$value = "0";
-		}
-		exec(	$SUDO . " sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf; " .
-			$SUDO . " sed -i '\$anet.ipv4.ip_forward = $value' /etc/sysctl.conf ; " .
-			$SUDO . " sysctl --system",
-			$output, $return_val);
-	} else if ($setting == "storageDevice") {
+        SendCommand("LogLevel,$setting,$value,");
+    } else if ($setting == "HostName") {
+        $value = preg_replace("/[^-a-zA-Z0-9]/", "", $value);
+        exec($SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
+            $SUDO . " sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
+            $SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts ; " .
+            $SUDO . " hostname $value ; " .
+            $SUDO . " /etc/init.d/avahi-daemon restart ;" .
+            $SUDO . " systemctl restart avahi-daemon.service",
+            $output, $return_val);
+        sleep(1); // Give Avahi time to restart before we return
+    } else if ($setting == "EnableRouting") {
+        if ($value != "1") {
+            $value = "0";
+        }
+        exec($SUDO . " sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf; " .
+            $SUDO . " sed -i '\$anet.ipv4.ip_forward = $value' /etc/sysctl.conf ; " .
+            $SUDO . " sysctl --system",
+            $output, $return_val);
+    } else if ($setting == "storageDevice") {
         if ($settings['Platform'] == "BeagleBone Black") {
             exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
             $rootDevice = $output[0];
@@ -78,14 +81,14 @@ function PutSetting() {
             $value = $rootDevice;
         } else {
             $fsckOrder = "0";
-            exec( $SUDO . " file -sL /dev/$value | grep FAT", $output, $return_val );
+            exec($SUDO . " file -sL /dev/$value | grep FAT", $output, $return_val);
             if ($output[0] == "") {
                 unset($output);
-                exec( $SUDO . " file -sL /dev/$value | grep BTRFS", $output, $return_val );
+                exec($SUDO . " file -sL /dev/$value | grep BTRFS", $output, $return_val);
 
                 if ($output[0] == "") {
                     unset($output);
-                    exec( $SUDO . " file -sL /dev/$value | grep DOS", $output, $return_val );
+                    exec($SUDO . " file -sL /dev/$value | grep DOS", $output, $return_val);
                     if ($output[0] == "") {
                         # probably ext4
                         $options = "defaults,noatime,nodiratime,nofail";
@@ -107,13 +110,13 @@ function PutSetting() {
             }
         }
         if (preg_match("/$rootDevice/", $value)) {
-            exec(   $SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
+            exec($SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val);
         } else {
-            exec(   $SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	$fsckOrder /' /etc/fstab", $output, $return_val );
+            exec($SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	$fsckOrder /' /etc/fstab", $output, $return_val);
         }
         unset($output);
-	} else if ($setting == "AudioOutput") {
-		SetAudioOutput($value);
+    } else if ($setting == "AudioOutput") {
+        SetAudioOutput($value);
     } else if ($setting == "EnableTethering") {
         $ssid = ReadSettingFromFile("TetherSSID");
         $psk = ReadSettingFromFile("TetherPSK");
@@ -127,35 +130,35 @@ function PutSetting() {
         }
     } else if ($setting == "BBBLeds0" || $setting == "BBBLeds1" || $setting == "BBBLeds2" || $setting == "BBBLeds3" || $setting == "BBBLedPWR") {
         SetBBBLeds();
-	} else if ($setting == "scheduling") {
-		SendCommand("EnableScheduling,$value,");
-	} else {
+    } else if ($setting == "scheduling") {
+        SendCommand("EnableScheduling,$value,");
+    } else {
         ApplySetting($setting, $value);
-		SendCommand("SetSetting,$setting,$value,");
-	}
+        SendCommand("SetSetting,$setting,$value,");
+    }
 
-	//If the setting being set isn't the reboot or restart flag (we don't want to trigger a backup on these)
-	if (in_array(ltrim(rtrim($setting)), array('restartFlag', 'rebootFlag', 'currentHeaderSensor')) === FALSE) {
-		//Make a call to the configuration backup API endpoint so we can generate a backup
-		$backup_comment = GenerateBackupComment($setting, $value);
-		GenerateBackupViaAPI($backup_comment);
-	}
+    //If the setting being set isn't the reboot or restart flag (we don't want to trigger a backup on these)
+    if (in_array(ltrim(rtrim($setting)), array('restartFlag', 'rebootFlag', 'currentHeaderSensor')) === false) {
+        //Make a call to the configuration backup API endpoint so we can generate a backup
+        $backup_comment = GenerateBackupComment($setting, $value);
+        GenerateBackupViaAPI($backup_comment);
+    }
 
-    $status = array("status"=> "OK");
+    $status = array("status" => "OK");
     return json($status);
 }
 
-function GetSettings() {
+function GetSettings()
+{
     global $settings;
     return file_get_contents($settings['fppDir'] . '/www/settings.json');
 }
 
 /////////////////////////////////////////////////////////////////////////////
-function GetTime() {
-    $result = Array();
+function GetTime()
+{
+    $result = array();
     //$result['time'] = date('D M d H:i:s T Y'); // Apache needs restarting after a timezone change
     $result['time'] = exec('date');
     return json($result);
 }
-
-?>

@@ -489,7 +489,11 @@ function stats_getSettings()
         }
     }
 
+    $fd = @fopen($settingsFile, "c+");
+    flock($fd, LOCK_SH);
     $tmpSettings = parse_ini_file($settingsFile);
+    flock($fd, LOCK_UN);
+    fclose($fd);
     validateAndAdd($rc, $tmpSettings, $safeSettings);
 
     return $rc;
