@@ -624,7 +624,7 @@ function GetDirSetting($dir)
         return GetSettingValue('scriptDirectory');
     } else if ($dir == "logs") {
         return GetSettingValue('logDirectory');
-    } else if ($dir == "uploads") {
+    } else if ($dir == "uploads" || $dir == "upload") {
         return GetSettingValue('uploadDirectory');
     } else if ($dir == "docs") {
         return GetSettingValue('docsDirectory');

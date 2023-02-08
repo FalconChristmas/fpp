@@ -430,7 +430,7 @@
             "endpoint": "files/:DirName",
             "methods": {
                 "GET": {
-                    "desc": "Get list of files in :DirName where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'uploads', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
+                    "desc": "Get list of files in :DirName where :DirName is one of ('config', 'effects', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'uploads', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
                     "output": {
                         "status": "ok",
                         "files": [
@@ -477,7 +477,7 @@
             "endpoint": "file/:DirName/copy/:source/:dest",
             "methods": {
                 "POST": {
-                    "desc": "Copies the specified file from :source to :dest where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos').",
+                    "desc": "Copies the specified file from :source to :dest where :DirName is one of ('config', 'effects', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos').",
                     "output": {
                         "status": "success",
                         "original": "test.py",
@@ -490,7 +490,7 @@
             "endpoint": "file/:DirName/rename/:source/:dest",
             "methods": {
                 "POST": {
-                    "desc": "Renames the specified file from :source to :dest where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos').",
+                    "desc": "Renames the specified file from :source to :dest where :DirName is one of ('config', 'effects', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos').",
                     "output": {
                         "status": "success",
                         "original": "test.py",
@@ -503,11 +503,11 @@
             "endpoint": "file/:DirName/:Filename",
             "methods": {
                 "GET": {
-                    "desc": "Downloads the specified File where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?tail=# is supplied then only the specified number of lines from the end of the file are returned. ?play=1 then will set the content type to be played rather than downloaded.",
+                    "desc": "Downloads the specified File where :DirName is one of ('config', 'effects', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?tail=# is supplied then only the specified number of lines from the end of the file are returned. ?play=1 then will set the content type to be played rather than downloaded.",
                     "output": "The File Contents"
                 },
                 "DELETE": {
-                    "desc": "Deletes the specified file where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
+                    "desc": "Deletes the specified file where :DirName is one of ('config', 'effects', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
                     "output": {
                         "status": "OK",
                         "file": "block_driveways.xbkp",
@@ -1394,7 +1394,7 @@
                         "status": "OK"
                     }
                 },
-                "PUT": {
+                "POST": {
                     "desc": "Updates the DNS Configuration",
                     "input": {
                         "DNS1": "192.168.50.1",
