@@ -67,4 +67,4 @@ runBootHookScripts
 # On systems running Stretch, the fpp_init is called prior to network
 # so we can use the opportunity to configure the network adapapters
 # and DNS and other hardware
-#.  ${BINDIR}/init_pre_network
+.  ${BINDIR}/init_pre_network

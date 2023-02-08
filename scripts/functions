@@ -573,8 +573,8 @@ MaybeEnableTethering() {
         # In a perfect world wlan0 would have no IP Address at this point, but in FPP 6.3
         # on BBB, it has the tethering IP leftover on a wlan interface from the last boot,
         # so ignore that when trying to work out if we're going to enable tether mode again.
-        IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0 | egrep -ve 'wlan' -e '192.168.8.1/24')"
-        
+        IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0 | grep -v 'wlan. *inet 192.168.8.1')"
+
         ETHDEVICES=$(ls -d /sys/class/net/e*)
         HASLINK=""
         for d in $ETHDEVICES; do
