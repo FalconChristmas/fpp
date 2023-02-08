@@ -3000,11 +3000,11 @@ function DeleteJsonBackupFile(dir, row, file, silent = false) {
         url: "api/backups/configuration/" + dir + "/" + encodeURIComponent(file),
         type: 'DELETE'
     }).done(function (data) {
-        if (data.status == "OK") {
+        if (data.Status == "OK") {
             $(row).remove();
         } else {
             if (!silent)
-                DialogError("ERROR", "Error deleting file \"" + file + "\": " + data.status);
+                DialogError("ERROR", "Error deleting file \"" + file + "\": " + data.Status);
             }
     }).fail(function () {
         if (!silent)
@@ -3031,7 +3031,7 @@ function RestoreJsonBackup(directory, filename, row){
                 //Remove the loading spinner
                 $( row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
 
-                if (data.success === true) {
+                if (data.Success === true) {
                     $.jGrowl('Successfully restored selected backup: ', {themeState: 'success'});
                 } else {
                     $.jGrowl('Error occurred restoring selected backup: ', {themeState: 'danger'});
@@ -3041,7 +3041,7 @@ function RestoreJsonBackup(directory, filename, row){
                 //Remove the loading spinner also if we fail
                 $( row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
 
-                DialogError('Error occurred attempting to restore data', data.message);
+                DialogError('Error occurred attempting to restore data', data.Message);
             }
         });
     }

@@ -523,7 +523,7 @@ function RestoreJsonBackup(){
 	$fullPath = "$dir/$restore_from_filename";
 
 	$file_contents_decoded = null;
-	$restore_status = array('success' => 'Failed', 'message' => '');
+	$restore_status = array('Success' => 'Failed', 'Message' => '');
 
 	//check that the area supplied is not empty, if so then assume we're restoring all araeas
 	if (empty($area_to_restore)) {
@@ -546,8 +546,8 @@ function RestoreJsonBackup(){
 				$file_contents_decoded = json_decode($file_contents, true);
 			} else {
 				//file_get_contents will return false if it couldn't read the file so
-				$restore_status['success'] = "Ok";
-				$restore_status['message'] = 'Backup File ' . $fullPath . ' could not be read.';
+				$restore_status['Success'] = "Ok";
+				$restore_status['Message'] = 'Backup File ' . $fullPath . ' could not be read.';
 			}
 		} else if ((strtolower($restore_from_directory) === 'jsonbackupsalternate')) {
 			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation'])) {
@@ -560,8 +560,8 @@ function RestoreJsonBackup(){
 					$file_contents_decoded = json_decode($file_contents, true);
 				} else {
 					//file_get_contents will return false if it couldn't read the file so
-					$restore_status['success'] = "Ok";
-					$restore_status['message'] = 'Backup File ' . $fullPath . ' could not be read.';
+					$restore_status['Success'] = "Ok";
+					$restore_status['Message'] = 'Backup File ' . $fullPath . ' could not be read.';
 				}
 			}
 		}
@@ -569,11 +569,11 @@ function RestoreJsonBackup(){
 		//Perform the restore
 		$restore_data = doRestore($area_to_restore, $file_contents_decoded, $restore_from_filename, true, true, 'api');
 
-		$restore_status['success'] = $restore_data['success'];
-		$restore_status['message'] = $restore_data['message'];
+		$restore_status['Success'] = $restore_data['success'];
+		$restore_status['Message'] = $restore_data['message'];
 	} else {
-		$restore_status['success'] = "Error";
-		$restore_status['message'] = 'Supplied Directory or Filename is invalid';
+		$restore_status['Success'] = "Error";
+		$restore_status['Message'] = 'Supplied Directory or Filename is invalid';
 	}
 
 	//Return the result which contains the success of the backup and the path which it was written to;
@@ -612,7 +612,7 @@ function DownloadJsonBackup(){
 			readfile($fullPath);
 		} else {
 			$status = "File Not Found";
-			return json(array("status" => $status, "file" => $fileName, "dir" => $dirName));
+			return json(array("Status" => $status, "file" => $fileName, "dir" => $dirName));
 		}
 	} elseif (strtolower($dirName) == "jsonbackupsalternate") {
 		//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
@@ -630,7 +630,7 @@ function DownloadJsonBackup(){
 			DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'readfile', array($fullPath));
 		} else {
 			$status = "File Not Found";
-			return json(array("status" => $status, "file" => $fileName, "dir" => $dirName));
+			return json(array("Status" => $status, "file" => $fileName, "dir" => $dirName));
 		}
 	}
 }
@@ -701,7 +701,7 @@ function DeleteJsonBackup(){
 		}
 	}
 
-	return json(array("status" => $status, "file" => $fileName, "dir" => $dirName));
+	return json(array("Status" => $status, "file" => $fileName, "dir" => $dirName));
 }
 
 /**

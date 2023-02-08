@@ -88,7 +88,7 @@
                 "DELETE": {
                     "desc": "Deletes a specific JSON Backup, Directory is are either JsonBackups (local) or JsonAlternateBackup (configured alternate device). API backups/configuration/list can be used to get valid directories and files.",
                     "output": {
-                        "status": "OK",
+                        "Status": "OK",
                         "file": "FPP_all-backup_v6_20230124210514.json",
                         "dir": "JsonBackupsAlternate"
                     }
@@ -101,8 +101,8 @@
                 "POST": {
                     "desc": "Restored the specified JSON Backup, Directory is either JsonBackups (local) or JsonAlternateBackup (configured alternate device). API backups/configuration/list can be used to get valid directory and file combinations.",
                     "output": {
-                        "success": true,
-                        "message": {
+                        "Success": true,
+                        "Message": {
                             "success": true,
                             "message": {
                                 "channelInputs": {
