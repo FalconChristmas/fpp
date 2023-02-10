@@ -477,7 +477,7 @@ case "${OSVER}" in
                       git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
                       mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils \
-                      php${PHPVER} php${PHPVER}-cli php${PHPVER}-common php${PHPVER}-curl php-pear php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml \
+                      php${PHPVER} php${PHPVER}-cli php${PHPVER}-common php${PHPVER}-curl php-pear php${PHPVER}-bcmath php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
                       git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping \

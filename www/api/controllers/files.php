@@ -493,10 +493,93 @@ function DeleteFile()
     return json(array("status" => $status, "file" => $fileName, "dir" => $dirName));
 }
 
+// emulate large fseek($fp, $pos, SEEK_SET) on 32-bit system
+function emulated_fseek_for_big_files($fp, $pos)
+{
+    if (bccomp((string) PHP_INT_MAX, $pos, 0) > -1) {
+        // small, do it natively
+        fseek($fp, (int) $pos, SEEK_SET);
+    } else {
+        // crossing the 2G file size on 32BIT triggers an fseek error
+        // Thus, we'll go to the end, read through the 2G, and then
+        // start seeking again.  However, beyond 2G, we can also
+        // only seek in 8K chunks which is definitely slower. :(
+        fseek($fp, PHP_INT_MAX, SEEK_SET);
+        fread($fp, 1); // get past fseek limitation
+        $pos = bcsub(bcsub($pos, (string) PHP_INT_MAX), 1);
+
+        $chunk = 8192 - 1; // get around weird 8KB limitation
+        while ($pos) {
+            if (bccomp((string) $chunk, $pos, 0) > -1) {
+                fseek($fp, (int) $pos, SEEK_CUR);
+                break;
+            } else {
+                fseek($fp, $chunk, SEEK_CUR);
+                fread($fp, 1);
+                $pos = bcsub($pos, (string) ($chunk + 1));
+            }
+        }
+    }
+}
+
+function PostFile()
+{
+    $status = "OK";
+    $dirName = params("DirName");
+    $fileName = params("Name");
+
+    $dir = GetDirSetting($dirName);
+    $fullPath = "$dir/$fileName";
+    $size = 0;
+    $totalSize = 0;
+    $offset = 0;
+    if ($dir == "") {
+        $status = "Invalid Directory";
+    } else {
+        $fpIn = fopen("php://input", 'rb');
+        $mode = "w";
+        if (isset($_REQUEST["sb"])) {
+            $mode = "c+";
+        }
+        $fpOut = fopen($fullPath, $mode);
+
+        flock($fpOut, LOCK_EX);
+
+        fseek($fpOut, 0, SEEK_SET);
+        if (isset($_REQUEST["sb"])) {
+            // these parameters cannot be >2GB on 32bit systems so using startBlock * blockSize to
+            // move beyond 2GB limit with SEEK_CUR
+            $startBlock = isset($_REQUEST["sb"]) ? $_REQUEST["sb"] : 0;
+            $blockSize = isset($_REQUEST["bs"]) ? $_REQUEST["bs"] : 0;
+            $offset = bcmul($startBlock, $blockSize, 0);
+            if ($offset > 0) {
+                emulated_fseek_for_big_files($fpOut, $offset);
+                $totalSize = bcadd($totalSize, $offset, 0);
+            }
+        }
+        while (!feof($fpIn)) {
+            $read = fread($fpIn, 64 * 1024); //64K blocks, (in actuality, Apache will likely send in 16K blocks)
+            $written = fwrite($fpOut, $read);
+            $size = bcadd($size, $written, 0);
+        }
+        $totalSize = bcadd($totalSize, $size, 0);
+
+        fflush($fpOut);
+        flock($fpOut, LOCK_UN);
+        fclose($fpOut);
+        fclose($fpIn);
+    }
+    //error_log("Done Uploading file " . $fullPath . "   Status: " . $status . "    Size: " . $totalSize . "   Written: " . $size . "   Offset: " . $offset);
+    return json(array("status" => $status, "file" => $fileName, "dir" => $dirName, "written" => $size, "size" => $totalSize, "offset" => $offset));
+}
+
 function GetFileInfo(&$list, $dirName, $fileName)
 {
     $fileFullName = $dirName . '/' . $fileName;
-    $filesize = filesize($fileFullName);
+    $filesize = exec("stat --format=\"%s\" \"$fileFullName\"");
+    if (intval($filesize) < PHP_INT_MAX) {
+        $filesize = intval($filesize);
+    }
     $current = array();
     $current["name"] = $fileName;
     $current["mtime"] = date('m/d/y  h:i A', filemtime($fileFullName));

@@ -513,6 +513,14 @@
                         "file": "block_driveways.xbkp",
                         "dir": "uploads"
                     }
+                },
+                "POST": {
+                    "desc": "Uploads the specified file where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). Takes optional params of bs(block size) and sb(start block) to upload fragments.  May not support chunked Transfer-Encoding.",
+                    "output": {
+                        "status": "OK",
+                        "file": "beepbeep.fseq",
+                        "dir": "sequences"
+                    }
                 }
             }
         },
