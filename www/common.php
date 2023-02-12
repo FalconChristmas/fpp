@@ -273,7 +273,7 @@ function LoadPluginSettings($pluginName)
     $pluginConfigFile = $settings['configDirectory'] . "/plugin." . $pluginName;
     if (file_exists($pluginConfigFile)) {
         $pluginSettings = [];
-        $fd = @fopen($filename, "r");
+        $fd = @fopen($pluginConfigFile, "r");
         if ($fd) {
             flock($fd, LOCK_SH);
             $pluginSettings = parse_ini_file($pluginConfigFile);
