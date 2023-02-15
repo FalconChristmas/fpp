@@ -163,15 +163,30 @@ function GetAvailableBackupsOnDevice()
  * @param $deviceName string The device to be mounted
  * @param $usercallback_function string The function we should call once mounting is completed so we can do something in the directory
  * @param $functionArgs array Order AND Number arguments MUST!! match the arguments required by the supplied user function
+ * @param $mountPath string Path/Folder where the device will be mounted, DEFAULT: /mnt/tmp
+ * @param $unmountWhenDone string Whether to automatically unmount the device when done
+ * @param $globalNameSpace string Whether to use 'nsenter' to mount the device under the root mount namespace
+ * @param $returnResultCodes string Whether to return output and result codes of the commands that were run
  * @return mixed|string
  */
-function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = array())
+function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = array(), $mountPath = '/mnt/tmp', $unmountWhenDone = true, $globalNameSpace = false, $returnResultCodes = false)
 {
 	global $SUDO;
 	$dirs = array();
+	$nsEnter = '';
+	$fsTypeOutput = $mountCmdOutput = $unmountCmdOutput = array();
+	$unmountCmdResultCode = null;
+
+	//Run commands so mount is available to entire system
+	if ($globalNameSpace === true) {
+		//Since Apache sandboxes all mount interactions and makes them private to the apache process(s)
+		//https://manpages.ubuntu.com/manpages/bionic/man1/nsenter.1.html
+		//Run commands under the root (process 1) mount namespace so the mounted device is available to the entire system
+		$nsEnter = ' nsenter -m -t 1 ';
+	}
 
 	// unmount just in case
-	exec($SUDO . ' umount /mnt/tmp');
+	exec($SUDO . $nsEnter . ' umount ' . $mountPath);
 
 	$unusable = CheckIfDeviceIsUsable($deviceName);
 	if ($unusable != '') {
@@ -179,30 +194,145 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 		return json($dirs);
 	}
 
-	exec($SUDO . ' mkdir -p /mnt/tmp');
+	exec($SUDO . $nsEnter . ' mkdir -p ' . $mountPath);
 
-	$fsType = exec($SUDO . ' file -sL /dev/' . $deviceName, $output);
+	$fsType = exec($SUDO . $nsEnter . ' file -sL /dev/' . $deviceName, $fsTypeOutput, $fsTypeResultCode);
 
 	$mountCmd = '';
 	// Same mount options used in scripts/copy_settings_to_storage.sh
 	if (preg_match('/BTRFS/', $fsType)) {
-		$mountCmd = "mount -t btrfs -o noatime,nodiratime,compress=zstd,nofail /dev/$deviceName /mnt/tmp";
+		$mountCmd = "mount -t btrfs -o noatime,nodiratime,compress=zstd,nofail /dev/$deviceName $mountPath";
 	} else if ((preg_match('/FAT/', $fsType)) ||
 		(preg_match('/DOS/', $fsType))) {
-		$mountCmd = "mount -t auto -o noatime,nodiratime,exec,nofail,uid=500,gid=500 /dev/$deviceName /mnt/tmp";
+		$mountCmd = "mount -t auto -o noatime,nodiratime,exec,nofail,uid=500,gid=500 /dev/$deviceName $mountPath";
 	} else {
 		// Default to ext4
-		$mountCmd = "mount -t ext4 -o noatime,nodiratime,nofail /dev/$deviceName /mnt/tmp";
+		$mountCmd = "mount -t ext4 -o noatime,nodiratime,nofail /dev/$deviceName $mountPath";
 	}
 
-	exec($SUDO . ' ' . $mountCmd);
+	exec($SUDO . $nsEnter . ' ' . $mountCmd, $mountCmdOutput, $mountCmdResultCode);
 
-	//Call the function that will do some work in the mounted directory
-	$dirs = call_user_func_array($usercallback_function, $functionArgs);
+	if (isset($usercallback_function) && !empty($functionArgs)) {
+		//Call the function that will do some work in the mounted directory
+		$dirs = call_user_func_array($usercallback_function, $functionArgs);
+	}
 
-	exec($SUDO . ' umount /mnt/tmp');
+	//Unmount by default before we finish
+	if ($unmountWhenDone === true) {
+		$umountCmd = exec($SUDO . $nsEnter . ' umount ' . $mountPath, $unmountCmdOutput, $unmountCmdResultCode);
+	}
+
+	//Return more detail about the what has happened with each command
+	if ($returnResultCodes === true) {
+		return (array('dirs' => $dirs,
+			'fsType' => array('fsTypeOutput' => $fsTypeOutput, 'fsTypeResultCode' => $fsTypeResultCode),
+			'mountCmd' => array('mountCmdOutput' => $mountCmdOutput, 'mountCmdResultCode' => $mountCmdResultCode, 'mountCmdResultCodeText' => MountReturnCodeMap($mountCmdResultCode), 'actualMountCmd' => $mountCmd),
+			'unmountCmd' => array('unmountCmdOutput' => $unmountCmdOutput, 'unmountCmdResultCode' => $unmountCmdResultCode),
+			'args' => array('mountPath' => '/mnt/tmp', 'unmountWhenDone' => $unmountWhenDone, 'globalNameSpace' => $globalNameSpace)
+		)
+		);
+	}
 
 	return ($dirs);
+}
+
+/**
+ * Mounts the specified device to the specified mount location /mnt/<MountLocation>, Defaults to /mnt/api_mount
+ * POST /backups/devices/mount/:DeviceName/:MountLocation
+ * @return string
+ */
+function MountDevice()
+{
+	$drive_mount_location = "/mnt/api_mount";
+	//get the device name
+	$deviceName = params('DeviceName');
+	$mountLocation = params('MountLocation');
+	//If a mount location was supplied, adjust the drive mount location to latch it
+	if (isset($mountLocation) && !empty($mountLocation)) {
+		$drive_mount_location = "/mnt/" . $mountLocation;
+	}
+
+	$mountResultCode = $mountResultCodeText = null;
+	$result = array();
+
+	//Make sure we have a valid device name supplied
+	if (isset($deviceName) && ($deviceName !== "no" || $deviceName !== "")) {
+		//Mount the device at the specified location
+		$mountResult = DriveMountHelper($deviceName, '', array(), $drive_mount_location, false, true, true);
+
+		//Check the relevant result code keys exist in the returned data
+		if (array_key_exists('mountCmd', $mountResult) && array_key_exists('mountCmdResultCode', $mountResult['mountCmd'])) {
+			$mountResultCode = $mountResult['mountCmd']['mountCmdResultCode'];
+			$mountResultCodeText = $mountResult['mountCmd']['mountCmdResultCodeText'];
+		}
+
+		//Success
+		if ($mountResultCode == 0) {
+			$result = array('Status' => 'OK', 'Message' => 'Device (' . $deviceName . ') mounted at (' . $drive_mount_location . ')', 'MountLocation' => $drive_mount_location);
+			//TODO REMOVE
+
+			error_log('MountDevice: ( ' . json($result) . ' )');
+		} else {
+			//Some kind of failure
+			$result = array('Status' => 'Error', 'Message' => 'Unable to mount device (' . $deviceName . ') under (' . $drive_mount_location . ')', 'MountLocation' => $drive_mount_location, 'Error' => $mountResultCodeText);
+			error_log('MountDevice: ( ' . json($result) . ' )');
+		}
+	} else {
+		$result = array('Status' => 'Error', 'Message' => 'Invalid Device Name Supplied');
+		error_log('MountDevice: ( ' . json($result) . ' )');
+	}
+
+	return json($result);
+}
+
+/**
+ * Unmounts the drive mounted to the supplied mount location e.g /mnt/<MountLocation>, Defaults to /mnt/api_mount
+ * POST /backups/devices/unmount/:DeviceName/:MountLocation
+ * @return string
+ */
+function UnmountDevice()
+{
+	global $SUDO;
+	$drive_mount_location = "/mnt/api_mount";
+	$nsEnter = ' nsenter -m -t 1 ';
+
+	//get the device name
+	$deviceName = params('DeviceName');
+	$mountLocation = params('MountLocation');
+	//If a mount location was supplied, adjust the drive mount location to latch it
+	if (isset($mountLocation) && !empty($mountLocation)) {
+		$drive_mount_location = "/mnt/" . $mountLocation;
+	}
+
+	$unmountCmdOutput = array();
+	$unmountCmdResultCode = null;
+
+	//Make sure we have a valid device name supplied
+	if (isset($deviceName) && ($deviceName !== "no" || $deviceName !== "")) {
+		//Unmount device from the root namespace (it will be mounted there)
+		$umountCmd = exec($SUDO . $nsEnter . ' umount ' . $drive_mount_location, $unmountCmdOutput, $unmountCmdResultCode);
+		//This could be incorrect as this result codes are for the mount command, but will give us an idea
+		$unmountCmdOutputText = MountReturnCodeMap($unmountCmdResultCode);
+
+		//Remove the folder that is created for the device to be mounted under
+		exec($SUDO . ' rmdir ' . $drive_mount_location);
+
+		//Success
+		if ($unmountCmdResultCode == 0) {
+			$result = array('Status' => 'OK', 'Message' => 'Device (' . $deviceName . ') unmounted from (' . $drive_mount_location . ')', 'MountLocation' => $drive_mount_location);
+			//TODO REMOVE
+			error_log('UnmountDevice: ( ' . json($result) . ' )');
+		} else {
+			//Some kind of failure
+			$result = array('Status' => 'Error', 'Message' => 'Unable to unmount device (' . $deviceName . ') from under (' . $drive_mount_location . ')', 'MountLocation' => $drive_mount_location, 'Error' => $unmountCmdOutputText);
+			error_log('UnmountDevice: ( ' . json($result) . ' )');
+		}
+	} else {
+		$result = array('Status' => 'Error', 'Message' => 'Invalid Device Name Supplied');
+		error_log('UnmountDevice: ( ' . json($result) . ' )');
+	}
+
+	return json($result);
 }
 
 ////
@@ -393,7 +523,7 @@ function RestoreJsonBackup(){
 	$fullPath = "$dir/$restore_from_filename";
 
 	$file_contents_decoded = null;
-	$restore_status = array('success' => 'Failed', 'message' => '');
+	$restore_status = array('Success' => 'Failed', 'Message' => '');
 
 	//check that the area supplied is not empty, if so then assume we're restoring all araeas
 	if (empty($area_to_restore)) {
@@ -416,8 +546,8 @@ function RestoreJsonBackup(){
 				$file_contents_decoded = json_decode($file_contents, true);
 			} else {
 				//file_get_contents will return false if it couldn't read the file so
-				$restore_status['success'] = "Ok";
-				$restore_status['message'] = 'Backup File ' . $fullPath . ' could not be read.';
+				$restore_status['Success'] = "Ok";
+				$restore_status['Message'] = 'Backup File ' . $fullPath . ' could not be read.';
 			}
 		} else if ((strtolower($restore_from_directory) === 'jsonbackupsalternate')) {
 			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation'])) {
@@ -430,8 +560,8 @@ function RestoreJsonBackup(){
 					$file_contents_decoded = json_decode($file_contents, true);
 				} else {
 					//file_get_contents will return false if it couldn't read the file so
-					$restore_status['success'] = "Ok";
-					$restore_status['message'] = 'Backup File ' . $fullPath . ' could not be read.';
+					$restore_status['Success'] = "Ok";
+					$restore_status['Message'] = 'Backup File ' . $fullPath . ' could not be read.';
 				}
 			}
 		}
@@ -439,11 +569,11 @@ function RestoreJsonBackup(){
 		//Perform the restore
 		$restore_data = doRestore($area_to_restore, $file_contents_decoded, $restore_from_filename, true, true, 'api');
 
-		$restore_status['success'] = $restore_data['success'];
-		$restore_status['message'] = $restore_data['message'];
+		$restore_status['Success'] = $restore_data['success'];
+		$restore_status['Message'] = $restore_data['message'];
 	} else {
-		$restore_status['success'] = "Error";
-		$restore_status['message'] = 'Supplied Directory or Filename is invalid';
+		$restore_status['Success'] = "Error";
+		$restore_status['Message'] = 'Supplied Directory or Filename is invalid';
 	}
 
 	//Return the result which contains the success of the backup and the path which it was written to;
@@ -482,7 +612,7 @@ function DownloadJsonBackup(){
 			readfile($fullPath);
 		} else {
 			$status = "File Not Found";
-			return json(array("status" => $status, "file" => $fileName, "dir" => $dirName));
+			return json(array("Status" => $status, "file" => $fileName, "dir" => $dirName));
 		}
 	} elseif (strtolower($dirName) == "jsonbackupsalternate") {
 		//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
@@ -500,7 +630,7 @@ function DownloadJsonBackup(){
 			DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'readfile', array($fullPath));
 		} else {
 			$status = "File Not Found";
-			return json(array("status" => $status, "file" => $fileName, "dir" => $dirName));
+			return json(array("Status" => $status, "file" => $fileName, "dir" => $dirName));
 		}
 	}
 }
@@ -571,7 +701,7 @@ function DeleteJsonBackup(){
 		}
 	}
 
-	return json(array("status" => $status, "file" => $fileName, "dir" => $dirName));
+	return json(array("Status" => $status, "file" => $fileName, "dir" => $dirName));
 }
 
 /**
@@ -583,5 +713,32 @@ function DeleteJsonBackup(){
 function sort_backup_time_asc($a, $b)
 {
 	return $b['backup_time_unix'] - $a['backup_time_unix'];
+}
+
+/**
+ * Maps the mount commands return codes to text
+ * @param $returnCode
+ * @return string
+ */
+function MountReturnCodeMap($returnCode)
+{
+    if ($returnCode == 0) {
+        return 'success';
+    } else if ($returnCode == 1) {
+        return 'incorrect invocation or permissions';
+    } else if ($returnCode == 2) {
+        return 'system error (out of memory, cannot fork, no more loop devices)';
+    } else if ($returnCode == 4) {
+        return 'internal mount bug';
+    } else if ($returnCode == 8) {
+        return 'user interrupt';
+    } else if ($returnCode == 16) {
+        return 'problems writing or locking /etc/mtab';
+    } else if ($returnCode == 32) {
+        return 'mount failure';
+    } else if ($returnCode == 64) {
+        return 'some mount succeeded';
+    }
+    return 'unkown';
 }
 ?>

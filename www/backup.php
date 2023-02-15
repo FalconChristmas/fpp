@@ -2468,6 +2468,7 @@ $backupHosts = getKnownFPPSystems();
     <script type="text/javascript">
         var settings = new Array();
         var list_of_existing_backups;
+        var debug_mode = <? echo $backups_verbose_logging;?>
 		<?php
 ////Override restartFlag setting not reflecting actual value after restoring, just read what's in the settings file
     $settings['restartFlag'] = ReadSettingFromFile('restartFlag');
@@ -2550,6 +2551,7 @@ function PerformCopy() {
     var dev = document.getElementById("backup.USBDevice").value;
     var path = document.getElementById("backup.Path").value.replaceAll('\\', '/');
     var pathSelect = document.getElementById("backup.PathSelect").value;
+    var remoteStorage = document.getElementById("backup.RemoteStorage").value;
     var host = document.getElementById("backup.Host").value;
     var direction = document.getElementById("backup.Direction").value;
     var flags = GetCopyFlags();
@@ -2569,11 +2571,17 @@ function PerformCopy() {
             return;
         }
 
+        //Add the remote storage value is restoring to or from remote hosts
+        if (typeof (remoteStorage) !== 'undefined' || remoteStorage !== '') {
+            url += '&remoteStorage=' + remoteStorage;
+        }
+
         storageLocation = host;
     } else {
         storageLocation = settings['mediaDirectory'] + "/backups";
     }
 
+    //Add in the specified backup path
     if (direction.substring(0,4) == 'FROM') {
         if (pathSelect == '') {
             DialogError('Copy Failed', 'No path specified');
@@ -2630,10 +2638,10 @@ function CopyDone() {
 function GetBackupDevices() {
     $('#backup\\.USBDevice').html('<option>Loading...</option>');
     //Add a loading spinner to show something is happening on the JSON Backup page dropdown list
-    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('backup-file-configuration-actions-button-loading');
+    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
     //Also do the same for the file copy list these both use the same functions and deal with the same data
     //Add a loading spinner to show something is happening
-    $('#backup\\.USBDevice').parent().closest('td').addClass('backup-file-configuration-actions-button-loading');
+    $('#backup\\.USBDevice').parent().closest('td').addClass('fpp-backup-action-loading');
 
     $.get("api/backups/devices"
         ).done(function(data) {
@@ -2662,10 +2670,10 @@ function GetBackupDevices() {
             $('#jsonConfigbackup\\.USBDevice').html(default_none_selected_option + options);
 
             //Remove the loading spinner
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
             //Also do the same for the file copy list these both use the same functions and deal with the same data
             //Add a loading spinner to show something is happening
-            $('#backup\\.USBDevice').parent().closest('td').removeClass('backup-file-configuration-actions-button-loading');
+            $('#backup\\.USBDevice').parent().closest('td').removeClass('fpp-backup-action-loading');
 
             if (options != "") {
                     if (document.getElementById("backup.Direction").value == 'FROMUSB')
@@ -2718,9 +2726,11 @@ function GetRestoreDeviceDirectories() {
         });
 }
 
-function USBDeviceChanged() {
+function USBDeviceChanged(toFromRemote=false) {
     var direction = document.getElementById("backup.Direction").value;
-alert('direction: ' + direction);
+    if (debug_mode == true) {
+        alert('direction: ' + direction);
+    }
     if (direction == 'FROMUSB')
         GetBackupDeviceDirectories();
     else if (direction == 'TOUSB')
@@ -2731,7 +2741,7 @@ function JSONConfigBackupUSBDeviceChanged() {
     var storage_location = document.getElementById("jsonConfigbackup.USBDevice").value;
 
     //Add a loading spinner to indicate the setting is being saved
-    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('backup-file-configuration-actions-button-loading');
+    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
 
     //Write setting to system
     $.ajax({
@@ -2739,7 +2749,7 @@ function JSONConfigBackupUSBDeviceChanged() {
         type: 'PUT',
         data: storage_location,
         success: function(data){
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
 
             if (storage_location !== "none"){
                 $.jGrowl('JSON Configuration Backups will now be copied to: ' + storage_location, {themeState: 'success'});
@@ -2770,7 +2780,7 @@ function JSONConfigBackupUSBDeviceChanged() {
             GetJSONConfigBackupList();
         },
         error: function(data) {
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
 
             DialogError('JSON Configuration Backup Storage Location', 'Failed to set additional storage location.');
 
@@ -2801,7 +2811,7 @@ function CopyBackupsToUSBHelper(){
 
 function GetJSONConfigBackupDevice() {
     //Add a the loading spinner to show something is happening
-    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('backup-file-configuration-actions-button-loading');
+    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
 
     $.ajax({
         url: 'api/settings/jsonConfigBackupUSBLocation',
@@ -2811,14 +2821,14 @@ function GetJSONConfigBackupDevice() {
                 //Change the JSON Config backup location to the one set by the user if a valid value is set
                 $('#jsonConfigbackup\\.USBDevice option[value="'+data.value+'"]').attr('selected', true);
                 //
-                $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+                $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
             }
         },
         error: function(data) {
             //do nothing
             DialogError('JSON Configuration Backup Storage Location', 'Failed to read additional storage location.');
 
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('backup-file-configuration-actions-button-loading');
+            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
         }
     });
 }
@@ -2984,17 +2994,17 @@ function DeleteJsonBackupFile(dir, row, file, silent = false) {
     }
 
     //Add a loading  spinner to the delete button for the row we're deleting to add some feedback to the user something is happening
-    $( row + ' .deleteConfigButton > i').addClass('backup-file-configuration-actions-button-loading');
+    $( row + ' .deleteConfigButton > i').addClass('fpp-backup-action-loading');
 
     $.ajax({
         url: "api/backups/configuration/" + dir + "/" + encodeURIComponent(file),
         type: 'DELETE'
     }).done(function (data) {
-        if (data.status == "OK") {
+        if (data.Status == "OK") {
             $(row).remove();
         } else {
             if (!silent)
-                DialogError("ERROR", "Error deleting file \"" + file + "\": " + data.status);
+                DialogError("ERROR", "Error deleting file \"" + file + "\": " + data.Status);
             }
     }).fail(function () {
         if (!silent)
@@ -3009,7 +3019,7 @@ function RestoreJsonBackup(directory, filename, row){
     //validate directory and filename are not emptry
     if (typeof (selected_restore_area) && (typeof (directory) !== 'undefined' && typeof (filename) !== 'undefined')) {
         //Add a loading  spinner to the delete button for the row we're deleting to add some feedback to the user something is happening
-        $( row + ' .restoreJsonConfigActionButton > i').addClass('backup-file-configuration-actions-button-loading');
+        $( row + ' .restoreJsonConfigActionButton > i').addClass('fpp-backup-action-loading');
 
         //all the API backend to do the restore
         $.ajax({
@@ -3019,9 +3029,9 @@ function RestoreJsonBackup(directory, filename, row){
             processData: false,
             success: function (data) {
                 //Remove the loading spinner
-                $( row + ' .restoreJsonConfigActionButton > i').removeClass('backup-file-configuration-actions-button-loading');
+                $( row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
 
-                if (data.success === true) {
+                if (data.Success === true) {
                     $.jGrowl('Successfully restored selected backup: ', {themeState: 'success'});
                 } else {
                     $.jGrowl('Error occurred restoring selected backup: ', {themeState: 'danger'});
@@ -3029,9 +3039,9 @@ function RestoreJsonBackup(directory, filename, row){
             },
             error: function (data) {
                 //Remove the loading spinner also if we fail
-                $( row + ' .restoreJsonConfigActionButton > i').removeClass('backup-file-configuration-actions-button-loading');
+                $( row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
 
-                DialogError('Error occurred attempting to restore data', data.message);
+                DialogError('Error occurred attempting to restore data', data.Message);
             }
         });
     }
@@ -3050,18 +3060,41 @@ function PopulateBackupDirs(data) {
     $('#backup\\.PathSelect').html(options);
 }
 
-function GetBackupDirsViaAPI(host) {
+function GetBackupDirsViaAPI(host, remoteStorageSelected = '') {
     $('#backup\\.PathSelect').html('<option>Loading...</option>');
-    $.get("http://" + host + "/api/backups/list"
-        ).done(function(data) {
-            PopulateBackupDirs(data);
-        }).fail(function() {
-            $('#backup\\.PathSelect').html('');
-        });
+
+    //Build a different URL if a storage device has been specified
+    var url = "http://" + host + "/api/backups/list";
+    if (remoteStorageSelected !== '' || remoteStorageSelected !== false) {
+        url = "http://" + host + "/api/backups/list/" + remoteStorageSelected;
+    }
+
+    //Add a loading spinner to show the user something is happening
+    $('#backup\\.PathSelect').parent().closest('td').addClass('fpp-backup-action-loading');
+
+    $.get(url
+    ).done(function (data) {
+        PopulateBackupDirs(data);
+        $('#backup\\.PathSelect').parent().closest('td').removeClass('fpp-backup-action-loading');
+    }).fail(function () {
+        $('#backup\\.PathSelect').html('');
+        $('#backup\\.PathSelect').parent().closest('td').removeClass('fpp-backup-action-loading');
+    });
 }
 
-function GetBackupHostBackupDirs() {
-    GetBackupDirsViaAPI($('#backup\\.Host').val());
+//Wrapper for GetBackupDirsViaAPI when quering folders on a remote hosts storage device
+function GetBackupHostBackupDirs(remoteStorageSelected = false) {
+    if (remoteStorageSelected !== false) {
+        //Get the value of the selected storage
+        var selectedStorage = remoteStorageSelected;
+        //ignore if the default of none is still selected
+        if (selectedStorage == 'none') {
+            selectedStorage = '';
+        }
+    }
+
+    //Get the backup directories on the specified storage device
+    GetBackupDirsViaAPI($('#backup\\.Host').val(), selectedStorage);
 }
 
 function BackupDirectionChanged() {
@@ -3074,6 +3107,7 @@ function BackupDirectionChanged() {
             $('.copyPath').show();
             $('.copyPathSelect').hide();
             $('.copyHost').hide();
+            $('.copyHostDevice').hide();
             $('.copyBackups').show();
             GetRestoreDeviceDirectories();
             break;
@@ -3082,6 +3116,7 @@ function BackupDirectionChanged() {
             $('.copyPath').hide();
             $('.copyPathSelect').show();
             $('.copyHost').hide();
+            $('.copyHostDevice').hide();
             $('.copyBackups').hide();
             GetBackupDeviceDirectories();
             break;
@@ -3090,6 +3125,7 @@ function BackupDirectionChanged() {
             $('.copyPath').show();
             $('.copyPathSelect').hide();
             $('.copyHost').hide();
+            $('.copyHostDevice').hide();
             $('.copyBackups').hide();
             break;
         case 'FROMLOCAL':
@@ -3097,6 +3133,7 @@ function BackupDirectionChanged() {
             $('.copyPath').hide();
             $('.copyPathSelect').show();
             $('.copyHost').hide();
+            $('.copyHostDevice').hide();
             $('.copyBackups').hide();
             GetBackupDirsViaAPI('<?php echo $_SERVER['HTTP_HOST'] ?>');
             break;
@@ -3105,24 +3142,30 @@ function BackupDirectionChanged() {
             $('.copyPath').show();
             $('.copyPathSelect').hide();
             $('.copyHost').show();
+            $('.copyHostDevice').show();
             $('.copyBackups').hide();
             //Check if remote has rsynd enabled
             CheckRemoteHasRsyncdEnabled(host);
+            //USB Device on remote
+            GetRemoteHostUSBStorage();
             break;
         case 'FROMREMOTE':
             $('.copyUSB').hide();
             $('.copyPath').hide();
             $('.copyPathSelect').show();
             $('.copyHost').show();
+            $('.copyHostDevice').show();
             $('.copyBackups').hide();
             GetBackupHostBackupDirs();
             //Check if remote has rsynd enabled
             CheckRemoteHasRsyncdEnabled(host);
+            //USB device on remote
+            GetRemoteHostUSBStorage();
             break;
     }
 }
 
-function CheckRemoteHasRsyncdEnabled(host) {
+ function CheckRemoteHasRsyncdEnabled(host) {
     //Read the the setting value for whether the Rsync Daemon is enabled on the host
     //if it isn't prompt the user that this needs to be enabled before copy TO or FROM the remote host can happen
     $.ajax({
@@ -3134,8 +3177,10 @@ function CheckRemoteHasRsyncdEnabled(host) {
                 if (rsyncd_setting_value === 0 || rsyncd_setting_value === '0') {
                     //remove the warning text in case it's hanging around from a previous host
                     $('.host_rsyncd_warning').remove();
+                    //Generate a URL by IP address to the affected host so the user can navigate easier
+                    var hostHref = "<a href='http://" + host + "/settings.php#settings-system' target='_blank'>" + host + "</a>";
                     //rsynd is disabled on host, add a warning next to the selected host
-                    $('#backup\\.Host').after('<span class="host_rsyncd_warning"><b>WARNING!</b> Rsync server is disabled on remote host, please enable rsync under FPP Settings -> System -> OS Services on ' + host + ' </span');
+                    $('#backup\\.Host').after('<span class="host_rsyncd_warning"><b>WARNING!</b> Rsync server is disabled on remote host, please enable rsync under FPP Settings -> System -> OS Services on ' + hostHref + ' </span');
                     //<span><b>WARNING!</b> Rsync server is disabled on this host, please enable under FPP Settings -> System -> OS Services on *host*</span
                 }else{
                     //remove the warning text in case it's hanging around from a previous host
@@ -3149,6 +3194,112 @@ function CheckRemoteHasRsyncdEnabled(host) {
         error: function (data) {
             //something went wrong
             $.jGrowl('Error occurred reading the Service_rsync value from host - ' + host, {themeState: 'danger'});
+        }
+    });
+}
+
+//Retrieves a list of available backup devices on the selected remote host
+function GetRemoteHostUSBStorage() {
+    //Very similar to GetBackupDevices() but adapted to collect storage info from a remote system
+    var host = document.getElementById("backup.Host").value;
+    var requestUrl = "http://" + host + "/" + "api/backups/devices";
+    var default_none_selected_option = "<option value='none' selected>Default FPP Storage</option>";
+
+    // $('#backup\\.USBDevice').html('<option>Loading...</option>');
+    //Add a loading spinner to show something is happening
+    $('#backup\\.RemoteStorage').parent().closest('td').addClass('fpp-backup-action-loading');
+
+    $.get(requestUrl
+    ).done(function (data) {
+        var options = "";
+
+        for (var i = 0; i < data.length; i++) {
+            var desc = data[i].name;
+            if (data[i].vendor != '')
+                desc += ' - ' + data[i].vendor;
+
+            if (data[i].model != '') {
+                if (data[i].vendor != '')
+                    desc += ' ';
+                else
+                    desc += ' - ';
+
+                desc += data[i].model;
+            }
+
+            desc += ' - ' + data[i].size + 'GB';
+            options += "<option value='" + data[i].name + "'>" + desc + "</option>";
+        }
+        //Populate the dropdown with the detected storage devices
+        $('#backup\\.RemoteStorage').html(default_none_selected_option + options);
+
+        //Remove the loading spinner
+        $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
+
+        if (options !== "") {
+            //After populating the list, Get the currently set remote host storage device
+            GetBackupRemoteStorageDevice();
+        }
+    }).fail(function () {
+        $('#backup\\.RemoteStorage').html(default_none_selected_option);
+    });
+}
+
+//Save the selected remote backup storage device selection to settings
+function backupRemoteStorageChanged() {
+    //Get the value of the selected remove storage device
+    var value = encodeURIComponent($('#backup\\.RemoteStorage').val());
+
+    //Add the loading spinner
+    $('#backup\\.RemoteStorage').parent().closest('td').addClass('fpp-backup-action-loading');
+
+    //do a ajax call to save the setting
+    $.put('api/settings/backup.RemoteStorage/' + value)
+        .done(function () {
+            $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
+
+            $.jGrowl('Remote Backup Storage saved', {themeState: 'success'});
+            settings['backup.RemoteStorage'] = value;
+
+            //Get the directories on the selected storage
+            GetBackupHostBackupDirs(encodeURIComponent(value));
+        }).fail(function () {
+        DialogError('Remote Backup Storage', 'Failed to save Backup Storage');
+        //remove the spinner
+        $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
+    });
+}
+
+//Get the current setting for the remote hosts remote backup storage device (where the file copy will go to)
+function GetBackupRemoteStorageDevice() {
+    //Add a the loading spinner to show something is happening
+    $('#backup\\.RemoteStorage').parent().closest('div').addClass('fpp-backup-action-loading');
+
+    $.ajax({
+        url: 'api/settings/backup.RemoteStorage',
+        type: 'GET',
+        success: function (data) {
+            if (data.value !== "" || typeof (data.value) !== "undefined") {
+                //Change the JSON Config backup location to the one set by the user if a valid value is set
+                $('#backup\\.RemoteStorage option[value="' + data.value + '"]').attr('selected', true);
+                //
+                $('#backup\\.RemoteStorage').parent().closest('div').removeClass('fpp-backup-action-loading');
+
+                //Get the backup directories avaiable on the selected storage device if were restoring from remote,
+                if (document.getElementById("backup.Direction").value == 'FROMREMOTE') {
+                    //If no Remote Storage device is selected don't pass anything to this function telling it to look at another device
+                    //so we just get what is on the default FPP storage device
+                    var selectedStorage = encodeURIComponent($('#backup\\.RemoteStorage').val());
+
+                    GetBackupHostBackupDirs(selectedStorage);
+                }
+            }
+        },
+        error: function (data) {
+            //do nothing
+            DialogError('Remote Host Backup Storage Location', 'Failed to read remote storage location.');
+
+            $('#backup\\.RemoteStorage').parent().closest('div').removeClass('fpp-backup-action-loading');
         }
     });
 }
@@ -3175,6 +3326,9 @@ if (isset($_GET['tab']) and is_numeric($_GET['tab'])) {
             display: none;
         }
         .copyPathSelect {
+            display: none;
+        }
+        .copyHostDevice {
             display: none;
         }
     </style>
@@ -3519,6 +3673,7 @@ foreach ($settings_restored as $area_restored => $success) {
         </select></td></tr>
         <tr class='copyUSB'><td>USB Device:</td><td><select name='backup.USBDevice' id='backup.USBDevice' onChange='USBDeviceChanged();'></select> <input type='button' class='buttons' onClick='GetBackupDevices();' value='Refresh List'></td></tr>
         <tr class='copyHost'><td>Remote Host:</td><td><?php PrintSettingSelect('Backup Host', 'backup.Host', 0, 0, '', $backupHosts, '', 'GetBackupHostBackupDirs');?></td></tr>
+        <tr class='copyHostDevice'><td>Remote Storage:</td><td><select id="backup.RemoteStorage" onchange="backupRemoteStorageChanged();"><option value="none" selected="">Default FPP Storage</option></select></td></tr>
         <tr class='copyPath'><td>Backup Path:</td><td><?php PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', $settings["HostName"]);?></td></tr>
         <tr class='copyPathSelect'><td>Backup Path:</td><td><select name='backup.PathSelect' id='backup.PathSelect'></select></td></tr>
         <tr><td>What to copy:</td><td>

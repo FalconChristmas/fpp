@@ -2479,7 +2479,7 @@ input[type=search].tablesorter-filter:disabled {
 	font-size: 0.9em;
 }
 
-.backup-file-configuration-actions-button-loading:before {
+.fpp-backup-action-loading:before {
 	content: '';
 	display: inline-block;
 	color: #F63939;

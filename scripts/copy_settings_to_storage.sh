@@ -1,9 +1,10 @@
 #!/bin/bash
 DEVICE=$1
-DPATH=$2
+DPATH=$2 # Folder For backups
 DIRECTION=$3
-DELETE=$4
-shift 4
+RSTORAGE=$4 # Default 'none', Remote Storage Device (USB, SSD, etc) where backups will go
+DELETE=$5
+shift 5
 
 BASEDIRECTION=$(echo $DIRECTION | cut -c1-4)
 
@@ -47,15 +48,52 @@ elif [ "$DIRECTION" == "FROMLOCAL" ]; then
     DEST=/home/fpp/media
 elif [ "$DIRECTION" == "TOREMOTE" ]; then
     SOURCE=/home/fpp/media
+    # Destination is as normal will go to the specified FPP Storage Device by default
     DEST=${DEVICE}::media/backups/$DPATH
+
     # rsync won't create destination subdirectories for us, so create
     # a temp local subdir tree and sync it over to the remote
     mkdir -p /home/fpp/media/tmp/backups/$DPATH
-    rsync -a /home/fpp/media/tmp/backups/* ${DEVICE}::media/backups/ 2>&1 | IgnoreWarnings
-    rm -rf /home/fpp/media/tmp/backups
+
+    #If a remote storage device has been specified and it's not empty none (which is the default FPP storage), get the remote host to mount it so we can then copy to it
+    if [ "$RSTORAGE" != "" ]  && [ "$RSTORAGE" != "none" ]
+      then
+        # Call the backup API to mount the specified device
+        # Build up these variables so the can be called easier (now and unmount at end of script)
+        REMOTE_MOUNT=$(curl --location --request POST -H "Content-Type:application/json" "$DEVICE/api/backups/devices/mount/$RSTORAGE/remote_filecopy")
+        echo " "
+        echo -n "Remote Host: $DEVICE reported..."
+        echo "$REMOTE_MOUNT" | grep -Po '"Message": *\K"[^"]*"'
+        echo " "
+        # Remote storage device will be mounted to /mnt/remote_filecopy (at the destination), so adjust the destination to accommodate this.
+        DEST=${DEVICE}::remote_filecopy/$DPATH
+        # Going to a different storage device so modify the directory and copy over the base directory structure
+        rsync -a /home/fpp/media/tmp/backups/* ${DEVICE}::remote_filecopy 2>&1 | IgnoreWarnings
+        rm -rf /home/fpp/media/tmp/backups
+    else
+        # Not going to a different storage device so copy over the new directory structure as normal (this will go into the specified default FPP Storage)
+        rsync -a /home/fpp/media/tmp/backups/* ${DEVICE}::media/backups/ 2>&1 | IgnoreWarnings
+        rm -rf /home/fpp/media/tmp/backups
+    fi
+
 elif [ "$DIRECTION" == "FROMREMOTE" ]; then
     SOURCE=${DEVICE}::media/backups/$DPATH
     DEST=/home/fpp/media
+
+    #If a remote storage device has been specified and it's not empty none (which is the default FPP storage), get the remote host to mount it so we can then pull from it
+    if [ "$RSTORAGE" != "" ]  && [ "$RSTORAGE" != "none" ]
+      then
+        # Call the backup API to mount the specified device
+        # Build up these variables so the can be called easier (now and unmount at end of script)
+        REMOTE_MOUNT=$(curl --location --request POST -H "Content-Type:application/json" "$DEVICE/api/backups/devices/mount/$RSTORAGE/remote_filecopy")
+        echo " "
+        echo -n "Remote Host: $DEVICE reported..."
+        echo "$REMOTE_MOUNT" | grep -Po '"Message": *\K"[^"]*"'
+        echo " "
+        # Remote storage device will be mounted to /mnt/remote_filecopy (at the destination), so adjust the source (where to pull from) to accommodate this.
+        SOURCE=${DEVICE}::remote_filecopy/$DPATH
+    fi
+
 fi
 
 EXTRA_ARGS="$EXTRA_ARGS -av --modify-window=1"
@@ -131,13 +169,25 @@ for action in $@; do
         rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
         ;;
     *)
-        echo -n "Uknown action $action"
+        echo -n "Unknown action $action"
     esac
 done
 
 if [ "$DIRECTION" == "TOUSB" -o "$DIRECTION" == "FROMUSB" ]; then
     umount /tmp/smnt
     rmdir /tmp/smnt
+fi
+
+if [ "$DIRECTION" == "TOREMOTE" -o "$DIRECTION" == "FROMREMOTE" ]; then
+    if [ "$RSTORAGE" != "" ]  && [ "$RSTORAGE" != "none" ]
+        then
+          #Unmount the specified device from the remote location if going to or from remote host and a device has been specified
+          REMOTE_UNMOUNT=$(curl --location --request POST -H "Content-Type:application/json" "$DEVICE/api/backups/devices/unmount/$RSTORAGE/remote_filecopy")
+          echo " "
+          echo -n  "Remote Host: $DEVICE reported..."
+          echo "$REMOTE_UNMOUNT" | grep -Po '"Message": *\K"[^"]*"'
+          echo " "
+    fi
 fi
 
 if [ "$BASEDIRECTION" = "FROM" ]; then

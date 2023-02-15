@@ -33,7 +33,7 @@ Copy Settings
 
 		echo "==================================================================================\n";
 
-    $command = "sudo " . __DIR__ . "/../scripts/copy_settings_to_storage.sh " . escapeshellcmd($_GET['storageLocation']) . " " . $path . " " . escapeshellcmd($_GET['direction'])  . " " . escapeshellcmd($_GET['delete']) . " " . escapeshellcmd($_GET['flags']);
+    $command = "sudo " . __DIR__ . "/../scripts/copy_settings_to_storage.sh " . escapeshellcmd($_GET['storageLocation']) . " " . $path . " " . escapeshellcmd($_GET['direction']) . " " . escapeshellcmd(isset($_GET['remoteStorage']) ? $_GET['remoteStorage'] : 'none') . " " . escapeshellcmd($_GET['delete']) . " " . escapeshellcmd($_GET['flags']);
 
 		echo "Command: ".htmlspecialchars($command)."\n";
 		echo "----------------------------------------------------------------------------------\n";
