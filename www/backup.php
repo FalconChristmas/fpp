@@ -3253,9 +3253,12 @@ function backupRemoteStorageChanged() {
     //Add the loading spinner
     $('#backup\\.RemoteStorage').parent().closest('td').addClass('fpp-backup-action-loading');
 
-    //do a ajax call to save the setting
-    $.put('api/settings/backup.RemoteStorage/' + value)
-        .done(function () {
+    //Write setting to system
+    $.ajax({
+        url: 'api/settings/backup.RemoteStorage/',
+        type: 'PUT',
+        data: value,
+        success: function (data) {
             $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
 
             $.jGrowl('Remote Backup Storage saved', {themeState: 'success'});
@@ -3263,10 +3266,12 @@ function backupRemoteStorageChanged() {
 
             //Get the directories on the selected storage
             GetBackupHostBackupDirs(encodeURIComponent(value));
-        }).fail(function () {
-        DialogError('Remote Backup Storage', 'Failed to save Backup Storage');
-        //remove the spinner
-        $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
+        },
+        error: function (data) {
+            DialogError('Remote Backup Storage', 'Failed to save Backup Storage');
+            //remove the spinner
+            $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
+        }
     });
 }
 
