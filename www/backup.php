@@ -3254,7 +3254,7 @@ function backupRemoteStorageChanged() {
     $('#backup\\.RemoteStorage').parent().closest('td').addClass('fpp-backup-action-loading');
 
     //do a ajax call to save the setting
-    $.get('fppjson.php?command=setSetting&plugin=&key=backup.RemoteStorage&value=' + value)
+    $.put('api/settings/backup.RemoteStorage/' + value)
         .done(function () {
             $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
 
