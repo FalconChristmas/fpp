@@ -27,6 +27,13 @@ var lastStatusJSON = null;
 var statusChangeFuncs = [];
 var zebraPinSubContentTop = 0;
 
+/* jQuery Colpick activation */
+var fppCommandColorPicker_fppDialogIntervalTimer = null
+var fppCommandColorPicker_fppDialogIsOpen = false;
+var fppCommandColorPicker_loopMaxRetries = 10;
+var fppCommandColorPicker_loopCount = 0;
+var fppCommandColorPicker_intervalMs = 250;
+
 if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)) {
     hasTouch = true;
 }
@@ -5183,6 +5190,9 @@ function UpdateChildVisibility() {
             $('.arg_row_' + a.name).show();
         }
     }
+
+    //Try activte the colpick colour picker
+    fppCommandColorPicker();
 }
 
 function CommandArgChanged() {
@@ -5593,7 +5603,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             }
             line += "></input>";
         } else if (val['type'] == "color") {
-            line += "<input type='color' class='fppCommandColor arg_" + val['name'] + "' id='" + ID + "' value='" + dv + "'></input>";
+            line += "<input type='color' class='color-box fppCommandColor arg_" + val['name'] + "' id='" + ID + "' value='" + dv + "' style='background-color: " + dv + ";'></input>";
         } else if (val['type'] == "time") {
             haveTime = 1;
             line += "<input class='time center arg_" + val['name'] + "' id='" + ID + "' type='text' size='8' value='00:00:00'/>";
@@ -5800,7 +5810,14 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                         return ~$.inArray(this.text, split);
                     });
                 } else {
-                    inp.val(v).change();
+                    //Update the colour fields differently
+                    if (inp.attr('type') === 'color') {
+                        //v is already the hex colour value from the playlist entry
+                        inp.attr('value', v)
+                        inp.css('background-color', v)
+                    } else {
+                        inp.val(v).change();
+                    }
                 }
 
                 if (inp.data('url') != null) {
@@ -5816,6 +5833,77 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
         }
     }
 }
+
+/**
+ * Tries to activate the jQuery Colpicker for any colour input fields on the Command Editor form
+ * because the modal is not immediately visible, the colpciker doesn't seem to work, so we create a small loop that waits for the modal to show and then we active the colpicker
+ */
+function fppCommandColorPicker() {
+
+    if (typeof (fppCommandColorPicker_fppDialogIntervalTimer) === 'undefined' || fppCommandColorPicker_fppDialogIntervalTimer === null) {
+        //Use a interval timer to keep waiting for a open modal to then apply the colpicker
+        fppCommandColorPicker_fppDialogIntervalTimer = setInterval(function () {
+            // do your thing
+
+            if ($('.modal-body').is(":visible") === false) {
+                fppCommandColorPicker_fppDialogIsOpen = false;
+
+                //When the modal content is hidden, Unbind events from the colour input element so they aren't pointing to invalid colour pickers next time
+                $('.fppCommandColor').off();
+
+                // Destroy existing colour pickers
+                $('[id*="collorpicker_"]').remove();
+            } else {
+                fppCommandColorPicker_fppDialogIsOpen = true;
+
+                //try to calculate margins around the modal dialog so we can try correct the color pickers location
+                //the colour picker is using the viewport dimensions but the page we're on is in a modal with a top and left pixel offset
+                var modalDialog_topOffset = Math.round($('.modal-dialog').css('margin-top').replace('px', ''));
+                var modalDialog_headerHeight = Math.round($('.modal-header').outerHeight());
+                var modalDialogFooterHeight = Math.round($('.modal-footer').outerHeight());
+                var modalDialog_bottomOffset = Math.round($('.modal-dialog').css('margin-bottom').replace('px', ''));
+                var modalDialog_leftOffset = $('.modal-dialog').css('margin-left');
+                var colpickNewBottomPad = Math.abs(modalDialogFooterHeight + modalDialog_bottomOffset);
+                var colpickNewTopMargin = -Math.abs(modalDialog_topOffset + modalDialog_headerHeight + colpickNewBottomPad) + 'px';
+
+
+                //Add the colour picker to any color elements
+                if (($('[id*="collorpicker_"]').length !== $('.fppCommandColor').length)) {
+                    $('.fppCommandColor').colpick({
+                        layout: 'rgbhex',
+                        color: 'auto',
+                        submit: false,
+                        appendTo: '.modal-body',
+                        style: {marginTop: colpickNewTopMargin},
+                        onChange: function (hsb, hex, rgb, el, bySetColor) {
+                            $(el).css('background-color', '#' + hex);
+                            $(el).attr('value', '#' + hex);
+                            // if (!bySetColor) {
+                            //
+                            // }
+                        },
+                        onBeforeShow: function () {
+                            if (typeof (this.value !== 'undefined')) {
+                                $(this).colpickSetColor(this.value);
+                            }
+                        }
+                    });
+                }
+            }
+
+            fppCommandColorPicker_loopCount++;
+            if (fppCommandColorPicker_loopCount === fppCommandColorPicker_loopMaxRetries || fppCommandColorPicker_fppDialogIsOpen === true) {
+                clearInterval(fppCommandColorPicker_fppDialogIntervalTimer);
+                //Reset the interval reference so it can started again
+                fppCommandColorPicker_fppDialogIntervalTimer = null;
+                //reset the loop count so we're ready again
+                fppCommandColorPicker_loopCount = 0;
+            }
+        }, fppCommandColorPicker_intervalMs);
+    }
+
+}
+
 
 function FileChooser(dir, target) {
     if ($('#fileChooser').length == 0) {
@@ -6063,6 +6151,10 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '
     $('#commandEditorPopup').fppDialog("moveToTop");
     $('#commandEditorDiv').load('commandEditor.php', function () {
         CommandEditorSetup(target, data, callback, cancelCallback, args);
+
+        //
+        // Add the colour picker to any color elements
+        fppCommandColorPicker();
     });
 }
 
