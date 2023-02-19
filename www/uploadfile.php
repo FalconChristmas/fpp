@@ -17,7 +17,27 @@ unset($output);
 
 
 <script src="jquery/jQuery-Form-Plugin/js/jquery.form.js"></script>
-<script src="jquery/jQuery-Upload-File/js/jquery.uploadfile.js"></script>
+<script src="js/filepond.min.js"></script>
+
+<link rel="stylesheet" href="css/filepond.min.css" />
+<style>
+.fileponduploader {
+    background: #fff;
+    border: 2px dashed #ced4da;
+    border-radius: 10px;
+    transition: 0.3s all cubic-bezier(0.02, 0.72, 0.32, 0.99);
+}
+.filepond--root .filepond--drop-label {
+    min-height: 100px;
+    background: transparent;
+}
+.filepond--drop-label label {
+    min-height: 100px;
+}
+.filepond--panel-root {
+    background-color: transparent;
+}
+</style>
 
 <script>
 
@@ -509,8 +529,8 @@ include 'menu.inc';?>
             </div>
           </div>
         </div>
-        <div id='fileuploader' class='ui-tabs-panel'>
-            <div>Select Files</div>
+        <div id='fileponduploader' class='fileponduploader ui-tabs-panel'>
+            <input type="file" class="filepond" id="filepondInput" multiple>
         </div>
       </div>
     </div>
@@ -545,36 +565,27 @@ if (isset($_GET['tab'])) {
 
     $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
 
-// jquery upload file
-$(document).ready(function()
-{
-	$("#fileuploader").uploadFile({
-		url:"jqupload.php",
-		fileName:"myfile",
-		multiple: true,
-		autoSubmit: true,
-		returnType: "json",
-		doneStr: "Close",
-		dragdropWidth: '100%',
-    statusBarWidth: '100%',
-    uploadStr:"Select Files",
-    fileCounterStyle: ") ",
-    showDone: true,
-		dragDropStr: "<span class='fileUploaderPlaceholder'><b>Drag &amp; Drop or Select Files to upload</b></span>",
-		onSuccess: function(files, data, xhr) {
-			for (var i = 0; i < files.length; i++) {
-				moveFile(files[i]);
-			}
-      setTimeout(function(){
-        GetAllFiles();
-      }, 100);
+    const pond = FilePond.create(
+                document.querySelector('#filepondInput'),
+                {
+                    labelIdle: `<b style="font-size: 1.3em;">Drag & Drop or Select Files to upload</b><br><br><span class="btn-dark btn-lg filepond--label-action" style="text-decoration:none;">Select Files</span><br>`,
+                    server: 'api/file/upload',
+                    credits: false,
+                    chunkUploads: true,
+                    chunkSize: 1024 * 1024 * 64,
+                    chunkForce: true,
+                    maxParallelUploads: 3,
+                    labelTapToUndo: "Tap to Close",
+                }
+                );
 
-		},
-		onError: function(files, status, errMsg) {
-			alert("Error uploading file");
-		},
-		});
-});
+    pond.on("processfile", (error, file) => {
+        console.log("Process file: " + file.filename);
+        moveFile(file.filename);
+        setTimeout(function(){
+            GetAllFiles();
+        }, 100);
+    });
 
 </script>
 </body>

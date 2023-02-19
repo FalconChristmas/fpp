@@ -522,6 +522,93 @@ function emulated_fseek_for_big_files($fp, $pos)
     }
 }
 
+function PatchFile()
+{
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        return "OK";
+    }
+    $status = "OK";
+    $dirName = params("DirName");
+    $fileName = $_SERVER['HTTP_UPLOAD_NAME'];
+    $offset = $_SERVER['HTTP_UPLOAD_OFFSET'];
+    $length = $_SERVER['HTTP_UPLOAD_LENGTH'];
+
+    $dir = GetDirSetting($dirName);
+    $fullPath = "$dir/$fileName";
+    if ($offset == 0) {
+        //for the first chunk, clear out any existing patches
+        $patch = glob($fullPath . '.patch.*');
+        foreach ($patch as $fn) {
+            unlink($fn);
+        }
+    }
+
+    if ($offset != 0 && file_exists($fullPath . '.patch.0')) {
+        $fileLen = exec("stat --format=\"%s\" " . escapeshellarg($fullPath) . ".patch.0");
+        if (bccomp($fileLen, $offset) == 0) {
+            //it's the next patch, we can append the data instead of
+            //attempting to create a bunch of patch files to then
+            //have to spend time coping over later
+            $file_handle = fopen($fullPath . ".patch.0", 'a');
+            $patch_handle = fopen('php://input', 'r');
+            while (!feof($patch_handle)) {
+                $read = fread($patch_handle, 64 * 1024);
+                fwrite($file_handle, $read);
+            }
+            fclose($patch_handle);
+            fclose($file_handle);
+        } else {
+            file_put_contents($fullPath . '.patch.' . $offset, fopen('php://input', 'r'));
+        }
+    } else {
+        file_put_contents($fullPath . '.patch.' . $offset, fopen('php://input', 'r'));
+    }
+
+    $size = 0;
+    $patch = glob($fullPath . '.patch.*');
+    foreach ($patch as $fn) {
+        $fileLen = exec("stat --format=\"%s\" " . escapeshellarg($fn));
+        $size = bcadd($size, $fileLen, 0);
+    }
+    if (bccomp($size, $length, 0) == 0) {
+        $offsets = array();
+        // write patches to file
+        foreach ($patch as $fn) {
+            // get offset from fn
+            list($dir, $offset) = explode($fileName . '.patch.', $fn, 2);
+            array_push($offsets, $offset);
+        }
+        //sort by offset so we can just continuously write and not have to seek
+        usort($offsets, "bccomp");
+
+        // create output file
+        $file_handle = false;
+
+        // write patches to file
+        foreach ($offsets as $offset) {
+            // apply patch
+            if (bccomp($offset, 0) == 0) {
+                //first chunk, we can rename it instead of copying the data
+                $ok = unlink($fullPath);
+                $ok = rename($fullPath . '.patch.' . $offset, $fullPath);
+                $file_handle = fopen($fullPath, 'a');
+            } else {
+                $patch_handle = fopen($fullPath . '.patch.' . $offset, 'r');
+                while (!feof($patch_handle)) {
+                    $read = fread($patch_handle, 64 * 1024);
+                    fwrite($file_handle, $read);
+                }
+                fclose($patch_handle);
+                unlink($fullPath . '.patch.' . $offset);
+            }
+        }
+
+        // done with file
+        fclose($file_handle);
+    }
+    return json(array("status" => $status, "file" => $fileName, "dir" => $dirName, "size" => $size));
+}
+
 function PostFile()
 {
     $status = "OK";

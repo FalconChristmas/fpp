@@ -500,6 +500,19 @@
             }
         },
         {
+            "endpoint": "file/:DirName",
+            "methods": {
+                "PATCH": {
+                    "desc": "Uploads a chunk of a file. Uses Upload-Length, Upload-Name, and Upload-Offset HTTP headers to define the location of the chunk that is being uploaded.",
+                    "output": {
+                        "status": "OK",
+                        "file": "block_driveways.xbkp",
+                        "dir": "uploads"
+                    }
+                },
+            }
+        },
+        {
             "endpoint": "file/:DirName/:Filename",
             "methods": {
                 "GET": {
