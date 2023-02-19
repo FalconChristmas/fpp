@@ -153,6 +153,9 @@ int DPIPixelsOutput::Init(Json::Value config) {
     std::vector<std::string> outputPinMap;
 
     for (int i = 0; i < config["outputs"].size(); i++) {
+        if (i >= root["outputs"].size()) {
+            continue;
+        }
         Json::Value s = config["outputs"][i];
         PixelString* newString = new PixelString(true);
 

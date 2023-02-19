@@ -991,7 +991,7 @@ function GetStringHWLabel(p) {
     var group = {};
     if (KNOWN_CAPES[subType]) {
         var val = KNOWN_CAPES[subType];
-        if ("label" in val['outputs'][p-1])
+        if (p <= val['outputs'].length && "label" in val['outputs'][p-1])
             return val['outputs'][p-1]['label'];
 
         for (instance of val["groups"]) {
