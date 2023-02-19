@@ -262,12 +262,20 @@
                 var left = pos.left;
                 var viewPort = getViewport();
                 var calW = cal.width();
-                if (left + calW > viewPort.l + viewPort.w) {
-                    left -= calW;
+                var calH = cal.height();
+                var bottom = top + calH;
+                var right = left + calW;
+                if (right > viewPort.w) {
+                    left = (viewPort.w-calW) / 2;
+                }
+                if (bottom > viewPort.l) {
+                    top -= (calH + this.offsetHeight);
                 }
                 cal.css({left: left + 'px', top: top + 'px'});
                 if (cal.data('colpick').onShow.apply(this, [cal.get(0)]) != false) {
                     cal.show();
+                    // Hide the keyboard on mobile devices be deselecting the text box
+                    $(document.activeElement).filter(':input:focus').blur();
                 }
                 //Hide when user clicks outside
                 $('html').mousedown({cal: cal}, hide);
@@ -288,7 +296,7 @@
             getViewport = function () {
                 var m = document.compatMode == 'CSS1Compat';
                 return {
-                    l: window.pageXOffset || (m ? document.documentElement.scrollLeft : document.body.scrollLeft),
+                    l: window.innerHeight || (m ? document.documentElement.scrollLeft : document.body.scrollLeft),
                     w: window.innerWidth || (m ? document.documentElement.clientWidth : document.body.clientWidth)
                 };
             },
