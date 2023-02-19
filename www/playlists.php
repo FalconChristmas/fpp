@@ -21,6 +21,10 @@ if (isset($_GET['playlist'])) {
 <?
 }
 ?>
+<!--jQuery Colpicker to get the fancy color picker-->
+<link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
+<link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
+<script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
 <script>
     function LoadInitialPlaylist() {
         $('#playlistSelect').val(initialPlaylist).trigger('change');

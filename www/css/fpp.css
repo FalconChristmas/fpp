@@ -2606,6 +2606,29 @@ input[type=search].tablesorter-filter:disabled {
 	display: none !important;
 }
 
+/* Remove borders around the browsers default color swatch,*/
+input[type="color"] {
+	-webkit-appearance: none;
+	border: none;
+	width: 46px;
+	height: 33px;
+	padding-left: 0 !important;
+}
+
+/*Chrome, Safari Opera */
+input[type="color"]::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+	border: none;
+}
+
+/*Firefox */
+input[type="color"]::-moz-color-swatch {
+	border: none;
+}
+
 @media (min-width: 991px) {
 	.divIPAddress {
 		display: inline-block;

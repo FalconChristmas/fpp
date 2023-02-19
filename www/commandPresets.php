@@ -148,6 +148,10 @@ $(document).ready(function() {
 <?php
 $activeParentMenuItem = 'status';
 include 'menu.inc';?>
+<!--jQuery Colpicker to get the fancy color picker-->
+<link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
+<link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
+<script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
   <div class="mainContainer">
 	  <h2 class="title">Command Presets</h2>
 	  <div class="pageContent">
