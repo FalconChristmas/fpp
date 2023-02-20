@@ -525,7 +525,7 @@ function emulated_fseek_for_big_files($fp, $pos)
 function PatchFile()
 {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        return "OK";
+        return uniqid("", true);
     }
     $status = "OK";
     $dirName = params("DirName");
@@ -543,31 +543,26 @@ function PatchFile()
         }
     }
 
+    $patch_handle = fopen('php://input', 'rb');
     if ($offset != 0 && file_exists($fullPath . '.patch.0')) {
-        $fileLen = exec("stat --format=\"%s\" " . escapeshellarg($fullPath) . ".patch.0");
+        $fileLen = real_filesize($fullPath . ".patch.0");
         if (bccomp($fileLen, $offset) == 0) {
             //it's the next patch, we can append the data instead of
             //attempting to create a bunch of patch files to then
             //have to spend time coping over later
-            $file_handle = fopen($fullPath . ".patch.0", 'a');
-            $patch_handle = fopen('php://input', 'r');
-            while (!feof($patch_handle)) {
-                $read = fread($patch_handle, 64 * 1024);
-                fwrite($file_handle, $read);
-            }
-            fclose($patch_handle);
-            fclose($file_handle);
+            file_put_contents($fullPath . '.patch.0', $patch_handle, FILE_APPEND | LOCK_EX);
         } else {
-            file_put_contents($fullPath . '.patch.' . $offset, fopen('php://input', 'r'));
+            file_put_contents($fullPath . '.patch.' . $offset, $patch_handle, LOCK_EX);
         }
     } else {
-        file_put_contents($fullPath . '.patch.' . $offset, fopen('php://input', 'r'));
+        file_put_contents($fullPath . '.patch.' . $offset, $patch_handle, LOCK_EX);
     }
+    fclose($patch_handle);
 
     $size = 0;
     $patch = glob($fullPath . '.patch.*');
     foreach ($patch as $fn) {
-        $fileLen = exec("stat --format=\"%s\" " . escapeshellarg($fn));
+        $fileLen = real_filesize($fn);
         $size = bcadd($size, $fileLen, 0);
     }
     if (bccomp($size, $length, 0) == 0) {
@@ -663,7 +658,7 @@ function PostFile()
 function GetFileInfo(&$list, $dirName, $fileName)
 {
     $fileFullName = $dirName . '/' . $fileName;
-    $filesize = exec("stat --format=\"%s\" \"$fileFullName\"");
+    $filesize = real_filesize($fileFullName);
     if (intval($filesize) < PHP_INT_MAX) {
         $filesize = intval($filesize);
     }

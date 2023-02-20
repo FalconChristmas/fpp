@@ -655,7 +655,7 @@ function PrintSettingGroupTable($group, $appendData = "", $prependData = "", $in
     echo "</div>\n";
 }
 
-function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "", $sData = array())
+function PrintSettingCheckbox($title, $setting, $restart, $reboot, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "", $sData = array())
 {
     global $settings;
     global $pluginSettings;
@@ -787,7 +787,7 @@ function " . $changedFunction . "() {
 
 }
 
-function PrintSettingSelectInternal($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array(), $multiple = false)
+function PrintSettingSelectInternal($title, $setting, $restart, $reboot, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array(), $multiple = false)
 {
     global $settings;
     global $pluginSettings;
@@ -918,11 +918,11 @@ function " . $changedFunction . "() {
 
     echo "</select>\n";
 }
-function PrintSettingMultiSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array())
+function PrintSettingMultiSelect($title, $setting, $restart, $reboot, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array())
 {
     PrintSettingSelectInternal($title, $setting, $restart, $reboot, $defaultValue, $values, $pluginName, $callbackName, $changedFunction, $sData, true);
 }
-function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array())
+function PrintSettingSelect($title, $setting, $restart, $reboot, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array())
 {
     PrintSettingSelectInternal($title, $setting, $restart, $reboot, $defaultValue, $values, $pluginName, $callbackName, $changedFunction, $sData, false);
 }
@@ -1400,6 +1400,21 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
     }
 
     return $return_duration;
+}
+
+
+function real_filesize($fileFullName)
+{
+    global $settings;
+    if ($settings["Platform"] != "MacOS") {
+        $filesize = exec("stat --format=\"%s\" " . escapeshellarg($fileFullName));
+        if (intval($filesize) < PHP_INT_MAX) {
+            $filesize = intval($filesize);
+        }
+        return $filesize;
+    }
+    clearstatcache(true, $fileFullName);
+    return filesize($fileFullName);
 }
 
 /**
