@@ -32,7 +32,7 @@ var fppCommandColorPicker_fppDialogIntervalTimer = null
 var fppCommandColorPicker_fppDialogIsOpen = false;
 var fppCommandColorPicker_loopMaxRetries = 10;
 var fppCommandColorPicker_loopCount = 0;
-var fppCommandColorPicker_intervalMs = 250;
+var fppCommandColorPicker_intervalMs = 150;
 
 if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)) {
     hasTouch = true;
@@ -5859,13 +5859,9 @@ function fppCommandColorPicker() {
                 //try to calculate margins around the modal dialog so we can try correct the color pickers location
                 //the colour picker is using the viewport dimensions but the page we're on is in a modal with a top and left pixel offset
                 var modalDialog_topOffset = Math.round($('.modal-dialog').css('margin-top').replace('px', ''));
-                var modalDialog_headerHeight = Math.round($('.modal-header').outerHeight());
-                var modalDialogFooterHeight = Math.round($('.modal-footer').outerHeight());
-                var modalDialog_bottomOffset = Math.round($('.modal-dialog').css('margin-bottom').replace('px', ''));
-                var modalDialog_leftOffset = $('.modal-dialog').css('margin-left');
-                var colpickNewBottomPad = Math.abs(modalDialogFooterHeight + modalDialog_bottomOffset);
-                var colpickNewTopMargin = -Math.abs(modalDialog_topOffset + modalDialog_headerHeight + colpickNewBottomPad) + 'px';
-
+                var modalDialog_headerHeight = Math.round($('.modal-header').innerHeight());
+                var modalDialog_bodyPaddingHeight = Math.round($('.modal-body').css('padding-top').replace('px', ''));
+                var colpickNewTopMargin = -Math.abs((modalDialog_topOffset + modalDialog_headerHeight)) + modalDialog_bodyPaddingHeight;
 
                 //Add the colour picker to any color elements
                 if (($('[id*="collorpicker_"]').length !== $('.fppCommandColor').length)) {
@@ -5873,8 +5869,8 @@ function fppCommandColorPicker() {
                         layout: 'rgbhex',
                         color: 'auto',
                         submit: false,
-                        appendTo: '.modal-body',
-                        style: {marginTop: colpickNewTopMargin},
+                        appendTo: '.modal-header',
+                        styles: {marginTop: colpickNewTopMargin + "px"},
                         onChange: function (hsb, hex, rgb, el, bySetColor) {
                             $(el).css('background-color', '#' + hex);
                             $(el).attr('value', '#' + hex);
@@ -5900,6 +5896,15 @@ function fppCommandColorPicker() {
                 fppCommandColorPicker_loopCount = 0;
             }
         }, fppCommandColorPicker_intervalMs);
+    }else{
+        //interval loop is defined and most probably running as something might be in the process of changing
+        //cancel it, then start it again
+        clearInterval(fppCommandColorPicker_fppDialogIntervalTimer);
+        fppCommandColorPicker_fppDialogIntervalTimer = null;
+        //reset the loop count so we're ready again
+        fppCommandColorPicker_loopCount = 0;
+        //Start loop again
+        fppCommandColorPicker();
     }
 
 }
