@@ -53,3 +53,13 @@
 	Include conf-available/serve-cgi-bin.conf
 </VirtualHost>
 
+<IfModule !mod_php7.c>
+<IfModule proxy_fcgi_module>
+# Need to make sure flushing from php-fpm will send the packets
+# back to the client immediately instead of waiting for the 16K
+# buffers to completely fill
+    <Proxy fcgi://localhost>
+        ProxySet enablereuse=on flushpackets=on
+    </Proxy>
+</IfModule>
+</IfModule>
