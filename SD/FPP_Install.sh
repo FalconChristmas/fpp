@@ -47,9 +47,9 @@
 #       hardware which does not support Bullseye may have issues.
 #
 #############################################################################
-SCRIPTVER="6.0"
+SCRIPTVER="7.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2022-11"
+FPPIMAGEVER="2023-02"
 FPPCFGVER="74"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -460,6 +460,7 @@ case "${OSVER}" in
 		# Install 10 packages, then clean to lower total disk space required
   
         PHPVER=""
+        ACTUAL_PHPVER="7.4"
         if [ "${OSVER}" == "ubuntu_22.04" -o "${OSVER}" == "linuxmint_21" ]; then
             PHPVER="7.4"
             echo "FPP - Forceing PHP 7.4"
@@ -468,16 +469,19 @@ case "${OSVER}" in
             apt-get -y update
             apt-get -y upgrade
         fi
-
+        if [ "${OSVER}" == "ubuntu_22.10" ]; then
+            ACTUAL_PHPVER="8.1"
+        fi
         PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
-                      apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php${PHPVER} \
+                      apache2 apache2-bin apache2-data apache2-utils \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
                       fbi fbset file flite ca-certificates lshw gettext wget \
                       build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
                       git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
                       mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils \
-                      php${PHPVER} php${PHPVER}-cli php${PHPVER}-common php${PHPVER}-curl php-pear php${PHPVER}-bcmath php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml \
+                      php${PHPVER} php${PHPVER}-cli php${PHPVER}-fpm php${PHPVER}-common php${PHPVER}-curl php-pear \
+                      php${PHPVER}-bcmath php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
                       git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping \
@@ -934,8 +938,8 @@ if [ "${OSVER}" == "ubuntu_22.10" ]; then
     PHPDIR="/etc/php/8.1"
 fi
 
-echo "FPP - Allowing short tags in PHP"
-FILES="cli/php.ini apache2/php.ini"
+echo "FPP - Configuring PHP"
+FILES="cli/php.ini apache2/php.ini fpm/php.ini"
 for FILE in ${FILES}
 do
     if [ -f ${PHPDIR}/${FILE} ]; then
@@ -947,6 +951,17 @@ do
         sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
         sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/${FPPUSER}\/media\/upload/" ${PHPDIR}/${FILE}
         sed -i -e "s/^;max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
+    fi
+done
+FILES="fpm/pool.d/www.conf"
+for FILE in ${FILES}
+do
+    if [ -f ${PHPDIR}/${FILE} ]; then
+        sed -i -e "s/^listen.owner .*/listen.owner = ${FPPUSER}/" ${PHPDIR}/${FILE}
+        sed -i -e "s/^listen.group .*/listen.group = ${FPPUSER}/" ${PHPDIR}/${FILE}
+        sed -i -e "s/^user\ .*/user = ${FPPUSER}/" ${PHPDIR}/${FILE}
+        sed -i -e "s/^group\ .*/group = ${FPPUSER}/" ${PHPDIR}/${FILE}
+        sed -i -e "s/^pm.max_children.*/pm.max_children = 25/" ${PHPDIR}/${FILE}
     fi
 done
 
@@ -1196,13 +1211,17 @@ sed -i -e "s/Listen 8080.*/Listen 80/" /etc/apache2/ports.conf
 cat /opt/fpp/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
 
 # Enable Apache modules
+a2dismod php${ACTUAL_PHPVER}
+a2dismod mpm_prefork
+a2enmod mpm_event
 a2enmod cgi
 a2enmod rewrite
 a2enmod proxy
 a2enmod proxy_http
 a2enmod proxy_html
 a2enmod headers
-
+a2enmod proxy_fcgi setenvif
+a2enconf php${ACTUAL_PHPVER}-fpm
 
 # Fix name of Apache default error log so it gets rotated by our logrotate config
 sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf

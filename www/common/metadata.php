@@ -27,7 +27,7 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
         //Music Directory
 
         //Check the cache for the media name first
-        $media_filesize = filesize($settings['musicDirectory'] . "/" . $mediaName);
+        $media_filesize = real_filesize($settings['musicDirectory'] . "/" . $mediaName);
         $cache_duration = media_duration_cache($mediaName, null, $media_filesize);
         //cache duration will be null if not in cache, then retrieve it
         if ($cache_duration == null) {
@@ -44,7 +44,7 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
         //Check video directory
 
         //Check the cache for the media name first
-        $media_filesize = filesize($settings['videoDirectory'] . "/" . $mediaName);
+        $media_filesize = real_filesize($settings['videoDirectory'] . "/" . $mediaName);
         $cache_duration = media_duration_cache($mediaName, null, $media_filesize);
         //cache duration will be null if not in cache, then retrieve it
         if ($cache_duration == null) {

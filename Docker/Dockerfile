@@ -6,14 +6,14 @@ FROM debian:bullseye
 RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"  alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
-    apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php \
+    apache2 apache2-bin apache2-data apache2-utils \
     bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
     fbi fbset file flite ca-certificates lshw \
     build-essential gcc g++ gdb ccache vim vim-common bison flex device-tree-compiler dh-autoreconf \
     git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
     samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
     mp3info mailutils dhcp-helper parprouted bridge-utils libiio-utils \
-    php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-xml \
+    php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-xml php-fpm php-bcmath \
     libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
     vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
     libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
