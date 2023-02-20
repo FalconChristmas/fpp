@@ -287,7 +287,11 @@ if ($settings['Platform'] == "Raspberry Pi") {
         $settings['Logo'] = "beagle_logo.png";
     }
 } else if ($settings['Platform'] == "Debian" || $settings['Platform'] == "Ubuntu" || $settings['Platform'] == "Mint" || $settings['Platform'] == "Armbian" || $settings['Platform'] == "OrangePi") {
-    $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
+    if (file_exists("/.dockerenv")) {
+        $settings['SubPlatform'] = "Docker";
+    } else {
+        $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
+    }
     $settings['Variant'] = $settings['SubPlatform'];
     if (preg_match('/Orange/', $settings['SubPlatform'])) {
         $settings['Logo'] = "orangepi_logo.png";
