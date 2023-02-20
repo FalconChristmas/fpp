@@ -1,7 +1,9 @@
 #!/bin/bash
 
 PLATFORM=$(uname);
+
 if [ "$PLATFORM" = "Darwin" ]; then
+    PATH=$PATH:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:
     ioreg -d2 -c IOPlatformExpertDevice | awk -F\" '/IOPlatformUUID/{print $(NF-1)}'
     exit 0
 fi

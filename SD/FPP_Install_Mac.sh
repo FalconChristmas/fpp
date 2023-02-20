@@ -9,6 +9,9 @@ else
     BREWLOC="/usr/local"
 fi
 
+export PHP_VERSION=8.2
+
+
 echo "FPP macOS Installation"
 echo ""
 echo "Welcome to the FPP install script for macOS.   Installing FPP on a Mac is"
@@ -129,21 +132,41 @@ sed -i -e "s+#LoadModule proxy+LoadModule proxy+g" $HTTPCONF
 sed -i -e "s+LoadModule proxy_balanc+#LoadModule proxy_balanc+g" $HTTPCONF
 sed -i -e "s+#LoadModule rewrite+LoadModule rewrite+g" $HTTPCONF
 sed -i -e "s+#LoadModule watchdog+LoadModule watchdog+g" $HTTPCONF
+sed -i -e "s+#LoadModule mpm_event+LoadModule mpm_event+g" $HTTPCONF
+sed -i -e "s+LoadModule mpm_prefork+#LoadModule mpm_prefork+g" $HTTPCONF
 sed -i -e "s+User .*+User ${USER}+g" $HTTPCONF
 sed -i -e "s+Group .*+Group staff+g" $HTTPCONF
 sed -i -e "s+DirectoryIndex index.*+DirectoryIndex index.php index.html+g" $HTTPCONF
 sed -i -e "s+${BREWLOC}/var/www+${MEDIADIR}/fpp/www+g" $HTTPCONF
 sed -i -e "s+${BREWLOC}/var/log/httpd/+${MEDIADIR}/logs/apache2-+g" $HTTPCONF
 sed -i -e "s/AllowOverride None/AllowOverride All/1" $HTTPCONF
-echo "LoadModule php_module ${BREWLOC}/lib/httpd/modules/libphp.so" >> $HTTPCONF
-echo "<FilesMatch \.php\$>" >> $HTTPCONF
-echo "    SetHandler application/x-httpd-php" >> $HTTPCONF
-echo "</FilesMatch>" >> $HTTPCONF
-echo "ServerName localhost" >> $HTTPCONF
+
+cat >> $HTTPCONF <<EOF
+ServerName localhost
+
+<IfModule setenvif_module>
+SetEnvIfNoCase ^Authorization$ "(.+)" HTTP_AUTHORIZATION=\$1
+</IfModule>
+<FilesMatch ".+\.ph(ar|p|tml)$">
+    SetEnv proxy-sendchunked
+    SetHandler "proxy:fcgi://127.0.0.1:9000"
+</FilesMatch>
+<FilesMatch ".+\.phps$">
+    # Deny access to raw php sources by default
+    # To re-enable it's recommended to enable access to the files
+    # only in specific virtual host or directory
+    Require all denied
+</FilesMatch>
+# Deny access to files without filename (e.g. '.php')
+<FilesMatch "^\.ph(ar|p|ps|tml)$">
+    Require all denied
+</FilesMatch>
+EOF
 
 
 echo "Configuring PHP"
-PHPCONF="${BREWLOC}/etc/php/8.1/php.ini"
+PHPCONF="${BREWLOC}/etc/php/${PHP_VERSION}/php.ini"
+PHPPOOLCONF="${BREWLOC}/etc/php/${PHP_VERSION}/php-fpm.d/www.conf"
 sed -i -e "s/^max_execution_time =.*/max_execution_time = 1000/g" $PHPCONF
 sed -i -e "s/^max_input_time =.*/max_input_time = 900/g" $PHPCONF
 sed -i -e "s/^.*max_input_vars =.*/max_input_vars = 5000/g" $PHPCONF
@@ -152,6 +175,19 @@ sed -i -e "s/^upload_max_filesize =.*/upload_max_filesize = 4G/g" $PHPCONF
 sed -i -e "s+^.*upload_tmp_dir =.*+upload_tmp_dir = ${MEDIADIR}/upload+g" $PHPCONF
 sed -i -e "s/^default_socket_timeout =.*/default_socket_timeout = 900/g" $PHPCONF
 sed -i -e "s/^short_open_tag =.*/short_open_tag = On/g" $PHPCONF
+sed -i -e "s/^output_buffering.*/output_buffering = 1024/" $PHPCONF
+
+sed -i -e "s+user .*+; user ${USER}+g" $PHPPOOLCONF
+sed -i -e "s+group .*+; group staff+g" $PHPPOOLCONF
+sed -i -e "s+pm.max_children .*+pm.max_children = 25+g" $PHPPOOLCONF
+sed -i -e "s+^;clear_env.*+clear_env = no+g" $PHPPOOLCONF
+
+cat >> $PHPPOOLCONF <<EOF
+
+env[PATH] = /opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Library/Apple/usr/bin:
+
+EOF
+
 
 echo "Configuring FPPD"
 mkdir -p ~/Library/LaunchAgents
