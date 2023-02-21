@@ -780,7 +780,7 @@ populateCCACHE() {
     fi
 
     # set the CCache sizes/flags that we need to be able to successfully compile
-    sudo ccache -M 350M
+    sudo ccache -M 400M
     sudo ccache --set-config=temporary_dir=/tmp
     sudo ccache --set-config=sloppiness=pch_defines,time_macros,locale
     sudo ccache --set-config=pch_external_checksum=true
@@ -792,7 +792,7 @@ function ComputeMakeParallelism() {
     local CPUS=1
     if [ -f "/proc/cpuinfo" ]; then
         CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
-        
+
         if [[ ${CPUS} -gt 1 ]]; then
             MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
             if [[ ${MEMORY} -lt 425000 ]]; then
@@ -820,11 +820,14 @@ compileBinaries() {
     cleanCompiledBinaries
     populateCCACHE
 
-	# export CCACHE_LOGFILE=/tmp/cache.debug
-	export LANG=en_US.UTF-8
-	export TERM=linux
- 
+    # export CCACHE_LOGFILE=/tmp/cache.debug
+    export LANG=en_US.UTF-8
+    export TERM=linux
+
     CPUS=$(ComputeMakeParallelism)
+
+    # Need to unset HOME so that ccache will user /root instead of /home/fpp
+    unset HOME
 
     # Stop fppd on systems with really low memory
     MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
