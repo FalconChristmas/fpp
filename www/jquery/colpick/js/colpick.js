@@ -83,6 +83,9 @@
         //Called when the new color is changed
             change = function () {
                 var cal = $(this).parent().parent(), col;
+
+                if (!cal.data('colpick')) { return; }
+
                 if (this.parentNode.className.indexOf('_hex') > 0) {
                     cal.data('colpick').color = col = hexToHsb(fixHex(this.value));
                     fillRGBFields(col, cal.get(0));
@@ -153,6 +156,7 @@
                     cal: $(this).parent(),
                     y: $(this).offset().top
                 };
+                if (!current.cal.data('colpick')) { return false; }
                 $(document).on('mouseup touchend', current, upHue);
                 $(document).on('mousemove touchmove', current, moveHue);
 
@@ -166,6 +170,8 @@
                 return false;
             },
             moveHue = function (ev) {
+                if (!ev.data.cal.data('colpick')) { return false; }
+
                 var pageY = ((ev.type == 'touchmove') ? ev.originalEvent.changedTouches[0].pageY : ev.pageY );
                 change.apply(
                     ev.data.cal.data('colpick')
@@ -176,6 +182,8 @@
                 return false;
             },
             upHue = function (ev) {
+                if (!ev.data.cal.data('colpick')) { return false; }
+
                 fillRGBFields(ev.data.cal.data('colpick').color, ev.data.cal.get(0));
                 fillHexFields(ev.data.cal.data('colpick').color, ev.data.cal.get(0));
                 $(document).off('mouseup touchend', upHue);
@@ -189,6 +197,7 @@
                     cal: $(this).parent(),
                     pos: $(this).offset()
                 };
+                if (!current.cal.data('colpick')) { return false; }
                 current.preview = current.cal.data('colpick').livePreview;
 
                 $(document).on('mouseup touchend', current, upSelector);
@@ -213,6 +222,8 @@
                 return false;
             },
             moveSelector = function (ev) {
+                if (!ev.data.cal.data('colpick')) { return false; }
+
                 var pageX, pageY;
                 if (ev.type == 'touchmove') {
                     pageX = ev.originalEvent.changedTouches[0].pageX;
@@ -232,6 +243,8 @@
                 return false;
             },
             upSelector = function (ev) {
+                if (!ev.data.cal.data('colpick')) { return false; }
+
                 fillRGBFields(ev.data.cal.data('colpick').color, ev.data.cal.get(0));
                 fillHexFields(ev.data.cal.data('colpick').color, ev.data.cal.get(0));
                 $(document).off('mouseup touchend', upSelector);
@@ -497,7 +510,21 @@
                 });
             },
             destroy: function () {
-                $('#' + $(this).data('colpickId')).remove();
+                var el = $(this);
+
+                $('#' + el.data('colpickId')).remove();
+
+                el.removeData('colpickId');
+
+                // unbind all events
+                var doc = $(document);
+                doc.off('mouseup touchend', upHue);
+                doc.off('mousemove touchmove', moveHue);
+                doc.off('mouseup touchend', upSelector);
+                doc.off('mousemove touchmove', moveSelector);
+                doc.off('mouseup', upIncrement);
+                doc.off('mousemove', moveIncrement);
+                $('html').off('mousedown', hide);
             }
         };
     }();
