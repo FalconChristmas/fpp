@@ -5843,34 +5843,44 @@ function fppCommandColorPicker() {
     if (typeof (fppCommandColorPicker_fppDialogIntervalTimer) === 'undefined' || fppCommandColorPicker_fppDialogIntervalTimer === null) {
         //Use a interval timer to keep waiting for a open modal to then apply the colpicker
         fppCommandColorPicker_fppDialogIntervalTimer = setInterval(function () {
-            // do your thing
 
-            if ($('.modal-body').is(":visible") === false) {
-                fppCommandColorPicker_fppDialogIsOpen = false;
+            //Detect if the modal is visible now
+            if ($('.modal-body').is(":visible") === true) {
+                fppCommandColorPicker_fppDialogIsOpen = true;
 
-                //When the modal content is hidden, Unbind events from the colour input element so they aren't pointing to invalid colour pickers next time
+                //Do some cleanup of the old pickers
+                //When the modal content is hidden, Destroy the colorpicker using it's built in function
+                $('.fppCommandColor').colpickDestroy();
+                //Unbind events from our picker inputs
                 $('.fppCommandColor').off();
 
                 // Destroy existing colour pickers
-                $('[id*="collorpicker_"]').remove();
-            } else {
-                fppCommandColorPicker_fppDialogIsOpen = true;
+                $('div[id*="collorpicker_"]').remove();
 
                 //try to calculate margins around the modal dialog so we can try correct the color pickers location
                 //the colour picker is using the viewport dimensions but the page we're on is in a modal with a top and left pixel offset
                 var modalDialog_topOffset = Math.round($('.modal-dialog').css('margin-top').replace('px', ''));
+                var modalDialog_LeftOffset = Math.round($('.modal-dialog').css('margin-left').replace('px', ''));
                 var modalDialog_headerHeight = Math.round($('.modal-header').innerHeight());
                 var modalDialog_bodyPaddingHeight = Math.round($('.modal-body').css('padding-top').replace('px', ''));
                 var colpickNewTopMargin = -Math.abs((modalDialog_topOffset + modalDialog_headerHeight)) + modalDialog_bodyPaddingHeight;
 
-                //Add the colour picker to any color elements
-                if (($('[id*="collorpicker_"]').length !== $('.fppCommandColor').length)) {
+                //Add the colour picker to any color elements if we don't have as many as there are colour inputs
+                if (($('div[id*="collorpicker_"]').length !== $('.fppCommandColor').length)) {
+                    //Ideally we want to append to the modals footer element, but this doesn't exist on the commandPresets page
+                    var appendToElement = ".modal-footer"
+                    //If the footer doesn't exist, append to the header (sounds weird but it works and allows the colour picker to float over the footer and not get obscured begin it)
+                    if ($('.modal-footer').length === 0) {
+                        appendToElement = ".modal-header"
+                    }
+
+                    //Add the pickers again
                     $('.fppCommandColor').colpick({
                         layout: 'rgbhex',
                         color: 'auto',
                         submit: false,
-                        appendTo: '.modal-header',
-                        styles: {marginTop: colpickNewTopMargin + "px"},
+                        appendTo: appendToElement,
+                        styles: {marginLeft: modalDialog_LeftOffset, marginTop: colpickNewTopMargin + "px"},
                         onChange: function (hsb, hex, rgb, el, bySetColor) {
                             $(el).css('background-color', '#' + hex);
                             $(el).attr('value', '#' + hex);
@@ -5885,6 +5895,9 @@ function fppCommandColorPicker() {
                         }
                     });
                 }
+            }else{
+                //Not found yet so keep looping
+                fppCommandColorPicker_fppDialogIsOpen = false;
             }
 
             fppCommandColorPicker_loopCount++;
@@ -5896,15 +5909,10 @@ function fppCommandColorPicker() {
                 fppCommandColorPicker_loopCount = 0;
             }
         }, fppCommandColorPicker_intervalMs);
-    }else{
+    } else {
         //interval loop is defined and most probably running as something might be in the process of changing
-        //cancel it, then start it again
-        clearInterval(fppCommandColorPicker_fppDialogIntervalTimer);
-        fppCommandColorPicker_fppDialogIntervalTimer = null;
-        //reset the loop count so we're ready again
+        //reset the loop count to give it more time
         fppCommandColorPicker_loopCount = 0;
-        //Start loop again
-        fppCommandColorPicker();
     }
 
 }

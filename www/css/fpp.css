@@ -2610,9 +2610,9 @@ input[type=search].tablesorter-filter:disabled {
 input[type="color"] {
 	-webkit-appearance: none;
 	border: none;
-	width: 46px;
-	height: 33px;
-	padding-left: 0 !important;
+	width: 5em;
+	height: 2em;
+	/*padding-left: 0 !important;*/
 }
 
 /*Chrome, Safari Opera */
