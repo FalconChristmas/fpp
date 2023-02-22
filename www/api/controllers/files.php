@@ -216,7 +216,7 @@ function MoveFile()
 {
     global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $imageDirectory, $configDirectory, $SUDO;
 
-    $file = params("fileName");
+    $file = urldecode(params("fileName"));
 
     // Fix double quote uploading by simply moving the file first, if we find it with URL encoding
     if (strstr($file, '"')) {
@@ -473,7 +473,7 @@ function DeleteFile()
 {
     $status = "File not found";
     $dirName = params("DirName");
-    $fileName = params("Name");
+    $fileName = urldecode(params("Name"));
 
     $dir = GetDirSetting($dirName);
     $fullPath = "$dir/$fileName";
@@ -608,7 +608,7 @@ function PostFile()
 {
     $status = "OK";
     $dirName = params("DirName");
-    $fileName = params("Name");
+    $fileName = urldecode(params("Name"));
 
     $dir = GetDirSetting($dirName);
     $fullPath = "$dir/$fileName";
