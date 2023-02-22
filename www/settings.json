@@ -191,7 +191,6 @@
             "settings": [
                 "EnableTethering",
                 "TetherInterface",
-                "TetherTechnology",
                 "TetherSSID",
                 "TetherPSK"
             ]
@@ -2074,22 +2073,6 @@
             "size": 32,
             "maxlength": 32,
             "default": "FPP"
-        },
-        "TetherTechnology": {
-            "name": "TetherTechnology",
-            "description": "Tethering Technology",
-            "gatherStats": true,
-            "tip": "FPP WiFi tethering technology to use.",
-            "reboot": 1,
-            "default": 0,
-            "type": "select",
-            "checkFile": [
-                "/usr/bin/connmanctl"
-            ],
-            "options": {
-                "Hostapd": 0,
-                "ConnMan": 1
-            }
         },
         "TimeFormat": {
             "name": "TimeFormat",

@@ -58,8 +58,7 @@
 # Need to make sure flushing from php-fpm will send the packets
 # back to the client immediately instead of waiting for the 16K
 # buffers to completely fill
-    <Proxy fcgi://localhost>
-        ProxySet enablereuse=on flushpackets=on
+    <Proxy fcgi://localhost enablereuse=on flushpackets=on>
     </Proxy>
 </IfModule>
 </IfModule>

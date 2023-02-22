@@ -88,153 +88,7 @@ EOF
     fi
 }
 
-SetupFPPNetworkConfigViaConnMann() {
 
-    CONFIGS=`ls ${FPPHOME}/media/config/interface.w*; ls ${FPPHOME}/media/config/interface.e*`
-
-    DEFGW="none"
-    DNS1=""
-    DNS2=""
-    if [ -f "${FPPHOME}/media/config/dns" ]
-    then
-        . ${FPPHOME}/media/config/dns
-    fi
-    DNS=""
-    if [ "x$DNS1" != "x" ]
-    then
-        DNS="$DNS1"
-    fi
-    if [ "x$DNS2" != "x" ]
-    then
-        DNS="$DNS1,$DNS2"
-    fi
-
-    WifiRegulatoryDomain=$(getSetting WifiRegulatoryDomain)
-    if [ "$WifiRegulatoryDomain" == "" ]; then
-        WifiRegulatoryDomain="US"
-    fi
-    iw reg set "$WifiRegulatoryDomain"
-
-    TMPFILE="/var/tmp/fpp.config"
-    rm -f ${TMPFILE}
-
-    for f in $CONFIGS; do
-	unset SSID
-	unset PSK
-	unset INTERFACE
-	unset MAC
-	unset HIDDEN
-	unset PROTO
-	unset GATEWAY
-	unset NETMASK
-	unset ADDRESS
-    unset DOWAIT
-        . ${f}
-
-        # Handle the PSK differently since variable substitution is
-        # performed when sourcing the config file which prevents using a PSK
-        # with a dollar sign in it.  Rather than trying to escape/unescape
-        # things in the settings UI code, handle it here.
-        PSK=$(grep "^PSK=" ${f} | sed -e "s/^PSK=\"//" -e "s/\"$//")
-
-        DOWAIT=0
-        echo "[service_$INTERFACE]" >> ${TMPFILE}
-        if [ "x$SSID" != "x" ]
-        then
-            echo "Name=${SSID}" >> $TMPFILE
-            DOWAIT=1
-        fi
-        if [ "x$PSK" != "x" ]
-        then
-            echo "Security=psk" >> $TMPFILE
-            echo "Passphrase=${PSK}" >> $TMPFILE
-            DOWAIT=1
-        fi
-
-        if [[ "$INTERFACE" == "wl"* ]] ; then
-            echo "Type=wifi"  >> $TMPFILE
-            if [ "$HIDDEN" == "1" ]; then
-                echo "Hidden=true" >> $TMPFILE
-            fi
-        else
-            echo "Type=ethernet"  >> $TMPFILE
-        fi
-        if [ "$PROTO" = "dhcp" ]; then
-            echo "IPv4=dhcp"  >> $TMPFILE
-            if [ "x$DNS" != "x" ]; then
-                echo "Nameservers=${DNS}" >> $TMPFILE
-            fi
-        else
-            DOWAIT=1
-            if [ "x$GATEWAY" != "x" ]; then
-                echo "IPv4=$ADDRESS/$NETMASK/$GATEWAY" >> $TMPFILE
-                if [ "x$DNS" != "x" ]; then
-                    echo "Nameservers=${DNS}" >> $TMPFILE
-                fi
-            elif [ "$DEFGW" == "none" ]; then
-                echo "IPv4=$ADDRESS/$NETMASK" >> $TMPFILE
-            else
-                echo "IPv4=$ADDRESS/$NETMASK/$DEFGW" >> $TMPFILE
-            fi
-        fi
-        if [ "$DOWAIT" == "1" ]; then
-            BOOTDELAY=$(getSetting bootDelay)
-            let "BOOTDELAY=$BOOTDELAY + 10"
-            for i in {1..$BOOTDELAY}
-            do
-                # wait up to 10 seconds for interface to become available
-                if [ ! -f "/sys/class/net/${INTERFACE}/address" ]; then
-                    echo "Waiting for ${INTERFACE} to be available..."
-                    sleep 1
-                fi
-            done
-        fi
-        if [ -f "/sys/class/net/${INTERFACE}/address" ]; then
-            MACA=$(<"/sys/class/net/${INTERFACE}/address")
-            echo "MAC=${MACA}" >> $TMPFILE
-        fi
-
-        echo ""  >> $TMPFILE
-        echo ""  >> $TMPFILE
-    done
-    rm -rf /var/lib/connman/wifi_*
-    rm -rf /var/lib/connman/ethernet_*
-    rm -f /var/lib/connman/fpp.config
-    if [ -f "$TMPFILE" ]; then
-        cp $TMPFILE /var/lib/connman/fpp.config
-    fi
-    TetherEnabled=$(getSetting EnableTethering)
-    TetherTechnology=$(getSetting TetherTechnology)
-    sed -i -e 's/Tethering=true/Tethering=false/g' /var/lib/connman/settings
-    if [ -f "/etc/default/bb-wl18xx" ]; then
-        sed -i -e "s/TETHER_ENABLED=.*/TETHER_ENABLED=no/g" /etc/default/bb-wl18xx
-    fi
-    if [ "$TetherTechnology" == "1" ]; then
-        if [ "$TetherEnabled" != "1" ]; then
-            if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-                check_dnsmasq=$(systemctl is-enabled dnsmasq.service || true)
-                if [ "x${check_dnsmasq}" = "xdisabled" ] ; then
-                    systemctl enable dnsmasq &
-                fi
-            fi
-        elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-            check_dnsmasq=$(systemctl is-enabled dnsmasq.service || true)
-            if [ "x${check_dnsmasq}" = "xenabled" ] ; then
-                systemctl disable dnsmasq &
-            fi
-        fi
-    else
-        AttemptCreateSoftAP
-    fi
-    if [ "$TetherEnabled" != "1" ]; then
-        # make sure tethering is off
-        rm -f /etc/dnsmasq.d/fpp-tether
-        ISENABLED=$(systemctl is-enabled hostapd)
-        if [ "$ISENABLED" == "enabled" ]; then
-            systemctl disable hostapd
-        fi
-    fi
-}
 if [ "${FPPPLATFORM}" != "MacOS" ]; then
 declare -A NETMASK2SUBNET=(
     ['255.255.255.252']='30'
@@ -462,18 +316,8 @@ SetupFPPNetworkConfig () {
     if [ -f /sbin/rfkill ]; then
         rfkill unblock wifi; rfkill unblock all
     fi
-    if [ -f /usr/bin/connmanctl ]; then
-        SetupFPPNetworkConfigViaConnMann
-        ENABLEROUTING=$(getSetting EnableRouting)
-        if [ "x${ENABLEROUTING}" = "x1" ]
-        then
-            sysctl -w net.ipv4.ip_forward=1
-        else
-            sysctl -w net.ipv4.ip_forward=0
-        fi
-    else
-        SetupFPPNetworkConfigViaSystemdNetworkd
-    fi
+
+    SetupFPPNetworkConfigViaSystemdNetworkd
 }
 
 WaitForInterfacesUp() {
@@ -493,12 +337,11 @@ WaitForInterfacesUp() {
             break
         done
 	if [ -z "$IPS" ]; then
-            #on some adapters, we need to down/up in order for connman to be able
+            #on some adapters, we need to down/up in order to be able
             #to detect the link on it and attach to wifi
             ifconfig wlan0 down
             sleep 1
             ifconfig wlan0 up
-            #connmanctl scan wifi
             # Loop up to 8 times, so max wait time is 8 * 2
             for i in {1..8}
             do
@@ -512,27 +355,6 @@ WaitForInterfacesUp() {
         fi
     fi
 
-    if [ -f /usr/bin/connmanctl ]; then
-        CONFIGS=`ls ${FPPHOME}/media/config/interface.w* 2> /dev/null; ls ${FPPHOME}/media/config/interface.e* 2> /dev/null`
-        for f in $CONFIGS; do
-        . ${f}
-        if [ "x$GATEWAY" != "x" ]; then
-             DEFGW=${GATEWAY}
-        fi
-        done
-        if [ "x$DEFGW" == "x" ]; then
-            # no gateway defined
-            CURDIR=$(pwd)
-            ETHS=`ls -d ether* 2> /dev/null`
-            WIFIS=`ls -d wifi* 2> /dev/null`
-            if [ "x$WIFIS" != "x" ]; then
-                for f in $ETHS; do
-                connmanctl move-before $WIFIS $f
-                done
-            fi
-            cd "${CURDIR}"
-        fi
-    fi
     #turn off power management on wireless... not all adapters
     # support this so just /dev/null any output
     WLDEVICES=$(ls -d /sys/class/net/wl*)
@@ -612,73 +434,27 @@ MaybeEnableTethering() {
     fi
 
     if [ "$TetherEnabled" == "1" ]; then
-        if [ ! -f /usr/bin/connmanctl ]; then
-            CreateHostAPDConfig ${TetherInterface}
-            TMPFILE="/var/tmp/10-${TetherInterface}.network"
-            rm -f ${TMPFILE}
-            echo "[Match]" >> ${TMPFILE}
-            echo "Name=${TetherInterface}" >> $TMPFILE
-            echo "Type=wlan"  >> $TMPFILE
-            echo "" >> $TMPFILE
-            echo "[Network]" >> $TMPFILE
-            echo "DHCP=no" >> $TMPFILE
-            echo "Address=192.168.8.1/24" >> $TMPFILE
-            echo "DHCPServer=yes" >> $TMPFILE
-            echo "" >> $TMPFILE
-            
-            echo "[DHCPServer]" >> $TMPFILE
-            echo "PoolOffset=10" >> $TMPFILE
-            echo "PoolSize=100" >> $TMPFILE
-            echo "EmitDNS=no" >> $TMPFILE
-            
-            cp $TMPFILE /etc/systemd/network
-            systemctl reload-or-restart systemd-networkd.service
-            systemctl reload-or-restart hostapd.service
-        else
-            TetherTechnology=$(getSetting TetherTechnology)
-            if [ "$TetherTechnology" == "1" ]; then
-                if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-                    systemctl disable dnsmasq
-                    systemctl stop dnsmasq
-                fi
-                TetherSSID=$(getSetting TetherSSID)
-                TetherPSK=$(getSetting TetherPSK)
-                if [ "${TetherSSID}x" == "x" ]; then
-                    TetherSSID="FPP"
-                fi
-                if [ "${TetherPSK}x" == "x" ]; then
-                    TetherPSK="Christmas"
-                fi
-                connmanctl tether wifi on "${TetherSSID}" "${TetherPSK}"
-            else
-                AttemptCreateSoftAP
-                if [ -e "/sys/class/net/SoftAp0" ]; then
-                    TetherInterface="SoftAp0"
-                fi
-
-                systemctl stop dnsmasq
-
-cat > /etc/dnsmasq.d/fpp-tether <<-EOF
-interface=${TetherInterface}
-dhcp-range=${TetherInterface},192.168.8.2,192.168.8.20,255.255.255.0,24h
-listen-address=192.168.8.1
-dhcp-option=${TetherInterface},3
-dhcp-option=${TetherInterface},6
-EOF
-                CreateHostAPDConfig ${TetherInterface}
-
-                /sbin/ifconfig ${TetherInterface} 192.168.8.1 netmask 255.255.255.0
-
-                echo 1 > /proc/sys/net/ipv4/ip_forward
-                iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-                iptables -A FORWARD -i eth0 -o  ${TetherInterface} -m state --state RELATED,ESTABLISHED -j ACCEPT
-                iptables -A FORWARD -i  ${TetherInterface} -o eth0 -j ACCEPT
-
-                systemctl unmask hostapd
-                systemctl start dnsmasq
-                systemctl start hostapd
-            fi
-        fi
+        CreateHostAPDConfig ${TetherInterface}
+        TMPFILE="/var/tmp/10-${TetherInterface}.network"
+        rm -f ${TMPFILE}
+        echo "[Match]" >> ${TMPFILE}
+        echo "Name=${TetherInterface}" >> $TMPFILE
+        echo "Type=wlan"  >> $TMPFILE
+        echo "" >> $TMPFILE
+        echo "[Network]" >> $TMPFILE
+        echo "DHCP=no" >> $TMPFILE
+        echo "Address=192.168.8.1/24" >> $TMPFILE
+        echo "DHCPServer=yes" >> $TMPFILE
+        echo "" >> $TMPFILE
+        
+        echo "[DHCPServer]" >> $TMPFILE
+        echo "PoolOffset=10" >> $TMPFILE
+        echo "PoolSize=100" >> $TMPFILE
+        echo "EmitDNS=no" >> $TMPFILE
+        
+        cp $TMPFILE /etc/systemd/network
+        systemctl reload-or-restart systemd-networkd.service
+        systemctl reload-or-restart hostapd.service
     fi
 }
 

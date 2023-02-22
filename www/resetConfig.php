@@ -35,8 +35,7 @@ $files['config'] = array(
     'exim4/*'
 );
 $files['network'] = array(
-    'config/interface.*',
-    '/var/lib/connman/fpp.config'
+    'config/interface.*'
 );
 $files['media'] = array(
     'images/*',

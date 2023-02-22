@@ -592,13 +592,6 @@ include 'menu.inc';?>
         Tethering
       </a>
     </li>
-<?if (file_exists("/usr/bin/connmanctl")) {?>
-    <li class="nav-item">
-      <a class="nav-link" id="tab-interface-routing-tab" data-toggle="tab" href="#tab-interface-routing" role="tab" aria-controls="tab-interface-routing" aria-selected="false">
-        Interface Routing
-      </a>
-    </li>
-<?}?>
   </ul>
   <div class="tab-content">
     <div class="tab-pane fade show active" id="tab-interface-settings" role="tabpanel" aria-labelledby="interface-settings-tab">
@@ -762,12 +755,6 @@ PrintSettingGroup('tethering');
 
 
 
-    </div>
-    <div class="tab-pane fade" id="tab-interface-routing" role="tabpanel" aria-labelledby="tab-interface-routing-tab">
-
-      <h2>Interface Routing</h2>
-          <?PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0");?> Enable Routing between
-                  network interfaces
     </div>
   </div>
 
