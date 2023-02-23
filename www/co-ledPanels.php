@@ -1372,17 +1372,9 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
                     <div class="printSettingFieldCola col-md-3 col-lg-3">
                         <script>
                             function LEDPanelsSizeChanged() {
-                                var value = encodeURIComponent($('#LEDPanelsSize').val());
-
-                                $.get('fppjson.php?command=setSetting&plugin=&key=LEDPanelsSize&value=' + value)
-                                    .done(function() {
-                                        $.jGrowl('Panel Size saved',{themeState:'success'});
+                                SetSetting("LEDPanelsSize", $('#LEDPanelsSize').val(), 1, 0, false, null, function() {
                                         settings['LEDPanelsSize'] = value;
                                         LEDPanelLayoutChanged();
-                                        SetRestartFlag(1);
-
-                                    }).fail(function() {
-                                    DialogError('Panel Size', 'Failed to save Panel Size');
                                 });
                             }
                         </script>

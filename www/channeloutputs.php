@@ -2,10 +2,10 @@
 <html>
 <head>
 <?php
-require_once("common.php");
-require_once('config.php');
-require_once('universeentry.php');
-require_once('fppdefines.php');
+require_once "common.php";
+require_once 'config.php';
+require_once 'universeentry.php';
+require_once 'fppdefines.php';
 include 'common/menuHead.inc';
 
 //$settings['Platform'] = "Raspberry Pi"; // Uncomment for testing
@@ -19,7 +19,7 @@ var currentCapeName = '';
 <?
 $currentCape = "";
 $currentCapeInfo = json_decode("{ \"provides\": [\"all\"]}", true);
-if (isSet($settings['cape-info'])) {
+if (isset($settings['cape-info'])) {
     $currentCapeInfo = $settings['cape-info'];
     $currentCape = $currentCapeInfo["id"];
     echo "<!-- current cape is " . $currentCape . "-->\n";
@@ -34,7 +34,7 @@ if (!isset($currentCapeInfo['provides'])) {
 } else if (isset($settings["showAllOptions"]) && $settings["showAllOptions"] == 1) {
     $currentCapeInfo['provides'][] = "all";
     $currentCapeInfo['provides'][] = "fpd";
-} else if ($uiLevel >= 2) { 
+} else if ($uiLevel >= 2) {
     $currentCapeInfo['provides'][] = "all";
 } else if ($uiLevel == 1) {
     if (!isset($currentCapeInfo['provides']) || count($currentCapeInfo['provides']) == 0) {
@@ -99,10 +99,8 @@ function GetChannelOutputConfig()
 function SaveChannelOutputsJSON()
 {
 	var configStr = GetChannelOutputConfig();
-
-	var postData = "command=setChannelOutputs&file=channelOutputsJSON&data=" + encodeURIComponent(JSON.stringify(configStr));
-
-	$.post("fppjson.php", postData
+	$.post("api/configfile/channeloutputs.json",
+        configStr
 	).done(function(data) {
 		$.jGrowl(" Channel Output configuration saved",{themeState:'success'});
 		SetRestartFlag(1);
@@ -136,16 +134,15 @@ function okToAddNewInput(type)
 
 $channelOutputs = array();
 $channelOutputsJSON = "";
-if (file_exists($settings['channelOutputsJSON']))
-{
-	$channelOutputsJSON = file_get_contents($settings['channelOutputsJSON']);
+if (file_exists($settings['channelOutputsJSON'])) {
+    $channelOutputsJSON = file_get_contents($settings['channelOutputsJSON']);
     $channelOutputs = json_decode($channelOutputsJSON, true);
-	$channelOutputsJSON = preg_replace("/\n|\r/", "", $channelOutputsJSON);
-	$channelOutputsJSON = preg_replace("/\"/", "\\\"", $channelOutputsJSON);
+    $channelOutputsJSON = preg_replace("/\n|\r/", "", $channelOutputsJSON);
+    $channelOutputsJSON = preg_replace("/\"/", "\\\"", $channelOutputsJSON);
 }
 
 // If led panels are enabled, make sure the page is displayed even if the cape is a string cape (could be a colorlight output)
-if ($channelOutputs != null && $channelOutputs['channelOutputs'] != null && $channelOutputs['channelOutputs'][0] != null ) {
+if ($channelOutputs != null && $channelOutputs['channelOutputs'] != null && $channelOutputs['channelOutputs'][0] != null) {
     if ($channelOutputs['channelOutputs'][0]['type'] == "LEDPanelMatrix" && $channelOutputs['channelOutputs'][0]['enabled'] == 1) {
         $currentCapeInfo["provides"][] = 'panels';
     }
@@ -166,7 +163,7 @@ function handleCOKeypress(e)
 $(document).ready(function(){
 	$(document).on('keydown', handleCOKeypress);
 
-	var channelOutputsJSON = "<? echo $channelOutputsJSON; ?>";
+	var channelOutputsJSON = "<?echo $channelOutputsJSON; ?>";
 
 	if (channelOutputsJSON != "")
 		channelOutputs = jQuery.parseJSON(channelOutputsJSON);
@@ -178,53 +175,53 @@ $(document).ready(function(){
 });
 
 </script>
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 </head>
 <body>
 	<div id="bodyWrapper">
-		<?php 
-		$activeParentMenuItem = 'input-output';
-		include 'menu.inc'; ?>
+		<?php
+$activeParentMenuItem = 'input-output';
+include 'menu.inc';?>
   <div class="mainContainer">
-	
+
 <div id='channelOutputManager'>
 		<h1 class='title'>Channel Outputs</h1>
 		<div class="pageContent">
 <?
-            $lpTabStyle = " hidden";
-            $stringTabStyle = " hidden";
-            $e131TabStyle = " hidden";
-            $e131TabStyleActive = "";
-            $lpTabStyleActive = "";
-            $stringTabStyleActive = "";
+$lpTabStyle = " hidden";
+$stringTabStyle = " hidden";
+$e131TabStyle = " hidden";
+$e131TabStyleActive = "";
+$lpTabStyleActive = "";
+$stringTabStyleActive = "";
 
-			if (in_array('all', $currentCapeInfo["provides"])) {
-                $lpTabStyle = "";
-                $e131TabStyle = "";  
-                $stringTabStyle = "";  
-            } else {
-                if (in_array('udp', $currentCapeInfo["provides"])) {
-                    $e131TabStyle = "";
-                }
-                if (in_array('strings', $currentCapeInfo["provides"])) {
-                    $stringTabStyle = "";
-                }
-                if (in_array('panels', $currentCapeInfo["provides"])
-			        || !in_array('strings', $currentCapeInfo["provides"])) {
-                    $lpTabStyle = "";
-                }
-                if (!in_array('panels', $currentCapeInfo["provides"])
-			        && !in_array('strings', $currentCapeInfo["provides"])) {
-                    $e131TabStyle = "";
-                }
-            }
-            if ($e131TabStyle == "") {
-                $e131TabStyleActive = "active";
-            } else if ($stringTabStyle == "") {
-                $stringTabStyleActive = "active";
-            } else if ($lpTabStyle == "") {
-                $lpTabStyleActive = "active";
-            }
+if (in_array('all', $currentCapeInfo["provides"])) {
+    $lpTabStyle = "";
+    $e131TabStyle = "";
+    $stringTabStyle = "";
+} else {
+    if (in_array('udp', $currentCapeInfo["provides"])) {
+        $e131TabStyle = "";
+    }
+    if (in_array('strings', $currentCapeInfo["provides"])) {
+        $stringTabStyle = "";
+    }
+    if (in_array('panels', $currentCapeInfo["provides"])
+        || !in_array('strings', $currentCapeInfo["provides"])) {
+        $lpTabStyle = "";
+    }
+    if (!in_array('panels', $currentCapeInfo["provides"])
+        && !in_array('strings', $currentCapeInfo["provides"])) {
+        $e131TabStyle = "";
+    }
+}
+if ($e131TabStyle == "") {
+    $e131TabStyleActive = "active";
+} else if ($stringTabStyle == "") {
+    $stringTabStyleActive = "active";
+} else if ($lpTabStyle == "") {
+    $lpTabStyleActive = "active";
+}
 ?>
 
 			<ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
@@ -236,50 +233,54 @@ $(document).ready(function(){
 
 		<?
 
-            if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
-                ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
-                $stringTabText="Pixel Strings";
-                if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-                    if ((isset($settings['cape-info'])) &&
-                        ((in_array('all', $settings['cape-info']["provides"])) || (in_array('strings', $settings['cape-info']["provides"]))) &&
-                        (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")) {
-                        $stringTabText = $currentCapeInfo["name"];
-                        if (in_array('all', $settings['cape-info']["provides"]) || in_array('panels', $settings['cape-info']["provides"]))
-                            $stringTabText .= " Pixel Strings";
-                    }
-                }
-                ?>
+if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
+    ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
+    $stringTabText = "Pixel Strings";
+    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+        if ((isset($settings['cape-info'])) &&
+            ((in_array('all', $settings['cape-info']["provides"])) || (in_array('strings', $settings['cape-info']["provides"]))) &&
+            (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")) {
+            $stringTabText = $currentCapeInfo["name"];
+            if (in_array('all', $settings['cape-info']["provides"]) || in_array('panels', $settings['cape-info']["provides"])) {
+                $stringTabText .= " Pixel Strings";
+            }
+
+        }
+    }
+    ?>
                 <li class="nav-item <?=$stringTabStyle?>" id="tab-strings-LI" >
                     <a class="nav-link <?=$stringTabStyleActive?>" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
-                        <? echo $stringTabText; ?>
+                        <?echo $stringTabText; ?>
                     </a>
                 </li>
                 <?
-            }
-			if ($settings['Platform'] == "Raspberry Pi") {
-				if (in_array('fpd', $currentCapeInfo["provides"])) {
-					?>
+}
+if ($settings['Platform'] == "Raspberry Pi") {
+    if (in_array('fpd', $currentCapeInfo["provides"])) {
+        ?>
 						<li class="nav-item">
 							<a class="nav-link" id="tab-fpd-tab" tabType='FPD' data-toggle="pill" href='#tab-fpd' role="tab" aria-controls="tab-fpd">
 								Falcon Pixelnet/DMX
 							</a>
 						</li>
 					<?
-				}
-            }
+    }
+}
 
-            $ledTabText="LED Panels";
-            if ((isset($settings['cape-info'])) &&
-                ((in_array('all', $settings['cape-info']["provides"])) || (in_array('panels', $settings['cape-info']["provides"]))) &&
-                (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")) {
-                $ledTabText = $currentCapeInfo["name"];
-                if (in_array('all', $settings['cape-info']["provides"]) || in_array('strings', $settings['cape-info']["provides"]))
-                    $ledTabText .= " LED Panels";
-            }
-				?>
+$ledTabText = "LED Panels";
+if ((isset($settings['cape-info'])) &&
+    ((in_array('all', $settings['cape-info']["provides"])) || (in_array('panels', $settings['cape-info']["provides"]))) &&
+    (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")) {
+    $ledTabText = $currentCapeInfo["name"];
+    if (in_array('all', $settings['cape-info']["provides"]) || in_array('strings', $settings['cape-info']["provides"])) {
+        $ledTabText .= " LED Panels";
+    }
+
+}
+?>
 						<li class="nav-item <?=$lpTabStyle?>" id="tab-LEDPanels-LI">
 							<a class="nav-link <?=$lpTabStyleActive?>" id="tab-LEDPanels-tab" tabType='panels' data-toggle="pill" href='#tab-LEDPanels' role="tab" aria-controls="tab-LEDPanels">
-                                <? echo $ledTabText; ?>
+                                <?echo $ledTabText; ?>
 							</a>
 						</li>
 						<li class="nav-item">
@@ -302,53 +303,53 @@ if ($e131TabStyle == "") {
 
 		<div class="tab-content" id="channelOutputTabsContent">
 			<div class="tab-pane fade <?=$e131TabStyleActive?>" id="tab-e131" role="tabpanel" aria-labelledby="tab-e131-tab">
-				<? include_once('co-universes.php'); ?>
+				<?include_once 'co-universes.php';?>
 			</div>
 
 			<div class="tab-pane fade" id="pills-contact" role="tabpanel" aria-labelledby="pills-contact-tab">Tab 3</div>
-		
+
 
 		<?
-		
-        if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
-            ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
-            ?>
+
+if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
+    ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
+    ?>
             <div class="tab-pane fade <?=$stringTabStyleActive?>" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
-                <? include_once('co-pixelStrings.php'); ?>
+                <?include_once 'co-pixelStrings.php';?>
             </div>
             <?
-        }
-        if ($settings['Platform'] == "Raspberry Pi") {
-		    if (in_array('fpd', $currentCapeInfo["provides"])) {
-				?>
+}
+if ($settings['Platform'] == "Raspberry Pi") {
+    if (in_array('fpd', $currentCapeInfo["provides"])) {
+        ?>
 					<div class="tab-pane fade" id="tab-fpd" role="tabpanel" aria-labelledby="tab-fpd-tab">
-						<? include_once('co-fpd.php'); ?>			
+						<?include_once 'co-fpd.php';?>
 					</div>
 				<?
-		    }
-		}
-        ?>
+    }
+}
+?>
 
             <div class="tab-pane fade <?=$lpTabStyleActive?>" id="tab-LEDPanels" role="tabpanel" aria-labelledby="tab-LEDPanels-tab">
-                <? include_once('co-ledPanels.php'); ?>			
+                <?include_once 'co-ledPanels.php';?>
             </div>
 			<div class="tab-pane fade" id="tab-other" role="tabpanel" aria-labelledby="tab-other-tab">
-				<? include_once("co-other.php"); ?>			
+				<?include_once "co-other.php";?>
 			</div>
 
-				</div>	
+				</div>
 		<!-- --------------------------------------------------------------------- -->
-		
-		
+
+
 			</div>
 
 
 
 	</div>
-	
+
 	<div id='debugOutput'>
 	</div>
-	
+
 	<!-- FIXME, can we put this in co-ledPanels.php? -->
 	<div id="dialog-panelLayout" title="panelLayout" style="display: none">
 	  <div id="layoutText">
@@ -356,7 +357,7 @@ if ($e131TabStyle == "") {
 	</div>
 </div>
 
-	<?php	include 'common/footer.inc'; ?>
+	<?php	include 'common/footer.inc';?>
 </div>
 </body>
 </html>

@@ -8,28 +8,27 @@ function checkDirectScriptExecution()
     $incl_files = get_included_files();
 
     //Try to detect if the API scripts are have been included, meaning that this being included in a function of one of the API script
-	$api_index_script = 'www/api/index.php';
-	$api_index_script_found = false;
-	$api_library_script = 'www/api/lib/limonade.php';
-	$api_library_script_found = false;
+    $api_index_script = 'www/api/index.php';
+    $api_index_script_found = false;
+    $api_library_script = 'www/api/lib/limonade.php';
+    $api_library_script_found = false;
 
     //Search over the array and try find either
-	foreach ($incl_files as $incl_idx => $included_file) {
-		if (strpos($included_file, $api_index_script) !== FALSE) {
-			$api_index_script_found = true;
-		} else if (strpos($included_file, $api_library_script) !== FALSE) {
-			$api_library_script_found = true;
-		}
-	}
+    foreach ($incl_files as $incl_idx => $included_file) {
+        if (strpos($included_file, $api_index_script) !== false) {
+            $api_index_script_found = true;
+        } else if (strpos($included_file, $api_library_script) !== false) {
+            $api_library_script_found = true;
+        }
+    }
 
-	//script in the first index should be the script were executing
-	if (($incl_files[0] != __FILE__) || ($api_index_script_found === true || $api_library_script_found === true)) {
-		$skipJSsettings = 1;
-		$skipHTMLCodeOutput = true;
-	}
+    //script in the first index should be the script were executing
+    if (($incl_files[0] != __FILE__) || ($api_index_script_found === true || $api_library_script_found === true)) {
+        $skipJSsettings = 1;
+        $skipHTMLCodeOutput = true;
+    }
 }
 checkDirectScriptExecution();
-
 
 //Stop config.php spitting out any JS used in the UI, not needed on the backup page, if left as is the JSON download will have the <script> tag in it due to
 //that data already being in the buffer
@@ -44,9 +43,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $skipHTMLCodeOutput === true) {
 require_once 'common.php';
 require_once 'common/settings.php';
 require_once 'commandsocket.php';
-//Includes for API access
-//require_once('fppjson.php');
-//require_once('fppxml.php');
 
 //Define a map of backup/restore areas and setting locations, this is also used to populate the area select lists
 $system_config_areas = array(
@@ -256,97 +252,96 @@ if (isset($_POST['btnDownloadConfig'])) {
                 $file_contents_decoded = json_decode($file_contents, true);
 
                 //successful decode
-//                if ($file_contents_decoded !== false && is_array($file_contents_decoded)) {
-//                    //Get value of protected state and remove it from the array
-//                    if (array_key_exists('protected', $file_contents_decoded)) {
-//                        $uploadDataProtected = $file_contents_decoded['protected'];
-//                        unset($file_contents_decoded['protected']);
-//                    }
-//
-//                    //work out of backup file is version 2 or not
-//                    //if it's not a version 2 file, then we can only really restore settings
-//                    //email can be restored because it's contained in the settings
-//
-//                    //Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
-//                    //Version 3 backups need to restore the schedule to a different file
-//                    $is_version_2_backup = false;
-//                    $is_version_3_backup = false;
-//                    //Check backup version
-//                    if (array_key_exists('fpp_backup_version', $file_contents_decoded)) {
-//                        $_fpp_backup_version = $file_contents_decoded['fpp_backup_version']; //Minimum version is 2
-//
-//                        if ($file_contents_decoded['fpp_backup_version'] == 2) {
-//                            $is_version_2_backup = true;
-//                        } else if ($file_contents_decoded['fpp_backup_version'] = $fpp_backup_version) {
-//                            $is_version_3_backup = true;
-//                        }
-//                    }
-//					//Version 4-6 so far don't need any compatibility fixes when being restored
-//
-//
-//                    //Remove the platform key as it's not used for anything yet
-//                    unset($file_contents_decoded['platform']);
-//                    unset($file_contents_decoded['fpp_backup_version']);
-//					unset($file_contents_decoded['backup_comment']);
-//					unset($file_contents_decoded['backup_taken']);
-//
-//                    //Restore all areas
-//                    if (strtolower($restore_area) == "all" && ($is_version_2_backup || $is_version_3_backup)) {
-//                        // ALL SETTING RESTORE
-//                        //read each area and process it
-//                        foreach ($file_contents_decoded as $restore_area_key => $area_data) {
-//                            //Pass the restore area and data to the restore function
-//                            $restore_done = processRestoreData($restore_area_key, $area_data, $_fpp_backup_version);
-//                        }
-//
-////                    } else if (strtolower($restore_area) == "email" && $is_version_2_backup) {
-//                        //                        //get email settings, from the actual system settings
-//                        //                        $area_data = $file_contents_decoded['settings']['system_settings'];
-//                        //                        //Pass the restore area and data to the restore function
-//                        //                        $restore_done = processRestoreData("email", $area_data);
-//                        //                    }
-//                        //Restore all other areas, settings can be restored regardless of version
-//                        //if the area is not settings or it's not a v2 backup then nothing will be done
-//                    } else {
-//                        // ALL OTHER SETTING RESTORE
-//                        //Process specific restore areas, this work almost like the 'all' area
-//                        //general settings, but only a matching area is cherry picked
-//
-//                        //If the key exists in the decoded data then we can process
-//                        if (array_key_exists($restore_area_main, $file_contents_decoded)) {
-//                            $restore_area_key = $restore_area_main;
-//                            $area_data = $file_contents_decoded[$restore_area_main];
-//
-//                            //If we're restoring channelOutputs, we might need the system settings.. eg when restoring the LED panel data we need to set the layout in settings
-//                            if ($restore_area_key == "channelOutputs" && array_key_exists('settings', $file_contents_decoded)) {
-//                                $system_settings = array();
-//                                if (array_key_exists('system_settings', $file_contents_decoded['settings'])) {
-//                                    $system_settings = $file_contents_decoded['settings']['system_settings'];
-//                                    //modify the area data
-//                                    $area_data_new = array('area_data' => $area_data, 'system_settings' => $system_settings);
-//                                    $area_data = $area_data_new;
-//                                }
-//                            }
-//
-//                            //Pass the restore area and data to the restore function
-//                            $restore_done = processRestoreData($restore_area, $area_data, $_fpp_backup_version);
-//                        }
-//                    }
-//
-//                    //All processed
-//                    //                    $restore_done = true;
-//                } else {
-//                    $backup_error_string = "RESTORE: The backup " . $rstfname . " data could not be decoded properly. Is it a valid backup file?";
-//                    $backup_errors[] = $backup_error_string;
-//                    error_log($backup_error_string);
-//                }
+                //                if ($file_contents_decoded !== false && is_array($file_contents_decoded)) {
+                //                    //Get value of protected state and remove it from the array
+                //                    if (array_key_exists('protected', $file_contents_decoded)) {
+                //                        $uploadDataProtected = $file_contents_decoded['protected'];
+                //                        unset($file_contents_decoded['protected']);
+                //                    }
+                //
+                //                    //work out of backup file is version 2 or not
+                //                    //if it's not a version 2 file, then we can only really restore settings
+                //                    //email can be restored because it's contained in the settings
+                //
+                //                    //Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
+                //                    //Version 3 backups need to restore the schedule to a different file
+                //                    $is_version_2_backup = false;
+                //                    $is_version_3_backup = false;
+                //                    //Check backup version
+                //                    if (array_key_exists('fpp_backup_version', $file_contents_decoded)) {
+                //                        $_fpp_backup_version = $file_contents_decoded['fpp_backup_version']; //Minimum version is 2
+                //
+                //                        if ($file_contents_decoded['fpp_backup_version'] == 2) {
+                //                            $is_version_2_backup = true;
+                //                        } else if ($file_contents_decoded['fpp_backup_version'] = $fpp_backup_version) {
+                //                            $is_version_3_backup = true;
+                //                        }
+                //                    }
+                //                    //Version 4-6 so far don't need any compatibility fixes when being restored
+                //
+                //
+                //                    //Remove the platform key as it's not used for anything yet
+                //                    unset($file_contents_decoded['platform']);
+                //                    unset($file_contents_decoded['fpp_backup_version']);
+                //                    unset($file_contents_decoded['backup_comment']);
+                //                    unset($file_contents_decoded['backup_taken']);
+                //
+                //                    //Restore all areas
+                //                    if (strtolower($restore_area) == "all" && ($is_version_2_backup || $is_version_3_backup)) {
+                //                        // ALL SETTING RESTORE
+                //                        //read each area and process it
+                //                        foreach ($file_contents_decoded as $restore_area_key => $area_data) {
+                //                            //Pass the restore area and data to the restore function
+                //                            $restore_done = processRestoreData($restore_area_key, $area_data, $_fpp_backup_version);
+                //                        }
+                //
+                ////                    } else if (strtolower($restore_area) == "email" && $is_version_2_backup) {
+                //                        //                        //get email settings, from the actual system settings
+                //                        //                        $area_data = $file_contents_decoded['settings']['system_settings'];
+                //                        //                        //Pass the restore area and data to the restore function
+                //                        //                        $restore_done = processRestoreData("email", $area_data);
+                //                        //                    }
+                //                        //Restore all other areas, settings can be restored regardless of version
+                //                        //if the area is not settings or it's not a v2 backup then nothing will be done
+                //                    } else {
+                //                        // ALL OTHER SETTING RESTORE
+                //                        //Process specific restore areas, this work almost like the 'all' area
+                //                        //general settings, but only a matching area is cherry picked
+                //
+                //                        //If the key exists in the decoded data then we can process
+                //                        if (array_key_exists($restore_area_main, $file_contents_decoded)) {
+                //                            $restore_area_key = $restore_area_main;
+                //                            $area_data = $file_contents_decoded[$restore_area_main];
+                //
+                //                            //If we're restoring channelOutputs, we might need the system settings.. eg when restoring the LED panel data we need to set the layout in settings
+                //                            if ($restore_area_key == "channelOutputs" && array_key_exists('settings', $file_contents_decoded)) {
+                //                                $system_settings = array();
+                //                                if (array_key_exists('system_settings', $file_contents_decoded['settings'])) {
+                //                                    $system_settings = $file_contents_decoded['settings']['system_settings'];
+                //                                    //modify the area data
+                //                                    $area_data_new = array('area_data' => $area_data, 'system_settings' => $system_settings);
+                //                                    $area_data = $area_data_new;
+                //                                }
+                //                            }
+                //
+                //                            //Pass the restore area and data to the restore function
+                //                            $restore_done = processRestoreData($restore_area, $area_data, $_fpp_backup_version);
+                //                        }
+                //                    }
+                //
+                //                    //All processed
+                //                    //                    $restore_done = true;
+                //                } else {
+                //                    $backup_error_string = "RESTORE: The backup " . $rstfname . " data could not be decoded properly. Is it a valid backup file?";
+                //                    $backup_errors[] = $backup_error_string;
+                //                    error_log($backup_error_string);
+                //                }
 
-				doRestore($restore_area, $file_contents_decoded, $rstfname, $keepNetworkSettings, $keepMasterSlaveSettings, 'page');
+                doRestore($restore_area, $file_contents_decoded, $rstfname, $keepNetworkSettings, $keepMasterSlaveSettings, 'page');
             }
         }
     }
 }
-
 
 /**
  * Does some initial processing before calling processRestoreData(), to do the heavy lifting to restore the backup.
@@ -361,122 +356,122 @@ if (isset($_POST['btnDownloadConfig'])) {
  */
 function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_keepNetworkSettings = true, $restore_keepMasterSlaveSettings = true, $restore_Source = 'page')
 {
-	global $system_config_areas, $keepNetworkSettings, $keepMasterSlaveSettings, $fpp_backup_version, $backup_errors, $restore_done, $uploadData_IsProtected;
+    global $system_config_areas, $keepNetworkSettings, $keepMasterSlaveSettings, $fpp_backup_version, $backup_errors, $restore_done, $uploadData_IsProtected;
 
-	$keepNetworkSettings = $restore_keepNetworkSettings;
-	$keepMasterSlaveSettings = $restore_keepMasterSlaveSettings;
+    $keepNetworkSettings = $restore_keepNetworkSettings;
+    $keepMasterSlaveSettings = $restore_keepMasterSlaveSettings;
     //
-	$file_contents_decoded = $restore_Data;
+    $file_contents_decoded = $restore_Data;
 
-	//if restore area contains a forward slash, then we want to restore into a sub-area
-	//split string to get the main area and sub-area
-	if (stripos($restore_Area, "/") !== false) {
-		$restore_area_arr = explode("/", $restore_Area);
-		$restore_area_main = $restore_area_arr[0]; //main area is first
-	} else {
-		$restore_area_main = $restore_Area;
-	}
+    //if restore area contains a forward slash, then we want to restore into a sub-area
+    //split string to get the main area and sub-area
+    if (stripos($restore_Area, "/") !== false) {
+        $restore_area_arr = explode("/", $restore_Area);
+        $restore_area_main = $restore_area_arr[0]; //main area is first
+    } else {
+        $restore_area_main = $restore_Area;
+    }
 
     //Make sure a valid restore area has been specified
-	if (array_key_exists($restore_area_main, $system_config_areas)) {
-		//successful decode
-		if ($file_contents_decoded !== false && is_array($file_contents_decoded)) {
-			//Get value of protected state and remove it from the array
-			if (array_key_exists('protected', $file_contents_decoded)) {
-				$uploadData_IsProtected = $file_contents_decoded['protected'];
-				unset($file_contents_decoded['protected']);
-			}
+    if (array_key_exists($restore_area_main, $system_config_areas)) {
+        //successful decode
+        if ($file_contents_decoded !== false && is_array($file_contents_decoded)) {
+            //Get value of protected state and remove it from the array
+            if (array_key_exists('protected', $file_contents_decoded)) {
+                $uploadData_IsProtected = $file_contents_decoded['protected'];
+                unset($file_contents_decoded['protected']);
+            }
 
-			//work out of backup file is version 2 or not
-			//if it's not a version 2 file, then we can only really restore settings
-			//email can be restored because it's contained in the settings
+            //work out of backup file is version 2 or not
+            //if it's not a version 2 file, then we can only really restore settings
+            //email can be restored because it's contained in the settings
 
-			//Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
-			//Version 3 backups need to restore the schedule to a different file
-			$is_version_2_backup = false;
-			$is_version_3_backup = false;
-			//Check backup version
-			if (array_key_exists('fpp_backup_version', $file_contents_decoded)) {
-				$_fpp_backup_version = $file_contents_decoded['fpp_backup_version']; //Minimum version is 2
+            //Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
+            //Version 3 backups need to restore the schedule to a different file
+            $is_version_2_backup = false;
+            $is_version_3_backup = false;
+            //Check backup version
+            if (array_key_exists('fpp_backup_version', $file_contents_decoded)) {
+                $_fpp_backup_version = $file_contents_decoded['fpp_backup_version']; //Minimum version is 2
 
-				if ($file_contents_decoded['fpp_backup_version'] == 2) {
-					$is_version_2_backup = true;
-				} else if ($file_contents_decoded['fpp_backup_version'] = $fpp_backup_version) {
-					$is_version_3_backup = true;
-				}
-			}
-			//Version 4-6 so far don't need any compatibility fixes when being restored
+                if ($file_contents_decoded['fpp_backup_version'] == 2) {
+                    $is_version_2_backup = true;
+                } else if ($file_contents_decoded['fpp_backup_version'] = $fpp_backup_version) {
+                    $is_version_3_backup = true;
+                }
+            }
+            //Version 4-6 so far don't need any compatibility fixes when being restored
             //Handling of version differences is also done in processRestoreData()
 
-			//Remove the platform key as it's not used for anything yet
-			unset($file_contents_decoded['platform']);
-			unset($file_contents_decoded['fpp_backup_version']);
-			unset($file_contents_decoded['backup_comment']);
-			unset($file_contents_decoded['backup_taken']);
+            //Remove the platform key as it's not used for anything yet
+            unset($file_contents_decoded['platform']);
+            unset($file_contents_decoded['fpp_backup_version']);
+            unset($file_contents_decoded['backup_comment']);
+            unset($file_contents_decoded['backup_taken']);
 
-			//Restore all areas
-			if (strtolower($restore_Area) == "all" && ($is_version_2_backup || $is_version_3_backup)) {
-				// ALL SETTING RESTORE
-				//read each area and process it
-				foreach ($file_contents_decoded as $restore_area_key => $area_data) {
-					//Pass the restore area and data to the restore function
-					$restore_result = processRestoreData($restore_area_key, $area_data, $_fpp_backup_version);
+            //Restore all areas
+            if (strtolower($restore_Area) == "all" && ($is_version_2_backup || $is_version_3_backup)) {
+                // ALL SETTING RESTORE
+                //read each area and process it
+                foreach ($file_contents_decoded as $restore_area_key => $area_data) {
+                    //Pass the restore area and data to the restore function
+                    $restore_result = processRestoreData($restore_area_key, $area_data, $_fpp_backup_version);
                     //Restore is done - results will be printed on the page
-					$restore_done = true;
-				}
+                    $restore_done = true;
+                }
 
 //                    } else if (strtolower($restore_area) == "email" && $is_version_2_backup) {
-				//                        //get email settings, from the actual system settings
-				//                        $area_data = $file_contents_decoded['settings']['system_settings'];
-				//                        //Pass the restore area and data to the restore function
-				//                        $restore_done = processRestoreData("email", $area_data);
-				//                    }
-				//Restore all other areas, settings can be restored regardless of version
-				//if the area is not settings or it's not a v2 backup then nothing will be done
-			} else {
-				// ALL OTHER SETTING RESTORE
-				//Process specific restore areas, this work almost like the 'all' area
-				//general settings, but only a matching area is cherry picked
+                //                        //get email settings, from the actual system settings
+                //                        $area_data = $file_contents_decoded['settings']['system_settings'];
+                //                        //Pass the restore area and data to the restore function
+                //                        $restore_done = processRestoreData("email", $area_data);
+                //                    }
+                //Restore all other areas, settings can be restored regardless of version
+                //if the area is not settings or it's not a v2 backup then nothing will be done
+            } else {
+                // ALL OTHER SETTING RESTORE
+                //Process specific restore areas, this work almost like the 'all' area
+                //general settings, but only a matching area is cherry picked
 
-				//If the key exists in the decoded data then we can process
-				if (array_key_exists($restore_area_main, $file_contents_decoded)) {
-					$restore_area_key = $restore_area_main;
-					$area_data = $file_contents_decoded[$restore_area_main];
+                //If the key exists in the decoded data then we can process
+                if (array_key_exists($restore_area_main, $file_contents_decoded)) {
+                    $restore_area_key = $restore_area_main;
+                    $area_data = $file_contents_decoded[$restore_area_main];
 
-					//If we're restoring channelOutputs, we might need the system settings.. eg when restoring the LED panel data we need to set the layout in settings
-					if ($restore_area_key == "channelOutputs" && array_key_exists('settings', $file_contents_decoded)) {
-						$system_settings = array();
-						if (array_key_exists('system_settings', $file_contents_decoded['settings'])) {
-							$system_settings = $file_contents_decoded['settings']['system_settings'];
-							//modify the area data
-							$area_data_new = array('area_data' => $area_data, 'system_settings' => $system_settings);
-							$area_data = $area_data_new;
-						}
-					}
+                    //If we're restoring channelOutputs, we might need the system settings.. eg when restoring the LED panel data we need to set the layout in settings
+                    if ($restore_area_key == "channelOutputs" && array_key_exists('settings', $file_contents_decoded)) {
+                        $system_settings = array();
+                        if (array_key_exists('system_settings', $file_contents_decoded['settings'])) {
+                            $system_settings = $file_contents_decoded['settings']['system_settings'];
+                            //modify the area data
+                            $area_data_new = array('area_data' => $area_data, 'system_settings' => $system_settings);
+                            $area_data = $area_data_new;
+                        }
+                    }
 
-					//Pass the restore area and data to the restore function
-					$restore_result = processRestoreData($restore_Area, $area_data, $_fpp_backup_version);
-					//Restore is done - results will be printed on the page
-					$restore_done = true;
-				}
-			}
+                    //Pass the restore area and data to the restore function
+                    $restore_result = processRestoreData($restore_Area, $area_data, $_fpp_backup_version);
+                    //Restore is done - results will be printed on the page
+                    $restore_done = true;
+                }
+            }
 
-			//All processed
-			//$restore_done = true;
-		} else {
-			$backup_error_string = "doRestore: The backup " . $restore_Filepath . " data could not be decoded properly. Is it a valid backup file?";
-			$backup_errors[] = $backup_error_string;
-			error_log($backup_error_string);
-		}
-	} else {
-		$backup_error_string = "doRestore: Invalid restore area specified" . $restore_area_main . " data could not be decoded properly. Is it a valid backup file?";
-		$backup_errors[] = $backup_error_string;
-		error_log($backup_error_string);
-	}
+            //All processed
+            //$restore_done = true;
+        } else {
+            $backup_error_string = "doRestore: The backup " . $restore_Filepath . " data could not be decoded properly. Is it a valid backup file?";
+            $backup_errors[] = $backup_error_string;
+            error_log($backup_error_string);
+        }
+    } else {
+        $backup_error_string = "doRestore: Invalid restore area specified" . $restore_area_main . " data could not be decoded properly. Is it a valid backup file?";
+        $backup_errors[] = $backup_error_string;
+        error_log($backup_error_string);
+    }
 
     //$restore_done is set if we got to actuall call the function to restore data, if there was some sort of error with the data beforehand it will never get set
     //use this as a simple check so we can return other data (what errors we had)
-	return !empty($restore_result) ? array('success' => true, 'message' => $restore_result) : array('success' => false, 'message' => $backup_errors);
+    return !empty($restore_result) ? array('success' => true, 'message' => $restore_result) : array('success' => false, 'message' => $backup_errors);
 }
 
 /**
@@ -773,8 +768,8 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                                         $restore_location = $scheduleFile;
                                     }
 //                                    else if ($backup_version == 3){
-//                                    //restore it to the new json file - don't adjust the path it'll go to configured path
-//                                    }
+                                    //                                    //restore it to the new json file - don't adjust the path it'll go to configured path
+                                    //                                    }
                                 }
 
                                 //if restore sub-area is falcon_pixelnet_DMX (under channelOutputs), determine how to restore it based on the $backup_version
@@ -991,7 +986,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                     //TODO rework this so it will work future email system implementation, were different providers are used
                     if (is_array($restore_data)
 //                        && array_key_exists('emailenable', $restore_data)
-                        && array_key_exists('emailserver', $restore_data)
+                         && array_key_exists('emailserver', $restore_data)
                         && array_key_exists('emailuser', $restore_data)
                         && array_key_exists('emailpass', $restore_data)
                         && array_key_exists('emailfromtext', $restore_data)
@@ -999,33 +994,33 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                     ) {
                         $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
 
-						if (array_key_exists('emailenable', $restore_data)) {
-							$emailenable = $restore_data['emailenable'];
-							WriteSettingToFile('emailenable', $emailenable);
-						}
+                        if (array_key_exists('emailenable', $restore_data)) {
+                            $emailenable = $restore_data['emailenable'];
+                            WriteSettingToFile('emailenable', $emailenable);
+                        }
                         //
-						$email_server = $restore_data['emailserver'];
+                        $email_server = $restore_data['emailserver'];
                         //
                         $emailuser = $restore_data['emailuser'];
                         $emailpass = $restore_data['emailpass'];
                         //
-						$email_from_user = $restore_data['emailfromuser'];
-						$emailfromtext = $restore_data['emailfromtext'];
+                        $email_from_user = $restore_data['emailfromuser'];
+                        $emailfromtext = $restore_data['emailfromtext'];
                         $emailtoemail = $restore_data['emailtoemail'];
 
                         //Write them out
-//                        WriteSettingToFile('emailenable', $emailenable);
+                        //                        WriteSettingToFile('emailenable', $emailenable);
                         //Email Server
-						WriteSettingToFile('emailserver', $email_server);
+                        WriteSettingToFile('emailserver', $email_server);
                         //Email Server Port if set
-						if (array_key_exists('emailport', $restore_data)) {
-							$email_server_port = $restore_data['emailport'];
-							WriteSettingToFile('emailport', $email_server_port);
-						}
+                        if (array_key_exists('emailport', $restore_data)) {
+                            $email_server_port = $restore_data['emailport'];
+                            WriteSettingToFile('emailport', $email_server_port);
+                        }
                         //Email User Name and Pass + From & To Uemails
-						WriteSettingToFile('emailuser', $emailuser);
+                        WriteSettingToFile('emailuser', $emailuser);
                         //
-						WriteSettingToFile('emailfromuser', $email_from_user);
+                        WriteSettingToFile('emailfromuser', $email_from_user);
                         WriteSettingToFile('emailfromtext', $emailfromtext);
                         WriteSettingToFile('emailtoemail', $emailtoemail);
 
@@ -1033,12 +1028,12 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         //meaning the password was included in the backup,
                         //otherwise existing (valid) config may be overwritten
                         if ($uploadData_IsProtected == false && $emailpass != "") {
-							WriteSettingToFile('emailpass', $emailpass);
+                            WriteSettingToFile('emailpass', $emailpass);
                             //Update the email config in the global settings array,  so can call the fuction that sets up and  writes out exim4 config
                             $settings['emailserver'] = $restore_data['emailserver'];
-							if (array_key_exists('emailport', $restore_data)) {
-								$settings['emailport'] = $restore_data['emailport'];
-							}
+                            if (array_key_exists('emailport', $restore_data)) {
+                                $settings['emailport'] = $restore_data['emailport'];
+                            }
                             //Creds
                             $settings['emailuser'] = $restore_data['emailuser'];
                             $settings['emailpass'] = $restore_data['emailpass'];
@@ -1266,7 +1261,7 @@ function RestoreScripts($file_names)
 }
 
 /**
- * Sets the Audio Output device (extracted from fppjson.php)
+ * Sets the Audio Output device
  * @param $card String soundcard
  * @return  string
  */
@@ -1574,8 +1569,8 @@ function LoadPixelnetDMXFile_FPDv1()
     $return_data = array();
 
 //    if (@filesize($settings['configDirectory'] . "/Falcon.FPDV1") < 1024) {
-//        return $return_data;
-//    }
+    //        return $return_data;
+    //    }
 
     $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "rb");
     if ($f == false) {
@@ -1618,7 +1613,6 @@ function LoadPixelnetDMXFile_FPDV2()
     //TODO (doesn't appear to be any code to reference for reading these files in /api/controllers/channel.php),, channel_get_pixelnetDMX() in the API is currently only reading the FPDv1 file
     return null;
 }
-
 
 /**
  * Restores the FPDv1 channel data from the supplied array
@@ -1742,7 +1736,7 @@ function SavePixelnetDMXFile_F16v2Alpha($restore_data)
         }
 
         fclose($f);
-//	SendCommand('w');
+//    SendCommand('w');
     }
 
     return $write_status;
@@ -2039,16 +2033,16 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
         }
 
         //Add the backup comment into settings data that has been gathered
-		$tmp_settings_data['backup_comment'] = $backupComment;
-		//Lastly insert the backup system version (moved from doBackupDownload to here)
-		$tmp_settings_data['fpp_backup_version'] = $fpp_backup_version;
+        $tmp_settings_data['backup_comment'] = $backupComment;
+        //Lastly insert the backup system version (moved from doBackupDownload to here)
+        $tmp_settings_data['fpp_backup_version'] = $fpp_backup_version;
         //Add the current UNIX epoc time, representing the time the backup as taken, may make it easier in the future to calculate when the backup was taken
-		$tmp_settings_data['backup_taken'] = time();
+        $tmp_settings_data['backup_taken'] = time();
 
         //DO IT!
         if (!empty($tmp_settings_data)) {
-			$backup_result = doBackupDownload($tmp_settings_data, $area);
-			return $backup_result;
+            $backup_result = doBackupDownload($tmp_settings_data, $area);
+            return $backup_result;
         } else {
             $backup_error_string = "SETTINGS BACKUP: Something went wrong while generating backup file for " . ucwords(str_replace("_", " ", $area)) . ", no data was found. Have these settings been configured?";
             $backup_errors[] = $backup_error_string;
@@ -2119,26 +2113,26 @@ function doBackupDownload($settings_data, $area)
                 exit;
             }
             //If any errors encountered along the way we should log them
-            if (!empty($backup_error_string)){
-				error_log($backup_error_string);
+            if (!empty($backup_error_string)) {
+                error_log($backup_error_string);
             }
 
-			return array('success' => true, 'backup_file_path' => $backup_local_fpath);
+            return array('success' => true, 'backup_file_path' => $backup_local_fpath);
         } else {
             $backup_error_string = "SETTINGS BACKUP: Something went wrong while writing the backup file to '" . $backup_local_fpath . "', JSON backup file unable to be downloaded.";
             $backup_errors[] = $backup_error_string;
             error_log($backup_error_string);
 
-			return array('success' => false, 'backup_file_path' => '');
-		}
+            return array('success' => false, 'backup_file_path' => '');
+        }
     } else {
         //no data supplied
         $backup_error_string = "SETTINGS BACKUP: Something went wrong while generating backup file for " . ucwords(str_replace("_", " ", $area)) . ", no data was supplied. Have these settings been configured?";
         $backup_errors[] = $backup_error_string;
         error_log($backup_error_string);
 
-		return array('success' => false, 'backup_file_path' => '');
-	}
+        return array('success' => false, 'backup_file_path' => '');
+    }
 }
 
 /**
@@ -2310,18 +2304,18 @@ function pruneOrRemoveAgedBackupFiles()
     global $fpp_backup_max_age, $fpp_backup_min_number_kept, $fpp_backup_location, $backups_verbose_logging;
 
     //gets all the files in the configs/backup directory via the API now since it will look in multiple areas
-	$config_dir_files = file_get_contents('http://localhost/api/backups/configuration/list');
-	$config_dir_files = json_decode($config_dir_files, true);
+    $config_dir_files = file_get_contents('http://localhost/api/backups/configuration/list');
+    $config_dir_files = json_decode($config_dir_files, true);
 
     //If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop processing
     if (count($config_dir_files) < $fpp_backup_min_number_kept) {
-        $aged_backup_removal_message = "SETTINGS BACKUP: Not removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are (".count($config_dir_files).") backups available and this is less than the minimum backups we want to keep ($fpp_backup_min_number_kept)";
+        $aged_backup_removal_message = "SETTINGS BACKUP: Not removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are (" . count($config_dir_files) . ") backups available and this is less than the minimum backups we want to keep ($fpp_backup_min_number_kept)";
         error_log($aged_backup_removal_message);
         return;
     }
 
     //Reverse the results so we get oldest to newest, the API by default returns results with newest first
-	$config_dir_files = array_reverse($config_dir_files);
+    $config_dir_files = array_reverse($config_dir_files);
 
     //loop over the backup files we've found
     foreach ($config_dir_files as $backup_file_index => $backup_file_meta_data) {
@@ -2349,12 +2343,12 @@ function pruneOrRemoveAgedBackupFiles()
                 $options = array(
                     'http' => array(
                         'header' => "Content-type: text/plain",
-                        'method' => 'DELETE'
-                    )
+                        'method' => 'DELETE',
+                    ),
                 );
                 $context = stream_context_create($options);
 
-                if (file_get_contents($url, false, $context) !== FALSE) {
+                if (file_get_contents($url, false, $context) !== false) {
                     //Note what happened in the logs also
                     $aged_backup_removal_message = "SETTINGS BACKUP: Removed old JSON settings backup file ($backup_file_path) since it was " . ceil((time() - ($backup_time)) / 86400) . " days old. Max age is $fpp_backup_max_age days.";
                     error_log($aged_backup_removal_message);
@@ -2387,22 +2381,23 @@ function preventPromptUserBrowserDownloadBackup()
  * Extracts the FPP Major version
  * @return array|mixed|string|string[]
  */
-function collectFppMajorVersion(){
-	//First try get the FPP version and break it down so we can get the major version
-	$fpp_version = explode(".",getFPPVersion());
-	$fpp_major_version = 0;
+function collectFppMajorVersion()
+{
+    //First try get the FPP version and break it down so we can get the major version
+    $fpp_version = explode(".", getFPPVersion());
+    $fpp_major_version = 0;
 
-	//If explode worked correctly, the major version will be at indec 0
-	if (array_key_exists(0, $fpp_version)) {
-		$fpp_major_version = $fpp_version[0];
-	} else {
-		//Else something went wrong, try get the FPP version from the GIT Branch
-		//replace the v in e.g v6.3 so we just have the digit
-		$fpp_git_branch = str_replace("v", "", explode(".", getFPPBranch()));
-		$fpp_major_version = $fpp_git_branch[0];
-	}
+    //If explode worked correctly, the major version will be at indec 0
+    if (array_key_exists(0, $fpp_version)) {
+        $fpp_major_version = $fpp_version[0];
+    } else {
+        //Else something went wrong, try get the FPP version from the GIT Branch
+        //replace the v in e.g v6.3 so we just have the digit
+        $fpp_git_branch = str_replace("v", "", explode(".", getFPPBranch()));
+        $fpp_major_version = $fpp_git_branch[0];
+    }
 
-	return $fpp_major_version;
+    return $fpp_major_version;
 }
 
 /**
@@ -2468,7 +2463,7 @@ $backupHosts = getKnownFPPSystems();
     <script type="text/javascript">
         var settings = new Array();
         var list_of_existing_backups;
-        var debug_mode = <? echo $backups_verbose_logging;?>
+        var debug_mode = <?echo $backups_verbose_logging; ?>
 		<?php
 ////Override restartFlag setting not reflecting actual value after restoring, just read what's in the settings file
     $settings['restartFlag'] = ReadSettingFromFile('restartFlag');

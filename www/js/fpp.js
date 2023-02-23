@@ -3978,19 +3978,11 @@ function SingleStepSequenceBack() {
     });
 }
 
-function StopFPPD() {
-    var xmlhttp = new XMLHttpRequest();
-    var url = "fppxml.php?command=stopFPPD";
-    xmlhttp.open("GET", url, true);
-    xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-    xmlhttp.send();
-}
-
 function SetSettingReboot(key, value) {
     SetSetting(key, value, 0, 1);
 }
 
-function SetSetting(key, value, restart, reboot, hideChange = false) {
+function SetSetting(key, value, restart, reboot, hideChange = false, isBool = null, callback = '', failcallback = '') {
     //console.log("api/settings/", key);
     $.ajax({
         url: "api/settings/" + key,
@@ -3999,10 +3991,21 @@ function SetSetting(key, value, restart, reboot, hideChange = false) {
         timeout: 1000,
         async: false,
         success: function () {
-            if ((key != 'restartFlag') && (key != 'rebootFlag') && (!hideChange))
-                $.jGrowl(key + " setting saved.", { themeState: 'success' });
-
             settings[key] = value;
+            if ((key != 'restartFlag') && (key != 'rebootFlag')) {
+                if (!hideChange) {
+                    if (isBool === null) {
+                        $.jGrowl(key + " setting saved.", { themeState: 'success' });
+                    } else if (isBool) {
+                        $.jGrowl(key + " Enabled.", { themeState: 'success' });
+                    } else {
+                        $.jGrowl(key + " Disabled.", { themeState: 'detract' });
+                    }
+                }
+                if (typeof callback === 'function') {
+                    callback();
+                }
+            }    
             if (restart > 0 && restart != settings['restartFlag']) {
                 SetRestartFlag(restart);
             }
@@ -4012,20 +4015,40 @@ function SetSetting(key, value, restart, reboot, hideChange = false) {
             CheckRestartRebootFlags();
         }
     }).fail(function () {
-        DialogError('Save Setting', "Failed to save " + key + " setting.");
+        if (isBool === null) {
+            DialogError('Save Setting', "Failed to save " + key + " setting.");
+        } else if (isBool) {
+            DialogError('Save Setting', "Failed to Enable " + key + ".");
+        } else {
+            DialogError('Save Setting', "Failed to Disable " + key + ".");
+        }
+        if (typeof failCallback === 'function') {
+            failCallback();
+        }
         CheckRestartRebootFlags();
     });
 }
 
-function SetPluginSetting(plugin, key, value, restart, reboot) {
+function SetPluginSetting(plugin, key, value, restart, reboot, isBool = false, callback = '') {
     $.ajax({
-        url: "fppjson.php?command=setPluginSetting&plugin=" + plugin + "&key=" + key + "&value=" + encodeURIComponent(value),
+        url: "api/plugin/" + plugin + "/settings/" + key,
+        data: "" + value,
+        method: "PUT",
         timeout: 1000,
         async: false,
         success: function () {
-            if ((key != 'restartFlag') && (key != 'rebootFlag'))
-                $.jGrowl(key + " setting saved.", { themeState: 'success' });
-
+            if ((key != 'restartFlag') && (key != 'rebootFlag')) {
+                if (isBool === null) {
+                    $.jGrowl(key + " setting saved.", { themeState: 'success' });
+                } else if (isBool) {
+                    $.jGrowl(key + " Enabled.", { themeState: 'success' });
+                } else {
+                    $.jGrowl(key + " Disabled.", { themeState: 'detract' });
+                }
+                if (typeof callback === 'function') {
+                    callback();
+                }
+            }
             if (restart > 0 && restart != settings['restartFlag']) {
                 SetRestartFlag(restart);
             }
@@ -4035,8 +4058,17 @@ function SetPluginSetting(plugin, key, value, restart, reboot) {
             CheckRestartRebootFlags();
         }
     }).fail(function () {
-        DialogError('Save Setting', "Failed to save " + key + " setting.");
+        if (isBool === null) {
+            DialogError('Save Setting', "Failed to save " + key + " setting.");
+        } else if (isBool) {
+            DialogError('Save Setting', "Failed to Enable " + key + ".");
+        } else {
+            DialogError('Save Setting', "Failed to Disable " + key + ".");
+        }
         CheckRestartRebootFlags();
+        if (typeof failCallback === 'function') {
+            failCallback();
+        }
     });
 }
 

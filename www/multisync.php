@@ -1917,9 +1917,9 @@ function performMultiAction() {
         case 'copyOSFiles':    copyOSFilesToSelectedSystems();  break;
         case 'reboot':         rebootSelectedSystems();         break;
         case 'shutdown':       shutdownSelectedSystems();       break;
-        case 'remoteMode':     setSelectedSystemsMode('8');     break;
-        case 'playerMode':     setSelectedSystemsMode('2');     break;
-        case 'addProxy':          proxySelectedIPs();                    break;
+        case 'remoteMode':     setSelectedSystemsMode('remote');     break;
+        case 'playerMode':     setSelectedSystemsMode('player');     break;
+        case 'addProxy':       proxySelectedIPs();                    break;
         default:               alert('You must select an action first.'); break;
     }
 

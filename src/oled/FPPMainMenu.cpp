@@ -301,14 +301,10 @@ void FPPMainMenu::itemSelected(const std::string& item) {
             " Automatic",
             " On",
             " Off",
-            " HostApd",
-            " ConnMan",
             " Back"
         };
         int tm = getSettingInt("EnableTethering");
-        int tt = getSettingInt("TetherTechnology");
         options[tm][0] = '*';
-        options[tt + 3][0] = '*';
         MenuOLEDPage* pg = new MenuOLEDPage(
             "Tethering", options, [this, sp](const std::string& item) {
                 if (item != " Back") {
@@ -322,12 +318,6 @@ void FPPMainMenu::itemSelected(const std::string& item) {
                         nvdata = "1";
                     } else if (nitem == "Off") {
                         nvdata = "2";
-                    } else if (nitem == "HostApd") {
-                        nv = "http://127.0.0.1/api/settings/TetherTechnology";
-                        nvdata = "0";
-                    } else if (nitem == "ConnMan") {
-                        nv = "http://127.0.0.1/api/settings/TetherTechnology";
-                        nvdata = "1";
                     } else {
                         nvdata = "0";
                     }
@@ -362,13 +352,12 @@ void FPPMainMenu::itemSelected(const std::string& item) {
             "FPPD Mode", options, [this, sp](const std::string& item) {
                 if (item != " Back") {
                     std::string nitem = item.substr(1);
-                    std::string nv = "http://127.0.0.1/fppxml.php?command=setFPPDmode&mode=";
+                    std::string nv = "player";
                     if (nitem == "Remote") {
-                        nv += "8";
-                    } else {
-                        nv += "2";
+                        nv = "remote";
                     }
-                    doCurlGet(nv);
+                    std::string nvresults;
+                    urlPut("http://127.0.0.1/api/settings/fppMode", nv, nvresults);
                     doCurlGet("http://127.0.0.1/api/system/fppd/restart", 10000);
                     SetCurrentPage(sp);
                 } else {

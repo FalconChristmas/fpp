@@ -634,15 +634,15 @@ function GetDirSetting($dir)
         return GetSettingValue('docsDirectory');
     } else if ($dir == "config") {
         return GetSettingValue('configDirectory');
-	} else if ($dir == "jsonbackups") {
-		return GetSettingValue('configDirectory') . "/backups";
-	} else if ($dir == "jsonbackupsalternate") {
-		//Folder Location on the alternate store under which the backups are stored
-		$fileCopy_BackupPath = 'Automatic_Backups';
+    } else if ($dir == "jsonbackups") {
+        return GetSettingValue('configDirectory') . "/backups";
+    } else if ($dir == "jsonbackupsalternate") {
+        //Folder Location on the alternate store under which the backups are stored
+        $fileCopy_BackupPath = 'Automatic_Backups';
 
-		//build out the path to the alternative location as it's slightly custom
-		return "/mnt/tmp/" . $fileCopy_BackupPath . "/config/backups";
-	} else if ($dir == 'tmp') {
+        //build out the path to the alternative location as it's slightly custom
+        return "/mnt/tmp/" . $fileCopy_BackupPath . "/config/backups";
+    } else if ($dir == 'tmp') {
         return GetSettingValue('mediaDirectory') . '/tmp';
     } else if ($dir == 'crashes') {
         return GetSettingValue('mediaDirectory') . '/crashes';
@@ -672,7 +672,7 @@ if (file_exists($pluginDirectory)) {
 
 /////////////////////////////////////////////////////////////////////////////
 
-// $skipJSsettings is only set in fppjson.php and fppxml.php
+// $skipJSsettings is set in a few places
 // to prevent this JavaScript from being printed
 //
 // HTTP discovery looks for the string "Falcon Player - FPP" in the resulting HTML

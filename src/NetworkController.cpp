@@ -67,7 +67,7 @@ bool NetworkController::DetectFPP(const std::string& ip, const std::string& html
     if (html.find("Falcon Player - FPP") == std::string::npos) {
         return false;
     }
-    std::string url = "http://" + ip + "/fppjson.php?command=getSysInfo&simple";
+    std::string url = "http://" + ip + "/api/system/info&simple=1";
     std::string resp;
 
     if (urlGet(url, resp)) {
@@ -135,11 +135,11 @@ bool NetworkController::DetectFalconController(const std::string& ip,
         std::size_t fStart = resp.find("<p>");
         if (fStart != std::string::npos) {
             typeId = (systemType)(atoi(getSimpleXMLTag(resp, "p").c_str()));
-            
+
             if (typeId == kSysTypeFalconController) { //v4 is just 0x80
-                if(getSimpleXMLTag(resp, "np") == "16") {
+                if (getSimpleXMLTag(resp, "np") == "16") {
                     typeId = kSysTypeFalconF16v4;
-                } else if(getSimpleXMLTag(resp, "np") == "48") {
+                } else if (getSimpleXMLTag(resp, "np") == "48") {
                     typeId = kSysTypeFalconF48v4;
                 }
             } else { // v3 and below, 0x80 + p tag
@@ -165,8 +165,8 @@ bool NetworkController::DetectFalconController(const std::string& ip,
                     if (startsWith(version, "- "))
                         version.erase(0, 2);
                 }
-            } else  if ((typeId == kSysTypeFalconF16v4) ||
-                (typeId == kSysTypeFalconF48v4)) {
+            } else if ((typeId == kSysTypeFalconF16v4) ||
+                       (typeId == kSysTypeFalconF48v4)) {
                 hostname = getSimpleXMLTag(resp, "n");
                 std::size_t spacePos = version.find(" ");
                 if (spacePos != std::string::npos) {
@@ -273,7 +273,7 @@ bool NetworkController::DetectESPixelStickController(const std::string& ip,
 
 bool NetworkController::DetectAlphaPixController(const std::string& ip, const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a AlphaPix controller\n", ip.c_str());
-    
+
     RegExCache re("AlphaPix (\\d+|Flex|Evolution)");
     RegExCache re2("(\\d+) Port Ethernet to SPI Controller");
     std::cmatch m;
@@ -331,7 +331,7 @@ bool NetworkController::DetectHinksPixController(const std::string& ip, const st
 bool NetworkController::DetectDIYLEDExpressController(const std::string& ip,
                                                       const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a DIYLEDExpress controller\n", ip.c_str());
-    
+
     RegExCache re("DIYLEDExpress E1.31 Bridge Configuration Page");
     std::cmatch m;
 

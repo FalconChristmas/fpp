@@ -131,7 +131,7 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
     $fd = @fopen($filename, "c+");
     flock($fd, LOCK_EX);
     $tmpSettings = parse_ini_file($filename);
-    if ($tmpSettings[$settingName] != $setting) {
+    if (!isset($tmpSettings[$settingName]) || $tmpSettings[$settingName] != $setting) {
         $tmpSettings[$settingName] = $setting;
         $settingsStr = "";
         foreach ($tmpSettings as $key => $value) {
@@ -722,24 +722,15 @@ function " . $changedFunction . "() {
 		checked = 1;
 		value = '$checkedValue';
 	}
-
-	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
-		.done(function() {
-			if (checked)
-				$.jGrowl('$title Enabled',{themeState:'success'});
-			else
-				$.jGrowl('$title Disabled',{themeState:'detract'});
-			$settingsName" . "['$setting'] = value;
 ";
-
-    if ($restart) {
-        echo "SetRestartFlag($restart);\n";
+    if ($pluginName !== "") {
+        echo "SetPluginSetting('$pluginName', '$setting', value, $restart, $reboot, checked, function() {
+            $settingsName" . "['$setting'] = value;
+            ";
+    } else {
+        echo "SetSetting('$setting', value, $restart, $reboot, false, checked, function() {";
     }
-
-    if ($reboot) {
-        echo "SetRebootFlag();\n";
-    }
-
+    echo "$settingsName" . "['$setting'] = value;";
     if (isset($sData['children'])) {
         echo "Update$setting" . "Children(0);\n";
     }
@@ -751,14 +742,11 @@ function " . $changedFunction . "() {
                 $('.$escSetting' + 'Child').show();
             else
                 $('.$escSetting' + 'Child').hide();
-
-			CheckRestartRebootFlags();
-		}).fail(function() {
+		},
+        function() {
 			if (checked) {
-				DialogError('$title', 'Failed to Enable $title');
 				$('#$escSetting').prop('checked', false);
 			} else {
-				DialogError('$title', 'Failed to Disable $title');
 				$('#$escSetting').prop('checked', true);
 			}
 		});
@@ -850,21 +838,17 @@ function PrintSettingSelectInternal($title, $setting, $restart, $reboot, $defaul
     echo "
 function " . $changedFunction . "() {
 	var value = encodeURIComponent($('#$escSetting').val());
-
-	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
-		.done(function() {
-			$.jGrowl('$title saved',{themeState:'success'});
-			$settingsName" . "['$setting'] = value;
-			$callbackName
 ";
 
-    if ($restart) {
-        echo "SetRestartFlag($restart);\n";
+    if ($pluginName !== "") {
+        echo "SetPluginSetting('$pluginName', '$setting', value, $restart, $reboot, null, function() {
+            $settingsName" . "['$setting'] = value;
+        ";
+    } else {
+        echo "SetSetting('$setting', value, $restart, $reboot, false, null, function() {";
     }
-
-    if ($reboot) {
-        echo "SetRebootFlag();\n";
-    }
+    echo "
+        	$callbackName ";
 
     if (isset($sData['children'])) {
         echo "Update$setting" . "Children(0);\n";
@@ -874,10 +858,7 @@ function " . $changedFunction . "() {
         echo "ReloadOther$setting" . "();\n";
     }
 
-    echo "
-		}).fail(function() {
-			DialogError('$title', 'Failed to save $title');
-		});
+    echo "});
 }
 </script>
 ";
@@ -1031,31 +1012,19 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 ";
     }
 
-    echo "
-        $.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + encodeURIComponent(value))
-        .done(function() {
-              $.jGrowl('$setting Saved',{themeState:'success'});
-              $settingsName" . "['$setting'] = value;
-              ";
-
-    if ($restart) {
-        echo "SetRestartFlag($restart);\n";
+    if ($pluginName !== "") {
+        echo "SetPluginSetting('$pluginName', '$setting', value, $restart, $reboot, null, function() {
+            $settingsName" . "['$setting'] = value;
+            ";
+    } else {
+        echo "SetSetting('$setting', value, $restart, $reboot, false, null, function() {";
     }
-
-    if ($reboot) {
-        echo "SetRebootFlag();\n";
-    }
-
     if (isset($sData['children'])) {
         echo "Update$setting" . "Children(0);\n";
     }
-
     echo "
               $callbackName
-              CheckRestartRebootFlags();
-              }).fail(function() {
-                      DialogError('$setting', 'Failed to save $setting');
-              });
+        });
     }
     </script>
 ";
@@ -1169,33 +1138,22 @@ function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginNa
 <script>
 function " . $saveFunction . "() {
 	var value = $('#$escSetting').val();
-
-	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
-		.done(function() {
-			$.jGrowl('$title saved',{themeState:'success'});
-			$settingsName" . "['$setting'] = value;
-			$callbackName
 ";
-
-    if ($restart) {
-        echo "SetRestartFlag($restart);\n";
+    if ($pluginName !== "") {
+        echo "SetPluginSetting('$pluginName', '$setting', value, $restart, $reboot, null, function() {
+            $settingsName" . "['$setting'] = value;
+        ";
+    } else {
+        echo "SetSetting('$setting', value, $restart, $reboot, false, null, function() {";
     }
-
-    if ($reboot) {
-        echo "SetRebootFlag();\n";
-    }
-
     echo "
-		}).fail(function() {
-			DialogError('$title', 'Failed to save $title');
-			$('#$escSetting').prop('checked', false);
+			$callbackName
 		});
 }
 </script>
 
 <input type='button' class='buttons' id='save$setting' onClick='" . $saveFunction . "();' value='Save'>\n";
 }
-
 
 /**
  * Returns the filesize for the given filename
