@@ -615,6 +615,7 @@ int main(int argc, char* argv[]) {
 
         if (!mqtt || !mqtt->Init(getSetting("MQTTUsername").c_str(), getSetting("MQTTPassword").c_str(), getSetting("MQTTCaFile").c_str())) {
             LogWarn(VB_CONTROL, "MQTT Init failed. Starting without MQTT. -- Maybe MQTT host doesn't resolve\n");
+        } else {
             Events::AddEventHandler(mqtt);
         }
     }

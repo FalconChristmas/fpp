@@ -232,14 +232,14 @@ bool MosquittoClient::Publish(const std::string &topic, const std::string &data)
     }
     return Publish(topic, data, false, 1);
 }
-bool MosquittoClient::Publish(const std::string& topic, const int valueconst) {
+bool MosquittoClient::Publish(const std::string& topic, const int value) {
     if (topic == "ready")  {
-        if (valueconst) {
+        if (value) {
             SetReady();
         }
-        return Publish(topic, valueconst, true, 1);
+        return Publish(topic, value, true, 1);
     }
-    return Publish(topic, valueconst, false, 1);
+    return Publish(topic, value, false, 1);
 }
 
 /*
