@@ -11,17 +11,13 @@
  */
 
 #include "fpp-pch.h"
+#include "mqtt.h"
 #include "fppd.h"
 #include <algorithm>
 #include <climits>
 
-#include "Player.h"
-#include "effects.h"
-#include <cassert>
-
 #define FALCON_TOPIC "falcon/player"
 
-extern void GetCurrentFPPDStatus(Json::Value& result);
 
 MosquittoClient* mqtt = NULL;
 
@@ -107,139 +103,6 @@ MosquittoClient::MosquittoClient(const std::string& host, const int port,
 
     pthread_mutex_init(&m_mosqLock, NULL);
 
-    /*
-   * Command Callback
-   */
-    std::function<void(const std::string&, const std::string&)> f =
-        [](const std::string& topic, const std::string& payload) {
-            if (topic.size() <= 13) {
-                Json::Value val;
-                bool success = LoadJsonFromString(payload, val);
-                if (success && val.isObject()) {
-                    CommandManager::INSTANCE.run(val);
-                } else {
-                    LogWarn(VB_COMMAND, "Invalid JSON Payload: %s\n", payload.c_str());
-                }
-            } else {
-                std::vector<std::string> args;
-                std::string command;
-
-                std::string ntopic = topic.substr(13); // wrip off /set/command/
-                args = splitWithQuotes(ntopic, '/');
-                command = args[0];
-                args.erase(args.begin());
-                bool foundp = false;
-                for (int x = 0; x < args.size(); x++) {
-                    if (args[x] == "{Payload}") {
-                        args[x] = payload;
-                        foundp = true;
-                    }
-                }
-                if (payload != "" && !foundp) {
-                    args.push_back(payload);
-                }
-                if (args.size() == 0 && payload != "") {
-                    Json::Value val = LoadJsonFromString(payload);
-                    if (val.isObject()) {
-                        CommandManager::INSTANCE.run(command, val);
-                    } else {
-                        LogWarn(VB_COMMAND, "Invalid JSON Payload for topic %s: %s\n", topic.c_str(), payload.c_str());
-                    }
-                } else {
-                    CommandManager::INSTANCE.run(command, args);
-                }
-            }
-        };
-    AddCallback("/set/command", f);
-    AddCallback("/set/command/#", f);
-
-    /*
-   * Start Playlist Callback
-   */
-    std::function<void(const std::string&, const std::string&)>
-        playlist_callback = [](const std::string& topic_in,
-                               const std::string& payload) {
-            std::string emptyStr;
-            std::string topic = topic_in;
-            topic.replace(0, 14, emptyStr); // Replace until /#
-
-            int pos = topic.find("/");
-            if (pos == std::string::npos) {
-                LogWarn(VB_PLAYLIST, "Ignoring Invalid playlist topic: playlist/%s\n",
-                        topic.c_str());
-                return;
-            }
-
-            std::string newPlaylistName = topic.substr(0, pos);
-            std::string topicEnd = topic.substr(pos);
-
-            if (topicEnd == "/start") {
-                pos = 0;
-                if (!payload.empty()) {
-                    pos = std::atoi(payload.c_str());
-                }
-
-                LogDebug(VB_CONTROL, "Starting Playlist '%s' with message '%s'\n",
-                         newPlaylistName.c_str(), payload.c_str());
-                Player::INSTANCE.StartPlaylist(newPlaylistName, -1, pos);
-                LogDebug(VB_CONTROL, "Call to Player::INSTANCE.StartPlaylist complete\n");
-            } else {
-                playlist->MQTTHandler(topic, payload);
-            };
-
-            LogDebug(VB_CONTROL, "exit playlist_callback (MQTT)\n");
-        };
-    AddCallback("/set/playlist/#", playlist_callback);
-
-    /*
-     * Function to stop or restart fppd
-     */
-    std::function<void(const std::string&, const std::string&)>
-        mqtt_fppd_callback = [](const std::string& topic_in,
-                                const std::string& payload) {
-            LogDebug(VB_CONTROL, "MQTT System Callback for %s\n", topic_in.c_str());
-
-            assert(topic_in.size() > 8);
-
-            if (0 == topic_in.compare(topic_in.length() - 5, 5, "/stop")) {
-                LogInfo(VB_CONTROL, "Stopping FPP for MQTT request:   %s\n", topic_in.c_str());
-                ShutdownFPPD(false);
-            } else if (0 == topic_in.compare(topic_in.length() - 8, 8, "/restart")) {
-                LogInfo(VB_CONTROL, "Restarting FPP for MQTT request:   %s\n", topic_in.c_str());
-                ShutdownFPPD(true);
-            } else {
-                LogWarn(VB_CONTROL, "Invalid MQTT requst in mqtt_fppd_callback  %s\n", topic_in.c_str());
-            }
-        };
-
-    AddCallback("/system/fppd/#", mqtt_fppd_callback);
-
-    /*
-     * Function to stop or restart fppd
-     */
-    std::function<void(const std::string&, const std::string&)>
-        mqtt_system_callback = [](const std::string& topic_in,
-                                  const std::string& payload) {
-            LogDebug(VB_CONTROL, "MQTT System Callback for %s\n", topic_in.c_str());
-            std::string rc = "";
-
-            assert(topic_in.size() > 8);
-
-            if (0 == topic_in.compare(topic_in.length() - 9, 9, "/shutdown")) {
-                LogInfo(VB_CONTROL, "Shutting down OS for MQTT request:   %s\n", topic_in.c_str());
-                urlGet("http://localhost/api/system/shutdown", rc);
-
-            } else if (0 == topic_in.compare(topic_in.length() - 8, 8, "/restart")) {
-                LogInfo(VB_CONTROL, "Restarting FPP for MQTT request:   %s\n", topic_in.c_str());
-                urlGet("http://localhost/api/system/reboot", rc);
-
-            } else {
-                LogWarn(VB_CONTROL, "Invalid MQTT requst in mqtt_system_callback  %s\n", topic_in.c_str());
-            }
-        };
-
-    AddCallback("/system/shutdown", mqtt_system_callback);
-    AddCallback("/system/restart", mqtt_system_callback);
 
 } // End of MosquittoClient()
 
@@ -260,38 +123,19 @@ MosquittoClient::~MosquittoClient() {
 }
 
 void MosquittoClient::PrepareForShutdown() {
-    WarningHolder::RemoveWarningListener(this);
-    while (!callbacks.empty()) {
-        const std::string& n = callbacks.begin()->first;
+    while (!callbackTopics.empty()) {
+        const std::string& n = callbackTopics.front();
         RemoveCallback(n);
     }
     if (m_canProcessMessages && m_isConnected) {
         std::vector<std::string> subscribe_topics;
         subscribe_topics.push_back(m_baseTopic + "/set/#");
-        subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
 
         for (auto& subscribe : subscribe_topics) {
             mosquitto_unsubscribe(m_mosq, NULL, subscribe.c_str());
         }
     }
     m_canProcessMessages = false;
-}
-
-void MosquittoClient::handleWarnings(std::list<std::string>& warnings) {
-    LogDebug(VB_CONTROL, "in handleWarnings with %d warnings\n", warnings.size());
-    if (!m_isConnected || !m_canProcessMessages) {
-        LogWarn(VB_CONTROL, "Exiting handleWarnings as not ready\n");
-        return;
-    }
-
-    Json::Value rc = Json::Value(Json::arrayValue);
-    for (std::list<std::string>::iterator it = warnings.begin(); it != warnings.end(); ++it) {
-        rc.append(*it);
-    }
-
-    std::string msg = SaveJsonToString(rc);
-    LogDebug(VB_CONTROL, "Sending warning message: %s\n", msg.c_str());
-    Publish("warnings", msg, true);
 }
 
 /*
@@ -382,6 +226,22 @@ int MosquittoClient::PublishRaw(const std::string& topic, const std::string& msg
     return 1;
 }
 
+bool MosquittoClient::Publish(const std::string &topic, const std::string &data) {
+    if (topic == "version" || topic == "branch" || topic == "warnings") {
+        return Publish(topic, data, true, 1);
+    }
+    return Publish(topic, data, false, 1);
+}
+bool MosquittoClient::Publish(const std::string& topic, const int valueconst) {
+    if (topic == "ready")  {
+        if (valueconst) {
+            SetReady();
+        }
+        return Publish(topic, valueconst, true, 1);
+    }
+    return Publish(topic, valueconst, false, 1);
+}
+
 /*
  *
  */
@@ -420,9 +280,9 @@ bool MosquittoClient::IsConnected() {
     return m_isConnected;
 }
 
-void MosquittoClient::AddCallback(const std::string& topic, std::function<void(const std::string& topic, const std::string& payload)>& callback) {
+void MosquittoClient::RegisterCallback(const std::string& topic) {
     LogDebug(VB_CONTROL, "MQTT: In AddCallback with %s\n", topic.c_str());
-    callbacks[topic] = callback;
+    callbackTopics.push_back(topic);
     if (m_canProcessMessages && m_isConnected) {
         if (topic.rfind("/set/", 0) != 0) {
             // we are registered on all "/set/" already, no need to re-register
@@ -447,23 +307,13 @@ void MosquittoClient::RemoveCallback(const std::string& topic) {
             }
         }
     }
-    callbacks.erase(topic);
+    callbackTopics.remove(topic);
 }
 void MosquittoClient::SetReady() {
     LogInfo(VB_CONTROL, "Mosquitto SetReady()\n");
     if (!m_canProcessMessages) {
         m_canProcessMessages = true;
         mosquitto_message_callback_set(m_mosq, mosq_msg_callback);
-
-        int playlistFrequency = getSettingInt("MQTTFrequency");
-        int statusFrequency = getSettingInt("MQTTStatusFrequency");
-        if ((playlistFrequency > 0) || (statusFrequency > 0)) {
-            // create  background Publish Thread
-            int result = pthread_create(&m_mqtt_publish_t, NULL, &RunMqttPublishThread, (void*)this);
-            if (result != 0) {
-                LogErr(VB_CONTROL, "Unable to create background Publish thread. rc=%d", result);
-            }
-        }
     }
 
     // Register topics which were set since we originally connected
@@ -471,8 +321,6 @@ void MosquittoClient::SetReady() {
     if (m_isConnected) {
         HandleConnect();
     }
-
-    WarningHolder::AddWarningListener(this);
 }
 
 void MosquittoClient::HandleConnect() {
@@ -486,7 +334,6 @@ void MosquittoClient::HandleConnect() {
     LogInfo(VB_CONTROL, "Mosquitto Connected.... Will Subscribe to Topics\n");
     std::vector<std::string> subscribe_topics;
     subscribe_topics.push_back(m_baseTopic + "/set/#");
-    subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
 
     m_subBaseTopic = getSetting("MQTTSubscribe");
     if (m_subBaseTopic != "") {
@@ -494,8 +341,7 @@ void MosquittoClient::HandleConnect() {
         subscribe_topics.push_back(m_subBaseTopic);
     }
 
-    for (auto& a : callbacks) {
-        std::string topic = a.first;
+    for (auto& topic : callbackTopics) {
         if (topic.rfind("/set/", 0) != 0) {
             std::string tp = m_baseTopic + topic;
             subscribe_topics.push_back(tp);
@@ -553,78 +399,23 @@ void MosquittoClient::MessageCallback(void* obj, const struct mosquitto_message*
         return;
     }
 
-    for (auto& a : callbacks) {
-        std::string s = m_baseTopic + a.first;
+    for (auto& a : callbackTopics) {
+        std::string s = m_baseTopic + a;
         LogDebug(VB_CONTROL, "Testing Callback '%s'\n", s.c_str());
         mosquitto_topic_matches_sub(s.c_str(), message->topic, &match);
         if (match) {
             std::string tp = message->topic;
             tp.replace(0, m_baseTopic.size(), emptyStr);
-            a.second(tp, payload);
+            Events::InvokeCallback(a, tp, payload);
             LogDebug(VB_CONTROL, "Found and Completed Callback for '%s'\n", s.c_str());
             return;
         }
-    }
-
-    std::string effectTopic = m_baseTopic + "/set/effect/#";
-    std::string effectTopicOld = m_baseTopic + "/effect/#";
-    // Check normal
-    mosquitto_topic_matches_sub(effectTopic.c_str(), message->topic, &match);
-    if (match) {
-        std::string s = m_baseTopic + "/set";
-        topic.replace(0, s.size() + 1, emptyStr);
-    } else {
-        // Check Legacy
-        mosquitto_topic_matches_sub(effectTopicOld.c_str(), message->topic, &match);
-        if (match) {
-            LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n",
-                     message->topic);
-            topic.replace(0, m_baseTopic.size() + 1, emptyStr);
-        }
-    }
-
-    if (match) {
-        // At this point, topic has had /set removed if it was present
-        if (topic == "effect/stop") {
-            if (payload == "") {
-                StopAllEffects();
-            } else {
-                StopEffect(payload.c_str());
-            }
-
-        } else if (topic == "effect/start") {
-            StartEffect(payload.c_str(), 0);
-        }
-
-        return;
     }
 
     LogWarn(VB_CONTROL, "No match found for Mosquitto topic '%s'\n",
             message->topic);
 }
 
-void MosquittoClient::PublishPlaylistStatus() {
-    if (!m_isConnected) {
-        return;
-    }
-    Json::Value json = Player::INSTANCE.GetMqttStatusJSON();
-
-    std::stringstream buffer;
-    buffer << json << std::endl;
-    Publish("playlist_details", buffer.str());
-}
-
-void MosquittoClient::PublishFPPDStatus() {
-    if (!m_isConnected) {
-        return;
-    }
-    Json::Value json;
-    GetCurrentFPPDStatus(json);
-
-    std::stringstream buffer;
-    buffer << json << std::endl;
-    Publish("fppd_status", buffer.str());
-}
 
 void MosquittoClient::CacheSetMessage(std::string& topic, std::string& message) {
     std::unique_lock<std::mutex> lock(messageCacheLock);
@@ -634,15 +425,6 @@ void MosquittoClient::CacheSetMessage(std::string& topic, std::string& message) 
     messageCache[topic] = message;
 }
 
-std::string MosquittoClient::CacheGetMessage(std::string& topic) {
-    std::unique_lock<std::mutex> lock(messageCacheLock);
-
-    auto search = messageCache.find(topic);
-    if (search != messageCache.end())
-        return messageCache[topic];
-
-    return "";
-}
 
 bool MosquittoClient::CacheCheckMessage(std::string& topic, std::string& message) {
     std::unique_lock<std::mutex> lock(messageCacheLock);
@@ -654,47 +436,3 @@ bool MosquittoClient::CacheCheckMessage(std::string& topic, std::string& message
     return false;
 }
 
-void* RunMqttPublishThread(void* data) {
-    sleep(3); // Give everything time to start up
-
-    MosquittoClient* me = (MosquittoClient*)data;
-    int playlistFrequency = getSettingInt("MQTTFrequency");
-    int statusFrequency = getSettingInt("MQTTStatusFrequency");
-    if (playlistFrequency < 0) {
-        playlistFrequency = 0;
-    }
-    if (statusFrequency < 0) {
-        statusFrequency = 0;
-    }
-
-    LogInfo(VB_CONTROL, "Starting Publish Thread with Playlist Frequency: %d and Status Frequency %d\n", playlistFrequency, statusFrequency);
-    if ((playlistFrequency == 0) && (statusFrequency == 0)) {
-        // kill thread
-        LogInfo(VB_CONTROL, "Stopping MQTT Publish Thread as frequency is zero.\nc");
-        return 0;
-    }
-
-    // Loop for ever  We are running both publishes in one thread
-    // just to minimize the number of threads
-    time_t lastStatus = std::time(0);
-    time_t lastPlaylist = std::time(0);
-    while (true) {
-        time_t now = std::time(0);
-        int statusDiff = statusFrequency == 0 ? INT_MIN : (int)(now - lastStatus);
-        int playlistDiff = playlistFrequency == 0 ? INT_MIN : (int)(now - lastPlaylist);
-        if (playlistDiff >= playlistFrequency) {
-            me->PublishPlaylistStatus();
-            lastPlaylist = now;
-            playlistDiff = 0;
-        }
-        if (statusDiff >= statusFrequency) {
-            me->PublishFPPDStatus();
-            lastStatus = now;
-            statusDiff = 0;
-        }
-        int playlistSleep = playlistFrequency == 0 ? INT_MAX : (playlistFrequency - playlistDiff);
-        int statusSleep = statusFrequency == 0 ? INT_MAX : (statusFrequency - statusDiff);
-
-        sleep(std::min(playlistSleep, statusSleep));
-    }
-}

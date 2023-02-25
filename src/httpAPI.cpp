@@ -26,6 +26,7 @@
 #include "fpp.h"
 #include "fppd.h"
 #include "httpAPI.h"
+#include "mqtt.h"
 #include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/channeloutputthread.h"
 #include "channeltester/ChannelTester.h"

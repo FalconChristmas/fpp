@@ -18,41 +18,41 @@
 #include <string>
 
 #include "Warnings.h"
+#include "Events.h"
 
 #include "mosquitto.h"
 
-void* RunMqttPublishThread(void* data);
-
-class MosquittoClient : public WarningListener {
+class MosquittoClient : public EventHandler {
 public:
     MosquittoClient(const std::string& host, const int port, const std::string& topicPrefix);
     ~MosquittoClient();
 
     int Init(const std::string& username, const std::string& password, const std::string& ca_file);
 
-    void PrepareForShutdown();
+    virtual bool Publish(const std::string &topic, const std::string &data) override;
+    virtual bool Publish(const std::string& subTopic, const int valueconst) override;
+    virtual void RegisterCallback(const std::string& topic) override;
+    virtual void RemoveCallback(const std::string& topic) override;
+
+
+    virtual void PrepareForShutdown() override;
 
     int PublishRaw(const std::string& topic, const std::string& msg, const bool retain = false, const int qos = 1);
-    int Publish(const std::string& subTopic, const std::string& msg, const bool retain = false, const int qos = 1);
-    int Publish(const std::string& subTopic, const int valueconst, bool retain = false, const int qos = 1);
+    int Publish(const std::string& subTopic, const std::string& msg, const bool retain, const int qos = 1);
+    int Publish(const std::string& subTopic, const int valueconst, bool retain, const int qos = 1);
+
+
 
     void LogCallback(void* userdata, int level, const char* str);
     void MessageCallback(void* obj, const struct mosquitto_message* message);
 
-    void AddCallback(const std::string& topic, std::function<void(const std::string& topic, const std::string& payload)>& callback);
-    virtual void handleWarnings(std::list<std::string>& warnings);
-
-    void RemoveCallback(const std::string& topic);
     void HandleDisconnect();
     void HandleConnect();
     bool IsConnected();
 
-    void PublishPlaylistStatus();
-    void PublishFPPDStatus();
     void SetReady();
 
     void CacheSetMessage(std::string& topic, std::string& message);
-    std::string CacheGetMessage(std::string& topic);
     bool CacheCheckMessage(std::string& topic, std::string& message);
 
     std::string GetBaseTopic() { return m_baseTopic; }
@@ -72,7 +72,7 @@ private:
     pthread_mutex_t m_mosqLock;
     pthread_t m_mqtt_publish_t;
 
-    std::map<std::string, std::function<void(const std::string& topic, const std::string& payload)>> callbacks;
+    std::list<std::string> callbackTopics;
 
     std::mutex messageCacheLock;
     std::map<std::string, std::string> messageCache;

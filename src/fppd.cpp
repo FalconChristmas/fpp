@@ -56,6 +56,7 @@
 #include "Timers.h"
 #include "falcon.h"
 #include "fppd.h"
+#include "mqtt.h"
 #include "channeloutput/FPD.h"
 #include "sensors/Sensors.h"
 #include "util/GPIOUtils.h"
@@ -614,8 +615,46 @@ int main(int argc, char* argv[]) {
 
         if (!mqtt || !mqtt->Init(getSetting("MQTTUsername").c_str(), getSetting("MQTTPassword").c_str(), getSetting("MQTTCaFile").c_str())) {
             LogWarn(VB_CONTROL, "MQTT Init failed. Starting without MQTT. -- Maybe MQTT host doesn't resolve\n");
+            Events::AddEventHandler(mqtt);
         }
     }
+
+    std::function<void(const std::string&, const std::string&)>
+        fppd_callback = [](const std::string& topic_in,
+                                const std::string& payload) {
+            LogDebug(VB_CONTROL, "System Callback for %s\n", topic_in.c_str());
+
+            if (0 == topic_in.compare(topic_in.length() - 5, 5, "/stop")) {
+                LogInfo(VB_CONTROL, "Stopping FPP for request:   %s\n", topic_in.c_str());
+                ShutdownFPPD(false);
+            } else if (0 == topic_in.compare(topic_in.length() - 8, 8, "/restart")) {
+                LogInfo(VB_CONTROL, "Restarting FPP for request:   %s\n", topic_in.c_str());
+                ShutdownFPPD(true);
+            } else {
+                LogWarn(VB_CONTROL, "Invalid request in fppd_callback  %s\n", topic_in.c_str());
+            }
+        };
+    std::function<void(const std::string&, const std::string&)>
+        system_callback = [](const std::string& topic_in,
+                                  const std::string& payload) {
+            LogDebug(VB_CONTROL, "System Callback for %s\n", topic_in.c_str());
+            std::string rc = "";
+
+            if (0 == topic_in.compare(topic_in.length() - 9, 9, "/shutdown")) {
+                LogInfo(VB_CONTROL, "Shutting down OS for request:   %s\n", topic_in.c_str());
+                urlGet("http://localhost/api/system/shutdown", rc);
+            } else if (0 == topic_in.compare(topic_in.length() - 8, 8, "/restart")) {
+                LogInfo(VB_CONTROL, "Restarting FPP for request:   %s\n", topic_in.c_str());
+                urlGet("http://localhost/api/system/reboot", rc);
+            } else {
+                LogWarn(VB_CONTROL, "Invalid  request in mqtt_system_callback  %s\n", topic_in.c_str());
+            }
+        };
+
+    Events::AddCallback("/system/fppd/#", fppd_callback);
+    Events::AddCallback("/system/shutdown", system_callback);
+    Events::AddCallback("/system/restart", system_callback);
+
 
     WarningHolder::StartNotifyThread();
 
@@ -663,11 +702,9 @@ int main(int argc, char* argv[]) {
 
     CommandManager::INSTANCE.TriggerPreset("FPPD_STOPPED");
 
-    //turn off processessing of events so we don't get
+    //turn off processing of events so we don't get
     //events while we are shutting down
-    if (mqtt) {
-        mqtt->PrepareForShutdown();
-    }
+    Events::PrepareForShutdown();
 
     CleanupMediaOutput();
     CloseEffects();
@@ -684,8 +721,10 @@ int main(int argc, char* argv[]) {
 
     WarningHolder::StopNotifyThread();
 
-    if (mqtt)
+    if (mqtt) {
+        Events::RemoveEventHandler(mqtt);
         delete mqtt;
+    }
 
     MagickLib::DestroyMagick();
     curl_global_cleanup();
@@ -795,13 +834,7 @@ void MainLoop(void) {
 #endif
     multiSync->Discover();
 
-    LogInfo(VB_GENERAL, "Checking MQTT\n");
-    if (mqtt) {
-        mqtt->SetReady();
-        // Wait until ready to publish
-        mqtt->Publish("version", getFPPVersion(), true);
-        mqtt->Publish("branch", getFPPBranch(), true);
-    }
+    Events::Ready();
 
     LogInfo(VB_GENERAL, "Starting main processing loop\n");
 

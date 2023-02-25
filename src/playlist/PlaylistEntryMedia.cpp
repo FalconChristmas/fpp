@@ -121,11 +121,9 @@ int PlaylistEntryMedia::PreparePlay() {
         multiSync->SendMediaOpenPacket(m_mediaFilename);
 
     m_openTime = GetTimeMS();
-    if (mqtt) {
-        mqtt->Publish("playlist/media/status", m_mediaFilename);
-        mqtt->Publish("playlist/media/title", MediaDetails::INSTANCE.title);
-        mqtt->Publish("playlist/media/artist", MediaDetails::INSTANCE.artist);
-    }
+    Events::Publish("playlist/media/status", m_mediaFilename);
+    Events::Publish("playlist/media/title", MediaDetails::INSTANCE.title);
+    Events::Publish("playlist/media/artist", MediaDetails::INSTANCE.artist);
     return 1;
 }
 
@@ -244,11 +242,9 @@ int PlaylistEntryMedia::Stop(void) {
 
     CloseMediaOutput();
 
-    if (mqtt) {
-        mqtt->Publish("playlist/media/status", "");
-        mqtt->Publish("playlist/media/title", "");
-        mqtt->Publish("playlist/media/artist", "");
-    }
+    Events::Publish("playlist/media/status", "");
+    Events::Publish("playlist/media/title", "");
+    Events::Publish("playlist/media/artist", "");
 
     return PlaylistEntryBase::Stop();
 }
@@ -276,11 +272,9 @@ int PlaylistEntryMedia::HandleSigChild(pid_t pid) {
 
     pthread_mutex_unlock(&m_mediaOutputLock);
 
-    if (mqtt) {
-        mqtt->Publish("playlist/media/status", "");
-        mqtt->Publish("playlist/media/title", "");
-        mqtt->Publish("playlist/media/artist", "");
-    }
+    Events::Publish("playlist/media/status", "");
+    Events::Publish("playlist/media/title", "");
+    Events::Publish("playlist/media/artist", "");
 
     return 1;
 }
@@ -470,11 +464,9 @@ void PlaylistEntryMedia::Pause() {
     m_pausedStatus = mediaOutputStatus;
     m_pausedTime = GetElapsedMS();
     CloseMediaOutput();
-    if (mqtt) {
-        mqtt->Publish("playlist/media/status", "");
-        mqtt->Publish("playlist/media/title", "");
-        mqtt->Publish("playlist/media/artist", "");
-    }
+    Events::Publish("playlist/media/status", "");
+    Events::Publish("playlist/media/title", "");
+    Events::Publish("playlist/media/artist", "");
 }
 bool PlaylistEntryMedia::IsPaused() {
     return m_pausedTime >= 0;

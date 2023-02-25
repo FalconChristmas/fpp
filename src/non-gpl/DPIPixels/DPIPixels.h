@@ -20,7 +20,7 @@
 #include "FrameBuffer.h"
 #include "util/SPIUtils.h"
 
-#define MAX_DPI_PIXEL_BANKS 3
+constexpr int MAX_DPI_PIXEL_BANKS = 3;
 
 class DPIPixelsOutput : public ChannelOutput {
 public:

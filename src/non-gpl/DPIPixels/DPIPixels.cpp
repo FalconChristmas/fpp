@@ -223,6 +223,12 @@ int DPIPixelsOutput::Init(Json::Value config) {
         pixelStrings.push_back(newString);
     }
 
+    while (!pixelStrings.empty() && pixelStrings.back()->m_outputChannels == 0)  {
+        PixelString *ps = pixelStrings.back();
+        delete ps;
+        pixelStrings.pop_back();
+    }
+
     stringCount = pixelStrings.size();
 
     int nonZeroStrings = 0;

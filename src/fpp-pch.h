@@ -44,7 +44,7 @@
 #include "common.h"
 #include "fppversion.h"
 #include "log.h"
-#include "mqtt.h"
+#include "Events.h"
 #include "settings.h"
 #include "commands/Commands.h"
 

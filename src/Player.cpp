@@ -34,6 +34,45 @@ Player::~Player() {
 }
 
 void Player::Init() {
+
+    /*
+   * Start Playlist Callback
+   */
+    std::function<void(const std::string&, const std::string&)>
+        playlist_callback = [](const std::string& topic_in,
+                               const std::string& payload) {
+            std::string emptyStr;
+            std::string topic = topic_in;
+            topic.replace(0, 14, emptyStr); // Replace until /#
+
+            int pos = topic.find("/");
+            if (pos == std::string::npos) {
+                LogWarn(VB_PLAYLIST, "Ignoring Invalid playlist topic: playlist/%s\n",
+                        topic.c_str());
+                return;
+            }
+
+            std::string newPlaylistName = topic.substr(0, pos);
+            std::string topicEnd = topic.substr(pos);
+
+            if (topicEnd == "/start") {
+                pos = 0;
+                if (!payload.empty()) {
+                    pos = std::atoi(payload.c_str());
+                }
+
+                LogDebug(VB_CONTROL, "Starting Playlist '%s' with message '%s'\n",
+                         newPlaylistName.c_str(), payload.c_str());
+                Player::INSTANCE.StartPlaylist(newPlaylistName, -1, pos);
+                LogDebug(VB_CONTROL, "Call to Player::INSTANCE.StartPlaylist complete\n");
+            } else {
+                playlist->MQTTHandler(topic, payload);
+            };
+
+            LogDebug(VB_CONTROL, "exit playlist_callback (MQTT)\n");
+        };
+    Events::AddCallback("/set/playlist/#", playlist_callback);
+
     playlist = new Playlist();
 }
 

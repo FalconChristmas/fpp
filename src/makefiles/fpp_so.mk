@@ -21,7 +21,7 @@ OBJECTS_fpp_so += \
     channeloutput/processors/ThreeToFourOutputProcessor.o \
 	channeloutput/processors/OverrideZeroOutputProcessor.o \
 	channeloutput/stringtesters/PixelCountStringTester.o \
-        channeloutput/stringtesters/PixelFadeStringTester.o \
+    channeloutput/stringtesters/PixelFadeStringTester.o \
 	channeloutput/stringtesters/PixelStringTester.o \
 	channeloutput/stringtesters/PortNumberStringTester.o \
 	channeltester/ChannelTester.o \
@@ -39,6 +39,7 @@ OBJECTS_fpp_so += \
 	common.o \
 	e131bridge.o \
 	effects.o \
+	Events.o \
 	falcon.o \
 	fppversion.o \
 	FrameBuffer.o \

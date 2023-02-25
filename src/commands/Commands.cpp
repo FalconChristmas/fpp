@@ -123,6 +123,49 @@ void CommandManager::Init() {
     addCommand(new RunRemoteScriptEvent());
     addCommand(new StartRemoteFSEQEffectCommand());
     addCommand(new StartRemotePlaylistCommand());
+
+    std::function<void(const std::string&, const std::string&)> f =
+        [](const std::string& topic, const std::string& payload) {
+            if (topic.size() <= 13) {
+                Json::Value val;
+                bool success = LoadJsonFromString(payload, val);
+                if (success && val.isObject()) {
+                    CommandManager::INSTANCE.run(val);
+                } else {
+                    LogWarn(VB_COMMAND, "Invalid JSON Payload: %s\n", payload.c_str());
+                }
+            } else {
+                std::vector<std::string> args;
+                std::string command;
+
+                std::string ntopic = topic.substr(13); // remove /set/command/
+                args = splitWithQuotes(ntopic, '/');
+                command = args[0];
+                args.erase(args.begin());
+                bool foundp = false;
+                for (int x = 0; x < args.size(); x++) {
+                    if (args[x] == "{Payload}") {
+                        args[x] = payload;
+                        foundp = true;
+                    }
+                }
+                if (payload != "" && !foundp) {
+                    args.push_back(payload);
+                }
+                if (args.size() == 0 && payload != "") {
+                    Json::Value val = LoadJsonFromString(payload);
+                    if (val.isObject()) {
+                        CommandManager::INSTANCE.run(command, val);
+                    } else {
+                        LogWarn(VB_COMMAND, "Invalid JSON Payload for topic %s: %s\n", topic.c_str(), payload.c_str());
+                    }
+                } else {
+                    CommandManager::INSTANCE.run(command, args);
+                }
+            }
+        };
+    Events::AddCallback("/set/command", f);
+    Events::AddCallback("/set/command/#", f);
 }
 CommandManager::~CommandManager() {
     Cleanup();

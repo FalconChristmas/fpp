@@ -103,7 +103,8 @@
         "compare": "cpp",
         "concepts": "cpp",
         "ranges": "cpp",
-        "stop_token": "cpp"
+        "stop_token": "cpp",
+        "unordered_set": "cpp"
     },
     "editor.formatOnSave": true,
     "cmake.configureOnOpen": false

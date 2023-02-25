@@ -66,6 +66,28 @@ int InitEffects(void) {
     }
 
     pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
+
+
+    std::function<void(const std::string&, const std::string&)>
+        effect_callback = [](const std::string& topic_in,
+                                const std::string& payload) {
+            LogDebug(VB_CONTROL, "System Callback for %s\n", topic_in.c_str());
+
+            if (0 == topic_in.compare(topic_in.length() - 5, 5, "/stop")) {
+                if (payload == "") {
+                    StopAllEffects();
+                } else {
+                    StopEffect(payload.c_str());
+                }
+            } else if (0 == topic_in.compare(topic_in.length() - 6, 6, "/start")) {
+                StartEffect(payload.c_str(), 0);
+            } else if (0 == topic_in.compare(topic_in.length() - 8, 8, "/startbg")) {
+                StartEffect(payload.c_str(), 0, 0, true);
+            }
+        };
+
+    Events::AddCallback("/set/effect/#", effect_callback);
+
     return 1;
 }
 

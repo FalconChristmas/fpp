@@ -68,7 +68,7 @@ Playlist::Playlist(Playlist* parent) :
 
     SetRepeat(0);
 
-    if (mqtt) {
+    if (Events::HasEventHandlers()) {
         //Legacy callbacks
         std::function<void(const std::string& t, const std::string& payload)> f1 = [this](const std::string& t, const std::string& payload) {
             std::string emptyStr;
@@ -77,9 +77,9 @@ Playlist::Playlist(Playlist* parent) :
             topic.replace(0, 10, emptyStr); // Replace until /#
             this->MQTTHandler(topic, payload);
         };
-        mqtt->AddCallback("/playlist/name/set", f1);
-        mqtt->AddCallback("/playlist/repeat/set", f1);
-        mqtt->AddCallback("/playlist/sectionPosition/set", f1);
+        Events::AddCallback("/playlist/name/set", f1);
+        Events::AddCallback("/playlist/repeat/set", f1);
+        Events::AddCallback("/playlist/sectionPosition/set", f1);
 
     } else {
         LogDebug(VB_CONTROL, "Not registered MQTT Callbacks for Playlist. MQTT Not configured. \n");
@@ -280,9 +280,7 @@ std::string sanitizeMediaName(std::string mediaName) {
 int Playlist::Load(const char* filename) {
     LogDebug(VB_PLAYLIST, "Playlist::Load(%s)\n", filename);
 
-    if (mqtt) {
-        mqtt->Publish("playlist/name/status", filename);
-    }
+    Events::Publish("playlist/name/status", filename);
 
     Json::Value root;
     std::string tmpFilename = filename;
@@ -562,11 +560,9 @@ int Playlist::Start(void) {
     } else {
         PluginManager::INSTANCE.playlistCallback(GetInfo(), "start", m_currentSectionStr, m_sectionPosition);
     }
-    if (mqtt) {
-        mqtt->Publish("status", m_currentState.c_str());
-        mqtt->Publish("playlist/section/status", m_currentSectionStr);
-        mqtt->Publish("playlist/sectionPosition/status", m_sectionPosition);
-    }
+    Events::Publish("status", m_currentState);
+    Events::Publish("playlist/section/status", m_currentSectionStr);
+    Events::Publish("playlist/sectionPosition/status", m_sectionPosition);
 
     m_currentSection->at(m_sectionPosition)->StartPlaying();
 
@@ -652,9 +648,7 @@ void Playlist::Resume() {
             m_status = FPP_STATUS_PLAYLIST_PLAYING;
 
             // Notify of current playlists because was likely changed when Paused.
-            if (mqtt) {
-                mqtt->Publish("playlist/name/status", m_name);
-            }
+            Events::Publish("playlist/name/status", m_name);
         }
     }
 }
@@ -886,10 +880,8 @@ int Playlist::Process(void) {
         }
         
         PluginManager::INSTANCE.playlistCallback(GetInfo(), "playing", m_currentSectionStr, m_sectionPosition);
-        if (mqtt) {
-            mqtt->Publish("playlist/section/status", m_currentSectionStr);
-            mqtt->Publish("playlist/sectionPosition/status", m_sectionPosition);
-        }
+        Events::Publish("playlist/section/status", m_currentSectionStr);
+        Events::Publish("playlist/sectionPosition/status", m_sectionPosition);
     }
 
     return 1;
@@ -978,12 +970,12 @@ void Playlist::SetIdle(bool exit) {
         sequence->SendBlankingData();
     }
 
-    if (publishIdle && mqtt) {
-        mqtt->Publish("status", "idle");
-        mqtt->Publish("playlist/name/status", "");
-        mqtt->Publish("playlist/section/status", "");
-        mqtt->Publish("playlist/sectionPosition/status", 0);
-        mqtt->Publish("playlist/repeat/status", 0);
+    if (publishIdle) {
+        Events::Publish("status", "idle");
+        Events::Publish("playlist/name/status", "");
+        Events::Publish("playlist/section/status", "");
+        Events::Publish("playlist/sectionPosition/status", 0);
+        Events::Publish("playlist/repeat/status", 0);
     }
 }
 
@@ -1132,9 +1124,7 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
 void Playlist::SetPosition(int position) {
     m_startPosition = position;
 
-    if (mqtt) {
-        mqtt->Publish("playlist/position/status", position);
-    }
+    Events::Publish("playlist/position/status", position);
 }
 
 /*
@@ -1143,9 +1133,7 @@ void Playlist::SetPosition(int position) {
 void Playlist::SetRepeat(int repeat) {
     m_repeat = repeat;
 
-    if (mqtt) {
-        mqtt->Publish("playlist/repeat/status", repeat);
-    }
+    Events::Publish("playlist/repeat/status", repeat);
 }
 
 void Playlist::RandomizeMainPlaylist() {
