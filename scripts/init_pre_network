@@ -113,7 +113,7 @@ fi
 
 # Clear any restart/reboot flags
 echo "FPP - Clearing reboot flags"
-sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
+sed -i -e "s/^rebootFlag .*/rebootFlag = \"0\"/" ${FPPHOME}/media/settings
 
 if [ ! -f /etc/fpp/desktop ]; then
 # make sure the media directory in the settings matches what we used at boot
