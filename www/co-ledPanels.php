@@ -25,9 +25,13 @@ function readPanelCapes($cd, $panelCapes)
 
 $panelCapes = array();
 $panelCapes = readPanelCapes($mediaDirectory . "/tmp/panels/", $panelCapes);
+$panelCapesHaveSel4 = false;
 if (count($panelCapes) == 1) {
     echo "var KNOWN_PANEL_CAPE = " . $panelCapes[0] . ";";
     $panelCapes[0] = json_decode($panelCapes[0], true);
+    if (isset($panelCapes[0]["controls"]["sel4"])) {
+        $panelCapesHaveSel4 = true;
+    }
 } else {
     echo "// NO KNOWN_PANEL_CAPE";
 }
@@ -1184,7 +1188,7 @@ function PanelSubtypeChanged() {
     html += "<option value='32x16x2x1'>32x16 1/2 Scan AB</option>"
     html += "<option value='32x32x16'>32x32 1/16 Scan</option>"
     html += "<option value='64x32x16'>64x32 1/16 Scan</option>"
-    <?if (strpos(isset($settings['Variant']) ? $settings['Variant'] : '', 'PocketBeagle') !== false) {?>
+    <?if ($panelCapesHaveSel4) {?>
     html += "<option value='64x64x32'>64x64 1/32 Scan</option>"
     <?}?>
     html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
@@ -1372,7 +1376,8 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
                     <div class="printSettingFieldCola col-md-3 col-lg-3">
                         <script>
                             function LEDPanelsSizeChanged() {
-                                SetSetting("LEDPanelsSize", $('#LEDPanelsSize').val(), 1, 0, false, null, function() {
+                                var value = $('#LEDPanelsSize').val();
+                                SetSetting("LEDPanelsSize", value, 1, 0, false, null, function() {
                                         settings['LEDPanelsSize'] = value;
                                         LEDPanelLayoutChanged();
                                 });
