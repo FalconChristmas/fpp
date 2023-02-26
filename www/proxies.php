@@ -177,6 +177,9 @@ $dhcpIps = array();
 foreach ($interfaces as $iface) {
     $iface = rtrim($iface, " :\n\r\t\v\x00");
     $out = shell_exec("networkctl --no-legend -l -n 0 status " . $iface);
+    if ($out == null) {
+        $out = "";
+    }
     $lines = explode("\n", trim($out));
     $inLeases = false;
     foreach ($lines as $line) {

@@ -316,6 +316,10 @@ int FrameBuffer::InitializeFrameBufferSocket(void) {
         return 0;
     }
     memset(m_buffer, 0, m_bufferSize);
+    m_pageBuffers[0] = m_buffer;
+    m_pageBuffers[1] = m_buffer + m_pageSize;
+    m_pageBuffers[2] = m_buffer + m_pageSize + m_pageSize;
+
 
     memset(&dev_address, 0, sizeof(struct sockaddr_un));
     dev_address.sun_family = AF_UNIX;

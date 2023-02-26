@@ -149,6 +149,7 @@ void GetFrameBufferDevices(Json::Value &v, bool debug) {
 
 int main (int argc, char *argv[])
 {
+    LoadSettings(argv[0]);
   memset(command, 0, sizeof(command));
   SetupDomainSocket();
   if(argc>1)

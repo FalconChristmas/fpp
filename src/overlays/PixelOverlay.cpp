@@ -380,6 +380,7 @@ const std::string& PixelOverlayManager::mapFont(const std::string& f) {
 const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET(const httpserver::http_request& req) {
     std::string p1 = req.get_path_pieces()[0];
     int plen = req.get_path_pieces().size();
+    LogDebug(VB_CHANNELOUT, "PixelOverlayManager::render_GET():   %s\n", p1.c_str());
     if (p1 == "models") {
         Json::Value result;
         bool empty = true;
@@ -431,6 +432,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
             result["autoCreate"] = autoCreate;
         } else if (p2 == "models") {
             std::unique_lock<std::mutex> lock(modelsLock);
+            bool hasModels = false;
             for (auto& mn : modelNames) {
                 Json::Value model;
                 PixelOverlayModel* m = models[mn];
@@ -443,9 +445,13 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
                 } else {
                     model["effectRunning"] = false;
                 }
+                hasModels = true;
                 model["width"] = m->getWidth();
                 model["height"] = m->getHeight();
                 result.append(model);
+            }
+            if (!hasModels) {
+                result.resize(0);
             }
         } else if (p2 == "model") {
             std::unique_lock<std::mutex> lock(modelsLock);

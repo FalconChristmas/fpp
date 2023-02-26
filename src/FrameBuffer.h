@@ -151,7 +151,7 @@ private:
     int m_bpp = -1;
     uint8_t* m_buffer = nullptr;
     uint8_t* m_outputBuffer = nullptr;
-    uint8_t* m_pageBuffers[2] = { nullptr, nullptr} ;
+    uint8_t* m_pageBuffers[3] = { nullptr, nullptr, nullptr} ;
     int m_pageSize = 0;
 
     int m_pixelSize = 1;
