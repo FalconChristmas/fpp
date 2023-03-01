@@ -23,6 +23,7 @@ public:
     static void SetHas4DirectionControls(bool b = true) { has4DirectionControls = b; }
     static bool Has4DirectionControls() { return has4DirectionControls; }
     static void SetOLEDOrientationFlipped(bool b) { oledFlipped = b; }
+    static bool GetOLEDOrientationFlipped() { return oledFlipped; }
     static OLEDPage* GetCurrentPage() { return currentPage; }
     static void SetCurrentPage(OLEDPage* p);
     static void SetForcedOff(bool b) { oledForcedOff = b; };

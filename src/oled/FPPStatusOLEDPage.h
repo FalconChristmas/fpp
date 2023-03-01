@@ -44,6 +44,8 @@ public:
 private:
     bool getCurrentStatus(Json::Value& result);
     bool checkIfStatusChanged(Json::Value& result);
+    bool loadWiFiImage(const std::string &tp = "L");
+    void displayWiFiQR();
     std::vector<std::string> _lastStatusLines;
 
     std::vector<std::string> networks;
@@ -58,6 +60,12 @@ private:
     int _imageWidth;
     int _imageHeight;
     std::vector<uint8_t> _image;
+
+    int _wifiImageWidth = 0;
+    int _wifiImageHeight = 0; 
+    std::vector<uint8_t> _wifiImage;
+    int wifiTimer = 0;
+
 
     CURL* curl;
     std::string buffer;

@@ -1,32 +1,5 @@
 #!/bin/bash
 
-AttemptCreateSoftAP() {
-    TetherInterface=$(getSetting TetherInterface)
-    if [ "x${TetherInterface}" == "x" ]; then
-        TetherInterface="wlan0";
-    fi
-    if [ -e "/sys/class/net/$TetherInterface" ]; then
-        /sbin/iwconfig $TetherInterface power off || true
-    fi
-    TetherInterfaceNum=$(echo $TetherInterface | colrm 1 4)
-    if [ ! -e "/sys/class/net/SoftAp0" ]; then
-        if [ -e "/sys/class/net/$TetherInterface" ]; then
-            COMBINATIONS=$(iw "phy${TetherInterfaceNum}" info | grep "interface combinations are not supported")
-            if [ "x${COMBINATIONS}" == "x" ]; then
-                iw phy "phy${TetherInterfaceNum}" interface add "SoftAp0" type __ap
-            fi
-        fi
-    fi
-
-    if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
-        modprobe g_ether iManufacturer="FPP-Tether" iProduct="FPP-Tether"
-        ls /sys/class/net/
-        if [ -e "/sys/class/net/usb0" ]; then
-            ifconfig usb0 192.168.7.2 netmask 255.255.255.0
-        fi
-    fi
-}
-
 FindTetherWIFIAdapater() {
     local TetherInterface=$(getSetting TetherInterface)
     if [ "x${TetherInterface}" == "x" ]; then
@@ -81,10 +54,17 @@ EOF
 
     HOSTAPDVER=`hostapd -v 2>&1 | colrm 1 9 | colrm 4 | colrm 2 2 | head -1`
     if [ "$HOSTAPDVER" -lt "30" ]; then
-	echo "reassociation_deadline=3000" >> /etc/hostapd/hostapd.conf
-	echo "pmk_r1_push=1" >> /etc/hostapd/hostapd.conf
-	echo "ft_over_ds=0" >> /etc/hostapd/hostapd.conf
-	echo "bss_transition=1" >> /etc/hostapd/hostapd.conf
+	    echo "reassociation_deadline=3000" >> /etc/hostapd/hostapd.conf
+	    echo "pmk_r1_push=1" >> /etc/hostapd/hostapd.conf
+	    echo "ft_over_ds=0" >> /etc/hostapd/hostapd.conf
+	    echo "bss_transition=1" >> /etc/hostapd/hostapd.conf
+    fi
+
+    if [ -f /usr/bin/qrencode ]; then 
+        # Low error correction MAY result in a QR that can be pixel doubled which generally works better for phones to pick up
+        /usr/bin/qrencode -t ASCII -m 0 -s 6 -l L -o "${FPPHOME}/media/tmp/wifi-L.ascii" "WIFI:T:WPA;S:${TetherSSID};P:${TetherPSK};;"
+        # Generate a High error correction as well.  If we cannot pixel double, this will give more info to the phone/device
+        /usr/bin/qrencode -t ASCII -m 3 -s 6 -l H -o "${FPPHOME}/media/tmp/wifi-H.ascii" "WIFI:T:WPA;S:${TetherSSID};P:${TetherPSK};;"
     fi
 }
 
@@ -308,6 +288,7 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
     if [ "${ENABLEHOSTAPD}" = "1" ]; then
         systemctl reload-or-restart hostapd.service
     else
+        rm -f ${FPPHOME}/media/tmp/wifi-*.ascii
         systemctl stop hostapd.service
         systemctl disable hostapd.service
     fi

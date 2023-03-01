@@ -351,8 +351,8 @@ int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid,
             }
         }
     } else {
-        if (count < 60) {
-            //if less than 60 seconds since start, we'll assume we are booting up
+        if (count < 75) {
+            //if less than 75 seconds since start, we'll assume we are booting up
             std::string line = "Booting.";
             int idx = count % 8;
             for (int i = 0; i < idx; i++) {
@@ -413,7 +413,16 @@ bool FPPStatusOLEDPage::doIteration(bool& displayOn) {
     if (displayOn) {
         clearDisplay();
         int startY = 0;
-        if (oledType != OLEDType::TWO_COLOR || !oledFlipped) {
+        int count = _iterationCount;
+        bool doWiFi = false;
+        if (count > 15 && loadWiFiImage()) {
+            count -= 15;
+            count %= 30;
+            doWiFi = count < 15;
+        }
+        if (doWiFi) {
+            displayWiFiQR();
+        } else if (oledType != OLEDType::TWO_COLOR || !oledFlipped) {
             startY = outputTopPart(startY, _iterationCount);
             if (oledType != OLEDType::TWO_COLOR && oledType != OLEDType::TEXT_ONLY) {
                 // two color display doesn't need the separator line
@@ -668,6 +677,93 @@ void FPPStatusOLEDPage::readImage() {
             file.close();
         }
     }
+}
+
+void FPPStatusOLEDPage::displayWiFiQR() {
+    clearDisplay();
+    int dh = GetLEDDisplayHeight();
+    int y = 0;
+    if (oledType == OLEDType::TWO_COLOR) {
+        if (GetOLEDOrientationFlipped()) {
+            y = 0;
+        } else if (_wifiImageHeight > 48) {
+            y = 15;
+        } else {
+            y = 16;
+        }
+    } else {
+        if (_wifiImageHeight > dh) {
+            y = 0;
+        } else {
+            y = (dh - _wifiImageHeight) / 2;
+        }
+    }
+    drawBitmap(2, y, &_wifiImage[0], _wifiImageWidth, _wifiImageHeight);
+    printString(12 + _wifiImageWidth, y + 12, "WiFi");
+    printString(12 + _wifiImageWidth, y + 20, "Hot Spot");
+}
+
+bool FPPStatusOLEDPage::loadWiFiImage(const std::string &tp) {
+    if (_wifiImageWidth) {
+        return true;
+    }
+    _wifiImageWidth = 0;
+    _wifiImageHeight = 0;
+    std::string fn = "/home/fpp/media/tmp/wifi-" + tp + ".ascii";
+    int maxSz = 0;
+    if (GetOLEDType() == OLEDPage::OLEDType::SMALL) {
+        maxSz = 15;
+    } else if (GetOLEDType() == OLEDPage::OLEDType::SINGLE_COLOR) {
+        maxSz = 66;
+    } else if (GetOLEDType() == OLEDPage::OLEDType::TWO_COLOR) {
+        maxSz = 50;
+    }
+    if (maxSz && FileExists(fn)) {
+        std::ifstream file(fn);
+        if (file.is_open()) {
+            std::string line;
+            bool readingBytes = false;
+            int scale = 2;
+            while (std::getline(file, line)) {
+                if (_wifiImageWidth == 0) {
+                    if (line.size() > maxSz) {
+                        // going to have to scale, first check if we can get the "H" version
+                        if (tp == "L" && loadWiFiImage("H")) {
+                            return true;
+                        }
+                        _wifiImageWidth = (int)line.size() / 2;
+                        scale = 1;
+                    } else {
+                        _wifiImageWidth = (int)line.size();
+                    }
+                }
+                for (int lc = 0; lc < scale; lc++) {
+                    for (int x = 0; x < (_wifiImageWidth / scale);) {
+                        uint8_t v = 0;
+                        for (int y = 0; y < 8 / scale; y++) {
+                            int idx = x * 2 + y * 2;
+                            v <<= 1;
+                            if (idx < line.size() && line[idx] == '#') {
+                                v |= 1;           
+                                if (scale == 2) {
+                                    v <<= 1;
+                                    v |= 1;
+                                }
+                            } else if (scale == 2) {
+                                v <<= 1;
+                            }
+                        }
+                        x += 8 / scale;
+                        _wifiImage.push_back(v);
+                    }
+                    ++_wifiImageHeight;
+                }
+            }
+            file.close();
+        }
+        return true;
+    }
+    return false;
 }
 
 bool FPPStatusOLEDPage::doAction(const std::string& action) {

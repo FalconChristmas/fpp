@@ -486,7 +486,7 @@ case "${OSVER}" in
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
                       git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
-                      fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev \
+                      fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev qrencode \
                       flex bison pkg-config libasound2-dev python3-distutils libssl-dev libtool bsdextrautils iw"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
