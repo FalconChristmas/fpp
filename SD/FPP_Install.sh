@@ -43,8 +43,8 @@
 #############################################################################
 # Other platforms which may be functioning:
 #
-# NOTE: FPP Development is based on the latest Debian Bullseye images, so
-#       hardware which does not support Bullseye may have issues.
+# NOTE: FPP Development is based on the latest Debian Bookworm images, so
+#       hardware which does not support Bookworm may have issues.
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
