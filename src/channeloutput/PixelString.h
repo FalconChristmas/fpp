@@ -69,7 +69,7 @@ public:
     PixelString(bool supportsSmartReceivers = false);
     ~PixelString();
 
-    int Init(Json::Value config);
+    int Init(Json::Value config, Json::Value *pinConfig = nullptr);
     void DumpConfig(void);
 
     int m_portNumber;

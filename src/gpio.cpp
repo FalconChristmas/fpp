@@ -235,62 +235,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                     if (state.risingAction["command"].asString() != "" || state.fallingAction["command"].asString() != "") {
                         state.pin->configPin(mode, false);
 
-                        // Set the time immediately to utilize the debounce code
-                        // from triggering our GPIOs on startup.
-                        state.lastTriggerTime = GetTime();
-                        state.lastValue = state.futureValue = state.pin->getValue();
-                        state.gpiodLine = nullptr;
-                        state.file = -1;
-
-#ifdef HAS_GPIOD
-                        if ((state.pin->supportsGpiod()) &&
-                            (!gpiodChips[state.pin->gpioIdx])) {
-                            gpiodChips[state.pin->gpioIdx] = gpiod_chip_open_by_number(state.pin->gpioIdx);
-                        }
-
-                        if ((state.pin->supportsGpiod()) &&
-                            (state.pin->gpio < gpiod_chip_num_lines(gpiodChips[state.pin->gpioIdx]))) {
-                            state.gpiodLine = gpiod_chip_get_line(gpiodChips[state.pin->gpioIdx], state.pin->gpio);
-
-                            struct gpiod_line_request_config lineConfig;
-                            lineConfig.consumer = "FPPD";
-                            lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
-                            lineConfig.flags = 0;
-                            if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
-                                LogDebug(VB_GPIO, "Could not config line as input\n");
-                            }
-                            gpiod_line_release(state.gpiodLine);
-
-                            if (state.risingAction != "" && state.fallingAction != "") {
-                                lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
-                            } else if (state.risingAction != "") {
-                                lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
-                            } else {
-                                lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE;
-                            }
-                            lineConfig.flags = 0;
-                            if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
-                                LogDebug(VB_GPIO, "Could not config line edge for %s, will poll\n", state.pin->name.c_str());
-                            } else {
-                                state.file = gpiod_line_event_get_fd(state.gpiodLine);
-                            }
-                        } else {
-                            state.gpiodLine = nullptr;
-                            state.file = -1;
-                        }
-#endif
-
-                        if (state.file > 0) {
-                            eventStates.push_back(state);
-                        } else {
-#ifdef HAS_GPIOD
-                            if (state.gpiodLine) {
-                                gpiod_line_release(state.gpiodLine);
-                            }
-                            state.gpiodLine = nullptr;
-#endif
-                            pollStates.push_back(state);
-                        }
+                        addState(state);
                         enabledCount++;
                     }
                 }
@@ -311,7 +256,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                     a.doAction(v);
                 } else {
                     //we are within the debounce time, we'll record this as a last value
-                    //and if we end up witha different value after the debounce time,
+                    //and if we end up with a different value after the debounce time,
                     //we'll send the command then
                     a.futureValue = v;
                     checkDebounces = true;
@@ -323,12 +268,84 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
     }
 #endif
 }
+void GPIOManager::AddGPIOCallback(const PinCapabilities* pin, const std::function<bool(int)> &cb) {
+    GPIOState state;
+    state.pin = pin;
+    state.callback = cb;
+    state.hasCallback = true;
+    addState(state);
+}
+
+void GPIOManager::addState(GPIOState &state) {
+    // Set the time immediately to utilize the debounce code
+    // from triggering our GPIOs on startup.
+    state.lastTriggerTime = GetTime();
+    state.lastValue = state.futureValue = state.pin->getValue();
+    state.gpiodLine = nullptr;
+    state.file = -1;
+
+#ifdef HAS_GPIOD
+    if ((state.pin->supportsGpiod()) &&
+        (!gpiodChips[state.pin->gpioIdx])) {
+        gpiodChips[state.pin->gpioIdx] = gpiod_chip_open_by_number(state.pin->gpioIdx);
+    }
+
+    if ((state.pin->supportsGpiod()) &&
+        (state.pin->gpio < gpiod_chip_num_lines(gpiodChips[state.pin->gpioIdx]))) {
+        state.gpiodLine = gpiod_chip_get_line(gpiodChips[state.pin->gpioIdx], state.pin->gpio);
+
+        struct gpiod_line_request_config lineConfig;
+        lineConfig.consumer = "FPPD";
+        lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
+        lineConfig.flags = 0;
+        if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
+            LogDebug(VB_GPIO, "Could not config line as input\n");
+        }
+        gpiod_line_release(state.gpiodLine);
+
+        if (state.risingAction != "" && state.fallingAction != "") {
+            lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
+        } else if (state.risingAction != "") {
+            lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
+        } else {
+            lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE;
+        }
+        lineConfig.flags = 0;
+        if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
+            LogDebug(VB_GPIO, "Could not config line edge for %s, will poll\n", state.pin->name.c_str());
+        } else {
+            state.file = gpiod_line_event_get_fd(state.gpiodLine);
+        }
+    } else {
+        state.gpiodLine = nullptr;
+        state.file = -1;
+    }
+#endif
+
+    if (state.file > 0) {
+        eventStates.push_back(state);
+    } else {
+#ifdef HAS_GPIOD
+        if (state.gpiodLine) {
+            gpiod_line_release(state.gpiodLine);
+        }
+        state.gpiodLine = nullptr;
+#endif
+        pollStates.push_back(state);
+    }
+
+}
+
 
 void GPIOManager::GPIOState::doAction(int v) {
     LogDebug(VB_GPIO, "GPIO %s triggered.  Value:  %d\n", pin->name.c_str(), v);
-    std::string command = (v == 0) ? fallingAction["command"].asString() : risingAction["command"].asString();
-    if (command != "") {
-        CommandManager::INSTANCE.run((v == 0) ? fallingAction : risingAction);
+    if (hasCallback) {
+        callback(v);
+    } else {
+        std::string command = (v == 0) ? fallingAction["command"].asString() : risingAction["command"].asString();
+        if (command != "") {
+            CommandManager::INSTANCE.run((v == 0) ? fallingAction : risingAction);
+        }
     }
     lastTriggerTime = GetTime();
     lastValue = v;

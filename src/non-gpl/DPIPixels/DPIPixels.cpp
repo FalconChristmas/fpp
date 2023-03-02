@@ -159,7 +159,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
         Json::Value s = config["outputs"][i];
         PixelString* newString = new PixelString(true);
 
-        if (!newString->Init(s))
+        if (!newString->Init(s, &root["outputs"][i]))
             return 0;
 
         if ((newString->m_outputChannels / 3) > longestString)

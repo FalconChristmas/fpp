@@ -34,6 +34,7 @@
 #include "../Plugin.h"
 #include "../Plugins.h"
 #include "../config.h"
+#include "../OutputMonitor.h"
 
 //old style that still need porting
 #include "FPD.h"
@@ -424,6 +425,8 @@ int SendChannelData(const char* channelData) {
  *
  */
 void StartingOutput(void) {
+    OutputMonitor::INSTANCE.AutoEnableOutputs();
+
     FPPChannelOutputInstance* output;
     int i = 0;
 
@@ -453,6 +456,8 @@ void StoppingOutput(void) {
             inst.output->StoppingOutput();
         }
     }
+
+    OutputMonitor::INSTANCE.AutoDisableOutputs();
 }
 
 /*

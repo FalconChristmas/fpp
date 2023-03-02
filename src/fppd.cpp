@@ -25,6 +25,7 @@
 #include "gpio.h"
 #include "httpAPI.h"
 #include "mediadetails.h"
+#include "OutputMonitor.h"
 #include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/channeloutputthread.h"
 #include "channeltester/ChannelTester.h"
@@ -797,6 +798,7 @@ void MainLoop(void) {
     APIServer apiServer;
     apiServer.Init();
 
+    OutputMonitor::INSTANCE.Initialize(callbacks);
     GPIOManager::INSTANCE.Initialize(callbacks);
     PluginManager::INSTANCE.addControlCallbacks(callbacks);
     NetworkMonitor::INSTANCE.Init(callbacks);
