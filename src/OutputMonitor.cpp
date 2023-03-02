@@ -52,7 +52,7 @@ public:
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
         OutputMonitor::INSTANCE.EnableOutputs();
-        return std::make_unique<Command::ErrorResult>("OK");
+        return std::make_unique<Command::Result>("OK");
     }
 };
 class FPPDisableOutputsCommand : public Command {
@@ -62,7 +62,7 @@ public:
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
         OutputMonitor::INSTANCE.DisableOutputs();
-        return std::make_unique<Command::ErrorResult>("OK");
+        return std::make_unique<Command::Result>("OK");
     }
 };
 

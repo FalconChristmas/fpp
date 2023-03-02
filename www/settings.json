@@ -146,6 +146,7 @@
         "output": {
             "description": "Output Control",
             "settings": [
+                "AutoEnableOutputs",
                 "alwaysTransmit",
                 "E131BridgingInterval"
             ]
@@ -445,6 +446,19 @@
                 "External": "External",
                 "Linux Kernel": "Kernel"
             }
+        },
+        "AutoEnableOutputs": {
+            "name": "AutoEnableOutputs",
+            "description": "Automatically turn on/off outputs",
+            "tip": "Some controllers can control the power to the pixel ports.  This setting allows FPP to automatically control the power to those ports when outputting data.",
+            "level": 1,
+            "gatherStats": true,
+            "restart": 2,
+            "reboot": 0,
+            "checkedValue": "1",
+            "uncheckedValue": "0",
+            "default": "1",
+            "type": "checkbox"
         },
         "alwaysTransmit": {
             "name": "alwaysTransmit",
