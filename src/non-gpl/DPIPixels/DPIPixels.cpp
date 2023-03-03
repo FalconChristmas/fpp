@@ -593,17 +593,31 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
 #ifdef TEST_USING_X11
         return true;
 #endif
-        if ((fb->Width() == 362) || (fb->Width() == 722)) {
+        int currentFPS = getSettingInt("DPI_FPS", 40);
+        int newFPS = currentFPS;
+        if ((fb->Width() == 362) || (fb->Width() == 1084)) {
             if (fb->Height() == 162) {
-                if (longestString <= 800)
+                if (longestString <= 800) {
                     return true;
-                else
+                } else {
                     errStr = m_outputType + " Framebuffer configured for 40fps but pixel count " + std::to_string(longestString) + " is too high.  Reboot is required.";
+                    newFPS = 20;
+                    std::string nvresults;
+                    urlPut("http://127.0.0.1/api/settings/DPI_FPS", "20", nvresults);
+                    urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
+                }
             } else if (fb->Height() == 324) {
-                if (longestString <= 1600)
+                if (longestString <= 800) {
+                    newFPS = 40;
+                    std::string nvresults;
+                    urlPut("http://127.0.0.1/api/settings/DPI_FPS", "40", nvresults);
+                    urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
                     return true;
-                else
+                } else if (longestString <= 1600) {
+                    return true;
+                } else {
                     errStr = m_outputType + " Framebuffer configured for 20fps but pixel count " + std::to_string(longestString) + " is too high.";
+                }
             }
         } else {
             return false;
@@ -629,6 +643,7 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
     int strPixel = 0;
     int sStart = 0;
     int sEnd = stringCount;
+    int sBeginEndSize = 1;
     uint32_t nonLatchPins = 0xFFFFFF - latchPinMasks[0] - latchPinMasks[1] - latchPinMasks[2];
 
     fb->ClearAllPages();
@@ -636,17 +651,19 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
     if (!usingLatches)
         latchPinMask = 0x000000;
 
-    if (fb->Width() == 722)
-        fbPixelMult = 2;
+    if (fb->Width() == 1084) {
+        fbPixelMult = 3;
+        sBeginEndSize = 2;
+    }
 
     // Each WS bit is three (or 6 on Pi4) FB pixels, but skip first/last FB pixel
-    protoBitsPerLine = (fb->Width() - 2) / (3 * fbPixelMult);
+    protoBitsPerLine = (fb->Width() - 2 * sBeginEndSize) / (3 * fbPixelMult);
 
     // Skip over the hsync/porch pad area and first/last FB pixel
-    protoDestExtra = fb->RowPadding() + (2 * fb->BytesPerPixel());
+    protoDestExtra = fb->RowPadding() + (2 * sBeginEndSize * fb->BytesPerPixel());
 
     // Skip the first FB pixel for WS data
-    protoDest = fb->Buffer() + fb->BytesPerPixel();
+    protoDest = fb->Buffer() + fb->BytesPerPixel() * sBeginEndSize;
 
     while (y < longestString) {
         // For each WS281x pixel on the scan line

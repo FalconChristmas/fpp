@@ -774,38 +774,15 @@ exit(1)
             MODEL=$(cat /sys/firmware/devicetree/base/model | sed -e "s/Raspberry //" -e "s/ Model.*//" -e "s/ //")
 
             # Determine the best frame rate we can use
-cat ${FPPHOME}/media/config/co-pixelStrings.json  2> /dev/null | python -c '
-import json,sys;
-obj=json.load(sys.stdin);
+            FPS=$(getSetting DPI_FPS)
+            if [ "x${FPS}" = "x40" ]; then
+                FPS=40
+            fi
 
-longestString = 0
-
-vskeys = ["virtualStrings", "virtualStringsA", "virtualStringsB", "virtualStringsC", "virtualStringsD", "virtualStringsE", "virtualStringsF" ]
-
-for output in obj["channelOutputs"]:
-    if output["type"] == "DPIPixels" and output["enabled"] == 1 :
-        for stroutput in output["outputs"]:
-            for vskey in vskeys:
-                if vskey in stroutput:
-                    pixels = 0
-                    for vs in stroutput["virtualStrings"]:
-                        pixels += vs["pixelCount"] + vs["nullNodes"] + vs["endNulls"]
-
-                    if pixels > longestString:
-                        longestString = pixels;
-
-        if longestString <= 800:
-            exit(40)
-
-exit(20)
-'
-            FPS=$?
-
-            if [ "x${FPS}" = "x40" ]
-            then
+            if [ "x${FPS}" = "x40" ]; then
                 case ${MODEL} in
                     Pi[4-9]) # Pi 4 (and newer?) uses a 54Mhz clock so our clock needs to be higher
-                        TIMING="722 0 0 1 0  162 0 1 1 1  0 0 0  40 0 4800000 1"
+                        TIMING="1084 0 0 1 0  162 0 1 1 1  0 0 0  40 0 7200000 7"
                         ;;
                     *) # Pi 3 and older use a 19.2Mhz clock
                         TIMING="362 0 0 1 0  162 0 1 1 1  0 0 0  40 0 2400000 1"
@@ -814,7 +791,7 @@ exit(20)
             else
                 case ${MODEL} in
                     Pi[4-9]) # Pi 4 (and newer?) uses a 54Mhz clock so our clock needs to be higher
-                        TIMING="722 0 0 1 0  324 0 2 2 2  0 0 0  20 0 4800000 1"
+                        TIMING="1084 0 0 1 0  324 0 2 2 2  0 0 0  20 0 7200000 7"
                         ;;
                     *) # Pi 3 and older use a 19.2Mhz clock
                         TIMING="362 0 0 1 0  324 0 2 2 2  0 0 0  20 0 2400000 1"
@@ -823,8 +800,7 @@ exit(20)
             fi
 
             EXISTING_TIMINGS=""
-            if [ -e "/boot/dpipixels.txt" ]
-            then
+            if [ -e "/boot/dpipixels.txt" ]; then
                 EXISTING_TIMINGS=$(grep dpi_timings /boot/dpipixels.txt | cut -f2 -d=)
             fi
 
