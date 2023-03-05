@@ -64,12 +64,14 @@ function network_wifi_scan()
     }
 
     return json(array("status" => "OK", "networks" => $networks));
-
 }
 
 function network_presisentNames_delete()
 {
     shell_exec("sudo rm -f /etc/systemd/network/5?-fpp-*.link");
+    shell_exec("sudo ln -sf /dev/null /etc/systemd/network/99-default.link");
+    shell_exec("sudo ln -sf /dev/null /etc/systemd/network/73-usb-net-by-mac.link");
+
     $output = array("status" => "OK");
     return json($output);
 }
@@ -85,15 +87,32 @@ function network_presisentNames_create()
         $iface = preg_replace("/:$/", "", $iface);
         $cmd = "ip link show " . $iface . " | grep ether | awk '{split($0, a,\" \"); print a[2];}'";
         exec($cmd, $output, $return_val);
+        $macAddress = $output[0];
 
-        $cont = "[Match]\nMACAddress=" . $output[0];
-        $cont = $cont . "\nPermanentMACAddress=" . $output[0];
+        $cont = "[Match]\nMACAddress=" . $macAddress;
+        $cont = $cont . "\nPermanentMACAddress=" . $macAddress;
         if (substr($iface, 0, strlen("wl")) === "wl") {
             $cont = $cont . "\nOriginalName=wl*";
         }
-        $cont = $cont . "\n\n[Link]\nName=" . $iface . "\n";
-        file_put_contents("/tmp/5" . strval($count) . "-fpp-" . $iface . ".link", $cont);
-        shell_exec("sudo mv /tmp/5" . strval($count) . "-fpp-" . $iface . ".link /etc/systemd/network/");
+
+        $mod = shell_exec("cat /sys/class/net/" . $iface . "/device/modalias");
+        if (substr_compare($iface, "eth", 0, 3) == 0 && substr_compare($mod, "usb", 0, 3) == 0) {
+            //USB ethernet adapter, the iface name is going to end up changing, we need to rename the
+            //FPP config file
+            $new_iface = "enx" . str_replace(':', '', $macAddress);
+            if (file_exists($settings['configDirectory'] . "/interface." . $iface)) {
+                $cont = file_get_contents($settings['configDirectory'] . "/interface." . $iface);
+                $cont = str_replace($iface, $new_iface, $cont);
+                file_put_contents($settings['configDirectory'] . "/interface." . $new_iface, $cont);
+            }
+        } else {
+            $cont = $cont . "\n\n[Link]\nNamePolicy=\nName=" . $iface . "\n";
+            file_put_contents("/tmp/5" . strval($count) . "-fpp-" . $iface . ".link", $cont);
+            shell_exec("sudo mv /tmp/5" . strval($count) . "-fpp-" . $iface . ".link /etc/systemd/network/");
+        }
+
+        shell_exec("sudo  rm -f /etc/systemd/network/99-default.link");
+        shell_exec("sudo  rm -f /etc/systemd/network/73-usb-net-by-mac.link");
 
         unset($output);
         $count = $count + 1;
@@ -138,8 +157,8 @@ function network_save_dns()
         $data['DNS1'], $data['DNS2']);
     fclose($f);
 
-	//Trigger a JSON Configuration Backup
-	GenerateBackupViaAPI('DNS Configuration was modified.');
+    //Trigger a JSON Configuration Backup
+    GenerateBackupViaAPI('DNS Configuration was modified.');
 
     return json(array("status" => "OK", "DNS" => $data));
 }
