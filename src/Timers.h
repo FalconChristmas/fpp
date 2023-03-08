@@ -30,6 +30,8 @@ public:
     void addTimer(const std::string& name, long long fireTimeMS, std::function<void()>& callback);
     void addTimer(const std::string& name, long long fireTimeMS, const std::string& preset);
 
+    void addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>& callback);
+    void stopPeriodicTimer(const std::string& name);
 private:
     bool hasTimers = false;
     long long nextTimer = 0;
@@ -41,6 +43,7 @@ private:
 
         std::string id;
         long long fireTimeMS;
+        long long periodicRate = 0;
         std::string commandPreset;
         std::function<void()> callback;
     };

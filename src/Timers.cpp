@@ -71,6 +71,44 @@ void Timers::addTimer(const std::string& name, long long fireTimeMS, const std::
     updateTimers();
 }
 
+void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>& callback) {
+    std::unique_lock<std::mutex> l(lock);
+    if (!name.empty()) {
+        for (auto& a : timers) {
+            if (a->id == name) {
+                a->fireTimeMS = GetTimeMS() + fireTimeMS;
+                a->periodicRate = fireTimeMS;
+                a->callback = callback;
+                a->commandPreset = "";
+                updateTimers();
+                return;
+            }
+        }
+    }
+    TimerInfo* i = new TimerInfo;
+    i->id = name;
+    i->callback = callback;
+    i->fireTimeMS = GetTimeMS() + fireTimeMS;
+    i->periodicRate = fireTimeMS;
+    timers.push_back(i);
+    updateTimers();
+}
+void Timers::stopPeriodicTimer(const std::string& name) {
+    std::unique_lock<std::mutex> l(lock);
+    if (!name.empty()) {
+        for (int x = 0; x < timers.size(); ++x) {
+            auto a = timers[x];
+            if (a->id == name) {
+                delete a;
+                timers[x] = nullptr;
+                updateTimers();
+                return;
+            }
+        }
+    }
+}
+
+
 void Timers::fireTimersInternal(long long t) {
     std::unique_lock<std::mutex> l(lock);
     int m = timers.size();
@@ -79,9 +117,13 @@ void Timers::fireTimersInternal(long long t) {
         auto a = timers[x];
         if (a && (a->fireTimeMS < t)) {
             fireTimer(a);
+            if (a->periodicRate) {
+                a->fireTimeMS = GetTimeMS() + a->periodicRate;
+            } else {
+                delete a;
+                timers[x] = nullptr;
+            }
             fired = true;
-            delete a;
-            timers[x] = nullptr;
         }
     }
     if (fired) {
