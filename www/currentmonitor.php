@@ -14,16 +14,18 @@ function StartMonitoring() {
         data.forEach(function(port) {
             var html = "<b>" + port["name"] + "</b><br>";
             if (port["enabled"]) {
-                html += "Enabled: <i class='fas fa-check-circle text-success'></i><br>"
+                html += "Enabled: <i class='fas fa-check-circle text-success' title='Port Enabled'></i><br>";
+            } else if (port["status"]) {
+                html += "Enabled: <i class='fas fa-times-circle text-info' title='Port Disabled'></i><br>";
             } else {
-                html += "Enabled: <i class='fas fa-times-circle text-success'></i><br>"
+                html += "Enabled: <i class='fas fa-times-circle text-danger' title='eFuse Triggered'></i><br>";
             }
             if (port["status"]) {
-                html += "Status: <i class='fas fa-check-circle text-success'></i><br>"
+                html += "Status: <i class='fas fa-check-circle text-success' title='eFuse Normal'></i><br>";
             } else {
-                html += "Status: <i class='fas fa-times-circle text-danger'></i><br>"
+                html += "Status: <i class='fas fa-times-circle text-danger' title='eFuse Triggered'></i><br>";
             }
-            html += port["ma"] + " ma"
+            html += port["ma"] + " ma";
             $("#fppPorts tr:nth-child(" + port["row"] + ") td:nth-child(" + port["col"] + ")").html(html);
         });
     });
