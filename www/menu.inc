@@ -246,6 +246,9 @@ function RebuildFPPD() {
         <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
         <a class="dropdown-item" href="index.php"><i class="fas fa-info"></i> Status Page</a>
 <?
+if (isSet($settings['cape-info']) && isSet($settings['cape-info']['provides']) && in_array("currentMonitoring", $settings['cape-info']['provides'])) {
+          echo "<a class='dropdown-item' href='currentmonitor.php'><i class='fas fa-bolt'></i> Current Monitor</a>";
+}
 if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
           echo "<a class='dropdown-item' href='networkconfig.php'><i class='fas fa-network-wired'></i> Network</a>";
 }

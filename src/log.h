@@ -106,6 +106,7 @@ private:
 #define LogExcess(facility, format, args...) _LogWrite(__FILE__, __LINE__, LOG_EXCESSIVE, facility, format, ##args)
 
 void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const char* format, ...);
+void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const std::string &str, ...);
 bool WillLog(int level, FPPLoggerInstance& facility);
 
 void SetLogFile(const char* filename, bool toStdOut = true);

@@ -16,18 +16,20 @@
 #include <map>
 #include <string>
 
+#include <httpserver.hpp>
+
 #include "util/GPIOUtils.h"
 
-class FusePinInfo;
+class PortPinInfo;
 
-class OutputMonitor {
+class OutputMonitor : public httpserver::http_resource {
 public:
     static OutputMonitor INSTANCE;
 
     void Initialize(std::map<int, std::function<bool(int)>>& callbacks);
 
-    void AddOutputPin(const std::string &name, const std::string &pin, bool highToEnable = true);
-    void AddFusePin(const std::string &name, const std::string &pin, bool highIsTriggered = true, const std::string &interruptPin = "", bool interruptPinIsHigh = true);
+    void AddPortConfiguration(const std::string &name, const Json::Value &config, bool enabled = true);
+    const PinCapabilities *AddOutputPin(const std::string &name, const std::string &pin);
 
     void EnableOutputs();
     void DisableOutputs();
@@ -35,10 +37,14 @@ public:
     void AutoEnableOutputs();
     void AutoDisableOutputs();
 
+    virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
 private:
-    std::map<std::string, const PinCapabilities *> pullHighOutputPins;
-    std::map<std::string, const PinCapabilities *> pullLowOutputPins;
-    std::map<std::string, std::list<std::string>> outputPinMaps;
+    OutputMonitor();
+    ~OutputMonitor();
 
-    std::map<std::string, FusePinInfo*> fusePins;
+    std::list<const PinCapabilities *> pullHighOutputPins;
+    std::list<const PinCapabilities *> pullLowOutputPins;
+
+    std::map<std::string, const PinCapabilities *> fusePins;
+    std::list<PortPinInfo*> portPins;
 };

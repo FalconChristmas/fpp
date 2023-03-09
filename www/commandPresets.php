@@ -261,6 +261,8 @@ include 'menu.inc';?>
     <option value='SEQUENCE_STOPPED'>Sequence Stopped</option>
     <option value='MEDIA_STARTED'>Media Started</option>
     <option value='MEDIA_STOPPED'>Media Stopped</option>
+    <option value='OUTPUTS_ENABLED'>Outputs Enabled</option>
+    <option value='OUTPUTS_DISABLED'>Outputs Disabled</option>
 </datalist>
 
 </body>

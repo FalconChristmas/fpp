@@ -222,37 +222,9 @@ int PixelString::Init(Json::Value config, Json::Value *pinConfig) {
         m_outputChannels = 0;
         m_virtualStrings.clear();
         AddVirtualString(VirtualString());
-    } else if (pinConfig) {
-        if (pinConfig->isMember("enablePin")) {
-            std::string ep = pinConfig->get("enablePin", "").asString();
-            if (ep != "") {
-                bool enableHigh = true;
-                if (ep[0] == '!') {
-                    enableHigh = false;
-                    ep = ep.substr(1);
-                }
-                OutputMonitor::INSTANCE.AddOutputPin("Port #" + std::to_string(m_portNumber), ep, enableHigh);
-            }
-        }
-        if (pinConfig->isMember("eFusePin")) {
-            std::string eFusePin = pinConfig->get("eFusePin", "").asString();
-            std::string eFuseInterruptPin  = "";
-            bool eFuseHigh = true;
-            if (eFusePin[0] == '!') {
-                eFuseHigh = false;
-                eFusePin = eFusePin.substr(1);
-            }
-            bool eFuseInterruptHigh = eFuseHigh;
-            if (pinConfig->isMember("eFuseInterruptPin")) {
-                eFuseInterruptPin = pinConfig->get("eFuseInterruptPin", "").asString();
-                eFuseInterruptHigh = true;
-                if (eFuseInterruptPin[0] == '!') {
-                    eFuseInterruptHigh = false;
-                    eFuseInterruptPin = eFuseInterruptPin.substr(1);
-                }
-            }
-            OutputMonitor::INSTANCE.AddFusePin("Port #" + std::to_string(m_portNumber), eFusePin, eFuseHigh, eFuseInterruptPin, eFuseInterruptHigh);
-        }
+    } 
+    if (pinConfig) {
+        OutputMonitor::INSTANCE.AddPortConfiguration("Port #" + std::to_string(m_portNumber + 1), *pinConfig, m_outputChannels > 0);
     }
 
     m_outputMap.resize(m_outputChannels);

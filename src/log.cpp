@@ -164,6 +164,12 @@ bool WillLog(int level, FPPLoggerInstance& facility) {
     return true;
 }
 
+void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const std::string &str, ...) {
+    if (!(WillLog(level, facility)))
+        return;
+    _LogWrite(file, line, level, facility, str.c_str());
+}
+
 void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const char* format, ...) {
     // Don't log if we're not concerned about anything at this level
     if (!(WillLog(level, facility)))

@@ -39,6 +39,7 @@
 #include "mediaoutput/mediaoutput.h"
 #include "overlays/PixelOverlay.h"
 #include "sensors/Sensors.h"
+#include "OutputMonitor.h"
 
 static std::time_t startupTime = std::time(nullptr);
 
@@ -215,6 +216,8 @@ APIServer::~APIServer() {
 
     PluginManager::INSTANCE.unregisterApis(m_ws);
 
+    m_ws->unregister_resource("/fppd/ports");
+    m_ws->unregister_resource("/fppd/testing");
     m_ws->unregister_resource("/fppd");
     m_ws->unregister_resource("/models");
     m_ws->unregister_resource("/overlays");
@@ -238,6 +241,7 @@ void APIServer::Init(void) {
     m_ws = new webserver(m_params);
 
     m_pr = new PlayerResource;
+    m_ws->register_resource("/fppd/ports", &OutputMonitor::INSTANCE, true);
     m_ws->register_resource("/fppd/testing", &ChannelTester::INSTANCE, true);
     m_ws->register_resource("/fppd", m_pr, true);
     m_ws->register_resource("/models", &PixelOverlayManager::INSTANCE, true);

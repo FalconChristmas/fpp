@@ -233,12 +233,32 @@ int BBB48StringOutput::Init(Json::Value config) {
     m_channelCount = config["channelCount"].asInt();
     m_gpio0Data.copyToPru = false;
 
+    std::string verPostf = "";
+    Json::Value root;
+    if (!CapeUtils::INSTANCE.getStringConfig(m_subType, root)) {
+        // might have the version number on it
+        if (config["pinoutVersion"].asString() == "2.x") {
+            verPostf = "-v2";
+        }
+        if (config["pinoutVersion"].asString() == "3.x") {
+            verPostf = "-v3";
+        }
+        if (!CapeUtils::INSTANCE.getStringConfig(m_subType + verPostf, root)) {
+            LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
+            WarningHolder::AddWarning("BBB48String: Could not read pin configuration for " + m_subType + verPostf);
+            return 0;
+        }
+    }
+    m_licensedOutputs = CapeUtils::INSTANCE.getLicensedOutputs();
+    config["base"] = root;
+
+
     int maxStringLen = 0;
     for (int i = 0; i < config["outputs"].size(); i++) {
         Json::Value s = config["outputs"][i];
         PixelString* newString = new PixelString(true);
 
-        if (!newString->Init(s))
+        if (!newString->Init(s, &root["outputs"][i]))
             return 0;
 
         if (newString->m_outputChannels > maxStringLen) {
@@ -270,26 +290,6 @@ int BBB48StringOutput::Init(Json::Value config) {
             args.push_back("-DPIXELTYPE_SLOW");
         }
     }
-
-    std::string verPostf = "";
-    Json::Value root;
-    if (!CapeUtils::INSTANCE.getStringConfig(m_subType, root)) {
-        // might have the version number on it
-        if (config["pinoutVersion"].asString() == "2.x") {
-            verPostf = "-v2";
-        }
-        if (config["pinoutVersion"].asString() == "3.x") {
-            verPostf = "-v3";
-        }
-        if (!CapeUtils::INSTANCE.getStringConfig(m_subType + verPostf, root)) {
-            LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
-            WarningHolder::AddWarning("BBB48String: Could not read pin configuration for " + m_subType + verPostf);
-            return 0;
-        }
-    }
-    m_licensedOutputs = CapeUtils::INSTANCE.getLicensedOutputs();
-
-    config["base"] = root;
 
     std::vector<int> allStringMap;
     std::string outputList;
