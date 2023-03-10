@@ -671,6 +671,25 @@ class LOREnhanced extends OtherBaseDevice {
     }
 }
 
+class UDMX extends OtherBase {
+
+    constructor(name="UDMX", friendlyName="uDMX", maxChannels=512, fixedStart=false, fixedChans=false, config={}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, config);
+    }
+
+    PopulateHTMLRow(config) {
+        var result = super.PopulateHTMLRow(config);
+
+        return result;
+    }
+
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+        
+        return result;
+    }
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Virtual Display Output
@@ -985,6 +1004,7 @@ output_modules.push(new MQTTOutput());
 if (Object.keys(SerialDevices).length > 0) {
     output_modules.push(new LOREnhanced());
 }
+output_modules.push(new UDMX());
 
 //Outputs for Raspberry Pi or Beagle
 <?
