@@ -13,15 +13,92 @@
 #include "fpp-pch.h"
 
 #include "OutputMonitor.h"
+#include "sensors/Sensors.h"
 #include "gpio.h"
 #include "Timers.h"
 
 OutputMonitor OutputMonitor::INSTANCE;
 
+
+class CurrentMonitorBase {
+public:
+    CurrentMonitorBase(const Json::Value &c) {
+        currentMonitorScale = c["scale"].asFloat();
+        if (c.isMember("offset")) {
+            currentMonitorOffset = c["offset"].asFloat();
+        }
+    }
+    virtual ~CurrentMonitorBase() {
+    }
+    
+    float getValue() {
+        float f = getRawValue();
+        f -= currentMonitorOffset;
+        if (f < 0) {
+            f = 0;
+        }
+        f *= currentMonitorScale;
+        return f;
+    }
+
+    virtual float getRawValue() = 0;
+
+    float currentMonitorScale = 1.0f;
+    float currentMonitorOffset = 0.0f; 
+};
+
+class FileCurrentMonitor : public CurrentMonitorBase {
+public:
+    FileCurrentMonitor(const Json::Value &c) : CurrentMonitorBase(c) {
+        currentMonitorFile = open(c["path"].asString().c_str(), O_NONBLOCK | O_RDONLY);
+    }
+    virtual ~FileCurrentMonitor() {
+        if (currentMonitorFile >= 0) {
+            close(currentMonitorFile);
+        }
+    }
+    virtual float getRawValue() override {
+        if (currentMonitorFile >= 0) {
+            char buf[12] = {0};
+            float f = 0;
+            for (int x = 0; x < 3; x++) {
+                lseek(currentMonitorFile, 0, SEEK_SET);
+                read(currentMonitorFile, buf, sizeof(buf));                
+                f += atoi(buf);
+            }
+            f /= 3.0;
+            return f;
+        }
+        return 0;
+    }
+    int currentMonitorFile = -1;
+};
+class SensorCurrentMonitor : public CurrentMonitorBase {
+public:
+    SensorCurrentMonitor(const Json::Value &c) : CurrentMonitorBase(c) {
+        sensor = Sensors::INSTANCE.getSensorSource(c["sensor"].asString());
+        channel = c["channel"].asInt();
+    }
+    virtual float getRawValue() override {
+        if (sensor) {
+            return sensor->getValue(channel);
+        } 
+        return 0;
+    }
+
+    SensorSource *sensor = nullptr;
+    int channel = 0;
+};
+
+
 class PortPinInfo {
 public:
     PortPinInfo(const std::string &n, const Json::Value &c) : name(n), config(c) {}
-    ~PortPinInfo() {}
+    ~PortPinInfo() {
+        if (currentMonitor) {
+            delete currentMonitor;
+        }
+    }
 
     std::string name;
     Json::Value config;
@@ -36,9 +113,7 @@ public:
     int eFuseOKValue = 0;
 
     const PinCapabilities *eFuseInterruptPin = nullptr;
-
-    int currentMonitorFile = -1;
-    float currentMonitorScale = 1.0f;
+    CurrentMonitorBase *currentMonitor = nullptr;
 
     void appendTo(Json::Value &result) {
         Json::Value v;
@@ -52,17 +127,8 @@ public:
         } else {
             v["status"] = true;
         }
-        if (currentMonitorFile) {
-            char buf[12] = {0};
-            float f = 0;
-            for (int x = 0; x < 3; x++) {
-                lseek(currentMonitorFile, 0, SEEK_SET);
-                read(currentMonitorFile, buf, sizeof(buf));                
-                f += atoi(buf);
-            }
-            f /= 3;
-            f *= 1000;
-            f /= currentMonitorScale;
+        if (currentMonitor) {
+            float f = currentMonitor->getValue();
             int c = std::round(f);
             v["ma"] = c;
         }
@@ -98,7 +164,6 @@ public:
 };
 
 OutputMonitor::OutputMonitor() {
-
 }
 OutputMonitor::~OutputMonitor() {
     for (auto pi : portPins) {
@@ -299,9 +364,13 @@ void OutputMonitor::AddPortConfiguration(const std::string &name, const Json::Va
         }
     }
     if (pinConfig.isMember("currentSensor")) {
-        hasInfo = true;
-        pi->currentMonitorScale = pinConfig["currentSensor"]["scale"].asFloat();
-        pi->currentMonitorFile = open(pinConfig["currentSensor"]["path"].asString().c_str(), O_NONBLOCK | O_RDONLY);
+        if (pinConfig["currentSensor"].isMember("path")) {
+            hasInfo = true;
+            pi->currentMonitor = new FileCurrentMonitor(pinConfig["currentSensor"]);
+        } else if (pinConfig["currentSensor"].isMember("sensor")) {
+            hasInfo = true;
+            pi->currentMonitor = new SensorCurrentMonitor(pinConfig["currentSensor"]);
+        }
     }
 
     if (hasInfo) {
@@ -358,6 +427,7 @@ const std::shared_ptr<httpserver::http_response> OutputMonitor::render_GET(const
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("[]", 200, "application/json"));
         }
 
+        Sensors::INSTANCE.updateSensorSources();
         Json::Value result;
         for (auto a : portPins) {
             a->appendTo(result);

@@ -14,19 +14,34 @@
 #include <list>
 
 class Sensor;
+class SensorSource {
+public:
+    SensorSource(Json::Value& config) {}
+    virtual ~SensorSource() {}
+
+    virtual void update() = 0;
+    virtual int32_t getValue(int id) = 0;
+};
 
 class Sensors {
 public:
     static Sensors INSTANCE;
+    Sensors();
+    ~Sensors();
 
     void Init();
     void Close();
 
     void addSensors(Json::Value& config);
-
     void reportSensors(Json::Value& root);
 
+    void addSensorSources(Json::Value& config);
+
+    void updateSensorSources();
+    SensorSource *getSensorSource(const std::string &name);
 private:
     Sensor* createSensor(Json::Value& s);
     std::list<Sensor*> sensors;
+
+    std::map<std::string, SensorSource*> sensorSources;
 };

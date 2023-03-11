@@ -98,6 +98,7 @@ inline int fpp_smbus_access(int file, char rw, uint8_t cmd, int size, union i2c_
 int I2CUtils::readByte() {
     if (file != -1) {
         union i2c_smbus_data data;
+        memset(&data, 0, sizeof(data));
         int status = fpp_smbus_access(file, I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &data);
         if (status < 0) {
             return -1;
@@ -121,8 +122,8 @@ int I2CUtils::writeByte(unsigned val) {
 int I2CUtils::readByteData(int reg) {
     if (file != -1) {
         union i2c_smbus_data data;
+        memset(&data, 0, sizeof(data));
         int status = fpp_smbus_access(file, I2C_SMBUS_READ, reg, I2C_SMBUS_BYTE_DATA, &data);
-
         if (status < 0) {
             return -1;
         }
@@ -145,8 +146,8 @@ int I2CUtils::writeByteData(int reg, unsigned val) {
 int I2CUtils::readWordData(int reg) {
     if (file != -1) {
         union i2c_smbus_data data;
+        memset(&data, 0, sizeof(data));
         int status = fpp_smbus_access(file, I2C_SMBUS_READ, reg, I2C_SMBUS_WORD_DATA, &data);
-
         if (status < 0) {
             return -1;
         }

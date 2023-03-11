@@ -426,6 +426,10 @@ static void initCapeFromFile(const std::string& f) {
     if (FileExists(f)) {
         Json::Value root;
         if (LoadJsonFromFile(f, root)) {
+            // if there are sources of sensor data, get them loaded first
+            if (root.isMember("sensorSources")) {
+                Sensors::INSTANCE.addSensorSources(root["sensorSources"]);
+            }
             Sensors::INSTANCE.addSensors(root["sensors"]);
         }
     }

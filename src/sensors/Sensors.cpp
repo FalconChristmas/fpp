@@ -20,6 +20,7 @@
 #include <sys/ioctl.h>
 
 #include "util/I2CUtils.h"
+#include "ADS7828.h"
 
 #ifdef PLATFORM_BBB
 #define I2C_DEV 2
@@ -297,6 +298,32 @@ public:
 
 Sensors Sensors::INSTANCE;
 
+Sensors::Sensors() {
+
+}
+Sensors::~Sensors() {
+    for (auto x : sensorSources) {
+        delete x.second;
+    }
+    sensorSources.clear();
+}
+void Sensors::addSensorSources(Json::Value& config) {
+    for (int x = 0; x < config.size(); x++) {
+        Json::Value v = config[x];
+        std::string type = v["type"].asString();
+        if (type == "ads7828" || type == "ads7830") {
+            sensorSources[v["id"].asString()] = new ADS7828Sensor(v);
+        }
+    }
+}
+void Sensors::updateSensorSources() {
+    for (auto &ss : sensorSources) {
+        ss.second->update();
+    }
+}
+SensorSource *Sensors::getSensorSource(const std::string &name) {
+    return sensorSources[name];
+}
 void Sensors::Init() {
     int i = 0;
     char path[256] = { 0 };
@@ -367,6 +394,7 @@ void Sensors::addSensors(Json::Value& config) {
 
 void Sensors::reportSensors(Json::Value& root) {
     if (!sensors.empty()) {
+        updateSensorSources();
         Json::Value& s = root["sensors"];
         for (auto a : sensors) {
             a->report(s);
