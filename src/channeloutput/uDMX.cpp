@@ -19,8 +19,6 @@
 
 #include <libusb-1.0/libusb.h>
 
-#include <uchar.h>
-
 #define DMX_MAX_CHANNELS 512
 
 #define UDMX_SHARED_VENDOR     0x16C0 /* VOTI */

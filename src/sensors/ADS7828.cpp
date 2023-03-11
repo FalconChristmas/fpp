@@ -12,7 +12,13 @@
 
 #include "fpp-pch.h"
 
+#if __has_include(<byteswap.h>)
 #include <byteswap.h>
+#else
+inline uint16_t bswap_16(uint16_t num) {
+    return (num>>8) | (num<<8);
+}
+#endif
 
 #include "ADS7828.h"
 #include "../util/I2CUtils.h"
