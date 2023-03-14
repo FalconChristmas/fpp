@@ -1946,13 +1946,7 @@ $activeParentMenuItem = 'status';
 include 'menu.inc';?>
     <div class="mainContainer">
     <h1 class="title">FPP MultiSync</h1>
-        <div class="pageContent">
-
-        <div class='container-fluid settingsTable settingsGroupTable'>
-        <?PrintSetting('MultiSyncEnabled');?>
-        <?PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled');?>
-        </div>
-        <p>
+        <div class="pageContent">        
         	<div id="uifppsystems" class="settings">
                     <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
                         <div class='fppTableContents' role="region" aria-labelledby="fppSystemsTable" tabindex="0">
@@ -1979,7 +1973,11 @@ include 'menu.inc';?>
                 </table>
             </div>
         </div>
-
+	<div class='container-fluid settingsTable settingsGroupTable'>
+        <?PrintSetting('MultiSyncEnabled');?>
+        <?PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled');?>
+        </div>
+			
         <div class="multisyncAdvancedFormActions row">
             <div class="form-actions col-md">
             <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
