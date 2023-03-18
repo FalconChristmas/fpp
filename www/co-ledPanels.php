@@ -58,7 +58,7 @@ if ($settings['Platform'] == "BeagleBone Black") {
 }
 
 $maxLEDPanels = $LEDPanelOutputs * $LEDPanelPanelsPerOutput;
-$maxLEDPanels = 96; // Override to allow different panel configs using Linsn/ColorLight cards
+$maxLEDPanels = 96; // Override to allow different panel configs using ColorLight cards
 
 if (isset($settings['LEDPanelsLayout'])) {
     $parts = explode('x', $settings['LEDPanelsLayout']);
@@ -371,9 +371,6 @@ function InitializeLEDPanels()
         if (channelOutputsLookup["LEDPanelMatrix"].interface != null) {
             $('#LEDPanelsInterface').val(channelOutputsLookup["LEDPanelMatrix"].interface);
         }
-        if (channelOutputsLookup["LEDPanelMatrix"].sourceMAC != null) {
-            $('#LEDPanelsSourceMacInput').val(channelOutputsLookup["LEDPanelMatrix"].sourceMAC);
-        }
 <?
 if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black") {
     ?>
@@ -429,7 +426,6 @@ if ($settings['Platform'] == "Raspberry Pi") {
 		$('#LEDPanelsStartCorner').val(channelOutputsLookup["LEDPanelMatrix"].invertedData);
 
 		if ((channelOutputsLookup["LEDPanelMatrix"].subType == 'ColorLight5a75') ||
-            (channelOutputsLookup["LEDPanelMatrix"].subType == 'LinsnRv9') ||
             (channelOutputsLookup["LEDPanelMatrix"].subType == 'X11PanelMatrix'))
 		{
 			LEDPanelOutputs = 16;
@@ -492,16 +488,12 @@ if ($settings['Platform'] == "BeagleBone Black") {
    	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();
     config.gamma = $('#LEDPanelsGamma').val();
-	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9") || ($('#LEDPanelsConnection').val() === "X11PanelMatrix"))
+	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "X11PanelMatrix"))
 	{
 		config.subType = $('#LEDPanelsConnection').val();
         if ($('#LEDPanelsConnection').val() != "X11PanelMatrix")
             config.interface = $('#LEDPanelsInterface').val();
 
-		if (($('#LEDPanelsConnection').val() === "LinsnRV9") && $('#LEDPanelsSourceMacInput').val() !== "00:00:00:00:00:00" && $('#LEDPanelsSourceMacInput').val() !== "")
-		{
-			config.sourceMAC = $('#LEDPanelsSourceMacInput').val();
-		}
 	}
 <?
 if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black") {
@@ -627,7 +619,7 @@ function PopulateEthernetInterfaces()
 
 function LEDPanelsConnectionChanged()
 {
-	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9") || ($('#LEDPanelsConnection').val() === "X11PanelMatrix")) {
+	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "X11PanelMatrix")) {
 		$('#LEDPanelsGPIOSlowdownLabel').hide();
 		$('#LEDPanelsGPIOSlowdown').hide();
         $('#LEDPanelsBrightness').hide();
@@ -645,11 +637,6 @@ function LEDPanelsConnectionChanged()
             $('#LEDPanelsInterface').show();
         }
 
-		if ($('#LEDPanelsConnection').val() === "LinsnRV9") {
-			$('#LEDPanelsSourceMac').show();
-		} else {
-			$('#LEDPanelsSourceMac').hide();
-		}
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
     echo "        $('#LEDPanelsInterleaveLabel').hide();\n";
@@ -673,7 +660,6 @@ if ($settings['Platform'] == "Raspberry Pi") {
 	{
 		$('#LEDPanelsConnectionInterface').hide();
 		$('#LEDPanelsInterface').hide();
-		$('#LEDPanelsSourceMac').hide();
         $('#LEDPanelsBrightness').show();
         $('#LEDPanelsColorDepth').show();
         $('#LEDPanelsBrightnessLabel').show();
@@ -1203,7 +1189,7 @@ function PanelSubtypeChanged() {
     html +="<option value='64x32x16'>64x32 1/16 Scan</option>"
     html +="<option value='64x32x8'>64x32 1/8 Scan</option>"
     html +="<option value='64x64x8'>64x64 1/8 Scan</option>"
-    if (($('#LEDPanelsConnection').val() === 'ColorLight5a75') || ($('#LEDPanelsConnection').val() === 'LinsnRV9')) {
+    if ($('#LEDPanelsConnection').val() === 'ColorLight5a75') {
         html += "<option value='80x40x10'>80x40 1/10 Scan</option>"
         html += "<option value='80x40x20'>80x40 1/20 Scan</option>"
     }
@@ -1320,7 +1306,6 @@ if (in_array('all', $currentCapeInfo["provides"])
 <?}?>
 <?}?>
                             <option value='ColorLight5a75'>ColorLight</option>
-                            <option value='LinsnRV9'>Linsn</option>
 <?
 if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux")) {
     echo "<option value='X11PanelMatrix'>X11 Panel Matrix</option>\n";
@@ -1356,9 +1341,6 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
                                 <?}?>
                                 <?}?>
 					</select>
-                </div>
-                <div class="col-md-auto form-inline" id="LEDPanelsSourceMac">
-                    <b>Source Mac:</b><input id='LEDPanelsSourceMacInput' type='text' size='16' maxlength='17' value='00:00:00:00:00:00'>
                 </div>
             </div>
         </div>
