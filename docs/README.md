@@ -8,6 +8,4 @@
 - [Remote FPP Debugging with VS Code](./FPP-with-vs-code.md) - Describes how to use VSCode on a laptop for developing FPP on a BBB or PI.
 - [FSEQ_Sequence_File_Format.txt](./FSEQ_Sequence_File_Format.txt) - Describes the format of the `.fseq` file format.
 - [MQTT.txt](./MQTT.txt) - Describes the topics supported by FPP for communicating via MQTT.
-- [Setup-Linsn_RV908.txt](./Setup-Linsn_RV908.txt) -
 - [DeveloperNotes.txt](./DeveloperNotes.txt) - Various developer topics including Valgrind, CCache, etc...
-Instructions for setting up a Linsn RV908* LED Panel Receiver card to work with FPP's LinsnRV9 Channel Output.

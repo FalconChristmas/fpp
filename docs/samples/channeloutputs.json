@@ -468,57 +468,6 @@
 			]
 		},
 		{
-			"type": "LEDPanelMatrix",
-			"subType": "LinsnRV9",
-			"enabled": 0,
-			"startChannel": 33793,
-			"channelCount": 6144,
-			"interface": "eth1",
-			"sourceMAC": "d8:eb:97:b7:a9:4e",
-			"invertedData": 0,
-			"colorOrder": "GBR",
-			"panelWidth": 32,
-			"panelHeight": 16,
-            "panels": [
-                {
-                    "outputNumber": 0,
-                    "panelNumber": 0,
-                    "xOffset": 32,
-                    "yOffset": 0,
-                    "orientation": "N",
-                    "row": 0,
-                    "col": 1
-                },
-                {
-                    "outputNumber": 0,
-                    "panelNumber": 1,
-                    "xOffset": 0,
-                    "yOffset": 0,
-                    "orientation": "N",
-                    "row": 0,
-                    "col": 0
-                },
-                {
-                    "outputNumber": 1,
-                    "panelNumber": 0,
-                    "xOffset": 32,
-                    "yOffset": 16,
-                    "orientation": "N",
-                    "row": 1,
-                    "col": 1
-                },
-                {
-                    "outputNumber": 1,
-                    "panelNumber": 1,
-                    "xOffset": 0,
-                    "yOffset": 16,
-                    "orientation": "N",
-                    "row": 1,
-                    "col": 0
-                }
-			]
-		},
-		{
 			"type": "OLA",
 			"enabled": 0,
 			"startChannel": 1,
