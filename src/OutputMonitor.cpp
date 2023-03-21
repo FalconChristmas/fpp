@@ -176,40 +176,6 @@ OutputMonitor::~OutputMonitor() {
 void OutputMonitor::Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
     CommandManager::INSTANCE.addCommand(new FPPEnableOutputsCommand());
     CommandManager::INSTANCE.addCommand(new FPPDisableOutputsCommand());
-    /*
-    std::function<void()> f = [this]() {
-        printf("\n\n");
-        float total = 0;
-        //for (int x = 0; x < 16; x++) {
-        //    const PinCapabilities &p = PinCapabilities::getPinByName("pca9675-" + std::to_string(x));
-        //    printf("    %d:  %d\n", x, p.getValue());
-        //}
-        for (auto &fp : portPins) {
-            printf("%s: %d  (%s)", fp.first.c_str(), fp.second->enablePin->getValue(), fp.second->enablePin->name.c_str());
-            if (fp.second->eFusePin) {
-                printf("    eFuse: %d (%s)", fp.second->eFusePin->getValue(), fp.second->eFusePin->name.c_str());
-            }
-            if (fp.second->currentMonitorFile > 0) {
-                char buf[12] = {0};
-                lseek(fp.second->currentMonitorFile, 0, SEEK_SET);
-                size_t i = read(fp.second->currentMonitorFile, buf, sizeof(buf));                
-                float f = atoi(buf);
-                f *= 1000;
-                f /= fp.second->currentMonitorScale;
-                total += f;
-                printf("   %0.2f ma", f);
-            }
-            printf("\n");
-        }
-        if (portPins.begin()->second->eFuseInterruptPin) {
-            printf("   ipv:  %d\n", portPins.begin()->second->eFuseInterruptPin->getValue());
-        }
-        if (total > 0.001) {
-            printf("   Total:  %0.2fma\n", total);
-        }
-    };
-    Timers::INSTANCE.addPeriodicTimer("OutputMonitor", 1000, f);
-    */
 }
 
 void OutputMonitor::EnableOutputs() {

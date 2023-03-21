@@ -837,7 +837,7 @@ function PrintSettingSelectInternal($title, $setting, $restart, $reboot, $defaul
 
     echo "
 function " . $changedFunction . "() {
-	var value = encodeURIComponent($('#$escSetting').val());
+	var value = $('#$escSetting').val();
 ";
 
     if ($pluginName !== "") {
@@ -1211,7 +1211,7 @@ function get_sequence_file_info($mediaName)
         'seqMediaName' => null,
     );
     //Make sure it exists first
-    if (!empty($mediaName) & file_exists($filename)) {
+    if (!empty($mediaName)&file_exists($filename)) {
         //Get the filesize
         $media_filesize = real_filesize($filename);
         //Read the sequence
@@ -2315,8 +2315,8 @@ function sanitizeFilename($file)
 function is_valid_domain_name($domain_name)
 {
     return (preg_match("/^([a-z\d](-*[a-z\d])*)(\.([a-z\d](-*[a-z\d])*))*$/i", $domain_name) //valid chars check
-         && preg_match("/^.{1,253}$/", $domain_name) //overall length check
-         && preg_match("/^[^\.]{1,63}(\.[^\.]{1,63})*$/", $domain_name)); //length of each label
+        && preg_match("/^.{1,253}$/", $domain_name) //overall length check
+        && preg_match("/^[^\.]{1,63}(\.[^\.]{1,63})*$/", $domain_name)); //length of each label
 }
 
 /////////////////////////////////////////////////////////////////////////////
