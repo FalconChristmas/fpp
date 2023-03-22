@@ -21,6 +21,7 @@
 
 #include "util/I2CUtils.h"
 #include "ADS7828.h"
+#include "IIOSensorSource.h"
 
 #ifdef PLATFORM_BBB
 #define I2C_DEV 2
@@ -207,6 +208,40 @@ public:
     volatile int file;
 };
 
+class SensorSourceSensor : public Sensor {
+public:
+    explicit SensorSourceSensor(Json::Value& s) : Sensor(s) {
+        if (s.isMember("scale")) {
+            scale = s["scale"].asDouble();
+        }
+        if (s.isMember("offset")) {
+            offset = s["offset"].asDouble();
+        }
+        if (s.isMember("channel")) {
+            channel = s["channel"].asInt();
+        }
+        source = Sensors::INSTANCE.getSensorSource(s["sensor"].asString());
+        if (source) {
+            source->enable(channel);
+        }
+    }
+    virtual ~SensorSourceSensor() {
+    }
+    virtual double getValue() override {
+        if (source) {
+            double d = source->getValue(channel);
+            d -= offset;
+            d *= scale;
+            return d;
+        }
+        return 0.0f;
+    }
+    SensorSource *source = nullptr;
+    double scale = 1.0;
+    double offset = 0.0;
+    int channel;
+};
+
 class AINSensor : public Sensor {
 public:
     explicit AINSensor(Json::Value& s) :
@@ -307,12 +342,21 @@ Sensors::~Sensors() {
     }
     sensorSources.clear();
 }
+void Sensors::Init(std::map<int, std::function<bool(int)>>& callbacks) {
+    for (auto &ss : sensorSources) {
+        ss.second->Init(callbacks);
+    }
+}
+
+
 void Sensors::addSensorSources(Json::Value& config) {
     for (int x = 0; x < config.size(); x++) {
         Json::Value v = config[x];
         std::string type = v["type"].asString();
         if (type == "ads7828" || type == "ads7830") {
             sensorSources[v["id"].asString()] = new ADS7828Sensor(v);
+        } else if (type == "iio") {
+            sensorSources[v["id"].asString()] = new IIOSensorSource(v);
         }
     }
 }
@@ -322,9 +366,18 @@ void Sensors::updateSensorSources() {
     }
 }
 SensorSource *Sensors::getSensorSource(const std::string &name) {
-    return sensorSources[name];
+    SensorSource *ss = sensorSources[name];
+    if (ss == nullptr && name == "iio") {
+        //default the iio name if requested
+        Json::Value v;
+        v["type"] = "iio";
+        v["id"] = "iio";
+        ss = new IIOSensorSource(v);
+        sensorSources["iio"] = ss;
+    }
+    return ss;
 }
-void Sensors::Init() {
+void Sensors::DetectHWSensors() {
     int i = 0;
     char path[256] = { 0 };
     snprintf(path, sizeof(path), "/sys/class/thermal/thermal_zone%d/temp", i);
@@ -378,6 +431,8 @@ Sensor* Sensors::createSensor(Json::Value& s) {
         return new I2CSensor(s);
     } else if (s["type"].asString() == "ain") {
         return new AINSensor(s);
+    } else if (s["type"].asString() == "sensor") {
+        return new SensorSourceSensor(s);
     }
     return nullptr;
 }

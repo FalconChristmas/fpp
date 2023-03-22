@@ -19,6 +19,9 @@ public:
     SensorSource(Json::Value& config) {}
     virtual ~SensorSource() {}
 
+    virtual void Init(std::map<int, std::function<bool(int)>>& callbacks) {}
+    virtual void enable(int id) {}
+
     virtual void update() = 0;
     virtual int32_t getValue(int id) = 0;
 };
@@ -29,9 +32,10 @@ public:
     Sensors();
     ~Sensors();
 
-    void Init();
+    void Init(std::map<int, std::function<bool(int)>>& callbacks);
     void Close();
 
+    void DetectHWSensors();    
     void addSensors(Json::Value& config);
     void reportSensors(Json::Value& root);
 

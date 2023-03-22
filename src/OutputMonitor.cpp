@@ -78,6 +78,7 @@ public:
     SensorCurrentMonitor(const Json::Value &c) : CurrentMonitorBase(c) {
         sensor = Sensors::INSTANCE.getSensorSource(c["sensor"].asString());
         channel = c["channel"].asInt();
+        sensor->enable(channel);
     }
     virtual float getRawValue() override {
         if (sensor) {

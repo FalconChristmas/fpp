@@ -673,7 +673,7 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    Sensors::INSTANCE.Init();
+    Sensors::INSTANCE.DetectHWSensors();
     initCape();
 
     if (FileExists(FPP_DIR_CONFIG("/sensors.json"))) {
@@ -806,6 +806,7 @@ void MainLoop(void) {
     GPIOManager::INSTANCE.Initialize(callbacks);
     PluginManager::INSTANCE.addControlCallbacks(callbacks);
     NetworkMonitor::INSTANCE.Init(callbacks);
+    Sensors::INSTANCE.Init(callbacks);
 
     static const int MAX_EVENTS = 20;
 #ifdef USE_KQUEUE
