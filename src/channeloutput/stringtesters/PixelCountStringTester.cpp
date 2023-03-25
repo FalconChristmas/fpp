@@ -39,10 +39,10 @@ uint8_t* PixelCountPixelStringTester::createTestData(PixelString* ps, int cycleC
                         ++out;
                         ++inCh;
                     }
-                    curPixel = 1;
                     if (++clrOffset == 3) {
                         clrOffset = 0;
                     }
+                    curPixel = 1;
                 } else {
                     if (vs.channelsPerNode() == 4 && !vs.whiteOffset) {
                         ++out;
@@ -55,12 +55,12 @@ uint8_t* PixelCountPixelStringTester::createTestData(PixelString* ps, int cycleC
                         ++out;
                     }
                     inCh += vs.channelsPerNode();
-                    ++curPixel;
                     if (curPixel % 10 == 0) {
                         if (++clrOffset == 3) {
                             clrOffset = 0;
                         }
                     }
+                    ++curPixel;
                 }
             }
         } else {
