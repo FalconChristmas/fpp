@@ -57,19 +57,16 @@
  *
  *
  * Frame Buffer layout:
- * - 362 FB pixels on each scan line
- * - 3 FB pixels per WS bit
- * - 24 WS bits per WS pixel
- * - 5 WS pixels per scan line (72 FB pixels per WS pixel)
+ * - 362 FB pixels on each scan line (1084 on Pi4)
+ * - 3 FB pixels per WS bit (9 on Pi4)
+ * - 15 WS channels per scan line
  *
  * FB Pixel #
  * 0       - used only for latch since all RGB888 pins go low during hsync and
  *           we need to turn the latch back on before the first WS bit gets sent
- * 1-72    - WS pixel #1
- * 73-144  - WS pixel #2
- * 145-216 - WS pixel #3
- * 217-288 - WS pixel #4
- * 289-360 - WS pixel #5
+ * 1-8     - WS channel #1
+ * 9-16    - WS channel #2
+ * ... etc ...
  * 361     - off, unused
  *
  * If latches are used to provide banks of pixels, the latches are turned on in
@@ -149,8 +146,10 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
     memset(&latchPinMasks, 0, sizeof(latchPinMasks));
     memset(&longestStringInBank, 0, sizeof(longestStringInBank));
+    memset(&firstStringInBank, 0, sizeof(firstStringInBank));
 
     std::vector<std::string> outputPinMap;
+    std::string outputList;
 
     for (int i = 0; i < config["outputs"].size(); i++) {
         if (i >= root["outputs"].size()) {
@@ -162,8 +161,8 @@ int DPIPixelsOutput::Init(Json::Value config) {
         if (!newString->Init(s, &root["outputs"][i]))
             return 0;
 
-        if ((newString->m_outputChannels / 3) > longestString)
-            longestString = newString->m_outputChannels / 3;
+        if (newString->m_outputChannels > longestString)
+            longestString = newString->m_outputChannels;
 
         if (protocol == "")
             protocol = s["protocol"].asString();
@@ -179,7 +178,13 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 outputPinMap.push_back("");
             }
         } else if (root["outputs"][i].isMember("sharedOutput")) {
-            outputPinMap.push_back(outputPinMap[root["outputs"][i]["sharedOutput"].asInt()]);
+            std::string oPin = outputPinMap[root["outputs"][i]["sharedOutput"].asInt()];
+            if (firstStringInBank[1] == 0) {
+                firstStringInBank[1] = i;
+            } else if (firstStringInBank[2] == 0 && std::count(outputPinMap.begin(), outputPinMap.end(), oPin) == 2) {
+                firstStringInBank[2] = i;
+            }
+            outputPinMap.push_back(oPin);
         } else {
             outputPinMap.push_back("");
         }
@@ -191,36 +196,48 @@ int DPIPixelsOutput::Init(Json::Value config) {
             for (auto& a : newString->m_virtualStrings) {
                 if (pixels <= a.pixelCount) {
                     a.pixelCount = pixels;
+                    if (outputList != "") {
+                        outputList += ", ";
+                    }
+                    outputList += std::to_string(i + 1);
                 }
                 pixels -= a.pixelCount;
                 chanCount += a.pixelCount * a.channelsPerNode();
             }
             if (newString->m_isSmartReceiver) {
                 chanCount = 0;
+                if (outputList != "") {
+                    outputList += ", ";
+                }
+                outputList += std::to_string(i + 1);
             }
             newString->m_outputChannels = chanCount;
         }
+        pixelStrings.push_back(newString);
+    }
+    if (licensedOutputs && root.isMember("latches")) {
+        usingLatches = true;
 
-        if (licensedOutputs && root.isMember("latches")) {
-            usingLatches = true;
+        latchPinMasks[0] = 0;
+        latchPinMasks[1] = 0;
+        latchPinMasks[2] = 0;
 
-            latchPinMasks[0] = 0;
-            latchPinMasks[1] = 0;
-            latchPinMasks[2] = 0;
+        if (firstStringInBank[2] == 0) {
+            firstStringInBank[2] = 52;
+        }
+        if (firstStringInBank[1] == 0) {
+            firstStringInBank[1] = 52;
+        }
+        for (int l = 0; l < root["latches"].size(); l++) {
+            std::string pinName = root["latches"][l].asString();
+            if (pinName[0] == 'P') {
+                const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
 
-            for (int l = 0; l < root["latches"].size(); l++) {
-                std::string pinName = root["latches"][l].asString();
-                if (pinName[0] == 'P') {
-                    const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+                pin.configPin("dpi");
 
-                    pin.configPin("dpi");
-
-                    latchPinMasks[l] = POSITION_TO_BITMASK(GetDPIPinBitPosition(pinName));
-                }
+                latchPinMasks[l] = POSITION_TO_BITMASK(GetDPIPinBitPosition(pinName));
             }
         }
-
-        pixelStrings.push_back(newString);
     }
 
     while (!pixelStrings.empty() && pixelStrings.back()->m_outputChannels == 0)  {
@@ -279,31 +296,30 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
     if (licensedOutputs) {
         if (usingLatches) {
-            for (int s = 0; s < 16; s++) {
-                if ((pixelStrings[s]->m_outputChannels / 3) > longestStringInBank[0])
-                    longestStringInBank[0] = pixelStrings[s]->m_outputChannels / 3;
+            for (int s = 0; ((s < stringCount) && (s < firstStringInBank[1])); s++) {
+                if (pixelStrings[s]->m_outputChannels > longestStringInBank[0])
+                    longestStringInBank[0] = pixelStrings[s]->m_outputChannels;
             }
-            for (int s = 20; ((s < stringCount) && (s < 36)); s++) {
-                if ((pixelStrings[s]->m_outputChannels / 3) > longestStringInBank[1])
-                    longestStringInBank[1] = pixelStrings[s]->m_outputChannels / 3;
+            for (int s = firstStringInBank[1]; ((s < stringCount) && (s < firstStringInBank[2])); s++) {
+                if (pixelStrings[s]->m_outputChannels > longestStringInBank[1])
+                    longestStringInBank[1] = pixelStrings[s]->m_outputChannels;
             }
-
-            if (stringCount > 36) {
-                for (int s = 36; ((s < stringCount) && (s < 52)); s++) {
-                    if ((pixelStrings[s]->m_outputChannels / 3) > longestStringInBank[2])
-                        longestStringInBank[2] = pixelStrings[s]->m_outputChannels / 3;
-                }
+            for (int s = firstStringInBank[2]; ((s < stringCount) && (s < 52)); s++) {
+                if (pixelStrings[s]->m_outputChannels > longestStringInBank[2])
+                    longestStringInBank[2] = pixelStrings[s]->m_outputChannels;
             }
 
-            // 1 pixel padding between splits for latch changes
+            // 1 channel padding between splits for latch changes
             longestStringInBank[0]++;
-            longestStringInBank[1]++;
+            if (longestStringInBank[2]) {
+                longestStringInBank[1]++;
+            }
 
             longestString = 0;
             for (int b = 0; b < MAX_DPI_PIXEL_BANKS; b++)
                 longestString += longestStringInBank[b];
 
-            LogDebug(VB_CHANNELOUT, "Running in latch mode, Longest Strings on each split: %d/%d/%d, total counting padding = %d\n",
+            LogDebug(VB_CHANNELOUT, "Running in latch mode, Longest channel counts on each split: %d/%d/%d, total counting padding = %d\n",
                      longestStringInBank[0], longestStringInBank[1], longestStringInBank[2], longestString);
         }
 
@@ -318,20 +334,10 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 } else if ((a.type == 1) && (start != -1)) {
                     usingSmartReceivers = true;
                     while (start < a.channelOffset) {
-                        onOffMap[start / 3 * stringCount + s] = 0x00; // convert channel offset to pixel offset, store by row
-                        start += 3;
+                        onOffMap[start * stringCount + s] = 0x00; // convert channel offset to pixel offset, store by row
+                        ++start;
                     }
                 }
-            }
-        }
-
-        if (usingLatches) {
-            // Need to go low for our pad pixels
-            for (int s = 0; s < stringCount; s++) {
-                if (s < 20)
-                    onOffMap[(longestStringInBank[0] - 1) * stringCount + s] = 0x00;
-                else if (s < 36)
-                    onOffMap[(longestStringInBank[1] - 1) * stringCount + s] = 0x00;
             }
         }
     }
@@ -413,6 +419,17 @@ void DPIPixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int
     }
 }
 
+void DPIPixelsOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
+    m_testCycle = cycleNum;
+    m_testType = testType;
+    m_testPercent = percentOfCycle;
+
+    // We won't overlay the data here because we could have multiple strings
+    // pointing at the same channel range so a per-port test cannot
+    // be done via channel ranges.  We'll record the test information and use
+    // that in prepData
+}
+
 void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     PixelString* ps = NULL;
     long long startTime = 0;
@@ -442,7 +459,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
         InitFrameWS281x();
 
     for (int y = 0; y < longestString; y++) {
-        uint32_t rowData[24];
+        uint8_t rowData[24];
 
         memset(rowData, 0, sizeof(rowData));
 
@@ -452,44 +469,39 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
             if (y == 0) {
                 ch = 0;
                 sStart = 0;
-                sEnd = stringCount > 20 ? 20 : stringCount;
+                sEnd = stringCount > firstStringInBank[1] ? firstStringInBank[1] : stringCount;
                 maxString = sEnd;
                 latchPinMask = latchPinMasks[0];
             } else if (y == longestStringInBank[0]) {
                 ch = 0;
-                sStart = 20;
-                sEnd = stringCount > 36 ? 36 : stringCount;
-                maxString = sEnd - 20;
+                sStart = firstStringInBank[1];
+                sEnd = stringCount > firstStringInBank[2] ? firstStringInBank[2] : stringCount;
+                maxString = sEnd - sStart;
                 latchPinMask = latchPinMasks[1];
             } else if (y == (longestStringInBank[0] + longestStringInBank[1])) {
                 ch = 0;
-                sStart = 36;
+                sStart = firstStringInBank[2];
                 sEnd = stringCount > 52 ? 52 : stringCount;
-                maxString = sEnd - 36;
+                maxString = std::min(24, sEnd - sStart);
                 latchPinMask = latchPinMasks[2];
             }
         }
 
         for (int s = sStart; s < sEnd; s++) {
             ps = pixelStrings[s];
-            if ((ps->m_outputChannels) &&
-                (ch < ps->m_outputChannels)) {
-                rowData[s - sStart] =
-                    (uint32_t)ps->m_brightnessMaps[ch][channelData[ps->m_outputMap[ch]]] << 16 |
-                    (uint32_t)ps->m_brightnessMaps[ch + 1][channelData[ps->m_outputMap[ch + 1]]] << 8 |
-                    (uint32_t)ps->m_brightnessMaps[ch + 2][channelData[ps->m_outputMap[ch + 2]]];
+            if (ps->m_outputChannels) {
+                if (ch < ps->m_outputChannels) {
+                    rowData[s - sStart] = ps->m_brightnessMaps[ch][channelData[ps->m_outputMap[ch]]];
+                }
             }
         }
 
 //        elapsedTimeGather += GetTime() - startTime;
-
-        ch += 3;
-
         startTime = GetTime();
-
-        if (protocol == "ws2811")
+        if (protocol == "ws2811") {
             OutputPixelRowWS281x(rowData, maxString);
-
+        }
+        ++ch;
 //        elapsedTimeOutput += GetTime() - startTime;
     }
 
@@ -534,6 +546,9 @@ void DPIPixelsOutput::DumpConfig(void) {
         LogDebug(VB_CHANNELOUT, "longestStringBank0 : %d\n", longestStringInBank[0]);
         LogDebug(VB_CHANNELOUT, "longestStringBank1 : %d\n", longestStringInBank[1]);
         LogDebug(VB_CHANNELOUT, "longestStringBank2 : %d\n", longestStringInBank[2]);
+        LogDebug(VB_CHANNELOUT, "firstStringInBank0 : %d\n", firstStringInBank[0]);
+        LogDebug(VB_CHANNELOUT, "firstStringInBank1 : %d\n", firstStringInBank[1]);
+        LogDebug(VB_CHANNELOUT, "firstStringInBank2 : %d\n", firstStringInBank[2]);
         LogDebug(VB_CHANNELOUT, "LatchPinAMask      : 0x%06x\n", latchPinMasks[0]);
         LogDebug(VB_CHANNELOUT, "LatchPinBMask      : 0x%06x\n", latchPinMasks[1]);
         LogDebug(VB_CHANNELOUT, "LatchPinCMask      : 0x%06x\n", latchPinMasks[2]);
@@ -656,7 +671,7 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
         sBeginEndSize = 2;
     }
 
-    // Each WS bit is three (or 6 on Pi4) FB pixels, but skip first/last FB pixel
+    // Each WS bit is three (or 9 on Pi4) FB pixels, but skip first/last FB pixel
     protoBitsPerLine = (fb->Width() - 2 * sBeginEndSize) / (3 * fbPixelMult);
 
     // Skip over the hsync/porch pad area and first/last FB pixel
@@ -667,28 +682,28 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
 
     while (y < longestString) {
         // For each WS281x pixel on the scan line
-        for (int x = 0; x < (protoBitsPerLine / 24); x++) {
+        for (int x = 0; x < protoBitsPerLine; x += 8) {
             if (usingLatches) {
                 if (y == 0) {
                     strPixel = 0;
                     sStart = 0;
-                    sEnd = 20;
+                    sEnd = firstStringInBank[1];
                     latchPinMask = latchPinMasks[0];
                 } else if (y == longestStringInBank[0]) {
                     strPixel = 0;
-                    sStart = 20;
-                    sEnd = stringCount > 36 ? 36 : stringCount;
+                    sStart = firstStringInBank[1];
+                    sEnd = stringCount > firstStringInBank[2] ? firstStringInBank[2] : stringCount;
                     latchPinMask = latchPinMasks[1];
                 } else if (y == (longestStringInBank[0] + longestStringInBank[1])) {
                     strPixel = 0;
-                    sStart = 36;
+                    sStart = firstStringInBank[2];
                     sEnd = stringCount > 52 ? 52 : stringCount;
                     latchPinMask = latchPinMasks[2];
                 }
             }
 
             // For each bit in the WS281x pixel protocol
-            for (int rp = 0; rp < 24; rp++) {
+            for (int rp = 0; rp < 8; rp++) {
                 if (licensedOutputs) {
                     if (usingLatches && (rp == 0) && ((x == 0) || (strPixel == 0))) {
                         *(protoDest - 3) = (latchPinMask >> 16);
@@ -767,7 +782,10 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
     for (int i = 0; i < fbPixelMult; i++) {
         protoDestExtra += fb->BytesPerPixel() * 2;
     }
-
+    //int perLine = fb->BytesPerPixel() * fbPixelMult * 3;
+    //int header = fb->BytesPerPixel() * sBeginEndSize;
+    //int numLines = 76 * 8;
+    //HexDump("fb data:", fb->Buffer() + header, numLines * perLine, VB_CHANNELOUT, perLine);
     return true;
 }
 
@@ -779,12 +797,12 @@ void DPIPixelsOutput::InitFrameWS281x(void) {
     protoDest = fb->BufferPage(fbPage) + ((1 + fbPixelMult) * fb->BytesPerPixel());
 }
 
-void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t* rowData, int maxString) {
+void DPIPixelsOutput::OutputPixelRowWS281x(uint8_t* rowData, int maxString) {
     uint32_t onOff = 0;
     int oindex = 0;
 
-    // 24 bits in WS281x output data
-    for (int bt = 0; bt < 24; bt++) {
+    // 8 bits in WS281x output data
+    for (int bt = 0; bt < 8; bt++) {
         // 3 FB pixels per WS281x bit.  WS281x 0 == 100, WS281x 1 == 110
 
         // First FB pixel for the WS bit has already been initialized in InitializeWS281x(),
@@ -797,7 +815,7 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint32_t* rowData, int maxString) {
         for (int s = 0; s < maxString; s++) {
             oindex = bitPos[s];
             if (oindex != -1) {
-                if (rowData[s] & POSITION_TO_BITMASK(bt))
+                if (rowData[s] & (0x80 >> bt))
                     onOff |= POSITION_TO_BITMASK(oindex);
             }
         }

@@ -39,13 +39,13 @@ public:
 
 private:
     int GetDPIPinBitPosition(std::string pinName);
-
     bool FrameBufferIsConfigured(void);
 
     bool InitializeWS281x(void);
     void InitFrameWS281x(void);
-    void OutputPixelRowWS281x(uint32_t* rowData, int maxString);
+    void OutputPixelRowWS281x(uint8_t* rowData, int maxString);
     void CompleteFrameWS281x(void);
+    void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) override;
 
     std::string device = "fb1";
     std::string protocol = "ws2811";
@@ -63,6 +63,7 @@ private:
     int stringCount = 0;
     int longestString = 0;
     int longestStringInBank[MAX_DPI_PIXEL_BANKS];
+    int firstStringInBank[MAX_DPI_PIXEL_BANKS];
     uint32_t latchPinMask = 0x000000;
     uint32_t latchPinMasks[MAX_DPI_PIXEL_BANKS];
 
@@ -73,4 +74,10 @@ private:
 
     // WS281x vars
     int fbPixelMult = 1;
+    int fbEndBufferSize = 1;
+
+    // output testing data
+    int m_testCycle = -1;
+    int m_testType = 0;
+    float m_testPercent = 0.0f;
 };

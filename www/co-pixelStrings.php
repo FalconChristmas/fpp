@@ -344,6 +344,13 @@ function pixelOutputTableInputOrderOption(colorOrder, selectedColorOrder)
 function pixelOutputTableInputOrder(colorOrder)
 {
     var result = "";
+    <?if ($settings['Platform'] == "BeagleBone Black") {?>
+    var isChannelBased = true;
+    <?} else {?>
+        var outtype = $('#PixelStringSubType').val();
+        var driver = MapPixelStringType(outtype);
+        var isChannelBased = driver == 'DPIPixels';
+    <?}?>
 
     result += "<td>";
     result += "<select class='vsColorOrder' onChange='updateItemEndChannel(this);'>";
@@ -354,9 +361,7 @@ function pixelOutputTableInputOrder(colorOrder)
     result += pixelOutputTableInputOrderOption('BGR', colorOrder);
     result += pixelOutputTableInputOrderOption('BRG', colorOrder);
 
-    <?
-if ($settings['Platform'] == "BeagleBone Black") {
-    ?>
+    if (isChannelBased) {
         result += pixelOutputTableInputOrderOption('RGBW', colorOrder);
         result += pixelOutputTableInputOrderOption('RBGW', colorOrder);
         result += pixelOutputTableInputOrderOption('GBRW', colorOrder);
@@ -371,10 +376,7 @@ if ($settings['Platform'] == "BeagleBone Black") {
         result += pixelOutputTableInputOrderOption('WBGR', colorOrder);
         result += pixelOutputTableInputOrderOption('WBRG', colorOrder);
         result += pixelOutputTableInputOrderOption('W', colorOrder);
-    <?
-}
-?>
-
+    }
     result += "</select>";
     result += "</td>";
 
