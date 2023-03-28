@@ -564,7 +564,13 @@ void PixelString::DumpConfig(void) {
             LogDebug(VB_CHANNELOUT, "        pixel count   : %d\n", vs.pixelCount);
             LogDebug(VB_CHANNELOUT, "        group count   : %d\n", vs.groupCount);
             LogDebug(VB_CHANNELOUT, "        reverse       : %d\n", vs.reverse);
-            LogDebug(VB_CHANNELOUT, "        color order   : %s\n", ColorOrderToString(vs.colorOrder).c_str());
+            if (vs.whiteOffset == 0) {
+                LogDebug(VB_CHANNELOUT, "        color order   : W%s\n", ColorOrderToString(vs.colorOrder).c_str());
+            } else if (vs.whiteOffset == 0) {
+                LogDebug(VB_CHANNELOUT, "        color order   : %sW\n", ColorOrderToString(vs.colorOrder).c_str());
+            } else {
+                LogDebug(VB_CHANNELOUT, "        color order   : %s\n", ColorOrderToString(vs.colorOrder).c_str());
+            }
             LogDebug(VB_CHANNELOUT, "        start nulls   : %d\n", vs.startNulls);
             LogDebug(VB_CHANNELOUT, "        end nulls     : %d\n", vs.endNulls);
             LogDebug(VB_CHANNELOUT, "        zig zag       : %d\n", vs.zigZag);
