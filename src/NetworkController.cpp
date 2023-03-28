@@ -67,7 +67,7 @@ bool NetworkController::DetectFPP(const std::string& ip, const std::string& html
     if (html.find("Falcon Player - FPP") == std::string::npos) {
         return false;
     }
-    std::string url = "http://" + ip + "/api/system/info&simple=1";
+    std::string url = "http://" + ip + "/api/system/info?simple=1";
     std::string resp;
 
     if (urlGet(url, resp)) {
