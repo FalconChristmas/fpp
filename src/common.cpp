@@ -127,49 +127,51 @@ int Touch(const std::string& File) {
 /*
  * Dump memory block in hex and human-readable formats
  */
-void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& facility) {
+void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& facility, int perLine) {
     int l = 0;
     int i = 0;
     int x = 0;
     int y = 0;
     unsigned char* ch = (unsigned char*)data;
-    unsigned char str[17];
-    char tmpStr[150];
+    unsigned char *str = new unsigned char[perLine + 1];
+
+    int maxLen = perLine * 7 + 20;
+    char *tmpStr = new char[maxLen];
 
     if (strlen(title)) {
-        snprintf(tmpStr, sizeof(tmpStr), "%s: (%d bytes)\n", title, len);
+        snprintf(tmpStr, maxLen, "%s: (%d bytes)\n", title, len);
         LogInfo(facility, tmpStr);
     }
 
     while (l < len) {
         if (x == 0) {
-            snprintf(tmpStr, sizeof(tmpStr), "%06x: ", i);
+            snprintf(tmpStr, maxLen, "%06x: ", i);
         }
 
-        if (x < 16) {
-            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "%02x ", *ch & 0xFF);
+        if (x < perLine) {
+            snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "%02x ", *ch & 0xFF);
             str[x] = *ch;
             x++;
             i++;
         } else {
-            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "   ");
+            snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "   ");
             for (; x > 0; x--) {
-                if (str[16 - x] == '%' || str[16 - x] == '\\') {
+                if (str[perLine - x] == '%' || str[perLine - x] == '\\') {
                     //these are escapes for the Log call, so don't display them
-                    snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), ".");
-                } else if (isgraph(str[16 - x]) || str[16 - x] == ' ') {
-                    snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "%c", str[16 - x]);
+                    snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), ".");
+                } else if (isgraph(str[perLine - x]) || str[perLine - x] == ' ') {
+                    snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "%c", str[perLine - x]);
                 } else {
-                    snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), ".");
+                    snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), ".");
                 }
             }
 
-            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "\n");
+            snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "\n");
             LogInfo(facility, tmpStr);
             x = 0;
 
-            snprintf(tmpStr, sizeof(tmpStr), "%06x: ", i);
-            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "%02x ", *ch & 0xFF);
+            snprintf(tmpStr, maxLen, "%06x: ", i);
+            snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "%02x ", *ch & 0xFF);
             str[x] = *ch;
             x++;
             i++;
@@ -178,23 +180,25 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
         l++;
         ch++;
     }
-    for (y = x; y < 16; y++) {
-        snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "   ");
+    for (y = x; y < perLine; y++) {
+        snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "   ");
     }
-    snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "   ");
+    snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "   ");
     for (y = 0; y < x; y++) {
         if (str[y] == '%' || str[y] == '\\') {
             //these are escapes for the Log call, so don't display them
-            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), ".");
+            snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), ".");
         } else if (isgraph(str[y]) || str[y] == ' ') {
-            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "%c", str[y]);
+            snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "%c", str[y]);
         } else {
-            snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), ".");
+            snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), ".");
         }
     }
 
-    snprintf(tmpStr + strlen(tmpStr), sizeof(tmpStr) - strlen(tmpStr), "\n");
+    snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "\n");
     LogInfo(facility, tmpStr);
+    delete [] tmpStr;
+    delete [] str;
 }
 
 /*

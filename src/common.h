@@ -60,7 +60,7 @@ int DirectoryExists(const std::string& Directory);
 int FileExists(const char* File);
 int FileExists(const std::string& File);
 int Touch(const std::string& File);
-void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& facility);
+void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& facility, int perLine = 16);
 int GetInterfaceAddress(const char* interface, char* addr, char* mask, char* gw);
 char* FindInterfaceForIP(char* ip);
 int CheckForHostSpecificFile(const char* hostname, char* filename);
