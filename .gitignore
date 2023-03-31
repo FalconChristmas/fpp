@@ -50,3 +50,4 @@ plugins/
 xcuserdata
 src/fppd.xcodeproj/project.xcworkspace/xcshareddata
 *-workspace
+.DS_Store

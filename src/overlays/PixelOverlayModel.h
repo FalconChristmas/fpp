@@ -89,6 +89,7 @@ public:
     virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h, const PixelOverlayState &st = PixelOverlayState(PixelOverlayState::Enabled));
     void setScaledData(uint8_t* data, int w, int h);
     void setPixelValue(int x, int y, int r, int g, int b);
+    void getPixelValue(int x, int y, int &r, int &g, int &b);
     void clearData();
     void fillData(int r, int g, int b);
     void setBufferIsDirty(bool dirty = true);

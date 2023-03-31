@@ -51,6 +51,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 long long GetTime(void);
+long long GetTimeMicros(void);
 long long GetTimeMS(void);
 std::string GetTimeStr(std::string fmt);
 std::string GetDateStr(std::string fmt);

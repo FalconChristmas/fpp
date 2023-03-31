@@ -5836,7 +5836,7 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                     inp.prop("checked", checked);
                 } else if (typeof multattr !== typeof undefined && multattr !== false) {
                     var split = v.split(",");
-                    console.log(inp.attr('type') + "  " + inp.attr('multiple') + "  " + v + "  " + split + " " + split.length + "\n");
+                    //console.log(inp.attr('type') + "  " + inp.attr('multiple') + "  " + v + "  " + split + " " + split.length + "\n");
 
                     $("#" + tblCommand + "_arg_" + count + " option").prop("selected", function () {
                         return ~$.inArray(this.text, split);
@@ -5880,12 +5880,6 @@ function fppCommandColorPicker() {
             if ($('.modal-body').is(":visible") === true) {
                 fppCommandColorPicker_fppDialogIsOpen = true;
 
-                //Do some cleanup of the old pickers
-                //When the modal content is hidden, Destroy the colorpicker using it's built in function
-                $('.fppCommandColor').colpickDestroy();
-                //Unbind events from our picker inputs
-                $('.fppCommandColor').off();
-
                 // Destroy existing colour pickers
                 $('div[id*="collorpicker_"]').remove();
 
@@ -5905,27 +5899,6 @@ function fppCommandColorPicker() {
                     if ($('.modal-footer').length === 0) {
                         appendToElement = ".modal-header"
                     }
-
-                    //Add the pickers again
-                    $('.fppCommandColor').colpick({
-                        layout: 'rgbhex',
-                        color: 'auto',
-                        submit: false,
-                        appendTo: appendToElement,
-                        styles: {marginLeft: modalDialog_LeftOffset, marginTop: colpickNewTopMargin + "px"},
-                        onChange: function (hsb, hex, rgb, el, bySetColor) {
-                            $(el).css('background-color', '#' + hex);
-                            $(el).attr('value', '#' + hex);
-                            // if (!bySetColor) {
-                            //
-                            // }
-                        },
-                        onBeforeShow: function () {
-                            if (typeof (this.value !== 'undefined')) {
-                                $(this).colpickSetColor(this.value);
-                            }
-                        }
-                    });
                 }
             }else{
                 //Not found yet so keep looping

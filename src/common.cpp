@@ -58,6 +58,11 @@ long long GetTime(void) {
     gettimeofday(&now_tv, NULL);
     return now_tv.tv_sec * 1000000LL + now_tv.tv_usec;
 }
+long long GetTimeMicros(void) {
+    struct timeval now_tv;
+    gettimeofday(&now_tv, NULL);
+    return now_tv.tv_sec * 1000000LL + now_tv.tv_usec;
+}
 
 long long GetTimeMS(void) {
     struct timeval now_tv;

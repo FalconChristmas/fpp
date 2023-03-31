@@ -539,6 +539,19 @@ void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
     }
     dirtyBuffer = true;
 }
+void PixelOverlayModel::getPixelValue(int x, int y, int &r, int &g, int &b) {
+    int c = (y * width * 3) + x * 3;
+    if (channelMap[c] != FPPD_OFF_CHANNEL) {
+        r = channelData[channelMap[c++]];
+    }
+    if (channelsPerNode > 1 && channelMap[c] != FPPD_OFF_CHANNEL) {
+        g = channelData[channelMap[c++]];
+    }
+    if (channelsPerNode > 2 && channelMap[c] != FPPD_OFF_CHANNEL) {
+        b = channelData[channelMap[c++]];
+    }
+}
+
 
 void PixelOverlayModel::setScaledData(uint8_t* data, int w, int h) {
     float ydiff = (float)h / (float)height;

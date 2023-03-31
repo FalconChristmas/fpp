@@ -65,6 +65,9 @@ public:
     static int parseInt(const std::string& setting) {
         return std::atoi(setting.c_str());
     }
+    static int parseBool(const std::string& setting) {
+        return setting == "true" || setting == "1";
+    }
     static uint32_t parseColor(const std::string& setting) {
         return PixelOverlayManager::mapColor(setting);
     }
@@ -147,28 +150,197 @@ static std::vector<std::string> BUFFERMAPS;
 static std::vector<std::string> PALETTES;
 extern float GetChannelOutputRefreshRate();
 
+
+enum class ArgMapping {
+    Mapping,
+    Brightness,
+    Speed,
+    Intensity,
+    Palette,
+    Color1,
+    Color2,
+    Color3,
+    Custom1,
+    Custom2,
+    Custom3,
+    Check1,
+    Check2,
+    Check3,
+    Text
+};
+
+const char *defaultSliderName(int idx, ArgMapping &m) {
+    switch (idx) {
+        case  0: m = ArgMapping::Speed; return "Speed";
+        case  1: m = ArgMapping::Intensity; return "Intensity";
+        case  2: m = ArgMapping::Custom1; return "Custom 1";
+        case  3: m = ArgMapping::Custom2; return "Custom 2";
+        case  4: m = ArgMapping::Custom3; return "Custom 3";
+        case  5: m = ArgMapping::Check1; return "Check 1";
+        case  6: m = ArgMapping::Check2; return "Check 2";
+        case  7: m = ArgMapping::Check3; return "Check 3";
+    }
+    m = ArgMapping::Custom1;
+    return "Custom";
+}
+const char *defaultColorName(int idx, ArgMapping &m, std::string &defVal) {
+    if (idx == 0) {
+        m = ArgMapping::Color1;
+        defVal = "#FF0000";
+        return "Color 1";
+    }
+    if (idx == 1) {
+        m = ArgMapping::Color2;
+        defVal = "#0000FF";
+        return "Color 2";
+    }
+    m = ArgMapping::Color3;
+    defVal = "#000000";
+    return "Color 3";
+}
+
 class RawWLEDEffect : public WLEDEffect {
 public:
-    RawWLEDEffect(const std::string& name, int m) :
+    RawWLEDEffect(const std::string& name, const std::string &config, int m) :
         WLEDEffect(name),
         mode(m) {
         fillVectors();
         args.push_back(CommandArg("BufferMapping", "string", "Buffer Mapping").setContentList(BUFFERMAPS));
+        argMap.push_back(ArgMapping::Mapping); //always have mapping
         args.push_back(CommandArg("Brightness", "range", "Brightness").setRange(0, 255).setDefaultValue("128"));
-        args.push_back(CommandArg("Speed", "range", "Speed").setRange(0, 255).setDefaultValue("128"));
-        args.push_back(CommandArg("Intensity", "range", "Intensity").setRange(0, 255).setDefaultValue("128"));
-        args.push_back(CommandArg("Palette", "string", "Palette").setContentList(PALETTES).setDefaultValue("Default"));
-        args.push_back(CommandArg("Color1", "color", "Color1").setDefaultValue("#FF0000"));
-        args.push_back(CommandArg("Color2", "color", "Color2").setDefaultValue("#0000FF"));
-        args.push_back(CommandArg("Color3", "color", "Color3").setDefaultValue("#000000"));
+        argMap.push_back(ArgMapping::Brightness); //always have brightness
+            
+        std::string c = config;
+        size_t t = c.find("@");
+        if (t != std::string::npos) {
+            c = c.substr(t + 1);
+            std::string sliders = c;
+            t = c.find(";");
+            if (t != std::string::npos) {
+                c = c.substr(t + 1);
+                sliders = sliders.substr(0, t);
+            }
+            std::string pallete = c;
+            t = c.find(";");
+            if (t != std::string::npos) {
+                c = c.substr(t + 1);
+                pallete = pallete.substr(0, t);
+            }
+            int idx = 0;
+            //printf("%s        -%s-\n", config.c_str(), c.c_str());
+            while (!sliders.empty()) {
+                ArgMapping m;
+                std::string sname = defaultSliderName(idx, m);
+                if (sliders[0] == '!') {
+                    sliders = sliders.substr(1);
+                    if (!sliders.empty() && sliders[0] == ',') {
+                        sliders = sliders.substr(1);
+                    }
+                } else {
+                    size_t comma = sliders.find(',');
+                    if (comma != std::string::npos) {
+                        sname = sliders.substr(0, comma);
+                        sliders = sliders.substr(comma + 1);
+                    } else {
+                        sname = sliders;
+                        sliders = "";
+                    }
+                }
+                //printf("    s%d: %s\n", idx, sname.c_str());
+                if (sname != "") {
+                    if (m == ArgMapping::Custom3) {
+                        // custom3 is
+                        args.push_back(CommandArg(sname, "range", sname).setRange(0, 31).setDefaultValue("16"));
+                    } else if (m >= ArgMapping::Check1 && m <= ArgMapping::Check3) {
+                        args.push_back(CommandArg(sname, "bool", sname).setDefaultValue("0"));
+                    } else {
+                        //speed, intensity, custom1, custom2 are full range
+                        args.push_back(CommandArg(sname, "range", sname).setRange(0, 255).setDefaultValue("128"));
+                    }
+                    argMap.push_back(m);
+                }
+                idx++;
+            }
+            args.push_back(CommandArg("Palette", "string", "Palette").setContentList(PALETTES).setDefaultValue("Default"));
+            argMap.push_back(ArgMapping::Palette); //Palette
+            if (!pallete.empty()) {
+                idx = 0;
+                while (!pallete.empty()) {
+                    ArgMapping m;
+                    std::string val;
+                    std::string cname = defaultColorName(idx, m, val);
+                    if (pallete[0] == '!') {
+                        pallete = pallete.substr(1);
+                        if (!pallete.empty() && pallete[0] == ',') {
+                            pallete = pallete.substr(1);
+                        }
+                    } else {
+                        size_t comma = pallete.find(',');
+                        if (comma != std::string::npos) {
+                            cname = pallete.substr(0, comma);
+                            pallete = pallete.substr(comma + 1);
+                        } else {
+                            cname = pallete;
+                            pallete = "";
+                        }
+                    }
+                    //printf("    p%d: %s    %s\n", idx, cname.c_str(), val.c_str());
+                    if (cname != "") {
+                        args.push_back(CommandArg(cname, "color", cname).setDefaultValue(val));
+                        argMap.push_back(m);
+                    }
+                    idx++;
+                }
+            } else {
+                args.push_back(CommandArg("Color 1", "color", "Color 1").setDefaultValue("#FF0000"));
+                args.push_back(CommandArg("Color 2", "color", "Color 2").setDefaultValue("#0000FF"));
+                args.push_back(CommandArg("Color 3", "color", "Color 3").setDefaultValue("#000000"));
+                argMap.push_back(ArgMapping::Color1); //c1
+                argMap.push_back(ArgMapping::Color2); //c2
+                argMap.push_back(ArgMapping::Color3); //c3
+            }
+        } else {
+            args.push_back(CommandArg("Speed", "range", "Speed").setRange(0, 255).setDefaultValue("128"));
+            args.push_back(CommandArg("Intensity", "range", "Intensity").setRange(0, 255).setDefaultValue("128"));
+            argMap.push_back(ArgMapping::Speed); //speed
+            argMap.push_back(ArgMapping::Intensity); //intensity
+            
+            
+            args.push_back(CommandArg("Palette", "string", "Palette").setContentList(PALETTES).setDefaultValue("Default"));
+            args.push_back(CommandArg("Color1", "color", "Color1").setDefaultValue("#FF0000"));
+            args.push_back(CommandArg("Color2", "color", "Color2").setDefaultValue("#0000FF"));
+            args.push_back(CommandArg("Color3", "color", "Color3").setDefaultValue("#000000"));
+            argMap.push_back(ArgMapping::Palette); //Palette
+            argMap.push_back(ArgMapping::Color1); //c1
+            argMap.push_back(ArgMapping::Color2); //c2
+            argMap.push_back(ArgMapping::Color3); //c3
+        }
+        if (name.find("Text") != std::string::npos) {
+            args.push_back(CommandArg("Text", "string", "Text"));
+            argMap.push_back(ArgMapping::Text);
+        }
     }
     static void fillVectors() {
         if (PALETTES.empty()) {
-            const char** p = wled_palette_names;
+            const char* p = JSON_palette_names;
+            while (*p != '\"') {
+                ++p;
+            }
+            ++p;
             while (*p) {
-                std::string n = *p;
+                const char *p2 = p;
+                while (*p2 != '\"') {
+                    ++p2;
+                }
+                std::string n = p;
+                n = n.substr(0, p2 - p);
                 PALETTES.push_back(n);
-                p++;
+                p = p2;
+                ++p;
+                while (*p && *p != '\"') {
+                    ++p;
+                }
+                ++p;
             }
         }
         if (BUFFERMAPS.empty()) {
@@ -180,25 +352,72 @@ public:
     }
 
     virtual bool apply(PixelOverlayModel* model, const std::string& autoEnable, const std::vector<std::string>& args) override {
-        model->setRunningEffect(new RawWLEDEffectInternal(model, name, autoEnable, args, mode), 25);
+        model->setRunningEffect(new RawWLEDEffectInternal(model, name, autoEnable, args, mode, argMap), 25);
         return true;
     }
 
     class RawWLEDEffectInternal : public WLEDRunningEffect {
     public:
-        RawWLEDEffectInternal(PixelOverlayModel* m, const std::string& n, const std::string& ad, const std::vector<std::string>& args, int mode) :
+        RawWLEDEffectInternal(PixelOverlayModel* m, const std::string& n, const std::string& ad, const std::vector<std::string>& args, int mode, const std::vector<ArgMapping> argMap) :
             WLEDRunningEffect(m, n, ad) {
             RawWLEDEffect::fillVectors();
 
-            int mapping = std::find(BUFFERMAPS.begin(), BUFFERMAPS.end(), args[0]) - BUFFERMAPS.begin();
-
-            brightness = parseInt(args[1]);
-            speed = parseInt(args[2]);
-            intensity = parseInt(args[3]);
-            palette = args[4];
-            color1 = parseColor(args[5]);
-            color2 = parseColor(args[6]);
-            color3 = parseColor(args[7]);
+            int mapping = 0;
+            bool hasC3 = false;
+            for (int x = 0; x < argMap.size(); x++) {
+                switch (argMap[x]) {
+                    case ArgMapping::Mapping:
+                        mapping = std::find(BUFFERMAPS.begin(), BUFFERMAPS.end(), args[x]) - BUFFERMAPS.begin();
+                        break;
+                    case ArgMapping::Brightness:
+                        brightness = parseInt(args[x]);
+                        break;
+                    case ArgMapping::Speed:
+                        speed = parseInt(args[x]);
+                        break;
+                    case ArgMapping::Intensity:
+                        intensity = parseInt(args[x]);
+                        break;
+                    case ArgMapping::Custom1:
+                        custom1 = parseInt(args[x]);
+                        break;
+                    case ArgMapping::Custom2:
+                        custom2 = parseInt(args[x]);
+                        break;
+                    case ArgMapping::Custom3:
+                        custom3 = parseInt(args[x]);
+                        break;
+                    case ArgMapping::Check1:
+                        check1 = parseBool(args[x]);
+                        break;
+                    case ArgMapping::Check2:
+                        check2 = parseBool(args[x]);
+                        break;
+                    case ArgMapping::Check3:
+                        check3 = parseBool(args[x]);
+                        break;
+                    case ArgMapping::Palette:
+                        palette = args[x];
+                        break;
+                    case ArgMapping::Color1:
+                        color1 = parseColor(args[x]);
+                        break;
+                    case ArgMapping::Color2:
+                        color2 = parseColor(args[x]);
+                        break;
+                    case ArgMapping::Color3:
+                        hasC3 = true;
+                        color3 = parseColor(args[x]);
+                        break;
+                    case ArgMapping::Text:
+                        text = args[x];
+                        break;
+                    default:
+                        printf("Don't know what to do with %d\n", argMap[x]);
+                        break;
+                }
+                
+            }
 
             int p = 0;
             RawWLEDEffect::fillVectors();
@@ -207,49 +426,81 @@ public:
                     p = x;
                 }
             }
-            wled = new WS2812FX(m, mapping);
-            wled->setMode(0, mode);
-            wled->setColor(0, color1);
-            wled->setColor(1, color2);
-            wled->setColor(2, color3);
-            wled->setEffectConfig(mode, speed, intensity, p);
-            wled->milliampsPerLed = 0; //need to turn off the power calculation
-            wled->setBrightness(brightness);
+            if (!hasC3) {
+                color3 = color1;
+            }
+            wled = new WS2812FXExt(m, mapping, brightness,
+                                   mode, speed, intensity, p,
+                                   color1, color2, color3,
+                                   custom1, custom2, custom3,
+                                   check1, check2, check3, text);
+            WS2812FXExt::popCurrent();
         }
         virtual ~RawWLEDEffectInternal() {
             delete wled;
         }
         virtual int32_t doIteration() {
+            WS2812FXExt::pushCurrent(wled);
             wled->service();
+            WS2812FXExt::popCurrent();
 
+            wled->model->flushOverlayBuffer();
             // no sense updating faster than the output
             float f = 1000.0f / GetChannelOutputRefreshRate();
             int i = f;
             return i;
         }
 
-        int brightness;
-        int speed;
-        int intensity;
-        uint32_t color1;
-        uint32_t color2;
-        uint32_t color3;
-        std::string palette;
+        int brightness = 128;
+        int speed = 128;
+        int intensity = 128;
+        uint32_t color1 = 0xFF0000;
+        uint32_t color2 = 0x0000FF;
+        uint32_t color3 = 0x000000;
+        std::string palette = "Default";
+        int custom1 = 128;
+        int custom2 = 128;
+        int custom3 = 128;
+        int check1 = 0;
+        int check2 = 0;
+        int check3 = 0;
+        std::string text;
 
-        WS2812FX* wled;
+        WS2812FXExt* wled;
     };
 
     int mode;
+    std::vector<ArgMapping> argMap;
 };
 
 std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {
     std::list<PixelOverlayEffect*> v;
     v.push_back(new BlinkEffect());
 
-    for (int x = 2; x < MODE_COUNT; x++) {
+    
+    WS2812FX* inst = WS2812FX::getInstance();
+    if (inst == nullptr) {
+        inst = new WS2812FXExt();
+    }
+    int i = inst->getModeCount();
+    if (i > 127) {
+        i = 127; //don't include audio reactive right now
+    }
+    for (int x = 2; x < i; x++) {
         std::string name = "WLED - ";
-        name += wled_mode_names[x];
-        v.push_back(new RawWLEDEffect(name, x));
+        std::string ename = inst->getModeData(x);
+        if (ename != "RSVD") {
+            while (ename.find('+') != std::string::npos) {
+                int idx = ename.find('+');
+                ename = ename.substr(0, idx) + "-Plus" + ename.substr(idx + 1);
+            }
+            if (ename.find('@') != std::string::npos) {
+                name += ename.substr(0, ename.find('@'));
+            } else {
+                name += ename;
+            }
+            v.push_back(new RawWLEDEffect(name, ename, x));
+        }
     }
     return v;
 }
