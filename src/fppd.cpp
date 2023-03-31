@@ -277,7 +277,14 @@ static void handleCrash(int s) {
         for (const auto& entry : std::filesystem::directory_iterator(cdir)) {
             filenames.insert(entry.path());
             auto ftime = entry.last_write_time();
-#if defined(PLATFORM_OSX) || (__GNUC__ <= 8)
+#if defined(PLATFORM_OSX)
+#if (__apple_build_version__ >= 14030022)
+            auto stm = std::chrono::file_clock::to_sys(ftime);
+#else
+            std::time_t tt = decltype(ftime)::clock::to_time_t(ftime);
+            auto stm = std::chrono::system_clock::from_time_t(tt);
+#endif
+#elif (__GNUC__ <= 8)
             std::time_t tt = decltype(ftime)::clock::to_time_t(ftime);
             auto stm = std::chrono::system_clock::from_time_t(tt);
 #else
