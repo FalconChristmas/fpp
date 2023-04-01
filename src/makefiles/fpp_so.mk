@@ -72,6 +72,8 @@ OBJECTS_fpp_so += \
     overlays/wled/FX_2Dfcn.o \
     overlays/wled/colorpalettes.o \
     overlays/wled/colorutils.o \
+    overlays/wled/kiss_fftr.o \
+    overlays/wled/kiss_fft.o \
     overlays/wled/noise.o \
     overlays/wled/hsv2rgb.o \
     overlays/wled/wled.o \

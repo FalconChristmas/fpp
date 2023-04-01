@@ -97,6 +97,9 @@ public:
         minQueueSize = rate * bps * 2 * ch; // 2 seconds of 2 channel audio
         maxQueueSize = minQueueSize * ch;
         outBuffer = new uint8_t[maxQueueSize];
+            
+        sampleBuffer = new uint8_t[maxQueueSize * 2];
+        sampleBufferCount = 0;
     }
     ~SDLInternalData() {
         if (frame != nullptr) {
@@ -159,6 +162,10 @@ public:
     bool isSamplesFloat;
     int minQueueSize;
     int maxQueueSize;
+    
+    uint8_t *sampleBuffer;
+    int sampleBufferCount;
+
 
     // stuff for the video stream
     AVCodecContext* videoCodecContext;
@@ -222,10 +229,18 @@ public:
         if (outBufferPos && ((queue < minQueueSize) || doneRead)) {
             curPosLock.lock();
             SDL_QueueAudio(audioDev, outBuffer, outBufferPos);
+            queue = SDL_GetQueuedAudioSize(audioDev);
+            int ms = queue - outBufferPos;
+            if (ms < sampleBufferCount) {
+                memmove(sampleBuffer, &sampleBuffer[sampleBufferCount - ms], ms);
+                sampleBufferCount = ms;
+            }
+            memcpy(&sampleBuffer[sampleBufferCount], outBuffer, outBufferPos);
+            sampleBufferCount += outBufferPos;
+            
             curPos += outBufferPos;
             outBufferPos = 0;
             curPosLock.unlock();
-            queue = SDL_GetQueuedAudioSize(audioDev);
         }
         if (retVal >= 0) {
             return retVal;
@@ -473,6 +488,8 @@ public:
                 data->curPosLock.lock();
                 SDL_ClearQueuedAudio(audioDev);
                 SDL_QueueAudio(audioDev, data->outBuffer, data->outBufferPos);
+                memcpy(data->sampleBuffer, data->outBuffer, data->outBufferPos);
+                data->sampleBufferCount = data->outBufferPos;
                 data->curPos += data->outBufferPos;
                 data->outBufferPos = 0;
                 data->curPosLock.unlock();
@@ -828,6 +845,43 @@ bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
                 data->videoOverlayModel->setState(PixelOverlayState::Enabled);
             }
         }
+    }
+    return false;
+}
+bool SDLOutput::GetAudioSamples(float *samples, int numSamples, int &sampleRate) {
+    SDLInternalData* data = sdlManager.data;
+    if (data && !data->stopped) {
+        //printf("In Samples:  %d\n", data->outBufferPos);
+        data->curPosLock.lock();
+        int queue = SDL_GetQueuedAudioSize(data->audioDev);
+        if (data->bytesPerSample == 2) {
+            int offset = data->sampleBufferCount - queue;
+            int16_t *ds = (int16_t *)(&data->sampleBuffer[offset]);
+            //just grab the left channel audio
+            for (int x = 0; x < numSamples; x++) {
+                samples[x] = ds[x*data->channels];
+                samples[x] /= 32767.0f;
+            }
+        } else if (data->isSamplesFloat) {
+            int offset = data->sampleBufferCount - queue;
+            float *ds = (float *)(&data->sampleBuffer[offset]);
+            //just grab the left channel audio
+            for (int x = 0; x < numSamples; x++) {
+                samples[x] = ds[x*data->channels];
+            }
+        } else {
+            //32bit sampling
+            int offset = data->sampleBufferCount - queue;
+            int32_t *ds = (int32_t *)(&data->sampleBuffer[offset]);
+            //just grab the left channel audio
+            for (int x = 0; x < numSamples; x++) {
+                samples[x] = ds[x*data->channels];
+                samples[x] /= 0x8FFFFFFF;
+            }
+        }
+        sampleRate = data->currentRate;
+        data->curPosLock.unlock();
+        return true;
     }
     return false;
 }

@@ -483,11 +483,12 @@ std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {
         inst = new WS2812FXExt();
     }
     int i = inst->getModeCount();
-    if (i > 127) {
-        i = 127; //don't include audio reactive right now
-    }
     for (int x = 2; x < i; x++) {
         std::string name = "WLED - ";
+        if (x > 127) {
+            //audio reactive effects, add a note so people know these are special
+            name = "WLED♪ - ";
+        }
         std::string ename = inst->getModeData(x);
         if (ename != "RSVD") {
             while (ename.find('+') != std::string::npos) {

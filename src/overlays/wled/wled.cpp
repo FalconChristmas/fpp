@@ -22,6 +22,9 @@
 #include "fcn_declare.h"
 
 #include "../PixelOverlayModel.h"
+#include "../../mediaoutput/SDLOut.h"
+#include "kiss_fftr.h"
+
 
 uint16_t rand16seed = 0;
 time_t localTime = time(nullptr);
@@ -89,8 +92,263 @@ uint32_t get_millisecond_timer() {
     return GetTimeMS();
 }
 
+constexpr int NUM_SAMPLES = 1024;
+
+// RMS average
+static float fftAddAvgRMS(int from, int to, float *samples) {
+    double result = 0.0;
+    for (int i = from; i <= to; i++) {
+        result += samples[i] * samples[i];
+    }
+    return sqrtf(result / float(to - from + 1));
+}
+
+static float fftAddAvg(int from, int to, float *samples) {
+    if (from == to) return samples[from];              // small optimization
+    return fftAddAvgRMS(from, to, samples);     // use SMS
+}
+static float mapf(float x, float in_min, float in_max, float out_min, float out_max){
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+/*
+static void GenerateSinWave(std::array<float, NUM_SAMPLES> &samples, float sampleRate, float frequency = 440)
+{
+    float sampleDurationSeconds = 1.0 / sampleRate;
+    for (int i = 0; i < NUM_SAMPLES; ++i) {
+        double sampleTime = (float)(i) * sampleDurationSeconds;
+        samples[i] = std::sin(2.0 * 3.14159 * frequency * sampleTime);
+    }
+}
+void HammingWindow(std::array<float, NUM_SAMPLES> &samples)
+{
+    static const double a0 = 25.0 / 46.0;
+    static const double a1 = 1 - a0;
+    for (int i = 0; i < NUM_SAMPLES; ++i)
+        samples[i] *= a0 - a1 * cos((2.0 * 3.14159 * i) / NUM_SAMPLES);
+}
+*/
+
+static um_data_t*processSamples(std::array<float, NUM_SAMPLES> &samples, int sampleRate) {
+    static kiss_fft_cpx fft_out[NUM_SAMPLES];
+    static kiss_fftr_cfg cfg = kiss_fftr_alloc(NUM_SAMPLES, false, 0, 0);
+        
+    //GenerateSinWave(samples, sampleRate);
+    //HammingWindow(samples);
+
+    // compute fast fourier transform
+    kiss_fftr(cfg , (kiss_fft_scalar*)&samples[0], fft_out);
+
+    static uint8_t  samplePeak;
+    static float    FFT_MajorPeak;
+    static uint8_t  maxVol;
+    static uint8_t  binNum;
+    static float    volumeSmth;
+    static uint16_t volumeRaw;
+    static float    my_magnitude;
+    //arrays
+    static um_data_t* um_data = nullptr;
+    if (!um_data) {
+        // initialize um_data pointer structure
+        // NOTE!!!
+        // This may change as AudioReactive usermod may change
+        um_data = new um_data_t;
+        um_data->u_size = 8;
+        um_data->u_type = new um_types_t[um_data->u_size];
+        um_data->u_data = new void*[um_data->u_size];
+        um_data->u_data[0] = &volumeSmth;
+        um_data->u_data[1] = &volumeRaw;
+        um_data->u_data[2] = (uint8_t *)calloc(sizeof(uint8_t) * 16, 1);
+        um_data->u_data[3] = &samplePeak;
+        um_data->u_data[4] = &FFT_MajorPeak;
+        um_data->u_data[5] = &my_magnitude;
+        um_data->u_data[6] = &maxVol;
+        um_data->u_data[7] = &binNum;
+    }
+    
+    std::array<float, 17> res;
+    for (int x = 0; x < 16; x++) {
+        res[x] = 0;
+    }
+    float rate = sampleRate;
+    int curBucket = 0;
+    double freqnext = 440.0 * exp2f(((float)((1 + 1)*8) - 69.0) / 12.0);
+    int end = freqnext * (float)NUM_SAMPLES / rate;
+    float binHzRange = rate / (float)NUM_SAMPLES;
+
+    float maxValue = 0;
+    int maxBin = 0;
+    int maxBucket = 0;
+    for (int bin = 0; bin < (NUM_SAMPLES/2); ++bin) {
+        if (bin > end) {
+            curBucket++;
+            if (curBucket == 18) {
+                break;
+            }
+            freqnext = 440.0 * exp2f(((double)((curBucket + 1)*8) - 69.0) / 12.0);
+            end = freqnext * (double)NUM_SAMPLES / rate;
+        }
+        float nv = sqrtf(fft_out[bin].r * fft_out[bin].r + fft_out[bin].i * fft_out[bin].i);
+        if (nv > maxValue) {
+            maxValue = nv;
+            maxBin = bin;
+            maxBucket = curBucket;
+        }
+        res[curBucket] = std::max(res[curBucket], nv);
+    }
+    
+    uint8_t *fftResult =  (uint8_t*)um_data->u_data[2];
+    float maxFreq = (maxBin * binHzRange) + (binHzRange / 2);
+    int maxIdx = maxBin;
+    
+    //printf("Max: %0.5f Hz   idx: %d\n", maxFreq, maxIdx);
+    int maxV = 0;
+    float maxRV = 0;
+    for (int x = 0; x < 16; x++) {
+        int v2 = round(log10(res[x]) * 120.0);
+        if (v2 > 255) {
+            v2 = 255;
+        }
+        if (v2 < 0) {
+            v2 = 0;
+        }
+        //printf("%d:   %0.2f  %0.2f    %d\n", x, res[x], (float)log10(res[x]), v2);
+        maxV = std::max(maxV, v2);
+        maxRV = std::max(maxRV, res[x]);
+        fftResult[x] = v2;
+    }
+    //printf("\n");
+    //volumeSmth = max * 127.0;
+    
+    FFT_MajorPeak = maxFreq;
+    my_magnitude = maxRV;
+    maxVol     = maxV;
+    binNum     = maxBucket;
+
+    volumeSmth = maxFreq;
+    volumeRaw = volumeSmth;
+    samplePeak= random8() > 250;
+    if (volumeSmth < 1 ) my_magnitude = 0.001f;
+
+    return um_data;
+}
+
+
+// Currently 4 types defined, to be fine tuned and new types added
+typedef enum UM_SoundSimulations {
+  UMS_BeatSin = 10,
+  UMS_WeWillRockYou = 0,
+  UMS_10_3,
+  UMS_14_3
+} um_soundSimulations_t;
 um_data_t* simulateSound(uint8_t simulationId) {
-    return nullptr;
+    std::array<float, NUM_SAMPLES> samples;
+    int sampleRate = 0;
+    if (SDLOutput::GetAudioSamples(&samples[0], NUM_SAMPLES, sampleRate)) {
+        return processSamples(samples, sampleRate);
+    }
+    
+    static uint8_t samplePeak;
+    static float   FFT_MajorPeak;
+    static uint8_t maxVol;
+    static uint8_t binNum;
+
+    static float    volumeSmth;
+    static uint16_t volumeRaw;
+    static float    my_magnitude;
+
+    //arrays
+    uint8_t *fftResult;
+
+    static um_data_t* um_data = nullptr;
+
+    if (!um_data) {
+      //claim storage for arrays
+      fftResult = (uint8_t *)malloc(sizeof(uint8_t) * 16);
+
+      // initialize um_data pointer structure
+      // NOTE!!!
+      // This may change as AudioReactive usermod may change
+      um_data = new um_data_t;
+      um_data->u_size = 8;
+      um_data->u_type = new um_types_t[um_data->u_size];
+      um_data->u_data = new void*[um_data->u_size];
+      um_data->u_data[0] = &volumeSmth;
+      um_data->u_data[1] = &volumeRaw;
+      um_data->u_data[2] = fftResult;
+      um_data->u_data[3] = &samplePeak;
+      um_data->u_data[4] = &FFT_MajorPeak;
+      um_data->u_data[5] = &my_magnitude;
+      um_data->u_data[6] = &maxVol;
+      um_data->u_data[7] = &binNum;
+    } else {
+      // get arrays from um_data
+      fftResult =  (uint8_t*)um_data->u_data[2];
+    }
+
+    uint32_t ms = millis();
+
+    switch (simulationId) {
+      default:
+      case UMS_BeatSin:
+        for (int i = 0; i<16; i++)
+          fftResult[i] = beatsin8(120 / (i+1), 0, 255);
+          // fftResult[i] = (beatsin8(120, 0, 255) + (256/16 * i)) % 256;
+          volumeSmth = fftResult[8];
+        break;
+      case UMS_WeWillRockYou:
+        if (ms%2000 < 200) {
+          volumeSmth = random8(255);
+          for (int i = 0; i<5; i++)
+            fftResult[i] = random8(255);
+        }
+        else if (ms%2000 < 400) {
+          volumeSmth = 0;
+          for (int i = 0; i<16; i++)
+            fftResult[i] = 0;
+        }
+        else if (ms%2000 < 600) {
+          volumeSmth = random8(255);
+          for (int i = 5; i<11; i++)
+            fftResult[i] = random8(255);
+        }
+        else if (ms%2000 < 800) {
+          volumeSmth = 0;
+          for (int i = 0; i<16; i++)
+            fftResult[i] = 0;
+        }
+        else if (ms%2000 < 1000) {
+          volumeSmth = random8(255);
+          for (int i = 11; i<16; i++)
+            fftResult[i] = random8(255);
+        }
+        else {
+          volumeSmth = 0;
+          for (int i = 0; i<16; i++)
+            fftResult[i] = 0;
+        }
+        break;
+      case UMS_10_3:
+        for (int i = 0; i<16; i++)
+          fftResult[i] = inoise8(beatsin8(90 / (i+1), 0, 200)*15 + (ms>>10), ms>>3);
+          volumeSmth = fftResult[8];
+        break;
+      case UMS_14_3:
+        for (int i = 0; i<16; i++)
+          fftResult[i] = inoise8(beatsin8(120 / (i+1), 10, 30)*10 + (ms>>14), ms>>3);
+        volumeSmth = fftResult[8];
+        break;
+    }
+
+    samplePeak    = random8() > 250;
+    FFT_MajorPeak = volumeSmth;
+    maxVol        = 10;  // this gets feedback fro UI
+    binNum        = 8;   // this gets feedback fro UI
+    volumeRaw = volumeSmth;
+    my_magnitude = 10000.0 / 8.0f; //no idea if 10000 is a good value for FFT_Magnitude ???
+    if (volumeSmth < 1 ) my_magnitude = 0.001f;             // noise gate closed - mute
+
+    return um_data;
 }
 CRGB getCRGBForBand(int x, uint8_t *fftResult, int pal) {
     CRGB value;
