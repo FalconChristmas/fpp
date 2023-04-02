@@ -37,6 +37,8 @@ public:
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
+    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) override;
+    virtual bool SupportsTesting() const override { return  true; }
 private:
     int GetDPIPinBitPosition(std::string pinName);
     bool FrameBufferIsConfigured(void);
@@ -45,7 +47,6 @@ private:
     void InitFrameWS281x(void);
     void OutputPixelRowWS281x(uint8_t* rowData, int maxString);
     void CompleteFrameWS281x(void);
-    void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) override;
 
     std::string device = "fb1";
     std::string protocol = "ws2811";

@@ -413,6 +413,10 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
     uint8_t* frame = NULL;
     uint8_t value;
 
+    PixelStringTester *tester = nullptr;
+    if (m_testType && m_testCycle >= 0) {
+        tester = PixelStringTester::getPixelStringTester(m_testType);
+    }
     for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
         uint8_t pinMask = 1 << y;
         for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
@@ -420,10 +424,6 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
             frame = out + x + (y * NUM_STRINGS_PER_PIN);
             if (idx != -1) {
                 ps = m_strings[idx];
-                PixelStringTester *tester = nullptr;
-                if (m_testType && m_testCycle >= 0) {
-                    tester = PixelStringTester::getPixelStringTester(m_testType);
-                }
                 uint8_t* d = tester 
                     ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData)
                     : ps->prepareOutput(channelData);

@@ -576,17 +576,16 @@ void BBB48StringOutput::prepData(FrameData& d, unsigned char* channelData) {
     PixelString* ps = NULL;
     uint8_t* c = NULL;
 
+    PixelStringTester *tester = nullptr;
+    if (m_testType && m_testCycle >= 0) {
+        tester = PixelStringTester::getPixelStringTester(m_testType);
+    }
     int numStrings = d.gpioStringMap.size();
     for (int s = 0; s < numStrings; s++) {
         int idx = d.gpioStringMap[s];
         if (idx >= 0) {
             ps = m_strings[idx];
             c = out + s;
-            PixelStringTester *tester = nullptr;
-            bool output = true;
-            if (m_testType && m_testCycle >= 0) {
-                tester = PixelStringTester::getPixelStringTester(m_testType);
-            }
             uint8_t* d = tester 
                 ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData)
                 : ps->prepareOutput(channelData);

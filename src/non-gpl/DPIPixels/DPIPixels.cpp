@@ -22,6 +22,7 @@
 
 #include "DPIPixels.h"
 #include "../CapeUtils/CapeUtils.h"
+#include "channeloutput/stringtesters/PixelStringTester.h"
 #include "util/GPIOUtils.h"
 
 #define _0H 1
@@ -458,6 +459,23 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     if (protocol == "ws2811")
         InitFrameWS281x();
 
+    uint8_t* outputBuffers[52];
+    PixelStringTester *tester = nullptr;
+    if (m_testType && m_testCycle >= 0) {
+        tester = PixelStringTester::getPixelStringTester(m_testType);
+    }
+    for (int x = 0; x < 52; x++) {
+        if (x < stringCount) {
+            ps = pixelStrings[x];
+            outputBuffers[x] = tester 
+                ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData)
+                : ps->prepareOutput(channelData);
+        } else {
+            outputBuffers[x] = nullptr;
+        }
+    }
+
+
     for (int y = 0; y < longestString; y++) {
         uint8_t rowData[24];
 
@@ -491,7 +509,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
             ps = pixelStrings[s];
             if (ps->m_outputChannels) {
                 if (ch < ps->m_outputChannels) {
-                    rowData[s - sStart] = ps->m_brightnessMaps[ch][channelData[ps->m_outputMap[ch]]];
+                    rowData[s - sStart] = outputBuffers[s][ch];
                 }
             }
         }

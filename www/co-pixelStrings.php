@@ -1402,6 +1402,11 @@ function populatePixelStringOutputs(data) {
                 } else {
                     $('#BBPixelTiming').hide();
                 }
+                if ((type == 'BBB48String') || (type == 'DPIPixels') || (type == 'BBShiftString')) {
+                    $('#PixelTestPatternDiv').show();
+                } else {
+                    $('#PixelTestPatternDiv').hide();
+                }
 
                 if (document.getElementById("PixelStringSubType").length == 1) {
                     $('#PixelStringSubType').hide();
@@ -2528,34 +2533,31 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                         </select>
                     </div>
                 </div>
-                <div class="col-md-auto form-inline mr-auto" id="BBPixelTiming"
-<?if ($settings['Platform'] != "BeagleBone Black") {?>
-style="display: none;"
-<?}?>
->
-                    <div><b>Pixel Timing:</b></div>
-                    <div colspan="3"><select id='PixelStringPixelTiming'>
-                        <option value="0">Normal (ws281x)</option>
-                        <option value="1">Slow (1903)</option>
+                <div class="col-md-auto form-inline mr-auto">
+                    <div  id="BBPixelTiming">
+                        <b>Pixel Timing:</b>
+                        <select id='PixelStringPixelTiming'>
+                            <option value="0">Normal (ws281x)</option>
+                            <option value="1">Slow (1903)</option>
                         </select>
                     </div>
                 </div>
 
-                <?if ($settings['Platform'] == "BeagleBone Black") {?>
-                <div class="col-md-auto form-inline" id="PixelTestPatternDiv">
-                   <div><b>Testing:</b></div>
-                    <select id='PixelTestPatternType' onchange='SetPixelTestPattern();'>
-                    <option value='0'>Off</option>
-                    <option value='1'>Port Number</option>
-                    <option value='2'>Pixel Count by Port</option>
-                    <option value='3'>Pixel Count by String</option>
-                    <option value='4'>Red Fade</option>
-                    <option value='5'>Green Fade</option>
-                    <option value='6'>Blue Fade</option>
-                    <option value='7'>White Fade</option>
-                    </select>
+                <div class="col-md-auto form-inline">
+                    <div id="PixelTestPatternDiv">
+                        <b>Testing:</b>
+                        <select id='PixelTestPatternType' onchange='SetPixelTestPattern();'>
+                        <option value='0'>Off</option>
+                        <option value='1'>Port Number</option>
+                        <option value='2'>Pixel Count by Port</option>
+                        <option value='3'>Pixel Count by String</option>
+                        <option value='4'>Red Fade</option>
+                        <option value='5'>Green Fade</option>
+                        <option value='6'>Blue Fade</option>
+                        <option value='7'>White Fade</option>
+                        </select>
+                    </div>
                 </div>
-                <?}?>
             </div>
         </div>
             <div id='divPixelStringData' class='capeTypeRow' <?if (!isset($settings['cape-info'])) {

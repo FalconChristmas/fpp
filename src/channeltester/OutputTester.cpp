@@ -44,6 +44,8 @@ int OutputTester::OverlayTestData(char* channelData) {
         float pct = offset;
         pct /= m_cycleMS;
         OverlayOutputTestData(outputTypes, (unsigned char*)channelData, cycleCount, pct, testType);
+    } else {
+        OverlayOutputTestData(outputTypes, (unsigned char*)channelData, 0, 0, 0);
     }
     return TestPatternBase::OverlayTestData(channelData);
 }
