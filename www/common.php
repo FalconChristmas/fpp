@@ -1211,7 +1211,7 @@ function get_sequence_file_info($mediaName)
         'seqMediaName' => null,
     );
     //Make sure it exists first
-    if (!empty($mediaName)&file_exists($filename)) {
+    if (!empty($mediaName) & file_exists($filename)) {
         //Get the filesize
         $media_filesize = real_filesize($filename);
         //Read the sequence
@@ -2315,8 +2315,8 @@ function sanitizeFilename($file)
 function is_valid_domain_name($domain_name)
 {
     return (preg_match("/^([a-z\d](-*[a-z\d])*)(\.([a-z\d](-*[a-z\d])*))*$/i", $domain_name) //valid chars check
-        && preg_match("/^.{1,253}$/", $domain_name) //overall length check
-        && preg_match("/^[^\.]{1,63}(\.[^\.]{1,63})*$/", $domain_name)); //length of each label
+         && preg_match("/^.{1,253}$/", $domain_name) //overall length check
+         && preg_match("/^[^\.]{1,63}(\.[^\.]{1,63})*$/", $domain_name)); //length of each label
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2546,7 +2546,11 @@ function DoJsonBackupToUSB()
 {
     global $settings;
     //Gather some setting that will assist in making a copy of the backups
-    $selected_jsonConfigBackupUSBLocation = $settings['jsonConfigBackupUSBLocation'];
+    if (isset($settings['jsonConfigBackupUSBLocation'])) {
+        $selected_jsonConfigBackupUSBLocation = $settings['jsonConfigBackupUSBLocation'];
+    } else {
+        $selected_jsonConfigBackupUSBLocation = "";
+    }
     //Folder under which the backups will be stored on the selected storeage device
     $fileCopy_BackupPath = 'Automatic_Backups';
     $result = false;
@@ -2576,14 +2580,6 @@ function DoJsonBackupToUSB()
         }
     } else {
         $result = false;
-
-        /* Handle error */
-        error_log('DoJsonBackupToUSB: Something went wrong trying to call filecopy endpoint. jsonConfigBackupUSBLocation not specified or missing fileCopy_BackupPath. (' . json_encode(
-            [
-                'jsonConfigBackupUSBLocation' => $selected_jsonConfigBackupUSBLocation,
-                'fileCopy_BackupPath' => $fileCopy_BackupPath,
-            ]
-        ));
     }
 
     return $result;
