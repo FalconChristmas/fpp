@@ -420,31 +420,17 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
             frame = out + x + (y * NUM_STRINGS_PER_PIN);
             if (idx != -1) {
                 ps = m_strings[idx];
-                bool output = true;
+                PixelStringTester *tester = nullptr;
                 if (m_testType && m_testCycle >= 0) {
-                    PixelStringTester* tester = PixelStringTester::getPixelStringTester(m_testType);
-                    if (tester) {
-                        uint8_t* d = PixelStringTester::getPixelStringTester(m_testType)->createTestData(ps, m_testCycle, m_testPercent, channelData);
-                        uint8_t* d2 = d;
-                        int maxOut = ps->m_outputChannels;
-                        for (int p = 0; p < maxOut; p++) {
-                            *frame = *d2;
-                            frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
-                            ++d2;
-                        }
-                        delete[] d;
-                        output = false;
-                    }
+                    tester = PixelStringTester::getPixelStringTester(m_testType);
                 }
-                if (output) {
-                    for (auto& vs : ps->m_virtualStrings) {
-                        int* map = vs.chMap;
-                        uint8_t* brightness = vs.brightnessMap;
-                        for (int ch = 0; ch < vs.chMapCount; ch++) {
-                            *frame = brightness[channelData[map[ch]]];
-                            frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
-                        }
-                    }
+                uint8_t* d = tester 
+                    ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData)
+                    : ps->prepareOutput(channelData);
+                for (int p = 0; p < ps->m_outputChannels; p++) {
+                    *frame = *d;
+                    frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+                    ++d;
                 }
             }
         }

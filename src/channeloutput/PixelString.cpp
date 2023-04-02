@@ -124,7 +124,8 @@ PixelString::PixelString(bool supportSmart) :
     m_channelOffset(0),
     m_outputChannels(0),
     m_isSmartReceiver(supportSmart),
-    m_brightnessMaps(nullptr) {
+    m_brightnessMaps(nullptr),
+    m_outputBuffer(nullptr) {
 }
 
 /*
@@ -133,6 +134,9 @@ PixelString::PixelString(bool supportSmart) :
 PixelString::~PixelString() {
     if (m_brightnessMaps) {
         free(m_brightnessMaps);
+    }
+    if (m_outputBuffer) {
+        free(m_outputBuffer);
     }
 }
 
@@ -256,6 +260,12 @@ int PixelString::Init(Json::Value config, Json::Value *pinConfig) {
     if (m_outputChannels) {
         m_gpioCommands.push_back(GPIOCommand(m_portNumber, m_outputChannels));
     }
+
+    //certain testing capabilities (like pixel counting) may require a 
+    //buffer larger than the number of pixels configured
+    int obs = std::min(2400, m_outputChannels);
+    m_outputBuffer = (uint8_t*)calloc(obs, 1);
+
     return 1;
 }
 
@@ -647,4 +657,16 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
             }
         }
     }
+}
+
+uint8_t *PixelString::prepareOutput(uint8_t *channelData) {
+    int idx = 0;
+    for (auto& vs : m_virtualStrings) {
+        int* map = vs.chMap;
+        uint8_t* brightness = vs.brightnessMap;
+        for (int ch = 0; ch < vs.chMapCount; ch++) {
+            m_outputBuffer[idx++] = brightness[channelData[map[ch]]];
+        }
+    }
+    return m_outputBuffer;
 }

@@ -75,6 +75,7 @@ public:
     int m_portNumber;
     int m_channelOffset;
     int m_outputChannels;
+    uint8_t *m_outputBuffer;
 
     std::vector<VirtualString> m_virtualStrings;
     std::vector<GPIOCommand> m_gpioCommands;
@@ -85,6 +86,9 @@ public:
     bool m_isSmartReceiver;
 
     static void AutoCreateOverlayModels(const std::vector<PixelString*>& strings);
+
+    // returned buffer is owned by the PixelString and reused next frame
+    uint8_t *prepareOutput(uint8_t *channelData);
 
 private:
     void SetupMap(int vsOffset, const VirtualString& vs);

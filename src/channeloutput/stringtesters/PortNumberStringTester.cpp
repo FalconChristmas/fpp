@@ -15,7 +15,7 @@
 #include "PortNumberStringTester.h"
 
 uint8_t* OutputPortNumberPixelStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData) const {
-    uint8_t* data = new uint8_t[ps->m_outputChannels];
+    uint8_t* data = ps->m_outputBuffer;
     uint8_t* out = data;
     uint32_t inCh = 0;
     unsigned char clr[3];

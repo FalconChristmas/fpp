@@ -582,29 +582,18 @@ void BBB48StringOutput::prepData(FrameData& d, unsigned char* channelData) {
         if (idx >= 0) {
             ps = m_strings[idx];
             c = out + s;
-
+            PixelStringTester *tester = nullptr;
             bool output = true;
             if (m_testType && m_testCycle >= 0) {
-                PixelStringTester* tester = PixelStringTester::getPixelStringTester(m_testType);
-                if (tester) {
-                    uint8_t* d = tester->createTestData(ps, m_testCycle, m_testPercent, channelData);
-                    uint8_t* d2 = d;
-                    for (int p = 0; p < ps->m_outputChannels; p++) {
-                        *c = *d2;
-                        c += numStrings;
-                        ++d2;
-                    }
-                    delete[] d;
-                    output = false;
-                }
+                tester = PixelStringTester::getPixelStringTester(m_testType);
             }
-            if (output) {
-                for (int p = 0; p < ps->m_outputChannels; p++) {
-                    int cn = ps->m_outputMap[p];
-                    uint8_t* brightness = ps->m_brightnessMaps[p];
-                    *c = brightness[channelData[cn]];
-                    c += numStrings;
-                }
+            uint8_t* d = tester 
+                ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData)
+                : ps->prepareOutput(channelData);
+            for (int p = 0; p < ps->m_outputChannels; p++) {
+                *c = *d;
+                c += numStrings;
+                ++d;
             }
         }
     }
