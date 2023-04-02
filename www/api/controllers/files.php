@@ -216,7 +216,7 @@ function MoveFile()
 {
     global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $imageDirectory, $configDirectory, $SUDO;
 
-    $file = params("fileName");
+    $file = urldecode(params("fileName"));
 
     // Fix double quote uploading by simply moving the file first, if we find it with URL encoding
     if (strstr($file, '"')) {
@@ -297,14 +297,14 @@ function GetZipDir()
     global $mediaDirectory;
 
     $dirNames = params("DirNames");
-    $dirNameArray = explode(',',$dirNames);
+    $dirNameArray = explode(',', $dirNames);
 
-    if(count($dirNameArray) == 1) {
+    if (count($dirNameArray) == 1) {
         $zipName = $dirNames;
     } else {
         $zipName = "all";
     }
-    
+
     // Re-format the file name
     $filename = tempnam("/tmp", "FPP_$zipName");
 
@@ -323,7 +323,7 @@ function GetZipDir()
             ZipConfigs($zip);
         } else {
             $dir = GetDirSetting($dirName);
-            if (file_exists($dir) && $dir != "" ) {
+            if (file_exists($dir) && $dir != "") {
                 ZipDirectory($zip, $dirName, $dir);
             } else {
                 $zip->close();
@@ -331,7 +331,7 @@ function GetZipDir()
             }
         }
     }
-    
+
     $zip->close();
 
     $timestamp = gmdate('Ymd.Hi');
@@ -462,10 +462,10 @@ function ZipDirectory($zip, $name, $directory)
 {
     global $mediaDirectory;
     foreach (scandir($directory) as $file) {
-        if ($file == "." || $file == ".." ) {
+        if ($file == "." || $file == "..") {
             continue;
         }
-        $zip->addFile("$directory/$file" , "$name/$file");
+        $zip->addFile("$directory/$file", "$name/$file");
     }
 }
 
@@ -473,7 +473,7 @@ function DeleteFile()
 {
     $status = "File not found";
     $dirName = params("DirName");
-    $fileName = params("Name");
+    $fileName = urldecode(params("Name"));
 
     $dir = GetDirSetting($dirName);
     $fullPath = "$dir/$fileName";
@@ -493,10 +493,175 @@ function DeleteFile()
     return json(array("status" => $status, "file" => $fileName, "dir" => $dirName));
 }
 
+// emulate large fseek($fp, $pos, SEEK_SET) on 32-bit system
+function emulated_fseek_for_big_files($fp, $pos)
+{
+    if (bccomp((string) PHP_INT_MAX, $pos, 0) > -1) {
+        // small, do it natively
+        fseek($fp, (int) $pos, SEEK_SET);
+    } else {
+        // crossing the 2G file size on 32BIT triggers an fseek error
+        // Thus, we'll go to the end, read through the 2G, and then
+        // start seeking again.  However, beyond 2G, we can also
+        // only seek in 8K chunks which is definitely slower. :(
+        fseek($fp, PHP_INT_MAX, SEEK_SET);
+        fread($fp, 1); // get past fseek limitation
+        $pos = bcsub(bcsub($pos, (string) PHP_INT_MAX), 1);
+
+        $chunk = 8192 - 1; // get around weird 8KB limitation
+        while ($pos) {
+            if (bccomp((string) $chunk, $pos, 0) > -1) {
+                fseek($fp, (int) $pos, SEEK_CUR);
+                break;
+            } else {
+                fseek($fp, $chunk, SEEK_CUR);
+                fread($fp, 1);
+                $pos = bcsub($pos, (string) ($chunk + 1));
+            }
+        }
+    }
+}
+
+function PatchFile()
+{
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        return uniqid("", true);
+    }
+    $status = "OK";
+    $dirName = params("DirName");
+    $fileName = $_SERVER['HTTP_UPLOAD_NAME'];
+    $offset = $_SERVER['HTTP_UPLOAD_OFFSET'];
+    $length = $_SERVER['HTTP_UPLOAD_LENGTH'];
+
+    $dir = GetDirSetting($dirName);
+    $fullPath = "$dir/$fileName";
+    if ($offset == 0) {
+        //for the first chunk, clear out any existing patches
+        $patch = glob($fullPath . '.patch.*');
+        foreach ($patch as $fn) {
+            unlink($fn);
+        }
+    }
+
+    $patch_handle = fopen('php://input', 'rb');
+    if ($offset != 0 && file_exists($fullPath . '.patch.0')) {
+        $fileLen = real_filesize($fullPath . ".patch.0");
+        if (bccomp($fileLen, $offset) == 0) {
+            //it's the next patch, we can append the data instead of
+            //attempting to create a bunch of patch files to then
+            //have to spend time coping over later
+            file_put_contents($fullPath . '.patch.0', $patch_handle, FILE_APPEND | LOCK_EX);
+        } else {
+            file_put_contents($fullPath . '.patch.' . $offset, $patch_handle, LOCK_EX);
+        }
+    } else {
+        file_put_contents($fullPath . '.patch.' . $offset, $patch_handle, LOCK_EX);
+    }
+    fclose($patch_handle);
+
+    $size = 0;
+    $patch = glob($fullPath . '.patch.*');
+    foreach ($patch as $fn) {
+        $fileLen = real_filesize($fn);
+        $size = bcadd($size, $fileLen, 0);
+    }
+    if (bccomp($size, $length, 0) == 0) {
+        $offsets = array();
+        // write patches to file
+        foreach ($patch as $fn) {
+            // get offset from fn
+            list($dir, $offset) = explode($fileName . '.patch.', $fn, 2);
+            array_push($offsets, $offset);
+        }
+        //sort by offset so we can just continuously write and not have to seek
+        usort($offsets, "bccomp");
+
+        // create output file
+        $file_handle = false;
+
+        // write patches to file
+        foreach ($offsets as $offset) {
+            // apply patch
+            if (bccomp($offset, 0) == 0) {
+                //first chunk, we can rename it instead of copying the data
+                $ok = unlink($fullPath);
+                $ok = rename($fullPath . '.patch.' . $offset, $fullPath);
+                $file_handle = fopen($fullPath, 'a');
+            } else {
+                $patch_handle = fopen($fullPath . '.patch.' . $offset, 'r');
+                while (!feof($patch_handle)) {
+                    $read = fread($patch_handle, 64 * 1024);
+                    fwrite($file_handle, $read);
+                }
+                fclose($patch_handle);
+                unlink($fullPath . '.patch.' . $offset);
+            }
+        }
+
+        // done with file
+        fclose($file_handle);
+    }
+    return json(array("status" => $status, "file" => $fileName, "dir" => $dirName, "size" => $size));
+}
+
+function PostFile()
+{
+    $status = "OK";
+    $dirName = params("DirName");
+    $fileName = urldecode(params("Name"));
+
+    $dir = GetDirSetting($dirName);
+    $fullPath = "$dir/$fileName";
+    $size = 0;
+    $totalSize = 0;
+    $offset = 0;
+    if ($dir == "") {
+        $status = "Invalid Directory";
+    } else {
+        $fpIn = fopen("php://input", 'rb');
+        $mode = "w";
+        if (isset($_REQUEST["sb"])) {
+            $mode = "c+";
+        }
+        $fpOut = fopen($fullPath, $mode);
+
+        flock($fpOut, LOCK_EX);
+
+        fseek($fpOut, 0, SEEK_SET);
+        if (isset($_REQUEST["sb"])) {
+            // these parameters cannot be >2GB on 32bit systems so using startBlock * blockSize to
+            // move beyond 2GB limit with SEEK_CUR
+            $startBlock = isset($_REQUEST["sb"]) ? $_REQUEST["sb"] : 0;
+            $blockSize = isset($_REQUEST["bs"]) ? $_REQUEST["bs"] : 0;
+            $offset = bcmul($startBlock, $blockSize, 0);
+            if ($offset > 0) {
+                emulated_fseek_for_big_files($fpOut, $offset);
+                $totalSize = bcadd($totalSize, $offset, 0);
+            }
+        }
+        while (!feof($fpIn)) {
+            $read = fread($fpIn, 64 * 1024); //64K blocks, (in actuality, Apache will likely send in 16K blocks)
+            $written = fwrite($fpOut, $read);
+            $size = bcadd($size, $written, 0);
+        }
+        $totalSize = bcadd($totalSize, $size, 0);
+
+        fflush($fpOut);
+        flock($fpOut, LOCK_UN);
+        fclose($fpOut);
+        fclose($fpIn);
+    }
+    //error_log("Done Uploading file " . $fullPath . "   Status: " . $status . "    Size: " . $totalSize . "   Written: " . $size . "   Offset: " . $offset);
+    return json(array("status" => $status, "file" => $fileName, "dir" => $dirName, "written" => $size, "size" => $totalSize, "offset" => $offset));
+}
+
 function GetFileInfo(&$list, $dirName, $fileName)
 {
     $fileFullName = $dirName . '/' . $fileName;
-    $filesize = filesize($fileFullName);
+    $filesize = real_filesize($fileFullName);
+    if (intval($filesize) < PHP_INT_MAX) {
+        $filesize = intval($filesize);
+    }
     $current = array();
     $current["name"] = $fileName;
     $current["mtime"] = date('m/d/y  h:i A', filemtime($fileFullName));
