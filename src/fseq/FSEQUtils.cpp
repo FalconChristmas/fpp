@@ -157,6 +157,10 @@ int parseArguments(int argc, char** argv) {
 static char* escape(char* buf, const char* data) {
     char* dest = buf;
     while (*data) {
+        if (*data == '"') {
+            *dest = '\\';
+            dest++;
+        }
         *dest = *data;
         dest++;
         if (*data == '\\') {
