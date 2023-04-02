@@ -1,24 +1,24 @@
 <?
 
-
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/sequence
-function GetSequences() {
+function GetSequences()
+{
     global $settings;
-    $sequences = Array();
-    
+    $sequences = array();
+
     $dir = $settings['sequenceDirectory'];
     foreach (glob($dir . "/*.fseq") as $filename) {
         array_push($sequences, basename($filename, ".fseq"));
     }
-    
-    
+
     return json($sequences);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/sequence/:SequenceName
-function GetSequence() {
+function GetSequence()
+{
     global $settings;
     $sequence = params('SequenceName');
     $file = $settings['sequenceDirectory'] . "/" . $sequence;
@@ -34,7 +34,7 @@ function GetSequence() {
         }
         header('Content-Description: File Transfer');
         header('Content-Type: application/octet-stream');
-        header('Content-Disposition: attachment; filename="'.basename($file).'"');
+        header('Content-Disposition: attachment; filename="' . basename($file) . '"');
         header('Expires: 0');
         header('Cache-Control: must-revalidate');
         header('Pragma: public');
@@ -44,24 +44,25 @@ function GetSequence() {
 }
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/sequence/:SequenceName/meta
-function GetSequenceMetaData() {
+function GetSequenceMetaData()
+{
     global $settings, $fppDir;
     $sequence = params('SequenceName');
     $file = $settings['sequenceDirectory'] . "/" . $sequence;
-    if (substr( $file, -5 ) != ".fseq") {
+    if (substr($file, -5) != ".fseq") {
         $file = $file . ".fseq";
     }
     if (!file_exists($file)) {
-	$file = urldecode($file);
+        $file = urldecode($file);
     }
     if (file_exists($file)) {
-        $cmd = $fppDir . "/src/fsequtils -j \"$file\" 2> /dev/null";
-        exec( $cmd, $output);
+        $cmd = $fppDir . "/src/fsequtils -j " . escapeshellarg($file) . " 2> /dev/null";
+        exec($cmd, $output);
         if (isset($output[0])) {
             $js = json_decode($output[0]);
             return json($js);
         } else {
-            $data = Array();
+            $data = array();
             $data['Name'] = $sequence . '.fseq';
             $data['Version'] = '?.?';
             $data['ID'] = '';
@@ -72,28 +73,29 @@ function GetSequenceMetaData() {
             return json($data);
         }
     }
-    halt(404, "Not found: ". $sequence);
+    halt(404, "Not found: " . $sequence);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // POST /api/sequence/:SequenceName
-function PostSequence() {
+function PostSequence()
+{
     global $settings;
     $sequence = params('SequenceName');
     $file = $settings['sequenceDirectory'] . "/" . $sequence;
-    if (substr( $file, -5 ) != ".fseq") {
+    if (substr($file, -5) != ".fseq") {
         $file = $file . ".fseq";
     }
-    
+
     $putdata = fopen("php://input", "r");
     $fp = fopen($file, "w");
-    while ($data = fread($putdata, 1024*16)) {
+    while ($data = fread($putdata, 1024 * 16)) {
         fwrite($fp, $data);
     }
     fclose($fp);
     fclose($putdata);
 
-    $resp = Array();
+    $resp = array();
     $resp['Status'] = 'OK';
     $resp['Message'] = '';
 
@@ -102,7 +104,8 @@ function PostSequence() {
 
 /////////////////////////////////////////////////////////////////////////////
 // DELETE /api/sequence/:Sequence
-function DeleteSequences() {
+function DeleteSequences()
+{
     global $settings;
     $sequence = params('SequenceName');
     $file = $settings['sequenceDirectory'] . "/" . $sequence;
@@ -116,7 +119,7 @@ function DeleteSequences() {
         unlink($file);
     }
 
-    $resp = Array();
+    $resp = array();
     $resp['Status'] = 'OK';
     $resp['Message'] = '';
 
@@ -127,9 +130,9 @@ function DeleteSequences() {
 function GetSequenceStart()
 {
     $sequence = params('SequenceName');
-	$startSecond = params('startSecond');
+    $startSecond = params('startSecond');
 
-	SendCommand(sprintf("StartSequence,%s,%d", $sequence, $startSecond));
+    SendCommand(sprintf("StartSequence,%s,%d", $sequence, $startSecond));
 
     $rc = array("status" => "OK", "SequenceName" => $sequence, "startSecond" => $startSecond);
     return json($rc);
@@ -139,7 +142,7 @@ function GetSequenceStart()
 // GET api/sequence/current/step
 function GetSequenceStep()
 {
-	SendCommand("SingleStepSequence");
+    SendCommand("SingleStepSequence");
 
     $rc = array("status" => "OK");
     return json($rc);
@@ -149,7 +152,7 @@ function GetSequenceStep()
 // GET api/sequence/current/togglePause
 function GetSequenceTogglePause()
 {
-	SendCommand("ToggleSequencePause");
+    SendCommand("ToggleSequencePause");
     $rc = array("status" => "OK");
     return json($rc);
 }
@@ -157,7 +160,7 @@ function GetSequenceTogglePause()
 // GET api/sequence/current/stop
 function GetSequenceStop()
 {
-	SendCommand("StopSequence");
+    SendCommand("StopSequence");
     $rc = array("status" => "OK");
     return json($rc);
 
@@ -166,11 +169,8 @@ function GetSequenceStop()
 // GET api/sequence/current/step
 function GetSequenceStepBack()
 {
-	SendCommand("SingleStepSequenceBack");
+    SendCommand("SingleStepSequenceBack");
     $rc = array("status" => "OK");
     return json($rc);
 
 }
-
-
-?>

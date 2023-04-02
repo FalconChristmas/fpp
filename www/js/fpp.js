@@ -1097,10 +1097,10 @@ function psiDetailsData(name, value, units = '', hide = false) {
         style = " style='display: none;'";
 
     if (units == '') {
-        return "<div class='psiDetailsData field_" + name + "'" + style + ">" + value + "</div>";
+        return "<div class='psiDetailsData field_" + name + "'" + style + ">" + value.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</div>";
     }
 
-    return "<div class='psiDetailsData'><span class='field_" + name + "'" + style + ">" + value + "</span> " + units + "</div>";
+    return "<div class='psiDetailsData'><span class='field_" + name + "'" + style + ">" + value.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</span> " + units + "</div>";
 }
 
 function psiDetailsArgEnd() {
@@ -1193,7 +1193,7 @@ function psiDetailsForEntrySimple(entry, editMode) {
                         }
                     }
                 } else {
-                    partialResult += entry[a.name];
+                    partialResult += entry[a.name].replace(/&/g, '&amp;').replace(/</g, '&lt;');
                 }
 
                 if (a.hasOwnProperty('unit')) {
@@ -1766,7 +1766,8 @@ function SetPlaylistItemMetaData(row) {
             }
 
             if (type == 'both') {
-                var sDuration = GetSequenceDuration(row.find('.field_sequenceName').html(), false, row);
+                var seq = row.find('.field_sequenceName').text();
+                var sDuration = GetSequenceDuration(seq, false, row);
 
                 // Playlist/PlaylistEntryBoth.cpp ends whenever shortest item ends
                 if ((duration > sDuration) || (duration < 0))
@@ -1789,10 +1790,10 @@ function SetPlaylistItemMetaData(row) {
             row.find('.psiData').append('<div style="color: #FF0000; font-weight: bold;">ERROR: Media File "' + file + '" Not Found</div>');
 
             if (type == 'both')
-                GetSequenceDuration(row.find('.field_sequenceName').html(), false, row);
+                GetSequenceDuration(row.find('.field_sequenceName').text(), false, row);
         });
     } else if (type == 'sequence') {
-        GetSequenceDuration(row.find('.field_sequenceName').html(), true, row);
+        GetSequenceDuration(row.find('.field_sequenceName').text(), true, row);
     } else if (type == 'image') {
         let file = row.find('.field_imagePath').html();
         if (file.endsWith('/'))
@@ -1813,7 +1814,7 @@ function SetPlaylistItemMetaData(row) {
             }
         });
     } else if (type == 'playlist') {
-        let playlistName = row.find('.field_name').html();
+        let playlistName = row.find('.field_name').text();
         $.ajax({
             url: "api/playlist/" + playlistName,
             type: 'GET',
@@ -1922,7 +1923,7 @@ function AddPlaylistEntry(mode) {
             var inp = $('#playlistEntryOptions').find('.arg_' + a.name)
             var val = inp.val();
             if (val !== undefined) {
-                pe[a.name] = val.replace(/<\/?[^>]+(>|$)/g, "");
+                pe[a.name] = val;
             }
         } else {
             pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).html();
@@ -5713,20 +5714,20 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                 success: function (data) {
                     if (Array.isArray(data)) {
                         $.each(data, function (key, v) {
-                            var line = '<option value="' + v + '"'
+                            var line = '<option value="' + v.replace('"', "&quot;") + '"'
                             if (v == dv) {
                                 line += " selected";
                             }
-                            line += ">" + v + "</option>";
+                            line += ">" + v.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</option>";
                             $(selId).append(line);
                         })
                     } else {
                         $.each(data, function (key, v) {
-                            var line = '<option value="' + key + '"'
+                            var line = '<option value="' + key.replace('"', "&quot;") + '"'
                             if (key == dv) {
                                 line += " selected";
                             }
-                            line += ">" + v + "</option>";
+                            line += ">" + v.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</option>";
                             $(selId).append(line);
                         })
                     }

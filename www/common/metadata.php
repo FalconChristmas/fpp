@@ -32,14 +32,12 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
         //cache duration will be null if not in cache, then retrieve it
         if ($cache_duration == null) {
             $resp = GetMetaDataFromFFProbe($mediaName);
-
             //cache it
-            media_duration_cache($mediaName, $resp[$mediaName]['format']['duration'], $media_filesize);
+            media_duration_cache($mediaName, $resp['format']['duration'], $media_filesize);
+            $total_duration = $resp['format']['duration'] + $total_duration;
         } else {
-            $ThisFileInfo['playtime_seconds'] = $cache_duration;
+            $total_duration = $cache_duration + $total_duration;
         }
-
-        $total_duration = $ThisFileInfo['playtime_seconds'] + $total_duration;
     } else if (file_exists($settings['videoDirectory'] . "/" . $mediaName)) {
         //Check video directory
 
@@ -52,11 +50,10 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 
             //cache it
             media_duration_cache($mediaName, $resp['format']['duration'], $media_filesize);
+            $total_duration = $resp['format']['duration'] + $total_duration;
         } else {
-            $resp['format']['duration'] = $cache_duration;
+            $total_duration = $cache_duration + $total_duration;
         }
-
-        $total_duration = $resp['format']['duration'] + $total_duration;
 
     } else if (file_exists($settings['sequenceDirectory'] . "/" . $mediaName)) {
         //Check Sequence directory
