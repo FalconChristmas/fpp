@@ -1173,6 +1173,29 @@ function " . $saveFunction . "() {
 }
 
 /**
+ * Returns the filesize for the given filename
+ *
+ * NORMALLY will return an int, but if the file is greater than 2G on a 32bit
+ * system, the return will be a string.  If making calculations with the return,
+ * make sure to use the "bcmath" functions so they can handle the string
+ * version on the 32bit systems
+ */
+function real_filesize($fileFullName)
+{
+    if (PHP_INT_SIZE === 4) {
+        //32 bit system, cannot use built in filesize call as files larger than 2G will
+        //cause problems and not report the proper size
+        $filesize = exec("stat --format=\"%s\" " . escapeshellarg($fileFullName));
+        if (intval($filesize) < PHP_INT_MAX) {
+            $filesize = intval($filesize);
+        }
+        return $filesize;
+    }
+    clearstatcache(true, $fileFullName);
+    return filesize($fileFullName);
+}
+
+/**
  * Returns sequence header info for the specified sequence
  *
  * @param $mediaName
@@ -1207,7 +1230,7 @@ function get_sequence_file_info($mediaName)
     //Make sure it exists first
     if (!empty($mediaName) & file_exists($filename)) {
         //Get the filesize
-        $media_filesize = filesize($filename);
+        $media_filesize = real_filesize($filename);
         //Read the sequence
         $file_handle = fopen($filename, "r");
         //Read the first 28 bytes for the header
