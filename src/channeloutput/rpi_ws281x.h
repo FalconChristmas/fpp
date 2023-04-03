@@ -40,6 +40,8 @@ public:
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
+    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) override;
+    virtual bool SupportsTesting() const { return  true; }
 private:
     void SetupCtrlCHandler(void);
 
@@ -52,4 +54,8 @@ private:
     uint8_t* m_spi1Data;
     uint32_t m_spi0DataCount;
     uint32_t m_spi1DataCount;
+
+    int m_testCycle = -1;
+    int m_testType = 0;
+    float m_testPercent = 0.0f;
 };

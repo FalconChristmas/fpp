@@ -18,6 +18,7 @@
 
 #include "rpi_ws281x.h"
 #include "util/GPIOUtils.h"
+#include "channeloutput/stringtesters/PixelStringTester.h"
 
 #include "Plugin.h"
 class RPIWS281xPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
@@ -132,13 +133,13 @@ int RPIWS281xOutput::Init(Json::Value config) {
 
     ledstring.channel[0].count = 0;
     ledstring.channel[0].gpionum = 0;
-    ledstring.channel[0].strip_type = WS2811_STRIP_RGB;
+    ledstring.channel[0].strip_type = SK6812_STRIP_BGRW;
     ledstring.channel[0].invert = 0;
     ledstring.channel[0].brightness = 255;
 
     ledstring.channel[1].count = 0;
     ledstring.channel[1].gpionum = 0;
-    ledstring.channel[1].strip_type = WS2811_STRIP_RGB;
+    ledstring.channel[1].strip_type = SK6812_STRIP_BGRW;
     ledstring.channel[1].invert = 0;
     ledstring.channel[1].brightness = 255;
 
@@ -149,32 +150,19 @@ int RPIWS281xOutput::Init(Json::Value config) {
         if (!newString->Init(s))
             return 0;
 
-        int channelsPerNode {3};
-        if(!newString->m_virtualStrings.empty()) {
-            channelsPerNode = newString->m_virtualStrings.front().channelsPerNode();
-        } else {
-             LogDebug(VB_CHANNELOUT, "RPIWS281xOutput:: no virtual Strings, odd\n");
-        }
-
         std::string pinName = root["outputs"][i]["pin"].asString();
         if (pinName[0] == 'P') {
             const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
             if (i == 0) {
                 ledstring.channel[0].gpionum = pin.gpio;
-                ledstring.channel[0].count = newString->m_outputChannels / channelsPerNode;
+                ledstring.channel[0].count = (newString->m_outputChannels / 4) + 1; //one extra
                 offsets[i] = 0;
                 ledstringCount = 1;
-                if(channelsPerNode == 4) {
-                    ledstring.channel[0].strip_type = SK6812_STRIP_RGBW;
-                }
             } else {
                 ledstring.channel[1].gpionum = pin.gpio;
-                ledstring.channel[1].count = newString->m_outputChannels / channelsPerNode;
+                ledstring.channel[1].count = (newString->m_outputChannels / 4) + 1;
                 offsets[i] = 1;
                 ledstringCount = 1;
-                if(channelsPerNode == 4) {
-                    ledstring.channel[1].strip_type = SK6812_STRIP_RGBW;
-                }
             }
         } else {
             //spi
@@ -252,33 +240,21 @@ void RPIWS281xOutput::GetRequiredChannelRanges(const std::function<void(int, int
 }
 void RPIWS281xOutput::PrepData(unsigned char* channelData) {
 
+    PixelStringTester *tester = nullptr;
+    if (m_testType && m_testCycle >= 0) {
+        tester = PixelStringTester::getPixelStringTester(m_testType);
+    }
     for (int s = 0; s < m_strings.size(); s++) {
         PixelString* ps = m_strings[s];
-        int inCh {0};
+        uint8_t* pd = tester 
+                ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData)
+                : ps->prepareOutput(channelData);
 
-        int channelsPerNode {3};
-        if(!ps->m_virtualStrings.empty()) {
-            channelsPerNode = ps->m_virtualStrings.front().channelsPerNode();
-        }
         if (offsets[s] < 2) {
-            int index{ offsets[s] };
-            for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++) {
-                unsigned int r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-                unsigned int g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-                unsigned int b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-
-                if (channelsPerNode == 3) {
-                    ledstring.channel[index].leds[pix] = (r << 16) | (g << 8) | (b);
-                } else {
-                    unsigned int w = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-                    ledstring.channel[index].leds[pix] = (r << 24) | (g << 16) | (b << 8) | (w);
-                }
-            }
+            memcpy(ledstring.channel[offsets[s]].leds, pd, ps->m_outputChannels);
         } else {
             uint8_t* d = offsets[s] == 2 ? m_spi0Data : m_spi1Data;
-            for (int p = 0; p < ps->m_outputChannels; p++) {
-                d[p] = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-            }
+            memcpy(d, pd, ps->m_outputChannels);
         }
     }
 }
@@ -329,4 +305,16 @@ void RPIWS281xOutput::SetupCtrlCHandler(void) {
     sa.sa_handler = rpi_ws281x_ctrl_c_handler;
 
     sigaction(SIGKILL, &sa, NULL);
+}
+
+
+void RPIWS281xOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
+    m_testCycle = cycleNum;
+    m_testType = testType;
+    m_testPercent = percentOfCycle;
+
+    // We won't overlay the data here because we could have multiple strings
+    // pointing at the same channel range so a per-port test cannot
+    // be done via channel ranges.  We'll record the test information and use
+    // that in prepData
 }

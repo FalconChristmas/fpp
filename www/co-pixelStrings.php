@@ -349,7 +349,7 @@ function pixelOutputTableInputOrder(colorOrder)
     <?} else {?>
         var outtype = $('#PixelStringSubType').val();
         var driver = MapPixelStringType(outtype);
-        var isChannelBased = driver == 'DPIPixels';
+        var isChannelBased = (driver == 'DPIPixels') || (driver == 'RPIWS281X');
     <?}?>
 
     result += "<td>";
@@ -1402,7 +1402,7 @@ function populatePixelStringOutputs(data) {
                 } else {
                     $('#BBPixelTiming').hide();
                 }
-                if ((type == 'BBB48String') || (type == 'DPIPixels') || (type == 'BBShiftString')) {
+                if ((type == 'BBB48String') || (type == 'DPIPixels') || (type == 'BBShiftString') || (type == 'RPIWS281X')) {
                     $('#PixelTestPatternDiv').show();
                 } else {
                     $('#PixelTestPatternDiv').hide();
