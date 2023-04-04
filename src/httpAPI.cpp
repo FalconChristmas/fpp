@@ -236,7 +236,7 @@ APIServer::~APIServer() {
  *
  */
 void APIServer::Init(void) {
-    m_params = create_webserver(FPP_HTTP_PORT).max_threads(5);
+    m_params = create_webserver(FPP_HTTP_PORT).max_threads(10).use_dual_stack();
 
     m_ws = new webserver(m_params);
 
