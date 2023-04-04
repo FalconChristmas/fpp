@@ -239,6 +239,13 @@ function SystemGetStatus()
                     $curl = curl_init("http://" . $ip . "/api/state");
                 } else if ($type == "WLED") {
                     $curl = curl_init("http://" . $ip . "/json/info");
+                } else if ($type == "FV3") {
+                    $curl = curl_init("http://" . $ip . "/status.xml");
+                } else if ($type == "FV4") {
+                    $curl = curl_init("http://" . $ip . "/api");
+                    $data = '{"T":"Q","M":"ST","B":0,"E":0,"I":0,"P":{}}';
+                    curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+                    curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
                 } else {
                     $curl = curl_init("http://" . $ip . "/api/system/status");
                 }
@@ -272,7 +279,11 @@ function SystemGetStatus()
             } else if (strpos($request_content, 'Not Running') !== false) {
                 $result[$ip]["status_name"] = "not running";
             } else {
-                $content = json_decode($request_content, true);
+                if ($type == "FV3") {
+                    $content = simplexml_load_string($request_content);
+                } else {
+                    $content = json_decode($request_content, true);
+                }
                 if (!isset($content["status_name"])) {
                     $content["status_name"] = "Running";
                 }

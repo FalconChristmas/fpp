@@ -139,7 +139,7 @@ bool NetworkController::DetectFalconController(const std::string& ip,
             if (typeId == kSysTypeFalconController) { //v4 is just 0x80
                 if (getSimpleXMLTag(resp, "np") == "16") {
                     typeId = kSysTypeFalconF16v4;
-                } else if (getSimpleXMLTag(resp, "np") == "48") {
+                } else if (getSimpleXMLTag(resp, "np") == "48" || getSimpleXMLTag(resp, "np") == "32") {
                     typeId = kSysTypeFalconF48v4;
                 }
             } else { // v3 and below, 0x80 + p tag

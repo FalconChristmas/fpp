@@ -417,13 +417,16 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     var refreshTimer = null;
     var geniusRefreshTimer = null;
     var wledRefreshTimer = null;
+    var falconRefreshTimer = null;
     function clearRefreshTimers() {
         clearTimeout(refreshTimer);
         clearTimeout(geniusRefreshTimer);
         clearTimeout(wledRefreshTimer);
+        clearTimeout(falconRefreshTimer);
         refreshTimer = null;
         geniusRefreshTimer = null;
         wledRefreshTimer = null;
+        falconRefreshTimer = null;
     }
     var unavailables = [];
 
@@ -726,6 +729,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         var fppIpAddresses = [];
         var wledIpAddresses = [];
         var geniusIpAddresses = [];
+        var falconV4Addresses = [];
+        var falconV3Addresses = [];
+
 		var remotes = [];
 		if ((settings['MultiSyncEnabled'] == '1') &&
             (settings['fppMode'] == 'player')) {
@@ -896,10 +902,10 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     } else {
                         fppIpAddresses.push(ip);
                     }
-                } else if (isFalcon(data[i].typeId)) {
-                    getFalconControllerStatus(ip);
                 } else if (isFalconV4(data[i].typeId)) {
-                    getFalconV4ControllerStatus(ip);
+                    falconV4Addresses.push(ip);
+                } else if (isFalcon(data[i].typeId)) {
+                    falconV3Addresses.push(ip);
                 } else if (isWLED(data[i].typeId)) {
                     wledIpAddresses.push(ip);
                 } else if (isGenius(data[i].typeId)) {
@@ -910,6 +916,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         getFPPSystemStatus(fppIpAddresses, false);
         getWLEDControllerStatus(wledIpAddresses, false);
         getGeniusControllerStatus(geniusIpAddresses, false);
+        getFalconControllerStatus(falconV3Addresses, falconV4Addresses, false);
 
         var extraRemotes = [];
         var origExtra = "";
@@ -1100,30 +1107,6 @@ function getESPixelStickBridgeStatus(ip) {
     }
 }
 
-function getFalconControllerStatus(ip) {
-    // Need to update this once Falcon controllers support
-    // FPP MultiSync discovery
-    $.ajax({
-        url: wrapUrlWithProxy(ip) + '/status.xml',
-        dataType: 'xml',
-        success: function(data) {
-            var ips = ip.replace(/\./g, '_');
-            var u = "<table class='multiSyncVerboseTable'>";
-            u += "<tr><td>Uptime:</td><td>" + $(data).find('u').text() + "</td></tr>";
-            u += "</table>";
-
-            $('#advancedViewUtilization_fpp_' + ips).html(u);
-
-            var mode = $('#fpp_' + ips + '_mode').html();
-
-            if (mode == 'Bridge') {
-                $('#fpp_' + ips + '_status').html('Bridging');
-            } else {
-                $('#fpp_' + ips + '_status').html('');
-            }
-        }
-    });
-}
 
 function wrapUrlWithProxy(ip) {
     if (isProxied(ip)) {
@@ -1133,61 +1116,117 @@ function wrapUrlWithProxy(ip) {
     }
 }
 
-function getFalconV4ControllerStatus(ip) {
-    let v4url = wrapUrlWithProxy(ip) + '/api';
-    console.log('Posting to ', v4url);
+function getFalconControllerStatus(fv3ips, fv4ips, refreshing = false) {
+    if (falconRefreshTimer != null) {
+    clearTimeout(falconRefreshTimer);
+        delete falconRefreshTimer;
+        falconRefreshTimer = null;
+    }
 
-    $.ajax({
-        url: v4url,
-        method: 'POST',
-        contentType: 'application/json',
-        dataType: 'json',
-        data: '{"T":"Q","M":"ST","B":0,"E":0,"I":0,"P":{}}',
-        success: function(data) {
-            var ips = ip.replace(/\./g, '_');
+    ips3 = "";
+	if (Array.isArray(fv3ips)) {
+        fv3ips.forEach(function(entry) {
+            ips3 += "&ip[]=" + entry;
+	    });
+	} else {
+        ips3 = "&ip[]=" + fv3ips;
+    }
 
-            var result = JSON.stringify(data);
-            var s = JSON.parse(result);
+    ips4 = "";
+	if (Array.isArray(fv4ips)) {
+        fv4ips.forEach(function(entry) {
+            ips4 += "&ip[]=" + entry;
+	    });
+	} else {
+        ips4 = "&ip[]=" + fv4ips;
+    }
 
-            var tempthreshold = s.P.BS;
-            var t1temp = s.P.T1 / 10;
-            var t2temp = s.P.T2 / 10;
+    if (ips3 != "") {
+        $.get("api/system/status?type=FV3" + ips3)
+        .done(function(alldata) {
+            jQuery.each(alldata, function(ip, data) {
+                var ips = ip.replace(/\./g, '_');
+                var u = "<table class='multiSyncVerboseTable'>";
+                u += "<tr><td>Uptime:</td><td>" + data['u'] + "</td></tr>";
+                u += "<tr><td>V1 Voltage:</td><td> " + data['v1'] + "</td></tr>";
+                u += "<tr><td>V2 Voltage:</td><td> " + data['v2'] + "</td></tr>";
 
-            var v1voltage = s.P.V1 / 10;
-            var v2voltage = s.P.V2 / 10;
-
-            var testmode = new Boolean(s.P.TS);
-            var overtemp = new Boolean(Math.max(t1temp,t2temp) > tempthreshold);
-
-            var t=parseInt(s.P.U);
-            var days=Math.floor(t/86400);
-            var hours=Math.floor((t-86400*days)/3600);
-            var mins=Math.floor((t-86400*days-3600*hours)/60);
-
-            var uptime = '';
-
-            uptime += (days + " days, ");
-            uptime += ("0" + hours).slice(-2) + ":";
-            uptime += ("0" + mins ).slice(-2);
-
-            var u = "<table class='multiSyncVerboseTable'>";
-            u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
-            u += "<tr><td>V1 Voltage:</td><td> " + v1voltage + "v</td></tr>";
-            u += "<tr><td>V2 Voltage:</td><td> " + v2voltage + "v</td></tr>";
-
-            if (testmode == true || overtemp == true) {
                 u += "</table>";
+
+                $('#advancedViewUtilization_fpp_' + ips).html(u);
+
+                var mode = $('#fpp_' + ips + '_mode').html();
+
+                if (mode == 'Bridge') {
+                    $('#fpp_' + ips + '_status').html('Bridging');
+                } else {
+                    $('#fpp_' + ips + '_status').html('');
+                }
+            });
+            if ($('#MultiSyncRefreshStatus').is(":checked")) {
+			    falconRefreshTimer = setTimeout(function() {getFalconControllerStatus(fv3ips, fv4ips, true);}, 2000);
             }
-            if (testmode == true) u += "</table><br><span class='warning-text'>Controller Test mode is active</span><br>";
-            if (overtemp == true) u += "</table><br><span class='warning-text'>Pixel brightness reduced due to high temperatures</span><br>";
 
-            u += "</table>";
+        });
+    }
+    if (ips4 != "") {
+        $.get("api/system/status?type=FV4" + ips4)
+        .done(function(alldata) {
+            jQuery.each(alldata, function(ip, s) {
+                var ips = ip.replace(/\./g, '_');
 
-            $('#advancedViewUtilization_fpp_' + ips).html(u);
-        }
-    });
+                var tempthreshold = s.P.BS;
+                var t1temp = s.P.T1 / 10;
+                var t2temp = s.P.T2 / 10;
+
+                var v1voltage = s.P.V1 / 10;
+                var v2voltage = s.P.V2 / 10;
+
+                var testmode = new Boolean(s.P.TS);
+                var overtemp = new Boolean(Math.max(t1temp,t2temp) > tempthreshold);
+
+                var t=parseInt(s.P.U);
+                var days=Math.floor(t/86400);
+                var hours=Math.floor((t-86400*days)/3600);
+                var mins=Math.floor((t-86400*days-3600*hours)/60);
+
+                var uptime = '';
+
+                uptime += (days + " days, ");
+                uptime += ("0" + hours).slice(-2) + ":";
+                uptime += ("0" + mins ).slice(-2);
+
+                var u = "<table class='multiSyncVerboseTable'>";
+                u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
+                u += "<tr><td>V1 Voltage:</td><td> " + v1voltage + "v</td></tr>";
+                if (s.P.BR != 48) {
+                    u += "<tr><td>V2 Voltage:</td><td> " + v2voltage + "v</td></tr>";
+                }
+                u += "<tr><td>Temp:</td><td> " + t1temp + "C</td></tr>";
+                u += "</table>";
+
+                $('#advancedViewUtilization_fpp_' + ips).html(u);
+                $('#fpp_' + ips + '_status').html(s.status_name);
+
+                if (testmode == true || overtemp == true) {
+                    $('#fpp_' + ips + '_warnings').removeAttr('style'); // Remove 'display: none' style
+                    // Handle tablesorter bug not assigning same color to child rows
+                    if ($('#fpp_' + ips).hasClass('odd'))
+                        $('#fpp_' + ips + '_warnings').addClass('odd');
+
+                        var wHTML = "";
+                        if (testmode == true) wHTML += "<span class='warning-text'>Controller Test mode is active</span><br>";
+                        if (overtemp == true) wHTML += "<span class='warning-text'>Pixel brightness reduced due to high temperatures</span><br>";
+
+                       $('#fpp_' + ips + '_warningCell').html(wHTML);
+                }
+            });
+            if ($('#MultiSyncRefreshStatus').is(":checked")) {
+			    falconRefreshTimer = setTimeout(function() {getFalconControllerStatus(fv3ips, fv4ips, true);}, 2000);
+            }
+        });
+    }
 }
-
 
 function getWLEDControllerStatus(ipAddresses, refreshing = false) {
 	ips = "";
@@ -1208,7 +1247,6 @@ function getWLEDControllerStatus(ipAddresses, refreshing = false) {
     }
     $.get("api/system/status?type=WLED" + ips)
     .done(function(alldata) {
-        systemStatusCache = alldata;
         jQuery.each(alldata, function(ip, data) {
             if (data == null || data == "" || data == "null") {
                 return;
@@ -1262,7 +1300,6 @@ function getGeniusControllerStatus(ipAddresses, refreshing = false) {
     }
     $.get("api/system/status?type=Genius" + ips)
     .done(function(alldata) {
-        systemStatusCache = alldata;
         jQuery.each(alldata, function(ip, data) {
             if (data == null || data == "" || data == "null") {
                 return;
@@ -1302,6 +1339,8 @@ function RefreshStats() {
     var ips = [];
     var gips = [];
     var wips = [];
+    var fv3ips = [];
+    var fv4ips = [];
 
     for (var i = 0; i < keys.length; i++) {
         var rowID = hostRows[keys[i]];
@@ -1321,9 +1360,9 @@ function RefreshStats() {
                 ips.push(ip);
             }
         } else if (isFalcon(typeId)) {
-            getFalconControllerStatus(ip);
+            fv3ips.push(ip);
         } else if (isFalconV4(typeId)) {
-            getFalconV4ControllerStatus(ip);
+            fv4ips.push(ip);
         } else if (isWLED(typeId)) {
             wips.push(ip);
         } else if (isGenius(typeId)) {
@@ -1333,6 +1372,7 @@ function RefreshStats() {
     getFPPSystemStatus(ips, true);
     getGeniusControllerStatus(gips, true);
     getWLEDControllerStatus(wips, true);
+    getFalconControllerStatus(fv3ips, fv4ips, true);
 }
 
 function autoRefreshToggled() {
@@ -1946,7 +1986,7 @@ $activeParentMenuItem = 'status';
 include 'menu.inc';?>
     <div class="mainContainer">
     <h1 class="title">FPP MultiSync</h1>
-        <div class="pageContent">        
+        <div class="pageContent">
         	<div id="uifppsystems" class="settings">
                     <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
                         <div class='fppTableContents' role="region" aria-labelledby="fppSystemsTable" tabindex="0">
@@ -1977,7 +2017,7 @@ include 'menu.inc';?>
         <?PrintSetting('MultiSyncEnabled');?>
         <?PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled');?>
         </div>
-			
+
         <div class="multisyncAdvancedFormActions row">
             <div class="form-actions col-md">
             <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
