@@ -263,7 +263,7 @@ int PixelString::Init(Json::Value config, Json::Value *pinConfig) {
 
     //certain testing capabilities (like pixel counting) may require a 
     //buffer larger than the number of pixels configured
-    int obs = std::min(2400, m_outputChannels);
+    int obs = std::max(2400, m_outputChannels);
     m_outputBuffer = (uint8_t*)calloc(obs, 1);
 
     return 1;

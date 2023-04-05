@@ -25,6 +25,7 @@ public:
 
     int SetupTest(std::string configStr);
     int SetupTest(const Json::Value& config);
+    void StopTest();
 
     void OverlayTestData(char* channelData);
     int Testing(void);

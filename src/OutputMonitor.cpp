@@ -116,6 +116,8 @@ public:
     const PinCapabilities *eFuseInterruptPin = nullptr;
     CurrentMonitorBase *currentMonitor = nullptr;
 
+    int pixelCount = -1;
+
     void appendTo(Json::Value &result) {
         Json::Value v;
         v["name"] = name;
@@ -138,6 +140,9 @@ public:
         }
         if (config.isMember("col")) {
             v["col"] = config["col"];
+        }
+        if (pixelCount >= 0) {
+            v["pixelCount"] = pixelCount;
         }
         result.append(v);
     }
@@ -386,6 +391,24 @@ void OutputMonitor::AutoDisableOutputs() {
     }
 }
 
+std::vector<float> OutputMonitor::GetPortCurrentValues() {
+    std::vector<float> ret;
+    ret.reserve(portPins.size());
+    Sensors::INSTANCE.updateSensorSources();
+    for (auto a : portPins) {
+        if (a->currentMonitor) {
+            ret.push_back(a->currentMonitor->getValue());
+        } else {
+            ret.push_back(0);
+        }
+    }
+    return ret;
+}
+void OutputMonitor::SetPixelCount(int port, int pc) {
+    if (port < portPins.size()) {
+        portPins[port]->pixelCount = pc;
+    }
+}
 
 const std::shared_ptr<httpserver::http_response> OutputMonitor::render_GET(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
@@ -393,7 +416,14 @@ const std::shared_ptr<httpserver::http_response> OutputMonitor::render_GET(const
         if (portPins.empty()) {
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("[]", 200, "application/json"));
         }
-
+        if (plen > 2 && req.get_path_pieces()[2] == "pixelCount") {
+            std::vector<std::string> args;
+            args.push_back("50");
+            args.push_back("Output Specific");
+            args.push_back("--ALL--");
+            args.push_back("999");
+            CommandManager::INSTANCE.run("Test Start", args);
+        }
         Sensors::INSTANCE.updateSensorSources();
         Json::Value result;
         for (auto a : portPins) {

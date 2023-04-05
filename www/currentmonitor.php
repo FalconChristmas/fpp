@@ -8,7 +8,9 @@ include 'common/menuHead.inc';
 ?>
 <script>
 
-
+function CountPixels() {
+    $.get("api/fppd/ports/pixelCount");
+}
 function StartMonitoring() {
     $.get('api/fppd/ports', function(data) {
         data.forEach(function(port) {
@@ -24,6 +26,9 @@ function StartMonitoring() {
                 html += "Status: <i class='fas fa-check-circle text-success' title='eFuse Normal'></i><br>";
             } else {
                 html += "Status: <i class='fas fa-times-circle text-danger' title='eFuse Triggered'></i><br>";
+            }
+            if (typeof port.pixelCount !== 'undefined') {
+                html += "Pixels: " + port["pixelCount"] + "<br>";
             }
             html += port["ma"] + " ma";
             $("#fppPorts tr:nth-child(" + port["row"] + ") td:nth-child(" + port["col"] + ")").html(html);
@@ -57,7 +62,7 @@ include 'menu.inc';?>
                 </table>
             </div>
         </div>
-
+        <input id="btnCountPixels" class="buttons" type="button" value = "Count Pixels" onClick="CountPixels();" />
     </div>
   </div>
 <?php	include 'common/footer.inc';?>

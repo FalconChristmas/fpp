@@ -505,7 +505,8 @@ _LOOP:
 	QBEQ	_LOOP, r1, 0
 
 	// Command of 0xFF is the signal to exit
-	QBEQ	EXIT, r1, 0xFF
+    LDI     r8, 0xFFFF
+	QBEQ	EXIT, r1, r8
 
     // store the address and such
     XOUT    SCRATCH_PAD, &data_addr, 12
@@ -520,15 +521,17 @@ _LOOP:
 
     RESET_PRU_CLOCK r8, r9
 
-	LDI	data_len, DATA_LEN
-
     LDI sram_offset, 512
     LDI bit_flags, 0
 #if defined(DDRONLY)
     SET bit_flags, bit_flags, 3
 #endif
     LDI cur_data, 0
-    LDI next_check,  $CODE(FIRST_CHECK)
+    LDI next_check,  $CODE(NO_PIXELS_CHECK)
+    QBBS SKIP_OUTPUT_CHECKS, data_len, 15
+        LDI next_check,  $CODE(FIRST_CHECK)
+SKIP_OUTPUT_CHECKS:    
+    CLR data_len, data_len, 15
 
     //restore the led masks
     XIN SCRATCH_PAD, &gpio0_led_mask, 16
@@ -698,12 +701,15 @@ WORD_LOOP_DONE:
     XIN    SCRATCH_PAD, &data_addr, 12
 
     RESET_PRU_CLOCK r8, r9
-	LDI	data_len, DATA_LEN
 
     LDI sram_offset, 512
     LDI bit_flags, 0
     LDI cur_data, 0
-    LDI next_check,  $CODE(FIRST_CHECK)
+    LDI next_check,  $CODE(NO_PIXELS_CHECK)
+    QBBS SKIP_OUTPUT_CHECKS_PASS2, data_len, 15
+        LDI next_check,  $CODE(FIRST_CHECK)
+SKIP_OUTPUT_CHECKS_PASS2:
+    CLR data_len, data_len, 15
 
     //restore the led masks
     XIN SCRATCH_PAD, &gpio0_led_mask, 16

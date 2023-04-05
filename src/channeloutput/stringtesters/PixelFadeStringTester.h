@@ -20,7 +20,7 @@ protected:
 
     const int fadeType;
 public:
-    virtual uint8_t* createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData) const override;
+    virtual uint8_t* createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) override;
 
     static PixelFadeStringTester INSTANCE_RED;
     static PixelFadeStringTester INSTANCE_GREEN;

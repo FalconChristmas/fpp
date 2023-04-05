@@ -246,15 +246,17 @@ void RPIWS281xOutput::PrepData(unsigned char* channelData) {
     }
     for (int s = 0; s < m_strings.size(); s++) {
         PixelString* ps = m_strings[s];
+        int newLen = ps->m_outputChannels;
         uint8_t* pd = tester 
-                ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData)
+                ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
                 : ps->prepareOutput(channelData);
-
+        //ws281x library and spi data has pre-allocated a fixed buffer we cannot exceed
+        newLen = std::min(newLen, ps->m_outputChannels);
         if (offsets[s] < 2) {
             memcpy(ledstring.channel[offsets[s]].leds, pd, ps->m_outputChannels);
         } else {
             uint8_t* d = offsets[s] == 2 ? m_spi0Data : m_spi1Data;
-            memcpy(d, pd, ps->m_outputChannels);
+            memcpy(d, pd, newLen);
         }
     }
 }

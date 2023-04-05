@@ -14,7 +14,8 @@
 
 #include "PixelFadeStringTester.h"
 
-uint8_t* PixelFadeStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData) const {
+uint8_t* PixelFadeStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) {
+    newLen = ps->m_outputChannels;
     uint8_t* data = ps->m_outputBuffer;
     memset(data, 0, ps->m_outputChannels);
     uint8_t* out = data;

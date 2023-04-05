@@ -27,11 +27,9 @@ typedef struct {
     // in the DDR shared with the PRU
     uintptr_t address_dma;
 
-    // write 1 to start, 0xFF to abort. will be cleared when started
-    volatile unsigned command;
-    volatile unsigned response;
-
-    uintptr_t address_dma_gpio0;
+    // write data length to start, 0xFFFF to abort
+    volatile uint32_t command;
+    volatile uint32_t response;
 
     uint16_t timings[MAX_WS2811_TIMINGS];
 } __attribute__((__packed__)) BBB48StringData;
@@ -71,6 +69,7 @@ private:
         uint32_t frameSize = 0;
         int maxStringLen = 0;
         bool copyToPru = true;
+        uint32_t outputStringLen;
     } m_gpio0Data, m_gpioData;
     std::vector<PixelString*> m_strings;
 

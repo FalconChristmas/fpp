@@ -38,6 +38,9 @@ public:
     void AutoDisableOutputs();
 
     virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
+
+    std::vector<float> GetPortCurrentValues();
+    void SetPixelCount(int port, int pc);
 private:
     OutputMonitor();
     ~OutputMonitor();
@@ -46,5 +49,5 @@ private:
     std::list<const PinCapabilities *> pullLowOutputPins;
 
     std::map<std::string, const PinCapabilities *> fusePins;
-    std::list<PortPinInfo*> portPins;
+    std::vector<PortPinInfo*> portPins;
 };

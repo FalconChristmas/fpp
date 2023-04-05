@@ -21,7 +21,7 @@ protected:
     void fillInSmartReceiver(PixelString* ps, VirtualString& vs, uint8_t* inChannelData, uint32_t &offset, uint8_t* &outChannelData) const;
     
 public:
-    virtual uint8_t* createTestData(PixelString* string, int cycleCount, float percentOfCycle, uint8_t* inChannelData) const = 0;
+    virtual uint8_t* createTestData(PixelString* string, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) = 0;
 
     static PixelStringTester* getPixelStringTester(int i);
 };

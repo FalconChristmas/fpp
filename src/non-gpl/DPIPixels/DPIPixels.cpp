@@ -467,8 +467,9 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     for (int x = 0; x < 52; x++) {
         if (x < stringCount) {
             ps = pixelStrings[x];
+            int newLen = 0;
             outputBuffers[x] = tester 
-                ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData)
+                ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
                 : ps->prepareOutput(channelData);
         } else {
             outputBuffers[x] = nullptr;

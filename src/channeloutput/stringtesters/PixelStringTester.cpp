@@ -41,5 +41,8 @@ PixelStringTester* PixelStringTester::getPixelStringTester(int i) {
     if (i < TESTERS.size()) {
         return TESTERS[i];
     }
+    if (i = 999) {
+        return &CurrentBasedPixelCountPixelStringTester::INSTANCE;
+    }
     return nullptr;
 }

@@ -15,7 +15,7 @@
 
 class OutputPortNumberPixelStringTester : public PixelStringTester {
 public:
-    virtual uint8_t* createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData) const override;
+    virtual uint8_t* createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) override;
 
     static OutputPortNumberPixelStringTester INSTANCE;
 };

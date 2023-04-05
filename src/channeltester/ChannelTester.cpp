@@ -158,6 +158,11 @@ public:
         return std::make_unique<Result>("Started");
     }
 };
+void ChannelTester::StopTest() {
+    Json::Value config;
+    config["enabled"] = 0;
+    ChannelTester::INSTANCE.SetupTest(config);
+}
 
 void ChannelTester::RegisterCommands() {
     CommandManager::INSTANCE.addCommand(new StartTestingCommand());
