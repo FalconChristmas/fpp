@@ -45,13 +45,16 @@ ADS7828Sensor::~ADS7828Sensor() {
     delete i2c;
 }
 
-void ADS7828Sensor::update() {
+void ADS7828Sensor::update(bool forceInstant) {
     if (i2c->isOk()) {
         std::unique_lock<std::mutex> lock(updateMutex);
         uint8_t baseCmd = 0x80 | (internalRefVoltage ? 0xC : 0x4);
 
-        // we'll average all the values in the last 50ms
-        uint64_t tm = GetTimeMS() - 50;
+        // we'll average all the values in the last 10ms
+        uint64_t tm = GetTimeMS() - 10;
+        if (forceInstant) {
+            bufferValues.clear();
+        }
         while (!bufferValues.empty() && bufferValues.front().timestamp < tm) {
             bufferValues.pop_front();
         }

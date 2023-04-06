@@ -22,7 +22,7 @@ public:
     ADS7828Sensor(Json::Value& config);
     ~ADS7828Sensor();
 
-    void update();
+    void update(bool forceUpdate = false);
 
     virtual int32_t getValue(int id) { return values[id]; };
 

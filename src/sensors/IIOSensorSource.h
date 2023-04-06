@@ -23,7 +23,7 @@ public:
 
     virtual void Init(std::map<int, std::function<bool(int)>>& callbacks) override;
    
-    virtual void update() override;
+    virtual void update(bool forceInstant = false) override;
     virtual void enable(int id) override;
     virtual int32_t getValue(int id) override;
 

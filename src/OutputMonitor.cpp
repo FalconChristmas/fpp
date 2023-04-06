@@ -394,7 +394,7 @@ void OutputMonitor::AutoDisableOutputs() {
 std::vector<float> OutputMonitor::GetPortCurrentValues() {
     std::vector<float> ret;
     ret.reserve(portPins.size());
-    Sensors::INSTANCE.updateSensorSources();
+    Sensors::INSTANCE.updateSensorSources(true);
     for (auto a : portPins) {
         if (a->currentMonitor) {
             ret.push_back(a->currentMonitor->getValue());

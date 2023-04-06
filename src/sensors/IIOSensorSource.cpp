@@ -89,7 +89,7 @@ void IIOSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
     }
 }
 
-void IIOSensorSource::update() {
+void IIOSensorSource::update(bool forceInstant ) {
     if (usingBuffers) {
         int count = channelMapping.size() * 8 * 2;
         uint16_t *buf = new uint16_t[count];

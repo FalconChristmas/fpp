@@ -360,9 +360,9 @@ void Sensors::addSensorSources(Json::Value& config) {
         }
     }
 }
-void Sensors::updateSensorSources() {
+void Sensors::updateSensorSources(bool forceInstant) {
     for (auto &ss : sensorSources) {
-        ss.second->update();
+        ss.second->update(forceInstant);
     }
 }
 SensorSource *Sensors::getSensorSource(const std::string &name) {

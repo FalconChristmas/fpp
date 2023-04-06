@@ -22,7 +22,7 @@ public:
     virtual void Init(std::map<int, std::function<bool(int)>>& callbacks) {}
     virtual void enable(int id) {}
 
-    virtual void update() = 0;
+    virtual void update(bool forceInstant = false) = 0;
     virtual int32_t getValue(int id) = 0;
 };
 
@@ -41,7 +41,7 @@ public:
 
     void addSensorSources(Json::Value& config);
 
-    void updateSensorSources();
+    void updateSensorSources(bool forceInstant = false);
     SensorSource *getSensorSource(const std::string &name);
 private:
     Sensor* createSensor(Json::Value& s);

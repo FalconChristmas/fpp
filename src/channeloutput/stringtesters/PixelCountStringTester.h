@@ -46,6 +46,9 @@ protected:
     std::vector<float> lastValues;
     std::vector<float> baseValues;
     std::vector<int32_t> lastPixelIdx;
+    std::vector<int> testingPort;
+
+    int firstPort = 0xFFFF;
 public:
     virtual uint8_t* createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) override;
 
