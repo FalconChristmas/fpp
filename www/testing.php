@@ -468,15 +468,15 @@ function SetButtonIncrements()
 function adjustBothChannels(mult = 1)
 {
     if (mult > 0) {
-        adjustEndChannel(mult);
+        adjustEndChannel(mult, false);
         adjustStartChannel(mult);
     } else {
-        adjustStartChannel(mult);
+        adjustStartChannel(mult, false);
         adjustEndChannel(mult);
     }
 }
 
-function adjustStartChannel(mult = 1)
+function adjustStartChannel(mult = 1, startTest = true)
 {
     var start = parseInt($('#testModeStartChannel').val());
     var end = parseInt($('#testModeEndChannel').val());
@@ -499,10 +499,12 @@ function adjustStartChannel(mult = 1)
 
     $('#testModeStartChannel').val(start);
 
-    SetTestMode();
+    if (startTest) {
+        SetTestMode();
+    }
 }
 
-function adjustEndChannel(mult = 1)
+function adjustEndChannel(mult = 1, startTest = true)
 {
     var start = parseInt($('#testModeStartChannel').val());
     var end = parseInt($('#testModeEndChannel').val());
@@ -523,7 +525,9 @@ function adjustEndChannel(mult = 1)
 
     $('#testModeEndChannel').val(end);
 
-    SetTestMode();
+    if (startTest) {
+        SetTestMode();
+    }
 }
 
 function dec2hex(i) {
