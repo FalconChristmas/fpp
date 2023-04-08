@@ -1,7 +1,9 @@
 #!/bin/bash
 
+FPPBRANCH=${FPPBRANCH:-"master"}
+
 # build the docker image
-docker build -t falconchristmas/fpp:latest -f Docker/Dockerfile .
+docker build -t falconchristmas/fpp:latest -f Docker/Dockerfile  --build-arg FPPBRANCH=${FPPBRANCH} .
 #or
 #docker build -t falconchristmas/fpp:latest  --build-arg EXTRA_INSTALL_FLAG=--skip-clone -f Docker/Dockerfile .
 

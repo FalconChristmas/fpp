@@ -47,9 +47,8 @@
 #       hardware which does not support Bullseye may have issues.
 #
 #############################################################################
-SCRIPTVER="7.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2023-02"
+FPPIMAGEVER="2023-04"
 FPPCFGVER="77"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -232,6 +231,11 @@ while [ -n "$1" ]; do
             isimage=false
             shift
             ;;
+        --branch)
+            FPPBRANCH=$2
+            shift
+            shift
+            ;;
         *)
             echo "Unknown option $1" >&2
             exit 1
@@ -243,8 +247,6 @@ checkTimeAgainstUSNO
 
 #############################################################################
 echo "============================================================"
-echo "$0 v${SCRIPTVER}"
-echo ""
 echo "FPP Image Version: v${FPPIMAGEVER}"
 echo "FPP Directory    : ${FPPDIR}"
 echo "FPP Branch       : ${FPPBRANCH}"
