@@ -41,14 +41,40 @@ apt-get update
 apt-get -y upgrade
 
 
+# Need to make sure we get the latest systemd config
+echo "#Backports" >> /etc/apt/sources.list
+echo "deb http://deb.debian.org/debian bullseye-backports main contrib non-free" >> /etc/apt/sources.list
+echo "deb-src http://deb.debian.org/debian bullseye-backports main contrib non-free" >> /etc/apt/sources.list
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 648ACFD622F3D138 0E98404D386FA1D9
+apt-get update
+apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t bullseye-backports install systemd wpasupplicant
+apt-get install wget
+
+
+# This MAY cause the beagle to change IP addresses, reboot to get things to settle and continue
+rm -f /etc/systemd/network/50-default.network 
+wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+systemctl reload systemd-networkd
+
+systemctl unmask systemd-networkd
+systemctl unmask systemd-resolved
+
+systemctl restart systemd-networkd
+systemctl restart systemd-resolved
+
+systemctl enable systemd-networkd
+systemctl enable systemd-resolved
+
+
+
 #check
 cd /root
-export NEW_KERNEL_VERSION=5.10.109-fpp_5.10.109-fpp-1
+export NEW_KERNEL_VERSION=5.10.162-fpp_5.10.162-fpp-1
 wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${NEW_KERNEL_VERSION}_armhf.deb
 wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-${NEW_KERNEL_VERSION}_armhf.deb
 dpkg -i *.deb
 rm -f *.deb
-apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r)
+apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r) bbb.io-kernel-5.10-ti bbb.io-kernel-tasks
 
 # delete old kernels and modules in /boot and /lib/modules
 # and in /boot/dtbs and any initrd's
@@ -83,7 +109,7 @@ rm -rf /opt/cloud9
 rm -rf /etc/avahi/services/cloud9.service
 rm -f /var/local/bb_usb_mass_storage.img
 rm -f /etc/bbb.io/templates/beaglebone-getting-started-2022-01-12.img
-rm -rf /opt/u-boot
+rm -rf /opt/u-boot/bb-u-boot-am57xx-evm
 
 # blacklist  bluetooth (needed if making image on BBGG or BBBW)
 echo "blacklist bluetooth" > /etc/modprobe.d/blacklist-bluetooth.conf
@@ -117,7 +143,7 @@ rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-VERSION=6.1
+VERSION=7.0-alpha1
 DEVICE=/dev/sdc
 sudo dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 

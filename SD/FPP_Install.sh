@@ -429,14 +429,6 @@ case "${OSVER}" in
 		echo "FPP - Removing anything left that wasn't explicity removed"
 		apt-get -y --purge autoremove
 
-        if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
-            echo "FPP - Enable backports"
-            echo "#Backports" >> /etc/apt/sources.list
-            echo "deb http://deb.debian.org/debian bullseye-backports main contrib non-free" >> /etc/apt/sources.list
-            echo "deb-src http://deb.debian.org/debian bullseye-backports main contrib non-free" >> /etc/apt/sources.list
-            apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 648ACFD622F3D138 0E98404D386FA1D9
-        fi
-
 		echo "FPP - Updating package list"
 		apt-get update
 
