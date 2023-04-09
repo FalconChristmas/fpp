@@ -485,7 +485,7 @@ populateCCACHE() {
     fi
     if [[ ${MAJVER} -gt 3 || ${MAJVER} -eq 3 && ${MINVER} -ge 3 ]]; then
         #at least v3.3
-        BRANCH=$(git branch --list | grep \* | colrm 1 2)
+        BRANCH=$(sudo git branch --list | grep \* | colrm 1 2)
 
         FILETOGET="ccache-${PLAT}-${MAJVER}.x-${BRANCH}.tar.gz"
         FULLURL="https://falconchristmas.github.io/ccache/${FILETOGET}"

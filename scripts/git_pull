@@ -24,13 +24,15 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
     else
         $SUDO git remote set-url origin "http://${SOURCEIP}/git/"
     fi
-    GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
+    GITBRANCH=$(cd ${FPPDIR} && sudo git branch | grep "^\*" | sed -e "s/\*\s//")
 
     echo "Upgrading git revision from branch ${GITBRANCH}"
 
     if [ "x${FPPDIR}" = "x/opt/fpp" ]
     then
         cd ${FPPDIR} && $SUDO git pull && $SUDO git fetch --tags -f
+        $SUDO git config --global --add safe.directory ${FPPDIR}
+        git config --global --add safe.directory ${FPPDIR}
         if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
             if [ "${SOURCEIP}" == "github.com" ]; then
                 cd ${FPPDIR} && $SUDO git submodule sync && $SUDO git submodule update --init --remote
