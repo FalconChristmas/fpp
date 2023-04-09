@@ -578,6 +578,10 @@ case "${OSVER}" in
             if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
                 echo "FPP - Applying updates to allow optional boot from USB on Pi 4 (and up)"
 
+                # make sure the label on p1 is "boot" and p2 is rootfs
+                fatlabel /dev/mmcblk0p1 boot
+                fatlabel /dev/mmcblk0p2 rootfs
+
                 # Update /etc/fstab to use PARTUUID for / and /boot
                 BOOTLINE=$(grep "^[^#].* /boot " /etc/fstab | sed -e "s;^[^#].* /boot ;LABEL=boot /boot ;")
                 ROOTLINE=$(grep "^[^#].* /  " /etc/fstab | sed -e "s;^[^#].* / ;LABEL=rootfs / ;")
