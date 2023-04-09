@@ -1210,10 +1210,12 @@ cat /opt/fpp/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
 a2dismod php${ACTUAL_PHPVER}
 a2dismod mpm_prefork
 a2enmod mpm_event
+a2enmod http2
 a2enmod cgi
 a2enmod rewrite
 a2enmod proxy
 a2enmod proxy_http
+a2enmod proxy_http2
 a2enmod proxy_html
 a2enmod headers
 a2enmod proxy_fcgi setenvif

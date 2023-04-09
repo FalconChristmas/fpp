@@ -133,7 +133,7 @@ done
 cd /opt/wifi
 rm -rf 8821au-20210708
 
-git clone https://github.com/morrownr/8821cu-20210118 8821cu
+git clone https://github.com/morrownr/8821cu-20210916 8821cu
 cd 8821cu
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
 sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
