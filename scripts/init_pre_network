@@ -40,18 +40,12 @@ do
 done
 
 if [ ! -f ${FPPHOME}/media/config/.htaccess ]; then
-    if [ -f /etc/php-fpm.conf -o -f /etc/php/*/fpm/php.ini ]; then
-        # FPP PHP settings are in /opt/fpp/www/.user.ini when using php-fpm
-        echo > ${FPPHOME}/media/config/.htaccess
-    else
-        # FPP PHP settings are in .htaccess when using mod_php.  If updating
-        # this string of PHP options, also update /opt/fpp/www/.user.ini for php-fpm
-        # and /opt/fpp/www/common/settings.php which rewrites .htaccess.
-        echo "php_value max_input_vars 5000" > ${FPPHOME}/media/config/.htaccess
-        echo "php_value upload_max_filesize 4G" >> ${FPPHOME}/media/config/.htaccess
-        echo "php_value post_max_size 4G" >> ${FPPHOME}/media/config/.htaccess
-        echo "SetEnvIf Host ^ LOCAL_PROTECT=0" >> ${FPPHOME}/media/config/.htaccess
-    fi
+    echo "Allow from All" > ${FPPHOME}/media/config/.htaccess
+    echo "Satisfy Any" >> ${FPPHOME}/media/config/.htaccess
+    echo "SetEnvIf Host ^ LOCAL_PROTECT=0" >> ${FPPHOME}/media/config/.htaccess
+else
+    # need to make sure we delete the php_value lines
+    sed -i '/php_value/d' ${FPPHOME}/media/config/.htaccess
 fi
 
 # Create an empty .htpasswd
