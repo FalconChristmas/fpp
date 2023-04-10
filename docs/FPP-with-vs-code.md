@@ -13,6 +13,9 @@ sudo swapon /swapfile
 sudo sysctl vm.swappiness=10
 ```
 
+## aarch64 (Raspberry Pi 3/4)
+If the vscode server doesn't start, you may need to edit /boot/config.txt and add  "arm_64bit=0" to force the 32bit kernel.
+
 ## Setup Remote-SSH
 Follow the video shows how to setup the remote-ssh extension in Visual Studio
 code that allows the editor to remotely access the Raspberry Pi.  This step
