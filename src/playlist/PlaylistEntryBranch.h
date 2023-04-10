@@ -24,6 +24,7 @@ public:
     virtual int Init(Json::Value& config) override;
 
     virtual int StartPlaying(void) override;
+    virtual int Process(void) override;
 
     void SetNext(int isTrue);
 

@@ -195,7 +195,10 @@ int PlaylistEntryBranch::StartPlaying(void) {
         FinishPlay();
         return 0;
     }
-
+    PlaylistEntryBase::StartPlaying();
+    return 1;
+}
+int PlaylistEntryBranch::Process(void) {
     if (m_branchTest == "Time") {
         time_t currTime = time(NULL);
         struct tm now;
@@ -248,10 +251,7 @@ int PlaylistEntryBranch::StartPlaying(void) {
         SetNext(0);
     }
 
-    PlaylistEntryBase::StartPlaying();
-
     FinishPlay();
-
     return 1;
 }
 
@@ -269,6 +269,13 @@ void PlaylistEntryBranch::SetNext(int isTrue) {
         m_nextSection = m_falseNextSection;
         m_nextItem = m_falseNextItem;
         m_nextBranchPlaylist = m_falseBranchPlaylist;
+    }
+
+    if (GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Playlist) {
+        std::string branchPlaylist = GetNextData();
+        if (branchPlaylist != "") {
+            playlist->InsertPlaylistAsNext(branchPlaylist, 0, -1);
+        }
     }
 }
 

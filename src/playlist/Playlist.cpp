@@ -69,7 +69,7 @@ Playlist::Playlist(Playlist* parent) :
     SetRepeat(0);
 
     if (Events::HasEventHandlers()) {
-        //Legacy callbacks
+        // Legacy callbacks
         std::function<void(const std::string& t, const std::string& payload)> f1 = [this](const std::string& t, const std::string& payload) {
             std::string emptyStr;
             LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n", t.c_str());
@@ -341,30 +341,30 @@ int Playlist::Load(const char* filename) {
 
         mp.append(pe);
         root["mainPlaylist"] = mp;
-    
+
     } else {
         if (IsExtensionAudio(GetFileExtension(tmpFilename)) || IsExtensionVideo(GetFileExtension(tmpFilename))) {
-           root["name"] = tmpFilename;
-           root["repeat"] = 0;
-           root["loopCount"] = 0;
+            root["name"] = tmpFilename;
+            root["repeat"] = 0;
+            root["loopCount"] = 0;
 
-           Json::Value mp(Json::arrayValue);
-           Json::Value pe;
+            Json::Value mp(Json::arrayValue);
+            Json::Value pe;
 
-           pe["type"] = "media";
-           pe["mediaName"] = tmpFilename;
+            pe["type"] = "media";
+            pe["mediaName"] = tmpFilename;
 
-           LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s\n", tmpFilename.c_str());
-        
-           pe["enabled"] = 1;
-           pe["playOnce"] = 0;
-           pe["videoOut"] = "--Default--";
-           mp.append(pe);
-           root["mainPlaylist"] = mp;
-   
+            LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s\n", tmpFilename.c_str());
+
+            pe["enabled"] = 1;
+            pe["playOnce"] = 0;
+            pe["videoOut"] = "--Default--";
+            mp.append(pe);
+            root["mainPlaylist"] = mp;
+
         } else {
-           m_filename = FPP_DIR_PLAYLIST("/" + filename + ".json");
-           root = LoadJSON(m_filename.c_str());
+            m_filename = FPP_DIR_PLAYLIST("/" + filename + ".json");
+            root = LoadJSON(m_filename.c_str());
         }
     }
 
@@ -504,7 +504,6 @@ int Playlist::Start(void) {
     if ((!m_leadIn.size()) &&
         (!m_mainPlaylist.size()) &&
         (!m_leadOut.size())) {
-        
         std::string warn = "Playlist " + GetPlaylistName() + " is empty. Nothing to play.";
         WarningHolder::AddWarningTimeout(warn, 30);
 
@@ -660,7 +659,7 @@ int Playlist::IsPlaying(void) {
     if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
         (m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
         (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
-        (m_status == FPP_STATUS_PLAYLIST_PAUSED)) //paused is technically still "running"
+        (m_status == FPP_STATUS_PLAYLIST_PAUSED)) // paused is technically still "running"
         return 1;
 
     return 0;
@@ -691,7 +690,7 @@ int Playlist::Process(void) {
     static time_t lastCheckTime = time(nullptr);
     time_t procTime = time(nullptr);
 
-    //LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
+    // LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
 
     if (!PL_CLEANUPS.empty()) {
         PL_CLEANUPS.sort();
@@ -803,10 +802,7 @@ int Playlist::Process(void) {
                 m_sectionPosition = nextPosition;
             }
         } else if (currentEntry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Playlist) {
-            std::string branchPlaylist = currentEntry->GetNextData();
-            if (branchPlaylist != "")
-                InsertPlaylistImmediate(branchPlaylist, 0, -1);
-
+            // handled internally to PlaylistEntryBranch
             m_sectionPosition++;
         } else {
             m_sectionPosition++;
@@ -878,7 +874,7 @@ int Playlist::Process(void) {
             startNewPlaylistFilename = "";
             Play(nm.c_str(), startNewPlaylistPosition, startNewPlaylistRepeat, startNewPlaylistScheduleEntry, startNewPlaylistEndPosition);
         }
-        
+
         PluginManager::INSTANCE.playlistCallback(GetInfo(), "playing", m_currentSectionStr, m_sectionPosition);
         Events::Publish("playlist/section/status", m_currentSectionStr);
         Events::Publish("playlist/sectionPosition/status", m_sectionPosition);
@@ -907,8 +903,8 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
     if (m_insertedPlaylist != "") {
         Playlist* pl;
         if (isStopping && m_parent) {
-            //we are exiting so there is no point wasting our memory on the stack of playlists
-            //so we'll point the new playlists parent at our parent and then cleanup ourselves
+            // we are exiting so there is no point wasting our memory on the stack of playlists
+            // so we'll point the new playlists parent at our parent and then cleanup ourselves
             PL_CLEANUPS.push_back(this);
             pl = new Playlist(m_parent);
             m_parent = nullptr;
@@ -1051,7 +1047,7 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
         std::string fullfilename = FPP_DIR_PLAYLIST("/" + filename + ".json");
 
         if ((m_filename == fullfilename) && (repeat == m_repeat) && m_currentSection && position >= 0) {
-            //the requested playlist is already running and loaded, we can jump right to the index
+            // the requested playlist is already running and loaded, we can jump right to the index
             if (m_currentSection->at(m_sectionPosition)->IsPlaying()) {
                 m_currentSection->at(m_sectionPosition)->Stop();
             }
@@ -1062,8 +1058,8 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
             Start();
             return 1;
         } else if (m_currentSection) {
-            PlaylistEntryCommand *pec = dynamic_cast<PlaylistEntryCommand*>(m_currentSection->at(m_sectionPosition));
-            PlaylistEntryScript *pes = dynamic_cast<PlaylistEntryScript*>(m_currentSection->at(m_sectionPosition));
+            PlaylistEntryCommand* pec = dynamic_cast<PlaylistEntryCommand*>(m_currentSection->at(m_sectionPosition));
+            PlaylistEntryScript* pes = dynamic_cast<PlaylistEntryScript*>(m_currentSection->at(m_sectionPosition));
             if (pec || pes) {
                 // We cannot stop the current playlist and start a new one as the entry itself will be deleted
                 // while within a method of the entry.   Thus, we'll record the settings and then
@@ -1091,7 +1087,7 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
 
     int p = position;
     if (p == -2) {
-        //random
+        // random
         int l = m_mainPlaylist.size();
         if (l > 2) {
             p = std::rand() % l;
@@ -1445,7 +1441,7 @@ uint64_t Playlist::GetCurrentPosInMS(int& position, uint64_t& posms) {
     position = m_currentSection->at(m_sectionPosition)->GetPositionInPlaylist();
     posms = m_currentSection->at(m_sectionPosition)->GetElapsedMS();
     pos += posms;
-    //if we aren't in the LeadIn, add the time of the LeadIn
+    // if we aren't in the LeadIn, add the time of the LeadIn
     if (m_currentSectionStr != "LeadIn") {
         for (auto& a : m_leadIn) {
             pos += a->GetLengthInMS();
@@ -1583,18 +1579,18 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     std::list<std::string> parents;
     GetParentPlaylistNames(parents);
     if (!parents.empty()) {
-        for (auto &n : parents) {
+        for (auto& n : parents) {
             result["breadcrumbs"].append(n);
         }
     }
 }
-void Playlist::GetParentPlaylistNames(std::list<std::string> &names) {
+void Playlist::GetParentPlaylistNames(std::list<std::string>& names) {
     if (m_parent) {
         m_parent->GetParentPlaylistNames(names);
         names.push_back(m_parent->GetPlaylistName());
     }
 }
-    
+
 /*
  *
  */
@@ -1705,10 +1701,10 @@ int Playlist::MQTTHandler(std::string topic, std::string msg) {
     std::string topicEnd = topic.substr(pos);
 
     /*
-	 * NOTE: This because multiple playlist are not supported, the newPlaylistname value
-	 * is only considered when starting a playlist.  All other actions will
-	 * apply to the current running playlist even if the names don't match
-	 */
+     * NOTE: This because multiple playlist are not supported, the newPlaylistname value
+     * is only considered when starting a playlist.  All other actions will
+     * apply to the current running playlist even if the names don't match
+     */
 
     // ALLPLAYLIST should be checked first to avoid name colision.
     if (topic == "ALLPLAYLISTS/stop/now") {
