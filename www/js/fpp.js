@@ -1100,7 +1100,10 @@ function psiDetailsData(name, value, units = '', hide = false) {
         return "<div class='psiDetailsData field_" + name + "'" + style + ">" + value.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</div>";
     }
 
-    return "<div class='psiDetailsData'><span class='field_" + name + "'" + style + ">" + value.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</span> " + units + "</div>";
+    if (typeof value === 'string' || value instanceof String) {
+        value = value.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    }
+    return "<div class='psiDetailsData'><span class='field_" + name + "'" + style + ">" + value + "</span> " + units + "</div>";
 }
 
 function psiDetailsArgEnd() {
@@ -1192,8 +1195,10 @@ function psiDetailsForEntrySimple(entry, editMode) {
                             partialResult += ckeys[x];
                         }
                     }
-                } else {
+                } else if (typeof entry[a.name] === 'string' || entry[a.name] instanceof String) {
                     partialResult += entry[a.name].replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                } else {
+                    partialResult += entry[a.name];
                 }
 
                 if (a.hasOwnProperty('unit')) {
