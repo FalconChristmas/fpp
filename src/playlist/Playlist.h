@@ -100,6 +100,7 @@ public:
     Json::Value GetMqttStatusJSON(); // Returns Status as JSON
 
 private:
+    void GetParentPlaylistNames(std::list<std::string> &names);
     int ReloadPlaylist(void);
     void ReloadIfNeeded(void);
     void SwitchToMainPlaylist(void);

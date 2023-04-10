@@ -1579,8 +1579,22 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     result["seconds_remaining"] = std::to_string(secsRemaining);
     result["time_elapsed"] = secondsToTime(secsElapsed);
     result["time_remaining"] = secondsToTime(secsRemaining);
-}
 
+    std::list<std::string> parents;
+    GetParentPlaylistNames(parents);
+    if (!parents.empty()) {
+        for (auto &n : parents) {
+            result["breadcrumbs"].append(n);
+        }
+    }
+}
+void Playlist::GetParentPlaylistNames(std::list<std::string> &names) {
+    if (m_parent) {
+        m_parent->GetParentPlaylistNames(names);
+        names.push_back(m_parent->GetPlaylistName());
+    }
+}
+    
 /*
  *
  */

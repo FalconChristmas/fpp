@@ -389,11 +389,10 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                     <div class='statusBoxLeft'>
                         <div class='statusTable container-fluid'>
                             <div class="row playerStatusRow">
-                                <div class="playerStatusLabel">Player Status:</div>
+                                <div id="txtPlayerStatusLabel" class="playerStatusLabel">Player Status:</div>
                                 <div id="txtPlayerStatus" class="labelValue playerStatusLabelValue"></div>
                             </div>
                             <div class="row playlistSelectRow">
-
                                 <div class="playlistSelectCol">
                                     <select id="playlistSelect" name="playlistSelect"
                                         class="form-control form-control-lg form-control-rounded has-shadow"

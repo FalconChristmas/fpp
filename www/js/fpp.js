@@ -3256,9 +3256,10 @@ const WANT_DETAILS = true; //false; //TODO: maybe use config setting?
 function show_details(args) {
     if (!WANT_DETAILS || !args || !args.length) return "";
     if (typeof args[0] == "object" && args[0].responseText) {
-        return args[0].responseText; } //show most useful part
+        return args[0].responseText;
+    } //show most useful part
     const retval = [""];
-    args.forEach(function(arg) {
+    args.forEach(function (arg) {
         var js = JSON.stringify(arg);
         if (js.length > 200) {
             js = js.substr(0, 200) + " ...";
@@ -3645,7 +3646,17 @@ function parseStatus(jsonStatus) {
             } else if (fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) {
                 playerStatusText += " - Stopping Gracefully After Loop";
             }
-
+            txtPlayerStatusLabel = "Player Status";
+            if (Array.isArray(jsonStatus["breadcrumbs"]) && jsonStatus.breadcrumbs.length > 0) {
+                txtPlayerStatusLabel += " (";
+                jsonStatus.breadcrumbs.forEach(function (r) {
+                    txtPlayerStatusLabel += r + " -> ";
+                });
+                txtPlayerStatusLabel += jsonStatus.current_playlist.playlist;
+                txtPlayerStatusLabel += ")";
+            }
+            txtPlayerStatusLabel += ":";
+            $('#txtPlayerStatusLabel').html(txtPlayerStatusLabel);
             $('#txtPlayerStatus').html(playerStatusText);
             $('#playerTime').show();
             $('#txtTimePlayed').html(jsonStatus.time_elapsed);
@@ -4006,7 +4017,7 @@ function SetSetting(key, value, restart, reboot, hideChange = false, isBool = nu
                 if (typeof callback === 'function') {
                     callback();
                 }
-            }    
+            }
             if (restart > 0 && restart != settings['restartFlag']) {
                 SetRestartFlag(restart);
             }
@@ -5901,7 +5912,7 @@ function fppCommandColorPicker() {
                         appendToElement = ".modal-header"
                     }
                 }
-            }else{
+            } else {
                 //Not found yet so keep looping
                 fppCommandColorPicker_fppDialogIsOpen = false;
             }
