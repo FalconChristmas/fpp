@@ -227,7 +227,7 @@ function findFile($dir, $filename)
     if (file_exists($dir . "/" . urldecode($tempFile))) {
         return urldecode($tempFile);
     }
-    return filename;
+    return $filename;
 }
 
 function MoveFile()
@@ -235,6 +235,7 @@ function MoveFile()
     global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $imageDirectory, $configDirectory, $SUDO;
 
     $file = findFile($uploadDirectory, params("fileName"));
+
 
     // Fix double quote uploading by simply moving the file first, if we find it with URL encoding
     if (strstr($file, '"')) {
@@ -578,7 +579,7 @@ function PatchFile()
     fclose($patch_handle);
 
     $size = 0;
-    $patch = glob($fullPath . '.patch.*');
+    $patch = glob(escapeshellcmd($fullPath) . '.patch.*');
     foreach ($patch as $fn) {
         $fileLen = real_filesize($fn);
         $size = bcadd($size, $fileLen, 0);
