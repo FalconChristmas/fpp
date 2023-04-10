@@ -83,7 +83,7 @@ $(function () {
     CheckBrowser();
     CheckRestartRebootFlags();
 
-    window.onscroll = function() { checkScrollTopButton(); };
+    window.onscroll = function () { checkScrollTopButton(); };
 });
 
 function getManualLink() {
@@ -446,14 +446,13 @@ function TogglePasswordHideShow(setting) {
     }
 }
 
-function ConfirmPasswordEnable()
-{
+function ConfirmPasswordEnable() {
     var password = $('#password').val();
     var value = $('#passwordEnable').val();
 
     if ((value == '1') &&
         ((password == '') ||
-         (confirm('Click "OK" to reset the existing password to "falcon" before enabling, click "Cancel" to reuse the existing saved password.  Warning: If you do not know the existing password, enabling without resetting could lock you out of the system.  The default password is "falcon" if you have not previously set a UI password.')))) {
+            (confirm('Click "OK" to reset the existing password to "falcon" before enabling, click "Cancel" to reuse the existing saved password.  Warning: If you do not know the existing password, enabling without resetting could lock you out of the system.  The default password is "falcon" if you have not previously set a UI password.')))) {
         $('#password').val('falcon');
         window["passwordChanged"]();
         $('#passwordVerify').val('falcon');
@@ -470,8 +469,7 @@ function ConfirmPasswordEnable()
     }
 }
 
-function ValidatePassword(password)
-{
+function ValidatePassword(password) {
     // Allow minimum of 6 so default 'falcon' password is valid
     if (password.length < 6) {
         DialogError('Password Length', 'Password Length should be 6 or more characters');
@@ -481,8 +479,7 @@ function ValidatePassword(password)
     return 1;
 }
 
-function CheckPassword()
-{
+function CheckPassword() {
     var password = $('#password').val();
     var passwordVerify = $('#passwordVerify').val();
 
@@ -497,8 +494,7 @@ function CheckPassword()
     }
 }
 
-function CheckPasswordVerify()
-{
+function CheckPasswordVerify() {
     var password = $('#password').val();
     var passwordVerify = $('#passwordVerify').val();
 
@@ -513,8 +509,7 @@ function CheckPasswordVerify()
     }
 }
 
-function ConfirmOSPasswordEnable()
-{
+function ConfirmOSPasswordEnable() {
     var password = $('#osPassword').val();
     var value = $('#osPasswordEnable').val();
 
@@ -535,8 +530,7 @@ function ConfirmOSPasswordEnable()
     }
 }
 
-function CheckOSPassword()
-{
+function CheckOSPassword() {
     var password = $('#osPassword').val();
     var passwordVerify = $('#osPasswordVerify').val();
 
@@ -551,8 +545,7 @@ function CheckOSPassword()
     }
 }
 
-function CheckOSPasswordVerify()
-{
+function CheckOSPasswordVerify() {
     var password = $('#osPassword').val();
     var passwordVerify = $('#osPasswordVerify').val();
 
@@ -1195,8 +1188,10 @@ function psiDetailsForEntrySimple(entry, editMode) {
                             partialResult += ckeys[x];
                         }
                     }
-                } else {
+                } else if (typeof entry[a.name] === 'string' || entry[a.name] instanceof String) {
                     partialResult += entry[a.name].replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                } else {
+                    partialResult += entry[a.name];
                 }
 
                 if (a.hasOwnProperty('unit')) {
@@ -5559,8 +5554,8 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             line += "    $('#" + ID + "CurrentValue').html(val);";
             line += "}";
             line += "</script>"
-            line += "<span>" + val['min'] + "<input type='range' class='arg_" + val['name'] 
-                 + " cmdArgSlider' id='" + ID + "' min='" + val['min'] + "' max='" + val['max'] + "'";
+            line += "<span>" + val['min'] + "<input type='range' class='arg_" + val['name']
+                + " cmdArgSlider' id='" + ID + "' min='" + val['min'] + "' max='" + val['max'] + "'";
             var vl = "&nbsp;(<span id='" + ID + "CurrentValue'>";
             if (dv != "") {
                 line += " value='" + dv + "'";
