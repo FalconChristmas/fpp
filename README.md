@@ -13,7 +13,7 @@ can also be a controller on P5 and P10 Matrixes, or strings of ws2811 pixels.
 Useful Links:
 
 - [Documentation in Github](./docs/README.md)
-- [Falcon Player website] (https://www.falconplayer.com)
+- [Falcon Player website](https://www.falconplayer.com)
 - [Falcon Christmas forums](http://falconchristmas.com/forum/)
 - [Falcon Player sub-forum](http://falconchristmas.com/forum/index.php/board,8.0.html)
 - [Wiki](http://falconchristmas.com/wiki/index.php/Main_Page)
