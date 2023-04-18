@@ -356,7 +356,7 @@
                     "output": "(dependent on Command run)"
                 },
                 "POST": {
-                    "desc": "Runs the given command with arguments provided in POST data instead of URL",
+                    "desc": "Runs the given command with arguments provided in POST data instead of URL, all args documented in help page",
                     "input": "(JSON data dependent on command being run)",
                     "output": "(dependent on Command run)"
                 }
