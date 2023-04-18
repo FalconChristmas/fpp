@@ -356,7 +356,7 @@
                     "output": "(dependent on Command run)"
                 },
                 "POST": {
-                    "desc": "Runs the given command with arguments provided in POST data instead of URL",
+                    "desc": "Runs the given command with arguments provided in POST data instead of URL, full documentation here:",
                     "input": "(JSON data dependent on command being run)",
                     "output": "(dependent on Command run)"
                 }
@@ -509,7 +509,7 @@
                         "file": "block_driveways.xbkp",
                         "dir": "uploads"
                     }
-                },
+                }
             }
         },
         {

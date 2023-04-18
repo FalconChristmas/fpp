@@ -1,12 +1,11 @@
 <?
 $wrapped = 1;
-if (!isset($apiDir))
-{
-    require_once('../config.php');
-    require_once('../common.php');
+if (!isset($apiDir)) {
+    require_once '../config.php';
+    require_once '../common.php';
     $wrapped = 0;
     $apiDir = "";
-?>
+    ?>
 <html>
 <head>
 <link rel="stylesheet" href="../css/fpp.css">
@@ -144,7 +143,7 @@ function showTestInputs(item) {
 
     for (var m = 0; m < methods.length; m++) {
         testInputs += "<input type='button' class='buttons' value='" + methods[m] + "' onClick='testEndpoint(\"" + methods[m] + "\", this, ";
-        testInputs += "\"" + url + "\");'>&nbsp;&nbsp;";        
+        testInputs += "\"" + url + "\");'>&nbsp;&nbsp;";
     }
 
     $(item).parent().html(testInputs);
@@ -162,7 +161,7 @@ function endpointToheader(endpoint) {
 var endpoints = {};
 function loadEndpoints() {
     var menuTag = $('#api-list-hot-links ul');
-    $.get('<? echo $apiDir; ?>endpoints.json', function(data) {
+    $.get('<?echo $apiDir; ?>endpoints.json', function(data) {
         data.endpoints.sort(sortByEndpoint);
         endpoints = data;
         var tables = [ 'endpoints' ];
@@ -286,7 +285,7 @@ function loadCommands() {
     if (commandList == "") {
         $.ajax({
         dataType: "json",
-        url: "<? echo $apiDir; ?>commands",
+        url: "<?echo $apiDir; ?>commands",
         async: false,
         success: function(data) {
            commandList = data;
@@ -313,8 +312,8 @@ function loadCommands() {
 }
 
 /*
- * Anchors are dynamically via ajax thus auto scrolling if anchor is in url
- * will fail.  This will workaround that problem by forcing a scroll 
+ * Anchors are dynamiclly via ajax thus auto scrolling if anchor is in url
+ * will fail.  This will workaround that problem by forcing a scroll
  * afterward dynamic content is loaded.
  */
 function fixScroll() {
@@ -330,7 +329,7 @@ function fixScroll() {
 }
 
 $(document).ready(function() {
-    loadEndpoints();
+   // loadEndpoints();
     loadCommands();
 });
 
@@ -399,33 +398,48 @@ pre {
 }
 </style>
 <?
-if (!$wrapped)
-{
-?>
+if (!$wrapped) {
+    ?>
 </head>
 <body>
 <div id='bodyWrapper'>
 <?
 }
 ?>
-    <h2>FPP API Endpoints</h2>
-    <b>NOTE: FPPD endpoints are indicated by '<font color='red'>*</font>' and require FPPD to be running or a timeout error will occur</b>
-    <div id="api-list-hot-links"><ul></ul></div>
-    <div class='fppTableWrapper'>
-        <div class='fppTableContents' role="region" aria-labelledby="endpointTable" tabindex="0">
-            <table class='endpointTable' id='endpoints' border=1 cellspacing=0 cellpadding=2 width='100%'>
+  <div><h2>FPP Commands</h2>
+  <b>Some internal FPP Commands are exposed for end user interaction and can be called via the REST API.  This page gives a test facility and a listing of the commands available with their args</b>
+</div>
+<b>NOTE: FPPD Commands require FPPD to be running or a timeout error will occur.   They can be invoked via the "/api/command" endpoint and tested using the following form:</b></br>
+<br>
+<div><h2>api/Command Tester</h2>
+
+<table class="endpointTable" id="endpoints" width="100%" cellspacing="0" cellpadding="2" border="1">
                 <thead>
                     <tr><th>Endpoint</th><th>Method</th><th>Description</th><th>Input / Output</th></tr>
+                </thead>
+<tr class="endpointRow firstMethod"><td class="endpointName" rowspan="3"><a class="api-anchor" name="command--CommandName---Args-">.</a><font color="red"><b>*</b></font>&nbsp;/api/command/:CommandName(/:Args)</td>
+<td class="endpointMethod">GET</td><td class="endpointDescription">Runs the given command with arguments separated by a slash /</td><td class="exampleDataTD"><b>Output:</b><br><pre class="outputData">(dependent on Command run)</pre></td><td class="testDataTD" style="display: none;" rowspan="2"><pre class="testData"></pre></td><td style="display: none;" class="endpoint">command/:CommandName(/:Args)</td></tr>
+
+<tr class="endpointRow lastMethod"><td class="endpointMethod">POST</td><td class="endpointDescription">Runs the given command with arguments provided in POST data instead of URL</td><td class="exampleDataTD"><b>Input:</b><br><pre class="inputData">(JSON data dependent on command being run)</pre><hr><b>Output:</b><br><pre class="outputData">(dependent on Command run)</pre></td><td class="testDataTD" style="display: none;" rowspan="2"><pre class="testData"></pre></td><td style="display: none;" class="endpoint">command/:CommandName(/:Args)</td></tr>
+
+<tr><td colspan="2" style="height: 100%;"><table cellpadding="1" border="0"><tbody style="border: 0px;"><tr><td><b>CommandName:</b></td><td><input type="text" class="inputCommandName" size="30" maxlength="128"></td></tr><tr><td><b>Args:</b></td><td><input type="text" class="inputArgs" size="30" maxlength="128"></td></tr><tr><td><b>POST/PUT Data:</b></td><td><input type="text" class="inputPostData" size="30" maxlength="256"></td></tr></tbody></table><input type="button" class="buttons" value="GET" onclick="testEndpoint('GET', this, '/api/command/:CommandName(/:Args)');">&nbsp;&nbsp;<input type="button" class="buttons" value="POST" onclick="testEndpoint('POST', this, '/api/command/:CommandName(/:Args)');">&nbsp;&nbsp;</td></tr>
+</table>
+</div>
+<br><div class="clear"></div>
+<h2>FPP Commands Listing</h2>
+    <div class='fppTableWrapper fppTableWrapperAsTable'>
+        <div class='fppTableContents' role="region" aria-labelledby="commandTable" tabindex="0">
+            <table class='commandTable' id='commands' border=1 cellspacing=0 cellpadding=2 width='100%'>
+                <thead>
+                    <tr><th>Command</th><th>Description</th><th>Arguments</th><th>Example POST</th></tr>
                 </thead>
             </table>
         </div>
     </div>
-
 </div>
 <?
-if (!$wrapped)
-{
-?>
+if (!$wrapped) {
+    ?>
 </div>
 </body>
 <?
