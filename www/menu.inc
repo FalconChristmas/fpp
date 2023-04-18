@@ -1,4 +1,7 @@
-<?php
+
+
+
+...<?php
 
 $kernel_version = exec("uname -r");
 
@@ -334,6 +337,7 @@ if (file_exists($eepromFile)) {
           -->
           <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Help Index</a>
           <a class="dropdown-item" href="apihelp.php"><i class="fas fa-plug"></i> REST API Help</a>
+          <a class="dropdown-item" href="commandhelp.php"><i class="fas fa-cubes"></i> FPP Commands Help</a>
           <a class="dropdown-item" href="cliHelp.php"><i class="fas fa-life-ring"></i> fpp &amp; fppmm Usage</a>
           <a class="dropdown-item" href="credits.php"><i class="fas fa-stream"></i> Credits</a>
           <a class="dropdown-item" href="https://www.paypal.com/donate/?hosted_button_id=ASF9XYZ2V2F5G" target='_blank'><i class="fas fa-solid fa-gift"></i> Donate to FPP <i class="fas fa-external-link-alt external-link"></i></a>

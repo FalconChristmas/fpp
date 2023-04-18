@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php
-require_once('config.php');
+require_once 'config.php';
 
 error_reporting(E_ALL);
 $fpp_version = "v" . getFPPVersion();
@@ -9,7 +9,7 @@ $fpp_version = "v" . getFPPVersion();
 ?>
 
 <head>
-<?php include 'common/menuHead.inc'; ?>
+<?php include 'common/menuHead.inc';?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <title>Credits</title>
 
@@ -17,13 +17,13 @@ $fpp_version = "v" . getFPPVersion();
 
 <body>
 <div id="bodyWrapper">
-  <?php 
-  $activeParentMenuItem = 'help'; 
-  include 'menu.inc'; ?><div class="container">
+  <?php
+$activeParentMenuItem = 'help';
+include 'menu.inc';?><div class="container">
   <div class="title">Credits</div>
     <div class="pageContent">
-      
-      <div style="margin:0 auto;"> 
+
+      <div style="margin:0 auto;">
 
           <div>
         <div>
@@ -63,14 +63,14 @@ $fpp_version = "v" . getFPPVersion();
     </div>
     <br>
 
-            <small>Copyright &copy; 2013-2021</small>
+            <small>Copyright &copy; 2013-2023</small>
           </div>
         </div>
 
       </div>
     </div>
   </div>
-  <?php include 'common/footer.inc'; ?>
+  <?php include 'common/footer.inc';?>
 </div>
 </body>
 </html>
