@@ -10,7 +10,7 @@ cd ${FPPDIR}
 logOutput
 
 # Clear any restart flag
-sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
+sed -i -e "s/^restartFlag .*/restartFlag = \"0\"/" ${FPPHOME}/media/settings
 
 if [ -f "/.dockerenv" ]
 then

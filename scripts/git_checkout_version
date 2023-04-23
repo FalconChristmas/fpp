@@ -96,7 +96,7 @@ echo "Restarting fppd"
 # Embed this code here instead of using a script because we may
 # revert to an older version that doesn't have that script
 # Clear any restart flag
-sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
+sed -i -e "s/^restartFlag .*/restartFlag = \"0\"/" ${FPPHOME}/media/settings
 
 if [ -f "/.dockerenv" ]
 then
