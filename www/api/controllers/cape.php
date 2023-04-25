@@ -362,4 +362,41 @@ function RedeemVoucher()
     return json($result);
 }
 
+
+function GetCapeStringOptions() {
+    global $settings;
+    $js = array();
+    $directory = $settings["mediaDirectory"] . "/tmp/strings";
+    foreach (scandir($directory) as $file) {
+        if (strlen($file) > 5) { // must have .json extension
+            $js[] = substr($file, 0, strlen($file) - 5);;
+        }
+    }
+    return json($js);
+}
+function GetCapePanelOptions() {
+    global $settings;
+    $js = array();
+    $directory = $settings["mediaDirectory"] . "/tmp/panels";
+    foreach (scandir($directory) as $file) {
+        if (strlen($file) > 5) { // must have .json extension
+            $js[] = substr($file, 0, strlen($file) - 5);;
+        }
+    }
+    return json($js);
+}
+function GetCapeStringConfig() {
+    global $settings;
+    $fn = $settings["mediaDirectory"] . "/tmp/strings/" . params('key') . ".json";
+    $js = json_decode(file_get_contents($fn));
+    return json($js);
+}
+function GetCapePanelConfig() {
+    global $settings;
+    $fn = $settings["mediaDirectory"] . "/tmp/panels/" . params('key') . ".json";
+    $js = json_decode(file_get_contents($fn));
+    return json($js);
+}
+
+
 ?>

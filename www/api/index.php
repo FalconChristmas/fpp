@@ -24,6 +24,10 @@ dispatch_get('/cape/eeprom/signingData/:key/:order', 'GetSigningData');
 dispatch_get('/cape/eeprom/signingFile/:key/:order', 'GetSigningFile');
 dispatch_post('/cape/eeprom/signingData', 'PostSigningData');
 dispatch_get('/cape/options', 'GetCapeOptions');
+dispatch_get('/cape/strings', 'GetCapeStringOptions');
+dispatch_get('/cape/panel', 'GetCapePanelOptions');
+dispatch_get('/cape/strings/:key', 'GetCapeStringConfig');
+dispatch_get('/cape/panel/:key', 'GetCapePanelConfig');
 
 dispatch_get('/channel/input/stats', 'channel_input_get_stats');
 dispatch_delete('/channel/input/stats', 'channel_input_delete_stats');
