@@ -149,6 +149,11 @@ getSetting() {
     fi
 }
 
+getSettingLocked() {
+    SETTING=$1
+    grep -i --binary-files=text "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//" -e 's/"//g'
+}
+
 # getSettingInfo SETTING_NAME ATTRIBUTE_NAME
 # getSettingInfo MQTTPort restart
 # Returns empty string if attribute is not set
@@ -168,7 +173,7 @@ setSetting() {
             exec {FD}<$CFGFILE
             flock -n ${FD} || exit 1
         fi
-        OLD=$(getSetting $SETTING)
+        OLD=$(getSettingLocked $SETTING)
         if [ "x${OLD}" != "x" ]; then
             if [ "${FPPPLATFORM}" == "MacOS" ]; then
                 sed -i '' -e "/^${SETTING} *= */d" ${CFGFILE}
