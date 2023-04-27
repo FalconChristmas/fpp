@@ -17,7 +17,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--for
     libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
     vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
     libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
-    git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping libssl-dev \
+    git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping libssl-dev libusb-1.0-0-dev \
     wget flex bison pkg-config libasound2-dev mesa-common-dev ; apt-get clean
 
 # similar to above, do this once and Docker can cache the intermediary
