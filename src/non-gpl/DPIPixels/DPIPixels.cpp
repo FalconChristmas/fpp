@@ -631,26 +631,26 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
         int newFPS = currentFPS;
         if ((fb->Width() == 362) || (fb->Width() == 1084)) {
             if (fb->Height() == 162) {
-                if (longestString <= 800) {
+                if (longestString <= 2400) {
                     return true;
                 } else {
-                    errStr = m_outputType + " Framebuffer configured for 40fps but pixel count " + std::to_string(longestString) + " is too high.  Reboot is required.";
+                    errStr = m_outputType + " Framebuffer configured for 40fps but channel count " + std::to_string(longestString) + " is too high.  Reboot is required.";
                     newFPS = 20;
                     std::string nvresults;
                     urlPut("http://127.0.0.1/api/settings/DPI_FPS", "20", nvresults);
                     urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
                 }
             } else if (fb->Height() == 324) {
-                if (longestString <= 800) {
+                if (longestString <= 2400) {
                     newFPS = 40;
                     std::string nvresults;
                     urlPut("http://127.0.0.1/api/settings/DPI_FPS", "40", nvresults);
                     urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
                     return true;
-                } else if (longestString <= 1600) {
+                } else if (longestString <= 4800) {
                     return true;
                 } else {
-                    errStr = m_outputType + " Framebuffer configured for 20fps but pixel count " + std::to_string(longestString) + " is too high.";
+                    errStr = m_outputType + " Framebuffer configured for 20fps but channel count " + std::to_string(longestString) + " is too high.";
                 }
             }
         } else {
