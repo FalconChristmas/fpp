@@ -3582,7 +3582,7 @@ foreach ($settings_restored as $area_restored => $success) {
                                                 </div>
                                             </div>
                                             <div class="row">
-                                                <div class="col-md-4">Keep Existing Master/Remote Settings</div>
+                                                <div class="col-md-4">Keep Existing Player/Remote Settings</div>
                                                 <div class="col-md-8">
                                                     <input name="keepMasterSlave"
                                                            type="checkbox"
