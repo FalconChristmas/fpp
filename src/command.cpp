@@ -474,6 +474,12 @@ char* ProcessCommand(char* command, char* response) {
         case FPP_STATUS_STOPPING_GRACEFULLY:
             snprintf(response,  MAX_RESPONSE_SIZE - 1,"%d,%d,Playlist is stopping gracefully\n", getFPPmode(), COMMAND_FAILED);
             break;
+        case FPP_STATUS_STOPPING_NOW:
+            snprintf(response,  MAX_RESPONSE_SIZE - 1,"%d,%d,Playlist is stopping\n", getFPPmode(), COMMAND_FAILED);
+            break;
+        case FPP_STATUS_PLAYLIST_PAUSED:
+            snprintf(response,  MAX_RESPONSE_SIZE - 1,"%d,%d,Playlist is paused\n", getFPPmode(), COMMAND_FAILED);
+            break;
         }
     } else if (!strcmp(CommandStr, "PrevPlaylistItem")) {
         switch (Player::INSTANCE.GetStatus()) {
@@ -487,6 +493,12 @@ char* ProcessCommand(char* command, char* response) {
             break;
         case FPP_STATUS_STOPPING_GRACEFULLY:
             snprintf(response,  MAX_RESPONSE_SIZE - 1,"%d,%d,Playlist is stopping gracefully\n", getFPPmode(), COMMAND_FAILED);
+            break;
+        case FPP_STATUS_STOPPING_NOW:
+            snprintf(response,  MAX_RESPONSE_SIZE - 1,"%d,%d,Playlist is stopping\n", getFPPmode(), COMMAND_FAILED);
+            break;
+        case FPP_STATUS_PLAYLIST_PAUSED:
+            snprintf(response,  MAX_RESPONSE_SIZE - 1,"%d,%d,Playlist is paused\n", getFPPmode(), COMMAND_FAILED);
             break;
         }
     } else if (!strcmp(CommandStr, "SetupExtGPIO")) {

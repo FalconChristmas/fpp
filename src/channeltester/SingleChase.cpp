@@ -54,7 +54,7 @@ int TestPatternSingleChase::Init(Json::Value config) {
  *
  */
 int TestPatternSingleChase::SetupTest(void) {
-    char* c = m_testData;
+    uint8_t* c = (uint8_t*)m_testData;
     bzero(m_testData, m_channelCount);
 
     for (int i = 0; i < m_channelCount; i += m_chaseSize) {

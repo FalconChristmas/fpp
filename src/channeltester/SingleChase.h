@@ -30,5 +30,5 @@ private:
     void CycleData(void) override;
 
     int m_chaseSize;
-    char m_chaseValue;
+    uint8_t m_chaseValue;
 };
