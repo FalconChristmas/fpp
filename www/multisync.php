@@ -397,7 +397,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             updatesAvailable = 1;
         }
 
-        var localVer = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip) + "/about.php' target='_blank' ip='" + ip + "'><b><font color='";
+        var localVer = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, '/about.php') + "' target='_blank' ip='" + ip + "'><b><font color='";
         if (updatesAvailable) {
             localVer += 'red';
         } else if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
@@ -725,7 +725,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 	} // end of "api/system/status?ip=" + ips
 
     function ipLink(ip) {
-        return "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip) + "/' ip='" + ip + "'>" + ip + "</a>";
+        return "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "' ip='" + ip + "'>" + ip + "</a>";
     }
 
     function parseFPPSystems(data) {
@@ -1116,12 +1116,15 @@ function getESPixelStickBridgeStatus(ip) {
 }
 
 
-function wrapUrlWithProxy(ip) {
+function wrapUrlWithProxy(ip, path) {
+    <?if (!$settings['hideExternalURLs']) {?>
     if (isProxied(ip)) {
-        return 'proxy/' + ip;
-    } else {
-        return 'http://' + ip;
+        return 'proxy/' + ip + path;
     }
+    return 'http://' + ip + path;
+    <?} else {?>
+    return "";
+    <?}?>
 }
 
 function getFalconControllerStatus(fv3ips, fv4ips, refreshing = false) {
@@ -1550,7 +1553,7 @@ function addLogsDivider(rowID) {
 function upgradeSystemByHostname(id) {
     id = id.replace('_logText', '');
     var ip = ipOrHostnameFromRowID(id);
-    StreamURL(wrapUrlWithProxy(ip) + '/manualUpdate.php?wrapped=1', id + '_logText', 'upgradeDone', 'upgradeFailed');
+    StreamURL(wrapUrlWithProxy(ip, '/manualUpdate.php?wrapped=1'), id + '_logText', 'upgradeDone', 'upgradeFailed');
 }
 
 function upgradeSystem(rowID) {
@@ -1563,7 +1566,7 @@ function upgradeSystem(rowID) {
     addLogsDivider(rowID);
 
     var ip = ipFromRowID(rowID);
-    StreamURL(wrapUrlWithProxy(ip) + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'upgradeDone', 'upgradeSystemByHostname');
+    StreamURL(wrapUrlWithProxy(ip, '/manualUpdate.php?wrapped=1'), rowID + '_logText', 'upgradeDone', 'upgradeSystemByHostname');
 }
 
 function showWaitingOnOriginUpdate(rowID, origin) {

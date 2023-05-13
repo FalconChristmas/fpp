@@ -22,7 +22,9 @@ function UpdateLink(row) {
     if (! (isValidHostname(val)  || isValidIpAddress(val) ) ) {
         proxyLink = "Must be either valid IP address or Valid Hostname"
     } else {
+<?if (!$settings['hideExternalURLs']) {?>
         proxyLink = "<a href='proxy/" + val + "'>" + val + "</a>";
+<?}?>
     }
     document.getElementById('linkRow' + row).innerHTML = proxyLink;
 }
@@ -46,8 +48,11 @@ function AddProxyForHost(host, description = "") {
             "<td>" + (currentRows + 1) + "</td>" +
 			"<td><input id='ipRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + host + "'></td>" +
             "<td><input id='descRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + description + "'></td>" +
-            "<td id='linkRow" + currentRows + "'><a href='proxy/" + host + "'>" + host + "</a></td>" +
-			"</tr>");
+            "<td id='linkRow" + currentRows + "'>" +
+<?if (!$settings['hideExternalURLs']) {?>
+            "<a href='proxy/" + host + "'>" + host + "</a>" +
+<?}?>
+            "</td></tr>");
 }
 
 function RenumberColumns(tableName) {
@@ -96,8 +101,8 @@ var tableInfo = {
 $(document).ready(function(){
     SetupSelectableTableRow(tableInfo);
 <?php
-    $description = "";
-    foreach ($hta as $line) {
+$description = "";
+foreach ($hta as $line) {
     if (strpos($line, 'http://') !== false) {
         $parts = preg_split("/[\s]+/", $line);
         $host = preg_split("/[\/]+/", $parts[2])[1];
@@ -150,7 +155,11 @@ include 'menu.inc';?>
                                     <th>#</td>
                                     <th>IP/HostName</td>
                                     <th>Description</td>
-                                    <th>Link</th>
+                                    <th>
+                                    <?if (!$settings['hideExternalURLs']) {?>
+                                        Link
+                                    <?}?>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
