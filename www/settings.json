@@ -112,7 +112,6 @@
             "description": "Input Control",
             "settings": [
                 "DisableFakeNetworkBridges",
-                "PresetControlChannel",
                 "bridgeDataPriority"
             ]
         },
