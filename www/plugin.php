@@ -133,6 +133,7 @@ if (!isset($_GET['plugin'])) {
     if (file_exists($pluginDirectory . "/" . $pluginName . "/" . $pageName)) {
         -include_once $pluginDirectory . "/" . $pluginName . "/" . $pageName;
     } else {
+        http_response_code(404);
         echo "Error with plugin, requesting a page that doesn't exist: $pluginName/$pageName";
     }
 } elseif (isset($_GET['file']) && !empty($_GET['file'])) {
@@ -148,6 +149,8 @@ if (!isset($_GET['plugin'])) {
             case "gif":$ctype = "image/gif;";
                 break;
             case "png":$ctype = "image/png;";
+                break;
+            case "svg":$ctype = "image/svg;";
                 break;
             case "jpeg":
             case "jpg":$ctype = "image/jpg;";
@@ -173,11 +176,13 @@ if (!isset($_GET['plugin'])) {
         exit();
     } else {
         error_log("Error, could not find file $file");
+        http_response_code(404);
         echo "Error with plugin, requesting a file that doesn't exist";
     }
 } elseif (file_exists($pluginDirectory . "/" . $pluginName . "/plugin.php")) {
     -include_once $pluginDirectory . "/" . $pluginName . "/plugin.php";
 } else {
+    http_response_code(404);
     echo "Plugin invalid, no main page exists";
 }
 
