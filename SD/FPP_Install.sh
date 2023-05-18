@@ -896,6 +896,7 @@ if $clone_fpp; then
     git config pull.rebase true
 fi
 git config --global pull.rebase true
+git config --global --add safe.directory /opt/fpp
 
 #######################################
 # Build VLC
