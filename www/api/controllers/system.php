@@ -316,6 +316,13 @@ function SystemGetStatus()
     }
 }
 
+// GET /api/system/info
+function SystemGetInfo()
+{
+    $result = GetSystemInfoJsonInternal(isset($_GET['simple']));
+    return json($result);
+}
+
 //
 // This function adds some local information to the multi-sync result
 // That doesn't come from fppd
