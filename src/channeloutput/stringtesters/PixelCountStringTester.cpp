@@ -80,7 +80,6 @@ uint8_t* PixelCountPixelStringTester::createTestData(PixelString* ps, int cycleC
 PixelCountPixelStringTester PixelCountPixelStringTester::INSTANCE_BYPORT(false);
 PixelCountPixelStringTester PixelCountPixelStringTester::INSTANCE_BYSTRING(true);
 
-
 constexpr int PIXELS_PER_BLOCK = 10;
 constexpr int FRAMES_PER_BLOCK = 3;
 
@@ -112,6 +111,9 @@ uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps
         currentTimeMS = GetTimeMS();
     }
     if ((currentTimeMS - startTimeMS) < 250) {
+        // turn everything on for a short time to warm up
+        memset(buffer, 10, newLen);
+    } else if ((currentTimeMS - startTimeMS) < 500) {
         // turn everything off
         memset(buffer, 0, newLen);
         testingPort[currentPort] = true;
@@ -204,10 +206,16 @@ uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps
                 }
             }
             if (currentPort == firstPort) {
-                static std::function<void()> STOP_TESTING = []() {
-                    ChannelTester::INSTANCE.StopTest();
-                };
-                Timers::INSTANCE.addTimer("Stop Pixel Count", GetTimeMS() - 50, STOP_TESTING);
+                //static std::function<void()> STOP_TESTING = []() {
+                //    ChannelTester::INSTANCE.StopTest();
+                //};
+                //Timers::INSTANCE.addTimer("Stop Pixel Count", GetTimeMS() - 50, STOP_TESTING);
+                //printf("%d:  %d %d %d\n", currentState, currentPort, firstPort, lastPort);
+            }
+            if (lastPixelIdx[currentPort] > 0) {
+                int idx = lastPixelIdx[currentPort];
+                int cpn = ps->m_virtualStrings[0].channelsPerNode();
+                memset(&buffer[idx * cpn], 0xFF, cpn);
             }
         } else if (currentState >= 4 && currentState < (10 + PIXELS_PER_BLOCK)) {
             int lastState = currentState;

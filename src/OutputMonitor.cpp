@@ -424,6 +424,10 @@ const std::shared_ptr<httpserver::http_response> OutputMonitor::render_GET(const
             args.push_back("999");
             CommandManager::INSTANCE.run("Test Start", args);
         }
+        if (plen > 2 && req.get_path_pieces()[2] == "stop") {
+            std::vector<std::string> args;
+            CommandManager::INSTANCE.run("Test Stop", args);
+        }
         Sensors::INSTANCE.updateSensorSources();
         Json::Value result;
         for (auto a : portPins) {

@@ -35,12 +35,19 @@ function StartMonitoring() {
         });
     });
 }
+function StopPixelCount() {
+    $.get("api/fppd/ports/stop");
+}
 
+function SetupPage() {
+    setInterval(StartMonitoring, 1000);
+    window.addEventListener('beforeunload', StopPixelCount, false);
+}
 </script>
 
 <title><?echo $pageTitle; ?></title>
 </head>
-<body class="is-loading" onLoad="setInterval(StartMonitoring, 1000);">
+<body class="is-loading" onLoad="SetupPage();">
 <div id="bodyWrapper">
 <?php
 $activeParentMenuItem = 'status';
