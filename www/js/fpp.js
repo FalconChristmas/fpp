@@ -2552,7 +2552,7 @@ function SetUniverseCount(input) {
             document.getElementById("txtStartAddress[" + UniverseCount + "]").value = startAddress;
 
             if (!input) {
-                document.getElementById("tblUniversesBody").rows[UniverseCount].cells[14].innerHTML = "<input type='button' class='buttons' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
+                document.getElementById("tblUniversesBody").rows[UniverseCount].cells[14].innerHTML = "<input type='button' class='pingButton buttons' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
             }
             updateUniverseEndChannel(document.getElementById("tblUniversesBody").rows[UniverseCount]);
             UniverseCount++;
@@ -2578,6 +2578,10 @@ function IPOutputTypeChanged(item, input) {
         universe.prop('min', 1);
 
         $(item).parent().parent().find("input.txtIP").prop('disabled', false);
+
+        if (!input) {
+            $(item).parent().parent().find("input.pingButton").prop('disabled', false);
+        }
     } else { // 0,1 = E1.31, 2,3 = Artnet, 6,7 = KiNet
         var univ = $(item).parent().parent().find("input.txtUniverse");
         univ.prop('disabled', false);
@@ -2600,8 +2604,10 @@ function IPOutputTypeChanged(item, input) {
             if ((type == 0) || (type == 2)) {
                 $(item).parent().parent().find("input.txtIP").val('');
                 $(item).parent().parent().find("input.txtIP").prop('disabled', true);
+                $(item).parent().parent().find("input.pingButton").prop('disabled', true);
             } else {
                 $(item).parent().parent().find("input.txtIP").prop('disabled', false);
+                $(item).parent().parent().find("input.pingButton").prop('disabled', false);
             }
 
             var monitor = $(item).parent().parent().find("input.txtMonitor");
@@ -2764,7 +2770,7 @@ function populateUniverseData(data, reload, input) {
         bodyHTML += "/></td>";
         bodyHTML += "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "") + monitorDisabled + "/></td>" +
             "<td " + inputStyle + "><input class='txtDeDuplicate' id='txtDeDuplicate' type='checkbox' size='4' maxlength='4' " + (deDuplicate == 1 ? "checked" : "") + "/></td>" +
-            "<td " + inputStyle + "><input type=button class='buttons' onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
+            "<td " + inputStyle + "><input type=button class='pingButton buttons' onClick='PingE131IP(" + i.toString() + ");' value='Ping' " + ipDisabled + "></td>" +
             "</tr>";
     }
 
