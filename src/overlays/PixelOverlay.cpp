@@ -377,6 +377,18 @@ const std::string& PixelOverlayManager::mapFont(const std::string& f) {
     return f;
 }
 
+Json::Value PixelOverlayManager::getModelsAsJson() {
+    Json::Value ret;
+    std::unique_lock<std::mutex> lock(modelsLock);
+    for (auto& mn : modelNames) {
+        Json::Value model;
+        models[mn]->toJson(model);
+        ret.append(model);
+    }
+    return ret;
+}
+
+
 const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET(const httpserver::http_request& req) {
     std::string p1 = req.get_path_pieces()[0];
     int plen = req.get_path_pieces().size();

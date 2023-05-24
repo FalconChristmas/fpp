@@ -55,6 +55,10 @@ public:
     void addPeriodicUpdate(int32_t initialDelayMS, PixelOverlayModel* m);
     void removePeriodicUpdate(PixelOverlayModel* m);
 
+    Json::Value getModelsAsJson();
+
+    const std::list<std::string> &getModelNames() const { return modelNames; };
+
 private:
     PixelOverlayManager();
     ~PixelOverlayManager();
