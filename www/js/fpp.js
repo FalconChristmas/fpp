@@ -1096,11 +1096,14 @@ function psiDetailsData(name, value, units = '', hide = false) {
     if (hide)
         style = " style='display: none;'";
 
+    if (typeof value === 'string' || value instanceof String) {
+        value = value.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    }
     if (units == '') {
-        return "<div class='psiDetailsData field_" + name + "'" + style + ">" + value.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</div>";
+        return "<div class='psiDetailsData field_" + name + "'" + style + ">" + value + "</div>";
     }
 
-    return "<div class='psiDetailsData'><span class='field_" + name + "'" + style + ">" + value.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</span> " + units + "</div>";
+    return "<div class='psiDetailsData'><span class='field_" + name + "'" + style + ">" + value + "</span> " + units + "</div>";
 }
 
 function psiDetailsArgEnd() {
