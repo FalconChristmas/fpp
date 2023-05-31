@@ -8,8 +8,9 @@ function GetCapeInfo()
     if (isset($settings['cape-info'])) {
         return json($settings['cape-info']);
     }
-
-    halt(404, "No Cape!");
+    http_response_code(404);
+    header("Content-Type: application/json");
+    echo "{\"id\": \"No Cape!\"}";
 }
 
 /////////////////////////////////////////////////////////////////////////////
