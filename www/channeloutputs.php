@@ -5,7 +5,11 @@
 require_once "common.php";
 require_once 'config.php';
 require_once 'universeentry.php';
-require_once 'fppdefines.php';
+if (file_exists(__DIR__ . "/fppdefines.php")) {
+    include_once __DIR__ . '/fppdefines.php';
+} else {
+    include_once __DIR__ . '/fppdefines_unknown.php';
+}
 include 'common/menuHead.inc';
 
 //$settings['Platform'] = "Raspberry Pi"; // Uncomment for testing

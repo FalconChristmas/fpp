@@ -4,7 +4,11 @@
 <?php
 include 'common.php';
 include 'common/menuHead.inc';
-include 'fppdefines.php';
+if (file_exists(__DIR__ . "/fppdefines.php")) {
+    include_once __DIR__ . '/fppdefines.php';
+} else {
+    include_once __DIR__ . '/fppdefines_unknown.php';
+}
 
 $commandOptions = "";
 $commandsJSON = file_get_contents('http://localhost:32322/commands');

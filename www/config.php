@@ -9,9 +9,18 @@ $fppRfsVersion = "Unknown";
 if (file_exists(__DIR__ . "/media_root.txt")) {
     $mediaDirectory = trim(file_get_contents(__DIR__ . "/media_root.txt"));
     $fppHome = dirname($mediaDirectory);
-} else {
+} else if (is_dir("/home/fpp")) {
     $fppHome = "/home/fpp";
     $mediaDirectory = "/home/fpp/media";
+} else {
+    $fppHome = sys_get_temp_dir() . "/fpp";
+    if (!is_dir($fppHome)) {
+        mkdir($fppHome);
+    }
+    $mediaDirectory = $fppHome . "/fpp";
+}
+if (!is_dir($mediaDirectory)) {
+    mkdir($mediaDirectory);
 }
 $settingsFile = $mediaDirectory . "/settings";
 
