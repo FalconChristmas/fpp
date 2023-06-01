@@ -172,10 +172,7 @@ public:
             if (!hardwareDecoding) {
                 args.push_back("--no-hw-dec");
             }
-<<<<<<< Updated upstream
 #ifndef PLATFORM_OSX            
-=======
->>>>>>> Stashed changes
             args.push_back("-A");
             args.push_back("alsa");
 #ifdef PLATFORM_PI
@@ -187,7 +184,6 @@ public:
             args.push_back("-I");
             args.push_back("dummy");
 #endif            
-<<<<<<< Updated upstream
 #else
             args.push_back("-I");
             args.push_back("macosx");
@@ -218,11 +214,6 @@ public:
             args.push_back(nullptr);
             vlcInstance = libvlc_new(args.size() - 1, &args[0]);
 
-=======
-            args.push_back(nullptr);
-            vlcInstance = libvlc_new(args.size() - 1, &args[0]);
-
->>>>>>> Stashed changes
             if (vlcInstance) {
                 libvlc_log_set(vlcInstance, logCallback, this);
             } else {
