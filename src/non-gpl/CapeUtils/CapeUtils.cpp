@@ -652,7 +652,7 @@ private:
                 write(f, "24c256 0x50", 11);
                 close(f);
 
-                for (int x = 0; x < 50; x++) {
+                for (int x = 0; x < 1500; x++) {
                     if (file_exists(EEPROM)) {
                         break;
                     }
@@ -665,7 +665,7 @@ private:
                     f = open(newDevFile.c_str(), O_WRONLY);
                     write(f, "24c256 0x50", 11);
                     close(f);
-                    for (int x = 0; x < 50; x++) {
+                    for (int x = 0; x < 200; x++) {
                         if (file_exists(EEPROM)) {
                             break;
                         }
