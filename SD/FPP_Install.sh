@@ -711,8 +711,18 @@ case "${FPPPLATFORM}" in
             echo "FPP - Disabling Camera AutoDetect"
             sed -i -e "s/camera_auto_detect/#camera_auto_detect/" /boot/config.txt
 
+
             echo "FPP - Enabling SPI in device tree"
             echo >> /boot/config.txt
+
+            echo "FPP - Adding required modules to modules-load to speed up boot"
+            echo "i2c_dev" >> /etc/modules-load.d/modules.conf
+            echo "spidev" >> /etc/modules-load.d/modules.conf
+            echo "at24" >> /etc/modules-load.d/modules.conf
+            echo "lm75" >> /etc/modules-load.d/modules.conf
+            echo "snd_bcm2835" >> /etc/modules-load.d/modules.conf
+            echo "bcm2835_codec" >> /etc/modules-load.d/modules.conf
+            echo "snd_usb_audio" >> /etc/modules-load.d/modules.conf
 
             echo "# Enable SPI in device tree" >> /boot/config.txt
             echo "dtparam=spi=on" >> /boot/config.txt
