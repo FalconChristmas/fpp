@@ -6,21 +6,20 @@ require_once "common.php";
 
 DisableOutputBuffering();
 
-$rm = "rm -rfv";
-#$rm = "echo"; # uncomment for debugging
-
-# Be careful of things in here since 'rm -rf' is used to wipe subdirs.
 # Any file not starting with a / is assumed to be under $mediaDirectory
 # which is normally /home/fpp/media
 $files = array();
-$files['all'] = array(
-    'backups/*',
-    'cache/*',
-    'config/backups',
-    'config/cape-eeprom.bin',
-    'config/media_durations.cache',
+$files['scripts'] = array(
     'scripts/*',
-    'tmp/*'
+);
+$files['caches'] = array(
+    'cache/*',
+    'config/media_durations.cache',
+    'tmp/*',
+);
+$files['backups'] = array(
+    'backups/*',
+    'config/backups',
 );
 $files['config'] = array(
     'config/.htaccess',
@@ -32,47 +31,52 @@ $files['config'] = array(
     'config/model-overlays.json',
     'config/virtualdisplaymap',
     'fpp-info.json',
-    'exim4/*'
+    'exim4/*',
+    'config/cape-eeprom.bin',
 );
 $files['network'] = array(
-    'config/interface.*'
+    'config/interface.*',
+    '/var/lib/connman/fpp.config',
 );
 $files['media'] = array(
     'images/*',
     'music/*',
-    'videos/*'
+    'videos/*',
 );
-$files['sequence'] = array(
+$files['sequences'] = array(
+    'sequences/*',
+);
+$files['effects'] = array(
     'effects/*',
-    'sequences/*'
 );
 $files['playlists'] = array(
-    'playlists/*'
+    'playlists/*',
 );
 $files['channeloutputs'] = array(
     'config/co-bbbStrings.json',
     'config/channeloutputs.json',
     'config/co-other.json',
-    'config/co-pixelStrings.json'
+    'config/co-pixelStrings.json',
+    'config/co-universes.json',
 );
 $files['schedule'] = array(
-    'config/schedule.json'
+    'config/schedule.json',
 );
 $files['settings'] = array(
-    'settings'
+    'settings',
 );
 $files['uploads'] = array(
-    'upload/*'
+    'upload/*',
 );
 $files['logs'] = array(
-    'logs/*'
+    'logs/*',
 );
 $files['plugins'] = array(
-    'plugins/*'
+    'plugins/*',
 );
 $files['pluginConfigs'] = array(
     'config/plugin.*',
-    'plugindata/*'
+    'plugindata/*',
 );
 $files['user'] = array(
     '/home/fpp/.bash_history',
@@ -80,53 +84,50 @@ $files['user'] = array(
     '/home/fpp/.ssh/known_hosts',
     '/root/.bash_history',
     '/root/.ssh/authorized_keys',
-    '/root/.ssh/known_hosts'
+    '/root/.ssh/known_hosts',
 );
-
-# fill out our 'all' category with everything else except Networking
-foreach ($files as $k => $v) {
-    if ($k != 'all') {
-        foreach ($v as $f) {
-            if ($f != 'network')
-                array_push($files['all'], $f);
-        }
-    }
-}
 
 ?>
 Resetting FPP Configuration
 ======================================================================
 Removing files:
 <?
-$areas = array('all');
+$areas = array();
 if (isset($_GET['areas'])) {
     $areasStr = $_GET['areas'];
     $areasStr = preg_replace('/,dummy/', '', $areasStr);
     $areas = preg_split('/,/', $areasStr);
-
-    if (in_array('all', $areas))
-        $areas = array('all');
 }
 
 foreach ($areas as $area) {
-    printf( "Area: %s\n", $area);
+    printf("Area: %s\n", $area);
     foreach ($files[$area] as $file) {
         $base = $settings['mediaDirectory'] . '/';
         if (substr($file, 0, 1) == '/') {
             $base = '';
         }
-
         if (preg_match('/[?\*]/', $file)) {
-            printf( "%s%s\n", $base, $file);
-            system("/bin/ls -1 $base$file | sudo xargs $rm");
-        } else {
-            if (file_exists($base . $file)) {
-                printf( "%s%s\n", $base, $file);
-                system("sudo $rm $base$file");
+            $filesInDir = glob($base . $file); // get all file names
+            foreach ($filesInDir as $fileToRemove) { // iterate files
+                if (is_file($fileToRemove)) {
+                    printf("%s\n", $fileToRemove);
+                    unlink($fileToRemove); // delete file
+                } else if (is_dir($fileToRemove)) {
+                    $di = new RecursiveDirectoryIterator($fileToRemove, FilesystemIterator::SKIP_DOTS);
+                    $ri = new RecursiveIteratorIterator($di, RecursiveIteratorIterator::CHILD_FIRST);
+                    foreach ($ri as $fileToRemove2) {
+                        printf("%s\n", $fileToRemove2);
+                        $fileToRemove2->isDir() ? rmdir($fileToRemove2) : unlink($fileToRemove2);
+                    }
+                    rmdir($fileToRemove);
+                }
             }
+        } else if (file_exists($base . $file)) {
+            printf("%s%s\n", $base, $file);
+            unlink($base . $file); // delete file
         }
     }
-    printf( "\n");
+    printf("\n");
 }
 
 flush();
