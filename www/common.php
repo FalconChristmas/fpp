@@ -2341,7 +2341,12 @@ function GetSystemInfoJsonInternal($simple = false)
     $result['HostDescription'] = !empty($settings['HostDescription']) ? $settings['HostDescription'] : "";
     $result['Platform'] = $settings['Platform'];
     $result['Variant'] = isset($settings['Variant']) ? $settings['Variant'] : '';
+    if (isset($settings['SubPlatform'])) {
+        $result['SubPlatform'] = $settings['SubPlatform'];
+    }
+    $result['backgroundColor'] = $settings['backgroundColor'];
     $result['Mode'] = $settings['fppMode'];
+    $result['Logo'] = $settings['Logo'];
     $result['Version'] = getFPPVersion();
     $result['Branch'] = getFPPBranch();
     $result['multisync'] = isset($settings['MultiSyncEnabled']) ? ($settings['MultiSyncEnabled'] == '1') : false;
