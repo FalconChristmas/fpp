@@ -588,11 +588,11 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
 	    //Expert View Rows
 	    if( data.hasOwnProperty('advancedView') && data.status_name !== 'unknown' && data.status_name !== 'unreachable' && data.status_name !== 'password') {
-		if (data.advancedView.hasOwnProperty('Platform')) {
-			$('#' + rowID + '_platform').html(data.advancedView.Platform);
+		    if (data.advancedView.hasOwnProperty('Platform')) {
+			    $('#' + rowID + '_platform').html(data.advancedView.Platform);
 	        }
-		if (data.advancedView.hasOwnProperty('Variant') && (data.advancedView.Variant != '')) {
-			$('#' + rowID + '_variant').html(data.advancedView.Variant);
+		    if (data.advancedView.hasOwnProperty('Variant') && (data.advancedView.Variant != '')) {
+			    $('#' + rowID + '_variant').html(data.advancedView.Variant);
 	        }
 
                 var updatesAvailable = 0;
@@ -603,8 +603,14 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     (data.advancedView.RemoteGitVersion !== data.advancedView.LocalGitVersion)) {
                     updatesAvailable = 1;
                 }
-
-               if (data.advancedView.hasOwnProperty("RemoteGitVersion")) {
+                if (data.advancedView.hasOwnProperty("backgroundColor") && data.advancedView.backgroundColor != "") {
+                    $('#' + rowID).css('background', "#" + data.advancedView.backgroundColor);
+                    $('#' + rowID + "_warnings").css('background', "#" + data.advancedView.backgroundColor);
+                    $('#' + rowID).css('color', "#FFF");
+                    $('#' + rowID + " a").css('color', "#989898");
+                    $('#' + rowID + "_warnings .warning-text").css('color', "#FF8080");
+                }
+                if (data.advancedView.hasOwnProperty("RemoteGitVersion")) {
                     var u = "<table class='multiSyncVerboseTable'>";
                     u += "<tr><td>Local:</td><td id='" + rowID + "_localgitvers'>";
                     u += getLocalVersionLink(ip, data);
