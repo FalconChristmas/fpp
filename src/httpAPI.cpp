@@ -34,12 +34,12 @@
 #include <iomanip>
 #include <sstream>
 
+#include "OutputMonitor.h"
 #include "Plugins.h"
 #include "gpio.h"
 #include "mediaoutput/mediaoutput.h"
 #include "overlays/PixelOverlay.h"
 #include "sensors/Sensors.h"
-#include "OutputMonitor.h"
 
 static std::time_t startupTime = std::time(nullptr);
 
@@ -147,7 +147,7 @@ void GetCurrentFPPDStatus(Json::Value& result) {
         result["warnings"].append(warn);
     }
     if (mode == 1) {
-        //bridge mode only returns the base information
+        // bridge mode only returns the base information
         return;
     }
 
@@ -288,6 +288,7 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
     LogRequest(req);
 
     Json::Value result;
+    std::string resultStr = "";
     std::string url = req.get_path();
 
     replaceStart(url, "/fppd/", "");
@@ -301,6 +302,12 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
         GetLogSettings(result);
     } else if (url == "status") {
         GetCurrentStatus(result);
+    } else if (url == "warnings") {
+        std::list<std::string> warnings = WarningHolder::GetWarnings();
+        result = Json::Value(Json::ValueType::arrayValue);
+        for (auto& warn : warnings) {
+            result.append(warn);
+        }
     } else if (url == "e131stats") {
         GetE131BytesReceived(result);
     } else if (url == "multiSyncSystems") {
@@ -356,15 +363,18 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
     }
 
     int responseCode = 200;
-    if (result.empty()) {
-        result["Status"] = "ERROR";
-        result["respCode"] = 400;
-        result["Message"] = "GET endpoint helper did not set result JSON";
-    } else if (result.isMember("respCode")) {
-        responseCode = result["respCode"].asInt();
+    if (resultStr.empty() && !result.isArray()) {
+        if (result.empty()) {
+            result["Status"] = "ERROR";
+            result["respCode"] = 400;
+            result["Message"] = "GET endpoint helper did not set result JSON";
+        } else if (result.isMember("respCode")) {
+            responseCode = result["respCode"].asInt();
+        }
     }
-
-    std::string resultStr = SaveJsonToString(result);
+    if (resultStr.empty()) {
+        resultStr = SaveJsonToString(result);
+    }
     LogResponse(req, responseCode, resultStr);
 
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, responseCode, "application/json"));
@@ -776,7 +786,7 @@ void PlayerResource::PostOutputsRemap(const Json::Value& data, Json::Value& resu
 
     if (data["command"].asString() == "reload") {
         // FIXME, need to fix this function to lock the remap array
-        //LoadChannelRemapData();
+        // LoadChannelRemapData();
         SetOKResult(result, "channel remaps reloaded");
     }
 }

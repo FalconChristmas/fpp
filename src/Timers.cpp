@@ -28,7 +28,7 @@ Timers::~Timers() {
     }
     timers.clear();
 }
-void Timers::addTimer(const std::string& name, long long fireTimeMS, std::function<void()>& callback) {
+void Timers::addTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback) {
     std::unique_lock<std::mutex> l(lock);
     if (!name.empty()) {
         for (auto& a : timers) {
@@ -71,7 +71,7 @@ void Timers::addTimer(const std::string& name, long long fireTimeMS, const std::
     updateTimers();
 }
 
-void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>& callback) {
+void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback) {
     std::unique_lock<std::mutex> l(lock);
     if (!name.empty()) {
         for (auto& a : timers) {
@@ -107,7 +107,6 @@ void Timers::stopPeriodicTimer(const std::string& name) {
         }
     }
 }
-
 
 void Timers::fireTimersInternal(long long t) {
     std::unique_lock<std::mutex> l(lock);

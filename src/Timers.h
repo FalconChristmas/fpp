@@ -27,11 +27,12 @@ public:
         }
     }
 
-    void addTimer(const std::string& name, long long fireTimeMS, std::function<void()>& callback);
+    void addTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback);
     void addTimer(const std::string& name, long long fireTimeMS, const std::string& preset);
 
-    void addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>& callback);
+    void addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback);
     void stopPeriodicTimer(const std::string& name);
+
 private:
     bool hasTimers = false;
     long long nextTimer = 0;
