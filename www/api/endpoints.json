@@ -580,7 +580,7 @@
             "fppd": true,
             "methods": {
                 "GET": {
-                    "desc": "Gets the current output volume",
+                    "desc": "Gets a list of effects",
                     "output": {
                         "Message": "",
                         "Status": "OK",
@@ -633,7 +633,7 @@
             "fppd": true,
             "methods": {
                 "GET": {
-                    "desc": "REturns status about Multisync instances",
+                    "desc": "Returns status about Multisync instances",
                     "output": {
                         "Message": "",
                         "Status": "OK",
