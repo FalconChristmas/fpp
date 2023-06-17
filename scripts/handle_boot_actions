@@ -17,6 +17,9 @@ function HandleSettings() {
     if (array_key_exists("ForceHDMIResolutionPort2", $settings)) ApplySetting("ForceHDMIResolutionPort2", $settings["ForceHDMIResolutionPort2"]);
     if (array_key_exists("wifiDrivers", $settings)) ApplySetting("wifiDrivers", $settings["wifiDrivers"]);
 
+    if (array_key_exists("Service_rsync", $settings)) ApplyServiceSetting("Service_rsync", $settings["Service_rsync"], "");
+    if (array_key_exists("Service_smbd_nmbd", $settings)) ApplyServiceSetting("Service_smbd_nmbd", $settings["Service_smbd_nmbd"], "");
+    if (array_key_exists("Service_vsftpd", $settings)) ApplyServiceSetting("Service_vsftpd", $settings["Service_vsftpd"], "");
 }
 
 function HandleExpandFS() {

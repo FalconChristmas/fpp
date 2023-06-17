@@ -250,8 +250,25 @@ function SetInstalledCape($value)
     exec("sudo " . $settings['fppBinDir'] . "/fppcapedetect", $output, $return_val);
 }
 /////////////////////////////////////////////////////////////////////////////
+function ApplyServiceSetting($setting, $value, $now)
+{
+    if ($settings["Platform"] != "MacOS") {
+        if (preg_match('/^Service_(rsync|smbd_nmbd|vsftpd)$/', $setting)) {
+            $services = preg_split('/_/', preg_replace("/^Service_/", "", $setting));
+            foreach ($services as $service) {
+                if ($value == '0') {
+                    exec( "sudo systemctl " . $now . " disable $service");
+                } else if ($value == '1') {
+                    exec( "sudo systemctl " . $now . " enable $service");
+                }
+            }
+        }
+    }
+}
+
 function ApplySetting($setting, $value)
 {
+    global $settings;
     switch ($setting) {
         case 'ClockDate':SetDate($value);
             break;
@@ -283,17 +300,9 @@ function ApplySetting($setting, $value)
             break;
         case 'InstalledCape':SetInstalledCape($value);
             break;
-    }
-
-    if (preg_match('/^Service_(rsync|smbd_nmbd|vsftpd)$/', $setting)) {
-        $services = preg_split('/_/', preg_replace("/^Service_/", "", $setting));
-        foreach ($services as $service) {
-            if ($value == '0') {
-                exec( "sudo systemctl --now disable $service");
-            } else if ($value == '1') {
-                exec( "sudo systemctl --now enable $service");
-            }
-        }
+        default:
+            ApplyServiceSetting($setting, $value, "--now");
+            break;
     }
 }
 
