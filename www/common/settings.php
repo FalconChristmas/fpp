@@ -252,6 +252,7 @@ function SetInstalledCape($value)
 /////////////////////////////////////////////////////////////////////////////
 function ApplyServiceSetting($setting, $value, $now)
 {
+    global $settings;
     if ($settings["Platform"] != "MacOS") {
         if (preg_match('/^Service_(rsync|smbd_nmbd|vsftpd)$/', $setting)) {
             $services = preg_split('/_/', preg_replace("/^Service_/", "", $setting));
