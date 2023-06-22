@@ -143,36 +143,41 @@ function CloseUpgradeDialog(reload = false) {
         location.reload();
 }
 
+
+
+function RestoreDone() {
+    EnableModalDialogCloseButton("RestoreEEPROM");
+    $("#RestoreEEPROMCloseButton").prop("disabled", false);
+}
+
 function RestoreFirmwareDone() {
-    var txt = $('#upgradeText').val();
+    var txt = $('#RestoreEEPROMText').val();
     if (txt.includes("Cape does not match new firmware")) {
         var arrayOfLines = txt.match(/[^\r\n]+/g);
         var msg = "Are you sure you want to replace the firmware for cape:\n" + arrayOfLines[1] + "\n\nWith the firmware for: \n" + arrayOfLines[2] + "\n";
         if (confirm(msg)) {
             var filename = $('#backupFile').val();
-            $('#upgradeText').html('');
-            StreamURL('upgradeCapeFirmware.php?force=true&filename=' + filename, 'upgradeText', 'UpgradeDone', 'UpgradeDone', 'GET', null, false, false);
+            $('#RestoreEEPROMText').html('');
+            StreamURL('upgradeCapeFirmware.php?force=true&filename=' + filename, 'RestoreEEPROMText', 'RestoreDone', 'RestoreDone', 'GET', null, false, false);
         }
     }
-    $('#closeDialogButton').show();
+    RestoreDone();
 }
 
 function RestoreFirmware() {
     var filename = $('#backupFile').val();
 
-    $('.dialogCloseButton').hide();
-    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Restore Cape Firmware", dialogClass: 'no-close' });
-    $('#upgradePopup').fppDialog( "moveToTop" );
-    $('#upgradeText').html('');
-    StreamURL('upgradeCapeFirmware.php?filename=' + filename, 'upgradeText', 'RestoreFirmwareDone', 'RestoreFirmwareDone', 'GET', null, false, false);
+    DisplayProgressDialog("RestoreEEPROM", "Restore Cape Firmware");
+    StreamURL('upgradeCapeFirmware.php?filename=' + filename, 'RestoreEEPROMText', 'RestoreFirmwareDone', 'RestoreFirmwareDone', 'GET', null, false, false);
 }
 
 function UpgradeDone() {
-    $('#closeDialogButton').show();
+    EnableModalDialogCloseButton("UpgradeEEPROM");
+    $("#UpgradeEEPROMCloseButton").prop("disabled", false);
 }
 
 function UpgradeFirmwareDone() {
-    var txt = $('#upgradeText').val();
+    var txt = $('#UpgradeEEPROMText').val();
     if (txt.includes("Cape does not match new firmware")) {
         var arrayOfLines = txt.match(/[^\r\n]+/g);
         var msg = "Are you sure you want to replace the firmware for cape:\n" + arrayOfLines[2] + "\n\nWith the firmware for: \n" + arrayOfLines[3] + "\n";
@@ -188,11 +193,11 @@ function UpgradeFirmwareDone() {
                 formData.append("firmware", firmware);
             }
 
-            $('#upgradeText').html('');
-            StreamURL('upgradeCapeFirmware.php?force=true', 'upgradeText', 'UpgradeDone', 'UpgradeDone', 'POST', formData, false, false);
+            $('#UpgradeEEPROMText').html('');
+            StreamURL('upgradeCapeFirmware.php?force=true', 'UpgradeEEPROMText', 'UpgradeDone', 'UpgradeDone', 'POST', formData, false, false);
         }
     }
-    $('#closeDialogButton').show();
+    UpgradeDone();
 }
 function UpgradeFirmware(force = false) {
     var eepromFile = $('#eepromVendorCapeVersions').val();
@@ -201,11 +206,6 @@ function UpgradeFirmware(force = false) {
         alert('You must choose a downloadable file from the list or pick a local file to upload.');
         return;
     }
-
-    $('.dialogCloseButton').hide();
-    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Upgrade Cape Firmware", dialogClass: 'no-close' });
-    $('#upgradePopup').fppDialog( "moveToTop" );
-    $('#upgradeText').html('');
 
     let formData = new FormData();
 
@@ -219,7 +219,8 @@ function UpgradeFirmware(force = false) {
     if (force)
         forceOpt = '?force=true';
 
-    StreamURL('upgradeCapeFirmware.php' + forceOpt, 'upgradeText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
+    DisplayProgressDialog("UpgradeEEPROM", "Upgrade Cape Firmware");
+    StreamURL('upgradeCapeFirmware.php' + forceOpt, 'UpgradeEEPROMText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
 }
 
 var eepromList = [];

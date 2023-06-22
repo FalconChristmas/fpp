@@ -177,11 +177,6 @@ function cancelVirtualEEPROMSelect() {
     reloadPage();
 }
 
-function CloseUpgradeDialog(reload = false) {
-    $('#upgradePopup').fppDialog('close');
-    if (reload)
-        location.reload();
-}
 
 function RemoveVirtualEEPROM() {
     DeleteFile("config", null, "cape-eeprom.bin", true);
@@ -192,18 +187,24 @@ function RemoveVirtualEEPROM() {
     reloadPage();
 }
 
+function UpgradeDone() {
+    EnableModalDialogCloseButton("InstallVirtualEEPROM");
+    $("#InstallVirtualEEPROMCloseButton").prop("disabled", false);
+}
 function InstallFirmwareDone() {
-    var txt = $('#upgradeText').val();
+    var txt = $('#InstallVirtualEEPROMText').val();
     if (txt.includes("Cape does not match new firmware")) {
         var arrayOfLines = txt.match(/[^\r\n]+/g);
         var msg = "Are you sure you want to install the virtual firmware for cape:\n" + arrayOfLines[2] + "\n\nWith the virtual firmware for: \n" + arrayOfLines[3] + "\n";
         if (confirm(msg)) {
             var filename = $('#virtualEEPROM').val();
             $('#upgradeText').html('');
-            StreamURL('upgradeCapeFirmware.php?force=true&filename=' + filename, 'upgradeText', 'UpgradeDone', 'UpgradeDone', 'GET', null, false, false);
+            StreamURL('upgradeCapeFirmware.php?force=true&filename=' + filename, 'InstallVirtualEEPROMText', 'UpgradeDone', 'UpgradeDone', 'GET', null, false, false);
+        } else {
+            reloadPage();
         }
     }
-    $('#closeDialogButton').show();
+    UpgradeDone();
 }
 
 function InstallFirmware() {
@@ -214,11 +215,8 @@ function InstallFirmware() {
         return;
     }
 
-    $('.dialogCloseButton').hide();
-    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Install Cape Firmware", dialogClass: 'no-close' });
-    $('#upgradePopup').fppDialog( "moveToTop" );
-    $('#upgradeText').html('');
-    StreamURL('upgradeCapeFirmware.php?filename=' + filename, 'upgradeText', 'InstallFirmwareDone', 'InstallFirmwareDone', 'GET', null, false, false);
+    DisplayProgressDialog("InstallVirtualEEPROM", "Install Cape Firmware");
+    StreamURL('upgradeCapeFirmware.php?filename=' + filename, 'InstallVirtualEEPROMText', 'InstallFirmwareDone', 'InstallFirmwareDone', 'GET', null, false, false);
 }
 
 function MapPixelStringType(type) {
@@ -2673,10 +2671,4 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
 <span class='capeNotes capeTypeRow' style='display: none;'><b>Cape Configuration Notes:</b><br></span>
 <span class='capeNotes capeTypeRow' id='capeNotes' style='display: none;'></span>
 
-<div id='upgradePopup' title='FPP Upgrade' style="display: none">
-    <textarea style='width: 99%; height: 500px;' disabled id='upgradeText'>
-    </textarea>
-    <input id='closeDialogButton' type='button' class='buttons dialogCloseButton' value='Close' onClick='CloseUpgradeDialog(true);' style='display: none;'>
-    <input id='errorDialogButton' type='button' class='buttons dialogCloseButton' value='Close' onClick='CloseUpgradeDialog(false);' style='display: none;'>
-</div>
 

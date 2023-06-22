@@ -349,8 +349,9 @@ $(document).ready(function() {
     border-bottom: 2px solid #E2E2E2;
 }
 
-td {
+td, th {
 	vertical-align: top;
+    border-width: 1px;
 }
 
 .endpoint .command {
