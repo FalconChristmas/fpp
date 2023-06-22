@@ -46,16 +46,6 @@ $(document).ready(function() {
 		   $('#txtBridgeInputDelayBeforeBlack').val(val);
 	   }
 	});
-	$(document).tooltip({
-	   content: function() {
-	     $('.ui-tooltip').hide();
-	     var id=$(this).attr('id');
-	     id = id.replace('_img', '_tip');
-	     return $('#'+id).html();
-	     },
-	   hide: {delay: 100 }
-	});
-
 
 	$('#txtUniverseCount').on('focus',function() {
 		$(this).select();
@@ -125,8 +115,6 @@ $(document).ready(function() {
              DialogError("Save E1.31 Universes", "Validation Failed");
          }
 	});
-
-    $(document).tooltip();
 });
 
 /////////////////////////////////////////////////////////////////////////////
@@ -204,7 +192,7 @@ $(document).ready(function(){
 
 		<ul class="nav nav-pills pageContent-tabs" id="channelInputTabs" role="tablist">
               <li class="nav-item">
-                <a class="nav-link active" id="tab-e131-tab" tabType='UDP' data-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
+                <a class="nav-link active" id="tab-e131-tab" tabType='UDP' data-bs-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
 				E1.31/ArtNet/DDP Inputs
 				</a>
               </li>
@@ -224,12 +212,12 @@ $(document).ready(function(){
 		    <form id="frmUniverses">
                 <div class="row tablePageHeader">
                     <div class="col-md"><h2>E1.31 / ArtNet / DDP Inputs</h2></div>
-                    <div class="col-md-auto ml-lg-auto">
+                    <div class="col-md-auto ms-lg-auto">
                         <div class="form-actions">
                                 <input name="input" type="hidden" value="0" />
                                 <input id="btnDeleteUniverses" class="buttons btn-outline-danger" type="button" value = "Delete" onClick="DeleteUniverse(1);" />
                                 <input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" />
-                                <input id="btnSaveUniverses" class="buttons btn-success ml-1" type="submit" value = "Save" />
+                                <input id="btnSaveUniverses" class="buttons btn-success ms-1" type="submit" value = "Save" />
                         </div>
                     </div>
                 </div>
@@ -244,8 +232,8 @@ $(document).ready(function(){
                             <div class="col-md-auto form-inline">
                                 <div><b>Timeout:</b></div>
                                 <div ><input id="bridgeTimeoutMS" type="number" min="0" max="9999" size="4" maxlength="4">
-                                        <img id="timeout_img" title="Blank Timeout" src="images/redesign/help-icon.svg" width=22 height=22>
-                                        <span id="timeout_tip" class="tooltip" style="display: none">Timeout for input channel data (in MS).  If no new data is received for this time, the input data is cleared.</span></div>
+                                        <img id="timeout_img" title="Timeout for input channel data (in MS).  If no new data is received for this time, the input data is cleared." src="images/redesign/help-icon.svg" width=22 height=22>
+                                </div>
                             </div>
 							<div class="col-md-auto form-inline">
 								<div><b>Inputs Count: </b></div>
@@ -261,15 +249,15 @@ $(document).ready(function(){
 		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable'>
 		                <thead id='tblUniversesHead'>
 								<th class="tblScheduleHeadGrip"></th>
-				        		<th title='Input Number'>Input</th>
-		                        <th title='Input Enabled/Disabled status'>Active</th>
-		                        <th title='User Description'>Description</th>
-		                        <th title='Input Type'>Input Type</th>
-		                        <th title='FPP Start Channel'>FPP Channel Start</th>
-		                        <th title='FPP End Channel'>FPP Channel End</th>
-		                        <th title='Universe Number'>Universe #</th>
-		                        <th title='Universe Count for this controller'>Universe Count</th>
-		                        <th title='Universe size'>Universe Size</th>
+				        		<th>Input</th>
+		                        <th>Active</th>
+		                        <th>Description</th>
+		                        <th>Input Type</th>
+		                        <th>FPP Channel Start</th>
+		                        <th>FPP Channel End</th>
+		                        <th>Universe #</th>
+		                        <th>Universe Count</th>
+		                        <th>Universe Size</th>
 		                    </tr>
 		                </thead>
 		                <tbody id='tblUniversesBody'>

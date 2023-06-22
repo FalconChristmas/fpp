@@ -292,7 +292,7 @@ foreach ($playlistEntryTypes as $pet) {
             <button onclick="AddPlaylistEntry(1);" class="buttons playlistDetailsEditButton" value="Replace">Replace</button>
             <button onclick="RemovePlaylistEntry();" class="buttons playlistDetailsEditButton" value="Remove">Remove</button>
             <div class="dropdown">
-                <button class="buttons dropdown-toggle playlistDetailsEditButton" type="button" id="playlistDetailsEditMoreButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <button class="buttons dropdown-toggle playlistDetailsEditButton" type="button" id="playlistDetailsEditMoreButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     More
                 </button>
                 <div class="dropdown-menu playlistDetailsEditMoreButtonMenu" aria-labelledby="playlistDetailsEditMoreButton">
@@ -310,7 +310,7 @@ foreach ($playlistEntryTypes as $pet) {
 </div>
 <div class="playlistEditEntriesContainer">
     <div class="playlistEditEntriesActions">
-        <button class="buttons btn-outline-success btn-lg btn-rounded playlistEntriesAddNewBtn ml-auto" >
+        <button class="buttons btn-outline-success btn-lg btn-rounded playlistEntriesAddNewBtn ms-auto" >
         <i class="fas fa-plus"></i> Add a Sequence/Entry
         </button>
     </div>
@@ -321,18 +321,6 @@ include "playlistDetails.php";
 ?>
 </div>
 
-
-
-
-<div id="copyPlaylist_dialog" title="Copy Playlist" style="display: none">
-    <span>Enter name for new playlist:</span>
-    <input name="newPlaylistName" type="text" style="z-index:10000; width: 95%" class="newPlaylistName" value="New Playlist Name">
-</div>
-
-<div id="renamePlaylist_dialog" title="Rename Playlist" style="display: none">
-    <span>Enter new name for playlist:</span>
-    <input name="newPlaylistName" type="text" style="z-index:10000; width: 95%" class="newPlaylistName" value="New Playlist Name">
-</div>
 
 <span id='randomizeBuffer' style='display: none;'>
 </span>

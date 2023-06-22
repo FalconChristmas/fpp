@@ -1,49 +1,122 @@
-
-@import '../../../node_modules/bootstrap/scss/functions';
 @import './variables';
 @import './mixins';
-@import "../../../node_modules/bootstrap/scss/functions";
+
+
+@import '../../../node_modules/bootstrap/scss/functions';
 @import "../../../node_modules/bootstrap/scss/variables";
+@import "../../../node_modules/bootstrap/scss/variables-dark";
+@import "../../../node_modules/bootstrap/scss/maps";
+@import "../../../node_modules/bootstrap/scss/utilities";
 @import "../../../node_modules/bootstrap/scss/mixins";
+
+
 @import './spacing';
+
+$theme-colors-rgb: map-loop($theme-colors, to-rgb, "$value");
+$utilities-colors: map-merge($utilities-colors, $theme-colors-rgb);
+$utilities-text-colors: map-loop($utilities-colors, rgba-css-var, "$key", "text");
+$utilities-bg-colors: map-loop($utilities-colors, rgba-css-var, "$key", "bg");
+@include _assert-ascending($grid-breakpoints, "$grid-breakpoints");
+@include _assert-starts-at-zero($grid-breakpoints, "$grid-breakpoints");
+@include _assert-ascending($container-max-widths, "$container-max-widths");
+
+
 @import "../../../node_modules/bootstrap/scss/root";
 @import "../../../node_modules/bootstrap/scss/reboot";
 @import "../../../node_modules/bootstrap/scss/images";
 @import "../../../node_modules/bootstrap/scss/grid";
-//@import "../../../node_modules/bootstrap/scss/tables";
 @import "../../../node_modules/bootstrap/scss/forms";
-@import "../../../node_modules/bootstrap/scss/custom-forms";
 @import "../../../node_modules/bootstrap/scss/buttons";
 @import "../../../node_modules/bootstrap/scss/transitions";
 @import "../../../node_modules/bootstrap/scss/dropdown";
 @import "../../../node_modules/bootstrap/scss/button-group";
 @import "../../../node_modules/bootstrap/scss/nav";
-@import "../../../node_modules/bootstrap/scss/utilities/text";
-@import "../../../node_modules/bootstrap/scss/utilities/display";
-@import "../../../node_modules/bootstrap/scss/utilities/flex";
-@import "../../../node_modules/bootstrap/scss/utilities/float";
-@import "../../../node_modules/bootstrap/scss/utilities/background";
 @import "../../../node_modules/bootstrap/scss/navbar";
 @import "../../../node_modules/bootstrap/scss/card";
 @import "../../../node_modules/bootstrap/scss/badge";
 @import "../../../node_modules/bootstrap/scss/alert";
-//@import "../../../node_modules/bootstrap/scss/progress";
-@import "../../../node_modules/bootstrap/scss/input-group";
 @import "../../../node_modules/bootstrap/scss/list-group";
 @import "../../../node_modules/bootstrap/scss/close";
-//@import "../../../node_modules/bootstrap/scss/toasts";
 @import "../../../node_modules/bootstrap/scss/progress";
 @import "../../../node_modules/bootstrap/scss/modal";
 @import "../../../node_modules/bootstrap/scss/tooltip";
-//@import "../../../node_modules/bootstrap/scss/popover";
-//@import "../../../node_modules/bootstrap/scss/carousel";
 @import "../../../node_modules/bootstrap/scss/spinners";
+
+
 @import './callouts';
 @import './buttons';
 @import './uploadfile';
-// @import "./hamburger";
 
+body {
+    font-family: "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color";
+    font-size: 0.95rem;
+}
 
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  font-size: 1.5em;
+}
+h1 {
+  font-size: 1.75em;
+}
+h2 {
+  font-size: 1.5em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.0em;
+}
+hr {
+  margin: 0px;
+  opacity: 1;
+}
+.btn, .buttons, .ui-dialog-buttonset button, .ajax-file-upload, .pageContent .disableButtons, .ui-dialog .disableButtons, .modal .disableButtons {
+  font-weight: bold;
+}
+
+.ajax-file-upload-bar {
+  background-color: #56B760;
+}
+.nav-pills {
+    --bs-nav-pills-link-active-bg: #F63939;
+}
+.pageContent .btn-success, .btn-success {
+  background-color: #56B760;
+  border-color: #56B760;
+}
+
+.close {
+  float: right;
+  font-size: 1.425rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #171720;
+  text-shadow: 0 1px 0 #fff;
+  opacity: .5; }
+  .close:hover {
+    color: #171720;
+    text-decoration: none; }
+  .close:not(:disabled):not(.disabled):hover, .close:not(:disabled):not(.disabled):focus {
+    opacity: .75;
+}
+button.close {
+  padding: 0;
+  background-color: transparent;
+  border: 0;
+}
+
+.tooltip-inner {
+    background-color: $white;
+    color: $black;
+    border-color: $black;
+    border-width: 1px;
+    border-style: solid;
+}
+.tooltip {
+    --bs-tooltip-max-width: 300px;
+}
 .navbar{
     padding:0;
 }
@@ -148,8 +221,6 @@ input[type=text], input[type=number], input[type=password], input[type=email], i
       border: 0;
     }
 
-    @include form-control-focus($ignore-warning: true);
-
     &::placeholder {
       color: $input-placeholder-color;
       opacity: 1;
@@ -159,8 +230,8 @@ input[type=text], input[type=number], input[type=password], input[type=email], i
 	color:$black;
 	appearance: none;
 	font-weight: normal;
-    font-size: $font-size-base;
     vertical-align: middle;
+    font-size: 0.95rem;
     body.has-touch &{
         font-size: 16px; //makes sure browser does not zoom into field on mobile
     }
@@ -289,7 +360,6 @@ input[type=checkbox]:checked{
     background-color: #ECECEC;
 }
 .alert{
-
     color:$white;
     a{
         color:$black;
@@ -299,11 +369,15 @@ input[type=checkbox]:checked{
         }
     }
     &.detract{
-        background-color: $detract;
+        background-color: #F2BC5F;
     }
-    &.danger-outline{
-        border-color:$red;
+    &-danger-outline{
         color:$red;
+        background-color: $red;
+    }
+    &-danger {
+        background-color: $red;
+        border-color: $red;
     }
     .buttons{
         margin-top: -0.5em;
@@ -822,8 +896,8 @@ input[type=file]::file-selector-button {
     line-height: 1.5;
     border-radius: 0.25rem;
     border: 1px solid;
-  }
-  input[type=file]::file-selector-button:hover {
+}
+input[type=file]::file-selector-button:hover {
     background-color: #171720;
     color: #FFFFFF;
-  }
+}

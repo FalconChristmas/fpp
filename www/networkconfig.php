@@ -205,20 +205,23 @@ function LoadDNSConfig() {
 
 function ApplyNetworkConfig()
 {
-	$('#dialog-confirm').fppDialog({
-		resizeable: false,
-		width: 500,
-		modal: true,
-		buttons: {
+    DoModalDialog({
+        id: "applyNetworkConfirm",
+        title: "Apply Network Changes",
+        body: $("#dialog-confirm"),
+        class: 'modal-lg',
+        backdrop: true,
+        keyboard: true,
+        buttons: {
 			"Yes" : {class:'btn-success',click:function() {
-				$(this).fppDialog("close");
-				$.post("api/network/interface/" + $('#selInterfaces').val() + "/apply");
+                    CloseModalDialog("applyNetworkConfirm");
+		    		$.post("api/network/interface/" + $('#selInterfaces').val() + "/apply");
 				}},
 			"Cancel and apply at next reboot" : {click:function() {
-				$(this).fppDialog("close");
+                    CloseModalDialog("applyNetworkConfirm");
 				}}
-			}
-		});
+        }
+    });
 }
 
 function SaveNetworkConfig() {
@@ -284,62 +287,68 @@ function SaveNetworkConfig() {
 }
 
 function AddInterface() {
-    $('#dialog-addinterface').fppDialog({
-        resizeable: false,
-        height: 300,
-        width: 500,
-        modal: true,
+    DoModalDialog({
+        id: "addNewInterfaceDialog",
+        title: "Add New Interface",
+        body:  $('#dialog-addinterface'),
+        class: 'modal-m',
+        backdrop: true,
+        keyboard: true,
         buttons: {
-            "OK" : function() {
-                $(this).fppDialog("close");
+			"OK" : {class:'btn-success',click:function() {
+                CloseModalDialog("addNewInterfaceDialog");
                 var newInterfaceName = $(this).find(".newInterfaceName").val();
                 $.get("api/network/interface/add/" + newInterfaceName, "", function() {location.reload(true);});
-            },
-            "Cancel" : function() {
-            $(this).fppDialog("close");
-            }
+            }},
+			"Cancel" : {click:function() {
+                CloseModalDialog("addNewInterfaceDialog");
+			}}
         }
     });
 }
 
 function CreatePersistentNames() {
-    $('#dialog-create-persistent').fppDialog({
-        resizeable: false,
-        height: 300,
-        width: 500,
-        modal: true,
+    DoModalDialog({
+        id: "createPersistentDialog",
+        title: "Create Persistent Names",
+        body: $("#dialog-create-persistent"),
+        class: 'modal-m',
+        backdrop: true,
+        keyboard: true,
         buttons: {
-            "Yes" : function() {
-                $(this).fppDialog("close");
-                SetRebootFlag();
-                $.post("api/network/presisentNames", "", function() {location.reload(true);});
-            },
-            "No" : function() {
-            $(this).fppDialog("close");
-            }
+			"Yes" : {class:'btn-success',click:function() {
+                    CloseModalDialog("createPersistentDialog");
+                    SetRebootFlag();
+                    $.post("api/network/presisentNames", "", function() {location.reload(true);});
+				}},
+			"No" : {click:function() {
+                    CloseModalDialog("createPersistentDialog");
+				}}
         }
     });
 }
 function ClearPersistentNames() {
-    $('#dialog-clear-persistent').fppDialog({
-        resizeable: false,
-        height: 300,
-        width: 500,
-        modal: true,
+    DoModalDialog({
+        id: "clearPersistentDialog",
+        title: "Clear Persistent Names",
+        body: $("#dialog-clear-persistent"),
+        class: 'modal-m',
+        backdrop: true,
+        keyboard: true,
         buttons: {
-            "Yes" : function() {
-                $(this).fppDialog("close");
-                SetRebootFlag();
-                $.ajax( {
-                  type: "DELETE",
-                  url: "api/network/presisentNames",
-                  data: "",
-                  success: function() {location.reload(true);},
-                });
-            },
-            "No" : function() {
-            $(this).fppDialog("close");
-            }
+			"Yes" : {class:'btn-success',click:function() {
+                    CloseModalDialog("clearPersistentDialog");
+                    SetRebootFlag();
+                    $.ajax( {
+                        type: "DELETE",
+                        url: "api/network/presisentNames",
+                        data: "",
+                        success: function() {location.reload(true);},
+                        });
+				}},
+			"No" : {click:function() {
+                    CloseModalDialog("clearPersistentDialog");
+				}}
         }
     });
 }
@@ -578,17 +587,17 @@ include 'menu.inc';?>
   <div class="pageContent">
   <ul class="nav nav-pills pageContent-tabs" role="tablist">
     <li class="nav-item">
-      <a class="nav-link active" id="interface-settings-tab" data-toggle="tab" href="#tab-interface-settings" role="tab" aria-controls="interface-settings" aria-selected="true">
+      <a class="nav-link active" id="interface-settings-tab" data-bs-toggle="tab" href="#tab-interface-settings" role="tab" aria-controls="interface-settings" aria-selected="true">
         Interface Settings
       </a>
     </li>
     <li class="nav-item">
-      <a class="nav-link" id="tab-host-dns-tab" data-toggle="tab" href="#tab-host-dns" role="tab" aria-controls="tab-host-dns" aria-selected="false">
+      <a class="nav-link" id="tab-host-dns-tab" data-bs-toggle="tab" href="#tab-host-dns" role="tab" aria-controls="tab-host-dns" aria-selected="false">
       Host & DNS Settings
       </a>
     </li>
     <li class="nav-item">
-      <a class="nav-link" id="tab-tethering-tab" data-toggle="tab" href="#tab-tethering" role="tab" aria-controls="tab-tethering" aria-selected="false">
+      <a class="nav-link" id="tab-tethering-tab" data-bs-toggle="tab" href="#tab-tethering" role="tab" aria-controls="tab-tethering" aria-selected="false">
         Tethering
       </a>
     </li>
@@ -760,16 +769,16 @@ PrintSettingGroup('tethering');
 
 
 
-    <div id="dialog-confirm" style="display: none">
+    <div id="dialog-confirm" class="hidden">
     	<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Reconfiguring the network will cause you to lose your connection and have to reconnect if you have changed the IP address.  Do you wish to proceed?</p>
     </div>
-    <div id="dialog-clear-persistent" style="display: none">
+    <div id="dialog-clear-persistent" class="hidden">
     <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Clearing out persistent device names can cause interfaces to use different configuration and become unavailable.  Do you wish to proceed?</p>
     </div>
-    <div id="dialog-create-persistent" style="display: none">
+    <div id="dialog-create-persistent" class="hidden">
         <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating persistent device names can make it harder to add new network devices or replace existing devices in the future.  Do you wish to proceed?</p>
     </div>
-    <div id="dialog-addinterface" title="Add New Interface" style="display: none">
+    <div id="dialog-addinterface" title="Add New Interface" class="hidden">
         <span>Enter name for the new interface (eg wlan0 or eth0 etc):</span>
         <input name="newInterfaceName" type="text" style="z-index:10000; width: 95%" class="newInterfaceName" value="">
     </div>

@@ -4,17 +4,33 @@
   </div>
 </div>
 
+
+  <!-- Modal -->
+  <div class="modal fade" id="modalDialogBase" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="modalDialogLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title fs-5" id="modalDialogLabel"></h3>
+          <button id="modalCloseButton" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body"></div>
+        <div class="modal-footer"></div>
+      </div>
+    </div>
+  </div>
+
+
 <div id="footer">
 <br />
   <div id="rebootShutdown">
     <button type='button' class='buttons wideButton btn-outline-light' onClick='ShowRunCommandPopup();'><span class='hidden' id='runCommandJSON'></span><i class='fas fa-fw fa-terminal fa-nbsp'></i>Run FPP Command</button>
     <div class="dropup" id="fppModeDropdown">
-      <button class="buttons btn-outline-light dropdown-toggle"  type="button" id="fppModeDropdownButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+      <button class="buttons btn-outline-light dropdown-toggle"  type="button" id="fppModeDropdownButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         FPP Mode: <span id="fppModeDropdownButtonModeText"></span>
       </button>
       <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton"  >
-        <button class="dropdown-item" onClick="SetFPPDmode('player');" data-tooltip-position-my="left+15 center" data-tooltip-touch="false" data-tooltip-position-at="right center" title="This FPP will control itself and not be controlled by another FPP">Player</button>
-        <button class="dropdown-item" onClick="SetFPPDmode('remote');" data-tooltip-position-my="left+15 center" data-tooltip-touch="false" data-tooltip-position-at="right center" title="This FPP will be controlled by a Player FPP Instance">Remote</button>
+        <button class="dropdown-item" onClick="SetFPPDmode('player');" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="This FPP will control itself and not be controlled by another FPP">Player</button>
+        <button class="dropdown-item" onClick="SetFPPDmode('remote');" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="This FPP will be controlled by a Player FPP Instance">Remote</button>
       </div>
     </div>
 <? if ($settings["Platform"] != "MacOS") { ?>

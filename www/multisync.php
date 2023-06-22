@@ -701,18 +701,20 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                        }
                        u += "<tr><td>Up:&nbsp;</td><td>" + ut
-                       u += ' <span class="multisync-utilization-more" data-html="true" title="' + diskHtml + '<br><b>Uptime:</b> ' + ut;
-                       u += '">...</td></tr>'
+                       u += ' <span class="multisync-utilization-more" data-bs-html="true" title="<span class=\'tooltipSpan\'>' + diskHtml + '<br><b>Uptime:</b> ' + ut;
+                       u += '</span>">...</td></tr>'
                     }
                }
                u += "</table>";
 
                 $('#advancedViewUtilization_' + rowID).html(u);
+                SetupToolTips();
             }
             });
 
             if ($('.logRow:visible').length == 0)
                 $('#fppSystems').trigger('update', true);
+
 		}).always(function() {
 			if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
 				refreshTimer = setTimeout(function() {getFPPSystemStatus(ipAddresses, true);}, 2000);
@@ -2026,11 +2028,11 @@ include 'menu.inc';?>
 
         <div class="multisyncAdvancedFormActions row">
             <div class="form-actions col-md">
-            <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
+            <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-bs-toggle="collapse" data-bs-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
             <i class="fas fa-cog"></i> More Settings</button>
             <button id='exportStatsButton' type='button' class='buttons' value='Export' onClick='exportMultisync();'><i class="fas fa-scroll"></i> Export </button>
             <button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
-            <div class="ml-2">
+            <div class="ms-2">
             </div>
             </div>
             <div class="col-md-auto">

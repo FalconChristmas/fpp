@@ -17,33 +17,22 @@ function SaveSSHKeys() {
         $.jGrowl("Keys Saved", { themeState: 'success' });
 }
 
+
 function KioskInstallDone() {
     SetRebootFlag();
-    $('#kioskCloseDialogButton').show();
+    EnableModalDialogCloseButton("enableKioskPopup");
+    $('#enableKioskPopupCloseButton').show();
 }
 function DisableKiosk() {
-    $('#kioskCloseDialogButton').hide();
-    $('#kioskPopup').fppDialog({ height: 600, width: 900, title: "Kiosk Frontend", dialogClass: 'no-close' });
-    $('#kioskPopup').fppDialog( "moveToTop" );
-    $('#kioskInstallText').html('');
-
-    StreamURL('disableKiosk.php', 'kioskInstallText', 'KioskInstallDone');
+    DisplayProgressDialog("enableKioskPopup", "Kiosk Frontend");
+    StreamURL('disableKiosk.php', 'enableKioskPopupText', 'KioskInstallDone');
 }
 
 function EnableKiosk() {
     if (confirm('Installing Kiosk components will take some time and consume around 400MB of space.')) {
-        $('#kioskCloseDialogButton').hide();
-        $('#kioskPopup').fppDialog({ height: 600, width: 900, title: "Kiosk Frontend", dialogClass: 'no-close' });
-        $('#kioskPopup').fppDialog( "moveToTop" );
-        $('#kioskInstallText').html('');
-
-        StreamURL('installKiosk.php', 'kioskInstallText', 'KioskInstallDone');
+        DisplayProgressDialog("enableKioskPopup", "Kiosk Frontend");
+        StreamURL('installKiosk.php', 'enableKioskPopupText', 'KioskInstallDone');
     }
-}
-
-function CloseKioskDialog() {
-    $('#kioskPopup').fppDialog('close');
-    SetRebootFlag();
 }
 
 var resetAreas = ['config', 'network', 'media', 'sequences', 'effects', 'playlists',
@@ -68,22 +57,46 @@ function CommonButtonClicked() {
 }
 
 function ShowResetConfigPopup() {
-    $('#resetConfigMenu').show();
-    $('#resetCloseDialogButton').show();
-    $('#resetPopup').fppDialog({ height: 600, width: 900, title: "Reset FPP Config", dialogClass: 'no-close' });
-    $('#resetPopup').fppDialog( "moveToTop" );
-    $('#resetConfigText').hide();
-    $('#resetConfigText').val('');
+    DoModalDialog({
+        id: "resetFPPDialog",
+        class: "modal-lg",
+        title: "Reset FPP Config",
+        body: $("#resetConfigMenu"),
+        backdrop: true,
+        keyboard: true,
+        buttons: {
+            Reset: function() {
+                ResetConfig();
+            },
+            Close: function() {
+                CloseModalDialog("resetFPPDialog");
+            }
+        }
+    });
 }
 
 function ResetConfig() {
     if (confirm('Are you sure you want to reset the speficied FPP config areas?')) {
-        $('#resetConfigMenu').hide();
-        $('#resetConfigText').show();
-        $('#resetCloseDialogButton').hide();
-
+        CloseModalDialog("resetFPPDialog");
+        DoModalDialog({
+            id: "doResetFPPConfigDialog",
+            class: "modal-lg",
+            title: "Reset FPP Config",
+            body: "<textarea style='width: 99%; height: 92%; min-height: 200px;' disabled id='resetConfigText' style='display: none;'></textarea>",
+            backdrop: "static",
+            keyboard: false,
+            noClose: true,
+            buttons: {
+                Close: {
+                    click: function() {
+                        CloseModalDialog("doResetFPPConfigDialog");
+                    },
+                    disabled: true,
+                    id: "resetCloseButton"
+                }
+            }
+        });
         var args = '';
-
         for (var i = 0; i < resetAreas.length; i++) {
             if ($('#rc_' + resetAreas[i]).is(':checked'))
                 args += resetAreas[i] + ',';
@@ -98,13 +111,10 @@ function ResetConfig() {
 
 function ResetConfigDone() {
     SetRebootFlag();
-    $('#resetCloseDialogButton').show();
+    $("#resetCloseButton").prop("disabled", false);
+    EnableModalDialogCloseButton("doResetFPPConfigDialog");
 }
 
-function CloseResetDialog() {
-    $('#resetPopup').fppDialog('close');
-    SetRebootFlag();
-}
 
 <?if ($showOSSecurity) {?>
 $( document ).ready(function() {
@@ -185,12 +195,6 @@ You can individually select what settings you want to reset." src="images/redesi
 }
 ?>
 
-<div id='kioskPopup' title='Kiosk Frontend' style="display: none">
-    <textarea style='width: 99%; height: 94%;' disabled id='kioskInstallText'>
-    </textarea>
-    <input id='kioskCloseDialogButton' type='button' class='buttons' value='Close' onClick='CloseKioskDialog();' style='display: none;'>
-</div>
-
 <div id='resetPopup' title='Reset FPP Config' style="display: none">
     <span id='resetConfigMenu'>
         <b>Choose areas to reset:</b><br>
@@ -243,11 +247,6 @@ You can individually select what settings you want to reset." src="images/redesi
         </div>
 
 
-        <br>
-        <input type='button' class='buttons' onClick='ResetConfig();' value='Reset'>
     </span>
-    <textarea style='width: 99%; height: 92%;' disabled id='resetConfigText' style='display: none;'>
-    </textarea>
-    <input id='resetCloseDialogButton' type='button' class='buttons' value='Close' onClick='CloseResetDialog();' style='display: none;'>
 </div>
 

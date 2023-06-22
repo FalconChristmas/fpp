@@ -407,28 +407,27 @@ function AddNewSubModel() {
 }
 
 function AddNewModel() {
-    $('#addDialog').fppDialog({
-        autoOpen: true,
+    DoModalDialog({
+        id: "AddPixelOverlayModel",
+        body: "Choose the type of model to add.",
+        title: "Add Pixel Overlay Model",
+        backdrop: true,
+        keyboard: true,
+        class: "modal-sm",
         buttons: {
             Channel: function() {
                 AddNewChannelModel();
-                $(this).fppDialog("close");
+                CloseModalDialog("AddPixelOverlayModel");
             },
-
-<?
-if ($showAddFBButton) {
-    ?>
+ <? if ($showAddFBButton) { ?>
             FrameBuffer: function() {
                 AddNewFBModel();
-                $(this).fppDialog("close");
+                CloseModalDialog("AddPixelOverlayModel");
             },
-<?
-}
-?>
-
+<? } ?>            
             SubModel: function() {
                 AddNewSubModel();
-                $(this).fppDialog("close");
+                CloseModalDialog("AddPixelOverlayModel");
             }
         }
     });
@@ -457,8 +456,6 @@ $(document).ready(function(){
 	GetChannelMemMaps();
 });
 
-$(document).tooltip();
-
 </script>
 
 <title><?echo $pageTitle; ?></title>
@@ -479,7 +476,7 @@ include 'menu.inc';?>
 					<div class="col-md">
 						<h2>Pixel Overlay Models</h2>
 					</div>
-					<div class="col-md-auto ml-lg-auto">
+					<div class="col-md-auto ms-lg-auto">
 						<div class="form-actions">
 
 								<input type=button value='Delete' onClick='DeleteSelectedMemMap();' data-btn-enabled-class="btn-outline-danger" id='btnDelete' class='disableButtons'>
@@ -499,16 +496,16 @@ include 'menu.inc';?>
                             <thead>
                                 <tr>
 									<th class="tblChannelMemMapsHeadGrip"></th>
-                                    <th title='Name of Model'>Model Name</th>
-                                    <th title='Type'>Type</th>
-                                    <th title='Start Channel'>Start Ch.</th>
-                                    <th title='Channel Count'>Ch. Count</th>
-                                    <th title='Chan Per Node'>Ch./Node</th>
-                                    <th title='String Orientation'>Orientation</th>
-                                    <th title='Starting Corner'>Start Corner</th>
-                                    <th title='Number of Strings or Width of FB/X11/Sub-Model'>Strings</th>
-                                    <th title='Number of Strands Per String or Height of FB/X11/Sub-Model'>Strands</th>
-                                    <th title='Running Effect'>Running Effect</th>
+                                    <th><span title='Name of Model'>Model Name</span></th>
+                                    <th><span title='Type'>Type</span></th>
+                                    <th><span title='Start Channel'>Start Ch.</span></th>
+                                    <th><span title='Channel Count'>Ch. Count</span></th>
+                                    <th><span title='Chan Per Node'>Ch./Node</span></th>
+                                    <th><span title='String Orientation'>Orientation</span></th>
+                                    <th><span title='Starting Corner'>Start Corner</span></th>
+                                    <th><span title='Number of Strings or Width of FB/X11/Sub-Model'>Strings</span></th>
+                                    <th><span title='Number of Strands Per String or Height of FB/X11/Sub-Model'>Strands</span></th>
+                                    <th><span title='Running Effect'>Running Effect</span></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -528,16 +525,16 @@ include 'menu.inc';?>
                             <thead>
                                 <tr>
 									<th class="tblChannelMemMapsHeadGrip"></th>
-                                    <th title='Name of Model'>Model Name</th>
-                                    <th title='Type'>Type</th>
-                                    <th title='Start Channel'>Start Ch.</th>
-                                    <th title='Channel Count'>Ch. Count</th>
-                                    <th title='Chan Per Node'>Ch./Node</th>
-                                    <th title='String Orientation'>Orientation</th>
-                                    <th title='Starting Corner'>Start Corner</th>
-                                    <th title='Number of Strings or Width of FB/X11/Sub-Model'>Strings</th>
-                                    <th title='Number of Strands Per String or Height of FB/X11/Sub-Model'>Strands</th>
-                                    <th title='Running Effect'>Running Effect</th>
+                                    <th><span title='Name of Model'>Model Name</span></th>
+                                    <th><span title='Type'>Type</span></th>
+                                    <th><span title='Start Channel'>Start Ch.</span></th>
+                                    <th><span title='Channel Count'>Ch. Count</span></th>
+                                    <th><span title='Chan Per Node'>Ch./Node</span></th>
+                                    <th><span title='String Orientation'>Orientation</span></th>
+                                    <th><span title='Starting Corner'>Start Corner</span></th>
+                                    <th><span title='Number of Strings or Width of FB/X11/Sub-Model'>Strings</span></th>
+                                    <th><span title='Number of Strands Per String or Height of FB/X11/Sub-Model'>Strands</span></th>
+                                    <th><span title='Running Effect'>Running Effect</span></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -552,11 +549,6 @@ include 'menu.inc';?>
 	</div>
 
 <script language="Javascript">
-	$('#channelMemMaps').tooltip({
-		content: function() {
-			return $(this).attr('title');
-		}
-	});
 
 	$(function() {
 		$('#channelMemMaps').on('mousedown', 'tr', function(event,ui) {
@@ -575,6 +567,5 @@ include 'menu.inc';?>
 
 </script>
 
-<div id='addDialog' style='display: none;'>Choose the type of model to add.</div>
 </body>
 </html>

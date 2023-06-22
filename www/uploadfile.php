@@ -40,7 +40,23 @@ unset($output);
 </style>
 
 <script>
+function GetVideoInfo(file) {
+    $('#fileText').html("Getting Video Info.");
 
+    $.get("api/media/" + file + "/meta", function (data) {
+        DoModalDialog({
+            id: "VideoViewer",
+            title: "Video Info",
+            class: "modal-lg modal-dialog-scrollable",
+            body: '<pre>' + syntaxHighlight(JSON.stringify(data, null, 2)) + '</pre>',
+            keyboard: true,
+            backdrop: true,
+            buttons: {
+                "Close": function() {CloseModalDialog("VideoViewer");}
+            }
+        });
+    });
+}
 function ButtonHandler(table, button) {
     var selectedCount = $('#tbl' + table + ' tr.selectedEntry').length;
     var filename = '';
@@ -201,49 +217,52 @@ $(function() {
 
 	function EditScript(scriptName)
 	{
-		$('#fileEditText').html("Loading...");
+        var options = {
+            id: "scriptEditorDialog",
+            title: "Script Editor : "+scriptName,
+            body: "<div id='fileEditText' class='fileText'>Loading...</div>",
+            footer: "",
+            class: "modal-dialog-scrollable",
+            keyboard: true,
+            backdrop: true,
+            buttons: {
+                "Save": {
+                    id: 'fileViewerCloseButton',
+                    class: 'btn-success',
+                    click:function(){
+                      SaveScript($('#scriptText').data('scriptName'));
+                    }
+                },
+                "Cancel": {
+                    click: function() {
+                        AbortScriptChange();
+                    }
+                }
 
-		$.get("api/Scripts/" + scriptName, function(text) {
-			var ext = scriptName.split('.').pop();
-			if (ext != "html")
-			{
-				var html = "<textarea style='width: 100%' rows='25' id='scriptText'>" + text + "</textarea></center></div></fieldset>";
-				$('#fileEditText').html(html);
-        $('#scriptText').data('scriptName',scriptName);
-			}
-		});
-
-		$('#fileEditor').fppDialog({
-      width: 1800,
-      height: '100%',
-      title: "Script Editor : "+scriptName,
-      resizable: true,
-      overflowX: 'scroll',
-      buttons:{
-        "Save":{
-          class:'btn-success',
-          click:function(){
-            SaveScript($('#scriptText').data('scriptName'));
-          }
-        },
-        "Cancel":function(){
-          AbortScriptChange();
-        }
-      }
-    });
-		$('#fileEditor').fppDialog( "moveToTop" );
-	}
-
+            }
+        };
+        DoModalDialog(options);
+        $.get("api/Scripts/" + scriptName, function(text) {
+            var ext = scriptName.split('.').pop();
+            if (ext != "html") {
+                var html = "<textarea style='width: 100%' rows='25' id='scriptText'>" + text + "</textarea></center></div></fieldset>";
+                $('#fileEditText').html(html);
+                $('#scriptText').data('scriptName',scriptName);
+            }
+        });
+    }
+        
+        
 	function SaveScript(scriptName)
 	{
 		var contents = $('#scriptText').val();
-    var url = 'api/scripts/' + scriptName;
+        var url = 'api/scripts/' + scriptName;
 		var postData = JSON.stringify(contents);
 
 		$.post(url, postData).done(function(data) {
 			if (data.status == "OK")
 			{
-				$('#fileEditor').fppDialog('close');
+                CloseModalDialog("scriptEditorDialog");
 				$.jGrowl("Script saved.",{themeState:'success'});
 			}
 			else
@@ -258,7 +277,7 @@ $(function() {
 
 	function AbortScriptChange()
 	{
-		$('#fileEditor').fppDialog('close');
+        CloseModalDialog("scriptEditorDialog");
 	}
 
 </script>
@@ -281,47 +300,47 @@ include 'menu.inc';?>
 
     <ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
       <li class="nav-item">
-        <a class="nav-link active" id="tab-sequence-tab" data-toggle="pill" href="#tab-sequence" role="tab" aria-controls="tab-sequence" aria-selected="true">
+        <a class="nav-link active" id="tab-sequence-tab" data-bs-toggle="pill" href="#tab-sequence" role="tab" aria-controls="tab-sequence" aria-selected="true">
           Sequences
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link " id="tab-audio-tab" data-toggle="pill" href="#tab-audio" role="tab" aria-controls="tab-audio">
+        <a class="nav-link " id="tab-audio-tab" data-bs-toggle="pill" href="#tab-audio" role="tab" aria-controls="tab-audio">
           Audio
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link " id="tab-video-tab" data-toggle="pill" href="#tab-video" role="tab" aria-controls="tab-video">
+        <a class="nav-link " id="tab-video-tab" data-bs-toggle="pill" href="#tab-video" role="tab" aria-controls="tab-video">
         Video
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link " id="tab-images-tab" data-toggle="pill" href="#tab-images" role="tab" aria-controls="tab-images">
+        <a class="nav-link " id="tab-images-tab" data-bs-toggle="pill" href="#tab-images" role="tab" aria-controls="tab-images">
         Images
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link " id="tab-effects-tab" data-toggle="pill" href="#tab-effects" role="tab" aria-controls="tab-effects">
+        <a class="nav-link " id="tab-effects-tab" data-bs-toggle="pill" href="#tab-effects" role="tab" aria-controls="tab-effects">
         Effects
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link " id="tab-scripts-tab" data-toggle="pill" href="#tab-scripts" role="tab" aria-controls="tab-scripts">
+        <a class="nav-link " id="tab-scripts-tab" data-bs-toggle="pill" href="#tab-scripts" role="tab" aria-controls="tab-scripts">
         Scripts
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link " id="tab-logs-tab" data-toggle="pill" href="#tab-logs" role="tab" aria-controls="tab-logs">
+        <a class="nav-link " id="tab-logs-tab" data-bs-toggle="pill" href="#tab-logs" role="tab" aria-controls="tab-logs">
         Logs
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link " id="tab-uploads-tab" data-toggle="pill" href="#tab-uploads" role="tab" aria-controls="tab-uploads">
+        <a class="nav-link " id="tab-uploads-tab" data-bs-toggle="pill" href="#tab-uploads" role="tab" aria-controls="tab-uploads">
         Uploads
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link " id="tab-crashes-tab" data-toggle="pill" href="#tab-crashes" role="tab" aria-controls="tab-crashes">
+        <a class="nav-link " id="tab-crashes-tab" data-bs-toggle="pill" href="#tab-crashes" role="tab" aria-controls="tab-crashes">
         Crash Reports
         </a>
       </li>
@@ -534,17 +553,6 @@ include 'menu.inc';?>
         </div>
       </div>
     </div>
-    <div id='fileViewer' title='File Viewer' style="display: none">
-      <div id='fileText' class='fileText'>
-      </div>
-    </div>
-    <div id='fileEditor' title='File Editor' style="display: none">
-      <div id='fileEditText' class='fileText'>
-      </div>
-    </div>
-    <div id="dialog-confirm" title="Sequence Conversion" style="display: none">
-    <p>Convert the selected file to?</p>
-    </div>
     <div id="overlay">
     </div>
   </div>
@@ -568,7 +576,7 @@ if (isset($_GET['tab'])) {
     const pond = FilePond.create(
                 document.querySelector('#filepondInput'),
                 {
-                    labelIdle: `<b style="font-size: 1.3em;">Drag & Drop or Select Files to upload</b><br><br><span class="btn-dark btn-lg filepond--label-action" style="text-decoration:none;">Select Files</span><br>`,
+                    labelIdle: `<b style="font-size: 1.3em;">Drag & Drop or Select Files to upload</b><br><br><span class="btn btn-dark filepond--label-action" style="text-decoration:none;">Select Files</span><br>`,
                     server: 'api/file/upload',
                     credits: false,
                     chunkUploads: true,

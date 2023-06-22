@@ -211,11 +211,13 @@ if ($freeSpace < 50000000) {
     </textarea>
 </div>
 <script>
+function RebuildFPPDDone() {
+    $('#rebuildFPPCloseButton').prop("disabled", false);
+    EnableModalDialogCloseButton("rebuildFPP");
+}
 function RebuildFPPD() {
-    $('#rebuildPopup').fppDialog({ height: 600, width: 900, title: "Rebuild FPP" });
-    $('#rebuildPopup').fppDialog( "moveToTop" );
-    $('#rebuildText').html('');
-    StreamURL('manualUpdate.php?wrapped=1', 'rebuildText');
+    DisplayProgressDialog("rebuildFPP", "Rebuild FPP");
+    StreamURL('manualUpdate.php?wrapped=1', 'rebuildFPPText', 'RebuildFPPDDone', 'RebuildFPPDDone');
 }
 </script>
   <div id="compileFPPDBanner" class="alert alert-danger"><span class='inlineBlock'>FPPD not found. Rebuild required</span><span class='inlineBlock'><input name="btnRebuild" onClick="RebuildFPPD();" type="button" class = "buttons btn-outline-light" value="Rebuild"></span></div>
@@ -236,14 +238,14 @@ function RebuildFPPD() {
 
   <nav id="fppMenu" class="navbar navbar-expand-lg navbar-dark">
   <div class="navbar-translate">
-  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+  <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
           </div>
   <div class="collapse navbar-collapse" id="navbarNavDropdown">
     <ul id="fppMenuList" class="navbar-nav">
     <li class="nav-item dropdown <? echo $activeParentMenuItem=='status' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Status/Control
         </a>
         <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
@@ -281,7 +283,7 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
       </li>
 
       <li class="nav-item dropdown <? echo $activeParentMenuItem=='content' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Content Setup
         </a>
         <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
@@ -295,7 +297,7 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
       </li>
 
       <li class="nav-item dropdown <? echo $activeParentMenuItem=='input-output' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Input/Output Setup
         </a>
         <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
@@ -309,10 +311,10 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
       </li>
 
       <li class="nav-item dropdown <? echo $activeParentMenuItem=='help' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Help
         </a>
-        <div class="dropdown-menu dropdown-with-icons dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">
+        <div class="dropdown-menu dropdown-with-icons dropdown-menu-end" aria-labelledby="navbarDropdownMenuLink">
           <a class="dropdown-item" href="about.php"><i class="fas fa-info-circle"></i> About</a>
 <?php
 $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";

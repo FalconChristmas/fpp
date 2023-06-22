@@ -176,9 +176,29 @@ if ($freeSpace > 1000000000) {
 <? } ?>
 }
 
-function CloseUpgradeDialog() {
-    $('#upgradePopup').fppDialog('close');
+function CloseFPPUpgradeDialog() {
+    CloseModalDialog("upgradePopupStatus");
     location.reload();
+}
+function FPPUpgradeDone() {
+    if (statusTimeout === null)
+        LoadSystemStatus();
+
+    UpdateVersionInfo();
+    $("#fppUpgradeCloseDialogButton").prop("disabled", false);
+    EnableModalDialogCloseButton("upgradePopupStatus");
+}
+function DownloadDone() {
+    $("#fppDownloadCloseDialogButton").prop("disabled", false);
+    EnableModalDialogCloseButton("downloadPopupStatus");
+}
+function UpgradeDone() {
+    if (statusTimeout === null)
+        LoadSystemStatus();
+
+    UpdateVersionInfo();
+    $("#fppUpgradeOSCloseDialogButton").prop("disabled", false);
+    EnableModalDialogCloseButton("upgradeOSPopupStatus");
 }
 
 function UpdateVersionInfo() {
@@ -202,14 +222,6 @@ function UpdateVersionInfo() {
     });
 }
 
-function UpgradeDone() {
-    if (statusTimeout === null)
-        LoadSystemStatus();
-
-    UpdateVersionInfo();
-    $('#closeDialogButton').show();
-}
-
 function UpgradeOS() {
     var os = $('#OSSelect').val();
     var osName = os;
@@ -228,15 +240,32 @@ function UpgradeOS() {
         os = osAssetMap[os].url;
     }
     if (confirm('Upgrade the OS using ' + osName + '?\nThis can take a long time. It is also strongly recommended to run FPP backup first.')) {
-        $('#closeDialogButton').hide();
-        $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP OS Upgrade", dialogClass: 'no-close' });
-        $('#upgradePopup').fppDialog( "moveToTop" );
-        $('#upgradeText').html('');
+
+        var options = {
+            id: "upgradeOSPopupStatus",
+            title: "FPP OS Upgrade",
+            body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUpgradeOSText'></textarea>",
+            class: "modal-dialog-scrollable",
+            noClose: true,
+            keyboard: false,
+            backdrop: "static",
+            footer: "",
+            buttons: {
+                "Close": {
+                    id: 'fppUpgradeOSCloseDialogButton',
+                    click: function() {CloseModalDialog("upgradeOSPopupStatus");location.reload();},
+                    disabled: true,
+                    class: 'btn-success'
+                }
+            }
+        };
+        $("#fppUpgradeOSCloseDialogButton").prop("disabled", true);
+        DoModalDialog(options);
 
         clearTimeout(statusTimeout);
         statusTimeout = null;
 
-        StreamURL('upgradeOS.php?wrapped=1&os=' + os + keepOptFPP, 'upgradeText', 'UpgradeDone');
+        StreamURL('upgradeOS.php?wrapped=1&os=' + os + keepOptFPP, 'streamedUpgradeOSText', 'UpgradeDone');
     }
 }
 
@@ -252,12 +281,28 @@ function DownloadOS() {
         osName = osAssetMap[os].name;
         os = osAssetMap[os].url;
 
-        $('#closeDialogButton').hide();
-        $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP Download OS Image", dialogClass: 'no-close' });
-        $('#upgradePopup').fppDialog( "moveToTop" );
-        $('#upgradeText').html('');
+        var options = {
+            id: "downloadPopupStatus",
+            title: "FPP Download OS Image",
+            body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUDownloadText'></textarea>",
+            class: "modal-dialog-scrollable",
+            noClose: true,
+            keyboard: false,
+            backdrop: "static",
+            footer: "",
+            buttons: {
+                "Close": {
+                    id: 'fppDownloadCloseDialogButton',
+                    click: function() {CloseModalDialog("downloadPopupStatus");location.reload();},
+                    disabled: true,
+                    class: 'btn-success'
+                }
+            }
+        };
+        $("#fppDownloadCloseDialogButton").prop("disabled", true);
+        DoModalDialog(options);
 
-        StreamURL('upgradeOS.php?wrapped=1&downloadOnly=1&os=' + os, 'upgradeText', 'UpgradeDone');
+        StreamURL('upgradeOS.php?wrapped=1&downloadOnly=1&os=' + os, 'streamedUDownloadText', 'DownloadDone');
     } else {
         alert('This fppos image has already been downloaded.');
     }
@@ -285,15 +330,30 @@ if ($freeSpace < 200000000) {
 }
 
 function UpgradeFPP() {
-    $('#closeDialogButton').hide();
-    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP Upgrade", dialogClass: 'no-close' });
-    $('#upgradePopup').fppDialog( "moveToTop" );
-    $('#upgradeText').html('');
-
     clearTimeout(statusTimeout);
     statusTimeout = null;
-
-    StreamURL('manualUpdate.php?wrapped=1', 'upgradeText', 'UpgradeDone');
+    
+    var options = {
+        id: "upgradePopupStatus",
+        title: "FPP Upgrade",
+        body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUpgradeText'></textarea>",
+        class: "modal-dialog-scrollable",
+        noClose: true,
+        keyboard: false,
+        backdrop: "static",
+        footer: "",
+        buttons: {
+            "Close": {
+                id: 'fppUpgradeCloseDialogButton',
+                click: function() {CloseFPPUpgradeDialog();},
+                disabled: true,
+                class: 'btn-success'
+            }
+        }
+    };
+    $("#fppUpgradeCloseDialogButton").prop("disabled", true);
+    DoModalDialog(options);
+    StreamURL('manualUpdate.php?wrapped=1', 'streamedUpgradeText', 'FPPUpgradeDone');
 }
 
 function UpdatePlatforms() {  
@@ -582,11 +642,6 @@ if (file_exists($eepromFile)) {
     </div>
   </div>
   <?php include 'common/footer.inc';?>
-</div>
-<div id='upgradePopup' title='FPP Upgrade' style="display: none">
-    <textarea style='width: 99%; height: 500px;' disabled id='upgradeText'>
-    </textarea>
-    <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseUpgradeDialog();' style='display: none;'>
 </div>
 </body>
 </html>

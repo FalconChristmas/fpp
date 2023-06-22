@@ -133,7 +133,7 @@ extraCommands = [
           <div >
 
             <div class="row tablePageHeader">
-                <div class="col-md-auto ml-lg-auto">
+                <div class="col-md-auto ms-lg-auto">
                     <div class="form-actions">
                      <input type="button" value="Save" class="buttons btn-success" onClick="SaveGPIOInputs();"></input>
                     </div>

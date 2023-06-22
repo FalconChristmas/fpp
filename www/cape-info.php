@@ -695,12 +695,12 @@ if (isset($settings["cape-info"])) {
                         <div id='eepromManager'>
                             <ul id='eepromManagerTabs' class="nav nav-pills pageContent-tabs" role="tablist">
                                 <li class='nav-item'>
-                                    <a class="nav-link active" id="eeprom-about-tab" data-toggle="pill" href="#eeprom-about" role="tab" aria-controls="eeprom-about" aria-selected="true">
+                                    <a class="nav-link active" id="eeprom-about-tab" data-bs-toggle="pill" href="#eeprom-about" role="tab" aria-controls="eeprom-about" aria-selected="true">
                                         About
                                     </a>
                                 </li>
                                 <li class='nav-item'>
-                                    <a class="nav-link" id="eeprom-signature-tab" data-toggle="pill" href="#eeprom-signature" role="tab" aria-controls="eeprom-signature">
+                                    <a class="nav-link" id="eeprom-signature-tab" data-bs-toggle="pill" href="#eeprom-signature" role="tab" aria-controls="eeprom-signature">
                                         EEPROM Signature
                                     </a>
                                 </li>
@@ -709,7 +709,7 @@ if ($printSigningUI) {
         if ($offlineMode) {
             ?>
                                 <li class='nav-item'>
-                                    <a class="nav-link" id="eeprom-offline-tab" data-toggle="pill" href="#eeprom-offline" role="tab" aria-controls="eeprom-offline">
+                                    <a class="nav-link" id="eeprom-offline-tab" data-bs-toggle="pill" href="#eeprom-offline" role="tab" aria-controls="eeprom-offline">
                                         Offline Signing
                                     </a>
                                 </li>
@@ -717,7 +717,7 @@ if ($printSigningUI) {
 } else if (((!isset($settings['voucherRedeemed'])) || ($settings['voucherRedeemed'] != '1')) && ((!isset($currentCapeInfo['verifiedKeyId'])) || ($currentCapeInfo['verifiedKeyId'] != 'fp'))) {
             ?>
                                 <li class='nav-item'>
-                                    <a class="nav-link" id="eeprom-voucher-tab" data-toggle="pill" href="#eeprom-voucher" role="tab" aria-controls="eeprom-voucher">
+                                    <a class="nav-link" id="eeprom-voucher-tab" data-bs-toggle="pill" href="#eeprom-voucher" role="tab" aria-controls="eeprom-voucher">
                                         Voucher Redemption
                                     </a>
                                 </li>
@@ -726,7 +726,7 @@ if ($printSigningUI) {
     }
     ?>
                                 <li class='nav-item'>
-                                    <a class="nav-link" id="eeprom-upgrade-tab" data-toggle="pill" href="#eeprom-upgrade" role="tab" aria-controls="eeprom-upgrade">
+                                    <a class="nav-link" id="eeprom-upgrade-tab" data-bs-toggle="pill" href="#eeprom-upgrade" role="tab" aria-controls="eeprom-upgrade">
                                         EEPROM Upgrade
                                     </a>
                                 </li>

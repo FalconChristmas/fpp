@@ -31,15 +31,23 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
 <script>
 
 	function ViewRemoteScript(category, filename) {
-		$('#helpText').html("Retrieving Script");
-		$('#dialog-help').fppDialog({  width: 800, title: "Script Viewer" });
-		$('#dialog-help').fppDialog( "moveToTop" );
+        DoModalDialog({
+            id: "ScriptViewerDialog",
+            title: "Script Viewer",
+            body: "<div id='scriptViewerText' class='fileText'>Loading...</div>",
+            class: "modal-dialog-scrollable",
+            backdrop: true,
+            keyboard: true,
+            buttons: {
+                "Close": function() {CloseModalDialog("ScriptViewerDialog");}
+            }
+        });
 
 		$.get("api/scripts/viewRemote/" + encodeURIComponent(category) + "/" + encodeURIComponent(filename)
 		).done(function(data) {
-			$('#helpText').html("<pre>" + data.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
+			$('#scriptViewerText').html("<pre>" + data.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
 		}).fail(function() {
-			$('#helpText').html("Error loading script contents from repository.");
+			$('#scriptViewerText').html("Error loading script contents from repository.");
 		});
 	}
 

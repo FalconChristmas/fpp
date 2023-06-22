@@ -69,14 +69,6 @@ if (((!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == 
             }
         }
     }
-?>
-
-	<script type="text/javascript">
-	var bootstrapTooltip = $.fn.tooltip.noConflict() // return $.fn.button to previously assigned value
-	$.fn.bootstrapTooltip = bootstrapTooltip // give $().bootstrapBtn the Bootstrap functionality
-	</script>
-
-<?
 	if (isset($settings['backgroundColor']) && $settings['backgroundColor'] != "")
 	{
 ?>

@@ -14,7 +14,7 @@
 }
   
   @mixin fpp-btn-outline-variant($color,
-  $color-hover: color-yiq($color),
+  $color-hover: color-contrast($color),
   $active-background: $color,
   $active-border: $color) {
     color: $color;

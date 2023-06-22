@@ -786,13 +786,13 @@ include 'menu.inc';?>
 
 		<ul class="nav nav-pills pageContent-tabs" role="tablist">
 			<li class="nav-item">
-				<a class="nav-link active" id="tab-channels-tab" data-toggle="tab" href="#tab-channels" role="tab" aria-controls="tab-channels" aria-selected="true">
+				<a class="nav-link active" id="tab-channels-tab" data-bs-toggle="tab" href="#tab-channels" role="tab" aria-controls="tab-channels" aria-selected="true">
 					Channel Testing
 				</a>
 			</li>
 			<?php if (isset($settings['fppMode']) && ($settings['fppMode'] == 'player')) {?>
 		        <li class="nav-item">
-				    <a class="nav-link" id="tab-sequence-tab" data-toggle="tab" href="#tab-sequence" role="tab" aria-controls="tab-sequence" aria-selected="true">
+				    <a class="nav-link" id="tab-sequence-tab" data-bs-toggle="tab" href="#tab-sequence" role="tab" aria-controls="tab-sequence" aria-selected="true">
 				Sequence
 				    </a>
 			    </li>
@@ -807,8 +807,8 @@ include 'menu.inc';?>
 					<div class="col-md-3">
 						<div class="backdrop-dark">
 							<label for="testModeEnabled" class="mb-0 d-block">
-								<div><b>Enable Test Mode:</b>&nbsp;<input type='checkbox' class="ml-1" id='testModeEnabled' onClick='SetTestMode();'></div>
-								<div><b>Multisync:</b>&nbsp;<input type='checkbox' class="ml-1" id='multisyncEnabled' onClick='SetTestMode();'></div>
+								<div><b>Enable Test Mode:</b>&nbsp;<input type='checkbox' class="ms-1" id='testModeEnabled' onClick='SetTestMode();'></div>
+								<div><b>Multisync:</b>&nbsp;<input type='checkbox' class="ms-1" id='multisyncEnabled' onClick='SetTestMode();'></div>
 							</label>
 						</div>
 						<div class="backdrop-dark mt-3">
@@ -971,7 +971,7 @@ include 'menu.inc';?>
 								</div>
 								<div class="color-box"></div>
 							</div>
-							<div class="col-auto ml-auto">
+							<div class="col-auto ms-auto">
 								<input type=button class="buttons" onClick='AppendFillToCustom();' value='Append Color To Custom Pattern'>
 
 							</div>
@@ -1003,7 +1003,7 @@ include 'menu.inc';?>
 													<input  class="custom-control-input" type='radio' name='testModeMode' value='SingleChase' id='SingleChase' onChange='SetTestMode();'>
 													<label for="SingleChase" class="custom-control-label"><b>Chase</b></label>
 												</div>
-												<div class="form-col ml-2 pt-1">
+												<div class="form-col ms-2 pt-1">
 
 						Chase Size:
 						<select id='testModeChaseSize' onChange='SetTestMode();'>

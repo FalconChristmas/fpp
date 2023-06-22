@@ -481,21 +481,21 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     }
     if (sid)
     {
-        result += "<td>&nbsp;<span style='display: none;' class='vsPortLabel'>" + hwLabel + "" + portPfx + ")</span></td>";
+        result += "<td>&nbsp;<span style='display: none;' data-bs-html='true' class='vsPortLabel'>" + hwLabel + "" + portPfx + ")</span></td>";
         result += "<td><input type='hidden' class='vsProtocol' value='" + protocol + "'</td>";
         result += "<td><button ";
         result += "class='circularButton circularButton-sm circularVirtualStringButton circularDeleteButton' onClick='removeVirtualString(this);'></button></td>";
     }
     else
     {
-        result += "<td class='vsPortLabel' align='center' title=''>" + hwLabel + "" + portPfx + ")</td>";
+        result += "<td class='vsPortLabel' align='center' data-bs-html='true' title=''>" + hwLabel + "" + portPfx + ")</td>";
         result += "<td>" + pixelOutputProtocolSelect(protocols, protocol) + "</td>";
         result += "<td ><button ";
         result += "class='circularButton circularButton-sm circularButton-visible circularVirtualStringButton circularAddButton' onClick='addVirtualString(this);'></button></td>";
     }
 
     result += "<td><input type='text' class='vsDescription' size='25' maxlength='60' value='" + description + "'></td>";
-    result += "<td><input type='number' class='vsStartChannel' size='7' value='" + startChannel + "' min='1' max='<?echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this); sanityCheckOutputs();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+    result += "<td><input type='number' class='vsStartChannel' data-bs-html='true' size='7' value='" + startChannel + "' min='1' max='<?echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this); sanityCheckOutputs();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
     result += "<td><input type='number' class='vsPixelCount' size='4' min='0' max='1600' onkeypress='preventNonNumericalInput(event)' value='" + pixelCount + "' onChange='updateItemEndChannel(this); sanityCheckOutputs();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
     result += "<td><input type='number' class='vsGroupCount' size='3' value='" + groupCount + "' min='1' max='1000' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this); sanityCheckOutputs();'></td>";
     if (groupCount == 0) {
@@ -1638,8 +1638,12 @@ function populatePixelStringOutputs(data) {
                         selectedPixelStringRowId = "NothingSelected";
                     }
                 });
-
+                $('.vsPortLabel').tooltip();
                 setTimeout(function() {
+                    $('.vsPortLabel').attr("data-bs-html", "true");
+                    $('.vsPortLabel').attr("data-bs-original-title", selected_string_details($('.vsPortLabel').parent()));
+
+                    /*
                     $('.vsPortLabel').tooltip({
                         content: function() {
                             var tip = selected_string_details($(this).parent());
@@ -1647,6 +1651,7 @@ function populatePixelStringOutputs(data) {
                         },
                         hide: { delay: 100 }
                     });
+                    */
                 }, 250);
 
                 //setTimeout(pinTableHeader, 500);
@@ -1849,8 +1854,8 @@ function sanityCheckOutputs() {
 
             labels[r] = tRow.find('.vsPortLabel').html().replace(')', '');
 
-            pcNodes[r].attr('title', '');
-            scNodes[r].attr('title', '');
+            pcNodes[r].attr("data-bs-original-title", '');
+            scNodes[r].attr("data-bs-original-title", '');
         }
     }
 
@@ -1955,8 +1960,11 @@ function sanityCheckOutputs() {
 
     for (r = 0; r < rowCount; r++) {
         if (startChannels[r] && endChannels[r]) {
-            pcNodes[r].attr('title', pcTitles[r]);
-            scNodes[r].attr('title', scTitles[r]);
+            pcNodes[r].tooltip();
+            scNodes[r].tooltip();
+            pcNodes[r].attr("data-bs-original-title", pcTitles[r]);
+            scNodes[r].attr("data-bs-original-title", scTitles[r]);
+
         }
     }
 

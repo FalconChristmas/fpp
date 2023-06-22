@@ -52,7 +52,7 @@ $(function () {
         top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0
     });
 
-    $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
+    $('a[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
         zp.update();
     });
 
@@ -71,7 +71,7 @@ $(function () {
     } else {
         $('body').addClass('no-touch');
     }
-    $("[data-toggle=pill], [data-toggle=tab]").click(function () {
+    $("[data-bs-toggle=pill], [data-bs-toggle=tab]").click(function () {
         if (history.pushState) {
             history.pushState(null, null, $(this).attr('href'));
         }
@@ -95,6 +95,133 @@ $(function () {
 
 function getManualLink() {
     return "https://falconchristmas.github.io/FPP_Manual.pdf";
+}
+
+function CloseModalDialog(id) {
+    const myModal = bootstrap.Modal.getInstance(document.getElementById(id));
+    myModal.hide();
+}
+function EnableModalDialogCloseButton(id) {
+    $("#" + id).find("#modalCloseButton").prop("disabled", false);
+}
+function DoModalDialog(options) {
+    var dlg = $("#" + options.id);
+    if (dlg.length == 0) {
+        dlg = $("#modalDialogBase").clone();
+        dlg.attr("id", options.id);
+        if (options.hasOwnProperty("class")) {
+            dlg.addClass(options.class);
+        }
+        $("#modalDialogBase").parent().append(dlg);
+
+        if (options.open && typeof options.open === 'function') {
+            dlg.on('show.bs.modal', function () {
+                options.open.call(self);
+            })
+        }
+        if (options.close && typeof options.close === 'function') {
+            dlg.on('hide.bs.modal', function () {
+                options.close.call(self);
+            })
+        }
+        if (options.hasOwnProperty("footer") || options.hasOwnProperty("buttons")) {
+            dlg.find(".modal-footer").html(options.footer);
+        } else {
+            dlg.find(".modal-footer").remove();
+        }
+
+        if (typeof (options.body) !== "string") {
+            dlg.find(".modal-body").append(options.body);
+            options.body.removeClass("hidden");
+        }
+        if (typeof (options.title) !== "string") {
+            dlg.find(".modal-title").append(options.title);
+        }
+        $.each(options.buttons, function (buttonKey, buttonProps) {
+            var buttonId = '';
+            var buttonText = buttonKey;
+            var handleClick = buttonProps;
+            var buttonClass = 'buttons';
+            var buttonStyle = '';
+            var buttonEnabled = '';
+            if (typeof buttonProps === 'object') {
+                if (buttonProps.click) {
+                    handleClick = buttonProps.click;
+                }
+                if (buttonProps.id) {
+                    buttonId = ' id="' + buttonProps.id + '"';
+                }
+                if (buttonProps.text) {
+                    buttonText = buttonProps.text;
+                }
+                if (buttonProps.class) {
+                    buttonClass += ' ' + buttonProps.class
+                }
+                if (buttonProps.disabled) {
+                    buttonEnabled = ' disabled';
+                }
+                if (buttonProps.style) {
+                    buttonStyle = ' style="' + buttonProps.style + "\"";
+                }
+            }
+            $newButton = $('<button ' + buttonId + buttonEnabled + buttonStyle + ' class="' + buttonClass + '">' + buttonText + '</button>');
+            $newButton.on('click', function () {
+                handleClick.call(self);
+            })
+            dlg.find(".modal-footer").append($newButton);
+        });
+    }
+    if (options.noClose) {
+        dlg.find("#modalCloseButton").prop("disabled", true);
+    }
+
+    if (typeof (options.title) === 'string') {
+        dlg.find(".modal-title").html(options.title);
+    }
+    if (typeof (options.body) === 'string') {
+        dlg.find(".modal-body").html(options.body);
+    }
+    new bootstrap.Modal('#' + options.id, options).show();
+}
+function DisplayProgressDialog(id, title) {
+    DoModalDialog({
+        id: id,
+        title: title,
+        noClose: true,
+        backdrop: "static",
+        keyboard: false,
+        body: " <textarea style='width: 100%;' rows='25'  disabled id='" + id + "Text'></textarea>",
+        class: "modal-dialog-scrollable",
+        buttons: {
+            "Close": {
+                disabled: true,
+                id: id + "CloseButton",
+                click: function () {
+                    CloseModalDialog(id);
+                    location.reload();
+                }
+            }
+        }
+    });
+}
+function DisplayConfirmationDialog(id, title, body, yesFunction) {
+    DoModalDialog({
+        id: id,
+        class: "modal-m",
+        backdrop: true,
+        keyboard: true,
+        body: body,
+        title: title,
+        buttons: {
+            "Yes": function () {
+                CloseModalDialog(id);
+                yesFunction();
+            },
+            "No": function () {
+                CloseModalDialog(id);
+            }
+        }
+    });
 }
 
 (function ($) {
@@ -122,6 +249,9 @@ function getManualLink() {
             return this;
         }
         if (options == 'moveToTop') {
+            this.each(function () {
+                $(this).modal('show');
+            });
             return this;
         }
         if (options == 'option') {
@@ -133,7 +263,7 @@ function getManualLink() {
             width: null,
             content: null,
             footer: null,
-            closeText: '<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
+            closeText: '<button type="button" class="close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
         }, options);
 
         this.each(function () {
@@ -264,6 +394,7 @@ function getManualLink() {
             }
             $(this).modal(modalOptions).addClass('fppDialog');
         });
+        $(this).modal('show');
         return this;
     };
 }(jQuery));
@@ -961,48 +1092,17 @@ function GetItemCount(url, id, key = '') {
 }
 
 function SetupToolTips(delay = 100) {
-    $('[title]').each(function () {
-        if ($(this).is('[data-tooltip-position-at]') || $(this).is('[data-tooltip-position-my]')) {
-            var title = $(this).attr('title');
-            $(this).data('tooltip-title', title);
-
-            $(this).removeAttr('title');
-            var pos = { my: "left top+15", at: "left bottom", collision: "flipfit" };
-            if ($(this).is('[data-tooltip-position-at]')) {
-                pos.at = $(this).data('tooltip-position-at');
-            }
-            if ($(this).is('[data-tooltip-position-my]')) {
-                pos.my = $(this).data('tooltip-position-my');
-            }
-            if ($(this).data('tooltip-touch') != "false" && !hasTouch) {
-                $(this).tooltip({
-                    items: $(this).prop('nodeName'),
-                    content: $(this).data('tooltip-title'),
-                    position: pos,
-                });
-            }
-        }
-    });
-    $(document).tooltip({
-        content: function () {
-            $('.ui-tooltip').hide();
-            var id = $(this).attr('id');
-            if ((typeof id != "undefined") &&
-                (id.endsWith('_img'))) {
-                id = id.replace('_img', '_tip');
-                return $('#' + id).html();
-            }
-
-            var title = $(this).attr('title');
-            if (typeof title != "undefined") {
-                return title;
-            }
-            return "";
-        },
-
-        hide: { delay: delay }
+    var titles = document.querySelectorAll('[title]'), i;
+    [].forEach.call(titles, function (value) {
+        var title = value.title;
+        value.setAttribute("data-bs-tooltip-title", title);
+        value.setAttribute("data-bs-toggle", "tooltip");
+        value.setAttribute("data-bs-placement", "auto");
+        delete value.title;
     });
 
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
 }
 function SetHomepageStatusRowWidthForMobile() {
@@ -2228,111 +2328,6 @@ function RemoveIllegalChars(name) {
     return name;
 }
 
-function CopyPlaylist() {
-    var name = $('#txtPlaylistName').val();
-
-    $("#copyPlaylist_dialog").fppDialog({
-        width: 400,
-        buttons: {
-            "Copy": function () {
-                var new_playlist_name = $(this).find(".newPlaylistName").val();
-
-                if (name == new_playlist_name) {
-                    DialogError('Error, same name given', 'Identical name given.');
-                    return;
-                }
-
-                if (!SavePlaylistAs(new_playlist_name, '', ''))
-                    return;
-
-                PopulateLists({
-                    onPlaylistArrayLoaded: function () {
-                        $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
-                        onPlaylistArrayLoaded();
-                    }
-                });
-
-
-                SetPlaylistName(new_playlist_name);
-                $(this).fppDialog("close");
-            },
-            Cancel: function () {
-
-                $(this).fppDialog("close");
-            }
-        },
-        open: function (event, ui) {
-            //Generate a name for the new playlist
-            $(this).find(".newPlaylistName").val(name + " - Copy");
-        },
-        close: function () {
-            $(this).find(".newPlaylistName").val("New Playlist Name");
-        }
-    });
-}
-
-function RenamePlaylist() {
-    var name = $('#txtPlaylistName').val();
-
-    $("#renamePlaylist_dialog").fppDialog({
-        width: 400,
-        title: 'Rename Playlist',
-        buttons: {
-
-            "Rename": function () {
-                var new_playlist_name = $(this).find(".newPlaylistName").val();
-
-                if (name == new_playlist_name) {
-                    DialogError('Error, same name given', 'Identical name given.');
-                    return;
-                }
-
-                if (!SavePlaylistAs(new_playlist_name, '', ''))
-                    return;
-
-                DeleteNamedPlaylist(name);
-                PopulateLists();
-
-                SetPlaylistName(new_playlist_name);
-                $(this).fppDialog("close");
-            },
-            Cancel: function () {
-                $(this).fppDialog("close");
-            }
-        },
-        open: function (event, ui) {
-            //Generate a name for the new playlist
-            $(this).find(".newPlaylistName").val(name);
-        },
-        close: function () {
-            $(this).find(".newPlaylistName").val("New Playlist Name");
-        }
-    });
-}
-
-function DeletePlaylist(options) {
-    var name = $('#txtPlaylistName').val();
-
-    DeleteNamedPlaylist(name, options);
-}
-
-function DeleteNamedPlaylist(name, options) {
-    var postDataString = "";
-    $.ajax({
-        dataType: "json",
-        url: "api/playlist/" + name,
-        type: "DELETE",
-        async: false,
-        success: function (data) {
-            PopulateLists(options);
-            $.jGrowl("Playlist Deleted", { themeState: 'success' });
-        },
-        error: function (...args) {
-            DialogError('Error Deleting Playlist', "Error deleting '" + name + "' playlist" + show_details(args));
-        }
-    });
-}
-
 function AssignPlaylistEditorFPPCommandArgsFromList(row, c) {
     for (var x = 0; x < commandList[c]['args'].length; x++) {
         var a = commandList[c]['args'][x];
@@ -2418,17 +2413,22 @@ function PingIP(ip, count) {
     if (ip == "")
         return;
 
-    $('#helpText').html("Pinging " + ip + "<br><br>This will take a few seconds to load");
-    $('#dialog-help').fppDialog({ height: 600, width: 800, position: { my: 'center', at: 'top', of: window }, title: "Ping " + ip });
-    // Workaround for bug: https://bugs.jqueryui.com/ticket/8741
-    $('#dialog-help').fppDialog("option", "position", { my: 'center', of: window });
-    //				$('#dialog-help').fppDialog( "moveToTop" );
+    var opts = {
+        id: "pingDialog",
+        title: "Ping " + ip,
+        body: "<div id='pingText'>Pinging " + ip + "<br><br>This will take a few seconds to load</div>",
+        backdrop: "static",
+        keyboard: false,
+        focus: true
+    };
+
+    DoModalDialog(opts);
 
     $.get("ping.php?ip=" + ip + "&count=" + count
     ).done(function (data) {
-        $('#helpText').html(data);
+        $('#pingText').html(data);
     }).fail(function () {
-        $('#helpText').html("Error pinging " + ip);
+        $('#pingText').html("Error pinging " + ip);
     });
 }
 
@@ -4809,8 +4809,8 @@ function HelpClosed() {
 
 function DisplayHelp() {
     if (helpOpen) {
+        CloseModalDialog('helpDialog');
         helpOpen = 0;
-        $('#dialog-help').fppDialog('close');
         return;
     }
 
@@ -4829,11 +4829,18 @@ function DisplayHelp() {
             tmpHelpPage = "help/settings-" + tab + ".php";
         }
     }
+    var options = {
+        id: "helpDialog",
+        title: "Help - Hit F1 or ESC to close",
+        body: "<div id='helpDialogText'>No help file exists for this page yet.  Check the <a class='link-to-fpp-manual' href='" + getManualLink() + "' target='_blank'>FPP Manual</a> for more info.</div>",
+        close: HelpClosed,
+        class: "modal-dialog-scrollable",
+        keyboard: true,
+        backdrop: true
+    };
+    DoModalDialog(options);
 
-    $('#helpText').html("No help file exists for this page yet.  Check the <a class='link-to-fpp-manual' href='" + getManualLink() + "' target='_blank'>FPP Manual</a> for more info.");
-    $('#helpText').load(tmpHelpPage);
-    $('#dialog-help').fppDialog({ width: 1000, title: "Help - Hit F1 or ESC to close", close: HelpClosed });
-    $('#dialog-help').fppDialog("moveToTop");
+    $('#helpDialogText').load(tmpHelpPage);
     helpOpen = 1;
 }
 
@@ -4864,15 +4871,6 @@ function GetGitOriginLog() {
     });
 }
 
-function GetVideoInfo(file) {
-    $('#fileText').html("Getting Video Info.");
-
-    $.get("api/media/" + file + "/meta", function (data) {
-        $('#fileText').html('<pre>' + syntaxHighlight(JSON.stringify(data, null, 2)) + '</pre>');
-        $('#fileViewer').fppDialog({ height: 600, width: 800, title: "Video Info" });
-        $('#fileViewer').fppDialog("moveToTop");
-    });
-}
 
 function PlayFileInBrowser(dir, file) {
     window.open("api/file/" + dir + "/" + encodeURIComponent(file) + "?play=1");
@@ -4943,26 +4941,27 @@ function TailFile(dir, file, lines) {
     ViewFileImpl(url, file);
 }
 function ViewFileImpl(url, file) {
-    $('#fileText').html("Loading...");
+    var options = {
+        id: "fileViewerDialog",
+        title: "File Viewer: " + file,
+        body: "<div id='fileViewerText' class='fileText'>Loading...</div>",
+        class: "modal-dialog-scrollable",
+        keyboard: true,
+        backdrop: true,
+        buttons: {
+            "Close": {
+                id: 'fileViewerCloseButton',
+                click: function () { CloseModalDialog("fileViewerDialog"); },
+                class: 'btn-success'
+            }
+        }
+    };
+    DoModalDialog(options);
     $.get(url, function (text) {
         var ext = file.split('.').pop();
         if (ext != "html")
-            $('#fileText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
+            $('#fileViewerText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
     });
-
-    $('#fileViewer').fppDialog({
-        width: 1800,
-        title: "File Viewer: " + file,
-        height: '100%',
-        resizable: true,
-        overflowX: 'scroll',
-        buttons: {
-            "Close": function () {
-                $('#fileViewer').fppDialog('close');
-            }
-        }
-    });
-    $('#fileViewer').fppDialog("moveToTop");
 }
 
 function DeleteFile(dir, row, file, silent = false) {
@@ -5020,21 +5019,20 @@ function SetupSelectableTableRow(info) {
 }
 
 function DialogOK(title, message) {
-    $('#dialog-popup').fppDialog({
-
-        content: message,
+    DoModalDialog({
+        id: "dialogOKPopup",
         title: title,
-        width: 400,
-        autoResize: true,
-        closeOnEscape: false,
+        body: message,
+        class: "modal-sm",
+        keyboard: true,
+        backdrop: true,
         buttons: {
-            Ok: function () {
-                $(this).fppDialog("close");
+            "Close": {
+                click: function () { CloseModalDialog("dialogOKPopup"); },
+                class: 'btn-success'
             }
         }
     });
-
-
 }
 
 // Simple wrapper for now, but we may highlight this somehow later
@@ -6064,52 +6062,40 @@ function FillInCommandTemplate(row, data) {
 
     row.find('.cmdTmplJSON').html(JSON.stringify(command));
 
-    row.find('.cmdTmplTooltipIcon').tooltip({
-        content: function () {
-            var json = $(this).parent().find('.cmdTmplJSON').text();
-            if (json == '')
-                return 'No command selected.';
 
-            var data = JSON.parse(json);
-
-            if (data.command == '')
-                return 'No command selected.';
-
-            var args = commandListByName[data.command]['args'];
-            var tip = '<table>';
-
-            tip += "<tr><th class='left'>Command:</th><td>" + data.command + "</td></tr>";
+    var json = JSON.stringify(command);
+    var tip = 'No command selected.';
+    if (json != '') {
+        var data = JSON.parse(json);
+        if (data.command != '') {
+            tip = "<span class='tooltipSpan' style='display: block; text-align: left;'><b>Command: </b>" + data.command + "<br>";
 
             if (data.hasOwnProperty('multisyncCommand')) {
-                tip += "<tr><th class='left'>Multicast:</th><td>";
+                tip += "<b>Multicast: </b>";
                 if (data.multisyncCommand)
                     tip += "Yes";
                 else
                     tip += "No";
 
-                tip += "</td></tr>";
+                tip += "<br>";
 
                 if (data.hasOwnProperty('multisyncHosts')) {
-                    tip += "<tr><th class='left'>Multicast Hosts:</th><td>" +
-                        data.multisyncHosts + "</td></tr>";
+                    tip += "<b>Multicast Hosts: </b>" +
+                        data.multisyncHosts + "<br>";
                 }
             }
-
+            var args = commandListByName[data.command]['args'];
             if (data.args.length) {
                 for (var j = 0; j < args.length; j++) {
-                    tip += "<tr><th class='left'>" + args[j]['description'] + ":</th><td>" + data.args[j] + "</td></tr>";
+                    tip += "<b>" + args[j]['description'] + ": </b>" + data.args[j] + "<br>";
                 }
             }
-
-            tip += "<tr><th class='left'>MultiCast:</th><td>" + mInfo + "</td></tr>";
-            tip += '</table>';
-
-            return tip;
-        },
-        open: function (event, ui) {
-            ui.tooltip.css("max-width", "600px");
+            tip += "</span>"
         }
-    });
+    }
+
+    row.find('.cmdTmplTooltipIcon').attr('data-bs-original-title', tip);
+    row.find('.cmdTmplTooltipIcon').tooltip();
 }
 
 function RunCommandJSON(cmdJSON) {
@@ -6189,7 +6175,8 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '
         open: function (event, ui) { $('#commandEditorPopup').parent().find(".ui-dialog-titlebar-close").hide(); },
         closeOnEscape: false
     });
-    $('#commandEditorPopup').fppDialog("moveToTop");
+
+
     $('#commandEditorDiv').load('commandEditor.php', function () {
         CommandEditorSetup(target, data, callback, cancelCallback, args);
 
@@ -6200,18 +6187,15 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '
 }
 
 function PreviewSchedule() {
-    if ($('#schedulePreviewPopup').length == 0) {
-        var dialogHTML = "<div id='schedulePreviewPopup'><div id='schedulePreviewDiv'></div></div>";
-        $(dialogHTML).appendTo('body');
-    }
-
-    $('#schedulePreviewDiv').html('');
-    $('#schedulePreviewPopup').fppDialog({
-        width: 900,
+    var options = {
+        id: "schedulePreview",
         title: "Schedule Preview",
-        modal: true
-    });
-    $('#schedulePreviewPopup').fppDialog("moveToTop");
+        body: "<div id='schedulePreviewDiv'></div>",
+        class: "modal-dialog-scrollable",
+        keyboard: true,
+        backdrop: true
+    };
+    DoModalDialog(options);
     $('#schedulePreviewDiv').load('schedulePreview.php');
 }
 
@@ -6297,10 +6281,10 @@ function RefreshHeaderBar() {
             if (e.ifname.startsWith("can.")) { return 0; }
             e.addr_info.forEach(function (n) {
                 if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp") || e.ifname.startsWith("tether"))) {
-                    var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
+                    var row = '<span class="ipTooltip" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
                 } else if (n.family === "inet" && "wifi" in e) {
-                    var row = '<span title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + e.wifi.unit + '">';
+                    var row = '<span class="ipTooltip" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + e.wifi.unit + '">';
                     row += '<img src="images/redesign/wifi-' + e.wifi.desc + '.svg" height="14px"/>';
                     row += '<small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
@@ -6311,13 +6295,17 @@ function RefreshHeaderBar() {
                     } else if (e.flags.includes("STATIC") && e.operstate != "UP") {
                         icon = "text-danger";
                     }
-                    var row = '<span title="IP: ' + n.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
+                    var row = '<span class="ipTooltip" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="IP: ' + n.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
                 }
             });
         });
         if (headerCache.Interfaces != rc.join("")) {
             $("#header_IPs").html(rc.join(""));
+            var titles = document.getElementsByClassName('ipTooltip');
+            [].forEach.call(titles, function (value) {
+                new bootstrap.Tooltip(value);
+            });
             headerCache.Interfaces = rc.join("");
         }
     }
@@ -6340,13 +6328,19 @@ function RefreshHeaderBar() {
                 }
             }
             tooltip += '<b>' + e.label + '</b>' + val + '<br/>';
-            row = '<span onclick="RotateHeaderSensor(' + (sensors.length + 1) + ')" data-sensorcount="' + sensors.length + '" class="hiddenSensor" title="TOOLTIP_DETAILS"><i class="fas fa-' + icon + '"></i><small>' + e.label + val + '</small></span>';
+            row = '<span class="sensorSpan" onclick="RotateHeaderSensor(' + (sensors.length + 1) + ')" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" data-sensorcount="' + sensors.length + '" class="hiddenSensor" data-bs-title="TOOLTIP_DETAILS"><i class="fas fa-' + icon + '"></i><small>' + e.label + val + '</small></span>';
             sensors.push(row);
         });
         var sensorsJoined = sensors.join("");
         sensorsJoined = sensorsJoined.replace(/TOOLTIP_DETAILS/g, tooltip);
         if (headerCache.Sensors != sensorsJoined) {
+            $(".sensorSpan").each(function () {
+                $(this).tooltip("hide");
+            });
             $("#header_sensors").html(sensorsJoined);
+            $(".sensorSpan").each(function () {
+                $(this).tooltip();
+            });
             headerCache.Sensors = sensorsJoined;
             if (sensors.length > 1) $("#header_sensors").css("cursor", "pointer");
             if ($("#header_sensors").data("defaultsensor") != undefined

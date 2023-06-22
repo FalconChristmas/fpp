@@ -89,7 +89,7 @@ include 'menu.inc'; ?>
             <div class="col-md">
                 <h2>Initial Setup</h2>
             </div>
-            <div class="col-md-auto ml-lg-auto">
+            <div class="col-md-auto ms-lg-auto">
                 <div class="form-actions">
                     <input type='button' class='buttons btn-success' value='Finish Setup' onClick='finishSetup();'>
                 </div>

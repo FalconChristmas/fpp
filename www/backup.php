@@ -3346,12 +3346,12 @@ $activeParentMenuItem = 'status';
                     <ul id="fppBackupTabs" class="nav nav-pills pageContent-tabs" role="tablist">
 
                         <li class="nav-item">
-                            <a class="nav-link active" id="backups-jsonBackup-tab" data-toggle="tab" href="#tab-jsonBackup" role="tab" aria-controls="tab-jsonBackup" aria-selected="true">
+                            <a class="nav-link active" id="backups-jsonBackup-tab" data-bs-toggle="tab" href="#tab-jsonBackup" role="tab" aria-controls="tab-jsonBackup" aria-selected="true">
                             JSON Configuration Backup
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" id="backups-fileCopy-tab" data-toggle="tab" href="#tab-fileCopy" role="tab" aria-controls="tab-fileCopy" aria-selected="false">
+                            <a class="nav-link" id="backups-fileCopy-tab" data-bs-toggle="tab" href="#tab-fileCopy" role="tab" aria-controls="tab-fileCopy" aria-selected="false">
                             File Copy Backup
                             </a>
                         </li>
@@ -3464,7 +3464,7 @@ foreach ($settings_restored as $area_restored => $success) {
                             <div class="backdrop">
                                 <div class="container-fluid">
                                     <div class="row">
-                                        <div class="col-md-6 backup-config-left-panel">
+                                        <div class="col-md-6 backup-config-start-panel">
                                             <div class="row">
                                                 <h2>Backup Configuration</h2>
                                             </div>
@@ -3511,7 +3511,7 @@ foreach ($settings_restored as $area_restored => $success) {
                                             </div>
                                         </div>
 
-                                        <div class="col-md-6 backup-config-right-panel">
+                                        <div class="col-md-6 backup-config-end-panel">
                                             <div class="row">
                                                 <div class="col-md-12">
                                                     <h2>Download Existing Backups</h2>
@@ -3565,7 +3565,7 @@ foreach ($settings_restored as $area_restored => $success) {
                                 <div class="container-fluid">
 
                                     <div class="row">
-                                        <div class="col-md-6 restore-config-left-panel">
+                                        <div class="col-md-6 restore-config-start-panel">
                                             <div class="row">
                                                 <h2>Restore Configuration</h2>
                                                 <div class="callout callout-danger">
@@ -3621,7 +3621,7 @@ foreach ($settings_restored as $area_restored => $success) {
                                             </div>
                                         </div>
 
-                                        <div class="col-md-6 restore-config-right-panel">
+                                        <div class="col-md-6 restore-config-end-panel">
                                             <div class="row">
                                                 <div class="col-md-12">
                                                     <h2>Restore Existing Backups</h2>

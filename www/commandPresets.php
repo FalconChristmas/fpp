@@ -141,7 +141,6 @@ $(document).ready(function() {
 		$.extend(sortableOptions,{handle:'.rowGrip'});
 	}
     $('#tblCommandsBody').sortable(sortableOptions).disableSelection();
-    $(document).tooltip();
 });
 </script>
 
@@ -169,7 +168,7 @@ include 'menu.inc';?>
 
                         <div class='smallonly'>
                             <div class="dropdown">
-                                <button class="btn btn-outline-primary" type="button" id="commandPresetsMobileActions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <button class="btn btn-outline-primary" type="button" id="commandPresetsMobileActions" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                     <i class="fas fa-ellipsis-h"></i>
                                 </button>
                                 <div class="dropdown-menu" aria-labelledby="commandPresetsMobileActions">
@@ -183,12 +182,12 @@ include 'menu.inc';?>
                     </div>
 
                 </div>
-                <div class="col-auto ml-auto">
+                <div class="col-auto ms-auto">
                     <div class="form-actions form-actions-primary">
 
                         <div class='largeonly'><button class="disableButtons deleteCmdButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblCommandsBody'); DisableButtonClass('deleteCmdButton');">Delete</button></div>
                         <div class='largeonly'><button class="disableButtons cloneCmdButton" type="button" value="Clone" onClick="CloneCommand();">Clone</button></div>
-                        <div><button class="buttons btn-outline-success form-actions-button-primary ml-1" type="button"  onClick="AddCommand();"><i class="fas fa-plus"></i> Add</button></div>
+                        <div><button class="buttons btn-outline-success form-actions-button-primary ms-1" type="button"  onClick="AddCommand();"><i class="fas fa-plus"></i> Add</button></div>
                         <div><button class="buttons btn-success form-actions-button-primary" type='button' value="Save" onClick='SaveCommands();' >Save</button></div>
                     </div>
                 </div>
@@ -203,7 +202,7 @@ include 'menu.inc';?>
                             <td><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><?echo $commandOptions; ?></select>
                                 <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
                                 <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".cmdTmplJSON").text());'>
-                                <img class='cmdTmplTooltipIcon' title='' src='images/redesign/help-icon.svg' width=22 height=22>
+                                <img class='cmdTmplTooltipIcon' data-bs-html='true' data-bs-toggle='tooltip' title='' src='images/redesign/help-icon.svg' width=22 height=22>
                                 <span class='cmdTmplMulticastInfo'></span>
                                 <table class='cmdTmplArgsTable'><tr><th class='left'>Args:</th><td><span class='cmdTmplArgs'></span></td></tr></table>
                                 <span class='cmdTmplJSON' style='display: none;'></span>

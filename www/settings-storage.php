@@ -8,52 +8,21 @@ require_once('common.php');
 
 <script>
 function StorageDialogDone() {
-    $('#closeDialogButton').show();
-}
-function CloseExpandStorageDialog() {
-    $('#storageSettingsProgressPopup').fppDialog('close');
+    EnableModalDialogCloseButton("storageSettingsProgress");
+    $('#storageSettingsProgressCloseButton').prop("disabled", false);
     SetSetting("LastBlock", "0", 0, 1);
 }
 function growSDCardFS() {
-    $('#dialog-confirm')
-        .fppDialog({
-            resizeable: false,
-            height: 300,
-            width: 500,
-            modal: true,
-            buttons: {
-            "Yes" : function() {
-                $(this).fppDialog("close");
-                $('#storageSettingsProgressPopup').fppDialog({  height: 500, width: 900, title: "Storage Expand", dialogClass: 'no-close' });
-                $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
-                document.getElementById('storageText').value = '';
-                StreamURL('growsd.php?wrapped=1', 'storageText', 'StorageDialogDone');
-            },
-            "No" : function() {
-                $(this).fppDialog("close");
-             }
-        }
+    DisplayConfirmationDialog("growSDCard", "Grow Filesystem", $("#dialog-confirm"), function() {
+        DisplayProgressDialog("storageSettingsProgress", "Storage Expand");
+        StreamURL('growsd.php?wrapped=1', 'storageSettingsProgressText', 'StorageDialogDone');
     });
 }
 function newSDCardPartition() {
-    $('#dialog-confirm-newpartition')
-    .fppDialog({
-            resizeable: false,
-            width: 500,
-            modal: true,
-            buttons: {
-            "Yes" : function() {
-                $(this).fppDialog("close");
-                $('#storageSettingsProgressPopup').fppDialog({  width: 900, title: "New Partition", dialogClass: 'no-close' });
-                $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
-                document.getElementById('storageText').value = '';
-                StreamURL('newpartitionsd.php?wrapped=1', 'storageText', 'StorageDialogDone');
-            },
-            "No" : function() {
-                $(this).fppDialog("close");
-            }
-            }
-        });
+    DisplayConfirmationDialog("growSDCard", "Grow Filesystem", $("#dialog-confirm-newpartition"), function() {
+        DisplayProgressDialog("storageSettingsProgress", "Storage Expand");
+        StreamURL('newpartitionsd.php?wrapped=1', 'storageSettingsProgressText', 'StorageDialogDone');
+    });
 }
     
 function checkForStorageCopy() {
@@ -64,10 +33,8 @@ function checkForStorageCopy() {
              buttons: [{ value: "Yes" }, { value: "No" }],
              success: function (result) {
                  if (result == "Yes") {
-                    $('#storageSettingsProgressPopup').fppDialog({  height: 500, width: 900, title: "Copy Settings", fppDialogClass: 'no-close' });
-                    $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
-                    document.getElementById('storageText').value = '';
-                    StreamURL("copystorage.php?wrapped=1&storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All", 'storageText', 'StorageDialogDone');
+                    DisplayProgressDialog("storageSettingsProgress", "Storage Expand");
+                    StreamURL("copystorage.php?wrapped=1&storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All", 'storageSettingsProgressText', 'StorageDialogDone');
                  }
             }
         });
@@ -114,40 +81,14 @@ function checkFormatStorage()
 if ($settings['Platform'] == "BeagleBone Black") {
 ?>
 function flashEMMC() {
-    $('#dialog-confirm-emmc')
-        .fppDialog({
-            resizeable: false,
-            height: 300,
-            width: 500,
-            modal: true,
-            buttons: {
-                "Yes" : function() {
-                $(this).fppDialog("close");
-                window.location.href="flashbbbemmc.php";
-            },
-            "No" : function() {
-                $(this).fppDialog("close");
-            }
-        }
+    DisplayConfirmationDialog("flashEMMC", "Flash to eMMC", $("#dialog-confirm-emmc"), function() {
+        window.location.href="flashbbbemmc.php";
     });
 }
 function flashEMMCBtrfs() {
-    $('#dialog-confirm-emmc')
-    .fppDialog({
-            resizeable: false,
-            height: 300,
-            width: 500,
-            modal: true,
-            buttons: {
-            "Yes" : function() {
-            $(this).fppDialog("close");
-            window.location.href="flashbbbemmc-btrfs.php";
-            },
-            "No" : function() {
-            $(this).fppDialog("close");
-            }
-            }
-            });
+    DisplayConfirmationDialog("flashEMMC", "Flash to eMMC", $("#dialog-confirm-emmc"), function() {
+        window.location.href="flashbbbemmc-btrfs.php";
+    });
 }
 <?php
 }
@@ -331,20 +272,13 @@ if ($addflashbutton) {
 ?>
 
 
-
-<div id="dialog-confirm" style="display: none">
+<div id="dialog-confirm" class="hidden">
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Growing the filesystem will require a reboot to take effect.  Do you wish to proceed?</p>
 </div>
-<div id="dialog-confirm-emmc" style="display: none">
+<div id="dialog-confirm-emmc" class="hidden">
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the eMMC can take a long time.  Do you wish to proceed?</p>
 </div>
-<div id="dialog-confirm-newpartition" style="display: none">
+<div id="dialog-confirm-newpartition" class="hidden">
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating a new partition in the unused space will require a reboot to take effect.  Do you wish to proceed?</p>
 </div>
 
-
-<div id='storageSettingsProgressPopup' title='FPP Storage' style="display: none">
-    <textarea style='width: 99%; height: 94%;' disabled id='storageText'>
-    </textarea>
-    <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseExpandStorageDialog();' style='display: none;'>
-</div>

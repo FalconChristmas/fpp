@@ -1278,10 +1278,10 @@ if ((isset($settings['cape-info'])) &&
 	<div id='divLEDPanels'>
         <div class="row tablePageHeader">
             <div class="col-md"><h2><span class='capeNamePanels'>LED Panels</span> </h2></div>
-            <div class="col-md-auto ml-lg-auto">
+            <div class="col-md-auto ms-lg-auto">
                 <div class="form-actions">
-                    <input id="PanelTestPatternButton" type='button' class="buttons ml-1" onClick='TogglePanelTestPattern();' value='Test Pattern'>
-                    <input type='button' class="buttons btn-success ml-1" onClick='SaveChannelOutputsJSON();' value='Save'>
+                    <input id="PanelTestPatternButton" type='button' class="buttons ms-1" onClick='TogglePanelTestPattern();' value='Test Pattern'>
+                    <input type='button' class="buttons btn-success ms-1" onClick='SaveChannelOutputsJSON();' value='Save'>
                 </div>
             </div>
         </div>

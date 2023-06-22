@@ -34,7 +34,7 @@ $grays: (
 
 $blue:    #6B95EC !default;
 $indigo:  #6610f2 !default;
-$purple:  #9F62B1 !default;
+$purple:  #6f42c1 !default;
 $pink:    #d63384 !default;
 $red:     #F63939  !default;
 $orange:  #ff7200 !default;
@@ -64,6 +64,7 @@ $colors: (
 
 $primary:       $black !default;
 $secondary:     $gray-600 !default;
+$tertiary:      $gray-400 !default;
 $success:       $green !default;
 $info:          $cyan !default;
 $warning:       $yellow !default;
@@ -77,6 +78,7 @@ $detract:  $yellow;
 $theme-colors: (
   "primary":    $primary,
   "secondary":  $secondary,
+  "tertiary":   $tertiary,
   "success":    $success,
   "info":       $info,
   "warning":    $warning,
@@ -86,7 +88,6 @@ $theme-colors: (
   "graceful":   $purple,
   "pleasant":   $pleasant
 ) !default;
-
 
 // Characters which are escaped by the escape-svg function
 $escaped-characters: (
@@ -163,8 +164,6 @@ $grid-breakpoints: (
   xxxxxl: 1920px
 ) !default;
 
-@include _assert-ascending($grid-breakpoints, "$grid-breakpoints");
-@include _assert-starts-at-zero($grid-breakpoints, "$grid-breakpoints");
 
 
 // Grid containers
@@ -182,7 +181,6 @@ $container-max-widths: (
   xxxxxl: 1800px
 ) !default;
 
-@include _assert-ascending($container-max-widths, "$container-max-widths");
 
 
 // Grid columns

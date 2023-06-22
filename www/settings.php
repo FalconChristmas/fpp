@@ -98,71 +98,71 @@ include 'menu.inc';?>
                 <div id="settingsManager">
                     <ul id="settingsManagerTabs" class="nav nav-pills pageContent-tabs" role="tablist">
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-playback-tab" data-toggle="tab" href="#settings-playback" data-option="Playback" role="tab" aria-controls="settings-playback" aria-selected="true">
+                            <a class="nav-link" id="settings-playback-tab" data-bs-toggle="tab" href="#settings-playback" data-option="Playback" role="tab" aria-controls="settings-playback" aria-selected="true">
                                 Playback
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-av-tab" data-toggle="tab" href="#settings-av" data-option="AV" role="tab" aria-controls="settings-av" aria-selected="true">
+                            <a class="nav-link" id="settings-av-tab" data-bs-toggle="tab" href="#settings-av" data-option="AV" role="tab" aria-controls="settings-av" aria-selected="true">
                             Audio/Video
                             </a>
                         </li>
 <?if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2)) {?>
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-time-tab" data-toggle="tab" href="#settings-time" data-option="Time" role="tab" aria-controls="settings-time" aria-selected="true">
+                            <a class="nav-link" id="settings-time-tab" data-bs-toggle="tab" href="#settings-time" data-option="Time" role="tab" aria-controls="settings-time" aria-selected="true">
                             Time
                             </a>
                         </li>
 <?}?>
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-ui-tab" data-toggle="tab" href="#settings-ui" data-option="UI" role="tab" aria-controls="settings-ui" aria-selected="true">
+                            <a class="nav-link" id="settings-ui-tab" data-bs-toggle="tab" href="#settings-ui" data-option="UI" role="tab" aria-controls="settings-ui" aria-selected="true">
                                 UI
                             </a>
                         </li>
 <?if ($settings["Platform"] != "MacOS") {?>
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-email-tab" data-toggle="tab" href="#settings-email" data-option="Email" role="tab" aria-controls="settings-email" aria-selected="true">
+                            <a class="nav-link" id="settings-email-tab" data-bs-toggle="tab" href="#settings-email" data-option="Email" role="tab" aria-controls="settings-email" aria-selected="true">
                                 Email
                             </a>
                         </li>
 <?}?>
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-mqtt-tab" data-toggle="tab" href="#settings-mqtt" data-option="MQTT" role="tab" aria-controls="settings-mqtt" aria-selected="true">
+                            <a class="nav-link" id="settings-mqtt-tab" data-bs-toggle="tab" href="#settings-mqtt" data-option="MQTT" role="tab" aria-controls="settings-mqtt" aria-selected="true">
                                 MQTT
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-privacy-tab" data-toggle="tab" href="#settings-privacy" data-option="Privacy" role="tab" aria-controls="settings-privacy" aria-selected="true">
+                            <a class="nav-link" id="settings-privacy-tab" data-bs-toggle="tab" href="#settings-privacy" data-option="Privacy" role="tab" aria-controls="settings-privacy" aria-selected="true">
                                 Privacy
                             </a>
                         </li>
                         <?if ($uiLevel >= 1 || $tabId == "Output") {?>
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-output-tab" data-toggle="tab" href="#settings-output" data-option="Output" role="tab" aria-controls="settings-output" aria-selected="true">
+                            <a class="nav-link" id="settings-output-tab" data-bs-toggle="tab" href="#settings-output" data-option="Output" role="tab" aria-controls="settings-output" aria-selected="true">
                             Input/Output
                             </a>
                         </li>
                         <?}?>
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-logs-tab" data-toggle="tab" href="#settings-logs" data-option="Logging" role="tab" aria-controls="settings-logs" aria-selected="true">
+                            <a class="nav-link" id="settings-logs-tab" data-bs-toggle="tab" href="#settings-logs" data-option="Logging" role="tab" aria-controls="settings-logs" aria-selected="true">
                                 Logging
                             </a>
                         </li>
                         <?if ($uiLevel >= $storageUILevel || $tabId == "Storage") {?>
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-storage-tab" data-toggle="tab" href="#settings-storage" data-option="Storage" role="tab" aria-controls="settings-storage" aria-selected="true">
+                            <a class="nav-link" id="settings-storage-tab" data-bs-toggle="tab" href="#settings-storage" data-option="Storage" role="tab" aria-controls="settings-storage" aria-selected="true">
                             Storage
                             </a>
                         </li>
                         <?}?>
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-system-tab" data-toggle="tab" href="#settings-system" data-option="System" role="tab" aria-controls="settings-system" aria-selected="true">
+                            <a class="nav-link" id="settings-system-tab" data-bs-toggle="tab" href="#settings-system" data-option="System" role="tab" aria-controls="settings-system" aria-selected="true">
                             System
                             </a>
                         </li>
                         <?if ($uiLevel >= 3 || $tabId == "Developer") {?>
                         <li class="nav-item">
-                            <a class="nav-link" id="settings-developer-tab" data-toggle="tab" href="#settings-developer" data-option="Developer" role="tab" aria-controls="settings-developer" aria-selected="true">
+                            <a class="nav-link" id="settings-developer-tab" data-bs-toggle="tab" href="#settings-developer" data-option="Developer" role="tab" aria-controls="settings-developer" aria-selected="true">
                             Developer
                             </a>
                         </li>
@@ -170,7 +170,7 @@ include 'menu.inc';?>
                     </ul>
                     <div id="settingsManagerTabsContent" class="tab-content">
                         <div class="spinner-border spinner-danger spinner-lg" role="status">
-                            <span class="sr-only">Loading...</span>
+                            <span class="visually-hidden">Loading...</span>
                         </div>
                     </div>
 
@@ -266,6 +266,7 @@ $('#settingsManagerTabs .nav-link').each(function(i){
                     UpdateChildSettingsVisibility();
                     InitializeTimeInputs();
                     InitializeDateInputs();
+                    SetupToolTips();
                 })
             })
         })
@@ -277,7 +278,7 @@ $('#settingsManagerTabs .nav-link').each(function(i){
             $tabContent:$tabContent
         };
     }
-    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+    $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
         if (($(this).attr("href") == '#settings-time') &&
             ($(this).parent().hasClass('active'))) {
             UpdateCurrentTime();
@@ -297,7 +298,7 @@ $('#settingsManagerTabs .nav-link').each(function(i){
 
 //     });
 //     $('#settingsManagerTabs .nav-link').eq(activeTabNumber).addClass('active');
-//     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+//     $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
 //         if ($(this).attr("href") == '#settings-time') {
 //             UpdateCurrentTime();
 //         } else if (statusTimeout != null) {

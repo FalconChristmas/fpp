@@ -111,24 +111,19 @@ function AddScheduleEntry(data = {}) {
             row.find('.schSequence').val(data.playlist);
             row.find('.schType').val('sequence');
 
-            row.find('.schSequence').tooltip({
-                content: function() {
-                    return $(this).val().replace(/.fseq$/,'');
-                }
-            });
+            var v = row.find('.schSequence');
+            v.tooltip();
+            v.attr("data-bs-original-title", v.val().replace(/.fseq$/,''));
         } else {
             row.find('.schOptionsSequence').hide();
             row.find('.schOptionsPlaylist').show();
             row.find('.schPlaylist').val(data.playlist);
             row.find('.schType').val('playlist');
 
-            row.find('.schPlaylist').tooltip({
-                content: function() {
-                    return $(this).val();
-                }
-            });
+            var v = row.find('.schPlaylist');
+            v.tooltip();
+            v.attr("data-bs-original-title", v.val());
         }
-
     } else {
         // FPP Command
         row.find('.schOptionsPlaylist').hide();
@@ -691,7 +686,7 @@ include 'menu.inc';?>
 
                         <div class='smallonly'>
                             <div class="dropdown">
-                                <button class="btn btn-outline-primary" type="button" id="schedulerMobileActions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <button class="btn btn-outline-primary" type="button" id="schedulerMobileActions" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                     <i class="fas fa-ellipsis-h"></i>
                                 </button>
                                 <div class="dropdown-menu" aria-labelledby="schedulerMobileActions">
@@ -710,12 +705,12 @@ include 'menu.inc';?>
                     </div>
 
                 </div>
-                <div class="col-auto ml-auto">
+                <div class="col-auto ms-auto">
                     <div class="form-actions form-actions-primary">
 
                         <div class='largeonly'><input class="disableButtons deleteSchButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');"/></div>
                         <div class='largeonly'><input class="disableButtons cloneSchButton" type="button" value="Clone" onClick="CloneSelectedEntry();"/></div>
-                        <div><button class="buttons btn-outline-success form-actions-button-primary ml-1" type="button"  onClick="AddScheduleEntry();"><i class="fas fa-plus"></i> Add</button></div>
+                        <div><button class="buttons btn-outline-success form-actions-button-primary ms-1" type="button"  onClick="AddScheduleEntry();"><i class="fas fa-plus"></i> Add</button></div>
                         <div><input class="buttons btn-success form-actions-button-primary" type='button' value="Save" onClick='SaveSchedule();' /></div>
                     </div>
                 </div>

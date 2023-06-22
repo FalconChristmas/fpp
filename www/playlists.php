@@ -26,6 +26,118 @@ if (isset($_GET['playlist'])) {
 <link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
 <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
 <script>
+    function CopyPlaylist() {
+        var name = $('#txtPlaylistName').val();
+
+        DoModalDialog({
+            id: "CopyPlaylistDialog",
+            title: "Copy Playlist",
+            body: '<span>Enter name for new playlist:</span><input id="newPlaylistName" name="newPlaylistName" type="text" style="z-index:10000; width: 95%" class="newPlaylistName" value="New Playlist Name">',
+            class: "modal-m",
+            backdrop: true,
+            keyboard: true,
+            buttons: {
+                "Copy": function () {
+                    var new_playlist_name = $("#CopyPlaylistDialog").find(".newPlaylistName").val();
+
+                    if (name == new_playlist_name) {
+                        DialogError('Error, same name given', 'Identical name given.');
+                        return;
+                    }
+
+                    if (!SavePlaylistAs(new_playlist_name, '', ''))
+                        return;
+
+                    PopulateLists({
+                        onPlaylistArrayLoaded: function () {
+                            $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
+                            onPlaylistArrayLoaded();
+                        }
+                    });
+
+                    SetPlaylistName(new_playlist_name);
+                    CloseModalDialog("CopyPlaylistDialog");
+                },
+                "Cancel": function () {
+                    CloseModalDialog("CopyPlaylistDialog");
+                }
+            },
+            open: function (event, ui) {
+                //Generate a name for the new playlist
+                $("#CopyPlaylistDialog").find(".newPlaylistName").val(name + " - Copy");
+            },
+            close: function () {
+                $("#CopyPlaylistDialog").find(".newPlaylistName").val("New Playlist Name");
+            }
+        })
+    }
+
+    function RenamePlaylist() {
+        var name = $('#txtPlaylistName').val();
+        DoModalDialog({
+            id: "RenamePlaylistDialog",
+            title: "Rename Playlist",
+            body: '<span>Enter name for new playlist:</span><input id="newPlaylistName" name="newPlaylistName" type="text" style="z-index:10000; width: 95%" class="newPlaylistName" value="New Playlist Name">',
+            class: "modal-m",
+            backdrop: true,
+            keyboard: true,
+            buttons: {
+                "Rename": function () {
+                    var new_playlist_name = $("#RenamePlaylistDialog").find(".newPlaylistName").val();
+
+                    if (name == new_playlist_name) {
+                        DialogError('Error, same name given', 'Identical name given.');
+                        return;
+                    }
+
+                    if (!SavePlaylistAs(new_playlist_name, '', ''))
+                        return;
+
+                    DeleteNamedPlaylist(name);
+                    PopulateLists();
+
+                    SetPlaylistName(new_playlist_name);
+                    CloseModalDialog("RenamePlaylistDialog");
+                    location.reload();
+                },
+                Cancel: function () {
+                    CloseModalDialog("RenamePlaylistDialog");
+                }
+            },
+            open: function (event, ui) {
+                //Generate a name for the new playlist
+                $("#RenamePlaylistDialog").find(".newPlaylistName").val(name);
+            },
+            close: function () {
+                $("#RenamePlaylistDialog").find(".newPlaylistName").val("New Playlist Name");
+            }
+        });
+    }
+
+    function DeletePlaylist(options) {
+        var name = $('#txtPlaylistName').val();
+
+        DeleteNamedPlaylist(name, options);
+    }
+
+    function DeleteNamedPlaylist(name, options) {
+        var postDataString = "";
+        $.ajax({
+            dataType: "json",
+            url: "api/playlist/" + name,
+            type: "DELETE",
+            async: false,
+            success: function (data) {
+                PopulateLists(options);
+                $.jGrowl("Playlist Deleted", { themeState: 'success' });
+            },
+            error: function (...args) {
+                DialogError('Error Deleting Playlist', "Error deleting '" + name + "' playlist" + show_details(args));
+            }
+        });
+    }
+
+
     function LoadInitialPlaylist() {
         $('#playlistSelect').val(initialPlaylist).trigger('change');
 
@@ -77,14 +189,17 @@ if (isset($_GET['playlist'])) {
         })
 
         $('.playlistAddNewBtn').click(function(){
-
             $('#txtAddPlaylistName').val(""); // BUG #1391
-
-            $('.playlistAdd').fppDialog({
-                title:'Add a New Playlist',
-                buttons:{
-                    "Add Playlist":{
-                        click: function(){
+            DoModalDialog({
+                id: "AddPlaylistDialog",
+                backdrop: true,
+                keyboard: true,
+                title: "Add a New Playlist",
+                body: $("#playlistAdd"),
+                class: "modal-m",
+                buttons: {
+                    "Add Playlist": {
+                        click: function() {
                             SavePlaylistAs(
                                 $("#txtAddPlaylistName").val(),
                                 {
@@ -96,28 +211,38 @@ if (isset($_GET['playlist'])) {
                                     onPlaylistArrayLoaded();
                                     $('#playlistSelect').val($("#txtAddPlaylistName").val()).trigger('change');
                                     //LoadPlaylistDetails($("#txtAddPlaylistName").val())
-                                    $('.playlistAdd').fppDialog('close');
+                                    CloseModalDialog("AddPlaylistDialog");
                                 }
                             )
-                            //CreateNewPlaylist();
                         },
                         class:'btn-success'
-                    }
+                    },
+                    "Close": function() { CloseModalDialog("AddPlaylistDialog");}
                 }
             });
         });
         $('.editPlaylistBtn').click(function(){
-            $('.playlistEdit').fppDialog({
-                title:'Edit Playlist Details',
+            $("#verbosePlaylistItemDetailsRow .printSettingLabelCol").removeClass("col-xxxl-2");
+            $("#verbosePlaylistItemDetailsRow .printSettingLabelCol").removeClass("col-lg-3");
+            $("#verbosePlaylistItemDetailsRow .printSettingLabelCol").removeClass("col-md");
+            $("#verbosePlaylistItemDetailsRow .printSettingLabelCol").addClass("col-md-4");
+            DoModalDialog({
+                id: "EditPlaylistDetailsDialog",
+                backdrop: true,
+                keyboard: true,
+                title: "Edit Playlist Details",
+                body: $("#playlistEdit"),
+                class: "modal-lg",
                 buttons: {
-                    Save: {
-                        click:function(){
+                    "Save": {
+                        click: function() {
                             SavePlaylist('', function(){
-                                $('.playlistEdit').fppDialog('close');
+                                CloseModalDialog("EditPlaylistDetailsDialog");
                             });
                         },
                         class:'btn-success'
-                    }
+                    },
+                    "Close": function() { CloseModalDialog("EditPlaylistDetailsDialog");}
                 }
             });
         })
@@ -140,7 +265,7 @@ if (isset($_GET['playlist'])) {
                 AddPlaylistEntry(3);
                 $('#playlistEntryProperties').fppDialog('close');
             })
-            var playlistEntriesAddNewInsertBtn = $('<div class="dropdown"><button class="btn btn-outline-success dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Insert</button></div>');
+            var playlistEntriesAddNewInsertBtn = $('<div class="dropdown"><button class="btn btn-outline-success dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Insert</button></div>');
             var playlistEntriesAddNewInsertBtnMenu = $('<div class="dropdown-menu" aria-labelledby="dropdownMenuButton"></div>').append(playlistEntriesAddNewInsertBeforeBtn).append(playlistEntriesAddNewInsertAfterBtn);
             playlistEntriesAddNewInsertBtn.append(playlistEntriesAddNewInsertBtnMenu);
 
@@ -184,18 +309,16 @@ include 'menu.inc';?>
         <div class='pageContent'>
 
             <div id="playlistEditor">
-
-
                 <div class="playlistSelectContainer">
                     <div class="playlistSelectHeader">
 
                             <div class="row">
                                 <div class="col-md">
-                                    <h2>Your Playlists <div class="badge badge-light ml-1 playlistSelectCount"></div></h2>
+                                    <h2>Your Playlists <div class="badge badge-light ms-1 playlistSelectCount"></div></h2>
                                     <select id='playlistSelect' class="hidden form-control form-control-lg form-control-rounded has-shadow" onChange='EditPlaylist();'>
                                     </select>
                                 </div>
-                                <div class="col-md-auto ml-lg-auto">
+                                <div class="col-md-auto ms-lg-auto">
                                     <button class="playlistAddNewBtn buttons btn-outline-success btn-rounded  btn-icon-add"><i class="fas fa-plus"></i> New Playlist
                                     </button>
                                 </div>
@@ -210,10 +333,6 @@ include 'menu.inc';?>
                         <div class="col-md-4 skeleton-loader"><div class="sk-block sk-card"></div></div>
 
                     </div>
-
-
-
-
                 </div>
 
                 <div class="playlistCreateContainer hidden">
@@ -243,8 +362,8 @@ include 'menu.inc';?>
                             <button class="buttons editPlaylistBtn" >
                             <i class="fas fa-cog"></i>
                             </button>
-                            <div class="dropdown pr-2">
-                                <button class="buttons dropdown-toggle playlistEditButton" type="button" id="playlistEditMoreButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <div class="dropdown pe-2">
+                                <button class="buttons dropdown-toggle playlistEditButton" type="button" id="playlistEditMoreButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                     Playlist Actions
                                 </button>
                                 <div class="dropdown-menu playlistEditMoreButtonMenu" aria-labelledby="playlistEditMoreButton">
@@ -269,7 +388,7 @@ include 'menu.inc';?>
 
 
             </div>
-            <div class="playlistAdd hidden">
+            <div class="playlistAdd hidden" id="playlistAdd">
                 <div class="form-group">
                     <label for="txtAddPlaylistName">Playlist Name:</label>
                     <input type="text" id="txtAddPlaylistName" class="pl_title form-control" />
@@ -286,28 +405,25 @@ include 'menu.inc';?>
                         <option value='2'>Every iteration</option>
                     </select>
                 </div>
-
             </div>
-            <div class="playlistEdit hidden">
-                <div class="form-group hidden">
-                    <label for="txtPlaylistName">Playlist Name:</label>
-                    <input type="text" id="txtPlaylistName" class="pl_title form-control" />
+            <div class="playlistEdit hidden" id="playlistEdit">
+                <div class="row">
+                    <div class="col-4"><label for="txtPlaylistName">Playlist Name:</label></div>
+                    <div class="col-auto"><input type="text" id="txtPlaylistName" class="pl_title form-control" /></div>
                 </div>
-                <div class="form-group">
-                    <label for="txtPlaylistDesc">Playlist Description:</label>
-                    <input type="text" id="txtPlaylistDesc" class="pl_description form-control" />
+                <div class="row">
+                    <div class="col-4"><label for="txtPlaylistDesc">Playlist Description:</label></div>
+                    <div class="col-8"><input type="text" id="txtPlaylistDesc" class="pl_description form-control" /></div>
                 </div>
-                <div class="form-group flow">
-                    <label for="randomizePlaylist">Randomize:</label>
-                    <select id='randomizePlaylist' class="form-control">
+                <div class="row">
+                    <div class="col-4"><label for="randomizePlaylist">Randomize:</label></div>
+                    <div class="col-auto"><select id='randomizePlaylist' class="form-control">
                         <option value='0'>Off</option>
                         <option value='1'>Once per load</option>
                         <option value='2'>Every iteration</option>
-                    </select>
+                    </select></div>
                 </div>
-                <div>
-                    <?PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled');?>
-                </div>
+                <?PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled');?>
             </div>
 
         </div>

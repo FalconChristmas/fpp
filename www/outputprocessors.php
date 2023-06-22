@@ -420,12 +420,6 @@ $(document).ready(function(){
 
 });
 
-        $('#outputProcessorsBody').tooltip({
-            content: function() {
-                return $(this).attr('title');
-            }
-        });
-
         $(function() {
             $('#outputProcessorsBody').on('mousedown', 'tr', function(event,ui) {
                 HandleTableRowMouseClick(event, $(this));
@@ -459,7 +453,7 @@ include 'menu.inc';?>
                             <div class="col-md">
                               <h2>Output Processors</h2>
                             </div>
-							<div class="col-md-auto ml-lg-auto">
+							<div class="col-md-auto ms-lg-auto">
 								<div class="form-actions">
 
                                         <input type=button value='Delete' data-btn-enabled-class="btn-outline-danger" onClick='DeleteSelectedProcessor();' id='btnDelete' class='disableButtons'>

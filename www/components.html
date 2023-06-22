@@ -13,7 +13,11 @@
 </head>
 
 <body>
-  
+<script>
+function DoModal() {
+    
+}
+</script>
 
    
 
@@ -42,13 +46,13 @@
 
             <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
               <li class="nav-item">
-                <a class="nav-link active" id="pills-home-tab" data-toggle="pill" href="#pills-home" role="tab" aria-controls="pills-home" aria-selected="true">Home</a>
+                <a class="nav-link active" id="pills-home-tab" href="#pills-home" data-bs-toggle="pill" type="button" role="tab" aria-controls="pills-home" aria-selected="true">Home</a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" id="pills-profile-tab" data-toggle="pill" href="#pills-profile" role="tab" aria-controls="pills-profile" aria-selected="false">Profile</a>
+                <a class="nav-link" id="pills-profile-tab" href="#pills-profile" data-bs-toggle="pill" type="button" role="tab" aria-controls="pills-profile" aria-selected="false">Profile</a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" id="pills-contact-tab" data-toggle="pill" href="#pills-contact" role="tab" aria-controls="pills-contact" aria-selected="false">Contact</a>
+                <a class="nav-link" id="pills-contact-tab" href="#pills-contact" data-bs-toggle="pill" type="button" role="tab" aria-controls="pills-contact" aria-selected="false">Contact</a>
               </li>
             </ul>
             <div class="tab-content" id="pills-tabContent">
@@ -91,7 +95,7 @@
             <button class="buttons btn-detract">Test Button</button>
             <button class="buttons btn-danger">Test Button</button>
             <button class="buttons btn-success">Test Button</button>
-            <button class="buttons btn-graceful">Test Button</button>
+            <button class="buttons btn-graceful" data-bs-toggle="modal" data-bs-target="#exampleModal">Test Button</button>
 
           </div>
         </div>
@@ -128,6 +132,24 @@
   <script src="js/jquery-latest.min.js"></script>
   <script src="js/bootstrap.bundle.min.js"></script>
 
+  <!-- Modal -->
+  <div class="modal fade" id="exampleModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          This is the modal body
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>

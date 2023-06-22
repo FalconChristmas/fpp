@@ -22,25 +22,33 @@ include 'common/menuHead.inc';
         top_spacing: $('.header').outerHeight() + 10
     });
     $('#tblEffectLibraryBody').on('click', '.buttons', function(event,ui){
-          $('#tblEffectLibraryBody tr').removeClass('effectSelectedEntry');
-          var $selectedEntry = $(this).parent().parent();
-          $selectedEntry.addClass('effectSelectedEntry');
-          EffectSelectedName  = $selectedEntry.find('td:first').text();
-          EffectSelectedType  = $selectedEntry.find('td:nth-child(2)').text();
-          $('#divEffectStartModal').fppDialog({
-            title:'Start Effect '+$selectedEntry.find('td:first').text(),
-            buttons:{
-              'Start Effect': {
-                click:function(){
-                  StartSelectedEffect();
-                  $('#divEffectStartModal').fppDialog('close');
+        $('#tblEffectLibraryBody tr').removeClass('effectSelectedEntry');
+        var $selectedEntry = $(this).parent().parent();
+        $selectedEntry.addClass('effectSelectedEntry');
+        EffectSelectedName  = $selectedEntry.find('td:first').text();
+        EffectSelectedType  = $selectedEntry.find('td:nth-child(2)').text();
+
+        var body = "Loop Effect: <input type='checkbox' id='loopEffect'><br>Run in Background: <input type='checkbox' id='backgroundEffect'><br>Start Channel Override: ";
+        body += "<input id='effectStartChannel' class='default-value' type='number' value='' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' />";
+
+        DoModalDialog({
+            id: "StartEffectDialog",
+            title: 'Start Effect ' + $selectedEntry.find('td:first').text(),
+            backdrop: true,
+            keyboard: true,
+            class: "modal-sm",
+            body: body,
+            buttons: {
+                "Start": {
+                    click: function() {
+                        StartSelectedEffect();
+                        CloseModalDialog("StartEffectDialog");
+                    },
+                    class: 'btn-success'
                 },
-                class:'btn-success'
-              }
-              
+                "Cancel": function() { CloseModalDialog("StartEffectDialog");},
             }
-          });
-          //SetButtonState('#btnStartEffect','enable');
+        });
     });
 
     $('#tblRunningEffectsBody').on('click', '.buttons', function(event,ui){
@@ -140,40 +148,6 @@ function StartSelectedEffect() {
                 <div class="col">
                 <h2>Effects Library</h2>
                   <div id= "divEffectLibrary">
-                  
-                 
-                      <div id="divEffectStartModal" class="hidden">
-                        <div class="row">
-                          <div class="col-auto">
-                            <div class="form-inline">
-                              <div class="form-group">
-                                <div>Loop Effect:</div>
-                                <div class="p-1"><input type='checkbox' id='loopEffect'></div>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="col-auto">
-                            <div class="form-inline">
-                              <div class="form-group">
-                                <div>Run in Background:</div>
-                                <div class="p-1"><input type='checkbox' id='backgroundEffect'></div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div>
-                          <div class="form-inline">
-                            <div class="form-group">
-                              <div>Start Channel Override:</div>
-                              <div class="p-1"><input id="effectStartChannel" class="default-value" type="number" value="" min="1" max="<? echo FPPD_MAX_CHANNELS; ?>" /></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                 
-
-
-
                       <div class='fppTableWrapper'>
                           <div class='fppTableContents'>
                               <table id="tblEffectLibrary" width="100%" cellpadding=1 cellspacing=0 class="fppActionTable">

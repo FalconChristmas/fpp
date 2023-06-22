@@ -48,7 +48,7 @@ $pages = array(
                             if ($page[ui] <= $uiLevel) {
                     ?>
                             <a class="nav-item nav-link" id="settings-<?php echo $page["name"]; ?>-tab"
-                                data-toggle="tab"
+                                data-bs-toggle="tab"
                                 href="#settings-<?php echo $page["name"]; ?>"
                                 data-option="<?php echo $page["name"]; ?>"
                                 role="tab"

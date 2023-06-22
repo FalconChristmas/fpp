@@ -144,7 +144,7 @@ include 'menu.inc';?>
 					<div class="col-md">
 						<h2>Proxied Hosts</h2>
 					</div>
-					<div class="col-md-auto ml-lg-auto">
+					<div class="col-md-auto ms-lg-auto">
 						<div class="form-actions">
 
 								<input type=button value='Delete' onClick='DeleteSelectedProxy();' data-btn-enabled-class="btn-outline-danger" id='btnDelete' class='disableButtons'>

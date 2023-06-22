@@ -90,20 +90,6 @@ include 'common/menuHead.inc';
                 $('#remoteVolume').html(value);
                 SetVolume(value);
             });
-            // $(document).tooltip({
-            //     content: function() {
-            //         $('.ui-tooltip').hide();
-            //         var id = $(this).attr('id');
-            //         if (typeof id != 'undefined') {
-            //             id = id.replace('_img', '_tip');
-            //             return $('#' + id).html();
-            //         } else {
-            //             return '';
-            //         }
-            //     },
-            //     hide: { delay: 1000 }
-            // });
-
             SetupBanner();
         };
 
@@ -318,7 +304,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                 </div>
 
                 <div class="volumeControlsContainer d-flex">
-                    <div class="ml-auto">
+                    <div class="ms-auto">
                         <div class="labelHeading">Volume</div>
                         <span id='remoteVolume' class='volume'></span>
                     </div>
@@ -342,7 +328,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                         <input type='button' onClick='GetMultiSyncStats();' value='Update' class='buttons'>
                         <input type='button' onClick='ResetMultiSyncStats();' value='Reset' class='buttons'>
                     </div>
-                    <div class="col-auto ml-auto">
+                    <div class="col-auto ms-auto">
                         <?php
                         PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0");
                         ?>
@@ -389,18 +375,22 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                     <div class='statusBoxLeft'>
                         <div class='statusTable container-fluid'>
                             <div class="row playerStatusRow">
-                                <div id="txtPlayerStatusLabel" class="playerStatusLabel">Player Status:</div>
-                                <div id="txtPlayerStatus" class="labelValue playerStatusLabelValue"></div>
+                                <div class="col-auto">
+                                    <div id="txtPlayerStatusLabel" class="playerStatusLabel">Player Status:</div>
+                                </div>
+                                <div class="col-auto">
+                                    <div id="txtPlayerStatus" class="labelValue playerStatusLabelValue"></div>
+                                </div>
                             </div>
                             <div class="row playlistSelectRow">
-                                <div class="playlistSelectCol">
+                                <div class="col-auto playlistSelectCol">
                                     <select id="playlistSelect" name="playlistSelect"
                                         class="form-control form-control-lg form-control-rounded has-shadow"
                                         size="1" onClick="PopulatePlaylistDetailsEntries(true,'');"
                                         onChange="PopulatePlaylistDetailsEntries(true,'');">
                                     </select>
                                 </div>
-                                <div class="playlistRepeatCol">
+                                <div class="col-auto playlistRepeatCol">
                                     <span class="settingLabelHeading">Repeat:</span>
                                     <input type="checkbox" id="chkRepeat"></input>
                                 </div>
