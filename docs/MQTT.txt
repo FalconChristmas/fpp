@@ -269,3 +269,6 @@ These are system commands for specific
 * system/fppd/restart - Executes a Fast restart on the fppd process. (Reloads all settings.) 
 * system/shutdown - Shuts down the OS
 * system/restart - Reboots the OS
+
+It is possible to send command
+* /set/command/${command} - Would run the specify command (any playload will be passed as if it was a REST API call)

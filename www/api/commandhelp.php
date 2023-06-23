@@ -1,4 +1,6 @@
 <?
+require_once './common/mqtthelp.php';
+
 $wrapped = 1;
 if (!isset($apiDir)) {
     require_once '../config.php';
@@ -407,11 +409,21 @@ if (!$wrapped) {
 }
 ?>
   <div><h2>FPP Commands</h2>
-  <b>Some internal FPP Commands are exposed for end user interaction and can be called via the REST API.  This page gives a test facility and a listing of the commands available with their args</b>
+  Some internal FPP Commands are exposed for end user interaction and can be called via the REST API or via MQTT.  This page gives a test facility and a listing of the commands available with their arguments.
+  </div>
+  <div>
+    <b>NOTE: FPPD Commands require FPPD to be running or a timeout error will occur.</b>
 </div>
-<b>NOTE: FPPD Commands require FPPD to be running or a timeout error will occur.   They can be invoked via the "/api/command" endpoint and tested using the following form:</b></br>
 <br>
-<div><h2>api/Command Tester</h2>
+<div>
+    <h2>Quick Links</h2>
+    <ol>
+        <li><a href="#command_tester">Command Tester</a></li>
+        <li><a href="#command_list">Command List</a></li>
+        <li><a href="#mqtt_instructions">Mqtt Instructions</a></li>
+    <ol>
+</div>
+<div><h2><a name="command_tester">api/Command Tester</a></h2>
 
 <table class="endpointTable" id="endpoints" width="100%" cellspacing="0" cellpadding="2" border="1">
                 <thead>
@@ -426,7 +438,7 @@ if (!$wrapped) {
 </table>
 </div>
 <br><div class="clear"></div>
-<h2>FPP Commands Listing</h2>
+<h2><a name="command_list">FPP Commands Listing</a></h2>
     <div class='fppTableWrapper fppTableWrapperAsTable'>
         <div class='fppTableContents' role="region" aria-labelledby="commandTable" tabindex="0">
             <table class='commandTable' id='commands' border=1 cellspacing=0 cellpadding=2 width='100%'>
@@ -436,7 +448,11 @@ if (!$wrapped) {
             </table>
         </div>
     </div>
+    <br><div class="clear"></div>
+    <h2><a name="mqtt_instructions">MQTT Instructions</a></h2>
+    <?showMqttHelpTable()?>
 </div>
+
 <?
 if (!$wrapped) {
     ?>
