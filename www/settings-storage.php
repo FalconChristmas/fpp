@@ -93,6 +93,11 @@ function flashEMMCBtrfs() {
 <?php
 }
 ?>
+function flashUSB() {
+    DisplayConfirmationDialog("flashUSB", "Flash to USB", $("#dialog-confirm-usb"), function() {
+        window.location.href="flash-pi-usb.php";
+    });
+}
 </script>
 
 <?php
@@ -223,13 +228,16 @@ $addflashbutton = false;
 exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
 $rootDevice = $output[0];
 if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
-    if (isset($settings["LastBlock"]) && $settings['LastBlock'] < 8000000) {
+    if (isset($settings["LastBlock"]) && $settings['LastBlock'] < 8000000 && $settings['LastBlock'] > 0) {
         $addnewfsbutton = true;
     }
     if ($settings['Platform'] == "BeagleBone Black") {
         if (strpos($settings['SubPlatform'], 'PocketBeagle') === FALSE) {
             $addflashbutton = true;
         }
+    }
+    if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) && (file_exists("/dev/sda"))) {
+        $addflashbutton = true;
     }
 }
 if ($addnewfsbutton) {
@@ -253,8 +261,8 @@ if ($addnewfsbutton) {
 <?php
 }
 if ($addflashbutton) {
+    if ($settings['Platform'] == "BeagleBone Black") {
 ?>
-
 <h3>eMMC Actions:</h3>
 
     <div class="row">
@@ -266,8 +274,16 @@ if ($addflashbutton) {
         <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMCBtrfs();'></div>
         <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i>&nbsp;This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.<br>BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.</div>
     </div>
-<?php
+<?
    }
+} else if ($settings['Platform'] == "Raspberry Pi") {
+?>
+    <div class="row">
+        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to USB' onClick='flashUSB();'></div>
+        <div class="col-auto">&nbsp;This will copy FPP to the USB device.</div>
+    </div>    
+<?
+}
 }
 ?>
 
@@ -277,6 +293,9 @@ if ($addflashbutton) {
 </div>
 <div id="dialog-confirm-emmc" class="hidden">
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the eMMC can take a long time.  Do you wish to proceed?</p>
+</div>
+<div id="dialog-confirm-usb" class="hidden">
+<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the USB can take a long time and will destroy all content on the USB device.  Do you wish to proceed?</p>
 </div>
 <div id="dialog-confirm-newpartition" class="hidden">
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating a new partition in the unused space will require a reboot to take effect.  Do you wish to proceed?</p>
