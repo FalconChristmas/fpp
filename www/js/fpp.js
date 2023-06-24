@@ -1751,6 +1751,7 @@ function SetButtonState(button, state) {
     if (state == 'enable') {
         $(button).addClass('buttons').addClass($(button).data('btn-enabled-class'));
         $(button).removeClass('disableButtons');
+        $(button).removeClass('disabled');
         $(button).removeAttr("disabled");
     }
     else {
