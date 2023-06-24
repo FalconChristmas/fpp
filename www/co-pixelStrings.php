@@ -1636,20 +1636,12 @@ function populatePixelStringOutputs(data) {
                         selectedPixelStringRowId = "NothingSelected";
                     }
                 });
-                $('.vsPortLabel').tooltip();
                 setTimeout(function() {
-                    $('.vsPortLabel').attr("data-bs-html", "true");
-                    $('.vsPortLabel').attr("data-bs-original-title", selected_string_details($('.vsPortLabel').parent()));
-
-                    /*
-                    $('.vsPortLabel').tooltip({
-                        content: function() {
-                            var tip = selected_string_details($(this).parent());
-                            return tip;
-                        },
-                        hide: { delay: 100 }
+                    $('.vsPortLabel').each(function() {
+                        $(this).attr("data-bs-html", "true"); 
+                        $(this).attr("data-bs-original-title", selected_string_details($(this).parent()));
+                        $(this).tooltip();
                     });
-                    */
                 }, 250);
 
                 //setTimeout(pinTableHeader, 500);
