@@ -4843,7 +4843,7 @@ function GetGitOriginLog() {
         noClose: true,
         backdrop: true,
         keyboard: true,
-        body: "<div id='GitOriginLogViewText'></div>",
+        body: "<div id='GitOriginLogViewText'>Loading........</div>",
         class: "modal-dialog-scrollable",
         buttons: {
             "Close": {
