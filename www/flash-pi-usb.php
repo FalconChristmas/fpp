@@ -1,30 +1,17 @@
-<!DOCTYPE html>
-<html>
-<?php
+<?
+header( "Access-Control-Allow-Origin: *");
 
 $skipJSsettings = 1;
 require_once("common.php");
 
 DisableOutputBuffering();
 
-
-?>
-
-<head>
-<title>
-Flash to USB
-</title>
-</head>
-<body>
-<h2>Flash to USB</h2>
-<pre>
-<?php
-        echo "==================================================================================\n";
+        print("==================================================================================\n");
         
         $command = "sudo TERM=vt100 env 2>&1";
         
-        echo "Command: $command\n";
-        echo "----------------------------------------------------------------------------------\n";
+        print("Command: $command\n");
+        print("----------------------------------------------------------------------------------\n");
         system($command);
     
 		echo "==================================================================================\n";
@@ -35,17 +22,9 @@ Flash to USB
 		echo "----------------------------------------------------------------------------------\n";
 		system($command);
 		echo "\n";
-
-?>
-
-==========================================================================
-</pre>
-<?php
+		echo "\n";
+		echo "----------------------------------------------------------------------------------\n";
 if (file_exists("/boot/recovery.bin")) {
     WriteSettingToFile("rebootFlag", "1");
 }
-
 ?>
-<a href='index.php'>Go to FPP Main Status Page</a><br>
-</body>
-</html>

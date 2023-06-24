@@ -266,6 +266,30 @@ function ApplyServiceSetting($setting, $value, $now)
         }
     }
 }
+function SetGPIOFanProperties() {
+    global $settings;
+    $fanOn = ReadSettingFromFile('GPIOFan');
+    $fanTemp = ReadSettingFromFile('GPIOFanTemperature') . "000"; 
+    $pfx = "";
+
+    if ($fanTemp == '000') {
+        $fanTemp = '70000';
+    }
+    if ($fanOn == '0') {
+        $pfx = "#";
+    }
+    $contents = file_get_contents("/boot/config.txt");
+    if (strpos($contents, "dtoverlay=gpio-fan") === false) {
+        $contents = $contents . "\n";
+        exec("echo \"\" | sudo tee -a /boot/config.txt");
+        exec("echo \"[all]\" | sudo tee -a /boot/config.txt");
+        exec("echo \"" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "\" | sudo tee -a /boot/config.txt");
+        exec("echo \"\" | sudo tee -a /boot/config.txt");
+    } else {
+        exec("sudo sed -i -e 's/^dtoverlay=gpio-fan\(.*\)$/" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "/g' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^#dtoverlay=gpio-fan\(.*\)$/" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "/g' /boot/config.txt", $output, $return_val);
+    }
+}
 
 function ApplySetting($setting, $value)
 {
@@ -300,6 +324,10 @@ function ApplySetting($setting, $value)
         case 'wifiDrivers':SetWifiDrivers($value);
             break;
         case 'InstalledCape':SetInstalledCape($value);
+            break;
+        case 'GPIOFanTemperature':
+        case 'GPIOFan':
+            SetGPIOFanProperties();
             break;
         default:
             ApplyServiceSetting($setting, $value, "--now");

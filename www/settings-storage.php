@@ -93,9 +93,14 @@ function flashEMMCBtrfs() {
 <?php
 }
 ?>
+function flashUSBDone() {
+    $('#flashUSBProgressCloseButton').prop("disabled", false);
+    EnableModalDialogCloseButton("flashUSBProgress");
+}
 function flashUSB() {
     DisplayConfirmationDialog("flashUSB", "Flash to USB", $("#dialog-confirm-usb"), function() {
-        window.location.href="flash-pi-usb.php";
+        DisplayProgressDialog("flashUSBProgress", "Flash to USB");
+        StreamURL("flash-pi-usb.php", 'flashUSBProgressText', 'flashUSBDone', 'flashUSBDone');
     });
 }
 </script>
@@ -206,22 +211,6 @@ function PrintStorageDeviceSelect($platform)
 	PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values, "", "checkFormatStorage");
 }
     
-?>
-
-    
-<?php
-if ($settings['Platform'] != "Docker" ) { ?>
-    <b>Storage Device:</b> &nbsp;<? PrintStorageDeviceSelect($settings['Platform']); ?>
-    
-    <div class="callout callout-warning">
-    Changing the storage device to anything other than the SD card is strongly discouraged.   There are all kinds of problems that using USB storage introduce into the system which can easily result in various problems include network lag, packet drops, audio clicks/pops, high CPU usage, etc...  Using USB storage also results in longer bootup time.   In addition, many advanced features and various capes/hats are known to NOT work when using USB storage.
-<br><br>
-In addition to the above, since it is not recommended, using USB storage is not tested nearly as extensively by the FPP developers.   Thus, upgrades (even "patch" upgrades) have a higher risk of unexpected problems.   By selecting a USB storage device, you assume much higher risk of problems and issues than when selecting an SD partition.
-   
-    </div>
-
-<?
-}
 
 $addnewfsbutton = false;
 $addflashbutton = false;
@@ -278,15 +267,37 @@ if ($addflashbutton) {
    }
 } else if ($settings['Platform'] == "Raspberry Pi") {
 ?>
+    <h3>USB Actions:</h3>
     <div class="row">
         <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to USB' onClick='flashUSB();'></div>
-        <div class="col-auto">&nbsp;This will copy FPP to the USB device.</div>
+        <div class="col-auto">&nbsp;This will copy FPP to the USB device.  See note below for more information.</div>
     </div>    
 <?
 }
 }
-?>
 
+if ($settings['Platform'] != "Docker" ) { ?>
+<br><br>
+    <b>Storage Device:</b> &nbsp;<? PrintStorageDeviceSelect($settings['Platform']); ?>
+
+<? if (strpos($settings['SubPlatform'], "Raspberry Pi 4") === false) { ?>
+
+    <div class="callout callout-warning">
+    Changing the storage device to anything other than the SD card is strongly discouraged.   There are all kinds of problems that using USB storage introduce into the system which can easily result in various problems include network lag, packet drops, audio clicks/pops, high CPU usage, etc...  Using USB storage also results in longer bootup time.   In addition, many advanced features and various capes/hats are known to NOT work when using USB storage.
+<br><br>
+In addition to the above, since it is not recommended, using USB storage is not tested nearly as extensively by the FPP developers.   Thus, upgrades (even "patch" upgrades) have a higher risk of unexpected problems.   By selecting a USB storage device, you assume much higher risk of problems and issues than when selecting an SD partition.   
+    </div>
+<? } else { ?>
+    <div class="callout callout-warning">
+        If using a USB storage device, it is STRONGLY recommended that the device be a USB 3.0 SATA/SSD device or other fast storage and not a generic USB Thumb drive.   Older USB devices, even on the USB 3.0 ports, are known to cause all kinds of problems including network lag, packet drops, audio clicks/pops, high CPU usage, etc...
+        <br><br>
+        In addition, a good cooling solution, particularly for the USB HUB chips on the Pi, is critical.  It is recommended to have a cooling fan and heat syncs on the Pi4 chips to keep everything cool.  When the chips get too hot, the entire system is throttled which introduces latency and lag.
+    </div>
+    <br>
+<?
+}
+}
+?>
 
 <div id="dialog-confirm" class="hidden">
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Growing the filesystem will require a reboot to take effect.  Do you wish to proceed?</p>

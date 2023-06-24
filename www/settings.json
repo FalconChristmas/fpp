@@ -182,6 +182,8 @@
                 "EnableBBBHDMI",
                 "ForceHDMIResolution",
                 "ForceHDMIResolutionPort2",
+                "GPIOFan",
+                "GPIOFanTemperature",
                 "LEDDisplayType",
                 "bootDelay"
             ]
@@ -959,6 +961,38 @@
                 "Raspberry Pi"
             ],
             "type": "checkbox"
+        },
+        "GPIOFan": {
+            "name": "GPIOFan",
+            "description": "GPIO 14 Fan Control",
+            "gatherStats": true,
+            "tip": "Allow the Raspberry Pi to control the speed of cooling fans by using the GPIO 14 PWM.",
+            "reboot": 1,
+            "platforms": [
+                "Raspberry Pi"
+            ],
+            "children": {
+                "1": [
+                    "GPIOFanTemperature"
+                ]
+            },
+            "type": "checkbox"
+        },
+        "GPIOFanTemperature": {
+            "name": "GPIOFanTemperature",
+            "description": "    Fan On Temperature",
+            "gatherStats": true,
+            "tip": "Temperature above which the cooling fan will turn on.",
+            "reboot": 1,
+            "platforms": [
+                "Raspberry Pi"
+            ],
+            "type": "number",
+            "default": 70,
+            "min": 30,
+            "max": 85,
+            "step": 1,
+            "suffix": " C"
         },
         "EnableBBBHDMI": {
             "name": "EnableBBBHDMI",
