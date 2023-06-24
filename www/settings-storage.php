@@ -80,14 +80,20 @@ function checkFormatStorage()
 <?php
 if ($settings['Platform'] == "BeagleBone Black") {
 ?>
+function flashEMMCDone() {
+    $('#flashEMMCProgressCloseButton').prop("disabled", false);
+    EnableModalDialogCloseButton("flashEMMCProgress");
+}
 function flashEMMC() {
     DisplayConfirmationDialog("flashEMMC", "Flash to eMMC", $("#dialog-confirm-emmc"), function() {
-        window.location.href="flashbbbemmc.php";
+        DisplayProgressDialog("flashEMMCProgress", "Flash to eMMC");
+        StreamURL("flashbbbemmc.php", 'flashEMMCProgressText', 'flashEMMCDone', 'flashEMMCDone');
     });
 }
 function flashEMMCBtrfs() {
     DisplayConfirmationDialog("flashEMMC", "Flash to eMMC", $("#dialog-confirm-emmc"), function() {
-        window.location.href="flashbbbemmc-btrfs.php";
+        DisplayProgressDialog("flashEMMCProgress", "Flash to eMMC");
+        StreamURL("flashbbbemmc-btrfs.php", 'flashEMMCProgressText', 'flashEMMCDone', 'flashEMMCDone');
     });
 }
 <?php
