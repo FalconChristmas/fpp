@@ -4836,9 +4836,25 @@ function DisplayHelp() {
 }
 
 function GetGitOriginLog() {
-    $('#logText').html('Loading list of changes from github. <div class="ajax-loading-60px"></div>');
-    $('#logViewer').fppDialog({ height: 600, width: 800, title: "Git Changes" });
-    $('#logViewer').fppDialog("moveToTop");
+
+    DoModalDialog({
+        id: "GitOriginLogView",
+        title: "Git Changes",
+        noClose: true,
+        backdrop: true,
+        keyboard: true,
+        body: "<div id='GitOriginLogViewText'></div>",
+        class: "modal-dialog-scrollable",
+        buttons: {
+            "Close": {
+                id: "GitOriginLogViewCloseButton",
+                click: function () {
+                    CloseModalDialog("GitOriginLogView");
+                }
+            }
+        }
+    });
+
     $.get({
         url: "api/git/originLog",
         data: "",
@@ -4856,7 +4872,7 @@ function GetGitOriginLog() {
                     html.push('</td></tr>');
                 });
                 html.push('</table>');
-                $('#logText').html(html.join(''));
+                $('#GitOriginLogViewText').html(html.join(''));
             }
         }
     });
