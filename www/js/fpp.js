@@ -4840,7 +4840,6 @@ function GetGitOriginLog() {
     DoModalDialog({
         id: "GitOriginLogView",
         title: "Git Changes",
-        noClose: true,
         backdrop: true,
         keyboard: true,
         body: "<div id='GitOriginLogViewText'>Loading........</div>",
