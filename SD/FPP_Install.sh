@@ -581,6 +581,10 @@ case "${OSVER}" in
             apt-get remove -y --purge --autoremove --allow-change-held-packages pocketsphinx-en-us
 
             if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
+                echo "FPP - Fixing haveged"
+                mkdir -p /etc/systemd/system/haveged.service.d
+                echo -e '[Service]\nSystemCallFilter=uname' > /etc/systemd/system/haveged.service.d/syscall.conf
+            
                 echo "FPP - Applying updates to allow optional boot from USB on Pi 4 (and up)"
 
                 # make sure the label on p1 is "boot" and p2 is rootfs
