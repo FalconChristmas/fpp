@@ -12,6 +12,7 @@ wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8822bu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8188fu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8814au
+wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8192cu
 
 CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
 
@@ -32,18 +33,16 @@ for i in "${KVERS[@]}"; do
 done
 
 cd /opt/wifi
-git clone https://github.com/pvaret/rtl8192cu-fixes
-cd rtl8192cu-fixes
-sed -i 's/I386_PC = y/I386_PC = n/' Makefile
-sed -i 's/ARM_GENERIC = n/ARM_GENERIC = y/' Makefile
-sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
+git clone https://github.com/lwfinger/rtl8192cu
+cd rtl8192cu
+patch -p1 < /opt/wifi/patches/rtl8192cu
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
     KVER=$i ARCH=arm make -j ${CPUS}
     KVER=$i ARCH=arm make install
 done
 cd /opt/wifi
-rm -rf rtl8192cu-fixes
+rm -rf rtl8192cu
 
 git clone https://github.com/Mange/rtl8192eu-linux-driver
 cd rtl8192eu-linux-driver
@@ -159,7 +158,7 @@ cp rtl8188eufw.bin /lib/firmware/rtlwifi/
 cd /opt/wifi
 rm -rf rtl8188eu
 
-git clone https://github.com/kelebek333/rtl8188fu
+git clone https://github.com/FoxtrotGolf/rtl8188fu
 cd rtl8188fu
 patch -p1 < /opt/wifi/patches/rtl8188fu
 for i in "${KVERS[@]}"; do
