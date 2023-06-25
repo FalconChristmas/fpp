@@ -409,6 +409,11 @@ case "${OSVER}" in
             # Need to make sure there is configuration for eth0 or uninstalling dhcpclient will cause network to drop
             rm -f /etc/systemd/network/50-default.network
             wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+            if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
+                sed -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' /etc/systemd/network/50-default.network
+            fi
+            
+            
             systemctl reload systemd-networkd
             apt-get remove -y --purge --autoremove --allow-change-held-packages ${PACKAGE_REMOVE}
             
