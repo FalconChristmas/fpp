@@ -644,7 +644,7 @@ if [ ! -f "/usr/include/SDL2/SDL.h" ]; then
     mkdir deb
     dpkg-deb -R ./libsdl2*.deb  deb
     sed -i -e "s/Version\(.*\)+\(.*\)/Version\1~fpp/g" deb/DEBIAN/control
-    sed -i -e "s/Depends: \(.*\)/Depends: libsdl2-2.0-0, libasound2-dev, libdbus-1-dev, libsndio-dev, libudev-dev/g" deb/DEBIAN/control
+    sed -i -e "s/Depends: \(.*\)/Depends: libsdl2-2.0-0, libasound2-dev, libdbus-1-dev, libsndio-dev/g" deb/DEBIAN/control
     dpkg-deb -b deb ./libsdl2-dev.deb
     apt -y install ./libsdl2-dev.deb
     apt-mark hold libsdl2-dev
