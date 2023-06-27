@@ -46,4 +46,9 @@ private:
     static std::set<WarningListener*> listenerList;
     static std::mutex listenerListLock;
     static volatile bool runNotifyThread;
+
+
+    static void writeWarningsFile(const std::list<std::string> &warnings);
+    static std::list<std::string> GetWarningsAndNotify(bool notify);
+
 };

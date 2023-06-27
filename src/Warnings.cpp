@@ -51,15 +51,23 @@ void WarningHolder::StopNotifyThread() {
     lck.unlock();
     notifyThread->join();
 }
-
+void WarningHolder::writeWarningsFile(const std::list<std::string> &warnings) {
+    Json::Value result = Json::Value(Json::ValueType::arrayValue);
+    for (auto& warn : warnings) {
+        result.append(warn);
+    }
+    SaveJsonToFile(result, getFPPDDir("/www/warnings.json"));
+}
 void WarningHolder::NotifyListenersMain() {
     std::unique_lock<std::mutex> lck(notifyLock);
+    writeWarningsFile(WarningHolder::GetWarningsAndNotify(false));
     while (runNotifyThread) {
         notifyCV.wait(lck);                                             // sleep here
         if (!runNotifyThread) {
             return;
         }
-        std::list<std::string> warnings = WarningHolder::GetWarnings(); // Calls warning Lock
+        std::list<std::string> warnings = WarningHolder::GetWarningsAndNotify(false); // Calls warning Lock
+        writeWarningsFile(warnings);
         LogDebug(VB_GENERAL, "Warning has changed, notifying other threads of %d Warnings\n", warnings.size());
         std::for_each(listenerList.begin(), listenerList.end(), [&](WarningListener* l) { l->handleWarnings(warnings); });
     }
@@ -92,7 +100,11 @@ void WarningHolder::RemoveWarning(const std::string& w) {
     // Notify Listeners
     notifyCV.notify_all();
 }
+
 std::list<std::string> WarningHolder::GetWarnings() {
+    return GetWarningsAndNotify(true);
+}
+std::list<std::string> WarningHolder::GetWarningsAndNotify(bool notify) {
     std::list<std::string> ret;
     bool madeChange = false;
     auto nowtime = std::chrono::steady_clock::now();
@@ -111,7 +123,7 @@ std::list<std::string> WarningHolder::GetWarnings() {
         madeChange = true;
     }
 
-    if (madeChange) {
+    if (notify && madeChange) {
         // Notify Listeners
         std::unique_lock<std::mutex> lck(notifyLock);
         notifyCV.notify_all();

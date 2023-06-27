@@ -172,7 +172,9 @@ static char* escape(char* buf, const char* data) {
     *dest = 0;
     return buf;
 }
-
+std::string getFPPDDir(const std::string &path) {
+    return "/tmp";
+}
 int main(int argc, char* argv[]) {
     int idx = parseArguments(argc, argv);
     if (verbose) {
