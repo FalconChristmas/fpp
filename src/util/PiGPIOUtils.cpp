@@ -124,7 +124,7 @@ const PinCapabilities& PiGPIOPinProvider::getPinByGPIO(int i) {
             return a;
         }
     }
-    return PiGPIOPinProvider::getPinByGPIO(i);
+    return PiFacePinCapabilities::getPinByGPIO(i);
 }
 
 std::vector<std::string> PiGPIOPinProvider::getPinNames() {
