@@ -119,8 +119,11 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         TetherEnabled="";
     fi
 
+    # clear out old configuration, these will be regenerated if needed below
     rm -f /etc/wpa_supplicant-wl*.conf
     rm -f /etc/wpa_supplicant/wpa_supplicant-wl*.conf
+    rm -f /etc/systemd/network/10-*.network
+    rm -f /etc/hostapd/hostapd.conf
 
     ENABLEHOSTAPD="0"
     IP_FORWARD="0"
