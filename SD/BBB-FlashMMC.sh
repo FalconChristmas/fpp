@@ -234,6 +234,7 @@ if [ "$CLEARFPP" == "y" ]; then
     rm -f /tmp/rootfs/home/fpp/.bash_history
     rm -f /tmp/rootfs/home/fpp/media/settings
     rm -f /tmp/rootfs/home/fpp/media/config/*
+    rm -rf /tmp/rootfs/home/fpp/media/config/backups
     rm -f /tmp/rootfs/home/fpp/media/sequences/*
     rm -f /tmp/rootfs/home/fpp/media/music/*
     rm -f /tmp/rootfs/home/fpp/media/logs/*
