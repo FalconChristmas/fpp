@@ -4,16 +4,16 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
 
-GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
-
 OPT="--pretty=oneline"
 
 echo "Git changes between current checkout and repository"
 echo "==============================================================================="
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
+	GITBRANCH=$(cd ${FPPDIR} && $SUDO git branch | grep "^\*" | sed -e "s/\*\s//")
 	cd ${FPPDIR} && $SUDO git log $OPT HEAD..origin/${GITBRANCH}
 else
+	GITBRANCH=$(cd ${FPPDIR} && sudo -u ${FPPUSER} git branch | grep "^\*" | sed -e "s/\*\s//")
 	cd ${FPPDIR} && sudo -u ${FPPUSER} git log $OPT HEAD..origin/${GITBRANCH}
 fi
 
