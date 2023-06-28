@@ -34,6 +34,7 @@ include 'menu.inc';?><div class="container">
         Chris Pinkham (CaptainMurdoch)<br/>
         Dan Kulp (dkulp)<br/>
         Greg Hormann (ghormann)<br/>
+        Scott Hanson (computergeek1507/scooter_seh)<br/>
         Andrew Ayton (drew8n) - UI<br/>
         Adam Coulombe (wzadz1) - UI<br/>
         Justin J. Novack - UI<br/>
