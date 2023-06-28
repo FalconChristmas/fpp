@@ -103,10 +103,16 @@ function flashUSBDone() {
     $('#flashUSBProgressCloseButton').prop("disabled", false);
     EnableModalDialogCloseButton("flashUSBProgress");
 }
-function flashUSB() {
-    DisplayConfirmationDialog("flashUSB", "Flash to USB", $("#dialog-confirm-usb"), function() {
-        DisplayProgressDialog("flashUSBProgress", "Flash to USB");
-        StreamURL("flash-pi-usb.php", 'flashUSBProgressText', 'flashUSBDone', 'flashUSBDone');
+function flashUSB(device) {
+    DisplayConfirmationDialog("flashUSB", "Flash to USB/SD", $("#dialog-confirm-usb"), function() {
+        DisplayProgressDialog("flashUSBProgress", "Flash to USB/SD");
+        StreamURL("flash-pi-usb.php?cone=false&dev=" + device, 'flashUSBProgressText', 'flashUSBDone', 'flashUSBDone');
+    });
+}
+function cloneUSB(device) {
+    DisplayConfirmationDialog("flashUSB", "Clone to USB/SD", $("#dialog-confirm-usb"), function() {
+        DisplayProgressDialog("flashUSBProgress", "Clone to USB/SD");
+        StreamURL("flash-pi-usb.php?clone=true&dev=" + device, 'flashUSBProgressText', 'flashUSBDone', 'flashUSBDone');
     });
 }
 </script>
@@ -234,6 +240,8 @@ if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
     if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) && (file_exists("/dev/sda"))) {
         $addflashbutton = true;
     }
+} else if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) && $rootDevice == 'sda2' && (file_exists("/dev/mmcblk0"))) {
+    $addflashbutton = true;
 }
 if ($addnewfsbutton) {
 ?>
@@ -273,12 +281,28 @@ if ($addflashbutton) {
    }
 } else if ($settings['Platform'] == "Raspberry Pi") {
 ?>
+<?  if ($rootDevice == 'mmcblk0p2') { ?>
     <h3>USB Actions:</h3>
     <div class="row">
-        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to USB' onClick='flashUSB();'></div>
-        <div class="col-auto">&nbsp;This will copy FPP to the USB device.  See note below for more information.</div>
+        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to USB' onClick='flashUSB("sda");'></div>
+        <div class="col-auto">&nbsp;This will flash FPP to the USB device.  See note below for more information.</div>
+    </div>    
+    <div class="row">
+        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Clone to USB' onClick='cloneUSB("sda");'></div>
+        <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the USB device.  See note below for more information.</div>
+    </div>    
+<? } else { ?>
+    <h3>SD Card Actions:</h3>
+    <div class="row">
+        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to SD' onClick='flashUSB("mmcblk0");'></div>
+        <div class="col-auto">&nbsp;This will flash FPP to the SD Card.</div>
+    </div>    
+    <div class="row">
+        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Clone to SD' onClick='cloneUSB("mmcblk0");'></div>
+        <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the SD Card.</div>
     </div>    
 <?
+}
 }
 }
 
@@ -312,7 +336,7 @@ In addition to the above, since it is not recommended, using USB storage is not 
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the eMMC can take a long time.  Do you wish to proceed?</p>
 </div>
 <div id="dialog-confirm-usb" class="hidden">
-<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the USB can take a long time and will destroy all content on the USB device.  Do you wish to proceed?</p>
+<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the USB/SD can take a long time and will destroy all content on the target device.  Do you wish to proceed?</p>
 </div>
 <div id="dialog-confirm-newpartition" class="hidden">
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating a new partition in the unused space will require a reboot to take effect.  Do you wish to proceed?</p>

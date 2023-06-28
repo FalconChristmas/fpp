@@ -6,6 +6,14 @@ require_once("common.php");
 
 DisableOutputBuffering();
 
+
+$device = $_GET['dev'];
+$clone = $_GET['clone'];
+$cloneFlag = "";
+if ($clone == 'true') {
+    $cloneFlag = "-clone";
+}
+
         print("==================================================================================\n");
         
         $command = "sudo TERM=vt100 env 2>&1";
@@ -16,7 +24,7 @@ DisableOutputBuffering();
     
 		echo "==================================================================================\n";
 
-        $command = "sudo TERM=vt100 /opt/fpp/SD/Pi-FlashUSB.sh ext4 2>&1";
+        $command = "sudo TERM=vt100 /opt/fpp/SD/Pi-FlashUSB.sh $cloneFlag $device 2>&1";
 
 		echo "Command: $command\n";
 		echo "----------------------------------------------------------------------------------\n";
