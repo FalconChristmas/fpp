@@ -42,6 +42,7 @@ include 'menu.inc';?><div class="container">
         Pat Delaney (patdelaney) - QA<br/>
         Rick Harris (Poporacer) - Manual/QA<br/>
         Mark Amber (pixelpuppy) - Manual/QA<br/>
+        Ron Armstrong (bloojoop) - QA<br/>
         <br/>
         For a full list of code contributors, visit the <a href='https://github.com/FalconChristmas/fpp/graphs/contributors' target='_blank'>contributors page</a> on github.<br/>
     </div>
