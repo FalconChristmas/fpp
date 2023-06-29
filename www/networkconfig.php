@@ -297,7 +297,7 @@ function AddInterface() {
         buttons: {
 			"OK" : {class:'btn-success',click:function() {
                 CloseModalDialog("addNewInterfaceDialog");
-                var newInterfaceName = $(this).find(".newInterfaceName").val();
+                var newInterfaceName = $("#addNewInterfaceDialog").find(".newInterfaceName").val();
                 $.get("api/network/interface/add/" + newInterfaceName, "", function() {location.reload(true);});
             }},
 			"Cancel" : {click:function() {
