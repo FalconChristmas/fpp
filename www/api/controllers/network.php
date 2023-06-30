@@ -272,7 +272,8 @@ function network_add_interface()
     if (preg_match('/^[a-z]+[0-9]+$/', $interface)) {
         $cfgFile = $settings['configDirectory'] . "/interface." . $interface;
         if (!file_exists($cfgFile)) {
-            if (touch($cfgFile)) {
+            $contents = "INTERFACE=" . $interface . "\nPROTO=dhcp\n";
+            if (file_put_contents($cfgFile, $contents)) {
                 $result = array("status" => "New Blank Interface created");
             } else {
                 $result = array("status" => "ERROR: could not create new Interface");
