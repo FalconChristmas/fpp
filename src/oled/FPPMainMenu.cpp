@@ -250,6 +250,45 @@ void FPPMainMenu::displaying() {
     MenuOLEDPage::displaying();
 }
 
+static std::vector<std::string> TEST_OPTIONS = {
+    " Enable Multisync", "Off", "White", "Red", "Green", "Blue", "R-G-B Cycle", "R-G-B-W Cycle", "R-G-B-W-N Cycle", "R-G-B Chase", "R-G-B-W Chase", "R-G-B-W-N Chase", "Back"
+};
+
+class TestingMenuOLEDPage : public MenuOLEDPage {
+public:
+    TestingMenuOLEDPage(FPPStatusOLEDPage *sp, OLEDPage* parent) : MenuOLEDPage("Test", TEST_OPTIONS, parent), statusPage(sp) {
+        if (sp->isMultiSyncTest()) {
+            items[0][0] = '*';
+        }
+        
+    }
+
+    virtual void itemSelected(const std::string& item) override {
+        //printf("Item: %s\n", item.c_str());
+        if (item == " Enable Multisync") {
+            items[0][0] = '*';
+            statusPage->setMultiSyncTest(true);
+            display();
+            return;
+        } else if (item == "*Enable Multisync") {
+            items[0][0] = ' ';
+            statusPage->setMultiSyncTest(false);
+            display();
+            return;
+        } else if (item == "Back") {
+            SetCurrentPage(parent);
+            return;
+        }
+        statusPage->runTest(item, statusPage->isMultiSyncTest());
+        if (item == "Off") {
+            SetCurrentPage(statusPage);
+            return;
+        }
+    }
+
+    FPPStatusOLEDPage *statusPage;
+};
+
 void FPPMainMenu::itemSelected(const std::string& item) {
     if (item == "Back") {
         SetCurrentPage(parent);
@@ -280,19 +319,7 @@ void FPPMainMenu::itemSelected(const std::string& item) {
         SetCurrentPage(pg);
     } else if (item == "Testing") {
         FPPStatusOLEDPage* sp = statusPage;
-        MenuOLEDPage* pg = new MenuOLEDPage(
-            "Test", { "Off", "White", "Red", "Green", "Blue", "R-G-B Cycle", "R-G-B-W Cycle", "R-G-B-W-N Cycle", "R-G-B Chase", "R-G-B-W Chase", "R-G-B-W-N Chase", "Back" }, [this, sp](const std::string& item) {
-                if (item == "Back") {
-                    SetCurrentPage(this);
-                    return;
-                }
-                sp->runTest(item);
-                if (item == "Off") {
-                    SetCurrentPage(this);
-                    return;
-                }
-            },
-            this);
+        TestingMenuOLEDPage* pg = new TestingMenuOLEDPage(sp, this);
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "Tethering") {

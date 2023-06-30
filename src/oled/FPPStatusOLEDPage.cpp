@@ -75,7 +75,7 @@ static int writer(char* data, size_t size, size_t nmemb,
 }
 
 FPPStatusOLEDPage::FPPStatusOLEDPage() :
-    _currentTest(0),
+    _currentTest(""),
     _testSpeed(500),
     _curPage(0),
     _doFullStatus(true),
@@ -489,65 +489,66 @@ void FPPStatusOLEDPage::fillInNetworks() {
     freeifaddrs(interfaces);
 }
 
-void FPPStatusOLEDPage::runTest(const std::string& test) {
-    printf("Test: %s    Speed: %d\n", test.c_str(), _testSpeed);
+void FPPStatusOLEDPage::runTest(const std::string& test, bool ms) {
+    printf("Running Test: %s    Speed: %dms\n", test.c_str(), _testSpeed);
 
     Json::Value val;
-    val["cycleMS"] = _testSpeed;
-    val["enabled"] = 1;
-    val["channelSet"] = "1-1048576";
-    val["channelSetType"] = "channelRange";
+    if (test == "Off") {
+        val["command"] = "Test Stop";
+        val["args"] = Json::Value(Json::ValueType::arrayValue);
+        _currentTest = "";
+    } else {
+        val["command"] = "Test Start";
+        val["args"] = Json::Value(Json::ValueType::arrayValue);
+        val["args"].append(std::to_string(_testSpeed));
+        _currentTest = test;
+    }
+    _multisyncTest = ms;
+    val["multisyncCommand"] = _multisyncTest;
+    val["multisyncHosts"] = "";
+    std::string channelRange = "";
 
     if (test == "R-G-B Chase") {
-        val["mode"] = "RGBChase";
-        val["subMode"] = "RGBChase-RGB";
-        val["colorPattern"] = "FF000000FF000000FF";
+        val["args"].append("RGB Chase");
+        val["args"].append(channelRange);
+        val["args"].append("R-G-B");
     } else if (test == "R-G-B-W Chase") {
-        val["mode"] = "RGBChase";
-        val["subMode"] = "RGBChase-RGBA";
-        val["colorPattern"] = "FF000000FF000000FFFFFFFF";
+        val["args"].append("RGB Chase");
+        val["args"].append(channelRange);
+        val["args"].append("R-G-B-All");
     } else if (test == "R-G-B-W-N Chase") {
-        val["mode"] = "RGBChase";
-        val["subMode"] = "RGBChase-RGBAN";
-        val["colorPattern"] = "FF000000FF000000FFFFFFFF000000";
+        val["args"].append("RGB Chase");
+        val["args"].append(channelRange);
+        val["args"].append("R-G-B-All-None");
     } else if (test == "R-G-B Cycle") {
-        val["mode"] = "RGBCycle";
-        val["subMode"] = "RGBCycle-RGB";
-        val["colorPattern"] = "FF000000FF000000FF";
+        val["args"].append("RGB Cycle");
+        val["args"].append(channelRange);
+        val["args"].append("R-G-B");
     } else if (test == "R-G-B-W Cycle") {
-        val["mode"] = "RGBCycle";
-        val["subMode"] = "RGBCycle-RGBA";
-        val["colorPattern"] = "FF000000FF000000FFFFFFFF";
+        val["args"].append("RGB Cycle");
+        val["args"].append(channelRange);
+        val["args"].append("R-G-B-All");
     } else if (test == "R-G-B-W-N Cycle") {
-        val["mode"] = "RGBCycle";
-        val["subMode"] = "RGBCycle-RGBAN";
-        val["colorPattern"] = "FF000000FF000000FFFFFFFF000000";
-    } else if (test == "Off") {
-        val["mode"] = "SingleChase";
-        val["chaseSize"] = 3;
-        val["chaseValue"] = 255;
-        val["enabled"] = 0;
+        val["args"].append("RGB Cycle");
+        val["args"].append(channelRange);
+        val["args"].append("R-G-B-All-None");
     } else if (test == "White") {
-        val["mode"] = "RGBFill";
-        val["color1"] = 255;
-        val["color2"] = 255;
-        val["color3"] = 255;
+        val["args"].append("RGB Single Color");
+        val["args"].append(channelRange);
+        val["args"].append("#ffffff");
     } else if (test == "Red") {
-        val["mode"] = "RGBFill";
-        val["color1"] = 255;
-        val["color2"] = 0;
-        val["color3"] = 0;
+        val["args"].append("RGB Single Color");
+        val["args"].append(channelRange);
+        val["args"].append("#ff0000");
     } else if (test == "Green") {
-        val["mode"] = "RGBFill";
-        val["color1"] = 0;
-        val["color2"] = 255;
-        val["color3"] = 0;
+        val["args"].append("RGB Single Color");
+        val["args"].append(channelRange);
+        val["args"].append("#00ff00");
     } else if (test == "Blue") {
-        val["mode"] = "RGBFill";
-        val["color1"] = 0;
-        val["color2"] = 0;
-        val["color3"] = 255;
-    } else {
+        val["args"].append("RGB Single Color");
+        val["args"].append(channelRange);
+        val["args"].append("#0000ff");
+    } else if (test != "Off") {
         printf("Unknown test  %s\n", test.c_str());
         return;
     }
@@ -557,7 +558,7 @@ void FPPStatusOLEDPage::runTest(const std::string& test) {
     buffer.clear();
     CURL* curl = curl_easy_init();
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost/api/testmode");
+    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost/api/command");
 
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 50);
@@ -571,11 +572,18 @@ void FPPStatusOLEDPage::runTest(const std::string& test) {
 }
 static std::vector<std::string> TESTS = { "Off", "R-G-B Cycle", "R-G-B-W-N Cycle", "R-G-B Chase", "R-G-B-W-N Chase" };
 void FPPStatusOLEDPage::cycleTest() {
-    _currentTest++;
-    if (_currentTest >= TESTS.size()) {
-        _currentTest = 0;
+    int idx = 0;
+    for (int x = 0; x < TESTS.size(); x++) {
+        if (TESTS[x] == _currentTest) {
+            idx = x + 1;
+            break;
+        }
     }
-    runTest(TESTS[_currentTest]);
+    if (idx >= TESTS.size()) {
+        idx = 0;
+    }
+    _currentTest = TESTS[idx];
+    runTest(_currentTest, _multisyncTest);
 }
 
 // trim from start (in place)
@@ -767,20 +775,21 @@ bool FPPStatusOLEDPage::loadWiFiImage(const std::string &tp) {
 }
 
 bool FPPStatusOLEDPage::doAction(const std::string& action) {
-    //printf("In do action  %s\n", action.c_str());
-    if (action == "Test" || action == "Test/Down") {
+    //printf("In do action  %s   %d   %s\n", action.c_str(), _testSpeed, _currentTest.c_str());
+    if (action == "Test" || action == "Test/Down" || action == "Test Multisync") {
+        _multisyncTest = action == "Test Multisync";
         _testSpeed = 500;
         cycleTest();
         _curPage = 0;
-    } else if (action == "Up" && _currentTest) {
+    } else if (action == "Up" && _currentTest != "") {
         _testSpeed *= 2;
-        runTest(TESTS[_currentTest]);
-    } else if (action == "Down" && _currentTest) {
+        runTest(_currentTest, _multisyncTest);
+    } else if (action == "Down" && _currentTest != "") {
         _testSpeed /= 2;
         if (_testSpeed < 100) {
             _testSpeed = 100;
         }
-        runTest(TESTS[_currentTest]);
+        runTest(_currentTest, _multisyncTest);
     } else if (action == "Enter" && !oledForcedOff) {
         if (_hasSensors) {
             _curPage++;

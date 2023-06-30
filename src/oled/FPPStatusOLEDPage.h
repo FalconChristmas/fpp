@@ -35,12 +35,14 @@ public:
     int outputBottomPart(int startY, int count, bool statusValid, Json::Value& result);
 
     void cycleTest();
-    void runTest(const std::string& test);
+    void runTest(const std::string& test, bool ms);
 
     void disableFullStatus() { _doFullStatus = false; }
 
     const std::string& getCurrentMode() const { return currentMode; }
 
+    bool isMultiSyncTest() const { return _multisyncTest; }
+    void setMultiSyncTest(bool b) { _multisyncTest = b; }
 private:
     bool getCurrentStatus(Json::Value& result);
     bool checkIfStatusChanged(Json::Value& result);
@@ -52,8 +54,9 @@ private:
     std::vector<int> signalStrength;
 
     int _iterationCount;
-    int _currentTest;
+    std::string _currentTest;
     int _testSpeed;
+    bool _multisyncTest = false;
     int _curPage;
     bool _doFullStatus;
 

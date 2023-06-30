@@ -40,6 +40,7 @@ public:
 
     virtual void displaying() {}
     virtual void hiding() {}
+    virtual void display() {}
 
     virtual bool doIteration(bool& displayOn) { return false; }
     virtual bool doAction(const std::string& action) = 0;
@@ -96,8 +97,8 @@ public:
     virtual bool doAction(const std::string& action) override;
     virtual void ItemSelected(const std::string& item);
 
+    virtual void display() override;
 protected:
-    virtual void display();
 
     std::string msg1;
     std::string msg2;
@@ -114,9 +115,9 @@ public:
     virtual void displaying() override;
     virtual bool doAction(const std::string& action) override;
 
+    virtual void display() override;
 protected:
     virtual void displayScrollArrows(int startY);
-    virtual void display();
 
     std::vector<std::string> items;
     int curTop;
@@ -136,8 +137,8 @@ public:
 
     virtual void itemSelected(const std::string& item);
 
-protected:
     virtual void display() override;
+protected:
     int curSelected;
     std::function<void(const std::string&)> itemSelectedCallback;
 };
