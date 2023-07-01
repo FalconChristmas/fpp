@@ -198,13 +198,15 @@ function SetForceHDMIResolution($value, $postfix)
         }
     } else {
         $parts = explode(":", $value);
+        $numParts = count($parts);
         if (strpos(file_get_contents("/boot/config.txt"), "hdmi_group:1") == false) {
             exec("sudo sed -i -e 's/hdmi_group=\(.*\)$/hdmi_group=\\1\\nhdmi_group:1=0/' /boot/config.txt", $output, $return_val);
             exec("sudo sed -i -e 's/hdmi_mode=\(.*\)$/hdmi_mode=\\1\\nhdmi_mode:1=0/' /boot/config.txt", $output, $return_val);
+            exec("sudo sed -i -e 's/^hdmi_cvt=/#hdmi_cvt=/' /boot/config.txt", $output, $return_val);
             exec("sudo sed -i -e 's/^hdmi_group:1/#hdmi_group:1/' /boot/config.txt", $output, $return_val);
             exec("sudo sed -i -e 's/^hdmi_mode:1/#hdmi_mode:1/' /boot/config.txt", $output, $return_val);
+            exec("sudo sed -i -e 's/^hdmi_cvt:1/#hdmi_cvt:1/' /boot/config.txt", $output, $return_val);
         }
-    
         if ($parts[0] == '0') {
             exec("sudo sed -i -e 's/^hdmi_group" . $postfix . "=/#hdmi_group" . $postfix . "=/' /boot/config.txt", $output, $return_val);
             exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "=/#hdmi_mode" . $postfix . "=/' /boot/config.txt", $output, $return_val);
@@ -213,6 +215,16 @@ function SetForceHDMIResolution($value, $postfix)
             exec("sudo sed -i -e 's/^#hdmi_mode" . $postfix . "=/hdmi_mode" . $postfix . "=/' /boot/config.txt", $output, $return_val);
             exec("sudo sed -i -e 's/^hdmi_group" . $postfix . "=.*/hdmi_group" . $postfix . "=" . $parts[0] . "/' /boot/config.txt", $output, $return_val);
             exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "=.*/hdmi_mode" . $postfix . "=" . $parts[1] . "/' /boot/config.txt", $output, $return_val);
+            if ($numParts == 3) {
+                if (strpos(file_get_contents("/boot/config.txt"), "hdmi_cvt". $postfix) == false) {
+                    error_log("adding cvt");
+                    exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "/hdmi_cvt" . $postfix . "=\\nhdmi_mode/' /boot/config.txt", $output, $return_val);
+                }    
+                exec("sudo sed -i -e 's/^#hdmi_cvt" . $postfix . "=/hdmi_cvt" . $postfix . "=/' /boot/config.txt", $output, $return_val);
+                exec("sudo sed -i -e 's/^hdmi_cvt" . $postfix . "=.*/hdmi_cvt" . $postfix . "=" . $parts[2] . "/' /boot/config.txt", $output, $return_val);    
+            } else {
+                exec("sudo sed -i -e 's/^hdmi_cvt" . $postfix . "=/#hdmi_cvt" . $postfix . "=/' /boot/config.txt", $output, $return_val);    
+            }
         }    
     }
 }

@@ -21,7 +21,7 @@ function SaveSSHKeys() {
 function KioskInstallDone() {
     SetRebootFlag();
     EnableModalDialogCloseButton("enableKioskPopup");
-    $('#enableKioskPopupCloseButton').show();
+    $('#enableKioskPopupCloseButton').prop("disabled", false);
 }
 function DisableKiosk() {
     DisplayProgressDialog("enableKioskPopup", "Kiosk Frontend");
