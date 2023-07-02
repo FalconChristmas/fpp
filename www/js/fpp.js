@@ -6334,7 +6334,7 @@ function RefreshHeaderBar() {
                 }
             }
             tooltip += '<b>' + e.label + '</b>' + val + '<br/>';
-            row = '<span class="sensorSpan" onclick="RotateHeaderSensor(' + (sensors.length + 1) + ')" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" data-sensorcount="' + sensors.length + '" class="hiddenSensor" data-bs-title="TOOLTIP_DETAILS"><i class="fas fa-' + icon + '"></i><small>' + e.label + val + '</small></span>';
+            row = '<span class="sensorSpan hiddenSensor" onclick="RotateHeaderSensor(' + (sensors.length + 1) + ')" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" data-sensorcount="' + sensors.length + '" class="hiddenSensor" data-bs-title="TOOLTIP_DETAILS"><i class="fas fa-' + icon + '"></i><small>' + e.label + val + '</small></span>';
             sensors.push(row);
         });
         var sensorsJoined = sensors.join("");
