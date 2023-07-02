@@ -947,6 +947,9 @@ size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp) {
 }
 
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const unsigned int timeout) {
+    return urlHelper(method, url, data, resp, std::list<std::string>(), timeout);
+}
+bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const std::list<std::string> &extraHeaders, const unsigned int timeout) {
     CURL* curl = curl_easy_init();
     std::string userAgent = "FPP/";
     userAgent += getFPPVersionTriplet();
@@ -984,6 +987,11 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
     if (startsWith(data, "{") && endsWith(data, "}")) {
         headers = curl_slist_append(headers, "Accept: application/json");
         headers = curl_slist_append(headers, "Content-Type: application/json");
+    }
+    for (auto &h : extraHeaders) {
+        headers = curl_slist_append(headers, h.c_str());
+    }
+    if (headers) {
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     }
 
@@ -1015,7 +1023,7 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
     if (status != CURLE_OK) {
         LogErr(VB_GENERAL, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
         curl_slist_free_all(headers);
-        curl_easy_cleanup(curl);
+        curl_easy_cleanup(curl);        
         return false;
     }
 

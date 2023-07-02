@@ -119,6 +119,7 @@ std::string getSimpleHTMLTTag(const std::string& html, const std::string& search
 std::string getSimpleXMLTag(const std::string& xml, const std::string& tag);
 
 // URL Helpers
+bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const std::list<std::string> &headers, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, std::string& resp, const unsigned int timeout = 30);
 bool urlGet(const std::string url, std::string& resp);
