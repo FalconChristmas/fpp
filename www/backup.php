@@ -185,6 +185,30 @@ if ($settings['Platform'] != "BeagleBone Black") {
     unset($system_config_areas['channelOutputs']['file']['bbb_strings']);
 }
 
+//When this page loads, make a call to unmount the remote storage at the remote host
+if ((isset($settings['backup.Host']) && !empty($settings['backup.Host'])) && (isset($settings['backup.RemoteStorage']) && !empty($settings['backup.RemoteStorage']))) {
+	$RHOST = $settings['backup.Host'];
+	$RSTORAGE = $settings['backup.RemoteStorage'];
+
+	//@link https://stackoverflow.com/questions/2138527/php-curl-and-http-post-example
+	$ch = curl_init();
+
+	curl_setopt($ch, CURLOPT_URL, "http://$RHOST/api/backups/devices/unmount/$RSTORAGE/remote_filecopy");
+	curl_setopt($ch, CURLOPT_POST, 1);
+	curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+		'Content-Type: Content-Type:application/json'
+	));
+	curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+	// Receive server response ...
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+	$server_output = curl_exec($ch);
+
+	curl_close($ch);
+	unset($ch);
+	unset($server_output);
+}
+
 /**
  * Handle POST for download or restore
  * Check which submit button was pressed
@@ -2614,16 +2638,43 @@ function PerformCopy() {
         }
     }
 
-    var title = (direction.substring(0,4) == 'FROM') ? "FPP File Copy Restore" : "FPP File Copy Backup";
-    $('#copyPopup').fppDialog({ height: 600, width: 900, title: title, dialogClass: 'no-close' });
-    $('#copyPopup').fppDialog( "moveToTop" );
+    var title_txt = (direction.substring(0,4) == 'FROM') ? "FPP File Copy Restore" : "FPP File Copy Backup";
+
+    DoModalDialog({
+        id: "copyPopup_Modal",
+        title: title_txt,
+        height: 600,
+        width: 900,
+        autoResize: true,
+        closeOnEscape: false,
+        backdrop: true,
+        body:  $('#copyPopup').html(),
+        class: "no-close",
+        buttons: {
+
+        }
+    });
+
+    // $('#copyPopup').fppDialog({ height: 600, width: 900, title: title, dialogClass: 'no-close' });
+    // $('#copyPopup').fppDialog( "moveToTop" );
     $('#copyText').val('');
 
     StreamURL(url, 'copyText', 'CopyDone');
+
 }
 
 function CloseCopyDialog() {
-    $('#copyPopup').fppDialog('close');
+    var cd_remoteHost = settings['backup.Host'];
+    var cd_remoteStorage = settings['backup.RemoteStorage'];
+
+    if (typeof (cd_remoteHost) !== "undefined" && typeof (cd_remoteStorage) !== "undefined"){
+        //Run a Unmount against the remote storage to make sure it's unmounted, this helps when there is a issue with the copy_settings_to_storeage.sh script and it doesn't unmount the specified device at the remote host
+        //We don't do anything with the returned output
+        $.post("http://" + cd_remoteHost + "/api/backups/devices/unmount/" + cd_remoteStorage + "/remote_filecopy");
+
+    }
+
+    CloseModalDialog("copyPopup_Modal");
 }
 
 function CopyDone() {
@@ -2751,19 +2802,29 @@ function JSONConfigBackupUSBDeviceChanged() {
 
                 //Pop a dialog and let the user choose if they want to copy backups to USB
                 //Only copy existing backup files to the selected storage if something  other than no device has been selected
-                //so for exmaple only do the initial  copy if going from none -> sda1
-                $('#dialog_copyToUsb').fppDialog({
-                    title: 'Copy Backups to USB?',
+                //so for example only do the initial  copy if going from none -> sda1
+                DoModalDialog({
+                    id: "dialog_copyToUsb_Modal",
+                    title: "Copy Backups to USB",
                     width: 400,
                     autoResize: true,
                     closeOnEscape: false,
+                    backdrop: true,
+                    body: $('#dialog_copyToUsb').html(),
+                    class: "modal-dialog-scrollable",
                     buttons: {
-                        'Yes Copy To USB': function () {
-                            CopyBackupsToUSBHelper();
-                            $(this).fppDialog("close");
+                        "Yes Copy To USB": {
+                            id: "dialog_copyToUsb_DoCopy",
+                            click: function () {
+                                CopyBackupsToUSBHelper();
+                                CloseModalDialog("dialog_copyToUsb_Modal");
+                            }
                         },
-                        'Not Right Now': function () {
-                            $(this).fppDialog("close");
+                        "Not Right Now": {
+                            id: "dialog_copyToUsb_NoCopy",
+                            click: function () {
+                                CloseModalDialog("dialog_copyToUsb_Modal");
+                            }
                         }
                     }
                 });
@@ -3747,14 +3808,21 @@ $eepromValue = file_exists('/home/fpp/media/config/cape-eeprom.bin') ? 1 : 0;
             var checked = $(this).is(':checked');
             if (!checked) {
 
-                $('#dialogSensitiveDetails').fppDialog({
-                    title: 'Sensitive Details Will Not Be Protected',
+                DoModalDialog({
+                    id: "dialogSensitiveDetails_Modal",
+                    title: "Sensitive Details Will Not Be Protected",
                     width: 400,
                     autoResize: true,
                     closeOnEscape: false,
+                    backdrop: true,
+                    body: $('#dialogSensitiveDetails').html(),
+                    class: "",
                     buttons: {
-                        Ok: function () {
-                            $(this).fppDialog("close");
+                        "Ok": {
+                            id: "dialog_copyToUsb_DoCopy",
+                            click: function () {
+                                CloseModalDialog("dialogSensitiveDetails_Modal");
+                            }
                         }
                     }
                 });
@@ -3766,8 +3834,8 @@ $eepromValue = file_exists('/home/fpp/media/config/cape-eeprom.bin') ? 1 : 0;
     </script>
     <?php include 'common/footer.inc';?>
 </div>
-<div id='copyPopup' title='FPP Backup/Restore' style="display: none">
-    <textarea style='width: 99%; height: 93%;' disabled id='copyText'></textarea>
+<div id='copyPopup' title='FPP Backup/Restore' style="display: none;">
+    <textarea style='min-height: 600px; width: 100%' disabled id='copyText'></textarea>
     <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseCopyDialog();' style='display: none;'>
 </div>
 
