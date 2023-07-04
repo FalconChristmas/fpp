@@ -37,7 +37,7 @@ public:
     void AutoEnableOutputs();
     void AutoDisableOutputs();
 
-    virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
+    virtual HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
 
     std::vector<float> GetPortCurrentValues();
     void SetPixelCount(int port, int pc);

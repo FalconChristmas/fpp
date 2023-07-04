@@ -23,7 +23,7 @@ public:
     ChannelTester();
     virtual ~ChannelTester();
 
-    int SetupTest(std::string configStr);
+    int SetupTest(const std::string configStr);
     int SetupTest(const Json::Value& config);
     void StopTest();
 
@@ -33,8 +33,8 @@ public:
     std::string GetConfig(void);
 
     void RegisterCommands();
-    virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
-    virtual const std::shared_ptr<httpserver::http_response> render_POST(const httpserver::http_request& req) override;
+    virtual HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
+    virtual HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> render_POST(const httpserver::http_request& req) override;
 
     static ChannelTester INSTANCE;
 

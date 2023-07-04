@@ -261,8 +261,8 @@ void APIServer::Init(void) {
  *
  */
 void LogRequest(const http_request& req) {
-    LogDebug(VB_HTTP, "API Req: %s%s\n", req.get_path().c_str(),
-             req.get_querystring().c_str());
+    LogDebug(VB_HTTP, "API Req: %s%s\n", std::string(req.get_path()).c_str(),
+             std::string(req.get_querystring()).c_str());
 }
 
 /*
@@ -271,8 +271,8 @@ void LogRequest(const http_request& req) {
 void LogResponse(const http_request& req, int responseCode, const std::string& content) {
     if (WillLog(LOG_EXCESSIVE, VB_HTTP)) {
         LogExcess(VB_HTTP, "API Res: %s%s %d %s\n",
-                  req.get_path().c_str(),
-                  req.get_querystring().c_str(),
+                  std::string(req.get_path()).c_str(),
+                  std::string(req.get_querystring()).c_str(),
                   responseCode,
                   content.c_str());
     }
@@ -284,16 +284,16 @@ PlayerResource::PlayerResource() {
 /*
  *
  */
-const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(const http_request& req) {
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(const http_request& req) {
     LogRequest(req);
 
     Json::Value result;
     std::string resultStr = "";
-    std::string url = req.get_path();
+    std::string url(req.get_path());
 
     replaceStart(url, "/fppd/", "");
 
-    LogDebug(VB_HTTP, "URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
+    LogDebug(VB_HTTP, "URL: %s %s\n", url.c_str(), std::string(req.get_querystring()).c_str());
 
     // Keep IF statement in alphabetical order
     if (url == "effects") {
@@ -313,14 +313,14 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
     } else if (url == "multiSyncSystems") {
         bool localOnly = false;
 
-        if (req.get_arg("localOnly") == "1")
+        if (std::string(req.get_arg("localOnly")) == "1")
             localOnly = true;
 
         GetMultiSyncSystems(result, localOnly);
     } else if (url == "multiSyncStats") {
         bool reset = false;
 
-        if (req.get_arg("reset") == "1")
+        if (std::string(req.get_arg("reset")) == "1")
             reset = true;
 
         GetMultiSyncStats(result, reset);
@@ -342,11 +342,11 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
 
         SetOKResult(result, "");
     } else if (url == "volume") {
-        if (req.get_arg("set") != "") {
-            int i = std::atoi(req.get_arg("set").c_str());
+        if (std::string(req.get_arg("set")) != "") {
+            int i = std::atoi(std::string(req.get_arg("set")).c_str());
             setVolume(i);
         }
-        if (req.get_arg("simple") == "true") {
+        if (std::string(req.get_arg("simple")) == "true") {
             std::string v = std::to_string(getVolume());
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(v, 200, "text/plain"));
         }
@@ -383,19 +383,19 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
 /*
  *
  */
-const std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(const http_request& req) {
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(const http_request& req) {
     LogRequest(req);
 
     Json::Value data;
     Json::Value result;
-    std::string url = req.get_path();
+    std::string url(req.get_path());
 
     replaceStart(url, "/fppd/", "");
 
-    LogDebug(VB_HTTP, "POST URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
+    LogDebug(VB_HTTP, "POST URL: %s %s\n", url.c_str(), std::string(req.get_querystring()).c_str());
 
     if (req.get_content() != "") {
-        if (!LoadJsonFromString(req.get_content(), data)) {
+        if (!LoadJsonFromString(std::string(req.get_content()), data)) {
             LogErr(VB_CHANNELOUT, "Error parsing POST content\n");
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Error parsing POST content", 400));
         }
@@ -418,11 +418,11 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(con
     } else if (replaceStart(url, "playlists/")) {
         if (url == "stop") {
             // Stop all running playlists
-            LogDebug(VB_HTTP, "API - Stopping all running playlists w/ content '%s'\n", req.get_content().c_str());
+            LogDebug(VB_HTTP, "API - Stopping all running playlists w/ content '%s'\n", std::string(req.get_content()).c_str());
         } else if (endsWith(url, "/start")) {
             // Start a playlist
             replaceEnd(url, "/start", "");
-            LogDebug(VB_HTTP, "API - Starting playlist '%s' w/ content '%s'\n", url.c_str(), req.get_content().c_str());
+            LogDebug(VB_HTTP, "API - Starting playlist '%s' w/ content '%s'\n", url.c_str(), std::string(req.get_content()).c_str());
         } else if (endsWith(url, "/nextItem")) {
             replaceEnd(url, "/nextItem", "");
             LogDebug(VB_HTTP, "API - Skipping to next entry in playlist '%s'\n", url.c_str());
@@ -442,7 +442,7 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(con
             LogDebug(VB_HTTP, "API - Jumping to item %d in playlist '%s'\n", item, playlistName.c_str());
         } else if (endsWith(url, "/stop")) {
             replaceEnd(url, "/stop", "");
-            LogDebug(VB_HTTP, "API - Stopping playlist '%s' w/ content '%s'\n", url.c_str(), req.get_content().c_str());
+            LogDebug(VB_HTTP, "API - Stopping playlist '%s' w/ content '%s'\n", url.c_str(), std::string(req.get_content()).c_str());
         }
     } else if (url == "schedule") {
         PostSchedule(data, result);
@@ -514,15 +514,15 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(con
 /*
  *
  */
-const std::shared_ptr<httpserver::http_response> PlayerResource::render_DELETE(const http_request& req) {
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PlayerResource::render_DELETE(const http_request& req) {
     LogRequest(req);
 
     Json::Value result;
-    std::string url = req.get_path();
+    std::string url(req.get_path());
 
     replaceStart(url, "/fppd/", "");
 
-    LogDebug(VB_HTTP, "DELETE URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
+    LogDebug(VB_HTTP, "DELETE URL: %s %s\n", url.c_str(), std::string(req.get_querystring()).c_str());
 
     // Keep IF statement in alphabetical order
     if (url == "e131stats") {
@@ -553,15 +553,15 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_DELETE(c
 /*
  *
  */
-const std::shared_ptr<httpserver::http_response> PlayerResource::render_PUT(const http_request& req) {
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PlayerResource::render_PUT(const http_request& req) {
     LogRequest(req);
 
     Json::Value result;
-    std::string url = req.get_path();
+    std::string url(req.get_path());
 
     replaceStart(url, "/fppd/", "");
 
-    LogDebug(VB_HTTP, "PUT URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
+    LogDebug(VB_HTTP, "PUT URL: %s %s\n", url.c_str(), std::string(req.get_querystring()).c_str());
 
     // Keep IF statement in alphabetical order
     if (replaceStart(url, "playlists/")) {

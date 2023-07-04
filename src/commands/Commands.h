@@ -134,8 +134,8 @@ public:
     virtual std::unique_ptr<Command::Result> run(const Json::Value& command);
     virtual std::unique_ptr<Command::Result> runRemoteCommand(const std::string& remote, const std::string& command, const std::vector<std::string>& args);
 
-    virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
-    virtual const std::shared_ptr<httpserver::http_response> render_POST(const httpserver::http_request& req) override;
+    virtual HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
+    virtual HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> render_POST(const httpserver::http_request& req) override;
 
     int TriggerPreset(int slot, std::map<std::string, std::string>& keywords);
     int TriggerPreset(int slot);

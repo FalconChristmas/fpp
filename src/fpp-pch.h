@@ -39,6 +39,12 @@
 #endif
 #include <httpserver.hpp>
 
+#if __has_include(<httpserver/http_arg_value.hpp>)
+#define HTTP_RESPONSE_CONST
+#else
+#define HTTP_RESPONSE_CONST const
+#endif
+
 #include "Sequence.h"
 #include "Warnings.h"
 #include "common.h"

@@ -28,9 +28,9 @@ class PixelOverlayManager : public httpserver::http_resource {
 public:
     static PixelOverlayManager INSTANCE;
 
-    virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
-    virtual const std::shared_ptr<httpserver::http_response> render_POST(const httpserver::http_request& req) override;
-    virtual const std::shared_ptr<httpserver::http_response> render_PUT(const httpserver::http_request& req) override;
+    virtual HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
+    virtual HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> render_POST(const httpserver::http_request& req) override;
+    virtual HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> render_PUT(const httpserver::http_request& req) override;
 
     bool hasActiveOverlays();
     void doOverlays(uint8_t* channels);

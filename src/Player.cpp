@@ -362,7 +362,7 @@ Json::Value Player::GetStatusJSON() {
     return result;
 }
 
-const std::shared_ptr<httpserver::http_response> Player::render_GET(const httpserver::http_request& req) {
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> Player::render_GET(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
 
@@ -376,14 +376,14 @@ const std::shared_ptr<httpserver::http_response> Player::render_GET(const httpse
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
 
-const std::shared_ptr<httpserver::http_response> Player::render_POST(const httpserver::http_request& req) {
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> Player::render_POST(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
 
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
 
-const std::shared_ptr<httpserver::http_response> Player::render_PUT(const httpserver::http_request& req) {
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> Player::render_PUT(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
 

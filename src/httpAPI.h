@@ -24,10 +24,10 @@ class PlayerResource : public http_resource {
 public:
     PlayerResource();
 
-    const std::shared_ptr<http_response> render_GET(const http_request& req);
-    const std::shared_ptr<http_response> render_DELETE(const http_request& req);
-    const std::shared_ptr<http_response> render_POST(const http_request& req);
-    const std::shared_ptr<http_response> render_PUT(const http_request& req);
+    HTTP_RESPONSE_CONST std::shared_ptr<http_response> render_GET(const http_request& req);
+    HTTP_RESPONSE_CONST std::shared_ptr<http_response> render_DELETE(const http_request& req);
+    HTTP_RESPONSE_CONST std::shared_ptr<http_response> render_POST(const http_request& req);
+    HTTP_RESPONSE_CONST std::shared_ptr<http_response> render_PUT(const http_request& req);
 
 private:
     void GetRunningEffects(Json::Value& result);

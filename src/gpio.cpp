@@ -166,13 +166,13 @@ void GPIOManager::Cleanup() {
 #endif
 }
 
-const std::shared_ptr<httpserver::http_response> GPIOManager::render_GET(const httpserver::http_request& req) {
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::render_GET(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "gpio") {
         if (plen <= 1) {
             bool simpleList = false;
-            if (req.get_arg("list") == "true") {
+            if (std::string(req.get_arg("list")) == "true") {
                 simpleList = true;
             }
             std::vector<std::string> pins = PinCapabilities::getPinNames();

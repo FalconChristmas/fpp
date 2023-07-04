@@ -274,7 +274,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
     return run(command, cmd["args"]);
 }
 
-const std::shared_ptr<httpserver::http_response> CommandManager::render_GET(const httpserver::http_request& req) {
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::render_GET(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
 
@@ -310,7 +310,7 @@ const std::shared_ptr<httpserver::http_response> CommandManager::render_GET(cons
                 }
             }
         } else {
-            if (req.get_arg("names") == "true") {
+            if (std::string(req.get_arg("names")) == "true") {
                 Json::Value names;
                 if (allCommands.isMember("commands")) {
                     for (int x = 0; x < allCommands["commands"].size(); x++) {
@@ -352,12 +352,12 @@ const std::shared_ptr<httpserver::http_response> CommandManager::render_GET(cons
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
 
-const std::shared_ptr<httpserver::http_response> CommandManager::render_POST(const httpserver::http_request& req) {
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::render_POST(const httpserver::http_request& req) {
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "command") {
         if (req.get_path_pieces().size() > 1) {
             std::string command = req.get_path_pieces()[1];
-            Json::Value val = LoadJsonFromString(req.get_content());
+            Json::Value val = LoadJsonFromString(std::string(req.get_content()));
             std::vector<std::string> args;
             for (int x = 0; x < val.size(); x++) {
                 args.push_back(val[x].asString());
@@ -381,7 +381,7 @@ const std::shared_ptr<httpserver::http_response> CommandManager::render_POST(con
                 }
             }
         } else {
-            Json::Value val = LoadJsonFromString(req.get_content());
+            Json::Value val = LoadJsonFromString(std::string(req.get_content()));
             std::unique_ptr<Command::Result> r = run(val);
             int count = 0;
             while (!r->isDone() && count < 1000) {
