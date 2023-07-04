@@ -25,13 +25,13 @@
 #include <unistd.h>
 
 #ifdef PLATFORM_OSX
-#  include <mach-o/dyld.h>
+#include <mach-o/dyld.h>
 #endif
 
 static std::string FPP_BIN_DIR("");
 static std::string FPP_MEDIA_DIR("");
 
-std::string getFPPDDir(const std::string &path) {
+std::string getFPPDDir(const std::string& path) {
     if (FPP_BIN_DIR == "") {
         char exePath[2048];
         exePath[0] = 0;
@@ -48,16 +48,18 @@ std::string getFPPDDir(const std::string &path) {
     }
     return FPP_BIN_DIR + path;
 }
-std::string getFPPMediaDir(const std::string &path) {
+std::string getFPPMediaDir(const std::string& path) {
     if (FPP_MEDIA_DIR == "") {
         std::string filename = getFPPDDir("/www/media_root.txt");
+        std::string fc = "";
         if (FileExists(filename)) {
-            FPP_MEDIA_DIR = GetFileContents(filename);
+            fc = GetFileContents(filename);
+            FPP_MEDIA_DIR = fc;
             TrimWhiteSpace(FPP_MEDIA_DIR);
         }
         if (FPP_MEDIA_DIR == "") {
 #ifdef PLATFORM_OSX
-            const char *homedir;
+            const char* homedir;
             if ((homedir = getenv("HOME")) == NULL) {
                 homedir = getpwuid(getuid())->pw_dir;
             }
@@ -67,7 +69,9 @@ std::string getFPPMediaDir(const std::string &path) {
             FPP_MEDIA_DIR = "/home/fpp/media";
 #endif
         }
-        PutFileContents(filename, FPP_MEDIA_DIR);
+        if (FPP_MEDIA_DIR != fc) {
+            PutFileContents(filename, FPP_MEDIA_DIR);
+        }
     }
     return FPP_MEDIA_DIR + path;
 }
@@ -206,13 +210,13 @@ char* modeToString(int mode) {
     return strdup("unknown");
 }
 
-int SetSetting(const std::string &key, const int value) {
+int SetSetting(const std::string& key, const int value) {
     return SetSetting(key, std::to_string(value));
 }
 
 static std::map<std::string, std::string> UPDATES;
 
-int SetSetting(const std::string &key, const std::string &value) {
+int SetSetting(const std::string& key, const std::string& value) {
     settings.settings[key] = value;
 
     if (key == "fppMode") {
@@ -248,7 +252,7 @@ int SetSetting(const std::string &key, const std::string &value) {
     return 1;
 }
 
-int LoadSettings(const char *base) {
+int LoadSettings(const char* base) {
     settings.Init();
 
     if (!FileExists(FPP_FILE_SETTINGS)) {
@@ -276,7 +280,7 @@ int LoadSettings(const char *base) {
             char* token = strtok(line, "=");
             if (!token) {
                 if (line) {
-                   free(line);
+                    free(line);
                 }
                 continue;
             }

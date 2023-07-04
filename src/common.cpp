@@ -138,10 +138,10 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
     int x = 0;
     int y = 0;
     unsigned char* ch = (unsigned char*)data;
-    unsigned char *str = new unsigned char[perLine + 1];
+    unsigned char* str = new unsigned char[perLine + 1];
 
     int maxLen = perLine * 7 + 20;
-    char *tmpStr = new char[maxLen];
+    char* tmpStr = new char[maxLen];
 
     if (strlen(title)) {
         snprintf(tmpStr, maxLen, "%s: (%d bytes)\n", title, len);
@@ -162,7 +162,7 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
             snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "   ");
             for (; x > 0; x--) {
                 if (str[perLine - x] == '%' || str[perLine - x] == '\\') {
-                    //these are escapes for the Log call, so don't display them
+                    // these are escapes for the Log call, so don't display them
                     snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), ".");
                 } else if (isgraph(str[perLine - x]) || str[perLine - x] == ' ') {
                     snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "%c", str[perLine - x]);
@@ -191,7 +191,7 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
     snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "   ");
     for (y = 0; y < x; y++) {
         if (str[y] == '%' || str[y] == '\\') {
-            //these are escapes for the Log call, so don't display them
+            // these are escapes for the Log call, so don't display them
             snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), ".");
         } else if (isgraph(str[y]) || str[y] == ' ') {
             snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "%c", str[y]);
@@ -202,8 +202,8 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
 
     snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "\n");
     LogInfo(facility, tmpStr);
-    delete [] tmpStr;
-    delete [] str;
+    delete[] tmpStr;
+    delete[] str;
 }
 
 /*
@@ -472,13 +472,13 @@ void CloseOpenFiles(void) {
             socklen_t addrLen = sizeof(address);
             getsockname(fd, (struct sockaddr*)&address, &addrLen);
             if (address.sin_family) {
-                //its a tcp/udp socket of some sort
+                // its a tcp/udp socket of some sort
                 doClose = true;
             }
             if (doClose) {
-                //if it's not a file or socket, we cannot close it
-                //On OSX, that may be a "NPOLICY" descriptor which
-                //if closed will terminate the process immediately
+                // if it's not a file or socket, we cannot close it
+                // On OSX, that may be a "NPOLICY" descriptor which
+                // if closed will terminate the process immediately
                 close(fd);
             }
         }
@@ -599,14 +599,17 @@ std::vector<std::string> splitWithQuotes(const std::string& s, char delim) {
 }
 
 std::string GetFileContents(const std::string& filename) {
-    std::ifstream in(filename, std::ios::in | std::ios::binary);
-    if (in) {
-        std::string contents;
-        in.seekg(0, std::ios::end);
-        contents.resize(in.tellg());
-        in.seekg(0, std::ios::beg);
-        in.read(&contents[0], contents.size());
-        in.close();
+    FILE* fd = fopen(filename.c_str(), "r");
+    std::string contents;
+    if (fd != nullptr) {
+        flock(fileno(fd), LOCK_SH);
+        fseeko(fd, 0, SEEK_END);
+        size_t sz = ftello(fd);
+        contents.resize(sz);
+        fseeko(fd, 0, SEEK_SET);
+        fread(&contents[0], contents.size(), 1, fd);
+        flock(fileno(fd), LOCK_UN);
+        fclose(fd);
         int x = contents.size() - 1;
         for (; x > 0; x--) {
             if (contents[x] != 0) {
@@ -614,22 +617,20 @@ std::string GetFileContents(const std::string& filename) {
             }
         }
         contents.resize(x + 1);
-        return contents;
     }
-    return "";
+    return contents;
 }
 
 bool PutFileContents(const std::string& filename, const std::string& str) {
-    std::ofstream out(filename, std::ofstream::out);
-    if (out) {
-        out << str;
-        out.close();
-
+    FILE* fd = fopen(filename.c_str(), "w");
+    if (fd != nullptr) {
+        flock(fileno(fd), LOCK_EX);
+        fwrite(&str[0], str.size(), 1, fd);
+        flock(fileno(fd), LOCK_UN);
+        fclose(fd);
         SetFilePerms(filename);
-
         return true;
     }
-
     LogErr(VB_GENERAL, "ERROR: Unable to open %s for writing.\n", filename.c_str());
 
     return false;
@@ -949,7 +950,7 @@ size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp) {
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const unsigned int timeout) {
     return urlHelper(method, url, data, resp, std::list<std::string>(), timeout);
 }
-bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const std::list<std::string> &extraHeaders, const unsigned int timeout) {
+bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const std::list<std::string>& extraHeaders, const unsigned int timeout) {
     CURL* curl = curl_easy_init();
     std::string userAgent = "FPP/";
     userAgent += getFPPVersionTriplet();
@@ -988,7 +989,7 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
         headers = curl_slist_append(headers, "Accept: application/json");
         headers = curl_slist_append(headers, "Content-Type: application/json");
     }
-    for (auto &h : extraHeaders) {
+    for (auto& h : extraHeaders) {
         headers = curl_slist_append(headers, h.c_str());
     }
     if (headers) {
@@ -1023,7 +1024,7 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
     if (status != CURLE_OK) {
         LogErr(VB_GENERAL, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
         curl_slist_free_all(headers);
-        curl_easy_cleanup(curl);        
+        curl_easy_cleanup(curl);
         return false;
     }
 
