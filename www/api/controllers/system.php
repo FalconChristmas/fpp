@@ -383,3 +383,28 @@ function finalizeStatusJson($obj)
 
     return $obj;
 }
+
+// POST api/system/proxies
+function SystemSetProxies() {
+    global $mediaDirectory;
+    $json = file_get_contents('php://input');
+    $data = json_decode($json);
+    $newht = "RewriteEngine on\nRewriteBase /proxy/\n\n";
+
+    foreach ($data as $host => $desc) {
+        if ($desc != "") {
+            $newht = $newht . "# D:" . $desc . "\n";
+        }
+        $newht = $newht . "RewriteRule ^" . $host . "$  " . $host . "/  [R,L]\n";
+        $newht = $newht . "RewriteRule ^" . $host . "/(.*)$  http://" . $host . "/$1  [P,L]\n\n";
+    }
+
+    $newht = $newht . "RewriteRule ^(.*)/(.*)$  http://$1/$2  [P,L]\n";
+    $newht = $newht . "RewriteRule ^(.*)$  $1/  [R,L]\n\n";
+
+    file_put_contents("$mediaDirectory/config/proxies", $newht);
+
+	//Trigger a JSON Configuration Backup
+	GenerateBackupViaAPI('Proxy hosts were modified.');
+    return "OK";
+}

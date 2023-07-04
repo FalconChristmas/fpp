@@ -4,22 +4,6 @@
 require_once 'config.php';
 include 'common/menuHead.inc';
 require_once "common.php";
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $newht = "RewriteEngine on\nRewriteBase /proxy/\n\n";
-
-    foreach ($_POST as $host) {
-        $newht = $newht . "RewriteRule ^" . $host . "$  " . $host . "/  [R,L]\n";
-        $newht = $newht . "RewriteRule ^" . $host . "/(.*)$  http://" . $host . "/$1  [P,L]\n\n";
-    }
-
-    $newht = $newht . "RewriteRule ^(.*)/(.*)$  http://$1/$2  [P,L]\n";
-    $newht = $newht . "RewriteRule ^(.*)$  $1/  [R,L]\n\n";
-
-    file_put_contents("$mediaDirectory/config/proxies", $newht);
-
-	//Trigger a JSON Configuration Backup
-	GenerateBackupViaAPI('Proxy hosts were modified.');
-}
 
 if (file_exists("$mediaDirectory/config/proxies")) {
     $hta = file("$mediaDirectory/config/proxies", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -47,19 +31,21 @@ function AddNewProxy() {
 	var currentRows = $("#proxyTable > tbody > tr").length
 
 	$('#proxyTable tbody').append(
-		"<tr id='row'" + currentRows + " class='fppTableRow'>" +
+		"<tr id='row'" + currentRows + " class='fppTableRow proxyRow'>" +
             "<td>" + (currentRows + 1) + "</td>" +
 			"<td><input id='ipRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")'></td>" +
+            "<td><input id='descRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value=''></td>" +
             "<td id='linkRow" + currentRows + "'> </td>" +
 			"</tr>");
 }
-function AddProxyForHost(host) {
+function AddProxyForHost(host, description = "") {
 	var currentRows = $("#proxyTable > tbody > tr").length
 
 	$('#proxyTable tbody').append(
-		"<tr id='row'" + currentRows + " class='fppTableRow'>" +
+		"<tr id='row'" + currentRows + " class='fppTableRow proxyRow'>" +
             "<td>" + (currentRows + 1) + "</td>" +
 			"<td><input id='ipRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + host + "'></td>" +
+            "<td><input id='descRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + description + "'></td>" +
             "<td id='linkRow" + currentRows + "'><a href='proxy/" + host + "'>" + host + "</a></td>" +
 			"</tr>");
 }
@@ -83,25 +69,21 @@ function DeleteSelectedProxy() {
 
 function SetProxies() {
     var formStr = "<form action='proxies.php' method='post' id='proxyForm'>";
-    var currentRows = $("#proxyTable > tbody > tr").length
-    var row=0;
 
-    $("input[id^=ipRow]").each(function() {
-        var val = $(this).val();
-        if (! (isValidHostname(val)  || isValidIpAddress(val) ) ) {
-            var msg = "Skipping valid link: " + val;
-            $.jGrowl(msg,{themeState:'danger'});
-        } else {
-            formStr += "<input type='hidden' name='ip" + row + "' value='" + val + "'/>";
+    var json = new Object();
+    var row=0;
+    $(".proxyRow").each(function() {
+        console.log("Hello!!!");
+        var ip = $(this).find("#ipRow" + row).val();
+        console.log("" + ip);
+        if (isValidHostname(ip) || isValidIpAddress(ip) ) {
+            var desc = $(this).find("#descRow" + row).val();
+            json[ip] = desc;
             ++row;
         }
     });
-
-    formStr += "</form>";
-    console.log(formStr);
-    var form = $(formStr);
-    $('body').append(form);
-    form.submit();
+    Post("api/system/proxies", false, JSON.stringify(json, null, 2));
+    location.reload();
 }
 
 var tableInfo = {
@@ -114,13 +96,17 @@ var tableInfo = {
 $(document).ready(function(){
     SetupSelectableTableRow(tableInfo);
 <?php
-foreach ($hta as $line) {
+    $description = "";
+    foreach ($hta as $line) {
     if (strpos($line, 'http://') !== false) {
         $parts = preg_split("/[\s]+/", $line);
         $host = preg_split("/[\/]+/", $parts[2])[1];
         if ($host != "$1") {
-            echo "AddProxyForHost('" . $host . "');";
+            echo "AddProxyForHost('" . $host . "', '" . $description . "');";
+            $description = "";
         }
+    } else if (strpos($line, '# D:') !== false) {
+        $description = substr($line, 4);
     }
 }
 ?>
@@ -163,6 +149,7 @@ include 'menu.inc';?>
                                 <tr>
                                     <th>#</td>
                                     <th>IP/HostName</td>
+                                    <th>Description</td>
                                     <th>Link</th>
                                 </tr>
                             </thead>
