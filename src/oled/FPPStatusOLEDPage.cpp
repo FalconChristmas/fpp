@@ -41,7 +41,7 @@ int FPPStatusOLEDPage::getSignalStrength(char* iwname) {
     wrq.u.data.length = sizeof(buffer);
     wrq.u.data.flags = 0;
     if (iw_get_ext(sockfd, iwname, SIOCGIWRANGE, &wrq) < 0) {
-        //no ranges
+        // no ranges
         return sigLevel;
     }
     range_raw = (iw_range*)buffer;
@@ -54,7 +54,7 @@ int FPPStatusOLEDPage::getSignalStrength(char* iwname) {
     wrq.u.data.flags = 1;
     strncpy(wrq.ifr_name, iwname, IFNAMSIZ);
     if (iw_get_ext(sockfd, iwname, SIOCGIWSTATS, &wrq) < 0) {
-        //no stats
+        // no stats
         return sigLevel;
     }
 
@@ -89,7 +89,7 @@ FPPStatusOLEDPage::FPPStatusOLEDPage() :
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writer);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
 
-    //have to use a socket for ioctl
+    // have to use a socket for ioctl
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     readImage();
@@ -132,26 +132,26 @@ bool FPPStatusOLEDPage::checkIfStatusChanged(Json::Value& result) {
         return true;
     }
 
-    //if the status has materially changed, turn the oled back on
+    // if the status has materially changed, turn the oled back on
     std::vector<std::string> lines;
     int maxLines = getLinesPage0(lines, result, true);
     if (compareLines(0, lines, _lastStatusLines)) {
-        //main status
+        // main status
         _lastStatusLines = lines;
         return true;
     }
     if (compareLines(1, lines, _lastStatusLines)) {
-        //running sequence
+        // running sequence
         _lastStatusLines = lines;
         return true;
     }
     if (compareLines(2, lines, _lastStatusLines)) {
-        //running song
+        // running song
         _lastStatusLines = lines;
         return true;
     }
     if (compareLines(5, lines, _lastStatusLines)) {
-        //running playlist
+        // running playlist
         _lastStatusLines = lines;
         return true;
     }
@@ -169,10 +169,10 @@ int FPPStatusOLEDPage::getLinesPage0(std::vector<std::string>& lines,
     bool isIdle = (status == "idle" || status == "testing");
     int maxLines = 6;
     if (currentMode != "Bridge") {
-        //bridge is always "idle" which isn't really true
+        // bridge is always "idle" which isn't really true
         line += ": " + status;
     } else {
-        //bridge mode doesn't output a playlist section
+        // bridge mode doesn't output a playlist section
         isIdle = false;
         maxLines = 5;
     }
@@ -259,7 +259,7 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
         outputNetwork(idx, startY);
         startY += 8;
         if (GetLEDDisplayHeight() > 65) {
-            startY += 2; //little extra space
+            startY += 2; // little extra space
         }
         for (int x = 1; x < lines; x++) {
             idx++;
@@ -269,7 +269,7 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
             outputNetwork(idx, startY);
             startY += 8;
             if (GetLEDDisplayHeight() > 65) {
-                startY += 2; //little extra space
+                startY += 2; // little extra space
             }
         }
     } else {
@@ -352,7 +352,7 @@ int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid,
         }
     } else {
         if (count < 75) {
-            //if less than 75 seconds since start, we'll assume we are booting up
+            // if less than 75 seconds since start, we'll assume we are booting up
             std::string line = "Booting.";
             int idx = count % 8;
             for (int i = 0; i < idx; i++) {
@@ -390,9 +390,9 @@ bool FPPStatusOLEDPage::doIteration(bool& displayOn) {
     bool retVal = false;
     int lastNSize = networks.size();
     if ((_iterationCount % 30) == 0 || networks.size() <= 1) {
-        //every 30 seconds, rescan network for new connections
+        // every 30 seconds, rescan network for new connections
         fillInNetworks();
-        //if networks aren't configured or have changed, keep the oled on
+        // if networks aren't configured or have changed, keep the oled on
         if (lastNSize != networks.size() || networks.size() <= 1) {
             retVal = true;
             displayOn = true;
@@ -434,8 +434,8 @@ bool FPPStatusOLEDPage::doIteration(bool& displayOn) {
             }
             startY = outputBottomPart(startY, _iterationCount, statusValid, result);
         } else {
-            //strange case... with 2 color display flipped, we still need to keep the
-            //network part in the "yellow" which is now below the main part
+            // strange case... with 2 color display flipped, we still need to keep the
+            // network part in the "yellow" which is now below the main part
             outputBottomPart(0, _iterationCount, statusValid, result);
             outputTopPart(48, _iterationCount);
         }
@@ -456,7 +456,7 @@ void FPPStatusOLEDPage::fillInNetworks() {
     networks.push_back(hn);
     signalStrength.push_back(0);
 
-    //get all the addresses
+    // get all the addresses
     struct ifaddrs *interfaces, *tmp;
     getifaddrs(&interfaces);
     tmp = interfaces;
@@ -465,7 +465,7 @@ void FPPStatusOLEDPage::fillInNetworks() {
         int max = OLEDPage::GetLEDDisplayWidth() / 6;
         if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
             if (strncmp("usb", tmp->ifa_name, 3) != 0) {
-                //skip the usb* interfaces as we won't support multisync on those
+                // skip the usb* interfaces as we won't support multisync on those
                 GetInterfaceAddress(tmp->ifa_name, addressBuf, NULL, NULL);
                 if (strcmp(addressBuf, "127.0.0.1")) {
                     hn = tmp->ifa_name;
@@ -480,9 +480,9 @@ void FPPStatusOLEDPage::fillInNetworks() {
                 }
             }
         } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
-            //FIXME for ipv6 multisync
+            // FIXME for ipv6 multisync
         } else {
-            //printf("Not a netork: %s\n", tmp->ifa_name);
+            // printf("Not a netork: %s\n", tmp->ifa_name);
         }
         tmp = tmp->ifa_next;
     }
@@ -548,8 +548,8 @@ void FPPStatusOLEDPage::runTest(const std::string& test, bool ms) {
         val["args"].append("RGB Single Color");
         val["args"].append(channelRange);
         val["args"].append("#0000ff");
-    } else if (test != "Off") {
-        printf("Unknown test  %s\n", test.c_str());
+    } else if (_currentTest != "") {
+        printf("Unknown test %s\n", test.c_str());
         return;
     }
 
@@ -572,7 +572,7 @@ void FPPStatusOLEDPage::runTest(const std::string& test, bool ms) {
 }
 static std::vector<std::string> TESTS = { "Off", "R-G-B Cycle", "R-G-B-W-N Cycle", "R-G-B Chase", "R-G-B-W-N Chase" };
 void FPPStatusOLEDPage::cycleTest() {
-    int idx = 0;
+    int idx = 1;
     for (int x = 0; x < TESTS.size(); x++) {
         if (TESTS[x] == _currentTest) {
             idx = x + 1;
@@ -711,7 +711,7 @@ void FPPStatusOLEDPage::displayWiFiQR() {
     printString(12 + _wifiImageWidth, y + 20, "Hot Spot");
 }
 
-bool FPPStatusOLEDPage::loadWiFiImage(const std::string &tp) {
+bool FPPStatusOLEDPage::loadWiFiImage(const std::string& tp) {
     if (_wifiImageWidth) {
         return true;
     }
@@ -752,7 +752,7 @@ bool FPPStatusOLEDPage::loadWiFiImage(const std::string &tp) {
                             int idx = x * 2 + y * 2;
                             v <<= 1;
                             if (idx < line.size() && line[idx] == '#') {
-                                v |= 1;           
+                                v |= 1;
                                 if (scale == 2) {
                                     v <<= 1;
                                     v |= 1;
@@ -775,7 +775,7 @@ bool FPPStatusOLEDPage::loadWiFiImage(const std::string &tp) {
 }
 
 bool FPPStatusOLEDPage::doAction(const std::string& action) {
-    //printf("In do action  %s   %d   %s\n", action.c_str(), _testSpeed, _currentTest.c_str());
+    // printf("In do action  %s   %d   %s\n", action.c_str(), _testSpeed, _currentTest.c_str());
     if (action == "Test" || action == "Test/Down" || action == "Test Multisync") {
         _multisyncTest = action == "Test Multisync";
         _testSpeed = 500;
