@@ -563,6 +563,14 @@ if (!isset($settings['rebootFlag'])) {
     $settings['rebootFlag'] = 0;
 }
 
+$settings['hideExternalURLs'] = false;
+$localIps = array('127.0.0.1', "::1");
+
+if (file_exists("/etc/fpp/kiosk") && in_array($_SERVER['REMOTE_ADDR'], $localIps)) {
+    $settings['LogoLink'] = '';
+    $settings['hideExternalURLs'] = true;
+}
+
 putenv("SCRIPTDIR=$scriptDirectory");
 putenv("MEDIADIR=$mediaDirectory");
 putenv("LOGDIR=$logDirectory");

@@ -1,7 +1,4 @@
-
-
-
-...<?php
+<?php
 
 $kernel_version = exec("uname -r");
 
@@ -124,6 +121,9 @@ function list_plugin_entries($menu) {
                 }
                 if (isset($settings['cape-info']['cs']) && $settings['cape-info']['cs'] != "" && $settings['SendVendorSerial'] == 1) {
                     $iurl = $iurl . "&cs=" . $settings['cape-info']['cs'];
+                }
+                if ($settings['hideExternalURLs']) {
+                    $landing = "";
                 }
                 ?>
                       <div class="capeVendor">
@@ -331,22 +331,26 @@ if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom
 if (file_exists($eepromFile)) {
     echo "<a class='dropdown-item' href='cape-info.php'><i class='fas fa-microchip'></i> Cape Info</a>\n";
 }
+$externalLinkClass = "dropdown-item";
+if ($settings["hideExternalURLs"]) {
+    $externalLinkClass = "hiddenExternalLink";
+}
 ?>
-          <a class="dropdown-item link-to-fpp-manual" href="https://added-by-javascript.net" target="_blank"><i class="fas fa-book"></i> FPP Manual <i class="fas fa-external-link-alt external-link"></i></a>
-          <a class="dropdown-item" href="https://falconchristmas.com/forum" target="_blank"><i class="fas fa-comments"></i> Forums <i class="fas fa-external-link-alt external-link"></i></a>
+          <a class="<?= $externalLinkClass ?> link-to-fpp-manual" href="https://added-by-javascript.net" target="_blank"><i class="fas fa-book"></i> FPP Manual <i class="fas fa-external-link-alt external-link"></i></a>
+          <a class="<?= $externalLinkClass ?>" href="https://falconchristmas.com/forum" target="_blank"><i class="fas fa-comments"></i> Forums <i class="fas fa-external-link-alt external-link"></i></a>
           <!--
-          <a class="dropdown-item" href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank"><i class="fas fa-external-link-square-alt"></i> Wiki/Help <i class="fas fa-external-link-alt external-link"></i></a>
+          <a class="<?= $externalLinkClass ?>" href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank"><i class="fas fa-external-link-square-alt"></i> Wiki/Help <i class="fas fa-external-link-alt external-link"></i></a>
           -->
           <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Help Index</a>
           <a class="dropdown-item" href="apihelp.php"><i class="fas fa-plug"></i> REST API Help</a>
           <a class="dropdown-item" href="commandhelp.php"><i class="fas fa-cubes"></i> FPP Commands Help</a>
           <a class="dropdown-item" href="cliHelp.php"><i class="fas fa-life-ring"></i> fpp &amp; fppmm Usage</a>
           <a class="dropdown-item" href="credits.php"><i class="fas fa-stream"></i> Credits</a>
-          <a class="dropdown-item" href="https://www.paypal.com/donate/?hosted_button_id=ASF9XYZ2V2F5G" target='_blank'><i class="fas fa-solid fa-gift"></i> Donate to FPP <i class="fas fa-external-link-alt external-link"></i></a>
+          <a class="<?= $externalLinkClass ?>" href="https://www.paypal.com/donate/?hosted_button_id=ASF9XYZ2V2F5G" target='_blank'><i class="fas fa-solid fa-gift"></i> Donate to FPP <i class="fas fa-external-link-alt external-link"></i></a>
           <hr class="dropdown-divider">
           <a class="dropdown-item" href="healthCheck.php"><i class="fas fa-thermometer-half"></i> System Health Check</a>
           <a class="dropdown-item" href="troubleshooting.php"><i class="fas fa-code"></i> Troubleshooting Commands</a>
-          <a class="dropdown-item" href="http://<?php echo $_SERVER['HTTP_HOST'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
+          <a class="<?= $externalLinkClass ?>" href="http://<?php echo $_SERVER['HTTP_HOST'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
           <?php list_plugin_entries("help"); ?>
         </div>
       </li>

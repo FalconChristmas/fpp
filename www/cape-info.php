@@ -813,15 +813,18 @@ if (isset($currentCapeInfo['vendor']['url'])) {
             if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "" && $settings['SendVendorSerial'] == 1) {
                 $landing = $landing . "&cs=" . $currentCapeInfo['cs'];
             }
+            if ($settings['hideExternalURLs']) {
+                $landing = "";
+            }
             echo "<tr><td><b>Vendor&nbsp;URL:</b></td><td><a href=\"" . $landing . "\">" . $url . "</a></td></tr>";
         }
         if (isset($currentCapeInfo['vendor']['phone'])) {
             echo "<tr><td><b>Phone&nbsp;Number:</b></td><td>" . $currentCapeInfo['vendor']['phone'] . "</td></tr>";
         }
-        if (isset($currentCapeInfo['vendor']['email'])) {
+        if (isset($currentCapeInfo['vendor']['email']) && !$settings['hideExternalURLs']) {
             echo "<tr><td><b>E-mail:</b></td><td><a href=\"mailto:" . $currentCapeInfo['vendor']['email'] . "\">" . $currentCapeInfo['vendor']['email'] . "</td></tr>";
         }
-        if (isset($currentCapeInfo['vendor']['forum'])) {
+        if (isset($currentCapeInfo['vendor']['forum']) && !$settings['hideExternalURLs']) {
             echo "<tr><td><b>Support Forum:</b></td><td><a href=\"" . $currentCapeInfo['vendor']['forum'] . "\">" . $currentCapeInfo['vendor']['forum'] . "</td></tr>";
         }
         if (isset($currentCapeInfo['vendor']['image']) && $settings['FetchVendorLogos']) {
