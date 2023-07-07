@@ -19,9 +19,12 @@ IIOSensorSource::IIOSensorSource(Json::Value& config) : SensorSource(config) {
     if (config.isMember("devId")) {
         iioDevNumber = config["devId"].asInt();
     }
-
-    usingBuffers = FileExists("/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/buffer/enable")
-        && FileExists("/dev/iio:device" + std::to_string(iioDevNumber));
+    if (config.isMember("useBuffers")) {
+        usingBuffers = config["useBuffers"].asBool();
+    } else {
+        usingBuffers = FileExists("/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/buffer/enable")
+            && FileExists("/dev/iio:device" + std::to_string(iioDevNumber));
+    }
 
     std::string base = "/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/in_voltage";
     int max = -1;
