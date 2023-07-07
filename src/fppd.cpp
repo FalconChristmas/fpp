@@ -18,6 +18,7 @@
 #include "Scheduler.h"
 #include "command.h"
 #include "common.h"
+#include "CurlManager.h"
 #include "e131bridge.h"
 #include "effects.h"
 #include "fpp.h"
@@ -975,6 +976,7 @@ void MainLoop(void) {
             }
         }
         Timers::INSTANCE.fireTimers();
+        CurlManager::INSTANCE.processCurls();
         GPIOManager::INSTANCE.CheckGPIOInputs();
     }
     close(epollf);

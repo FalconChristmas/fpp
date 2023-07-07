@@ -37,6 +37,7 @@ OBJECTS_fpp_so += \
     commands/EventCommands.o \
     commands/MediaCommands.o \
 	common.o \
+	CurlManager.o \
 	e131bridge.o \
 	effects.o \
 	Events.o \
