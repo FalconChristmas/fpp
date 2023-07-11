@@ -2630,6 +2630,12 @@ function PerformCopy() {
         url += '&delete=no';
     }
 
+    if (document.getElementById("backup.sendCompressed").checked) {
+        url += '&compress=yes';
+    } else {
+        url += '&compress=no';
+    }
+
     if (direction.substring(0,4) == 'FROM')
     {
         if (!confirm(warningMsg)) {
@@ -3200,6 +3206,7 @@ function BackupDirectionChanged() {
             $('.copyHost').show();
             $('.copyHostDevice').show();
             $('.copyBackups').hide();
+            $('.sendCompressed').show();
             //Check if remote has rsynd enabled
             CheckRemoteHasRsyncdEnabled(host);
             //USB Device on remote
@@ -3212,6 +3219,7 @@ function BackupDirectionChanged() {
             $('.copyHost').show();
             $('.copyHostDevice').show();
             $('.copyBackups').hide();
+            $('.sendCompressed').show();
             GetBackupHostBackupDirs();
             //Check if remote has rsynd enabled
             CheckRemoteHasRsyncdEnabled(host);
@@ -3390,6 +3398,9 @@ if (isset($_GET['tab']) and is_numeric($_GET['tab'])) {
             display: none;
         }
         .copyHostDevice {
+            display: none;
+        }
+        .sendCompressed{
             display: none;
         }
     </style>
@@ -3737,7 +3748,15 @@ foreach ($settings_restored as $area_restored => $success) {
         <tr class='copyHostDevice'><td>Remote Storage:</td><td><select id="backup.RemoteStorage" onchange="backupRemoteStorageChanged();"><option value="none" selected="">Default FPP Storage</option></select></td></tr>
         <tr class='copyPath'><td>Backup Path:</td><td><?php PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', $settings["HostName"]);?></td></tr>
         <tr class='copyPathSelect'><td>Backup Path:</td><td><select name='backup.PathSelect' id='backup.PathSelect'></select></td></tr>
-        <tr><td>What to copy:</td><td>
+        <tr class='sendCompressed'>
+            <td>Send Compressed Data: </td>
+            <td>
+				<?php PrintSettingCheckbox('Send Compressed Data:', 'backup.sendCompressed', 0, 0, 1, 0, "", "", 0, ' (Compress files during copy to speed up the copy process. NOTE: Newer xLights versions already used a compressed FSEQ format, so this option may only slow down the transfer as FPP tries to recompress already-compressed data. Some data like Music and Videos are not compressed.)'); ?>
+                <br>
+            </td>
+        </tr>
+
+       <tr><td>What to copy:</td><td>
         <table id="CopyFlagsTable">
         <tr><td>
 				<?php PrintSettingCheckbox('Backup Configuration', 'backup.Configuration', 0, 0, 1, 0, "", "", 1, 'Configuration');?><br>
