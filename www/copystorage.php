@@ -1,4 +1,6 @@
 <?php
+// Ignore user aborts and allow the script
+ignore_user_abort(true);
 header( "Access-Control-Allow-Origin: *");
 
 $wrapped = 0;
@@ -30,10 +32,13 @@ Copy Settings
 }
     $date = date("Ymd-Hi");
     $path = preg_replace('/{DATE}/', $date, $_GET['path']);
+    $compress = isset($_GET['compress']) ? escapeshellcmd($_GET['compress']) : "no";
+    $delete = isset($_GET['delete']) ? escapeshellcmd($_GET['delete']) : "no";
+    $remote_storage = isset($_GET['remoteStorage']) ? escapeshellcmd($_GET['remoteStorage']) : 'none';
 
 		echo "==================================================================================\n";
 
-    $command = "sudo " . __DIR__ . "/../scripts/copy_settings_to_storage.sh " . escapeshellcmd($_GET['storageLocation']) . " " . $path . " " . escapeshellcmd($_GET['direction']) . " " . escapeshellcmd(isset($_GET['remoteStorage']) ? $_GET['remoteStorage'] : 'none') . " " . escapeshellcmd($_GET['delete']) . " " . escapeshellcmd($_GET['flags']);
+    $command = "sudo stdbuf --output=L  " . __DIR__ . "/../scripts/copy_settings_to_storage.sh " . escapeshellcmd($_GET['storageLocation']) . " " . $path . " " . escapeshellcmd($_GET['direction']) . " " . $remote_storage . " " .  $compress . " " . $delete . " " . escapeshellcmd($_GET['flags']);
 
 		echo "Command: ".htmlspecialchars($command)."\n";
 		echo "----------------------------------------------------------------------------------\n";

@@ -3,10 +3,12 @@ DEVICE=$1
 DPATH=$2 # Folder For backups
 DIRECTION=$3
 RSTORAGE=$4 # Default 'none', Remote Storage Device (USB, SSD, etc) where backups will go
-DELETE=$5
-shift 5
+COMPRESS=$5 # Whether data is sent compressed to spend up network transfers
+DELETE=$6
+shift 6
 
 BASEDIRECTION=$(echo $DIRECTION | cut -c1-4)
+REMOTE_COMPRESS=""
 
 IgnoreWarnings() {
     egrep -v "(failed to set|chown|attrs were not)"
@@ -96,40 +98,47 @@ elif [ "$DIRECTION" == "FROMREMOTE" ]; then
 
 fi
 
-EXTRA_ARGS="$EXTRA_ARGS -av --modify-window=1"
+EXTRA_ARGS="$EXTRA_ARGS -av --progress --info=name0 --human-readable --modify-window=1"
+
+if [ "$COMPRESS" == "yes" ]; then
+        REMOTE_COMPRESS=" -Dz "
+fi
 
 if [ "$DELETE" == "yes" ]; then
     EXTRA_ARGS="$EXTRA_ARGS --delete"
 fi
 
 for action in $@; do
+    echo " "
+    echo "Copying $action.... Please wait!"
+
     case $action in
     "All")
-        rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $REMOTE_COMPRESS --exclude=music/* --exclude=sequences/* --exclude=videos/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
         rsync $EXTRA_ARGS $SOURCE/music $DEST  2>&1 | IgnoreWarnings
-        rsync $EXTRA_ARGS $SOURCE/sequences $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/sequences $DEST  2>&1 | IgnoreWarnings
         rsync $EXTRA_ARGS $SOURCE/videos $DEST  2>&1 | IgnoreWarnings
         ;;
     "Music")
         rsync $EXTRA_ARGS $SOURCE/music $DEST  2>&1 | IgnoreWarnings
         ;;
     "Sequences")
-        rsync $EXTRA_ARGS $SOURCE/sequences $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/sequences $DEST  2>&1 | IgnoreWarnings
         ;;
     "Scripts")
-        rsync $EXTRA_ARGS $SOURCE/scripts $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/scripts $DEST  2>&1 | IgnoreWarnings
         ;;
     "Plugins")
-        rsync $EXTRA_ARGS $SOURCE/plugin* $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/plugin* $DEST  2>&1 | IgnoreWarnings
         ;;
     "Images")
         rsync $EXTRA_ARGS $SOURCE/images $DEST  2>&1 | IgnoreWarnings
         ;;
     "Events")
-        rsync $EXTRA_ARGS $SOURCE/events $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/events $DEST  2>&1 | IgnoreWarnings
         ;;
     "Effects")
-        rsync $EXTRA_ARGS $SOURCE/effects $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/effects $DEST  2>&1 | IgnoreWarnings
         ;;
     "Videos")
         rsync $EXTRA_ARGS $SOURCE/videos $DEST  2>&1 | IgnoreWarnings
@@ -154,7 +163,7 @@ for action in $@; do
         rsync $EXTRA_ARGS $SOURCE/playlists $DEST  2>&1 | IgnoreWarnings
         ;;
     "Backups")
-        rsync $EXTRA_ARGS $SOURCE/backups $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/backups $DEST  2>&1 | IgnoreWarnings
         ;;
     "JsonBackups")
         if [ ! -d "$DEST/config/backups" ]
@@ -163,7 +172,7 @@ for action in $@; do
             chown fpp.fpp $DEST/config/backups 2> /dev/null
             chmod 775 $DEST/config/backups 2> /dev/null
         fi
-        rsync $EXTRA_ARGS $SOURCE/config/backups $DEST/config  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/config/backups $DEST/config  2>&1 | IgnoreWarnings
         ;;
     "Configuration")
         rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
