@@ -17,11 +17,11 @@
 #include "commands/Commands.h"
 
 // Test Patterns
+#include "OutputTester.h"
 #include "RGBChase.h"
 #include "RGBCycle.h"
 #include "RGBFill.h"
 #include "SingleChase.h"
-#include "OutputTester.h"
 
 ChannelTester ChannelTester::INSTANCE;
 
@@ -102,10 +102,10 @@ public:
     }
 
     virtual std::unique_ptr<Result> run(const std::vector<std::string>& args) {
-        //printf("Run test:\n");
-        //for (auto& a : args) {
-        //    printf("%s\n", a.c_str());
-        //}
+        // printf("Run test:\n");
+        // for (auto& a : args) {
+        //     printf("%s\n", a.c_str());
+        // }
         Json::Value config;
         config["enabled"] = 1;
         config["cycleMS"] = std::stoi(args[0], nullptr, 10);
@@ -151,7 +151,11 @@ public:
             config["type"] = v;
         }
         if (effect != "Output Specific") {
-            config["channelSet"] = args[2];
+            if (args[2] == "" || args[2] == "*") {
+                config["channelSet"] = "1-" + std::to_string(FPPD_MAX_CHANNELS);
+            } else {
+                config["channelSet"] = args[2];
+            }
         }
         config["channelSetType"] = "channelRange";
         ChannelTester::INSTANCE.SetupTest(config);
@@ -198,7 +202,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> ChannelTester::re
             vcr["name"] = "ChannelRange";
             vcr["optional"] = false;
             vcr["type"] = "datalist";
-            result["args"].append(vcr);           
+            result["args"].append(vcr);
         }
         if (effect == "RGB Chase") {
             Json::Value v;
@@ -280,7 +284,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> ChannelTester::re
             Json::Value vcr;
             vcr["allowBlanks"] = false;
             vcr["contents"].append("--ALL--");
-            for (auto &a : GetOutputTypes()) {
+            for (auto& a : GetOutputTypes()) {
                 vcr["contents"].append(a);
             }
             vcr["default"] = "--ALL--";
@@ -308,7 +312,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> ChannelTester::re
 }
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> ChannelTester::render_POST(const httpserver::http_request& req) {
     Json::Value result;
-    std::string content = std::string{req.get_content()};
+    std::string content = std::string{ req.get_content() };
     if (ChannelTester::INSTANCE.SetupTest(content)) {
         result["Status"] = "OK";
         result["respCode"] = 200;
