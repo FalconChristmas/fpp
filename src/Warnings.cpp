@@ -51,18 +51,25 @@ void WarningHolder::StopNotifyThread() {
     lck.unlock();
     notifyThread->join();
 }
-void WarningHolder::writeWarningsFile(const std::list<std::string> &warnings) {
+void WarningHolder::writeWarningsFile(const std::list<std::string>& warnings) {
     Json::Value result = Json::Value(Json::ValueType::arrayValue);
     for (auto& warn : warnings) {
         result.append(warn);
     }
     SaveJsonToFile(result, getFPPDDir("/www/warnings.json"));
 }
+void WarningHolder::writeWarningsFile(const std::string& s) {
+    PutFileContents(getFPPDDir("/www/warnings.json"), s);
+}
+void WarningHolder::clearWarningsFile() {
+    remove(getFPPDDir("/www/warnings.json").c_str());
+}
+
 void WarningHolder::NotifyListenersMain() {
     std::unique_lock<std::mutex> lck(notifyLock);
     writeWarningsFile(WarningHolder::GetWarningsAndNotify(false));
     while (runNotifyThread) {
-        notifyCV.wait(lck);                                             // sleep here
+        notifyCV.wait(lck); // sleep here
         if (!runNotifyThread) {
             return;
         }

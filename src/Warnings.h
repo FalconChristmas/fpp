@@ -37,6 +37,10 @@ public:
     static void StopNotifyThread();
     static void NotifyListenersMain(); // main for notify thread
 
+    static void writeWarningsFile(const std::list<std::string>& warnings);
+    static void writeWarningsFile(const std::string& warnings);
+    static void clearWarningsFile();
+
 private:
     static std::mutex warningsLock;
     static std::mutex notifyLock;
@@ -47,8 +51,5 @@ private:
     static std::mutex listenerListLock;
     static volatile bool runNotifyThread;
 
-
-    static void writeWarningsFile(const std::list<std::string> &warnings);
     static std::list<std::string> GetWarningsAndNotify(bool notify);
-
 };

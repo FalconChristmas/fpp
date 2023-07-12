@@ -47,8 +47,6 @@ function handleSettingsVisibilityChange() {
     if (isHidden() && statusTimeout != null) {
         clearTimeout(statusTimeout);
         statusTimeout = null;
-    } else {
-        UpdateCurrentTime();
     }
 }    
 var hiddenChildren = {};

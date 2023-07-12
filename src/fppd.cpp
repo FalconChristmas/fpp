@@ -12,13 +12,14 @@
 
 #include "fpp-pch.h"
 
+#include "CurlManager.h"
 #include "MultiSync.h"
+#include "OutputMonitor.h"
 #include "Player.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "command.h"
 #include "common.h"
-#include "CurlManager.h"
 #include "e131bridge.h"
 #include "effects.h"
 #include "fpp.h"
@@ -26,7 +27,6 @@
 #include "gpio.h"
 #include "httpAPI.h"
 #include "mediadetails.h"
-#include "OutputMonitor.h"
 #include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/channeloutputthread.h"
 #include "channeltester/ChannelTester.h"
@@ -191,13 +191,13 @@ static bool dumpstack_gdb(void) {
         // Wait for all children to die
         while (worker_pid || timeout_pid1 || timeout_pid2) {
             int status = 0;
-            //pid_t exited_pid = wait(&status);
+            // pid_t exited_pid = wait(&status);
             usleep(100000);
-            //printf("pid worker_pid: %d, timeout_pid1: %d, timeout_pid2: %d\n", worker_pid, timeout_pid1, timeout_pid2);
+            // printf("pid worker_pid: %d, timeout_pid1: %d, timeout_pid2: %d\n", worker_pid, timeout_pid1, timeout_pid2);
             if (worker_pid && waitpid(worker_pid, &status, WNOHANG)) {
                 worker_pid = 0;
-                //printf("Status: %x, wifexited: %u, wexitstatus: %u\n", status, WIFEXITED(status), WEXITSTATUS(status));
-                //printf("Sending SIGKILL to timeout_pid1\n");
+                // printf("Status: %x, wifexited: %u, wexitstatus: %u\n", status, WIFEXITED(status), WEXITSTATUS(status));
+                // printf("Sending SIGKILL to timeout_pid1\n");
                 if (timeout_pid1)
                     kill(timeout_pid1, SIGKILL);
                 if (timeout_pid2)
@@ -206,7 +206,7 @@ static bool dumpstack_gdb(void) {
                 // Watchdog 1 timed out, attempt to recover by killing all gdb's child processes
                 char tmp[128];
                 timeout_pid1 = 0;
-                //printf("Sending SIGKILL to worker_pid's children\n");
+                // printf("Sending SIGKILL to worker_pid's children\n");
                 if (worker_pid) {
                     snprintf(tmp, sizeof(tmp), "pkill -KILL -P %d", worker_pid);
                     int ret = system(tmp);
@@ -214,7 +214,7 @@ static bool dumpstack_gdb(void) {
             } else if (timeout_pid2 && waitpid(timeout_pid2, &status, WNOHANG)) {
                 // Watchdog 2 timed out, give up
                 timeout_pid2 = 0;
-                //printf("Sending SIGKILL to worker_pid\n");
+                // printf("Sending SIGKILL to worker_pid\n");
                 if (worker_pid)
                     kill(worker_pid, SIGKILL);
                 if (timeout_pid1)
@@ -229,7 +229,7 @@ static bool dumpstack_gdb(void) {
             std::string s = GetFileContents("/tmp/fppd_crash.log");
             if (s != "") {
                 LogErr(VB_ALL, "Stack: \n%s\n", s.c_str());
-                //printf("%s\n", s.c_str());
+                // printf("%s\n", s.c_str());
                 return true;
             }
         }
@@ -241,7 +241,7 @@ static bool dumpstack_gdb(void) {
 static void handleCrash(int s) {
     static volatile bool inCrashHandler = false;
     if (inCrashHandler) {
-        //need to ignore any crashes in the crash handler
+        // need to ignore any crashes in the crash handler
         return;
     }
     inCrashHandler = true;
@@ -346,6 +346,7 @@ static void handleCrash(int s) {
     runMainFPPDLoop = 0;
     if (s != SIGQUIT && s != SIGUSR1) {
         WarningHolder::StopNotifyThread();
+        WarningHolder::writeWarningsFile("['FPPD has crashed.  Check crash reports.']");
         exit(-1);
     }
 }
@@ -533,25 +534,25 @@ int parseArguments(int argc, char** argv) {
                 LogInfo(VB_SETTING, "Log Level set to %d (%s)\n", FPPLogger::INSTANCE.MinimumLogLevel(), optarg);
             }
             break;
-        case 'f': //foreground
+        case 'f': // foreground
             SetSetting("daemonize", 0);
             break;
-        case 'd': //daemonize
+        case 'd': // daemonize
             SetSetting("daemonize", 1);
             break;
-        case 'r': //restarted
+        case 'r': // restarted
             SetSetting("restarted", 1);
             break;
-        case 'p': //playlist
+        case 'p': // playlist
             SetSetting("resumePlaylist", optarg);
             break;
-        case 'P': //position
+        case 'P': // position
             SetSetting("resumePosition", atoi(optarg));
             break;
-        case 'v': //volume
+        case 'v': // volume
             setVolume(atoi(optarg));
             break;
-        case 'm': //mode
+        case 'm': // mode
             if (strcmp(optarg, "player") == 0)
                 settings.fppMode = PLAYER_MODE;
             else if (strcmp(optarg, "master") == 0) {
@@ -564,11 +565,11 @@ int parseArguments(int argc, char** argv) {
                 exit(EXIT_FAILURE);
             }
             break;
-        case 'l': //log-file
+        case 'l': // log-file
             SetSetting("logFile", optarg);
             break;
-        case 'H': //Detect Falcon hardware
-        case 'C': //Configure Falcon hardware
+        case 'H': // Detect Falcon hardware
+        case 'C': // Configure Falcon hardware
             PinCapabilities::InitGPIO("FPPD", new PLAT_GPIO_CLASS());
             SetLogFile("");
             FPPLogger::INSTANCE.Settings.level = LOG_DEBUG;
@@ -577,7 +578,7 @@ int parseArguments(int argc, char** argv) {
             else
                 exit(0);
             break;
-        case 'h': //help
+        case 'h': // help
             usage(argv[0]);
             exit(EXIT_SUCCESS);
             break;
@@ -635,7 +636,7 @@ int main(int argc, char* argv[]) {
 
     std::function<void(const std::string&, const std::string&)>
         fppd_callback = [](const std::string& topic_in,
-                                const std::string& payload) {
+                           const std::string& payload) {
             LogDebug(VB_CONTROL, "System Callback for %s\n", topic_in.c_str());
 
             if (0 == topic_in.compare(topic_in.length() - 5, 5, "/stop")) {
@@ -650,7 +651,7 @@ int main(int argc, char* argv[]) {
         };
     std::function<void(const std::string&, const std::string&)>
         system_callback = [](const std::string& topic_in,
-                                  const std::string& payload) {
+                             const std::string& payload) {
             LogDebug(VB_CONTROL, "System Callback for %s\n", topic_in.c_str());
             std::string rc = "";
 
@@ -668,7 +669,6 @@ int main(int argc, char* argv[]) {
     Events::AddCallback("/system/fppd/#", fppd_callback);
     Events::AddCallback("/system/shutdown", system_callback);
     Events::AddCallback("/system/restart", system_callback);
-
 
     WarningHolder::StartNotifyThread();
 
@@ -712,12 +712,12 @@ int main(int argc, char* argv[]) {
     MainLoop();
     // DISABLED: Stats collected while fppd is shutting down
     // incomplete and cause problems with summary
-    //PublishStatsForce("Shutdown"); // not background
+    // PublishStatsForce("Shutdown"); // not background
 
     CommandManager::INSTANCE.TriggerPreset("FPPD_STOPPED");
 
-    //turn off processing of events so we don't get
-    //events while we are shutting down
+    // turn off processing of events so we don't get
+    // events while we are shutting down
     Events::PrepareForShutdown();
 
     CleanupMediaOutput();
@@ -746,6 +746,8 @@ int main(int argc, char* argv[]) {
 
     CloseCommand();
     CloseOpenFiles();
+
+    WarningHolder::clearWarningsFile();
 
     if (restartFPPD) {
         LogInfo(VB_GENERAL, "Performing Restart.\n");
@@ -955,7 +957,7 @@ void MainLoop(void) {
             }
             SDL_Event event;
             while (SDL_PollEvent(&event)) {
-                //for now, discard event, but at least the queue doesn't grow
+                // for now, discard event, but at least the queue doesn't grow
             }
         } else if (idleCount > 0) {
             doPing = true;
