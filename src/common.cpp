@@ -1022,7 +1022,7 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
 
     status = curl_easy_perform(curl);
     if (status != CURLE_OK) {
-        LogErr(VB_GENERAL, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
+        LogErr(VB_GENERAL, "curl_easy_perform() failed (%s): %s\n", url.c_str(), curl_easy_strerror(status));
         curl_slist_free_all(headers);
         curl_easy_cleanup(curl);
         return false;
