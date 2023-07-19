@@ -164,6 +164,11 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         $filename = substr($filename, 9);
     }
 
+	if (!file_exists($dir . '/' . $filename)){
+		echo "File does not exist.";
+		return;
+	}
+
     if ($play) {
         if (preg_match('/mp3$/i', $filename)) {
             header('Content-type: audio/mp3');

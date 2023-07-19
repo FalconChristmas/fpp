@@ -7,7 +7,7 @@ require_once '../common.php';
 
 dispatch_get('/backups/list', 'GetAvailableBackups');
 dispatch_get('/backups/list/:DeviceName', 'GetAvailableBackupsOnDevice');
-dispatch_get('/backups/devices', 'GetAvailableBackupsDevices');
+dispatch_get('/backups/devices', 'RetrieveAvailableBackupsDevices');
 dispatch_post('/backups/devices/mount/:DeviceName/:MountLocation', 'MountDevice');
 dispatch_post('/backups/devices/unmount/:DeviceName/:MountLocation', 'UnmountDevice');
 dispatch_post('/backups/configuration', 'MakeJSONBackup');

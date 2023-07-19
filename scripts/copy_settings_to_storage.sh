@@ -190,6 +190,8 @@ fi
 if [ "$DIRECTION" == "TOREMOTE" -o "$DIRECTION" == "FROMREMOTE" ]; then
     if [ "$RSTORAGE" != "" ]  && [ "$RSTORAGE" != "none" ]
         then
+          #Wait 4 seconds before requesting a unmount
+          sleep 4
           #Unmount the specified device from the remote location if going to or from remote host and a device has been specified
           REMOTE_UNMOUNT=$(curl --location --request POST -H "Content-Type:application/json" "$DEVICE/api/backups/devices/unmount/$RSTORAGE/remote_filecopy")
           echo " "
@@ -202,4 +204,3 @@ fi
 if [ "$BASEDIRECTION" = "FROM" ]; then
     chown -R fpp:fpp /home/fpp/media
 fi
-
