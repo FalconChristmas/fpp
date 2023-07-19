@@ -72,6 +72,7 @@ function files_rename()
     return json($result);
 }
 
+
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/files/:DirName
 function GetFiles()
@@ -90,6 +91,9 @@ function GetFiles()
         $rc = array();
         foreach (scandir($dirName) as $fileName) {
             if ($fileName != '.' && $fileName != '..') {
+                if (!preg_match("//u", $fileName)) {
+                    $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
+                }
                 array_push($rc, $fileName);
             }
         }
@@ -102,6 +106,9 @@ function GetFiles()
 
     foreach (scandir($dirName) as $fileName) {
         if ($fileName != '.' && $fileName != '..') {
+            if (!preg_match("//u", $fileName)) {
+                $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
+            }
             GetFileInfo($files, $dirName, $fileName);
         }
     }
@@ -231,6 +238,15 @@ function findFile($dir, $filename)
     }
     if (file_exists($dir . "/" . urldecode($tempFile))) {
         return urldecode($tempFile);
+    }
+    if (!preg_match("//u", $filename)) {
+        $tempFile = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $filename);
+        if (file_exists($dir . "/" . $tempFile)) {
+            return $tempFile;
+        }
+        if (file_exists($dir . "/" . urldecode($tempFile))) {
+            return urldecode($tempFile);
+        }
     }
     return $filename;
 }
@@ -554,6 +570,9 @@ function PatchFile()
     $status = "OK";
     $dirName = params("DirName");
     $fileName = $_SERVER['HTTP_UPLOAD_NAME'];
+    if (!preg_match("//u", $fileName)) {
+        $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
+    }    
     $offset = $_SERVER['HTTP_UPLOAD_OFFSET'];
     $length = $_SERVER['HTTP_UPLOAD_LENGTH'];
 

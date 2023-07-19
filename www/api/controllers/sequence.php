@@ -20,14 +20,11 @@ function GetSequences()
 function GetSequence()
 {
     global $settings;
-    $sequence = params('SequenceName');
-    $file = $settings['sequenceDirectory'] . "/" . $sequence;
-    if (!file_exists($file)) {
-        $file = $file . ".fseq";
+    if (substr($sequence, -5) != ".fseq") {
+        $sequence = $sequence . ".fseq";
     }
-    if (!file_exists($file)) {
-        $file = urldecode($file);
-    }
+    $dir = $settings['sequenceDirectory'];
+    $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         if (ob_get_level()) {
             ob_end_clean();
@@ -40,6 +37,8 @@ function GetSequence()
         header('Pragma: public');
         header('Content-Length: ' . real_filesize($file));
         readfile($file);
+    } else {
+        halt(404, "Not found: " . $sequence);
     }
 }
 /////////////////////////////////////////////////////////////////////////////
@@ -48,13 +47,11 @@ function GetSequenceMetaData()
 {
     global $settings, $fppDir;
     $sequence = params('SequenceName');
-    $file = $settings['sequenceDirectory'] . "/" . $sequence;
-    if (substr($file, -5) != ".fseq") {
-        $file = $file . ".fseq";
+    if (substr($sequence, -5) != ".fseq") {
+        $sequence = $sequence . ".fseq";
     }
-    if (!file_exists($file)) {
-        $file = urldecode($file);
-    }
+    $dir = $settings['sequenceDirectory'];
+    $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         $cmd = $fppDir . "/src/fsequtils -j " . escapeshellarg($file) . " 2> /dev/null";
         exec($cmd, $output);
@@ -82,10 +79,11 @@ function PostSequence()
 {
     global $settings;
     $sequence = params('SequenceName');
-    $file = $settings['sequenceDirectory'] . "/" . $sequence;
-    if (substr($file, -5) != ".fseq") {
-        $file = $file . ".fseq";
+    if (substr($sequence, -5) != ".fseq") {
+        $sequence = $sequence . ".fseq";
     }
+    $dir = $settings['sequenceDirectory'];
+    $file = $dir . '/' . findFile($dir, $sequence);
 
     $putdata = fopen("php://input", "r");
     $fp = fopen($file, "w");
@@ -108,13 +106,11 @@ function DeleteSequences()
 {
     global $settings;
     $sequence = params('SequenceName');
-    $file = $settings['sequenceDirectory'] . "/" . $sequence;
-    if (!file_exists($file)) {
-        $file = $file . ".fseq";
+    if (substr($sequence, -5) != ".fseq") {
+        $sequence = $sequence . ".fseq";
     }
-    if (!file_exists($file)) {
-        $file = urldecode($file);
-    }
+    $dir = $settings['sequenceDirectory'];
+    $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         unlink($file);
     }
@@ -130,6 +126,12 @@ function DeleteSequences()
 function GetSequenceStart()
 {
     $sequence = params('SequenceName');
+    if (substr($sequence, -5) != ".fseq") {
+        $sequence = $sequence . ".fseq";
+    }
+    $dir = $settings['sequenceDirectory'];
+    $sequence = findFile($dir, $sequence);
+
     $startSecond = params('startSecond');
 
     SendCommand(sprintf("StartSequence,%s,%d", $sequence, $startSecond));
