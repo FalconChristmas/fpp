@@ -1542,7 +1542,7 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     }
 
     plname = plname.substr(plname.find_last_of("\\/") + 1);
-    if (!endsWith(plname, ".fseq")) {
+    if (endsWith(plname, ".json")) {
         plname = plname.substr(0, plname.find_last_of("."));
     }
     result["current_playlist"]["playlist"] = plname;
