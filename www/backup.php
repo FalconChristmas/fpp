@@ -185,30 +185,6 @@ if ($settings['Platform'] != "BeagleBone Black") {
     unset($system_config_areas['channelOutputs']['file']['bbb_strings']);
 }
 
-//When this page loads, make a call to unmount the remote storage at the remote host
-if ((isset($settings['backup.Host']) && !empty($settings['backup.Host'])) && (isset($settings['backup.RemoteStorage']) && !empty($settings['backup.RemoteStorage']))) {
-	$RHOST = $settings['backup.Host'];
-	$RSTORAGE = $settings['backup.RemoteStorage'];
-
-	//@link https://stackoverflow.com/questions/2138527/php-curl-and-http-post-example
-	$ch = curl_init();
-
-	curl_setopt($ch, CURLOPT_URL, "http://$RHOST/api/backups/devices/unmount/$RSTORAGE/remote_filecopy");
-	curl_setopt($ch, CURLOPT_POST, 1);
-	curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-		'Content-Type: Content-Type:application/json'
-	));
-	curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-	// Receive server response ...
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-	$server_output = curl_exec($ch);
-
-	curl_close($ch);
-	unset($ch);
-	unset($server_output);
-}
-
 /**
  * Handle POST for download or restore
  * Check which submit button was pressed
@@ -2665,7 +2641,7 @@ function PerformCopy() {
     // $('#copyPopup').fppDialog( "moveToTop" );
     $('#copyText').val('');
 
-    StreamURL(url, 'copyText', 'CopyDone');
+    StreamURL(url, 'copyText', 'CopyDone', 'CopyTimeoutError');
 
 }
 
@@ -2686,6 +2662,78 @@ function CloseCopyDialog() {
 function CopyDone() {
     $('#closeDialogButton').show();
 }
+
+function CopyTimeoutError() {
+    var fpp_backup_filecopy_log_url = "api/file/Logs/fpp_backup_filecopy.log";
+    var timeoutErrorMessage = "!!! A connection error or timeout has occurred, unable to continue tracking file copy progress... The copy is still running in the background and will complete in due course. " +
+        "Attempting to tail it's fallback log file... !!! \n\n";
+    var noNewDataErrorMessage = "";
+    var iterations = 0;
+    var noNewDataIterationCount = 600; // The interval is every second so 600 iterations  = 10minutes
+    var noNewDataIterationHardLimit = 900 // 15 minutes - Consider the process failed if no new log data received in 15 minutes
+    var last_response_len = 0;
+
+    //cache the reference to the element
+    var outputArea = $('#copyText');
+    outputArea.val('')
+    outputArea.val(timeoutErrorMessage);
+
+    //Every second read the alternative fpp_backup_filecopy.log
+    var tailLogInterval = setInterval(function () {
+
+            $.get(fpp_backup_filecopy_log_url, function (text) {
+                //This is also a nasty workaround, but we reply on logs api will returning a file not found error to signify the copy process ending
+                //as the log file is deleted at the end of that process
+                if (text === "File does not exist.") {
+                    //The file copy script has competed and removed the logfile
+                    //If the log file cannot be found anymore consider the process complete
+                    clearInterval(tailLogInterval);
+                    CopyDone();
+                } else {
+                    //Track the number of interactions the response remained unchanged
+                    if (last_response_len === 0) {
+                        last_response_len = text.length;
+                    }
+
+                    if (last_response_len === text.length) {
+                        iterations += 1;
+                    } else {
+                        noNewDataErrorMessage = "";
+                        //Reset
+                        iterations = 0;
+                        //Store the new data length
+                        last_response_len = text.length;
+                    }
+
+                    //Check if it's been more than 10 minutes that the data has remained unchanged
+                    if (iterations === noNewDataIterationCount) {
+                        //Some error occurred
+                        noNewDataErrorMessage = "!!! WARNING: No new data has been received in over " + noNewDataIterationCount + " seconds !!! \n\n";
+                    }
+                    if (iterations >= noNewDataIterationHardLimit) {
+                        //Some error occurred
+                        noNewDataErrorMessage = "!!! ERROR: No new data has been received in over " + noNewDataIterationHardLimit + " seconds - File Copy Backup process has likely failed !!! \n\n";
+                    }
+
+                    //This is a bit ugly, but put our error message first (just to inform the user), then the contents of the log file every time
+                    outputArea.val(timeoutErrorMessage + text + noNewDataErrorMessage);
+
+                    outputArea.scrollTop(outputArea.prop('scrollHeight'));
+                    outputArea.parent().scrollTop(outputArea.parent().prop('scrollHeight'));
+
+                    //Check for device unmounted text - if this exists then the process has completed... the file should be removed at the end
+                    //but this is just a failsafe in case it wasn't
+                    //exit if we hit the hard limit
+                    if ((iterations >= noNewDataIterationHardLimit) || text.includes("unmounted from")) {
+                        clearInterval(tailLogInterval);
+                        CopyDone();
+                    }
+                }
+            });
+        },
+        1000);
+}
+
 
 function GetBackupDevices() {
     $('#backup\\.USBDevice').html('<option>Loading...</option>');
@@ -3349,8 +3397,17 @@ function GetBackupRemoteStorageDevice() {
         type: 'GET',
         success: function (data) {
             if (data.value !== "" || typeof (data.value) !== "undefined") {
-                //Change the JSON Config backup location to the one set by the user if a valid value is set
-                $('#backup\\.RemoteStorage option[value="' + data.value + '"]').attr('selected', true);
+                //Check if the chosen USB device/location exists in the dropdown list
+                //The USB device dropdown list only lists devices which are available for use, so if the chosen device is not in the list
+                //it's likely unavailable or still mounted (as such not available for use)
+                var remote_storage_ddl_selector = $('#backup\\.RemoteStorage option[value="' + data.value + '"]');
+                if (remote_storage_ddl_selector.length){
+                    //Change the JSON Config backup location to the one set by the user if a valid value is set
+                    remote_storage_ddl_selector.attr('selected', true);
+                }else{
+                    var host = document.getElementById("backup.Host").value;
+                    $('#backup\\.RemoteStorage').parent().append("<span> <b>Warning:</b> " + data.value + " is not available. Check device is attached to host and that is not currently mounted. Check <a href='http://" + host + "/settings.php#settings-storage' target='_blank'>" + host + " - Mounted USB Devices</a></span>");
+                }
                 //
                 $('#backup\\.RemoteStorage').parent().closest('div').removeClass('fpp-backup-action-loading');
 

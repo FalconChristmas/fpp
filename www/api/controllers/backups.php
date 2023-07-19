@@ -54,58 +54,14 @@ function GetAvailableBackups()
 	return json(GetAvailableBackupsFromDir($settings['mediaDirectory'] . '/backups/'));
 }
 
-function CheckIfDeviceIsUsable($deviceName)
-{
-	global $SUDO;
-
-	// Check if in use / Mount / List / Unmount
-	$mountPoint = exec($SUDO . " lsblk /dev/$deviceName");
-	$mountPoint = preg_replace('/.*disk ?/', '', $mountPoint);
-	$mountPoint = preg_replace('/.*part ?/', '', $mountPoint);
-	if (preg_match('/[a-z0-9\/]/', $mountPoint))
-		return "ERROR: Partition is mounted on: $mountPoint";
-
-	$isSwap = exec("grep /dev/$deviceName /proc/swaps");
-	if ($isSwap != "")
-		return "ERROR: $deviceName is a swap partition";
-
-	return "";
-}
-
 /**
  * Returns a list of devices like USB's or SSD's attached to the system
  * GET api/backups/devices
  * @return string
  */
-function GetAvailableBackupsDevices()
+function RetrieveAvailableBackupsDevices()
 {
-	global $SUDO;
-	$devices = array();
-
-	foreach (scandir("/dev/") as $deviceName) {
-		if (preg_match("/^sd[a-z][0-9]/", $deviceName)) {
-			exec($SUDO . " sfdisk -s /dev/$deviceName", $output, $return_val);
-			$GB = round(intval($output[0]) / 1024.0 / 1024.0, 1);
-			unset($output);
-
-			if ($GB <= 0.1)
-				continue;
-
-			$unusable = CheckIfDeviceIsUsable($deviceName);
-			if ($unusable != '')
-				continue;
-
-			$baseDevice = preg_replace('/[0-9]*$/', '', $deviceName);
-
-			$device = array();
-			$device['name'] = $deviceName;
-			$device['size'] = $GB;
-			$device['model'] = exec("cat /sys/block/$baseDevice/device/model");
-			$device['vendor'] = exec("cat /sys/block/$baseDevice/device/vendor");
-
-			array_push($devices, $device);
-		}
-	}
+	$devices = GetAvailableBackupsDevices();
 
 	return json($devices);
 }
@@ -219,7 +175,7 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 
 	//Unmount by default before we finish
 	if ($unmountWhenDone === true) {
-		$umountCmd = exec($SUDO . $nsEnter . ' umount ' . $mountPath, $unmountCmdOutput, $unmountCmdResultCode);
+		$umountCmd = exec($SUDO . $nsEnter . ' umount -l ' . $mountPath, $unmountCmdOutput, $unmountCmdResultCode);
 	}
 
 	//Return more detail about the what has happened with each command
@@ -310,7 +266,7 @@ function UnmountDevice()
 	//Make sure we have a valid device name supplied
 	if (isset($deviceName) && ($deviceName !== "no" || $deviceName !== "")) {
 		//Unmount device from the root namespace (it will be mounted there)
-		$umountCmd = exec($SUDO . $nsEnter . ' umount ' . $drive_mount_location, $unmountCmdOutput, $unmountCmdResultCode);
+		$umountCmd = exec($SUDO . $nsEnter . ' umount -l ' . $drive_mount_location, $unmountCmdOutput, $unmountCmdResultCode);
 		//This could be incorrect as this result codes are for the mount command, but will give us an idea
 		$unmountCmdOutputText = MountReturnCodeMap($unmountCmdResultCode);
 

@@ -1,6 +1,9 @@
 <?php
-// Ignore user aborts and allow the script
+include "./common.php";
+// Ignore user aborts and allow the script to continue running
+session_write_close();
 ignore_user_abort(true);
+set_time_limit(3600);
 header( "Access-Control-Allow-Origin: *");
 
 $wrapped = 0;
@@ -36,14 +39,33 @@ Copy Settings
     $delete = isset($_GET['delete']) ? escapeshellcmd($_GET['delete']) : "no";
     $remote_storage = isset($_GET['remoteStorage']) ? escapeshellcmd($_GET['remoteStorage']) : 'none';
 
-		echo "==================================================================================\n";
+    $tee_log_file = $logDirectory . "/fpp_backup_filecopy.log";
+    //Remove the log file if it exists before we start
+    if (file_exists($tee_log_file)) {
+        unlink($tee_log_file);
+    }
 
-    $command = "sudo stdbuf --output=L  " . __DIR__ . "/../scripts/copy_settings_to_storage.sh " . escapeshellcmd($_GET['storageLocation']) . " " . $path . " " . escapeshellcmd($_GET['direction']) . " " . $remote_storage . " " .  $compress . " " . $delete . " " . escapeshellcmd($_GET['flags']);
+        $output_header_start = "==================================================================================\n";
+		echo $output_header_start;
+        file_put_contents($tee_log_file, $output_header_start);
 
-		echo "Command: ".htmlspecialchars($command)."\n";
-		echo "----------------------------------------------------------------------------------\n";
-        system($command . " 2>&1");
+    $command = "sudo stdbuf --output=L " . __DIR__ . "/../scripts/copy_settings_to_storage.sh " . escapeshellcmd($_GET['storageLocation']) . " " . $path . " " . escapeshellcmd($_GET['direction']) . " " . $remote_storage . " " .  $compress . " " . $delete . " " . escapeshellcmd($_GET['flags']);
+
+        $output_command = "Command: ".htmlspecialchars($command)."\n";
+		echo $output_command;
+        file_put_contents($tee_log_file, $output_command, FILE_APPEND);
+
+        $output_header_end = "----------------------------------------------------------------------------------\n";
+        echo $output_header_end;
+        file_put_contents($tee_log_file, $output_header_end, FILE_APPEND);
+
+        system($command . " 2>&1 | tee -a " . $tee_log_file);
 		echo "\n";
+
+        sleep (2);
+
+        #finally remove the log file since we're done
+        unlink($tee_log_file);
 if (!$wrapped) {
 ?>
 

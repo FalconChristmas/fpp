@@ -51,6 +51,10 @@
 #	CustomLog /home/fpp/media/logs/apache2-access.log combined
 #	CustomLog ${APACHE_LOG_DIR}/access.log combined
 	Include conf-available/serve-cgi-bin.conf
+
+	# Set the timeout for Proxy FCGI PHP FPM connections to 20 minutes to avoid Apache expiring connections for long running scripts
+	# Default value is value of Timeout (which is defaulted to 300 seconds or 5 minutes)
+	ProxyTimeout 1200
 </VirtualHost>
 
 <IfModule !mod_php7.c>
