@@ -453,13 +453,13 @@ void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
                 ch2 = ch;
                 ch3 = ch + 2;
             } else if (vs.colorOrder == FPPColorOrder::kColorOrderGBR) {
+                ch1 = ch + 2;
+                ch2 = ch;
+                ch3 = ch +1;
+            } else if (vs.colorOrder == FPPColorOrder::kColorOrderBRG) {
                 ch1 = ch + 1;
                 ch2 = ch + 2;
                 ch3 = ch;
-            } else if (vs.colorOrder == FPPColorOrder::kColorOrderBRG) {
-                ch1 = ch + 2;
-                ch2 = ch;
-                ch3 = ch + 1;
             } else if (vs.colorOrder == FPPColorOrder::kColorOrderBGR) {
                 ch1 = ch + 2;
                 ch2 = ch + 1;
