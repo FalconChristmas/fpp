@@ -12,7 +12,7 @@
  */
 
 #include <array>
-
+#include <mutex>
 #include "Sensors.h"
 
 
@@ -28,10 +28,15 @@ public:
     virtual int32_t getValue(int id) override;
 
 private:
+    void update(bool forceInstant, bool fromSelect);
     std::vector<int32_t> values;
-
+    std::mutex updateMutex;
+    
     int iioDevNumber = 0;
     bool usingBuffers = true;
     int  iioDevFile = 0;
     std::vector<int> channelMapping;
+    
+    uint16_t *readBuffer = nullptr;
+    size_t readBufferSize = 0;
 };

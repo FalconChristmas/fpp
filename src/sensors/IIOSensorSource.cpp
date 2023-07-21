@@ -25,7 +25,7 @@ IIOSensorSource::IIOSensorSource(Json::Value& config) : SensorSource(config) {
         usingBuffers = FileExists("/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/buffer/enable")
             && FileExists("/dev/iio:device" + std::to_string(iioDevNumber));
     }
-
+    //usingBuffers = false;
     std::string base = "/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/in_voltage";
     int max = -1;
     for (int x = 0; x < 16; x++) {
@@ -59,6 +59,9 @@ IIOSensorSource::~IIOSensorSource() {
             }
         }
     }
+    if (readBuffer) {
+        delete [] readBuffer;
+    }
 }
 void IIOSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
     if (usingBuffers) {
@@ -89,14 +92,22 @@ void IIOSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
             close(f);
         }
         channelMapping.resize(curIdx);
+        callbacks[iioDevFile] = [this] (int) {
+            update(false, true);
+            return false;
+        };
+        readBufferSize = channelMapping.size() * 64 * 2;
+        readBuffer = new uint16_t[readBufferSize];
     }
 }
+void IIOSensorSource::update(bool forceInstant) {
+    update(forceInstant, false);
+}
 
-void IIOSensorSource::update(bool forceInstant ) {
+void IIOSensorSource::update(bool forceInstant, bool fromSelect) {
+    std::unique_lock<std::mutex> lock(updateMutex);
     if (usingBuffers) {
-        int count = channelMapping.size() * 8 * 2;
-        uint16_t *buf = new uint16_t[count];
-        int i = read(iioDevFile, buf, count * sizeof(uint16_t));
+        int i = read(iioDevFile, readBuffer, readBufferSize * sizeof(uint16_t));
         if (i > 1) {
             int countRead = i / sizeof(uint16_t);
             std::vector<uint32_t> sums(channelMapping.size());
@@ -112,7 +123,7 @@ void IIOSensorSource::update(bool forceInstant ) {
             for (int y = 0; y < countRead; y += channelMapping.size()) {
                 samples++;
                 for (int x = 0; x < channelMapping.size(); x++) {
-                    uint16_t v = buf[y + x];
+                    uint16_t v = readBuffer[y + x];
                     sums[x] += v;
                     maxes[x] = std::max(maxes[x], v);
                     mins[x] = std::min(mins[x], v);

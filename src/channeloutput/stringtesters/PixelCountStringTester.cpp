@@ -81,7 +81,9 @@ PixelCountPixelStringTester PixelCountPixelStringTester::INSTANCE_BYPORT(false);
 PixelCountPixelStringTester PixelCountPixelStringTester::INSTANCE_BYSTRING(true);
 
 constexpr int PIXELS_PER_BLOCK = 10;
-constexpr int FRAMES_PER_BLOCK = 3;
+constexpr int FRAMES_PER_BLOCK = 8;
+constexpr int WARMUP_TIME = 250;
+constexpr int BASELINE_TIME = 750;
 
 uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) {
     newLen = 2000; // up to 500 4channel pixels
@@ -110,10 +112,10 @@ uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps
     if (currentPort <= lastPort) {
         currentTimeMS = GetTimeMS();
     }
-    if ((currentTimeMS - startTimeMS) < 250) {
+    if ((currentTimeMS - startTimeMS) < WARMUP_TIME) {
         // turn everything on for a short time to warm up
         memset(buffer, 10, newLen);
-    } else if ((currentTimeMS - startTimeMS) < 500) {
+    } else if ((currentTimeMS - startTimeMS) < BASELINE_TIME) {
         // turn everything off
         memset(buffer, 0, newLen);
         testingPort[currentPort] = true;
@@ -127,8 +129,19 @@ uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps
             } else {
                 std::vector<float> v = OutputMonitor::INSTANCE.GetPortCurrentValues();
                 for (int x = 0; x < baseValues.size(); x++) {
-                    baseValues[x] = std::min(baseValues[x], v[x]);
+                    if (baseValues[x] < 5) {
+                        baseValues[x] = v[x];
+                    } else {
+                        baseValues[x] = std::min(baseValues[x], v[x]);
+                    }
                 }
+                /*
+                printf("%d - ", (int)(currentTimeMS - startTimeMS));
+                for (int x = 0; x < baseValues.size(); x++) {
+                    printf("%d: %0.3f/%0.3f    ", x, baseValues[x], v[x]);
+                }
+                printf("\n");
+                */
             }
         }
         lastIdx = -1;
@@ -182,6 +195,13 @@ uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps
                     currentState = 2;
                     curOutCount = 1;
                 }
+                /*
+                printf("1  %d - ", (int)(currentTimeMS - startTimeMS));
+                for (int x = 0; x < lastValues.size(); x++) {
+                    printf("%d: %0.3f    ", x, lastValues[x]);
+                }
+                printf("\n");
+                */
             }
 
             if (valuesIdx >= 0 && (idx != valuesIdx )&& lastPixelIdx[currentPort] == -1 && !lastValues.empty()) {
@@ -229,7 +249,7 @@ uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps
                 } else {
                     noChangeCount = 0;
                 }
-                if (curOutCount == (FRAMES_PER_BLOCK + 8)) {
+                if (curOutCount == (FRAMES_PER_BLOCK + 2)) {
                     lastValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
                     curOutCount = 0;
                     currentState++;
@@ -237,6 +257,13 @@ uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps
                 } else {
                     ++curOutCount;
                 }
+                /*
+                printf("%d/%d   %d - ", currentState, curOutCount, (int)(currentTimeMS - startTimeMS));
+                for (int x = 0; x < lastValues.size(); x++) {
+                    printf("%d: %0.3f    ", x, lastValues[x]);
+                }
+                printf("\n");
+                */
             }
             if (lastPixelIdx[currentPort] > 0) {
                 int idx = lastPixelIdx[currentPort];

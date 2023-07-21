@@ -217,6 +217,14 @@ public:
         if (s.isMember("offset")) {
             offset = s["offset"].asDouble();
         }
+        if (s.isMember("min")) {
+            min = s["min"].asDouble();
+            isMinMax = true;
+        }
+        if (s.isMember("max")) {
+            max = s["max"].asDouble();
+            isMinMax = true;
+        }
         if (s.isMember("channel")) {
             channel = s["channel"].asInt();
         }
@@ -232,6 +240,10 @@ public:
             double d = source->getValue(channel);
             d -= offset;
             d *= scale;
+            if (isMinMax) {
+                d *= (max - min + 1);
+                d += min;
+            }
             return d;
         }
         return 0.0f;
@@ -239,6 +251,9 @@ public:
     SensorSource *source = nullptr;
     double scale = 1.0;
     double offset = 0.0;
+    double min = 0.0;
+    double max = 0.0;
+    bool isMinMax = false;
     int channel;
 };
 
