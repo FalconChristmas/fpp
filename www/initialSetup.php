@@ -97,22 +97,7 @@ include 'menu.inc'; ?>
         </div>
         <hr>
         <div class='container-fluid'>
-
-<?
-
-$extraData = "<div class='form-actions'>" .
-    "<input type='button' class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'> ";
-if ($settings["Platform"] != "MacOS") {
-    $extraData .= "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'> ";
-}
-$extraData .= "<input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> " .
-    "<input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'> " .
-    "</div>";
-
-PrintSettingGroup('initialSetup', $extraData, '', 1, '', '',false);
-?>
-
-            <b>UI Password</b><br>
+        <b>UI Password</b><br>
 <?
 PrintSetting('passwordEnable');
 ?>
@@ -146,6 +131,21 @@ if ($showOSSecurity) {
     PrintSetting('osPasswordVerify');
 }
 ?>
+        <b>System Settings</b><br>
+<?
+
+$extraData = "<div class='form-actions'>" .
+    "<input type='button' class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'> ";
+if ($settings["Platform"] != "MacOS") {
+    $extraData .= "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'> ";
+}
+$extraData .= "<input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> " .
+    "<input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'> " .
+    "</div>";
+
+PrintSettingGroup('initialSetup', $extraData, '', 1, '', '',false);
+?>
+
         </div>
     </div>
 </div>
