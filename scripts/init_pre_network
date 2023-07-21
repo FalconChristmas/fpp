@@ -152,12 +152,16 @@ then
     fi
 
     if [ "${BBBMODEL}" != "PocketBeagle" ]; then
-	uboot=$(dd if=/dev/mmcblk1 count=23 skip=393488 bs=1 2>/dev/null || true)
+        uboot=$(dd if=/dev/mmcblk1 count=23 skip=393488 bs=1 2>/dev/null || true)
         if [[ $uboot != *"U-Boot 2022.04-gd0771d5"* ]]; then
             cd /opt/fpp/bin.bbb/bootloader
             /opt/fpp/bin.bbb/bootloader/install.sh
             echo 'rebootFlag = "1"' >> /home/fpp/media/settings
         fi
+    else
+        # bug in kernel on pcoketbeagle where in P2-36 is not
+        # properly set to be AIN so sensors won't read properly
+        i2cset -y -f 0 0x24 9 5
     fi
 
     #configure the LEDS per user settings
