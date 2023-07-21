@@ -1907,7 +1907,7 @@
             "name": "Service_rsync",
             "description": "Enable rsync",
             "gatherStats": true,
-            "tip": "The rsync daemon is used to receive synced files from other FPP systems.  You must enable rsync on the <b>destination</b> FPP system if you are using the MultiSync page to copy sequences, media, OS, and other files between FPP instances.",
+            "tip": "The rsync daemon is used to receive synced files from other FPP systems.  You must enable rsync on the destination FPP system if you are using the MultiSync page to copy sequences, media, OS, and other files between FPP instances.",
             "type": "checkbox",
             "default": "0",
             "platforms": [
