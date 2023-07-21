@@ -2043,7 +2043,9 @@ function PrintToolTip($setting)
     if ((isset($settingInfos[$setting])) &&
         (isset($settingInfos[$setting]['tip']))) {
         $tip = $settingInfos[$setting]['tip'];
-        echo "<img id='$setting" . "_img' title='$tip' src='images/redesign/help-icon.svg' class='icon-help'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $tip . "</span>\n";
+        echo "<span id='" . $setting ."_tip' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='" . $tip . "'>";
+        echo "<img id='$setting" . "_img' src='images/redesign/help-icon.svg' class='icon-help'>";
+        echo "</span>";
     }
 }
 
