@@ -189,7 +189,7 @@ void MCP23x17PinCapabilities::Init(int base) {
         int c = testPin.getValue();
 
         if (a == b && b == c) {
-            //could not change the value, assume no PiFace found
+            // could not change the value, assume no PiFace found
             delete MCP23x17_SPI;
             MCP23x17_SPI = nullptr;
             return;

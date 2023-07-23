@@ -28,8 +28,8 @@ public:
 
     void Initialize(std::map<int, std::function<bool(int)>>& callbacks);
 
-    void AddPortConfiguration(const std::string &name, const Json::Value &config, bool enabled = true);
-    const PinCapabilities *AddOutputPin(const std::string &name, const std::string &pin);
+    void AddPortConfiguration(const std::string& name, const Json::Value& config, bool enabled = true);
+    const PinCapabilities* AddOutputPin(const std::string& name, const std::string& pin);
 
     void EnableOutputs();
     void DisableOutputs();
@@ -45,14 +45,15 @@ public:
     std::vector<float> GetPortCurrentValues();
     void SetPixelCount(int port, int pc);
     int GetPixelCount(int port);
+
 private:
     OutputMonitor();
     ~OutputMonitor();
 
-    std::list<const PinCapabilities *> pullHighOutputPins;
-    std::list<const PinCapabilities *> pullLowOutputPins;
+    std::list<const PinCapabilities*> pullHighOutputPins;
+    std::list<const PinCapabilities*> pullLowOutputPins;
 
-    std::map<std::string, const PinCapabilities *> fusePins;
+    std::map<std::string, const PinCapabilities*> fusePins;
     std::vector<PortPinInfo*> portPins;
     int numGroups = 1;
     int curGroup = -1;

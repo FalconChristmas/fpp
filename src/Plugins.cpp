@@ -566,7 +566,7 @@ void PluginManager::playlistCallback(const Json::Value& playlist, const std::str
     }
 }
 
-//blocking
+// blocking
 void MediaCallback::run(const Json::Value& playlist, const MediaDetails& mediaDetails) {
     int pid;
 

@@ -113,7 +113,7 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
         break;
     }
 
-    //timings are based on 32 pixel wide panels
+    // timings are based on 32 pixel wide panels
     max *= m_panelWidth;
     max /= 32;
 
@@ -123,20 +123,20 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
 
     uint32_t origMax = max;
     if (m_colorDepth >= 11 && max < 0x9000) {
-        //for depth 10, we'll need a little more on time
-        //or the last bit will be on far too short
+        // for depth 10, we'll need a little more on time
+        // or the last bit will be on far too short
         max = 0x9000;
     } else if (m_colorDepth >= 10 && max < 0x8000) {
-        //for depth 10, we'll need a little more on time
-        //or the last bit will be on far too short
+        // for depth 10, we'll need a little more on time
+        // or the last bit will be on far too short
         max = 0x8000;
     } else if (m_colorDepth == 9 && max < 0x6800) {
-        //for depth 9, we'll need a little more on time
+        // for depth 9, we'll need a little more on time
         max = 0x6800;
     } else if (max < 0x4500) {
-        //if max is too low, the low bit time is too short and
-        //extra ghosting occurs
-        // At this point, framerate will be supper high anyway >100fps
+        // if max is too low, the low bit time is too short and
+        // extra ghosting occurs
+        //  At this point, framerate will be supper high anyway >100fps
         max = 0x4500;
     }
 
@@ -154,7 +154,7 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
     if (m_colorDepth > 8) {
         maxBit = m_colorDepth;
     }
-    //printf("Delay : %d      Max:  %d       OrigMax:   %d      OrigMax2:  %d\n", delay, max, origMax, origMax2);
+    // printf("Delay : %d      Max:  %d       OrigMax:   %d      OrigMax2:  %d\n", delay, max, origMax, origMax2);
     for (int x = 0; x < maxBit; x++) {
         LogDebug(VB_CHANNELOUT, "Brightness %d:  %X\n", x, max);
         delayValues[x] = delay;
@@ -207,7 +207,7 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
     int x = m_colorDepth;
     m_bitOrder.clear();
     if (m_outputByRow) {
-        //if outputing by row, we have to keep in decending order
+        // if outputing by row, we have to keep in decending order
         for (int x = m_colorDepth; x > 0; --x) {
             m_bitOrder.push_back(x - 1);
         }
@@ -471,7 +471,7 @@ bool BBBMatrix::configureControlPin(const std::string& ctype, Json::Value& root,
             outputFile << "#define oe_pwm_address " << std::to_string(pin.getPWMRegisterAddress()) << "\n";
             outputFile << "#define oe_pwm_output " << std::to_string(pin.subPwm) << "\n";
             int max = 300 * 255;
-            //FIXME - adjust max for brightess
+            // FIXME - adjust max for brightess
             pin.setupPWM(max);
             pin.setPWMValue(0);
             return true;
@@ -575,7 +575,7 @@ int BBBMatrix::Init(Json::Value config) {
     m_outputs++;
     m_longestChain++;
 
-    //get the dimensions of the matrix
+    // get the dimensions of the matrix
     m_panels = m_panelMatrix->PanelCount();
     m_rows = m_outputs * m_panelHeight;
     m_width = m_panelMatrix->Width();
@@ -723,7 +723,7 @@ int BBBMatrix::Init(Json::Value config) {
         std::ofstream outputFile;
         outputFile.open("/tmp/PanelPinConfiguration.hp", std::ofstream::out | std::ofstream::trunc);
 
-        //kind of a hack, ideally the timing info would go into the json as well
+        // kind of a hack, ideally the timing info would go into the json as well
         m_timing = root["timing"].asInt();
 
         pru = root["pru"].asInt();
@@ -747,7 +747,7 @@ int BBBMatrix::Init(Json::Value config) {
         configureControlPin("sel2", root, outputFile);
         configureControlPin("sel3", root, outputFile);
         if (m_panelScan == 32) {
-            //1:32 scan panels need the "E" line
+            // 1:32 scan panels need the "E" line
             configureControlPin("sel4", root, outputFile);
             compileArgs.push_back("-DE_SCAN_LINE");
         }
@@ -781,8 +781,8 @@ int BBBMatrix::Init(Json::Value config) {
         }
         outputFile << "\n";
         if (minPort[controlGpio] == 99) {
-            //not outputting anything on the GPIO the controls are using
-            //we need to make sure the controls are set/cleared indepentent of the panel data
+            // not outputting anything on the GPIO the controls are using
+            // we need to make sure the controls are set/cleared indepentent of the panel data
             outputFile << "#define NO_CONTROLS_WITH_DATA\n";
         }
         outputFile << "\n";
@@ -917,14 +917,14 @@ int BBBMatrix::Init(Json::Value config) {
         }
         gammaCurve[x] = round(f);
         if (gammaCurve[x] == 0 && f > 0.25) {
-            //don't drop as much of the low end to 0
+            // don't drop as much of the low end to 0
             gammaCurve[x] = 1;
         }
-        //printf("%d   %d  (%f)\n", x, gammaCurve[x], f);
+        // printf("%d   %d  (%f)\n", x, gammaCurve[x], f);
     }
 
     if (isPWM) {
-        //need to calculate the clock counts for the PWM subsystem
+        // need to calculate the clock counts for the PWM subsystem
         int i = m_pruData->pwmBrightness[0];
         while (i == 0) {
             i = m_pruData->pwmBrightness[0];
@@ -932,8 +932,8 @@ int BBBMatrix::Init(Json::Value config) {
         printf("PERIOD: %X\n", i);
 
         int f = i;
-        //f *= 300;
-        //f /= 500;
+        // f *= 300;
+        // f /= 500;
         i = f;
         printf("New PERIOD: %X\n", i);
 
@@ -956,8 +956,8 @@ int BBBMatrix::Init(Json::Value config) {
     }
     */
 
-    //make sure the PRU starts outputting a blank frame to remove any random noise
-    //from the panels
+    // make sure the PRU starts outputting a blank frame to remove any random noise
+    // from the panels
     m_fullFrameLen = gpioFrameLen * 4;
     // round up to next page boundary
     int alignedLen = m_fullFrameLen + 8192;
@@ -979,7 +979,7 @@ int BBBMatrix::Init(Json::Value config) {
     m_curFrame = m_numFrames - 1;
     memset(m_pru->ddr + m_dataOffset, 0, m_pru->ddr_size - m_dataOffset);
     m_pruData->address_dma = m_pru->ddr_addr + m_dataOffset;
-    //make sure memory is flushed before command is set to 1
+    // make sure memory is flushed before command is set to 1
     __asm__ __volatile__("" ::
                              : "memory");
     m_pruData->command = 1;
@@ -1045,7 +1045,7 @@ void BBBMatrix::printStats() {
         }
     }
     fprintf(rfile, "Average Per Row/Bit:   %8X\n", (total / count));
-    //printf("0x%X\n", (total / count));
+    // printf("0x%X\n", (total / count));
     fclose(rfile);
 }
 
@@ -1060,12 +1060,11 @@ void BBBMatrix::OverlayTestData(unsigned char* channelData, int cycleNum, float 
             int panel = m_panelMatrix->m_outputPanels[output][i];
 
             m_panelMatrix->m_panels[panel].drawTestPattern(channelData + m_startChannel, cycleNum, testType);
-            m_panelMatrix->m_panels[panel].drawNumber(output + 1, m_panelWidth/2 + 1, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
-            m_panelMatrix->m_panels[panel].drawNumber(panelsOnOutput - i, m_panelWidth/2 + 8, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
+            m_panelMatrix->m_panels[panel].drawNumber(output + 1, m_panelWidth / 2 + 1, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
+            m_panelMatrix->m_panels[panel].drawNumber(panelsOnOutput - i, m_panelWidth / 2 + 8, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
         }
     }
 }
-    
 
 void BBBMatrix::PrepData(unsigned char* channelData) {
     m_matrix->OverlaySubMatrices(channelData);
@@ -1073,7 +1072,7 @@ void BBBMatrix::PrepData(unsigned char* channelData) {
     if (m_printStats) {
         fcount++;
         if (fcount == 20) {
-            //every 20 frames or so, save stats
+            // every 20 frames or so, save stats
             fcount = 0;
             printStats();
         }
@@ -1081,9 +1080,9 @@ void BBBMatrix::PrepData(unsigned char* channelData) {
 
     channelData += m_startChannel;
 
-    //number of uint32_t per row for each bit
-    size_t rowLen = m_panelWidth * m_longestChain * m_panelHeight / (m_panelScan * 2) * 4; //4 GPIO's
-    //number of uint32_t per full row (all bits)
+    // number of uint32_t per row for each bit
+    size_t rowLen = m_panelWidth * m_longestChain * m_panelHeight / (m_panelScan * 2) * 4; // 4 GPIO's
+    // number of uint32_t per full row (all bits)
     size_t fullRowLen = rowLen * m_colorDepth;
 
     uint32_t* gpioFrame = m_gpioFrame;
@@ -1093,9 +1092,9 @@ void BBBMatrix::PrepData(unsigned char* channelData) {
     }
     */
 
-    //long long startTime = GetTime();
+    // long long startTime = GetTime();
     memset(gpioFrame, 0, m_fullFrameLen);
-    //long long memsetTime = GetTime();
+    // long long memsetTime = GetTime();
 
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
@@ -1163,7 +1162,7 @@ void BBBMatrix::PrepData(unsigned char* channelData) {
         }
     }
 
-    //long long dataTime = GetTime();
+    // long long dataTime = GetTime();
     if ((m_numFrames >= 3) && (m_frames[m_curFrame] != (uint8_t*)gpioFrame)) {
         memcpy(m_frames[m_curFrame], m_gpioFrame, m_fullFrameLen);
     }
@@ -1176,7 +1175,7 @@ void BBBMatrix::PrepData(unsigned char* channelData) {
 }
 int BBBMatrix::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBBMatrix::SendData(%p)\n", channelData);
-    //long long startTime = GetTime();
+    // long long startTime = GetTime();
     uint8_t* addr = (uint8_t*)m_pru->ddr_addr + m_dataOffset;
     addr += (m_frames[m_curFrame] - m_frames[0]);
     uint8_t* ptr = m_frames[m_curFrame];
@@ -1185,20 +1184,20 @@ int BBBMatrix::SendData(unsigned char* channelData) {
         // in prep  or we'd get potential tearing/flickering
         memcpy(ptr, m_gpioFrame, m_fullFrameLen);
     }
-    //long long cpyTime = GetTime();
+    // long long cpyTime = GetTime();
     if (m_curFrame == 0) {
         m_curFrame = m_numFrames - 1;
     } else {
         m_curFrame--;
     }
 
-    //make sure memory is flushed before command is set to 1
+    // make sure memory is flushed before command is set to 1
     msync(ptr, m_fullFrameLen, MS_SYNC);
     m_pruData->address_dma = (uintptr_t)addr;
 
     __asm__ __volatile__("" ::
                              : "memory");
-    //long long flshTime = GetTime();
+    // long long flshTime = GetTime();
     m_pruData->command = 1;
 
     /*
@@ -1210,7 +1209,7 @@ int BBBMatrix::SendData(unsigned char* channelData) {
            m_outputFrame[9], m_outputFrame[10], m_outputFrame[11],
            m_outputFrame[12], m_outputFrame[13], m_outputFrame[15]
            );
-        
+
         uint32_t *t = (uint32_t *)m_pruCopy->data_ram;
         printf("     %d   %X   %X    %X %X %X\n", t[0], t[1], t[2], t[3], t[4], t[5]);
     }

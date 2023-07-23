@@ -154,8 +154,8 @@ void* RunChannelOutputThread(void* data) {
         doForceOutput |= forceOutput();
         if (OutputFrames) {
             if (!sequence->isDataProcessed() || sequence->hasBridgeData()) {
-                //first time through or immediately after sequence load, the data might not be
-                //processed yet, need to do it
+                // first time through or immediately after sequence load, the data might not be
+                // processed yet, need to do it
                 int msTime = 1000.0 * channelOutputFrame / RefreshRate;
                 if (!sequence->IsSequenceRunning()) {
                     msTime = mediaElapsedSeconds * 1000;
@@ -189,18 +189,18 @@ void* RunChannelOutputThread(void* data) {
             msTime = mediaElapsedSeconds * 1000;
         }
         if (!sequence->hasBridgeData()) {
-            //if bridging, we'll have to process later
+            // if bridging, we'll have to process later
             sequence->ProcessSequenceData(msTime);
         }
         processTime = GetTime();
 
         long long totalTime = processTime - startTime;
         if (totalTime > 150000) {
-            //very slow, log immediately
+            // very slow, log immediately
             slowFrameCount = 3;
         } else if (totalTime > 50000) {
-            //could be a very transient blip, we'll log if
-            //it happens 3 frames in a row
+            // could be a very transient blip, we'll log if
+            // it happens 3 frames in a row
             slowFrameCount++;
         } else {
             slowFrameCount = 0;
@@ -240,10 +240,10 @@ void* RunChannelOutputThread(void* data) {
             if (onceMore) {
                 onceMore--;
             } else {
-                //we will wait up to 2500ms to see if the thread is still needed
+                // we will wait up to 2500ms to see if the thread is still needed
                 ThreadIsExiting = 1;
                 if (outputThreadSatusCond.wait_for(statusLock, std::chrono::milliseconds(2500)) == std::cv_status::no_timeout) {
-                    //signal to keep going
+                    // signal to keep going
                     ThreadIsExiting = 0;
                     statusLock.unlock();
                     outputThreadSatusCond.notify_all();
@@ -450,13 +450,13 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent) {
                 diff += 4;
             } else {
                 LogDebug(VB_CHANNELOUT, "Skipping many frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
-                //more than 1/2 second behind, just jump
+                // more than 1/2 second behind, just jump
                 FrameSkip = expectedFramesSent - channelOutputFrame;
                 LightDelay = sequence->IsSequenceRunning() ? SequenceLightDelay : BridgeLightDelay;
                 return;
             }
         } else if (diff > 2) {
-            //hold the last frame
+            // hold the last frame
             FrameSkip = -1;
             diff--;
         }
@@ -488,8 +488,8 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent) {
                  LightDelay, newLightDelay, diff, channelOutputFrame, expectedFramesSent);
         LightDelay = newLightDelay;
     } else if (diff == -1) {
-        //for the one frame off cases, keep the existing light delay unless the
-        //previous "off" frame was on the other side of default
+        // for the one frame off cases, keep the existing light delay unless the
+        // previous "off" frame was on the other side of default
         if (LightDelay > DefaultLightDelay) {
             LightDelay = DefaultLightDelay;
         }

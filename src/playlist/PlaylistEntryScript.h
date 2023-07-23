@@ -34,6 +34,7 @@ public:
     std::string GetScriptName(void) { return m_scriptFilename; }
 
     virtual uint64_t GetElapsedMS() override;
+
 private:
     std::string m_scriptFilename;
     std::string m_scriptArgs;

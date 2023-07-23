@@ -122,9 +122,9 @@ int MQTTOutput::RawSendData(unsigned char* channelData) {
     uint8_t b = 0x00;
     uint8_t w = 0x00;
 
-    //The double buffer that ThreadedOutputBase performs only copies/buffers
-    //data from the startChannel for the required length.   The channelData
-    //passed in is already starting at startChannel
+    // The double buffer that ThreadedOutputBase performs only copies/buffers
+    // data from the startChannel for the required length.   The channelData
+    // passed in is already starting at startChannel
     switch (m_type) {
     case OutputType::ONE_CHAN:
         w = channelData[0];
@@ -214,7 +214,7 @@ void MQTTOutput::RGBtoHSIV(float fR, float fG, float fB, float& fH, float& fSI, 
     float m = std::min(std::min(fR, fG), fB);
     float c = M - m;
     fV = M;
-    //fL = (1.0/2.0)*(M+m);
+    // fL = (1.0/2.0)*(M+m);
     fI = (1.0 / 3.0) * (fR + fG + fB);
 
     if (c == 0) {

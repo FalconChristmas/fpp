@@ -19,7 +19,7 @@
 
 #include "ChannelOutput.h"
 
-//16 rows (1/16 scan) * 8bits per row
+// 16 rows (1/16 scan) * 8bits per row
 #define MAX_STATS 16 * 8
 
 class InterleaveHandler;
@@ -35,7 +35,7 @@ typedef struct {
     volatile unsigned response;
 
     volatile uint16_t pwmBrightness[8];
-    uint32_t stats[3 * MAX_STATS]; //3 values per collection
+    uint32_t stats[3 * MAX_STATS]; // 3 values per collection
 } __attribute__((__packed__)) BBBPruMatrixData;
 
 class BBBMatrix : public ChannelOutput {
@@ -46,7 +46,6 @@ public:
     virtual std::string GetOutputType() const override {
         return "BBB Panels";
     }
-
 
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
@@ -59,9 +58,9 @@ public:
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-
     virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) override;
-    virtual bool SupportsTesting() const override { return  true; }
+    virtual bool SupportsTesting() const override { return true; }
+
 private:
     void calcBrightnessFlags(std::vector<std::string>& sargs);
     void printStats();

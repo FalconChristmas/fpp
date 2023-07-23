@@ -15,9 +15,9 @@
 #include <string>
 #include <vector>
 
+#include "FrameBuffer.h"
 #include "channeloutput/ChannelOutput.h"
 #include "channeloutput/PixelString.h"
-#include "FrameBuffer.h"
 #include "util/SPIUtils.h"
 
 constexpr int MAX_DPI_PIXEL_BANKS = 3;
@@ -38,7 +38,8 @@ public:
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
     virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) override;
-    virtual bool SupportsTesting() const override { return  true; }
+    virtual bool SupportsTesting() const override { return true; }
+
 private:
     int GetDPIPinBitPosition(std::string pinName);
     bool FrameBufferIsConfigured(void);
@@ -58,7 +59,7 @@ private:
     std::vector<PixelString*> pixelStrings;
     int bitPos[24];
 
-    FrameBuffer *fb = nullptr;
+    FrameBuffer* fb = nullptr;
     int fbPage = -1;
 
     int stringCount = 0;

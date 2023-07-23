@@ -31,12 +31,12 @@
 #include "common.h"
 #include "log.h"
 #include "settings.h"
+#include "../OutputMonitor.h"
 #include "../Plugin.h"
 #include "../Plugins.h"
 #include "../config.h"
-#include "../OutputMonitor.h"
 
-//old style that still need porting
+// old style that still need porting
 #include "FPD.h"
 
 #include "processors/OutputProcessor.h"
@@ -83,7 +83,7 @@ std::string GetOutputRangesAsString(bool precise, bool oneBased) {
 // or close ranges to keep the range list smaller
 static void sortRanges(std::vector<std::pair<uint32_t, uint32_t>>& rngs, bool gaps) {
     std::map<uint32_t, uint32_t> ranges;
-    //sort
+    // sort
     for (auto& a : rngs) {
         uint32_t cur = ranges[a.first];
         if (cur) {
@@ -129,7 +129,7 @@ static void addRange(uint32_t min, uint32_t max) {
     for (auto& r : preciseOutputRanges) {
         int rm = r.first + r.second - 1;
         if (min >= r.first && max <= rm) {
-            //within the range, don't add it
+            // within the range, don't add it
             return;
         }
     }
@@ -137,7 +137,7 @@ static void addRange(uint32_t min, uint32_t max) {
 
     // having the reads be aligned to intervals of 8 can help performance so
     // we'll expand the range a bit to align things better
-    //round minimum down to interval of 8
+    // round minimum down to interval of 8
     min &= 0xFFFFFFF8;
     max += 8;
     max &= 0xFFFFFFF8;
@@ -145,7 +145,7 @@ static void addRange(uint32_t min, uint32_t max) {
     for (auto& r : outputRanges) {
         int rm = r.first + r.second - 1;
         if (min >= r.first && max <= rm) {
-            //within the range, don't add it
+            // within the range, don't add it
             return;
         }
     }
@@ -300,7 +300,7 @@ int InitializeChannelOutputs(void) {
 
                 // First some Channel Outputs enabled everythwere
                 if (type == "LEDPanelMatrix") {
-                    //for LED matrices, the driver is determined by the subType
+                    // for LED matrices, the driver is determined by the subType
                     libnamePfx = "matrix-";
                     type = outputs[c]["subType"].asString();
                 } else if (OUTPUT_REMAPS.find(type) != OUTPUT_REMAPS.end()) {
@@ -366,10 +366,9 @@ void ResetChannelOutputFrameNumber(void) {
     mediaElapsedSeconds = 0.0;
 }
 
-void OverlayOutputTestData(std::set<std::string> types, unsigned char *channelData, int cycleCnt, float percentOfCycle, int testType) {
+void OverlayOutputTestData(std::set<std::string> types, unsigned char* channelData, int cycleCnt, float percentOfCycle, int testType) {
     for (auto& inst : channelOutputs) {
-        if (inst.output && inst.output->SupportsTesting()
-            && (types.empty() || types.find(inst.output->GetOutputType()) != types.end())) {
+        if (inst.output && inst.output->SupportsTesting() && (types.empty() || types.find(inst.output->GetOutputType()) != types.end())) {
             inst.output->OverlayTestData(channelData, cycleCnt, percentOfCycle, testType);
         }
     }
@@ -433,7 +432,7 @@ void StartingOutput(void) {
     for (auto& inst : channelOutputs) {
         if ((inst.outputOld) &&
             (inst.outputOld->startThread)) {
-            //old style outputs
+            // old style outputs
             inst.outputOld->startThread(inst.privData);
         } else if (inst.output) {
             inst.output->StartingOutput();

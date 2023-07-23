@@ -261,26 +261,26 @@ int UDPOutput::Init(Json::Value config) {
         switch (type) {
         case 0:
         case 1:
-            //E1.31 types
+            // E1.31 types
             outputs.push_back(new E131OutputData(s));
             break;
         case 2:
         case 3:
-            //ArtNet types
+            // ArtNet types
             outputs.push_back(new ArtNetOutputData(s));
             break;
         case 4:
         case 5:
-            //DDP types
+            // DDP types
             outputs.push_back(new DDPOutputData(s));
             break;
         case 6:
         case 7:
-            //KiNet types
+            // KiNet types
             outputs.push_back(new KiNetOutputData(s));
             break;
         case 8:
-            //Twinkly types
+            // Twinkly types
             outputs.push_back(new TwinklyOutputData(s));
             break;
         default:
@@ -297,11 +297,11 @@ int UDPOutput::Init(Json::Value config) {
     }
 
     std::set<std::string> myIps;
-    //get all the addresses
+    // get all the addresses
     struct ifaddrs *interfaces, *tmp;
     getifaddrs(&interfaces);
     tmp = interfaces;
-    //loop through all the interfaces and get the addresses
+    // loop through all the interfaces and get the addresses
     char address[16];
     memset(address, 0, sizeof(address));
     std::string firstInterface = "";
@@ -397,7 +397,7 @@ void UDPOutput::PrepData(unsigned char* channelData) {
                 a->PrepareData(channelData, messages);
             }
         }
-        //add any sync packets or whatever that are needed
+        // add any sync packets or whatever that are needed
         for (auto a : outputs) {
             if (a->valid && a->active) {
                 a->PostPrepareData(channelData, messages);
@@ -504,7 +504,7 @@ void UDPOutput::BackgroundOutputWork() {
             if ((outputCount != i.msgs.size()) || (diff > 100)) {
                 i.socketInfo->errCount++;
 
-                //failed to send all messages or it took more than 100ms to send them
+                // failed to send all messages or it took more than 100ms to send them
                 LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
                        i.id,
                        outputCount, i.msgs.size(), diff, i.socketInfo->errCount,
@@ -557,7 +557,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
             t2 = clock.now();
         }
         if (doneWorkCount == total) {
-            //now output the LATE/Broadcast packets (likely sync packets)
+            // now output the LATE/Broadcast packets (likely sync packets)
             for (auto& msgs : messages.messages) {
                 if (!msgs.second.empty()) {
                     SendSocketInfo* socketInfo = findOrCreateSocket(msgs.first, 5);
@@ -569,7 +569,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
                         if ((outputCount != msgs.second.size()) || (diff > 100)) {
                             socketInfo->errCount++;
 
-                            //failed to send all messages or it took more than 100ms to send them
+                            // failed to send all messages or it took more than 100ms to send them
                             LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
                                    msgs.first,
                                    outputCount, msgs.second.size(), diff, socketInfo->errCount,
@@ -580,7 +580,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
                         }
                     }
                     if (socketInfo->errCount >= 3) {
-                        //we'll ping the controllers and rebuild the valid message list, this could take time
+                        // we'll ping the controllers and rebuild the valid message list, this could take time
                         pingThreadCondition.notify_all();
                         socketInfo->errCount = 0;
                     }
@@ -599,7 +599,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
             if ((outputCount != msgs.second.size()) || (diff > 100)) {
                 socketInfo->errCount++;
 
-                //failed to send all messages or it took more than 100ms to send them
+                // failed to send all messages or it took more than 100ms to send them
                 LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
                        msgs.first,
                        outputCount, msgs.second.size(), diff, socketInfo->errCount,
@@ -607,7 +607,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
                        strerror(errno));
 
                 if (socketInfo->errCount >= 3) {
-                    //we'll ping the controllers and rebuild the valid message list, this could take time
+                    // we'll ping the controllers and rebuild the valid message list, this could take time
                     pingThreadCondition.notify_all();
                     socketInfo->errCount = 0;
                 }
@@ -698,7 +698,7 @@ bool UDPOutput::PingControllers(bool failedOnly) {
             int handleCount;
             curl_multi_perform(m_curlm, &handleCount);
             if (handleCount != numCurls) {
-                //progress
+                // progress
                 int msgs;
                 CURLMsg* curlm = curl_multi_info_read(m_curlm, &msgs);
                 while (curlm) {

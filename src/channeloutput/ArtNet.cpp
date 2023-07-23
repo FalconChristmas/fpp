@@ -106,7 +106,7 @@ ArtNetOutputData::ArtNetOutputData(const Json::Value& config) :
     case ARTNET_TYPE_BROADCAST: // Multicast
         ipAddress = "";
         break;
-    case 3: //UnicastAddress
+    case 3: // UnicastAddress
         ipAddress = config["address"].asString();
         break;
     }
@@ -159,9 +159,9 @@ bool ArtNetOutputData::IsPingable() {
 
 void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& messages) {
     if (valid && active) {
-        //ALL ArtNet messages must go out on the same socket
-        //and the socket MUST have the source port of ARTNET_DEST_PORT
-        //as per the ArtNet protocol
+        // ALL ArtNet messages must go out on the same socket
+        // and the socket MUST have the source port of ARTNET_DEST_PORT
+        // as per the ArtNet protocol
         if (messages.GetSocket(ARTNET_DEST_PORT) == -1) {
             // we MAY be bridging ArtNet so we need to use that same socket
             messages.ForceSocket(ARTNET_DEST_PORT, CreateArtNetSocket());
@@ -209,7 +209,7 @@ void ArtNetOutputData::PostPrepareData(unsigned char* channelData, UDPOutputMess
     if (valid && active) {
         for (auto msg : msgs[ARTNET_DEST_PORT]) {
             if (msg.msg_hdr.msg_iov == &ArtNetSyncIovecs) {
-                //already added, skip
+                // already added, skip
                 return;
             }
         }

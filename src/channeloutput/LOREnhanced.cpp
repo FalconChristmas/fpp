@@ -203,20 +203,20 @@ static void LOR_SendHeartbeat(LOREnhancedOutputData* privData) {
 }
 
 /*
-* Enhanced Command Format:
-* Start at channel 1, then fill in channel data as the stream describes it.
-* The format is basically Command + Count in one or two bytes, then channel
-* data as needed by the command, repeat through the whole buffer
-*
-* Command Byte [7:0]:
-* [7:5]
-* 000 Straight list of values for the given number of channels
-* 001 Jump the given number channels
-* 010 Repeat the given 3 values the given number of times
-*
-* [4:0]
-* Count - if 11111 then use the next byte instead of the lower bits of the first one
-*/
+ * Enhanced Command Format:
+ * Start at channel 1, then fill in channel data as the stream describes it.
+ * The format is basically Command + Count in one or two bytes, then channel
+ * data as needed by the command, repeat through the whole buffer
+ *
+ * Command Byte [7:0]:
+ * [7:5]
+ * 000 Straight list of values for the given number of channels
+ * 001 Jump the given number channels
+ * 010 Repeat the given 3 values the given number of times
+ *
+ * [4:0]
+ * Count - if 11111 then use the next byte instead of the lower bits of the first one
+ */
 
 void LOREnhancedOutput::SendUnitData(unsigned char* channelData, LOREnhancedOutputUnit* unit) {
     if (unit->lorStartPixel < 0 || (unit->lorStartPixel * 3) > 510) {

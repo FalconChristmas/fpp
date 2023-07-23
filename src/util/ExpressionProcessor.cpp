@@ -129,7 +129,7 @@ public:
         }
 
         if (s.size() > 1 && s[0] == '=' && s[1] != '=') {
-            //simple math expression
+            // simple math expression
             steps.push_back(new TinyExprEvalStep(s.substr(1), exprVars));
         } else {
             std::string cur = s;

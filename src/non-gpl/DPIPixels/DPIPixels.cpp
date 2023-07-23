@@ -34,7 +34,7 @@
 
 #define POSITION_TO_BITMASK(x) (0x800000 >> (x))
 
-//#define TEST_USING_X11
+// #define TEST_USING_X11
 
 /*
  * https://www.raspberrypi.com/documentation/computers/raspberry-pi.html
@@ -241,8 +241,8 @@ int DPIPixelsOutput::Init(Json::Value config) {
         }
     }
 
-    while (!pixelStrings.empty() && pixelStrings.back()->m_outputChannels == 0)  {
-        PixelString *ps = pixelStrings.back();
+    while (!pixelStrings.empty() && pixelStrings.back()->m_outputChannels == 0) {
+        PixelString* ps = pixelStrings.back();
         delete ps;
         pixelStrings.pop_back();
     }
@@ -258,7 +258,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
         }
         if (pixelCount) {
             LogExcess(VB_CHANNELOUT, "   Enabling Pin %s for DPI output since it has %d pixels configured\n",
-                outputPinMap[s].c_str(), pixelCount);
+                      outputPinMap[s].c_str(), pixelCount);
 
             const PinCapabilities& pin = PinCapabilities::getPinByName(outputPinMap[s]);
             pin.configPin("dpi");
@@ -268,7 +268,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
     }
 
     LogDebug(VB_CHANNELOUT, "   Found %d strings (out of %d total) that have 1 or more pixels configured\n",
-        nonZeroStrings, stringCount);
+             nonZeroStrings, stringCount);
 
     if (stringCount > licensedOutputs) {
         std::string warning;
@@ -348,7 +348,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
     fbConfig["BitsPerPixel"] = 24;
     fbConfig["Pages"] = 3;
 
-//#define USE_AUTO_SYNC
+// #define USE_AUTO_SYNC
 #ifdef USE_AUTO_SYNC
     fbConfig["AutoSync"] = true;
 #endif
@@ -434,8 +434,8 @@ void DPIPixelsOutput::OverlayTestData(unsigned char* channelData, int cycleNum, 
 void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     PixelString* ps = NULL;
     long long startTime = 0;
-//    long long elapsedTimeGather = 0;
-//    long long elapsedTimeOutput = 0;
+    //    long long elapsedTimeGather = 0;
+    //    long long elapsedTimeOutput = 0;
     int maxString = stringCount;
     int sStart = 0;
     int sEnd = stringCount;
@@ -443,7 +443,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
 
 #ifdef USE_AUTO_SYNC
     fbPage = fb->Page(true);
-    //LogInfo(VB_CHANNELOUT, "%d - PrepData() checking page\n", fbPage);
+    // LogInfo(VB_CHANNELOUT, "%d - PrepData() checking page\n", fbPage);
 
     if (fb->IsDirty(fbPage)) {
         LogErr(VB_CHANNELOUT, "FB Page %d is dirty, output thread isn't keeping up!\n", fbPage);
@@ -460,7 +460,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
         InitFrameWS281x();
 
     uint8_t* outputBuffers[52];
-    PixelStringTester *tester = nullptr;
+    PixelStringTester* tester = nullptr;
     if (m_testType && m_testCycle >= 0) {
         tester = PixelStringTester::getPixelStringTester(m_testType);
         tester->prepareTestData(m_testCycle, m_testPercent);
@@ -469,14 +469,13 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
         if (x < stringCount) {
             ps = pixelStrings[x];
             uint32_t newLen = 0;
-            outputBuffers[x] = tester 
-                ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
-                : ps->prepareOutput(channelData);
+            outputBuffers[x] = tester
+                                   ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
+                                   : ps->prepareOutput(channelData);
         } else {
             outputBuffers[x] = nullptr;
         }
     }
-
 
     for (int y = 0; y < longestString; y++) {
         uint8_t rowData[24];
@@ -516,35 +515,35 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
             }
         }
 
-//        elapsedTimeGather += GetTime() - startTime;
+        //        elapsedTimeGather += GetTime() - startTime;
         startTime = GetTime();
         if (protocol == "ws2811") {
             OutputPixelRowWS281x(rowData, maxString);
         }
         ++ch;
-//        elapsedTimeOutput += GetTime() - startTime;
+        //        elapsedTimeOutput += GetTime() - startTime;
     }
 
     if (protocol == "ws2811")
         CompleteFrameWS281x();
 
     // FIXME, clean up these hexdumps after done testing
-    //uint8_t* fbp = fb->BufferPage(fbPage);
-    //HexDump("fb data:", fbp, 216, VB_CHANNELOUT);
-    //HexDump("fb 1st line:", fbp, fb->RowStride(), VB_CHANNELOUT);
-    //HexDump("fb 2nd line:", fbp + fb->RowStride(), fb->RowStride(), VB_CHANNELOUT);
-    //HexDump("fb 3nd line:", fbp + fb->RowStride() * 2, fb->RowStride(), VB_CHANNELOUT);
-    //HexDump("fb 11th line:", fbp + fb->RowStride() * 10, fb->RowStride(), VB_CHANNELOUT);
+    // uint8_t* fbp = fb->BufferPage(fbPage);
+    // HexDump("fb data:", fbp, 216, VB_CHANNELOUT);
+    // HexDump("fb 1st line:", fbp, fb->RowStride(), VB_CHANNELOUT);
+    // HexDump("fb 2nd line:", fbp + fb->RowStride(), fb->RowStride(), VB_CHANNELOUT);
+    // HexDump("fb 3nd line:", fbp + fb->RowStride() * 2, fb->RowStride(), VB_CHANNELOUT);
+    // HexDump("fb 11th line:", fbp + fb->RowStride() * 10, fb->RowStride(), VB_CHANNELOUT);
 
     // FIXME, comment these (and the GetTime() calls above) out once testing is done.
-    //LogDebug(VB_CHANNELOUT, "Elapsed Time for data gather     : %lldus\n", elapsedTimeGather);
-    //LogDebug(VB_CHANNELOUT, "Elapsed Time for bit manipulation: %lldus\n", elapsedTimeOutput);
+    // LogDebug(VB_CHANNELOUT, "Elapsed Time for data gather     : %lldus\n", elapsedTimeGather);
+    // LogDebug(VB_CHANNELOUT, "Elapsed Time for bit manipulation: %lldus\n", elapsedTimeOutput);
 }
 
 int DPIPixelsOutput::SendData(unsigned char* channelData) {
 #ifdef USE_AUTO_SYNC
     if (fbPage >= 0) {
-        //LogInfo(VB_CHANNELOUT, "%d - SendData() marking page dirty\n", fbPage);
+        // LogInfo(VB_CHANNELOUT, "%d - SendData() marking page dirty\n", fbPage);
         fb->SetDirty(fbPage);
         fbPage = -1;
     }
@@ -802,10 +801,10 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
     for (int i = 0; i < fbPixelMult; i++) {
         protoDestExtra += fb->BytesPerPixel() * 2;
     }
-    //int perLine = fb->BytesPerPixel() * fbPixelMult * 3;
-    //int header = fb->BytesPerPixel() * sBeginEndSize;
-    //int numLines = 76 * 8;
-    //HexDump("fb data:", fb->Buffer() + header, numLines * perLine, VB_CHANNELOUT, perLine);
+    // int perLine = fb->BytesPerPixel() * fbPixelMult * 3;
+    // int header = fb->BytesPerPixel() * sBeginEndSize;
+    // int numLines = 76 * 8;
+    // HexDump("fb data:", fb->Buffer() + header, numLines * perLine, VB_CHANNELOUT, perLine);
     return true;
 }
 

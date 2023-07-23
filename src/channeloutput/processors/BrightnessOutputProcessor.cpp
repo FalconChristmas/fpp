@@ -39,7 +39,7 @@ BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value& config) 
         table[x] = round(f);
     }
 
-    //channel numbers need to be 0 based
+    // channel numbers need to be 0 based
     --start;
 }
 

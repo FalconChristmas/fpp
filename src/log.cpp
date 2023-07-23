@@ -20,16 +20,16 @@
 #include <stdbool.h>
 #include <time.h>
 
-//int logLevel = LOG_INFO;
-//int logMask  = VB_MOST;
+// int logLevel = LOG_INFO;
+// int logMask  = VB_MOST;
 
-//Create Global Instance
+// Create Global Instance
 FPPLogger FPPLogger::INSTANCE = FPPLogger();
 
 char logFileName[1024] = "";
 bool logToStdOut = true;
-//char logLevelStr[16];
-//char logMaskStr[1024];
+// char logLevelStr[16];
+// char logMaskStr[1024];
 
 void FPPLogger::Init() {
     if (all.empty()) {
@@ -164,7 +164,7 @@ bool WillLog(int level, FPPLoggerInstance& facility) {
     return true;
 }
 
-void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const std::string &str, ...) {
+void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const std::string& str, ...) {
     if (!(WillLog(level, facility)))
         return;
     _LogWrite(file, line, level, facility, str.c_str());

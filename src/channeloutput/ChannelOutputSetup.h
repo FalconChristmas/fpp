@@ -12,10 +12,10 @@
  */
 
 #include <pthread.h>
+#include <set>
 #include <stdint.h>
 #include <string>
 #include <vector>
-#include <set>
 
 class ChannelOutput;
 class OutputProcessors;
@@ -52,7 +52,7 @@ extern OutputProcessors outputProcessors;
 int InitializeChannelOutputs(void);
 int PrepareChannelData(char* channelData);
 int SendChannelData(const char* channelData);
-void OverlayOutputTestData(std::set<std::string> types, unsigned char *channelData, int cycleCnt, float percentOfCycle, int testType);
+void OverlayOutputTestData(std::set<std::string> types, unsigned char* channelData, int cycleCnt, float percentOfCycle, int testType);
 std::set<std::string> GetOutputTypes();
 void CloseChannelOutputs(void);
 void SetChannelOutputFrameNumber(int frameNumber);

@@ -22,7 +22,6 @@
 constexpr int NUM_STRINGS_PER_PIN = 8;
 constexpr int MAX_PINS_PER_PRU = 8;
 
-
 // structure of the data at the start of the PRU ram
 // that the pru program expects to see
 typedef struct {
@@ -56,7 +55,7 @@ public:
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
     virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) override;
-    virtual bool SupportsTesting() const { return  true; }
+    virtual bool SupportsTesting() const { return true; }
 
 private:
     void StopPRU(bool wait = true);
@@ -70,12 +69,14 @@ private:
             for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
                 for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
                     stringMap[y][x] = -1;
-                }                
+                }
             }
         }
         ~FrameData() {
-            if (channelData) free(channelData);
-            if (formattedData) free(formattedData);
+            if (channelData)
+                free(channelData);
+            if (formattedData)
+                free(formattedData);
         }
         std::array<std::array<int, NUM_STRINGS_PER_PIN>, MAX_PINS_PER_PRU> stringMap;
         BBBPru* pru = nullptr;

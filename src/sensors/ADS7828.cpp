@@ -16,22 +16,22 @@
 #include <byteswap.h>
 #else
 inline uint16_t bswap_16(uint16_t num) {
-    return (num>>8) | (num<<8);
+    return (num >> 8) | (num << 8);
 }
 #endif
 
 #include "ADS7828.h"
 #include "../util/I2CUtils.h"
 
-
-ADS7828Sensor::ADS7828Sensor(Json::Value& config) : SensorSource(config) {
+ADS7828Sensor::ADS7828Sensor(Json::Value& config) :
+    SensorSource(config) {
     i2cBus = config["i2cBus"].asInt();
     if (config["i2cAddress"].isString()) {
         std::string ad = config["i2cAddress"].asString();
         i2cAddress = std::stoul(ad, nullptr, 16);
     } else {
         i2cAddress = config["i2cAddress"].asInt();
-    } 
+    }
     i2c = new I2CUtils(i2cBus, i2cAddress);
     if (config["type"].asString() == "ads7830") {
         bits = 8;
@@ -58,17 +58,17 @@ void ADS7828Sensor::update(bool forceInstant) {
         while (!bufferValues.empty() && bufferValues.front().timestamp < tm) {
             bufferValues.pop_front();
         }
-        //make sure we have at least 3 values we can "average", but make sure we at
-        //least add the current value
+        // make sure we have at least 3 values we can "average", but make sure we at
+        // least add the current value
         bool first = true;
         while (first || bufferValues.size() < 3) {
             first = false;
             BufferedData data;
-            data.timestamp = GetTimeMS();            
+            data.timestamp = GetTimeMS();
             for (int ch = 0; ch < 8; ch++) {
                 uint8_t cmd = baseCmd | (((ch >> 1) | (ch & 0x01) << 2) << 4);
                 if (bits > 8) {
-                    //ads7828 sends the data with the byte order flipped
+                    // ads7828 sends the data with the byte order flipped
                     uint32_t d = i2c->readWordData(cmd);
                     data.value[ch] = bswap_16(d);
                 } else {
@@ -78,17 +78,17 @@ void ADS7828Sensor::update(bool forceInstant) {
             bufferValues.emplace_back(data);
         }
 
-        std::array<uint32_t, 8> v = {0, 0, 0, 0, 0, 0, 0, 0};
+        std::array<uint32_t, 8> v = { 0, 0, 0, 0, 0, 0, 0, 0 };
         int count = 0;
-        for (const auto &it : bufferValues) {
+        for (const auto& it : bufferValues) {
             ++count;
             for (int ch = 0; ch < 8; ch++) {
                 v[ch] += it.value[ch];
-            }            
+            }
         }
         for (int ch = 0; ch < 8; ch++) {
             values[ch] = v[ch] / count;
         }
-        //printf("%d: %2X  %2X  %2X  %2X  %2X  %2X  %2X  %2X\n", count, values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7]);
+        // printf("%d: %2X  %2X  %2X  %2X  %2X  %2X  %2X  %2X\n", count, values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7]);
     }
 }

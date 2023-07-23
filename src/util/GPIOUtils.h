@@ -189,5 +189,3 @@ public:
         return std::vector<std::string>();
     }
 };
-
-

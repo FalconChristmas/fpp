@@ -168,7 +168,6 @@ static void initPrus() {
     prus[1].instructionRam = base_memory_location + (AM33XX_PRU1IRAM_PHYS_BASE - AM33XX_PRU_BASE);
     prus[1].instructionRamSize = 8 * 1024;
 
-
     memset(prus[0].dataRam, 0, prus[0].dataRamSize);
     memset(prus[1].dataRam, 0, prus[1].dataRamSize);
     memset(prus[0].sharedRam, 0, prus[0].sharedRamSize);
@@ -243,7 +242,7 @@ int BBBPru::run(const std::string& program) {
 
     prus[pru_num].disable();
     if (buf[0] == ELFMAG0 && buf[1] == ELFMAG1 && buf[2] == ELFMAG2 && buf[3] == ELFMAG3) {
-        //elf linked unit
+        // elf linked unit
         LogDebug(VB_CHANNELOUT, "Elf: %s\n", program.c_str());
 
         if (buf[EI_CLASS] == ELFCLASS32) {
@@ -252,11 +251,11 @@ int BBBPru::run(const std::string& program) {
             Elf32_Phdr* phdr = (Elf32_Phdr*)&buf[hdr->e_phoff];
             for (int pn = 0; pn < hdr->e_phnum; pn++, phdr++) {
                 if (phdr->p_type == PT_LOAD && (phdr->p_flags & PF_X)) {
-                    //printf("Type: %d     VA: %X    OFF: %X   SZ: %d\n", phdr->p_type, phdr->p_vaddr, phdr->p_offset, phdr->p_memsz);
+                    // printf("Type: %d     VA: %X    OFF: %X   SZ: %d\n", phdr->p_type, phdr->p_vaddr, phdr->p_offset, phdr->p_memsz);
                     startOffset = phdr->p_vaddr;
                     uint32_t* tt2 = (uint32_t*)prus[pru_num].instructionRam;
                     for (int x = 0; x < startOffset / 4; x++) {
-                        //kind of a no-op (LDI r2, 1) to fill space until the real starting point
+                        // kind of a no-op (LDI r2, 1) to fill space until the real starting point
                         tt2[x] = 0x240001e2;
                     }
                     memcpy(&prus[pru_num].instructionRam[startOffset], &buf[phdr->p_offset], phdr->p_memsz);
@@ -269,7 +268,7 @@ int BBBPru::run(const std::string& program) {
         }
     } else {
         LogDebug(VB_CHANNELOUT, "Raw bin: %s\n", program.c_str());
-        //raw bin file
+        // raw bin file
         if (file_size < prus[pru_num].instructionRamSize) {
             memcpy(prus[pru_num].instructionRam, buf, file_size);
         }

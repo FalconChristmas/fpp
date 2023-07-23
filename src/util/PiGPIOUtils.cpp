@@ -25,12 +25,12 @@ PiGPIOPinCapabilities::PiGPIOPinCapabilities(const std::string& n, uint32_t kg) 
 int PiGPIOPinCapabilities::configPin(const std::string& mode,
                                      bool directionOut) const {
     if (mode == "pwm" && pwm != -1) {
-        bcm2835_gpio_fsel(kernelGpio, BCM2835_GPIO_FSEL_ALT5); //ALT5 is the PWM
+        bcm2835_gpio_fsel(kernelGpio, BCM2835_GPIO_FSEL_ALT5); // ALT5 is the PWM
         return 0;
     }
 
     if (mode == "dpi") {
-        bcm2835_gpio_fsel(kernelGpio, BCM2835_GPIO_FSEL_ALT2); //ALT2 is DPI
+        bcm2835_gpio_fsel(kernelGpio, BCM2835_GPIO_FSEL_ALT2); // ALT2 is DPI
         return 0;
     }
 

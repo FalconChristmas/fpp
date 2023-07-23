@@ -132,7 +132,7 @@ bool I2C1602_2004_DisplayDriver::initialize(int& i2cBus) {
     std::string deviceType = "pcf8574";
     if (ledType == LED_TYPE_0x20_1602) {
         device = 0x20;
-        //deviceType = "pca9675"; // maybe?
+        // deviceType = "pca9675"; // maybe?
         deviceType = "mcp23017";
         lineOffsets = lineOffsets0x20;
         blOffset = lineOffset0x20Backlight;
@@ -175,13 +175,13 @@ bool I2C1602_2004_DisplayDriver::initialize(int& i2cBus) {
     displaymode = (LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT);
     displaycontrol = (LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF);
     command(0x33);
-    command(0x32); //4bit
-    command(0x28); //function set
+    command(0x32); // 4bit
+    command(0x28); // function set
 
     command(LCD_DISPLAYCONTROL | displaycontrol);
     command(LCD_CURSORSHIFT | displayshift);
     command(LCD_CLEARDISPLAY);
-    std::this_thread::sleep_for(std::chrono::microseconds(1000)); //takes a long time
+    std::this_thread::sleep_for(std::chrono::microseconds(1000)); // takes a long time
 
     command(LCD_ENTRYMODESET | displaymode);
 
@@ -239,7 +239,7 @@ void I2C1602_2004_DisplayDriver::write4Bits(uint8_t bits, bool cmd) {
     VALUES[E_PIN] = 0;
     LINES.set_values(VALUES);
     std::this_thread::sleep_for(std::chrono::nanoseconds(500)); // enable pulse must be >450ns
-    //putchar('\n');
+    // putchar('\n');
 }
 
 void I2C1602_2004_DisplayDriver::printString(int x, int y, const std::string& str2, bool white) {

@@ -25,10 +25,10 @@
 #include "mediaoutput.h"
 #include "commands/Commands.h"
 
-#include "VLCOut.h"
 #include "Plugins.h"
 #include "SDLOut.h"
 #include "Sequence.h"
+#include "VLCOut.h"
 #include "mediadetails.h"
 #include "settings.h"
 #include "../config.h"
@@ -41,7 +41,7 @@ pthread_mutex_t mediaOutputLock;
 static bool firstOutCreate = true;
 
 MediaOutputStatus mediaOutputStatus = {
-    MEDIAOUTPUTSTATUS_IDLE, //status
+    MEDIAOUTPUTSTATUS_IDLE, // status
 };
 
 /*
@@ -112,7 +112,7 @@ void setVolume(int vol) {
 #else
     MacOSSetVolume(vol);
 #endif
-    
+
     pthread_mutex_lock(&mediaOutputLock);
     if (mediaOutput)
         mediaOutput->SetVolume(vol);
@@ -144,7 +144,7 @@ std::string GetVideoFilenameForMedia(const std::string& filename, std::string& e
     std::string bfile = filename.substr(0, found + 1);
     std::string hbfile = bfile;
     std::string videoPath = FPP_DIR_VIDEO("/" + bfile);
-    
+
     std::string hostname = getSetting("HostName");
     std::string hostVideoPath = "";
     if (hostname != "") {
@@ -184,7 +184,7 @@ std::string GetVideoFilenameForMedia(const std::string& filename, std::string& e
 }
 bool HasAudioForMedia(std::string& mediaFilename) {
     std::string fullMediaPath = mediaFilename;
-    
+
     std::string hostname = getSetting("HostName");
     if (hostname != "") {
         std::size_t found = mediaFilename.find_last_of(".");
@@ -199,7 +199,7 @@ bool HasAudioForMedia(std::string& mediaFilename) {
             return true;
         }
     }
-    
+
     if (FileExists(mediaFilename)) {
         return true;
     }
@@ -279,7 +279,7 @@ int OpenMediaOutput(const char* filename) {
         if (tmpFile == "") {
             // For v1.0 MultiSync, we can't sync audio to audio, so check for
             // a video file if the master is playing an audio file
-            //video doesn't exist, punt
+            // video doesn't exist, punt
             tmpFile = filename;
             if (alreadyWarned.find(tmpFile) == alreadyWarned.end()) {
                 alreadyWarned.emplace(tmpFile);
@@ -316,8 +316,8 @@ int OpenMediaOutput(const char* filename) {
 
     if (getFPPmode() == REMOTE_MODE && firstOutCreate) {
         firstOutCreate = false;
-        //need to "fake" a playlist start as some plugins will not initialize
-        //until a playlist is started, but remotes don't have playlists
+        // need to "fake" a playlist start as some plugins will not initialize
+        // until a playlist is started, but remotes don't have playlists
         root["name"] = "FPP Remote";
         root["desc"] = "FPP Remote Mode";
         root["loop"] = false;

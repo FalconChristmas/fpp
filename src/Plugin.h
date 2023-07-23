@@ -63,7 +63,7 @@ namespace FPPPlugins
         PlaylistEventPlugin() {}
         virtual ~PlaylistEventPlugin() {}
 
-        //Touch points for various triggers within FPP
+        // Touch points for various triggers within FPP
         virtual void eventCallback(const char* id, const char* impetus) {}
         virtual void mediaCallback(const Json::Value& playlist, const MediaDetails& mediaDetails) {}
         virtual void playlistCallback(const Json::Value& playlist, const std::string& action, const std::string& section, int item) {}

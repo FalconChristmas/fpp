@@ -48,7 +48,7 @@ USBDMXOutput::USBDMXOutput(unsigned int startChannel, unsigned int channelCount)
              startChannel, channelCount);
 
     m_useDoubleBuffer = 1;
-    //DMX protocol requires data to be sent at least every 250ms
+    // DMX protocol requires data to be sent at least every 250ms
     m_maxWait = 250;
     m_dataOffset = 1;
     memset(m_outputData, 0, sizeof(m_outputData));
@@ -94,7 +94,7 @@ int USBDMXOutput::Init(Json::Value config) {
     if (m_fd < 0) {
         LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
                errno, m_deviceName.c_str(), strerror(errno));
-        WarningHolder::AddWarning("USBDMX: Error opening device: " +  m_deviceName);
+        WarningHolder::AddWarning("USBDMX: Error opening device: " + m_deviceName);
         return 0;
     }
 
