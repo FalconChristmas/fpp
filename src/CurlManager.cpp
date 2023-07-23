@@ -15,11 +15,9 @@
 
 #include "CurlManager.h"
 
-
 CurlManager CurlManager::INSTANCE;
 
 CurlManager::CurlManager() {
-
 }
 
 CurlManager::~CurlManager() {
@@ -28,7 +26,7 @@ CurlManager::~CurlManager() {
     }
 }
 
-void CurlManager::addCURL(CURL *curl, std::function<void(CURL *)>&& callback, bool autoCleanCurl) {
+void CurlManager::addCURL(CURL* curl, std::function<void(CURL*)>&& callback, bool autoCleanCurl) {
     std::unique_lock<std::mutex> l(lock);
     if (curlMulti == nullptr) {
         curlMulti = curl_multi_init();
@@ -61,31 +59,30 @@ static size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp)
     str->append(static_cast<const char*>(buffer), size * nmemb);
     return size * nmemb;
 }
-static CURL *createCurl(const std::string &url) {
-    CURL *c = curl_easy_init();        
+static CURL* createCurl(const std::string& url) {
+    CURL* c = curl_easy_init();
     curl_easy_setopt(c, CURLOPT_URL, url.c_str());
     curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT_MS, 3000L);
     curl_easy_setopt(c, CURLOPT_TIMEOUT_MS, 10000L);
     curl_easy_setopt(c, CURLOPT_TCP_FASTOPEN, 1L);
     curl_easy_setopt(c, CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1);
-    //curl_easy_setopt(c, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+    // curl_easy_setopt(c, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
     curl_easy_setopt(c, CURLOPT_UPKEEP_INTERVAL_MS, 5000L);
 
     curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, urlWriteData);
-    CurlPrivateData *data = new CurlPrivateData();
+    CurlPrivateData* data = new CurlPrivateData();
     data->url = url;
     curl_easy_setopt(c, CURLOPT_WRITEDATA, &data->resp);
     curl_easy_setopt(c, CURLOPT_PRIVATE, data);
     return c;
 }
 
-void CurlManager::add(const std::string &url, const std::string &method, const std::string &data, 
-        const std::list<std::string>& extraHeaders,
-        std::function<void(int rc, const std::string &resp)>&& callback) {
-
-    static std::string USERAGENT =  std::string("FPP/") + getFPPVersionTriplet();
-    CURL *curl = createCurl(url);
+void CurlManager::add(const std::string& url, const std::string& method, const std::string& data,
+                      const std::list<std::string>& extraHeaders,
+                      std::function<void(int rc, const std::string& resp)>&& callback) {
+    static std::string USERAGENT = std::string("FPP/") + getFPPVersionTriplet();
+    CURL* curl = createCurl(url);
 
     curl_easy_setopt(curl, CURLOPT_USERAGENT, USERAGENT.c_str());
     if (method == "POST") {
@@ -109,30 +106,30 @@ void CurlManager::add(const std::string &url, const std::string &method, const s
     }
     if (headers) {
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_slist_free_all(headers);
     }
 
-    addCURL(curl, [callback](CURL *c) {
-        CurlPrivateData *data = nullptr;
+    addCURL(curl, [callback, headers](CURL* c) {
+        CurlPrivateData* data = nullptr;
         long rc = 0;
         curl_easy_getinfo(c, CURLINFO_PRIVATE, &data);
         curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &rc);
 
-        char *urlp = nullptr;
+        char* urlp = nullptr;
         curl_easy_getinfo(c, CURLINFO_EFFECTIVE_URL, &urlp);
+        if (headers) {
+            curl_slist_free_all(headers);
+        }
         callback(rc, data->resp);
         delete data;
     });
-            
 }
-void CurlManager::addGet(const std::string &url, std::function<void(int rc, const std::string &resp)>&& callback) {
-    add(url, "GET", "", {}, [callback](int rc, const std::string &resp) {callback(rc, resp);});
-}
-
-void CurlManager::addPost(const std::string &url, const std::string &data, std::function<void(int rc, const std::string &resp)>&& callback) {
-    add(url, "POST", data, {}, [callback](int rc, const std::string &resp) {callback(rc, resp);});
+void CurlManager::addGet(const std::string& url, std::function<void(int rc, const std::string& resp)>&& callback) {
+    add(url, "GET", "", {}, [callback](int rc, const std::string& resp) { callback(rc, resp); });
 }
 
+void CurlManager::addPost(const std::string& url, const std::string& data, std::function<void(int rc, const std::string& resp)>&& callback) {
+    add(url, "POST", data, {}, [callback](int rc, const std::string& resp) { callback(rc, resp); });
+}
 
 void CurlManager::processCurls() {
     if (numCurls) {
@@ -141,14 +138,14 @@ void CurlManager::processCurls() {
         std::unique_lock<std::mutex> l(lock);
         mc = curl_multi_perform(curlMulti, &stillRunning);
         if (stillRunning != numCurls) {
-            CURLMsg *m = nullptr;
+            CURLMsg* m = nullptr;
             do {
                 int msgq = 0;
                 m = curl_multi_info_read(curlMulti, &msgq);
                 if (m && (m->msg == CURLMSG_DONE)) {
-                    CURL *e = m->easy_handle;
+                    CURL* e = m->easy_handle;
                     curl_multi_remove_handle(curlMulti, e);
-                    CurlInfo *ci = nullptr;
+                    CurlInfo* ci = nullptr;
                     for (int x = 0; x < curls.size(); x++) {
                         if (curls[x] && curls[x]->curl == e) {
                             ci = curls[x];
@@ -167,7 +164,7 @@ void CurlManager::processCurls() {
                     }
                     l.lock();
                 }
-            } while(m);
+            } while (m);
         }
     }
 }

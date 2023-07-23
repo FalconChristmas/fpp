@@ -25,12 +25,16 @@
 
 #include "Twinkly.h"
 
+#include "../CurlManager.h"
+#include "../Timers.h"
+
 static const std::string TWINKLYTYPE = "Twinkly";
 
 constexpr int TOKEN_LEN = 8;
 constexpr int HEADER_LEN = (1 + TOKEN_LEN + 2 + 1);
+constexpr int TWINKLY_TOKEN_VALIDATE_TIME = 120;  // check the token every 120s
 
-constexpr uint32_t MAXPACKETS = 40 * 60 * 60 * 4; //about 4 hours at 40fps,
+constexpr uint32_t MAXPACKETS = 40 * 60 * 60 * 4; // about 4 hours at 40fps,
 
 const std::string& TwinklyOutputData::GetOutputTypeString() const {
     return TWINKLYTYPE;
@@ -93,7 +97,7 @@ void TwinklyOutputData::PrepareData(unsigned char* channelData, UDPOutputMessage
     if (valid && active) {
         reauthCount++;
         if (reauthCount > MAXPACKETS) {
-            //need to re-authenticate or lights will stop eventually
+            // need to re-authenticate or lights will stop eventually
             StartingOutput();
         }
 
@@ -132,6 +136,17 @@ void TwinklyOutputData::PrepareData(unsigned char* channelData, UDPOutputMessage
 }
 
 void TwinklyOutputData::StartingOutput() {
+    authenticate();
+    Timers::INSTANCE.addPeriodicTimer("Twinkly" + ipAddress, TWINKLY_TOKEN_VALIDATE_TIME * 1000, [this]() {
+        verifyToken();
+    });
+}
+void TwinklyOutputData::StoppingOutput() {
+    callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"off\"}");
+    authToken = "";
+    Timers::INSTANCE.stopPeriodicTimer("Twinkly" + ipAddress);
+}
+void TwinklyOutputData::authenticate() {
     Json::Value r = callRestAPI(true, "xled/v1/login", "{\"challenge\": \"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\"}");
     authToken = r["authentication_token"].asString();
     if (authToken != "") {
@@ -145,9 +160,20 @@ void TwinklyOutputData::StartingOutput() {
     callRestAPI(true, "xled/v1/verify", "");
     callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"rt\"}");
 }
-void TwinklyOutputData::StoppingOutput() {
-    callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"off\"}");
-    authToken = "";
+void TwinklyOutputData::verifyToken() {
+    std::string url = "http://" + ipAddress + "/xled/v1/verify";
+    std::list<std::string> extraHeaders;
+    std::string xat = "X-Auth-Token: " + authToken;
+    extraHeaders.push_back(xat);
+    CurlManager::INSTANCE.add(url, "GET", "", extraHeaders, [this](int rc, const std::string& resp) {
+        if (rc == 200) {
+            // printf("%d:  %s\n", rc, resp.c_str());
+            Json::Value v = LoadJsonFromString(resp);
+            if (v["code"].asInt() != 1000) {
+                authenticate();
+            }
+        }
+    });
 }
 
 // URL Helpers
@@ -199,7 +225,7 @@ Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string& path,
         return false;
     }
 
-    //printf("%s:   %s\n", url.c_str(), resp.c_str());
+    // printf("%s:   %s\n", url.c_str(), resp.c_str());
     LogDebug(VB_GENERAL, "%s %s resp: %s\n", isPost ? "POST" : "GET", url.c_str(), resp.c_str());
 
     curl_slist_free_all(headers);

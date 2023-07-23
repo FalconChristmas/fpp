@@ -30,10 +30,11 @@ public:
 
     virtual void StartingOutput() override;
     virtual void StoppingOutput() override;
-    
-    
-    Json::Value callRestAPI(bool isPost, const std::string &path, const std::string &body);
-    
+
+    Json::Value callRestAPI(bool isPost, const std::string& path, const std::string& body);
+    void verifyToken();
+    void authenticate();
+
     int port = 1;
     int portCount = 1;
 
@@ -41,7 +42,7 @@ public:
 
     struct iovec* twinklyIovecs = nullptr;
     uint8_t** twinklyBuffers = nullptr;
-    
+
     uint8_t authTokenBytes[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
     std::string authToken = "";
     uint32_t reauthCount = 0;
