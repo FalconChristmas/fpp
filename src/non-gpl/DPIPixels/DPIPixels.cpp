@@ -463,6 +463,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     PixelStringTester *tester = nullptr;
     if (m_testType && m_testCycle >= 0) {
         tester = PixelStringTester::getPixelStringTester(m_testType);
+        tester->prepareTestData(m_testCycle, m_testPercent);
     }
     for (int x = 0; x < 52; x++) {
         if (x < stringCount) {

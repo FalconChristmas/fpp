@@ -34,6 +34,7 @@ protected:
         PixelStringTester() {}
 
     int currentState = 0;
+    uint32_t frameInState = 0;
     uint64_t startTimeMS = 0;
     uint64_t currentTimeMS = 0;
     uint32_t curOutCount = 0xFFFFFFFF;
@@ -44,12 +45,15 @@ protected:
     int32_t lastPort = 0xFFFF;
     int32_t lastIdx = -1;
     std::vector<float> lastValues;
+    std::vector<float> curValues;
     std::vector<float> baseValues;
     std::vector<int32_t> lastPixelIdx;
     std::vector<int> testingPort;
 
     int firstPort = 0xFFFF;
+    int curGroup = 0;
 public:
+    virtual void prepareTestData(int cycleCount, float percentOfCycle);
     virtual uint8_t* createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) override;
 
     static CurrentBasedPixelCountPixelStringTester INSTANCE;

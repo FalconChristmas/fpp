@@ -22,6 +22,7 @@
 #include "util/I2CUtils.h"
 #include "ADS7828.h"
 #include "IIOSensorSource.h"
+#include "MuxSensorSource.h"
 
 #ifdef PLATFORM_BBB
 #define I2C_DEV 2
@@ -40,6 +41,14 @@ static std::string exec(const std::string& cmd) {
         result += buffer.data();
     }
     return result;
+}
+
+SensorSource::SensorSource(Json::Value& s) {
+    if (s.isMember("id")) {
+        _id = s["id"].asString();
+    } else if (s.isMember("type")) {
+        _id = s["type"].asString();
+    }
 }
 
 class Sensor {
@@ -353,13 +362,14 @@ Sensors::Sensors() {
 }
 Sensors::~Sensors() {
     for (auto x : sensorSources) {
-        delete x.second;
+        delete x;
     }
     sensorSources.clear();
 }
 void Sensors::Init(std::map<int, std::function<bool(int)>>& callbacks) {
-    for (auto &ss : sensorSources) {
-        ss.second->Init(callbacks);
+    
+    for (auto it = sensorSources.rbegin(); it != sensorSources.rend(); ++it) {
+        (*it)->Init(callbacks);
     }
 }
 
@@ -369,29 +379,43 @@ void Sensors::addSensorSources(Json::Value& config) {
         Json::Value v = config[x];
         std::string type = v["type"].asString();
         if (type == "ads7828" || type == "ads7830") {
-            sensorSources[v["id"].asString()] = new ADS7828Sensor(v);
+            sensorSources.push_back(new ADS7828Sensor(v));
         } else if (type == "iio") {
-            sensorSources[v["id"].asString()] = new IIOSensorSource(v);
+            sensorSources.push_back(new IIOSensorSource(v));
+        } else if (type == "mux") {
+            sensorSources.push_back(new MuxSensorSource(v));
         }
     }
 }
 void Sensors::updateSensorSources(bool forceInstant) {
     for (auto &ss : sensorSources) {
-        ss.second->update(forceInstant);
+        ss->update(forceInstant);
     }
 }
 SensorSource *Sensors::getSensorSource(const std::string &name) {
-    SensorSource *ss = sensorSources[name];
-    if (ss == nullptr && name == "iio") {
+    for (auto ss : sensorSources) {
+        if (ss->getID() == name) {
+            return ss;
+        }
+    }
+    if (name == "iio") {
         //default the iio name if requested
         Json::Value v;
         v["type"] = "iio";
         v["id"] = "iio";
-        ss = new IIOSensorSource(v);
-        sensorSources["iio"] = ss;
+        SensorSource *ss = new IIOSensorSource(v);
+        sensorSources.push_back(ss);
+        return ss;
     }
-    return ss;
+    return nullptr;
 }
+void Sensors::lockToGroup(int i) {
+    for (auto ss: sensorSources) {
+        ss->lockToGroup(i);
+    }
+}
+
+
 void Sensors::DetectHWSensors() {
     int i = 0;
     char path[256] = { 0 };

@@ -99,6 +99,7 @@ OBJECTS_fpp_so += \
 	ScheduleEntry.o \
 	scripts.o \
 	sensors/IIOSensorSource.o \
+	sensors/MuxSensorSource.o \
 	sensors/Sensors.o \
 	sensors/ADS7828.o \
 	Sequence.o \

@@ -150,12 +150,18 @@ int BBShiftStringOutput::Init(Json::Value config) {
     m_subType = config["subType"].asString();
     m_channelCount = config["channelCount"].asInt();
 
+    Json::Value root;
+    if (!CapeUtils::INSTANCE.getStringConfig(m_subType, root)) {
+        LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s\n", m_subType.c_str());
+        return 0;
+    }
+
     int maxStringLen = 0;
     for (int i = 0; i < config["outputs"].size(); i++) {
         Json::Value s = config["outputs"][i];
         PixelString* newString = new PixelString(true);
 
-        if (!newString->Init(s))
+        if (!newString->Init(s, &root["outputs"][i]))
             return 0;
 
         if (newString->m_outputChannels > maxStringLen) {
@@ -180,17 +186,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
     split0args.push_back("-DRUNNING_ON_PRU0");
     split1args.push_back("-DRUNNING_ON_PRU1");
 
-    std::string dirname = "bbb";
-    std::string verPostf = "";
-    if (getBeagleBoneType() == PocketBeagle) {
-        dirname = "pb";
-    }
 
-    Json::Value root;
-    if (!CapeUtils::INSTANCE.getStringConfig(m_subType, root)) {
-        LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
-        return 0;
-    }
     m_licensedOutputs = CapeUtils::INSTANCE.getLicensedOutputs();
 
     config["base"] = root;
@@ -406,6 +402,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
     PixelStringTester *tester = nullptr;
     if (m_testType && m_testCycle >= 0) {
         tester = PixelStringTester::getPixelStringTester(m_testType);
+        tester->prepareTestData(m_testCycle, m_testPercent);
     }
     for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
         uint8_t pinMask = 1 << y;

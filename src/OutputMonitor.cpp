@@ -107,6 +107,7 @@ public:
     bool isOn = false;
     bool hasTriggered = false;
     bool enabled = true;
+    uint32_t group = 0;
 
     const PinCapabilities *enablePin = nullptr;
     bool highToEnable = true;
@@ -241,8 +242,14 @@ void OutputMonitor::AddPortConfiguration(const std::string &name, const Json::Va
             hasInfo = true;
         }
     }
+    if (pinConfig.isMember("group")) {
+        int g = pinConfig["group"].asInt();
+        pi->group = g;
+        if (g >= numGroups) {
+            numGroups = g + 1;
+        }
+    }
     if (pinConfig.isMember("eFusePin")) {
-
         if (pinConfig.isMember("eFuseInterruptPin")) {
             std::string eFuseInterruptPin = pinConfig.get("eFuseInterruptPin", "").asString();
             bool eFuseInterruptHigh = false;
@@ -391,12 +398,21 @@ void OutputMonitor::AutoDisableOutputs() {
     }
 }
 
+void OutputMonitor::lockToGroup(int i) {
+    curGroup = i;
+    Sensors::INSTANCE.lockToGroup(i);
+}
+bool OutputMonitor::isPortInGroup(int group, int port) {
+    return ((port < portPins.size()) && (group == portPins[port]->group));
+}
+
+
 std::vector<float> OutputMonitor::GetPortCurrentValues() {
     std::vector<float> ret;
     ret.reserve(portPins.size());
     Sensors::INSTANCE.updateSensorSources(true);
     for (auto a : portPins) {
-        if (a->currentMonitor) {
+        if (a->currentMonitor && ((curGroup == -1) || (curGroup == a->group))) {
             ret.push_back(a->currentMonitor->getValue());
         } else {
             ret.push_back(0);
@@ -405,10 +421,17 @@ std::vector<float> OutputMonitor::GetPortCurrentValues() {
     return ret;
 }
 void OutputMonitor::SetPixelCount(int port, int pc) {
-    if (port < portPins.size()) {
+    if (port < portPins.size() && ((curGroup == -1) || (curGroup == portPins[port]->group))) {
         portPins[port]->pixelCount = pc;
     }
 }
+int OutputMonitor::GetPixelCount(int port) {
+    if (port < portPins.size()) {
+        return portPins[port]->pixelCount;
+    }
+    return 0;
+}
+
 
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> OutputMonitor::render_GET(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();

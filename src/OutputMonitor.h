@@ -39,8 +39,12 @@ public:
 
     virtual HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
 
+    int getGroupCount() const { return numGroups; }
+    void lockToGroup(int i);
+    bool isPortInGroup(int group, int port);
     std::vector<float> GetPortCurrentValues();
     void SetPixelCount(int port, int pc);
+    int GetPixelCount(int port);
 private:
     OutputMonitor();
     ~OutputMonitor();
@@ -50,4 +54,6 @@ private:
 
     std::map<std::string, const PinCapabilities *> fusePins;
     std::vector<PortPinInfo*> portPins;
+    int numGroups = 1;
+    int curGroup = -1;
 };

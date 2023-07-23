@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 
 #include "PixelFadeStringTester.h"
+#include "../PixelString.h"
 
 uint8_t* PixelFadeStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) {
     newLen = ps->m_outputChannels;

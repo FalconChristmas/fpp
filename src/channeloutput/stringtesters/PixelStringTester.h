@@ -11,7 +11,8 @@
  * included LICENSE.GPL file.
  */
 
-#include "../PixelString.h"
+class PixelString;
+class VirtualString;
 
 class PixelStringTester {
 protected:
@@ -21,6 +22,7 @@ protected:
     void fillInSmartReceiver(PixelString* ps, VirtualString& vs, uint8_t* inChannelData, uint32_t &offset, uint8_t* &outChannelData) const;
     
 public:
+    virtual void prepareTestData(int cycleCount, float percentOfCycle) {}
     virtual uint8_t* createTestData(PixelString* string, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) = 0;
 
     static PixelStringTester* getPixelStringTester(int i);

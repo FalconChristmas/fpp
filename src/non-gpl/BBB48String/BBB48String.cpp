@@ -571,6 +571,7 @@ void BBB48StringOutput::prepData(FrameData& d, unsigned char* channelData) {
     PixelStringTester *tester = nullptr;
     if (m_testType && m_testCycle >= 0) {
         tester = PixelStringTester::getPixelStringTester(m_testType);
+        tester->prepareTestData(m_testCycle, m_testPercent);
     }
     int numStrings = d.gpioStringMap.size();
     uint32_t newMaxLen = 0;

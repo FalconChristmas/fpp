@@ -17,8 +17,11 @@
 #include "../channeloutputthread.h"
 #include "../../Timers.h"
 #include "../../channeltester/ChannelTester.h"
+#include "../PixelString.h"
 
 #include <inttypes.h>
+
+// #define PRINT_DEBUG_INFO
 
 uint8_t* PixelCountPixelStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) {
     newLen = ps->m_outputChannels;
@@ -83,206 +86,220 @@ PixelCountPixelStringTester PixelCountPixelStringTester::INSTANCE_BYSTRING(true)
 constexpr int PIXELS_PER_BLOCK = 10;
 constexpr int FRAMES_PER_BLOCK = 8;
 constexpr int WARMUP_TIME = 250;
-constexpr int BASELINE_TIME = 750;
+constexpr int BASELINE_TIME = 600;
+
+constexpr int STATE_WARMUP = 0;
+constexpr int STATE_BASELINE = 2;
+constexpr int STATE_BLOCKS = 3;
+constexpr int STATE_BACKOFF = 4;
+constexpr int STATE_DONE_GROUP = 998;
+constexpr int STATE_DISPLAY_PIXEL = 999;
+
+
+void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, float percentOfCycle) {
+    currentTimeMS = GetTimeMS();
+    if (cycleCount == 0) {
+        curGroup = 0;
+        OutputMonitor::INSTANCE.lockToGroup(curGroup);
+        changeCount = 0;
+        noChangeCount = 0;
+        currentState = 0;
+        startTimeMS = currentTimeMS;
+        baseValues.clear();
+        lastValues.clear();
+        SetChannelOutputRefreshRate(40);
+    }
+    if ((currentTimeMS - startTimeMS) < WARMUP_TIME) {
+        currentState = STATE_WARMUP;
+    } else if ((currentTimeMS - startTimeMS) < BASELINE_TIME) {
+        curValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
+        if (currentState != STATE_BASELINE) {
+            for (int x = 0; x < testingPort.size(); x++) {
+                testingPort[x] = OutputMonitor::INSTANCE.isPortInGroup(curGroup, x) ? 1 : 0;
+                if (testingPort[x]) {
+                    lastPixelIdx[x] = -1;
+                }
+            }
+        }
+        currentState = STATE_BASELINE;
+        if (baseValues.size() == 0) {
+            baseValues = curValues;
+            for (int x = 0; x < lastPixelIdx.size(); x++) {
+                OutputMonitor::INSTANCE.SetPixelCount(x, -1);
+            }
+        } else {
+            for (int x = 0; x < baseValues.size(); x++) {
+                if (baseValues[x] < 5) {
+                    baseValues[x] = curValues[x];
+                } else {
+                    baseValues[x] = std::min(baseValues[x], curValues[x]);
+                }
+            }
+#ifdef PRINT_DEBUG_INFO
+            printf("%d - ", (int)(currentTimeMS - startTimeMS));
+            for (int x = 0; x < baseValues.size(); x++) {
+                printf("%d: %0.1f/%0.1f/%d/%d    ", x, baseValues[x], curValues[x], lastPixelIdx[x], testingPort[x]);
+            }
+            printf("\n");
+#endif
+        }
+    } else if (currentState == STATE_DONE_GROUP) {
+        for (int x = 0; x < testingPort.size(); x++) {
+            if (testingPort[x]) {
+                OutputMonitor::INSTANCE.SetPixelCount(x, lastPixelIdx[x]);
+            }
+        }
+         if (curGroup < (OutputMonitor::INSTANCE.getGroupCount() - 1)) {
+            ++curGroup;
+            OutputMonitor::INSTANCE.lockToGroup(curGroup);
+            cycleCount = 0;
+            startTimeMS = currentTimeMS - WARMUP_TIME;
+        } else {
+            OutputMonitor::INSTANCE.lockToGroup(-1);
+            currentState = STATE_DISPLAY_PIXEL;
+        }
+    } else if (currentState == STATE_DISPLAY_PIXEL) {
+        
+    } else if (currentState == STATE_BACKOFF) {
+        ++frameInState;
+        curValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
+        if (frameInState == FRAMES_PER_BLOCK) {
+            int changeCount = 0;
+            for (int x = 0; x < testingPort.size(); x++) {
+                if (testingPort[x] && lastPixelIdx[x] > 0) {
+                    float diff = curValues[x] - baseValues[x];
+                    if (diff < 12) {
+                        lastPixelIdx[x]--;
+                        changeCount++;
+                    }
+                }
+            }
+            if (changeCount == 0) {
+                currentState = STATE_DONE_GROUP;
+            }
+            frameInState = 0;
+        }
+        
+#ifdef PRINT_DEBUG_INFO
+        printf("%d - ", currentState);
+        for (int x = 0; x < baseValues.size(); x++) {
+            if (testingPort[x]) {
+                printf("%d: %0.1f/%0.1f/%d    ", x, baseValues[x], curValues[x], lastPixelIdx[x]);
+            }
+        }
+        printf("\n");
+#endif
+    } else if (currentState == STATE_BLOCKS) {
+        curValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
+        
+        int cc = frameInState / FRAMES_PER_BLOCK;
+        int fib = frameInState % FRAMES_PER_BLOCK;
+        if (cc < 0) cc = 0;
+        int idx = cc * PIXELS_PER_BLOCK;
+
+        if (fib == (FRAMES_PER_BLOCK - 1)) {
+            for (int x = 0; x < curValues.size(); x++) {
+                if (testingPort[x] && lastPixelIdx[x] == -1) {
+                    if (curValues[x] < baseValues[x]) {
+                        baseValues[x] = curValues[x];
+                    }
+                    float diff = curValues[x] - baseValues[x];
+                    if (diff < 15) {
+                        lastPixelIdx[x] = idx;
+                    }
+                }
+            }
+        }
+        
+        if (idx > 500) {
+            for (int x = 0; x < lastPixelIdx.size(); x++) {
+                if (testingPort[x] && lastPixelIdx[x] == -1) {
+                    //wasn't able to detect an end, set to 0
+                    lastPixelIdx[x] = 0;
+                }
+            }
+        }
+        int count = 0;
+        int countTesting = 0;
+        for (int x = 0; x < lastPixelIdx.size(); x++) {
+            if (testingPort[x]) {
+                if (lastPixelIdx[x] >= 0) {
+                    count++;
+                }
+                countTesting++;
+            }
+        }
+#ifdef PRINT_DEBUG_INFO
+        printf("%d/%d - ", currentState, idx);
+        for (int x = 0; x < baseValues.size(); x++) {
+            if (testingPort[x]) {
+                printf("%d: %0.1f/%0.1f/%d    ", x, baseValues[x], curValues[x], lastPixelIdx[x]);
+            }
+        }
+        printf("\n");
+#endif
+        if (count == countTesting) {
+            // found the end block of all the strings
+            // flip to finer attempts
+            currentState = STATE_BACKOFF;
+            frameInState = 0;
+        } else {
+            ++frameInState;
+        }
+    } else if (currentState == STATE_BASELINE) {
+        //transition out of baseline and into blocks
+        curValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
+        currentState = STATE_BLOCKS;
+        frameInState = 0;
+    } else {
+        curValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
+    }
+}
 
 uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) {
     newLen = 2000; // up to 500 4channel pixels
     uint8_t* buffer = ps->m_outputBuffer;
-
     int currentPort = ps->m_portNumber;
-    if (cycleCount == 0) {
-        firstPort = std::min(currentPort, firstPort);
-        changeCount = 0;
-        noChangeCount = 0;
-        currentState = 0;
-        currentTimeMS = GetTimeMS();
-        startTimeMS = currentTimeMS;
-        baseValues.clear();
-        lastValues.clear();
-        while (lastPixelIdx.size() <= currentPort) {
-            lastPixelIdx.push_back(0);
-            testingPort.push_back(0);
-        }
-        lastPixelIdx[currentPort] = -1;
-        testingPort[currentPort] = true;
-        if (currentPort <= lastPort) {
-            SetChannelOutputRefreshRate(40);
-        }
-    }
-    if (currentPort <= lastPort) {
-        currentTimeMS = GetTimeMS();
-    }
-    if ((currentTimeMS - startTimeMS) < WARMUP_TIME) {
+
+    if (currentState == STATE_WARMUP) {
         // turn everything on for a short time to warm up
         memset(buffer, 10, newLen);
-    } else if ((currentTimeMS - startTimeMS) < BASELINE_TIME) {
-        // turn everything off
-        memset(buffer, 0, newLen);
-        testingPort[currentPort] = true;
-        // 1/4 second to fully stabilize a baseline
-        if (currentPort <= lastPort) {
-            if (baseValues.size() == 0) {
-                baseValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
-                for (int x = 0; x < lastPixelIdx.size(); x++) {
-                    OutputMonitor::INSTANCE.SetPixelCount(x, -1);
-                }
-            } else {
-                std::vector<float> v = OutputMonitor::INSTANCE.GetPortCurrentValues();
-                for (int x = 0; x < baseValues.size(); x++) {
-                    if (baseValues[x] < 5) {
-                        baseValues[x] = v[x];
-                    } else {
-                        baseValues[x] = std::min(baseValues[x], v[x]);
-                    }
-                }
-                /*
-                printf("%d - ", (int)(currentTimeMS - startTimeMS));
-                for (int x = 0; x < baseValues.size(); x++) {
-                    printf("%d: %0.3f/%0.3f    ", x, baseValues[x], v[x]);
-                }
-                printf("\n");
-                */
-            }
+        while (lastPixelIdx.size() <= currentPort) {
+            lastPixelIdx.push_back(-1);
+            testingPort.push_back(0);
         }
-        lastIdx = -1;
-        curOutCount = 0;
-    } else {
-        if (currentState == 1) {
-            int count = 0;
-            for (auto i : lastPixelIdx) {
-                if (i >= 0) {
-                    count++;
-                }
-            }
-            if (count == lastPixelIdx.size()) {
-                // found the end block of all the strings
-                // flip to finer attempts
-                currentState = 2;
-                curOutCount = 1;
-            }
-        } else if (currentState == 0) {
-            currentState = 1;
-            for (int x = 0; x < lastPixelIdx.size(); x++) {
-                lastPixelIdx[x] = testingPort[x] ? -1 : 0;
-            }
-        }
+    } else if (currentState == STATE_BASELINE) {
+        // turn everything off to establish a baseline
         memset(buffer, 0, newLen);
-
-        if (currentState == 1) {
+    } else if (currentState == STATE_BLOCKS) {
+        memset(buffer, 0, newLen);
+        if (testingPort[currentPort]) {
             int cpn = ps->m_virtualStrings[0].channelsPerNode();
-            int cc = curOutCount / FRAMES_PER_BLOCK;
+            int cc = frameInState / FRAMES_PER_BLOCK;
             if (cc < 0) cc = 0;
             int idx = cc * PIXELS_PER_BLOCK;
-
-            if (currentPort <= lastPort || lastValues.empty()) {
-                curOutCount++;
-                valuesIdx = lastValues.empty() ? 0 :lastIdx;
-                lastValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
-                for (int x = 0; x < lastValues.size(); x++) {
-                    if (lastValues[x] < baseValues[x]) {
-                        baseValues[x] = lastValues[x];
-                    }
-                }
-                lastIdx = idx;
-
-                if (idx > 500) {
-                    for (int x = 0; x < lastPixelIdx.size(); x++) {
-                        if (lastPixelIdx[x] == -1) {
-                            //wasn't able to detect an end, set to 0
-                            lastPixelIdx[x] = 0;
-                        }
-                    }
-                    currentState = 2;
-                    curOutCount = 1;
-                }
-                /*
-                printf("1  %d - ", (int)(currentTimeMS - startTimeMS));
-                for (int x = 0; x < lastValues.size(); x++) {
-                    printf("%d: %0.3f    ", x, lastValues[x]);
-                }
-                printf("\n");
-                */
-            }
-
-            if (valuesIdx >= 0 && (idx != valuesIdx )&& lastPixelIdx[currentPort] == -1 && !lastValues.empty()) {
-                if (currentPort < baseValues.size()) {
-                    float diff = lastValues[currentPort] - baseValues[currentPort];
-                    if (diff < 15) {
-                        lastPixelIdx[ps->m_portNumber] = valuesIdx == 0 ? 0 : (valuesIdx - 1);
-                    }
-                } else {
-                    lastPixelIdx[currentPort] = 0;
-                }
-            }
-            if (currentState == 1) {
-                memset(&buffer[idx * cpn], 0xFF, PIXELS_PER_BLOCK * cpn);            
-            }
-        } 
-        if (currentState == (11 + PIXELS_PER_BLOCK)) {
-            for (int x = 0; x < lastPixelIdx.size(); x++) {
-                //printf("Port %d:    %d\n", x, (lastPixelIdx[x] > 0 ?  lastPixelIdx[x] + 1 : 0));
-                if (testingPort[x]) {
-                    OutputMonitor::INSTANCE.SetPixelCount(x, lastPixelIdx[x] > 0 ? lastPixelIdx[x] + 1 : 0);
-                }
-            }
-            if (currentPort == firstPort) {
-                //static std::function<void()> STOP_TESTING = []() {
-                //    ChannelTester::INSTANCE.StopTest();
-                //};
-                //Timers::INSTANCE.addTimer("Stop Pixel Count", GetTimeMS() - 50, STOP_TESTING);
-                //printf("%d:  %d %d %d\n", currentState, currentPort, firstPort, lastPort);
-            }
-            if (lastPixelIdx[currentPort] > 0) {
-                int idx = lastPixelIdx[currentPort];
-                int cpn = ps->m_virtualStrings[0].channelsPerNode();
-                memset(&buffer[idx * cpn], 0xFF, cpn);
-            }
-        } else if (currentState >= 4 && currentState < (10 + PIXELS_PER_BLOCK)) {
-            int lastState = currentState;
-            if (currentPort == firstPort) {
-                //printf("%d    ncc: %d     cc: %d\n", currentState, noChangeCount, changeCount);
-                if (currentState > 4 && changeCount == 0) {
-                    if (noChangeCount == 2) {
-                        currentState = (10 + PIXELS_PER_BLOCK);
-                    }
-                    noChangeCount++;
-                } else {
-                    noChangeCount = 0;
-                }
-                if (curOutCount == (FRAMES_PER_BLOCK + 2)) {
-                    lastValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
-                    curOutCount = 0;
-                    currentState++;
-                    changeCount = 0;
-                } else {
-                    ++curOutCount;
-                }
-                /*
-                printf("%d/%d   %d - ", currentState, curOutCount, (int)(currentTimeMS - startTimeMS));
-                for (int x = 0; x < lastValues.size(); x++) {
-                    printf("%d: %0.3f    ", x, lastValues[x]);
-                }
-                printf("\n");
-                */
-            }
-            if (lastPixelIdx[currentPort] > 0) {
-                int idx = lastPixelIdx[currentPort];
-                int cpn = ps->m_virtualStrings[0].channelsPerNode();
-                if (curOutCount == 0) {
-                    float diff = lastValues[currentPort] - baseValues[currentPort];
-                    if (diff < 12) {
-                        lastPixelIdx[currentPort]--;
-                        idx--;
-                        changeCount++;
-                    }
-                }
-                memset(&buffer[idx * cpn], 0xFF, cpn);
-            }
-        } else if (currentState > 1) {
-            currentState++;
+            memset(&buffer[idx * cpn], 0xFF, PIXELS_PER_BLOCK * cpn);
+        } else if (lastPixelIdx[currentPort] > 0) {
+            int idx = lastPixelIdx[currentPort] - 1;
+            int cpn = ps->m_virtualStrings[0].channelsPerNode();
+            memset(&buffer[idx * cpn], 0xFF, cpn);
         }
+    } else if (currentState == STATE_BACKOFF) {
+        memset(buffer, 0, newLen);
+        if (lastPixelIdx[currentPort] > 0) {
+            int idx = lastPixelIdx[currentPort] - 1;
+            int cpn = ps->m_virtualStrings[0].channelsPerNode();
+            memset(&buffer[idx * cpn], 0xFF, cpn);
+        }
+    } else if (currentState == STATE_DISPLAY_PIXEL || currentState == STATE_DONE_GROUP) {
+        memset(buffer, 0, newLen);
+        int idx = lastPixelIdx[currentPort] - 1;
+        int cpn = ps->m_virtualStrings[0].channelsPerNode();
+        memset(&buffer[idx * cpn], 0xFF, cpn);
+    } else {
+        printf("Unknown state %d\n", currentState);
+        memset(buffer, 0, newLen);
     }
-    lastPort = currentPort;
     return buffer;
 }
 

@@ -243,6 +243,7 @@ void RPIWS281xOutput::PrepData(unsigned char* channelData) {
     PixelStringTester *tester = nullptr;
     if (m_testType && m_testCycle >= 0) {
         tester = PixelStringTester::getPixelStringTester(m_testType);
+        tester->prepareTestData(m_testCycle, m_testPercent);
     }
     for (int s = 0; s < m_strings.size(); s++) {
         PixelString* ps = m_strings[s];

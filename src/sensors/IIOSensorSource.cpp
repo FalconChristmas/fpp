@@ -65,6 +65,9 @@ IIOSensorSource::~IIOSensorSource() {
 }
 void IIOSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
     if (usingBuffers) {
+        if (iioDevFile >= 0) {
+            return;
+        }
         char buf[256];
         snprintf(buf, 256, "/sys/bus/iio/devices/iio:device%d/buffer/length", iioDevNumber);
         int f = open(buf, O_WRONLY);

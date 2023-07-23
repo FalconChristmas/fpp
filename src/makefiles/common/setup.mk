@@ -10,8 +10,13 @@ CC := g++
 #CC := clang++
 
 ifneq ($(wildcard /usr/bin/ccache),)
+ifeq ($(DISTCC_HOSTS),)
 	CCACHE = ccache
+else
+	CCACHE = ccache distcc
 endif
+endif
+
 
 TARGETS =
 SUBMODULES =
@@ -38,8 +43,12 @@ endif
 ifeq '$(CXXCOMPILER)' 'g++'
     GCCVERSIONGTEQ9:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 9)
     # Common CFLAGS
+ifeq ($(DISTCC_HOSTS),)
     PCH_FILE=fpp-pch.h.gch
-    CFLAGS+=-fpch-preprocess
+	CFLAGS+=-fpch-preprocess
+else
+	CFLAGS+=-DNOPCH
+endif
     OPTIMIZE_FLAGS=-O3 -Wno-psabi
     debug: OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
     CXXFLAGS += -std=gnu++2a
