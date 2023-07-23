@@ -84,9 +84,9 @@ PixelCountPixelStringTester PixelCountPixelStringTester::INSTANCE_BYPORT(false);
 PixelCountPixelStringTester PixelCountPixelStringTester::INSTANCE_BYSTRING(true);
 
 constexpr int PIXELS_PER_BLOCK = 10;
-constexpr int FRAMES_PER_BLOCK = 8;
+constexpr int FRAMES_PER_BLOCK = 10;
 constexpr int WARMUP_TIME = 250;
-constexpr int BASELINE_TIME = 600;
+constexpr int BASELINE_TIME = 750;
 
 constexpr int STATE_WARMUP = 0;
 constexpr int STATE_BASELINE = 2;
@@ -107,7 +107,7 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
         startTimeMS = currentTimeMS;
         baseValues.clear();
         lastValues.clear();
-        SetChannelOutputRefreshRate(40);
+        SetChannelOutputRefreshRate(20);
     }
     if ((currentTimeMS - startTimeMS) < WARMUP_TIME) {
         currentState = STATE_WARMUP;

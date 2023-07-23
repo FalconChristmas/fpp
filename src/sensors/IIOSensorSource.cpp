@@ -71,7 +71,7 @@ void IIOSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
         char buf[256];
         snprintf(buf, 256, "/sys/bus/iio/devices/iio:device%d/buffer/length", iioDevNumber);
         int f = open(buf, O_WRONLY);
-        write(f, "16\n", 2);
+        write(f, "8\n", 2);
         close(f);
 
 
