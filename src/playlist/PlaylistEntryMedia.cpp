@@ -103,6 +103,10 @@ int PlaylistEntryMedia::PreparePlay() {
         FinishPlay();
         return 0;
     }
+    mediaOutputStatus.minutesTotal = 0;
+    mediaOutputStatus.secondsTotal = 0;
+    mediaOutputStatus.secondsElapsed = 0;
+    mediaOutputStatus.subSecondsElapsed = 0;
 
     if (m_fileMode != "single") {
         if (m_files.size()) {
@@ -250,6 +254,11 @@ int PlaylistEntryMedia::Stop(void) {
     Events::Publish("playlist/media/status", "");
     Events::Publish("playlist/media/title", "");
     Events::Publish("playlist/media/artist", "");
+
+    mediaOutputStatus.minutesTotal = 0;
+    mediaOutputStatus.secondsTotal = 0;
+    mediaOutputStatus.secondsElapsed = 0;
+    mediaOutputStatus.subSecondsElapsed = 0;
 
     return PlaylistEntryBase::Stop();
 }
