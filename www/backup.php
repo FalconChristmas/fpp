@@ -2665,12 +2665,13 @@ function CopyDone() {
 
 function CopyTimeoutError() {
     var fpp_backup_filecopy_log_url = "api/file/Logs/fpp_backup_filecopy.log";
-    var timeoutErrorMessage = "!!! A connection error or timeout has occurred, unable to continue tracking file copy progress... The copy is still running in the background and will complete in due course. " +
-        "Attempting to tail it's fallback log file... !!! \n\n";
+    var timeoutErrorMessage = "!!! Attempting to track file copy process via it's fallback log file... \n" +
+        " The file copy is still running in the background and will complete in due course. Progress updates will appear periodically. !!! \n\n ";
     var noNewDataErrorMessage = "";
     var iterations = 0;
-    var noNewDataIterationCount = 600; // The interval is every second so 600 iterations  = 10minutes
-    var noNewDataIterationHardLimit = 900 // 15 minutes - Consider the process failed if no new log data received in 15 minutes
+    var iterationsWithNoDataWarningsIssued = 1;
+    var noNewDataIterationCount = 600; // The interval is every second so 600 iterations = 10minutes
+    // var noNewDataIterationHardLimit = 900; // 15 minutes - Consider the process failed if no new log data received in 15 minutes
     var last_response_len = 0;
 
     //cache the reference to the element
@@ -2706,14 +2707,15 @@ function CopyTimeoutError() {
                     }
 
                     //Check if it's been more than 10 minutes that the data has remained unchanged
-                    if (iterations === noNewDataIterationCount) {
+                    if (iterations === (noNewDataIterationCount * iterationsWithNoDataWarningsIssued)) {
+                        iterationsWithNoDataWarningsIssued += 1;
                         //Some error occurred
-                        noNewDataErrorMessage = "!!! WARNING: No new data has been received in over " + noNewDataIterationCount + " seconds !!! \n\n";
+                        noNewDataErrorMessage = "!!! WARNING: No new log entries has been received in over " + Math.floor(iterations / 60) + " minutes, still waiting.... !!! \n\n";
                     }
-                    if (iterations >= noNewDataIterationHardLimit) {
-                        //Some error occurred
-                        noNewDataErrorMessage = "!!! ERROR: No new data has been received in over " + noNewDataIterationHardLimit + " seconds - File Copy Backup process has likely failed !!! \n\n";
-                    }
+                    // if (iterations >= noNewDataIterationHardLimit) {
+                    //     //Some error occurred
+                    //     noNewDataErrorMessage = "!!! ERROR: No new log entries has been received in over " + noNewDataIterationHardLimit + " seconds - File Copy Backup process has likely failed !!! \n\n";
+                    // }
 
                     //This is a bit ugly, but put our error message first (just to inform the user), then the contents of the log file every time
                     outputArea.val(timeoutErrorMessage + text + noNewDataErrorMessage);
@@ -2724,7 +2726,7 @@ function CopyTimeoutError() {
                     //Check for device unmounted text - if this exists then the process has completed... the file should be removed at the end
                     //but this is just a failsafe in case it wasn't
                     //exit if we hit the hard limit
-                    if ((iterations >= noNewDataIterationHardLimit) || text.includes("unmounted from")) {
+                    if (text.includes("unmounted from") || text.length === 0) {
                         clearInterval(tailLogInterval);
                         CopyDone();
                     }

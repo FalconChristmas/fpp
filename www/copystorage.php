@@ -1,4 +1,5 @@
 <?php
+$skipJSsettings = 1;
 include "./common.php";
 // Ignore user aborts and allow the script to continue running
 session_write_close();
@@ -64,8 +65,9 @@ Copy Settings
 
         sleep (2);
 
-        #finally remove the log file since we're done
-        unlink($tee_log_file);
+        #finally rename the log file since we're done
+        $new_filename = str_replace(".log", "_last.log", $tee_log_file);
+        rename($tee_log_file, $new_filename);
 if (!$wrapped) {
 ?>
 
