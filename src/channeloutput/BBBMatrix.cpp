@@ -15,6 +15,12 @@
 #include "BBBMatrix.h"
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <cmath>
+#include <fstream>
+
+#include "../log.h"
+#include "../common.h"
+#include "../Warnings.h"
 
 #include "overlays/PixelOverlay.h"
 #include "util/BBBUtils.h"

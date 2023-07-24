@@ -15,6 +15,7 @@
 #include "BBBUtils.h"
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 static BeagleBoneType BBB_TYPE = Unknown;
 BeagleBoneType getBeagleBoneType() {

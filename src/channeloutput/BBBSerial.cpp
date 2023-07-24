@@ -13,6 +13,13 @@
 #include "fpp-pch.h"
 
 #include <sys/wait.h>
+#include <unistd.h>
+#include <fstream>
+
+#include "../Warnings.h"
+#include "../log.h"
+#include "../common.h"
+
 
 #define BBB_PRU 0
 //  #define USING_PRU_RAM
