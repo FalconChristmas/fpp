@@ -13,6 +13,8 @@
 
 #include "fpp-pch.h"
 
+#include <unistd.h>
+
 #include <sys/wait.h>
 #include <arm_neon.h>
 #include <tuple>

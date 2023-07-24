@@ -14,6 +14,9 @@
 #include "fpp-pch.h"
 
 #include <sys/wait.h>
+#include <unistd.h>
+
+#include <fstream>
 
 #define BBB_PRU 1
 
