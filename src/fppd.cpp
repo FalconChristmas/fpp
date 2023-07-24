@@ -24,7 +24,6 @@
 
 #include <Magick++/Image.h>
 #include <SDL2/SDL_events.h>
-#include <bits/getopt_core.h>
 #include <curl/curl.h>
 #include <magick/magick.h>
 #include <sys/stat.h>
@@ -45,7 +44,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <string>
-#include <syscall.h>
 #include <thread>
 #include <unistd.h>
 #include <utility>

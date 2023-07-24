@@ -12,7 +12,6 @@
 
 #include "fpp-pch.h"
 
-#include <bits/types/struct_tm.h>
 #include <ctime>
 #include <ctype.h>
 #include <fstream>

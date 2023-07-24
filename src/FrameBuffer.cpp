@@ -12,10 +12,10 @@
 
 #include "fpp-pch.h"
 
-#include <bits/types/struct_iovec.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <cstring>
 #include <ctime>
 #include <errno.h>

@@ -18,7 +18,6 @@
 #include <Magick++/Image.h>
 #include <Magick++/Include.h>
 #include <Magick++/TypeMetric.h>
-#include <ext/alloc_traits.h>
 #include <magick/image.h>
 #include <algorithm>
 #include <cstdint>

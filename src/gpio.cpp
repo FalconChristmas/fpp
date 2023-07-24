@@ -13,7 +13,6 @@
 #include "fpp-pch.h"
 
 #include <array>
-#include <gpiod.h>
 #include <httpserver.hpp>
 #include <list>
 #include <map>

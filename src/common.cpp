@@ -17,10 +17,7 @@
 #endif
 
 #include <arpa/inet.h>
-#include <bits/types/struct_tm.h>
 #include <curl/curl.h>
-#include <jsoncpp/json/reader.h>
-#include <jsoncpp/json/writer.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <sys/file.h>

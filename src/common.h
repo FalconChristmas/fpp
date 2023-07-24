@@ -18,8 +18,6 @@
 #include <string>
 #include <vector>
 
-#include <jsoncpp/json/reader.h>
-#include <jsoncpp/json/writer.h>
 
 #include "log.h"
 

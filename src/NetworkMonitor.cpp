@@ -12,11 +12,11 @@
 
 #include "fpp-pch.h"
 
-#include <bits/types/struct_iovec.h>
-#include <linux/if_addr.h>
 #ifndef PLATFORM_OSX
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <bits/types/struct_iovec.h>
+#include <linux/if_addr.h>
 #endif
 #include <net/if.h>
 #include <sys/socket.h>

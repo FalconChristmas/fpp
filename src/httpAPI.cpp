@@ -18,8 +18,6 @@
 #include <sys/sysinfo.h>
 #endif
 
-#include <linux/sysinfo.h>
-#include <sys/sysinfo.h>
 #include <cstdlib>
 #include <ctime>
 #include <cxxabi.h>

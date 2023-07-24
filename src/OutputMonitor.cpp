@@ -12,7 +12,6 @@
 
 #include "fpp-pch.h"
 
-#include <ext/alloc_traits.h>
 #include <cmath>
 #include <fcntl.h>
 #include <httpserver.hpp>

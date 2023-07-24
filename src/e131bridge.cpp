@@ -17,9 +17,9 @@
 #endif
 
 #include <arpa/inet.h>
-#include <bits/types/struct_iovec.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <algorithm>
 #include <cstdlib>
 #include <errno.h>

@@ -23,9 +23,6 @@
 #include <Magick++/Color.h>
 #include <Magick++/Geometry.h>
 #include <Magick++/Image.h>
-#include <bits/types/struct_tm.h>
-#include <ext/alloc_traits.h>
-#include <jsoncpp/json/config.h>
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <algorithm>

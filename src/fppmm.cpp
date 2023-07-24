@@ -12,7 +12,6 @@
 
 #include "fpp-pch.h"
 
-#include <bits/getopt_core.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <cstring>

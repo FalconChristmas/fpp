@@ -23,6 +23,7 @@
 #include <string>
 #include <unistd.h>
 #include <utility>
+#include <pwd.h>
 
 #include "common.h"
 #include "log.h"

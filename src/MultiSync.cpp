@@ -13,9 +13,8 @@
 #include "fpp-pch.h"
 
 #include <arpa/inet.h>
-#include <bits/types/struct_tm.h>
 #include <curl/curl.h>
-#include <ext/alloc_traits.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <algorithm>

@@ -28,7 +28,7 @@ public:
     virtual void enable(int id) override;
     virtual int32_t getValue(int id) override;
 
-    virtual void lockToGroup(int i);
+    virtual void lockToGroup(int i) override;
 private:
     
     void setGroupPins();

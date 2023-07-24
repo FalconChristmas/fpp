@@ -13,8 +13,6 @@
 #include "fpp-pch.h"
 
 #include "command.h"
-#include <jsoncpp/json/config.h>
-#include <jsoncpp/json/value.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
