@@ -15,6 +15,7 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <thread>
 
 #include "GPIOUtils.h"
 #include "commands/Commands.h"
@@ -25,7 +26,6 @@ static NoPinCapabilities NULL_PIN_INSTANCE("-none-", 0);
 const NoPinCapabilities& NoPinCapabilitiesProvider::getPinByName(const std::string& name) { return NULL_PIN_INSTANCE; }
 const NoPinCapabilities& NoPinCapabilitiesProvider::getPinByGPIO(int i) { return NULL_PIN_INSTANCE; }
 const NoPinCapabilities& NoPinCapabilitiesProvider::getPinByUART(const std::string& n) { return NULL_PIN_INSTANCE; }
-
 
 Json::Value PinCapabilities::toJSON() const {
     Json::Value ret;

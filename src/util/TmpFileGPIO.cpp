@@ -13,6 +13,9 @@
 #include "fpp-pch.h"
 
 #include <fcntl.h>
+#include <unistd.h>
+
+#include "../common.h"
 
 #include "TmpFileGPIO.h"
 

@@ -12,17 +12,22 @@
 
 #include "fpp-pch.h"
 
-#include "Sensors.h"
-
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <fstream>
+#include <iomanip>
+#include <thread>
+#include <unistd.h>
 
-#include <sys/ioctl.h>
+#include "../common.h"
 
-#include "util/I2CUtils.h"
 #include "ADS7828.h"
 #include "IIOSensorSource.h"
 #include "MuxSensorSource.h"
+#include "util/I2CUtils.h"
+
+#include "Sensors.h"
 
 #ifdef PLATFORM_BBB
 #define I2C_DEV 2
@@ -219,7 +224,8 @@ public:
 
 class SensorSourceSensor : public Sensor {
 public:
-    explicit SensorSourceSensor(Json::Value& s) : Sensor(s) {
+    explicit SensorSourceSensor(Json::Value& s) :
+        Sensor(s) {
         if (s.isMember("scale")) {
             scale = s["scale"].asDouble();
         }
@@ -257,7 +263,7 @@ public:
         }
         return 0.0f;
     }
-    SensorSource *source = nullptr;
+    SensorSource* source = nullptr;
     double scale = 1.0;
     double offset = 0.0;
     double min = 0.0;
@@ -358,7 +364,6 @@ public:
 Sensors Sensors::INSTANCE;
 
 Sensors::Sensors() {
-
 }
 Sensors::~Sensors() {
     for (auto x : sensorSources) {
@@ -367,12 +372,10 @@ Sensors::~Sensors() {
     sensorSources.clear();
 }
 void Sensors::Init(std::map<int, std::function<bool(int)>>& callbacks) {
-    
     for (auto it = sensorSources.rbegin(); it != sensorSources.rend(); ++it) {
         (*it)->Init(callbacks);
     }
 }
-
 
 void Sensors::addSensorSources(Json::Value& config) {
     for (int x = 0; x < config.size(); x++) {
@@ -388,11 +391,11 @@ void Sensors::addSensorSources(Json::Value& config) {
     }
 }
 void Sensors::updateSensorSources(bool forceInstant) {
-    for (auto &ss : sensorSources) {
+    for (auto& ss : sensorSources) {
         ss->update(forceInstant);
     }
 }
-SensorSource *Sensors::getSensorSource(const std::string &name) {
+SensorSource* Sensors::getSensorSource(const std::string& name) {
     for (auto ss : sensorSources) {
         if (ss->getID() == name) {
             return ss;
@@ -403,18 +406,17 @@ SensorSource *Sensors::getSensorSource(const std::string &name) {
         Json::Value v;
         v["type"] = "iio";
         v["id"] = "iio";
-        SensorSource *ss = new IIOSensorSource(v);
+        SensorSource* ss = new IIOSensorSource(v);
         sensorSources.push_back(ss);
         return ss;
     }
     return nullptr;
 }
 void Sensors::lockToGroup(int i) {
-    for (auto ss: sensorSources) {
+    for (auto ss : sensorSources) {
         ss->lockToGroup(i);
     }
 }
-
 
 void Sensors::DetectHWSensors() {
     int i = 0;

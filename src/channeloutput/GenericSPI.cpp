@@ -15,6 +15,9 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include "../log.h"
+
+
 #include "GenericSPI.h"
 
 #define MAX_CHANNELS 16777215

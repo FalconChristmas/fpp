@@ -19,8 +19,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "log.h"
-#include "settings.h"
+#include "../log.h"
+#include "../settings.h"
 
 #include "SPInRF24L01.h"
 

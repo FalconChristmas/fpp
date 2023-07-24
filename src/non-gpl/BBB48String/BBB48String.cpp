@@ -20,6 +20,11 @@
 //  #define PRINT_STATS
 
 // FPP includes
+#include "../../Sequence.h"
+#include "../../Warnings.h"
+#include "../../common.h"
+#include "../../log.h"
+
 #include "BBB48String.h"
 #include "../CapeUtils/CapeUtils.h"
 #include "channeloutput/stringtesters/PixelStringTester.h"

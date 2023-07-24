@@ -44,6 +44,8 @@
  */
 #include "fpp-pch.h"
 
+#include "../log.h"
+
 #include "MCP23017.h"
 
 #define MCP23x17_IOCON 0x0A

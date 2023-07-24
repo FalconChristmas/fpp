@@ -12,6 +12,7 @@
  */
 
 #include <array>
+#include <mutex>
 
 #include "Sensors.h"
 
@@ -27,7 +28,7 @@ public:
     virtual int32_t getValue(int id) { return values[id]; };
 
 private:
-    I2CUtils *i2c = nullptr;
+    I2CUtils* i2c = nullptr;
     int i2cBus = 0;
     int i2cAddress = 0x48;
     bool internalRefVoltage = true;
@@ -39,7 +40,7 @@ private:
     class BufferedData {
     public:
         uint64_t timestamp;
-        int32_t  value[8];
+        int32_t value[8];
     };
     std::list<BufferedData> bufferValues;
 };

@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../../log.h"
+
 #include "HoldValueOutputProcessor.h"
 
 HoldValueOutputProcessor::HoldValueOutputProcessor(const Json::Value& config) {

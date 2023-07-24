@@ -12,6 +12,9 @@
 
 #include "fpp-pch.h"
 
+#include "../common.h"
+#include "../log.h"
+
 #include "TestPatternBase.h"
 #include "channeloutput/ChannelOutputSetup.h"
 #include "overlays/PixelOverlay.h"

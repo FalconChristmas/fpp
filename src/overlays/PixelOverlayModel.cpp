@@ -12,27 +12,50 @@
 
 #include "fpp-pch.h"
 
-#include <Magick++.h>
-
-#include <magick/type.h>
-
-#include <sys/mman.h>
-#include <fcntl.h>
 #if __has_include(<sys/posix_shm.h>)
 #include <sys/posix_shm.h>
 #else
 #include <limits.h>
 #define PSHMNAMLEN NAME_MAX
 #endif
+
+#include <Magick++/Blob.h>
+#include <Magick++/Color.h>
+#include <Magick++/Geometry.h>
+#include <Magick++/Image.h>
+#include <bits/types/struct_tm.h>
+#include <ext/alloc_traits.h>
+#include <jsoncpp/json/config.h>
+#include <sys/mman.h>
 #include <sys/time.h>
+#include <algorithm>
+#include <cstdint>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <list>
+#include <memory>
+#include <mutex>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <string>
 #include <time.h>
+#include <unistd.h>
+#include <utility>
+#include <vector>
+
+#include "../Plugins.h"
+#include "../Sequence.h"
+#include "../commands/Commands.h"
+#include "../common.h"
+#include "../effects.h"
+#include "../log.h"
+#include "../settings.h"
 
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
 #include "PixelOverlayModel.h"
-#include "Plugins.h"
-#include "effects.h"
-#include "channeloutput/channeloutputthread.h"
 
 static uint8_t* createChannelDataMemory(const std::string& dataName, uint32_t size) {
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
@@ -287,9 +310,9 @@ void PixelOverlayModel::setState(const PixelOverlayState& st) {
     state = st;
     PixelOverlayManager::INSTANCE.modelStateChanged(this, old, state);
 }
-void PixelOverlayModel::setChildState(const std::string &n, const PixelOverlayState& st, int ox, int oy, int w, int h) {
+void PixelOverlayModel::setChildState(const std::string& n, const PixelOverlayState& st, int ox, int oy, int w, int h) {
     bool hadChildren = !children.empty();
-    
+
     auto it = children.begin();
     bool found = false;
     while (it != children.end()) {
@@ -309,7 +332,7 @@ void PixelOverlayModel::setChildState(const std::string &n, const PixelOverlaySt
         }
         it++;
     }
-    
+
     if (!found && st.getState()) {
         ChildModelState cms;
         cms.name = n;
@@ -328,12 +351,11 @@ void PixelOverlayModel::setChildState(const std::string &n, const PixelOverlaySt
     }
 }
 
-
 bool PixelOverlayModel::flushChildren(uint8_t* dst) {
     if (children.empty()) {
         return false;
     }
-    for (auto &c : children) {
+    for (auto& c : children) {
         int cst = c.state.getState();
         for (int y = 0; y < c.height; y++) {
             int yoff = (y + c.yoffset) * width * 3;
@@ -341,7 +363,7 @@ bool PixelOverlayModel::flushChildren(uint8_t* dst) {
                 int offr = (x + c.xoffset) * 3 + yoff;
                 int offg = offr + 1;
                 int offb = offr + 2;
-                
+
                 switch (cst) {
                 case 1:
                     if (channelMap[offr] != FPPD_OFF_CHANNEL) {
@@ -382,13 +404,11 @@ bool PixelOverlayModel::flushChildren(uint8_t* dst) {
                     }
                     break;
                 }
-                
             }
         }
     }
     return true;
 }
-
 
 void PixelOverlayModel::doOverlay(uint8_t* channels) {
     int st = state.getState();
@@ -444,7 +464,7 @@ void PixelOverlayModel::setData(const uint8_t* data) {
     dirtyBuffer = true;
 }
 
-void PixelOverlayModel::setData(const uint8_t* data, int xOffset, int yOffset, int w, int h, const PixelOverlayState &st) {
+void PixelOverlayModel::setData(const uint8_t* data, int xOffset, int yOffset, int w, int h, const PixelOverlayState& st) {
     if (st.getState() == 0) {
         return;
     }
@@ -485,7 +505,7 @@ void PixelOverlayModel::setData(const uint8_t* data, int xOffset, int yOffset, i
                     }
                 }
             } else if (cst == 3) {
-                bool b = data[s] | data[s+1] | data[s+2];
+                bool b = data[s] | data[s + 1] | data[s + 2];
                 if (b) {
                     for (int i = 0; i < 3; i++, c++, s++) {
                         if (channelMap[c] != FPPD_OFF_CHANNEL) {
@@ -539,7 +559,7 @@ void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
     }
     dirtyBuffer = true;
 }
-void PixelOverlayModel::getPixelValue(int x, int y, int &r, int &g, int &b) {
+void PixelOverlayModel::getPixelValue(int x, int y, int& r, int& g, int& b) {
     int c = (y * width * 3) + x * 3;
     if (channelMap[c] != FPPD_OFF_CHANNEL) {
         r = channelData[channelMap[c++]];
@@ -551,7 +571,6 @@ void PixelOverlayModel::getPixelValue(int x, int y, int &r, int &g, int &b) {
         b = channelData[channelMap[c++]];
     }
 }
-
 
 void PixelOverlayModel::setScaledData(uint8_t* data, int w, int h) {
     float ydiff = (float)h / (float)height;
@@ -568,7 +587,7 @@ void PixelOverlayModel::setScaledData(uint8_t* data, int w, int h) {
 
             int idx = y * width * 3 + x * 3;
             int srcidx = srcY * w * 3 + srcX * 3;
-            
+
             if (channelMap[idx] != FPPD_OFF_CHANNEL) {
                 channelData[channelMap[idx++]] = data[srcidx++];
             }
@@ -781,7 +800,7 @@ void PixelOverlayModel::saveOverlayAsImage(std::string filename) {
     filename = FPP_DIR_IMAGE("/") + filename;
 
     LogDebug(VB_CHANNELOUT, "Saving %dx%d PixelOverlayModel image to: %s\n",
-            width, height, filename.c_str());
+             width, height, filename.c_str());
 
     uint8_t data[width * height * 3];
     memset(data, 0, width * height * 3);

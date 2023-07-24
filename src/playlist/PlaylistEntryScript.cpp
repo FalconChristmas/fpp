@@ -16,6 +16,9 @@
 #include <sys/wait.h>
 #include <signal.h>
 
+#include "../common.h"
+#include "../log.h"
+
 #include "PlaylistEntryScript.h"
 #include "scripts.h"
 

@@ -12,6 +12,9 @@
 
 #include "fpp-pch.h"
 
+#include "../common.h"
+#include "../log.h"
+
 #include "PlaylistEntryPlaylist.h"
 
 PlaylistEntryPlaylist::PlaylistEntryPlaylist(Playlist* playlist, PlaylistEntryBase* parent) :

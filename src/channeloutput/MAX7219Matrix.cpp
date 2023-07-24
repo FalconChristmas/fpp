@@ -33,6 +33,10 @@
  */
 #include "fpp-pch.h"
 
+#include <unistd.h>
+
+#include "../log.h"
+
 #include "MAX7219Matrix.h"
 
 #define MAX7219_DECODE_MODE 0x09

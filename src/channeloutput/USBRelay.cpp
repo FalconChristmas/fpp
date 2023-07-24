@@ -12,6 +12,11 @@
 
 #include "fpp-pch.h"
 
+#include <unistd.h>
+
+#include "../Warnings.h"
+#include "../log.h"
+
 #include "USBRelay.h"
 #include "serialutil.h"
 

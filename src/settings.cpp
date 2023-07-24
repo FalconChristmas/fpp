@@ -12,17 +12,23 @@
 
 #include "fpp-pch.h"
 
-#include "fpp.h"
-
-#include <sys/stat.h>
+#include <cstring>
 #include <ctype.h>
 #include <filesystem>
-#include <getopt.h>
-#include <libgen.h>
-#include <pwd.h>
+#include <fstream>
+#include <map>
+#include <memory>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <unistd.h>
+#include <utility>
+
+#include "common.h"
+#include "log.h"
+#include "commands/Commands.h"
+
+#include "settings.h"
 
 #ifdef PLATFORM_OSX
 #include <mach-o/dyld.h>

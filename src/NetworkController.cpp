@@ -11,7 +11,17 @@
  */
 #include "fpp-pch.h"
 
+#include <fstream>
+#include <regex>
+#include <stdlib.h>
+#include <string>
+#include <vector>
+
 #include "NetworkController.h"
+#include "common.h"
+#include "log.h"
+#include "settings.h"
+#include "commands/Commands.h"
 #include "util/RegExCache.h"
 
 NetworkController::NetworkController(const std::string& ipStr) :

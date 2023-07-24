@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../../log.h"
+
 #include "ThreeToFourOutputProcessor.h"
 
 ThreeToFourOutputProcessor::ThreeToFourOutputProcessor(const Json::Value& config) {

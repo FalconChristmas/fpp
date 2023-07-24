@@ -20,6 +20,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "../../Sequence.h"
+#include "../../Warnings.h"
+#include "../../common.h"
+#include "../../log.h"
+#include "../../settings.h"
+
 #include "DPIPixels.h"
 #include "../CapeUtils/CapeUtils.h"
 #include "channeloutput/stringtesters/PixelStringTester.h"

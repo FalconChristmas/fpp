@@ -18,6 +18,8 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <iostream>
+#include <unistd.h>
 
 #include "ping.h"
 #include <netinet/in.h>

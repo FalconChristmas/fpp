@@ -18,6 +18,15 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "../Events.h"
+#include "../Sequence.h"
+#include "../Warnings.h"
+#include "../common.h"
+#include "../log.h"
+#include "../settings.h"
+
+#include "../fseq/FSEQFile.h"
+
 #include "Playlist.h"
 #include "Plugins.h"
 #include "fpp.h"

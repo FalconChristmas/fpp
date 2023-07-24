@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../log.h"
+
 #include "PlaylistEntryRemap.h"
 #include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/processors/RemapOutputProcessor.h"

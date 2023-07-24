@@ -16,6 +16,8 @@
 #include <sys/wait.h>
 #include <errno.h>
 
+#include "../log.h"
+
 #include "MediaOutputBase.h"
 
 MediaOutputBase::MediaOutputBase(void) :

@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include "Sequence.h"
+#include "../Sequence.h"
 
 class TestPatternBase {
 public:

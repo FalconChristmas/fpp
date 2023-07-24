@@ -12,6 +12,9 @@
 
 #include "fpp-pch.h"
 
+#include "common.h"
+#include "settings.h"
+
 #include "FPPLocale.h"
 
 Json::Value LocaleHolder::locale;

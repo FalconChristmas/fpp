@@ -11,9 +11,10 @@
  * included LICENSE.LGPL file.
  */
 
-#include "commands/Commands.h"
 #include <string>
 #include <vector>
+
+#include "../commands/Commands.h"
 
 class PixelOverlayModel;
 

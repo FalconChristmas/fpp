@@ -11,9 +11,17 @@
  */
 
 #include "fpp-pch.h"
-#include <climits>
+
+#include <algorithm>
+#include <cstring>
+#include <list>
+#include <mutex>
+#include <string>
+#include <vector>
 
 #include "CurlManager.h"
+#include "common.h"
+#include "fppversion.h"
 
 CurlManager CurlManager::INSTANCE;
 

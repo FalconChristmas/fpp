@@ -89,6 +89,9 @@
 #include <netdb.h>
 #include <signal.h>
 
+#include "../Warnings.h"
+#include "../log.h"
+
 #include "DDP.h"
 
 #define DDP_HEADER_LEN 10

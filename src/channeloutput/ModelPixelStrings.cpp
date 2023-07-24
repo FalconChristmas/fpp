@@ -16,6 +16,10 @@
 #include <signal.h>
 #include <stdint.h>
 
+#include "../Sequence.h"
+#include "../Warnings.h"
+#include "../log.h"
+
 #include "ModelPixelStrings.h"
 #include "overlays/PixelOverlay.h"
 

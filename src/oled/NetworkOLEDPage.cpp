@@ -1,5 +1,9 @@
 #include "fpp-pch.h"
 
+#include <fstream>
+
+#include "../common.h"
+
 #include "NetworkOLEDPage.h"
 
 class EditIPOLEDPage : public TitledOLEDPage {

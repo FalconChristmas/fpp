@@ -12,15 +12,30 @@
 
 #include "fpp-pch.h"
 
-#include <sys/types.h>
-#include <ctype.h>
+#include <bits/types/struct_tm.h>
+#include <ctime>
+#include <list>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <string>
+#include <thread>
 #include <time.h>
+#include <utility>
+#include <vector>
 
 #include "Player.h"
+#include "Warnings.h"
+#include "common.h"
+#include "log.h"
+#include "settings.h"
+#include "commands/Commands.h"
+#include "playlist/Playlist.h"
+
 #include "Scheduler.h"
-#include "command.h"
-#include "fpp.h"
 
 Scheduler* scheduler = NULL;
 

@@ -12,6 +12,10 @@
 
 #include "fpp-pch.h"
 
+#include "../common.h"
+#include "../log.h"
+#include "../settings.h"
+
 #include "PlaylistEntryImage.h"
 #include <sys/stat.h>
 
@@ -87,7 +91,7 @@ int PlaylistEntryImage::Init(Json::Value& config) {
     m_width = m_model->getWidth();
     m_height = m_model->getHeight();
     m_modelOrigState = m_model->getState().getState();
-    
+
     if (m_modelOrigState == PixelOverlayState::PixelState::Disabled)
         m_model->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
 

@@ -12,11 +12,13 @@
 
 #include "fpp-pch.h"
 
-#include <sys/time.h>
-#include <errno.h>
+#include <string.h>
+#include <string>
 
 #include "ChannelOutput.h"
-#include "util/GPIOUtils.h"
+#include "../commands/Commands.h"
+#include "../log.h"
+#include "../util/GPIOUtils.h"
 
 ChannelOutput::ChannelOutput(unsigned int startChannel,
                              unsigned int channelCount) :

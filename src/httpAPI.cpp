@@ -18,28 +18,45 @@
 #include <sys/sysinfo.h>
 #endif
 
+#include <linux/sysinfo.h>
+#include <sys/sysinfo.h>
+#include <cstdlib>
+#include <ctime>
+#include <cxxabi.h>
+#include <fstream>
+#include <httpserver.hpp>
+#include <iomanip>
+#include <list>
+#include <stdint.h>
+#include <string>
+#include <vector>
+
 #include "MultiSync.h"
+#include "OutputMonitor.h"
 #include "Player.h"
+#include "Plugins.h"
 #include "Scheduler.h"
+#include "Sequence.h"
+#include "Warnings.h"
+#include "common.h"
 #include "e131bridge.h"
 #include "effects.h"
-#include "fpp.h"
-#include "fppd.h"
-#include "httpAPI.h"
+#include "fppversion.h"
+#include "gpio.h"
+#include "log.h"
 #include "mqtt.h"
-#include "channeloutput/ChannelOutputSetup.h"
+#include "settings.h"
 #include "channeloutput/channeloutputthread.h"
 #include "channeltester/ChannelTester.h"
-
-#include <iomanip>
-#include <sstream>
-
-#include "OutputMonitor.h"
-#include "Plugins.h"
-#include "gpio.h"
+#include "commands/Commands.h"
+#include "mediaoutput/MediaOutputBase.h"
+#include "mediaoutput/MediaOutputStatus.h"
 #include "mediaoutput/mediaoutput.h"
 #include "overlays/PixelOverlay.h"
+#include "playlist/Playlist.h"
 #include "sensors/Sensors.h"
+
+#include "httpAPI.h"
 
 static std::time_t startupTime = std::time(nullptr);
 

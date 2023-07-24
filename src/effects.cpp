@@ -12,11 +12,30 @@
 
 #include "fpp-pch.h"
 
+#include <array>
+#include <cstdint>
+#include <cstring>
 #include <fnmatch.h>
+#include <functional>
+#include <list>
+#include <memory>
+#include <mutex>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "Events.h"
+#include "Sequence.h"
+#include "common.h"
+#include "log.h"
+#include "settings.h"
+#include "channeloutput/channeloutputthread.h"
+#include "commands/Commands.h" // lines 58-58
+#include "fseq/FSEQFile.h"
 
 #include "effects.h"
-#include "channeloutput/channeloutputthread.h"
-#include "fseq/FSEQFile.h"
 
 #define MAX_EFFECTS 100
 
@@ -67,10 +86,9 @@ int InitEffects(void) {
 
     pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
 
-
     std::function<void(const std::string&, const std::string&)>
         effect_callback = [](const std::string& topic_in,
-                                const std::string& payload) {
+                             const std::string& payload) {
             LogDebug(VB_CONTROL, "System Callback for %s\n", topic_in.c_str());
 
             if (0 == topic_in.compare(topic_in.length() - 5, 5, "/stop")) {

@@ -12,6 +12,11 @@
 
 #include "fpp-pch.h"
 
+#include <math.h>
+#include <stdio.h>
+
+#include "../../log.h"
+
 #include "BrightnessOutputProcessor.h"
 
 BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value& config) {

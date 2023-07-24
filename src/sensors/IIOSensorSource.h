@@ -13,8 +13,8 @@
 
 #include <array>
 #include <mutex>
-#include "Sensors.h"
 
+#include "Sensors.h"
 
 class IIOSensorSource : public SensorSource {
 public:
@@ -22,7 +22,7 @@ public:
     virtual ~IIOSensorSource();
 
     virtual void Init(std::map<int, std::function<bool(int)>>& callbacks) override;
-   
+
     virtual void update(bool forceInstant = false) override;
     virtual void enable(int id) override;
     virtual int32_t getValue(int id) override;
@@ -31,12 +31,12 @@ private:
     void update(bool forceInstant, bool fromSelect);
     std::vector<int32_t> values;
     std::mutex updateMutex;
-    
+
     int iioDevNumber = 0;
     bool usingBuffers = true;
-    int  iioDevFile = -1;
+    int iioDevFile = -1;
     std::vector<int> channelMapping;
-    
-    uint16_t *readBuffer = nullptr;
+
+    uint16_t* readBuffer = nullptr;
     size_t readBufferSize = 0;
 };

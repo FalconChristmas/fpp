@@ -12,7 +12,11 @@
 
 #include "fpp-pch.h"
 
-#include "mqtt.h"
+#include <cmath>
+
+#include "../common.h"
+#include "../log.h"
+#include "../mqtt.h"
 
 #include "MQTTOutput.h"
 

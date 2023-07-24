@@ -12,10 +12,25 @@
 
 #include "fpp-pch.h"
 
-#include "FPPLocale.h"
-#include "ScheduleEntry.h"
-#include "SunRise.h"
+#include <bits/types/struct_tm.h>
+#include <ctime>
+#include <ctype.h>
+#include <fstream>
 #include <math.h>
+#include <memory>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+#include <vector>
+
+#include "FPPLocale.h"
+#include "SunRise.h"
+#include "common.h"
+#include "log.h"
+#include "settings.h"
+#include "commands/Commands.h"
+
+#include "ScheduleEntry.h"
 
 static time_t GetTimeOnDOW(int day, int hour, int minute, int second) {
     time_t currTime = time(NULL);

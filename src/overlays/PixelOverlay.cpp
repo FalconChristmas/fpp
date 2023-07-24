@@ -15,12 +15,17 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
+#include <fcntl.h>
+
 #include <Magick++.h>
 
 #include <magick/type.h>
 
-#include "effects.h"
-#include "channeloutput/channeloutputthread.h"
+#include "../channeloutput/channeloutputthread.h"
+#include "../common.h"
+#include "../effects.h"
+#include "../log.h"
+#include "../settings.h"
 
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
@@ -326,7 +331,7 @@ static void findFonts(const std::string& dir, std::map<std::string, std::string>
     if (dp != NULL) {
         while ((ep = readdir(dp))) {
             int location = strstr(ep->d_name, ".") - ep->d_name;
-            
+
             // We're one of ".", "..", or hidden, so let's skip
             if (location == 0) {
                 continue;
@@ -387,7 +392,6 @@ Json::Value PixelOverlayManager::getModelsAsJson() {
     }
     return ret;
 }
-
 
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET(const httpserver::http_request& req) {
     std::string p1 = req.get_path_pieces()[0];

@@ -12,14 +12,15 @@
 
 #include "fpp-pch.h"
 
+#include "../common.h"
+#include "../log.h"
+
 #include "OutputTester.h"
 #include "channeloutput/ChannelOutputSetup.h"
 
 OutputTester::OutputTester() {
-
 }
 OutputTester::~OutputTester() {
-
 }
 int OutputTester::Init(Json::Value config) {
     outputTypes.clear();

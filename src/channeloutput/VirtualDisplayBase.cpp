@@ -22,6 +22,11 @@
 
 #include <magick/type.h>
 
+#include "../Sequence.h"
+#include "../common.h"
+#include "../log.h"
+#include "../settings.h"
+
 #include "VirtualDisplayBase.h"
 
 /////////////////////////////////////////////////////////////////////////////

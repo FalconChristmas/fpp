@@ -11,8 +11,8 @@
  * included LICENSE.LGPL file.
  */
 
+#include <set>
 #include <string>
-#include <vector>
 
 #include "TestPatternBase.h"
 
@@ -25,12 +25,11 @@ public:
 
     virtual int SetupTest(void) override;
     virtual void DumpConfig(void) override;
-    
+
     virtual int OverlayTestData(char* channelData) override;
 
 private:
     void CycleData(void) override;
-
 
     int testType = 1;
     int cycleCount = 0;

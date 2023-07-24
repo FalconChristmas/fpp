@@ -12,8 +12,9 @@
 
 #include "fpp-pch.h"
 
-#include "ColorOrderOutputProcessor.h"
+#include "../../log.h"
 
+#include "ColorOrderOutputProcessor.h"
 
 ColorOrderOutputProcessor::ColorOrderOutputProcessor(const Json::Value& config) {
     description = config["desription"].asString();

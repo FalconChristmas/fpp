@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../../log.h"
+
 #include "RemapOutputProcessor.h"
 
 RemapOutputProcessor::RemapOutputProcessor(const Json::Value& config) {

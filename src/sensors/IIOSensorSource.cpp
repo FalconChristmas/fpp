@@ -12,18 +12,23 @@
 
 #include "fpp-pch.h"
 
+#include <cmath>
+#include <fcntl.h>
+#include <unistd.h>
+
+#include "../common.h"
 
 #include "IIOSensorSource.h"
 
-IIOSensorSource::IIOSensorSource(Json::Value& config) : SensorSource(config) {
+IIOSensorSource::IIOSensorSource(Json::Value& config) :
+    SensorSource(config) {
     if (config.isMember("devId")) {
         iioDevNumber = config["devId"].asInt();
     }
     if (config.isMember("useBuffers")) {
         usingBuffers = config["useBuffers"].asBool();
     } else {
-        usingBuffers = FileExists("/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/buffer/enable")
-            && FileExists("/dev/iio:device" + std::to_string(iioDevNumber));
+        usingBuffers = FileExists("/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/buffer/enable") && FileExists("/dev/iio:device" + std::to_string(iioDevNumber));
     }
     //usingBuffers = false;
     std::string base = "/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/in_voltage";
@@ -60,7 +65,7 @@ IIOSensorSource::~IIOSensorSource() {
         }
     }
     if (readBuffer) {
-        delete [] readBuffer;
+        delete[] readBuffer;
     }
 }
 void IIOSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
@@ -73,7 +78,6 @@ void IIOSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
         int f = open(buf, O_WRONLY);
         write(f, "8\n", 2);
         close(f);
-
 
         snprintf(buf, 256, "/sys/bus/iio/devices/iio:device%d/buffer/enable", iioDevNumber);
         f = open(buf, O_WRONLY);
@@ -95,7 +99,7 @@ void IIOSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
             close(f);
         }
         channelMapping.resize(curIdx);
-        callbacks[iioDevFile] = [this] (int) {
+        callbacks[iioDevFile] = [this](int) {
             update(false, true);
             return false;
         };
@@ -179,7 +183,6 @@ void IIOSensorSource::enable(int id) {
     }
 }
 
-int32_t IIOSensorSource::getValue(int id) { 
+int32_t IIOSensorSource::getValue(int id) {
     return values[id];
 };
-

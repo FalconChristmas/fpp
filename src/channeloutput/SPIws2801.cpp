@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../log.h"
+
 #include "SPIws2801.h"
 #include <fcntl.h>
 

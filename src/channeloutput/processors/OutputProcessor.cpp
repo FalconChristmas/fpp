@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../../log.h"
+
 #include "OutputProcessor.h"
 
 #include "BrightnessOutputProcessor.h"

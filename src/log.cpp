@@ -19,6 +19,10 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <time.h>
+#include <unistd.h>
+
+#include "fppversion.h"
+#include "log.h"
 
 // int logLevel = LOG_INFO;
 // int logMask  = VB_MOST;

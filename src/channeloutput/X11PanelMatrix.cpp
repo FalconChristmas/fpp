@@ -12,7 +12,11 @@
 
 #include "fpp-pch.h"
 
+#include <cmath>
+
 #include <X11/Xutil.h>
+
+#include "../log.h"
 
 #include "X11PanelMatrix.h"
 

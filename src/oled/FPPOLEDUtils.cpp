@@ -3,13 +3,17 @@
 #include <linux/wireless.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <gpiod.h>
 #include <poll.h>
+#include <unistd.h>
 
 #include "I2C.h"
 
 #include "FPPOLEDUtils.h"
-#include "util/BBBUtils.h"
+#include "../common.h"
+#include "../util/BBBUtils.h"
 
 #include "FPPStatusOLEDPage.h"
 #include "OLEDPages.h"
@@ -313,7 +317,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
             for (int x = 0; x < root["inputs"].size(); x++) {
                 InputAction* action = new InputAction();
                 std::string pin = root["inputs"][x]["pin"].asString();
-                for (auto &a : actions) {
+                for (auto& a : actions) {
                     if (a->pin == pin && action) {
                         delete action;
                         action = nullptr;

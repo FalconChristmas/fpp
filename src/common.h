@@ -14,8 +14,12 @@
 #include <stdint.h>
 
 #include <functional>
+#include <list>
 #include <string>
 #include <vector>
+
+#include <jsoncpp/json/reader.h>
+#include <jsoncpp/json/writer.h>
 
 #include "log.h"
 
@@ -50,9 +54,9 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-long long GetTime(void);
-long long GetTimeMicros(void);
-long long GetTimeMS(void);
+long long GetTime();
+long long GetTimeMicros();
+long long GetTimeMS();
 std::string GetTimeStr(std::string fmt);
 std::string GetDateStr(std::string fmt);
 
@@ -119,7 +123,7 @@ std::string getSimpleHTMLTTag(const std::string& html, const std::string& search
 std::string getSimpleXMLTag(const std::string& xml, const std::string& tag);
 
 // URL Helpers
-bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const std::list<std::string> &headers, const unsigned int timeout = 30);
+bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const std::list<std::string>& headers, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, std::string& resp, const unsigned int timeout = 30);
 bool urlGet(const std::string url, std::string& resp);

@@ -12,9 +12,13 @@
 
 #include "fpp-pch.h"
 
+#include "../Sequence.h"
+#include "../log.h"
+
 #include "PixelString.h"
-#include "overlays/PixelOverlay.h"
 #include "../OutputMonitor.h"
+#include "../Warnings.h"
+#include "overlays/PixelOverlay.h"
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -26,15 +30,14 @@ constexpr uint32_t SMART_RECEIVER_LEADOUT = 6 * 3;
 
 constexpr uint32_t SMART_RECEIVER_V2_GAP = 10;
 
-#define CHECKPS_SETTING(SETTING)                                            \
-    if (SETTING) {                                                          \
-        LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING); \
+#define CHECKPS_SETTING(SETTING)                                                           \
+    if (SETTING) {                                                                         \
+        LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING);                \
         WarningHolder::AddWarning("Invalid PixelString Config: " + std::string(#SETTING)); \
-        return 0;                                                           \
+        return 0;                                                                          \
     }
 
-
-const char *SMART_RECEIVER_LABELS[] = {
+const char* SMART_RECEIVER_LABELS[] = {
     "virtualStrings",
     "virtualStringsB",
     "virtualStringsC",
@@ -58,8 +61,7 @@ VirtualString::VirtualString() :
     gamma(1.0),
     leadInCount(0),
     toggleCount(0),
-    leadOutCount(0)
-{
+    leadOutCount(0) {
 }
 
 VirtualString::VirtualString(int r) :
@@ -78,7 +80,6 @@ VirtualString::VirtualString(int r) :
     leadInCount(0),
     toggleCount(0),
     leadOutCount(0) {
-        
     switch (r) {
     case 0:
         leadInCount = 0;
@@ -143,7 +144,7 @@ PixelString::~PixelString() {
 /*
  *
  */
-int PixelString::Init(Json::Value config, Json::Value *pinConfig) {
+int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
     m_portNumber = config["portNumber"].asInt();
     m_outputChannels = 0;
 
@@ -161,7 +162,6 @@ int PixelString::Init(Json::Value config, Json::Value *pinConfig) {
                 receiverCount = receiverType - 3;
                 receiverType = 2;
             }
-
         }
     }
     m_isSmartReceiver = receiverType > 0;
@@ -208,7 +208,7 @@ int PixelString::Init(Json::Value config, Json::Value *pinConfig) {
         hasChannels[p] = startMaxChan != m_outputChannels;
         hasChannels[0] |= hasChannels[p];
         if (!hasChannels[p]) {
-            if (p != (receiverCount-1)) {
+            if (p != (receiverCount - 1)) {
                 //we need to output at least 1 pixel
                 AddNullPixelString();
             } else {
@@ -226,7 +226,7 @@ int PixelString::Init(Json::Value config, Json::Value *pinConfig) {
         m_outputChannels = 0;
         m_virtualStrings.clear();
         AddVirtualString(VirtualString());
-    } 
+    }
     if (pinConfig) {
         OutputMonitor::INSTANCE.AddPortConfiguration("Port #" + std::to_string(m_portNumber + 1), *pinConfig, m_outputChannels > 0);
     }
@@ -261,7 +261,7 @@ int PixelString::Init(Json::Value config, Json::Value *pinConfig) {
         m_gpioCommands.push_back(GPIOCommand(m_portNumber, m_outputChannels));
     }
 
-    //certain testing capabilities (like pixel counting) may require a 
+    //certain testing capabilities (like pixel counting) may require a
     //buffer larger than the number of pixels configured
     int obs = std::max(2400, m_outputChannels);
     m_outputBuffer = (uint8_t*)calloc(obs, 1);
@@ -455,7 +455,7 @@ void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
             } else if (vs.colorOrder == FPPColorOrder::kColorOrderGBR) {
                 ch1 = ch + 2;
                 ch2 = ch;
-                ch3 = ch +1;
+                ch3 = ch + 1;
             } else if (vs.colorOrder == FPPColorOrder::kColorOrderBRG) {
                 ch1 = ch + 1;
                 ch2 = ch + 2;
@@ -659,7 +659,7 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
     }
 }
 
-uint8_t *PixelString::prepareOutput(uint8_t *channelData) {
+uint8_t* PixelString::prepareOutput(uint8_t* channelData) {
     int idx = 0;
     for (auto& vs : m_virtualStrings) {
         int* map = vs.chMap;

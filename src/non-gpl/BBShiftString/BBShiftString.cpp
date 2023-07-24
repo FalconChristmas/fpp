@@ -20,6 +20,11 @@
 #include <chrono>
 
 // FPP includes
+#include "../../Sequence.h"
+#include "../../Warnings.h"
+#include "../../common.h"
+#include "../../log.h"
+
 #include "BBShiftString.h"
 #include "../CapeUtils/CapeUtils.h"
 #include "channeloutput/stringtesters/PixelStringTester.h"
@@ -185,7 +190,6 @@ int BBShiftStringOutput::Init(Json::Value config) {
     std::vector<std::string> split1args;
     split0args.push_back("-DRUNNING_ON_PRU0");
     split1args.push_back("-DRUNNING_ON_PRU1");
-
 
     m_licensedOutputs = CapeUtils::INSTANCE.getLicensedOutputs();
 
@@ -399,7 +403,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
     uint8_t* frame = NULL;
     uint8_t value;
 
-    PixelStringTester *tester = nullptr;
+    PixelStringTester* tester = nullptr;
     if (m_testType && m_testCycle >= 0) {
         tester = PixelStringTester::getPixelStringTester(m_testType);
         tester->prepareTestData(m_testCycle, m_testPercent);
@@ -412,9 +416,9 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
             if (idx != -1) {
                 ps = m_strings[idx];
                 uint32_t newLen = 0;
-                uint8_t* d = tester 
-                    ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
-                    : ps->prepareOutput(channelData);
+                uint8_t* d = tester
+                                 ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
+                                 : ps->prepareOutput(channelData);
                 for (int p = 0; p < ps->m_outputChannels; p++) {
                     *frame = *d;
                     frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;

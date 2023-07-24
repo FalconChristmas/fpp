@@ -16,6 +16,10 @@
 #include <signal.h>
 #include <stdint.h>
 
+#include "../Sequence.h"
+#include "../common.h"
+#include "../log.h"
+
 #include "spixels.h"
 
 #include "Plugin.h"

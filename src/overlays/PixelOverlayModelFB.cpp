@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../log.h"
+
 #include "PixelOverlayModelFB.h"
 
 PixelOverlayModelFB::PixelOverlayModelFB(const Json::Value& c) :
@@ -46,4 +48,3 @@ void PixelOverlayModelFB::setData(const uint8_t* data) {
     memcpy(channelData, data, width * height * 3);
     dirtyBuffer = true;
 }
-

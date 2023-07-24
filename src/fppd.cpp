@@ -12,27 +12,6 @@
 
 #include "fpp-pch.h"
 
-#include "CurlManager.h"
-#include "MultiSync.h"
-#include "OutputMonitor.h"
-#include "Player.h"
-#include "Plugins.h"
-#include "Scheduler.h"
-#include "command.h"
-#include "common.h"
-#include "e131bridge.h"
-#include "effects.h"
-#include "fpp.h"
-#include "fppd.h"
-#include "gpio.h"
-#include "httpAPI.h"
-#include "mediadetails.h"
-#include "channeloutput/ChannelOutputSetup.h"
-#include "channeloutput/channeloutputthread.h"
-#include "channeltester/ChannelTester.h"
-#include "mediaoutput/mediaoutput.h"
-#include "overlays/PixelOverlay.h"
-
 #ifdef PLATFORM_OSX
 #include <sys/event.h>
 #define USE_KQUEUE
@@ -42,33 +21,72 @@
 #include <sys/sysinfo.h>
 #include <syscall.h>
 #endif
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <Magick++.h>
-#include <execinfo.h>
-#include <filesystem>
-#include <pthread.h>
-#include <pwd.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <stdbool.h>
 
-#include "NetworkMonitor.h"
-#include "Timers.h"
-#include "falcon.h"
-#include "fppd.h"
+#include <Magick++/Image.h>
+#include <SDL2/SDL_events.h>
+#include <bits/getopt_core.h>
+#include <curl/curl.h>
+#include <magick/magick.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <chrono>
+#include <cstdlib>
+#include <ctime>
+#include <errno.h>
+#include <execinfo.h>
+#include <fcntl.h>
+#include <filesystem>
+#include <functional>
+#include <getopt.h>
+#include <iostream>
+#include <map>
+#include <set>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <string>
+#include <syscall.h>
+#include <thread>
+#include <unistd.h>
+#include <utility>
+
+#include "common.h"
+#include "log.h"
 #include "mqtt.h"
-#include "channeloutput/FPD.h"
+#include "settings.h"
+
+#include "CurlManager.h"
+#include "Events.h"
+#include "MultiSync.h"
+#include "NetworkMonitor.h"
+#include "OutputMonitor.h"
+#include "Player.h"
+#include "Plugins.h"
+#include "Scheduler.h"
+#include "Sequence.h"
+#include "Timers.h"
+#include "Warnings.h"
+#include "command.h"
+#include "e131bridge.h"
+#include "effects.h"
+#include "falcon.h"
+#include "fppversion.h"
+#include "gpio.h"
+#include "httpAPI.h"
+#include "channeloutput/ChannelOutputSetup.h"
+#include "channeloutput/channeloutputthread.h"
+#include "channeltester/ChannelTester.h"
+#include "commands/Commands.h"
+#include "mediaoutput/MediaOutputBase.h"
+#include "mediaoutput/MediaOutputStatus.h"
+#include "mediaoutput/mediaoutput.h"
+#include "overlays/PixelOverlay.h"
+#include "playlist/Playlist.h"
 #include "sensors/Sensors.h"
 #include "util/GPIOUtils.h"
-#include <getopt.h>
+#include "util/TmpFileGPIO.h"
 
-#include <curl/curl.h>
-
-extern "C" {
-#include <SDL2/SDL.h>
-}
+#include "fppd.h"
 
 #if defined(PLATFORM_BBB)
 #include "util/BBBUtils.h"

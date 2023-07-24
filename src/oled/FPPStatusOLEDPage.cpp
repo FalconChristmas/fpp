@@ -4,8 +4,12 @@
 #include <sys/ioctl.h>
 
 #include <netinet/in.h>
+#include <fstream>
 #include <ifaddrs.h>
 #include <netdb.h>
+#include <unistd.h>
+
+#include "../common.h"
 
 #include "FPPMainMenu.h"
 #include "FPPStatusOLEDPage.h"

@@ -15,8 +15,9 @@
 
 #include <pthread.h>
 
-#include "Sequence.h"
 #include "TestPatternBase.h"
+
+#include <httpserver.hpp>
 
 class ChannelTester : public httpserver::http_resource {
 public:

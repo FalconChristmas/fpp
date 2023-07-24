@@ -16,6 +16,9 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
+#include "../common.h"
+#include "../log.h"
+
 #include "VirtualDisplay.h"
 #include "overlays/PixelOverlay.h"
 

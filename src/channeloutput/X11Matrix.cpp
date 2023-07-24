@@ -14,6 +14,8 @@
 
 #include <X11/Xutil.h>
 
+#include "../log.h"
+
 #include "X11Matrix.h"
 #include "serialutil.h"
 

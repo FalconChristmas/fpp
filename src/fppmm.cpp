@@ -12,17 +12,21 @@
 
 #include "fpp-pch.h"
 
+#include <bits/getopt_core.h>
 #include <sys/mman.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/un.h>
+#include <cstring>
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
 #include <unistd.h>
+
+#include "common.h"
+#include "commands/Commands.h"
 
 #include "fppversion.h"
 

@@ -12,13 +12,16 @@
 
 #include "fpp-pch.h"
 
+#include <fcntl.h>
+#include <thread>
+#include <unistd.h>
+
 #include "../config.h"
 
 #ifdef HAS_SPI
 #include <linux/spi/spidev.h>
 #endif
 #include <sys/ioctl.h>
-#include <fcntl.h>
 
 #include "SPIUtils.h"
 

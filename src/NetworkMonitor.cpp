@@ -12,13 +12,22 @@
 
 #include "fpp-pch.h"
 
+#include <bits/types/struct_iovec.h>
+#include <linux/if_addr.h>
 #ifndef PLATFORM_OSX
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #endif
 #include <net/if.h>
-#include <netinet/in.h>
-#include <sys/types.h>
+#include <sys/socket.h>
+#include <cstring>
+#include <map>
+#include <string>
+#include <unistd.h>
+#include <utility>
+
+#include "log.h"
+#include "commands/Commands.h"
 
 #include "NetworkMonitor.h"
 

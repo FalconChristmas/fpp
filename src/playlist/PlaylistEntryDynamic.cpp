@@ -12,6 +12,11 @@
 
 #include "fpp-pch.h"
 
+#include <fstream>
+
+#include "../common.h"
+#include "../log.h"
+
 #include "Playlist.h"
 #include "PlaylistEntryBoth.h"
 #include "PlaylistEntryCommand.h"

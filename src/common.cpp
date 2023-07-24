@@ -17,34 +17,39 @@
 #endif
 
 #include <arpa/inet.h>
-#include <dirent.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <ifaddrs.h>
-#ifndef PLATFORM_OSX
-#include <linux/if_link.h>
-#endif
+#include <bits/types/struct_tm.h>
+#include <curl/curl.h>
+#include <jsoncpp/json/reader.h>
+#include <jsoncpp/json/writer.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/types.h>
+#include <algorithm>
+#include <cstdint>
+#include <ctime>
 #include <ctype.h>
+#include <cxxabi.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <fstream>
+#include <ifaddrs.h>
+#include <iomanip>
+#include <list>
+#include <map>
 #include <netdb.h>
 #include <pwd.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <unistd.h>
-
-#include <algorithm>
-#include <fstream>
-#include <sstream>
-
-#include <curl/curl.h>
+#include <utility>
+#include <vector>
 
 #include "common.h"
 #include "fppversion.h"

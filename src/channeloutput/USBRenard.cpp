@@ -13,6 +13,10 @@
 #include "fpp-pch.h"
 
 #include <termios.h>
+#include <unistd.h>
+
+#include "../Warnings.h"
+#include "../log.h"
 
 #include "serialutil.h"
 

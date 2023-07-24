@@ -12,8 +12,11 @@
 
 #include "fpp-pch.h"
 
-#include "ControlChannelOutput.h"
+#include "../log.h"
 
+#include "../commands/Commands.h"
+
+#include "ControlChannelOutput.h"
 
 #include "Plugin.h"
 class ControlChannelOutputPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
@@ -40,10 +43,10 @@ ControlChannelOutput::~ControlChannelOutput() {
 
 int ControlChannelOutput::Init(Json::Value config) {
     if (config.isMember("values")) {
-        for (int x = 0; x < config["values"].size(); x++)  {
+        for (int x = 0; x < config["values"].size(); x++) {
             uint8_t v = config["values"][x]["value"].asUInt();
             std::string p = config["values"][x]["preset"].asString();
-            if (p != "")  {
+            if (p != "") {
                 presets[v].emplace_back(p);
             }
         }
@@ -52,12 +55,11 @@ int ControlChannelOutput::Init(Json::Value config) {
     return ChannelOutput::Init(config);
 }
 
-
 int ControlChannelOutput::SendData(unsigned char* channelData) {
     uint8_t v = channelData[m_startChannel];
     if (v != lastValue) {
         lastValue = v;
-        for(auto &p : presets[v]) {
+        for (auto& p : presets[v]) {
             if (p != "") {
                 CommandManager::INSTANCE.TriggerPreset(p);
             }
@@ -68,9 +70,9 @@ int ControlChannelOutput::SendData(unsigned char* channelData) {
 
 void ControlChannelOutput::DumpConfig(void) {
     ChannelOutput::DumpConfig();
-    for (auto &p : presets) {
+    for (auto& p : presets) {
         std::string v = "    Value " + std::to_string(p.first) + ": ";
-        for (auto &a : p.second) {
+        for (auto& a : p.second) {
             v += " \"";
             v += a;
             v += "\"";

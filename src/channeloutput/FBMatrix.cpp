@@ -12,6 +12,10 @@
 
 #include "fpp-pch.h"
 
+#include "../Warnings.h"
+#include "../common.h"
+#include "../log.h"
+
 #include "FBMatrix.h"
 #include "overlays/PixelOverlay.h"
 

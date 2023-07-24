@@ -22,6 +22,9 @@
 #include <netdb.h>
 #include <signal.h>
 
+#include "../Warnings.h"
+#include "../log.h"
+
 #include "KiNet.h"
 
 #define KINET_V1_PACKET_HEADERLEN 21

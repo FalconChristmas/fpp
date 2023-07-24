@@ -13,6 +13,14 @@
 #include "fpp-pch.h"
 
 #include <sys/time.h>
+#include <cstring>
+#include <ctime>
+#include <errno.h>
+#include <unistd.h>
+
+#include "../commands/Commands.h"
+#include "../common.h"
+#include "../log.h"
 
 #include "ThreadedChannelOutput.h"
 

@@ -12,44 +12,71 @@
 
 #include "fpp-pch.h"
 
-#include "config.h"
-
+#include <bits/types/struct_iovec.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
+#include <cstring>
+#include <ctime>
+#include <errno.h>
 #include <fcntl.h>
-#include <string.h>
+#include <mutex>
+#include <stdlib.h>
+#include <string>
+#include <thread>
 #include <unistd.h>
 
-#include "FrameBuffer.h"
+#include "Warnings.h"
 #include "common.h"
 #include "log.h"
+#include "settings.h"
+#include "commands/Commands.h"
 
-#include "Warnings.h"
+#include "FrameBuffer.h"
 
 #define FB_CURRENT_PAGE_PTR (m_pageBuffers[m_cPage])
 
 #ifdef HAS_DRM
 static std::string GetConnectorType(uint32_t i) {
     switch (i) {
-        case DRM_MODE_CONNECTOR_VGA: return "VGA";
-        case DRM_MODE_CONNECTOR_DVII: return "DVII";
-        case DRM_MODE_CONNECTOR_DVID: return "DVID";
-        case DRM_MODE_CONNECTOR_DVIA: return "DVIA";
-        case DRM_MODE_CONNECTOR_Composite: return "Composite";
-        case DRM_MODE_CONNECTOR_SVIDEO: return "SVIDEO";
-        case DRM_MODE_CONNECTOR_LVDS: return "LVDS";
-        case DRM_MODE_CONNECTOR_Component: return "Component";
-        case DRM_MODE_CONNECTOR_9PinDIN: return "9PinDIN";
-        case DRM_MODE_CONNECTOR_DisplayPort: return "DisplayPort";
-        case DRM_MODE_CONNECTOR_HDMIA: return "HDMI-A";
-        case DRM_MODE_CONNECTOR_HDMIB: return "HDMI-B";
-        case DRM_MODE_CONNECTOR_TV: return "TV";
-        case DRM_MODE_CONNECTOR_eDP: return "eDP";
-        case DRM_MODE_CONNECTOR_VIRTUAL: return "VIRTUAL";
-        case DRM_MODE_CONNECTOR_DSI: return "DSI";
-        case DRM_MODE_CONNECTOR_DPI: return "DPI";
-        case DRM_MODE_CONNECTOR_WRITEBACK: return "WRITEBACK";
-        case DRM_MODE_CONNECTOR_SPI: return "SPI";
+    case DRM_MODE_CONNECTOR_VGA:
+        return "VGA";
+    case DRM_MODE_CONNECTOR_DVII:
+        return "DVII";
+    case DRM_MODE_CONNECTOR_DVID:
+        return "DVID";
+    case DRM_MODE_CONNECTOR_DVIA:
+        return "DVIA";
+    case DRM_MODE_CONNECTOR_Composite:
+        return "Composite";
+    case DRM_MODE_CONNECTOR_SVIDEO:
+        return "SVIDEO";
+    case DRM_MODE_CONNECTOR_LVDS:
+        return "LVDS";
+    case DRM_MODE_CONNECTOR_Component:
+        return "Component";
+    case DRM_MODE_CONNECTOR_9PinDIN:
+        return "9PinDIN";
+    case DRM_MODE_CONNECTOR_DisplayPort:
+        return "DisplayPort";
+    case DRM_MODE_CONNECTOR_HDMIA:
+        return "HDMI-A";
+    case DRM_MODE_CONNECTOR_HDMIB:
+        return "HDMI-B";
+    case DRM_MODE_CONNECTOR_TV:
+        return "TV";
+    case DRM_MODE_CONNECTOR_eDP:
+        return "eDP";
+    case DRM_MODE_CONNECTOR_VIRTUAL:
+        return "VIRTUAL";
+    case DRM_MODE_CONNECTOR_DSI:
+        return "DSI";
+    case DRM_MODE_CONNECTOR_DPI:
+        return "DPI";
+    case DRM_MODE_CONNECTOR_WRITEBACK:
+        return "WRITEBACK";
+    case DRM_MODE_CONNECTOR_SPI:
+        return "SPI";
     }
     return "unknown";
 }
@@ -230,7 +257,7 @@ int FrameBuffer::InitializeFrameBuffer(void) {
     if (InitializeFrameBufferDRM()) {
         return 1;
     }
-#endif    
+#endif
     return InitializeFrameBufferIOCTL();
 #else
     return InitializeFrameBufferSocket();
@@ -242,7 +269,6 @@ void FrameBuffer::DestroyFrameBuffer(void) {
         memset(m_buffer, 0, m_bufferSize);
         munmap(m_buffer, m_bufferSize);
     }
-
 
 #ifdef USE_FRAMEBUFFER_SOCKET
     DestroyFrameBufferSocket();
@@ -272,7 +298,6 @@ void FrameBuffer::DestroyFrameBuffer(void) {
         delete[] m_lastFrame;
 #endif
 }
-
 
 #ifdef USE_FRAMEBUFFER_SOCKET
 int FrameBuffer::InitializeFrameBufferSocket(void) {
@@ -319,7 +344,6 @@ int FrameBuffer::InitializeFrameBufferSocket(void) {
     m_pageBuffers[0] = m_buffer;
     m_pageBuffers[1] = m_buffer + m_pageSize;
     m_pageBuffers[2] = m_buffer + m_pageSize + m_pageSize;
-
 
     memset(&dev_address, 0, sizeof(struct sockaddr_un));
     dev_address.sun_family = AF_UNIX;
@@ -380,7 +404,7 @@ void FrameBuffer::DestroyFrameBufferSocket(void) {
     }
 }
 
-#else 
+#else
 int FrameBuffer::InitializeFrameBufferIOCTL(void) {
     std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/" + m_device;
     m_fbFd = open(devString.c_str(), O_RDWR);
@@ -499,7 +523,7 @@ int FrameBuffer::InitializeFrameBufferIOCTL(void) {
     memset(m_buffer, 0, m_bufferSize);
     m_pageBuffers[0] = m_buffer;
     if (m_pages == 2) {
-        m_pageBuffers[1] = m_buffer + m_pageSize;    
+        m_pageBuffers[1] = m_buffer + m_pageSize;
     }
 
     if (m_bpp == 16) {
@@ -568,7 +592,7 @@ int FrameBuffer::InitializeFrameBufferDRM(void) {
     if (!drmAvailable()) {
         return 0;
     }
-    for (int x = 0; x < 10; x++)  {
+    for (int x = 0; x < 10; x++) {
         std::string dev = "/dev/dri/card";
         dev += std::to_string(x);
         if (FileExists(dev)) {
@@ -606,7 +630,7 @@ int FrameBuffer::InitializeFrameBufferDRM(void) {
                     for (int i = 0; i < connector->count_modes; i++) {
                         resolution = &connector->modes[i];
                         LogDebug(VB_CHANNELOUT, "    %d x %d   %d   %s\n", resolution->hdisplay, resolution->vdisplay, resolution->vrefresh,
-                            (resolution->type & DRM_MODE_TYPE_PREFERRED) ? "(preferred)" : "");
+                                 (resolution->type & DRM_MODE_TYPE_PREFERRED) ? "(preferred)" : "");
 
                         if (resolution->hdisplay >= m_width && resolution->vdisplay >= m_height) {
                             m_mode = i;
@@ -628,8 +652,8 @@ int FrameBuffer::InitializeFrameBufferDRM(void) {
                     }
                     m_bufferHandles[0] = 0;
                     err = drmModeAddFB(fd, dumb_framebuffer.width, dumb_framebuffer.height, 24, 32,
-                        dumb_framebuffer.pitch, dumb_framebuffer.handle, &m_bufferHandles[0]);
-                    struct drm_mode_map_dumb mapReq = {  dumb_framebuffer.handle, 0, 0 };
+                                       dumb_framebuffer.pitch, dumb_framebuffer.handle, &m_bufferHandles[0]);
+                    struct drm_mode_map_dumb mapReq = { dumb_framebuffer.handle, 0, 0 };
                     err = drmIoctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &mapReq);
                     if (err) {
                         LogWarn(VB_CHANNELOUT, "DRM map framebuffer failed (err=%d)\n", err);
@@ -657,8 +681,8 @@ int FrameBuffer::InitializeFrameBufferDRM(void) {
                     } else {
                         m_bufferHandles[1] = 0;
                         err = drmModeAddFB(fd, dumb_framebuffer.width, dumb_framebuffer.height, 24, 32,
-                            dumb_framebuffer.pitch, dumb_framebuffer.handle, &m_bufferHandles[1]);
-                        struct drm_mode_map_dumb mapReq2 = {  dumb_framebuffer.handle, 0, 0 };
+                                           dumb_framebuffer.pitch, dumb_framebuffer.handle, &m_bufferHandles[1]);
+                        struct drm_mode_map_dumb mapReq2 = { dumb_framebuffer.handle, 0, 0 };
                         err = drmIoctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &mapReq2);
                         if (err) {
                             m_pages = 1;
@@ -720,7 +744,6 @@ void FrameBuffer::DestroyFrameBufferDRM(void) {
 }
 #endif
 #endif
-
 
 #ifdef USE_X11
 int FrameBuffer::InitializeX11Window(void) {
@@ -970,7 +993,7 @@ void FrameBuffer::SyncLoopFB() {
     int dummy = 0;
 
     if (m_pages == 1) {
-        // using /dev/fb* and only one page so writes are immediate, no need to sync   
+        // using /dev/fb* and only one page so writes are immediate, no need to sync
         return;
     }
 

@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../../log.h"
+
 #include "OverrideZeroOutputProcessor.h"
 
 OverrideZeroOutputProcessor::OverrideZeroOutputProcessor(const Json::Value& config) {

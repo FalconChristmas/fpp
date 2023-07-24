@@ -1,5 +1,8 @@
 #include "fpp-pch.h"
 
+#include "../Warnings.h"
+#include "../log.h"
+
 #include "GenericUDPOutput.h"
 #include "UDPOutput.h"
 

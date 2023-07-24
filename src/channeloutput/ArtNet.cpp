@@ -27,6 +27,9 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include "../Warnings.h"
+#include "../log.h"
+
 #include "ArtNet.h"
 #include "ChannelOutputSetup.h"
 #include "FPD.h"

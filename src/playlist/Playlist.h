@@ -12,6 +12,7 @@
  */
 
 #include <atomic>
+#include <list>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -100,7 +101,7 @@ public:
     Json::Value GetMqttStatusJSON(); // Returns Status as JSON
 
 private:
-    void GetParentPlaylistNames(std::list<std::string> &names);
+    void GetParentPlaylistNames(std::list<std::string>& names);
     int ReloadPlaylist(void);
     void ReloadIfNeeded(void);
     void SwitchToMainPlaylist(void);
@@ -141,7 +142,7 @@ private:
     std::string m_insertedPlaylist;
     int m_insertedPlaylistPosition;
     int m_insertedPlaylistEndPosition;
-    
+
     std::string startNewPlaylistFilename;
     int startNewPlaylistPosition = 0;
     int startNewPlaylistRepeat = 0;

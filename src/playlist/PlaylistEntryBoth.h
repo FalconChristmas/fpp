@@ -11,6 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <mutex>
 #include <string>
 
 #include "PlaylistEntryBase.h"

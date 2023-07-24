@@ -12,6 +12,10 @@
 
 #include "fpp-pch.h"
 
+#include <thread>
+
+#include "../log.h"
+
 #include "PCA9685.h"
 
 #include "Plugin.h"

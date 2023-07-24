@@ -12,10 +12,20 @@
 
 #include "fpp-pch.h"
 
-#include "mediadetails.h"
-
+#include <taglib/audioproperties.h>
 #include <taglib/fileref.h>
 #include <taglib/tag.h>
+#include <taglib/tstring.h>
+#include <stdio.h>
+#include <string.h>
+#include <string>
+
+#include "common.h"
+#include "log.h"
+#include "settings.h"
+#include "commands/Commands.h"
+
+#include "mediadetails.h"
 
 MediaDetails MediaDetails::INSTANCE;
 

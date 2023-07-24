@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../log.h"
+
 #include "PlaylistEntryPlugin.h"
 
 PlaylistEntryPlugin::PlaylistEntryPlugin(Playlist* playlist, PlaylistEntryBase* parent) :

@@ -11,37 +11,38 @@
  * included LICENSE.LGPL file.
  */
 
- #include <curl/curl.h>
+#include <curl/curl.h>
+#include <mutex>
 
 class CurlManager {
 public:
     static CurlManager INSTANCE;
 
-    void addCURL(CURL *curl, std::function<void(CURL *)>&& callback, bool autoCleanCurl = true);
+    void addCURL(CURL* curl, std::function<void(CURL*)>&& callback, bool autoCleanCurl = true);
 
-    void addGet(const std::string &url, std::function<void(int rc, const std::string &resp)>&& callback);
-    void addPost(const std::string &url, const std::string &data, std::function<void(int rc, const std::string &resp)>&& callback);
+    void addGet(const std::string& url, std::function<void(int rc, const std::string& resp)>&& callback);
+    void addPost(const std::string& url, const std::string& data, std::function<void(int rc, const std::string& resp)>&& callback);
 
-    void add(const std::string &url, const std::string &method, const std::string &data, 
-            const std::list<std::string>& extraHeaders,
-            std::function<void(int rc, const std::string &resp)>&& callback);
+    void add(const std::string& url, const std::string& method, const std::string& data,
+             const std::list<std::string>& extraHeaders,
+             std::function<void(int rc, const std::string& resp)>&& callback);
 
     void processCurls();
+
 private:
     CurlManager();
     ~CurlManager();
 
-    CURLM *curlMulti = nullptr;
+    CURLM* curlMulti = nullptr;
     int numCurls = 0;
-
 
     class CurlInfo {
     public:
         CurlInfo() {}
         ~CurlInfo() {}
-        CURL *curl = nullptr;
+        CURL* curl = nullptr;
         bool cleanCurl = true;
-        std::function<void(CURL *)> callback;
+        std::function<void(CURL*)> callback;
     };
     std::vector<CurlInfo*> curls;
     std::mutex lock;

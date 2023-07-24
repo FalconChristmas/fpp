@@ -12,6 +12,9 @@
 
 #include "fpp-pch.h"
 
+#include "../log.h"
+
+
 #include "GPIO.h"
 
 #include "Plugin.h"

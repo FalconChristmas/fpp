@@ -14,6 +14,10 @@
 
 #include <fcntl.h>
 #include <termios.h>
+#include <unistd.h>
+
+#include "../common.h"
+#include "../log.h"
 
 #include "GenericSerial.h"
 #include "serialutil.h"

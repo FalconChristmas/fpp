@@ -16,9 +16,14 @@
 #include <signal.h>
 #include <stdint.h>
 
+#include "../Sequence.h"
+#include "../Warnings.h"
+#include "../common.h"
+#include "../log.h"
+
 #include "rpi_ws281x.h"
-#include "util/GPIOUtils.h"
-#include "channeloutput/stringtesters/PixelStringTester.h"
+#include "../util/GPIOUtils.h"
+#include "stringtesters/PixelStringTester.h"
 
 #include "Plugin.h"
 class RPIWS281xPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
@@ -239,8 +244,7 @@ void RPIWS281xOutput::GetRequiredChannelRanges(const std::function<void(int, int
     }
 }
 void RPIWS281xOutput::PrepData(unsigned char* channelData) {
-
-    PixelStringTester *tester = nullptr;
+    PixelStringTester* tester = nullptr;
     if (m_testType && m_testCycle >= 0) {
         tester = PixelStringTester::getPixelStringTester(m_testType);
         tester->prepareTestData(m_testCycle, m_testPercent);
@@ -248,9 +252,9 @@ void RPIWS281xOutput::PrepData(unsigned char* channelData) {
     for (int s = 0; s < m_strings.size(); s++) {
         PixelString* ps = m_strings[s];
         uint32_t newLen = ps->m_outputChannels;
-        uint8_t* pd = tester 
-                ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
-                : ps->prepareOutput(channelData);
+        uint8_t* pd = tester
+                          ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
+                          : ps->prepareOutput(channelData);
         //ws281x library and spi data has pre-allocated a fixed buffer we cannot exceed
         newLen = std::min(newLen, (uint32_t)ps->m_outputChannels);
         if (offsets[s] < 2) {
@@ -309,7 +313,6 @@ void RPIWS281xOutput::SetupCtrlCHandler(void) {
 
     sigaction(SIGKILL, &sa, NULL);
 }
-
 
 void RPIWS281xOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
     m_testCycle = cycleNum;

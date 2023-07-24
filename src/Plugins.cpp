@@ -13,30 +13,30 @@
 #include "fpp-pch.h"
 
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/wait.h>
-#include <ctype.h>
+#include <cstring>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
-#include <iostream>
-#include <libgen.h>
 #include <list>
+#include <map>
+#include <memory>
+#include <set>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
 #include <unistd.h>
-
-#include "Plugins.h"
-#include "config.h"
-#include "mediadetails.h"
-#include "mediaoutput/mediaoutput.h"
-
-#include "commands/Commands.h"
-#include "playlist/Playlist.h"
+#include <vector>
 
 #include "Plugin.h"
+#include "common.h"
+#include "config.h"
+#include "log.h"
 #include "mediadetails.h"
+#include "settings.h"
+#include "commands/Commands.h"
+
+#include "Plugins.h"
 
 PluginManager PluginManager::INSTANCE;
 

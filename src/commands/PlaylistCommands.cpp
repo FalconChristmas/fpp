@@ -12,6 +12,9 @@
 
 #include "fpp-pch.h"
 
+#include "../common.h"
+#include "../log.h"
+
 #include "Player.h"
 #include "PlaylistCommands.h"
 #include "Scheduler.h"

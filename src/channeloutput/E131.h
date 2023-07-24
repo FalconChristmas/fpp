@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "UDPOutput.h"
-#include "e131defs.h"
+#include "../e131defs.h"
 
 class E131OutputData : public UDPOutputData {
 public:

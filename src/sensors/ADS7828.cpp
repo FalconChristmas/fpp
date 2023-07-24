@@ -20,8 +20,10 @@ inline uint16_t bswap_16(uint16_t num) {
 }
 #endif
 
-#include "ADS7828.h"
+#include "../common.h"
 #include "../util/I2CUtils.h"
+
+#include "ADS7828.h"
 
 ADS7828Sensor::ADS7828Sensor(Json::Value& config) :
     SensorSource(config) {

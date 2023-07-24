@@ -68,7 +68,12 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <cmath>
 #include <errno.h>
+
+#include "../Warnings.h"
+#include "../common.h"
+#include "../log.h"
 
 #include "ColorLight-5a-75.h"
 #include "overlays/PixelOverlay.h"
@@ -465,8 +470,8 @@ void ColorLight5a75Output::OverlayTestData(unsigned char* channelData, int cycle
                 chain = (m_longestChain - 1) - m_panelMatrix->m_panels[panel].chain - 1;
 
             m_panelMatrix->m_panels[panel].drawTestPattern(channelData + m_startChannel, cycleNum, testType);
-            m_panelMatrix->m_panels[panel].drawNumber(output + 1, m_panelWidth/2 + 1, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
-            m_panelMatrix->m_panels[panel].drawNumber(chain + 1, m_panelWidth/2 + 8, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
+            m_panelMatrix->m_panels[panel].drawNumber(output + 1, m_panelWidth / 2 + 1, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
+            m_panelMatrix->m_panels[panel].drawNumber(chain + 1, m_panelWidth / 2 + 8, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
         }
     }
 }

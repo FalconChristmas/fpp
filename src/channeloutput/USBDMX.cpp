@@ -14,6 +14,10 @@
 
 #include <fcntl.h>
 #include <termios.h>
+#include <unistd.h>
+
+#include "../Warnings.h"
+#include "../log.h"
 
 #include "USBDMX.h"
 #include "serialutil.h"

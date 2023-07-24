@@ -12,11 +12,16 @@
 
 #include "fpp-pch.h"
 
-#include "PlaylistEntrySequence.h"
-#include "fseq/FSEQFile.h"
+#include "../common.h"
+#include "../log.h"
+#include "../settings.h"
 
-#include "channeloutput/ChannelOutputSetup.h"
-#include "channeloutput/channeloutputthread.h"
+#include "../Sequence.h"
+#include "../channeloutput/ChannelOutputSetup.h"
+#include "../channeloutput/channeloutputthread.h"
+#include "../fseq/FSEQFile.h"
+
+#include "PlaylistEntrySequence.h"
 
 #include "Events.h"
 

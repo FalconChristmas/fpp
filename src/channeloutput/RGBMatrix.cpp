@@ -12,6 +12,11 @@
 
 #include "fpp-pch.h"
 
+#include <cmath>
+
+#include "../Warnings.h"
+#include "../log.h"
+
 #include "RGBMatrix.h"
 #include "overlays/PixelOverlay.h"
 
@@ -272,8 +277,8 @@ void RGBMatrixOutput::OverlayTestData(unsigned char* channelData, int cycleNum, 
             int panel = m_panelMatrix->m_outputPanels[output][i];
 
             m_panelMatrix->m_panels[panel].drawTestPattern(channelData + m_startChannel, cycleNum, testType);
-            m_panelMatrix->m_panels[panel].drawNumber(output + 1, m_panelWidth/2 + 1, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
-            m_panelMatrix->m_panels[panel].drawNumber(i + 1, m_panelWidth/2 + 8, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
+            m_panelMatrix->m_panels[panel].drawNumber(output + 1, m_panelWidth / 2 + 1, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
+            m_panelMatrix->m_panels[panel].drawNumber(i + 1, m_panelWidth / 2 + 8, m_panelHeight > 16 ? 2 : 1, channelData + m_startChannel);
         }
     }
 }

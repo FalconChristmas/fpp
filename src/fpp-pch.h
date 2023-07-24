@@ -4,6 +4,19 @@
 // This #define must be before any #include's
 #define _FILE_OFFSET_BITS 64
 
+#if __has_include(<jsoncpp/json/json.h>)
+#include <jsoncpp/json/json.h>
+#elif __has_include(<json/json.h>)
+#include <json/json.h>
+#endif
+
+#if __has_include(<httpserver/http_arg_value.hpp>)
+#define HTTP_RESPONSE_CONST
+#else
+#define HTTP_RESPONSE_CONST const
+#endif
+
+#ifndef NOPCH
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -32,26 +45,17 @@
 #include <strings.h>
 #include <unistd.h>
 
-#if __has_include(<jsoncpp/json/json.h>)
-#include <jsoncpp/json/json.h>
-#elif __has_include(<json/json.h>)
-#include <json/json.h>
-#endif
 #include <httpserver.hpp>
 
-#if __has_include(<httpserver/http_arg_value.hpp>)
-#define HTTP_RESPONSE_CONST
-#else
-#define HTTP_RESPONSE_CONST const
-#endif
-
+#include "Events.h"
 #include "Sequence.h"
 #include "Warnings.h"
 #include "common.h"
 #include "fppversion.h"
 #include "log.h"
-#include "Events.h"
 #include "settings.h"
 #include "commands/Commands.h"
+
+#endif
 
 #endif

@@ -15,9 +15,13 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <ctime>
 #include <iomanip>
+
+#include "../fppversion.h"
+#include "../log.h"
 
 #include "HTTPVirtualDisplay.h"
 
@@ -365,18 +369,18 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
             y = m_previewHeight - m_pixels[i].y;
             if (m_pixels[i].x >= 4095)
                 snprintf(loc, sizeof(loc), "%c%c%c%c%c%c",
-                        base64[(m_pixels[i].x >> 12) & 0x3f],
-                        base64[(m_pixels[i].x >> 6) & 0x3f],
-                        base64[(m_pixels[i].x) & 0x3f],
-                        base64[(y >> 12) & 0x3f],
-                        base64[(y >> 6) & 0x3f],
-                        base64[(y)&0x3f]);
+                         base64[(m_pixels[i].x >> 12) & 0x3f],
+                         base64[(m_pixels[i].x >> 6) & 0x3f],
+                         base64[(m_pixels[i].x) & 0x3f],
+                         base64[(y >> 12) & 0x3f],
+                         base64[(y >> 6) & 0x3f],
+                         base64[(y)&0x3f]);
             else
                 snprintf(loc, sizeof(loc), "%c%c%c%c",
-                        base64[(m_pixels[i].x >> 6) & 0x3f],
-                        base64[(m_pixels[i].x) & 0x3f],
-                        base64[(y >> 6) & 0x3f],
-                        base64[(y)&0x3f]);
+                         base64[(m_pixels[i].x >> 6) & 0x3f],
+                         base64[(m_pixels[i].x) & 0x3f],
+                         base64[(y >> 6) & 0x3f],
+                         base64[(y)&0x3f]);
 
             colorIt = colors.find(colorStr);
             if (colorIt != colors.end())

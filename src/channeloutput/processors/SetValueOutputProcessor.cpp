@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../../log.h"
+
 #include "SetValueOutputProcessor.h"
 
 SetValueOutputProcessor::SetValueOutputProcessor(const Json::Value& config) {

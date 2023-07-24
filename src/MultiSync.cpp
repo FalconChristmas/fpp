@@ -13,29 +13,54 @@
 #include "fpp-pch.h"
 
 #include <arpa/inet.h>
-#include <net/if.h>
+#include <bits/types/struct_tm.h>
+#include <curl/curl.h>
+#include <ext/alloc_traits.h>
 #include <netinet/in.h>
 #include <sys/types.h>
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
+#include <ctime>
+#include <ctype.h>
+#include <errno.h>
+#include <functional>
 #include <ifaddrs.h>
+#include <list>
+#include <map>
 #include <math.h>
+#include <memory>
+#include <mutex>
 #include <netdb.h>
-
-#include <curl/curl.h>
-
-#include "MultiSync.h"
-
-#include "Plugins.h"
-#include "command.h"
-#include "falcon.h"
-#include "fppversion.h"
+#include <set>
+#include <stdio.h>
+#include <string.h>
+#include <string>
+#include <strings.h>
+#include <thread>
+#include <unistd.h>
+#include <utility>
+#include <vector>
 
 #include "NetworkController.h"
 #include "NetworkMonitor.h"
 #include "Player.h"
+#include "Plugins.h"
+#include "Sequence.h"
+#include "command.h"
+#include "common.h"
+#include "falcon.h"
+#include "fppversion.h"
+#include "log.h"
+#include "settings.h"
 #include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/channeloutputthread.h"
 #include "commands/Commands.h"
+#include "mediaoutput/MediaOutputBase.h"
 #include "mediaoutput/mediaoutput.h"
+
+#include "MultiSync.h"
 
 MultiSync MultiSync::INSTANCE;
 MultiSync* multiSync = &MultiSync::INSTANCE;
@@ -255,8 +280,8 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
     struct tm tm;
     localtime_r(&t, &tm);
     snprintf(timeStr, sizeof(timeStr), "%4d-%.2d-%.2d %.2d:%.2d:%.2d",
-            1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday,
-            tm.tm_hour, tm.tm_min, tm.tm_sec);
+             1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday,
+             tm.tm_hour, tm.tm_min, tm.tm_sec);
 
     std::string ipForAddress = address;
     GetIPForHost(ipForAddress);
@@ -2701,9 +2726,9 @@ Json::Value MultiSyncStats::toJSON() {
     memset(timeStr, 0, sizeof(timeStr));
     struct tm tm;
     localtime_r(&lastReceiveTime, &tm);
-    snprintf(timeStr,sizeof(timeStr), "%4d-%.2d-%.2d %.2d:%.2d:%.2d",
-            1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday,
-            tm.tm_hour, tm.tm_min, tm.tm_sec);
+    snprintf(timeStr, sizeof(timeStr), "%4d-%.2d-%.2d %.2d:%.2d:%.2d",
+             1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday,
+             tm.tm_hour, tm.tm_min, tm.tm_sec);
 
     result["lastReceiveTime"] = timeStr;
     result["pktCommand"] = pktCommand;

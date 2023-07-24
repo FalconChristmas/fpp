@@ -14,6 +14,9 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <thread>
+
+#include "../log.h"
 
 #include "GPIO595.h"
 

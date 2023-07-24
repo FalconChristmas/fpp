@@ -12,6 +12,7 @@
  */
 
 #include "../../Sequence.h"
+#include <functional>
 
 class OutputProcessor {
 public:

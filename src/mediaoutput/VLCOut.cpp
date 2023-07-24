@@ -17,10 +17,16 @@
 #include <vlc/libvlc_version.h>
 #include <vlc/vlc.h>
 
-#include "VLCOut.h"
+#include <cmath>
 
-#include "MultiSync.h"
-#include "channeloutput/channeloutputthread.h"
+#include "../MultiSync.h"
+#include "../Warnings.h"
+#include "../channeloutput/channeloutputthread.h"
+#include "../common.h"
+#include "../log.h"
+#include "../settings.h"
+
+#include "VLCOut.h"
 
 #if LIBVLC_VERSION_MAJOR > 3
 #define MEDIA_PLAYER_SET_TIME(a, b) libvlc_media_player_set_time(a, b, false)
@@ -41,7 +47,6 @@
 #define LIBVLC_MEDIA_NEWPATH(a, b) libvlc_media_new_path(a, b)
 #define LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(a, b) libvlc_media_player_new_from_media(b)
 #endif
-
 
 class VLCInternalData {
 public:
@@ -172,7 +177,7 @@ public:
             if (!hardwareDecoding) {
                 args.push_back("--no-hw-dec");
             }
-#ifndef PLATFORM_OSX            
+#ifndef PLATFORM_OSX
             args.push_back("-A");
             args.push_back("alsa");
 #ifdef PLATFORM_PI
@@ -183,7 +188,7 @@ public:
 #else
             args.push_back("-I");
             args.push_back("dummy");
-#endif            
+#endif
 #else
             args.push_back("-I");
             args.push_back("macosx");
@@ -191,8 +196,8 @@ public:
 #endif
 
             std::string extraArgs = getSetting("VLCOptions");
-            char *eargsPtr = strdupa(extraArgs.c_str());
-            char *p2 = eargsPtr;
+            char* eargsPtr = strdupa(extraArgs.c_str());
+            char* p2 = eargsPtr;
             if (*p2) {
                 args.push_back(p2);
             }

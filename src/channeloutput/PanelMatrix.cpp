@@ -12,6 +12,9 @@
 
 #include "fpp-pch.h"
 
+#include "../common.h"
+#include "../log.h"
+
 #include "PanelMatrix.h"
 
 PanelMatrix::PanelMatrix(int panelWidth, int panelHeight, int invertedData) :

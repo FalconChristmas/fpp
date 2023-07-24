@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include <list>
+
 #include "ExpressionProcessor.h"
 
 #include "tinyexpr.h"

@@ -14,6 +14,9 @@
 
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <unistd.h>
+
+#include "../log.h"
 
 #include "ILI9488.h"
 

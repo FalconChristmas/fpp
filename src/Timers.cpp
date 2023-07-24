@@ -11,10 +11,17 @@
  */
 
 #include "fpp-pch.h"
+
+#include <algorithm>
 #include <climits>
+#include <mutex>
+#include <string>
+#include <vector>
+
+#include "common.h"
+#include "commands/Commands.h"
 
 #include "Timers.h"
-#include "commands/Commands.h"
 
 Timers Timers::INSTANCE;
 

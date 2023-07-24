@@ -26,6 +26,9 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "../Warnings.h"
+#include "../log.h"
+
 #include "ChannelOutputSetup.h"
 #include "E131.h"
 #include "FPD.h"

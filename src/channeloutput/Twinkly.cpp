@@ -23,6 +23,11 @@
 #include <netdb.h>
 #include <signal.h>
 
+#include "../Warnings.h"
+#include "../common.h"
+#include "../fppversion.h"
+#include "../log.h"
+
 #include "Twinkly.h"
 
 #include "../CurlManager.h"
@@ -32,7 +37,7 @@ static const std::string TWINKLYTYPE = "Twinkly";
 
 constexpr int TOKEN_LEN = 8;
 constexpr int HEADER_LEN = (1 + TOKEN_LEN + 2 + 1);
-constexpr int TWINKLY_TOKEN_VALIDATE_TIME = 120;  // check the token every 120s
+constexpr int TWINKLY_TOKEN_VALIDATE_TIME = 120; // check the token every 120s
 
 constexpr uint32_t MAXPACKETS = 40 * 60 * 60 * 4; // about 4 hours at 40fps,
 

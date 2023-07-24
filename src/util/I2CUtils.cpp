@@ -12,6 +12,10 @@
 
 #include "fpp-pch.h"
 
+#include <fcntl.h>
+#include <thread>
+#include <unistd.h>
+
 #include "../config.h"
 
 #ifdef HAS_I2C
@@ -21,7 +25,6 @@
 
 #endif
 #include <sys/ioctl.h>
-#include <fcntl.h>
 
 #include "I2CUtils.h"
 

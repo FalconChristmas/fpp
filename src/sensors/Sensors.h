@@ -11,7 +11,10 @@
  * included LICENSE.LGPL file.
  */
 
+#include <functional>
 #include <list>
+#include <map>
+#include <string>
 
 class Sensor;
 class SensorSource {
@@ -24,9 +27,10 @@ public:
 
     virtual void update(bool forceInstant = false) = 0;
     virtual int32_t getValue(int id) = 0;
-    
-    virtual const std::string &getID() const { return _id; }
-    virtual void lockToGroup(int i) {};
+
+    virtual const std::string& getID() const { return _id; }
+    virtual void lockToGroup(int i){};
+
 protected:
     std::string _id;
 };
@@ -40,7 +44,7 @@ public:
     void Init(std::map<int, std::function<bool(int)>>& callbacks);
     void Close();
 
-    void DetectHWSensors();    
+    void DetectHWSensors();
     void addSensors(Json::Value& config);
     void reportSensors(Json::Value& root);
 
@@ -48,7 +52,8 @@ public:
 
     void lockToGroup(int i);
     void updateSensorSources(bool forceInstant = false);
-    SensorSource *getSensorSource(const std::string &name);
+    SensorSource* getSensorSource(const std::string& name);
+
 private:
     Sensor* createSensor(Json::Value& s);
     std::list<Sensor*> sensors;

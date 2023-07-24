@@ -11,6 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <list>
 #include <mutex>
 #include <thread>
 
@@ -53,7 +54,6 @@ private:
     PixelState state;
 };
 
-
 class PixelOverlayModel {
 public:
     PixelOverlayModel(const Json::Value& config);
@@ -79,23 +79,21 @@ public:
 
     void toJson(Json::Value& v);
     void getDataJson(Json::Value& v, bool rle = false);
-    
-    
+
     // Access to the chanelData.  The channelData is a minimal array of bytes
     // If the model is a "custom" model or using singleChannel nodes or similar,
     // then the channelData will be significantly smaller than WxHx3
     void saveOverlayAsImage(std::string filename = "");
     virtual void setData(const uint8_t* data); // full RGB data, width*height*3
-    virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h, const PixelOverlayState &st = PixelOverlayState(PixelOverlayState::Enabled));
+    virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h, const PixelOverlayState& st = PixelOverlayState(PixelOverlayState::Enabled));
     void setScaledData(uint8_t* data, int w, int h);
     void setPixelValue(int x, int y, int r, int g, int b);
-    void getPixelValue(int x, int y, int &r, int &g, int &b);
+    void getPixelValue(int x, int y, int& r, int& g, int& b);
     void clearData();
     void fillData(int r, int g, int b);
     void setBufferIsDirty(bool dirty = true);
     bool needRefresh();
 
-    
     // The overlay buffer is a full continuous width*height*3 buffer that can be used to
     // construct the frame as a full RGB image prior to flushing to the channelData.
     // The overlay buffer is also mmapped so external programs can have easy
@@ -110,7 +108,6 @@ public:
     void getOverlayPixelValue(int x, int y, int& r, int& g, int& b);
     void flushOverlayBuffer();
 
-    
     // Operate on both the overlay buffer (if mapped) and the channelData
     void clear();
     void fill(int r, int g, int b);
@@ -120,7 +117,8 @@ public:
     RunningEffect* getRunningEffect() const { return runningEffect; }
     int32_t updateRunningEffects();
 
-    void setChildState(const std::string &n, const PixelOverlayState& state, int ox, int oy, int w, int h);
+    void setChildState(const std::string& n, const PixelOverlayState& state, int ox, int oy, int w, int h);
+
 protected:
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
     bool flushChildren(uint8_t* dst);
@@ -149,7 +147,7 @@ protected:
 
     std::mutex effectLock;
     RunningEffect* runningEffect;
-    
+
     class ChildModelState {
     public:
         std::string name;

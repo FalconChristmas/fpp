@@ -12,10 +12,28 @@
 
 #include "fpp-pch.h"
 
-#include "OutputMonitor.h"
-#include "Timers.h"
+#include <ext/alloc_traits.h>
+#include <cmath>
+#include <fcntl.h>
+#include <httpserver.hpp>
+#include <list>
+#include <map>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string>
+#include <unistd.h>
+#include <vector>
+
+#include "Warnings.h"
+#include "common.h"
 #include "gpio.h"
+#include "log.h"
+#include "settings.h"
+#include "commands/Commands.h"
 #include "sensors/Sensors.h"
+#include "util/GPIOUtils.h"
+
+#include "OutputMonitor.h"
 
 OutputMonitor OutputMonitor::INSTANCE;
 

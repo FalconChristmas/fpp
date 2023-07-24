@@ -12,24 +12,38 @@
 
 #include "fpp-pch.h"
 
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <inttypes.h>
-#include <unistd.h>
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <list>
+#include <map>
+#include <mutex>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <string>
+#include <thread>
+#include <utility>
+#include <vector>
 
 #include "MultiSync.h"
 #include "Player.h"
 #include "Plugins.h"
+#include "Warnings.h"
+#include "common.h"
 #include "effects.h"
-#include "fppd.h"
+#include "log.h"
+#include "settings.h"
 #include "channeloutput/ChannelOutputSetup.h"
-#include "channeloutput/E131.h"
 #include "channeloutput/channeloutputthread.h"
 #include "channeltester/ChannelTester.h"
+#include "commands/Commands.h"
+#include "mediaoutput/SDLOut.h"
 #include "overlays/PixelOverlay.h"
+#include "playlist/Playlist.h"
+
+#include "Sequence.h"
 
 using namespace std::literals;
 using namespace std::chrono_literals;
@@ -265,10 +279,10 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
             strcpy(tmpFilename, FPP_DIR_SEQUENCE("/fallback.fseq").c_str());
 
             if (!FileExists(tmpFilename)) {
-              LogDebug(VB_SEQUENCE, "Fallback Sequence file %s does not exist\n", tmpFilename);
-              WarningHolder::AddWarningTimeout(warning,60);
-              m_seqStarting = 0;
-              return 0;
+                LogDebug(VB_SEQUENCE, "Fallback Sequence file %s does not exist\n", tmpFilename);
+                WarningHolder::AddWarningTimeout(warning, 60);
+                m_seqStarting = 0;
+                return 0;
 
             } else {
                 m_seqFilename = "fallback.fseq";
@@ -336,22 +350,23 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     return 1;
 }
 void Sequence::ProcessVariableHeaders() {
-    for (auto &vh : m_seqFile->getVariableHeaders()) {
+    for (auto& vh : m_seqFile->getVariableHeaders()) {
         if (vh.code[0] == 'F') {
             if (vh.code[1] == 'C' || vh.code[1] == 'E') {
-                uint8_t *data = (uint8_t*)(&vh.data[0]);
-                if (data[0] != 1) continue;  //version flag, only understand v1 right now
-                uint32_t *uintData = (uint32_t*)&data[1];
+                uint8_t* data = (uint8_t*)(&vh.data[0]);
+                if (data[0] != 1)
+                    continue; //version flag, only understand v1 right now
+                uint32_t* uintData = (uint32_t*)&data[1];
                 int count = *uintData;
                 std::string ips = "";
                 if (data[5]) {
-                    ips = std::string((const char *)&data[5]);
+                    ips = std::string((const char*)&data[5]);
                     //TODO - process ips to see if we are actually supposed to run these commands/effects
                     //    Not supported in xLights yet
                 }
                 data += 6 + ips.length();
                 for (int x = 0; x < count; x++) {
-                    std::string cmd = std::string((const char *)data);
+                    std::string cmd = std::string((const char*)data);
                     data += cmd.length() + 1;
                     uintData = (uint32_t*)data;
                     int cc = uintData[0];
@@ -687,21 +702,21 @@ void Sequence::SendSequenceData() {
         std::map<std::string, std::string> keywords;
         keywords["SEQUENCE_NAME"] = m_seqFilename;
         uint32_t frame = m_lastFrameData->frame;
-        const auto &p = commandPresets.find(frame);
+        const auto& p = commandPresets.find(frame);
         if (p != commandPresets.end()) {
-            for (auto &cmd : p->second) {
+            for (auto& cmd : p->second) {
                 CommandManager::INSTANCE.TriggerPreset(cmd, keywords);
             }
         }
-        const auto &eop = effectsOn.find(frame);
+        const auto& eop = effectsOn.find(frame);
         if (p != effectsOn.end()) {
-            for (auto &eff : eop->second) {
+            for (auto& eff : eop->second) {
                 StartEffect(eff, 0, 1);
             }
         }
-        const auto &efp = effectsOff.find(frame);
+        const auto& efp = effectsOff.find(frame);
         if (efp != effectsOff.end()) {
-            for (auto &eff : efp->second) {
+            for (auto& eff : efp->second) {
                 StopEffect(eff);
             }
         }

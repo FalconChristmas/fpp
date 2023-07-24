@@ -12,13 +12,30 @@
 
 #include "fpp-pch.h"
 
-#include "Events.h"
-#include "Player.h"
+#include <algorithm>
 #include <climits>
+#include <ctime>
+#include <fstream>
+#include <list>
+#include <map>
+#include <string>
+#include <thread>
+#include <unistd.h>
+#include <utility>
 
-static std::list<EventHandler *> EVENT_HANDLERS;
-static std::map<std::string, std::function<void(const std::string& topic, const std::string& payload)>> EVENT_CALLBACKS; 
-static std::thread *EVENT_PUBLISH_THREAD = nullptr;
+#include "Player.h"
+#include "Warnings.h"
+#include "common.h"
+#include "fppversion.h"
+#include "log.h"
+#include "settings.h"
+#include "commands/Commands.h"
+
+#include "Events.h"
+
+static std::list<EventHandler*> EVENT_HANDLERS;
+static std::map<std::string, std::function<void(const std::string& topic, const std::string& payload)>> EVENT_CALLBACKS;
+static std::thread* EVENT_PUBLISH_THREAD = nullptr;
 static volatile bool EVENT_PUBLISH_THREAD_RUN = true;
 
 class EventWarningListener : public WarningListener {
@@ -39,8 +56,7 @@ public:
         }
     }
 };
-static EventWarningListener *EVENT_WARNING_LISTENER = nullptr;
-
+static EventWarningListener* EVENT_WARNING_LISTENER = nullptr;
 
 EventHandler::EventHandler() {}
 EventHandler::~EventHandler() {}
@@ -64,16 +80,15 @@ void Events::Ready() {
     }
 }
 
-
-void Events::AddEventHandler(EventHandler *handler) {
-    for (auto &c : EVENT_CALLBACKS) {
+void Events::AddEventHandler(EventHandler* handler) {
+    for (auto& c : EVENT_CALLBACKS) {
         std::string topic = c.first;
         handler->RegisterCallback(topic);
     }
     EVENT_HANDLERS.push_back(handler);
 }
-void Events::RemoveEventHandler(EventHandler *handler) {
-    for (auto &c : EVENT_CALLBACKS) {
+void Events::RemoveEventHandler(EventHandler* handler) {
+    for (auto& c : EVENT_CALLBACKS) {
         handler->RemoveCallback(c.first);
     }
     EVENT_HANDLERS.remove(handler);
@@ -83,7 +98,7 @@ bool Events::HasEventHandlers() {
     return !EVENT_HANDLERS.empty();
 }
 
-bool Events::Publish(const std::string &topic, const std::string &data) {
+bool Events::Publish(const std::string& topic, const std::string& data) {
     bool ret = true;
     for (auto handler : EVENT_HANDLERS) {
         ret &= handler->Publish(topic, data);
@@ -111,10 +126,9 @@ void Events::RemoveCallback(const std::string& topic) {
     }
     EVENT_CALLBACKS.erase(topic);
 }
-void Events::InvokeCallback(const std::string &topic, const std::string &topic_in, const std::string &payload) {
+void Events::InvokeCallback(const std::string& topic, const std::string& topic_in, const std::string& payload) {
     EVENT_CALLBACKS[topic](topic_in, payload);
 }
-
 
 void Events::PrepareForShutdown() {
     if (EVENT_PUBLISH_THREAD) {

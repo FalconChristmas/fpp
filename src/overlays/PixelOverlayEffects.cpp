@@ -12,15 +12,33 @@
 
 #include "fpp-pch.h"
 
-#include <Magick++.h>
+#include <Magick++/Blob.h>
+#include <Magick++/Color.h>
+#include <Magick++/Geometry.h>
+#include <Magick++/Image.h>
+#include <Magick++/Include.h>
+#include <Magick++/TypeMetric.h>
+#include <ext/alloc_traits.h>
+#include <magick/image.h>
+#include <algorithm>
+#include <cstdint>
+#include <cstdlib>
+#include <list>
+#include <map>
+#include <string.h>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include <magick/type.h>
+#include "../commands/Commands.h"
+#include "../common.h"
+#include "../log.h"
 
 #include "PixelOverlay.h"
-#include "PixelOverlayEffects.h"
 #include "PixelOverlayModel.h"
-
 #include "WLEDEffects.h"
+
+#include "PixelOverlayEffects.h"
 
 static uint32_t applyColorPct(uint32_t c, float pct) {
     uint32_t r = (c >> 16) & 0xFF;
@@ -488,7 +506,6 @@ public:
                 int pixelsPerSecond,
                 const std::string& autoEnable,
                 int duration) {
-        
         bool disableWhenDone = false;
         PixelOverlayState st(autoEnable);
         if ((st.getState() != PixelOverlayState::PixelState::Disabled) && (m->getState().getState() == PixelOverlayState::PixelState::Disabled)) {
@@ -496,7 +513,7 @@ public:
             disableWhenDone = true;
         }
 
-        Magick::Image *image = new Magick::Image(Magick::Geometry(m->getWidth(), m->getHeight()), Magick::Color("black"));
+        Magick::Image* image = new Magick::Image(Magick::Geometry(m->getWidth(), m->getHeight()), Magick::Color("black"));
         image->quiet(true);
         image->depth(8);
         image->font(font);
@@ -540,8 +557,8 @@ public:
             rb /= 255.0f;
 
             image->fillColor(Magick::Color(Magick::Color::scaleDoubleToQuantum(rr),
-                                          Magick::Color::scaleDoubleToQuantum(rg),
-                                          Magick::Color::scaleDoubleToQuantum(rb)));
+                                           Magick::Color::scaleDoubleToQuantum(rg),
+                                           Magick::Color::scaleDoubleToQuantum(rb)));
             image->antiAlias(antialias);
             image->strokeAntiAlias(antialias);
             image->annotate(msg, Magick::CenterGravity);

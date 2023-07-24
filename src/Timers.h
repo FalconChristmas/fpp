@@ -11,6 +11,11 @@
  * included LICENSE.LGPL file.
  */
 
+#include <mutex>
+#include <vector>
+
+extern long long GetTimeMS();
+
 class Timers {
 public:
     static Timers INSTANCE;

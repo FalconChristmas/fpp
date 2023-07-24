@@ -12,6 +12,22 @@
 
 #include "fpp-pch.h"
 
+#include <algorithm>
+#include <chrono>
+#include <list>
+#include <map>
+#include <mutex>
+#include <set>
+#include <stdio.h>
+#include <string>
+#include <thread>
+#include <utility>
+
+#include "Warnings.h"
+#include "common.h"
+#include "log.h"
+#include "settings.h"
+
 std::map<std::string, int> WarningHolder::warnings;
 std::mutex WarningHolder::warningsLock;
 std::mutex WarningHolder::listenerListLock;

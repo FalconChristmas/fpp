@@ -19,7 +19,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "log.h"
+#include "../log.h"
 #include "../util/GPIOUtils.h"
 
 #ifdef PLATFORM_OSX
@@ -74,7 +74,7 @@ speed_t SerialGetBaudRate(int baud) {
 #ifndef PLATFORM_OSX
     case 1000000:
         return B1000000;
-#endif        
+#endif
     default:
         return B38400;
     }
@@ -177,12 +177,12 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output) {
         LogInfo(VB_CHANNELOUT, "Using custom baud rate of %d\n", baud);
 
 #ifdef PLATFORM_OSX
-        if ( ioctl(fd, IOSSIOSPEED, &adjustedBaud ) == -1 ) {
-            LogErr(VB_CHANNELOUT, "Error %d calling ioctl( ..., IOSSIOSPEED, ... )\n", errno );
+        if (ioctl(fd, IOSSIOSPEED, &adjustedBaud) == -1) {
+            LogErr(VB_CHANNELOUT, "Error %d calling ioctl( ..., IOSSIOSPEED, ... )\n", errno);
             close(fd);
             return -1;
         }
-#else        
+#else
         struct termios2 tio;
 
         if (ioctl(fd, TCGETS2, &tio) < 0) {

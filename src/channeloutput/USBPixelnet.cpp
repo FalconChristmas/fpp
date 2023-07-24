@@ -12,6 +12,11 @@
 
 #include "fpp-pch.h"
 
+#include <unistd.h>
+
+#include "../Warnings.h"
+#include "../log.h"
+
 #include "USBPixelnet.h"
 #include "serialutil.h"
 

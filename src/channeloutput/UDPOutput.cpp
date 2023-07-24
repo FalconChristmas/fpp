@@ -16,10 +16,17 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <ifaddrs.h>
-
 #include <netdb.h>
+#include <unistd.h>
 
 #include <curl/curl.h>
+
+#include <set>
+
+#include "../Warnings.h"
+#include "../common.h"
+#include "../log.h"
+#include "../settings.h"
 
 #include "UDPOutput.h"
 #include "ping.h"

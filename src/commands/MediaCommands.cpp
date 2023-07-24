@@ -13,6 +13,10 @@
 #include "fpp-pch.h"
 
 #include <curl/curl.h>
+#include <mutex>
+#include <thread>
+
+#include "../log.h"
 
 #include "MediaCommands.h"
 

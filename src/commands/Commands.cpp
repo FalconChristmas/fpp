@@ -12,6 +12,13 @@
 
 #include "fpp-pch.h"
 
+#include <thread>
+
+#include "../common.h"
+#include "../log.h"
+
+#include "../Events.h"
+
 #include "EventCommands.h"
 #include "MediaCommands.h"
 #include "MultiSync.h"

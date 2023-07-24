@@ -12,35 +12,41 @@
 
 #include "fpp-pch.h"
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #ifdef PLATFORM_OSX
 #include <netinet/udp.h>
 #endif
-#include <sys/types.h>
+
+#include <arpa/inet.h>
+#include <bits/types/struct_iovec.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <algorithm>
+#include <cstdlib>
 #include <errno.h>
-#include <ifaddrs.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
-
 #include <fstream>
-#include <sstream>
+#include <ifaddrs.h>
+#include <map>
+#include <memory>
+#include <stdio.h>
+#include <string.h>
 #include <string>
+#include <unistd.h>
+#include <utility>
+#include <vector>
 
-#include "command.h"
-#include "e131bridge.h"
-
-#include "MultiSync.h"
+#include "Sequence.h"
+#include "Warnings.h"
+#include "common.h"
 #include "e131defs.h"
-#include "channeloutput/ChannelOutputSetup.h"
+#include "fppversion.h"
+#include "log.h"
+#include "settings.h"
 #include "channeloutput/DDP.h"
 #include "channeloutput/Universe.h"
 #include "channeloutput/channeloutputthread.h"
-#include <ctime>
+#include "commands/Commands.h"
+
+#include "e131bridge.h"
 
 #define BRIDGE_INVALID_UNIVERSE_INDEX 0xFFFFFF
 

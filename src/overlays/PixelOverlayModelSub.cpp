@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../log.h"
+
 #include "PixelOverlay.h"
 #include "PixelOverlayModelSub.h"
 
@@ -60,7 +62,6 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     if (!dirtyBuffer)
         return;
 
-
     parent->setData(channelData, xOffset, yOffset, width, height, state);
     dirtyBuffer = false;
 }
@@ -73,4 +74,3 @@ void PixelOverlayModelSub::setData(const uint8_t* data) {
 
     dirtyBuffer = true;
 }
-

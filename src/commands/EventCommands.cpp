@@ -12,12 +12,18 @@
 
 #include "fpp-pch.h"
 
-#include "overlays/PixelOverlay.h"
-#include "overlays/PixelOverlayModel.h"
+#include <functional>
+
+#include "../Sequence.h"
+#include "../Timers.h"
+#include "../common.h"
+#include "../effects.h"
+#include "../log.h"
+#include "../overlays/PixelOverlay.h"
+#include "../overlays/PixelOverlayModel.h"
+#include "../scripts.h"
+
 #include "EventCommands.h"
-#include "Timers.h"
-#include "effects.h"
-#include "scripts.h"
 
 TriggerPresetCommand::TriggerPresetCommand() :
     Command("Trigger Command Preset") {
@@ -200,14 +206,14 @@ std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::
         iNR = args[4] == "true" || args[4] == "1";
     }
     if (args.size() > 5) {
-	    Model = args[5].c_str();
+        Model = args[5].c_str();
         if (Model != "") {
             auto m_model = PixelOverlayManager::INSTANCE.getModel(Model);
             if (!m_model) {
-               LogErr(VB_COMMAND, "Invalid Pixel Overlay Model: '%s'\n", Model.c_str());
+                LogErr(VB_COMMAND, "Invalid Pixel Overlay Model: '%s'\n", Model.c_str());
             } else {
-               LogDebug(VB_COMMAND, "Overlay Model start channel modified to be : '%i'\n", m_model->getStartChannel() + startChannel);
-               startChannel = m_model->getStartChannel() + startChannel;
+                LogDebug(VB_COMMAND, "Overlay Model start channel modified to be : '%i'\n", m_model->getStartChannel() + startChannel);
+                startChannel = m_model->getStartChannel() + startChannel;
             }
         }
     }

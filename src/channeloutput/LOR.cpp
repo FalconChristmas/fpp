@@ -14,6 +14,11 @@
 
 #include <fcntl.h>
 #include <termios.h>
+#include <unistd.h>
+
+#include "../Warnings.h"
+#include "../common.h"
+#include "../log.h"
 
 #include "serialutil.h"
 

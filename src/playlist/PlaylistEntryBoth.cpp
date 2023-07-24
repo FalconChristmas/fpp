@@ -12,9 +12,14 @@
 
 #include "fpp-pch.h"
 
-#include "MultiSync.h"
+#include <thread>
+
+#include "../common.h"
+#include "../log.h"
+
 #include "PlaylistEntryBoth.h"
 #include "mediadetails.h"
+#include "../MultiSync.h"
 
 PlaylistEntryBoth::PlaylistEntryBoth(Playlist* playlist, PlaylistEntryBase* parent) :
     PlaylistEntryBase(playlist, parent),

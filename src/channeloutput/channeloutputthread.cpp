@@ -10,28 +10,31 @@
  * included LICENSE.LGPL file.
  */
 
-#include "fpp-pch.h"
+#include "../fpp-pch.h"
 
 #include <sys/time.h>
+#include <chrono>
+#include <condition_variable>
+#include <cstring>
+#include <ctime>
 #include <errno.h>
 #include <mutex>
 #include <pthread.h>
-#include <signal.h>
-#include <stdio.h>
-#include <string.h>
 #include <thread>
-#include <unistd.h>
+
+#include "../MultiSync.h"
+#include "../Sequence.h"
+#include "../channeltester/ChannelTester.h"
+#include "../commands/Commands.h"
+#include "../common.h"
+#include "../effects.h"
+#include "../log.h"
+#include "../mediaoutput/SDLOut.h"
+#include "../overlays/PixelOverlay.h"
+#include "../settings.h"
 
 #include "ChannelOutputSetup.h"
-#include "MultiSync.h"
-#include "Sequence.h"
-#include "common.h"
-#include "effects.h"
-#include "log.h"
-#include "settings.h"
-#include "../channeltester/ChannelTester.h"
-#include "mediaoutput/SDLOut.h"
-#include "overlays/PixelOverlay.h"
+#include "channeloutputthread.h"
 
 /* used by external sync code */
 float RefreshRate = 20;
