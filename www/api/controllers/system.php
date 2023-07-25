@@ -266,30 +266,44 @@ function SystemGetStatus()
 
         foreach ($curls as $ip => $curl) {
             $request_content = curl_multi_getcontent($curl);
-
+            curl_multi_remove_handle($curlmulti, $curl);
+            $responseCode = 200;
             if ($request_content === false || $request_content == null || $request_content == "") {
                 $responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
                 $result[$ip] = array_merge(array(), $default_return_json);
                 if ($responseCode == 401) {
                     $result[$ip]['reason'] = "Cannot Access - Web GUI Password Set";
                     $result[$ip]["status_name"] = "password";
+                } else if ($responseCode == 404 && $type == "FPP") {
+                    // old device, possibly ESPixelStick, maybe FPP4
+                    $curl = curl_init("http://" . $ip . "/fppjson.php?command=getFPPstatus&advancedView=true");
+                    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+                    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 500);
+                    curl_setopt($curl, CURLOPT_TCP_FASTOPEN, true);
+                    curl_setopt($curl, CURLOPT_TIMEOUT_MS, 3000);
+                    $request_content = curl_exec($curl);
+                    $responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
                 } else if ($responseCode == 0) {
                     $result[$ip]["status_name"] = "unreachable";
                 }
-            } else if (strpos($request_content, 'Not Running') !== false) {
-                $result[$ip]["status_name"] = "not running";
-            } else {
-                if ($type == "FV3") {
-                    $content = simplexml_load_string($request_content);
-                } else {
-                    $content = json_decode($request_content, true);
-                }
-                if (!isset($content["status_name"])) {
-                    $content["status_name"] = "Running";
-                }
-                $result[$ip] = $content;
             }
-            curl_multi_remove_handle($curlmulti, $curl);
+            if ($responseCode == 200) {
+                if (strpos($request_content, 'Not Running') !== false) {
+                    $result[$ip]["status_name"] = "not running";
+                } else {
+                    if ($type == "FV3") {
+                        $content = simplexml_load_string($request_content);
+                    } else {
+                        $content = json_decode($request_content, true);
+                    }
+                    if (!isset($content["status_name"])) {
+                        $content["status_name"] = "Running";
+                    }
+                    $result[$ip] = $content;
+                }
+            }
         }
         curl_multi_close($curlmulti);
         if (!$isArray && count($ipAddresses) > 0 && $ipAddresses[0] != "") {
@@ -385,7 +399,8 @@ function finalizeStatusJson($obj)
 }
 
 // POST api/system/proxies
-function SystemSetProxies() {
+function SystemSetProxies()
+{
     global $mediaDirectory;
     $json = file_get_contents('php://input');
     $data = json_decode($json);
@@ -404,7 +419,7 @@ function SystemSetProxies() {
 
     file_put_contents("$mediaDirectory/config/proxies", $newht);
 
-	//Trigger a JSON Configuration Backup
-	GenerateBackupViaAPI('Proxy hosts were modified.');
+    //Trigger a JSON Configuration Backup
+    GenerateBackupViaAPI('Proxy hosts were modified.');
     return "OK";
 }
