@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# am335x-debian-11.7-minimal-armhf-2023-05-18-2gb.img.xz
-# from https://rcn-ee.net/rootfs/bb.org/testing/2023-05-18/bullseye-minimal-armhf/
+# am335x-debian-11.7-minimal-armhf-2023-07-01-2gb.img.xz
+# from https://rcn-ee.net/rootfs/release/2023-07-01/bullseye-minimal-armhf/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -54,7 +54,7 @@ apt-get install wget
 # This MAY cause the beagle to change IP addresses, reboot to get things to settle and continue
 rm -f /etc/systemd/network/50-default.network
 wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
-sed -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' /etc/systemd/network/50-default.network
+sed -i -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' /etc/systemd/network/50-default.network
 
 systemctl reload systemd-networkd
 

@@ -48,8 +48,8 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2023-06"
-FPPCFGVER="77"
+FPPIMAGEVER="2023-07"
+FPPCFGVER="78"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -410,7 +410,7 @@ case "${OSVER}" in
             rm -f /etc/systemd/network/50-default.network
             wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
             if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
-                sed -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' /etc/systemd/network/50-default.network
+                sed -i -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' /etc/systemd/network/50-default.network
             fi
             
             

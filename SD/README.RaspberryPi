@@ -8,7 +8,7 @@ version tested 2023-05-03-raspios-bullseye-armhf-lite.img.xz
 Resize the root partition to 3.5GB using fdisk (substitute the proper device
 for your SD card).
 
-    fdisk /dev/sdg
+    fdisk /dev/sdc
     p
 	(Note the original start block of partition 2, you will need this later)
     d
@@ -25,8 +25,8 @@ for your SD card).
 
 FSCK and resize the root partition (again, use your device name.
 
-    e2fsck -f /dev/sdg2
-    resize2fs /dev/sdg2
+    e2fsck -f /dev/sdc2
+    resize2fs /dev/sdc2
 
 Disable the auto partition resize script on the SD and enable the SSH server while
 we have the partition mounted:
@@ -34,7 +34,7 @@ we have the partition mounted:
 	# Make a temp mount location
 	mkdir /mnt/tmp
 	# Mount the boot partition
-	mount /dev/sdg1 /mnt/tmp
+	mount /dev/sdc1 /mnt/tmp
 	# Backup the cmdline.txt file
 	cp /mnt/tmp/cmdline.txt /mnt/tmp/cmdline.org
 	# Disable the auto-resize of the root partition
@@ -49,8 +49,8 @@ we have the partition mounted:
 	# Unmount the file system
 	umount /mnt/tmp
     # make sure the labels are set
-    dosfslabel /dev/sdb1 boot
-    e2label /dev/sdg2 rootfs
+    dosfslabel /dev/sdc1 boot
+    e2label /dev/sdc2 rootfs
 	# Sync the changes so it's safe to remove the SD card
 	sync
 
