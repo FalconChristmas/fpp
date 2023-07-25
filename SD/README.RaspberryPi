@@ -103,6 +103,7 @@ the proper device name for your SD card in place of '/dev/sdg'):
 
     DEVICE=/dev/sdb
     VERSION=7.0-beta1
+    OSVERSION=2023-07
     BLOCKS=3800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
@@ -127,7 +128,7 @@ for testing/release.
 # On a separate Linux box:  (this will take a LOOOONG time)
 mount ${DEVICE}2 /mnt
 mount ${DEVICE}1 /mnt/boot
-mksquashfs /mnt Pi-${VERSION}.fppos -b 512K -comp xz
+mksquashfs /mnt Pi-${VERSION}_${OSVERSION}.fppos -b 512K -comp xz
 cd /mnt/root
 tar -czf ~/ccache-Pi-2023.x-v${VERSION}.tar.gz .ccache
 cd ~

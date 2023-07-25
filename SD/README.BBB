@@ -145,7 +145,8 @@ rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-VERSION=7.0-beta1
+VERSION=7.0
+OSVERSION=2023-07
 DEVICE=/dev/sdc
 sudo dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 
@@ -156,8 +157,8 @@ sudo dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 # box for this and not an actual BBB
 apt-get install squashfs-tools
 mount ${DEVICE}1 /mnt
-mksquashfs /mnt BBB-${VERSION}.fppos -b 512K -comp xz
+mksquashfs /mnt BBB-${VERSION}_${OSVERSION}.fppos -b 512K -comp xz
 cd /mnt/root
-tar -czf ~/ccache-BBB-2022.x-v${VERSION}.tar.gz .ccache
+tar -czf ~/ccache-BBB-2023.x-v${VERSION}.tar.gz .ccache
 cd ~
 umount /mnt
