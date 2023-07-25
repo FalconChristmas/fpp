@@ -583,7 +583,24 @@ function TogglePasswordHideShow(setting) {
         $('#' + setting + 'VerifyHideShow').addClass('fa-eye-slash');
     }
 }
-
+function scrollIntoViewIfNeeded($target) {
+    if ($target.offset()) {
+        if ($target.offset().top < jQuery(window).scrollTop()){
+            //scroll up
+            $('html,body').animate({scrollTop: $target.offset().top});
+        }
+        else if ($target.offset().top + $target.height() >
+            $(window).scrollTop() + (
+                window.innerHeight || document.documentElement.clientHeight
+            )) {
+            //scroll down
+            $('html,body').animate({scrollTop: $target.offset().top -
+                (window.innerHeight || document.documentElement.clientHeight)
+                    + $target.height() + 15}
+            );
+        }
+    }
+}
 function ConfirmPasswordEnable() {
     var password = $('#password').val();
     var value = $('#passwordEnable').val();
@@ -3928,6 +3945,9 @@ function UpdateCurrentEntryPlaying(index, lastIndex) {
     $('#tblPlaylistDetails td').removeClass('PlaylistPlayingIcon');
 
     if ((index >= 0) && ($('#playlistRow' + index).length)) {
+        if (!$("#playlistRow" + index).hasClass( "PlaylistRowPlaying" )) {
+            scrollIntoViewIfNeeded($("#playlistRow" + index));
+        }
         $("#colEntryNumber" + index).addClass("PlaylistPlayingIcon");
         $("#playlistRow" + index).addClass("PlaylistRowPlaying");
     }
