@@ -233,8 +233,9 @@ rm -f /tmp/rootfs/root/.wget-hsts
 if [ "$CLEARFPP" == "y" ]; then
     rm -f /tmp/rootfs/home/fpp/.bash_history
     rm -f /tmp/rootfs/home/fpp/media/settings
-    rm -f /tmp/rootfs/home/fpp/media/config/*
+    rm -rf /tmp/rootfs/home/fpp/media/backups/*
     rm -rf /tmp/rootfs/home/fpp/media/config/backups
+    rm -f /tmp/rootfs/home/fpp/media/config/*
     rm -f /tmp/rootfs/home/fpp/media/sequences/*
     rm -f /tmp/rootfs/home/fpp/media/music/*
     rm -f /tmp/rootfs/home/fpp/media/logs/*
@@ -242,7 +243,6 @@ if [ "$CLEARFPP" == "y" ]; then
     rm -f /tmp/rootfs/home/fpp/media/images/*
     rm -f /tmp/rootfs/home/fpp/media/effects/*
     rm -f /tmp/rootfs/home/fpp/media/cache/*
-    rm -rf /tmp/rootfs/home/fpp/media/backups/*
     rm -f /tmp/rootfs/home/fpp/media/playlists/*
     rm -f /tmp/rootfs/home/fpp/media/plugins/*
     rm -f /tmp/rootfs/home/fpp/media/scripts/*
