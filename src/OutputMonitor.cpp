@@ -219,7 +219,7 @@ void OutputMonitor::EnableOutputs() {
         }
     }
     for (auto p : portPins) {
-        if (p->eFusePin->getValue() == p->eFuseOKValue) {
+        if (p->eFusePin && p->eFusePin->getValue() == p->eFuseOKValue) {
             WarningHolder::RemoveWarning("eFUSE Triggered for " + p->name);
         }
     }
