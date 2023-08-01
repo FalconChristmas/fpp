@@ -788,6 +788,8 @@ case "${FPPPLATFORM}" in
             echo "gpu_mem=64" >> /boot/config.txt
             echo "" >> /boot/config.txt
             echo "[all]" >> /boot/config.txt
+            echo "# Use 32bit kernel instead of 64bit so external wifi drivers will load" >> /boot/config.txt
+            echo "arm_64bit=0" >> /boot/config.txt
             echo "" >> /boot/config.txt
 
             echo "FPP - Freeing up more space by removing unnecessary packages"
