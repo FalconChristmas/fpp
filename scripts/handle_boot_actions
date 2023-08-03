@@ -16,6 +16,8 @@ function HandleSettings() {
     if (array_key_exists("ForceHDMIResolution", $settings)) ApplySetting("ForceHDMIResolution", $settings["ForceHDMIResolution"]);
     if (array_key_exists("ForceHDMIResolutionPort2", $settings)) ApplySetting("ForceHDMIResolutionPort2", $settings["ForceHDMIResolutionPort2"]);
     if (array_key_exists("wifiDrivers", $settings)) ApplySetting("wifiDrivers", $settings["wifiDrivers"]);
+    if (array_key_exists("GPIOFan", $settings)) ApplySetting("GPIOFan", $settings["GPIOFan"]);
+    if (array_key_exists("EnableBBBHDMI", $settings)) ApplySetting("EnableBBBHDMI", $settings["EnableBBBHDMI"]);
 
     if (array_key_exists("Service_rsync", $settings)) ApplyServiceSetting("Service_rsync", $settings["Service_rsync"], "");
     if (array_key_exists("Service_smbd_nmbd", $settings)) ApplyServiceSetting("Service_smbd_nmbd", $settings["Service_smbd_nmbd"], "");

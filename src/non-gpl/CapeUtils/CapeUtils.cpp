@@ -995,6 +995,7 @@ private:
                         disableOutputs(result["disableOutputs"]);
                     }
                     if (settingsChanged) {
+                        lines.push_back("BootActions = \"settings\"");
                         writeSettingsFile(lines);
                     }
                 }
