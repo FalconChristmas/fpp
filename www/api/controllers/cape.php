@@ -67,7 +67,7 @@ function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
         $key = strtoupper($key);
     }
 
-    $result = Array();
+    $result = array();
 
     if (preg_match("/[^-A-Z0-9]/", $key)) {
         $result['Status'] = 'ERROR';
@@ -99,8 +99,9 @@ function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
         $eepromData = fread($fh, 32768);
         fclose($fh);
 
-        if (file_exists($tmpEEPROM))
+        if (file_exists($tmpEEPROM)) {
             unlink($tmpEEPROM);
+        }
 
         $length = strlen($eepromData);
         if ($length < 58) {
@@ -113,15 +114,15 @@ function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
         $pos = 58;
         $slen = intval(substr($eepromData, $pos, 6));
         while (($slen != 0) && ($pos < $length)) {
-             $pos += 6;
-             $flag = intval(substr($eepromData, $pos, 2));
-             $pos += 2;
-             if ($flag < 50) {
-                 $pos += 64;
-             }
-             $pos += $slen;
+            $pos += 6;
+            $flag = intval(substr($eepromData, $pos, 2));
+            $pos += 2;
+            if ($flag < 50) {
+                $pos += 64;
+            }
+            $pos += $slen;
 
-             // Read the length of the next section
+            // Read the length of the next section
             $slen = intval(substr($eepromData, $pos, 6));
         }
         $length = $pos + 6;
@@ -141,7 +142,7 @@ function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
         }
     }
 
-    $data = Array();
+    $data = array();
     $data['key'] = $key;
     $data['orderID'] = $order;
     $data['serial'] = $serialNumber;
@@ -156,8 +157,9 @@ function GetSigningData()
 {
     $data = GetSigningDataHelper(true);
 
-    if (!isset($data['key']))
+    if (!isset($data['key'])) {
         return $data;
+    }
 
     return json($data);
 }
@@ -170,8 +172,9 @@ function GetSigningFile()
 
     $data = GetSigningDataHelper(true);
 
-    if (!isset($data['key']))
+    if (!isset($data['key'])) {
         return $data;
+    }
 
     header('Content-type: application/binary');
     header('Content-disposition: attachment;filename="cape-signing-' . $settings['HostName'] . '.bin"');
@@ -229,29 +232,31 @@ function SignEEPROM($key = '', $order = '')
     global $settings;
 
     $APIhost = 'api.FalconPlayer.com';
-    if (isset($settings['SigningAPIHost']))
+    if (isset($settings['SigningAPIHost'])) {
         $APIhost = $settings['SigningAPIHost'];
+    }
 
     $url = "https://$APIhost/api/fpp/eeprom/sign";
-    $result = Array();
+    $result = array();
 
     $data = GetSigningDataHelper(true, $key, $order);
 
-    if (!isset($data['key']))
+    if (!isset($data['key'])) {
         return $data;
+    }
 
-    $options = Array(
-        'http' => Array(
+    $options = array(
+        'http' => array(
             'method' => 'POST',
             'header' => 'Content-Type: application/json',
-            'content' => json_encode($data)
-        )
+            'content' => json_encode($data),
+        ),
     );
 
     $context = stream_context_create($options);
     $replyStr = file_get_contents($url, false, $context);
 
-    if ($replyStr === FALSE) {
+    if ($replyStr === false) {
         $result['Status'] = 'ERROR';
         $result['Message'] = "Could not contact signing website https://$APIhost";
         return json($result);
@@ -287,7 +292,7 @@ function PostSigningData()
         }
     } else {
         $postdata = fopen("php://input", "r");
-        while ($data = fread($postdata, 1024*16)) {
+        while ($data = fread($postdata, 1024 * 16)) {
             $postJSON .= $data;
         }
         fclose($postdata);
@@ -305,14 +310,15 @@ function RedeemVoucher()
     global $settings;
 
     $APIhost = 'api.FalconPlayer.com';
-    if (isset($settings['SigningAPIHost']))
+    if (isset($settings['SigningAPIHost'])) {
         $APIhost = $settings['SigningAPIHost'];
+    }
 
     $url = "https://$APIhost/api/fpp/voucher/redeem";
 
     $postJSON = '';
     $postdata = fopen("php://input", "r");
-    while ($data = fread($postdata, 1024*16)) {
+    while ($data = fread($postdata, 1024 * 16)) {
         $postJSON .= $data;
     }
     fclose($postdata);
@@ -330,18 +336,18 @@ function RedeemVoucher()
         return json($result);
     }
 
-    $options = Array(
-        'http' => Array(
+    $options = array(
+        'http' => array(
             'method' => 'POST',
             'header' => 'Content-Type: application/json',
-            'content' => $postJSON
-        )
+            'content' => $postJSON,
+        ),
     );
 
     $context = stream_context_create($options);
     $replyStr = file_get_contents($url, false, $context);
 
-    if ($replyStr === FALSE) {
+    if ($replyStr === false) {
         $result['Status'] = 'ERROR';
         $result['Message'] = "Could not contact signing website https://$APIhost";
         return json($result);
@@ -363,41 +369,46 @@ function RedeemVoucher()
     return json($result);
 }
 
-
-function GetCapeStringOptions() {
+function GetCapeStringOptions()
+{
     global $settings;
     $js = array();
     $directory = $settings["mediaDirectory"] . "/tmp/strings";
     foreach (scandir($directory) as $file) {
         if (strlen($file) > 5) { // must have .json extension
-            $js[] = substr($file, 0, strlen($file) - 5);;
+            $js[] = substr($file, 0, strlen($file) - 5);
         }
     }
     return json($js);
 }
-function GetCapePanelOptions() {
+function GetCapePanelOptions()
+{
     global $settings;
     $js = array();
     $directory = $settings["mediaDirectory"] . "/tmp/panels";
     foreach (scandir($directory) as $file) {
         if (strlen($file) > 5) { // must have .json extension
-            $js[] = substr($file, 0, strlen($file) - 5);;
+            $js[] = substr($file, 0, strlen($file) - 5);
         }
     }
     return json($js);
 }
-function GetCapeStringConfig() {
+function GetCapeStringConfig()
+{
     global $settings;
     $fn = $settings["mediaDirectory"] . "/tmp/strings/" . params('key') . ".json";
-    $js = json_decode(file_get_contents($fn));
-    return json($js);
+    if (file_exists($fn)) {
+        $js = json_decode(file_get_contents($fn));
+        return json($js);
+    }
+    http_response_code(404);
+    header("Content-Type: application/json");
+    echo "[\"Not Found!\"]";
 }
-function GetCapePanelConfig() {
+function GetCapePanelConfig()
+{
     global $settings;
     $fn = $settings["mediaDirectory"] . "/tmp/panels/" . params('key') . ".json";
     $js = json_decode(file_get_contents($fn));
     return json($js);
 }
-
-
-?>
