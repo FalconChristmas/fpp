@@ -1808,6 +1808,15 @@
             "maxlength": 32,
             "onChange": "CheckPasswordVerify"
         },
+        "playlistAutoScroll": {
+            "name": "playlistAutoScroll",
+            "description": "Auto Scroll Playlist Item",
+            "tip": "If enabled, Automatically scroll to Active Playlist Item on Main screen",
+            "gatherStats": true,
+            "restart": 0,
+            "default": 0,
+            "type": "checkbox"
+        },
         "piRTC": {
             "name": "piRTC",
             "description": "Real Time Clock",

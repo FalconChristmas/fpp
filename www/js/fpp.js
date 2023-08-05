@@ -585,18 +585,20 @@ function TogglePasswordHideShow(setting) {
 }
 function scrollIntoViewIfNeeded($target) {
     if ($target.offset()) {
-        if ($target.offset().top < jQuery(window).scrollTop()){
+        if ($target.offset().top < jQuery(window).scrollTop()) {
             //scroll up
-            $('html,body').animate({scrollTop: $target.offset().top});
+            $('html,body').animate({ scrollTop: $target.offset().top });
         }
         else if ($target.offset().top + $target.height() >
             $(window).scrollTop() + (
                 window.innerHeight || document.documentElement.clientHeight
             )) {
             //scroll down
-            $('html,body').animate({scrollTop: $target.offset().top -
-                (window.innerHeight || document.documentElement.clientHeight)
-                    + $target.height() + 15}
+            $('html,body').animate({
+                scrollTop: $target.offset().top -
+                    (window.innerHeight || document.documentElement.clientHeight)
+                    + $target.height() + 15
+            }
             );
         }
     }
@@ -3945,8 +3947,10 @@ function UpdateCurrentEntryPlaying(index, lastIndex) {
     $('#tblPlaylistDetails td').removeClass('PlaylistPlayingIcon');
 
     if ((index >= 0) && ($('#playlistRow' + index).length)) {
-        if (!$("#playlistRow" + index).hasClass( "PlaylistRowPlaying" )) {
-            scrollIntoViewIfNeeded($("#playlistRow" + index));
+        if (!$("#playlistRow" + index).hasClass("PlaylistRowPlaying")) {
+            if (settings["playlistAutoScroll"] > 0) {
+                scrollIntoViewIfNeeded($("#playlistRow" + index));
+            }
         }
         $("#colEntryNumber" + index).addClass("PlaylistPlayingIcon");
         $("#playlistRow" + index).addClass("PlaylistRowPlaying");

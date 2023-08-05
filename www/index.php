@@ -44,7 +44,7 @@ include 'common/menuHead.inc';
 
 </script>
 
-<title><?=$pageTitle ?></title>
+<title><?=$pageTitle?></title>
 
     <script>
         function PageSetup() {
@@ -195,14 +195,14 @@ include 'menu.inc';
 <h1 class="title statusTitle">Status <span class="statusHostname"><?=$settings["HostName"]?></span></h1>
 
 <?php
-if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 8000000) :
+if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 8000000):
 ?>
 <div id='spaceFlag' class="alert alert-danger" role="alert">
      SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
      file system or create a new storage partition.
      <input type='button' class='buttons btn-success' style='float: right' value='Leave Unused' onClick='SetSetting("LastBlock", "0", 0, 0); $("#spaceFlag").hide();'>
 </div>
-<?php endif; ?>
+<?php endif;?>
 
 <div class="statusDivTopWrap">
     <div id="schedulerInfo" class="statusDiv statusDivTop">
@@ -330,8 +330,8 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                     </div>
                     <div class="col-auto ms-auto">
                         <?php
-                        PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0");
-                        ?>
+PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0");
+?>
                         Live Update Stats
                     </div>
                 </div>
@@ -485,7 +485,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
                     </div>
                 </div>
                 <div id="playerStatusBottom">
-                    <?php include "playlistDetails.php"; ?>
+                    <?php include "playlistDetails.php";?>
 
 
                     <div id='deprecationWarning' class="hidden callout callout-danger">
@@ -498,6 +498,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
 
                 <div class="verbosePlaylistItemSetting">
                     <?php PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled');?>
+                    <?php PrintSetting('playlistAutoScroll');?>
                 </div>
             </div>
             <!-- Bridge Mode stats -->
@@ -529,7 +530,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
 
     </div>
 </div>
-<?php include 'common/footer.inc' ?>
+<?php include 'common/footer.inc'?>
 </div>
 <div id='upgradePopup' title='FPP Upgrade' style="display: none">
     <textarea style='width: 99%; height: 97%;' disabled id='upgradeText'></textarea>
