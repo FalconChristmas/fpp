@@ -43,6 +43,7 @@ void CurlManager::addCURL(const std::string& furl, CURL* curl, std::function<voi
 
     CurlInfo* i = new CurlInfo;
     i->host = getHost(furl);
+    i->url = furl;
     i->callback = callback;
     i->curl = curl;
     i->cleanCurl = autoCleanCurl;
@@ -134,7 +135,6 @@ void CurlManager::add(const std::string& furl, const std::string& method, const 
         }
         std::string resp(reinterpret_cast<char*>(data->resp.data()), data->resp.size());
         callback(rc, resp);
-        delete data;
     });
 }
 void CurlManager::addGet(const std::string& url, std::function<void(int rc, const std::string& resp)>&& callback) {
