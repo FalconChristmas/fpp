@@ -65,7 +65,18 @@ static size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp)
     memcpy(&str->data()[pos], buffer, size * nmemb);
     return size * nmemb;
 }
-CURL* CurlManager::createCurl(const std::string& fullUrl) {
+static size_t urlReadData(void* ptr, size_t size, size_t nmemb, void* userp) {
+    size_t buffer_size = size * nmemb;
+    CurlManager::CurlPrivateData* dt = (CurlManager::CurlPrivateData*)userp;
+    int numb = dt->req->size() - dt->curPos;
+    if (numb > buffer_size) {
+        numb = buffer_size;
+    }
+    memcpy(ptr, &(*dt->req)[dt->curPos], numb);
+    dt->curPos += numb;
+    return numb;
+}
+CURL* CurlManager::createCurl(const std::string& fullUrl, CurlPrivateData** cpd, bool upload) {
     static std::string USERAGENT = std::string("FPP/") + getFPPVersionTriplet();
 
     const std::string host = getHost(fullUrl);
@@ -91,7 +102,14 @@ CURL* CurlManager::createCurl(const std::string& fullUrl) {
         curl_easy_setopt(c, CURLOPT_PASSWORD, hd->password.c_str());
         curl_easy_setopt(c, CURLOPT_HTTPAUTH, CURLAUTH_BASIC | CURLAUTH_DIGEST | CURLAUTH_NEGOTIATE);
     }
-
+    if (upload) {
+        data->req = new std::vector<uint8_t>();
+        curl_easy_setopt(c, CURLOPT_READDATA, data);
+        curl_easy_setopt(c, CURLOPT_READFUNCTION, urlReadData);
+    }
+    if (cpd) {
+        *cpd = data;
+    }
     return c;
 }
 
@@ -298,9 +316,10 @@ bool CurlManager::doProcessCurls() {
                         break;
                     }
                 }
-                l.unlock();
                 if (ci) {
+                    l.unlock();
                     ci->callback(e);
+                    l.lock();
                     if (ci->cleanCurl) {
                         CurlPrivateData* data = nullptr;
                         curl_easy_getinfo(e, CURLINFO_PRIVATE, &data);
@@ -311,7 +330,6 @@ bool CurlManager::doProcessCurls() {
                     }
                     delete ci;
                 }
-                l.lock();
             }
         } while (m);
     }

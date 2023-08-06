@@ -26,15 +26,22 @@ public:
     class CurlPrivateData {
     public:
         CurlPrivateData() {}
-        virtual ~CurlPrivateData() {}
+        virtual ~CurlPrivateData() {
+            if (req) {
+                delete req;
+            }
+        }
 
         std::string host;
         std::vector<uint8_t> resp;
         char errorResp[CURL_ERROR_SIZE] = { 0 };
+
+        std::vector<uint8_t>* req = nullptr;
+        size_t curPos = 0;
     };
 
     // Raw methods for working directly with the CURL* objects
-    CURL* createCurl(const std::string& fullUrl);
+    CURL* createCurl(const std::string& fullUrl, CurlPrivateData** data = nullptr, bool upload = false);
     void addCURL(const std::string& furl, CURL* curl, std::function<void(CURL*)>&& callback, bool autoCleanCurl = true);
 
     // Asynchronous methods for string content
