@@ -468,31 +468,33 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
 
                     <hr>
                 </div>
-                <div class='statusBoxRight'>
-                    <div id='playerTime' class='statusTable'>
-                        <div>
-                            <div class="labelHeading">Elapsed:</div>
-                            <div id="txtTimePlayed" class="labelValue"></div>
-                        </div>
-                        <div>
-                            <div class="labelHeading">Remaining:</div>
-                            <div id="txtTimeRemaining" class="labelValue"></div>
-                        </div>
-                        <div>
-                            <div class="labelHeading">Randomize:</div>
-                            <div id="txtRandomize" class="labelValue"></div>
+                <div id="playlistOuterScroll">
+                    <div class='statusBoxRight'>
+                        <div id='playerTime' class='statusTable'>
+                            <div>
+                                <div class="labelHeading">Elapsed:</div>
+                                <div id="txtTimePlayed" class="labelValue"></div>
+                            </div>
+                            <div>
+                                <div class="labelHeading">Remaining:</div>
+                                <div id="txtTimeRemaining" class="labelValue"></div>
+                            </div>
+                            <div>
+                                <div class="labelHeading">Randomize:</div>
+                                <div id="txtRandomize" class="labelValue"></div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div id="playerStatusBottom">
-                    <?php include "playlistDetails.php";?>
+                    <div id="playerStatusBottom">
+                        <?php include "playlistDetails.php";?>
 
 
-                    <div id='deprecationWarning' class="hidden callout callout-danger">
-                        <b>
-                            * - Playlist items marked with an asterisk have been deprecated
-                            and will be auto-upgraded the next time you edit the playlist.
-                        </b>
+                        <div id='deprecationWarning' class="hidden callout callout-danger">
+                            <b>
+                                * - Playlist items marked with an asterisk have been deprecated
+                                and will be auto-upgraded the next time you edit the playlist.
+                            </b>
+                        </div>
                     </div>
                 </div>
 

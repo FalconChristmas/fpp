@@ -194,6 +194,11 @@ body .ui-tabs .ui-tabs-nav li {
     display: none;
 }
 
+#playlistOuterScroll {
+    max-height: 75vh;
+    overflow-y: scroll;
+}
+
 @media(min-width:991px) {
     .header {
         position: fixed;
