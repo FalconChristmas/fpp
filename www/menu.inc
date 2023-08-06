@@ -66,7 +66,7 @@ function list_plugin_entries($menu) {
    <div class="header">
     <div class="headerLeft">
           <div class="headerLeftCol fppBrand">
-            <a href="/">
+            <a href="index.php">
               <img src='<?= $themeInfo["HEADER_LOGO1"] ?>' class="logo" title="Host: <? echo $settings['HostName']; ?>" />
               <? if (isset($themeInfo["HEADER_LOGO2"]) && $themeInfo["HEADER_LOGO2"] != "" ) {
                 echo "<img src='" . $themeInfo["HEADER_LOGO2"] . "' class='fpp-logo'  title='Host: " . $settings["HostName"] . "' />";

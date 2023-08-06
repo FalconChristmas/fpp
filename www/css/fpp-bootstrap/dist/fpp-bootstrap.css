@@ -8285,7 +8285,7 @@ input[type=date] {
     box-sizing: border-box; }
 
 .pageContent select, .ui-dialog select, .modal select {
-  background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
+  background: #fff url(../../../images/redesign/chevron-down-grey.svg) no-repeat;
   background-position: right 9px center;
   background-size: 15px;
   padding-right: 1.8em;
