@@ -571,6 +571,11 @@ if (file_exists("/etc/fpp/kiosk") && in_array($_SERVER['REMOTE_ADDR'], $localIps
     $settings['hideExternalURLs'] = true;
 }
 
+if (isset($_SERVER['HTTP_HIDE_EXTERNAL_LINKS']) && ($_SERVER['HTTP_HIDE_EXTERNAL_LINKS'] == "true")) {
+    $settings['LogoLink'] = '';
+    $settings['hideExternalURLs'] = true;
+}
+
 putenv("SCRIPTDIR=$scriptDirectory");
 putenv("MEDIADIR=$mediaDirectory");
 putenv("LOGDIR=$logDirectory");
