@@ -155,7 +155,6 @@ function SystemGetAudio()
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_TCP_FASTOPEN, true);
     curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
     $request_content = curl_exec($curl);
     curl_close($curl);
@@ -253,7 +252,6 @@ function SystemGetStatus()
                 curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
                 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 500);
-                curl_setopt($curl, CURLOPT_TCP_FASTOPEN, true);
                 curl_setopt($curl, CURLOPT_TIMEOUT_MS, 3000);
                 $curls[$ip] = $curl;
                 curl_multi_add_handle($curlmulti, $curl);
@@ -281,7 +279,6 @@ function SystemGetStatus()
                     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
                     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 500);
-                    curl_setopt($curl, CURLOPT_TCP_FASTOPEN, true);
                     curl_setopt($curl, CURLOPT_TIMEOUT_MS, 3000);
                     $request_content = curl_exec($curl);
                     $responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
@@ -319,7 +316,6 @@ function SystemGetStatus()
         curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-        curl_setopt($curl, CURLOPT_TCP_FASTOPEN, true);
         curl_setopt($curl, CURLOPT_TIMEOUT_MS, 3000);
         $request_content = curl_exec($curl);
         curl_close($curl);
