@@ -176,7 +176,11 @@ function onlyUnique(value, index, self) {
 }
 
 function LoadSIDS(interface) {
-  $.get("api/network/wifi/scan/" + interface
+  $("#wifisearch").show();
+  $.get("api/network/wifi/scan/" + interface,
+  {
+    timeout: 30000
+  }
   ).done(function(data){
     var ssids = [];
     data.networks.forEach(function(n){
@@ -195,6 +199,8 @@ function LoadSIDS(interface) {
     $("#eth_ssids").html(html.join(''));
   }).fail(function(){
     DialogError("Scan Failed", "Failed to Scan for wifi networks");
+  }).always(function(){
+    $("#wifisearch").hide();
   });
 }
 
@@ -613,7 +619,10 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
 ?>
         <h2> Interface Settings</h2>
         <div class="container-fluid settingsTable settingsGroupTable">
-            <div class="row"><div class="printSettingLabelCol col-md-8">Select an interface name to configure the network information for that interface.</div></div>
+            <div class="row">
+                <div class="printSettingLabelCol col-md-8">Select an interface name to configure the network information for that interface.</div>
+                <div class="warning-text" style="display: none;" id=wifisearch>Preforming Wifi Scan...</div>
+           </div>
             <div class="row" id="selInterfacesRow">
                 <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Interface Name</div></div>
                 <div class="printSettingFieldCol col-md"><select id ="selInterfaces"  class='multiSelect' size='3' style="width:13em;"  onChange='LoadNetworkConfig();'><?php PopulateInterfaces($uiLevel, $configDirectory);?></select></div>
