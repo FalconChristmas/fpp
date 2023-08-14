@@ -68,11 +68,13 @@ static size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp)
 static size_t urlReadData(void* ptr, size_t size, size_t nmemb, void* userp) {
     size_t buffer_size = size * nmemb;
     CurlManager::CurlPrivateData* dt = (CurlManager::CurlPrivateData*)userp;
-    int numb = dt->req->size() - dt->curPos;
+    size_t numb = dt->req->size() - dt->curPos;
     if (numb > buffer_size) {
         numb = buffer_size;
     }
-    memcpy(ptr, &(*dt->req)[dt->curPos], numb);
+    if (numb > 0) {
+        memcpy(ptr, &(*dt->req)[dt->curPos], numb);
+    }
     dt->curPos += numb;
     return numb;
 }
