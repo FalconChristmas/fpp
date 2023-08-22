@@ -1,4 +1,8 @@
-#!/bin/sh
+#!/bin/bash
+
+. /opt/fpp/scripts/common
+. /opt/fpp/scripts/functions
+
 apt-get update
 apt-get install -y --no-install-recommends xserver-xorg x11-xserver-utils xinit openbox
 apt-get install -y --no-install-recommends chromium-browser
@@ -39,3 +43,4 @@ chown fpp:fpp /home/fpp/.bashrc
 
 echo "1" > /etc/fpp/kiosk
 
+setSetting rebootFlag 1

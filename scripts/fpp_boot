@@ -208,3 +208,8 @@ if [ "${HOSTNAME}" = "" ]; then
         setSetting HostName ${HOSTNAME}
     fi
 fi
+
+if [ -f /fpp_kiosk ]; then
+    rm -f /fpp_kiosk
+    /opt/fpp/SD/FPP_Kiosk.sh
+fi

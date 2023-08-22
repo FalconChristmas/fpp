@@ -48,15 +48,25 @@ then
     SKIPFPP="--exclude=opt/fpp --exclude=root/.ccache"
 fi
 
+#if kiosk was installed, save that state so after reboot, it can be re-installed
+if [ -f mnt/etc/fpp/kiosk ]; then
+    cp mnt/etc/fpp/kiosk tmp
+fi
+
 #copy everything other than fstab and the persistent net names
 echo "Running rsync to update / (root) file system:"
-stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-after --exclude=var/lib/connman --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh ${SKIPFPP}
+stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh ${SKIPFPP}
 echo
 
 #restore the ssh keys
 echo "Restoring system ssh keys"
 cp -a tmp/ssh/* mnt/etc/ssh
 echo
+
+#create a file in root to mark it as requiring kiosk mode to be installed, will be checked on reboot
+if [ -f tmp/kiosk ]; then
+    touch mnt/fpp_kiosk
+fi
 
 if [ -f mnt/etc/ssh/ssh_host_dsa_key -a -f mnt/etc/ssh/ssh_host_dsa_key.pub -a -f mnt/etc/ssh/ssh_host_ecdsa_key -a -f mnt/etc/ssh/ssh_host_ecdsa_key.pub -a -f mnt/etc/ssh/ssh_host_ed25519_key -a -f mnt/etc/ssh/ssh_host_ed25519_key.pub -a -f mnt/etc/ssh/ssh_host_rsa_key -a -f mnt/etc/ssh/ssh_host_rsa_key.pub ]
 then
