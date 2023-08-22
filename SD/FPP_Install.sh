@@ -496,7 +496,7 @@ case "${OSVER}" in
         if [ "$FPPPLATFORM" != "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST libva-dev"
         fi
-        if [ ! $desktop ]; then
+        if $isimage; then
             PACKAGE_LIST="$PACKAGE_LIST networkd-dispatcher"
         fi
 
@@ -576,7 +576,11 @@ case "${OSVER}" in
                 rm -f /etc/resolv.conf
                 ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
             fi
-            
+
+            echo "#!/bin/sh" > /etc/networkd-dispatcher/routable.d/ntpd
+            echo "/usr/bin/systemctl restart ntp" >> /etc/networkd-dispatcher/routable.d/ntpd
+            chmod +x /etc/networkd-dispatcher/routable.d/ntpd
+
             #remove some things that were installed (not sure why)
             apt-get remove -y --purge --autoremove --allow-change-held-packages pocketsphinx-en-us
 
