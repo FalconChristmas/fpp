@@ -302,6 +302,12 @@ function SetGPIOFanProperties() {
         exec("sudo sed -i -e 's/^#dtoverlay=gpio-fan\(.*\)$/" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "/g' /boot/config.txt", $output, $return_val);
     }
 }
+function SetKioskMode($value) {
+    if ($value == "1") {
+        WriteSettingToFile("Kiosk", "0");
+        file_put_contents("/fpp_kiosk", "1");
+    }
+}
 
 function ApplySetting($setting, $value)
 {
@@ -340,6 +346,9 @@ function ApplySetting($setting, $value)
         case 'GPIOFanTemperature':
         case 'GPIOFan':
             SetGPIOFanProperties();
+            break;
+        case 'Kiosk':
+            SetKioskMode($value);
             break;
         default:
             ApplyServiceSetting($setting, $value, "--now");
