@@ -350,7 +350,13 @@ if ($settings["hideExternalURLs"]) {
           <hr class="dropdown-divider">
           <a class="dropdown-item" href="healthCheck.php"><i class="fas fa-thermometer-half"></i> System Health Check</a>
           <a class="dropdown-item" href="troubleshooting.php"><i class="fas fa-code"></i> Troubleshooting Commands</a>
-          <a class="<?= $externalLinkClass ?>" href="http://<?php echo $_SERVER['HTTP_HOST'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
+          <?
+          $baseLink = $_SERVER['HTTP_HOST'];
+          if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+            $baseLink = $_SERVER['HTTP_X_FORWARDED_HOST'] . '/proxy/' . $_SERVER['SERVER_ADDR'];
+          }
+          ?>
+          <a class="<?= $externalLinkClass ?>" href="http://<?=$baseLink?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
           <?php list_plugin_entries("help"); ?>
         </div>
       </li>
