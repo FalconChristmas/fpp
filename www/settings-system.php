@@ -29,7 +29,7 @@ function DisableKiosk() {
 }
 
 function EnableKiosk() {
-    if (confirm('Installing Kiosk components will take some time and consume around 400MB of space.')) {
+    if (confirm('Installing Kiosk components will take some time and consume around 470MB of space.')) {
         DisplayProgressDialog("enableKioskPopup", "Kiosk Frontend");
         StreamURL('installKiosk.php', 'enableKioskPopupText', 'KioskInstallDone');
     }
