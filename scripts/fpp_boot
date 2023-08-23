@@ -209,9 +209,18 @@ if [ "${HOSTNAME}" = "" ]; then
     fi
 fi
 
+KIOSKMODE=$(getSetting Kiosk)
+if [ "${KIOSKMODE}" = "1" ]; then
+    setSetting Kiosk 0
+    touch /fpp_kiosk
+fi
 if [ -f /fpp_kiosk ]; then
     rm -f /fpp_kiosk
     if [ ! -f /etc/fpp/kiosk ]; then
         /opt/fpp/SD/FPP_Kiosk.sh
+        if [ -f /etc/fpp/kiosk ]; then
+            #installed properly, so reboot
+            reboot
+        fi
     fi
 fi
