@@ -14,16 +14,16 @@
 
 #include "PixelCountStringTester.h"
 #include "../../OutputMonitor.h"
-#include "../channeloutputthread.h"
 #include "../../Timers.h"
 #include "../../channeltester/ChannelTester.h"
 #include "../PixelString.h"
+#include "../channeloutputthread.h"
 
 #include <inttypes.h>
 
 // #define PRINT_DEBUG_INFO
 
-uint8_t* PixelCountPixelStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) {
+uint8_t* PixelCountPixelStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t& newLen) {
     newLen = ps->m_outputChannels;
     uint8_t* data = ps->m_outputBuffer;
     uint8_t* out = data;
@@ -95,7 +95,6 @@ constexpr int STATE_BACKOFF = 4;
 constexpr int STATE_DONE_GROUP = 998;
 constexpr int STATE_DISPLAY_PIXEL = 999;
 
-
 void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, float percentOfCycle) {
     currentTimeMS = GetTimeMS();
     if (cycleCount == 0) {
@@ -106,7 +105,7 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
         currentState = 0;
         startTimeMS = currentTimeMS;
         baseValues.clear();
-        lastValues.clear();
+        configuredCount.clear();
         SetChannelOutputRefreshRate(20);
     }
     if ((currentTimeMS - startTimeMS) < WARMUP_TIME) {
@@ -149,7 +148,7 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
                 OutputMonitor::INSTANCE.SetPixelCount(x, lastPixelIdx[x]);
             }
         }
-         if (curGroup < (OutputMonitor::INSTANCE.getGroupCount() - 1)) {
+        if (curGroup < (OutputMonitor::INSTANCE.getGroupCount() - 1)) {
             ++curGroup;
             OutputMonitor::INSTANCE.lockToGroup(curGroup);
             cycleCount = 0;
@@ -159,7 +158,6 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
             currentState = STATE_DISPLAY_PIXEL;
         }
     } else if (currentState == STATE_DISPLAY_PIXEL) {
-        
     } else if (currentState == STATE_BACKOFF) {
         ++frameInState;
         curValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
@@ -179,7 +177,7 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
             }
             frameInState = 0;
         }
-        
+
 #ifdef PRINT_DEBUG_INFO
         printf("%d - ", currentState);
         for (int x = 0; x < baseValues.size(); x++) {
@@ -191,10 +189,11 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
 #endif
     } else if (currentState == STATE_BLOCKS) {
         curValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
-        
+
         int cc = frameInState / FRAMES_PER_BLOCK;
         int fib = frameInState % FRAMES_PER_BLOCK;
-        if (cc < 0) cc = 0;
+        if (cc < 0)
+            cc = 0;
         int idx = cc * PIXELS_PER_BLOCK;
 
         if (fib == (FRAMES_PER_BLOCK - 1)) {
@@ -210,11 +209,11 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
                 }
             }
         }
-        
+
         if (idx > 500) {
             for (int x = 0; x < lastPixelIdx.size(); x++) {
                 if (testingPort[x] && lastPixelIdx[x] == -1) {
-                    //wasn't able to detect an end, set to 0
+                    // wasn't able to detect an end, set to 0
                     lastPixelIdx[x] = 0;
                 }
             }
@@ -247,7 +246,7 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
             ++frameInState;
         }
     } else if (currentState == STATE_BASELINE) {
-        //transition out of baseline and into blocks
+        // transition out of baseline and into blocks
         curValues = OutputMonitor::INSTANCE.GetPortCurrentValues();
         currentState = STATE_BLOCKS;
         frameInState = 0;
@@ -256,7 +255,7 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
     }
 }
 
-uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) {
+uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t& newLen) {
     newLen = 2000; // up to 500 4channel pixels
     uint8_t* buffer = ps->m_outputBuffer;
     int currentPort = ps->m_portNumber;
@@ -267,6 +266,7 @@ uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps
         while (lastPixelIdx.size() <= currentPort) {
             lastPixelIdx.push_back(-1);
             testingPort.push_back(0);
+            configuredCount.push_back(0);
         }
     } else if (currentState == STATE_BASELINE) {
         // turn everything off to establish a baseline
@@ -276,7 +276,9 @@ uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps
         if (testingPort[currentPort]) {
             int cpn = ps->m_virtualStrings[0].channelsPerNode();
             int cc = frameInState / FRAMES_PER_BLOCK;
-            if (cc < 0) cc = 0;
+            if (cc < 0) {
+                cc = 0;
+            }
             int idx = cc * PIXELS_PER_BLOCK;
             memset(&buffer[idx * cpn], 0xFF, PIXELS_PER_BLOCK * cpn);
         } else if (lastPixelIdx[currentPort] > 0) {
@@ -293,14 +295,25 @@ uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps
         }
     } else if (currentState == STATE_DISPLAY_PIXEL || currentState == STATE_DONE_GROUP) {
         memset(buffer, 0, newLen);
-        int idx = lastPixelIdx[currentPort] - 1;
-        int cpn = ps->m_virtualStrings[0].channelsPerNode();
-        memset(&buffer[idx * cpn], 0xFF, cpn);
+        if (lastPixelIdx[currentPort] > 0) {
+            int idx = lastPixelIdx[currentPort] - 1;
+            int cpn = ps->m_virtualStrings[0].channelsPerNode();
+            memset(&buffer[idx * cpn], 0xFF, cpn);
+        }
     } else {
         printf("Unknown state %d\n", currentState);
         memset(buffer, 0, newLen);
     }
     return buffer;
+}
+CurrentBasedPixelCountPixelStringTester::Status CurrentBasedPixelCountPixelStringTester::getCurrentStatus() const {
+    if (currentState == STATE_DISPLAY_PIXEL) {
+        return CurrentBasedPixelCountPixelStringTester::Status::Complete;
+    }
+    if (currentState == -1) {
+        return CurrentBasedPixelCountPixelStringTester::Status::NotRun;
+    }
+    return CurrentBasedPixelCountPixelStringTester::Status::Running;
 }
 
 CurrentBasedPixelCountPixelStringTester CurrentBasedPixelCountPixelStringTester::INSTANCE;

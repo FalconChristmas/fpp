@@ -71,6 +71,9 @@ BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
  */
 BBB48StringOutput::~BBB48StringOutput() {
     LogDebug(VB_CHANNELOUT, "BBB48StringOutput::~BBB48StringOutput()\n");
+    for (auto a : m_strings) {
+        delete a;
+    }
     m_strings.clear();
     if (m_pru)
         delete m_pru;

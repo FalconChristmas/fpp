@@ -60,6 +60,9 @@ BBShiftStringOutput::BBShiftStringOutput(unsigned int startChannel, unsigned int
  */
 BBShiftStringOutput::~BBShiftStringOutput() {
     LogDebug(VB_CHANNELOUT, "BBShiftStringOutput::~BBShiftStringOutput()\n");
+    for (auto a : m_strings) {
+        delete a;
+    }
     m_strings.clear();
     if (m_pru0.pru)
         delete m_pru0.pru;
@@ -199,12 +202,12 @@ int BBShiftStringOutput::Init(Json::Value config) {
 
     for (int x = 0; x < m_strings.size(); x++) {
         if (m_strings[x]->m_outputChannels > 0) {
-            //need to output this pin, configure it
+            // need to output this pin, configure it
             int pru = root["outputs"][x]["pru"].asInt();
             int pin = root["outputs"][x]["pin"].asInt();
             int pinIdx = root["outputs"][x]["index"].asInt();
 
-            //printf("pru: %d  pin: %d  idx: %d\n", pru, pin, pinIdx);
+            // printf("pru: %d  pin: %d  idx: %d\n", pru, pin, pinIdx);
             if (x >= m_licensedOutputs && m_strings[x]->m_outputChannels > 0) {
                 // apply limit
                 int pixels = 50;
@@ -276,8 +279,8 @@ int BBShiftStringOutput::StartPRU() {
         PinCapabilities::getPinByName("P8-44").configPin("pruout");
         PinCapabilities::getPinByName("P8-45").configPin("pruout");
         PinCapabilities::getPinByName("P8-46").configPin("pruout");
-        //PinCapabilities::getPinByName("P8-27").configPin("pruout");
-        //PinCapabilities::getPinByName("P8-29").configPin("pruout");
+        // PinCapabilities::getPinByName("P8-27").configPin("pruout");
+        // PinCapabilities::getPinByName("P8-29").configPin("pruout");
         PinCapabilities::getPinByName("P8-28").configPin("pruout");
         PinCapabilities::getPinByName("P8-30").configPin("pruout");
 
@@ -546,13 +549,13 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
     if (m_pru1.stringMap.empty() && m_pru0.stringMap.empty()) {
         return;
     }
-    //auto start = std::chrono::high_resolution_clock::now();
+    // auto start = std::chrono::high_resolution_clock::now();
     m_curFrame++;
 
     prepData(m_pru0, channelData);
     prepData(m_pru1, channelData);
     m_testCycle = -1;
-    /*    
+    /*
     uint32_t *iframe = (uint32_t*)m_pru1.curData;
     for (int x = 0; x < 3; x++) {
         for (int y = 0; y < 8; y++) {
@@ -563,14 +566,14 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
     }
     printf("\n");
     */
-    //auto finish = std::chrono::high_resolution_clock::now();
-    //auto total =std::chrono::duration_cast<std::chrono::nanoseconds>(finish-start).count();
-    //printf("Total:   %lld\n", total);
+    // auto finish = std::chrono::high_resolution_clock::now();
+    // auto total =std::chrono::duration_cast<std::chrono::nanoseconds>(finish-start).count();
+    // printf("Total:   %lld\n", total);
 }
 
 void BBShiftStringOutput::sendData(FrameData& d) {
     if (d.maxStringLen) {
-        //memcpy(d.curData, d.formattedData, d.frameSize);
+        // memcpy(d.curData, d.formattedData, d.frameSize);
         d.pruData->address_dma = (d.pru->ddr_addr + (d.curData - d.pru->ddr));
         std::swap(d.lastData, d.curData);
     }
@@ -583,7 +586,7 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
     }
     sendData(m_pru1);
     sendData(m_pru0);
-    //make sure memory is flushed before command is set to 1
+    // make sure memory is flushed before command is set to 1
     __asm__ __volatile__("" ::
                              : "memory");
 

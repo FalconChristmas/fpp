@@ -121,7 +121,7 @@ char* ProcessCommand(char* command, char* response) {
     char CommandStr[64];
     LogExcess(VB_COMMAND, "CMD: %s\n", command);
     s = strtok(command, ",");
-    strncpy(CommandStr, s, sizeof(CommandStr)); //s can be 256 bytes long
+    strncpy(CommandStr, s, sizeof(CommandStr)); // s can be 256 bytes long
     CommandStr[sizeof(CommandStr) - 1] = '\0';
 
     if (!strcmp(CommandStr, "s")) {
@@ -174,7 +174,7 @@ char* ProcessCommand(char* command, char* response) {
 
             if ((pl["currentEntry"]["type"] == "both") ||
                 (pl["currentEntry"]["type"] == "media")) {
-                //printf(" %s\n", pl.toStyledString().c_str());
+                // printf(" %s\n", pl.toStyledString().c_str());
                 snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,%d,%s,%s,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",
                          getFPPmode(),
                          Player::INSTANCE.GetStatus(),
@@ -562,6 +562,7 @@ void CommandProc() {
         command[bytes_received] = 0;
 
         std::array<char, MAX_RESPONSE_SIZE> response;
+        response[0] = 0;
         response[MAX_RESPONSE_SIZE - 1] = '\n';
         char* response2 = ProcessCommand(&command[0], &response[0]);
         errno = 0;

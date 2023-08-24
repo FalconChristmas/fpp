@@ -150,7 +150,6 @@ static std::vector<std::string> BUFFERMAPS;
 static std::vector<std::string> PALETTES;
 extern float GetChannelOutputRefreshRate();
 
-
 enum class ArgMapping {
     Mapping,
     Brightness,
@@ -169,21 +168,37 @@ enum class ArgMapping {
     Text
 };
 
-const char *defaultSliderName(int idx, ArgMapping &m) {
+const char* defaultSliderName(int idx, ArgMapping& m) {
     switch (idx) {
-        case  0: m = ArgMapping::Speed; return "Speed";
-        case  1: m = ArgMapping::Intensity; return "Intensity";
-        case  2: m = ArgMapping::Custom1; return "Custom 1";
-        case  3: m = ArgMapping::Custom2; return "Custom 2";
-        case  4: m = ArgMapping::Custom3; return "Custom 3";
-        case  5: m = ArgMapping::Check1; return "Check 1";
-        case  6: m = ArgMapping::Check2; return "Check 2";
-        case  7: m = ArgMapping::Check3; return "Check 3";
+    case 0:
+        m = ArgMapping::Speed;
+        return "Speed";
+    case 1:
+        m = ArgMapping::Intensity;
+        return "Intensity";
+    case 2:
+        m = ArgMapping::Custom1;
+        return "Custom 1";
+    case 3:
+        m = ArgMapping::Custom2;
+        return "Custom 2";
+    case 4:
+        m = ArgMapping::Custom3;
+        return "Custom 3";
+    case 5:
+        m = ArgMapping::Check1;
+        return "Check 1";
+    case 6:
+        m = ArgMapping::Check2;
+        return "Check 2";
+    case 7:
+        m = ArgMapping::Check3;
+        return "Check 3";
     }
     m = ArgMapping::Custom1;
     return "Custom";
 }
-const char *defaultColorName(int idx, ArgMapping &m, std::string &defVal) {
+const char* defaultColorName(int idx, ArgMapping& m, std::string& defVal) {
     if (idx == 0) {
         m = ArgMapping::Color1;
         defVal = "#FF0000";
@@ -201,15 +216,15 @@ const char *defaultColorName(int idx, ArgMapping &m, std::string &defVal) {
 
 class RawWLEDEffect : public WLEDEffect {
 public:
-    RawWLEDEffect(const std::string& name, const std::string &config, int m) :
+    RawWLEDEffect(const std::string& name, const std::string& config, int m) :
         WLEDEffect(name),
         mode(m) {
         fillVectors();
         args.push_back(CommandArg("BufferMapping", "string", "Buffer Mapping").setContentList(BUFFERMAPS));
-        argMap.push_back(ArgMapping::Mapping); //always have mapping
+        argMap.push_back(ArgMapping::Mapping); // always have mapping
         args.push_back(CommandArg("Brightness", "range", "Brightness").setRange(0, 255).setDefaultValue("128"));
-        argMap.push_back(ArgMapping::Brightness); //always have brightness
-            
+        argMap.push_back(ArgMapping::Brightness); // always have brightness
+
         std::string c = config;
         size_t t = c.find("@");
         if (t != std::string::npos) {
@@ -227,7 +242,7 @@ public:
                 pallete = pallete.substr(0, t);
             }
             int idx = 0;
-            //printf("%s        -%s-\n", config.c_str(), c.c_str());
+            // printf("%s        -%s-\n", config.c_str(), c.c_str());
             while (!sliders.empty()) {
                 ArgMapping m;
                 std::string sname = defaultSliderName(idx, m);
@@ -246,7 +261,7 @@ public:
                         sliders = "";
                     }
                 }
-                //printf("    s%d: %s\n", idx, sname.c_str());
+                // printf("    s%d: %s\n", idx, sname.c_str());
                 if (sname != "") {
                     if (m == ArgMapping::Custom3) {
                         // custom3 is
@@ -254,7 +269,7 @@ public:
                     } else if (m >= ArgMapping::Check1 && m <= ArgMapping::Check3) {
                         args.push_back(CommandArg(sname, "bool", sname).setDefaultValue("0"));
                     } else {
-                        //speed, intensity, custom1, custom2 are full range
+                        // speed, intensity, custom1, custom2 are full range
                         args.push_back(CommandArg(sname, "range", sname).setRange(0, 255).setDefaultValue("128"));
                     }
                     argMap.push_back(m);
@@ -262,7 +277,7 @@ public:
                 idx++;
             }
             args.push_back(CommandArg("Palette", "string", "Palette").setContentList(PALETTES).setDefaultValue("Default"));
-            argMap.push_back(ArgMapping::Palette); //Palette
+            argMap.push_back(ArgMapping::Palette); // Palette
             if (!pallete.empty()) {
                 idx = 0;
                 while (!pallete.empty()) {
@@ -284,7 +299,7 @@ public:
                             pallete = "";
                         }
                     }
-                    //printf("    p%d: %s    %s\n", idx, cname.c_str(), val.c_str());
+                    // printf("    p%d: %s    %s\n", idx, cname.c_str(), val.c_str());
                     if (cname != "") {
                         args.push_back(CommandArg(cname, "color", cname).setDefaultValue(val));
                         argMap.push_back(m);
@@ -295,25 +310,24 @@ public:
                 args.push_back(CommandArg("Color 1", "color", "Color 1").setDefaultValue("#FF0000"));
                 args.push_back(CommandArg("Color 2", "color", "Color 2").setDefaultValue("#0000FF"));
                 args.push_back(CommandArg("Color 3", "color", "Color 3").setDefaultValue("#000000"));
-                argMap.push_back(ArgMapping::Color1); //c1
-                argMap.push_back(ArgMapping::Color2); //c2
-                argMap.push_back(ArgMapping::Color3); //c3
+                argMap.push_back(ArgMapping::Color1); // c1
+                argMap.push_back(ArgMapping::Color2); // c2
+                argMap.push_back(ArgMapping::Color3); // c3
             }
         } else {
             args.push_back(CommandArg("Speed", "range", "Speed").setRange(0, 255).setDefaultValue("128"));
             args.push_back(CommandArg("Intensity", "range", "Intensity").setRange(0, 255).setDefaultValue("128"));
-            argMap.push_back(ArgMapping::Speed); //speed
-            argMap.push_back(ArgMapping::Intensity); //intensity
-            
-            
+            argMap.push_back(ArgMapping::Speed);     // speed
+            argMap.push_back(ArgMapping::Intensity); // intensity
+
             args.push_back(CommandArg("Palette", "string", "Palette").setContentList(PALETTES).setDefaultValue("Default"));
             args.push_back(CommandArg("Color1", "color", "Color1").setDefaultValue("#FF0000"));
             args.push_back(CommandArg("Color2", "color", "Color2").setDefaultValue("#0000FF"));
             args.push_back(CommandArg("Color3", "color", "Color3").setDefaultValue("#000000"));
-            argMap.push_back(ArgMapping::Palette); //Palette
-            argMap.push_back(ArgMapping::Color1); //c1
-            argMap.push_back(ArgMapping::Color2); //c2
-            argMap.push_back(ArgMapping::Color3); //c3
+            argMap.push_back(ArgMapping::Palette); // Palette
+            argMap.push_back(ArgMapping::Color1);  // c1
+            argMap.push_back(ArgMapping::Color2);  // c2
+            argMap.push_back(ArgMapping::Color3);  // c3
         }
         if (name.find("Text") != std::string::npos) {
             args.push_back(CommandArg("Text", "string", "Text"));
@@ -328,7 +342,7 @@ public:
             }
             ++p;
             while (*p) {
-                const char *p2 = p;
+                const char* p2 = p;
                 while (*p2 != '\"') {
                     ++p2;
                 }
@@ -344,10 +358,10 @@ public:
             }
         }
         if (BUFFERMAPS.empty()) {
-            BUFFERMAPS.push_back("Horizontal");
-            BUFFERMAPS.push_back("Vertical");
-            BUFFERMAPS.push_back("Horizontal Flipped");
-            BUFFERMAPS.push_back("Vertical Flipped");
+            BUFFERMAPS.emplace_back("Horizontal");
+            BUFFERMAPS.emplace_back("Vertical");
+            BUFFERMAPS.emplace_back("Horizontal Flipped");
+            BUFFERMAPS.emplace_back("Vertical Flipped");
         }
     }
 
@@ -366,57 +380,56 @@ public:
             bool hasC3 = false;
             for (int x = 0; x < argMap.size(); x++) {
                 switch (argMap[x]) {
-                    case ArgMapping::Mapping:
-                        mapping = std::find(BUFFERMAPS.begin(), BUFFERMAPS.end(), args[x]) - BUFFERMAPS.begin();
-                        break;
-                    case ArgMapping::Brightness:
-                        brightness = parseInt(args[x]);
-                        break;
-                    case ArgMapping::Speed:
-                        speed = parseInt(args[x]);
-                        break;
-                    case ArgMapping::Intensity:
-                        intensity = parseInt(args[x]);
-                        break;
-                    case ArgMapping::Custom1:
-                        custom1 = parseInt(args[x]);
-                        break;
-                    case ArgMapping::Custom2:
-                        custom2 = parseInt(args[x]);
-                        break;
-                    case ArgMapping::Custom3:
-                        custom3 = parseInt(args[x]);
-                        break;
-                    case ArgMapping::Check1:
-                        check1 = parseBool(args[x]);
-                        break;
-                    case ArgMapping::Check2:
-                        check2 = parseBool(args[x]);
-                        break;
-                    case ArgMapping::Check3:
-                        check3 = parseBool(args[x]);
-                        break;
-                    case ArgMapping::Palette:
-                        palette = args[x];
-                        break;
-                    case ArgMapping::Color1:
-                        color1 = parseColor(args[x]);
-                        break;
-                    case ArgMapping::Color2:
-                        color2 = parseColor(args[x]);
-                        break;
-                    case ArgMapping::Color3:
-                        hasC3 = true;
-                        color3 = parseColor(args[x]);
-                        break;
-                    case ArgMapping::Text:
-                        text = args[x];
-                        break;
-                    default:
-                        printf("Don't know what to do with %d\n", argMap[x]);
-                        break;
+                case ArgMapping::Mapping:
+                    mapping = std::find(BUFFERMAPS.begin(), BUFFERMAPS.end(), args[x]) - BUFFERMAPS.begin();
+                    break;
+                case ArgMapping::Brightness:
+                    brightness = parseInt(args[x]);
+                    break;
+                case ArgMapping::Speed:
+                    speed = parseInt(args[x]);
+                    break;
+                case ArgMapping::Intensity:
+                    intensity = parseInt(args[x]);
+                    break;
+                case ArgMapping::Custom1:
+                    custom1 = parseInt(args[x]);
+                    break;
+                case ArgMapping::Custom2:
+                    custom2 = parseInt(args[x]);
+                    break;
+                case ArgMapping::Custom3:
+                    custom3 = parseInt(args[x]);
+                    break;
+                case ArgMapping::Check1:
+                    check1 = parseBool(args[x]);
+                    break;
+                case ArgMapping::Check2:
+                    check2 = parseBool(args[x]);
+                    break;
+                case ArgMapping::Check3:
+                    check3 = parseBool(args[x]);
+                    break;
+                case ArgMapping::Palette:
+                    palette = args[x];
+                    break;
+                case ArgMapping::Color1:
+                    color1 = parseColor(args[x]);
+                    break;
+                case ArgMapping::Color2:
+                    color2 = parseColor(args[x]);
+                    break;
+                case ArgMapping::Color3:
+                    hasC3 = true;
+                    color3 = parseColor(args[x]);
+                    break;
+                case ArgMapping::Text:
+                    text = args[x];
+                    break;
+                default:
+                    printf("Don't know what to do with %d\n", argMap[x]);
+                    break;
                 }
-                
             }
 
             int p = 0;
@@ -477,7 +490,6 @@ std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {
     std::list<PixelOverlayEffect*> v;
     v.push_back(new BlinkEffect());
 
-    
     WS2812FX* inst = WS2812FX::getInstance();
     if (inst == nullptr) {
         inst = new WS2812FXExt();
@@ -486,7 +498,7 @@ std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {
     for (int x = 2; x < i; x++) {
         std::string name = "WLED - ";
         if (x > 127) {
-            //audio reactive effects, add a note so people know these are special
+            // audio reactive effects, add a note so people know these are special
             name = "WLED♪ - ";
         }
         std::string ename = inst->getModeData(x);
