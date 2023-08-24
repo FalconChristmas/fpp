@@ -126,6 +126,7 @@ public:
 
     void addCommand(Command* cmd);
     void removeCommand(Command* cmd);
+    void removeCommand(const std::string& cmdName);
 
     Json::Value getDescriptions();
 

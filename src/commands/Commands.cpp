@@ -199,7 +199,12 @@ void CommandManager::removeCommand(Command* cmd) {
         commands.erase(a);
     }
 }
-
+void CommandManager::removeCommand(const std::string& cmdName) {
+    auto a = commands.find(cmdName);
+    if (a != commands.end()) {
+        commands.erase(a);
+    }
+}
 Json::Value CommandManager::getDescriptions() {
     Json::Value ret;
     for (auto& a : commands) {
