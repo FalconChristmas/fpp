@@ -116,23 +116,34 @@ void Timers::stopPeriodicTimer(const std::string& name) {
 }
 
 void Timers::fireTimersInternal(long long t) {
+    std::list<TimerInfo*> toFire;
+    std::list<TimerInfo*> toDelete;
+
     std::unique_lock<std::mutex> l(lock);
     int m = timers.size();
     bool fired = false;
     for (int x = 0; x < m; ++x) {
         auto a = timers[x];
         if (a && (a->fireTimeMS < t)) {
-            fireTimer(a);
+            toFire.push_back(a);
             if (a->periodicRate) {
                 a->fireTimeMS = GetTimeMS() + a->periodicRate;
             } else {
-                delete a;
+                toDelete.push_back(a);
                 timers[x] = nullptr;
             }
-            fired = true;
         }
     }
+    lock.unlock();
+    for (auto& a : toFire) {
+        fireTimer(a);
+        fired = true;
+    }
+    for (auto a : toDelete) {
+        delete a;
+    }
     if (fired) {
+        lock.lock();
         updateTimers();
     }
 }
