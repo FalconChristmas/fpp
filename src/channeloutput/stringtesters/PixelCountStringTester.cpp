@@ -124,7 +124,7 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
         if (baseValues.size() == 0) {
             baseValues = curValues;
             for (int x = 0; x < lastPixelIdx.size(); x++) {
-                OutputMonitor::INSTANCE.SetPixelCount(x, -1);
+                OutputMonitor::INSTANCE.SetPixelCount(x, -1, -1);
             }
         } else {
             for (int x = 0; x < baseValues.size(); x++) {
@@ -145,7 +145,7 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
     } else if (currentState == STATE_DONE_GROUP) {
         for (int x = 0; x < testingPort.size(); x++) {
             if (testingPort[x]) {
-                OutputMonitor::INSTANCE.SetPixelCount(x, lastPixelIdx[x]);
+                OutputMonitor::INSTANCE.SetPixelCount(x, lastPixelIdx[x], configuredCount[x]);
             }
         }
         if (curGroup < (OutputMonitor::INSTANCE.getGroupCount() - 1)) {
@@ -266,7 +266,14 @@ uint8_t* CurrentBasedPixelCountPixelStringTester::createTestData(PixelString* ps
         while (lastPixelIdx.size() <= currentPort) {
             lastPixelIdx.push_back(-1);
             testingPort.push_back(0);
-            configuredCount.push_back(0);
+            configuredCount.push_back(-1);
+        }
+
+        if (configuredCount[currentPort] == -1) {
+            configuredCount[currentPort] = 0;
+            for (auto& a : ps->m_virtualStrings) {
+                configuredCount[currentPort] += a.pixelCount;
+            }
         }
     } else if (currentState == STATE_BASELINE) {
         // turn everything off to establish a baseline

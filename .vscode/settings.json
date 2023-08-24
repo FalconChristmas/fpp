@@ -122,7 +122,8 @@
         "ios": "cpp",
         "locale": "cpp",
         "stack": "cpp",
-        "__verbose_abort": "cpp"
+        "__verbose_abort": "cpp",
+        "filesystem": "cpp"
     },
     "editor.formatOnSave": true,
     "cmake.configureOnOpen": false
