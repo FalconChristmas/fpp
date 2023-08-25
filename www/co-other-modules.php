@@ -922,8 +922,17 @@ class MQTTOutput extends OtherBase {
 }
 
 <?
-$commandPresetsFile = file_get_contents($settings['configDirectory'] . "/commandPresets.json");
-echo "var commandPresets = " . $commandPresetsFile . ";\n";
+if (file_exists($settings['configDirectory'] . "/commandPresets.json")) {
+    $commandPresetsFile = file_get_contents($settings['configDirectory'] . "/commandPresets.json");
+    json_decode($commandPresetsFile);
+    if (json_last_error() === JSON_ERROR_NONE) {
+        echo "var commandPresets = " . $commandPresetsFile . ";\n";
+    } else {
+        echo "var commandPresets = { \"commands\": [] };\n";
+    }
+} else {
+    echo "var commandPresets = { \"commands\": [] };\n";
+}
 ?>
 function CreatePesetRow(config) {
 
