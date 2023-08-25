@@ -48,7 +48,7 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2023-07"
+FPPIMAGEVER="2023-08"
 FPPCFGVER="78"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -577,7 +577,7 @@ case "${OSVER}" in
                 ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
             fi
 
-            echo "#!/bin/sh" > /etc/networkd-dispatcher/routable.d/ntpd
+            echo '#!/bin/sh' > /etc/networkd-dispatcher/routable.d/ntpd
             echo "/usr/bin/systemctl restart ntp" >> /etc/networkd-dispatcher/routable.d/ntpd
             chmod +x /etc/networkd-dispatcher/routable.d/ntpd
 
