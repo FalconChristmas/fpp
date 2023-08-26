@@ -1,6 +1,32 @@
 {
     "os_list": [
         {
+            "name": "FPP v7.1 Pi",
+            "description": "Falcon Player for all RPi models",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/7.1/FPP-v7.1-Pi.img.zip",
+            "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
+            "init_format": "none",
+            "website": "https://www.falconplayer.com/",
+            "extract_size": 3984588800,
+            "extract_sha256": "17c60e0b148e3b16f681eb081ab73d2c4a71dbf3a9b7c6d0f6b6391f98721d12",
+            "image_download_size": 1134496436,
+            "image_download_sha256": "be19562e7da75b2ae84bd1d23fd8111e3ebb182b29d22b5c9fa46a96a3706149",
+            "release_date": "2023-08-26"
+        },
+        {
+            "name": "FPP v7.1 BBB",
+            "description": "Falcon Player for all BeagleBone models",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/7.1/FPP-v7.1-BBB.img.zip",
+            "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
+            "init_format": "none",
+            "website": "https://www.falconplayer.com/",
+            "extract_size": 3745513472,
+            "extract_sha256": "5b88fa57ebc446c7f8387b67eacd54a2b7fc8f9ba1e01f106a1d216d60b443ee",
+            "image_download_size": 908130969,
+            "image_download_sha256": "369425c7404ca5e75515f332dc23b9e7a55cf4a52ca304e6e1492b2aa20287d5",
+            "release_date": "2023-08-26"
+        },
+        {
             "name": "FPP v7.0 Pi",
             "description": "Falcon Player for all RPi models",
             "url": "https://github.com/FalconChristmas/fpp/releases/download/7.0/FPP-v7.0-Pi.img.zip",
