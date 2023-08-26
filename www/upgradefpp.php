@@ -51,7 +51,7 @@ function Reboot() {
     echo "FPP Upgrade to version " . $version . "\n";
 }
 
-	$command = "sudo " . $fppDir . "/scripts/upgrade_FPP " . $version . " 2>&1";
+	$command = $SUDO . " " . $fppDir . "/scripts/upgrade_FPP " . $version . " 2>&1";
 
 	echo "Command: $command\n";
 	echo "----------------------------------------------------------------------------------\n";
