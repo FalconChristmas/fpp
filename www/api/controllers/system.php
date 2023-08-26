@@ -319,7 +319,7 @@ function SystemGetStatus()
 // GET /api/system/info
 function SystemGetInfo()
 {
-    $result = GetSystemInfoJsonInternal(isset($_GET['simple']));
+    $result = GetSystemInfoJsonInternal(true, isset($_GET['simple']));
     return json($result);
 }
 
