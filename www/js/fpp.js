@@ -2430,33 +2430,73 @@ function PingE131IP(id) {
 }
 
 function ViewReleaseNotes(version) {
-    $('#helpText').html("Retrieving Release Notes");
-    $('#dialog-help').fppDialog({ width: 800, title: "Release Notes for FPP v" + version });
-    $('#dialog-help').fppDialog("moveToTop");
+    
+    var opts = {
+        id: "releaseNotesDialog",
+        title: "Release Notes for FPP v" + version,
+        body: "<div id='releaseNotesText'>Retrieving Release Notes...</div>",
+        class: "modal-dialog-scrollable",
+        backdrop: "static",
+        keyboard: false,
+        focus: true
+    };
+
+    
+    DoModalDialog(opts);
 
     $.get("api/system/releaseNotes/" + version
     ).done(function (data) {
-        $('#helpText').html(
+        $('#releaseNotesText').html(
             "<center><input onClick='UpgradeFPPVersion(\"" + version + "\");' type='button' class='buttons' value='Upgrade'></center>" +
             "<pre style='white-space: pre-wrap; word-wrap: break-word;'>" + data.body + "</pre>"
         );
     }).fail(function () {
-        $('#helpText').html("Error loading release notes.");
+        $('#releaseNotesText').html("Error loading release notes.");
     });
 }
 
 function VersionUpgradeDone(id) {
-    id = id.replace('_logText', '');
-    $('#' + id + '_doneButtons').show();
-    $('#rebootFPPAfterUpgradeButton').show();
+    $("#fppUpgradeCloseDialogButton").prop("disabled", false);
 }
 function UpgradeFPPVersion(newVersion) {
     if (confirm('Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.')) {
-        $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP Upgrade" });
-        $('#upgradePopup').fppDialog("moveToTop");
-        $('#upgradeText').html('');
+        
+        CloseModalDialog("releaseNotesDialog");
+        
+        
+        var opts = {
+            id: "upgradeFPPDialog",
+            title: "Upgrading to FPP v" + newVersion,
+            body: "<textarea style='width: 99%; height: 500px;' disabled id='upgradeFPPDialogText'>Starting upgrade....</textarea>",
+            class: "modal-dialog-scrollable",
+            backdrop: "static",
+            keyboard: false,
+            noClose: true,
+            focus: true,
+            footer: ""
+        };
+        if (settings['Platform'] == "MacOS") {
+            opts["buttons"] = {
+                "Close": {
+                id: 'fppUpgradeCloseDialogButton',
+                click: function() {CloseModalDialog("upgradeFPPDialog");},
+                disabled: true,
+                    class: 'btn-success'
+                }
+            };
+        } else {
+            opts["buttons"] = {
+                "Reboot": {
+                id: 'fppUpgradeCloseDialogButton',
+                click: function() {Reboot();},
+                disabled: true,
+                    class: 'btn-success'
+                }
+            };
+        }
 
-        StreamURL('upgradefpp.php?version=v' + newVersion, 'upgradeText', 'VersionUpgradeDone');
+        DoModalDialog(opts);
+        StreamURL('upgradefpp.php?version=v' + newVersion, 'upgradeFPPDialogText', 'VersionUpgradeDone');
     }
 }
 

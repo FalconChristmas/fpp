@@ -5,6 +5,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
+
 if [ "x$1" = "x" ]
 then
 	echo "USAGE: $0 VERSION"
@@ -24,12 +25,21 @@ cleanCompiledBinaries
 echo "Switching git branch to $1"
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
-	cd ${FPPDIR} && $SUDO git submodule foreach git reset --hard && $SUDO git checkout $1 && $SUDO git pull && $SUDO git submodule sync && $SUDO git submodule update --init
+	cd ${FPPDIR} && $SUDO git submodule foreach git reset --hard && $SUDO git checkout $1 && $SUDO git pull
+    if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+        cd ${FPPDIR} && $SUDO git submodule sync && $SUDO git submodule update --init
+    fi
+
+    $SUDO ${SCRIPTDIR}/upgrade_config
 else
-	cd ${FPPDIR} && $SUDO git submodule foreach git reset --hard && $SUDO -u ${FPPUSER} git checkout $1 && $SUDO -u ${FPPUSER} git pull && $SUDO -u ${FPPUSER} git submodule sync && $SUDO git submodule update --init
+	cd ${FPPDIR} && sudo -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git pull
+    if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+        cd ${FPPDIR} && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
+    fi
+
+    sudo -u ${FPPUSER} ${SCRIPTDIR}/upgrade_config
 fi
 
-sudo ${SCRIPTDIR}/upgrade_config
 
 echo "Compiling Binaries"
 compileBinaries
