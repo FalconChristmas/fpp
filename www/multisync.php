@@ -2122,7 +2122,7 @@ if ($uiLevel > 0) {
 
 $(document).ready(function() {
 
-    $.get("/api/proxies", function(data) {
+    $.get("api/proxies", function(data) {
         proxies = data;
 
         // Update any existing links now that proxies
