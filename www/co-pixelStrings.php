@@ -253,7 +253,7 @@ function SetPixelTestPattern() {
     }
 }
 
-var maxVirtualStringsPerOutput = 30;
+var maxVirtualStringsPerOutput = 100;
 var selectedPixelStringRowId = "NothingSelected";
 
 function pixelOutputTableHeader()
@@ -1638,7 +1638,7 @@ function populatePixelStringOutputs(data) {
                 });
                 setTimeout(function() {
                     $('.vsPortLabel').each(function() {
-                        $(this).attr("data-bs-html", "true"); 
+                        $(this).attr("data-bs-html", "true");
                         $(this).attr("data-bs-original-title", selected_string_details($(this).parent()));
                         $(this).tooltip();
                     });
