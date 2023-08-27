@@ -168,6 +168,11 @@ then
     configureBBBLeds
 fi
 
+# Make sure the proxies link is in place
+if [ ! -e /opt/fpp/www/proxy/.htaccess ]; then
+    ln -s /home/fpp/media/config/proxies /opt/fpp/www/proxy/.htaccess
+fi
+
 ##############################################################################
 # Leave these things till last so user can see output of anything above here
 ##############################################################################
