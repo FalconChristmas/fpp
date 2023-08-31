@@ -791,6 +791,8 @@ function getPixelStringOutputJSON()
                         mxId += mxCnt - 1;
                     } else if (mxId  == 2) {
                         mxId += mxCnt + 1;
+                    } else if (mxId  == 3) {
+                        mxId = mxCnt + 9;
                     }
                     port.differentialType = mxId;
                     if (mxId < 1) mxId = 1;
@@ -1070,6 +1072,14 @@ function SupportsSmartReceivers(subType) {
     }
     return false;
 }
+function SupportsFalconV5SmartReceivers(subType) {
+    var subType = GetPixelStringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    if (val && val.hasOwnProperty("supportsFalconV5SmartReceivers")) {
+        return val["supportsFalconV5SmartReceivers"];
+    }
+    return false;
+}
 function IsExpansion(subType, s) {
     s = s + 1;
     var subType = GetPixelStringCapeFileName();
@@ -1248,6 +1258,9 @@ function PixelStringExpansionTypeChanged(port) {
             if (SupportsSmartReceivers(subType)) {
                 str += "<option value='1'>Smart v1</option>";
                 str += "<option value='2'>Smart v2</option>";
+                if (SupportsFalconV5SmartReceivers(subType)) {
+                    str += "<option value='3'>Falcon v5</option>";
+                }
             }
             str += "</select>";
             str += "&nbsp;<select id='DifferentialCount" + o + "' onChange='PixelStringDifferentialTypeChanged(" + o + ");' style='display: none;'>";
@@ -1272,7 +1285,7 @@ function PixelStringDifferentialTypeChanged(port) {
             $("#DifferentialCount" + port + " option[value='4']").remove();
             $("#DifferentialCount" + port + " option[value='5']").remove();
             $("#DifferentialCount" + port + " option[value='6']").remove();
-        } else if (val == 2 && len < 6) {
+        } else if (val >= 2 && len < 6) {
             dc.append('<option value="4">4 Smart Receivers</option>');
             dc.append('<option value="5">5 Smart Receivers</option>');
             dc.append('<option value="6">6 Smart Receivers</option>');
@@ -1492,6 +1505,7 @@ function populatePixelStringOutputs(data) {
 
 
                             var supportSmart = SupportsSmartReceivers(subType);
+                            var supportFalconv5 = supportSmart ? SupportsFalconV5SmartReceivers(subType) : false;
                             var diffType = 0;
                             if (supportSmart && port.hasOwnProperty("differentialType"))
                                 diffType = port["differentialType"];
@@ -1500,6 +1514,12 @@ function populatePixelStringOutputs(data) {
                             if (diffType > 1 && diffType < 4) {
                                 diffCount = diffType;
                                 diffType = 1;
+                            } else if (diffType > 9) {
+                                diffCount = diffType - 9;
+                                diffType = 3;
+                                if (!supportFalconv5) {
+                                    diffType = 2;
+                                }
                             } else if (diffType > 3) {
                                 diffCount = diffType - 3
                                 diffType = 2;
@@ -1509,6 +1529,9 @@ function populatePixelStringOutputs(data) {
                             if (supportSmart) {
                                 str += "<option value='1'" + (diffType == 1 ? " selected" : "") + ">Smart v1</option>";
                                 str += "<option value='2'" + (diffType == 2 ? " selected" : "") + ">Smart v2</option>";
+                                if (supportFalconv5) {
+                                    str += "<option value='3'" + (diffType == 3 ? " selected" : "") + ">Falcon v5</option>";
+                                }
                             }
                             str += "</select>";
                             str += "&nbsp;<select id='DifferentialCount" + o + "' onChange='PixelStringDifferentialTypeChanged(" + o + ");'";
@@ -1519,7 +1542,7 @@ function populatePixelStringOutputs(data) {
                             str += "<option value='1'" + (diffCount <= 1 ? " selected" : "") + ">1 Smart Receiver</option>";
                             str += "<option value='2'" + (diffCount == 2 ? " selected" : "") + ">2 Smart Receivers</option>";
                             str += "<option value='3'" + (diffCount == 3 ? " selected" : "") + ">3 Smart Receivers</option>";
-                            if (diffType == 2) {
+                            if (diffType >= 2) {
                                 str += "<option value='4'" + (diffCount == 4 ? " selected" : "") + ">4 Smart Receivers</option>";
                                 str += "<option value='5'" + (diffCount == 5 ? " selected" : "") + ">5 Smart Receivers</option>";
                                 str += "<option value='6'" + (diffCount == 6 ? " selected" : "") + ">6 Smart Receivers</option>";

@@ -14,6 +14,7 @@
 #include <functional>
 #include <list>
 #include <map>
+#include <mutex>
 #include <string>
 
 #include <httpserver.hpp>
@@ -58,6 +59,7 @@ private:
 
     std::map<std::string, const PinCapabilities*> fusePins;
     std::vector<PortPinInfo*> portPins;
+    std::mutex gpioLock;
     int numGroups = 1;
     int curGroup = -1;
 };

@@ -270,9 +270,9 @@ void* RunChannelOutputThread(void* data) {
         }
     }
 
-    StoppingOutput();
     statusLock.lock();
     ThreadIsRunning = 0;
+    StoppingOutput();
     statusLock.unlock();
     lock.unlock();
     statusLock.lock();

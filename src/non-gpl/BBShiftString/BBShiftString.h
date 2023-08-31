@@ -15,12 +15,14 @@
 #include <string>
 #include <vector>
 
+#include "../FalconV5Support/FalconV5Support.h"
 #include "channeloutput/ChannelOutput.h"
 #include "channeloutput/PixelString.h"
 #include "util/BBBPruUtils.h"
 
 constexpr int NUM_STRINGS_PER_PIN = 8;
 constexpr int MAX_PINS_PER_PRU = 8;
+constexpr int NUM_CONFIG_PACKETS = 12;
 
 // structure of the data at the start of the PRU ram
 // that the pru program expects to see
@@ -48,6 +50,8 @@ public:
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
+    void addControlCallbacks(std::map<int, std::function<bool(int)>>& callbacks);
+
     virtual int SendData(unsigned char* channelData) override;
     virtual void PrepData(unsigned char* channelData) override;
     virtual void DumpConfig(void) override;
@@ -71,12 +75,20 @@ private:
                     stringMap[y][x] = -1;
                 }
             }
+            for (int y = 0; y < NUM_CONFIG_PACKETS; ++y) {
+                v5_config_packets[y] = nullptr;
+            }
         }
         ~FrameData() {
             if (channelData)
                 free(channelData);
             if (formattedData)
                 free(formattedData);
+            for (int y = 0; y < NUM_CONFIG_PACKETS; ++y) {
+                if (v5_config_packets[y]) {
+                    free(v5_config_packets[y]);
+                }
+            }
         }
         std::array<std::array<int, NUM_STRINGS_PER_PIN>, MAX_PINS_PER_PRU> stringMap;
         BBBPru* pru = nullptr;
@@ -89,6 +101,9 @@ private:
         uint8_t* curData = nullptr;
         uint32_t frameSize = 0;
         int maxStringLen = 0;
+
+        uint8_t* v5_config_packets[NUM_CONFIG_PACKETS];
+        int curV5ConfigPacket = 0;
     } m_pru0, m_pru1;
 
     std::vector<PixelString*> m_strings;
@@ -100,8 +115,11 @@ private:
     int m_testType = 0;
     float m_testPercent = 0.0f;
 
+    FalconV5Support* falconV5Support = nullptr;
+
     void prepData(FrameData& d, unsigned char* channelData);
     void sendData(FrameData& d);
+    void bitFlipData(uint8_t* stringChannelData, uint8_t* bitSwapped, size_t len);
 
     void createOutputLengths(FrameData& d, const std::string& pfx);
 };

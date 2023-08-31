@@ -64,9 +64,9 @@ VirtualString::VirtualString() :
     leadOutCount(0) {
 }
 
-VirtualString::VirtualString(int r) :
+VirtualString::VirtualString(int rt, int rn) :
     whiteOffset(-1),
-    receiverNum(r),
+    receiverNum(rn),
     startChannel(0),
     pixelCount(0),
     groupCount(0),
@@ -80,7 +80,7 @@ VirtualString::VirtualString(int r) :
     leadInCount(0),
     toggleCount(0),
     leadOutCount(0) {
-    switch (r) {
+    switch (rt) {
     case 0:
         leadInCount = 0;
         toggleCount = SMART_RECEIVER_LEN;
@@ -101,12 +101,24 @@ VirtualString::VirtualString(int r) :
         toggleCount = 0;
         leadOutCount = 0;
         break;
+    case 4: // Falcon v5
+        leadInCount = 0;
+        toggleCount = 0;
+        leadOutCount = 0;
+        break;
     }
     pixelCount = leadInCount + toggleCount + leadOutCount;
     for (int x = 0; x < 256; x++) {
         brightnessMap[x] = x;
     }
 }
+bool VirtualString::isSmartReceiver() const {
+    return receiverNum >= 0;
+}
+bool VirtualString::isFalconV5SmartReceiver() const {
+    return receiverNum >= 0 && leadInCount == 0 && toggleCount == 0 && leadOutCount == 0;
+}
+
 int VirtualString::channelsPerNode() const {
     if (receiverNum >= 0) {
         return 1;
@@ -148,27 +160,30 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
     m_portNumber = config["portNumber"].asInt();
     m_outputChannels = 0;
 
-    int receiverType = 0;
+    smartReceiverType = ReceiverType::Standard;
     int receiverCount = 1;
     if (m_isSmartReceiver && config.isMember("differentialType")) {
-        receiverType = config["differentialType"].asInt();
-        if (receiverType) {
-            if (receiverType <= 3) {
-                //v1 smart receivers
-                receiverCount = receiverType;
-                receiverType = 1;
+        int rt = config["differentialType"].asInt();
+        if (rt) {
+            if (rt <= 3) {
+                // v1 smart receivers
+                receiverCount = rt;
+                smartReceiverType = ReceiverType::v1;
+            } else if (rt > 9) {
+                // Falcon V5 smart receivers
+                receiverCount = rt - 9;
+                smartReceiverType = ReceiverType::FalconV5;
             } else {
-                //v2 smart receivers
-                receiverCount = receiverType - 3;
-                receiverType = 2;
+                // v2 smart receivers
+                receiverCount = rt - 3;
+                smartReceiverType = ReceiverType::v2;
             }
         }
     }
-    m_isSmartReceiver = receiverType > 0;
-    if (receiverType == 1) {
-        AddVirtualString(VirtualString(0));
-    } else if (receiverType == 2) {
-        //v2 smart receiver, no lead in
+    m_isSmartReceiver = smartReceiverType != ReceiverType::Standard;
+    if (smartReceiverType == ReceiverType::v1) {
+        // v1 needs a lead in
+        AddVirtualString(VirtualString(0, 0));
     }
     int startMaxChan = m_outputChannels;
     for (int i = 0; i < config["virtualStrings"].size(); i++) {
@@ -181,20 +196,23 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
     }
     std::array<bool, 6> hasChannels;
     hasChannels[0] = startMaxChan != m_outputChannels;
-    if (!hasChannels[0] && receiverType > 0) {
-        //we need to output at least 1 pixel
+    if (!hasChannels[0] && (smartReceiverType == ReceiverType::v1 || smartReceiverType == ReceiverType::v2)) {
+        // we need to output at least 1 pixel
         AddNullPixelString();
     }
     for (int p = 1; p < receiverCount; p++) {
         int sz = m_virtualStrings.size();
         int mc = m_outputChannels;
 
-        if (receiverType == 1) {
-            //v1 smart  receiver
-            AddVirtualString(VirtualString(p));
-        } else if (receiverType == 2) {
-            //v2 smart  receiver, .15ms gap
-            AddVirtualString(VirtualString(3));
+        if (smartReceiverType == ReceiverType::v1) {
+            // v1 smart  receiver
+            AddVirtualString(VirtualString(p, p));
+        } else if (smartReceiverType == ReceiverType::v2) {
+            // v2 smart  receiver, .15ms gap
+            AddVirtualString(VirtualString(3, p));
+        } else if (smartReceiverType == ReceiverType::FalconV5) {
+            // Falcon v5, just marker to determine config packets later
+            AddVirtualString(VirtualString(4, p));
         }
         startMaxChan = m_outputChannels;
         for (int i = 0; i < config[SMART_RECEIVER_LABELS[p]].size(); i++) {
@@ -209,7 +227,7 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
         hasChannels[0] |= hasChannels[p];
         if (!hasChannels[p]) {
             if (p != (receiverCount - 1)) {
-                //we need to output at least 1 pixel
+                // we need to output at least 1 pixel
                 AddNullPixelString();
             } else {
                 // in this case, we can revert and just send one less receivers of data
@@ -222,7 +240,7 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
     }
 
     if (!hasChannels[0]) {
-        //empty, no strings
+        // empty, no strings
         m_outputChannels = 0;
         m_virtualStrings.clear();
         AddVirtualString(VirtualString());
@@ -256,13 +274,13 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
         for (int j = 0; j < ((m_virtualStrings[i].startNulls * m_virtualStrings[i].channelsPerNode()) + (m_virtualStrings[i].pixelCount * m_virtualStrings[i].channelsPerNode()) + (m_virtualStrings[i].endNulls * m_virtualStrings[i].channelsPerNode())); j++)
             m_brightnessMaps[mapIndex++] = m_virtualStrings[i].brightnessMap;
     }
-    //turn gpio off after all channels on this port are done
+    // turn gpio off after all channels on this port are done
     if (m_outputChannels) {
         m_gpioCommands.push_back(GPIOCommand(m_portNumber, m_outputChannels));
     }
 
-    //certain testing capabilities (like pixel counting) may require a
-    //buffer larger than the number of pixels configured
+    // certain testing capabilities (like pixel counting) may require a
+    // buffer larger than the number of pixels configured
     int obs = std::max(2400, m_outputChannels);
     m_outputBuffer = (uint8_t*)calloc(obs, 1);
 
@@ -380,30 +398,30 @@ void PixelString::AddNullPixelString() {
 
 void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
     if (vs.receiverNum >= 0) {
-        //smart receiever, add codes to outputs
-        //drop low to trigger receiver to start trying to figure out which data is next
+        // smart receiever, add codes to outputs
+        // drop low to trigger receiver to start trying to figure out which data is next
         if (vs.leadInCount > 0) {
             m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset));
             for (int x = 0; x < vs.channelsPerNode() * vs.leadInCount; x++) {
                 m_outputMap[vsOffset++] = FPPD_OFF_CHANNEL;
             }
-            //Turn back on
+            // Turn back on
             m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset, 1));
         }
         if (vs.toggleCount) {
-            //Toggle a bunch back and forth
+            // Toggle a bunch back and forth
             for (int x = 0; x < vs.channelsPerNode() * vs.toggleCount; x++) {
-                //using white allows an even up/down on the GPIO
+                // using white allows an even up/down on the GPIO
                 m_outputMap[vsOffset++] = FPPD_WHITE_CHANNEL;
             }
         }
         if (vs.leadOutCount) {
-            //drop low again and turn off so receiver can enable/disable whichever outputs are needed
+            // drop low again and turn off so receiver can enable/disable whichever outputs are needed
             m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset));
             for (int x = 0; x < vs.channelsPerNode() * vs.leadOutCount; x++) {
                 m_outputMap[vsOffset++] = FPPD_OFF_CHANNEL;
             }
-            //turn gpio back on
+            // turn gpio back on
             m_gpioCommands.push_back(GPIOCommand(m_portNumber, vsOffset, 1));
         }
         return;
@@ -647,7 +665,7 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
             int32_t channelCount = maxChan - startChannel;
 
             if (name.find("Tree") != std::string::npos || name.find("TREE") != std::string::npos || name.find("tree") != std::string::npos || name.find("Vert") != std::string::npos || name.find("vert") != std::string::npos) {
-                //some common names that are usually vertical oriented
+                // some common names that are usually vertical oriented
                 orientation = "V";
             }
 

@@ -55,16 +55,16 @@ Json::Value PinCapabilities::toJSON() const {
 }
 
 void PinCapabilities::enableOledScreen(int i2cBus, bool enable) {
-    //this pin is i2c, we may need to tell fppoled to turn off the display
-    //before we shutdown this pin because once we re-configure, i2c will
-    //be unavailable and the display won't update
+    // this pin is i2c, we may need to tell fppoled to turn off the display
+    // before we shutdown this pin because once we re-configure, i2c will
+    // be unavailable and the display won't update
     int smfd = shm_open("fppoled", O_CREAT | O_RDWR, 0);
     ftruncate(smfd, 1024);
     unsigned int* status = (unsigned int*)mmap(0, 1024, PROT_WRITE | PROT_READ, MAP_SHARED, smfd, 0);
     if (i2cBus == status[0]) {
         printf("Signal to fppoled to enable/disable I2C:   Bus: %d   Enable: %d\n", i2cBus, enable);
         if (!enable) {
-            //force the display off
+            // force the display off
             status[2] = 1;
             int count = 0;
             while (status[1] != 0 && count < 150) {
@@ -72,7 +72,7 @@ void PinCapabilities::enableOledScreen(int i2cBus, bool enable) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         } else {
-            //allow the display to come back on
+            // allow the display to come back on
             status[2] = 0;
         }
     }
@@ -80,14 +80,14 @@ void PinCapabilities::enableOledScreen(int i2cBus, bool enable) {
     munmap(status, 1024);
 }
 
-//the built in GPIO chips that are handled by the more optimized
-//platform specific GPIO drivers
+// the built in GPIO chips that are handled by the more optimized
+// platform specific GPIO drivers
 static const std::set<std::string> PLATFORM_IGNORES{
-    "pinctrl-bcm2835", //raspberry pi's
+    "pinctrl-bcm2835", // raspberry pi's
     "pinctrl-bcm2711", // Pi4
     "raspberrypi-exp-gpio",
     "brcmvirt-gpio",
-    "gpio-0-31", //beagles
+    "gpio-0-31", // beagles
     "gpio-32-63",
     "gpio-64-95",
     "gpio-96-127"
@@ -104,11 +104,25 @@ bool GPIODCapabilities::supportsPullDown() const {
     return gpiodVersion >= 105;
 }
 
+#ifdef HASGPIOD
+constexpr int MAX_GPIOD_CHIPS = 15;
+class GPIOChipHolder {
+public:
+    static GPIOChipHolder INSTANCE;
+
+    std::array<gpiod::chip, MAX_GPIOD_CHIPS> chips;
+};
+GPIOChipHolder GPIOChipHolder::INSTANCE;
+#endif
 int GPIODCapabilities::configPin(const std::string& mode,
                                  bool directionOut) const {
 #ifdef HASGPIOD
-    std::string n = std::to_string(gpioIdx);
-    line = gpiod::chip(n, gpiod::chip::OPEN_BY_NUMBER).get_line(gpio);
+    if (!GPIOChipHolder::INSTANCE.chips[gpioIdx]) {
+        std::string n = std::to_string(gpioIdx);
+        GPIOChipHolder::INSTANCE.chips[gpioIdx].open(n, gpiod::chip::OPEN_BY_NUMBER);
+    }
+    chip = &GPIOChipHolder::INSTANCE.chips[gpioIdx];
+    line = chip->get_line(gpio);
     gpiod::line_request req;
     req.consumer = PROCESS_NAME;
     if (directionOut) {
@@ -117,7 +131,7 @@ int GPIODCapabilities::configPin(const std::string& mode,
         req.request_type = gpiod::line_request::DIRECTION_INPUT;
 
         if (gpiodVersion >= 105) {
-            //pull up/down was added in libgpiod 1.5
+            // pull up/down was added in libgpiod 1.5
             if (mode == "gpio_pu") {
                 req.flags |= ::std::bitset<32>(GPIOD_BIT(5));
             } else if (mode == "gpio_pd") {
@@ -240,4 +254,13 @@ const PinCapabilities& PinCapabilities::getPinByGPIO(int i) {
 }
 const PinCapabilities& PinCapabilities::getPinByUART(const std::string& n) {
     return PIN_PROVIDER->getPinByUART(n);
+}
+
+void PinCapabilities::SetMultiPinValue(const std::list<const PinCapabilities*>& pins, int v) {
+    if (pins.empty()) {
+        return;
+    }
+    for (auto p : pins) {
+        p->setValue(v);
+    }
 }

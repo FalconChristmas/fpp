@@ -21,10 +21,13 @@
 class VirtualString {
 public:
     VirtualString();
-    VirtualString(int receiverNum);
+    VirtualString(int receiverType, int receiverNum);
     ~VirtualString(){};
 
     int channelsPerNode() const;
+
+    bool isSmartReceiver() const;
+    bool isFalconV5SmartReceiver() const;
 
     int startChannel;
     int pixelCount;
@@ -83,7 +86,14 @@ public:
     std::vector<int> m_outputMap;
     uint8_t** m_brightnessMaps;
 
-    bool m_isSmartReceiver;
+    enum class ReceiverType {
+        Standard = 0,
+        v1 = 1,
+        v2 = 2,
+        FalconV5 = 3
+    };
+    ReceiverType smartReceiverType = PixelString::ReceiverType::Standard;
+    bool m_isSmartReceiver = false;
 
     static void AutoCreateOverlayModels(const std::vector<PixelString*>& strings);
 

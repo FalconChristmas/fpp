@@ -299,12 +299,9 @@ void OutputMonitor::EnableOutputs() {
     if (!pullHighOutputPins.empty() || !pullLowOutputPins.empty()) {
         LogDebug(VB_CHANNELOUT, "Enabling outputs\n");
     }
-    for (auto& p : pullHighOutputPins) {
-        p->setValue(1);
-    }
-    for (auto& p : pullLowOutputPins) {
-        p->setValue(0);
-    }
+    std::unique_lock<std::mutex> lock(gpioLock);
+    PinCapabilities::SetMultiPinValue(pullHighOutputPins, 1);
+    PinCapabilities::SetMultiPinValue(pullLowOutputPins, 0);
     for (auto p : portPins) {
         if (p->enabled) {
             p->isOn = true;
@@ -316,21 +313,20 @@ void OutputMonitor::EnableOutputs() {
             WarningHolder::RemoveWarning("eFUSE Triggered for " + p->name);
         }
     }
+    lock.unlock();
     CommandManager::INSTANCE.TriggerPreset("OUTPUTS_ENABLED");
 }
 void OutputMonitor::DisableOutputs() {
     if (!pullHighOutputPins.empty() || !pullLowOutputPins.empty()) {
         LogDebug(VB_CHANNELOUT, "Disabling outputs\n");
     }
+    std::unique_lock<std::mutex> lock(gpioLock);
     for (auto p : portPins) {
         p->isOn = false;
     }
-    for (auto& p : pullHighOutputPins) {
-        p->setValue(0);
-    }
-    for (auto& p : pullLowOutputPins) {
-        p->setValue(1);
-    }
+    PinCapabilities::SetMultiPinValue(pullHighOutputPins, 0);
+    PinCapabilities::SetMultiPinValue(pullLowOutputPins, 1);
+    lock.unlock();
     CommandManager::INSTANCE.TriggerPreset("OUTPUTS_DISABLED");
 }
 void OutputMonitor::AddPortConfiguration(const std::string& name, const Json::Value& pinConfig, bool enabled) {
@@ -383,8 +379,10 @@ void OutputMonitor::AddPortConfiguration(const std::string& name, const Json::Va
                 hasInfo = true;
                 if (fusePins[eFuseInterruptPin] == nullptr) {
                     pi->eFuseInterruptPin->configPin("gpio" + postFix, false);
+                    fusePins[eFuseInterruptPin] = pi->eFuseInterruptPin;
                     GPIOManager::INSTANCE.AddGPIOCallback(pi->eFuseInterruptPin, [this, pi](int v) {
                         // printf("\n\n\nInterrupt Pin!!!   %d   %d\n\n\n", v, pi->eFuseInterruptPin->getValue());
+                        std::unique_lock<std::mutex> lock(gpioLock);
                         for (auto a : portPins) {
                             if (a->eFuseInterruptPin == pi->eFuseInterruptPin) {
                                 int v = a->eFusePin->getValue();
@@ -430,7 +428,9 @@ void OutputMonitor::AddPortConfiguration(const std::string& name, const Json::Va
             pi->eFusePin->configPin("gpio" + postFix, false);
             if (pi->eFuseInterruptPin == nullptr) {
                 GPIOManager::INSTANCE.AddGPIOCallback(pi->eFusePin, [this, pi](int v) {
-                    // printf("eFuse for %s trigger: %d    %d\n",  pi->name.c_str(), v, pi->eFusePin->getValue());
+                    std::unique_lock<std::mutex> lock(gpioLock);
+                    //printf("eFuse for %s trigger: %d    %d\n", pi->name.c_str(), v, pi->eFusePin->getValue());
+                    v = pi->eFusePin->getValue();
                     if (v != pi->eFuseOKValue) {
                         if (pi->enablePin) {
                             // make sure the port is turned off
@@ -490,6 +490,7 @@ const PinCapabilities* OutputMonitor::AddOutputPin(const std::string& name, cons
         return nullptr;
     }
     op.push_back(pc);
+    std::unique_lock<std::mutex> lock(gpioLock);
     pc->configPin("gpio", true);
     pc->setValue(!highToEnable);
     return pc;

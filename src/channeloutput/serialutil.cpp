@@ -88,7 +88,11 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output) {
     // some devices may multiplex pins and need to
     // specifically configure the output pin as a uart instead of gpio
     char buf[256];
-    snprintf(buf, sizeof(buf), "%s-tx", &device[5]); // "ttyS1-tx" or "ttyUSB0-tx"
+    if (output) {
+        snprintf(buf, sizeof(buf), "%s-tx", &device[5]); // "ttyS1-tx" or "ttyUSB0-tx"
+    } else {
+        snprintf(buf, sizeof(buf), "%s-rx", &device[5]); // "ttyS1-rx" or "ttyUSB0-rx"
+    }
     PinCapabilities::getPinByUART(buf).configPin("uart");
 
     int fd = 0;
@@ -96,7 +100,7 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output) {
     speed_t adjustedBaud = SerialGetBaudRate(baud);
 
     if (strlen(mode) != 3) {
-        LogErr(VB_CHANNELOUT, "Invalid Serial Port Mode: %s\n", mode);
+        LogErr(VB_CHANNELOUT, "%s: Invalid Serial Port Mode: %s\n", device, mode);
         return -1;
     }
 
@@ -105,19 +109,19 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output) {
         return -1;
 
     if (ioctl(fd, TIOCEXCL) == -1) {
-        LogErr(VB_CHANNELOUT, "Error setting port to exclusive mode\n");
+        LogErr(VB_CHANNELOUT, "%s: Error setting port to exclusive mode\n", device);
         close(fd);
         return -1;
     }
 
     if (tcgetattr(fd, &tty) == -1) {
-        LogErr(VB_CHANNELOUT, "Error getting port attributes\n");
+        LogErr(VB_CHANNELOUT, "%s: Error getting port attributes\n", device);
         close(fd);
         return -1;
     }
 
     if (cfsetspeed(&tty, adjustedBaud) == -1) {
-        LogErr(VB_CHANNELOUT, "Error setting port speed\n");
+        LogErr(VB_CHANNELOUT, "%s: Error setting port speed\n", device);
         close(fd);
         return -1;
     }
@@ -167,14 +171,14 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output) {
     tty.c_cc[VTIME] = 0;
 
     if (tcsetattr(fd, TCSANOW, &tty) == -1) {
-        LogErr(VB_CHANNELOUT, "Error setting port attributes\n");
+        LogErr(VB_CHANNELOUT, "%s: Error setting port attributes\n", device);
         close(fd);
         return -1;
     }
 
     if ((adjustedBaud == B38400) &&
         (baud != 38400)) {
-        LogInfo(VB_CHANNELOUT, "Using custom baud rate of %d\n", baud);
+        LogInfo(VB_CHANNELOUT, "%s: Using custom baud rate of %d\n", device, baud);
 
 #ifdef PLATFORM_OSX
         if (ioctl(fd, IOSSIOSPEED, &adjustedBaud) == -1) {
@@ -197,7 +201,7 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output) {
         tio.c_ospeed = baud;
 
         if (ioctl(fd, TCSETS2, &tio) < 0) {
-            LogErr(VB_CHANNELOUT, "Error setting custom baud rate\n");
+            LogErr(VB_CHANNELOUT, "%s: Error setting custom baud rate\n", device);
             close(fd);
             return -1;
         }

@@ -50,6 +50,8 @@
 #define LATCH_MASK 0x40
 #endif
 
+#define FALCONV5_PERIOD  1125
+
 
 #include "FalconUtils.asm"
 #include "FalconPRUDefs.hp"
@@ -76,6 +78,8 @@
 //use XOUT to scratch pads for the additional 
 //data or load 4 bits at a time instaed of 8
 #define pixelData    r10
+
+#define data_flags   r29
 
 #define DATABLOCKSIZE 64
 
@@ -143,6 +147,66 @@ OUTPUT_FULL_BIT .macro REG1, REG2
     TOGGLE_LATCH
     .endm
 
+OUTPUT_FULL_BIT_FV5 .macro REG1, REG2
+    OUTPUT_REG REG1
+    OUTPUT_REG REG2
+    WAITNS  FALCONV5_PERIOD, r8, r9
+    RESET_PRU_CLOCK r8, r9
+    TOGGLE_LATCH
+    .endm
+
+OUTPUT_FALCONV5_PACKET .macro
+    .newblock
+    QBNE  START_FALCONV5?, data_flags, 0
+        JMP DONE_FALCONV5?
+START_FALCONV5?:
+    OUTPUT_LOW
+    TOGGLE_LATCH
+    RESET_PRU_CLOCK r8, r9
+    LOOP HI_START?, 14
+        WAITNS  FALCONV5_PERIOD, r8, r9
+        RESET_PRU_CLOCK r8, r9
+HI_START?:    
+    OUTPUT_HIGH
+    TOGGLE_LATCH
+    LOOP LONG_START?, 45
+        WAITNS  FALCONV5_PERIOD, r8, r9
+        RESET_PRU_CLOCK r8, r9
+LONG_START?:
+
+    LDI  data_len, 56
+#ifdef RUNNING_ON_PRU1
+    LDI32   data_addr, 0x00011000
+#else
+    LDI32   data_addr, 0x00010000
+#endif    
+    LBBO    &r10, data_addr, 0, DATABLOCKSIZE
+    ADD     data_addr, data_addr, DATABLOCKSIZE
+FALCONV5_LOOP?:
+    // start bit
+    OUTPUT_LOW
+    WAITNS  FALCONV5_PERIOD, r8, r9
+    TOGGLE_LATCH
+    RESET_PRU_CLOCK r8, r9
+    OUTPUT_FULL_BIT_FV5 r10, r11
+    OUTPUT_FULL_BIT_FV5 r12, r13
+    OUTPUT_FULL_BIT_FV5 r14, r15
+    OUTPUT_FULL_BIT_FV5 r16, r17
+    OUTPUT_FULL_BIT_FV5 r18, r19
+    OUTPUT_FULL_BIT_FV5 r20, r21
+    OUTPUT_FULL_BIT_FV5 r22, r23
+    OUTPUT_FULL_BIT_FV5 r24, r25
+    OUTPUT_FULL_BIT_FV5 r4, r5    //stop bit
+    QBEQ DONE_FALCONV5_LOOP?, data_len, 0
+        LBBO    &r10, data_addr, 0, DATABLOCKSIZE
+        ADD     data_addr, data_addr, DATABLOCKSIZE
+        SUB     data_len, data_len, 1
+        JMP FALCONV5_LOOP?
+DONE_FALCONV5_LOOP?:
+    WAITNS  LOW_TIME, r8, r9
+
+DONE_FALCONV5?:
+    .endm
 
 #if !defined(FIRST_CHECK)
 #define FIRST_CHECK NO_PIXELS_CHECK
@@ -201,13 +265,14 @@ _LOOP:
     JMP EXIT
 
 CONT_DATA:
-    // r1 (the command) is the data length
-    MOV data_len, r1
+    // r1 (the command) is the data length in lower word
+    MOV data_len, r1.w0
+    MOV data_flags, r1.w2
     RESET_PRU_CLOCK r8, r9
 
     // reset command to 0 so ARM side will send more data
-    LDI     r2, 0
-    SBCO    &r2, CONST_PRUDRAM, 4, 4
+    LDI     r1, 0
+    SBCO    &r1, CONST_PRUDRAM, 4, 4
 
     
     // Reset the output masks
@@ -241,6 +306,7 @@ NO_COMMAND_NEEDED:
     JMP WORD_LOOP
 
 WORD_LOOP_DONE:
+    OUTPUT_FALCONV5_PACKET
     NOP
     NOP
     OUTPUT_LOW

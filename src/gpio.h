@@ -20,7 +20,7 @@
 
 #ifdef HAS_GPIOD
 #include <gpiod.h>
-#else 
+#else
 struct gpiod_line {};
 struct gpiod_chip {};
 #endif
@@ -38,7 +38,8 @@ public:
     void CheckGPIOInputs(void);
     void Cleanup();
 
-    void AddGPIOCallback(const PinCapabilities* pin, const std::function<bool(int)> &cb);
+    void AddGPIOCallback(const PinCapabilities* pin, const std::function<bool(int)>& cb);
+
 private:
     class GPIOState {
     public:
@@ -65,7 +66,7 @@ private:
     GPIOManager();
     ~GPIOManager();
     void SetupGPIOInput(std::map<int, std::function<bool(int)>>& callbacks);
-    void addState(GPIOState &state);
+    void addState(GPIOState& state);
 
     std::array<gpiod_chip*, MAX_GPIOD_CHIPS> gpiodChips;
     std::vector<GPIOState> pollStates;

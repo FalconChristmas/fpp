@@ -11,6 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <list>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,7 @@ class PinCapabilitiesProvider;
 class PinCapabilities {
 public:
     static void InitGPIO(const std::string& processName, PinCapabilitiesProvider* provider);
+    static void SetMultiPinValue(const std::list<const PinCapabilities*>& pins, int v);
 
     PinCapabilities(const std::string& n, uint32_t k) :
         name(n),
@@ -74,6 +76,8 @@ public:
     virtual int getPWMRegisterAddress() const { return 0; }
 
     virtual const PinCapabilities* ptr() const { return this; }
+
+    virtual bool isGPIOD() const { return false; }
 
     static const PinCapabilities& getPinByName(const std::string& n);
     static const PinCapabilities& getPinByGPIO(int i);
@@ -136,8 +140,11 @@ public:
     virtual int getPWMRegisterAddress() const override { return 0; };
     virtual bool supportPWM() const override { return false; };
 
+    virtual bool isGPIOD() const override { return true; }
+
     static int gpiodVersion;
 #ifdef HASGPIOD
+    mutable gpiod::chip* chip;
     mutable gpiod::line line;
 #endif
 };

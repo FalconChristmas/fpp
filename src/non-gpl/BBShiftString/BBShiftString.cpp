@@ -33,14 +33,22 @@
 #include "util/BBBUtils.h"
 
 #include "Plugin.h"
-class BBShiftStringPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+class BBShiftStringPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin, public FPPPlugins::APIProviderPlugin {
 public:
     BBShiftStringPlugin() :
         FPPPlugins::Plugin("BBShiftString") {
     }
     virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
-        return new BBShiftStringOutput(startChannel, channelCount);
+        BBShiftStringOutput* o = new BBShiftStringOutput(startChannel, channelCount);
+        outputs.push_back(o);
+        return o;
     }
+    virtual void addControlCallbacks(std::map<int, std::function<bool(int)>>& callbacks) {
+        for (auto o : outputs) {
+            o->addControlCallbacks(callbacks);
+        }
+    }
+    std::list<BBShiftStringOutput*> outputs;
 };
 
 extern "C" {
@@ -64,10 +72,20 @@ BBShiftStringOutput::~BBShiftStringOutput() {
         delete a;
     }
     m_strings.clear();
-    if (m_pru0.pru)
+    if (m_pru0.pru) {
         delete m_pru0.pru;
-    if (m_pru1.pru)
+    }
+    if (m_pru1.pru) {
         delete m_pru1.pru;
+    }
+    if (falconV5Support) {
+        delete falconV5Support;
+    }
+}
+void BBShiftStringOutput::addControlCallbacks(std::map<int, std::function<bool(int)>>& callbacks) {
+    if (falconV5Support) {
+        falconV5Support->addControlCallbacks(callbacks);
+    }
 }
 
 static void compilePRUCode(const char* program, const std::string& pru, const std::vector<std::string>& sargs, const std::vector<std::string>& args1) {
@@ -167,6 +185,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
     }
 
     int maxStringLen = 0;
+    bool hasV5SR = false;
     for (int i = 0; i < config["outputs"].size(); i++) {
         Json::Value s = config["outputs"][i];
         PixelString* newString = new PixelString(true);
@@ -178,6 +197,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
             maxStringLen = newString->m_outputChannels;
         }
 
+        hasV5SR |= newString->smartReceiverType == PixelString::ReceiverType::FalconV5;
         m_strings.push_back(newString);
     }
 
@@ -234,7 +254,10 @@ int BBShiftStringOutput::Init(Json::Value config) {
             }
         }
     }
-
+    if (hasV5SR && m_pru1.maxStringLen <= m_pru0.maxStringLen) {
+        // pru1 controls the reading mux pins so it has to output more pixels than pru0 so it knows pru0 is done
+        m_pru1.maxStringLen = m_pru0.maxStringLen + 1;
+    }
     if (m_pru0.maxStringLen) {
         compilePRUCode("/opt/fpp/src/non-gpl/BBShiftString/compileBBShiftString.sh", "0", args, split0args);
     }
@@ -263,6 +286,73 @@ int BBShiftStringOutput::Init(Json::Value config) {
 
     m_pru1.channelData = (uint8_t*)calloc(1, m_pru1.frameSize);
     m_pru1.formattedData = (uint8_t*)calloc(1, m_pru1.frameSize);
+
+    if (hasV5SR) {
+        constexpr int configPacketSize = 60;
+        falconV5Support = new FalconV5Support();
+        falconV5Support->addListeners(root["falconV5Listeners"]);
+
+        std::vector<std::array<uint8_t, configPacketSize>> packets;
+        packets.resize(m_strings.size());
+        for (auto& p : packets) {
+            memset(&p[0], 0, configPacketSize);
+        }
+
+        int x = 0;
+        while (x < m_strings.size()) {
+            int p = x;
+            PixelString* p1 = m_strings[x++];
+            if (p1->m_isSmartReceiver && p1->smartReceiverType == PixelString::ReceiverType::FalconV5) {
+                int grp = root["outputs"][x]["falconV5Listener"].asInt();
+
+                PixelString* p2 = x < m_strings.size() ? m_strings[x++] : nullptr;
+                PixelString* p3 = x < m_strings.size() ? m_strings[x++] : nullptr;
+                PixelString* p4 = x < m_strings.size() ? m_strings[x++] : nullptr;
+
+                FalconV5Support::ReceiverChain* rc = falconV5Support->addReceiverChain(p1, p2, p3, p4, grp);
+                rc->generateConfigPacket(&packets[p][0]);
+
+                // need to keep the port on, should not turn the GPIO off
+                p1->m_gpioCommands.back().type = 1;
+            }
+        }
+
+        offset = ((m_pru1.frameSize / 4096) + 2) * 4096;
+        // 0 position will be the config packet so its sent on first start
+        m_pru0.v5_config_packets[0] = (uint8_t*)calloc(1, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN);
+        m_pru1.v5_config_packets[0] = (uint8_t*)calloc(1, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN);
+
+        std::array<uint8_t, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN> pru0Data;
+        std::array<uint8_t, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN> pru1Data;
+
+        for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
+            uint8_t pinMask = 1 << y;
+            for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
+                int idx = m_pru0.stringMap[y][x];
+                if (idx != -1) {
+                    uint8_t* frame = &pru0Data[x + (y * NUM_STRINGS_PER_PIN)];
+                    for (int p = 0; p < 57; p++) {
+                        uint8_t b = packets[idx][p];
+                        b = ((b * 0x0802LU & 0x22110LU) | (b * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
+                        *frame = b;
+                        frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+                    }
+                }
+                idx = m_pru1.stringMap[y][x];
+                if (idx != -1) {
+                    uint8_t* frame = &pru1Data[x + (y * NUM_STRINGS_PER_PIN)];
+                    for (int p = 0; p < 57; p++) {
+                        uint8_t b = packets[idx][p];
+                        b = ((b * 0x0802LU & 0x22110LU) | (b * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
+                        *frame = b;
+                        frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+                    }
+                }
+            }
+        }
+        bitFlipData(&pru0Data[0], m_pru0.v5_config_packets[0], 57);
+        bitFlipData(&pru1Data[0], m_pru1.v5_config_packets[0], 57);
+    }
 
     PixelString::AutoCreateOverlayModels(m_strings);
     return retVal;
@@ -396,47 +486,12 @@ void BBShiftStringOutput::OverlayTestData(unsigned char* channelData, int cycleN
     // that in prepData
 }
 
-void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
-    if (d.maxStringLen == 0) {
-        return;
-    }
-    int count = 0;
-
-    uint8_t* out = d.channelData;
-
-    PixelString* ps = NULL;
-    uint8_t* frame = NULL;
-    uint8_t value;
-
-    PixelStringTester* tester = nullptr;
-    if (m_testType && m_testCycle >= 0) {
-        tester = PixelStringTester::getPixelStringTester(m_testType);
-        tester->prepareTestData(m_testCycle, m_testPercent);
-    }
-    for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
-        uint8_t pinMask = 1 << y;
-        for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
-            int idx = d.stringMap[y][x];
-            frame = out + x + (y * NUM_STRINGS_PER_PIN);
-            if (idx != -1) {
-                ps = m_strings[idx];
-                uint32_t newLen = 0;
-                uint8_t* d = tester
-                                 ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
-                                 : ps->prepareOutput(channelData);
-                for (int p = 0; p < ps->m_outputChannels; p++) {
-                    *frame = *d;
-                    frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
-                    ++d;
-                }
-            }
-        }
-    }
+void BBShiftStringOutput::bitFlipData(uint8_t* stringChannelData, uint8_t* bitSwapped, size_t len) {
     /*
-    uint64_t *iframe = (uint64_t*)d.formattedData;
-    uint64_t *buf = (uint64_t)out;
+    uint64_t *iframe = (uint64_t*)bitSwapped;
+    uint64_t *buf = (uint64_t)stringChannelData;
     constexpr uint64_t mask = 0x0101010101010101ULL;
-    for (int p = 0; p < d.maxStringLen; p++) {
+    for (int p = 0; p < len; p++) {
         memcpy(buf, iframe, MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN);
         for (int x = 0; x < 8; x++) {
             iframe[7-x] = (buf[0] >> x) & mask;
@@ -452,20 +507,21 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
         buf += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN / 8;
     }
     */
+
     // NEON version of above.   On 64bit arm, the above will likely work
     // just as well.  On 32bit, the 64bit shifts above take 3 instructions
     // so if we use NEON, we can leverage the 64bit NEON registers
-    uint8_t* iframe = d.formattedData;
+    uint8_t* iframe = bitSwapped;
     uint8x8_t buf[8];
-    for (int p = 0; p < d.maxStringLen; p++) {
-        buf[0] = vld1_u8(&out[0]);
-        buf[1] = vld1_u8(&out[8]);
-        buf[2] = vld1_u8(&out[16]);
-        buf[3] = vld1_u8(&out[24]);
-        buf[4] = vld1_u8(&out[32]);
-        buf[5] = vld1_u8(&out[40]);
-        buf[6] = vld1_u8(&out[48]);
-        buf[7] = vld1_u8(&out[56]);
+    for (int p = 0; p < len; p++) {
+        buf[0] = vld1_u8(&stringChannelData[0]);
+        buf[1] = vld1_u8(&stringChannelData[8]);
+        buf[2] = vld1_u8(&stringChannelData[16]);
+        buf[3] = vld1_u8(&stringChannelData[24]);
+        buf[4] = vld1_u8(&stringChannelData[32]);
+        buf[5] = vld1_u8(&stringChannelData[40]);
+        buf[6] = vld1_u8(&stringChannelData[48]);
+        buf[7] = vld1_u8(&stringChannelData[56]);
 
         uint8x8_t tmp = vsli_n_u8(buf[0], buf[1], 1);
         tmp = vsli_n_u8(tmp, buf[2], 2);
@@ -539,8 +595,47 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
         vst1_u8(iframe, vsli_n_u8(tmp, vshr_n_u8(buf[7], 7), 7));
 
         iframe += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
-        out += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+        stringChannelData += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
     }
+}
+
+void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
+    if (d.maxStringLen == 0) {
+        return;
+    }
+    int count = 0;
+
+    uint8_t* out = d.channelData;
+
+    PixelString* ps = NULL;
+    uint8_t* frame = NULL;
+    uint8_t value;
+
+    PixelStringTester* tester = nullptr;
+    if (m_testType && m_testCycle >= 0) {
+        tester = PixelStringTester::getPixelStringTester(m_testType);
+        tester->prepareTestData(m_testCycle, m_testPercent);
+    }
+    for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
+        uint8_t pinMask = 1 << y;
+        for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
+            int idx = d.stringMap[y][x];
+            frame = out + x + (y * NUM_STRINGS_PER_PIN);
+            if (idx != -1) {
+                ps = m_strings[idx];
+                uint32_t newLen = 0;
+                uint8_t* d = tester
+                                 ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
+                                 : ps->prepareOutput(channelData);
+                for (int p = 0; p < ps->m_outputChannels; p++) {
+                    *frame = *d;
+                    frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+                    ++d;
+                }
+            }
+        }
+    }
+    bitFlipData(out, d.formattedData, d.maxStringLen);
     memcpy(d.curData, d.formattedData, d.frameSize);
 }
 
@@ -575,6 +670,9 @@ void BBShiftStringOutput::sendData(FrameData& d) {
     if (d.maxStringLen) {
         // memcpy(d.curData, d.formattedData, d.frameSize);
         d.pruData->address_dma = (d.pru->ddr_addr + (d.curData - d.pru->ddr));
+        if (d.v5_config_packets[d.curV5ConfigPacket]) {
+            memcpy(d.pru->shared_ram + d.pru->pru_num * 4096, d.v5_config_packets[d.curV5ConfigPacket], 57 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN);
+        }
         std::swap(d.lastData, d.curData);
     }
 }
@@ -584,18 +682,34 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
     if (m_pru1.stringMap.empty() && m_pru0.stringMap.empty()) {
         return 0;
     }
-    sendData(m_pru1);
     sendData(m_pru0);
+    sendData(m_pru1);
     // make sure memory is flushed before command is set to 1
     __asm__ __volatile__("" ::
                              : "memory");
 
     // Send the start command
-    if (m_pru1.pruData) {
-        m_pru1.pruData->command = m_pru1.maxStringLen;
-    }
     if (m_pru0.pruData) {
-        m_pru0.pruData->command = m_pru0.maxStringLen;
+        uint32_t c = m_pru0.maxStringLen;
+        if (m_pru0.v5_config_packets[m_pru0.curV5ConfigPacket]) {
+            c |= 0x10000; // flag a config packet needing to be sent
+        }
+        m_pru0.curV5ConfigPacket++;
+        if (m_pru0.curV5ConfigPacket == NUM_CONFIG_PACKETS) {
+            m_pru0.curV5ConfigPacket = 0;
+        }
+        m_pru0.pruData->command = c;
+    }
+    if (m_pru1.pruData) {
+        uint32_t c = m_pru1.maxStringLen;
+        if (m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket]) {
+            c |= 0x10000; // flag a config packet needing to be sent
+        }
+        m_pru1.curV5ConfigPacket++;
+        if (m_pru1.curV5ConfigPacket == NUM_CONFIG_PACKETS) {
+            m_pru1.curV5ConfigPacket = 0;
+        }
+        m_pru1.pruData->command = c;
     }
     __asm__ __volatile__("" ::
                              : "memory");
