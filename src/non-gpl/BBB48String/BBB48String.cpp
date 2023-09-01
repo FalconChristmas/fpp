@@ -454,13 +454,13 @@ int BBB48StringOutput::Init(Json::Value config) {
     }
 
     // give each area two chunks (frame flipping) of DDR memory
-    m_gpioData.frameSize = m_gpioData.gpioStringMap.size() * std::max(2000, m_gpioData.maxStringLen);
+    m_gpioData.frameSize = m_gpioData.gpioStringMap.size() * std::max(2400, m_gpioData.maxStringLen);
     m_gpioData.curData = m_pru->ddr;
     // leave a full memory page between to avoid conflicts
     int offset = ((m_gpioData.frameSize / 4096) + 2) * 4096;
     m_gpioData.lastData = m_gpioData.curData + offset;
 
-    m_gpio0Data.frameSize = m_gpio0Data.gpioStringMap.size() * std::max(2000, m_gpio0Data.maxStringLen);
+    m_gpio0Data.frameSize = m_gpio0Data.gpioStringMap.size() * std::max(2400, m_gpio0Data.maxStringLen);
     m_gpio0Data.curData = m_gpioData.lastData + offset;
     offset = ((m_gpio0Data.frameSize / 4096) + 2) * 4096;
     m_gpio0Data.lastData = m_gpio0Data.curData + offset;

@@ -270,7 +270,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
 
     // give each area two chunks (frame flipping) of DDR memory
     uint8_t* start = m_pru0.pru ? m_pru0.pru->ddr : m_pru1.pru->ddr;
-    m_pru0.frameSize = NUM_STRINGS_PER_PIN * MAX_PINS_PER_PRU * m_pru0.maxStringLen;
+    m_pru0.frameSize = NUM_STRINGS_PER_PIN * MAX_PINS_PER_PRU * std::max(2400, m_pru0.maxStringLen);
     m_pru0.curData = start;
     // leave a full memory page between to avoid conflicts
     int offset = ((m_pru0.frameSize / 4096) + 2) * 4096;
@@ -279,7 +279,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
     m_pru0.channelData = (uint8_t*)calloc(1, m_pru0.frameSize);
     m_pru0.formattedData = (uint8_t*)calloc(1, m_pru0.frameSize);
 
-    m_pru1.frameSize = NUM_STRINGS_PER_PIN * MAX_PINS_PER_PRU * m_pru1.maxStringLen;
+    m_pru1.frameSize = NUM_STRINGS_PER_PIN * MAX_PINS_PER_PRU * std::max(2400, m_pru1.maxStringLen);
     m_pru1.curData = m_pru0.lastData + offset;
     offset = ((m_pru1.frameSize / 4096) + 2) * 4096;
     m_pru1.lastData = m_pru1.curData + offset;
@@ -616,6 +616,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
         tester = PixelStringTester::getPixelStringTester(m_testType);
         tester->prepareTestData(m_testCycle, m_testPercent);
     }
+    uint32_t newMax = d.maxStringLen;
     for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
         uint8_t pinMask = 1 << y;
         for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
@@ -627,7 +628,8 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
                 uint8_t* d = tester
                                  ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
                                  : ps->prepareOutput(channelData);
-                for (int p = 0; p < ps->m_outputChannels; p++) {
+                newMax = std::max(newMax, newLen);
+                for (int p = 0; p < newLen; p++) {
                     *frame = *d;
                     frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
                     ++d;
@@ -635,7 +637,8 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
             }
         }
     }
-    bitFlipData(out, d.formattedData, d.maxStringLen);
+    d.outputStringLen = newMax;
+    bitFlipData(out, d.formattedData, newMax);
     memcpy(d.curData, d.formattedData, d.frameSize);
 }
 
@@ -667,7 +670,7 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
 }
 
 void BBShiftStringOutput::sendData(FrameData& d) {
-    if (d.maxStringLen) {
+    if (d.outputStringLen) {
         // memcpy(d.curData, d.formattedData, d.frameSize);
         d.pruData->address_dma = (d.pru->ddr_addr + (d.curData - d.pru->ddr));
         if (d.v5_config_packets[d.curV5ConfigPacket]) {
@@ -690,9 +693,12 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
 
     // Send the start command
     if (m_pru0.pruData) {
-        uint32_t c = m_pru0.maxStringLen;
+        uint32_t c = m_pru0.outputStringLen;
         if (m_pru0.v5_config_packets[m_pru0.curV5ConfigPacket]) {
             c |= 0x10000; // flag a config packet needing to be sent
+        }
+        if (m_pru0.outputStringLen != m_pru0.maxStringLen) {
+            c |= 0x20000; // flag that the output len is custom and ignore the off config
         }
         m_pru0.curV5ConfigPacket++;
         if (m_pru0.curV5ConfigPacket == NUM_CONFIG_PACKETS) {
@@ -701,10 +707,14 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
         m_pru0.pruData->command = c;
     }
     if (m_pru1.pruData) {
-        uint32_t c = m_pru1.maxStringLen;
+        uint32_t c = m_pru1.outputStringLen;
         if (m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket]) {
             c |= 0x10000; // flag a config packet needing to be sent
         }
+        if (m_pru1.outputStringLen != m_pru1.maxStringLen) {
+            c |= 0x20000; // flag that the output len is custom and ignore the off config
+        }
+        m_pru0.curV5ConfigPacket++;
         m_pru1.curV5ConfigPacket++;
         if (m_pru1.curV5ConfigPacket == NUM_CONFIG_PACKETS) {
             m_pru1.curV5ConfigPacket = 0;

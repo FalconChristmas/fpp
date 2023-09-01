@@ -101,6 +101,7 @@ private:
         uint8_t* curData = nullptr;
         uint32_t frameSize = 0;
         int maxStringLen = 0;
+        int outputStringLen = 0;
 
         uint8_t* v5_config_packets[NUM_CONFIG_PACKETS];
         int curV5ConfigPacket = 0;

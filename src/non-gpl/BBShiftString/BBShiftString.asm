@@ -157,7 +157,7 @@ OUTPUT_FULL_BIT_FV5 .macro REG1, REG2
 
 OUTPUT_FALCONV5_PACKET .macro
     .newblock
-    QBNE  START_FALCONV5?, data_flags, 0
+    QBBS  START_FALCONV5?, data_flags, 0
         JMP DONE_FALCONV5?
 START_FALCONV5?:
     OUTPUT_LOW
@@ -279,6 +279,9 @@ CONT_DATA:
     LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, 24, BYTES_FOR_MASKS + 4
     // reset the command table
     MOV next_check, MASK_OVERFLOW
+    QBBC NO_CUSTOM_CHECKS, data_flags, 1
+        MOV next_check, data_len
+NO_CUSTOM_CHECKS:
     LDI curCommand, 24 + BYTES_FOR_MASKS + 4
 	LDI	cur_data, 1
 
