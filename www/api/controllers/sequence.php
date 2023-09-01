@@ -20,6 +20,8 @@ function GetSequences()
 function GetSequence()
 {
     global $settings;
+    
+    $sequence = params('SequenceName');
     if (substr($sequence, -5) != ".fseq") {
         $sequence = $sequence . ".fseq";
     }
@@ -125,6 +127,8 @@ function DeleteSequences()
 // GET api/sequence/:SequenceName/start/:startSecond
 function GetSequenceStart()
 {
+    global $settings;
+
     $sequence = params('SequenceName');
     if (substr($sequence, -5) != ".fseq") {
         $sequence = $sequence . ".fseq";
