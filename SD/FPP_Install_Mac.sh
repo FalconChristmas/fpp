@@ -130,6 +130,7 @@ USER=$(whoami)
 sed -i -e "s/Listen 8080.*/Listen 80/" $HTTPCONF
 sed -i -e "s+#LoadModule proxy+LoadModule proxy+g" $HTTPCONF
 sed -i -e "s+LoadModule proxy_balanc+#LoadModule proxy_balanc+g" $HTTPCONF
+sed -i -e "s+LoadModule proxy_http2_+#LoadModule proxy_http2_+g" $HTTPCONF
 sed -i -e "s+#LoadModule rewrite+LoadModule rewrite+g" $HTTPCONF
 sed -i -e "s+#LoadModule watchdog+LoadModule watchdog+g" $HTTPCONF
 sed -i -e "s+#LoadModule mpm_event+LoadModule mpm_event+g" $HTTPCONF
@@ -198,6 +199,7 @@ launchctl load -w ~/Library/LaunchAgents/falconchristmas.fppd.plist
 launchctl start falconchristmas.fppd
 
 echo "Starting HTTP"
+brew services start php
 brew services start httpd
 
 echo "Installation complete.  You should now be able to point your browser at http://localhost to use to FPP."
