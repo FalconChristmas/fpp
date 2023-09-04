@@ -428,7 +428,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 		if ((channelOutputsLookup["LEDPanelMatrix"].subType == 'ColorLight5a75') ||
             (channelOutputsLookup["LEDPanelMatrix"].subType == 'X11PanelMatrix'))
 		{
-			LEDPanelOutputs = 16;
+			LEDPanelOutputs = 24;
 			LEDPanelPanelsPerOutput = 24;
 		}
     }
@@ -654,7 +654,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 }
 ?>
 
-		LEDPanelOutputs = 16;
+		LEDPanelOutputs = 24;
 	}
 	else
 	{
