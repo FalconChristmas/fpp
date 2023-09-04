@@ -105,8 +105,8 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
                     delete[] tempBuffer;
                 } else { // Subsequent loops, just copy first reversed block for speed
                     memcpy(channelData + destChannel + (l * count),
-                            channelData + destChannel,
-                            count);
+                           channelData + destChannel,
+                           count);
                 }
             } else {
                 // Shouldn't ever get here, can't reverse pixels if only 1 channel
@@ -133,8 +133,8 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
                     delete[] tempBuffer;
                 } else { // Subsequent loops, just copy first reversed block for speed
                     memcpy(channelData + destChannel + (l * count),
-                            channelData + destChannel,
-                            count);
+                           channelData + destChannel,
+                           count);
                 }
             } else {
                 // Shouldn't ever get here, can't reverse pixels if only 1 channel
