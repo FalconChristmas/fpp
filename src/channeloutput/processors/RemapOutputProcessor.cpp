@@ -57,10 +57,9 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
         for (int l = 0; l < loops; l++) {
             if (count > 1) {
                 memcpy(channelData + destChannel + (l * count),
-                    channelData + sourceChannel,
-                    count);
-            }
-            else {
+                       channelData + sourceChannel,
+                       count);
+            } else {
                 channelData[destChannel + l] = channelData[sourceChannel];
             }
         }
@@ -76,14 +75,14 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
                     for (int c = 0; c < count; c++) {
                         channelData[destChannel + c] = tempBuffer[count - 1 - c];
                     }
-                }
-                else { // Subsequent loops, just copy first reversed block for speed
+                    // Delete the temporary buffer
+                    delete[] tempBuffer;
+                } else { // Subsequent loops, just copy first reversed block for speed
                     memcpy(channelData + destChannel + (l * count),
-                        channelData + destChannel,
-                        count);
+                           channelData + destChannel,
+                           count);
                 }
-            }
-            else { // Can't reverse 1 channel so just copy
+            } else { // Can't reverse 1 channel so just copy
                 channelData[destChannel + l] = channelData[sourceChannel];
             }
         }
@@ -96,20 +95,20 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
                     // Copy the required section of channel data to a temporary buffer
                     unsigned char* tempBuffer = new unsigned char[count];
                     memcpy(tempBuffer, channelData + sourceChannel, count);
-                    for (int c = 0; c < count - 2;) {
+                    for (int c = 0; c < count;) {
                         channelData[destChannel + c + 0] = tempBuffer[count - 1 - c - 2];
                         channelData[destChannel + c + 1] = tempBuffer[count - 1 - c - 1];
                         channelData[destChannel + c + 2] = tempBuffer[count - 1 - c - 0];
                         c += 3;
                     }
-                }
-                else { // Subsequent loops, just copy first reversed block for speed
+                    // Delete the temporary buffer
+                    delete[] tempBuffer;
+                } else { // Subsequent loops, just copy first reversed block for speed
                     memcpy(channelData + destChannel + (l * count),
-                        channelData + destChannel,
-                        count);
+                            channelData + destChannel,
+                            count);
                 }
-            }
-            else {
+            } else {
                 // Shouldn't ever get here, can't reverse pixels if only 1 channel
                 channelData[destChannel + l] = channelData[sourceChannel];
             }
@@ -130,14 +129,14 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
                         channelData[destChannel + c + 3] = tempBuffer[count - 1 - c - 0];
                         c += 4;
                     }
-                }
-                else { // Subsequent loops, just copy first reversed block for speed
+                    // Delete the temporary buffer
+                    delete[] tempBuffer;
+                } else { // Subsequent loops, just copy first reversed block for speed
                     memcpy(channelData + destChannel + (l * count),
-                        channelData + destChannel,
-                        count);
+                            channelData + destChannel,
+                            count);
                 }
-            }
-            else {
+            } else {
                 // Shouldn't ever get here, can't reverse pixels if only 1 channel
                 channelData[destChannel + l] = channelData[sourceChannel];
             }
