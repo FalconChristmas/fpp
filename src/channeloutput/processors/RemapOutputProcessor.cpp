@@ -95,7 +95,7 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
                     // Copy the required section of channel data to a temporary buffer
                     unsigned char* tempBuffer = new unsigned char[count];
                     memcpy(tempBuffer, channelData + sourceChannel, count);
-                    for (int c = 0; c < count;) {
+                    for (int c = 0; c < count - 2;) {
                         channelData[destChannel + c + 0] = tempBuffer[count - 1 - c - 2];
                         channelData[destChannel + c + 1] = tempBuffer[count - 1 - c - 1];
                         channelData[destChannel + c + 2] = tempBuffer[count - 1 - c - 0];
