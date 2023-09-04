@@ -36,7 +36,7 @@ if (count($panelCapes) == 1) {
     echo "// NO KNOWN_PANEL_CAPE";
 }
 
-$LEDPanelOutputs = 16;
+$LEDPanelOutputs = 24;
 $LEDPanelPanelsPerOutput = 24;
 $LEDPanelRows = 1;
 $LEDPanelCols = 1;
