@@ -144,8 +144,9 @@ public:
 
     static int gpiodVersion;
 #ifdef HASGPIOD
-    mutable gpiod::chip* chip;
+    mutable gpiod::chip* chip = nullptr;
     mutable gpiod::line line;
+    mutable int lastRequestType = 0;
 #endif
 };
 

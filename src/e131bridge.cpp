@@ -58,7 +58,7 @@ int ddpSock = -1;
 int artnetSock = -1;
 
 long long last_packet_time = GetTimeMS();
-long long expireOffSet = 1000; //expire after 1 second
+long long expireOffSet = 1000; // expire after 1 second
 
 #define MAX_MSG 48
 #define BUFSIZE 1500
@@ -112,7 +112,7 @@ int CreateArtNetSocket() {
             exit(1);
         }
         int enable = 1;
-        //need to be able to send broadcase for ArtPollReply
+        // need to be able to send broadcase for ArtPollReply
         setsockopt(artnetSock, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
         enable = 1;
 #ifdef PLATFORM_OSX
@@ -124,7 +124,7 @@ int CreateArtNetSocket() {
         memset((char*)&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port = htons(0x1936); //artnet port
+        addr.sin_port = htons(0x1936); // artnet port
         addrlen = sizeof(addr);
         // Bind the socket to address/port
         if (bind(artnetSock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
@@ -200,7 +200,7 @@ bool LoadInputUniversesFromFile(void) {
                     case 0: // Multicast
                         strcpy(InputUniverses[InputUniverseCount].unicastAddress, "\0");
                         break;
-                    case 1: //UnicastAddress
+                    case 1: // UnicastAddress
                         strcpy(InputUniverses[InputUniverseCount].unicastAddress,
                                u["address"].asString().c_str());
                         break;
@@ -273,7 +273,7 @@ bool Bridge_ReceiveArtNetData(void) {
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
             uint8_t* bridgeBuffer = (uint8_t*)buffers[x];
-            if (bridgeBuffer[0] != 'A' || bridgeBuffer[1] != 'r' || bridgeBuffer[2] != 't' || bridgeBuffer[3] != '-' || bridgeBuffer[4] != 'N' || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0 || bridgeBuffer[11] != 0xE) { //version must be 14
+            if (bridgeBuffer[0] != 'A' || bridgeBuffer[1] != 'r' || bridgeBuffer[2] != 't' || bridgeBuffer[3] != '-' || bridgeBuffer[4] != 'N' || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0 || bridgeBuffer[11] != 0xE) { // version must be 14
                 continue;
             }
             int opCode = (bridgeBuffer[9] << 8) | bridgeBuffer[8];
@@ -377,7 +377,7 @@ bool Bridge_Initialize_Internal() {
             exit(1);
         }
 
-        //get all the addresses
+        // get all the addresses
         struct ifaddrs *interfaces, *tmp;
         getifaddrs(&interfaces);
 
@@ -396,10 +396,10 @@ bool Bridge_Initialize_Internal() {
                 // add group to groups to listen for on eth0 and wlan0 if it exists
                 int multicastJoined = 0;
                 tmp = interfaces;
-                //loop through all the interfaces and subscribe to the group
+                // loop through all the interfaces and subscribe to the group
                 while (tmp) {
-                    //struct sockaddr_in *sin = (struct sockaddr_in *)tmp->ifa_addr;
-                    //strcpy(address, inet_ntoa(sin->sin_addr));
+                    // struct sockaddr_in *sin = (struct sockaddr_in *)tmp->ifa_addr;
+                    // strcpy(address, inet_ntoa(sin->sin_addr));
                     if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
                         GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
                         if (strcmp(address, "127.0.0.1")) {
@@ -411,8 +411,8 @@ bool Bridge_Initialize_Internal() {
                             multicastJoined = 1;
                         }
                     } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
-                        //FIXME for ipv6 multicast
-                        //LogDebug(VB_E131BRIDGE, "   Inet6 interface %s\n", tmp->ifa_name);
+                        // FIXME for ipv6 multicast
+                        // LogDebug(VB_E131BRIDGE, "   Inet6 interface %s\n", tmp->ifa_name);
                     }
                     tmp = tmp->ifa_next;
                 }
@@ -432,8 +432,6 @@ bool Bridge_Initialize_Internal() {
     if (hasArtNet || getSettingInt("ARTNETTimeCodeSync", 0)) {
         CreateArtNetSocket();
     }
-
-    StartChannelOutputThread();
 
     if (i1 >= 0)
         close(i1);
@@ -493,12 +491,12 @@ bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime) {
 }
 
 bool Bridge_HandleArtNetSync(uint8_t* bridgeBuffer, long long packetTime) {
-    //sync packet
+    // sync packet
     return true;
 }
 bool Bridge_StoreArtNetData(uint8_t* bridgeBuffer, long long packetTime) {
     if (bridgeBuffer[9] == 0x50 && bridgeBuffer[8] == 0x00) {
-        //data packet
+        // data packet
         uint32_t sn = bridgeBuffer[12];
 
         uint32_t univ = bridgeBuffer[15];
@@ -544,30 +542,30 @@ bool Bridge_StoreArtNetData(uint8_t* bridgeBuffer, long long packetTime) {
 }
 bool Bridge_HandleArtNetPoll(uint8_t* bridgeBuffer, long long packetTime) {
     if (bridgeBuffer[9] == 0x20 && bridgeBuffer[8] == 0x00) {
-        //ArtNet Poll, need to send a reply
+        // ArtNet Poll, need to send a reply
         char buf[512];
         memset(buf, 0, sizeof(buf));
         strcpy(buf, "Art-Net");
-        buf[9] = 0x21; //PollReply
-        buf[10] = 0;   //IP
+        buf[9] = 0x21; // PollReply
+        buf[10] = 0;   // IP
         buf[11] = 0;
         buf[12] = 0;
         buf[13] = 0;
-        buf[14] = 0x36; //port
+        buf[14] = 0x36; // port
         buf[15] = 0x19;
 
         buf[16] = std::atoi(getFPPMajorVersion());
         buf[17] = std::atoi(getFPPMinorVersion());
 
-        buf[18] = 0; //universes?
+        buf[18] = 0; // universes?
         buf[19] = 0;
 
-        buf[20] = 0; //OEM value?
+        buf[20] = 0; // OEM value?
         buf[21] = 0;
 
-        buf[23] = 0; //status1
+        buf[23] = 0; // status1
 
-        buf[24] = 0; //ESTA
+        buf[24] = 0; // ESTA
         buf[25] = 0;
 
         std::string hostname = getSetting("HostName");
@@ -575,9 +573,9 @@ bool Bridge_HandleArtNetPoll(uint8_t* bridgeBuffer, long long packetTime) {
         if (hostname == "") {
             hostname = "FPP";
         }
-        strcpy(&buf[26], hostname.c_str()); //HOSTNAME?
-        strcpy(&buf[44], hostname.c_str()); //Description?
-        strcpy(&buf[108], "");              //Status?
+        strcpy(&buf[26], hostname.c_str()); // HOSTNAME?
+        strcpy(&buf[44], hostname.c_str()); // Description?
+        strcpy(&buf[108], "");              // Status?
 
         buf[172] = 0;
         buf[173] = 4;
@@ -586,17 +584,17 @@ bool Bridge_HandleArtNetPoll(uint8_t* bridgeBuffer, long long packetTime) {
         buf[176] = 0xc0;
         buf[177] = 0xc0;
 
-        buf[178] = 0x0; //input
+        buf[178] = 0x0; // input
         buf[179] = 0x0;
         buf[180] = 0x0;
         buf[181] = 0x0;
-        buf[182] = 0x0; //output
+        buf[182] = 0x0; // output
         buf[183] = 0x0;
         buf[184] = 0x0;
         buf[185] = 0x0;
 
         char addressBuf[128];
-        //get all the addresses
+        // get all the addresses
         struct ifaddrs *interfaces, *tmp;
         getifaddrs(&interfaces);
         tmp = interfaces;
@@ -605,7 +603,7 @@ bool Bridge_HandleArtNetPoll(uint8_t* bridgeBuffer, long long packetTime) {
                 if (strncmp("usb", tmp->ifa_name, 3) != 0 && strncmp("lo", tmp->ifa_name, 2) != 0 && tmp->ifa_addr) {
                     struct sockaddr_in* sain = (struct sockaddr_in*)tmp->ifa_addr;
                     unsigned long s_addr = sain->sin_addr.s_addr;
-                    buf[13] = s_addr >> 24; //IP
+                    buf[13] = s_addr >> 24; // IP
                     buf[12] = s_addr >> 16;
                     buf[11] = s_addr >> 8;
                     buf[10] = s_addr & 0xFF;
@@ -656,7 +654,7 @@ bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime) {
             }
             if (isErr) {
                 ddpErrors++;
-                //printf("%d   %d    %d  %d\n", sn, ddpLastSequence, chan, ddpLastChannel);
+                // printf("%d   %d    %d  %d\n", sn, ddpLastSequence, chan, ddpLastChannel);
             }
             ddpLastSequence = sn;
             ddpLastChannel = chan + len;
@@ -863,7 +861,7 @@ bool AddWarningForProtocol(int sock, const std::string& protocol) {
             struct in_addr i = inAddress[x].sin_addr;
             in_addr_t at = i.s_addr;
             if (protocol == "DDP" && buffers[x][3] != 1) {
-                //non pixel DDP data, possibly a broadcast discovery packet or sync packet or similar
+                // non pixel DDP data, possibly a broadcast discovery packet or sync packet or similar
                 continue;
             }
             if (errrors[at] == "") {

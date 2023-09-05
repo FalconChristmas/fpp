@@ -721,15 +721,10 @@ int main(int argc, char* argv[]) {
     InitializeChannelOutputs();
     PluginManager::INSTANCE.loadUserPlugins();
 
-    if (!getSettingInt("restarted")) {
-        sequence->SendBlankingData();
-    }
     InitEffects();
     ChannelTester::INSTANCE.RegisterCommands();
 
     WriteRuntimeInfoFile(multiSync->GetSystems(true, false));
-
-    CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");
 
     MainLoop();
     // DISABLED: Stats collected while fppd is shutting down
@@ -825,12 +820,6 @@ void MainLoop(void) {
             return false;
         };
     }
-    if (getFPPmode() & PLAYER_MODE) {
-        scheduler->CheckIfShouldBePlayingNow();
-        if (getSettingInt("alwaysTransmit")) {
-            StartChannelOutputThread();
-        }
-    }
     Bridge_Initialize(callbacks);
 
     APIServer apiServer;
@@ -841,6 +830,19 @@ void MainLoop(void) {
     PluginManager::INSTANCE.addControlCallbacks(callbacks);
     NetworkMonitor::INSTANCE.Init(callbacks);
     Sensors::INSTANCE.Init(callbacks);
+
+    if (!getSettingInt("restarted")) {
+        sequence->SendBlankingData();
+    }
+
+    CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");
+
+    if (getFPPmode() & PLAYER_MODE) {
+        scheduler->CheckIfShouldBePlayingNow();
+        if (getSettingInt("alwaysTransmit")) {
+            StartChannelOutputThread();
+        }
+    }
 
     static const int MAX_EVENTS = 20;
 #ifdef USE_KQUEUE

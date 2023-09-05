@@ -117,12 +117,14 @@ GPIOChipHolder GPIOChipHolder::INSTANCE;
 int GPIODCapabilities::configPin(const std::string& mode,
                                  bool directionOut) const {
 #ifdef HASGPIOD
-    if (!GPIOChipHolder::INSTANCE.chips[gpioIdx]) {
-        std::string n = std::to_string(gpioIdx);
-        GPIOChipHolder::INSTANCE.chips[gpioIdx].open(n, gpiod::chip::OPEN_BY_NUMBER);
+    if (chip == nullptr) {
+        if (!GPIOChipHolder::INSTANCE.chips[gpioIdx]) {
+            std::string n = std::to_string(gpioIdx);
+            GPIOChipHolder::INSTANCE.chips[gpioIdx].open(n, gpiod::chip::OPEN_BY_NUMBER);
+        }
+        chip = &GPIOChipHolder::INSTANCE.chips[gpioIdx];
+        line = chip->get_line(gpio);
     }
-    chip = &GPIOChipHolder::INSTANCE.chips[gpioIdx];
-    line = chip->get_line(gpio);
     gpiod::line_request req;
     req.consumer = PROCESS_NAME;
     if (directionOut) {
@@ -141,7 +143,13 @@ int GPIODCapabilities::configPin(const std::string& mode,
             }
         }
     }
-    line.request(req, 1);
+    if (req.request_type != lastRequestType) {
+        if (line.is_requested()) {
+            line.release();
+        }
+        line.request(req, 1);
+        lastRequestType = req.request_type;
+    }
 #endif
     return 0;
 }
