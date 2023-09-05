@@ -23,12 +23,12 @@ uint8_t* OutputPortNumberPixelStringTester::createTestData(PixelString* ps, int 
     unsigned char clr[3];
     switch (cycleCount % 3) {
     case 0:
-        clr[0] = clr[2] = 0;
-        clr[1] = 255;
+        clr[2] = clr[1] = 0;
+        clr[0] = 255;        
         break;
     case 1:
-        clr[2] = clr[1] = 0;
-        clr[0] = 255;
+        clr[0] = clr[2] = 0;
+        clr[1] = 255;        
         break;
     default:
         clr[0] = clr[1] = 0;
