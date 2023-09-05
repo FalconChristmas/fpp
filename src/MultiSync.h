@@ -279,8 +279,8 @@ public:
 
     void StoreHTTPResponse(std::string* ipp, uint8_t* data, int sz);
 
-    [[nodiscard] std::vector<MultiSyncSystem> const& GetLocalSystems(){ return m_localSystems; }
-    [[nodiscard] std::vector<MultiSyncSystem> const& GetRemoteSystems(){ return m_remoteSystems; }
+    [[nodiscard]] std::vector<MultiSyncSystem> const& GetLocalSystems(){ return m_localSystems; }
+    [[nodiscard]] std::vector<MultiSyncSystem> const& GetRemoteSystems(){ return m_remoteSystems; }
 
 private:
     bool isSupportedForMultisync(const char* address, const char* intface);
