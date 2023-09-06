@@ -8,6 +8,9 @@ $git_branch = getFPPBranch();
 if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 	$fpp_head_version .= " ($git_branch branch)";
 
+if (!isset($activeParentMenuItem)) {
+    $activeParentMenuItem = "";
+}
 ?>
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
