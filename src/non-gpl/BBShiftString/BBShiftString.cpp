@@ -624,7 +624,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
             frame = out + x + (y * NUM_STRINGS_PER_PIN);
             if (idx != -1) {
                 ps = m_strings[idx];
-                uint32_t newLen = 0;
+                uint32_t newLen = ps->m_outputChannels;
                 uint8_t* d = tester
                                  ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
                                  : ps->prepareOutput(channelData);
@@ -714,7 +714,6 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
         if (m_pru1.outputStringLen != m_pru1.maxStringLen) {
             c |= 0x20000; // flag that the output len is custom and ignore the off config
         }
-        m_pru0.curV5ConfigPacket++;
         m_pru1.curV5ConfigPacket++;
         if (m_pru1.curV5ConfigPacket == NUM_CONFIG_PACKETS) {
             m_pru1.curV5ConfigPacket = 0;
