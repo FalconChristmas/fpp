@@ -399,7 +399,7 @@ include 'menu.inc';?>
                 <div class='form-actions'>
                   <input onclick="ClearSelections('Music');" class="buttons" type="button" value="Clear" />
                   <input onclick="ButtonHandler('Music', 'playInBrowser');" id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton" type="button"  value="Listen" />
-                  <? if (file_exists("/bin/mp3gain")) { ?>
+                  <? if (file_exists("/bin/mp3gain") || file_exists("/usr/bin/mp3gain") || file_exists("/opt/homebrew/bin/mp3gain") || file_exists("/usr/local/bin/mp3gain")) { ?>
                     <input onclick="ButtonHandler('Music', 'mp3gain');" id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="MP3Gain" />
                   <? } ?>
 
