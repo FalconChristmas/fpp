@@ -366,7 +366,7 @@ void UpgradeSettings() {
         }
         output_file.close();
         input_file.close();
-        std::filesystem::copy("/tmp/upgradedsettings.txt", FPP_FILE_SETTINGS, std::filesystem::copy_options::overwrite_existing);
+        CopyFileContents("/tmp/upgradedsettings.txt", FPP_FILE_SETTINGS);
     }
 }
 

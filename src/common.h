@@ -80,6 +80,7 @@ std::string GetFileContents(const std::string& filename);
 std::string GetFileExtension(const std::string& filename);
 
 bool PutFileContents(const std::string& filename, const std::string& str);
+bool CopyFileContents(const std::string& srcFile, const std::string& destFile);
 void TrimWhiteSpace(std::string& s);
 
 uint8_t ReverseBitsInByte(uint8_t n);

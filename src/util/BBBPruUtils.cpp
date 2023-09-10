@@ -227,12 +227,12 @@ BBBPru::~BBBPru() {
 }
 
 int BBBPru::run(const std::string& program) {
-    LogDebug(VB_CHANNELOUT, "BBBPru::run(%s)\n", program.c_str());
+    LogDebug(VB_CHANNELOUT, "BBBPru[%d]::run(%s)\n", pru_num, program.c_str());
 
     if (!hasUIO) {
         LogDebug(VB_CHANNELOUT, "Using remoteproc: %s\n", program.c_str());
         prus[pru_num].disable();
-        std::filesystem::copy(program, "/lib/firmware/am335x-pru" + std::to_string(pru_num) + "-fw", std::filesystem::copy_options::overwrite_existing);
+        CopyFileContents(program, "/lib/firmware/am335x-pru" + std::to_string(pru_num) + "-fw");
         prus[pru_num].enable();
         return false;
     }
