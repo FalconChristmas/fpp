@@ -253,9 +253,10 @@ static uint8_t* get_file_contents(const std::string& path, int& len) {
     len = ftell(fp);
     fseek(fp, 0L, SEEK_SET);
 
-    uint8_t* data = (uint8_t*)malloc(len);
+    uint8_t* data = (uint8_t*)malloc(len + 1);
     fread(data, 1, len, fp);
     fclose(fp);
+    data[len] = 0;
     return data;
 }
 
