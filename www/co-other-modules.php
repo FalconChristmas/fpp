@@ -493,6 +493,108 @@ class PCA9685Output extends I2COutput {
 
 }
 
+class PCF8574Output extends I2COutput {
+    constructor(name="PCF8574", friendlyName="PCF8574", maxChannels=8, fixedStart=false, fixedChans=false, config = {device:"i2c-1", deviceID: 0x20, pinOrderingInvert: false, relayNumbering: false}) {
+        super(name, friendlyName, maxChannels, fixedStart, fixedChans, config);
+    }
+    PopulateHTMLRow(config) {
+        var pinModes = ["Simple", "Threshold", "Hysteresis"];
+
+        var result = super.PopulateHTMLRow(config);
+
+        var orderInvert = config.pinOrderingInvert;
+        if (orderInvert == undefined) {
+            orderInvert = false;
+        }
+
+        var relayNumbering = config.relayNumbering;
+        if (relayNumbering == undefined) {
+            relayNumbering = false;
+        }
+
+        result += "<br><input class='pinOrderingInvert' type='checkbox' " + (config.pinOrderingInvert ? "checked" : "") + ">Reverse Pin Output Order</input><br>";
+        result += "<br><input class='relayNumbering' type='checkbox' " + (config.relayNumbering ? "checked" : "") + ">Relay Port Numbering (1- based)</input><br><br>";
+
+       
+        result += "<table>";
+
+        for (var x = 0; x < 8; x++) {
+
+            var description = "";
+            var invert = 0;
+            var pinMode = 0;
+            var threshold = 128;
+            var hysteresisUpper = 192;
+            var hysteresisLower = 64;
+
+            if (config.ports != undefined && config.ports[x] != undefined) {
+                if (config.ports[x].invert != undefined) {
+                    invert = config.ports[x].invert;
+                }
+                if (config.ports[x].description != undefined) {
+                    description = config.ports[x].description;
+                }
+                if (config.ports[x].pinMode != undefined) {
+                    pinMode = config.ports[x].pinMode;
+                }
+                if (config.ports[x].threshold != undefined) {
+                    threshold = config.ports[x].threshold;
+                }
+                if (config.ports[x].hysteresisUpper != undefined) {
+                    hysteresisUpper = config.ports[x].hysteresisUpper;
+                }
+                if (config.ports[x].hystersisLower != undefined) {
+                    hysteresisLower = config.ports[x].hysteresisLower;
+                }
+            }
+
+            result += "<tr style='outline: thin solid;'><td style='vertical-align:top'>Port " + (relayNumbering? x+1 : x) + ": </td><td>";
+            result += "Invert&nbsp;Pin:&nbsp;<input class='pinInvert"+ x + "'type='checkbox' min='0' max='255' " + (invert ? "checked" : "") + "/>"
+            result += CreateSelect(pinModes, pinMode, "Pin mode", "Select Pin Mode", "pinMode" + x) + "&nbsp;";
+            result += "&nbsp;Threshold:<input class='threshold" + x + "' type='number' min='0' max='255' style='width: 6em' value='" + threshold + "'/>";
+            result += "&nbsp;Hysteresis On:<input class='hysteresisUpper" + x + "' type='number' min='0' max='255' style='width: 6em' value='" + hysteresisUpper + "'/>";
+            result += "&nbsp;Hysteresis Off:<input class='hysteresisLower" + x + "' type='number' min='0' max='254' style='width: 6em' value='" + hysteresisLower + "'/>";
+            result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+            
+            result += "</td></tr>";
+        }
+        result += "</table>";
+
+        return result;
+    }
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+
+        result.pinOrderingInvert = cell.find("input.pinOrderingInvert").is(":checked") ? 1 : 0;
+        result.relayNumbering = cell.find("input.relayNumbering").is(":checked") ? 1 : 0;
+
+
+        result.ports = [];
+        for (var x = 0; x < 8; x++) {
+
+            var hysteresisUpper = parseInt(cell.find("input.hysteresisUpper" + x).val());
+            var hysteresisLower = parseInt(cell.find("input.hysteresisLower" + x).val());
+
+            if(hysteresisUpper < hysteresisLower){
+                hysteresisUpper = hysteresisLower + 1;
+            }
+
+
+            result.ports[x] = {};
+            result.ports[x].invert = cell.find("input.pinInvert" + x).is(":checked") ? 1 : 0;
+            result.ports[x].pinMode = parseInt(cell.find("select.pinMode" + x).val());
+            result.ports[x].threshold = parseInt(cell.find("input.threshold" + x).val());
+            result.ports[x].hysteresisUpper = hysteresisUpper;
+            result.ports[x].hysteresisLower = hysteresisLower;
+            result.ports[x].description = cell.find("input.description" + x).val();
+        }
+
+
+        return result;
+    }
+
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // Generic SPI Output
 class GenericSPIDevice extends OtherBaseDevice {
@@ -1021,6 +1123,7 @@ if ($hasI2C) {
     ?>
     output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, false, {deviceID: 0x20} , 0x20, 0x27));
     output_modules.push(new PCA9685Output());
+    output_modules.push(new PCF8574Output());
 <?
 }
 if ($hasSPI) {
