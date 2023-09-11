@@ -831,18 +831,15 @@ void MainLoop(void) {
     NetworkMonitor::INSTANCE.Init(callbacks);
     Sensors::INSTANCE.Init(callbacks);
 
+    StartChannelOutputThread();
     if (!getSettingInt("restarted")) {
         sequence->SendBlankingData();
     }
-
-    CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");
-
+    bool alwaysTransmit = (bool)getSettingInt("alwaysTransmit");
     if (getFPPmode() & PLAYER_MODE) {
         scheduler->CheckIfShouldBePlayingNow();
-        if (getSettingInt("alwaysTransmit")) {
-            StartChannelOutputThread();
-        }
     }
+    CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");
 
     static const int MAX_EVENTS = 20;
 #ifdef USE_KQUEUE
@@ -890,7 +887,6 @@ void MainLoop(void) {
 
     memset(events, 0, sizeof(events));
     int idleCount = 0;
-    bool alwaysTransmit = (bool)getSettingInt("alwaysTransmit");
 
     while (runMainFPPDLoop) {
 #ifdef USE_KQUEUE
