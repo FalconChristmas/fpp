@@ -23,6 +23,11 @@ function finishSetup() {
             return;
     }
 
+    if (settings['HostName'] == 'FPP') {
+        alert('Please change the default host name (FPP) to a unique name. ie FPPMain, MainPlayer, Player etc...');
+        return;
+    }
+
 <? if ($showOSSecurity) { ?>
     if ($('#osPasswordEnable').val() == '') {
         alert('You must choose to either use the default OS password or choose a custom password.');
