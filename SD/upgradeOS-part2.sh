@@ -34,6 +34,10 @@ mkdir tmp/ssh
 cp -a mnt/etc/ssh/*key* tmp/ssh
 echo
 
+echo "Saving hostname"
+mkdir tmp/etc
+cp -a mnt/etc/hostname tmp/etc
+
 #remove some files that rsync won't copy over as they have the same timestamp and size, but are actually different
 #possibly due to ACL's or xtended attributes
 echo "Force cleaning files which do not sync properly"
@@ -62,6 +66,11 @@ echo
 echo "Restoring system ssh keys"
 cp -a tmp/ssh/* mnt/etc/ssh
 echo
+
+echo "Restoring hostname"
+cp -af tmp/etc/hostname mnt/etc/hostname
+rm -f  tmp/etc/hostname
+echo 
 
 #create a file in root to mark it as requiring kiosk mode to be installed, will be checked on reboot
 if [ -f tmp/kiosk ]; then
