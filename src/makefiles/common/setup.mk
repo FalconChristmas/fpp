@@ -26,6 +26,9 @@ ifeq '$(ARCH)' ''
 UNAME := $(shell uname 2> /dev/null)
 ifeq '$(UNAME)' 'Darwin'
 ARCH = OSX
+CXXCOMPILER := clang++
+CCOMPILER := clang
+CC := clang++
 endif
 ifeq '$(UNAME)' 'Linux'
 ARCH = Linux
@@ -61,7 +64,7 @@ endif
 else
     OPTIMIZE_FLAGS=-O3
     debug: OPTIMIZE_FLAGS=-g -DDEBUG
-    #CXXFLAGS += -std=gnu++2a
+    CXXFLAGS += -std=c++20
 endif
 
 

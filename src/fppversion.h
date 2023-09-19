@@ -11,9 +11,18 @@
  * included LICENSE.LGPL file.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 const char* getFPPVersion(void);
 const char* getFPPMajorVersion(void);
 const char* getFPPMinorVersion(void);
 const char* getFPPBranch(void);
 const char* getFPPVersionTriplet(void);
 void printVersionInfo(void);
+
+#ifdef __cplusplus
+}
+#endif
+

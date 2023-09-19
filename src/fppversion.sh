@@ -61,6 +61,7 @@ esac
 
 cat > fppversion.c.new <<EOF
 #include <stdio.h>
+#include "fppversion.h"
 
 const char *getFPPVersion(void) {
 	return "${SOURCE_VERSION}";

@@ -86,7 +86,7 @@ endif
 	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 %.o: %.c $(PCH_FILE) fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
-	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
+	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 
 rebuildplugins: cleanplugins plugins
