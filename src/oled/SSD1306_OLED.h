@@ -32,6 +32,11 @@ SOFTWARE.
 
 /* Lib's */
 #include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "gfxfont.h"
 
 /* Find Min and Max - MACROS */
@@ -178,3 +183,7 @@ extern short printNumber_I(int n, int base);
 extern short printNumber_I_ln(int n, int base);
 extern short printFloat(double number, unsigned char digits);
 extern short printFloat_ln(double num, int digits);
+
+#ifdef __cplusplus
+}
+#endif

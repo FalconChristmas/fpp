@@ -57,16 +57,14 @@ int LED_DISPLAY_TYPE = LED_DISPLAY_TYPE_SSD1306;
 
 /* static Variables */
 static unsigned char _rotation = 0,textsize = 0;
-static short _width = LED_DISPLAY_WIDTH;
-static short _height = LED_DISPLAY_HEIGHT;
+static short _width = 128;
+static short _height = 64;
 static short cursor_x = 0, cursor_y = 0, textcolor = 0, textbgcolor = 0;
 static bool _cp437 = false, wrap = true;
 
 
-
-
 /* static struct objects */
-static const GFXfont *gfxFont = nullptr;
+static const GFXfont *gfxFont = 0;
 
 void setTextFont(const GFXfont *font) {
     gfxFont = font;
