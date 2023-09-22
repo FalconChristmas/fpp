@@ -257,7 +257,7 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
             echo "RouteMetric=${ROUTEMETRIC}" >> $TMPFILE
             echo "" >> $TMPFILE
         fi
-        
+
         if [ "$DHCPSERVER" == "1" ]; then
             echo "[DHCPServer]" >> $TMPFILE
             echo "PoolOffset=${DHCPOFFSET}" >> $TMPFILE
@@ -292,8 +292,12 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         systemctl reload-or-restart hostapd.service
     else
         rm -f ${FPPHOME}/media/tmp/wifi-*.ascii
-        systemctl stop hostapd.service
-        systemctl disable hostapd.service
+	HAPDE=$(systemctl is-enabled  hostapd)
+        HAPDA=$(systemctl is-active  hostapd)
+        if [ "$HPDE" == "enabled" ] || [ $"HAPDA" == "active" ]; then
+	    systemctl stop hostapd.service
+	    systemctl disable hostapd.service
+	fi
     fi
 }
 SetupFPPNetworkConfig () {
