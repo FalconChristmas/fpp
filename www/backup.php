@@ -117,7 +117,7 @@ $system_config_areas = array(
 
 //FPP Backup version - This is used for tracking the CURRENT backup file format or "backup" version as we may move things around and need backwards compatibility when restoring older version
 //When restoring, this value is read from the uploaded file and in processRestoreData() used to decide on what extra massaging old data needs to work with the current script
-$fpp_backup_version = "6";
+$fpp_backup_version = "7.2";
 
 //The v4, v5, vX that appears in backup filename was originally using $fpp_backup_version but to save user confusion will now match the FPP major version
 //it was originally intended as a visual aid to help discern between different backup versions.
@@ -396,7 +396,7 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
 
                 if ($file_contents_decoded['fpp_backup_version'] == 2) {
                     $is_version_2_backup = true;
-                } else if ($file_contents_decoded['fpp_backup_version'] = $fpp_backup_version) {
+                } else if ($file_contents_decoded['fpp_backup_version'] = 3) {
                     $is_version_3_backup = true;
                 }
             }
@@ -741,16 +741,56 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                                 }
 
                                 //if restore sub-area is LED panels, we need write the matrix size / layout setting to the settings file in case it's different to the backup
-                                if (strtolower($restore_areas_idx) == "led_panels") {
-                                    $panel_layout = null;
-                                    if (!empty($restore_area_system_settings)) {
-                                        $panel_layout = $restore_area_system_settings[0]['LEDPanelsLayout'];
-                                        if ($panel_layout != null) {
-                                            //LEDPanelsLayout = "4x4"
-                                            WriteSettingToFile('LEDPanelsLayout', $panel_layout);
-                                        }
+								if (strtolower($restore_areas_idx) == "led_panels") {
+									$panel_layout = null;
+
+									//Generate the single LED Panel size from info in the LED Panel layout e.g 32x16 1/2 Scan
+									if (array_key_exists('panelHeight', $final_file_restore_data['channelOutputs'][0])
+										&& array_key_exists('panelWidth', $final_file_restore_data['channelOutputs'][0])
+										&& array_key_exists('panelScan', $final_file_restore_data['channelOutputs'][0])
+									) {
+										$singlePanelSize = $final_file_restore_data['channelOutputs'][0]['panelWidth'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelHeight'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelScan'];
+										WriteSettingToFile('LEDPanelsSize', $singlePanelSize);
+									}
+
+									//Write the panel layout, e.g 4x4 into the system settings
+                                    //This setting can exist in a few places (by default it's in the system settings)
+									if (array_key_exists('ledPanelsLayout', $final_file_restore_data['channelOutputs'][0])) {
+										WriteSettingToFile('LEDPanelsLayout', $final_file_restore_data['channelOutputs'][0]['ledPanelsLayout']);
+									} elseif (!empty($restore_area_system_settings)) {
+                                        // If it's a full backup we can get the panel settings from the system settings
+										$panel_layout = $restore_area_system_settings[0]['LEDPanelsLayout'];
+
+										if ($panel_layout != null) {
+											//LEDPanelsLayout = "4x4"
+											WriteSettingToFile('LEDPanelsLayout', $panel_layout);
+										}
+									}else{
+										// ledPanelsLayout && LEDPanelsLayout don't exist so we can't determine the matrix size
+										//As a last resort we can calculate the matrix size from the led panel layout
+										$maxCol = $maxRow = null;
+										$panel_layout_data = $final_file_restore_data['channelOutputs'][0]['panels'];
+
+										foreach ($panel_layout_data as $idx => $panel) {
+											if ($panel['col'] > $maxCol) {
+												$maxCol = $panel['col'];
+											}
+											if ($panel['row'] > $maxRow) {
+												$maxRow = $panel['row'];
+											}
+										}
+
+										if ($maxCol != null && $maxRow != null) {
+											//Adjust max values due to the array being 0 base
+											$maxCol = $maxCol + 1;
+											$maxRow = $maxRow + 1;
+
+											//LEDPanelsLayout = "4x4"
+											WriteSettingToFile('LEDPanelsLayout', $maxCol . "x" . $maxRow);
+										}
+
                                     }
-                                }
+								}
 
                                 //RESTORE TWEAKS FOR SPECIFIC VERSIONS
                                 //Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
@@ -760,6 +800,8 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                                 //Version 6 backups - FPD/Falcon Pixlenet DMX data is keyed by the file it came from to more easily support a future version
                                 //                  - ['channelOutputs']['falcon_pixelnet_DMX'] will contain an additional key for each FPD file read
                                 //                  - eg Falcon.FPDV1 and in the future Falcon.F16V2
+                                //Version >7.2 backups - Panel layout is generated from the actual panel config (using col & row data) if the layout doesn't exist anywhere
+                                //                    - Single Panel size is generated from the same config and also written to the system settings
 
                                 //if restore sub-area is the schedule, determine how to restore it based on the $backup_version
                                 if (strtolower($restore_areas_idx) == "schedule") {
@@ -3509,9 +3551,9 @@ foreach ($backup_errors as $backup_error) {
     ?>
                         <?php if ($restore_done == true) {
         ?>
-                            <div id="rebootFlag" style="display: block;">Backup Restored, FPPD Restart or Reboot may be required.
+                            <div id="rebootFlag" style="display: block;" class="callout callout-warning">Backup Restored, FPPD Restart or Reboot may be required.
                             </div>
-                            <div id="restoreSuccessFlag">What was restored: <br>
+                            <div id="restoreSuccessFlag" class="callout callout-primary">What was restored: <br>
                                 <?php
 foreach ($settings_restored as $area_restored => $success) {
             $success_str = "";
@@ -3529,11 +3571,11 @@ foreach ($settings_restored as $area_restored => $success) {
 
                             if ($success_area_attempt == true && $success_area_success == true) {
                                 $success_str = "Success";
-                            } else {
+								$success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $success_area_idx)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+							} else {
                                 $success_str = "Failed";
-                            }
-
-                            $success_messages .= ucwords(str_replace("_", " ", $success_area_idx)) . " - " . $success_str . "<br/>";
+								$success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $success_area_idx)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+							}
                         }
                     }
                 } //There is an ATTEMPT and SUCCESS key, check values of both
@@ -3543,11 +3585,12 @@ foreach ($settings_restored as $area_restored => $success) {
 
                     if ($success_area_attempt == true && $success_area_success == true) {
                         $success_str = "Success";
-                    } else {
+						$success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "<br/>";
+					} else {
                         $success_str = "Failed";
-                    }
+						$success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "<br/>";
+					}
 
-                    $success_messages .= ucwords(str_replace("_", " ", $area_restored)) . " - " . $success_str . "<br/>";
                 } // No Attempt key, then we shouldn't print the success
                 else if (!array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
                     //Ignore
@@ -3558,10 +3601,13 @@ foreach ($settings_restored as $area_restored => $success) {
                 //normal area
                 if ($success == true) {
                     $success_str = "Success";
-                } else {
+					$success_messages = "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "<br/>";
+				} else {
                     $success_str = "Failed";
-                }
-                echo ucwords(str_replace("_", " ", $area_restored)) . " - " . $success_str . "<br/>";
+					$success_messages = "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "<br/>";
+
+				}
+                echo $success_messages;
             }
         }
         //If network settings have been restored, print out the IP addresses that should come info effect
@@ -3585,7 +3631,7 @@ foreach ($settings_restored as $area_restored => $success) {
                 }
             }
 
-            echo "REBOOT REQUIRED: Please VERIFY the above settings, if they seem incorrect please adjust them in <a href='./networkconfig.php'>Network Settings</a> BEFORE rebooting.";
+            echo "<span class='callout callout-danger'>REBOOT REQUIRED: Please VERIFY the above settings, if they seem incorrect please adjust them in <a href='./networkconfig.php'>Network Settings</a> BEFORE rebooting. </span>";
         }
         ?>
                             </div>
