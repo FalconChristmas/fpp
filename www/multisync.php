@@ -2222,8 +2222,9 @@ $(document).ready(function() {
                             }
                 },
                 3: {
-                    "Master": function(e,n,f,i,$r,c,data) { return e === "Master"; },
+                    "Master": function(e,n,f,i,$r,c,data) { return e === "Master"; }, // Can this be removed now?
                     "Player": function(e,n,f,i,$r,c,data) { return e === "Player"; },
+		    "Multisync": function(e,n,f,i,$r,c,data) { return e === "Player w/ Multisync"; },
                     "Bridge": function(e,n,f,i,$r,c,data) { return e === "Bridge"; },
                     "Remote": function(e,n,f,i,$r,c,data) { return e === "Remote"; }
                 }
