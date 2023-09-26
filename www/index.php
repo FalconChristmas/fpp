@@ -522,9 +522,9 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                 <div class="container-fluid">
                     <div class="row">
                         <div class="col-auto" id="bridgeStatistics1"></div>
-                        <div class="w-100"></div>
+                        <div class="col-auto"></div>
                         <div class="col-auto" id="bridgeStatistics2"></div>
-                        <div class="w-100"></div>
+                        <div class="col-auto"></div>
                         <div class="col-auto" id="bridgeStatistics3"></div>
                     </div>
                 </div>

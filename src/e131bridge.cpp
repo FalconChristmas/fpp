@@ -60,7 +60,7 @@ int artnetSock = -1;
 long long last_packet_time = GetTimeMS();
 long long expireOffSet = 1000; // expire after 1 second
 
-#define MAX_MSG 48
+#define MAX_MSG 64
 #define BUFSIZE 1500
 struct mmsghdr msgs[MAX_MSG];
 struct iovec iovecs[MAX_MSG];
@@ -120,6 +120,8 @@ int CreateArtNetSocket() {
 #else
         setsockopt(artnetSock, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
 #endif
+        int bufSize = 512*1024;
+        setsockopt(artnetSock, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
 
         memset((char*)&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
@@ -241,10 +243,9 @@ double GetSecondsFromInputPacket() {
  */
 bool Bridge_ReceiveE131Data(void) {
     //	LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
-
-    int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     bool sync = false;
     long long packetTime = GetTimeMS();
+    int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
             sync |= Bridge_StoreData((uint8_t*)buffers[x], packetTime);
@@ -336,6 +337,8 @@ bool Bridge_Initialize_Internal() {
             LogDebug(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", strerror(errno));
             exit(1);
         }
+        int bufSize = 512*1024;
+        setsockopt(ddpSock, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
     }
 
     bool hasArtNet = false;
@@ -376,6 +379,9 @@ bool Bridge_Initialize_Internal() {
             LogDebug(VB_E131BRIDGE, "e131bridge bind failed: %s", strerror(errno));
             exit(1);
         }
+
+        int bufSize = 512*1024;
+        setsockopt(bridgeSock, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
 
         // get all the addresses
         struct ifaddrs *interfaces, *tmp;
