@@ -265,8 +265,8 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
 
     for (int i = 0; i < m_virtualStrings.size(); i++) {
         m_virtualStrings[i].chMap = &m_outputMap[offset];
-        offset += m_virtualStrings[i].startNulls * m_virtualStrings[i].channelsPerNode();
         int start = offset;
+        offset += m_virtualStrings[i].startNulls * m_virtualStrings[i].channelsPerNode();
         SetupMap(offset, m_virtualStrings[i]);
         offset += m_virtualStrings[i].pixelCount * m_virtualStrings[i].channelsPerNode();
         offset += m_virtualStrings[i].endNulls * m_virtualStrings[i].channelsPerNode();
