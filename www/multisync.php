@@ -367,7 +367,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     function isGenius(typeId) {
         typeId = parseInt(typeId);
 
-        if (typeId == 0xA0 || typeId == 0xA1 || typeId == 0xA2)
+        if ((typeId >= 0xA0) && (typeId <= 0xAF))
             return true;
 
         return false;
