@@ -281,36 +281,7 @@ function defaultForArg(arg, json) {
     }
 }
 
-var commmands = {};
-function loadCommands() {
-    if (commandList == "") {
-        $.ajax({
-        dataType: "json",
-        url: "<? echo $apiDir; ?>commands",
-        async: false,
-        success: function(data) {
-           commandList = data;
-        }
-        });
-    }
-    $.each( commandList, function(key, val) {
-           var row = "<tbody class='commandRow'><tr>";
-           row += "<td>" + val["name"] + "</td><td>";
-           if (typeof val["description"] != "undefined") {
-                row += val["description"] ;
-           }
-           row += "</td><td>";
-           var json = { "command": val["name"], "args": [] };
-           $.each(val["args"], function(key, arg) {
-                  row += arg["description"].replace(/ /g, '&nbsp;') + "&nbsp;(name:&nbsp;'" + arg["name"] + "',&nbsp;&nbsp;type:&nbsp;'" + arg["type"] + "')<br>";
-                  defaultForArg(arg, json);
-                  });
-           row += "</td><td><pre class='inputData'>";
-           row += syntaxHighlight(JSON.stringify(json, null, 2));
-           row += "</pre></td></tr></tbody>";
-           $('#commands').append(row);
-    });
-}
+
 
 /*
  * Anchors are dynamically via ajax thus auto scrolling if anchor is in url
@@ -331,13 +302,12 @@ function fixScroll() {
 
 $(document).ready(function() {
     loadEndpoints();
-    loadCommands();
 });
 
 </script>
 <style>
 
-.endpointTable .command {
+.endpointTable {
     border-collapse: collapse;
 }
 
@@ -345,16 +315,13 @@ $(document).ready(function() {
     border-bottom: 2px solid #E2E2E2;
 }
 
-.commandTable tbody {
-    border-bottom: 2px solid #E2E2E2;
-}
 
 td, th {
 	vertical-align: top;
     border-width: 1px;
 }
 
-.endpoint .command {
+.endpoint {
 	white-space: nowrap;
 }
 
