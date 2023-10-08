@@ -22,8 +22,8 @@
 #include <thread>
 #include <unistd.h>
 
-#include "../log.h"
 #include "../common.h"
+#include "../log.h"
 
 #include "BBBPruUtils.h"
 
@@ -60,8 +60,9 @@ public:
                 fprintf(rp, "stop");
                 fclose(rp);
             }
+        } else {
+            controlRegs[0] = 1;
         }
-        controlRegs[0] = 1;
     }
     void enable(uint32_t addr = 0) {
         if (!hasUIO) {
@@ -173,9 +174,6 @@ static void initPrus() {
     prus[1].instructionRam = base_memory_location + (AM33XX_PRU1IRAM_PHYS_BASE - AM33XX_PRU_BASE);
     prus[1].instructionRamSize = 8 * 1024;
 
-    memset(prus[0].dataRam, 0, prus[0].dataRamSize);
-    memset(prus[1].dataRam, 0, prus[1].dataRamSize);
-    memset(prus[0].sharedRam, 0, prus[0].sharedRamSize);
     memset(ddr_mem_loc, 0, ddr_sizeb);
     __asm__ __volatile__("" ::
                              : "memory");
@@ -234,6 +232,10 @@ int BBBPru::run(const std::string& program) {
         prus[pru_num].disable();
         CopyFileContents(program, "/lib/firmware/am335x-pru" + std::to_string(pru_num) + "-fw");
         prus[pru_num].enable();
+
+        memset(prus[pru_num].dataRam, 0, prus[pru_num].dataRamSize);
+        memset(prus[pru_num].dataRam, 0, prus[pru_num].dataRamSize);
+
         return false;
     }
 
