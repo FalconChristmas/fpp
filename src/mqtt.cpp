@@ -377,7 +377,7 @@ void MosquittoClient::HandleConnect() {
 void MosquittoClient::HandleDisconnect() {
     LogWarn(VB_CONTROL, "Mosquitto Disconnected. Will try reconnect\n");
     m_isConnected = false;
-    Timers::INSTANCE.addTimer("MosquittoDisconnect", 3000, [this]() {
+    Timers::INSTANCE.addTimer("MosquittoDisconnect", 10000, [this]() {
         if (!m_isConnected) {
             WarningHolder::AddWarning("MQTT Disconnected");
         }
