@@ -378,9 +378,9 @@ int BBShiftStringOutput::StartPRU() {
         m_pru1.pruData = (BBShiftStringData*)m_pru1.pru->data_ram;
         m_pru1.pruData->command = 0;
         m_pru1.pruData->address_dma = m_pru1.pru->ddr_addr;
-        createOutputLengths(m_pru1, "pru1");
 
         m_pru1.pru->run("/tmp/BBShiftString_pru1.out");
+        createOutputLengths(m_pru1, "pru1");
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     if (m_pru0.maxStringLen) {
@@ -399,8 +399,8 @@ int BBShiftStringOutput::StartPRU() {
         m_pru0.pruData = (BBShiftStringData*)m_pru0.pru->data_ram;
         m_pru0.pruData->command = 0;
         m_pru0.pruData->address_dma = m_pru0.pru->ddr_addr;
-        createOutputLengths(m_pru0, "pru0");
         m_pru0.pru->run("/tmp/BBShiftString_pru0.out");
+        createOutputLengths(m_pru0, "pru0");
     }
     return 1;
 }
