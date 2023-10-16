@@ -20,7 +20,7 @@ if ($settings['Platform'] == "BeagleBone Black") {
 $commands = array(
     // Networking
     'Interfaces' => 'ifconfig -a',
-    'Ethtool Details' => 'for interface in $(ifconfig | grep -oP "^\w+(?=:)" | grep "eth"); do echo "Interface: $interface"; ethtool $interface; done',
+    'Ethtool Details' => 'for interface in $(ifconfig | grep -oP "^\w+(?=:)" | grep "eth"); do echo ""; ethtool $interface; done',
     'Wireless' => '(iwconfig ; echo ; echo ; cat /proc/net/wireless)',
     'Routing' => 'netstat -rn',
     'Default Gateway' => 'ping -c 1 $(netstat -rn | grep \'^0.0.0.0\' | awk \'{print $2}\')',
