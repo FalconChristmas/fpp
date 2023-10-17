@@ -376,6 +376,7 @@ function finalizeStatusJson($obj)
         $num = count(glob($settings['mediaDirectory'] . "/crashes/*.zip"));
         if ($num > 0) {
             $plural = 's';
+            $ip = $_SERVER['HTTP_HOST'];
             $verb = 'are';
             if ($num == 1) {
                 $plural = '';
@@ -383,9 +384,9 @@ function finalizeStatusJson($obj)
             }
 
             if ($settings['ShareCrashData'] == '0') {
-                $obj["warnings"][] = "There $verb $num <a href='uploadfile.php#tab-crashes'>crash report$plural</a> available, please submit to FPP developers or delete.";
+                $obj["warnings"][] = "There $verb $num <a href='http://$ip/uploadfile.php#tab-crashes'>crash report$plural</a> available, please submit to FPP developers or delete.";
             } else {
-                $obj["warnings"][] = "There $verb $num <a href='uploadfile.php#tab-crashes'>crash report$plural</a> available. " .
+                $obj["warnings"][] = "There $verb $num <a href='http://$ip/uploadfile.php#tab-crashes'>crash report$plural</a> available. " .
                     "This system is configured to automatically upload these to the FPP developers, you may delete the old reports at any time.";
             }
         }
