@@ -113,6 +113,7 @@ function printLEDPanelInterleaveSelect($platform)
         $values["16 Pixels"] = "16";
         $values["32 Pixels"] = "32";
         $values["64 Pixels"] = "64";
+        $values["80 Pixels"] = "80";
         $values["4 Pixels Zig/Zag"] = "4z";
         $values["8 Pixels Zig/Zag"] = "8z";
         $values["16 Pixels Zig/Zag"] = "16z";
@@ -120,6 +121,7 @@ function printLEDPanelInterleaveSelect($platform)
         $values["16 Pixels Flip Rows"] = "16f";
         $values["32 Pixels Flip Rows"] = "32f";
         $values["64 Pixels Flip Rows"] = "64f";
+        $values["80 Pixels Flip Rows"] = "80f";
         $values["8 Pixels Cluster Zig/Zag"] = "8c";
         $values["8 Stripe/16 Cluster"] = "8s";
     } else {
@@ -1181,6 +1183,10 @@ function PanelSubtypeChanged() {
     html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
     html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
     html += "<option value='40x20x5'>40x20 1/5 Scan</option>"
+    html += "<option value='80x40x10'>80x40 1/10 Scan</option>"
+    <?if ($panelCapesHaveSel4) {?>
+    html += "<option value='80x40x20'>80x40 1/20 Scan</option>"
+    <?}?>
     <?} else {?>
     html +="<option value='32x16x8'>32x16 1/8 Scan</option>"
     html +="<option value='32x16x4'>32x16 1/4 Scan</option>"

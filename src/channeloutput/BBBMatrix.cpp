@@ -18,9 +18,9 @@
 #include <cmath>
 #include <fstream>
 
-#include "../log.h"
-#include "../common.h"
 #include "../Warnings.h"
+#include "../common.h"
+#include "../log.h"
 
 #include "overlays/PixelOverlay.h"
 #include "util/BBBUtils.h"
@@ -635,6 +635,9 @@ int BBBMatrix::Init(Json::Value config) {
         } else if (config["panelInterleave"].asString() == "64f") {
             m_interleave = 64;
             flipRows = true;
+        } else if (config["panelInterleave"].asString() == "80f") {
+            m_interleave = 80;
+            flipRows = true;
         } else if (config["panelInterleave"].asString() == "8c") {
             m_interleave = 8;
             zigZagClusterInterleave = true;
@@ -648,6 +651,7 @@ int BBBMatrix::Init(Json::Value config) {
         m_interleave = 0;
     }
     m_panelScan = config["panelScan"].asInt();
+    // printf("Interleave: %d     Scan: %d    ZZI: %d    ZZCI:  %d    SI: %d\n", m_interleave, m_panelScan, zigZagInterleave, zigZagClusterInterleave, stripeInterleave);
     if (m_panelScan == 0) {
         // 1/8 scan by default
         m_panelScan = 8;
