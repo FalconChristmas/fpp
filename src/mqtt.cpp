@@ -375,11 +375,11 @@ void MosquittoClient::HandleConnect() {
 }
 
 void MosquittoClient::HandleDisconnect() {
-    LogWarn(VB_CONTROL, "Mosquitto Disconnected. Will try reconnect\n");
+    long long tm = GetTimeMS();
+    LogWarn(VB_CONTROL, "Mosquitto Disconnected. Will try reconnect %ld\n", tm);
     m_isConnected = false;
-    Timers::INSTANCE.addTimer("MosquittoDisconnect", 15000, [this]() {
+    Timers::INSTANCE.addTimer("MosquittoDisconnect", tm + 10000, [this, tm]() {
         if (!m_isConnected) {
-	    LogWarn(VB_CONTROL, "Mosquitto Disconnected. Reconnect failed.\n");
             WarningHolder::AddWarning("MQTT Disconnected");
         }
     });
