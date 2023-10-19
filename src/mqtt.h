@@ -59,7 +59,7 @@ public:
 
 private:
     bool m_canProcessMessages;
-    bool m_isConnected;
+    std::atomic<bool> m_isConnected;
     std::string m_host;
     int m_port;
     int m_keepalive;

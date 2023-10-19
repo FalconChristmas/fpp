@@ -339,7 +339,7 @@ void MosquittoClient::SetReady() {
 
 void MosquittoClient::HandleConnect() {
     m_isConnected = true;
-
+    LogWarn(VB_CONTROL, "Mosquitto Connected\n");
     if (!m_canProcessMessages) {
         LogWarn(VB_CONTROL, "HandleConnect() called before can process messages.  Won't Register topics yet.\n");
         return;
@@ -377,8 +377,9 @@ void MosquittoClient::HandleConnect() {
 void MosquittoClient::HandleDisconnect() {
     LogWarn(VB_CONTROL, "Mosquitto Disconnected. Will try reconnect\n");
     m_isConnected = false;
-    Timers::INSTANCE.addTimer("MosquittoDisconnect", 10000, [this]() {
+    Timers::INSTANCE.addTimer("MosquittoDisconnect", 15000, [this]() {
         if (!m_isConnected) {
+	    LogWarn(VB_CONTROL, "Mosquitto Disconnected. Reconnect failed.\n");
             WarningHolder::AddWarning("MQTT Disconnected");
         }
     });
