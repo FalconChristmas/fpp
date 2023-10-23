@@ -405,6 +405,7 @@ static void processBootConfig(Json::Value& bootConfig) {
     } else {
         remove("/.fppcapereboot");
     }
+    free(data);
 }
 static void copyFile(const std::string& src, const std::string& target) {
     int s, t;
@@ -562,7 +563,7 @@ public:
 
     CapeUtils::CapeStatus capeStatus() {
         if (validSignature) {
-            if (EEPROM.find("sys/bus/i2c") != std::string::npos) {
+            if (ORIGEEPROM.find("sys/bus/i2c") != std::string::npos) {
                 return CapeUtils::CapeStatus::SIGNED;
             } else if (devsn != "") {
                 return CapeUtils::CapeStatus::SIGNED;
@@ -673,6 +674,20 @@ private:
                     }
                 }
             }
+            if (!file_exists(EEPROM)) {
+                printf("Couldn't get eeprom\n");
+            }
+            printf("Copyng eeprom %s -> %s\n", EEPROM.c_str(), "/home/fpp/media/tmp/eeprom.bin");
+            removeIfExist( "/home/fpp/media/tmp/eeprom.bin");
+            copyFile(EEPROM, "/home/fpp/media/tmp/eeprom.bin");
+            ORIGEEPROM = EEPROM;
+            put_file_contents("/home/fpp/media/tmp/eeprom_location.txt", (uint8_t*)ORIGEEPROM.c_str(), ORIGEEPROM.size());
+            EEPROM = "/home/fpp/media/tmp/eeprom.bin";
+
+            std::string newDevFile = string_sprintf("/sys/bus/i2c/devices/i2c-%d/delete_device", bus);
+            int f = open(newDevFile.c_str(), O_WRONLY);
+            write(f, "0x50", 11);
+            close(f);
         } else {
             printf("Did not find eeprom on i2c.\n");
         }
@@ -785,7 +800,7 @@ private:
                 case 98: {
                     std::string type = read_string(file, 2);
                     if (type == "1") {
-                        if (EEPROM.find("sys/bus/i2c") == std::string::npos) {
+                        if (ORIGEEPROM.find("sys/bus/i2c") == std::string::npos) {
                             validEpromLocation = false;
                         }
                     } else if (type == "2") {
@@ -861,7 +876,11 @@ private:
                 if (hasSignature) {
                     result["validEepromLocation"] = validEpromLocation;
                 }
-                result["eepromLocation"] = EEPROM;
+                if (ORIGEEPROM != "") {
+                    result["eepromLocation"] = ORIGEEPROM;
+                } else {
+                    result["eepromLocation"] = EEPROM;
+                }
                 if (result.isMember("removeSettings")) {
                     for (int x = 0; x < result["removeSettings"].size(); x++) {
                         std::string v = result["removeSettings"][x].asString();
@@ -1191,6 +1210,7 @@ private:
     bool readOnly;
     int bus;
     std::string EEPROM;
+    std::string ORIGEEPROM;
     std::string outputPath;
 
     std::string cape;
