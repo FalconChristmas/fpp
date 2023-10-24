@@ -928,7 +928,7 @@ include 'menu.inc';?>
 							<div class="col-md-6">
 								<div class="backdrop">
 									<h3>Chase Patterns</h3>
-									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGB' id='RGBChase-RGB' checked onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGB'>Chase: R-G-B</label></div>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGB' id='RGBChase-RGB' onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGB'>Chase: R-G-B</label></div>
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGBA' id='RGBChase-RGBA' onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGBA'>Chase: R-G-B-All</label></div>
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGBN' id='RGBChase-RGBN' onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGBN'>Chase: R-G-B-None</label></div>
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGBAN' id='RGBChase-RGBAN' onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGBAN'>Chase: R-G-B-All-None</label></div>
@@ -944,7 +944,7 @@ include 'menu.inc';?>
 							<div class="col-md-6">
 								<div class="backdrop ">
 									<h3>Cycle Patterns</h3>
-									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGB' id='RGBCycle-RGB' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGB'>Cycle: R-G-B</label></div>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGB' id='RGBCycle-RGB' checked onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGB'>Cycle: R-G-B</label></div>
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGBA' id='RGBCycle-RGBA' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGBA'>Cycle: R-G-B-All</label></div>
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGBN' id='RGBCycle-RGBN' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGBN' >Cycle: R-G-B-None</label></div>
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGBAN' id='RGBCycle-RGBAN' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGBAN'>Cycle: R-G-B-All-None</label></div>

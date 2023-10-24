@@ -10,28 +10,34 @@ if ($newFirmwareFile == 'force') {
 
 
 $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
+if (file_exists("/home/fpp/media/tmp/eeprom_location.txt")) {
+    $eepromFile = file_get_contents("/home/fpp/media/tmp/eeprom_location.txt");
+    if ($eepromFile == "/sys/bus/i2c/devices/1-0050/eeprom") {
+        file_put_contents("/sys/bus/i2c/devices/i2c-1/new_device" , "24c256 0x50");
+    } else if ($eepromFile == "/sys/bus/i2c/devices/2-0050/eeprom") {
+        file_put_contents("/sys/bus/i2c/devices/i2c-2/new_device" , "24c256 0x50");
+    }
+    usleep(100000);
+}
 if (!file_exists($eepromFile)) {
-    $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
+    $eepromFile = '/home/fpp/media/config/cape-eeprom.bin';
     if (!file_exists($eepromFile)) {
-        $eepromFile = '/home/fpp/media/config/cape-eeprom.bin';
-        if (!file_exists($eepromFile)) {
-            if (preg_match('/^\/opt\/fpp\/capes/', $newFirmwareFile)) {
-                echo "Installing new virtual EEPROM.\n";
-                copy($newFirmwareFile, $eepromFile);
-                chown($eepromFile, 'fpp');
-                chgrp($eepromFile, 'fpp');
-                chmod($eepromFile, 0644);
+        if (preg_match('/^\/opt\/fpp\/capes/', $newFirmwareFile)) {
+            echo "Installing new virtual EEPROM.\n";
+            copy($newFirmwareFile, $eepromFile);
+            chown($eepromFile, 'fpp');
+            chgrp($eepromFile, 'fpp');
+            chmod($eepromFile, 0644);
 
-                echo "======================\n";
-                echo "Running fppcapedetect:\n\n";
+            echo "======================\n";
+            echo "Running fppcapedetect:\n\n";
 
-                system("/opt/fpp/src/fppcapedetect");
-                echo "\nFinished, please reboot.\n";
-                return 0;
-            } else {
-                echo "Could not find EEPROM.  Is Cape mounted and FPP rebooted?\n";
-                return 1;
-            }
+            system("/opt/fpp/src/fppcapedetect");
+            echo "\nFinished, please reboot.\n";
+            return 0;
+        } else {
+            echo "Could not find EEPROM.  Is Cape mounted and FPP rebooted?\n";
+            return 1;
         }
     }
 }

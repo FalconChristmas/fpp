@@ -616,13 +616,7 @@ if (!isset($settings['cape-info']) || !isset($settings['cape-info']['verifiedKey
         </fieldset>
     </div>
 <?
-$eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
-if ($settings['Platform'] == "BeagleBone Black") {
-    $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
-    if (!file_exists($eepromFile)) {
-        $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
-    }
-}
+$eepromFile = "/home/fpp/media/tmp/eeprom.bin";
 if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
     $eepromFile = "/home/fpp/media/config/cape-eeprom.bin";
 }

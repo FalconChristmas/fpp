@@ -621,7 +621,7 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
         <div class="container-fluid settingsTable settingsGroupTable">
             <div class="row">
                 <div class="printSettingLabelCol col-md-8">Select an interface name to configure the network information for that interface.</div>
-                <div class="warning-text" style="display: none;" id=wifisearch>Preforming Wifi Scan...</div>
+                <div class="warning-text" style="display: none;" id=wifisearch>Performing Wifi Scan...</div>
            </div>
             <div class="row" id="selInterfacesRow">
                 <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Interface Name</div></div>

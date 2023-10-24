@@ -14,6 +14,8 @@ include 'common/menuHead.inc';
 
 <link rel="stylesheet" href="jquery/jquery.tablesorter/css/theme.blue.css">
 
+<link rel="manifest" href="/manifest.json" />
+
 <script>
     SetStatusRefreshSeconds(1);
     PlayEntrySelected = 1;

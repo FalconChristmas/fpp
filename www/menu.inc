@@ -320,13 +320,7 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
         <div class="dropdown-menu dropdown-with-icons dropdown-menu-end" aria-labelledby="navbarDropdownMenuLink">
           <a class="dropdown-item" href="about.php"><i class="fas fa-info-circle"></i> About</a>
 <?php
-$eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
-if ($settings['Platform'] == "BeagleBone Black") {
-    $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
-    if (!file_exists($eepromFile)) {
-        $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
-    }
-}
+$eepromFile = "/home/fpp/media/tmp/eeprom.bin";
 if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
     $eepromFile = "/home/fpp/media/config/cape-eeprom.bin";
 }
