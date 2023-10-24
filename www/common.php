@@ -1393,20 +1393,8 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
 function human_filesize($path)
 {
     // cannot use filesize($path) as that returns a signed 32bit number so maxes out at 2GB
-    $kbytes = trim(shell_exec("du -k \"" . $path . "\" | cut -f1 "));
-    if (strlen($kbytes) < 3) {
-        $bytes = filesize($path);
-        $sz = 'BKMGTP';
-        $factor = floor((strlen($bytes) - 1) / 3);
-        if ($factor) {
-            return sprintf("%.2f", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ? "B" : "");
-        }
-
-        return sprintf("%d", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ? "B" : "");
-    }
-    $sz = 'KMGTP';
-    $factor = floor((strlen($kbytes) - 1) / 3);
-    return sprintf("%.2f", $kbytes / pow(1024, $factor)) . @$sz[$factor] . "B";
+    // Using du -bhs to return human readable file sizes + 'B' at the end to be similar to prior
+    return trim(shell_exec("du -bhs \"" . $path . "\" | cut -f1 ")) . "B";
 }
 
 /**
