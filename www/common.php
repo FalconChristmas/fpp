@@ -1392,21 +1392,12 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
  */
 function human_filesize($path)
 {
-    // cannot use filesize($path) as that returns a signed 32bit number so maxes out at 2GB
-    $kbytes = trim(shell_exec("du -k \"" . $path . "\" | cut -f1 "));
-    if (strlen($kbytes) < 3) {
-        $bytes = filesize($path);
-        $sz = 'BKMGTP';
-        $factor = floor((strlen($bytes) - 1) / 3);
-        if ($factor) {
-            return sprintf("%.2f", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ? "B" : "");
-        }
-
-        return sprintf("%d", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ? "B" : "");
-    }
-    $sz = 'KMGTP';
-    $factor = floor((strlen($kbytes) - 1) / 3);
-    return sprintf("%.2f", $kbytes / pow(1024, $factor)) . @$sz[$factor] . "B";
+    // cannot use PHP's filesize($path) as that returns a signed 32bit number so maxes out at 2GB
+    // Using du -bs to return one human readable file size (or total directory size) even if subdirs are present
+    // Additional shell ternary is to keep prior number formatting
+    return trim(shell_exec("tsz=$(du -bs \"" . $path . "\" | cut -f1); [ \$tsz -ge 1024 ] && numfmt --to=iec --format=%.2f \$tsz || echo \$tsz")) . "B";
+    // Alternative for 1000 bytes to 1KB
+    //return trim(shell_exec("tsz=$(du -bs \"" . $path . "\" | cut -f1); [ \$tsz -ge 1000 ] && numfmt --to=si --format=%.2f \$tsz || echo \$tsz")) . "B";
 }
 
 /**
