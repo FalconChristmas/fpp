@@ -233,6 +233,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
     std::time_t currTime = std::time(nullptr);
     struct tm now;
     localtime_r(&currTime, &now);
+    int scheduleDistance = getSettingInt("ScheduleDistance");
 
     // Convert everything to a day mask to simplify code below
     switch (dayIndex) {
@@ -299,8 +300,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
         if (dayOffset)
             entry->pushStartEndTimes(now.tm_wday - 1, m_timeDelta, m_timeDeltaThreshold);
 
-        // Schedule out 5 weeks
-        for (int i = now.tm_wday + dayOffset; i <= 35; i += 2) {
+        for (int i = now.tm_wday + dayOffset; i <= scheduleDistance; i += 2) {
             entry->pushStartEndTimes(i, m_timeDelta, m_timeDeltaThreshold);
         }
 
@@ -312,7 +312,6 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
         entry->pushStartEndTimes(-1, m_timeDelta, m_timeDeltaThreshold);
 
     if ((entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY)) {
-        int scheduleDistance = getSettingInt("ScheduleDistance");
         for (int weekOffset = 0; weekOffset <= scheduleDistance; weekOffset += 7) {
             if (dayIndex & INX_DAY_MASK_SUNDAY)
                 entry->pushStartEndTimes(INX_SUN + weekOffset, m_timeDelta, m_timeDeltaThreshold);
