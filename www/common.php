@@ -1394,7 +1394,7 @@ function human_filesize($path)
 {
     // cannot use PHP's filesize($path) as that returns a signed 32bit number so maxes out at 2GB
     // Using du -bs to return one human readable file size (or total directory size) even if subdirs are present
-    // Additional shell ternary is keep prior number formatting
+    // Additional shell ternary is to keep prior number formatting
     return trim(shell_exec("tsz=$(du -bs \"" . $path . "\" | cut -f1); [ \$tsz -ge 1024 ] && numfmt --to=iec --format=%.2f \$tsz || echo \$tsz")) . "B";
     // Alternative for 1000 bytes to 1KB
     //return trim(shell_exec("tsz=$(du -bs \"" . $path . "\" | cut -f1); [ \$tsz -ge 1000 ] && numfmt --to=si --format=%.2f \$tsz || echo \$tsz")) . "B";
