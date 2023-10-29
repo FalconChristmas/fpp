@@ -2054,6 +2054,22 @@
             }
         },
         {
+            "endpoint": "proxies/:ProxyIp",
+            "methods": {
+                "POST": {
+                    "desc": "Add an IP address to this FPP instance can proxy",
+                    "output": [
+                        "192.168.1.2"
+                    ]
+                },
+                "DELETE": {
+                    "desc": "Delete an IP address from FPP proxy list",
+                    "output": [                       
+                    ]
+                }
+            }
+        },
+        {
             "endpoint": "proxy/:IP/:PATH",
             "methods": {
                 "GET": {
