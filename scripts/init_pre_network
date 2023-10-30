@@ -131,7 +131,7 @@ if [ ! -f /etc/fpp/desktop ]; then
             if [ "${SFARRAY[3]: -1}" == "G" ]; then
                 SPACEFREE=${SFARRAY[3]::-1}
                 setSetting UnpartitionedSpace "${SPACEFREE}"            
-            elif [ "${SFARRAY[3]: -1}" == "M" ]; then
+            else
                 setSetting UnpartitionedSpace "0"
             fi
         fi
