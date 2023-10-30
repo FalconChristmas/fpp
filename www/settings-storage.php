@@ -10,6 +10,7 @@ require_once('common.php');
 function StorageDialogDone() {
     EnableModalDialogCloseButton("storageSettingsProgress");
     $('#storageSettingsProgressCloseButton').prop("disabled", false);
+    SetRebootFlag();
 }
 function growSDCardFS() {
     DisplayConfirmationDialog("growSDCard", "Grow Filesystem", $("#dialog-confirm"), function() {
