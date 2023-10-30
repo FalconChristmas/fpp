@@ -197,12 +197,10 @@ include 'menu.inc';
 <h1 class="title statusTitle">Status <span class="statusHostname"><?=$settings["HostName"]?></span></h1>
 
 <?php
-if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 8000000):
+if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 0):
 ?>
 <div id='spaceFlag' class="alert alert-danger" role="alert">
-     SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
-     file system or create a new storage partition.
-     <input type='button' class='buttons btn-success' style='float: right' value='Leave Unused' onClick='SetSetting("LastBlock", "0", 0, 0); $("#spaceFlag").hide();'>
+     SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the file system or create a new storage partition.
 </div>
 <?php endif;?>
 

@@ -81,7 +81,7 @@ if (isset($_GET['tab'])) {
     $tabId = $_GET['tab'];
 }
 $storageUILevel = 1;
-if (isset($settings["LastBlock"]) && $settings['LastBlock'] > 0 && $settings['LastBlock'] < 8000000) {
+if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 0) {
     $storageUILevel = 0;
 }
 ?>
