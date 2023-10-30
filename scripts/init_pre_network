@@ -122,7 +122,7 @@ if [ ! -f /etc/fpp/desktop ]; then
         echo "storageDevice = \"$MEDIADEV\"" >> ${FPPHOME}/media/settings
     fi
 
-    if [ -f /dev/mmcblk0 ]; then
+    if [ -e /dev/mmcblk0 ]; then
         SPACEFREE_SFDISK=$(sfdisk -F /dev/mmcblk0 2>/dev/null | tail -n 1)
         if [ "$SPACEFREE_SFDISK" == "" ]; then
             setSetting UnpartitionedSpace "0"
