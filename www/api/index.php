@@ -120,6 +120,7 @@ dispatch_post('/plugin/:RepoName/upgrade', 'UpgradePlugin');
 // which are added after the above endpoints via addPluginEndpoints() below.
 
 dispatch_get('/proxies', 'GetProxies');
+dispatch_post('/proxies', 'PostProxies');
 dispatch_post('/proxies/:ProxyIp', 'AddProxy');
 dispatch_delete('/proxies/:ProxyIp', 'DeleteProxy');
 

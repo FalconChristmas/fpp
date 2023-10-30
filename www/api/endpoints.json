@@ -2050,6 +2050,31 @@
                         "192.168.1.146",
                         "192.168.1.148"
                     ]
+                },
+                "POST": {
+                    "desc": "Post a list of IP addresses that this FPP instance can proxy",
+                    "output": [
+                        "192.168.1.2",
+                        "192.168.1.146",
+                        "192.168.1.148"
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "proxies/:ProxyIp",
+            "methods": {
+                "POST": {
+                    "desc": "Add an IP address to this FPP instance can proxy",
+                    "output": [
+                        "192.168.1.2"
+                    ]
+                },
+                "DELETE": {
+                    "desc": "Delete an IP address from FPP proxy list",
+                    "output": [
+                       
+                    ]
                 }
             }
         },
