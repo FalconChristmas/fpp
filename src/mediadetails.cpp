@@ -100,13 +100,13 @@ void MediaDetails::ParseMedia(const char* mediaFilename) {
 
     TagLib::Tag* tag = f.tag();
 
-    title = tag->title().toCString();
-    artist = tag->artist().toCString();
-    album = tag->album().toCString();
+    title = tag->title().toCString(true);
+    artist = tag->artist().toCString(true);
+    album = tag->album().toCString(true);
     year = tag->year();
-    comment = tag->comment().toCString();
+    comment = tag->comment().toCString(true);
     track = tag->track();
-    genre = tag->genre().toCString();
+    genre = tag->genre().toCString(true);
 
     if (f.audioProperties()) {
         TagLib::AudioProperties* properties = f.audioProperties();
