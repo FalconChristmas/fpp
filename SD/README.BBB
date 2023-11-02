@@ -71,7 +71,7 @@ systemctl enable systemd-resolved
 
 #check
 cd /root
-export NEW_KERNEL_VERSION=5.10.168-fpp_5.10.168-fpp-1
+export NEW_KERNEL_VERSION=5.10.168-fpp_5.10.168-fpp-2
 wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${NEW_KERNEL_VERSION}_armhf.deb
 wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-${NEW_KERNEL_VERSION}_armhf.deb
 dpkg -i *.deb
