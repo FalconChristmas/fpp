@@ -390,7 +390,7 @@ include 'menu.inc';?>
           <div id= "divMusic">
 
               <div class="backdrop">
-                <h2> Music Files (.mp3/.ogg/.m4a/.flac/.aac) </h2>
+                <h2> Music Files (.mp3/.ogg/.m4a/.flac/.aac/.wav/.m4p) </h2>
                 <div id="divMusicData" class="fileManagerDivData">
                   <table id="tblMusic">
                   </table>
@@ -417,7 +417,7 @@ include 'menu.inc';?>
           <div id= "divVideo">
 
               <div class="backdrop">
-                <h2> Video Files (.mp4/.mkv) </h2>
+                <h2> Video Files (.mp4/.mkv/.avi/.mpg/.mov) </h2>
                 <div id="divVideoData" class="fileManagerDivData">
                   <table id="tblVideos">
                   </table>
