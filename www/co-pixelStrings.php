@@ -2440,23 +2440,15 @@ if ((isset($settings['cape-info'])) &&
 
 <?
 if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name']) || file_exists($mediaDirectory . '/config/cape-eeprom.bin')) {
-    $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
-    if ($settings['Platform'] == "BeagleBone Black") {
-        $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
-        if (!file_exists($eepromFile)) {
-            $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
-        }
-    }
+    $eepromFile = "/home/fpp/media/tmp/eeprom.bin";
     if (file_exists($eepromFile)) {
         echo "<input type='button' class='buttons' onClick='downloadEEPROM();' value='Download/Install EEPROM'>\n";
     }
-
     if (file_exists($mediaDirectory . '/config/cape-eeprom.bin')) {
         echo "<input type='button' class='buttons' onClick='showVirtualEEPROMSelect();' value='Change Virtual EEPROM'>\n";
     } else {
         echo "<input type='button' class='buttons' onClick='showVirtualEEPROMSelect();' value='Install Virtual EEPROM'>\n";
     }
-
 }
 
 if (isset($settings['cape-info'])) {

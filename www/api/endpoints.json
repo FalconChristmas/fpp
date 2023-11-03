@@ -513,10 +513,10 @@
             }
         },
         {
-            "endpoint": "file/:DirName/:Filename",
+            "endpoint": "file/:DirName(/:SubDir)/:Filename",
             "methods": {
                 "GET": {
-                    "desc": "Downloads the specified File where :DirName is one of ('config', 'effects', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?tail=# is supplied then only the specified number of lines from the end of the file are returned. ?play=1 then will set the content type to be played rather than downloaded.",
+                    "desc": "Downloads the specified File where :DirName is one of ('config', 'effects', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). Optionally can provide a :SubDir. If ?tail=# is supplied then only the specified number of lines from the end of the file are returned. ?play=1 then will set the content type to be played rather than downloaded.",
                     "output": "The File Contents"
                 },
                 "DELETE": {
@@ -2049,6 +2049,47 @@
                         "192.168.1.2",
                         "192.168.1.146",
                         "192.168.1.148"
+                    ]
+                },
+                "POST": {
+                    "desc": "Post a list of IP addresses that this FPP instance can proxy",
+                    "output": [
+                        "192.168.1.2",
+                        "192.168.1.146",
+                        "192.168.1.148"
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "proxies/:ProxyIp",
+            "methods": {
+                "POST": {
+                    "desc": "Add an IP address to this FPP instance can proxy",
+                    "output": [
+                        "192.168.1.2"
+                    ]
+                },
+                "DELETE": {
+                    "desc": "Delete an IP address from FPP proxy list",
+                    "output": [
+                       
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "proxies/:ProxyIp",
+            "methods": {
+                "POST": {
+                    "desc": "Add an IP address to this FPP instance can proxy",
+                    "output": [
+                        "192.168.1.2"
+                    ]
+                },
+                "DELETE": {
+                    "desc": "Delete an IP address from FPP proxy list",
+                    "output": [                       
                     ]
                 }
             }

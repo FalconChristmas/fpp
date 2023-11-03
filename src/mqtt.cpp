@@ -29,6 +29,7 @@
 #include "log.h"
 #include "mqtt.h"
 #include "settings.h"
+#include "Timers.h"
 #include "commands/Commands.h"
 
 #define FALCON_TOPIC "falcon/player"
@@ -338,7 +339,7 @@ void MosquittoClient::SetReady() {
 
 void MosquittoClient::HandleConnect() {
     m_isConnected = true;
-
+    LogWarn(VB_CONTROL, "Mosquitto Connected\n");
     if (!m_canProcessMessages) {
         LogWarn(VB_CONTROL, "HandleConnect() called before can process messages.  Won't Register topics yet.\n");
         return;
@@ -374,9 +375,14 @@ void MosquittoClient::HandleConnect() {
 }
 
 void MosquittoClient::HandleDisconnect() {
-    LogWarn(VB_CONTROL, "Mosquitto Disconnected. Will try reconnect\n");
+    long long tm = GetTimeMS();
+    LogWarn(VB_CONTROL, "Mosquitto Disconnected. Will try reconnect %ld\n", tm);
     m_isConnected = false;
-    WarningHolder::AddWarning("MQTT Disconnected");
+    Timers::INSTANCE.addTimer("MosquittoDisconnect", tm + 10000, [this, tm]() {
+        if (!m_isConnected) {
+            WarningHolder::AddWarning("MQTT Disconnected");
+        }
+    });
 }
 
 /*

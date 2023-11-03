@@ -10,7 +10,7 @@ require_once('common.php');
 function StorageDialogDone() {
     EnableModalDialogCloseButton("storageSettingsProgress");
     $('#storageSettingsProgressCloseButton').prop("disabled", false);
-    SetSetting("LastBlock", "0", 0, 1);
+    SetRebootFlag();
 }
 function growSDCardFS() {
     DisplayConfirmationDialog("growSDCard", "Grow Filesystem", $("#dialog-confirm"), function() {
@@ -235,7 +235,7 @@ $addflashbutton = false;
 exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
 $rootDevice = $output[0];
 if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
-    if (isset($settings["LastBlock"]) && $settings['LastBlock'] < 8000000 && $settings['LastBlock'] > 0) {
+    if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 0) {
         $addnewfsbutton = true;
     }
     if ($settings['Platform'] == "BeagleBone Black") {

@@ -48,8 +48,8 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2023-08"
-FPPCFGVER="78"
+FPPIMAGEVER="2023-11"
+FPPCFGVER="79"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -987,6 +987,10 @@ do
         sed -i -e "s/^user\ .*/user = ${FPPUSER}/" ${PHPDIR}/${FILE}
         sed -i -e "s/^group\ .*/group = ${FPPUSER}/" ${PHPDIR}/${FILE}
         sed -i -e "s/^pm.max_children.*/pm.max_children = 25/" ${PHPDIR}/${FILE}
+        sed -i -e "s/^pm.min_spare_servers.*/pm.min_spare_servers = 3/" ${PHPDIR}/${FILE}
+        sed -i -e "s/^pm.max_spare_servers.*/pm.max_spare_servers = 6/" ${PHPDIR}/${FILE}
+        sed -i -e "s/^pm.start_servers.*/pm.start_servers = 3/" ${PHPDIR}/${FILE}
+        sed -i -e "s/^;pm.max_requests.*/pm.max_requests = 500/" ${PHPDIR}/${FILE}
         sed -i -e "s+^;clear_env.*+clear_env = no+g" ${PHPDIR}/${FILE}
     fi
 done

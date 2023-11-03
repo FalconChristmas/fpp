@@ -19,12 +19,9 @@ $printSigningUI = 0;
 $offlineMode = 0;
 
 // attempt to find a physical eeprom
-$eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
+$eepromFile = "/home/fpp/media/tmp/eeprom.bin";
 if (!file_exists($eepromFile)) {
-    $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
-    if (!file_exists($eepromFile)) {
-        $eepromFile = '';
-    }
+    $eepromFile = '';
 }
 
 // Test to see if FPP can get to the signing API

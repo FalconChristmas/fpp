@@ -110,26 +110,33 @@ echo "FPP - Clearing reboot flags"
 sed -i -e "s/^rebootFlag .*/rebootFlag = \"0\"/" ${FPPHOME}/media/settings
 
 if [ ! -f /etc/fpp/desktop ]; then
-# make sure the media directory in the settings matches what we used at boot
-echo "FPP - Sanity checking storage device setting"
-MEDIADEV=`findmnt -n -o SOURCE /home/fpp/media | colrm 1 5`
-if [ "$MEDIADEV" = "" ]; then
-    MEDIADEV=`findmnt -n -o SOURCE / | colrm 1 5`
-fi
-if grep -q storageDevice "${FPPHOME}/media/settings"; then
-    sed -i -e "s#^storageDevice .*#storageDevice = \"$MEDIADEV\"#" ${FPPHOME}/media/settings
-else
-    echo "storageDevice = \"$MEDIADEV\"" >> ${FPPHOME}/media/settings
-fi
+    # make sure the media directory in the settings matches what we used at boot
+    echo "FPP - Sanity checking storage device setting"
+    MEDIADEV=`findmnt -n -o SOURCE /home/fpp/media | colrm 1 5`
+    if [ "$MEDIADEV" = "" ]; then
+        MEDIADEV=`findmnt -n -o SOURCE / | colrm 1 5`
+    fi
+    if grep -q storageDevice "${FPPHOME}/media/settings"; then
+        sed -i -e "s#^storageDevice .*#storageDevice = \"$MEDIADEV\"#" ${FPPHOME}/media/settings
+    else
+        echo "storageDevice = \"$MEDIADEV\"" >> ${FPPHOME}/media/settings
+    fi
 
-    LASTBLOCK=$(getSetting LastBlock)
-    if [ "x${LASTBLOCK}" != "x0" ]
-    then
-        LASTBLOCK=$(sfdisk -q -l -o end /dev/mmcblk0 2>/dev/null | tail -n 1)
-        if [ "$LASTBLOCK" == "" ]; then
-            LASTBLOCK=0
+    if [ -e /dev/mmcblk0 ]; then
+        SPACEFREE_SFDISK=$(sfdisk -F /dev/mmcblk0 2>/dev/null | tail -n 1)
+        if [ "$SPACEFREE_SFDISK" == "" ]; then
+            setSetting UnpartitionedSpace "0"
+        else
+            read -r -a SFARRAY <<< "$SPACEFREE_SFDISK"
+            if [ "${SFARRAY[3]: -1}" == "G" ]; then
+                SPACEFREE=${SFARRAY[3]::-1}
+                setSetting UnpartitionedSpace "${SPACEFREE}"            
+            else
+                setSetting UnpartitionedSpace "0"
+            fi
         fi
-        setSetting LastBlock $LASTBLOCK
+    else 
+        setSetting UnpartitionedSpace "0"
     fi
 fi
 
@@ -156,7 +163,7 @@ then
         if [[ $uboot != *"U-Boot 2022.04-gd0771d5"* ]]; then
             cd /opt/fpp/bin.bbb/bootloader
             /opt/fpp/bin.bbb/bootloader/install.sh
-            echo 'rebootFlag = "1"' >> /home/fpp/media/settings
+            setSetting rebootFlag "1"
         fi
     else
         # bug in kernel on pcoketbeagle where in P2-36 is not

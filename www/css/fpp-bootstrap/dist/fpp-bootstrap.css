@@ -6595,6 +6595,10 @@ textarea.form-control-lg {
   border: var(--bs-alert-border);
   border-radius: var(--bs-alert-border-radius); }
 
+.alert-info {
+    background-color: #008B8B;
+    border-color: #008B8B; }
+
 .alert-heading {
   color: inherit; }
 

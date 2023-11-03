@@ -8,7 +8,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"  alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
     apache2 apache2-bin apache2-data apache2-utils \
     bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
-    fbi fbset file flite ca-certificates lshw \
+    fbi fbset file flite ca-certificates lshw ffmpeg mp3gain \
     build-essential gcc g++ gdb ccache vim vim-common bison flex device-tree-compiler dh-autoreconf \
     git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
     samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \

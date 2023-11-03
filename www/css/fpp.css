@@ -644,7 +644,7 @@ body.has-touch .pageContent-tabs {
     /*height: 100%;*/
 }
 
-body.has-touch .pageContent-tabs>.nav-item {
+body.has-touch .pageContent-tabs>.nav-item:not(.hidden) {
     display: inline-block;
     margin-left: 1.5px;
     margin-right: 1.5px;

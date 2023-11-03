@@ -130,7 +130,7 @@ function GetFiles()
 function GetFile()
 {
     $dirName = params("DirName");
-    $fileName = params("Name");
+    $fileName = params(0);
     $lines = -1;
     $play = 0;
     $attach = 0;

@@ -1090,7 +1090,7 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
 
     Load(filename);
 
-    if ((position == 0) && (m_random > 0)) {
+    if ((position == 0 || position == -1) && (m_random > 0)) {
         RandomizeMainPlaylist();
     }
 

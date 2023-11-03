@@ -14,10 +14,10 @@ wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8814au
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8192cu
 
-CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+export CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
 
 shopt -s nullglob
-KVERS=($(ls /usr/src/ | colrm 1 14))
+export KVERS=($(ls /usr/src/ | colrm 1 14))
 shopt -u nullglob
 
 # new kernel may not include the linker script that some of the builds below require
@@ -167,6 +167,34 @@ for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make install
 done
 ARCH=arm make installfw
+cd /opt/wifi
+rm -rf rtl8188fu
+
+git clone https://github.com/morrownr/rtl8852bu
+cd rtl8852bu/
+for i in "${KVERS[@]}"; do
+    KVER=$i ARCH=arm make clean
+    KVER=$i ARCH=arm make -j ${CPUS}
+    KVER=$i ARCH=arm make install
+done
+cd /opt/wifi
+rm -rf rtl8852bu
+
+git clone https://github.com/morrownr/rtl8852au
+cd rtl8852au/
+mkdir /usr/lib/systemd/system-sleep/
+for i in "${KVERS[@]}"; do
+    KVER=$i ARCH=arm make clean
+    KVER=$i ARCH=arm make -j ${CPUS}
+    KVER=$i ARCH=arm make install
+done
+cd /opt/wifi
+rm -rf rtl8852au
+
+
+# https://github.com/lwfinger/rtw88
+# https://github.com/lwfinger/rtw89
+
 
 rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf
 
