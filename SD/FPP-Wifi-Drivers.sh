@@ -173,9 +173,9 @@ rm -rf rtl8188fu
 git clone https://github.com/morrownr/rtl8852bu
 cd rtl8852bu/
 for i in "${KVERS[@]}"; do
-    KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make -j ${CPUS}
-    KVER=$i ARCH=arm make install
+    KVER=$i ARCH=arm make clean "KVER=$i" "KSRC=/lib/modules/$i/build"
+    KVER=$i ARCH=arm make -j ${CPUS} "KVER=$i" "KSRC=/lib/modules/$i/build"
+    KVER=$i ARCH=arm make install "KVER=$i" "KSRC=/lib/modules/$i/build"
 done
 cd /opt/wifi
 rm -rf rtl8852bu
@@ -184,9 +184,9 @@ git clone https://github.com/lwfinger/rtl8852au
 cd rtl8852au/
 mkdir -p /usr/lib/systemd/system-sleep/
 for i in "${KVERS[@]}"; do
-    KVER=$i ARCH=arm make clean
-    KVER=$i ARCH=arm make -j ${CPUS}
-    KVER=$i ARCH=arm make install
+    KVER=$i ARCH=arm make clean "KVER=$i" "KSRC=/lib/modules/$i/build"
+    KVER=$i ARCH=arm make -j ${CPUS} "KVER=$i" "KSRC=/lib/modules/$i/build"
+    KVER=$i ARCH=arm make install "KVER=$i" "KSRC=/lib/modules/$i/build"
 done
 cd /opt/wifi
 rm -rf rtl8852au
