@@ -193,9 +193,7 @@ if ($freeSpace < 50000000) {
 <?
 }
 ?>
-<!--
-  <div id='upgradeFlag' class="alert detract"><span class='inlineBlock'>FPP v7.1 is available for install</span><span class='inlineBlock'><button name="btnUpgrade" type="button" onClick="ViewReleaseNotes('7.1');"  class = "buttons btn-outline-light" ><i class='fas fa-fw fa-sync fa-nbsp'></i>Upgrade FPP</button></span></div>
--->
+  <div id='upgradeFlag' class="alert detract"><span class='inlineBlock'>FPP v7.3 is available for install</span><span class='inlineBlock'><button name="btnUpgrade" type="button" onClick="ViewReleaseNotes('7.3');"  class = "buttons btn-outline-light" ><i class='fas fa-fw fa-sync fa-nbsp'></i>Upgrade FPP</button></span></div>
   <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><button name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class="buttons btn-outline-light"><i class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
 
 <?
