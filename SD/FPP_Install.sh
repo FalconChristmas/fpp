@@ -786,6 +786,8 @@ case "${FPPPLATFORM}" in
             echo "gpu_mem=128" >> /boot/config.txt
             echo "[pi0]" >> /boot/config.txt
             echo "gpu_mem=64" >> /boot/config.txt
+            echo "[pi02]" >> /boot/config.txt
+            echo "gpu_mem=128" >> /boot/config.txt
             echo "[pi1]" >> /boot/config.txt
             echo "gpu_mem=64" >> /boot/config.txt
             echo "[pi2]" >> /boot/config.txt
