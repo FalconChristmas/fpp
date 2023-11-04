@@ -180,9 +180,9 @@ done
 cd /opt/wifi
 rm -rf rtl8852bu
 
-git clone https://github.com/morrownr/rtl8852au
+git clone https://github.com/lwfinger/rtl8852au
 cd rtl8852au/
-mkdir /usr/lib/systemd/system-sleep/
+mkdir -p /usr/lib/systemd/system-sleep/
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
     KVER=$i ARCH=arm make -j ${CPUS}
