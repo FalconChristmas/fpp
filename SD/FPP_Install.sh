@@ -47,7 +47,7 @@
 #       hardware which does not support Bullseye may have issues.
 #
 #############################################################################
-FPPBRANCH=${FPPBRANCH:-"master"}
+FPPBRANCH=${FPPBRANCH:-"v7.3"}
 FPPIMAGEVER="2023-11"
 FPPCFGVER="79"
 FPPPLATFORM="UNKNOWN"
