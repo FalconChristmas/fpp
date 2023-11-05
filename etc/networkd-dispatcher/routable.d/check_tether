@@ -28,10 +28,10 @@ if [ "${TetherEnabled}" == "0" ]; then
     fi
 
     if [ "${TetherInterface}" != "${IFACE}" ]; then
-        rm -f "/etc/systemd/network/10-${TetherInterface}.network"
-        networkctl down "${TetherInterface}"
         HostAPDEnabled=$(systemctl is-enabled hostapd)
         if [ "${HostAPDEnabled}" != "disabled" ]; then
+            rm -f "/etc/systemd/network/10-${TetherInterface}.network"
+            networkctl down "${TetherInterface}"
             systemctl stop hostapd.service
             systemctl disable hostapd
             systemctl reload-or-restart systemd-networkd.service
