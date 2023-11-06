@@ -577,10 +577,6 @@ case "${OSVER}" in
                 ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
             fi
 
-            echo '#!/bin/sh' > /etc/networkd-dispatcher/routable.d/ntpd
-            echo "/usr/bin/systemctl restart ntp" >> /etc/networkd-dispatcher/routable.d/ntpd
-            chmod +x /etc/networkd-dispatcher/routable.d/ntpd
-
             #remove some things that were installed (not sure why)
             apt-get remove -y --purge --autoremove --allow-change-held-packages pocketsphinx-en-us
 
@@ -1363,7 +1359,9 @@ if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
     sed -i -e "s/getty.target//g" /lib/systemd/system/fppd.service
 fi
 cp /opt/fpp/etc/avahi/* /etc/avahi/services
-cp /opt/fpp/etc/networkd-dispatcher/routable.d/* /etc/networkd-dispatcher/routable.d
+if $isimage; then
+    cp /opt/fpp/etc/networkd-dispatcher/routable.d/* /etc/networkd-dispatcher/routable.d
+fi
 
 systemctl disable mosquitto
 systemctl daemon-reload
