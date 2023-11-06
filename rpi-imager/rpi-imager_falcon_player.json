@@ -1,30 +1,30 @@
 {
     "os_list": [
         {
-            "name": "FPP v7.3 Pi",
+            "name": "FPP v7.3.1 Pi",
             "description": "Falcon Player for all RPi models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/7.3/FPP-v7.3-Pi.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/7.3/FPP-v7.3.1-Pi.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 3984588800,
-            "extract_sha256": "c1e518f8201d3983a8aae3c8a26c8002b0a82be85061bf998359718edd648593",
-            "image_download_size": 1088228992,
-            "image_download_sha256": "99f31dc5f71d10dc5e93575dca7b55c5adc0d554fcf48465cc5583fb14b424ec",
-            "release_date": "2023-11-04"
+            "extract_sha256": "3e5338d6fd4f223c33a446d8342cc81d626a3ef1dd1052524fee878a49e167b4",
+            "image_download_size": 1091934579,
+            "image_download_sha256": "f3395fbbbb61dbee8fb8e3b76dbdd74491495fb7d998709fbd7b7fc0e1086c60",
+            "release_date": "2023-11-06"
         },
         {
-            "name": "FPP v7.3 BBB",
+            "name": "FPP v7.3.1 BBB",
             "description": "Falcon Player for all BeagleBone models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/7.3/FPP-v7.3-BBB.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/7.3/FPP-v7.3.1-BBB.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 3745513472,
-            "extract_sha256": "1de879cb86915ad8a4583e1c256ab35890c68582f5042982176b538509ad03e3",
-            "image_download_size": 921610304,
-            "image_download_sha256": "2e4ccefa92b4d378bdd37d71701a87647444266976095c2878d25045aeb4dbc0",
-            "release_date": "2023-11-04"
+            "extract_sha256": "8c4a4b8a886fceca01b1d59912766d367d3cf755b6fb01cf2d522c8c4ff3bbd6",
+            "image_download_size": 922139801,
+            "image_download_sha256": "c0114cc7b3659c3a48ccddc9d66a5fde2a9eab68db5361d742e032246339a29f",
+            "release_date": "2023-11-06"
         },
         {
             "name": "FPP v7.2 Pi",
