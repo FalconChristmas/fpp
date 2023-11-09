@@ -224,10 +224,36 @@ $(function() {
 	GetFiles('Crashes');
   }
 
-	function RunScript(scriptName)
-	{
-		window.open("runEventScript.php?scriptName=" + scriptName);
-	}
+function RunScriptDone() {
+    $('#runScriptCloseButton').prop('disabled', false);
+    EnableModalDialogCloseButton('runScriptDialog');
+}
+
+function RunScript(scriptName)
+{
+    var options = {
+        id: 'runScriptDialog',
+        title: 'Run Script',
+        body: "<textarea style='width: 99%; height: 500px;' disabled id='runScriptText'></textarea>",
+        noClose: true,
+        keyboard: false,
+        backdrop: 'static',
+        footer: '',
+        buttons: {
+            'Close': {
+                id: 'runScriptCloseButton',
+                click: function() { CloseModalDialog('runScriptDialog'); },
+                disabled: true,
+                class: 'btn-success'
+            }
+        }
+    };
+
+    $('#runScriptCloseButton').prop('disabled', true);
+    DoModalDialog(options);
+
+    StreamURL('runEventScript.php?scriptName=' + scriptName + '&nohtml=1', 'runScriptText', 'RunScriptDone');
+}
 
 	function EditScript(scriptName)
 	{
