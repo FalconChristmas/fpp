@@ -65,9 +65,9 @@ class fppEEPROM {
                         break;
                 case 96:
                         $elem['code'] = -1;
-                        $this->capeSerial = unpack('A12', substr($this->varData, $offset))[1];
-                        $len -= 12;
-                        $offset += 12;
+                        $this->capeSerial = unpack('A16', substr($this->varData, $offset))[1];
+                        $len -= 16;
+                        $offset += 16;
 
                         $this->deviceSerial = unpack('A42', substr($this->varData, $offset))[1];
                         break;
