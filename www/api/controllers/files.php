@@ -75,41 +75,54 @@ function files_rename()
 
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/files/:DirName
-function GetFiles()
-{
+function GetFilesHelper($dirName, $prefix = '') {
     $files = array();
 
-    $dirName = params("DirName");
-    check($dirName, "dirName", __FUNCTION__);
-    $dirName = GetDirSetting($dirName);
-    if ($dirName == "") {
-        return json(array("status" => "Invalid Directory"));
-    }
+    if ($prefix != '')
+        $prefix .= '/';
 
     // if ?nameOnly=1 was passed, then just array of names
     if (isset($_GET['nameOnly']) && ($_GET['nameOnly'] == '1')) {
         $rc = array();
         foreach (scandir($dirName) as $fileName) {
             if ($fileName != '.' && $fileName != '..') {
-                if (!preg_match("//u", $fileName)) {
-                    $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
+                if (is_dir($dirName . '/' . $fileName)) {
+                    $rc = array_merge($rc, GetFilesHelper($dirName . '/' . $fileName, $prefix . $fileName));
+                } else {
+                    if (!preg_match("//u", $fileName)) {
+                        $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
+                    }
+                    array_push($rc, $prefix . $fileName);
                 }
-                array_push($rc, $fileName);
             }
         }
         if (strtolower(params("DirName")) == "logs") {
             array_push($rc, "/var/log/messages");
             array_push($rc, "/var/log/syslog");
         }
-        return json($rc);
+        return $rc;
     }
 
     foreach (scandir($dirName) as $fileName) {
         if ($fileName != '.' && $fileName != '..') {
-            if (!preg_match("//u", $fileName)) {
-                $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
+            if (is_dir($dirName . '/' . $fileName)) {
+                $entries = GetFilesHelper($dirName . '/' . $fileName, $prefix . $fileName);
+                if (!count($entries)) {
+                    $current = array();
+                    $current["name"] = $prefix . $fileName;
+                    $current["mtime"] = date('m/d/y  h:i A', filemtime($dirName . '/' . $fileName));
+                    $current["sizeBytes"] = 0;
+                    $current["sizeHuman"] = 'Directory';
+
+                    $entries = array($current);
+                }
+                $files = array_merge($files, $entries);
+            } else {
+                if (!preg_match("//u", $fileName)) {
+                    $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
+                }
+                GetFileInfo($files, $dirName, $fileName, $prefix);
             }
-            GetFileInfo($files, $dirName, $fileName);
         }
     }
 
@@ -124,7 +137,23 @@ function GetFiles()
 
     }
 
-    return json(array("status" => "ok", "files" => $files));
+    return $files;
+}
+
+function GetFiles()
+{
+    $dirName = params("DirName");
+    check($dirName, "dirName", __FUNCTION__);
+    $dirName = GetDirSetting($dirName);
+    if ($dirName == "") {
+        return json(array("status" => "Invalid Directory"));
+    }
+
+    if (isset($_GET['nameOnly']) && ($_GET['nameOnly'] == '1')) {
+        return json(GetFilesHelper($dirName));
+    } else {
+        return json(array("status" => "ok", "files" => GetFilesHelper($dirName)));
+    }
 }
 
 function GetFile()
@@ -166,13 +195,13 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         return;
     }
 
-    if ($isLog && (substr($filename, 0, 9) == "_var_log_")) {
+    if ($isLog && (substr($filename, 0, 8) == "var/log/")) {
         $dir = "/var/log";
-        $filename = substr($filename, 9);
+        $filename = substr($filename, 8);
     }
 
 	if (!file_exists($dir . '/' . $filename)){
-		echo "File does not exist.";
+		echo "File $dir/$filename does not exist.";
 		return;
 	}
 
@@ -514,11 +543,13 @@ function DeleteFile()
     $status = "File not found";
     $dirName = params("DirName");
     $dir = GetDirSetting($dirName);
-    $fileName = findFile($dir, params("Name"));
+    $fileName = findFile($dir, params(0));
 
     $fullPath = "$dir/$fileName";
 
-    if ($dir == "") {
+    if (preg_match('/\/\.\.\//', $fileName)) {
+        $status = 'Cannot access parent directory';
+    } else if ($dir == "") {
         $status = "Invalid Directory";
     } else if (!file_exists($fullPath)) {
         $status = "File Not Found";
@@ -698,7 +729,7 @@ function PostFile()
     return json(array("status" => $status, "file" => $fileName, "dir" => $dirName, "written" => $size, "size" => $totalSize, "offset" => $offset));
 }
 
-function GetFileInfo(&$list, $dirName, $fileName)
+function GetFileInfo(&$list, $dirName, $fileName, $prefix = '')
 {
     $fileFullName = $dirName . '/' . $fileName;
     $filesize = real_filesize($fileFullName);
@@ -706,7 +737,7 @@ function GetFileInfo(&$list, $dirName, $fileName)
         $filesize = intval($filesize);
     }
     $current = array();
-    $current["name"] = $fileName;
+    $current["name"] = $prefix . $fileName;
     $current["mtime"] = date('m/d/y  h:i A', filemtime($fileFullName));
     $current["sizeBytes"] = $filesize;
     $current["sizeHuman"] = human_filesize($fileFullName);
@@ -738,3 +769,57 @@ function GetFileInfo(&$list, $dirName, $fileName)
     }
     array_push($list, $current);
 }
+
+function CreateDir()
+{
+    $status = "Unable to create directory";
+    $dirName = params("DirName");
+    $subDir = params("SubDir");
+    $sanitized = sanitizeFilename($subDir);
+    $dir = GetDirSetting($dirName);
+    $fullPath = "$dir/$subDir";
+
+    if ($sanitized != $subDir) {
+        $status = "Invalid subdirectory name";
+    } else if ($dir == "") {
+        $status = "Invalid Directory";
+    } else if (file_exists($fullPath)) {
+        $status = "Subdirectory already exists";
+    } else {
+        if (mkdir($fullPath)) {
+            chmod($fullPath, 0755);
+            $status = "OK";
+        } else {
+            $status = "Unable to delete file";
+        }
+    }
+
+    return json(array("status" => $status, "subdir" => $subDir, "dir" => $dirName));
+}
+
+function DeleteDir()
+{
+    $status = "SubDir not found";
+    $dirName = params("DirName");
+    $subDir = params("SubDir");
+    $sanitized = sanitizeFilename($subDir);
+    $dir = GetDirSetting($dirName);
+    $fullPath = "$dir/$subDir";
+
+    if ($sanitized != $subDir) {
+        $status = "Invalid subdirectory name";
+    } else if ($dir == "") {
+        $status = "Invalid Directory";
+    } else if (!file_exists($fullPath)) {
+        $status = "Subdirectory '$subDir' does not exist";
+    } else {
+        if (rmdir($fullPath)) {
+            $status = "OK";
+        } else {
+            $status = "Unable to delete subdirectory, does it contain any files?";
+        }
+    }
+
+    return json(array("status" => $status, "subdir" => $subDir, "dir" => $dirName));
+}
+

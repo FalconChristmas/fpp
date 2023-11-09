@@ -863,7 +863,8 @@ function AddTableRowFromTemplate(table) {
 function HandleTableRowMouseClick(event, row) {
     if ((event.target.nodeName == 'INPUT') ||
         (event.target.nodeName == 'TEXTAREA') ||
-        (event.target.nodeName == 'SELECT'))
+        (event.target.nodeName == 'SELECT') ||
+        (row.hasClass('unselectableRow')))
         return;
 
     event.preventDefault(); // prevent mouse move from highlighting text
@@ -3281,7 +3282,21 @@ function GetFiles(dir) {
                     detail = f.playtimeSeconds;
                 }
 
-                var tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td></tr>";
+                var thumbSize = 0;
+                if ((settings.hasOwnProperty('fileManagerThumbnailSize')) && (settings['fileManagerThumbnailSize'] > 0))
+                    thumbSize = settings['fileManagerThumbnailSize'];
+
+                var tableRow = '';
+                if ((dir == 'Images') && (thumbSize > 0)) {
+                    if (parseInt(f.sizeBytes) > 0) {
+                        tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td><img style='display: block; max-width: " + thumbSize + "px; max-height: " + thumbSize + "px; width: auto; height: auto;' src='api/file/" + dir + "/" + f.name + "' onClick=\"ViewImage('" + f.name + "');\" /></td></tr>";
+                    } else {
+                        tableRow = "<tr class='fileDetails unselectableRow' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td>Empty Subdir</td></tr>";
+                    }
+                } else {
+                    tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td></tr>";
+                }
+
                 $('#tbl' + dir).append(tableRow);
                 ++i;
             });
@@ -4961,7 +4976,7 @@ function RenameFile(dir, file) {
 }
 
 function DownloadFile(dir, file) {
-    location.href = "api/file/" + dir + "/" + encodeURIComponent(file.replace(/\//g, '_'));
+    location.href = "api/file/" + dir + "/" + encodeURIComponent(file).replace('%2F','/');
 }
 
 function DownloadFiles(dir, files) {
@@ -4969,7 +4984,7 @@ function DownloadFiles(dir, files) {
         DownloadFile(dir, files[0]);
     } else {
         for (var i = 0; i < files.length; i++) {
-            window.open("api/file/" + dir + "/" + encodeURIComponent(files[i]));
+            window.open("api/file/" + dir + "/" + encodeURIComponent(files[i]).replace('%2F','/'));
         }
     }
 }
@@ -4979,20 +4994,20 @@ function DownloadZip(dir) {
 }
 
 function ViewImage(file) {
-    var url = "api/file/Images/" + encodeURIComponent(file);
-    window.open(url, '_blank');
+    var url = "api/file/Images/" + encodeURIComponent(file).replace('%2F','/');
+    ViewFileImpl(url, file, "<center><a href='" + url + "' target='_blank'><img src='" + url + "' style='display: block; max-width: 700px; max-height: 500px; width: auto; height: auto;'></a><br>Click image to display full size.</center>");
 }
 
 function ViewFile(dir, file) {
-    var url = "api/file/" + dir + "/" + encodeURIComponent(file.replace(/\//g, '_'));
+    var url = "api/file/" + dir + "/" + encodeURIComponent(file).replace('%2F','/');
     ViewFileImpl(url, file);
 }
 function TailFile(dir, file, lines) {
-    var url = "api/file/" + dir + "/" + encodeURIComponent(file.replace(/\//g, '_')) + "?tail=" + lines;
+    var url = "api/file/" + dir + "/" + encodeURIComponent(file).replace('%2F','/') + "?tail=" + lines;
     //console.log(url);
     ViewFileImpl(url, file);
 }
-function ViewFileImpl(url, file) {
+function ViewFileImpl(url, file, html = '') {
     var options = {
         id: "fileViewerDialog",
         title: "File Viewer: " + file,
@@ -5009,21 +5024,20 @@ function ViewFileImpl(url, file) {
         }
     };
     DoModalDialog(options);
-    $.get(url, function (text) {
-        var ext = file.split('.').pop();
-        if (ext != "html")
-            $('#fileViewerText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
-    });
+    if (html == '') {
+        $.get(url, function (text) {
+            var ext = file.split('.').pop();
+            if (ext != "html")
+                $('#fileViewerText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
+        });
+    } else {
+        $('#fileViewerText').html(html);
+    }
 }
 
 function DeleteFile(dir, row, file, silent = false) {
-    if (file.indexOf("/") > -1) {
-        alert("You can not delete this file.");
-        return;
-    }
-
     $.ajax({
-        url: "api/file/" + dir + "/" + encodeURIComponent(file),
+        url: "api/file/" + dir + "/" + encodeURIComponent(file).replace('%2F','/'),
         type: 'DELETE'
     }).done(function (data) {
         if (data.status == "OK") {
@@ -5040,16 +5054,30 @@ function DeleteFile(dir, row, file, silent = false) {
 
 function SetupSelectableTableRow(info) {
     $('#' + info.tableName + ' > tbody').on('mousedown', 'tr', function (event, ui) {
-        $('#' + info.tableName + ' > tbody > tr').removeClass('fppTableSelectedEntry');
-        $(this).addClass('fppTableSelectedEntry');
-        var items = $('#' + info.tableName + ' > tbody > tr');
-        info.selected = items.index(this);
+        var enabledButtonState;
+        var disabledButtonState;
+
+        if ($(this).hasClass('fppTableSelectedEntry')) {
+            $(this).removeClass('fppTableSelectedEntry');
+
+            info.selected = -1;
+            enabledButtonState = 'disable';
+            disabledButtonState = 'enable';
+        } else {
+            $('#' + info.tableName + ' > tbody > tr').removeClass('fppTableSelectedEntry');
+            $(this).addClass('fppTableSelectedEntry');
+
+            var items = $('#' + info.tableName + ' > tbody > tr');
+            info.selected = items.index(this);
+            enabledButtonState = 'enable';
+            disabledButtonState = 'disable';
+        }
 
         for (var i = 0; i < info.enableButtons.length; i++) {
-            SetButtonState('#' + info.enableButtons[i], "enable");
+            SetButtonState('#' + info.enableButtons[i], enabledButtonState);
         }
         for (var i = 0; i < info.disableButtons.length; i++) {
-            SetButtonState('#' + info.disableButtons[i], "disable");
+            SetButtonState('#' + info.disableButtons[i], disabledButtonState);
         }
     });
 

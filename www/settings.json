@@ -215,7 +215,8 @@
                 "disableUIWarnings",
                 "DateFormat",
                 "TimeFormat",
-                "temperatureInF"
+                "temperatureInF",
+                "fileManagerThumbnailSize"
             ]
         },
         "uiColors": {
@@ -914,6 +915,24 @@
                 "If no connection": 0,
                 "Enabled": 1,
                 "Disabled": 2
+            }
+        },
+        "fileManagerThumbnailSize": {
+            "name": "fileManagerThumbnailSize",
+            "description": "File Manager Thumbnail Size",
+            "tip": "The max height and width of the thumbnail preview for image files in the FPP File Manager UI.  The UI will preserve the aspect ratio to fit the image within this height and width.",
+            "default": 75,
+            "type": "select",
+            "options": {
+                "Disabled": 0,
+                "25 pixels": 25,
+                "50 pixels": 50,
+                "75 pixels": 75,
+                "100 pixels": 100,
+                "125 pixels": 125,
+                "150 pixels": 150,
+                "175 pixels": 175,
+                "200 pixels": 200
             }
         },
         "FPP_UUID": {
