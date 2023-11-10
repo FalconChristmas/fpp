@@ -49,9 +49,9 @@ function GetEEPROMFilename()
         $eepromFile = file_get_contents("/home/fpp/media/tmp/eeprom_location.txt");
     }
     if (!file_exists($eepromFile) && startsWith($eepromFile, "/sys/bus/i2c/devices/")) {
-        $target = "/sys/bus/i2c/devices/i2c-1/new_device"
+        $target = "/sys/bus/i2c/devices/i2c-1/new_device";
         if ($settings['Platform'] == "BeagleBone Black") {
-            $target = "/sys/bus/i2c/devices/i2c-2/new_device"
+            $target = "/sys/bus/i2c/devices/i2c-2/new_device";
         }
         system("sudo bash -c \"echo '24c256 0x50' > $target\"");
     }
