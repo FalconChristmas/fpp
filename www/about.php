@@ -479,12 +479,18 @@ if ($settings['uiLevel'] > 0) {
     } else {
         $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | grep 'inet ' | awk '{print \$2}'")));
     }
+    $found = 0;
     foreach ($remotes as $desc => $host) {
         if ((!in_array($host, $IPs)) && (!preg_match('/^169\.254\./', $host))) {
             $upgradeSources[$desc] = $host;
+            if (isset($settings['UpgradeSource']) && ($settings['UpgradeSource'] == $host))
+                $found = 1;
         }
     }
-    $upgradeSources = array("github.com" => "github.com") + $upgradeSources;
+    if (!$found && isset($settings['UpgradeSource']) && ($settings['UpgradeSource'] != 'github.com'))
+        $upgradeSources = array($settings['UpgradeSource'] . ' (Unreachable)' => $settings['UpgradeSource'], 'github.com' => 'github.com') + $upgradeSources;
+    else
+        $upgradeSources = array("github.com" => "github.com") + $upgradeSources;
     ?>
                 <tr><td>FPP Upgrade Source:</td><td><?PrintSettingSelect("Upgrade Source", "UpgradeSource", 0, 0, "github.com", $upgradeSources);?></td></tr>
     <?
