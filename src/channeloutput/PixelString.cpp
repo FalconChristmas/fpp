@@ -612,12 +612,21 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
     if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::map<std::string, std::vector<VirtualString*>> vstrings;
         for (int s = 0; s < strings.size(); s++) {
+            char vsnum = 'A';
+            int vsidx = 0;
             for (int vs = 0; vs < strings[s]->m_virtualStrings.size(); vs++) {
                 std::string desc = strings[s]->m_virtualStrings[vs].description;
                 if (desc == "") {
                     desc = "String-" + std::to_string(s + 1);
                     if (strings[s]->m_virtualStrings.size() > 1) {
-                        desc += "-" + std::to_string(vs + 1);
+                        desc.append(1, vsnum);
+                        desc += "-" + std::to_string(vsidx + 1);
+                        if (strings[s]->m_virtualStrings[vs].receiverNum == -1) {
+                            vsidx++;
+                        } else if (vs != 0) {
+                            vsidx = 0;
+                            vsnum++;
+                        }
                     }
                 }
                 // xLights will name the individual strings of a matrix/prop/model with a -str-# postfix
