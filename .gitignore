@@ -22,6 +22,8 @@ src/Makefile.local
 src/libfpp*.so
 src/libFalconV5.so
 src/libfpp*.dylib
+src/fsequtils.zip
+src/libjson*.dylib
 cscope.out
 tags
 pixelnetDMX
