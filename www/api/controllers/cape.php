@@ -46,7 +46,7 @@ function GetEEPROMFilename()
 
     $eepromFile = "";
     if (file_exists("/home/fpp/media/tmp/eeprom_location.txt")) {
-        $eepromLoc = file_get_contents("/home/fpp/media/tmp/eeprom_location.txt");
+        $eepromFile = file_get_contents("/home/fpp/media/tmp/eeprom_location.txt");
     }
     if (!file_exists($eepromFile) && startsWith($eepromFile, "/sys/bus/i2c/devices/")) {
         $target = "/sys/bus/i2c/devices/i2c-1/new_device"
