@@ -407,7 +407,7 @@ include 'menu.inc';?>
                   <input onclick="ButtonHandler('Sequences', 'rename');" class="disableButtons singleSequencesButton" type="button"  value="Rename" />
                   <input onclick="ButtonHandler('Sequences', 'delete');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Delete" />
                 </div>
-                <div class="note"><strong>CTRL+Click to select multiple items.  SHIFT+CLICK can be used to select a range of items.</strong></div>
+                <div class="note"><strong>CTRL+Click to select multiple items.  SHIFT+Click can be used to select a range of items.</strong></div>
             </div>
           </div>
         </div>
