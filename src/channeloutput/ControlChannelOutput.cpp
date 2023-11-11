@@ -56,7 +56,7 @@ int ControlChannelOutput::Init(Json::Value config) {
 }
 
 int ControlChannelOutput::SendData(unsigned char* channelData) {
-    uint8_t v = channelData[m_startChannel];
+    uint8_t v = *channelData;
     if (v != lastValue) {
         lastValue = v;
         for (auto& p : presets[v]) {
