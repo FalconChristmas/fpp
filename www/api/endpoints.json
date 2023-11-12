@@ -1058,6 +1058,17 @@
             }
         },
         {
+            "endpoint": "git/branches",
+            "methods": {
+                "GET": {
+                    "desc": "Returns an array of branches that can be switched to",
+                    "output": [
+                        "master", "v7.3", "v7.2", "v7.1", "v7.0"
+                    ]
+                }
+            }
+        },
+        {
             "endpoint": "media",
             "methods": {
                 "GET": {

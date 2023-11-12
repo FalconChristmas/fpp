@@ -12,9 +12,9 @@ if curl --silent --head https://github.com | grep -i "Content-Type: text/html; c
 
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
-		cd ${FPPDIR} && $SUDO git fetch && $SUDO git fetch --tags -f && $SUDO git submodule foreach git fetch
+		cd ${FPPDIR} && $SUDO git fetch -p -P && $SUDO git fetch --tags -f && $SUDO git submodule foreach git fetch -p -P
 	else
-		cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch && sudo -u ${FPPUSER} git submodule foreach git fetch
+		cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch  -p -P && sudo -u ${FPPUSER} git submodule foreach git fetch -p -P
 	fi
 
 else

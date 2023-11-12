@@ -1764,6 +1764,31 @@ function shutdownSelectedSystems() {
     });
 }
 
+function changeBranch(rowID) {
+    streamCount++;
+    EnableDisableStreamButtons();
+
+    showLogsRow(rowID);
+    addLogsDivider(rowID);
+
+    var ip = ipFromRowID(rowID);
+    var branch = $("#branchSelect").val();
+    StreamURL('changeRemoteBranch.php?branch=' + branch + '&ip=' + ip, rowID + '_logText', 'actionDone', 'actionFailed');
+}
+function changeBranchSelectedSystems() {
+	$('input.remoteCheckbox').each(function() {
+		if ($(this).is(":checked")) {
+            var rowID = $(this).closest('tr').attr('id');
+            if ($('#' + rowID).hasClass('filtered')) {
+                return true;
+            }
+
+            $(this).prop('checked', false);
+            changeBranch(rowID);
+        }
+    });
+}
+
 function copyFilesToSystem(rowID) {
     streamCount++;
     EnableDisableStreamButtons();
@@ -1971,6 +1996,7 @@ function performMultiAction() {
         case 'remoteMode':     setSelectedSystemsMode('remote');     break;
         case 'playerMode':     setSelectedSystemsMode('player');     break;
         case 'addProxy':       proxySelectedIPs();                    break;
+        case 'changeBranch':   changeBranchSelectedSystems();   break;
         default:               alert('You must select an action first.'); break;
     }
 
@@ -1984,7 +2010,8 @@ function multiActionChanged() {
 
     switch (action) {
         case 'copyFiles':      $('#copyOptions').show();      break;
-        case 'copyOSFiles' :   $('#copyOSOptions').show();      break;
+        case 'copyOSFiles' :   $('#copyOSOptions').show();    break;
+        case 'changeBranch' :   $('#changeBranchOptions').show();    break;
     }
 }
 
@@ -2052,6 +2079,9 @@ include 'menu.inc';?>
                         <option value='playerMode'>Set to Player</option>
                         <option value='remoteMode'>Set to Remote</option>
                         <option value='addProxy'>Add as Proxy</option>
+                        <? if ($uiLevel > 0) { ?>
+                        <option value='changeBranch'>Change Branch</option>
+                        <?}?>
                     </select>
                     <button id='performActionButton' type='button' class='buttons btn-success' value='Run' onClick='performMultiAction();'><i class="fas fa-chevron-right"></i> Run</button>
                     <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
@@ -2067,6 +2097,12 @@ include 'menu.inc';?>
                     <span class="warning-text">No .fppos files found on this system.</span>
                 </div>
                 <b>The rsync daemon must be enabled on the remote system(s) to use this functionality.  rsync can be enabled by going to the System tab on the Settings page of the remote system.</b>
+            </div>
+            <div id = 'changeBranchOptions' class='actionOptions'>
+                <h2>Change to branch:
+                <select id="branchSelect">
+                </select>
+                </h2>
             </div>
             <span class='actionOptions' id='copyOptions'>
                 <br>
@@ -2135,7 +2171,15 @@ $(document).ready(function() {
         getFPPSystems();
         getLocalFpposFiles();
     });
+    $.get("api/git/branches", function(data) {
 
+        $.each(data, function (i, item) {
+            $('#branchSelect').append($('<option>', { 
+                value: item,
+                text : item 
+            }));
+        });
+    });
 
     var $table = $('#fppSystemsTable');
 
@@ -2224,7 +2268,7 @@ $(document).ready(function() {
                 3: {
                     "Master": function(e,n,f,i,$r,c,data) { return e === "Master"; }, // Can this be removed now?
                     "Player": function(e,n,f,i,$r,c,data) { return e === "Player"; },
-		    "Multisync": function(e,n,f,i,$r,c,data) { return e === "Player w/ Multisync"; },
+                    "Multisync": function(e,n,f,i,$r,c,data) { return e === "Player w/ Multisync"; },
                     "Bridge": function(e,n,f,i,$r,c,data) { return e === "Bridge"; },
                     "Remote": function(e,n,f,i,$r,c,data) { return e === "Remote"; }
                 }

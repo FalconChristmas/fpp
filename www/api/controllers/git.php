@@ -155,4 +155,37 @@ function GitOSReleaseSizes()
     return $rc;
 }
 
+// GET http://fpp/api/git/branches
+// Returns array of supported branch names
+function GitBranches()
+{
+    $rows = array();
+    global $fppDir;
+
+    exec("$fppDir/scripts/git_fetch", $log);
+    unset($log);
+    exec("git -C " . escapeshellarg($fppDir) . " branch -l --remotes", $log);
+
+    foreach ($log as $line) {
+        $line = trim($line);
+        if (startsWith($line, "origin/")) {
+            $branch = substr($line, 7);
+
+            if (!(preg_match("*v[01]\.[0-9x]*", $branch)   // very very old v0.x and v1.x branches
+                || preg_match("*v2\.[0-9x]*", $branch)   // old v2.x branchs, that can no longer work (wrong lib versions)
+                || preg_match("*v3\.[0-9x]*", $branch)   // old v3.x branchs, that can no longer work (wrong libhttp versions)
+                || preg_match("*v4\.[0-9x]*", $branch)   // old v4.x branchs, that can no longer work (wrong vlc versions)
+                || preg_match("*v4\.[0-9x]*", $branch)   // old v4.x branchs, that can no longer work (wrong vlc versions)
+                || preg_match("*v5\.[0-9x]*", $branch)   // old v5.x branchs, that can no longer work (wrong OS versions)
+                || startsWith($branch, "dependabot/")    // dependabot created branches
+                || startsWith($branch, "HEAD ")  
+                )) {
+                array_push($rows, $branch);
+            }
+
+        }
+    }
+
+    return json($rows);
+}
 ?>
