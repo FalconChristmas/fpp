@@ -353,6 +353,11 @@ int Playlist::Load(const char* filename) {
 
     } else {
         if (IsExtensionAudio(GetFileExtension(tmpFilename)) || IsExtensionVideo(GetFileExtension(tmpFilename))) {
+            if (IsExtensionAudio(GetFileExtension(tmpFilename)))
+                m_filename = FPP_DIR_MUSIC("/" + filename);
+            else
+                m_filename = FPP_DIR_VIDEO("/" + filename);
+
             root["name"] = tmpFilename;
             root["repeat"] = 0;
             root["loopCount"] = 0;
@@ -678,8 +683,11 @@ int Playlist::IsPlaying(void) {
  *
  */
 int Playlist::FileHasBeenModified(void) {
-    if (endsWith(m_filename, ".fseq"))
+    if ((endsWith(m_filename, ".fseq")) ||
+        (IsExtensionAudio(GetFileExtension(m_filename))) ||
+        (IsExtensionVideo(GetFileExtension(m_filename)))) {
         return 0;
+    }
 
     struct stat attr;
     stat(m_filename.c_str(), &attr);
