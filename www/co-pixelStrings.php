@@ -954,8 +954,14 @@ function GetPixelStringRows()
 function GetPixelStringPins()
 {
     const subType = GetPixelStringCapeFileName();
-    const capeInfo = KNOWN_CAPES[subType];
+    var capeInfo = KNOWN_CAPES[subType];
+
     if (capeInfo) {
+        for (var i = 0; i < capeInfo.outputs.length; i++) {
+            if (capeInfo.outputs[i].hasOwnProperty('sharedOutput')) {
+                capeInfo.outputs[i] = capeInfo.outputs[capeInfo.outputs[i].sharedOutput];
+            }
+        }
         return capeInfo.outputs && (capeInfo.outputs || []).map(info => info.pin);
     }
     return [];
