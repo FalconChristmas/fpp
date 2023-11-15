@@ -798,6 +798,10 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             var hostname = data[i].hostname;
             if (hostname == "") {
                 hostname = ip;
+            } else {
+                var cleanHost = hostname.replace(/[^a-zA-Z0-9]/, '_');
+                hostRowKey = hostRowKey + '_' + cleanHost;
+                rowID = rowID + '_' + cleanHost;
             }
             var hostKey = hostname + '_' + data[i].version + '_' + data[i].fppModeString + '_' + data[i].channelRanges;
             hostKey = hostKey.replace(/[^a-zA-Z0-9]/, '_');
