@@ -1571,7 +1571,11 @@ function GetPlaylistRowHTML(ID, entry, editMode) {
 
     HTML += "</div>";
 
-    HTML += "<div class='psiDataSimple'>";
+    HTML += "<div class='psiDataSimple'";
+    if (editMode && (typeof entry.note == 'string') && (entry.note != ''))
+        HTML += " title='" + entry.note + "'";
+    HTML += ">";
+
     if (entry.type == 'dynamic') {
         HTML += psiDetailsForEntrySimple(entry, editMode);
 
