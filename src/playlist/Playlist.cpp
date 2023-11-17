@@ -291,102 +291,109 @@ int Playlist::Load(const char* filename) {
 
     Events::Publish("playlist/name/status", filename);
 
-    Json::Value root;
-    std::string tmpFilename = filename;
+    try {
+        Json::Value root;
+        std::string tmpFilename = filename;
 
-    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+        std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
-    if (endsWith(tmpFilename, ".fseq")) {
-        m_filename = FPP_DIR_SEQUENCE("/" + tmpFilename);
-
-        root["name"] = tmpFilename;
-        root["repeat"] = 0;
-        root["loopCount"] = 0;
-
-        std::string mediaName;
-        FSEQFile* src = FSEQFile::openFSEQFile(m_filename);
-        if (src && !src->getVariableHeaders().empty()) {
-            for (auto& head : src->getVariableHeaders()) {
-                if ((head.code[0] == 'm') && (head.code[1] == 'f')) {
-                    if (strchr((char*)&head.data[0], '/')) {
-                        mediaName = (char*)(strrchr((char*)&head.data[0], '/') + 1);
-                    } else if (strchr((char*)&head.data[0], '\\')) {
-                        mediaName = (char*)(strrchr((char*)&head.data[0], '\\') + 1);
-                    } else {
-                        mediaName = (const char*)&head.data[0];
-                    }
-                    std::string tmpMedia = sanitizeMediaName(mediaName);
-                    if (tmpMedia == "") {
-                        std::string warn = "fseq \"" + tmpFilename + "\" lists a media file of \"" + mediaName + "\" but it can not be found";
-
-                        WarningHolder::AddWarningTimeout(warn, 60);
-                        LogDebug(VB_PLAYLIST, "%s\n", warn.c_str());
-                        mediaName = "";
-                    }
-                    // Set the Media to the correct name
-                    mediaName = tmpMedia;
-                }
-            }
-        }
-
-        if (src)
-            delete src;
-
-        Json::Value mp(Json::arrayValue);
-        Json::Value pe;
-        if (mediaName.empty()) {
-            pe["type"] = "sequence";
-            LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s\n", tmpFilename.c_str());
-        } else {
-            pe["type"] = "both";
-            pe["mediaName"] = mediaName;
-            LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s/%s\n", tmpFilename.c_str(), mediaName.c_str());
-        }
-
-        pe["enabled"] = 1;
-        pe["playOnce"] = 0;
-        pe["sequenceName"] = tmpFilename;
-        pe["videoOut"] = "--Default--";
-
-        mp.append(pe);
-        root["mainPlaylist"] = mp;
-
-    } else {
-        if (IsExtensionAudio(GetFileExtension(tmpFilename)) || IsExtensionVideo(GetFileExtension(tmpFilename))) {
-            if (IsExtensionAudio(GetFileExtension(tmpFilename)))
-                m_filename = FPP_DIR_MUSIC("/" + filename);
-            else
-                m_filename = FPP_DIR_VIDEO("/" + filename);
+        if (endsWith(tmpFilename, ".fseq")) {
+            m_filename = FPP_DIR_SEQUENCE("/" + tmpFilename);
 
             root["name"] = tmpFilename;
             root["repeat"] = 0;
             root["loopCount"] = 0;
 
+            std::string mediaName;
+            FSEQFile* src = FSEQFile::openFSEQFile(m_filename);
+            if (src && !src->getVariableHeaders().empty()) {
+                for (auto& head : src->getVariableHeaders()) {
+                    if ((head.code[0] == 'm') && (head.code[1] == 'f')) {
+                        if (strchr((char*)&head.data[0], '/')) {
+                            mediaName = (char*)(strrchr((char*)&head.data[0], '/') + 1);
+                        } else if (strchr((char*)&head.data[0], '\\')) {
+                            mediaName = (char*)(strrchr((char*)&head.data[0], '\\') + 1);
+                        } else {
+                            mediaName = (const char*)&head.data[0];
+                        }
+                        std::string tmpMedia = sanitizeMediaName(mediaName);
+                        if (tmpMedia == "") {
+                            std::string warn = "fseq \"" + tmpFilename + "\" lists a media file of \"" + mediaName + "\" but it can not be found";
+
+                            WarningHolder::AddWarningTimeout(warn, 60);
+                            LogDebug(VB_PLAYLIST, "%s\n", warn.c_str());
+                            mediaName = "";
+                        }
+                        // Set the Media to the correct name
+                        mediaName = tmpMedia;
+                    }
+                }
+            }
+
+            if (src)
+                delete src;
+
             Json::Value mp(Json::arrayValue);
             Json::Value pe;
-
-            pe["type"] = "media";
-            pe["mediaName"] = tmpFilename;
-
-            LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s\n", tmpFilename.c_str());
+            if (mediaName.empty()) {
+                pe["type"] = "sequence";
+                LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s\n", tmpFilename.c_str());
+            } else {
+                pe["type"] = "both";
+                pe["mediaName"] = mediaName;
+                LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s/%s\n", tmpFilename.c_str(), mediaName.c_str());
+            }
 
             pe["enabled"] = 1;
             pe["playOnce"] = 0;
+            pe["sequenceName"] = tmpFilename;
             pe["videoOut"] = "--Default--";
+
             mp.append(pe);
             root["mainPlaylist"] = mp;
 
         } else {
-            m_filename = FPP_DIR_PLAYLIST("/" + filename + ".json");
-            root = LoadJSON(m_filename.c_str());
+            if (IsExtensionAudio(GetFileExtension(tmpFilename)) || IsExtensionVideo(GetFileExtension(tmpFilename))) {
+                if (IsExtensionAudio(GetFileExtension(tmpFilename)))
+                    m_filename = FPP_DIR_MUSIC("/" + filename);
+                else
+                    m_filename = FPP_DIR_VIDEO("/" + filename);
+
+                root["name"] = tmpFilename;
+                root["repeat"] = 0;
+                root["loopCount"] = 0;
+
+                Json::Value mp(Json::arrayValue);
+                Json::Value pe;
+
+                pe["type"] = "media";
+                pe["mediaName"] = tmpFilename;
+
+                LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s\n", tmpFilename.c_str());
+
+                pe["enabled"] = 1;
+                pe["playOnce"] = 0;
+                pe["videoOut"] = "--Default--";
+                mp.append(pe);
+                root["mainPlaylist"] = mp;
+
+            } else {
+                m_filename = FPP_DIR_PLAYLIST("/" + filename + ".json");
+                root = LoadJSON(m_filename.c_str());
+            }
         }
+
+        int res = Load(root);
+
+        GetConfigStr();
+
+        return res;
+    } catch ( std::exception &er ) {
+        std::string warn = "Playlist " + GetPlaylistName() + " is invalid: " + er.what();
+        LogWarn(VB_PLAYLIST, warn.c_str());
+        WarningHolder::AddWarningTimeout(warn, 60);
+        return 0;
     }
-
-    int res = Load(root);
-
-    GetConfigStr();
-
-    return res;
 }
 
 /*
