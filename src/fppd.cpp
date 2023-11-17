@@ -254,6 +254,7 @@ static bool dumpstack_gdb(void) {
     return false;
 }
 
+static std::string SystemUUID;
 static void handleCrash(int s) {
     static volatile bool inCrashHandler = false;
     if (inCrashHandler) {
@@ -339,8 +340,8 @@ static void handleCrash(int s) {
 #else
             char sysType[] = "Unknown";
 #endif
-            char zfName[128];
-            snprintf(zfName, sizeof(zfName), "crashes/fpp-%s-%s-%s.zip", sysType, getFPPVersion(), tbuffer);
+            char zfName[256];
+            snprintf(zfName, sizeof(zfName), "crashes/fpp-%s-%s-%s-%s.zip", sysType, getFPPVersion(), SystemUUID.c_str(), tbuffer);
 
             char zName[1024];
             snprintf(zName, sizeof(zfName), "zip -r %s /tmp/fppd_crash.log", zfName);
@@ -616,6 +617,11 @@ int main(int argc, char* argv[]) {
     setupExceptionHandlers();
     FPPLogger::INSTANCE.Init();
     LoadSettings(argv[0]);
+
+    // save the UUID so crash reports can add that to the filename 
+    // to make it easier to collect crashes from a single system
+    // for analysis
+    SystemUUID = getSetting("SystemUUID", "unknown");
 
     curl_global_init(CURL_GLOBAL_ALL);
 
