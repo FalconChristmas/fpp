@@ -633,7 +633,7 @@ public:
                 }
             }
             
-            std::unique_lock<std::mutex> lock(m->getRunningEffectMutex());
+            std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
             TextMovementEffect* ef = dynamic_cast<TextMovementEffect*>(m->getRunningEffect());
             if (ef == nullptr) {
                 ef = new TextMovementEffect(m);
@@ -651,10 +651,9 @@ public:
             ef->imageData = newData;
             ef->imageDataCols = image2.columns();
             ef->imageDataRows = image2.rows();
-            ef->copyImageData(ef->x, ef->y);
-            lock.unlock();
-            
+            ef->copyImageData(ef->x, ef->y);            
             m->setRunningEffect(ef, t);
+            lock.unlock();
             free(old);
         }
     }

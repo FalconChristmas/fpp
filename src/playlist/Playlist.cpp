@@ -1513,7 +1513,7 @@ Json::Value Playlist::GetMqttStatusJSON(void) {
     result["status"] = m_currentState; // Works because single playlist
     Json::Value playlistArray = Json::Value(Json::arrayValue);
 
-    if (m_currentState != "idle") {
+    if (m_currentState != "idle" && m_currentSection != nullptr && m_sectionPosition < m_currentSection->size()) {
         Json::Value entryArray = Json::Value(Json::arrayValue);
         Json::Value playlist;
         // Only one entry right now.

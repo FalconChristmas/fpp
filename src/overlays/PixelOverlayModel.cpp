@@ -846,7 +846,7 @@ void PixelOverlayModel::toJson(Json::Value& result) {
 }
 
 int32_t PixelOverlayModel::updateRunningEffects() {
-    std::unique_lock<std::mutex> l(effectLock);
+    std::unique_lock<std::recursive_mutex> l(effectLock);
     if (runningEffect) {
         int32_t v = runningEffect->update();
         if (v == 0) {
@@ -859,7 +859,7 @@ int32_t PixelOverlayModel::updateRunningEffects() {
 }
 
 void PixelOverlayModel::setRunningEffect(RunningEffect* ef, int32_t firstUpdateMS) {
-    std::unique_lock<std::mutex> l(effectLock);
+    std::unique_lock<std::recursive_mutex> l(effectLock);
     if (runningEffect) {
         if (runningEffect != ef) {
             delete runningEffect;

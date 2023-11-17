@@ -454,7 +454,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
                 PixelOverlayModel* m = models[mn];
                 m->toJson(model);
                 model["isActive"] = (int)m->getState().getState();
-                std::unique_lock<std::mutex> lock(m->getRunningEffectMutex());
+                std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
                 if (m->getRunningEffect()) {
                     model["effectName"] = m->getRunningEffect()->name();
                     model["isLocked"] = true;
@@ -474,7 +474,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
             std::unique_lock<std::mutex> lock(modelsLock);
             auto m = getModel(p3);
             if (m) {
-                std::unique_lock<std::mutex> lock(m->getRunningEffectMutex());
+                std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
                 if (p4 == "data") {
                     Json::Value data;
                     m->getDataJson(data, p5 == "rle");
