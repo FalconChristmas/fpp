@@ -114,7 +114,9 @@ public:
 
     bool applyEffect(const std::string& autoState, const std::string& effect, const std::vector<std::string>& args);
     void setRunningEffect(RunningEffect* r, int32_t firstUpdateMS);
-    RunningEffect* getRunningEffect() const { return runningEffect; }
+    
+    std::mutex& getRunningEffectMutex() { return effectLock; }
+    RunningEffect* getRunningEffect() const { return runningEffect; } // make sure you have the mutex locked
     int32_t updateRunningEffects();
 
     void setChildState(const std::string& n, const PixelOverlayState& state, int ox, int oy, int w, int h);

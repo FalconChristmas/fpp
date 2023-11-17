@@ -611,13 +611,6 @@ public:
             }
             image2.modifyImage();
 
-            TextMovementEffect* ef = dynamic_cast<TextMovementEffect*>(m->getRunningEffect());
-            if (ef == nullptr) {
-                ef = new TextMovementEffect(m);
-                ef->x = (int)x;
-                ef->y = (int)y;
-            }
-
             const MagickLib::PixelPacket* pixel_cache = image2.getConstPixels(0, 0, image2.columns(), image2.rows());
             uint8_t* newData = (uint8_t*)malloc(image2.columns() * image2.rows() * 3);
             for (int yi = 0; yi < image2.rows(); yi++) {
@@ -639,6 +632,14 @@ public:
                     np[2] = b;
                 }
             }
+            
+            std::unique_lock<std::mutex> lock(m->getRunningEffectMutex());
+            TextMovementEffect* ef = dynamic_cast<TextMovementEffect*>(m->getRunningEffect());
+            if (ef == nullptr) {
+                ef = new TextMovementEffect(m);
+                ef->x = (int)x;
+                ef->y = (int)y;
+            }
             ef->speed = pixelsPerSecond;
             ef->disableWhenDone = disableWhenDone;
             ef->direction = position;
@@ -651,6 +652,8 @@ public:
             ef->imageDataCols = image2.columns();
             ef->imageDataRows = image2.rows();
             ef->copyImageData(ef->x, ef->y);
+            lock.unlock();
+            
             m->setRunningEffect(ef, t);
             free(old);
         }
