@@ -115,7 +115,7 @@ public:
     bool applyEffect(const std::string& autoState, const std::string& effect, const std::vector<std::string>& args);
     void setRunningEffect(RunningEffect* r, int32_t firstUpdateMS);
     
-    std::mutex& getRunningEffectMutex() { return effectLock; }
+    std::recursive_mutex& getRunningEffectMutex() { return effectLock; }
     RunningEffect* getRunningEffect() const { return runningEffect; } // make sure you have the mutex locked
     int32_t updateRunningEffects();
 
@@ -147,7 +147,7 @@ protected:
     } __attribute__((__packed__));
     OverlayBufferData* overlayBufferData;
 
-    std::mutex effectLock;
+    std::recursive_mutex effectLock;
     RunningEffect* runningEffect;
 
     class ChildModelState {
