@@ -551,8 +551,13 @@ public:
 
         findCapeEEPROM();
         if (EEPROM != "") {
-            parseEEPROM();
-            processEEPROM();
+            try {
+                parseEEPROM();
+                processEEPROM();
+            } catch (std::exception& ex) {
+                corruptEEPROM = true;
+                printf("Corrupt EEPROM: %s\n", ex.what());
+            }
         }
         loadFiles();
         std::filesystem::remove_all(outputPath);
@@ -562,6 +567,9 @@ public:
     }
 
     CapeUtils::CapeStatus capeStatus() {
+        if (corruptEEPROM) {
+            return CapeUtils::CapeStatus::CORRUPT;
+        }
         if (validSignature) {
             if (ORIGEEPROM.find("sys/bus/i2c") != std::string::npos) {
                 return CapeUtils::CapeStatus::SIGNED;
@@ -678,7 +686,7 @@ private:
                 printf("Couldn't get eeprom\n");
             }
             printf("Copyng eeprom %s -> %s\n", EEPROM.c_str(), "/home/fpp/media/tmp/eeprom.bin");
-            removeIfExist( "/home/fpp/media/tmp/eeprom.bin");
+            removeIfExist("/home/fpp/media/tmp/eeprom.bin");
             copyFile(EEPROM, "/home/fpp/media/tmp/eeprom.bin");
             ORIGEEPROM = EEPROM;
             put_file_contents("/home/fpp/media/tmp/eeprom_location.txt", (uint8_t*)ORIGEEPROM.c_str(), ORIGEEPROM.size());
@@ -1224,6 +1232,7 @@ private:
     bool validSignature = false;
     bool hasSignature = false;
     bool validEpromLocation = true;
+    bool corruptEEPROM = false;
 
     std::map<std::string, std::vector<uint8_t>> fileMap;
 };

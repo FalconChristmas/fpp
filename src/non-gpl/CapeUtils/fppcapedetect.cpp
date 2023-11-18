@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
         std::filesystem::remove_all(entry.path());
     }
 
-    if (CapeUtils::INSTANCE.initCape(false) == CapeUtils::CapeStatus::NOT_PRESENT) {
+    if (CapeUtils::INSTANCE.initCape(false) == CapeUtils::CapeStatus::NOT_PRESENT || CapeUtils::INSTANCE.initCape(false) == CapeUtils::CapeStatus::CORRUPT) {
         exit(-1);
     }
 }
