@@ -21,7 +21,14 @@ if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
 
     if (preg_match('/^http/', $fn)) {
         $file = '/home/fpp/media/tmp/tmp-eeprom.bin';
-        system("/usr/bin/wget -O $file " . $fn);
+        echo "Downloading $fn to $file \n\n";
+        system("/usr/bin/wget -O $file $fn 2>&1");
+        if (!file_exists($file) || filesize($file) < 72) {
+            echo "\n\nProblems downloading firmware.  Check above errors for details.\n";
+            echo "You may be able to manually download the file and do the upgrade directly with the file.\n";
+            unlink($file);
+            $file = '';
+        }
         $unlink = 1;
     } else if (preg_match('/\/opt\/fpp\/capes/', $fn)) {
         $file = $fn;
@@ -50,5 +57,5 @@ if ($file != '') {
 
     echo "\n";
 } else {
-    echo "ERROR: No firmware file specified.";
+    echo "\nERROR: No firmware file specified.\n";
 }
