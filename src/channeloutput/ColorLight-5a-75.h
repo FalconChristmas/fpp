@@ -67,14 +67,6 @@ private:
 
     int m_slowCount;
 
-    struct ifreq m_if_idx;
-    struct ifreq m_if_mac;
-    struct ether_header* m_eh;
-    struct sockaddr_ll m_sock_addr;
-
-    std::vector<struct mmsghdr> m_msgs;
-    std::vector<struct iovec> m_iovecs;
-
     int m_panelWidth;
     int m_panelHeight;
     int m_panels;
@@ -87,4 +79,12 @@ private:
     PanelMatrix* m_panelMatrix;
     uint8_t m_gammaCurve[256];
     int m_flippedLayout;
+
+    std::vector<struct mmsghdr> m_msgs;
+    std::vector<struct iovec> m_iovecs;
+
+    struct ifreq m_if_idx;
+    struct ifreq m_if_mac;
+    struct ether_header* m_eh;
+    struct sockaddr_ll m_sock_addr;
 };

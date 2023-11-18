@@ -780,7 +780,7 @@ int FrameBuffer::InitializeX11Window(void) {
     m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display), m_width, m_height, 24);
 
     m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
-    if (m_gc < 0) {
+    if (!m_gc) {
         LogErr(VB_CHANNELOUT, "Unable to create GC\n");
         return 0;
     }
