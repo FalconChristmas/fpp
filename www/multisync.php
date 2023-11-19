@@ -383,6 +383,17 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         return false;
     }
 
+    function proxyURLsInString(str, ip) {
+        if (!isProxied(ip))
+            return str;
+
+        var re = /(href=['"])([^:]*)\//;
+        if (re.test(str))
+            str = str.replace(re,"$1proxy/" + ip + "/$2/");
+
+        return str;
+    }
+
     function isProxied(ip) {
         return proxies.includes(ip);
     }
@@ -580,6 +591,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                var wHTML = "";
                for(var i = 0; i < data.warnings.length; i++) {
+                   if (isProxied(ip))
+                       data.warnings[i] = proxyURLsInString(data.warnings[i], ip);
+
                 wHTML += "<span class='warning-text'>" + data.warnings[i] + "</span><br>";
                }
                $('#' + rowID + '_warningCell').html(wHTML);
