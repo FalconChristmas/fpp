@@ -1105,6 +1105,9 @@ if $isimage; then
     systemctl disable vsftpd
 
     #######################################
+    cp ${FPPHOME}/.vimrc /root/.vimrc
+
+    #######################################
     echo "FPP - Configuring Samba"
     cat <<-EOF >> /etc/samba/smb.conf
 
