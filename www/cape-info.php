@@ -1053,7 +1053,6 @@ $files = scandir('/home/fpp/media/upload/', SCANDIR_SORT_DESCENDING);
             printf("<option value='%s'>%s</option>\n", $file, $file);
         }
     }
-    closedir($dir);
     ?>
                                                 </select><br>
                                                 <input type='button' class="buttons" value='Restore' onClick='RestoreFirmware();' id='RestoreFirmware' disabled style='margin-top: 0.33rem !important;'><br>
