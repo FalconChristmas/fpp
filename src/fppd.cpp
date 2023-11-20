@@ -486,7 +486,7 @@ void usage(char* appname) {
            "  -h, --help                    - This menu.\n"
            "      --log-level LEVEL         - Set the global log output level (all loggers):\n"
            "                                  \"info\", \"warn\", \"debug\", \"excess\")\n"
-           "      --log-level LEVEL:logger  - Set the loger level for one or more loggers.\n"
+           "      --log-level LEVEL:logger  - Set the log level for one or more loggers.\n"
            "                                  each level should be separated by semicolons\n"
            "                                  with one or more loggers separated by commas.\n"
            "                                  example: debug:schedule,player;excess:mqtt \n"
