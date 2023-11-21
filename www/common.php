@@ -102,7 +102,7 @@ function ReadSettingFromFile($settingName, $plugin = "")
     }
     if (!empty($settingsStr)) {
         if (preg_match("/^" . $settingName . "/m", $settingsStr)) {
-            $result = preg_match("/^" . $settingName . "\s*=(\s*\S*\w*)/m", $settingsStr, $output_array);
+            $result = preg_match("/^" . $settingName . "\s*=(.+)/m", $settingsStr, $output_array);
             if ($result == 0) {
 //        error_log("The setting " . $settingName . " could not be found in " . $filename);
                 return false;
