@@ -44,7 +44,7 @@ ifeq '$(SRCDIR)' ''
 endif
 
 ifeq '$(CXXCOMPILER)' 'g++'
-    GCCVERSIONGTEQ9:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 9)
+    GCCVERSIONGTEQ12:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 12)
     # Common CFLAGS
 ifeq ($(DISTCC_HOSTS),)
     PCH_FILE=fpp-pch.h.gch
@@ -54,12 +54,10 @@ else
 endif
     OPTIMIZE_FLAGS=-O3 -Wno-psabi
     debug: OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
-    CXXFLAGS += -std=gnu++2a
-
-    ifeq "$(GCCVERSIONGTEQ9)" "0"
-		LD_FLAG_FS=-lstdc++fs
-	else
-		LD_FLAG_FS=
+    ifeq "$(GCCVERSIONGTEQ12)" "1"
+        CXXFLAGS += -std=gnu++23
+    else
+        CXXFLAGS += -std=gnu++2a
     endif
 else
     OPTIMIZE_FLAGS=-O3

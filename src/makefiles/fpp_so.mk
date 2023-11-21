@@ -136,7 +136,7 @@ LIBS_fpp_so += \
 	-lGraphicsMagick \
 	-lGraphicsMagickWand \
 	-lGraphicsMagick++ \
-    $(LIBS_GPIO_ADDITIONS) $(LD_FLAG_FS)
+    $(LIBS_GPIO_ADDITIONS)
 
 ifneq ($(wildcard /usr/local/include/vlc/vlc.h),)
 LIBS_fpp_so += -lvlc
