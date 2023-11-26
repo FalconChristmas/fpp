@@ -829,7 +829,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     (settings['fppMode'] == 'player') &&
                         (data[i].fppModeString == "remote"))
                 {
-                    star = "<input type='checkbox' class='syncCheckbox' name='" + data[i].address + "'";
+                    star = " <input type='checkbox' class='syncCheckbox' name='" + data[i].address + "'";
                     if (typeof remotes[data[i].address] !== 'undefined') {
                         star += " checked";
                         delete remotes[data[i].address];
