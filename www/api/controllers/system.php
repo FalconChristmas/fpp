@@ -223,12 +223,8 @@ function SystemGetStatus()
         foreach ($ipAddresses as $ip) {
             //validate IP address is a valid IPv4 address - possibly overkill but have seen IPv6 addresses polled
             if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                //Make the request - also send across whether advancedView data is requested so it's returned all in 1 request
-
-                // TODO: For FPPD 6.0, this should be moved to the new API.
-                // On 5.0 Boxes it is just a redirect back to http://localhost/api/system/status
-                // Retained for backwards compatibility
-                $curl = curl_init("http://" . $ip . "/fppjson.php?command=getFPPstatus&advancedView=true");
+                // Only FPP 5+
+                $curl = curl_init("http://" . $ip . "/api/system/status");
                 curl_setopt($curl, CURLOPT_FAILONERROR, true);
                 curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
                 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -252,6 +248,16 @@ function SystemGetStatus()
                 if ($responseCode == 401) {
                     $result[$ip]['reason'] = "Cannot Access - Web GUI Password Set";
                     $result[$ip]["status_name"] = "password";
+                } else if ($responseCode == 404) {
+                    // old device, FPP4
+                    $curl = curl_init("http://" . $ip . "/fppjson.php?command=getFPPstatus&advancedView=true");
+                    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+                    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 500);
+                    curl_setopt($curl, CURLOPT_TIMEOUT_MS, 3000);
+                    $request_content = curl_exec($curl);
+                    $responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
                 } else if ($responseCode == 0) {
                     $result[$ip]["status_name"] = "unreachable";
                 }
