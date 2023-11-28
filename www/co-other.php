@@ -973,6 +973,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 		$('#outputType').append(new Option(output_module.typeFriendlyName, output_module.typeName));
 	})
 
+    $('#outputType').html($('#outputType').find('option').sort(function(a,b) { return $(a).text().toUpperCase() < $(b).text().toUpperCase() ? -1 : 1}));
 }
 
 var otherTableInfo = {

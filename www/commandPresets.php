@@ -230,7 +230,7 @@ include 'menu.inc';?>
         <div class="backdrop">
             <b>Notes:</b>
             <ul>
-                <li>Presets can be triggered based on channel data by defining a "Command Channel" output on the Channel Outputs page.</li>
+                <li>Presets can be triggered based on channel data by defining a "Control Channel" output on the Channel Outputs page.</li>
                 <li>Predefined Preset Names are automatically triggered within FPP when the action described occurs.</li>
             </ul>
 
