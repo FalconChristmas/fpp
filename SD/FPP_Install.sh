@@ -14,7 +14,7 @@
 # To use this script, download the latest copy from github and run it as
 # root on the system where you want to install FPP:
 #
-# wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+# curl -o ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 # chmod 700 ./FPP_Install.sh
 # su
 # ./FPP_Install.sh
@@ -408,7 +408,7 @@ case "${OSVER}" in
         if [ "x${PACKAGE_REMOVE}" != "x" ]; then
             # Need to make sure there is configuration for eth0 or uninstalling dhcpclient will cause network to drop
             rm -f /etc/systemd/network/50-default.network
-            wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+            curl -o /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
             if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
                 sed -i -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' /etc/systemd/network/50-default.network
             fi
@@ -561,7 +561,7 @@ case "${OSVER}" in
             if [ ! -f /etc/systemd/network/50-default.network ]; then
                 # Need to make sure there is configuration for eth0 or no connection will be
                 # setup after a reboot
-                wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+                curl -o /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
             fi
             # make sure we end up with eth0/wlan0 instead of enx#### wlx#### naming for now
             ln -s /dev/null /etc/systemd/network/99-default.link
@@ -795,7 +795,7 @@ case "${FPPPLATFORM}" in
             echo "" >> /boot/config.txt
 
             echo "FPP - Freeing up more space by removing unnecessary packages"
-            apt-get -y purge wolfram-engine sonic-pi minecraft-pi
+            apt-get -y purge wolfram-engine sonic-pi minecraft-pi firmware-iwlwifi libglusterfs0 mesa-va-drivers mesa-vdpau-drivers mesa-vulkan-drivers mkvtoolnix ncurses-term poppler-data va-driver-all librados2 libcephfs2
             apt-get -y --purge autoremove
 
             echo "FPP - Make things cleaner by removing configuration from unnecessary packages"
