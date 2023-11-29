@@ -1666,7 +1666,7 @@ function populatePixelStringOutputs(data) {
                     }
                 });
                 setTimeout(function() {
-                    $('.vsPortLabel').each(function() {
+                    $('td.vsPortLabel').each(function() {
                         $(this).attr("data-bs-html", "true");
                         $(this).attr("data-bs-original-title", selected_string_details($(this).parent()));
                         $(this).tooltip();
@@ -1913,7 +1913,7 @@ function sanityCheckOutputs() {
                                             title += '<br>';
                                         title += 'This output is part of a Virtual String or Smart Receiver chain that exceeds the bank size';
                                         pcTitles[r] = title;
-                                        ncNodes[r].addClass('inputError');
+                                        pcNodes[r].addClass('inputError');
                                     }
                                 }
                             }
