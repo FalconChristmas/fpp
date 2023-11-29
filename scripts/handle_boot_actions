@@ -20,9 +20,9 @@ function HandleSettings() {
     if (array_key_exists("Kiosk", $settings)) ApplySetting("Kiosk", $settings["Kiosk"]);
     if (array_key_exists("EnableBBBHDMI", $settings)) ApplySetting("EnableBBBHDMI", $settings["EnableBBBHDMI"]);
 
-    if (array_key_exists("Service_rsync", $settings)) ApplyServiceSetting("Service_rsync", $settings["Service_rsync"], "");
-    if (array_key_exists("Service_smbd_nmbd", $settings)) ApplyServiceSetting("Service_smbd_nmbd", $settings["Service_smbd_nmbd"], "");
-    if (array_key_exists("Service_vsftpd", $settings)) ApplyServiceSetting("Service_vsftpd", $settings["Service_vsftpd"], "");
+    if (array_key_exists("Service_rsync", $settings)) ApplyServiceSetting("Service_rsync", $settings["Service_rsync"], "--now");
+    if (array_key_exists("Service_smbd_nmbd", $settings)) ApplyServiceSetting("Service_smbd_nmbd", $settings["Service_smbd_nmbd"], "--now");
+    if (array_key_exists("Service_vsftpd", $settings)) ApplyServiceSetting("Service_vsftpd", $settings["Service_vsftpd"], "--now");
 }
 
 function HandleExpandFS() {
