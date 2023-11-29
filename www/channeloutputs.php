@@ -206,6 +206,7 @@ if (in_array('all', $currentCapeInfo["provides"])) {
 } else {
     if (in_array('udp', $currentCapeInfo["provides"])) {
         $e131TabStyle = "";
+        $lpTabStyle = "";
     }
     if (in_array('strings', $currentCapeInfo["provides"])) {
         $stringTabStyle = "";
