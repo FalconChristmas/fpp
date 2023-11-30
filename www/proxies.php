@@ -50,7 +50,7 @@ function AddProxyForHost(host, description = "") {
             "<td><input id='descRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + description + "'></td>" +
             "<td id='linkRow" + currentRows + "'>" +
 <?if (!$settings['hideExternalURLs']) {?>
-            "<a href='proxy/" + host + "'>" + host + "</a>" +
+	    "<a target='_blank' href='proxy/" + host + "'>" + host + "</a>" +
 <?}?>
             "</td></tr>");
 }
@@ -220,7 +220,7 @@ if (count($dhcpIps) > 0) {
                 <?
     $count = 1;
     foreach ($dhcpIps as $ip) {
-        echo "<tr><td>" . $count . "</td><td><a href='proxy/" . $ip . "/'>" . $ip . "</a></td></tr>\n";
+	echo "<tr><td>" . $count . "</td><td><a target='_blank' href='proxy/" . $ip . "/'>" . $ip . "</a></td></tr>\n";
         $count++;
     }
     ?>
