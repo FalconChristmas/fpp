@@ -81,3 +81,37 @@ if (((!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == 
 <?
 	}
 ?>
+
+<script>
+document.addEventListener("keydown", e => {
+        if (!event.target.matches('input')) {
+                if (e.key.toLowerCase() === "m") {
+                        window.location.replace("/multisync.php");
+                } else if (e.key.toLowerCase() === 'n') {
+                        window.location.replace("/networkconfig.php");
+                } else if (e.key.toLowerCase() === 'c') {
+                        window.location.replace("/index.php");
+                } else if (e.key.toLowerCase() === 'f') {
+                        window.location.replace("/settings.php");
+                } else if (e.key.toLowerCase() === 'p') {
+                        window.location.replace("/playlists.php");
+                } else if (e.key.toLowerCase() === 'u') {
+                        window.location.replace("/uploadfile.php");
+                } else if (e.key.toLowerCase() === 'i') {
+                        window.location.replace("/channelinputs.php");
+                } else if (e.key.toLowerCase() === 'o') {
+                        window.location.replace("/channeloutputs.php");
+                } else if (e.key.toLowerCase() === 'a') {
+                        window.location.replace("/about.php");
+                } else if (e.key.toLowerCase() === 'h') {
+                        window.location.replace("/healthCheck.php");
+                } else if (e.key.toLowerCase() === 't') {
+                        window.location.replace("/troubleshooting.php");
+                } else if (e.key.toLowerCase() === 's') {
+                        window.location.replace("/scheduler.php");
+                } else {
+                        // guess nada
+                };
+        };
+})
+</script>
