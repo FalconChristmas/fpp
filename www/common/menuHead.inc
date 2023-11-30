@@ -109,6 +109,8 @@ document.addEventListener("keydown", e => {
                         window.location.replace("/troubleshooting.php");
                 } else if (e.key.toLowerCase() === 's') {
                         window.location.replace("/scheduler.php");
+		} else if (e.key.toLowerCase() === 'd') {
+                        window.location.replace("/testing.php");
                 } else {
                         // guess nada
                 };
