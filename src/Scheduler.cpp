@@ -858,8 +858,9 @@ Json::Value Scheduler::GetInfo(void) {
     std::string timeFmt = getSetting("DateFormat") + " @ " + getSetting("TimeFormat");
     std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
     Json::Value np;
+    ScheduledItem* nextItem = GetNextScheduledPlaylist();
     np["playlistName"] = GetNextPlaylistName();
-    np["scheduledStartTime"] = 0;
+    np["scheduledStartTime"] = nextItem ? (Json::UInt64)(nextItem->startTime) : 0;
     np["scheduledStartTimeStr"] = GetNextPlaylistStartStr();
 
     result["enabled"] = m_schedulerDisabled ? 0 : 1;
