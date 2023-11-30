@@ -83,11 +83,7 @@ function list_plugin_entries($menu) {
     <div class="headerCenter">
       <div class="headerCenterRow headerHost">
 <?
-    if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
-        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".$settings["HostName"]."\"><a href='networkconfig.php#tab-host-dns' class='nonULLink'>".$settings['HostName']."</a></span></span>");
-    } else {
-        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".$settings["HostName"]."\">".$settings["HostName"]."</span></span>");
-    }
+    echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><a href='index.php' class='nonULLink'>".$settings['HostName']."</a></span>");
 
     $currentHeaderSensor = "1";
     if (isset($settings['currentHeaderSensor'])) {
