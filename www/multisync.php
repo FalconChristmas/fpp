@@ -873,7 +873,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 		var ipTxt = data[i].local ? data[i].address : ipLink(data[i].address);
 
                 if ((data[i].fppModeString == 'remote') && (star != ""))
-                    ipTxt = "<small class='hostDescriptionSM'>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
+                    ipTxt = "<small>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
 
 		var hostTxt = "<a href='http://" + hostname + ".local'>" + hostname + "</a>";
                 if(data[i].address == hostname){
