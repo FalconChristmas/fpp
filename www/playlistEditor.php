@@ -98,12 +98,18 @@ function playlistEditorDocReady() {
         EditPlaylistEntry();
         $('#playlistEntryProperties').fppDialog({
             title:'Edit Entry',
-            buttons:{
+              buttons:{
+               "Save As New":{
+                    click: function(){
+                        AddPlaylistEntry(3);
+                        $('#playlistEntryProperties').fppDialog('close');
+                    },
+                    class:'btn-outline-success'
+                },
                 "Save":{
                     click: function(){
                         AddPlaylistEntry(1);
                         $('#playlistEntryProperties').fppDialog('close');
-                        //CreateNewPlaylist();
                     },
                     class:'btn-success'
                 }
