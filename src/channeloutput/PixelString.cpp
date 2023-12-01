@@ -664,7 +664,7 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
             for (auto& a : vs) {
                 if (a) {
                     startChannel = std::min(startChannel, (uint32_t)a->startChannel);
-                    maxChan = a->startChannel + a->pixelCount * a->channelsPerNode();
+                    maxChan = a->startChannel + (a->pixelCount * a->channelsPerNode() / (a->groupCount ? a->groupCount : 1));
                     channelsPerNode = std::max(channelsPerNode, (uint32_t)a->channelsPerNode());
                     rn = std::max(rn, a->receiverNum);
                 } else {
