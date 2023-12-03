@@ -4981,7 +4981,7 @@ function RenameFile(dir, file) {
 }
 
 function DownloadFile(dir, file) {
-    location.href = "api/file/" + dir + "/" + encodeURIComponent(file).replace('%2F','/');
+    location.href = "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F','/');
 }
 
 function DownloadFiles(dir, files) {
@@ -4989,7 +4989,7 @@ function DownloadFiles(dir, files) {
         DownloadFile(dir, files[0]);
     } else {
         for (var i = 0; i < files.length; i++) {
-            window.open("api/file/" + dir + "/" + encodeURIComponent(files[i]).replace('%2F','/'));
+            window.open("api/file/" + dir + "/" + encodeURIComponent(files[i]).replaceAll('%2F','/'));
         }
     }
 }
@@ -5004,11 +5004,11 @@ function ViewImage(file) {
 }
 
 function ViewFile(dir, file) {
-    var url = "api/file/" + dir + "/" + encodeURIComponent(file).replace('%2F','/');
+    var url = "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F','/');
     ViewFileImpl(url, file);
 }
 function TailFile(dir, file, lines) {
-    var url = "api/file/" + dir + "/" + encodeURIComponent(file).replace('%2F','/') + "?tail=" + lines;
+    var url = "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F','/') + "?tail=" + lines;
     //console.log(url);
     ViewFileImpl(url, file);
 }
@@ -5042,7 +5042,7 @@ function ViewFileImpl(url, file, html = '') {
 
 function DeleteFile(dir, row, file, silent = false) {
     $.ajax({
-        url: "api/file/" + dir + "/" + encodeURIComponent(file).replace('%2F','/'),
+        url: "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F','/'),
         type: 'DELETE'
     }).done(function (data) {
         if (data.status == "OK") {
