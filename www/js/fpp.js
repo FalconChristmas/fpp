@@ -4999,7 +4999,7 @@ function DownloadZip(dir) {
 }
 
 function ViewImage(file) {
-    var url = "api/file/Images/" + encodeURIComponent(file).replace('%2F','/');
+    var url = "api/file/Images/" + encodeURIComponent(file).replaceAll('%2F','/');
     ViewFileImpl(url, file, "<center><a href='" + url + "' target='_blank'><img src='" + url + "' style='display: block; max-width: 700px; max-height: 500px; width: auto; height: auto;'></a><br>Click image to display full size.</center>");
 }
 
