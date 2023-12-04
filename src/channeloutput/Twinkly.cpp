@@ -153,17 +153,18 @@ void TwinklyOutputData::StoppingOutput() {
 }
 void TwinklyOutputData::authenticate() {
     Json::Value r = callRestAPI(true, "xled/v1/login", "{\"challenge\": \"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\"}");
-    authToken = r["authentication_token"].asString();
-    if (authToken != "") {
+    std::string at = r.isMember("authentication_token") ? r["authentication_token"].asString() : "";
+    if (at != "") {
+        authToken = at;
         reauthCount = 0;
         std::vector<uint8_t> at = base64Decode(authToken);
         memcpy(authTokenBytes, &at[0], std::min(TOKEN_LEN, (int)at.size()));
         for (int x = 0; x < portCount; x++) {
             memcpy(&twinklyBuffers[x][1], &at[0], std::min(TOKEN_LEN, (int)at.size()));
         }
+        callRestAPI(true, "xled/v1/verify", "");
+        callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"rt\"}");
     }
-    callRestAPI(true, "xled/v1/verify", "");
-    callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"rt\"}");
 }
 void TwinklyOutputData::verifyToken() {
     std::string url = "http://" + ipAddress + "/xled/v1/verify";
@@ -173,9 +174,13 @@ void TwinklyOutputData::verifyToken() {
     CurlManager::INSTANCE.add(url, "GET", "", extraHeaders, [this](int rc, const std::string& resp) {
         if (rc == 200) {
             // printf("%d:  %s\n", rc, resp.c_str());
-            Json::Value v = LoadJsonFromString(resp);
-            if (v["code"].asInt() != 1000) {
-                authenticate();
+            try {
+                Json::Value v = LoadJsonFromString(resp);
+                if (v["code"].asInt() != 1000) {
+                    authenticate();
+                }
+            } catch (std::exception& ex) {
+                //ignore this time around, next time hopefully will work
             }
         }
     });
@@ -236,7 +241,14 @@ Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string& path,
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
 
-    return LoadJsonFromString(resp);
+    try {
+        return LoadJsonFromString(resp);
+    } catch (std::exception& ex) {
+        //not sure what to do here.  The only call that uses the return is the authentication
+        //so we'll return an empty json and hope that is good enough
+        return Json::Value();
+    }
+
 }
 
 void TwinklyOutputData::DumpConfig() {
