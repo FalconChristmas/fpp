@@ -908,7 +908,9 @@ public:
             return m_maxBlocks;
         }
         //determine a good number of compression blocks
-        uint64_t datasize = m_file->getChannelCount() * m_file->getNumFrames();
+        uint64_t datasize = m_file->getChannelCount();
+        uint64_t numFrames = m_file->getNumFrames();
+        datasize *= numFrames;
         uint64_t numBlocks = datasize / V2FSEQ_OUT_COMPRESSION_BLOCK_SIZE;
         if (numBlocks > maxNumBlocks) {
             //need a lot of blocks, use as many as we can
@@ -916,7 +918,7 @@ public:
         } else if (numBlocks < 1) {
             numBlocks = 1;
         }
-        m_framesPerBlock = m_file->getNumFrames() / numBlocks;
+        m_framesPerBlock = numFrames / numBlocks;
         if (m_framesPerBlock < 10)
             m_framesPerBlock = 10;
         m_curFrameInBlock = 0;
