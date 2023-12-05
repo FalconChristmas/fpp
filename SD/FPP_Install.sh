@@ -1059,6 +1059,7 @@ set expandtab
 set autoindent
 set ignorecase
 set mouse=r
+syntax on
 EOF
 
 chmod 644 ${FPPHOME}/.vimrc
