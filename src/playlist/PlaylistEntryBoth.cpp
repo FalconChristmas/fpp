@@ -32,6 +32,12 @@ PlaylistEntryBoth::PlaylistEntryBoth(Playlist* playlist, PlaylistEntryBase* pare
 }
 
 PlaylistEntryBoth::~PlaylistEntryBoth() {
+    if (m_sequenceEntry) {
+        delete m_sequenceEntry;
+    }
+    if (m_mediaEntry)  {
+        delete m_mediaEntry;
+    }
 }
 
 /*

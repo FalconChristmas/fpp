@@ -146,8 +146,8 @@ public:
     };
 };
 
-static std::vector<std::string> BUFFERMAPS;
-static std::vector<std::string> PALETTES;
+static std::vector<std::string>* BUFFERMAPS = nullptr;
+static std::vector<std::string>* PALETTES = nullptr;
 extern float GetChannelOutputRefreshRate();
 
 enum class ArgMapping {
@@ -220,7 +220,7 @@ public:
         WLEDEffect(name),
         mode(m) {
         fillVectors();
-        args.push_back(CommandArg("BufferMapping", "string", "Buffer Mapping").setContentList(BUFFERMAPS));
+        args.push_back(CommandArg("BufferMapping", "string", "Buffer Mapping").setContentList(*BUFFERMAPS));
         argMap.push_back(ArgMapping::Mapping); // always have mapping
         args.push_back(CommandArg("Brightness", "range", "Brightness").setRange(0, 255).setDefaultValue("128"));
         argMap.push_back(ArgMapping::Brightness); // always have brightness
@@ -276,7 +276,7 @@ public:
                 }
                 idx++;
             }
-            args.push_back(CommandArg("Palette", "string", "Palette").setContentList(PALETTES).setDefaultValue("Default"));
+            args.push_back(CommandArg("Palette", "string", "Palette").setContentList(*PALETTES).setDefaultValue("Default"));
             argMap.push_back(ArgMapping::Palette); // Palette
             if (!pallete.empty()) {
                 idx = 0;
@@ -320,7 +320,7 @@ public:
             argMap.push_back(ArgMapping::Speed);     // speed
             argMap.push_back(ArgMapping::Intensity); // intensity
 
-            args.push_back(CommandArg("Palette", "string", "Palette").setContentList(PALETTES).setDefaultValue("Default"));
+            args.push_back(CommandArg("Palette", "string", "Palette").setContentList(*PALETTES).setDefaultValue("Default"));
             args.push_back(CommandArg("Color1", "color", "Color1").setDefaultValue("#FF0000"));
             args.push_back(CommandArg("Color2", "color", "Color2").setDefaultValue("#0000FF"));
             args.push_back(CommandArg("Color3", "color", "Color3").setDefaultValue("#000000"));
@@ -335,7 +335,8 @@ public:
         }
     }
     static void fillVectors() {
-        if (PALETTES.empty()) {
+        if (PALETTES == nullptr) {
+            PALETTES = new std::vector<std::string>();
             const char* p = JSON_palette_names;
             while (*p != '\"') {
                 ++p;
@@ -348,7 +349,7 @@ public:
                 }
                 std::string n = p;
                 n = n.substr(0, p2 - p);
-                PALETTES.push_back(n);
+                PALETTES->push_back(n);
                 p = p2;
                 ++p;
                 while (*p && *p != '\"') {
@@ -357,11 +358,12 @@ public:
                 ++p;
             }
         }
-        if (BUFFERMAPS.empty()) {
-            BUFFERMAPS.emplace_back("Horizontal");
-            BUFFERMAPS.emplace_back("Vertical");
-            BUFFERMAPS.emplace_back("Horizontal Flipped");
-            BUFFERMAPS.emplace_back("Vertical Flipped");
+        if (BUFFERMAPS == nullptr) {
+            BUFFERMAPS = new std::vector<std::string>();
+            BUFFERMAPS->emplace_back("Horizontal");
+            BUFFERMAPS->emplace_back("Vertical");
+            BUFFERMAPS->emplace_back("Horizontal Flipped");
+            BUFFERMAPS->emplace_back("Vertical Flipped");
         }
     }
 
@@ -381,7 +383,7 @@ public:
             for (int x = 0; x < argMap.size(); x++) {
                 switch (argMap[x]) {
                 case ArgMapping::Mapping:
-                    mapping = std::find(BUFFERMAPS.begin(), BUFFERMAPS.end(), args[x]) - BUFFERMAPS.begin();
+                    mapping = std::find(BUFFERMAPS->begin(), BUFFERMAPS->end(), args[x]) - BUFFERMAPS->begin();
                     break;
                 case ArgMapping::Brightness:
                     brightness = parseInt(args[x]);
@@ -434,8 +436,8 @@ public:
 
             int p = 0;
             RawWLEDEffect::fillVectors();
-            for (int x = 0; x < PALETTES.size(); x++) {
-                if (PALETTES[x] == palette) {
+            for (int x = 0; x < PALETTES->size(); x++) {
+                if ((*PALETTES)[x] == palette) {
                     p = x;
                 }
             }
@@ -516,4 +518,15 @@ std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {
         }
     }
     return v;
+}
+void WLEDEffect::cleanupWLEDEffects() {
+    delete BUFFERMAPS;
+    BUFFERMAPS = nullptr;
+    delete PALETTES;
+    PALETTES = nullptr;
+    WS2812FXExt* inst = (WS2812FXExt*)WS2812FX::getInstance();
+    WS2812FX::clearInstance();
+    if (inst != nullptr) {
+        delete inst;
+    }
 }

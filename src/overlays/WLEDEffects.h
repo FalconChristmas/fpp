@@ -21,4 +21,5 @@ public:
     virtual ~WLEDEffect();
 
     static std::list<PixelOverlayEffect*> getWLEDEffects();
+    static void cleanupWLEDEffects();
 };

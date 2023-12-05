@@ -708,16 +708,20 @@ void Sequence::SendSequenceData() {
                 CommandManager::INSTANCE.TriggerPreset(cmd, keywords);
             }
         }
-        const auto& eop = effectsOn.find(frame);
-        if (p != effectsOn.end()) {
-            for (auto& eff : eop->second) {
-                StartEffect(eff, 0, 1);
+        if (!effectsOn.empty()) {
+            const auto& eop = effectsOn.find(frame);
+            if (p != effectsOn.end()) {
+                for (auto& eff : eop->second) {
+                    StartEffect(eff, 0, 1);
+                }
             }
         }
-        const auto& efp = effectsOff.find(frame);
-        if (efp != effectsOff.end()) {
-            for (auto& eff : efp->second) {
-                StopEffect(eff);
+        if (!effectsOff.empty()) {
+            const auto& efp = effectsOff.find(frame);
+            if (efp != effectsOff.end()) {
+                for (auto& eff : efp->second) {
+                    StopEffect(eff);
+                }
             }
         }
     }

@@ -632,7 +632,7 @@ public:
                     np[2] = b;
                 }
             }
-            
+
             std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
             TextMovementEffect* ef = dynamic_cast<TextMovementEffect*>(m->getRunningEffect());
             if (ef == nullptr) {
@@ -651,7 +651,7 @@ public:
             ef->imageData = newData;
             ef->imageDataCols = image2.columns();
             ef->imageDataRows = image2.rows();
-            ef->copyImageData(ef->x, ef->y);            
+            ef->copyImageData(ef->x, ef->y);
             m->setRunningEffect(ef, t);
             lock.unlock();
             free(old);
@@ -719,6 +719,7 @@ public:
             delete a.second;
         }
         effects.clear();
+        WLEDEffect::cleanupWLEDEffects();
     }
     void add(PixelOverlayEffect* pe) {
         effects[pe->name] = pe;
