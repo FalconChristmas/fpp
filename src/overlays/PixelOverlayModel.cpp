@@ -73,6 +73,10 @@ static uint8_t* createChannelDataMemory(const std::string& dataName, uint32_t si
             ftruncate(f, size);
         }
     }
+    if (size < 8) {
+        // cannot mmap 0 size which some models happen to have
+        size = 8;
+    }
     uint8_t* channelData = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, flags, f, 0);
     if (channelData == MAP_FAILED) {
         //mmap is failing, but we need channelData so just do malloc

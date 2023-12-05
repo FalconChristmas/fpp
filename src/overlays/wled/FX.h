@@ -707,7 +707,7 @@ class WS2812FX {  // 96 bytes
       else setupEffectData();
     }
 
-    ~WS2812FX() {
+    virtual ~WS2812FX() {
       if (customMappingTable) delete[] customMappingTable;
       _mode.clear();
       _modeData.clear();
@@ -720,6 +720,7 @@ class WS2812FX {  // 96 bytes
     }
 
     static WS2812FX* getInstance(void) { return instance; }
+    static void clearInstance() { instance = nullptr; }
 
     void
 #ifdef WLED_DEBUG

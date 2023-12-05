@@ -361,9 +361,9 @@ void FSEQFile::initializeFromFSEQ(const FSEQFile& fseq) {
     m_uniqueId = fseq.m_uniqueId;
 
     if (fseq.getVersionMajor() >= 2) {
-        const V2FSEQFile *v2 = dynamic_cast<const V2FSEQFile*>(&fseq);
+        const V2FSEQFile* v2 = dynamic_cast<const V2FSEQFile*>(&fseq);
         if (!v2->m_sparseRanges.empty()) {
-            for (auto &a : v2->m_sparseRanges) {
+            for (auto& a : v2->m_sparseRanges) {
                 m_seqChannelCount = std::max(m_seqChannelCount, (a.first + a.second));
             }
         }
@@ -529,7 +529,6 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
 
             vheader.data.resize(dataLength);
             memcpy(&vheader.data[0], &header[readIndex], dataLength);
-
 
             LogDebug(VB_SEQUENCE, "Read VariableHeader: %c%c, length: %d bytes\n", vheader.code[0], vheader.code[1], dataLength);
 
@@ -801,7 +800,7 @@ public:
             for (int x = 0; x < m_variableHeaderOffsets.size(); x++) {
                 if (m_variableHeaderOffsets[x] != 0) {
                     uint64_t curEnd = tell();
-                    auto &h = m_file->getVariableHeaders()[x];
+                    auto& h = m_file->getVariableHeaders()[x];
                     write(&h.data[0], h.data.size());
                     size_t cur = tell();
                     uint64_t off = m_variableHeaderOffsets[x];
@@ -815,7 +814,7 @@ public:
 
     V2FSEQFile* m_file = nullptr;
     uint64_t m_seqChanDataOffset = 0;
-    
+
     std::vector<uint64_t> m_variableHeaderOffsets;
 };
 
@@ -894,6 +893,7 @@ public:
             m_readThreadRunning = false;
             m_readSignal.notify_all();
             m_readThread->join();
+            delete m_readThread;
         }
         for (auto& a : m_blockMap) {
             if (a.second) {

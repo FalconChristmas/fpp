@@ -210,6 +210,11 @@ MultiSync::MultiSync() :
  */
 MultiSync::~MultiSync() {
     ShutdownSync();
+    for (auto& a : m_syncStats) {
+        MultiSyncStats* stats = (MultiSyncStats*)a.second;
+        delete stats;
+    }
+    m_syncStats.clear();
 }
 
 /*
