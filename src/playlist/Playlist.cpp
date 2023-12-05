@@ -224,6 +224,11 @@ Json::Value Playlist::LoadJSON(const char* filename) {
 
     Json::Value root;
 
+    if (!strlen(filename)) {
+        LogErr(VB_PLAYLIST, "Playlist::LoadJSON() called with empty filename\n");
+        return root;
+    }
+
     if (!LoadJsonFromFile(filename, root)) {
         std::string warn = "Could not load playlist ";
         warn += filename;
@@ -288,6 +293,11 @@ std::string sanitizeMediaName(std::string mediaName) {
  */
 int Playlist::Load(const char* filename) {
     LogDebug(VB_PLAYLIST, "Playlist::Load(%s)\n", filename);
+
+    if (!strlen(filename)) {
+        LogErr(VB_PLAYLIST, "Playlist::Load() called with empty filename\n");
+        return 0;
+    }
 
     Events::Publish("playlist/name/status", filename);
 
@@ -446,6 +456,11 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry) {
  */
 int Playlist::ReloadPlaylist(void) {
     LogDebug(VB_PLAYLIST, "Playlist::ReloadPlaylist()\n");
+
+    if (m_filename == "") {
+        LogErr(VB_PLAYLIST, "Playlist::ReloadPlaylist() called but m_filename is empty\n");
+        return 0;
+    }
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     std::string currentSectionStr = m_currentSectionStr;
@@ -1380,7 +1395,9 @@ Json::Value Playlist::GetCurrentEntry(void) {
 
     if (m_currentState == "idle" || m_currentSection == nullptr)
         return result;
-    result = m_currentSection->at(m_sectionPosition)->GetConfig();
+
+    if (m_sectionPosition < m_currentSection->size())
+        result = m_currentSection->at(m_sectionPosition)->GetConfig();
 
     return result;
 }
