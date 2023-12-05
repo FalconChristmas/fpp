@@ -194,7 +194,7 @@ include 'menu.inc';
 
 
 <div class="mainContainer">
-<h1 class="title statusTitle">Status <span class="statusHostname"><?=$settings["HostName"]?></span></h1>
+<h1 class="title statusTitle"><? if ($settings['fppMode'] == 'remote') echo "Remote ";?>Status <span class="statusHostname"><?=$settings["HostName"]?></span></h1>
 
 <?php
 if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 0):
@@ -205,7 +205,7 @@ if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 
 <?php endif;?>
 
 <div class="statusDivTopWrap">
-    <div id="schedulerInfo" class="statusDiv statusDivTop">
+    <div id="schedulerInfo" class="statusDiv statusDivTop" <? if ($settings['fppMode'] == 'remote') echo "style='display:none;'"; ?>>
         <div class="statusTable statusDivTopRow">
 
             <div class="statusDivTopCol">
