@@ -870,12 +870,12 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                 rowSpans[rowID] = 1;
 
-		var ipTxt = data[i].local ? data[i].address : ipLink(data[i].address);
+		        var ipTxt = data[i].local ? data[i].address : ipLink(data[i].address);
 
                 if ((data[i].fppModeString == 'remote') && (star != ""))
                     ipTxt = "<small>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
 
-		var hostTxt = "<a href='http://" + hostname + ".local'>" + hostname + "</a>";
+		        var hostTxt = "<a href='http://" + hostname + "'>" + hostname + "</a>";
                 if(data[i].address == hostname){
                     hostTxt = hostname;
                 }
@@ -2101,7 +2101,7 @@ include 'menu.inc';?>
                         <option value='playerMode'>Set to Player</option>
                         <option value='remoteMode'>Set to Remote</option>
                         <option value='addProxy'>Add as Proxy</option>
-                        <? if ($uiLevel > 0) { ?>
+                        <?if ($uiLevel > 0) {?>
                         <option value='changeBranch'>Change Branch</option>
                         <?}?>
                     </select>
@@ -2196,9 +2196,9 @@ $(document).ready(function() {
     $.get("api/git/branches", function(data) {
 
         $.each(data, function (i, item) {
-            $('#branchSelect').append($('<option>', { 
+            $('#branchSelect').append($('<option>', {
                 value: item,
-                text : item 
+                text : item
             }));
         });
     });
