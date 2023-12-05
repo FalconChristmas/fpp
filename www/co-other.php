@@ -973,6 +973,17 @@ if ($settings['Platform'] == "Raspberry Pi") {
 		$('#outputType').append(new Option(output_module.typeFriendlyName, output_module.typeName));
 	})
 
+    // Sort options but keep 'Select a type' at the top
+    $('#outputType').html($('#outputType').find('option').sort(function(a,b) {
+        a = $(a).text().toUpperCase();
+        b = $(b).text().toUpperCase();
+
+        if (a == 'SELECT A TYPE') return -1;
+        if (b == 'SELECT A TYPE') return 1;
+
+        return a < b ? -1 : 1
+    }));
+
     $('#outputType').html($('#outputType').find('option').sort(function(a,b) { return $(a).text().toUpperCase() < $(b).text().toUpperCase() ? -1 : 1}));
 }
 
