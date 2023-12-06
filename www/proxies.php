@@ -220,7 +220,11 @@ if (count($dhcpIps) > 0) {
                 <?
     $count = 1;
     foreach ($dhcpIps as $ip) {
-	echo "<tr><td>" . $count . "</td><td><a target='_blank' href='proxy/" . $ip . "/'>" . $ip . "</a></td></tr>\n";
+        if (!$settings['hideExternalURLs']) {
+            echo "<tr><td>" . $count . "</td><td><a target='_blank' href='proxy/" . $ip . "/'>" . $ip . "</a></td></tr>\n";
+        } else {
+            echo "<tr><td>" . $count . "</td><td>" . $ip . "</td></tr>\n";
+        }
         $count++;
     }
     ?>

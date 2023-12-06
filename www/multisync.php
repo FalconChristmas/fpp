@@ -407,8 +407,12 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             (data.advancedView.RemoteGitVersion !== data.advancedView.LocalGitVersion)) {
             updatesAvailable = 1;
         }
-
-        var localVer = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, '/about.php') + "' target='_blank' ip='" + ip + "'><b><font color='";
+        <? if (!$settings['hideExternalURLs']) { ?>
+            var localVer = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, '/about.php') + "' target='_blank' ip='" + ip + "'>";
+        <? } else { ?>
+            var localVer = "";
+        <? } ?>
+        localVer += "<b><font color='";
         if (updatesAvailable) {
             localVer += 'red';
         } else if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
@@ -418,7 +422,10 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             // Unknown or can't tell if up to date or not for some reason
             localVer += 'blue';
         }
-        localVer += "'>" + data.advancedView.LocalGitVersion + "</font></b></a>";
+        localVer += "'>" + data.advancedView.LocalGitVersion + "</font></b>";
+        <? if (!$settings['hideExternalURLs']) { ?>
+        localVer += "</a>";
+        <? } ?>
 
         return localVer;
     }
@@ -739,7 +746,11 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 	} // end of "api/system/status?ip=" + ips
 
     function ipLink(ip) {
+        <?if ($settings['hideExternalURLs']) {?>
+        return ip;
+        <? } else { ?>
         return "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "' ip='" + ip + "'>" + ip + "</a>";
+        <? } ?>
     }
 
     function parseFPPSystems(data) {
@@ -875,10 +886,15 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 if ((data[i].fppModeString == 'remote') && (star != ""))
                     ipTxt = "<small>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
 
-		        var hostTxt = "<a href='http://" + hostname + "'>" + hostname + "</a>";
+                <? if ($settings['hideExternalURLs']) { ?>
+                var hostTxt = hostname;
+                <? } else { ?>
+                var hostTxt = data[i].local ? hostname : "<a target='host_" + data[i].address + "' href='http://" + data[i].address + "'>" + hostname + "</a>";
                 if(data[i].address == hostname){
                     hostTxt = hostname;
                 }
+                <? } ?>
+
 
                 var newRow = "<tr id='" + rowID + "' ip='" + data[i].address + "' ipList='" + data[i].address + "' class='systemRow'>" +
                     "<td class='hostnameColumn'><span id='fpp_" + ip.replace(/\./g,'_') + "_hostname'" +  hnSpanStyle +">" + hostTxt + "</span><br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
