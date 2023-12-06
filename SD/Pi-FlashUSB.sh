@@ -58,6 +58,6 @@ echo ""
 echo ""
 echo ""
 echo ""
-echo "******  Flash to $DEVICE complete.  s******"
+echo "******  Flash to $DEVICE complete.  ******"
 echo ""
 
