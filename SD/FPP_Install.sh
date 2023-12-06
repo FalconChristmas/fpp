@@ -462,7 +462,7 @@ case "${OSVER}" in
         ACTUAL_PHPVER="7.4"
         if [ "${OSVER}" == "ubuntu_22.04" -o "${OSVER}" == "linuxmint_21" ]; then
             PHPVER="7.4"
-            echo "FPP - Forceing PHP 7.4"
+            echo "FPP - Forcing PHP 7.4"
             apt install software-properties-common apt-transport-https -y
             add-apt-repository ppa:ondrej/php -y
             apt-get -y update
@@ -1268,6 +1268,15 @@ case "${OSVER}" in
 		systemctl enable apache2.service
 		;;
 esac
+
+
+#######################################
+echo "FPP - Configuring NTP Daemon"
+
+# Clear all existing servers and pools and set default pool to be falconplayer NTP Pool
+sed -i '/^server.*/d' /etc/ntp.conf 
+sed -i '/^pool.*/d' /etc/ntp.conf 
+sed -i '\$s/\$/\\npool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer/' /etc/ntp.conf
 
 
 if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
