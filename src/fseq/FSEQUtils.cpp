@@ -15,6 +15,8 @@
 
 #include "FSEQFile.h"
 
+void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& facility, int perLine = 16);
+
 void usage(char* appname) {
     printf("Usage: %s [OPTIONS] FileName.fseq\n", appname);
     printf("\n");
@@ -31,8 +33,10 @@ void usage(char* appname) {
     printf("                            Use + to separate start channel + num channels\n");
     printf("                       If used before first -m/-M argument, sets a sparse range of output\n");
     printf("                       If used after -m/-M argument, sets a range to read from last merged sequence.\n");
+    printf("                       If used before -d argument, sets the range to dump.\n");
     printf("   -n                - No Sparse. -r will only read the range, but the resulting fseq is not sparse.\n");
     printf("   -j                - Output the fseq file metadata to json\n");
+    printf("   -d                - Dump the fseq data to stdout in human-readable format\n");
     printf("   -h                - This help output\n");
 }
 const char* outputFilename = nullptr;
@@ -57,6 +61,7 @@ static bool verbose = false;
 static std::vector<std::pair<uint32_t, uint32_t>> ranges;
 static bool sparse = true;
 static bool json = false;
+static bool dump = false;
 static V2FSEQFile::CompressionType compressionType = V2FSEQFile::CompressionType::zstd;
 
 static void parseRanges(std::vector<std::pair<uint32_t, uint32_t>>& ranges, char* rng) {
@@ -86,7 +91,7 @@ int parseArguments(int argc, char** argv) {
             { 0, 0, 0, 0 }
         };
 
-        c = getopt_long(argc, argv, "c:l:o:f:r:m:M:hjVvn", long_options, &option_index);
+        c = getopt_long(argc, argv, "c:l:o:f:r:m:M:hdjVvn", long_options, &option_index);
         if (c == -1) {
             break;
         }
@@ -101,6 +106,9 @@ int parseArguments(int argc, char** argv) {
             break;
         case 'j':
             json = true;
+            break;
+        case 'd':
+            dump = true;
             break;
         case 'v':
             verbose = true;
@@ -242,6 +250,27 @@ int main(int argc, char* argv[]) {
                 printf(", \"CompressionType\": %d", (int)f->m_compressionType);
             }
             printf("}\n");
+        } else if (dump) {
+            if (ranges.empty()) {
+                printf("No channel range specified\n");
+                delete src;
+                return 1;
+            }
+
+            src->prepareRead(ranges);
+
+            char title[50];
+            uint8_t* data = (uint8_t*)malloc(8024 * 1024);
+            for (int x = 0; x < src->getNumFrames(); x++) {
+                FSEQFile::FrameData* fdata = src->getFrame(x);
+                fdata->readFrame(data, 8024 * 1024);
+                delete fdata;
+
+                for (auto& r : ranges) {
+                    snprintf(title, 50, "Frame: %d, Range: %d-%d", x, r.first, r.first + r.second - 1);
+                    HexDump(title, data + r.first, r.second, VB_SEQUENCE, 16);
+                }
+            }
         } else {
             for (auto& f : mergeFseqs) {
                 FSEQFile* src = FSEQFile::openFSEQFile(f.filename);
