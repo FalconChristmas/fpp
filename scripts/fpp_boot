@@ -15,6 +15,15 @@ fi
 ${SCRIPTDIR}/timezone_sync
 
 SLEEPSECS=$(getSetting bootDelay)
+if [ "x${SLEEPSECS}" = "x" ]
+then
+    if [ -f "/proc/cpuinfo" ]; then
+        CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+        if [[ ${CPUS} -gt 2 ]]; then
+            SLEEPSECS=5
+        fi
+    fi
+fi
 if [ "x${SLEEPSECS}" != "x" ]
 then
     echo "FPP - Sleeping for ${SLEEPSECS} seconds"
