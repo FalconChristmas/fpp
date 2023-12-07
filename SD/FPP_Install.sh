@@ -1276,7 +1276,7 @@ echo "FPP - Configuring NTP Daemon"
 # Clear all existing servers and pools and set default pool to be falconplayer NTP Pool
 sed -i '/^server.*/d' /etc/ntp.conf 
 sed -i '/^pool.*/d' /etc/ntp.conf 
-sed -i '\$s/\$/\\npool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer/' /etc/ntp.conf
+sed -i '$s/$/\npool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer/' /etc/ntp.conf
 
 
 if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
