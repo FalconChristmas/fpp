@@ -2460,7 +2460,7 @@ function read_directory_files($directory, $return_data = true, $sort_by_date = f
     $file_list = array();
     $file_data = false;
 
-    if ($handle = opendir($directory)) {
+    if ($handle = @opendir($directory)) {
         while (false !== ($file = readdir($handle))) {
             // do something with the file
             // note that '.' and '..' is returned even
@@ -2476,6 +2476,9 @@ function read_directory_files($directory, $return_data = true, $sort_by_date = f
             }
         }
         closedir($handle);
+        unset($handle);
+        unset($file);
+        unset($file_data);
     }
 
     //Sort the results if sort flag  is true
