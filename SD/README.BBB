@@ -39,7 +39,7 @@ shutdown -h now
 
 apt-get update
 apt-get -y upgrade
-
+localectl set-locale LANG="en_US.UTF-8"
 
 # Need to make sure we get the latest systemd config
 echo "#Backports" >> /etc/apt/sources.list

@@ -3,7 +3,7 @@ Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
 Install the latest Raspbian Bullseye Lite image to the SD card.  The last
-version tested 2023-05-03-raspios-bullseye-armhf-lite.img.xz
+version tested 2023-12-05-raspios-bullseye-armhf-lite.img
 
 Resize the root partition to 3.5GB using fdisk (substitute the proper device
 for your SD card).
