@@ -2349,63 +2349,69 @@ function pruneOrRemoveAgedBackupFiles()
     $config_dir_files = file_get_contents('http://localhost/api/backups/configuration/list');
     $config_dir_files = json_decode($config_dir_files, true);
 
-    //If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop processing
+	//If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop processing
     if (count($config_dir_files) < $fpp_backup_min_number_kept) {
-        $aged_backup_removal_message = "SETTINGS BACKUP: Not removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are (" . count($config_dir_files) . ") backups available and this is less than the minimum backups we want to keep ($fpp_backup_min_number_kept)";
+        $aged_backup_removal_message = "SETTINGS BACKUP: NOT removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are (" . count($config_dir_files) . ") backups available and this is less than the minimum backups we want to keep ($fpp_backup_min_number_kept) \r\n";
         error_log($aged_backup_removal_message);
         return;
     }
 
     //Reverse the results so we get oldest to newest, the API by default returns results with newest first
-    $config_dir_files = array_reverse($config_dir_files);
+//    $config_dir_files = array_reverse($config_dir_files);
 
-    //loop over the backup files we've found
-    foreach ($config_dir_files as $backup_file_index => $backup_file_meta_data) {
-        $backup_filename = $backup_file_meta_data['backup_filename'];
+    //Select the backups that lie outside what we want to keep, because the array is a list of backups with the newest first then we'll be selecting older/dated backups
+    $backups_to_delete = array_slice($config_dir_files, $fpp_backup_min_number_kept);
+	$num_backups_deleted = 0;
 
-        if ((stripos(strtolower($backup_filename), "-backup_") !== false) && (stripos(strtolower($backup_filename), ".json") !== false)) {
-            //File is one of our backup files, this check is just in case there is other json files in this directory placed there by the user which we want to avoid touching.
+	//loop over the backup files we've found
+	foreach ($backups_to_delete as $backup_file_index => $backup_file_meta_data) {
+		$backup_filename = $backup_file_meta_data['backup_filename'];
 
-            //reconstruct the path
-            $backup_file_location = $backup_file_meta_data['backup_filedirectory'];
-            $backup_file_path = $backup_file_location . $backup_filename;
-            //Backup Directory
-            $backup_directory = !$backup_file_meta_data['backup_alternative_location'] ? 'JsonBackups' : 'JsonBackupsAlternate';
-            //Collect the backup file
-            $backup_time = $backup_file_meta_data['backup_time_unix'];
-            //backup max_age time in seconds, since we are dealing with UNIX epoc time
-            $backup_max_age_seconds = ($fpp_backup_max_age * 86400);
+		if ((stripos(strtolower($backup_filename), "-backup_") !== false) && (stripos(strtolower($backup_filename), ".json") !== false)) {
+			//File is one of our backup files, this check is just in case there is other json files in this directory placed there by the user which we want to avoid touching.
 
-            //Check the age of the file by checking the file modification time compared to now
-            if ((time() - ($backup_time)) > ($backup_max_age_seconds)) {
-                //Remove the file via API instead
-                //Build the URL
-                $url = 'http://localhost/api/backups/configuration/' . $backup_directory . '/' . $backup_filename;
-                //options for the request
-                $options = array(
-                    'http' => array(
-                        'header' => "Content-type: text/plain",
-                        'method' => 'DELETE',
-                    ),
-                );
-                $context = stream_context_create($options);
+			//reconstruct the path
+			$backup_file_location = $backup_file_meta_data['backup_filedirectory'];
+			$backup_file_path = $backup_file_location . $backup_filename;
+			//Backup Directory
+			$backup_directory = !$backup_file_meta_data['backup_alternative_location'] ? 'JsonBackups' : 'JsonBackupsAlternate';
+			//Collect the backup file
+			$backup_time = $backup_file_meta_data['backup_time_unix'];
+			//backup max_age time in seconds, since we are dealing with UNIX epoc time
+			$backup_max_age_seconds = ($fpp_backup_max_age * 86400);
 
-                if (file_get_contents($url, false, $context) !== false) {
-                    //Note what happened in the logs also
-                    $aged_backup_removal_message = "SETTINGS BACKUP: Removed old JSON settings backup file ($backup_file_path) since it was " . ceil((time() - ($backup_time)) / 86400) . " days old. Max age is $fpp_backup_max_age days.";
-                    error_log($aged_backup_removal_message);
-                } else {
-                    $aged_backup_removal_message = "SETTINGS BACKUP: Something went wrong pruning old JSON settings backup files.";
-                    error_log($aged_backup_removal_message);
-                }
-            } else {
-                if ($backups_verbose_logging == true) {
-                    $aged_backup_removal_message = "SETTINGS BACKUP: NOT REMOVING backup file ($backup_file_path) since it is only " . ceil((time() - ($backup_time)) / 86400) . " days old.";
-                    error_log($aged_backup_removal_message);
-                }
-            }
-        }
-    }
+			//Remove the file via API instead
+			//Build the URL
+			$url = 'http://localhost/api/backups/configuration/' . $backup_directory . '/' . $backup_filename;
+			//options for the request
+			$options = array(
+				'http' => array(
+					'header' => "Content-type: text/plain",
+					'method' => 'DELETE',
+				),
+			);
+			$context = stream_context_create($options);
+
+			//Make the call to the API to delete the backup file
+			$backup_deleted_call = file_get_contents($url, false, $context);
+			$backup_deleted_call_decoded = json_decode($backup_deleted_call, true);
+
+			if ($backup_deleted_call !== false && $backup_deleted_call_decoded['Status'] == 'OK') {
+				//Track how many were deleted
+				$num_backups_deleted++;
+			} else {
+				$aged_backup_removal_message = "SETTINGS BACKUP: Something went wrong pruning old JSON settings backup file ($backup_file_path). Error: " . $backup_deleted_call;
+				error_log($aged_backup_removal_message . PHP_EOL);
+			}
+		}
+	}
+
+	//Note how many were deleted
+	if ($num_backups_deleted > 0) {
+		//Note what happened in the logs also
+		$aged_backup_removal_message = "SETTINGS BACKUP: Removed ($num_backups_deleted) old JSON settings backup files, because we only want to keep the $fpp_backup_min_number_kept most recent backups";
+		error_log($aged_backup_removal_message . PHP_EOL);
+	}
 }
 
 /**
