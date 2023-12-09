@@ -130,10 +130,12 @@ $fpp_backup_prompt_download = true;
 
 /////////////////////
 /// HOUSE KEEPING ///
-//Max age for stored settings backup files, Default: 90 days
+//NOT USED - Max age for stored settings backup files, Default: 90 days
 $fpp_backup_max_age = 90;
-//Minimum number of backups we want to keep, this works with max age to ensure we have at least some backups left and not wipe out all of them if they were all old. Default: 45
-$fpp_backup_min_number_kept = 45;
+//Max number of backup files we want to keep Default: 45
+$fpp_backup_min_number_kept = 60;
+//Max number of backup per plugin or by trigger source (eg. /api/config_file/someconfig all backup generated via this endpoint will have a trigger source of  config_file/someconfig we'll limit those backups to the below, default: 5
+$fpp_backup_max_plugin_backups_key = 5;
 
 ////////////////////
 /// DEBUGGING
@@ -1793,8 +1795,9 @@ function SavePixelnetDMXFile_F16v2Alpha($restore_data)
  * @param string $area Backup area to be backed up, refer $system_config_areas for the currently defined list of area
  * @param bool $allowDownload Toggle to allow or disallow the backup file being sent to the users browser
  * @param string $backupComment Optionally add a comment to the backup file that may be useful to describe what the backup is for
+ * @param string $backupTriggerSource Optionally add where/what triggered the backup
  */
-function performBackup($area = "all", $allowDownload = true, $backupComment = "User Initiated Manual Backup")
+function performBackup($area = "all", $allowDownload = true, $backupComment = "User Initiated Manual Backup", $backupTriggerSource = null)
 {
     global $fpp_backup_version, $system_config_areas, $protectSensitiveData, $known_json_config_files, $known_ini_config_files;
 
@@ -2076,6 +2079,8 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
 
         //Add the backup comment into settings data that has been gathered
         $tmp_settings_data['backup_comment'] = $backupComment;
+        //Add the trigger source also, this may be used internally when clearing/manging number of backup files
+        $tmp_settings_data['backup_trigger_source'] = $backupTriggerSource;
         //Lastly insert the backup system version (moved from doBackupDownload to here)
         $tmp_settings_data['fpp_backup_version'] = $fpp_backup_version;
         //Add the current UNIX epoc time, representing the time the backup as taken, may make it easier in the future to calculate when the backup was taken
@@ -2343,15 +2348,18 @@ function changeLocalFPPBackupFileLocation($new_location)
  */
 function pruneOrRemoveAgedBackupFiles()
 {
-    global $fpp_backup_max_age, $fpp_backup_min_number_kept, $fpp_backup_location, $backups_verbose_logging;
+	global $fpp_backup_max_age, $fpp_backup_min_number_kept, $fpp_backup_max_plugin_backups_key, $fpp_backup_location, $backups_verbose_logging;
 
     //gets all the files in the configs/backup directory via the API now since it will look in multiple areas
     $config_dir_files = file_get_contents('http://localhost/api/backups/configuration/list');
     $config_dir_files = json_decode($config_dir_files, true);
+	$config_dir_files_tmp = $config_dir_files;
+	$backups_to_delete = array();
+	$num_backups_deleted = 0;
 
 	//If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop processing
     if (count($config_dir_files) < $fpp_backup_min_number_kept) {
-        $aged_backup_removal_message = "SETTINGS BACKUP: NOT removing JSON Settings backup files older than $fpp_backup_max_age days. Since there are (" . count($config_dir_files) . ") backups available and this is less than the minimum backups we want to keep ($fpp_backup_min_number_kept) \r\n";
+		$aged_backup_removal_message = "SETTINGS BACKUP: NOT removing JSON Settings backup files. Since there are (" . count($config_dir_files) . ") backups available and this is less than the minimum backups we want to keep ($fpp_backup_min_number_kept) \r\n";
         error_log($aged_backup_removal_message);
         return;
     }
@@ -2360,10 +2368,46 @@ function pruneOrRemoveAgedBackupFiles()
 //    $config_dir_files = array_reverse($config_dir_files);
 
     //Select the backups that lie outside what we want to keep, because the array is a list of backups with the newest first then we'll be selecting older/dated backups
-    $backups_to_delete = array_slice($config_dir_files, $fpp_backup_min_number_kept);
-	$num_backups_deleted = 0;
+	$plugin_backups_to_delete_tmp = array();
 
-	//loop over the backup files we've found
+	//Look through all the backups, select ones with a trigger source, because the backups are newest first, we'll be selecting the file at the position of our max limit through to the end of the list
+	$backups_by_trigger_source = array();
+	foreach ($config_dir_files as $backups_by_trigger_source_index => $backups_by_trigger_source_meta_data) {
+		$backup_filename = $backups_by_trigger_source_meta_data['backup_filename'];
+
+		if ((stripos(strtolower($backup_filename), "-backup_") !== false) && (stripos(strtolower($backup_filename), ".json") !== false)) {
+			//
+			$backup_comment = $backups_by_trigger_source_meta_data['backup_comment'];
+			if (array_key_exists('backup_trigger_source', $backups_by_trigger_source_meta_data) && $backups_by_trigger_source_meta_data['backup_trigger_source'] !== null) {
+				//Get the trigger source name & add it and the backup meta data to a temp array, this will group like sources together
+				//then we'll limit those lists to enforce our backup limit
+				$backup_trigger_source = $backups_by_trigger_source_meta_data['backup_trigger_source'];
+				$backups_by_trigger_source[$backup_trigger_source][] = $backups_by_trigger_source_meta_data;
+
+				//Check the number of items for this trigger source, if it's > than our allowed limit then add the backup file to the $backups_to_delete list
+				if (count($backups_by_trigger_source[$backup_trigger_source]) > $fpp_backup_max_plugin_backups_key) {
+					$plugin_backups_to_delete_tmp[] = $backups_by_trigger_source_meta_data;
+					//Remove the entry from the list of backup files, because it will be deleted (we want this list to reflect the list after enforcing plugin backup limits)
+					//so that we can enforce the global limit after
+					unset($config_dir_files_tmp[$backups_by_trigger_source_index]);
+				}
+			}
+		}
+	}
+
+	//Fix indexes
+	$config_dir_files_tmp = array_values($config_dir_files_tmp);
+
+	if (count($config_dir_files_tmp) > $fpp_backup_min_number_kept) {
+		$backups_to_delete = array_slice($config_dir_files_tmp, $fpp_backup_min_number_kept);
+	}
+
+	//tack on the plugin backups to be deleted
+	foreach ($plugin_backups_to_delete_tmp as $plugin_backups_to_delete_tmp_data) {
+		$backups_to_delete[] = $plugin_backups_to_delete_tmp_data;
+	}
+
+	//loop over the backup files we've found that are beyond our set limit, all these to be deleted
 	foreach ($backups_to_delete as $backup_file_index => $backup_file_meta_data) {
 		$backup_filename = $backup_file_meta_data['backup_filename'];
 
