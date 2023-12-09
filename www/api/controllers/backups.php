@@ -345,6 +345,7 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 	//process each of the backups and read out the backup comment, and work out the date it was created
 	foreach ($json_config_backup_Data as $backup_filename => $backup_data) {
 		$backup_data_comment = '';
+		$backup_data_trigger_source = null;
 		$backup_alternative = false;
 		$backup_filepath = $source_directory;
 		//Check to see if the source direct is the same as the default or not, if it is't then the the directory is the alternative backup directory (USB or something)
@@ -359,6 +360,9 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 		if (array_key_exists('backup_comment', $decoded_backup_data)) {
 			$backup_data_comment = $decoded_backup_data['backup_comment'];
 		}
+		if (array_key_exists('backup_trigger_source', $decoded_backup_data)) {
+			$backup_data_trigger_source = $decoded_backup_data['backup_trigger_source'];
+		}
 
 		//Locate the last underscore, this appears before the date/time in the filename
 		$backup_date_time_pos = strrpos($backup_filename_clean, '_');
@@ -372,6 +376,7 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 			'backup_filedirectory' => $backup_filepath,
 			'backup_filename' => $backup_filename,
 			'backup_comment' => $backup_data_comment,
+			'backup_trigger_source' => $backup_data_trigger_source,
 			'backup_time' => $backup_date_time,
 			'backup_time_unix' => $backup_date_time_unix
 		);
@@ -397,8 +402,23 @@ function MakeJSONBackup()
 		   $fpp_backup_max_age, $fpp_backup_min_number_kept,
 		   $fpp_backup_location, $fpp_backup_location_alternate_drive;
 
-	//Get the backup comment out of the post data
-	$backup_comment = file_get_contents('php://input');
+	$trigger_source = null;
+
+	//Get data out of the post data
+	$input_data = file_get_contents('php://input');
+
+	//Try JSON decode the input in case it's an array with extra data
+	$input_data_decoded = json_decode($input_data, true);
+
+	if (json_last_error() === JSON_ERROR_NONE) {
+		// JSON is valid, get comment and trigger source
+		$backup_comment = $input_data_decoded['backup_comment'];
+		$trigger_source = $input_data_decoded['trigger_source'];
+	} else {
+		//It's just a string so it'll be just a comment
+		//Get the backup comment out of the post data
+		$backup_comment = $input_data;
+	}
 
 	$toUSBResult = false;
 
@@ -406,7 +426,7 @@ function MakeJSONBackup()
 	require_once "../backup.php";
 
 	//Create the backup and return the status
-	$backup_creation_status = performBackup('all', false, $backup_comment);
+	$backup_creation_status = performBackup('all', false, $backup_comment, $trigger_source);
 
 	if (array_key_exists('success', $backup_creation_status) && $backup_creation_status['success'] == true) {
 		$toUSBResult = DoJsonBackupToUSB();

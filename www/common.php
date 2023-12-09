@@ -2460,7 +2460,7 @@ function read_directory_files($directory, $return_data = true, $sort_by_date = f
     $file_list = array();
     $file_data = false;
 
-    if ($handle = opendir($directory)) {
+    if ($handle = @opendir($directory)) {
         while (false !== ($file = readdir($handle))) {
             // do something with the file
             // note that '.' and '..' is returned even
@@ -2476,6 +2476,9 @@ function read_directory_files($directory, $return_data = true, $sort_by_date = f
             }
         }
         closedir($handle);
+        unset($handle);
+        unset($file);
+        unset($file_data);
     }
 
     //Sort the results if sort flag  is true
@@ -2505,12 +2508,17 @@ function read_directory_files($directory, $return_data = true, $sort_by_date = f
 /**
  * Makes a POST Call to the api/backups/configuration to generate a JSON Configuration backup with a option comment
  * @param $backup_comment string Optional Comment that will be inserted into the JSON backup file
+ * @param $trigger_source string Optional Source that triggered the backup,
  * @return bool
  */
-function GenerateBackupViaAPI($backup_comment = "Created via API")
+function GenerateBackupViaAPI($backup_comment = "Created via API", $trigger_source = null)
 {
     $url = 'http://localhost/api/backups/configuration';
-    $data = array($backup_comment);
+    $data = $backup_comment;
+
+    if (!is_null($trigger_source)) {
+        $data = json_encode(array('backup_comment' => $backup_comment, 'trigger_source' => $trigger_source));
+    }
 
     //https://stackoverflow.com/questions/5647461/how-do-i-send-a-post-request-with-php
     // use key 'http' even if you send the request to https://...
@@ -2518,7 +2526,7 @@ function GenerateBackupViaAPI($backup_comment = "Created via API")
         'http' => array(
             'header' => "Content-type: text/plain",
             'method' => 'POST',
-            'content' => $backup_comment,
+            'content' => $data,
         ),
     );
     $context = stream_context_create($options);
