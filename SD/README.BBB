@@ -145,10 +145,10 @@ rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-VERSION=7.0
-OSVERSION=2023-07
+VERSION=7.4
+OSVERSION=2023-12
 DEVICE=/dev/sdc
-sudo dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
+dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 
 
 # To create the squashfs image needed for OS updates

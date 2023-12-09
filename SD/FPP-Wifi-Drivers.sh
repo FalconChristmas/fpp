@@ -20,6 +20,13 @@ shopt -s nullglob
 export KVERS=($(ls /usr/src/ | colrm 1 14))
 shopt -u nullglob
 
+# new wifi drivers take a bit of memory to compile
+# Add some swap space
+fallocate -l 256M /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+
 # new kernel may not include the linker script that some of the builds below require
 for i in "${KVERS[@]}"; do
     if [ ! -f "/usr/src/linux-headers-$i/arch/arm/kernel/module.lds" ]; then
@@ -223,3 +230,5 @@ echo "blacklist r8188eu" >> /etc/modprobe.d/blacklist-native-wifi.conf
 
 rm -f /etc/modprobe.d/blacklist-8192cu.conf
 
+swapoff /swapfile
+rm -f /swapfile

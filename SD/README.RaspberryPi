@@ -102,8 +102,8 @@ the proper device name for your SD card in place of '/dev/sdg'):
        apt-get install zerofree squashfs-tools
 
     DEVICE=/dev/sdc
-    VERSION=7.0
-    OSVERSION=2023-07
+    VERSION=7.4
+    OSVERSION=2023-12
     BLOCKS=3800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
@@ -118,7 +118,7 @@ the proper device name for your SD card in place of '/dev/sdg'):
     rm -f /mnt/root/.bash_history
     umount /mnt
     zerofree -v "${DEVICE}2"
-	sudo time dd if=${DEVICE} of=FPP-v${VERSION}-Pi.img bs=1M count=${BLOCKS}
+	time dd if=${DEVICE} of=FPP-v${VERSION}-Pi.img bs=1M count=${BLOCKS}
 	time zip -9 FPP-v$VERSION-Pi.img.zip FPP-v${VERSION}-Pi.img
 
 This will create a file called FPP-${VERSION}-Pi.img.zip that can be distributed
