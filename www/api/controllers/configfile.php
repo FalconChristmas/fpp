@@ -89,7 +89,7 @@ function UploadConfigFile()
 		fclose($f);
 
 		//Trigger a JSON Configuration Backup
-		GenerateBackupViaAPI('Config File ' . $baseFile . ' was uploaded/modified.');
+		GenerateBackupViaAPI('Config File ' . $baseFile . ' was uploaded/modified.', 'config_file/' . $baseFile);
 
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
