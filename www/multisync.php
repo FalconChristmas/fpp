@@ -340,7 +340,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     function isFalconV4(typeId) {
         typeId = parseInt(typeId);
 
-        if ((typeId >= 0x88) && (typeId <= 0x89))
+        if ((typeId >= 0x88) && (typeId <= 0x90))
             return true;
 
         return false;
@@ -1054,7 +1054,9 @@ function parseESPixelStickStatus(ip, data) {
     u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
     u += "</table>";
 
-    $('#advancedViewUtilization_fpp_' + ips).html(u);
+    var hostRowKey = ip.replace(/\./g, '_');
+    var rowId = hostRows[hostRowKey];
+    $('#advancedViewUtilization_' + rowId).html(u);
 
     var mode = $('#fpp_' + ips + '_mode').html();
 
@@ -1077,7 +1079,7 @@ function parseESPixelStickStatus(ip, data) {
             }
         }
 
-        $('#fpp_' + ips + '_status').html(st);
+        $('#' + rowId + '_status').html(st);
     }
 
     if ($('#MultiSyncRefreshStatus').is(":checked")) {
@@ -1254,20 +1256,23 @@ function getFalconControllerStatus(fv3ips, fv4ips, refreshing = false) {
                 u += "<tr><td>Temp:</td><td> " + t1temp + "C</td></tr>";
                 u += "</table>";
 
-                $('#advancedViewUtilization_fpp_' + ips).html(u);
-                $('#fpp_' + ips + '_status').html(s.status_name);
+                var hostRowKey = ip.replace(/\./g, '_');
+                var rowId = hostRows[hostRowKey];
+
+                $('#advancedViewUtilization_' + rowId).html(u);
+                $('#' + rowId + '_status').html(s.status_name);
 
                 if (testmode == true || overtemp == true) {
-                    $('#fpp_' + ips + '_warnings').removeAttr('style'); // Remove 'display: none' style
+                    $('#' + rowId + '_warnings').removeAttr('style'); // Remove 'display: none' style
                     // Handle tablesorter bug not assigning same color to child rows
-                    if ($('#fpp_' + ips).hasClass('odd'))
-                        $('#fpp_' + ips + '_warnings').addClass('odd');
+                    if ($('#' + rowId).hasClass('odd'))
+                        $('#' + rowId + '_warnings').addClass('odd');
 
                         var wHTML = "";
                         if (testmode == true) wHTML += "<span class='warning-text'>Controller Test mode is active</span><br>";
                         if (overtemp == true) wHTML += "<span class='warning-text'>Pixel brightness reduced due to high temperatures</span><br>";
 
-                       $('#fpp_' + ips + '_warningCell').html(wHTML);
+                       $('#' + rowId + '_warningCell').html(wHTML);
                 }
             });
             if ($('#MultiSyncRefreshStatus').is(":checked")) {
@@ -1320,8 +1325,11 @@ function getWLEDControllerStatus(ipAddresses, refreshing = false) {
             u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
             u += "</table>";
 
-            $('#advancedViewUtilization_fpp_' + ips).html(u);
-            $('#fpp_' + ips + '_status').html(data.status_name);
+            var hostRowKey = ip.replace(/\./g, '_');
+            var rowId = hostRows[hostRowKey];
+
+            $('#advancedViewUtilization_' + rowId).html(u);
+            $('#' + rowId + '_status').html(data.status_name);
         });
 
         if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
@@ -1368,13 +1376,16 @@ function getGeniusControllerStatus(ipAddresses, refreshing = false) {
            //u += "<tr><td>RSSI:</td><td>" + rssi + "dBm / " + quality + "%</td></tr>";
             u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
             u += "</table>";
-            $('#advancedViewUtilization_fpp_' + ips).html(u);
 
-            var origDesc = $('#fpp_' + ips + '_desc').html();
+            var hostRowKey = ip.replace(/\./g, '_');
+            var rowId = hostRows[hostRowKey];
+            $('#advancedViewUtilization_' + rowId).html(u);
+
+            var origDesc = $('#' + rowId + '_desc').html();
             if (origDesc == '') {
-                $('#fpp_' + ips + '_desc').html(data.system.friendly_name);
+                $('#' + rowId + '_desc').html(data.system.friendly_name);
             }
-            $('#fpp_' + ips + '_status').html(data.status_name);
+            $('#' + rowId + '_status').html(data.status_name);
         });
 
         if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
