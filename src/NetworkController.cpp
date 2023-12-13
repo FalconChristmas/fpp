@@ -146,8 +146,10 @@ bool NetworkController::DetectFalconController(const std::string& ip,
         if (fStart != std::string::npos) {
             typeId = (systemType)(atoi(getSimpleXMLTag(resp, "p").c_str()));
 
-            if (typeId == kSysTypeFalconController) { //v4 is just 0x80
-                if (getSimpleXMLTag(resp, "np") == "16") {
+            if (typeId >= 0x80) { //v4 is just 0x80
+                if (typeId == 0x82) {
+                    typeId = kSysTypeFalconF16v5;
+                } else if (getSimpleXMLTag(resp, "np") == "16") {
                     typeId = kSysTypeFalconF16v4;
                 } else if (getSimpleXMLTag(resp, "np") == "48" || getSimpleXMLTag(resp, "np") == "32") {
                     typeId = kSysTypeFalconF48v4;
