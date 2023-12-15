@@ -2216,7 +2216,7 @@ body .sm-clean a .sub-arrow {
 }
 
 .tablesorter-filter:not(:checked) {
-    color: #00FF00 !important;
+    color: #56B760 !important;
     font-weight: bold;
 }
 
