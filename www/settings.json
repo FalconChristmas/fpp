@@ -1588,13 +1588,6 @@
                 "Docker"
             ]
         },
-        "MultiSyncAdvancedView": {
-            "name": "MultiSyncAdvancedView",
-            "description": "Advanced View",
-            "gatherStats": true,
-            "tip": "Show additional information about each FPP system.",
-            "type": "checkbox"
-        },
         "MultiSyncBroadcast": {
             "name": "MultiSyncBroadcast",
             "gatherStats": true,
@@ -1716,7 +1709,7 @@
         "MultiSyncRefreshStatus": {
             "name": "MultiSyncRefreshStatus",
             "description": "Auto refresh Multisync Screen",
-            "tip": "Auto refresh status of FPP Systems.  The Simple View refreshes every second and Advanced View refreshes every 5 seconds.",
+            "tip": "Auto refresh status of FPP Systems.",
             "type": "checkbox"
         },
         "ntpServer": {

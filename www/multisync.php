@@ -5,13 +5,6 @@
 require_once "config.php";
 require_once "common.php";
 include 'common/menuHead.inc';
-
-$advancedView = true;
-if ((isset($settings['MultiSyncAdvancedView'])) &&
-    ($settings['MultiSyncAdvancedView'] == 1)) {
-    $advancedView = true;
-}
-
 ?>
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
@@ -31,7 +24,6 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 <script>
     var hostRows = new Object();
     var rowSpans = new Object();
-    var advancedView = true;
     var systemStatusCache = {}; // Cache of api/system/status?ip[]=
     var localFpposFiles = [];
     var proxies = [];
@@ -932,7 +924,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 newRow = newRow + "</tr>";
                 $('#fppSystems').append(newRow);
 
-                var colspan = (advancedView === true) ? 9 : 7;
+                var colspan = 9;
 
                 newRow = "<tr id='" + rowID + "_warnings' class='tablesorter-childRow warning-row'><td colspan='" + colspan + "' id='" + rowID + "_warningCell'></td></tr>";
                 $('#fppSystems').append(newRow);
