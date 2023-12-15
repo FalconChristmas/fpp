@@ -2211,6 +2211,15 @@ body .sm-clean a .sub-arrow {
     padding-right: 1em;
 }
 
+.tablesorter-filter option {
+    color: #000000 !important;
+}
+
+.tablesorter-filter:not(:checked) {
+    color: #00FF00 !important;
+    font-weight: bold;
+}
+
 .circularVirtualStringButton {
     display: block;
 }
