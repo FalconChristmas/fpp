@@ -166,7 +166,7 @@ void E131OutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& 
     if (valid && active) {
         unsigned char* cur = channelData + startChannel - 1;
         int start = 0;
-        bool skipped = false;
+        bool anySkipped = false;
         bool allSkipped = true;
         for (int x = 0; x < universeCount; x++) {
             if (NeedToOutputFrame(channelData, startChannel - 1, start, channelCount)) {
@@ -188,12 +188,12 @@ void E131OutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& 
                 e131Iovecs[x * 2 + 1].iov_base = (void*)cur;
                 allSkipped = false;
             } else {
-                skipped = true;
+                anySkipped = true;
             }
             cur += channelCount;
             start += channelCount;
         }
-        if (skipped) {
+        if (anySkipped) {
             skippedFrames++;
         } else {
             skippedFrames = 0;

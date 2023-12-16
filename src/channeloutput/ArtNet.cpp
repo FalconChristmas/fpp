@@ -172,7 +172,7 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
 
         unsigned char* cur = channelData + startChannel - 1;
         int start = 0;
-        bool skipped = false;
+        bool anySkipped = false;
         bool allSkipped = true;
 
         std::vector<struct mmsghdr>& msgs = messages[ARTNET_DEST_PORT];
@@ -191,7 +191,7 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
                 anIovecs[x * 2 + 1].iov_base = (void*)cur;
                 allSkipped = false;
             } else {
-                skipped = true;
+                anySkipped = true;
             }
             cur += channelCount;
             start += channelCount;
@@ -200,7 +200,7 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
         if (sequenceNumber == 0) {
             sequenceNumber++;
         }
-        if (skipped) {
+        if (anySkipped) {
             skippedFrames++;
         }
         if (!allSkipped) {

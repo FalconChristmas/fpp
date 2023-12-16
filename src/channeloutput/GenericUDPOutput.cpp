@@ -168,6 +168,7 @@ public:
                 msgs[udpAddress.sin_addr.s_addr].push_back(msg);
             }
             SaveFrame(&channelData[startChannel - 1], channelCount);
+            skippedFrames = 0;
         } else {
             skippedFrames++;
         }
