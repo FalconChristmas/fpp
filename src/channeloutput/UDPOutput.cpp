@@ -225,7 +225,6 @@ bool UDPOutputData::NeedToOutputFrame(unsigned char* channelData, int startChann
         }
         return false;
     }
-    skippedFrames = 0;
     return true;
 }
 

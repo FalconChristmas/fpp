@@ -197,7 +197,7 @@ void DDPOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& m
 
         msg.msg_hdr.msg_name = &ddpAddress;
         msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
-        bool skipped = false;
+        bool anySkipped = false;
         bool allSkipped = true;
         for (int p = 0; p < pktCount; p++) {
             bool nto = NeedToOutputFrame(channelData, startChannel - 1, start, ddpIovecs[p * 2 + 1].iov_len);
@@ -225,12 +225,14 @@ void DDPOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& m
                 ddpIovecs[p * 2 + 1].iov_base = (void*)(&channelData[startChannel - 1 + start]);
                 allSkipped = false;
             } else {
-                skipped = true;
+                anySkipped = true;
             }
             start += ddpIovecs[p * 2 + 1].iov_len;
         }
-        if (skipped) {
+        if (anySkipped) {
             skippedFrames++;
+        } else {
+            skippedFrames = 0;
         }
         if (!allSkipped) {
             SaveFrame(&channelData[startChannel - 1], start);
