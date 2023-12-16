@@ -155,17 +155,21 @@ void TwinklyOutputData::StoppingOutput() {
 }
 void TwinklyOutputData::authenticate() {
     Json::Value r = callRestAPI(true, "xled/v1/login", "{\"challenge\": \"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\"}");
-    std::string at = r.isMember("authentication_token") ? r["authentication_token"].asString() : "";
-    if (at != "") {
-        authToken = at;
-        reauthCount = 0;
-        std::vector<uint8_t> at = base64Decode(authToken);
-        memcpy(authTokenBytes, &at[0], std::min(TOKEN_LEN, (int)at.size()));
-        for (int x = 0; x < portCount; x++) {
-            memcpy(&twinklyBuffers[x][1], &at[0], std::min(TOKEN_LEN, (int)at.size()));
+    try {
+        std::string at = r.isMember("authentication_token") ? r["authentication_token"].asString() : "";
+        if (at != "") {
+            authToken = at;
+            reauthCount = 0;
+            std::vector<uint8_t> at = base64Decode(authToken);
+            memcpy(authTokenBytes, &at[0], std::min(TOKEN_LEN, (int)at.size()));
+            for (int x = 0; x < portCount; x++) {
+                memcpy(&twinklyBuffers[x][1], &at[0], std::min(TOKEN_LEN, (int)at.size()));
+            }
+            callRestAPI(true, "xled/v1/verify", "");
+            callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"rt\"}");
         }
-        callRestAPI(true, "xled/v1/verify", "");
-        callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"rt\"}");
+    } catch (std::exception& ex) {
+        //not much we can do other than try authenticating again later
     }
 }
 void TwinklyOutputData::verifyToken() {
