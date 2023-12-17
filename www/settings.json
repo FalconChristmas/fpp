@@ -690,8 +690,9 @@
             "restart": 1,
             "reloadUI": 0,
             "type": "select",
-            "default": "Prioritize Bridge",
+            "default": "Warn If Sequence Running",
             "options": {
+                "Warn If Sequence Running": "Warn If Sequence Running",
                 "Prioritize Bridge": "Prioritize Bridge",
                 "Prioritize Sequence": "Prioritize Sequence"
             }
