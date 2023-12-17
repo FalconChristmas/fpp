@@ -81,9 +81,13 @@ Sequence::Sequence() :
 
     m_blankBetweenSequences = getSettingInt("blankBetweenSequences");
     m_prioritize_sequence_over_bridge = false;
-    std::string bridgeDataPriority = getSetting("bridgeDataPriority", "Prioritize Bridge");
+    m_warn_if_bridging = false;
+    std::string bridgeDataPriority = getSetting("bridgeDataPriority", "Warn If Sequence Running");
     if (bridgeDataPriority == "Prioritize Sequence") {
         m_prioritize_sequence_over_bridge = true;
+    } else if (bridgeDataPriority == "Warn If Sequence Running") {
+        m_prioritize_sequence_over_bridge = true;
+        m_warn_if_bridging = true;
     }
 }
 
@@ -792,8 +796,13 @@ void Sequence::CloseSequenceFile(void) {
 }
 
 void Sequence::SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t expireMS) {
-    if (m_prioritize_sequence_over_bridge && this->IsSequenceRunning()) {
-        return;
+    if (this->IsSequenceRunning()) {
+        if (m_warn_if_bridging) {
+            WarningHolder::AddWarningTimeout("Received bridging data while sequence is running.", 60);
+        }
+        if (m_prioritize_sequence_over_bridge) {
+            return;
+        }
     }
 
     if (!m_bridgeData) {

@@ -74,6 +74,7 @@ private:
     void ProcessVariableHeaders();
     void SetLastFrameData(FSEQFile::FrameData* data);
     bool m_prioritize_sequence_over_bridge;
+    bool m_warn_if_bridging = false;
 
     class BridgeRangeData {
     public:
