@@ -248,6 +248,7 @@ int main(int argc, char* argv[]) {
                     printf("]");
                 }
                 printf(", \"CompressionType\": %d", (int)f->m_compressionType);
+				printf(", \"CompressionTypeString\": \"%s\"", f->CompressionTypeString().c_str());
             }
             printf("}\n");
         } else if (dump) {
