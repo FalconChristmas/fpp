@@ -238,7 +238,7 @@ Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string& path,
     status = curl_easy_perform(curl);
     if (status != CURLE_OK) {
         LogErr(VB_GENERAL, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
-        return false;
+        return Json::Value();
     }
 
     // printf("%s:   %s\n", url.c_str(), resp.c_str());
