@@ -16,10 +16,11 @@ for your SD card).
     n
     p
     2
-	(Replace 540672 with the original start block of partition 2 noted earlier)
-    540672
+	(Replace 1056768 with the original start block of partition 2 noted earlier)
+    1056768
 	(FIXME, downsize this value once install is tested)
-    +3500M
+    +6000M
+    N
     p
     w
 
@@ -62,6 +63,20 @@ Do a system upgrade to make sure everything is at the latest versions
     sudo apt-get upgrade
     sudo apt-get clean
     sudo localectl set-locale LANG="en_US.UTF-8"
+
+
+
+# For debian 12, we'd like to move to kernel 6.6+ and drop compiled wifi drivers, this still
+# needs some work to figure out and LOTS more testing
+#apt edit-sources
+# Append the following line to the bottom of the file:
+#deb http://deb.debian.org/debian bookworm-backports main contrib non-free
+
+#apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9
+#apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6ED0E7B82643E131
+#apt-get install -t bookworm-backports --install-recommends raspberrypi-kernel raspberrypi-kernel-headers firmware-linux firmware-linux-nonfree
+#rpi-update rpi-6.6.y
+
 
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
 
