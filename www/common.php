@@ -791,7 +791,7 @@ function PrintSettingSelectInternal($title, $setting, $restart, $reboot, $defaul
     }
 
     if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
-        $callbackName = $callbackName . "();";
+        $callbackName = $callbackName . "('$setting');";
     }
 
     if ($changedFunction == "") {
@@ -958,7 +958,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     }
 
     if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
-        $callbackName = $callbackName . "();";
+        $callbackName = $callbackName . "('$setting');";
     }
 
     if ($changedFunction == "") {
@@ -1129,7 +1129,7 @@ function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginNa
     }
 
     if ($callbackName != "" && ($callbackName[strlen($callbackName) - 1] != ")")) {
-        $callbackName = $callbackName . "();";
+        $callbackName = $callbackName . "('$setting');";
     }
 
     $saveFunction = preg_replace('/\./', '', $setting . "Changed");
