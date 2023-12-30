@@ -375,7 +375,7 @@ cd /opt 2> /dev/null || mkdir /opt
 export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
-	debian_11 | debian_10 | ubuntu_20.04 | ubuntu_22.04 | ubuntu_22.10 | linuxmint_21)
+	debian_11 | debian_12 | ubuntu_22.04 | ubuntu_22.10 | linuxmint_21)
 		case $FPPPLATFORM in
 			'BeagleBone Black')
 				echo "FPP - Skipping non-free for $FPPPLATFORM"
@@ -471,6 +471,10 @@ case "${OSVER}" in
         if [ "${OSVER}" == "ubuntu_22.10" ]; then
             ACTUAL_PHPVER="8.1"
         fi
+        if [ "${OSVER}" == "debian_12" ]; then
+            ACTUAL_PHPVER="8.2"
+            PHPVER="8.2"
+        fi
         PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
                       apache2 apache2-bin apache2-data apache2-utils \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
@@ -490,6 +494,9 @@ case "${OSVER}" in
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity zram-tools"
+            if [ "${OSVER}" == "debian_12" ]; then
+                PACKAGE_LIST="$PACKAGE_LIST ccache"
+            fi
         else
             PACKAGE_LIST="$PACKAGE_LIST ccache"
         fi
@@ -497,7 +504,7 @@ case "${OSVER}" in
             PACKAGE_LIST="$PACKAGE_LIST libva-dev"
         fi
         if $isimage; then
-            PACKAGE_LIST="$PACKAGE_LIST networkd-dispatcher"
+            PACKAGE_LIST="$PACKAGE_LIST networkd-dispatcher systemd-resolved"
         fi
 
         if $skip_apt_install; then
@@ -853,7 +860,7 @@ EOF
         fi
         
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
-		if [ "x${OSVER}" == "xdebian_11" ] || [ "x${OSVER}" == "xdebian_10" ]; then
+		if [ "x${OSVER}" == "xdebian_11" ] || [ "x${OSVER}" == "xdebian_12" ]; then
 			systemctl disable serial-getty@ttyAMA0.service
 			sed -i -e "s/console=serial0,115200 //" /boot/cmdline.txt
 			sed -i -e "s/autologin pi/autologin ${FPPUSER}/" /etc/systemd/system/autologin@.service
@@ -958,6 +965,9 @@ sh scripts/upgrade_config -notee
 PHPDIR="/etc/php/7.4"
 if [ "${OSVER}" == "ubuntu_22.10" ]; then
     PHPDIR="/etc/php/8.1"
+fi
+if [ "${OSVER}" == "debian_12" ]; then
+    PHPDIR="/etc/php/8.2"
 fi
 
 echo "FPP - Configuring PHP"
@@ -1088,8 +1098,13 @@ echo "FPP - Configuring ccache"
 mkdir -p /root/.ccache
 if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
     # On Beagle/Pi, we'll use a newer ccache to allow developer sharing of the cache
-    cd /opt/fpp/SD
-    ./buildCCACHE.sh
+    if [ "x${OSVER}" != "xdebian_12" ]; then
+        cd /opt/fpp/SD
+        ./buildCCACHE.sh
+        ccache -M 350M
+    else
+        ccache -M 500M
+    fi
 fi
 ccache -M 350M
 ccache --set-config=temporary_dir=/tmp
@@ -1264,7 +1279,7 @@ sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf
 rm /etc/apache2/conf-enabled/other-vhosts-access-log.conf
 
 case "${OSVER}" in
-	debian_11 |  debian_10 | ununtu_20.04 | ubuntu_22.04 | ubuntu_22.10 | linuxmint_21)
+	debian_11 |  debian_12 | ubuntu_22.04 | ubuntu_22.10 | linuxmint_21)
 		systemctl enable apache2.service
 		;;
 esac
