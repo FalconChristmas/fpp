@@ -59,6 +59,10 @@ void FPPLogger::Init() {
 bool FPPLogger::SetLevel(const char* name, const char* level) {
     LogLevel newLevel = LOG_ERR;
     bool found = false;
+    if (level == nullptr || name == nullptr) {
+        LogErr(VB_SETTING, "Log level (%s) and name (%s) must be specified\n", level, name);
+        return false;
+    }
 
     if (strcmp(level, "error") == 0) {
         newLevel = LOG_ERR;
