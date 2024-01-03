@@ -97,6 +97,7 @@
                 "fppMode",
                 "HostName",
                 "HostDescription",
+                "emailAddress",
                 "statsPublish",
                 "ShareCrashData",
                 "FetchVendorLogos",
@@ -153,6 +154,7 @@
         "privacy": {
             "description": "Privacy",
             "settings": [
+                "emailAddress",
                 "statsPublish",
                 "ShareCrashData",
                 "FetchVendorLogos",
@@ -2014,6 +2016,19 @@
             "type": "checkbox",
             "checkedValue": "1",
             "uncheckedValue": "0"
+        },
+        "emailAddress": {
+            "name": "emailAddress",
+            "description": "Email Address",
+            "tip": "Email address to contact you.  In the case of FPP crashes, the developers may need to contact you to help diagnose the cause of the crash.  This email address would only be used for that purpose.",
+            "level": 0,
+            "reboot": 0,
+            "restart": 0,
+            "reloadUI": 0,
+            "default": "",
+            "type": "text",
+            "size": 64,
+            "maxlength": 256
         },
         "statsPublish": {
             "name": "statsPublish",
