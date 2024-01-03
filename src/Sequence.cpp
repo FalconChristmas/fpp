@@ -703,18 +703,20 @@ void Sequence::ProcessSequenceData(int ms) {
 
 void Sequence::SendSequenceData() {
     if (m_lastFrameData) {
-        std::map<std::string, std::string> keywords;
-        keywords["SEQUENCE_NAME"] = m_seqFilename;
         uint32_t frame = m_lastFrameData->frame;
-        const auto& p = commandPresets.find(frame);
-        if (p != commandPresets.end()) {
-            for (auto& cmd : p->second) {
-                CommandManager::INSTANCE.TriggerPreset(cmd, keywords);
+        if (!commandPresets.empty()) {
+            std::map<std::string, std::string> keywords;
+            keywords["SEQUENCE_NAME"] = m_seqFilename;
+            const auto& p = commandPresets.find(frame);
+            if (p != commandPresets.end()) {
+                for (auto& cmd : p->second) {
+                    CommandManager::INSTANCE.TriggerPreset(cmd, keywords);
+                }
             }
         }
         if (!effectsOn.empty()) {
             const auto& eop = effectsOn.find(frame);
-            if (p != effectsOn.end()) {
+            if (eop != effectsOn.end()) {
                 for (auto& eff : eop->second) {
                     StartEffect(eff, 0, 1);
                 }
