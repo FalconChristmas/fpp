@@ -195,6 +195,33 @@ public:
         return std::make_unique<Command::Result>("OK");
     }
 };
+
+class FPPEnablePortCommand : public Command {
+public:
+    static FPPEnablePortCommand INSTANCE;
+    FPPEnablePortCommand() :
+        Command("Set Port Status") {
+        args.push_back(CommandArg("Port", "string", "Port").setContentListUrl("api/fppd/ports/list"));  
+        args.push_back(CommandArg("on", "bool", "On"));
+    }
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
+        if (args.size() < 2) {
+            return std::make_unique<Command::ErrorResult>("Required arguments not provided");
+        }
+        bool enable = args[1] == "true" || args[1] == "1";
+        if (args[0] == "--ALL--") {
+            if (enable) {
+                OutputMonitor::INSTANCE.EnableOutputs();
+            } else {
+                OutputMonitor::INSTANCE.DisableOutputs();
+            }
+        } else {
+            OutputMonitor::INSTANCE.SetOutput(args[0], enable);
+        }
+        return std::make_unique<Command::Result>("OK");
+    }
+};
+
 class FPPCheckConfiguredPixelsCommand : public Command {
 public:
     static FPPCheckConfiguredPixelsCommand INSTANCE;
@@ -227,6 +254,7 @@ public:
 FPPEnableOutputsCommand FPPEnableOutputsCommand::INSTANCE;
 FPPDisableOutputsCommand FPPDisableOutputsCommand::INSTANCE;
 FPPCheckConfiguredPixelsCommand FPPCheckConfiguredPixelsCommand::INSTANCE;
+FPPEnablePortCommand FPPEnablePortCommand::INSTANCE;
 
 OutputMonitor::OutputMonitor() {
 }
@@ -245,6 +273,7 @@ void OutputMonitor::Initialize(std::map<int, std::function<bool(int)>>& callback
     CommandManager::INSTANCE.addCommand(&FPPDisableOutputsCommand::INSTANCE);
     if (!portPins.empty()) {
         CommandManager::INSTANCE.addCommand(&FPPCheckConfiguredPixelsCommand::INSTANCE);
+        CommandManager::INSTANCE.addCommand(&FPPEnablePortCommand::INSTANCE);
     }
 }
 void OutputMonitor::Cleanup() {
@@ -252,6 +281,7 @@ void OutputMonitor::Cleanup() {
     CommandManager::INSTANCE.removeCommand(&FPPDisableOutputsCommand::INSTANCE);
     if (!portPins.empty()) {
         CommandManager::INSTANCE.removeCommand(&FPPCheckConfiguredPixelsCommand::INSTANCE);
+        CommandManager::INSTANCE.removeCommand(&FPPEnablePortCommand::INSTANCE);
     }
     for (auto pi : portPins) {
         delete pi;
@@ -329,6 +359,22 @@ void OutputMonitor::DisableOutputs() {
     lock.unlock();
     CommandManager::INSTANCE.TriggerPreset("OUTPUTS_DISABLED");
 }
+
+void OutputMonitor::SetOutput(const std::string &port, bool on) {
+    std::unique_lock<std::mutex> lock(gpioLock);
+    for (auto p : portPins) {
+        if (p->name == port && p->enablePin) {
+            p->hasTriggered = false;
+            p->isOn = on;
+            int value = p->highToEnable ? on : !on;
+            WarningHolder::RemoveWarning("eFUSE Triggered for " + p->name);
+            p->enablePin->setValue(value);
+            return;
+        }
+    }
+}
+
+
 void OutputMonitor::AddPortConfiguration(const std::string& name, const Json::Value& pinConfig, bool enabled) {
     PortPinInfo* pi = new PortPinInfo(name, pinConfig);
     bool hasInfo = false;

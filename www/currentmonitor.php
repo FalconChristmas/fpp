@@ -8,6 +8,14 @@ include 'common/menuHead.inc';
 ?>
 <script>
 
+
+function OnEnableClicked(name) {
+    $.get("api/command/Set Port Status/" +encodeURIComponent(name) + "/true");
+}
+function OnDisableClicked(name) {
+    $.get("api/command/Set Port Status/" + encodeURIComponent(name) + "/false");
+}
+
 function CountPixels() {
     $.get("api/fppd/ports/pixelCount");
 }
@@ -16,11 +24,11 @@ function StartMonitoring() {
         data.forEach(function(port) {
             var html = "<b>" + port["name"] + "</b><br>";
             if (port["enabled"]) {
-                html += "Enabled: <i class='fas fa-check-circle text-success' title='Port Enabled'></i><br>";
+                html += "Enabled: <i class='fas fa-check-circle text-success' title='Port Enabled' onclick='OnDisableClicked(\"" + port["name"] + "\")'></i><br>";
             } else if (port["status"]) {
-                html += "Enabled: <i class='fas fa-times-circle text-info' title='Port Disabled'></i><br>";
+                html += "Enabled: <i class='fas fa-times-circle text-info' title='Port Disabled' onclick='OnEnableClicked(\"" + port["name"] + "\")'></i><br>";
             } else {
-                html += "Enabled: <i class='fas fa-times-circle text-danger' title='eFuse Triggered'></i><br>";
+                html += "Enabled: <i class='fas fa-times-circle text-danger' title='eFuse Triggered' onclick='OnEnableClicked(\"" + port["name"] + "\")'></i><br>";
             }
             if (port["status"]) {
                 html += "Status: <i class='fas fa-check-circle text-success' title='eFuse Normal'></i><br>";

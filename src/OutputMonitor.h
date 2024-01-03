@@ -36,6 +36,8 @@ public:
     void EnableOutputs();
     void DisableOutputs();
 
+    void SetOutput(const std::string &port, bool on);
+
     void AutoEnableOutputs();
     void AutoDisableOutputs();
 
