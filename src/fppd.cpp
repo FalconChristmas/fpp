@@ -264,7 +264,9 @@ static void handleCrash(int s) {
     inCrashHandler = true;
     int crashLog = getSettingInt("ShareCrashData", 3);
     LogErr(VB_ALL, "Crash handler called:  %d\n", s);
-
+    if (!sequence->m_seqFilename.empty()) {
+        LogErr(VB_ALL, "   while playing  %s  at  %d ms\n", sequence->m_seqFilename.c_str(), sequence->m_seqMSElapsed);
+    }
     if (!dumpstack_gdb()) {
         void* callstack[128];
         int i, frames = backtrace(callstack, 128);
@@ -348,7 +350,7 @@ static void handleCrash(int s) {
             if (crashLog > 1) {
                 strcat(zName, " settings");
                 if (crashLog > 2) {
-                    strcat(zName, " config tmp logs/fppd.log logs/apache2-error.log playlists");
+                    strcat(zName, " config tmp logs/fppd.log logs/apache2-error.log playlists /etc/fppd");
                 }
             }
             system(zName);
