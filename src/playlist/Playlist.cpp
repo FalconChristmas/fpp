@@ -1679,27 +1679,27 @@ Json::Value Playlist::GetConfig(void) {
     GetInfo(result);
 
     if (m_leadIn.size()) {
-        Json::Value jsonArray(Json::arrayValue);
-        for (int c = 0; c < m_leadIn.size(); c++)
+        result["leadIn"] = Json::Value(Json::arrayValue);
+        Json::Value& jsonArray = result["leadIn"];
+        for (int c = 0; c < m_leadIn.size(); c++) {
             jsonArray.append(m_leadIn[c]->GetConfig());
-
-        result["leadIn"] = jsonArray;
+        }
     }
 
     if (m_mainPlaylist.size()) {
-        Json::Value jsonArray(Json::arrayValue);
-        for (int c = 0; c < m_mainPlaylist.size(); c++)
+        result["mainPlaylist"] = Json::Value(Json::arrayValue);
+        Json::Value& jsonArray = result["mainPlaylist"];
+        for (int c = 0; c < m_mainPlaylist.size(); c++) {
             jsonArray.append(m_mainPlaylist[c]->GetConfig());
-
-        result["mainPlaylist"] = jsonArray;
+        }
     }
 
     if (m_leadOut.size()) {
-        Json::Value jsonArray(Json::arrayValue);
-        for (int c = 0; c < m_leadOut.size(); c++)
+        result["leadOut"] = Json::Value(Json::arrayValue);
+        Json::Value& jsonArray = result["leadOut"];
+        for (int c = 0; c < m_leadOut.size(); c++) {
             jsonArray.append(m_leadOut[c]->GetConfig());
-
-        result["leadOut"] = jsonArray;
+        }
     }
 
     m_configTime = time(NULL);
