@@ -392,13 +392,8 @@ int Playlist::Load(const char* filename) {
                 root = LoadJSON(m_filename.c_str());
             }
         }
-
-        int res = Load(root);
-
-        GetConfigStr();
-
-        return res;
-    } catch ( std::exception &er ) {
+        return Load(root);
+    } catch (std::exception& er) {
         std::string warn = "Playlist " + GetPlaylistName() + " is invalid: " + er.what();
         LogWarn(VB_PLAYLIST, warn.c_str());
         WarningHolder::AddWarningTimeout(warn, 60);
@@ -483,8 +478,6 @@ int Playlist::ReloadPlaylist(void) {
     m_sectionPosition = 0;
     m_currentSectionStr = "MainPlaylist";
     m_currentSection = &m_mainPlaylist;
-
-    GetConfigStr();
 
     return 1;
 }
@@ -1637,8 +1630,12 @@ void Playlist::GetParentPlaylistNames(std::list<std::string>& names) {
  */
 Json::Value Playlist::GetInfo(void) {
     Json::Value result;
-    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    GetInfo(result);
+    return result;
+}
 
+void Playlist::GetInfo(Json::Value& result) {
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     result["currentState"] = m_currentState;
     if (m_currentState == "idle") {
         result["name"] = "";
@@ -1663,18 +1660,13 @@ Json::Value Playlist::GetInfo(void) {
         result["blankAtEnd"] = m_blankAtEnd;
         result["size"] = GetSize();
     }
-
     result["currentEntry"] = GetCurrentEntry();
-
-    return result;
 }
 
 /*
  *
  */
 std::string Playlist::GetConfigStr(void) {
-    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
-
     return SaveJsonToString(GetConfig());
 }
 
@@ -1682,11 +1674,9 @@ std::string Playlist::GetConfigStr(void) {
  *
  */
 Json::Value Playlist::GetConfig(void) {
-    Json::Value result = GetInfo();
-
-    // FIXME, need to test the performance of not having this on the Pi/BBB
-    //	if (m_configTime > m_fileTime)
-    //		return m_config;
+    Json::Value result;
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    GetInfo(result);
 
     if (m_leadIn.size()) {
         Json::Value jsonArray(Json::arrayValue);

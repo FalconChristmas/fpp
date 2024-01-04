@@ -75,6 +75,7 @@ public:
     void GetCurrentStatus(Json::Value& result);
     Json::Value GetCurrentEntry(void);
     Json::Value GetInfo(void);
+    void GetInfo(Json::Value& v);
     std::string GetPlaylistName(void) { return m_name; }
     int GetRepeat(void) { return m_repeat; }
     int GetPosition(void);

@@ -449,14 +449,16 @@ Json::Value PlaylistEntryMedia::GetConfig(void) {
     Json::Value result = PlaylistEntryBase::GetConfig();
     MediaOutputStatus status = IsPaused() ? m_pausedStatus : mediaOutputStatus;
     result["mediaFilename"] = m_mediaFilename;
-    result["status"] = status.status;
-    result["secondsElapsed"] = status.secondsElapsed;
-    result["subSecondsElapsed"] = status.subSecondsElapsed;
-    result["secondsRemaining"] = status.secondsRemaining;
-    result["subSecondsRemaining"] = status.subSecondsRemaining;
-    result["minutesTotal"] = status.minutesTotal;
-    result["secondsTotal"] = status.secondsTotal;
-    result["mediaSeconds"] = status.mediaSeconds;
+    if (m_mediaOutput) {
+        result["status"] = status.status;
+        result["secondsElapsed"] = status.secondsElapsed;
+        result["subSecondsElapsed"] = status.subSecondsElapsed;
+        result["secondsRemaining"] = status.secondsRemaining;
+        result["subSecondsRemaining"] = status.subSecondsRemaining;
+        result["minutesTotal"] = status.minutesTotal;
+        result["secondsTotal"] = status.secondsTotal;
+        result["mediaSeconds"] = status.mediaSeconds;
+    }
 
     return result;
 }
