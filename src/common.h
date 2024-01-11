@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 
-
 #include "log.h"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -144,3 +143,5 @@ inline std::string toStdStringAndFree(char* v) {
     free(v);
     return s;
 }
+
+void SetThreadName(const std::string& name);

@@ -439,6 +439,7 @@ public:
     int numChannels() { return _channels; }
 
     static void decodeThreadEntry(SDL* sdl) {
+        SetThreadName("FPP-SDLDecode");
         sdl->runDecode();
     }
     bool Start(SDLInternalData* d, int msTime) {

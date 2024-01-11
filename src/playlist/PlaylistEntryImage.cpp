@@ -368,8 +368,8 @@ void StartPrepLoopThread(PlaylistEntryImage* pe) {
 }
 
 void PlaylistEntryImage::PrepLoop(void) {
+    SetThreadName("FPP-ImageLoop");
     std::unique_lock<std::mutex> lock(m_bufferLock);
-
     while (m_runLoop) {
         if (!m_imagePrepped) {
             lock.unlock();

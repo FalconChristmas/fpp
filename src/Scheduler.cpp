@@ -596,6 +596,7 @@ void Scheduler::CheckScheduledItems(bool restarted) {
                 cmd["multisyncHosts"] = item->entry->multisyncHosts;
 
                 std::thread th([this](Json::Value cmd) {
+                    SetThreadName("FPP-RunCmd");
                     CommandManager::INSTANCE.run(cmd);
                 },
                                cmd);

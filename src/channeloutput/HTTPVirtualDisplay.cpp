@@ -183,6 +183,7 @@ int HTTPVirtualDisplayOutput::Close(void) {
  *
  */
 void HTTPVirtualDisplayOutput::ConnectionThread(void) {
+    SetThreadName("FPP-HTTPVD-Con");
     int client;
 
     while (m_running) {
@@ -232,6 +233,7 @@ void HTTPVirtualDisplayOutput::ConnectionThread(void) {
  *
  */
 void HTTPVirtualDisplayOutput::SelectThread(void) {
+    SetThreadName("FPP-HTTPVD-Sel");
     fd_set active_fd_set;
     fd_set read_fd_set;
     int selectResult;

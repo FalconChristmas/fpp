@@ -147,6 +147,7 @@ void Events::PrepareForShutdown() {
 }
 
 void Events::RunPublishThread() {
+    SetThreadName("FPP-Events");
     sleep(3); // Give everything time to start up
 
     int playlistFrequency = getSettingInt("MQTTFrequency");

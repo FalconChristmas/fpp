@@ -61,6 +61,7 @@ static inline std::string createWarning(const std::string& host, const std::stri
 }
 
 static void DoPingThread(UDPOutput* output) {
+    SetThreadName("FPP-UDPPing");
     output->BackgroundThreadPing();
 }
 
@@ -493,6 +494,7 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
 }
 
 static void DoWorkThread(UDPOutput* output) {
+    SetThreadName("FPP-UDPWork");
     output->BackgroundOutputWork();
 }
 

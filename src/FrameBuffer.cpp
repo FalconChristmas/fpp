@@ -1039,6 +1039,7 @@ void FrameBuffer::SyncLoopFB() {
 #endif
 
 void FrameBuffer::DrawLoop(void) {
+    SetThreadName("FPP-FBDrawLoop");
     if (m_autoSync) {
         if (m_device == "x11") {
 #ifdef USE_X11

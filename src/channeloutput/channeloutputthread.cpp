@@ -109,6 +109,8 @@ static inline bool forceOutput() {
  * Main loop in channel output thread
  */
 void* RunChannelOutputThread(void* data) {
+    SetThreadName("FPP-ChannelOut");
+
     static long long lastStatTime = 0;
     long long startTime;
     long long sendTime;

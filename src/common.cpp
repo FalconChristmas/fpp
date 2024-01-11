@@ -644,11 +644,11 @@ bool PutFileContents(const std::string& filename, const std::string& str) {
     return false;
 }
 bool CopyFileContents(const std::string& srcFile, const std::string& destFile) {
-    int input, output;    
-    if ((input = open(srcFile.c_str(), O_RDONLY)) == -1){
+    int input, output;
+    if ((input = open(srcFile.c_str(), O_RDONLY)) == -1) {
         LogErr(VB_GENERAL, "ERROR: Unable to open %s for reading.\n", srcFile.c_str());
         return false;
-    }    
+    }
     if ((output = creat(destFile.c_str(), 0660)) == -1) {
         LogErr(VB_GENERAL, "ERROR: Unable to open %s for writing.\n", destFile.c_str());
         close(input);
@@ -659,7 +659,7 @@ bool CopyFileContents(const std::string& srcFile, const std::string& destFile) {
     int result = fcopyfile(input, output, 0, COPYFILE_ALL);
 #else
     off_t bytesCopied = 0;
-    struct stat fileinfo = {0};
+    struct stat fileinfo = { 0 };
     fstat(input, &fileinfo);
     int result = sendfile(output, input, &bytesCopied, fileinfo.st_size);
 #endif
@@ -1208,4 +1208,12 @@ std::string GetFileExtension(const std::string& filename) {
     if (filename.find_last_of(".") != std::string::npos)
         return filename.substr(filename.find_last_of(".") + 1);
     return "";
+}
+
+void SetThreadName(const std::string& name) {
+#ifdef PLATFORM_OSX
+    pthread_setname_np(name.c_str());
+#else
+    pthread_setname_np(pthread_self(), name.c_str());
+#endif
 }

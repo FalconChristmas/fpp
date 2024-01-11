@@ -82,6 +82,7 @@ void WarningHolder::clearWarningsFile() {
 }
 
 void WarningHolder::NotifyListenersMain() {
+    SetThreadName("FPP-Warnings");
     std::unique_lock<std::mutex> lck(notifyLock);
     writeWarningsFile(WarningHolder::GetWarningsAndNotify(false));
     while (runNotifyThread) {

@@ -965,6 +965,7 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
 }
 
 void PixelOverlayManager::doOverlayModelEffects() {
+    SetThreadName("FPP-OverlayME");
     std::unique_lock<std::mutex> l(threadLock);
     while (threadKeepRunning) {
         uint32_t waitTime = 1000;

@@ -1062,6 +1062,7 @@ void CreateDaemon(void) {
 }
 
 void PublishStatsForce(std::string reason) {
+    SetThreadName("FPP-PubStats");
     std::string result("");
     urlPost("http://localhost/api/statistics/usage?reason=" + reason, "", result);
     LogInfo(VB_GENERAL, "Publishing statistics because of \"%s\" = %s\n", reason.c_str(), result.c_str());

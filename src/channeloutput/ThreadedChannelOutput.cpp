@@ -192,6 +192,7 @@ int ThreadedChannelOutput::StopOutputThread(void) {
 
 void ThreadedChannelOutput::OutputThread(void) {
     LogDebug(VB_CHANNELOUT, "ThreadedChannelOutput::OutputThread()\n");
+    SetThreadName("FPP-" + m_outputType);
 
     long long wakeTime = GetTime();
     struct timeval tv;

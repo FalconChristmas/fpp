@@ -55,6 +55,14 @@ int gettimeofday(struct timeval* tp, struct timezone* tzp) {
 
 #include "FSEQFile.h"
 
+static void SetThreadName(const std::string& name) {
+#ifdef PLATFORM_OSX
+    pthread_setname_np(name.c_str());
+#else
+    pthread_setname_np(pthread_self(), name.c_str());
+#endif
+}
+
 #if defined(PLATFORM_OSX)
 #define PLATFORM_UNKNOWN
 #endif
@@ -995,6 +1003,7 @@ public:
         m_firstBlock = block;
         m_readThreadRunning = true;
         m_readThread = new std::thread([this]() {
+            SetThreadName("FSEQReadThread");
             while (m_readThreadRunning) {
                 std::unique_lock<std::mutex> readerlock(m_readMutex);
                 if (!m_blocksToRead.empty()) {

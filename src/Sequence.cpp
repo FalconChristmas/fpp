@@ -153,6 +153,7 @@ void ReadSequenceDataThread(Sequence* sequence) {
     sequence->ReadFramesLoop();
 }
 void Sequence::ReadFramesLoop() {
+    SetThreadName("FPP-ReadFrames");
     std::unique_lock<std::mutex> lock(frameCacheLock);
     while (true) {
         if (m_shuttingDown) {
