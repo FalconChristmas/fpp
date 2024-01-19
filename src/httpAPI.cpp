@@ -63,9 +63,13 @@ static std::time_t startupTime = std::time(nullptr);
 */
 void GetCurrentFPPDStatus(Json::Value& result) {
     static std::string UUID = getSetting("SystemUUID");
+    static std::string fpp_version = getFPPVersion();
+    static std::string fppd_branch = getFPPBranch();
 
     int mode = getFPPmode();
     result["fppd"] = "running";
+    result["version"] = fpp_version;
+    result["branch"] = fppd_branch;
     result["uuid"] = UUID;
     result["mode"] = mode;
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
