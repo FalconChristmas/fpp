@@ -2377,7 +2377,12 @@ function GetSystemInfoJsonInternal($simple = false)
     $output = array();
     exec($settings['fppDir'] . "/scripts/get_uuid", $output);
     $result['uuid'] = $output[0];
-
+    if (isset($settings['cape-info'])) {
+        $capeInfo = $settings['cape-info'];
+        $result['capeInfo']['name']= $capeInfo['name'];
+        $result['capeInfo']['id']= $capeInfo['id'];
+        $result['capeInfo']['version']= $capeInfo['version'];
+    }
     if (!$simple) {
         //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
         $result['Utilization']['CPU'] = get_server_cpu_usage();
