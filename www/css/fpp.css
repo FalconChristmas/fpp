@@ -2010,6 +2010,10 @@ body .sm-clean a .sub-arrow {
 
 }
 
+.savePlaylistBtnHasChange {
+    display: none;
+}
+
 .warning-text {
     color: red;
 }

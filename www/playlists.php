@@ -281,6 +281,11 @@ if (isset($_GET['playlist'])) {
             SavePlaylist($('#txtPlaylistName').val())
         })
         $('.playlistEditorBackButton').click(function(){
+            if (isCurrentPlaylistModified()) {
+                if (confirm("Leave without saving changes?") == false) {
+                    return;
+                }
+            }
             $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
         })
 
@@ -376,7 +381,7 @@ include 'menu.inc';?>
                                 </div>
                             </div>
                             <button class="buttons btn-success savePlaylistBtn" >
-                                Save Playlist
+                                Save Playlist <i class="fa fa-exclamation-triangle savePlaylistBtnHasChange" aria-hidden="true"></i>
                             </button>
                         </div>
 

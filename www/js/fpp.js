@@ -7,6 +7,7 @@ STATUS_PAUSED = "5";
 
 
 // Globals
+gblCurrentPlaylistModified = false;
 gblCurrentPlaylistIndex = 0;
 gblCurrentPlaylistEntryType = '';
 gblCurrentPlaylistEntrySeq = '';
@@ -1970,6 +1971,8 @@ function AddPlaylistEntry(mode) {
 
     $('#tblPlaylistMainPlaylistPlaceHolder').remove();
 
+    markCurrentPlaylistModified();
+
     var type = $('#pe_type').val();
     var pet = playlistEntryTypes[type];
 
@@ -2161,6 +2164,19 @@ function SetPlaylistName(name) {
     }
 }
 
+function isCurrentPlaylistModified() {
+    return gblCurrentPlaylistModified;
+}
+
+function markCurrentPlaylistModified(modified = true) {
+    gblCurrentPlaylistModified = modified;
+    if (modified) {
+        $(".savePlaylistBtnHasChange").show();
+    } else {
+        $(".savePlaylistBtnHasChange").hide();
+    }
+}
+
 function SavePlaylistAs(name, options, callback) {
     if (!PlaylistNameOK(name))
         return 0;
@@ -2237,6 +2253,7 @@ function SavePlaylistAs(name, options, callback) {
                 EditPlaylistEntry();
 
             $.jGrowl("Playlist Saved", { themeState: 'success' });
+            markCurrentPlaylistModified(false);
             if (typeof callback === 'function') {
                 callback();
             }
@@ -2400,6 +2417,7 @@ function RemovePlaylistEntry() {
     $('#tblPlaylistDetails').find('.playlistSelectedEntry').remove();
     RenumberPlaylistEditorEntries();
     UpdatePlaylistDurations();
+    markCurrentPlaylistModified();
 }
 
 function reloadPage() {
@@ -2436,7 +2454,7 @@ function PingE131IP(id) {
 }
 
 function ViewReleaseNotes(version) {
-    
+
     var opts = {
         id: "releaseNotesDialog",
         title: "Release Notes for FPP v" + version,
@@ -2447,7 +2465,7 @@ function ViewReleaseNotes(version) {
         focus: true
     };
 
-    
+
     DoModalDialog(opts);
 
     $.get("api/system/releaseNotes/" + version
@@ -2466,10 +2484,10 @@ function VersionUpgradeDone(id) {
 }
 function UpgradeFPPVersion(newVersion) {
     if (confirm('Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.')) {
-        
+
         CloseModalDialog("releaseNotesDialog");
-        
-        
+
+
         var opts = {
             id: "upgradeFPPDialog",
             title: "Upgrading to FPP v" + newVersion,
@@ -2484,18 +2502,18 @@ function UpgradeFPPVersion(newVersion) {
         if (settings['Platform'] == "MacOS") {
             opts["buttons"] = {
                 "Close": {
-                id: 'fppUpgradeCloseDialogButton',
-                click: function() {CloseModalDialog("upgradeFPPDialog");},
-                disabled: true,
+                    id: 'fppUpgradeCloseDialogButton',
+                    click: function () { CloseModalDialog("upgradeFPPDialog"); },
+                    disabled: true,
                     class: 'btn-success'
                 }
             };
         } else {
             opts["buttons"] = {
                 "Reboot": {
-                id: 'fppUpgradeCloseDialogButton',
-                click: function() {Reboot();},
-                disabled: true,
+                    id: 'fppUpgradeCloseDialogButton',
+                    click: function () { Reboot(); },
+                    disabled: true,
                     class: 'btn-success'
                 }
             };
@@ -4981,7 +4999,7 @@ function RenameFile(dir, file) {
 }
 
 function DownloadFile(dir, file) {
-    location.href = "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F','/');
+    location.href = "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F', '/');
 }
 
 function DownloadFiles(dir, files) {
@@ -4989,7 +5007,7 @@ function DownloadFiles(dir, files) {
         DownloadFile(dir, files[0]);
     } else {
         for (var i = 0; i < files.length; i++) {
-            window.open("api/file/" + dir + "/" + encodeURIComponent(files[i]).replaceAll('%2F','/'));
+            window.open("api/file/" + dir + "/" + encodeURIComponent(files[i]).replaceAll('%2F', '/'));
         }
     }
 }
@@ -4999,16 +5017,16 @@ function DownloadZip(dir) {
 }
 
 function ViewImage(file) {
-    var url = "api/file/Images/" + encodeURIComponent(file).replaceAll('%2F','/');
+    var url = "api/file/Images/" + encodeURIComponent(file).replaceAll('%2F', '/');
     ViewFileImpl(url, file, "<center><a href='" + url + "' target='_blank'><img src='" + url + "' style='display: block; max-width: 700px; max-height: 500px; width: auto; height: auto;'></a><br>Click image to display full size.</center>");
 }
 
 function ViewFile(dir, file) {
-    var url = "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F','/');
+    var url = "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F', '/');
     ViewFileImpl(url, file);
 }
 function TailFile(dir, file, lines) {
-    var url = "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F','/') + "?tail=" + lines;
+    var url = "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F', '/') + "?tail=" + lines;
     //console.log(url);
     ViewFileImpl(url, file);
 }
@@ -5042,7 +5060,7 @@ function ViewFileImpl(url, file, html = '') {
 
 function DeleteFile(dir, row, file, silent = false) {
     $.ajax({
-        url: "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F','/'),
+        url: "api/file/" + dir + "/" + encodeURIComponent(file).replaceAll('%2F', '/'),
         type: 'DELETE'
     }).done(function (data) {
         if (data.status == "OK") {

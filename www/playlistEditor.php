@@ -49,6 +49,7 @@ function playlistEditorDocReady() {
 
                 RenumberPlaylistEditorEntries();
                 UpdatePlaylistDurations();
+                markCurrentPlaylistModified();
             }
         },
         over:function(){
