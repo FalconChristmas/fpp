@@ -12,6 +12,7 @@ FPP Publish subtopics
 ---------------------------------------------
 FPP will published the following sub_topics (using the full topic format) if MQTT is configured
 
+*/ready -- 1 when fppd starts, 0 when fppd goes down.  Has "last will" set to 0.
 */version -- The current full version of the fpp software
 */branch -- The git branch currently in use
 */status -- Status of the player (idle, playing)
