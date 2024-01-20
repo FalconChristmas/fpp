@@ -67,7 +67,7 @@ void Events::Ready() {
         WarningHolder::AddWarningListener(EVENT_WARNING_LISTENER);
     }
 
-    Events::Publish("ready", 1);
+    Events::Publish(MQTT_READY_TOPIC_NAME, 1);
     Events::Publish("version", getFPPVersion());
     Events::Publish("branch", getFPPBranch());
 
@@ -140,7 +140,7 @@ void Events::PrepareForShutdown() {
         EVENT_WARNING_LISTENER = nullptr;
     }
 
-    Publish("ready", 0);
+    Publish(MQTT_READY_TOPIC_NAME, 0);
     for (auto handler : EVENT_HANDLERS) {
         handler->PrepareForShutdown();
     }

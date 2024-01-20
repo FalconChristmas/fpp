@@ -13,6 +13,8 @@
 #include <functional>
 #include <string>
 
+#define MQTT_READY_TOPIC_NAME "ready"
+
 class EventHandler {
 public:
     EventHandler();

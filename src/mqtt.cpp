@@ -25,11 +25,11 @@
 #include <vector>
 
 #include "Events.h"
+#include "Timers.h"
 #include "Warnings.h"
 #include "log.h"
 #include "mqtt.h"
 #include "settings.h"
-#include "Timers.h"
 #include "commands/Commands.h"
 
 #define FALCON_TOPIC "falcon/player"
@@ -200,12 +200,20 @@ int MosquittoClient::Init(const std::string& username, const std::string& passwo
 
     LogDebug(VB_CONTROL, "About to call MQTT Connect (%s, %d, %d)\n", m_host.c_str(), m_port, m_keepalive);
 
-    int result = mosquitto_connect_async(m_mosq, m_host.c_str(), m_port, m_keepalive);
+    // Tell MQTT broker to make MQTT "ready" topic go to zero if crash or network loss
+    static std::string last_ready_message = "0";
+    static std::string last_ready_topic = m_baseTopic + "/" + MQTT_READY_TOPIC_NAME;
+    int rc = mosquitto_will_set(m_mosq, last_ready_topic.c_str(), last_ready_message.size(), last_ready_message.c_str(), 1, false);
+    if (rc != MOSQ_ERR_SUCCESS) {
+        LogErr(VB_CONTROL, "MQTT: Unable to set last will for  %s. Error code: %d\n", MQTT_READY_TOPIC_NAME, rc);
+    }
 
-    if (result) {
+    rc = mosquitto_connect_async(m_mosq, m_host.c_str(), m_port, m_keepalive);
+
+    if (rc) {
         LogErr(VB_CONTROL, "Error, unable to connect to Mosquitto Broker at %s: %d\n",
-               m_host.c_str(), result);
-        LogErr(VB_CONTROL, "MQTT Error: %s\n", strerror(result));
+               m_host.c_str(), rc);
+        LogErr(VB_CONTROL, "MQTT Error: %s\n", strerror(rc));
         return 0;
     }
 
@@ -247,7 +255,7 @@ bool MosquittoClient::Publish(const std::string& topic, const std::string& data)
     return Publish(topic, data, false, 1);
 }
 bool MosquittoClient::Publish(const std::string& topic, const int value) {
-    if (topic == "ready") {
+    if (topic == MQTT_READY_TOPIC_NAME) {
         if (value) {
             SetReady();
         }
