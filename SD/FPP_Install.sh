@@ -48,7 +48,7 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2023-12"
+FPPIMAGEVER="2024-01"
 FPPCFGVER="80"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -392,7 +392,7 @@ case "${OSVER}" in
         PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools triggerhappy pocketsphinx-en-us python3-smbus guile-2.2-libs \
             python3-werkzeug python3-click python3-colorama python3-decorator python3-dev python3-distro \
             python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
-            gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv"
+            gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv iwd"
         if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer"
         fi
@@ -409,11 +409,11 @@ case "${OSVER}" in
             # Need to make sure there is configuration for eth0 or uninstalling dhcpclient will cause network to drop
             rm -f /etc/systemd/network/50-default.network
             curl -o /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
-            if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
+            if [ "${OSVER}" == "debian_12" ]; then
                 sed -i -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' /etc/systemd/network/50-default.network
             fi
             
-            
+            apt-get install -y systemd-resolved
             systemctl reload systemd-networkd
             apt-get remove -y --purge --autoremove --allow-change-held-packages ${PACKAGE_REMOVE}
             
@@ -513,7 +513,9 @@ case "${OSVER}" in
             apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${PACKAGE_LIST}
         fi
         if $isimage; then
-            if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
+            if [ "${OSVER}" == "debian_12" ]; then
+                apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install systemd wpasupplicant
+            elif [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
                 # Since we rely heavily on systemd-networkd and wpasupplicant for networking features, grab the latest backports
                 # This cannot work on Raspberry Pi as the Pi Zero and older Pi's are armv6 and bullseye-backports is armv7
                 apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t bullseye-backports install systemd wpasupplicant
@@ -525,8 +527,8 @@ case "${OSVER}" in
         apt-get -y clean
 
 
-		echo "FPP - Installing libhttpserver 0.18.2"
-		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.18.2 && ./bootstrap && autoupdate && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr --disable-examples && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
+		echo "FPP - Installing libhttpserver 0.19.0"
+		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.19.0 && ./bootstrap && autoupdate && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr --disable-examples && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
         echo "FPP - Configuring shellinabox to use /var/tmp"
         echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
@@ -596,22 +598,29 @@ case "${OSVER}" in
 
                 # make sure the label on p1 is "boot" and p2 is rootfs
                 fatlabel /dev/mmcblk0p1 boot
-                fatlabel /dev/mmcblk0p2 rootfs
+                e2label /dev/mmcblk0p2 rootfs
+
+                BOOTDIR="/boot"
+                if [ "${OSVER}" == "debian_12" ]; then
+                    BOOTDIR="/boot/firmware"
+                fi
+
 
                 # Update /etc/fstab to use PARTUUID for / and /boot
-                BOOTLINE=$(grep "^[^#].* /boot " /etc/fstab | sed -e "s;^[^#].* /boot ;LABEL=boot /boot ;")
+                BOOTLINE=$(grep "^[^#].* /boot[a-z/]* " /etc/fstab | sed -e "s;^[^#].* /boot[a-z/]* ;LABEL=boot ${BOOTDIR} ;")
                 ROOTLINE=$(grep "^[^#].* /  " /etc/fstab | sed -e "s;^[^#].* / ;LABEL=rootfs / ;")
                 echo "    - Updating /etc/fstab"
-                sed -i -e "s;^[^#].* /boot .*;${BOOTLINE};" -e "s;^[^#].* / .*;${ROOTLINE};" /etc/fstab
+                sed -i -e "s;^[^#].* /boot[a-z/]* .*;${BOOTLINE};" -e "s;^[^#].* / .*;${ROOTLINE};" /etc/fstab
 
                 # Create two different cmdline.txt files for USB and SD boot
                 echo "    - Creating /boot/cmdline.* configs"
-                cat /boot/cmdline.txt | sed -e "s/root=\/dev\/[a-zA-Z0-9]*\([0-9]\) /root=\/dev\/sda\1 /" > /boot/cmdline.usb
-                cat /boot/cmdline.txt | sed -e "s/root=\/dev\/[a-zA-Z0-9]*\([0-9]\) /root=\/dev\/mmcblk0p\1 /" > /boot/cmdline.sd
+                sed -i -e "s; root=PARTUUID=[0-9A-Za-z\-]* ; root=/dev/mmcblk0p2 ;g" ${BOOTDIR}/cmdline.txt
+                cat ${BOOTDIR}/cmdline.txt | sed -e "s/root=\/dev\/[a-zA-Z0-9]*\([0-9]\) /root=\/dev\/sda\1 /" > ${BOOTDIR}/cmdline.usb
+                cat ${BOOTDIR}/cmdline.txt | sed -e "s/root=\/dev\/[a-zA-Z0-9]*\([0-9]\) /root=\/dev\/mmcblk0p\1 /" > ${BOOTDIR}/cmdline.sd
 
                 # Create two batch files to switch back and forth between USB and SD boot
                 echo "    - Creating /boot/boot_*.bat scripts"
-                cat > /boot/boot_usb.bat <<EOF
+                cat > $(BOOTDIR)/boot_usb.bat <<EOF
 @echo off
 rem This script will switch /boot/cmdline.txt to boot from a USB
 rem drive which will show up as /dev/sda inside the OS.
@@ -626,7 +635,7 @@ copy /y cmdline.usb cmdline.txt
 set /p DUMMY=Hit ENTER to continue...
 EOF
 
-                cat > /boot/boot_sd.bat <<EOF
+                cat > $(BOOTDIR)/boot_sd.bat <<EOF
 @echo off
 rem This script will switch /boot/cmdline.txt to boot from a SD
 rem card which will show up as /dev/mmcblk0 inside the OS.
@@ -709,27 +718,26 @@ case "${FPPPLATFORM}" in
 		apt-get -y install raspi-config
 
         if $isimage; then
+            BOOTDIR="/boot"
+            if [ "${OSVER}" == "debian_12" ]; then
+                BOOTDIR="/boot/firmware"
+            fi
+
+        
             echo "FPP - Disabling stock users (pi, odroid, debian), use the '${FPPUSER}' user instead"
             sed -i -e "s/^pi:.*/pi:*:16372:0:99999:7:::/" /etc/shadow
             sed -i -e "s/^odroid:.*/odroid:*:16372:0:99999:7:::/" /etc/shadow
             sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
 
-            echo "FPP - Disabling auto mount of USB drives"
-            sed -i -e "s/ENABLED=1/ENABLED=0/" /etc/usbmount/usbmount.conf 2> /dev/null
-
             echo "FPP - Disabling the hdmi force hotplug setting"
-            sed -i -e "s/hdmi_force_hotplug/#hdmi_force_hotplug/" /boot/config.txt
+            sed -i -e "s/hdmi_force_hotplug/#hdmi_force_hotplug/" ${BOOTDIR}/config.txt
 
             echo "FPP - Disabling the VC4 OpenGL driver"
-            sed -i -e "s/dtoverlay=vc4-fkms-v3d/#dtoverlay=vc4-fkms-v3d/" /boot/config.txt
-            sed -i -e "s/dtoverlay=vc4-kms-v3d/#dtoverlay=vc4-kms-v3d/" /boot/config.txt
+            sed -i -e "s/dtoverlay=vc4-fkms-v3d/#dtoverlay=vc4-fkms-v3d/" ${BOOTDIR}/config.txt
+            sed -i -e "s/dtoverlay=vc4-kms-v3d/#dtoverlay=vc4-kms-v3d/" ${BOOTDIR}/config.txt
             
             echo "FPP - Disabling Camera AutoDetect"
-            sed -i -e "s/camera_auto_detect/#camera_auto_detect/" /boot/config.txt
-
-
-            echo "FPP - Enabling SPI in device tree"
-            echo >> /boot/config.txt
+            sed -i -e "s/camera_auto_detect/#camera_auto_detect/" ${BOOTDIR}/config.txt
 
             echo "FPP - Adding required modules to modules-load to speed up boot"
             echo "i2c_dev" >> /etc/modules-load.d/modules.conf
@@ -740,66 +748,66 @@ case "${FPPPLATFORM}" in
             echo "bcm2835_codec" >> /etc/modules-load.d/modules.conf
             echo "snd_usb_audio" >> /etc/modules-load.d/modules.conf
 
-            echo "# Enable SPI in device tree" >> /boot/config.txt
-            echo "dtparam=spi=on" >> /boot/config.txt
-            echo >> /boot/config.txt
+            echo "FPP - Enabling SPI in device tree"
+            echo >> ${BOOTDIR}/config.txt
+            echo "# Enable SPI in device tree" >> ${BOOTDIR}/config.txt
+            echo "dtparam=spi=on" >> ${BOOTDIR}/config.txt
+            echo >> ${BOOTDIR}/config.txt
 
             echo "FPP - Updating SPI buffer size and enabling HDMI audio devices"
-            sed -i 's/$/ spidev.bufsiz=102400 snd_bcm2835.enable_hdmi=1 snd_bcm2835.enable_compat_alsa=1/' /boot/cmdline.txt
+            sed -i 's/$/ spidev.bufsiz=102400 snd_bcm2835.enable_hdmi=1 snd_bcm2835.enable_compat_alsa=1/' ${BOOTDIR}/cmdline.txt
 
             echo "FPP - Updating root partition device"
-            sed -i 's/root=PARTUUID=[A-Fa-f0-9-]* /root=\/dev\/mmcblk0p2 /g' /boot/cmdline.txt
+            sed -i 's/root=PARTUUID=[A-Fa-f0-9-]* /root=\/dev\/mmcblk0p2 /g' ${BOOTDIR}/cmdline.txt
             sed -i 's/PARTUUID=[A-Fa-f0-9]*-01/\/dev\/mmcblk0p1/g' /etc/fstab
             sed -i 's/PARTUUID=[A-Fa-f0-9]*-02/\/dev\/mmcblk0p2/g' /etc/fstab
 
             echo "FPP - Disabling fancy network interface names"
-            sed -e 's/rootwait/rootwait net.ifnames=0 biosdevname=0/' /boot/cmdline.txt
+            sed -i -e 's/rootwait/rootwait net.ifnames=0 biosdevname=0/' ${BOOTDIR}/cmdline.txt
 
-            echo "# Enable I2C in device tree" >> /boot/config.txt
-            echo "dtparam=i2c_arm=on,i2c_arm_baudrate=400000" >> /boot/config.txt
-            echo >> /boot/config.txt
+            echo "# Enable I2C in device tree" >> ${BOOTDIR}/config.txt
+            echo "dtparam=i2c_arm=on,i2c_arm_baudrate=400000" >> ${BOOTDIR}/config.txt
+            echo >> ${BOOTDIR}/config.txt
 
-            echo "# Setting kernel scaling framebuffer method" >> /boot/config.txt
-            echo "scaling_kernel=8" >> /boot/config.txt
-            echo >> /boot/config.txt
+            echo "# Setting kernel scaling framebuffer method" >> ${BOOTDIR}/config.txt
+            echo "scaling_kernel=8" >> ${BOOTDIR}/config.txt
+            echo >> ${BOOTDIR}/config.txt
 
-            echo "# Enable audio" >> /boot/config.txt
-            echo "dtparam=audio=on" >> /boot/config.txt
-            echo >> /boot/config.txt
+            echo "# Enable audio" >> ${BOOTDIR}/config.txt
+            echo "dtparam=audio=on" >> ${BOOTDIR}/config.txt
+            echo >> ${BOOTDIR}/config.txt
 
-            echo "# Allow more current through USB" >> /boot/config.txt
-            echo "max_usb_current=1" >> /boot/config.txt
-            echo >> /boot/config.txt
+            echo "# Allow more current through USB" >> ${BOOTDIR}/config.txt
+            echo "max_usb_current=1" >> ${BOOTDIR}/config.txt
+            echo >> ${BOOTDIR}/config.txt
 
-            echo "# Setup UART clock to allow DMX output" >> /boot/config.txt
-            echo "init_uart_clock=16000000" >> /boot/config.txt
-            echo >> /boot/config.txt
+            echo "# Setup UART clock to allow DMX output" >> ${BOOTDIR}/config.txt
+            echo "init_uart_clock=16000000" >> ${BOOTDIR}/config.txt
+            echo >> ${BOOTDIR}/config.txt
 
-            echo "# Swap Pi 3 and Zero W UARTs with BT" >> /boot/config.txt
-            echo "dtoverlay=pi3-miniuart-bt" >> /boot/config.txt
-            echo >> /boot/config.txt
+            echo "# Swap Pi 3 and Zero W UARTs with BT" >> ${BOOTDIR}/config.txt
+            echo "dtoverlay=pi3-miniuart-bt" >> ${BOOTDIR}/config.txt
+            echo >> ${BOOTDIR}/config.txt
 
-            echo "dtoverlay=dwc2" >> /boot/config.txt
-            echo >> /boot/config.txt
+            echo "dtoverlay=dwc2" >> ${BOOTDIR}/config.txt
+            echo >> ${BOOTDIR}/config.txt
 
-            echo "# GPU memory set to 128 to deal with error in omxplayer with hi-def videos" >> /boot/config.txt
-            echo "[pi4]" >> /boot/config.txt
-            echo "gpu_mem=128" >> /boot/config.txt
-            echo "[pi3]" >> /boot/config.txt
-            echo "gpu_mem=128" >> /boot/config.txt
-            echo "[pi0]" >> /boot/config.txt
-            echo "gpu_mem=64" >> /boot/config.txt
-            echo "[pi02]" >> /boot/config.txt
-            echo "gpu_mem=128" >> /boot/config.txt
-            echo "[pi1]" >> /boot/config.txt
-            echo "gpu_mem=64" >> /boot/config.txt
-            echo "[pi2]" >> /boot/config.txt
-            echo "gpu_mem=64" >> /boot/config.txt
-            echo "" >> /boot/config.txt
-            echo "[all]" >> /boot/config.txt
-            echo "# Use 32bit kernel instead of 64bit so external wifi drivers will load" >> /boot/config.txt
-            echo "arm_64bit=0" >> /boot/config.txt
-            echo "" >> /boot/config.txt
+            echo "# GPU memory set to 128 to deal with error in omxplayer with hi-def videos" >> ${BOOTDIR}/config.txt
+            echo "[pi5]" >> ${BOOTDIR}/config.txt
+            echo "gpu_mem=256" >> ${BOOTDIR}/config.txt
+            echo "[pi4]" >> ${BOOTDIR}/config.txt
+            echo "gpu_mem=256" >> ${BOOTDIR}/config.txt
+            echo "[pi3]" >> ${BOOTDIR}/config.txt
+            echo "gpu_mem=128" >> ${BOOTDIR}/config.txt
+            echo "[pi0]" >> ${BOOTDIR}/config.txt
+            echo "gpu_mem=64" >> ${BOOTDIR}/config.txt
+            echo "[pi02]" >> ${BOOTDIR}/config.txt
+            echo "gpu_mem=128" >> ${BOOTDIR}/config.txt
+            echo "[pi1]" >> ${BOOTDIR}/config.txt
+            echo "gpu_mem=64" >> ${BOOTDIR}/config.txt
+            echo "[pi2]" >> ${BOOTDIR}/config.txt
+            echo "gpu_mem=64" >> ${BOOTDIR}/config.txt
+            echo "" >> /config.txt
 
             echo "FPP - Freeing up more space by removing unnecessary packages"
             apt-get -y purge wolfram-engine sonic-pi minecraft-pi firmware-iwlwifi libglusterfs0 mesa-va-drivers mesa-vdpau-drivers mesa-vulkan-drivers mkvtoolnix ncurses-term poppler-data va-driver-all librados2 libcephfs2
@@ -855,17 +863,18 @@ EOF
             echo "DNSMASQ_EXCEPT=lo" >> /etc/default/dnsmasq
 
             echo "FPP - Removing extraneous blacklisted modules"
-            rm -f /etc/modprobe.d/blacklist-rtl8192cu.conf
-            rm -f /etc/modprobe.d/blacklist-rtl8xxxu.conf
+            rm -f /etc/modprobe.d/blacklist-*8192cu.conf
+            rm -f /etc/modprobe.d/blacklist-*8xxxu.conf
         fi
         
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
 		if [ "x${OSVER}" == "xdebian_11" ] || [ "x${OSVER}" == "xdebian_12" ]; then
 			systemctl disable serial-getty@ttyAMA0.service
-			sed -i -e "s/console=serial0,115200 //" /boot/cmdline.txt
+			sed -i -e "s/console=serial0,115200 //" ${BOOTDIR}/cmdline.txt
 			sed -i -e "s/autologin pi/autologin ${FPPUSER}/" /etc/systemd/system/autologin@.service
             rm -f "/etc/systemd/system/getty@tty1.service.d/autologin.conf";
 		fi
+        swapoff /var/swap
         rm -f /var/swap
         rfkill unblock all
 		;;
@@ -1105,8 +1114,9 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
     else
         ccache -M 500M
     fi
+else
+    ccache -M 350M
 fi
-ccache -M 350M
 ccache --set-config=temporary_dir=/tmp
 ccache --set-config=sloppiness=pch_defines,time_macros
 ccache --set-config=hard_link=true
@@ -1422,17 +1432,19 @@ make clean ; make -j ${CPUS} optimized
 
 ######################################
 if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
-    if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
-        echo "FPP - Install kernel headers so modules can be compiled later"
-        apt-get -y install raspberrypi-kernel-headers
-        apt-get clean
+    if [ "x${OSVER}" != "xdebian_12" ]; then
+        if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
+            echo "FPP - Install kernel headers so modules can be compiled later"
+            apt-get -y install raspberrypi-kernel-headers
+            apt-get clean
+        fi
+
+        echo "FPP - Compiling WIFI drivers"
+        cd /opt/fpp/SD
+        bash ./FPP-Wifi-Drivers.sh
+        rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf
     fi
-
-    echo "FPP - Compiling WIFI drivers"
-    cd /opt/fpp/SD
-    bash ./FPP-Wifi-Drivers.sh
-    rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf
-
+    
     # replace entry already there
     sed -i 's/^DAEMON_CONF.*/DAEMON_CONF="\/etc\/hostapd\/hostapd.conf"/g' /etc/default/hostapd
     if ! grep -q etc/hostapd/hostapd.conf "/etc/default/hostapd"; then

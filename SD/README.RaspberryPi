@@ -40,6 +40,13 @@ we have the partition mounted:
 	cp /mnt/tmp/cmdline.txt /mnt/tmp/cmdline.org
 	# Disable the auto-resize of the root partition
 	sed -i -e "s# init=/usr/lib/raspberrypi-sys-mods/firstboot##" /mnt/tmp/cmdline.txt
+    # Force 32bit kernel or VLC and libhttpserver will compile for 64bit and not be usable
+    echo "" >> /mnt/tmp/config.txt
+    echo "[all]" >> /mnt/tmp/config.txt
+    echo "# Use 32bit kernel instead of 64bit so external wifi drivers will load" >> /mnt/tmp/config.txt
+    echo "arm_64bit=0" >> /mnt/tmp/config.txt
+    echo "" >> /mnt/tmp/config.txt
+ 
 	# Enable ssh by default
 	touch /mnt/tmp/ssh
     # Add pi user, will be replaced with FPP user as part of FPP_Install.sh
@@ -66,16 +73,14 @@ Do a system upgrade to make sure everything is at the latest versions
 
 
 
-# For debian 12, we'd like to move to kernel 6.6+ and drop compiled wifi drivers, this still
+# For debian 12, we'd like to move to kernel 6.7+ and drop compiled wifi drivers, this still
 # needs some work to figure out and LOTS more testing
-#apt edit-sources
-# Append the following line to the bottom of the file:
-#deb http://deb.debian.org/debian bookworm-backports main contrib non-free
-
-#apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9
-#apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6ED0E7B82643E131
-#apt-get install -t bookworm-backports --install-recommends raspberrypi-kernel raspberrypi-kernel-headers firmware-linux firmware-linux-nonfree
-#rpi-update rpi-6.6.y
+PRUNE_MODULES=1 rpi-update rpi-6.7.y
+KV=$(uname -r)
+KV=${KV::-3}
+rm -f /boot/*-${KV}*
+rm -rf /lib/modules/${KV}*
+rm -rf /usr/lib/linux-image-${KV}*
 
 
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
