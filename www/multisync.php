@@ -399,11 +399,11 @@ include 'common/menuHead.inc';
             (data.advancedView.RemoteGitVersion !== data.advancedView.LocalGitVersion)) {
             updatesAvailable = 1;
         }
-        <? if (!$settings['hideExternalURLs']) { ?>
+        <?if (!$settings['hideExternalURLs']) {?>
             var localVer = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, '/about.php') + "' target='_blank' ip='" + ip + "'>";
-        <? } else { ?>
+        <?} else {?>
             var localVer = "";
-        <? } ?>
+        <?}?>
         localVer += "<b><font color='";
         if (updatesAvailable) {
             localVer += 'red';
@@ -415,9 +415,9 @@ include 'common/menuHead.inc';
             localVer += 'blue';
         }
         localVer += "'>" + data.advancedView.LocalGitVersion + "</font></b>";
-        <? if (!$settings['hideExternalURLs']) { ?>
+        <?if (!$settings['hideExternalURLs']) {?>
         localVer += "</a>";
-        <? } ?>
+        <?}?>
 
         return localVer;
     }
@@ -536,8 +536,9 @@ include 'common/menuHead.inc';
             rowID = hostRows[hostRowKey];
 
             var curStatus = $('#' + rowID + '_status').html();
-            if ((curStatus.substr(0, 9) != "Last Seen") &&
+            if ((curStatus != null) &&
                 (curStatus != '') &&
+                (curStatus.substr(0, 9) != "Last Seen") &&
                 (!refreshing)) {
                 // Don't replace an existing status via a different IP
                 return;
@@ -740,9 +741,9 @@ include 'common/menuHead.inc';
     function ipLink(ip) {
         <?if ($settings['hideExternalURLs']) {?>
         return ip;
-        <? } else { ?>
+        <?} else {?>
         return "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "' ip='" + ip + "'>" + ip + "</a>";
-        <? } ?>
+        <?}?>
     }
 
     function parseFPPSystems(data) {
@@ -878,14 +879,14 @@ include 'common/menuHead.inc';
                 if ((data[i].fppModeString == 'remote') && (star != ""))
                     ipTxt = "<small>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
 
-                <? if ($settings['hideExternalURLs']) { ?>
+                <?if ($settings['hideExternalURLs']) {?>
                 var hostTxt = hostname;
-                <? } else { ?>
+                <?} else {?>
                 var hostTxt = data[i].local ? hostname : "<a target='host_" + data[i].address + "' href='http://" + data[i].address + "'>" + hostname + "</a>";
                 if(data[i].address == hostname){
                     hostTxt = hostname;
                 }
-                <? } ?>
+                <?}?>
 
 
                 var newRow = "<tr id='" + rowID + "' ip='" + data[i].address + "' ipList='" + data[i].address + "' class='systemRow'>" +
