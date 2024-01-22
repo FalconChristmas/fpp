@@ -78,6 +78,7 @@ public:
     virtual const PinCapabilities* ptr() const { return this; }
 
     virtual bool isGPIOD() const { return false; }
+    virtual void releaseGPIOD() const {}
 
     static const PinCapabilities& getPinByName(const std::string& n);
     static const PinCapabilities& getPinByGPIO(int i);
@@ -141,8 +142,8 @@ public:
     virtual bool supportPWM() const override { return false; };
 
     virtual bool isGPIOD() const override { return true; }
+    virtual void releaseGPIOD() const override;
 
-    static int gpiodVersion;
 #ifdef HASGPIOD
     mutable gpiod::chip* chip = nullptr;
     mutable gpiod::line line;

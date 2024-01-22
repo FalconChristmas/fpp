@@ -18,6 +18,12 @@
 #include "PiGPIOUtils.h"
 #include "bcm2835.h"
 
+
+static bool isPi5() {
+    static bool pi5 = startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5");
+    return pi5;
+}
+
 PiGPIOPinCapabilities::PiGPIOPinCapabilities(const std::string& n, uint32_t kg) :
     PinCapabilitiesFluent(n, kg) {
 }
@@ -75,10 +81,47 @@ void PiGPIOPinCapabilities::setPWMValue(int valueNS) const {
     }
 }
 
+
+class Pi5GPIODCapabilities : public GPIODCapabilities {
+public:
+    Pi5GPIODCapabilities(const std::string& n, uint32_t kg) :
+        GPIODCapabilities(n, kg) { gpioIdx = 4; }
+};
+
 static std::vector<PiGPIOPinCapabilities> PI_PINS;
+static std::vector<Pi5GPIODCapabilities> PI5_PINS;
 
 void PiGPIOPinProvider::Init() {
-    if (bcm2835_init()) {
+    if (isPi5()) {
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-3", 2));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-5", 3));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-7", 4));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-8", 14));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-10", 15));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-11", 17));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-12", 18));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-13", 27));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-15", 22));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-16", 23));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-18", 24));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-19", 10));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-21", 9));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-22", 25));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-23", 11));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-24", 8));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-26", 7));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-27", 0));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-28", 1));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-29", 5));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-31", 6));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-32", 12));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-33", 13));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-35", 19));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-36", 16));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-37", 26));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-38", 20));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-40", 21));
+    } else if (bcm2835_init()) {
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-3", 2).setI2C(1));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-5", 3).setI2C(1));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-7", 4));
@@ -116,10 +159,20 @@ const PinCapabilities& PiGPIOPinProvider::getPinByName(const std::string& name) 
             return a;
         }
     }
+    for (auto& a : PI5_PINS) {
+        if (a.name == name) {
+            return a;
+        }
+    }
     return PiFacePinCapabilities::getPinByName(name);
 }
 const PinCapabilities& PiGPIOPinProvider::getPinByGPIO(int i) {
     for (auto& a : PI_PINS) {
+        if (a.kernelGpio == i) {
+            return a;
+        }
+    }
+    for (auto& a : PI5_PINS) {
         if (a.kernelGpio == i) {
             return a;
         }
@@ -130,6 +183,9 @@ const PinCapabilities& PiGPIOPinProvider::getPinByGPIO(int i) {
 std::vector<std::string> PiGPIOPinProvider::getPinNames() {
     std::vector<std::string> ret;
     for (auto& a : PI_PINS) {
+        ret.push_back(a.name);
+    }
+    for (auto& a : PI5_PINS) {
         ret.push_back(a.name);
     }
     PiFacePinCapabilities::getPinNames(ret);

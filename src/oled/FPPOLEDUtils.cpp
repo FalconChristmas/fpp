@@ -340,6 +340,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                     const PinCapabilities& pin = PinCapabilities::getPinByName(action->pin);
 
                     pin.configPin(action->mode, false);
+                    pin.releaseGPIOD();
                     if (!gpiodChips[pin.gpioIdx]) {
                         gpiodChips[pin.gpioIdx] = gpiod_chip_open_by_number(pin.gpioIdx);
                     }

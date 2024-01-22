@@ -123,7 +123,9 @@
         "locale": "cpp",
         "stack": "cpp",
         "__verbose_abort": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp"
     },
     "editor.formatOnSave": true,
     "cmake.configureOnOpen": false
