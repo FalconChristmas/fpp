@@ -41,13 +41,6 @@
 // grab it that way
 #define STOPPINGENUM (libvlc_MediaPlayerBackward + 1)
 
-#if __has_include(<vlc/fpp-vlc-build.h>)
-#include <vlc/fpp-vlc-build.h>
-#else
-#define LIBVLC_MEDIA_NEWPATH(a, b) libvlc_media_new_path(a, b)
-#define LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(a, b) libvlc_media_player_new_from_media(b)
-#endif
-
 class VLCInternalData {
 public:
     VLCInternalData(const std::string& m, VLCOutput* out) :
@@ -226,8 +219,8 @@ public:
             }
         }
         if (vlcInstance) {
-            data->media = LIBVLC_MEDIA_NEWPATH(vlcInstance, data->fullMediaPath.c_str());
-            data->vlcPlayer = LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(vlcInstance, data->media);
+            data->media = libvlc_media_new_path(data->fullMediaPath.c_str());
+            data->vlcPlayer = libvlc_media_player_new_from_media(vlcInstance, data->media);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), STOPPINGENUM, stoppedEventCallBack, data);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
             data->length = libvlc_media_player_get_length(data->vlcPlayer);

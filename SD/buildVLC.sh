@@ -42,10 +42,3 @@ ldconfig
 cd /opt
 rm -rf vlc
 
-cat > /usr/local/include/vlc/fpp-vlc-build.h << EOF
-#pragma once
-#define FPP_VLC_DATE 20220725
-#define LIBVLC_MEDIA_NEWPATH(a, b) libvlc_media_new_path(b)
-#define LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(a, b) libvlc_media_player_new_from_media(a, b)
-EOF
-
