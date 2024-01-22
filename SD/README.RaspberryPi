@@ -122,9 +122,9 @@ the proper device name for your SD card in place of '/dev/sdg'):
        apt-get install zerofree squashfs-tools
 
     DEVICE=/dev/sdc
-    VERSION=7.4
-    OSVERSION=2023-12
-    BLOCKS=3800
+    VERSION=8.0-pre-alpha1
+    OSVERSION=2024-01
+    BLOCKS=6800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
     rm -rf /mnt/home/pi
@@ -148,7 +148,7 @@ for testing/release.
 # To create the squashfs image needed for OS updates
 # On a separate Linux box:  (this will take a LOOOONG time)
 mount ${DEVICE}2 /mnt
-mount ${DEVICE}1 /mnt/boot
+mount ${DEVICE}1 /mnt/boot/firmware
 mksquashfs /mnt Pi-${VERSION}_${OSVERSION}.fppos -b 512K -comp xz
 cd /mnt/root
 tar -czf ~/ccache-Pi-2023.x-v${VERSION}.tar.gz .ccache
