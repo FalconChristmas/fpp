@@ -1,0 +1,11 @@
+This file lists use of older/deprecated libraries.  At some point,
+when we drop support for older OS levels, we can cleanup the code
+to use the newer API's exclusively.   For example, Debian Buster
+user libgpiod 1.4 but Bullseye used 1.6.1.  When we dropped support
+for building on Buster, we should have cleaned up the ifdefs and other
+code that allowed continued building/running on Buster.
+
+
+OpenSSL - Bookworm moved to OpenSSL 3 (from 1.x on Bullseye)
+  - CapeUtils.cpp has ifdef to allow continued building on Bullseye
+
