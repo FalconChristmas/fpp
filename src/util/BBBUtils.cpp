@@ -339,8 +339,6 @@ bool BBBPinCapabilities::setupPWM(int maxValue) const {
 void BBBPinCapabilities::setPWMValue(int value) const {
     if (pwm != -1) {
         setupBBBMemoryMap();
-
-        char val[16];
         fprintf(bbbPWMDutyFiles[pwm * 2 + subPwm], "%d", value);
         fflush(bbbPWMDutyFiles[pwm * 2 + subPwm]);
     }

@@ -82,10 +82,80 @@ void PiGPIOPinCapabilities::setPWMValue(int valueNS) const {
 }
 
 
-class Pi5GPIODCapabilities : public GPIODCapabilities {
+class Pi5GPIODCapabilities : public GPIODCapabilities   {
 public:
-    Pi5GPIODCapabilities(const std::string& n, uint32_t kg) :
-        GPIODCapabilities(n, kg) { gpioIdx = 4; }
+    Pi5GPIODCapabilities(const std::string& n, uint32_t kg) : GPIODCapabilities(n, kg) { gpioIdx = 4; }
+
+    virtual ~Pi5GPIODCapabilities() {
+        if (dutyFile != nullptr) {
+            fclose(dutyFile);
+        }
+    }
+
+    Pi5GPIODCapabilities& setPwm(int p, int sub) {
+        GPIODCapabilities::setPwm(p, sub);
+        return *this;
+    }
+
+    virtual int configPin(const std::string& mode = "gpio",
+                          bool directionOut = true) const override {
+        // see https://datasheets.raspberrypi.com/rp1/rp1-peripherals.pdf
+        if (mode == "pwm" && pwm != -1) {
+            //alt3 is pwm
+            char buf[256];
+            snprintf(buf, 256, "/usr/bin/pinctrl set %d a3", gpioIdx);
+            system(buf);
+            return 0;
+        }
+
+        if (mode == "dpi") {
+            //alt1 is pwm
+            char buf[256];
+            snprintf(buf, 256, "/usr/bin/pinctrl set %d a1", gpioIdx);
+            system(buf);
+            return 0;
+        }
+
+        if (mode == "pwm" || mode == "uart") {
+            return 0;
+        }
+        return GPIODCapabilities::configPin(mode, directionOut);
+    }
+    
+    virtual bool supportPWM() const override { return pwm != -1; }
+    virtual bool setupPWM(int maxValue = 25500) const override {
+        if (pwm != -1) {
+            configPin("pwm");
+            char dir_name[128];
+            FILE* dir = fopen("/sys/class/pwm/pwmchip0/export", "w");
+            fprintf(dir, "%d", subPwm);
+            fclose(dir);
+
+            snprintf(dir_name, sizeof(dir_name), "/sys/class/pwm/pwmchip0/pwm%d/period", subPwm);
+            dir = fopen(dir_name, "w");
+            fprintf(dir, "%d", maxValue);
+            fclose(dir);
+
+            snprintf(dir_name, sizeof(dir_name), "/sys/class/pwm/pwmchip0/pwm%d/duty_cycle", subPwm);
+            dutyFile = fopen(dir_name, "w");
+            fprintf(dutyFile, "0");
+            fflush(dutyFile);
+
+            snprintf(dir_name, sizeof(dir_name), "/sys/class/pwm/pwmchip0/pwm%d/enable", subPwm);
+            dir = fopen(dir_name, "w");
+            fprintf(dir, "1");
+            fclose(dir);
+        }
+        return 0;
+    }
+    virtual void setPWMValue(int valueNS) const override {
+        if (pwm != -1) {
+            fprintf(dutyFile, "%d", valueNS);
+            fflush(dutyFile);
+        }
+    }
+
+    mutable FILE *dutyFile = nullptr;
 };
 
 static std::vector<PiGPIOPinCapabilities> PI_PINS;
@@ -99,8 +169,8 @@ void PiGPIOPinProvider::Init() {
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-8", 14));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-10", 15));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-11", 17));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-12", 18));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-13", 27));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-12", 18).setPwm(0, 0));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-13", 27).setPwm(0, 1));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-15", 22));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-16", 23));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-18", 24));
@@ -114,9 +184,9 @@ void PiGPIOPinProvider::Init() {
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-28", 1));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-29", 5));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-31", 6));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-32", 12));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-32", 12).setPwm(0, 0));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-33", 13));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-35", 19));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-35", 19).setPwm(0, 1));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-36", 16));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-37", 26));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-38", 20));
