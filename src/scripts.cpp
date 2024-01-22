@@ -76,11 +76,11 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
         for (int p = 0; p < parts.size(); p++) {
             if (tmpPart == "") {
                 if (startsWith(parts[p], "\"")) {
-                    quote = "\"";
+                    quote = std::string("\"");
 
                     tmpPart = parts[p].substr(1);
                 } else if (startsWith(parts[p], "'")) {
-                    quote = "'";
+                    quote = std::string("'");
                     tmpPart = parts[p].substr(1);
                 } else {
                     args[i] = strdup(parts[p].c_str());

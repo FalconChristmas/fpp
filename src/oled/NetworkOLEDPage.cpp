@@ -219,7 +219,7 @@ void FPPNetworkOLEDPage::setParameterIP(const std::string& tp, const std::string
                 v = v.substr(1);
             }
             if (v.empty()) {
-                v = "0";
+                v = std::string("0");
             }
         }
         if (x < 3) {

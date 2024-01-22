@@ -262,7 +262,8 @@ std::string CurlManager::doPut(const std::string& furl, const std::string& conte
     std::string cl = "Content-Length: " + std::to_string(data.size());
     head = curl_slist_append(head, cl.c_str());
 
-    curl_easy_setopt(curl, CURLOPT_PUT, 1L);
+    curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+    //curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, head);
 
     ReadDataInfo dta;

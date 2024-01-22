@@ -620,7 +620,8 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
                     desc = "String-" + std::to_string(s + 1);
                     if (strings[s]->m_virtualStrings.size() > 1) {
                         desc.append(1, vsnum);
-                        desc += "-" + std::to_string(vsidx + 1);
+                        desc += std::string("-");
+                        desc += std::to_string(vsidx + 1);
                         if (strings[s]->m_virtualStrings[vs].receiverNum == -1) {
                             vsidx++;
                         } else if (vs != 0) {
@@ -675,7 +676,7 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
 
             if (name.find("Tree") != std::string::npos || name.find("TREE") != std::string::npos || name.find("tree") != std::string::npos || name.find("Vert") != std::string::npos || name.find("vert") != std::string::npos) {
                 // some common names that are usually vertical oriented
-                orientation = "V";
+                orientation = std::string("V");
             }
 
             if ((channelCount > 0) && (rn == -1)) {

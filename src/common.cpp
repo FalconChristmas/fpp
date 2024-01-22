@@ -886,9 +886,9 @@ std::string ReplaceKeywords(std::string str, std::map<std::string, std::string>&
     std::string key;
 
     for (auto& k : keywords) {
-        key = "%";
+        key = std::string("%");
         key += k.first;
-        key += "%";
+        key += std::string("%");
 
         ReplaceString(str, key, k.second);
     }

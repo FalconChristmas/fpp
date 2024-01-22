@@ -138,9 +138,9 @@ void SettingsConfig::LoadSettingsInfo() {
         } else {
             if ((type == "checkbox") ||
                 (type == "number")) {
-                def = "0";
+                def = std::string("0");
             } else {
-                def = "";
+                def = std::string("");
             }
         }
 

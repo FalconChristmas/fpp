@@ -116,7 +116,7 @@ public:
         Json::Value result;
         if (LoadJsonFromString(d, result)) {
             items.clear();
-            items.push_back("Univ    Pckts  Err");
+            items.emplace_back("Univ    Pckts  Err");
             for (int x = 0; x < result["universes"].size(); x++) {
                 Json::Value u = result["universes"][x];
                 std::string l = u["id"].asString();
@@ -345,16 +345,16 @@ void FPPMainMenu::itemSelected(const std::string& item) {
                     std::string nvresults;
                     std::string nv = "http://127.0.0.1/api/settings/EnableTethering";
                     if (nitem == "Automatic") {
-                        nvdata = "0";
+                        nvdata = std::string("0");
                     } else if (nitem == "On") {
-                        nvdata = "1";
+                        nvdata = std::string("1");
                     } else if (nitem == "Off") {
-                        nvdata = "2";
+                        nvdata = std::string("2");
                     } else {
-                        nvdata = "0";
+                        nvdata = std::string("0");
                     }
                     urlPut(nv, nvdata, nvresults);
-                    nvdata = "1";
+                    nvdata = std::string("1");
                     urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
 
                     RebootPromptPage* pg = new RebootPromptPage("Reboot Required", "Reboot FPPD?", this);
