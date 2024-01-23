@@ -17,6 +17,30 @@ function SaveSSHKeys() {
         $.jGrowl("Keys Saved", { themeState: 'success' });
 }
 
+function UploadAuthorizedKeys() {
+	let authorized_keys = document.getElementById("authorized_keys").files[0];
+
+    if (authorized_keys != '') {
+        let formData = new FormData();
+        formData.append('file', authorized_keys);
+
+        $.ajax({
+            url: 'api/configfile/authorized_keys',
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            dataType: 'json',
+            processData: false
+        }).done(function (data) {
+            $.get('api/configfile/authorized_keys'
+            ).done(function (data) {
+                $('#sshKeys').val(data);
+            });
+        }).fail(function (data) {
+            $.jGrowl("Failed to reload updated keys.", { themeState: 'danger' });
+        });
+    }
+}
 
 function KioskInstallDone() {
     SetRebootFlag();
@@ -161,7 +185,9 @@ if ($showOSSecurity) {
     <img id="ssh_img" title="Add optional SSH key(s) for passwordless SSH authentication." src="images/redesign/help-icon.svg" width=22 height=22>
     <span id="ssh_tip" class="tooltip" style="display: none">Add optional SSH key(s) for passwordless SSH authentication.</span><br>
     <textarea  id='sshKeys' style='width: 100%;' rows='10'><?echo shell_exec('sudo cat /root/.ssh/authorized_keys'); ?></textarea>
-    <input type='button' class='buttons' value='Save Keys' onClick='SaveSSHKeys();'><br><br>
+    <input type='button' class='buttons' value='Save Keys' onClick='SaveSSHKeys();'>&nbsp;&nbsp;<b>OR</b>&nbsp;&nbsp;
+    <input id='UploadAuthorizedKeys' type='button' class='buttons' value='Upload authorized_keys' onClick='UploadAuthorizedKeys();' disabled> <input type="file" id="authorized_keys" style='padding-left: 0px;' onChange="$('#UploadAuthorizedKeys').prop('disabled', false);"><br>
+    <br>
 <?
     }
 }
