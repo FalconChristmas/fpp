@@ -40,7 +40,7 @@ public:
     int Load(Json::Value& config);
     int Load(const char* filename);
     PlaylistEntryBase* LoadPlaylistEntry(Json::Value entry);
-    int LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart, const Json::Value& entries);
+    int LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart, const Json::Value& entries, int startPos, int& maxEntries);
 
     int Start(void);
     int StopNow(int forceStop = 0);
@@ -129,6 +129,8 @@ private:
     int m_scheduleEntry;
     int m_forceStop;
     int m_stopAtPos;
+    int m_loadStartPos;
+    int m_loadEndPos;
 
     time_t m_fileTime;
     Json::Value m_config;

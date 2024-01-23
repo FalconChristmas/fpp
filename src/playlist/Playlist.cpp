@@ -65,6 +65,9 @@ Playlist::Playlist(Playlist* parent) :
     m_startTime(0),
     m_subPlaylistDepth(0),
     m_forceStop(0),
+    m_stopAtPos(-1),
+    m_loadStartPos(-1),
+    m_loadEndPos(-1),
     m_fileTime(0),
     m_configTime(0),
     m_currentState("idle"),
@@ -109,10 +112,10 @@ PlaylistStatus Playlist::getPlaylistStatus() {
 /*
  *
  */
-int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart, const Json::Value& entries) {
+int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart, const Json::Value& entries, int startPos, int& maxEntries) {
     PlaylistEntryBase* plEntry = NULL;
 
-    for (int c = 0; c < entries.size(); c++) {
+    for (int c = startPos; (c < entries.size()) && (maxEntries > 0); c++) {
         // Long-term handle sub-playlists on-demand instead of at load time
         if (entries[c]["type"].asString() == "playlist") {
             m_subPlaylistDepth++;
@@ -120,15 +123,16 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart
                 std::string filename = FPP_DIR_PLAYLIST("/" + entries[c]["name"].asString() + ".json");
 
                 Json::Value subPlaylist = LoadJSON(filename.c_str());
+                int tmpMax = 999999;
 
                 if (subPlaylist.isMember("leadIn"))
-                    LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadIn"]);
+                    LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadIn"], 0, tmpMax);
 
                 if (subPlaylist.isMember("mainPlaylist"))
-                    LoadJSONIntoPlaylist(playlistPart, subPlaylist["mainPlaylist"]);
+                    LoadJSONIntoPlaylist(playlistPart, subPlaylist["mainPlaylist"], 0, tmpMax);
 
                 if (subPlaylist.isMember("leadOut"))
-                    LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadOut"]);
+                    LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadOut"], 0, tmpMax);
             } else {
                 LogErr(VB_PLAYLIST, "Error, recursive playlist.  Sub-playlist depth exceeded 5 trying to include '%s'\n", entries[c]["name"].asString().c_str());
             }
@@ -136,8 +140,10 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart
             m_subPlaylistDepth--;
         } else {
             plEntry = LoadPlaylistEntry(entries[c]);
-            if (plEntry)
+            if (plEntry) {
                 playlistPart.push_back(plEntry);
+                maxEntries--;
+            }
         }
     }
 
@@ -166,25 +172,55 @@ int Playlist::Load(Json::Value& config) {
 
     PlaylistEntryBase* plEntry = NULL;
 
-    if (config.isMember("leadIn")) {
+    int startPos = 0;
+    int maxEntries = 999999;
+    int origEntryCount = 0;
+
+    if (m_loadEndPos >= 0) {
+        maxEntries = m_loadEndPos + 1 - ((m_loadStartPos >= 0) ? m_loadStartPos : 0);
+    }
+
+    if (config.isMember("leadIn") && config["leadIn"].size()) {
         LogDebug(VB_PLAYLIST, "Loading LeadIn:\n");
         const Json::Value leadIn = config["leadIn"];
 
-        LoadJSONIntoPlaylist(m_leadIn, leadIn);
+        if (m_loadStartPos >= 0)
+            startPos = m_loadStartPos;
+        else
+            startPos = 0;
+
+        if (startPos < leadIn.size())
+            LoadJSONIntoPlaylist(m_leadIn, leadIn, startPos, maxEntries);
+
+        origEntryCount += leadIn.size();
     }
 
-    if (config.isMember("mainPlaylist")) {
+    if (config.isMember("mainPlaylist") && config["mainPlaylist"].size()) {
         LogDebug(VB_PLAYLIST, "Loading MainPlaylist:\n");
         const Json::Value playlist = config["mainPlaylist"];
 
-        LoadJSONIntoPlaylist(m_mainPlaylist, playlist);
+        if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount))
+            startPos = m_loadStartPos - origEntryCount;
+        else
+            startPos = 0;
+
+        if (startPos < playlist.size())
+            LoadJSONIntoPlaylist(m_mainPlaylist, playlist, startPos, maxEntries);
+
+        origEntryCount += playlist.size();
     }
 
-    if (config.isMember("leadOut")) {
+    if (config.isMember("leadOut") && config["leadOut"].size()) {
         LogDebug(VB_PLAYLIST, "Loading LeadOut:\n");
         const Json::Value leadOut = config["leadOut"];
 
-        LoadJSONIntoPlaylist(m_leadOut, leadOut);
+        if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount))
+            startPos = m_loadStartPos - origEntryCount;
+        else
+            startPos = 0;
+
+        if (startPos < leadOut.size())
+            LoadJSONIntoPlaylist(m_leadOut, leadOut, startPos, maxEntries);
     }
 
     // set the positions prior to any randomizations
@@ -1068,8 +1104,8 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
     if (!strlen(filename))
         return 0;
 
-    LogDebug(VB_PLAYLIST, "Playlist::Play('%s', %d, %d, %d)\n",
-             filename, position, repeat, scheduleEntry);
+    LogDebug(VB_PLAYLIST, "Playlist::Play('%s', %d, %d, %d, %d)\n",
+             filename, position, repeat, scheduleEntry, endPosition);
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
@@ -1111,13 +1147,33 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
     m_scheduleEntry = scheduleEntry;
     m_forceStop = 0;
 
+    int tmpStartPos = position;
+    int tmpEndPos = endPosition;
+
+    if ((tmpEndPos >= 0) && (tmpEndPos < tmpStartPos)) {
+        LogWarn(VB_PLAYLIST, "Playlist::Play() called with end position less than start position: Play('%s', %d, %d, %d, %d)\n",
+                filename, position, repeat, scheduleEntry, endPosition);
+        tmpEndPos = -1;
+    }
+
+    m_loadStartPos = tmpStartPos;
+    m_loadEndPos = tmpEndPos;
+
     Load(filename);
 
-    if ((position == 0 || position == -1) && (m_random > 0)) {
+    if (tmpStartPos >= 0) {
+        // Load() would have trimmed our internal copy of the playlist, so adjust our values
+        if (tmpEndPos >= 0)
+            tmpEndPos -= tmpStartPos;
+
+        tmpStartPos = 0;
+    }
+
+    if ((tmpStartPos == 0 || tmpStartPos == -1) && (m_random > 0)) {
         RandomizeMainPlaylist();
     }
 
-    int p = position;
+    int p = tmpStartPos;
     if (p == -2) {
         // random
         int l = m_mainPlaylist.size();
@@ -1132,7 +1188,7 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
     if (repeat >= 0)
         SetRepeat(repeat);
 
-    m_stopAtPos = endPosition;
+    m_stopAtPos = tmpEndPos;
 
     m_status = FPP_STATUS_PLAYLIST_PLAYING;
     int result = Start();
