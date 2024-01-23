@@ -8,7 +8,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 if [ ! -d ${LOGDIR} ]
 then
 	mkdir -p ${LOGDIR}
-	chown ${FPPUSER}.${FPPUSER} ${LOGDIR}
+	chown ${FPPUSER}:${FPPUSER} ${LOGDIR}
 	chmod 775 ${LOGDIR}
 fi
 

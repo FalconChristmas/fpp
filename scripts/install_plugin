@@ -28,7 +28,7 @@ fi
 
 
 if [ "${FPPPLATFORM}" != "MacOS" ]; then
-    $SUDO chown -R fpp.fpp $1
+    $SUDO chown -R fpp:fpp $1
 fi
 
 if [ -x "${PLUGINDIR}/$1/scripts/fpp_install.sh" ]

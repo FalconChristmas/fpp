@@ -16,12 +16,12 @@ InstallKeys() {
 
     mkdir -p ${DIR}/.ssh
 
-    chown ${USER}.${USER} ${DIR}/.ssh ${DIR}/.ssh/*
+    chown ${USER}:${USER} ${DIR}/.ssh ${DIR}/.ssh/*
     chmod 700 ${DIR}/.ssh
 
     cp ${KEYFILE} ${DIR}/.ssh/authorized_keys
     chmod 600 ${DIR}/.ssh/*
-    chown ${USER}.${USER} ${DIR}/.ssh/authorized_keys
+    chown ${USER}:${USER} ${DIR}/.ssh/authorized_keys
 }
 
 ######################################################

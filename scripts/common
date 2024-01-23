@@ -103,7 +103,7 @@ makeLogDir() {
 	if [ ! -d ${LOGDIR} ]
 	then
 		mkdir -p ${LOGDIR}
-		chown ${FPPUSER}.${FPPGROUP} ${LOGDIR}
+		chown ${FPPUSER}:${FPPGROUP} ${LOGDIR}
 		chmod 775 ${LOGDIR}
 	fi
 }

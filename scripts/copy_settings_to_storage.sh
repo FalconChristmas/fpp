@@ -147,13 +147,13 @@ for action in $@; do
         if [ ! -d "$DEST/config" ]
         then
             mkdir $DEST/config 2> /dev/null
-            chown fpp.fpp $DEST/config 2> /dev/null
+            chown fpp:fpp $DEST/config 2> /dev/null
             chmod 775 $DEST/config 2> /dev/null
         fi
         if [ -f "$SOURCE/config/cape-eeprom.bin" ]
         then
             cp -v $SOURCE/config/cape-eeprom.bin $DEST/config/  2>&1 | IgnoreWarnings
-            chown fpp.fpp $DEST/config/cape-eeprom.bin 2> /dev/null
+            chown fpp:fpp $DEST/config/cape-eeprom.bin 2> /dev/null
             chmod 664 $DEST/config/cape-eeprom.bin 2> /dev/null
         else
             echo "$SOURCE/config/cape-eeprom.bin does not exist, nothing to copy."
@@ -169,7 +169,7 @@ for action in $@; do
         if [ ! -d "$DEST/config/backups" ]
         then
             mkdir -p $DEST/config/backups 2> /dev/null
-            chown fpp.fpp $DEST/config/backups 2> /dev/null
+            chown fpp:fpp $DEST/config/backups 2> /dev/null
             chmod 775 $DEST/config/backups 2> /dev/null
         fi
         rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/config/backups $DEST/config  2>&1 | IgnoreWarnings
