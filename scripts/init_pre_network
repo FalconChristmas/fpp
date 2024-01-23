@@ -28,14 +28,14 @@ fi
 
 DIRS="config effects logs music playlists scripts sequences upload videos plugins plugindata exim4 images cache backups tmp"
 echo "FPP - Checking for required directories"
-chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
+chown ${FPPUSER}:${FPPUSER} ${FPPHOME}/media
 for DIR in ${DIRS}
 do
     if [ ! -d ${FPPHOME}/media/${DIR} ]
     then
         echo "      Creating ${DIR}"
         mkdir -p ${FPPHOME}/media/${DIR}
-        chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media/${DIR}
+        chown ${FPPUSER}:${FPPUSER} ${FPPHOME}/media/${DIR}
     fi
 done
 
@@ -54,7 +54,7 @@ if [ ! -f ${FPPHOME}/media/config/.htpasswd ]; then
 fi
 
 # Fixup ownership when mounted on an non-FAT filesystem
-chown -R ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
+chown -R ${FPPUSER}:${FPPUSER} ${FPPHOME}/media
 
 # need to make samba log dir or samba may not start
 mkdir -p /var/log/samba
@@ -192,4 +192,4 @@ fi
 setupChannelOutputs
 
 #make sure the entire media dir and subdirs is writable by fpp user
-chown -R ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
+chown -R ${FPPUSER}:${FPPUSER} ${FPPHOME}/media

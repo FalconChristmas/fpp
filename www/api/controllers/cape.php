@@ -92,7 +92,7 @@ function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
     $tmpEEPROM = '/home/fpp/media/config/tmpEEPROM.bin';
     if (file_exists($eepromFile)) {
         if ($eepromFile != '/home/fpp/media/config/cape-eeprom.bin') {
-            exec("sudo dd bs=32K if=$eepromFile of=$tmpEEPROM && sudo chown fpp.fpp $tmpEEPROM");
+            exec("sudo dd bs=32K if=$eepromFile of=$tmpEEPROM && sudo chown fpp:fpp $tmpEEPROM");
             $eepromFile = $tmpEEPROM;
         }
         if (!$fh = fopen($eepromFile, 'rb')) {
@@ -197,7 +197,7 @@ function SignEEPROMHelper($data)
     $backup = '/home/fpp/media/upload/cape-eeprom-Backup-' . $timestamp . '.bin';
     $newFile = '/home/fpp/media/upload/cape-eeprom-Signed-' . $timestamp . '.bin';
 
-    exec("sudo dd bs=32K if=$eepromFile of=$backup && sudo chown fpp.fpp $backup");
+    exec("sudo dd bs=32K if=$eepromFile of=$backup && sudo chown fpp:fpp $backup");
 
     if (file_exists($backup)) {
         # Write out new eeprom

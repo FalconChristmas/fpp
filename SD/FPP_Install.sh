@@ -1064,11 +1064,11 @@ fi
 #######################################
 echo "FPP - Populating ${FPPHOME}"
 mkdir ${FPPHOME}/.ssh
-chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/.ssh
+chown ${FPPUSER}:${FPPUSER} ${FPPHOME}/.ssh
 chmod 700 ${FPPHOME}/.ssh
 
 mkdir ${FPPHOME}/media
-chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
+chown ${FPPUSER}:${FPPUSER} ${FPPHOME}/media
 chmod 775 ${FPPHOME}/media
 
 cat > ${FPPHOME}/.vimrc <<-EOF
@@ -1082,14 +1082,14 @@ syntax on
 EOF
 
 chmod 644 ${FPPHOME}/.vimrc
-chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/.vimrc
+chown ${FPPUSER}:${FPPUSER} ${FPPHOME}/.vimrc
 
 echo >> ${FPPHOME}/.bashrc
 echo ". /opt/fpp/scripts/common" >> ${FPPHOME}/.bashrc
 echo >> ${FPPHOME}/.bashrc
 
 mkdir ${FPPHOME}/media/logs
-chown fpp.fpp ${FPPHOME}/media/logs
+chown fpp:fpp ${FPPHOME}/media/logs
 
 ln -f -s "${FPPHOME}/media/config/.htaccess" /opt/fpp/www/.htaccess
 ln -f -s "${FPPHOME}/media/config/proxies" /opt/fpp/www/proxy/.htaccess
@@ -1508,5 +1508,5 @@ echo "========================================================="
 echo ""
 
 cp /root/FPP_Install.* ${FPPHOME}/
-chown fpp.fpp ${FPPHOME}/FPP_Install.*
+chown fpp:fpp ${FPPHOME}/FPP_Install.*
 
