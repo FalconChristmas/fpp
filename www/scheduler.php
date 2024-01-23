@@ -169,7 +169,7 @@ function AddScheduleEntry(data = {}) {
     if (newEntry) {
         SetScheduleInputNames();
     } else {
-        if ((settings['fppMode'] != 'player') && (data.playlist != '')) {
+        if ((settings['fppMode'] != 'player') && (data.enabled) && (data.playlist != '')) {
             $('#remoteEntryTypeWarning').show();
             $(row).addClass('inputWarning');
         }
@@ -559,10 +559,24 @@ function GetScheduleEntryRowData(item) {
 
 function SaveSchedule() {
     var data = [];
+    var showTypeWarning = false;
+
+    $('#remoteEntryTypeWarning').hide();
 
     $('#tblScheduleBody > tr').each(function() {
-        data.push(GetScheduleEntryRowData($(this)));
+        var entry = GetScheduleEntryRowData($(this));
+        if ((settings['fppMode'] != 'player') && (entry.enabled) && (entry.playlist != '')) {
+            showTypeWarning = true;
+            $(this).addClass('inputWarning');
+        } else {
+            $(this).removeClass('inputWarning');
+        }
+
+        data.push(entry);
     });
+
+    if (showTypeWarning)
+        $('#remoteEntryTypeWarning').show();
 
     dataStr = JSON.stringify(data, null, 4);
 
@@ -790,15 +804,9 @@ include 'menu.inc';?>
                             </td>
                             <td><input class='time schStartTime' type='text' size='6' onChange='TimeChanged(this);' />
 <span class='offset startOffset'><br><input class='schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
-<?
-$disableNonCommands = '';
-if ( $settings['fppMode'] != 'player') {
-    $disableNonCommands = 'disabled';
-}
-?>
                             <td><select class='schType' onChange='ScheduleEntryTypeChanged(this);'>
-                                <option value='playlist' <? echo $disableNonCommands; ?>>Playlist</option>
-                                <option value='sequence' <? echo $disableNonCommands; ?>>Sequence</option>
+                                <option value='playlist'>Playlist</option>
+                                <option value='sequence'>Sequence</option>
                                 <option value='command'>Command</option>
                                  </select>
                             </td>
