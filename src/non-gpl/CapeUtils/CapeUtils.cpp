@@ -42,7 +42,9 @@
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/decoder.h>
+#endif
 
 #ifdef PLATFORM_BBB
 #define I2C_DEV 2
