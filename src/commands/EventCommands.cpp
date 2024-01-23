@@ -389,3 +389,22 @@ std::unique_ptr<Command::Result> AllLightsOffCommand::run(const std::vector<std:
     sequence->SendBlankingData();
     return std::make_unique<Command::Result>("All Lights Off");
 }
+
+SwitchToPlayerModeCommand::SwitchToPlayerModeCommand() :
+    Command("Switch To Player Mode", "Restart FPP in Player Mode.") {
+}
+std::unique_ptr<Command::Result> SwitchToPlayerModeCommand::run(const std::vector<std::string>& args) {
+    system("/opt/fpp/scripts/common setSetting fppMode player");
+    ShutdownFPPD(true);
+    return std::make_unique<Command::Result>("Switch To Player Mode");
+}
+
+SwitchToRemoteModeCommand::SwitchToRemoteModeCommand() :
+    Command("Switch To Remote Mode", "Restart FPP in Remote Mode.") {
+}
+std::unique_ptr<Command::Result> SwitchToRemoteModeCommand::run(const std::vector<std::string>& args) {
+    system("/opt/fpp/scripts/common setSetting fppMode remote");
+    ShutdownFPPD(true);
+    return std::make_unique<Command::Result>("Switch To Remote Mode");
+}
+

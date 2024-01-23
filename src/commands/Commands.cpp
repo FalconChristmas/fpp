@@ -122,6 +122,8 @@ void CommandManager::Init() {
     addCommand(new DecreaseVolumeCommand());
     addCommand(new URLCommand());
     addCommand(new AllLightsOffCommand());
+    addCommand(new SwitchToPlayerModeCommand());
+    addCommand(new SwitchToRemoteModeCommand());
 
     addCommand(new TriggerRemotePresetCommand());
     addCommand(new TriggerRemotePresetSlotCommand());

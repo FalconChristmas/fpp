@@ -125,3 +125,16 @@ public:
     AllLightsOffCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
+class SwitchToPlayerModeCommand : public Command {
+public:
+    SwitchToPlayerModeCommand();
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
+
+class SwitchToRemoteModeCommand : public Command {
+public:
+    SwitchToRemoteModeCommand();
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
+
