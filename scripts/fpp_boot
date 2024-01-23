@@ -26,8 +26,29 @@ then
 fi
 if [ "x${SLEEPSECS}" != "x" ]
 then
-    echo "FPP - Sleeping for ${SLEEPSECS} seconds"
-	sleep ${SLEEPSECS}
+    if [ "x${SLEEPSECS}" = "x-1" ]
+    then
+        CHECKDATE=$(/bin/ls -al --time-style="+%Y%m%d" /etc/fpp/rfs_version | awk '{print $6}')
+        DATE=$(date +%Y%m%d)
+        MAXWAIT=600
+
+        if [ $DATE -lt $CHECKDATE ]
+        then
+            echo "FPP - Waiting until system date is at least ${CHECKDATE}"
+        fi
+
+        WAITED=0
+        while [ $DATE -lt $CHECKDATE -a $WAITED -lt $MAXWAIT ]
+        do
+            sleep 5
+            DATE=$(date +%Y%m%d)
+            echo "System Time: $(date)"
+            WAITED=$((WAITED+5))
+        done
+    else
+        echo "FPP - Sleeping for ${SLEEPSECS} seconds"
+        sleep ${SLEEPSECS}
+    fi
 fi
 
 WaitForInterfacesUp
