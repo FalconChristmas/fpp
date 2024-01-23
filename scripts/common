@@ -190,3 +190,14 @@ setSetting() {
         fi
     fi
 }
+
+###################################################################
+# Handle calling a function directly
+#
+# Example: /opt/fpp/scripts/common setSetting Key Value
+
+if [ -n "$1" ]
+then
+    $@
+fi
+
