@@ -78,18 +78,21 @@ function UploadConfigFile()
 
 	$fileName = $settings['configDirectory'] . '/' . $baseFile;
 
-	$f = fopen($fileName, "w");
-	if ($f)
-	{
+    if (isset($_FILES['file']) && isset($_FILES['file']['tmp_name'])) {
+        if (rename($_FILES["file"]["tmp_name"], $fileName)) {
+            $result['Status'] = 'OK';
+            $result['Message'] = '';
+        } else {
+            $result['Status'] = 'Error';
+            $result['Message'] = 'Unable to rename uploaded file';
+        }
+    } else if ($f = fopen($fileName, "w")) {
         $postdata = fopen("php://input", "r");
         while ($data = fread($postdata, 1024*16)) {
             fwrite($f, $data);
         }
         fclose($postdata);
-		fclose($f);
-
-		//Trigger a JSON Configuration Backup
-		GenerateBackupViaAPI('Config File ' . $baseFile . ' was uploaded/modified.', 'config_file/' . $baseFile);
+        fclose($f);
 
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
@@ -98,6 +101,11 @@ function UploadConfigFile()
 	{
 		$result['Status'] = 'Error';
 		$result['Message'] = 'Unable to open file for writing';
+    }
+
+    if ($result['Status'] == 'OK') {
+        //Trigger a JSON Configuration Backup
+        GenerateBackupViaAPI('Config File ' . $baseFile . ' was uploaded/modified.', 'config_file/' . $baseFile);
     }
 
     if ($baseFile == 'authorized_keys') {
