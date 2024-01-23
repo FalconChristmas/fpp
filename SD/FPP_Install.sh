@@ -988,8 +988,8 @@ do
         sed -i -e "s/max_execution_time.*/max_execution_time = 1000/" ${PHPDIR}/${FILE}
         sed -i -e "s/max_input_time.*/max_input_time = 900/" ${PHPDIR}/${FILE}
         sed -i -e "s/default_socket_timeout.*/default_socket_timeout = 900/" ${PHPDIR}/${FILE}
-        sed -i -e "s/post_max_size.*/post_max_size = 4G/" ${PHPDIR}/${FILE}
-        sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
+        sed -i -e "s/post_max_size.*/post_max_size = 1999M/" ${PHPDIR}/${FILE}
+        sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 1999M/" ${PHPDIR}/${FILE}
         sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/${FPPUSER}\/media\/upload/" ${PHPDIR}/${FILE}
         sed -i -e "s/^;max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
         sed -i -e "s/^output_buffering.*/output_buffering = 1024/" ${PHPDIR}/${FILE}
