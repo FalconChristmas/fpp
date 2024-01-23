@@ -3508,8 +3508,7 @@ function GetFPPStatus() {
 
 function updateWarnings(jsonStatus) {
     if (jsonStatus.hasOwnProperty('warnings')) {
-        //var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";
-        var txt = "<b>Abnormal Conditions - May Cause Poor Performance</b>";
+        var txt = "<b>Abnormal Conditions - May cause poor performance or other issues</b>";
         for (var i = 0; i < jsonStatus.warnings.length; i++) {
             //txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
             txt += "<br/>" + jsonStatus.warnings[i];

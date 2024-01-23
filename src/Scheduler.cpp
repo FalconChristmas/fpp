@@ -679,6 +679,16 @@ void Scheduler::LoadScheduleFromFile(void) {
         warning += " '";
         warning += scheduleEntry.playlist + "' does not exist";
 
+        if ((getFPPmode() != PLAYER_MODE) &&
+            (scheduleEntry.enabled) &&
+            (scheduleEntry.playlist != "")) {
+            std::string warning = std::string("Playlist '") + scheduleEntry.playlist +
+                "' was scheduled but system is running in Remote mode.";
+            LogWarn(VB_SCHEDULE, "%s\n", warning.c_str());
+            WarningHolder::AddWarning(warning);
+            continue;
+        }
+
         if ((scheduleEntry.enabled) &&
             (scheduleEntry.playlist != "") &&
             (!FileExists(playlistFile))) {

@@ -289,10 +289,9 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
         <a class="dropdown-item" href="uploadfile.php"><i class="fas fa-upload"></i> File Manager</a>
           <a class="dropdown-item" href="playlists.php"><i class="fas fa-list-ol"></i> Playlists</a>
 
-<? if ($settings['fppMode'] == 'player') { ?>
+<? if (($settings['fppMode'] == 'player') || ($uiLevel >= 1)) { ?>
           <a class="dropdown-item" href="scheduler.php"><i class="fas fa-clock"></i> Scheduler</a>
 <? } ?>
-
           <a class="dropdown-item" href="scriptbrowser.php"><i class="fas fa-scroll"></i> Script Repository Browser</a>
           <a class="dropdown-item" href="plugins.php"><i class="fas fa-puzzle-piece"></i> Plugin Manager</a>
           <?php list_plugin_entries("content"); ?>

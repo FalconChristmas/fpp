@@ -970,12 +970,13 @@ void MainLoop(void) {
             else
                 prevFPPstatus = Player::INSTANCE.GetStatus();
 
-            scheduler->ScheduleProc();
         } else if (getFPPmode() == REMOTE_MODE) {
             if (mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) {
                 Player::INSTANCE.ProcessMedia();
             }
         }
+        scheduler->ScheduleProc();
+
         if (pushBridgeData) {
             ForceChannelOutputNow();
         }

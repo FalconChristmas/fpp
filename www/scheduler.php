@@ -59,7 +59,12 @@ function AddScheduleEntry(data = {}) {
         data.stopType = 0;
         data.endTimeOffset = 0;
         data.startTimeOffset = 0;
-        data.type = 'playlist';
+
+        if (settings['fppMode'] == 'player')
+            data.type = 'playlist';
+        else
+            data.type = 'command';
+
         data.command = '';
         data.args = [];
     }
@@ -163,6 +168,11 @@ function AddScheduleEntry(data = {}) {
 
     if (newEntry) {
         SetScheduleInputNames();
+    } else {
+        if ((settings['fppMode'] != 'player') && (data.playlist != '')) {
+            $('#remoteEntryTypeWarning').show();
+            $(row).addClass('inputWarning');
+        }
     }
 
     SetupDatePicker(row);
@@ -371,6 +381,12 @@ function SetupDatePicker(item)
 function ScheduleEntryTypeChanged(item)
 {
     var row = $(item).parent().parent();
+
+    if ((settings['fppMode'] != 'player') && ($(item).val() != 'command')) {
+        $(row).addClass('inputWarning');
+    } else {
+        $(row).removeClass('inputWarning');
+    }
 
     if ($(item).val() == 'playlist') {
         // Playlist
@@ -717,6 +733,9 @@ include 'menu.inc';?>
             </div>
             <div class='fppTableWrapper'>
                 <div class='fppTableContents'  role="region" aria-labelledby="tblSchedule" tabindex="0">
+                    <div id='remoteEntryTypeWarning' style='display: none;' class='inputWarning'>
+                        <b>WARNING: Non-Command schedule entries found.  Scheduled Playlist/Sequence entries are ignored on FPP systems running in Remote mode.</b>
+                    </div>
 
                     <table class='fppTableRowTemplate template-tblScheduleBody'>
                         <tr class='rowScheduleDetails'>
@@ -771,9 +790,15 @@ include 'menu.inc';?>
                             </td>
                             <td><input class='time schStartTime' type='text' size='6' onChange='TimeChanged(this);' />
 <span class='offset startOffset'><br><input class='schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
+<?
+$disableNonCommands = '';
+if ( $settings['fppMode'] != 'player') {
+    $disableNonCommands = 'disabled';
+}
+?>
                             <td><select class='schType' onChange='ScheduleEntryTypeChanged(this);'>
-                                <option value='playlist'>Playlist</option>
-                                <option value='sequence'>Sequence</option>
+                                <option value='playlist' <? echo $disableNonCommands; ?>>Playlist</option>
+                                <option value='sequence' <? echo $disableNonCommands; ?>>Sequence</option>
                                 <option value='command'>Command</option>
                                  </select>
                             </td>
