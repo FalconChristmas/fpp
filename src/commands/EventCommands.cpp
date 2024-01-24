@@ -394,7 +394,8 @@ SwitchToPlayerModeCommand::SwitchToPlayerModeCommand() :
     Command("Switch To Player Mode", "Restart FPP in Player Mode.") {
 }
 std::unique_ptr<Command::Result> SwitchToPlayerModeCommand::run(const std::vector<std::string>& args) {
-    system("/opt/fpp/scripts/common setSetting fppMode player");
+    std::string cmd(getFPPDDir("/scripts/common setSetting fppMode player"));
+    system(cmd.c_str());
     ShutdownFPPD(true);
     return std::make_unique<Command::Result>("Switch To Player Mode");
 }
@@ -403,7 +404,8 @@ SwitchToRemoteModeCommand::SwitchToRemoteModeCommand() :
     Command("Switch To Remote Mode", "Restart FPP in Remote Mode.") {
 }
 std::unique_ptr<Command::Result> SwitchToRemoteModeCommand::run(const std::vector<std::string>& args) {
-    system("/opt/fpp/scripts/common setSetting fppMode remote");
+    std::string cmd(getFPPDDir("/scripts/common setSetting fppMode remote"));
+    system(cmd.c_str());
     ShutdownFPPD(true);
     return std::make_unique<Command::Result>("Switch To Remote Mode");
 }
