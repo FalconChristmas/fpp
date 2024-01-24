@@ -137,9 +137,9 @@ int UDMXOutput::RawSendData(unsigned char* channelData) {
 void UDMXOutput::WaitTimedOut() {
     if (nullptr != m_device && nullptr != m_handle) {
         libusb_control_transfer(m_handle,
-                                LIBUSB_REQUEST_TYPE_VENDOR |
-                                    LIBUSB_RECIPIENT_INTERFACE |
-                                    LIBUSB_ENDPOINT_OUT,
+                                (uint8_t)LIBUSB_REQUEST_TYPE_VENDOR |
+                                    (uint8_t)LIBUSB_RECIPIENT_INTERFACE |
+                                    (uint8_t)LIBUSB_ENDPOINT_OUT,
                                 UDMX_SET_CHANNEL_RANGE,       /* Command */
                                 m_dataLen,                    /* Number of channels to set */
                                 0,                            /* Starting index */
