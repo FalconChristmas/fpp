@@ -165,6 +165,13 @@ function ButtonHandler(table, button) {
         var postData = JSON.stringify(files);
         DisplayProgressDialog("mp3GainProgress", "MP3Gain");
         StreamURL("run_mp3gain.php", 'mp3GainProgressText', 'mp3GainProgressDialogDone', 'mp3GainProgressDialogDone', 'POST', postData, 'application/json');
+    } else if (button == 'addToPlaylist') {
+        var files = [];
+        $('#tbl' + table + ' tr.selectedEntry').each(function() {
+            files.push($(this).find('td:first').text());
+        });
+
+        AddFilesToPlaylist(table, files);
     } else if (button == 'sequenceInfo') {
         if (selectedCount == 1) {
             GetSequenceInfo(filename);
@@ -247,6 +254,165 @@ $(function() {
 	GetFiles('Uploads');
 	GetFiles('Crashes');
   }
+
+function AddFilesToPlaylist(type, files) {
+    GetPlaylistArray();
+
+    var plOptions = '';
+    for (var i = 0; i < playListArray.length; i++) {
+        plOptions += "<option value='" + playListArray[i].name + "'>" + playListArray[i].name + "</option>";
+    }
+
+    var sequenceFiles = {};
+    var mediaFiles = {};
+
+    if (type == 'Sequences') {
+        $('#tblMusic tr').each(function() {
+            mediaFiles[$(this).find('td:first').text()] = 1;
+        });
+        $('#tblVideos tr').each(function() {
+            mediaFiles[$(this).find('td:first').text()] = 1;
+        });
+    } else if ((type == 'Music') || (type == 'Videos')) {
+        $('#tblSequences tr').each(function() {
+            sequenceFiles[$(this).find('td:first').text()] = 1;
+        });
+    }
+
+    var etype = '';
+    var tbody = '';
+    var duration = 0.0;
+    var mediaFile = '';
+
+    for (var i = 0; i < files.length; i++) {
+        duration = 0.0;
+        mediaFile = '';
+
+        if (type == 'Sequences') {
+            etype = 'sequence';
+
+            var seqInfo = Get("api/sequence/" + files[i] + "/meta", false);
+            if (seqInfo.hasOwnProperty("NumFrames")) {
+                duration += 1.0 * seqInfo.NumFrames * seqInfo.StepTime / 1000;
+            }
+
+            if (seqInfo.hasOwnProperty('variableHeaders') && seqInfo.variableHeaders.hasOwnProperty('mf')) {
+                var mf = seqInfo.variableHeaders.mf.split(/[\\/]/).pop();
+                if (mediaFiles.hasOwnProperty(mf)) {
+                    mediaFile = mf;
+                } else {
+                    mf = mf.replace(/\.[^/.]+$/, "");
+                    if (mediaFiles.hasOwnProperty(mf + '.mp3')) {
+                        mediaFile = mf + '.mp3';
+                    } else if (mediaFiles.hasOwnProperty(mf + '.MP3')) {
+                        mediaFile = mf + '.MP3';
+                    } else if (mediaFiles.hasOwnProperty(mf + '.mp4')) {
+                        mediaFile = mf + '.mp4';
+                    } else if (mediaFiles.hasOwnProperty(mf + '.MP4')) {
+                        mediaFile = mf + '.MP4';
+                    }
+                }
+
+                if (mediaFile != '')
+                    etype = 'both';
+            }
+        } else if ((type == 'Music') || (type == 'Videos')) {
+            etype = 'media';
+
+            var mediaInfo = Get("api/media/" + files[i] + "/duration", false);
+            if (mediaInfo.hasOwnProperty(files[i])) {
+                duration = mediaInfo[files[i]].duration;
+            }
+
+            var sf = files[i].replace(/\.[^/.]+$/, ".fseq");
+            if (sequenceFiles.hasOwnProperty(sf)) {
+                etype = 'both';
+                mediaFile = files[i];
+                files[i] = sf;
+            }
+        } else if (type == 'Scripts') {
+            etype = 'command';
+        }
+
+        var fileStr = files[i];
+        if (mediaFile != '')
+            fileStr += ' (' + mediaFile + ')';
+
+        tbody += "<tr class='fppTableRow'><td class='file' file='" + files[i] + "' media='" + mediaFile + "' duration='" + duration + "'>" + fileStr + "</td><td class='type' etype='" + etype + "'>" + PlaylistEntryTypeToString(etype) + ((etype == 'command') ? ' (Run Script)' : '') + "</td><td>" + SecondsToHuman(duration, true) + "</td></tr>";
+    }
+
+    var options = {
+        id: "bulkAdd",
+        title: "Bulk Add",
+        body: $('#bulkAddTemplate').html().replaceAll('Template', ''),
+        class: 'modal-dialog-scrollable',
+        keyboard: true,
+        backdrop: true,
+        buttons: {
+            "Add": {
+                id: "bulkAddAddButton",
+                click: function() {
+                    BulkAddPlaylist();
+                    CloseModalDialog("bulkAdd");
+                }
+            },
+            "Cancel": {
+                id: "bulkAddCancelButton",
+                click: function() {
+                    CloseModalDialog("bulkAdd");
+                }
+            }
+        }
+    };
+
+    DoModalDialog(options);
+
+    $('#bulkAddPlaylist').html(plOptions);
+    $('#bulkAddPlaylistSection').val('mainPlaylist');
+    $('#bulkAddType').html(type);
+    $('#bulkAddList').html(tbody);
+}
+
+function BulkAddPlaylist() {
+    var playlistName = $('#bulkAddPlaylist').val();
+    var pl = Get('api/playlist/' + playlistName, false);
+    var files = 'Playlist: ' + playlistName + "\n";
+    $('#bulkAddList').find('tr').each(function() {
+        var file = $(this).find('td.file').attr('file');
+        var duration = parseFloat($(this).find('td.file').attr('duration'));
+
+        var e = {};
+        e.type = $(this).find('td.type').attr('etype');
+        e.enabled = 1;
+        e.playOnce = 0;
+        e.duration = duration;
+
+        if (e.type == 'both') {
+            e.sequenceName = file;
+            e.mediaName = $(this).find('td.file').attr('media');
+        } else if (e.type == 'sequence') {
+            e.sequenceName = file;
+        } else if (e.type == 'media') {
+            e.mediaName = file;
+        } else if (e.type == 'command') {
+            e.command = "Run Script";
+            e.args = [ file, "", "" ];
+        }
+
+        pl[$('#bulkAddPlaylistSection').val()].push(e);
+
+        pl.playlistInfo.total_duration += duration;
+        pl.playlistInfo.total_items += 1;
+    });
+
+    var result = Post('api/playlist/' + playlistName, false, JSON.stringify(pl));
+    if (result.hasOwnProperty('Status') && result.Status == 'Error') {
+        $.jGrowl("Error Saving Playlist: " + result.Message, { themeState: 'danger' });
+    } else {
+        $.jGrowl("Playlist updated", { themeState: 'success' });
+    }
+    CloseModalDialog("bulkAdd");
+}
 
 function RunScriptDone() {
     $('#runScriptCloseButton').prop('disabled', false);
@@ -427,10 +593,11 @@ include 'menu.inc';?>
                   <input onclick="ButtonHandler('Sequences', 'play');" class="disableButtons singleSequencesButton" type="button"  value="Play" />
                   <input onclick="ButtonHandler('Sequences', 'playHere');" class="disableButtons singleSequencesButton" type="button"  value="Play Here" />
                   <?php }?>
+                  <input onclick="ButtonHandler('Sequences', 'sequenceInfo');" class="disableButtons singleSequencesButton" type="button"  value="Sequence Info" />
+                  <input onclick="ButtonHandler('Sequences', 'addToPlaylist');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Add To Playlist" />
                   <input onclick="ButtonHandler('Sequences', 'download');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Download" />
                   <input onclick="ButtonHandler('Sequences', 'rename');" class="disableButtons singleSequencesButton" type="button"  value="Rename" />
                   <input onclick="ButtonHandler('Sequences', 'delete');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Delete" />
-                  <input onclick="ButtonHandler('Sequences', 'sequenceInfo');" class="disableButtons singleSequencesButton" type="button"  value="Sequence Info" />
                 </div>
                 <div class="note"><strong>CTRL+Click to select multiple items.  SHIFT+Click can be used to select a range of items.</strong></div>
             </div>
@@ -454,6 +621,7 @@ include 'menu.inc';?>
                     <input onclick="ButtonHandler('Music', 'mp3gain');" id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="MP3Gain" />
                   <? } ?>
 
+                  <input onclick="ButtonHandler('Music', 'addToPlaylist');" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Add To Playlist" />
                   <input onclick="ButtonHandler('Music', 'download');" id="btnDownloadMusic" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Download" />
                   <input onclick="ButtonHandler('Music', 'rename');" id="btnRenameMusic" class="disableButtons singleMusicButton" type="button"  value="Rename" />
                   <input onclick="ButtonHandler('Music', 'delete');" id="btnDeleteMusic" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Delete" />
@@ -478,6 +646,7 @@ include 'menu.inc';?>
                   <input onclick="ClearSelections('Videos');" class="buttons" type="button" value="Clear" />
                   <input onclick="ButtonHandler('Videos', 'playInBrowser');" class="disableButtons singleVideosButton" type="button"  value="View" />
                   <input onclick="ButtonHandler('Videos', 'videoInfo');" class="disableButtons singleVideosButton" type="button"  value="Video Info" />
+                  <input onclick="ButtonHandler('Videos', 'addToPlaylist');" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Add To Playlist" />
                   <input onclick="ButtonHandler('Videos', 'download');" class="disableButtons singleVideosButton multiVideosButton" type="button"  value="Download" />
                   <input onclick="ButtonHandler('Videos', 'rename');" class="disableButtons singleVideosButton" type="button"  value="Rename" />
                   <input onclick="ButtonHandler('Videos', 'delete');" class="disableButtons singleVideosButton multiVideosButton" type="button"  value="Delete" />
@@ -523,10 +692,10 @@ include 'menu.inc';?>
 
                 <div class='form-actions'>
                   <input onclick="ClearSelections('Effects');" class="buttons" type="button" value="Clear" />
+                  <input onclick="ButtonHandler('Effects', 'sequenceInfo');" class="disableButtons singleEffectsButton" type="button"  value="Sequence Info" />
                   <input onclick="ButtonHandler('Effects', 'download');" class="disableButtons singleEffectsButton multiEffectsButton" type="button"  value="Download" />
                   <input onclick="ButtonHandler('Effects', 'rename');" class="disableButtons singleEffectsButton" type="button"  value="Rename" />
                   <input onclick="ButtonHandler('Effects', 'delete');" class="disableButtons singleEffectsButton multiEffectsButton" type="button"  value="Delete" />
-                  <input onclick="ButtonHandler('Effects', 'sequenceInfo');" class="disableButtons singleEffectsButton" type="button"  value="Sequence Info" />
                 </div>
                 <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
               </div>
@@ -548,6 +717,7 @@ include 'menu.inc';?>
                 <input onclick="ButtonHandler('Scripts', 'viewFile');" class="disableButtons singleScriptsButton" type="button"  value="View" />
                 <input onclick="ButtonHandler('Scripts', 'runScript');" class="disableButtons singleScriptsButton" type="button"  value="Run" />
                 <input onclick="ButtonHandler('Scripts', 'editScript');" class="disableButtons singleScriptsButton" type="button"  value="Edit" />
+                <input onclick="ButtonHandler('Scripts', 'addToPlaylist');" class="disableButtons singleScriptsButton multiScriptsButton" type="button"  value="Add To Playlist" />
                 <input onclick="ButtonHandler('Scripts', 'download');" class="disableButtons singleScriptsButton multiScriptsButton" type="button"  value="Download" />
                 <input onclick="ButtonHandler('Scripts', 'copyFile');" class="disableButtons singleScriptsButton" type="button"  value="Copy" />
                 <input onclick="ButtonHandler('Scripts', 'rename');" class="disableButtons singleScriptsButton" type="button"  value="Rename" />
@@ -666,5 +836,32 @@ if (isset($_GET['tab'])) {
     });
 
 </script>
+
+<div id='bulkAddTemplate' style='display:none;'>
+    <span id='bulkAddTypeTemplate' style='display:none;'></span>
+    <table border=0 cellpadding=2 cellspacing=0>
+        <tr><td><b>Playlist:</b></td>
+            <td><select id='bulkAddPlaylistTemplate'></select></td>
+        </tr>
+        <tr><td><b>Section:</b></td>
+            <td><select id='bulkAddPlaylistSectionTemplate'>
+                    <option value='leadIn'>Lead In</option>
+                    <option value='mainPlaylist' selected>Main Playlist</option>
+                    <option value='leadOut'>Lead Out</option>
+                </select></td>
+        </tr>
+    </table>
+    <br>
+    <table class='fppSelectableRowTable'>
+        <thead>
+            <th>File</th>
+            <th>Playlist Entry Type</th>
+            <th>Duration</th>
+        </thead>
+        <tbody id='bulkAddListTemplate'>
+        </tbody>
+    </table>
+</div>
+
 </body>
 </html>

@@ -527,15 +527,15 @@ function PadLeft(string, pad, length) {
     return (new Array(length + 1).join(pad) + string).slice(-length);
 }
 
-function SecondsToHuman(seconds) {
+function SecondsToHuman(seconds, addIdentifiers = false) {
     var m = parseInt(seconds / 60);
     var s = parseInt(seconds % 60);
     var h = parseInt(seconds / 3600);
     if (h > 0) {
         m = m % 60;
-        return PadLeft(h, '0', 2) + ':' + PadLeft(m, '0', 2) + ':' + PadLeft(s, '0', 2);
+        return PadLeft(h, '0', 2) + (addIdentifiers ? 'h' : '') + ':' + PadLeft(m, '0', 2) + (addIdentifiers ? 'm' : '') + ':' + PadLeft(s, '0', 2) + (addIdentifiers ? 's' : '');
     }
-    return PadLeft(m, '0', 2) + ':' + PadLeft(s, '0', 2);
+    return PadLeft(m, '0', 2) + (addIdentifiers ? 'm' : '') + ':' + PadLeft(s, '0', 2) + (addIdentifiers ? 's' : '');
 }
 
 function versionToNumber(version) {
