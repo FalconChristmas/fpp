@@ -66,7 +66,7 @@ include 'menu.inc';?><div class="container">
     </div>
     <br>
 
-            <small>Copyright &copy; 2013-2023</small>
+            <small>Copyright &copy; 2013-2024</small>
           </div>
         </div>
 
