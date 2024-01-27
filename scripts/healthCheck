@@ -91,7 +91,12 @@ HC_FPPD() {
     PrintItemHead "FPPD is running"
 
     PID=$(pgrep fppd)
-    if [ "x${PID}" != "x" ]
+    if [ ! -f "${FPPDIR}/src/fppd" ]
+    then
+        STATUS=0
+        STATUSSTR="FPPD executable is missing. Rebuild requied."
+
+    elif [ "x${PID}" != "x" ]
     then
         STATUS=1
         STATUSSTR="FPPD is running at PID ${PID}"
@@ -279,7 +284,7 @@ HC_MediaDisk() {
 
 #############################################################################
 # Main Health Check routines here.  Some call others due to dependencies but
-# some stand alon on their own.
+# some stand alone on their own.
 
 #############################
 # FPP
