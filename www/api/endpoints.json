@@ -732,6 +732,147 @@
             }
         },
         {
+            "endpoint": "fppd/ports",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Returns the list of Ports with current sensing.",
+                    "output": [
+                        {
+                            "col": 1,
+                            "enabled": true,
+                            "ma": 58,
+                            "name": "Port #1",
+                            "pixelCount": 150,
+                            "row": 1,
+                            "status": true
+                        },
+                        {
+                            "col": 2,
+                            "enabled": true,
+                            "ma": 258,
+                            "name": "Port #2",
+                            "pixelCount": 200,
+                            "row": 1,
+                            "status": true
+                        },
+                        {
+                            "col": 3,
+                            "enabled": true,
+                            "ma": 0,
+                            "name": "Port #3",
+                            "pixelCount": 0,
+                            "row": 1,
+                            "status": true
+                        },
+                        {
+                            "col": 4,
+                            "enabled": true,
+                            "ma": 0,
+                            "name": "Port #4",
+                            "pixelCount": 0,
+                            "row": 1,
+                            "status": true
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/ports/pixelCount",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Same as fppd/ports, but has the side effect of triggering a pixel Count",
+                    "output": [
+                        {
+                            "col": 1,
+                            "enabled": true,
+                            "ma": 58,
+                            "name": "Port #1",
+                            "pixelCount": 150,
+                            "row": 1,
+                            "status": true
+                        },
+                        {
+                            "col": 2,
+                            "enabled": true,
+                            "ma": 258,
+                            "name": "Port #2",
+                            "pixelCount": 200,
+                            "row": 1,
+                            "status": true
+                        },
+                        {
+                            "col": 3,
+                            "enabled": true,
+                            "ma": 0,
+                            "name": "Port #3",
+                            "pixelCount": 0,
+                            "row": 1,
+                            "status": true
+                        },
+                        {
+                            "col": 4,
+                            "enabled": true,
+                            "ma": 0,
+                            "name": "Port #4",
+                            "pixelCount": 0,
+                            "row": 1,
+                            "status": true
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/ports/stop",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Same as fppd/ports, but has the side effect of stopping the Pixel count in progress",
+                    "output": [
+                        {
+                            "col": 1,
+                            "enabled": true,
+                            "ma": 58,
+                            "name": "Port #1",
+                            "pixelCount": 150,
+                            "row": 1,
+                            "status": true
+                        },
+                        {
+                            "col": 2,
+                            "enabled": true,
+                            "ma": 258,
+                            "name": "Port #2",
+                            "pixelCount": 200,
+                            "row": 1,
+                            "status": true
+                        },
+                        {
+                            "col": 3,
+                            "enabled": true,
+                            "ma": 0,
+                            "name": "Port #3",
+                            "pixelCount": 0,
+                            "row": 1,
+                            "status": true
+                        },
+                        {
+                            "col": 4,
+                            "enabled": true,
+                            "ma": 0,
+                            "name": "Port #4",
+                            "pixelCount": 0,
+                            "row": 1,
+                            "status": true
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "endpoint": "fppd/schedule",
             "fppd": true,
             "methods": {
@@ -1063,7 +1204,11 @@
                 "GET": {
                     "desc": "Returns an array of branches that can be switched to",
                     "output": [
-                        "master", "v7.3", "v7.2", "v7.1", "v7.0"
+                        "master",
+                        "v7.3",
+                        "v7.2",
+                        "v7.1",
+                        "v7.0"
                     ]
                 }
             }
@@ -2083,9 +2228,7 @@
                 },
                 "DELETE": {
                     "desc": "Delete an IP address from FPP proxy list",
-                    "output": [
-                       
-                    ]
+                    "output": []
                 }
             }
         },
@@ -2100,8 +2243,7 @@
                 },
                 "DELETE": {
                     "desc": "Delete an IP address from FPP proxy list",
-                    "output": [                       
-                    ]
+                    "output": []
                 }
             }
         },
