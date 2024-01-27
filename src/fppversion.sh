@@ -19,6 +19,12 @@ else
     exit 0
 fi
 
+FPPBOOTDIR=/boot
+if [ -d "/boot/firmware" ]
+then
+    FPPBOOTDIR=/boot/firmware
+fi
+
 GITTREEDIR=$1
 GITREPOPATH="exported"
 
@@ -166,6 +172,7 @@ function getFPPVersionTriplet() {
 function getFPPBranch() {
 	return "${BRANCH}";
 }
+
 </script>
 <?
 }
@@ -184,4 +191,5 @@ cat > ./fppversion_defines.h <<EOF
 #define FPP_SOURCE_VERSION_STR "${SOURCE_VERSION}"
 #define FPP_BRANCH ${BRANCH}
 #define FPP_BRANCH_STR "${BRANCH}"
+#define FPP_BOOT_DIR "${FPPBOOTDIR}"
 EOF

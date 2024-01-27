@@ -39,6 +39,12 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     export BBBMODEL
 fi
 
+FPPBOOTDIR="/boot"
+if [ -d "/boot/firmware" ]
+then
+    FPPBOOTDIR="/boot/firmware"
+fi
+
 PATHDIRS="${FPPDIR}/scripts/:${FPPBINDIR}/"
 if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPBINDIR}/fppd" ]; then
 	FPPBINDIR="${FPPDIR}/src"
@@ -49,6 +55,7 @@ FPPD="${FPPBINDIR}/fppd"
 
 export FPPDIR
 export FPPBINDIR
+export FPPBOOTDIR
 export FPPHOME
 export FPPUSER
 export FPPGROUP

@@ -4,6 +4,12 @@ FPPOS=`/usr/bin/basename $1`
 GITHUBSIZE=`curl -fsSL http://127.0.0.1/api/git/releases/sizes | grep ${FPPOS} | awk -F, '{print $2}'`
 OURSIZE=`/usr/bin/stat -c %s $1`
 
+FPPBOOTDIR=/boot
+if [ -d "/boot/firmware" ]
+then
+    FPPBOOTDIR=/boot/firmware
+fi
+
 if ! [[ $GITHUBSIZE =~ ^-?[0-9]+$ ]];
 then
   echo "Couldn't get fppos size from Github, attempting upgrade anyway"
@@ -40,7 +46,7 @@ rm -f /bin/ping
 echo "----------"
 echo "Mounting filesystems for copy"
 mount -o bind / /mnt/mnt
-mount -o bind /boot /mnt/mnt/boot
+mount -o bind ${FPPBOOTDIR} /mnt/mnt${FPPBOOTDIR}
 mount -t tmpfs tmpfs /mnt/tmp
 mount -o bind /dev /mnt/dev
 mount -o bind /proc /mnt/proc
@@ -65,7 +71,7 @@ sync
 umount /mnt/proc
 umount /mnt/dev
 umount /mnt/tmp
-umount /mnt/mnt/boot
+umount /mnt/mnt${FPPBOOTDIR}
 umount /mnt/mnt
 
 sync

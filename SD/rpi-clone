@@ -10,6 +10,12 @@
 
 version=2.0.22
 
+FPPBOOTDIR=/boot
+if [ -d "/boot/firmware" ]
+then
+    FPPBOOTDIR=/boot/firmware
+fi
+
 # setup trusted paths for dependancies (like rsync, grub, fdisk, etc)
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
@@ -494,7 +500,7 @@ print_options()
 	if ((p1_size_new > 0))
 	then
 		printf "%-3s%-19s : %s %s %s\n" "-p " "$p1_size_arg" \
-				"resize /boot to" "$p1_size_new" "blocks of 512 Bytes."
+				"resize ${FPPBOOTDIR} to" "$p1_size_new" "blocks of 512 Bytes."
 	fi
 
 	if [ "$edit_fstab_name" != "" ]
@@ -586,7 +592,7 @@ get_src_disk()
 
 # ==== source (booted) disk info and default mount list
 #
-src_boot_dev=`findmnt /boot -o source -n | grep "/dev/"`
+src_boot_dev=`findmnt ${FPPBOOTDIR} -o source -n | grep "/dev/"`
 src_root_dev=`findmnt / -o source -n | grep "/dev/"`
 SD_slot_boot=0
 SD_slot_dst=0
@@ -723,7 +729,7 @@ do
 		src_name[p]="root"
 	#
 	# If root on device other than booted SD card, root_part_num assumed to be
-	# booted /boot part_num + 1 and alt_root_part_num  is from root device.
+	# booted ${FPPBOOTDIR} part_num + 1 and alt_root_part_num  is from root device.
 	#
 	elif ((p == root_part_num)) && ((alt_root_part_num > 0))
 	then
@@ -837,7 +843,7 @@ do
 				then
 					if ((!force_sync && p1_size_new < 200 * 1024))
 					then
-						echo "Setting /boot partition size less than 100 MB seems wrong so will not try."
+						echo "Setting ${FPPBOOTDIR} partition size less than 100 MB seems wrong so will not try."
 						echo "    Use -F before -p to override."
 						exit 1
 					fi
@@ -971,7 +977,7 @@ then
 		cp $fstab_tmp $fstab
 		printf "Your original fstab is backed up to $fstab_save\n"
 
-		cmdline_txt=/boot/cmdline.txt
+		cmdline_txt=${FPPBOOTDIR}/cmdline.txt
 		cmdline_save=$cmdline_txt.${PGM}-save
 		if [ -f $cmdline_txt ] && grep -q "$src_root_dev" $cmdline_txt
 		then
@@ -1270,7 +1276,7 @@ then
 	exclude_swapfile="--exclude $swapfile"
 fi
 
-if ((grub_auto)) && [ -d /boot/grub ] && command -v grub-install
+if ((grub_auto)) && [ -d ${FPPBOOTDIR}/grub ] && command -v grub-install
 then
 	have_grub=1
 else
@@ -1348,11 +1354,11 @@ Use -U for unattended even if initializing.
 	if ((raspbian_buster && p1_size_new == 0 && src_size_sectors[1] < 400000))
 	then
 		printf "%-22s : %s\n" "** WARNING **" \
-			"Your source /boot partition is smaller than the"
+			"Your source ${FPPBOOTDIR} partition is smaller than the"
 		printf "%-22s : %s\n" "" \
 			"  Raspbian Buster 256M standard.  Consider using"
 		printf "%-22s : %s\n" "" \
-			"  the '-p 256M' option to avoid /boot clone errors."
+			"  the '-p 256M' option to avoid ${FPPBOOTDIR} clone errors."
 	fi
 
 	abort=0
@@ -1503,7 +1509,7 @@ Use -U for unattended even if initializing.
 			mkfs_type=$fs_type
 		fi
 
-		if [ "${src_mounted_dir[p]}" == "/boot" ] && ((p == 1))
+		if [ "${src_mounted_dir[p]}" == "${FPPBOOTDIR}" ] && ((p == 1))
 		then
 			ext_label $p "$fs_type" "-L" label
 			printf "  => mkfs -t $mkfs_type $label $dst_dev ..."
@@ -1609,7 +1615,7 @@ else
 	if ((raspbian_buster && dst_size_sectors[1] < 500000))
 	then
 		qprintf "%-22s : %s\n" "** WARNING **" \
-			"Your destination /boot partition is smaller than the"
+			"Your destination ${FPPBOOTDIR} partition is smaller than the"
 		qprintf "%-22s : %s\n" "" \
 			"  Raspbian Buster 256M standard. Consider initializing"
 		if ((n_dst_parts <= 2))
@@ -1730,15 +1736,15 @@ qecho ""
 # Fix PARTUUID or device name references in cmdline.txt and fstab
 #
 fstab=${clone}/etc/fstab
-cmdline_txt=${clone}/boot/cmdline.txt
+cmdline_txt=${clone}${FPPBOOTDIR}/cmdline.txt
 
 if [ -f $cmdline_txt ]
 then
 	if ((leave_sd_usb_boot && SD_slot_dst))
 	then
 		qecho "Leaving SD to USB boot alone."
-		cp $cmdline_txt ${clone}/boot/cmdline.boot
-		cmdline_txt=${clone}/boot/cmdline.boot
+		cp $cmdline_txt ${clone}${FPPBOOTDIR}/cmdline.boot
+		cmdline_txt=${clone}${FPPBOOTDIR}/cmdline.boot
 	fi
 	if grep -q $src_disk_ID $cmdline_txt
 	then
@@ -1752,8 +1758,8 @@ then
 	if ((leave_sd_usb_boot && SD_slot_boot))
 	then
 		qecho "Copying USB cmdline.txt to SD card to set up USB boot."
-		cp /boot/cmdline.txt /boot/cmdline.boot
-		cp $cmdline_txt /boot/cmdline.txt
+		cp ${FPPBOOTDIR}/cmdline.txt ${FPPBOOTDIR}/cmdline.boot
+		cp $cmdline_txt ${FPPBOOTDIR}/cmdline.txt
 	fi
 fi
 

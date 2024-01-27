@@ -134,6 +134,7 @@ function ApprovedCape($v)
 // Set some defaults
 $fppMode = "player";
 $fppDir = dirname(dirname(__FILE__));
+$bootDirectory = file_exists("/boot/firmware") ? "/boot/firmware" : "/boot";
 $pluginDirectory = $mediaDirectory . "/plugins";
 $configDirectory = $mediaDirectory . "/config";
 $docsDirectory = $fppDir . "/docs";
@@ -512,6 +513,7 @@ $settings['fppDir'] = $fppDir;
 $settings['playlistDirectory'] = $playlistDirectory;
 $settings['pluginDirectory'] = $pluginDirectory;
 $settings['mediaDirectory'] = $mediaDirectory;
+$settings['bootDirectory'] = $bootDirectory;
 $settings['configDirectory'] = $mediaDirectory . "/config";
 $settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
 $settings['channelOutputsJSON'] = $mediaDirectory . "/config/channeloutputs.json";
@@ -622,7 +624,7 @@ date_default_timezone_set($settings['TimeZone']);
 // (takes too long). These dates will periodically need updated
 //
 $year = date('Y');
-if ($year < 2021 || $year > 2030) {
+if ($year < 2024 || $year > 2030) {
     # Probably no internet
     define('MINYEAR', date('Y') - 20);
     define('MAXYEAR', date('Y') + 40);
@@ -657,6 +659,8 @@ function GetDirSetting($dir)
         return GetSettingValue('uploadDirectory');
     } else if ($dir == "docs") {
         return GetSettingValue('docsDirectory');
+    } else if ($dir == "boot") {
+        return GetSettingValue('bootDirectory');
     } else if ($dir == "config") {
         return GetSettingValue('configDirectory');
     } else if ($dir == "jsonbackups") {

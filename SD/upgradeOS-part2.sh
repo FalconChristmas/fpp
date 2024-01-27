@@ -5,19 +5,29 @@
 
 cd /
 
-echo "Running rsync to update /boot file system:"
+FPPBOOTDIR=boot
+FPPBOOTDESTSUBDIR=
+FPPBOOTFWSUBDIR=boot
+if [ -d "/boot/firmware" ]
+then
+    FPPBOOTDIR=boot/firmware
+    FPPBOOTDESTSUBDIR=/boot
+    FPPBOOTFWSUBDIR=firmware
+fi
+
+echo "Running rsync to update ${FPPBOOTDIR} file system:"
 if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
     BOOTSIZE=$(sfdisk -q -l -o size /dev/mmcblk0 2>/dev/null | grep M)
     BOOTSIZE=${BOOTSIZE::-1}
     if [ `echo "$BOOTSIZE < 120"|bc` -eq 1 ]; then
-        # 2.x image, boot partition is tiny and cannot fit everything needed for Pi4 so we need to exclude some more things
-        rsync --outbuf=N -aAXxvc boot /mnt --delete-before --exclude=boot/kernel8.img  --exclude=boot/kernel7l.img --exclude=boot/.Spotlight*
+        # 2.x image, boot partition is tiny and cannot fit everything needed for Pi4 and higher so we need to exclude some more things
+        rsync --outbuf=N -aAXxvc ${FPPBOOTDIR} /mnt${FPPBOOTDESTSUBDIR} --delete-before --exclude=${FPPBOOTFWSUBDIR}/kernel8.img  --exclude=${FPPBOOTFWSUBDIR}/kernel7l.img --exclude=${FPPBOOTFWSUBDIR}/.Spotlight*
     else
-        rsync --outbuf=N -aAXxvc boot /mnt --delete-before
+        rsync --outbuf=N -aAXxvc ${FPPBOOTDIR} /mnt${FPPBOOTDESTSUBDIR} --delete-before
     fi
 else
-    rsync -aAXxvc boot /mnt --delete-during
+    rsync -aAXxvc ${FPPBOOTDIR} /mnt${FPPBOOTDESTSUBDIR} --delete-during
 fi
 echo
 

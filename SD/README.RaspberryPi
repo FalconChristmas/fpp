@@ -153,5 +153,5 @@ mksquashfs /mnt Pi-${VERSION}_${OSVERSION}.fppos -b 512K -comp xz
 cd /mnt/root
 tar -czf ~/ccache-Pi-2023.x-v${VERSION}.tar.gz .ccache
 cd ~
-umount /mnt/boot
+umount /mnt/boot/firmware
 umount /mnt

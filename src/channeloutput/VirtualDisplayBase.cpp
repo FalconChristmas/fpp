@@ -30,7 +30,7 @@
 #include "VirtualDisplayBase.h"
 
 /////////////////////////////////////////////////////////////////////////////
-// To disable interpolated scaling on the GPU, add this to /boot/config.txt:
+// To disable interpolated scaling on the GPU, add this to config.txt under /boot:
 // scaling_kernel=8
 
 /*

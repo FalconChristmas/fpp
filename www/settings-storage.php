@@ -130,7 +130,7 @@ function PrintStorageDeviceSelect($platform)
 	global $SUDO;
 
 	# FIXME, this would be much simpler by parsing "lsblk -l"
-	exec('lsblk -l | grep /boot | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
+	exec('lsblk -l | grep ' . GetDirSetting('boot') . ' | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
     if (count($output) > 0) {
         $bootDevice = $output[0];
     } else {

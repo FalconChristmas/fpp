@@ -48,7 +48,7 @@
  *
  * To use this code, the framebuffer must be setup to a specific resolution
  * and timing.  This is normally handled by setupChannelOutputs in
- * /opt/fpp/scripts/functions.  Below are sample configs for /boot/config.txt
+ * /opt/fpp/scripts/functions.  Below are sample configs for config.txt
  *
  * # minimum DPI Pixels FB config.txt entries:
  * enable_dpi_lcd=1
@@ -359,7 +359,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
     fbConfig["AutoSync"] = true;
 #endif
 
-    // Read dimensions from current since we need a /boot/config.txt entry to set dpi_timings
+    // Read dimensions from current since we need a config.txt entry to set dpi_timings
     fbConfig["Width"] = 0;
     fbConfig["Height"] = 0;
 

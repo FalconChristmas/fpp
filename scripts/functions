@@ -784,7 +784,7 @@ exit(1)
 
 		if [ ${DPIPixels} -eq 0 ]
 		then
-			# Add our DPI Pixels config to /boot/config.txt
+			# Add our DPI Pixels config to ${FPPBOOTDIR}/config.txt
             MODEL=$(cat /sys/firmware/devicetree/base/model | sed -e "s/Raspberry //" -e "s/ Model.*//" -e "s/ //")
 
             # Determine the best frame rate we can use
@@ -814,11 +814,11 @@ exit(1)
             fi
 
             EXISTING_TIMINGS=""
-            if [ -e "/boot/dpipixels.txt" ]; then
-                EXISTING_TIMINGS=$(grep dpi_timings /boot/dpipixels.txt | cut -f2 -d=)
+            if [ -e "${FPPBOOTDIR}/dpipixels.txt" ]; then
+                EXISTING_TIMINGS=$(grep dpi_timings ${FPPBOOTDIR}/dpipixels.txt | cut -f2 -d=)
             fi
 
-            cat <<DPI_PIXELS_EOF > /boot/dpipixels.txt.new
+            cat <<DPI_PIXELS_EOF > ${FPPBOOTDIR}/dpipixels.txt.new
 ######################################################################
 # DPI Pixels framebuffer config
 # https://www.raspberrypi.com/documentation/computers/config_txt.html
@@ -854,35 +854,41 @@ dtoverlay=uart2
 dtparam=spi=off
 DPI_PIXELS_EOF
 
-            grep -q "include dpipixels.txt" /boot/config.txt
+            grep -q "include dpipixels.txt" ${FPPBOOTDIR}/config.txt
             if [ $? -eq 1 ]
             then
-                # need to reboot after adding dpipixels.txt
-                echo "include dpipixels.txt" >> /boot/config.txt
-                mv /boot/dpipixels.txt.new /boot/dpipixels.txt
+                # Include dpipixels.txt in config.txt
+                TAILCONF=$(tail -1 ${FPPBOOTDIR}/config.txt)
+                if [ "${TAILCONF}" != "\[all\]" ]
+                then
+                    echo "[all]" >> ${FPPBOOTDIR}/config.txt
+                fi
+
+                echo "include dpipixels.txt" >> ${FPPBOOTDIR}/config.txt
+                mv ${FPPBOOTDIR}/dpipixels.txt.new ${FPPBOOTDIR}/dpipixels.txt
                 shutdown -r now
             else
                 # dpipixels.txt already included but we need to check the timing line
                 if [ "x${TIMING}" != "x${EXISTING_TIMINGS}" ]
                 then
                     # new timings don't match existing, so reboot to apply new
-                    mv /boot/dpipixels.txt.new /boot/dpipixels.txt
+                    mv ${FPPBOOTDIR}/dpipixels.txt.new ${FPPBOOTDIR}/dpipixels.txt
                     shutdown -r now
                 fi
             fi
         else
-            # Remove any DPI Pixels config from /boot/config.txt
-            grep -q "include dpipixels.txt" /boot/config.txt
+            # Remove any DPI Pixels config from ${FPPBOOTDIR}/config.txt
+            grep -q "include dpipixels.txt" ${FPPBOOTDIR}/config.txt
             if [ $? -eq 0 ]
             then
-                sed -i -e '/^include dpipixels.txt/d' /boot/config.txt
-                rm /boot/dpipixels.txt
+                sed -i -e '/^include dpipixels.txt/d' ${FPPBOOTDIR}/config.txt
+                rm ${FPPBOOTDIR}/dpipixels.txt
                 shutdown -r now
             fi
         fi
 
         # remove new config file if it wasn't needed
-        rm /boot/dpipixels.txt.new 2> /dev/null
+        rm ${FPPBOOTDIR}/dpipixels.txt.new 2> /dev/null
 	fi
 }
 

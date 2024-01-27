@@ -12,6 +12,7 @@
  */
 
 #include "CapeUtils.h"
+#include "fppversion_defines.h"
 
 #include <array>
 #include <cstdio>
@@ -350,11 +351,11 @@ static void disableOutputs(Json::Value& disables) {
 }
 static void processBootConfig(Json::Value& bootConfig) {
 #if defined(PLATFORM_PI)
-    const std::string fileName = "/boot/config.txt";
+    const std::string fileName = FPP_BOOT_DIR "/config.txt";
 #elif defined(PLATFORM_BBB)
-    const std::string fileName = "/boot/uEnv.txt";
+    const std::string fileName = FPP_BOOT_DIR "/uEnv.txt";
 #elif defined(PLATFORM_ARMBIAN)
-    const std::string fileName = "/boot/armbianEnv.txt";
+    const std::string fileName = FPP_BOOT_DIR "/armbianEnv.txt";
 #else
     // unknown platform
     const std::string fileName;

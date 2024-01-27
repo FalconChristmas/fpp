@@ -613,16 +613,16 @@ case "${OSVER}" in
                 sed -i -e "s;^[^#].* /boot[a-z/]* .*;${BOOTLINE};" -e "s;^[^#].* / .*;${ROOTLINE};" /etc/fstab
 
                 # Create two different cmdline.txt files for USB and SD boot
-                echo "    - Creating /boot/cmdline.* configs"
+                echo "    - Creating ${BOOTDIR}/cmdline.* configs"
                 sed -i -e "s; root=PARTUUID=[0-9A-Za-z\-]* ; root=/dev/mmcblk0p2 ;g" ${BOOTDIR}/cmdline.txt
                 cat ${BOOTDIR}/cmdline.txt | sed -e "s/root=\/dev\/[a-zA-Z0-9]*\([0-9]\) /root=\/dev\/sda\1 /" > ${BOOTDIR}/cmdline.usb
                 cat ${BOOTDIR}/cmdline.txt | sed -e "s/root=\/dev\/[a-zA-Z0-9]*\([0-9]\) /root=\/dev\/mmcblk0p\1 /" > ${BOOTDIR}/cmdline.sd
 
                 # Create two batch files to switch back and forth between USB and SD boot
-                echo "    - Creating /boot/boot_*.bat scripts"
-                cat > $(BOOTDIR)/boot_usb.bat <<EOF
+                echo "    - Creating ${BOOTDIR}/boot_*.bat scripts"
+                cat > ${BOOTDIR}/boot_usb.bat <<EOF
 @echo off
-rem This script will switch /boot/cmdline.txt to boot from a USB
+rem This script will switch ${BOOTDIR}/cmdline.txt to boot from a USB
 rem drive which will show up as /dev/sda inside the OS.
 
 @echo Copying USB boot config file into place.
@@ -635,9 +635,9 @@ copy /y cmdline.usb cmdline.txt
 set /p DUMMY=Hit ENTER to continue...
 EOF
 
-                cat > $(BOOTDIR)/boot_sd.bat <<EOF
+                cat > ${BOOTDIR}/boot_sd.bat <<EOF
 @echo off
-rem This script will switch /boot/cmdline.txt to boot from a SD
+rem This script will switch ${BOOTDIR}/cmdline.txt to boot from a SD
 rem card which will show up as /dev/mmcblk0 inside the OS.
 
 @echo Copying (micro)SD boot config file into place.

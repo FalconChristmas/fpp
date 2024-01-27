@@ -32,7 +32,7 @@ if ($clone == 'true') {
 		echo "\n";
 		echo "\n";
 		echo "----------------------------------------------------------------------------------\n";
-if (file_exists("/boot/recovery.bin")) {
+if (file_exists(GetDirSetting('boot') . "/recovery.bin")) {
     WriteSettingToFile("rebootFlag", "1");
 }
 ?>
