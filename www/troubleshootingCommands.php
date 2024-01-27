@@ -78,6 +78,9 @@ $commands = array(
     'FPP Post Network Logs' => $SUDO . ' journalctl -u fpp_postnetwork | tail -20 ',
     'FPP OLED Logs' => $SUDO . ' journalctl -u fppoled | tail -20 ',
     'FPP FPPD Logs' => $SUDO . ' journalctl -u fppd | tail -20 ',
+
+    //Git Settings
+    'Git Settings' => '(echo "Source IP: "; ' . $SUDO . ' git remote get-url origin | cut -f3 -d/;' . ' echo "Active Branch:";' . $SUDO . ' git branch | grep "^\*" | sed -e "s/\*\s//";' . ' echo "Git Origin Info:"; ' . $SUDO . ' git remote show origin)',
 );
 
 if ($settings['Platform'] != "MacOS") {
