@@ -95,6 +95,25 @@ Message Example for fppd_status
         "seconds_elapsed" : "0",
         "seconds_played" : "0",
         "seconds_remaining" : "4",
+         "sensors" :
+            [
+                     {
+                              "formatted" : "26.0",
+                              "label" : "Temp: ",
+                              "postfix" : "",
+                              "prefix" : "",
+                              "value" : 25.971428571428731,
+                              "valueType" : "Temperature"
+                     },
+                     {
+                              "formatted" : "5.1V",
+                              "label" : "VIN: ",
+                              "postfix" : "V",
+                              "prefix" : "",
+                              "value" : 5.0794517007823536,
+                              "valueType" : "Voltage"
+                     }
+            ],
         "status" : 1,
         "status_name" : "playing",
         "time" : "Fri Jan 26 20:52:05 EST 2024",
