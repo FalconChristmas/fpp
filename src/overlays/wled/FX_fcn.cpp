@@ -2139,12 +2139,11 @@ WS2812FX* WS2812FX::instance = nullptr;
 const char JSON_mode_names[] PROGMEM = R"=====(["FX names moved"])=====";
  //WLEDMM netmindz ar palette add Audio responsive
 const char JSON_palette_names[] PROGMEM = R"=====([
-"Default","* Random Smooth ☾","* Color 1","* Colors 1&2","* Color Gradient","* Colors Only","Party","Cloud","Lava","Ocean",
-"Forest","Rainbow","Rainbow Bands","Sunset","Rivendell","Breeze","Red & Blue","Yellowout","Analogous","Splash",
-"Pastel","Sunset 2","Beach","Vintage","Departure","Landscape","Beech","Sherbet","Hult","Hult 64",
-"Drywet","Jul","Grintage","Rewhi","Tertiary","Fire","Icefire","Cyane","Light Pink","Autumn",
-"Magenta","Magred","Yelmag","Yelblu","Orange & Teal","Tiamat","April Night","Orangery","C9","Sakura",
-"Aurora","Atlantica","C9 2","C9 New","Temperature","Aurora 2","Retro Clown","Candy","Toxy Reaf","Fairy Reaf",
-"Semi Blue","Pink Candy","Red Reaf","Aqua Flash","Yelblu Hot","Lite Light","Red Flash","Blink Red","Red Shift","Red Tide",
-"Candy2","Audio Responsive Ratio ☾","Audio Responsive Hue ☾","* Random Cycle"
+"* Color 1","* Color Gradient","* Colors 1&2","* Colors Only","* Random Cycle","* Random Smooth ☾","Analogous","April Night",
+"Aqua Flash","Atlantica","Audio Responsive Hue ☾","Audio Responsive Ratio ☾","Aurora","Aurora 2","Autumn","Beach","Beech",
+"Blink Red","Breeze","C9","C9 2","C9 New","Candy","Candy2","Cloud","Cyane","Default","Departure","Drywet","Fairy Reaf","Fire",
+"Forest","Grintage","Hult","Hult 64","Icefire","Jul","Landscape","Lava","Light Pink","Lite Light","Magenta","Magred","Ocean",
+"Orangery","Orange & Teal","Party","Pastel","Pink Candy","Rainbow","Rainbow Bands","Red & Blue","Red Flash","Red Reaf",
+"Red Shift","Red Tide","Retro Clown","Rewhi","Rivendell","Sakura","Semi Blue","Sherbet","Splash","Sunset","Sunset 2",
+"Temperature","Tertiary","Tiamat","Toxy Reaf","Vintage","Yelblu","Yelblu Hot","Yellowout","Yelmag"
 ])=====";
