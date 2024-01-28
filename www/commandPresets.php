@@ -90,13 +90,14 @@ function SaveCommands()
 	} else if ((cmd.name == '') && (cmd.command !='')) {
       	    errors.push(`${cmd.command} won't be saved as it has no preset name\n`);
 	} else if ((cmd.name != '') && (cmd.command =='')) {
-   	    errors.push(`Preset Name: ${cmd.name} has empty FPP command and won't be saved\n`);
+   	        errors.push(`Preset Name: ${cmd.name} has empty FPP command and won't be saved\n`);
 	}
 
     });
 
     if (errors.length > 0) {
        alert(errors);
+       return;
     }
 
     data['commands'] = commands;
