@@ -325,7 +325,7 @@ function CreatePersistentNames() {
 			"Yes" : {class:'btn-success',click:function() {
                     CloseModalDialog("createPersistentDialog");
                     SetRebootFlag();
-                    $.post("api/network/presisentNames", "", function() {location.reload(true);});
+                    $.post("api/network/persistentNames", "", function() {location.reload(true);});
 				}},
 			"No" : {click:function() {
                     CloseModalDialog("createPersistentDialog");
@@ -347,7 +347,7 @@ function ClearPersistentNames() {
                     SetRebootFlag();
                     $.ajax( {
                         type: "DELETE",
-                        url: "api/network/presisentNames",
+                        url: "api/network/persistentNames",
                         data: "",
                         success: function() {location.reload(true);},
                         });

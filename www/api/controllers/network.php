@@ -58,7 +58,7 @@ function network_wifi_scan()
     return json(array("status" => "OK", "networks" => $networks));
 }
 
-function network_presisentNames_delete()
+function network_persistentNames_delete()
 {
     shell_exec("sudo rm -f /etc/systemd/network/5?-fpp-*.link");
     shell_exec("sudo ln -sf /dev/null /etc/systemd/network/99-default.link");
@@ -68,10 +68,10 @@ function network_presisentNames_delete()
     return json($output);
 }
 
-function network_presisentNames_create()
+function network_persistentNames_create()
 {
     global $settings;
-    network_presisentNames_delete();
+    network_persistentNames_delete();
 
     $interfaces = network_list_interfaces_array();
     $count = 0;
