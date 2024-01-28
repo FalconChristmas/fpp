@@ -1065,14 +1065,15 @@
             "name": "ForceHDMIResolutionPort2",
             "gatherStats": true,
             "description": "Force Port 2 HDMI Resolution",
-            "tip": "Force the Raspberry Pi 4's second HDMI to the given resolution.  The default is whatever settings the monitor reports at bootup time.",
+            "tip": "Force the Raspberry Pi 4/5's second HDMI to the given resolution.  The default is whatever settings the monitor reports at bootup time.",
             "reboot": 1,
             "platforms": [
                 "Raspberry Pi"
             ],
             "variants": {
                 "Raspberry Pi": [
-                    "Pi 4"
+                    "Pi 4",
+                    "Pi 5"
                 ]
             },
             "type": "select",
