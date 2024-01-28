@@ -32,19 +32,11 @@ function network_wifi_scan()
         return json(array("status" => "Invalid Interface", "networks" => array()));
     }
 
+    exec("sudo /sbin/ifconfig $interface up", $output);
+    $output = array();
     $cmd = "sudo /sbin/iw dev $interface scan";
     exec($cmd, $output);
-    $outputLine1 = $output;
-    //if (!is_string($output)) {
-    //    $outputLine1 = $output[0];
-    //}
-    if (strpos($outputLine1, "Network is down") !== false) {
-        exec("sudo /sbin/ifconfig $interface up", $output);
 
-        $output = array();
-        $cmd = "sudo /sbin/iw dev $interface scan";
-        exec($cmd, $output);
-    }
     foreach ($output as $row) {
         if (startsWith($row, "BSS")) {
             array_push($networks, $current);
