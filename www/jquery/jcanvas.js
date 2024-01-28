@@ -1,30 +1,9 @@
 /**
- * @license jCanvas v21.0.1
- * Copyright 2017 Caleb Evans
+ * @license jCanvas v22.0.1
+ * Copyright 2017-2024 Caleb Evans
  * Released under the MIT license
  */
-(function (jQuery, global, factory) {
-	'use strict';
-
-	if (typeof module === 'object' && typeof module.exports === 'object') {
-		module.exports = function (jQuery, w) {
-			return factory(jQuery, w);
-		};
-	} else {
-		factory(jQuery, global);
-	}
-
-// Pass this if window is not defined yet
-}(typeof window !== 'undefined' ? window.jQuery : {}, typeof window !== 'undefined' ? window : this, function ($, window) {
-'use strict';
-
-var document = window.document,
-	Image = window.Image,
-	Array = window.Array,
-	getComputedStyle = window.getComputedStyle,
-	Math = window.Math,
-	Number = window.Number,
-	parseFloat = window.parseFloat;
+import $ from 'jquery';
 
 // Define local aliases to frequently used properties
 var defaults,
@@ -4027,8 +4006,6 @@ $.fn.drawImage = function drawImage(args) {
 					} else {
 						// Otherwise, draw image when it loads
 						img.onload = onload(canvas, ctx, data, params, layer);
-						// Fix onload() bug in IE9
-						img.src = img.src;
 					}
 				}
 
@@ -4098,8 +4075,6 @@ $.fn.createPattern = function createPattern(args) {
 				onload();
 			} else {
 				img.onload = onload;
-				// Fix onload() bug in IE9
-				img.src = img.src;
 			}
 
 		}
@@ -4379,5 +4354,3 @@ extendObject(jCanvas, {
 });
 $.jCanvas = jCanvas;
 $.jCanvasObject = jCanvasObject;
-
-}));
