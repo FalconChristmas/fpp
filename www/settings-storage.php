@@ -243,10 +243,10 @@ if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
             $addflashbutton = true;
         }
     }
-    if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) && (file_exists("/dev/sda"))) {
+    if (((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false)) && (file_exists("/dev/sda"))) {
         $addflashbutton = true;
     }
-} else if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) && $rootDevice == 'sda2' && (file_exists("/dev/mmcblk0"))) {
+} else if (((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false)) && $rootDevice == 'sda2' && (file_exists("/dev/mmcblk0"))) {
     $addflashbutton = true;
 }
 if ($addnewfsbutton) {
@@ -316,7 +316,8 @@ if ($settings['Platform'] != "Docker" ) { ?>
 <br><br>
     <b>Storage Device:</b> &nbsp;<? PrintStorageDeviceSelect($settings['Platform']); ?>
 
-<? if (strpos($settings['SubPlatform'], "Raspberry Pi 4") === false) { ?>
+<? if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") === false) && (strpos($settings['SubPlatform'], "Raspberry Pi 5") === false)) { ?>
+    
 
     <div class="callout callout-warning">
     Changing the storage device to anything other than the SD card is strongly discouraged.   There are all kinds of problems that using USB storage introduce into the system which can easily result in various problems include network lag, packet drops, audio clicks/pops, high CPU usage, etc...  Using USB storage also results in longer bootup time.   In addition, many advanced features and various capes/hats are known to NOT work when using USB storage.
@@ -324,10 +325,16 @@ if ($settings['Platform'] != "Docker" ) { ?>
 In addition to the above, since it is not recommended, using USB storage is not tested nearly as extensively by the FPP developers.   Thus, upgrades (even "patch" upgrades) have a higher risk of unexpected problems.   By selecting a USB storage device, you assume much higher risk of problems and issues than when selecting an SD partition.   
     </div>
 <? } else { ?>
+    <? if (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false) { ?>
+        <div class="callout callout-warning">
+            Warning: Raspberry Pi 5 will only boot from USB when using the 27W power adapter
+            <br><br>    
+        </div>
+    <? } ?>
     <div class="callout callout-warning">
         If using a USB storage device, it is STRONGLY recommended that the device be a USB 3.0 SATA/SSD device or other fast storage and not a generic USB Thumb drive.   Older USB devices, even on the USB 3.0 ports, are known to cause all kinds of problems including network lag, packet drops, audio clicks/pops, high CPU usage, etc...
         <br><br>
-        In addition, a good cooling solution, particularly for the USB HUB chips on the Pi, is critical.  It is recommended to have a cooling fan and heat syncs on the Pi4 chips to keep everything cool.  When the chips get too hot, the entire system is throttled which introduces latency and lag.
+        In addition, a good cooling solution, particularly for the USB HUB chips on the Pi, is critical.  It is recommended to have a cooling fan and heat syncs on the Pi4/5 chips to keep everything cool.  When the chips get too hot, the entire system is throttled which introduces latency and lag.
     </div>
     <br>
 <?
