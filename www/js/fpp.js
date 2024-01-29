@@ -6386,17 +6386,17 @@ function RefreshHeaderBar() {
             if (e.operstate === "UP") {
                 if (!(Array.isArray(e.addr_info) && e.addr_info.length > 0)) {
                     var icon = "text-success";
-                    var row = '<span class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' + e.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + e.local + '</div></small></span>';
+                    var row = '<span ifname="' + e.ifname + '" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' + e.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + e.local + '</div></small></span>';
                     rc.push(row);
                 }
             }
 
             e.addr_info.forEach(function (n) {
                 if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp") || e.ifname.startsWith("tether"))) {
-                    var row = '<span class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
+                    var row = '<span ifname="' + e.ifname + '" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
                 } else if (n.family === "inet" && "wifi" in e) {
-                    var row = '<span class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + e.wifi.unit + '">';
+                    var row = '<span ifname="' + e.ifname + '" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + e.wifi.unit + '">';
                     row += '<img src="images/redesign/wifi-' + e.wifi.desc + '.svg" height="14px"/>';
                     row += '<small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
@@ -6407,10 +6407,13 @@ function RefreshHeaderBar() {
                     } else if (e.flags.includes("STATIC") && e.operstate != "UP") {
                         icon = "text-danger";
                     }
-                    var row = '<span class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' + n.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
+                    var row = '<span ifname="' + e.ifname + '" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' + n.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
                     rc.push(row);
                 }
             });
+
+            // All rows start with '<span ifname="INTERFACENAME" ' so we can sort the full list in the UI.
+            rc.sort();
         });
         if (headerCache.Interfaces != rc.join("")) {
             $("#header_IPs").html(rc.join(""));
