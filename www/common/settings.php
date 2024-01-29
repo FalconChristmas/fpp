@@ -271,9 +271,9 @@ function ApplyServiceSetting($setting, $value, $now)
             $services = preg_split('/_/', preg_replace("/^Service_/", "", $setting));
             foreach ($services as $service) {
                 if ($value == '0') {
-                    exec( "sudo systemctl " . $now . " disable $service");
+                    exec( "sudo systemctl " . $now . " disable $service >/dev/null &");
                 } else if ($value == '1') {
-                    exec( "sudo systemctl " . $now . " enable $service");
+                    exec( "sudo systemctl " . $now . " enable $service >/dev/null &");
                 }
             }
         }
