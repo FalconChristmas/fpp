@@ -1034,7 +1034,6 @@ fi
 #
 # Example: /opt/fpp/scripts/functions runPreStartScripts
 BASENAME=$(basename $0)
-echo "BASENAME: ${BASENAME}"
 if [ ${BASENAME} = "functions" -a -n "$1" ]
 then
     $@
