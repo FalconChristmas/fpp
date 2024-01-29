@@ -28,9 +28,9 @@ enum BeagleBoneType {
 
 BeagleBoneType getBeagleBoneType();
 
-class BBBPinCapabilities : public PinCapabilitiesFluent<BBBPinCapabilities> {
+class BBBPinCapabilities : public PinCapabilities {
 public:
-    BBBPinCapabilities(const std::string& n, uint32_t k);
+    BBBPinCapabilities(const std::string& n, uint32_t k, uint32_t offset);
 
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true) const override;
@@ -44,6 +44,51 @@ public:
     virtual int getPWMRegisterAddress() const override;
 
     virtual bool supportPWM() const override;
+    virtual Json::Value toJSON() const override;
+
+    BBBPinCapabilities& setPRU(int p, int pin, uint8_t inm, uint8_t outm) {
+        pru = p;
+        pruPin = pin;
+        pruInMode = inm;
+        pruOutMode = outm;
+        return *this;
+    }
+
+    BBBPinCapabilities& setGPIO(int chip, int pin) {
+        gpioIdx = chip;
+        gpio = pin;
+        return *this;
+    }
+    BBBPinCapabilities& setPwm(int p, int sub, int8_t mode) {
+        pwm = p;
+        subPwm = sub;
+        pwmMode = mode;
+        return *this;
+    }
+    BBBPinCapabilities& setI2C(int i2c, int8_t mode) {
+        i2cBus = i2c;
+        i2cMode = mode;
+        return *this;
+    }
+    BBBPinCapabilities& setUART(const std::string& u, int mode) {
+        uart = u;
+        uartMode = mode;
+        return *this;
+    }
+
+    int8_t pruPin;
+
+private:
+    int8_t pru;
+    int8_t pruInMode;
+    int8_t pruOutMode;
+
+    int8_t pwmMode;
+    int8_t uartMode;
+    int8_t i2cMode;
+
+    uint8_t defaultConfig;
+    uint32_t configOffset;
 };
 class BBBPinProvider : public PinCapabilitiesProvider {
     void Init();

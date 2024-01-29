@@ -17,6 +17,7 @@
 #include "../Sequence.h"
 #include "../Timers.h"
 #include "../common.h"
+#include "../settings.h"
 #include "../effects.h"
 #include "../log.h"
 #include "../overlays/PixelOverlay.h"

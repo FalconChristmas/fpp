@@ -34,10 +34,6 @@ Json::Value PinCapabilities::toJSON() const {
         ret["gpio"] = kernelGpio;
         ret["gpioChip"] = gpioIdx;
         ret["gpioLine"] = gpio;
-        if (pru != -1) {
-            ret["pru"] = pru;
-            ret["pruPin"] = pruPin;
-        }
         if (pwm != -1) {
             ret["pwm"] = pwm;
             ret["subPwm"] = subPwm;
@@ -95,7 +91,7 @@ static const std::set<std::string> PLATFORM_IGNORES{
     "gpio-brcmstb@107d508520",
     "gpio-brcmstb@107d517c00",
     "gpio-brcmstb@107d517c20",
-    "pinctrl-rp1" //Pi5's external GPIO chip
+    "pinctrl-rp1" // Pi5's external GPIO chip
 };
 // No platform information on how to control pins
 static std::string PROCESS_NAME = "FPPD";
