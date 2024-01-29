@@ -1033,8 +1033,9 @@ fi
 # Handle calling a function directly
 #
 # Example: /opt/fpp/scripts/functions runPreStartScripts
-
-if [ -n "$1" ]
+BASENAME=$(basename $0)
+echo "BASENAME: ${BASENAME}"
+if [ ${BASENAME} = "functions" -a -n "$1" ]
 then
     $@
 fi
