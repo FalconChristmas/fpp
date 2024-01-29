@@ -308,6 +308,8 @@ if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 
                         <div class="labelHeading">Volume</div>
                         <span id='remoteVolume' class='volume'></span>
                     </div>
+                    <? if ($settings['disableAudioVolumeSlider'] != '1') {
+                    ?>
                     <div class="volumeControls">
                         <button class='volumeButton buttons' onClick="DecrementVolume();">
                             <i class='fas fa-fw fa-volume-down'></i>
@@ -318,6 +320,9 @@ if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 
                         </button>
                         <span id='speaker'></span> <!-- Volume -->
                     </div>
+                    <?php
+                    }
+                    ?>
                 </div>
                 <hr>
                 <br>
