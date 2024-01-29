@@ -137,6 +137,9 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
         unset GATEWAY
         unset NETMASK
         unset ADDRESS
+        unset BACKUPSSID
+        unset BACKUPPSK
+        unset BACKUPHIDDEN
         DHCPSERVER=0
         DHCPOFFSET=100
         DHCPPOOLSIZE=50
@@ -201,8 +204,21 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
                 fi
                 echo "  key_mgmt=WPA-PSK" >> ${WPATMPFILE}
                 echo "  scan_ssid=1" >> ${WPATMPFILE}
+                echo "  priority=100" >> ${WPATMPFILE}
                 echo "}" >> ${WPATMPFILE}
                 echo "" >> ${WPATMPFILE}
+                if [ "x$BACKUPSSID" != "x" ]; then
+                    echo "network={" >> ${WPATMPFILE}
+                    echo "  ssid=\"${BACKUPSSID}\"" >> ${WPATMPFILE}
+                    if [ "x$BACKUPPSK" != "x" ]; then
+                        echo "  psk=\"${BACKUPPSK}\"" >> ${WPATMPFILE}
+                    fi
+                    echo "  key_mgmt=WPA-PSK" >> ${WPATMPFILE}
+                    echo "  scan_ssid=1" >> ${WPATMPFILE}
+                    echo "  priority=10" >> ${WPATMPFILE}
+                    echo "}" >> ${WPATMPFILE}
+                    echo "" >> ${WPATMPFILE}
+                fi
                 cp $WPATMPFILE /etc/wpa_supplicant
                 systemctl enable "wpa_supplicant@${INTERFACE}.service"
                 systemctl reload-or-restart "wpa_supplicant@${INTERFACE}.service"
