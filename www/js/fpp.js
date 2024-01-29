@@ -6381,6 +6381,16 @@ function RefreshHeaderBar() {
             if (e.ifname.startsWith("eth0:0")) { return 0; }
             if (e.ifname.startsWith("usb")) { return 0; }
             if (e.ifname.startsWith("can.")) { return 0; }
+
+            // Show up interfaces even if they do not have IP configured - eg Colorlight
+            if (e.operstate === "UP") {
+                if (!(Array.isArray(e.addr_info) && e.addr_info.length > 0)) {
+                    var icon = "text-success";
+                    var row = '<span class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' + e.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + e.local + '</div></small></span>';
+                    rc.push(row);
+                }
+            }
+
             e.addr_info.forEach(function (n) {
                 if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp") || e.ifname.startsWith("tether"))) {
                     var row = '<span class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '<div class="divIPAddress">: ' + n.local + '</div></small></span>';
