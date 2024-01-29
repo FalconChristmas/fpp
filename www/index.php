@@ -451,6 +451,8 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                                     <div class="labelHeading">Volume</div>
                                     <span id='volume' class='volume'></span>
                                 </div>
+                                <? if ($settings['disableAudioVolumeSlider'] != '1') {
+                                ?>
                                 <div class="volumeControls">
                                         <button class='volumeButton buttons' onClick="DecrementVolume();">
                                             <i class='fas fa-fw fa-volume-down'></i>
@@ -461,6 +463,9 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                                         </button>
                                     <span id='speaker'></span> <!-- Volume -->
                                 </div>
+                                <?php
+                                }
+                                ?>
                             </div>
 
                         </div>
