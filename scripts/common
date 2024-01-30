@@ -202,8 +202,8 @@ setSetting() {
 # Handle calling a function directly
 #
 # Example: /opt/fpp/scripts/common setSetting Key Value
-BASENAME=$(basename $0)
-if [ ${BASENAME} = "common" -a -n "$1" ]
+BASENAME=$(basename -- $0)
+if [ "${BASENAME}" = "common" -a -n "$1" ]
 then
     $@
 fi

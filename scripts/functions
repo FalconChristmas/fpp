@@ -1049,8 +1049,8 @@ fi
 # Handle calling a function directly
 #
 # Example: /opt/fpp/scripts/functions runPreStartScripts
-BASENAME=$(basename $0)
-if [ ${BASENAME} = "functions" -a -n "$1" ]
+BASENAME=$(basename -- $0)
+if [ "${BASENAME}" = "functions" -a -n "$1" ]
 then
     $@
 fi
