@@ -170,6 +170,12 @@
                 "Service_vsftpd"
             ]
         },
+        "kiosk": {
+            "description": "Kiosk Mode",
+            "settings": [
+                "KioskUrl"
+            ]
+        },
         "system": {
             "description": "System Settings",
             "settings": [
@@ -1939,6 +1945,20 @@
             "max": 60,
             "step": 1,
             "unit": "minute"
+        },
+        "KioskUrl": {
+            "name": "KioskUrl",
+            "description": "Kiosk Start URL",
+            "gatherStats": true,
+            "tip": "By default kiosk mode will open the main FPP page, you can place a URL in here to get it to open that URL directly, eg big buttons plugin.",
+            "type": "text",
+            "size": 64,
+            "maxlength": 256,
+            "level": 1,
+            "reboot": 1,
+            "platforms": [
+                "!MacOS"
+            ]
         },
         "Service_rsync": {
             "name": "Service_rsync",

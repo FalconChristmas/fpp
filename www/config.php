@@ -571,7 +571,7 @@ if (!isset($settings['rebootFlag'])) {
 $settings['hideExternalURLs'] = false;
 $localIps = array('127.0.0.1', "::1");
 
-if (file_exists("/etc/fpp/kiosk") && in_array($_SERVER['REMOTE_ADDR'], $localIps)) {
+if ((isset($settings['Kiosk'])) && ($settings['Kiosk'] == 1) && in_array($_SERVER['REMOTE_ADDR'], $localIps)) {
     $settings['LogoLink'] = '';
     $settings['hideExternalURLs'] = true;
 }

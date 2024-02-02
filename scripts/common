@@ -148,10 +148,10 @@ getSetting() {
         if [ -f "/usr/bin/flock" ]; then
             exec {FD}<$CFGFILE
             flock -n ${FD} || exit 1
-            grep -i --binary-files=text "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//" -e 's/"//g'
+            grep -i --binary-files=text "^${SETTING}\s*=.*" ${CFGFILE} | sed -E -e "s/^${SETTING}\s*=\s*(.*)/\1/" -e 's/"//g'
             flock -u ${FD}
         else
-            grep -i --binary-files=text "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//" -e 's/"//g'
+            grep -i --binary-files=text "^${SETTING}\s*=.*" ${CFGFILE} | sed -E -e "s/^${SETTING}\s*=\s*(.*)/\1/" -e 's/"//g'
         fi
     fi
 }

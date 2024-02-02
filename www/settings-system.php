@@ -43,7 +43,6 @@ function UploadAuthorizedKeys() {
 }
 
 function KioskInstallDone() {
-    SetRebootFlag();
     EnableModalDialogCloseButton("enableKioskPopup");
     $('#enableKioskPopupCloseButton').prop("disabled", false);
 }
@@ -193,15 +192,14 @@ if ($showOSSecurity) {
 }
 
 if (($settings['uiLevel'] >= 1) && ($settings['Platform'] == "Raspberry Pi")) {
+    PrintSettingGroup('kiosk');
     ?>
-    <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1" title="Advanced Level Setting"></i>
-    <b>Kiosk Frontend</b><br>
     The Kiosk frontend installs a bunch of extra packages and sets up Chrome running on the local HDMI port to
     allow FPP to be configured and monitored from a keyboard and mouse connected to the Pi's USB ports.  The
     additional packages take up about 400MB of space.
     <br>
 <?
-    if (file_exists("/etc/fpp/kiosk")) {
+    if ((isset($settings['Kiosk'])) && ($settings['Kiosk'] == 1)) {
         echo "<input type='button' class='buttons' value='Disable Kiosk' onClick='DisableKiosk();'>";
     } else {
         echo "<input type='button' class='buttons' value='Enable Kiosk' onClick='EnableKiosk();'>";

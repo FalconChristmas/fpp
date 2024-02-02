@@ -21,7 +21,7 @@ setxkbmap -option terminate:ctrl_alt_bksp
 # Start Chromium in kiosk mode
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' ~/.config/chromium/'Local State'
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]\+"/"exit_type":"Normal"/' ~/.config/chromium/Default/Preferences
-chromium-browser --disable-infobars --kiosk 'http://localhost'
+chromium-browser --disable-infobars --kiosk 
 
 EOF
 
@@ -41,6 +41,5 @@ cat >> /home/fpp/.bashrc << EOF
 EOF
 chown fpp:fpp /home/fpp/.bashrc
 
-echo "1" > /etc/fpp/kiosk
-
+setSetting Kiosk 1
 setSetting rebootFlag 1
