@@ -1950,7 +1950,7 @@
             "name": "KioskUrl",
             "description": "Kiosk Start URL",
             "gatherStats": true,
-            "tip": "By default kiosk mode will open the main FPP page, you can place a URL in here to get it to open that URL directly, eg big buttons plugin.",
+            "tip": "By default kiosk mode will open the main FPP page, you can place a URL in here to get it to open that URL directly, eg big buttons plugin. http://localhost/plugin.php?_menu=status&plugin=fpp-BigButtons&page=bigbuttons.php&nopage=1",
             "type": "text",
             "size": 64,
             "maxlength": 256,
