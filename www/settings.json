@@ -78,7 +78,8 @@
                 "VLCOptions",
                 "mediaOffset",
                 "remoteIgnoreSync",
-                "disableIPAnnouncement"
+                "disableIPAnnouncement",
+                "disableAudioVolumeSlider"
             ]
         },
         "generalPlayback": {
@@ -167,6 +168,12 @@
                 "Service_rsync",
                 "Service_smbd_nmbd",
                 "Service_vsftpd"
+            ]
+        },
+        "kiosk": {
+            "description": "Kiosk Mode",
+            "settings": [
+                "KioskUrl"
             ]
         },
         "system": {
@@ -795,6 +802,17 @@
                 "!MacOS"
             ]
         },
+        "disableAudioVolumeSlider": {
+            "name": "disableAudioVolumeSlider",
+            "description": "Disable Volume Slider",
+            "gatherStats": true,
+            "tip": "This setting will remove the Audio Volume Slider on the Status Page to prevent accidental unwanted volume changes.",
+            "default": "0",
+            "type": "checkbox",
+            "platforms": [
+                "!MacOS"
+            ]
+        },
         "disableUIWarnings": {
             "name": "disableUIWarnings",
             "description": "Disable restart/reboot UI Warnings",
@@ -1065,14 +1083,15 @@
             "name": "ForceHDMIResolutionPort2",
             "gatherStats": true,
             "description": "Force Port 2 HDMI Resolution",
-            "tip": "Force the Raspberry Pi 4's second HDMI to the given resolution.  The default is whatever settings the monitor reports at bootup time.",
+            "tip": "Force the Raspberry Pi 4/5's second HDMI to the given resolution.  The default is whatever settings the monitor reports at bootup time.",
             "reboot": 1,
             "platforms": [
                 "Raspberry Pi"
             ],
             "variants": {
                 "Raspberry Pi": [
-                    "Pi 4"
+                    "Pi 4",
+                    "Pi 5"
                 ]
             },
             "type": "select",
@@ -1927,6 +1946,20 @@
             "max": 60,
             "step": 1,
             "unit": "minute"
+        },
+        "KioskUrl": {
+            "name": "KioskUrl",
+            "description": "Kiosk Start URL",
+            "gatherStats": true,
+            "tip": "By default kiosk mode will open the main FPP page, you can place a URL in here to get it to open that URL directly, eg big buttons plugin. http://localhost/plugin.php?_menu=status&plugin=fpp-BigButtons&page=bigbuttons.php&nopage=1",
+            "type": "text",
+            "size": 64,
+            "maxlength": 256,
+            "level": 1,
+            "reboot": 1,
+            "platforms": [
+                "!MacOS"
+            ]
         },
         "Service_rsync": {
             "name": "Service_rsync",

@@ -86,8 +86,10 @@ dispatch_get('/network/interface/add/:interface', 'network_add_interface');
 dispatch_post('/network/interface/:interface', 'network_set_interface');
 dispatch_post('/network/interface/:interface/apply', 'network_apply_interface');
 
-dispatch_delete('/network/presisentNames', 'network_presisentNames_delete');
-dispatch_post('/network/presisentNames', 'network_presisentNames_create');
+dispatch_delete('/network/presisentNames', 'network_persistentNames_delete');
+dispatch_post('/network/presisentNames', 'network_persistentNames_create');
+dispatch_delete('/network/persistentNames', 'network_persistentNames_delete');
+dispatch_post('/network/persistentNames', 'network_persistentNames_create');
 dispatch_get('/network/wifi/scan/:interface', 'network_wifi_scan');
 dispatch_get('/network/wifi/strength', 'network_wifi_strength');
 dispatch_get('/network/wifi_strength', 'network_wifi_strength'); // Legacy mapping

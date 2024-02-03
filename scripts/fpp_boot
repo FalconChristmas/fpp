@@ -241,9 +241,16 @@ fi
 
 KIOSKMODE=$(getSetting Kiosk)
 if [ "${KIOSKMODE}" = "1" ]; then
-    setSetting Kiosk 0
-    touch /fpp_kiosk
+    KIOSKURL=$(getSetting KioskUrl)
+    echo ${KIOSKURL}
+    echo "{\"RestoreOnStartup\": 4," > /etc/chromium/policies/managed/policy.json 
+    if [ "x${KIOSKURL}" != "x" ]; then
+        echo "\"RestoreOnStartupURLs\": [\"${KIOSKURL}\"]}" >> /etc/chromium/policies/managed/policy.json 
+    else
+        echo "\"RestoreOnStartupURLs\": [\"http://localhost/\"]}" >> /etc/chromium/policies/managed/policy.json 
+    fi
 fi
+
 if [ -f /fpp_kiosk ]; then
     rm -f /fpp_kiosk
     if [ ! -f /etc/fpp/kiosk ]; then

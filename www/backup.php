@@ -72,9 +72,8 @@ $system_config_areas = array(
     ),
     'outputProcessors' => array('friendly_name' => 'Output Processors', 'file' => $settings['outputProcessorsFile']),
     'show_setup' => array(
-        'friendly_name' => 'Show Setup (Events, Playlists, Schedule, Scripts)',
+        'friendly_name' => 'Show Setup (Playlists, Schedule, Scripts)',
         'file' => array(
-            'events' => array('type' => 'dir', 'location' => $eventDirectory),
             'playlist' => array('type' => 'dir', 'location' => $playlistDirectory),
             'schedule' => array('type' => 'file', 'location' => $settings['scheduleJsonFile']),
             'scripts' => array('type' => 'dir', 'location' => $scriptDirectory),
@@ -2596,9 +2595,6 @@ function GetCopyFlags() {
     if (document.getElementById("backup.Playlists").checked) {
         flags += " Playlists";
     }
-    if (document.getElementById("backup.Events").checked) {
-        flags += " Events";
-    }
     if (document.getElementById("backup.Plugins").checked) {
         flags += " Plugins";
     }
@@ -3917,7 +3913,6 @@ foreach ($settings_restored as $area_restored => $success) {
 				<?php PrintSettingCheckbox('Backup Configuration', 'backup.Configuration', 0, 0, 1, 0, "", "", 1, 'Configuration');?><br>
 				<?php PrintSettingCheckbox('Backup Playlists', 'backup.Playlists', 0, 0, 1, 0, "", "", 1, 'Playlists');?><br>
             </td><td width='10px'></td><td>
-				<?php PrintSettingCheckbox('Backup Events', 'backup.Events', 0, 0, 1, 0, "", "", 1, 'Events');?><br>
 				<?php PrintSettingCheckbox('Backup Plugins', 'backup.Plugins', 0, 0, 1, 0, "", "", 1, 'Plugins');?><br>
             </td><td width='10px'></td><td>
 				<?php PrintSettingCheckbox('Backup Sequences', 'backup.Sequences', 0, 0, 1, 0, "", "", 1, 'Sequences');?><span style="color: #AA0000">*</span><br>

@@ -125,7 +125,8 @@
         "__verbose_abort": "cpp",
         "filesystem": "cpp",
         "numbers": "cpp",
-        "semaphore": "cpp"
+        "semaphore": "cpp",
+        "charconv": "cpp"
     },
     "editor.formatOnSave": true,
     "cmake.configureOnOpen": false

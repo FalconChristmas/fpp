@@ -484,7 +484,8 @@ bool BBBMatrix::configureControlPin(const std::string& ctype, Json::Value& root,
         } else {
             pin.configPin(type);
             if (type == "pruout") {
-                outputFile << "#define pru_" << ctype << " " << std::to_string(pin.pruPin) << "\n";
+                const BBBPinCapabilities* bp = static_cast<const BBBPinCapabilities*>(&pin);
+                outputFile << "#define pru_" << ctype << " " << std::to_string(bp->pruPin) << "\n";
             } else {
                 outputFile << "#define gpio_" << ctype << " " << std::to_string(pin.gpio) << "\n";
             }

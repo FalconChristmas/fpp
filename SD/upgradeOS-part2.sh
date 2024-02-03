@@ -63,8 +63,9 @@ then
 fi
 
 #if kiosk was installed, save that state so after reboot, it can be re-installed
-if [ -f mnt/etc/fpp/kiosk ]; then
-    cp mnt/etc/fpp/kiosk tmp
+KIOSKMODE=$(getSetting Kiosk)
+if [ "${KIOSKMODE}" = "1" ]; then
+    touch /tmp/kiosk
 fi
 
 #copy everything other than fstab and the persistent net names

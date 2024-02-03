@@ -17,6 +17,7 @@
 #include "../Sequence.h"
 #include "../Timers.h"
 #include "../common.h"
+#include "../settings.h"
 #include "../effects.h"
 #include "../log.h"
 #include "../overlays/PixelOverlay.h"
@@ -175,7 +176,7 @@ std::unique_ptr<Command::Result> RunScriptEvent::run(const std::vector<std::stri
 StartEffectCommand::StartEffectCommand() :
     Command("Effect Start") {
     args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects"));
-    args.push_back(CommandArg("startChannel", "int", "Start Channel"));
+    args.push_back(CommandArg("startChannel", "int", "Start Channel").setDefaultValue("1"));
     args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
     args.push_back(CommandArg("bg", "bool", "Background"));
     args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));

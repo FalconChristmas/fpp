@@ -1137,6 +1137,9 @@ if $isimage; then
     echo "FPP - Configuring Samba"
     cat <<-EOF >> /etc/samba/smb.conf
 
+[nobody]
+  browseable = no
+
 [FPP]
   comment = FPP Media Share
   path = ${FPPHOME}/media

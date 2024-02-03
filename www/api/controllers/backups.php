@@ -393,7 +393,7 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 function MakeJSONBackup()
 {
 	global $settings, $skipJSsettings,
-		   $mediaDirectory, $eventDirectory, $playlistDirectory, $scriptDirectory, $settingsFile,
+		   $mediaDirectory, $playlistDirectory, $scriptDirectory, $settingsFile,
 		   $skipHTMLCodeOutput,
 		   $system_config_areas, $known_json_config_files, $known_ini_config_files,
 		   $backup_errors, $backup_error_string, $backups_verbose_logging,
@@ -474,7 +474,7 @@ function GetAvailableJSONBackupsOnDevice(){
  */
 function RestoreJsonBackup(){
 	global $SUDO, $settings, $skipJSsettings,
-		   $mediaDirectory,$eventDirectory, $playlistDirectory, $scriptDirectory, $settingsFile, $scheduleFile, $fppDir,
+		   $mediaDirectory, $playlistDirectory, $scriptDirectory, $settingsFile, $scheduleFile, $fppDir,
 		   $skipHTMLCodeOutput,
 		   $system_config_areas, $known_json_config_files, $known_ini_config_files,
 		   $backup_errors,$backup_error_string, $backups_verbose_logging,

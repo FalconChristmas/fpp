@@ -32,19 +32,11 @@ function network_wifi_scan()
         return json(array("status" => "Invalid Interface", "networks" => array()));
     }
 
+    exec("sudo /sbin/ifconfig $interface up", $output);
+    $output = array();
     $cmd = "sudo /sbin/iw dev $interface scan";
     exec($cmd, $output);
-    $outputLine1 = $output;
-    //if (!is_string($output)) {
-    //    $outputLine1 = $output[0];
-    //}
-    if (strpos($outputLine1, "Network is down") !== false) {
-        exec("sudo /sbin/ifconfig $interface up", $output);
 
-        $output = array();
-        $cmd = "sudo /sbin/iw dev $interface scan";
-        exec($cmd, $output);
-    }
     foreach ($output as $row) {
         if (startsWith($row, "BSS")) {
             array_push($networks, $current);
@@ -66,7 +58,7 @@ function network_wifi_scan()
     return json(array("status" => "OK", "networks" => $networks));
 }
 
-function network_presisentNames_delete()
+function network_persistentNames_delete()
 {
     shell_exec("sudo rm -f /etc/systemd/network/5?-fpp-*.link");
     shell_exec("sudo ln -sf /dev/null /etc/systemd/network/99-default.link");
@@ -76,10 +68,10 @@ function network_presisentNames_delete()
     return json($output);
 }
 
-function network_presisentNames_create()
+function network_persistentNames_create()
 {
     global $settings;
-    network_presisentNames_delete();
+    network_persistentNames_delete();
 
     $interfaces = network_list_interfaces_array();
     $count = 0;
@@ -332,6 +324,11 @@ function network_set_interface()
             "PSK=\"%s\"\n" .
             "HIDDEN=%s\n",
             $data['SSID'], $data['PSK'], $data['HIDDEN']);
+        fprintf($f,
+            "BACKUPSSID=\"%s\"\n" .
+            "BACKUPPSK=\"%s\"\n" .
+            "BACKUPHIDDEN=%s\n",
+            $data['BACKUPSSID'], $data['BACKUPPSK'], $data['BACKUPHIDDEN']);
     }
     if (isset($data['DHCPSERVER'])) {
         fprintf($f, "DHCPSERVER=%d\n", $data['DHCPSERVER'] ? "1" : 0);

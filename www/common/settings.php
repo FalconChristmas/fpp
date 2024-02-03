@@ -271,9 +271,9 @@ function ApplyServiceSetting($setting, $value, $now)
             $services = preg_split('/_/', preg_replace("/^Service_/", "", $setting));
             foreach ($services as $service) {
                 if ($value == '0') {
-                    exec( "sudo systemctl " . $now . " disable $service");
+                    exec( "sudo systemctl " . $now . " disable $service >/dev/null &");
                 } else if ($value == '1') {
-                    exec( "sudo systemctl " . $now . " enable $service");
+                    exec( "sudo systemctl " . $now . " enable $service >/dev/null &");
                 }
             }
         }
@@ -301,12 +301,6 @@ function SetGPIOFanProperties() {
     } else {
         exec("sudo sed -i -e 's/^dtoverlay=gpio-fan\(.*\)$/" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "/g' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
         exec("sudo sed -i -e 's/^#dtoverlay=gpio-fan\(.*\)$/" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "/g' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-    }
-}
-function SetKioskMode($value) {
-    if ($value == "1") {
-        WriteSettingToFile("Kiosk", "0");
-        file_put_contents("/fpp_kiosk", "1");
     }
 }
 
@@ -347,9 +341,6 @@ function ApplySetting($setting, $value)
         case 'GPIOFanTemperature':
         case 'GPIOFan':
             SetGPIOFanProperties();
-            break;
-        case 'Kiosk':
-            SetKioskMode($value);
             break;
         default:
             ApplyServiceSetting($setting, $value, "--now");

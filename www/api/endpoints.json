@@ -1756,7 +1756,7 @@
             }
         },
         {
-            "endpoint": "network/presisentNames",
+            "endpoint": "network/persistentNames",
             "methods": {
                 "DELETE": {
                     "desc": "Removes the Interface Persistent names",

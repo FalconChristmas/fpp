@@ -54,7 +54,7 @@ else
 fi
 
 if [ "$ISCLONE" = "0" ]; then
-    rm /mnt/var/log/*
+    rm -rf /mnt/var/log/*
     rm /mnt/home/fpp/.bash_history
 fi
 umount /mnt${FPPBOOTDIR}
@@ -64,6 +64,11 @@ echo ""
 echo ""
 echo ""
 echo ""
-echo "******  Flash to $DEVICE complete.  ******"
+if [ "$ISCLONE" = "1" ]; then
+    echo "******  Clone to $DEVICE complete.  ******"
+else
+    echo "******  Flash to $DEVICE complete.  ******"
+fi 
+
 echo ""
 

@@ -22,6 +22,7 @@
 
 #include "../fppversion.h"
 #include "../log.h"
+#include "../common.h"
 
 #include "HTTPVirtualDisplay.h"
 

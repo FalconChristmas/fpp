@@ -13,13 +13,12 @@
 #include "fpp-pch.h"
 
 #include <sys/wait.h>
-#include <unistd.h>
 #include <fstream>
+#include <unistd.h>
 
 #include "../Warnings.h"
-#include "../log.h"
 #include "../common.h"
-
+#include "../log.h"
 
 #define BBB_PRU 0
 //  #define USING_PRU_RAM
@@ -27,10 +26,10 @@
 // FPP includes
 #include "BBBSerial.h"
 
-#include "util/BBBUtils.h"
 #include "../non-gpl/CapeUtils/CapeUtils.h"
+#include "util/BBBUtils.h"
 
-//reserve the TOP 84K for DMX/PixelNet data
+// reserve the TOP 84K for DMX/PixelNet data
 #define DDR_RESERVED 84 * 1024
 
 #include "Plugin.h"
@@ -200,7 +199,9 @@ int BBBSerialOutput::Init(Json::Value config) {
         }
         outputFile << "#define ser" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpioIdx) << "\n";
         outputFile << "#define ser" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
-        outputFile << "#define ser" << std::to_string(x + 1) << "_pru30  " << std::to_string(pin.pruPin) << "\n\n";
+
+        const BBBPinCapabilities* bp = static_cast<const BBBPinCapabilities*>(&pin);
+        outputFile << "#define ser" << std::to_string(x + 1) << "_pru30  " << std::to_string(bp->pruPin) << "\n\n";
     }
     outputFile.close();
 
@@ -350,9 +351,9 @@ int BBBSerialOutput::RawSendData(unsigned char* channelData) {
     frame_size *= m_outputs;
 
     unsigned frame = 0;
-    //unsigned frame = m_curFrame & 1;
+    // unsigned frame = m_curFrame & 1;
     if (m_curFrame == 1 || memcmp(m_lastData, m_curData, frame_size)) {
-        //don't copy to DMA memory unless really needed to avoid bus contention on the DMA bus
+        // don't copy to DMA memory unless really needed to avoid bus contention on the DMA bus
         int sz = m_pixelnet ? (4096 + 6) : (512 + 1);
         sz *= m_outputs;
 #ifdef USING_PRU_RAM
@@ -371,7 +372,7 @@ int BBBSerialOutput::RawSendData(unsigned char* channelData) {
         m_curData = tmp;
     }
 
-    //make sure memory is flushed before command is set to 1
+    // make sure memory is flushed before command is set to 1
     __asm__ __volatile__("" ::
                              : "memory");
 

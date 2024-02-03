@@ -260,6 +260,9 @@ function SaveNetworkConfig() {
 		data.SSID = $('#eth_ssid').val();
 		data.PSK = $('#eth_psk').val();
         data.HIDDEN = $('#eth_hidden').is(':checked');
+		data.BACKUPSSID = $('#backupeth_ssid').val();
+		data.BACKUPPSK = $('#backupeth_psk').val();
+        data.BACKUPHIDDEN = $('#backupeth_hidden').is(':checked');
 	}
 
     data.Leases = {};
@@ -325,7 +328,7 @@ function CreatePersistentNames() {
 			"Yes" : {class:'btn-success',click:function() {
                     CloseModalDialog("createPersistentDialog");
                     SetRebootFlag();
-                    $.post("api/network/presisentNames", "", function() {location.reload(true);});
+                    $.post("api/network/persistentNames", "", function() {location.reload(true);});
 				}},
 			"No" : {click:function() {
                     CloseModalDialog("createPersistentDialog");
@@ -347,7 +350,7 @@ function ClearPersistentNames() {
                     SetRebootFlag();
                     $.ajax( {
                         type: "DELETE",
-                        url: "api/network/presisentNames",
+                        url: "api/network/persistentNames",
                         data: "",
                         success: function() {location.reload(true);},
                         });
@@ -665,6 +668,16 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
                     <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">WPA Pre Shared key (PSK)</div></div>
                     <div class="printSettingFieldCol col-md"><input type="password" name="eth_psk" id="eth_psk" size="32" maxlength="64">&nbsp;<i class='fas fa-eye' id='eth_pskHideShow' onClick='TogglePasswordHideShow("eth_psk");'></i></div>
                 </div>
+                <?if ($settings['uiLevel'] >= 1) {?>
+                    <div class="row" id="backupessidRow">
+                    <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Backup WPA SSID</div></div>
+                    <div class="printSettingFieldCol col-md"><input list="eth_ssids" name="backupeth_ssid" id="backupeth_ssid" size="32" maxlength="32"><datalist id='eth_ssids'></datalist><input type="checkbox" name="backupeth_hidden" id="backupeth_hidden" value="Hidden">Hidden</div>
+                </div>
+                <div class="row" id="backuppskRow">
+                    <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"><div class="description">Backup WPA Pre Shared key (PSK)</div></div>
+                    <div class="printSettingFieldCol col-md"><input type="password" name="backupeth_psk" id="backupeth_psk" size="32" maxlength="64">&nbsp;<i class='fas fa-eye' id='backupeth_pskHideShow' onClick='TogglePasswordHideShow("backupeth_psk");'></i></div>
+                </div>
+                <?}?>
             </div>
         </div>
 <script>

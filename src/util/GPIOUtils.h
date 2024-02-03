@@ -30,8 +30,6 @@ public:
     PinCapabilities(const std::string& n, uint32_t k) :
         name(n),
         kernelGpio(k),
-        pru(-1),
-        pruPin(-1),
         pwm(-1),
         subPwm(-1),
         i2cBus(-1),
@@ -46,9 +44,6 @@ public:
     // these fields are the GPIO chip index and the gpio number on that chip
     uint8_t gpioIdx;
     uint8_t gpio;
-
-    int8_t pru;
-    int8_t pruPin;
 
     int8_t pwm;
     int8_t subPwm;
@@ -109,11 +104,6 @@ public:
     }
     T& setI2C(int i2c) {
         i2cBus = i2c;
-        return *(static_cast<T*>(this));
-    }
-    T& setPRU(int p, int pin) {
-        pru = p;
-        pruPin = pin;
         return *(static_cast<T*>(this));
     }
     T& setUART(const std::string& u) {
