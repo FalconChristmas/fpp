@@ -206,8 +206,6 @@ int RGBMatrixOutput::Init(Json::Value config) {
         options.row_address_type = config["panelRowAddressType"].asInt();
     }
 
-    LogDebug(VB_CHANNELOUT, "MORT: panelRowAddressType: %d\n", options.row_address_type);
-
     m_rgbmatrix = RGBMatrix::CreateFromOptions(options, runtimeOptions);
     if (!m_rgbmatrix) {
         LogErr(VB_CHANNELOUT, "Unable to create RGBMatrix instance\n");
