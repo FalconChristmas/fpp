@@ -9,7 +9,7 @@ PHPOUT="n"
 
 HTML_HEAD="<div class='row'>";
 HTML_FOOT="</div>"
-HTML_LABEL="<div class='col-md'><div class='description'>%s</div></div>"
+HTML_LABEL="<div class='col-sm-4'><div class='description'>%s</div></div>"
 HTML_STATUS="<div class='col-sm' id='checkNumber%d'>%s</div>"
 HTML_GOOD="<i class='fas fa-check-circle text-success' title='%s'></i>"
 HTML_BAD="<i class='fas fa-times-circle text-danger'></i>&nbsp;%s"
@@ -282,6 +282,38 @@ HC_MediaDisk() {
     PrintItemFoot
 }
 
+HC_Warnings() {
+    PrintItemHead "FPPD Warnings"
+
+    WARNING_FILE="${FPPDIR}/www/warnings.json"
+    JQ=$(which jq)
+
+    if [ "$?" == "1" ]
+    then
+        STATUS=0
+        STATUSSTR="jq not installed. Perform FPP Upgrade"
+
+    elif [ ! -r "$WARNING_FILE" ]
+    then
+        STATUS=1
+        STATUSSTR="No Warning File found"
+    else    
+        CNT=$(jq '.[]' $WARNING_FILE | wc -l)
+        if [ "$CNT" == "0" ]
+        then
+            STATUS=1
+            STATUSSTR="No Warnings Found"
+        else
+            STATUS=2
+            STATUSSTR=$(jq '.[]' $WARNING_FILE  | paste -sd "," | sed  's/"//g')
+            STATUSSTR="$CNT FPPD WARNINGS: $STATUSSTR"
+        fi
+    fi
+
+    PrintItemFoot
+
+}
+
 #############################################################################
 # Main Health Check routines here.  Some call others due to dependencies but
 # some stand alone on their own.
@@ -289,6 +321,7 @@ HC_MediaDisk() {
 #############################
 # FPP
 HC_FPPD
+HC_Warnings
 
 MODE=$(getSetting fppMode)
 if [ "x${MODE}" = "xplayer" -o "x${MODE}" = "xmaster" ]
