@@ -807,6 +807,7 @@
             "description": "Disable Volume Slider",
             "gatherStats": true,
             "tip": "This setting will remove the Audio Volume Slider on the Status Page to prevent accidental unwanted volume changes.",
+            "default": "0",
             "type": "checkbox",
             "platforms": [
                 "!MacOS"
