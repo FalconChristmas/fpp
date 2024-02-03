@@ -190,6 +190,24 @@ int RGBMatrixOutput::Init(Json::Value config) {
             options.multiplexing = 0;
         }
     }
+    /* mortification77 - 2023-11-30: Add panelRowAddressType
+
+        panelRowAddressType Definitions
+        
+        0 = default
+        1 = AB-addressed panels
+        2 = direct row select
+        3 = ABC-addressed panels
+        4 = ABC Shift + DE direct (Default: 0).
+    
+    */
+
+    if (config.isMember("panelRowAddressType")) {
+        options.row_address_type = config["panelRowAddressType"].asInt();
+    }
+
+    LogDebug(VB_CHANNELOUT, "MORT: panelRowAddressType: %d\n", options.row_address_type);
+
     m_rgbmatrix = RGBMatrix::CreateFromOptions(options, runtimeOptions);
     if (!m_rgbmatrix) {
         LogErr(VB_CHANNELOUT, "Unable to create RGBMatrix instance\n");
