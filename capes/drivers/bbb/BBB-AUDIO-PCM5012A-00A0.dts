@@ -12,6 +12,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/am33xx.h>
 
+
 / {
 	compatible = "ti,beaglebone", "ti,beaglebone-black", "ti,beaglebone-green";
 
@@ -44,9 +45,9 @@
 		__overlay__ {
 			bone_audio_cape_audio_pins: pinmux_bone_audio_cape_audio_pins {
 				pinctrl-single,pins = <
-					AM33XX_IOPAD(0x990, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* mcasp0_aclkx.mcasp0_aclkx */
-					AM33XX_IOPAD(0x994, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* mcasp0_fsx.mcasp0_fsx, INPUT */
-					AM33XX_IOPAD(0x998, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* mcasp0_ahclkr.mcasp0_axr0 */
+					AM33XX_IOPAD(0x990, PIN_INPUT_PULLDOWN | MUX_MODE0) 0x00	/* mcasp0_aclkx.mcasp0_aclkx */
+					AM33XX_IOPAD(0x994, PIN_INPUT_PULLDOWN | MUX_MODE0)	0x00 /* mcasp0_fsx.mcasp0_fsx, INPUT */
+					AM33XX_IOPAD(0x998, PIN_INPUT_PULLDOWN | MUX_MODE0)	0x00 /* mcasp0_ahclkr.mcasp0_axr0 */
 				>;
 			};
 		};
@@ -61,6 +62,7 @@
                         };
 			sound {
 				compatible = "simple-audio-card";
+                simple-audio-card,name = "CapeAudio-pcm5102a";
 				simple-audio-card,format = "i2s";
 				simple-audio-card,cpu {
 					sound-dai = <&mcasp0>;
