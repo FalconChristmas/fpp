@@ -45,8 +45,6 @@ public:
     BBBPinCapabilities& setPRU(int p, int pin, uint8_t inm, uint8_t outm) {
         pru = p;
         pruPin = pin;
-        pruInMode = inm;
-        pruOutMode = outm;
         return *this;
     }
 
@@ -58,17 +56,14 @@ public:
     BBBPinCapabilities& setPwm(int p, int sub, int8_t mode) {
         pwm = p;
         subPwm = sub;
-        pwmMode = mode;
         return *this;
     }
     BBBPinCapabilities& setI2C(int i2c, int8_t mode) {
         i2cBus = i2c;
-        i2cMode = mode;
         return *this;
     }
     BBBPinCapabilities& setUART(const std::string& u, int mode) {
         uart = u;
-        uartMode = mode;
         return *this;
     }
 
@@ -76,15 +71,6 @@ public:
 
 private:
     int8_t pru;
-    int8_t pruInMode;
-    int8_t pruOutMode;
-
-    int8_t pwmMode;
-    int8_t uartMode;
-    int8_t i2cMode;
-
-    uint8_t defaultConfig;
-    uint32_t configOffset;
 };
 class BBBPinProvider : public PinCapabilitiesProvider {
     void Init();

@@ -49,19 +49,12 @@ BeagleBoneType getBeagleBoneType() {
 
 static std::vector<BBBPinCapabilities> BBB_PINS;
 
-// ------------------------------------------------------------------------
-#define CONTROL_MODULE_BASE 0x44E10000
-#define CONTROL_MODULE_SIZE 128 * 1024 * 1024
-
 // 1MHz frequence
 // #define HZ 1000000.0f
 #define HZ 10000.0f
 
 static uint32_t bbGPIOMap[] = { 0, 1, 2, 3 };
-static volatile uint8_t* controlModule = nullptr;
-
 static const char* bbbPWMDeviceName = "/sys/class/pwm/pwmchip";
-
 static FILE* bbbPWMDutyFiles[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 
 static volatile bool registersMemMapped = false;
@@ -82,17 +75,14 @@ static void setupBBBMemoryMap() {
     if (registersMemMapped) {
         return;
     }
-    int fd = open("/dev/mem", O_RDWR);
-    controlModule = (uint8_t*)mmap(0, CONTROL_MODULE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, CONTROL_MODULE_BASE);
-    close(fd);
 
+    // newer kernels will number the chips differently so we'll use the
+    // labels to figure out the mapping to the gpio0-3 that we use
     int curChip = 0;
     for (auto& a : gpiod::make_chip_iter()) {
         std::string name = a.name();
         std::string label = a.label();
         auto line = a.get_line(0);
-        printf("Name: %s    Label: %s     Line0: %s\n", name.c_str(), label.c_str(), line.name().c_str());
-
         if (line.name() == "[mdio_data]") {
             bbGPIOMap[0] = curChip;
         } else if (line.name() == "P8_25 [mmc1_dat0]") {
@@ -105,25 +95,16 @@ static void setupBBBMemoryMap() {
         line.release();
         ++curChip;
     }
-    for (int x = 0; x < 4; x++) {
-        printf("Chip %d: %d\n", x, bbGPIOMap[x]);
-    }
     registersMemMapped = 1;
 }
 
 // ------------------------------------------------------------------------
 
 BBBPinCapabilities::BBBPinCapabilities(const std::string& n, uint32_t k, uint32_t o) :
-    GPIODCapabilities(n, k), configOffset(o), pru(-1), pruPin(-1), pruInMode(-1), pruOutMode(-1), pwmMode(-1), uartMode(-1), i2cMode(-1) {
+    GPIODCapabilities(n, k), pru(-1), pruPin(-1) {
     setupBBBMemoryMap();
     gpioIdx = bbGPIOMap[k / 32];
     gpio = k % 32;
-    if (configOffset == 0) {
-        defaultConfig = 0;
-    } else {
-        defaultConfig = controlModule[configOffset];
-    }
-    printf("%s    Def: %X\n", name.c_str(), defaultConfig);
 }
 Json::Value BBBPinCapabilities::toJSON() const {
     Json::Value ret = PinCapabilities::toJSON();
@@ -141,16 +122,10 @@ bool BBBPinCapabilities::supportPWM() const {
 int BBBPinCapabilities::configPin(const std::string& m,
                                   bool directionOut) const {
     std::string mode = m;
-    if (mode == "default") {
-        // controlModule[configOffset] = defaultConfig;
-        // return 0;
-    }
     bool enableI2C = mode == "i2c";
     if (i2cBus >= 0 && !enableI2C) {
         enableOledScreen(i2cBus, false);
     }
-
-    printf("%s Mode: %s    Cur: %X     ", name.c_str(), m.c_str(), controlModule[configOffset]);
 
     char pinName[16];
     char dir_name[256];
@@ -159,19 +134,6 @@ int BBBPinCapabilities::configPin(const std::string& m,
         pinName[2] = '_';
     }
 
-    int kgpio = kernelGpio;
-    if (DirectoryExists("/sys/class/gpio/gpiochip512")) {
-        kgpio += 512;
-    }
-    /*
-    snprintf(dir_name, sizeof(dir_name), "/sys/class/gpio/gpio%u/direction", kgpio);
-    if (access(dir_name, F_OK) == -1) {
-        // not exported, we need to export it
-        FILE* dir = fopen("/sys/class/gpio/export", "w");
-        fprintf(dir, "%d", kgpio);
-        fclose(dir);
-    }
-    */
     snprintf(dir_name, sizeof(dir_name),
              "/sys/devices/platform/ocp/ocp:%s_pinmux/state",
              pinName);
@@ -180,63 +142,22 @@ int BBBPinCapabilities::configPin(const std::string& m,
         fprintf(dir, "%s\n", mode.c_str());
         fclose(dir);
     }
-    /*
-    if (mode != "pwm" && mode != "i2c" && mode != "uart") {
-        snprintf(dir_name, sizeof(dir_name),
-                "/sys/class/gpio/gpio%u/direction",
-                kgpio);
-        dir = fopen(dir_name, "w");
-        if (!dir) {
-            return -1;
-        }
-        fprintf(dir, "%s\n", directionOut ? "out" : "in");
-        fclose(dir);
-    }
-    */
-    /*
-        char pinmux[256];
-        snprintf(pinmux, sizeof(pinmux), "pinmux_%s_%s_pin", pinName, mode.c_str());
-        FILE* dir = fopen("/sys/kernel/debug/pinctrl/44e10800.pinmux-pinctrl-single/pinmux-select", "w");
-        printf("Pinmux: %s\n", pinmux);
-        fprintf(dir, "%s %s", pinmux, pinmux);
-        fclose(dir);
-    */
-    printf("     New: %X     ", controlModule[configOffset]);
 
     if (mode == "i2c") {
         // GPIODCapabilities::configPin("gpio", false);
-        // controlModule[configOffset] = i2cMode | 0x30;
     } else if (mode == "pwm") {
         // GPIODCapabilities::configPin("gpio", false);
-        // controlModule[configOffset] = uartMode | 0x28;
     } else if (mode == "pruout") {
         // GPIODCapabilities::configPin("gpio", false);
         // releaseGPIOD();
-        uint8_t nv = pruOutMode | 0x20;
-        printf("  Desired:  %X   ", nv);
-        // controlModule[configOffset] = nv;
     } else if (mode == "pruin") {
         // GPIODCapabilities::configPin("gpio", false);
-        // controlModule[configOffset] = pruOutMode | 0x28;
     } else if (mode == "uart") {
         // GPIODCapabilities::configPin("gpio", false);
-        // controlModule[configOffset] = uartMode | 0x30;
     } else {
         // gpio
-        /*
-        uint8_t nm = 0x27; // gpio is mode 7
-        if (mode == "gpio_pu") {
-            nm |= 0x10;
-        } else if (mode == "gpio_pd") {
-            nm |= 0x08;
-        }
-        __asm__ __volatile__("" ::
-                                 : "memory");
-        controlModule[configOffset] = nm;
-        */
         GPIODCapabilities::configPin(m, directionOut);
     }
-    printf("     New2: %X\n", controlModule[configOffset]);
     if (i2cBus >= 0 && enableI2C) {
         enableOledScreen(i2cBus, true);
     }
