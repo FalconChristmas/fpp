@@ -84,7 +84,7 @@ void PiGPIOPinCapabilities::setPWMValue(int valueNS) const {
 
 class Pi5GPIODCapabilities : public GPIODCapabilities   {
 public:
-    Pi5GPIODCapabilities(const std::string& n, uint32_t kg) : GPIODCapabilities(n, kg) { gpioIdx = 4; }
+    Pi5GPIODCapabilities(const std::string& n, uint32_t kg) : GPIODCapabilities(n, kg) { gpioIdx = kg; }
 
     virtual ~Pi5GPIODCapabilities() {
         if (dutyFile != nullptr) {
@@ -109,7 +109,7 @@ public:
         }
 
         if (mode == "dpi") {
-            //alt1 is pwm
+            //alt1 is dpi
             char buf[256];
             snprintf(buf, 256, "/usr/bin/pinctrl set %d a1", gpioIdx);
             system(buf);
