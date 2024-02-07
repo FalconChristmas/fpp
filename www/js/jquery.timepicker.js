@@ -470,7 +470,11 @@
           var isPm = ampm == this.settings.lang.pm || ampm == this.settings.lang.PM;
 
           if (hour == 12) {
-            hours = isPm ? 12 : 0;
+             // FPP Modification to allow 2nd midnight in 12-hour mode
+            // original line
+            //   hours = isPm ? 12 : 0;
+            // new line
+            hours = ampm == 'mid' ? 24 : isPm ? 12 : 0;
           } else {
             hours = hour + (isPm ? 12 : 0);
           }
@@ -674,6 +678,9 @@
         var seconds = parseInt(timeInt % 60),
             minutes = parseInt(timeInt / 60 % 60),
             hours = parseInt(timeInt / (60 * 60) % 24);
+            // FPP Modification to allow 2nd midnight in 12-hour mode
+        // new line, doesn't mod by 24
+        hours = parseInt(timeInt / (60 * 60));
         var time = new Date(1970, 0, 2, hours, minutes, seconds, 0);
 
         if (isNaN(time.getTime())) {
@@ -696,7 +703,12 @@
               break;
 
             case "A":
-              output += time.getHours() > 11 ? this.settings.lang.PM : this.settings.lang.AM;
+              // FPP Modification to allow 2nd midnight in 12-hour mode
+              // original line
+              // output += time.getHours() > 11 ? this.settings.lang.PM : this.settings.lang.AM;
+              // new line, special 'Mid' suffix for 2nd midnight
+              output += hours == 24 ? "Mid": time.getHours() > 11 ? this.settings.lang.PM : this.settings.lang.AM;
+      
               break;
 
             case "g":
