@@ -9,3 +9,8 @@ code that allowed continued building/running on Buster.
 OpenSSL - Bookworm moved to OpenSSL 3 (from 1.x on Bullseye)
   - CapeUtils.cpp has ifdef to allow continued building on Bullseye
 
+
+scripts/detect_cape
+  - fppcapedetect systemd service now calls fppcapedetect directly so
+  this script can be removed after OS level updates install the new
+  service file
