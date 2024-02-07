@@ -80,20 +80,28 @@ static void setupBBBMemoryMap() {
     // labels to figure out the mapping to the gpio0-3 that we use
     int curChip = 0;
     for (auto& a : gpiod::make_chip_iter()) {
-        std::string name = a.name();
-        std::string label = a.label();
+        // std::string cname = a.name();
+        // std::string clabel = a.label();
         auto line = a.get_line(0);
-        if (line.name() == "[mdio_data]") {
+        if (line.name() == "NC") {
+            line.release();
+            line = a.get_line(13);
+        }
+        std::string name = line.name();
+        if (name == "[mdio_data]" || name == "P1.28 [I2C2_SCL]") {
             bbGPIOMap[0] = curChip;
-        } else if (line.name() == "P8_25 [mmc1_dat0]") {
+        } else if (name == "P8_25 [mmc1_dat0]" || name == "P2.33") {
             bbGPIOMap[1] = curChip;
-        } else if (line.name() == "P9_15B") {
+        } else if (name == "P9_15B" || name == "[SYSBOOT 7]") {
             bbGPIOMap[2] = curChip;
-        } else if (line.name() == "[mii col]") {
+        } else if (name == "[mii col]" || name == "P1.03 [USB1]") {
             bbGPIOMap[3] = curChip;
         }
         line.release();
         ++curChip;
+        if (curChip == 4) {
+            break;
+        }
     }
     registersMemMapped = 1;
 }
@@ -148,8 +156,7 @@ int BBBPinCapabilities::configPin(const std::string& m,
     } else if (mode == "pwm") {
         // GPIODCapabilities::configPin("gpio", false);
     } else if (mode == "pruout") {
-        // GPIODCapabilities::configPin("gpio", false);
-        // releaseGPIOD();
+        GPIODCapabilities::configPin("gpio", false);
     } else if (mode == "pruin") {
         // GPIODCapabilities::configPin("gpio", false);
     } else if (mode == "uart") {
