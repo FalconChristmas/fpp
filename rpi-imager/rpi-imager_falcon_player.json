@@ -7,6 +7,7 @@
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
+            "devices": ["pi4-64bit"],
             "extract_size": 3984588800,
             "extract_sha256": "b8f51c3d3d598a840dffcc0a64e1dc3eee30841b0f21550b597c57945a02c921",
             "image_download_size": 1103835401,
