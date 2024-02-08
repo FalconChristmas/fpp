@@ -16,40 +16,26 @@ function SetTimeZone($timezone)
 
 function SetHWClock()
 {
-    global $settings;
-
-    $rtcDevice = "/dev/rtc0";
-    if ($settings['Platform'] == "BeagleBone Black") {
-        if (file_exists("/sys/class/rtc/rtc0/name")) {
-            $rtcname = file_get_contents("/sys/class/rtc/rtc0/name");
-            if (strpos($rtcname, "omap_rtc") !== false) {
-                $rtcDevice = "/dev/rtc1";
-            }
-        }
-    }
-    exec("sudo hwclock -w -f $rtcDevice");
+    global $fppDir;
+    exec("sudo $fppDir/src/fpprtc set");
 }
 
 function SetDate($date)
 {
     // Need to pass in the current time or it gets reset to 00:00:00
     exec("sudo date +\"%Y-%m-%d %H:%M:%S\" -s \"$date \$(date +%H:%M:%S)\"");
-
     SetHWClock();
 }
 
 function SetTime($time)
 {
     exec("sudo date +%k:%M:%S -s \"$time\"");
-
     SetHWClock();
 }
 
 function SetRTC($rtc)
 {
-    global $fppDir;
-
-    exec("sudo $fppDir/scripts/piRTC set");
+    SetHWClock();
 }
 
 function RestartNTPD()

@@ -15,6 +15,11 @@ if ($settings['Platform'] == "BeagleBone Black") {
         }
     }
     $i2cDevice = "2";
+} else if (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false) {
+    // rtc0 is the onboard RTC, if rtc1 exists, that's the clock on the cape
+    if (file_exists("/dev/rtc1")) {
+        $rtcDevice = "/dev/rtc1";
+    }
 }
 
 $commands = array(

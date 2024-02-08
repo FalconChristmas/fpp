@@ -14,3 +14,7 @@ scripts/detect_cape
   - fppcapedetect systemd service now calls fppcapedetect directly so
   this script can be removed after OS level updates install the new
   service file
+
+scripts/piRTC
+  - fpprtc systemdd service now calls fpprtc directly so this script
+  can be removed after OS level updates install the new service file
