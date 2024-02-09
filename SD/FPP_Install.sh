@@ -487,7 +487,7 @@ case "${OSVER}" in
                       php${PHPVER}-bcmath php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
-                      git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain \
+                      gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev qrencode libusb-1.0-0-dev \
                       flex bison pkg-config libasound2-dev python3-distutils libssl-dev libtool bsdextrautils iw"
@@ -1309,18 +1309,7 @@ sed -i '$s/$/\npool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer
 
 if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     #######################################
-    echo "FPP - Updating HotSpot"
-    sed -i -e "s/USE_PERSONAL_SSID=.*/USE_PERSONAL_SSID=FPP/" /etc/default/bb-wl18xx
-    sed -i -e "s/USE_PERSONAL_PASSWORD=.*/USE_PERSONAL_PASSWORD=Christmas/" /etc/default/bb-wl18xx
-    
     systemctl disable dev-hugepages.mount
-
-    echo "FPP - update BBB boot scripts for faster boot, don't force getty"
-    cd /opt/scripts
-    git reset --hard
-    git pull
-    sed -i 's/systemctl restart serial-getty/systemctl is-enabled serial-getty/g' boot/am335x_evm.sh
-    git commit -a -m "delay getty start" --author='fpp<fpp>'
     
     if [ ! -f "/opt/source/bb.org-overlays/Makefile" ]; then
         mkdir -p /opt/source
@@ -1334,7 +1323,7 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     make clean
     
     # install the newer pru code generator
-    apt-get install ti-pru-cgt-v2.3 ti-pru-pru-v2.3
+    apt-get install ti-pru-cgt-v2.3
     
     #Set colored prompt
     sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
@@ -1347,8 +1336,6 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     sed -i -e "s+ quiet+ quiet rootwait+g"  /boot/uEnv.txt
     sed -i -e "s+ net.ifnames=.+ +g"  /boot/uEnv.txt
     sed -i -e "s+^uboot_overlay_pru=+#uboot_overlay_pru=+g"  /boot/uEnv.txt
-    sed -i -e "s+#uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+g" /boot/uEnv.txt
-    sed -i -e "s+#uboot_overlay_pru=AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+g" /boot/uEnv.txt
     echo "bootdelay=0" >> /boot/uEnv.txt
     echo "#cmdline=init=/opt/fpp/SD/BBB-AutoFlash.sh" >> /boot/uEnv.txt
 
@@ -1384,6 +1371,11 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/mcde*
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/meson*
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/ingenic*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/mali*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/mxs*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/rep*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/sun*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/vmw*
 fi
 
 if $isimage; then

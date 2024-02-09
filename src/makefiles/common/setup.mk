@@ -54,6 +54,9 @@ else
 endif
     OPTIMIZE_FLAGS=-O3 -Wno-psabi
     debug: OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
+ifeq ($(FPPDEBUG),1)
+    OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
+endif
     ifeq "$(GCCVERSIONGTEQ12)" "1"
         CXXFLAGS += -std=gnu++23
     else

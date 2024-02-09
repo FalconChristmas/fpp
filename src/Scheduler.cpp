@@ -986,11 +986,19 @@ Json::Value Scheduler::GetSchedule() {
         scheduledItem["startTimeStr"] = timeStr;
         scheduledItem["startTime"] = (Json::UInt64)tmpTime;
 
+        strftime(timeStr, 32, "%Y%m%d", &timeStruct);
+        scheduledItem["startDateStr"] = timeStr;
+        scheduledItem["startDateInt"] = atoi(timeStr);
+
         tmpTime = Player::INSTANCE.GetStopTime();
         localtime_r(&tmpTime, &timeStruct);
         strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
         scheduledItem["endTimeStr"] = timeStr;
         scheduledItem["endTime"] = (Json::UInt64)tmpTime;
+
+        strftime(timeStr, 32, "%Y%m%d", &timeStruct);
+        scheduledItem["endDateStr"] = timeStr;
+        scheduledItem["endDateInt"] = atoi(timeStr);
 
         scheduledItem["command"] = "Start Playlist";
 
@@ -1014,10 +1022,18 @@ Json::Value Scheduler::GetSchedule() {
             scheduledItem["startTimeStr"] = timeStr;
             scheduledItem["startTime"] = (Json::UInt64)item->startTime;
 
+            strftime(timeStr, 32, "%Y%m%d", &timeStruct);
+            scheduledItem["startDateStr"] = timeStr;
+            scheduledItem["startDateInt"] = atoi(timeStr);
+
             localtime_r(&item->endTime, &timeStruct);
             strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
             scheduledItem["endTimeStr"] = timeStr;
             scheduledItem["endTime"] = (Json::UInt64)item->endTime;
+
+            strftime(timeStr, 32, "%Y%m%d", &timeStruct);
+            scheduledItem["endDateStr"] = timeStr;
+            scheduledItem["endDateInt"] = atoi(timeStr);
 
             scheduledItem["command"] = item->command;
 

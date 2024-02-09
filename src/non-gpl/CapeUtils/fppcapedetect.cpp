@@ -13,7 +13,10 @@
 
 #include "CapeUtils.h"
 #include <filesystem>
+#include <grp.h>
+#include <pwd.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 int main(int argc, char* argv[]) {
     for (const auto& entry : std::filesystem::directory_iterator("/home/fpp/media/tmp/")) {
@@ -22,5 +25,11 @@ int main(int argc, char* argv[]) {
 
     if (CapeUtils::INSTANCE.initCape(false) == CapeUtils::CapeStatus::NOT_PRESENT || CapeUtils::INSTANCE.initCape(false) == CapeUtils::CapeStatus::CORRUPT) {
         exit(-1);
+    }
+    struct passwd* pwd = getpwnam("fpp");
+    if (pwd) {
+        for (const auto& entry : std::filesystem::directory_iterator("/home/fpp/media/tmp/")) {
+            chown(entry.path().c_str(), pwd->pw_uid, pwd->pw_gid);
+        }
     }
 }

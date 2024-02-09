@@ -238,6 +238,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
         for (int l = 0; l < root["latches"].size(); l++) {
             std::string pinName = root["latches"][l].asString();
             if (pinName[0] == 'P') {
+                LogExcess(VB_CHANNELOUT, "   Enabling Pin %s for DPI output since it is a latch pin\n", pinName.c_str());
                 const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
 
                 pin.configPin("dpi");
@@ -350,6 +351,10 @@ int DPIPixelsOutput::Init(Json::Value config) {
     }
 
     Json::Value fbConfig;
+    device = "fb1";
+    if (!FileExists("/dev/fb1") && FileExists("/dev/fb0")) {
+        device = "fb0";
+    }
     fbConfig["Device"] = device;
     fbConfig["BitsPerPixel"] = 24;
     fbConfig["Pages"] = 3;

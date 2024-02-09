@@ -98,6 +98,9 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday) {
     int year = 0;
     int month = 0;
     int day = 0;
+    time_t currTime = time(NULL);
+    struct tm now;
+    localtime_r(&currTime, &now);
 
     if (holiday.isMember("calc")) {
         // We need to calculate the month/day of the holiday since it changes yearly
@@ -106,9 +109,6 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday) {
         int week = c["week"].asInt();
         int dow = c["dow"].asInt();
         int offset = c["offset"].asInt();
-        time_t currTime = time(NULL);
-        struct tm now;
-        localtime_r(&currTime, &now);
 
         year = now.tm_year + 1900;
 
@@ -127,7 +127,7 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday) {
         int wday = (y + y / 4 - y / 100 + y / 400 + t[m - 1] + d) % 7;
 
         if ((year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0)))
-            mdays[2]++; // add one day to February for leap year
+            mdays[1]++; // add one day to February for leap year
 
         if (type == "easter") {
             CalculateEaster(year, month, day);
@@ -156,8 +156,8 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday) {
             }
         } else if (type == "head") {
             day = ((dow + 7 - wday) % 7) + ((week - 1) * 7) + 1;
-            if (dow == wday)
-                day += 7;
+//            if (dow == wday)
+//                day += 7;
 
             day += offset;
 
@@ -185,6 +185,15 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday) {
         year = holiday["year"].asInt();
         month = holiday["month"].asInt();
         day = holiday["day"].asInt();
+    }
+
+    if (year == 0) {
+        if ((month < (now.tm_mon + 1)) ||
+            ((month == (now.tm_mon + 1)) && (day < now.tm_mday))) {
+            year = now.tm_year + 1900 + 1;
+        } else {
+            year = now.tm_year + 1900;
+        }
     }
 
     char str[11];
@@ -535,14 +544,20 @@ Json::Value ScheduleEntry::GetJson(void) {
 
     snprintf(timeText, sizeof(timeText), "%02d:%02d:%02d", startHour, startMinute, startSecond);
     e["startTime"] = timeText;
+    e["startTimeStr"] = startTimeStr;
+    e["startTimeOffset"] = startTimeOffset;
 
     snprintf(timeText, sizeof(timeText), "%02d:%02d:%02d", endHour, endMinute, endSecond);
     e["endTime"] = timeText;
+    e["endTimeStr"] = endTimeStr;
+    e["endTimeOffset"] = endTimeOffset;
 
     e["repeat"] = (int)repeat;
     e["repeatInterval"] = (int)repeatInterval;
     e["startDate"] = startDateStr;
+    e["startDateInt"] = startDate;
     e["endDate"] = endDateStr;
+    e["endDateInt"] = endDate;
     e["stopType"] = stopType;
     e["stopTypeStr"] =
         stopType == 2 ? "Graceful Loop" : stopType == 1 ? "Hard"
