@@ -1,8 +1,10 @@
 [Unit]
 Description=Inialization routines for FPP
 DefaultDependencies=no
-Before=network.service fpprtc.service fppoled.service home-fpp-media.mount
-After=home-fpp-media.mount
+Before=network.service fpprtc.service fppoled.service
+Wants=systemd-journald.service
+After=systemd-remount-fs.service systemd-journal-flush.service systemd-tmpfiles-setup.service
+
 
 [Service]
 Type=oneshot
@@ -11,6 +13,7 @@ ExecStartPre=-mkdir -p /home/fpp/media/logs
 ExecStart=/opt/fpp/src/fppinit start
 StandardOutput=append:/home/fpp/media/logs/fpp_init.log
 StandardError=append:/home/fpp/media/logs/fpp_init.log
+RequiresMountsFor=/home/fpp/media/
 
 [Install]
 WantedBy=sysinit.target
