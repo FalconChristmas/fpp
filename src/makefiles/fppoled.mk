@@ -1,6 +1,7 @@
 ifeq '$(BUILD_FPPOLED)' '1'
 OBJECTS_fppoled += \
 	common.o \
+	common_mini.o \
 	log.o \
 	settings.o \
 	fppversion.o \

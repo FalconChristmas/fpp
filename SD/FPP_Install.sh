@@ -48,8 +48,8 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2024-01"
-FPPCFGVER="80"
+FPPIMAGEVER="2024-02"
+FPPCFGVER="83"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -680,9 +680,6 @@ fi
 # Platform-specific config
 case "${FPPPLATFORM}" in
 	'BeagleBone Black')
-        echo "blacklist spidev" > /etc/modprobe.d/blacklist-spidev.conf
-        echo "# allocate 3M instead of the default 256K" > /etc/modprobe.d/uio_pruss.conf
-        echo "options uio_pruss extram_pool_sz=3145728" >> /etc/modprobe.d/uio_pruss.conf
 
         # need to blacklist the gyroscope and barometer on the SanCloud enhanced or it consumes some pins
         echo "blacklist st_pressure_spi" > /etc/modprobe.d/blacklist-gyro.conf
@@ -693,19 +690,15 @@ case "${FPPPLATFORM}" in
         echo "blacklist st_sensors_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
         echo "blacklist inv_mpu6050" >> /etc/modprobe.d/blacklist-gyro.conf
         echo "blacklist st_sensors" >> /etc/modprobe.d/blacklist-gyro.conf
+        echo "blacklist spidev" > /etc/modprobe.d/blacklist-spidev.conf
 
         # need to blacklist the bluetooth on BBG Gateway or it tends to crash the kernel, we don't need it
         echo "blacklist btusb" > /etc/modprobe.d/blacklist-bluetooth.conf
         echo "blacklist bluetooth" >> /etc/modprobe.d/blacklist-bluetooth.conf
         echo "blacklist hci_uart" >> /etc/modprobe.d/blacklist-bluetooth.conf
         echo "blacklist bnep" >> /etc/modprobe.d/blacklist-bluetooth.conf
-        
-        # we will need the PRU's, we might as well bring them up immediately for faster boot
-        echo "pruss_soc_bus" >> /etc/modules-load.d/modules.conf
-        echo "pru_rproc" >> /etc/modules-load.d/modules.conf
-        echo "pruss" >> /etc/modules-load.d/modules.conf
-        echo "irq_pruss_intc" >> /etc/modules-load.d/modules.conf
-        echo "remoteproc" >> /etc/modules-load.d/modules.conf
+
+        rm -f  /etc/modules-load.d/network.conf
 
         systemctl disable keyboard-setup
 		;;
@@ -1399,7 +1392,6 @@ fi
 systemctl disable mosquitto
 systemctl daemon-reload
 systemctl enable fppinit.service
-systemctl enable fppcapedetect.service
 systemctl enable fpprtc.service
 systemctl enable fppoled.service
 systemctl enable fppd.service

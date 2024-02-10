@@ -1,14 +1,15 @@
 [Unit]
 Description=FPP Post Network Setup
 After=network.target generic-board-startup.service remote-fs.target
-Requires=network.target 
+Wants=network.target
 DefaultDependencies=no
-Before=rc-local.service
 
 [Service]
 Type=oneshot
-ExecStart=/opt/fpp/scripts/fpp_boot
-KillMode=process
+RemainAfterExit=yes
+ExecStart=/opt/fpp/src/fppinit postNetwork
+StandardOutput=append:/home/fpp/media/logs/fpp_boot.log
+StandardError=append:/home/fpp/media/logs/fpp_boot.log
 
 [Install]
 WantedBy=multi-user.target

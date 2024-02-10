@@ -1,6 +1,6 @@
 ifeq '$(BUILD_FPPRTC)' '1'
 OBJECTS_fpprtc += \
-	boot/FPPRTC.o
+	boot/FPPRTC.o common_mini.o
 
 TARGETS += fpprtc
 OBJECTS_ALL+=$(OBJECTS_fpprtc)

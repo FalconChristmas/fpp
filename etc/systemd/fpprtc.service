@@ -1,12 +1,13 @@
 [Unit]
 Description=FPP RTC Setup
 Documentation=https://falconchristmas.com/forum/
-After=fppcapedetect.service
-Wants=home-fpp-media.mount
+After=fppinit.service
+Wants=fppinit.service
 
 [Service]
 ExecStart=/opt/fpp/src/fpprtc
 Type=oneshot
+RemainAfterExit=true
 
 [Install]
 WantedBy=sysinit.target

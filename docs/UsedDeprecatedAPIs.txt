@@ -18,3 +18,14 @@ scripts/detect_cape
 scripts/piRTC
   - fpprtc systemdd service now calls fpprtc directly so this script
   can be removed after OS level updates install the new service file
+
+src/boot/FPPINIT.c
+  - has a couple of conditionals on GCC >12 in order to generate correct
+  config for older FPP7 images.  Can be removed for FPP8 images based on
+  Debian 12
+
+scripts/fpp_init
+scripts/fpp_start
+scripts/fppoled
+  - no longer used, can be eliminated
+

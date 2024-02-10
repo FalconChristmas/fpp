@@ -46,7 +46,7 @@ BUILD_FPPOLED=1
 BUILD_FPPCAPEDETECT=1
 BUILD_FPPRTC=1
 endif
-
+BUILD_FPPINIT=1
 
 LDFLAGS_fppd += -L.
 LDFLAGS_fppd += $(shell log4cpp-config --libs)

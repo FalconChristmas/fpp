@@ -3,6 +3,7 @@ OBJECTS_fpp = \
 	common.o \
     log.o \
 	settings.o \
+	common_mini.o \
 	fppversion.o
 LIBS_fpp = \
     -ljsoncpp \

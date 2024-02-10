@@ -1,13 +1,11 @@
 [Unit]
 Description=FPP OLED Status Display
 Documentation=https://falconchristmas.com/forum/
-After=fppcapedetect.service
-Before=fppinit.service network.target multi-user.target
-Wants=network-pre.target home-fpp-media.mount
+After=fppinit.service
+Wants=fppinit.service
 
 [Service]
-ExecStart=/opt/fpp/scripts/fppoled start
-ExecStop=/opt/fpp/scripts/fppoled stop
+ExecStart=/opt/fpp/src/fppoled
 Type=simple
 
 [Install]

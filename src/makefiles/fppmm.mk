@@ -1,5 +1,5 @@
 OBJECTS_fppmm = \
-	common.o \
+	common.o common_mini.o \
 	log.o \
 	fppmm.o \
 	fppversion.o

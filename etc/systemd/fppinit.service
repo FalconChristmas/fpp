@@ -1,15 +1,16 @@
 [Unit]
 Description=Inialization routines for FPP
-After=home-fpp-media.mount fppcapedetect.service var-tmp.mount systemd-tmpfiles-setup-dev.service
-Before=connman.service network.target multi-user.target apache2.service
-Wants=network-pre.target home-fpp-media.mount
 DefaultDependencies=no
+Before=network.service fpprtc.service fppoled.service home-fpp-media.mount
+After=home-fpp-media.mount
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/opt/fpp/scripts/fpp_init start
-
+ExecStartPre=-mkdir -p /home/fpp/media/logs
+ExecStart=/opt/fpp/src/fppinit start
+StandardOutput=append:/home/fpp/media/logs/fpp_init.log
+StandardError=append:/home/fpp/media/logs/fpp_init.log
 
 [Install]
-WantedBy=network.target multi-user.target
+WantedBy=sysinit.target

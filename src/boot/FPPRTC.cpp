@@ -25,42 +25,7 @@
 #include <iomanip>
 #include <thread>
 
-static int FileExists(const char* File) {
-    struct stat sts;
-    if (stat(File, &sts) == -1) {
-        return 0;
-    } else {
-        return 1;
-    }
-}
-static int FileExists(const std::string& f) {
-    return FileExists(f.c_str());
-}
-static std::string GetFileContents(const std::string& filename) {
-    FILE* fd = fopen(filename.c_str(), "r");
-    std::string contents;
-    if (fd != nullptr) {
-        flock(fileno(fd), LOCK_SH);
-        fseeko(fd, 0, SEEK_END);
-        size_t sz = ftello(fd);
-        contents.resize(sz);
-        fseeko(fd, 0, SEEK_SET);
-        fread(&contents[0], contents.size(), 1, fd);
-        flock(fileno(fd), LOCK_UN);
-        fclose(fd);
-        int x = contents.size() - 1;
-        for (; x > 0; x--) {
-            if (contents[x] != 0) {
-                break;
-            }
-        }
-        contents.resize(x + 1);
-    }
-    return contents;
-}
-inline bool contains(const std::string& str, const std::string& v) {
-    return str.find(v) != std::string::npos;
-}
+#include "common_mini.h"
 
 static int getSettingInt() {
     if (!FileExists("/home/fpp/media/settings")) {
@@ -184,8 +149,6 @@ static std::string getRTCDev() {
 }
 
 int main(int argc, char* argv[]) {
-    getSettingInt();
-
     std::string rtc = getRTCDev();
     if (!FileExists(rtc)) {
         if (!setupRTC()) {
