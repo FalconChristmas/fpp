@@ -692,6 +692,10 @@ private:
             printf("Copyng eeprom %s -> %s\n", EEPROM.c_str(), "/home/fpp/media/tmp/eeprom.bin");
             removeIfExist("/home/fpp/media/tmp/eeprom.bin");
             copyFile(EEPROM, "/home/fpp/media/tmp/eeprom.bin");
+            struct passwd* pwd = getpwnam("fpp");
+            if (pwd) {
+                chown("/home/fpp/media/tmp/eeprom.bin", pwd->pw_uid, pwd->pw_gid);
+            }
             ORIGEEPROM = EEPROM;
             put_file_contents("/home/fpp/media/tmp/eeprom_location.txt", (uint8_t*)ORIGEEPROM.c_str(), ORIGEEPROM.size());
             EEPROM = "/home/fpp/media/tmp/eeprom.bin";
@@ -991,7 +995,7 @@ private:
                         // if the cape requires kernel modules, load them at this
                         // time so they will be available later
                         for (int x = 0; x < result["modules"].size(); x++) {
-                            std::string v = "/sbin/modprobe " + result["modules"][x].asString();
+                            std::string v = "/sbin/modprobe " + result["modules"][x].asString() + " 2> /dev/null  > /dev/null";
                             exec(v.c_str());
                         }
                     }
@@ -1201,7 +1205,6 @@ private:
         const uint8_t* key = KEYS[fKeyId].first;
         size_t keyLen = KEYS[fKeyId].second;
 
-
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
         EC_KEY* pubECKey = nullptr;
         BIO* keybio = BIO_new_mem_buf((void*)key, keyLen);
@@ -1210,11 +1213,11 @@ private:
         EVP_PKEY* pubKey = EVP_PKEY_new();
         EVP_PKEY_assign_EC_KEY(pubKey, pubECKey);
 #else
-        EVP_PKEY *pubKey = NULL;
-        OSSL_DECODER_CTX *ctx = OSSL_DECODER_CTX_new_for_pkey(&pubKey, "PEM", nullptr,
-                                     "EC",
-                                     0,
-                                     NULL, NULL);
+        EVP_PKEY* pubKey = NULL;
+        OSSL_DECODER_CTX* ctx = OSSL_DECODER_CTX_new_for_pkey(&pubKey, "PEM", nullptr,
+                                                              "EC",
+                                                              0,
+                                                              NULL, NULL);
         if (OSSL_DECODER_from_data(ctx, &key, &keyLen) == 0) {
             OSSL_DECODER_CTX_free(ctx);
             validSignature = 0;

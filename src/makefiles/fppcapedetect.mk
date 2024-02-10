@@ -6,18 +6,10 @@ OBJECTS_fppcapedetect = non-gpl/CapeUtils/fppcapedetect.o
 OBJECTS_libfpp_capeutils_so = non-gpl/CapeUtils/CapeUtils.o
 
 LIBS_fppcapedetect = \
-	-L. \
-	-lfpp_capeutils \
-	-ljsoncpp
+	-L. -ljsoncpp -lcrypto -lfpp_capeutils
 
 LIBS_libfpp_capeutils_so = \
 	-ljsoncpp -lcrypto
-
-# At boot time, reading off the SD card is a huge bottleneck as nothing is cached
-# and all the services starting in parallel are trying to load things.
-# Optimize for as small as possible
-CXXFLAGS_CapeUtils.o=-Os
-CXXFLAGS_fppcapedetect.o=-Os
 
 TARGETS+=fppcapedetect
 TARGETS+=libfpp_capeutils.so
