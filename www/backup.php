@@ -116,7 +116,7 @@ $system_config_areas = array(
 
 //FPP Backup version - This is used for tracking the CURRENT backup file format or "backup" version as we may move things around and need backwards compatibility when restoring older version
 //When restoring, this value is read from the uploaded file and in processRestoreData() used to decide on what extra massaging old data needs to work with the current script
-$fpp_backup_version = "7.2";
+$fpp_backup_format_version = "7.4";
 
 //The v4, v5, vX that appears in backup filename was originally using $fpp_backup_version but to save user confusion will now match the FPP major version
 //it was originally intended as a visual aid to help discern between different backup versions.
@@ -357,12 +357,13 @@ if (isset($_POST['btnDownloadConfig'])) {
  */
 function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_keepNetworkSettings = true, $restore_keepMasterSlaveSettings = true, $restore_Source = 'page')
 {
-    global $system_config_areas, $keepNetworkSettings, $keepMasterSlaveSettings, $fpp_backup_version, $backup_errors, $restore_done, $uploadData_IsProtected;
+    global $system_config_areas, $keepNetworkSettings, $keepMasterSlaveSettings, $fpp_backup_format_version, $backup_errors, $restore_done, $uploadData_IsProtected;
 
     $keepNetworkSettings = $restore_keepNetworkSettings;
     $keepMasterSlaveSettings = $restore_keepMasterSlaveSettings;
     //
     $file_contents_decoded = $restore_Data;
+	$_fpp_backup_version = null;
 
     //if restore area contains a forward slash, then we want to restore into a sub-area
     //split string to get the main area and sub-area
@@ -393,11 +394,15 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
             $is_version_3_backup = false;
             //Check backup version
             if (array_key_exists('fpp_backup_version', $file_contents_decoded)) {
-                $_fpp_backup_version = $file_contents_decoded['fpp_backup_version']; //Minimum version is 2
+				if (!is_null($file_contents_decoded['fpp_backup_version'])) {
+					$_fpp_backup_version = floatval($file_contents_decoded['fpp_backup_version']); //Minimum version is 2
+				} else {
+					$_fpp_backup_version = floatval($fpp_backup_format_version);
+				}
 
                 if ($file_contents_decoded['fpp_backup_version'] == 2) {
                     $is_version_2_backup = true;
-                } else if ($file_contents_decoded['fpp_backup_version'] = 3) {
+                } else if ($file_contents_decoded['fpp_backup_version'] == 3) {
                     $is_version_3_backup = true;
                 }
             }
@@ -411,7 +416,7 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
             unset($file_contents_decoded['backup_taken']);
 
             //Restore all areas
-            if (strtolower($restore_Area) == "all" && ($is_version_2_backup || $is_version_3_backup)) {
+            if (strtolower($restore_Area) == "all") {
                 // ALL SETTING RESTORE
                 //read each area and process it
                 foreach ($file_contents_decoded as $restore_area_key => $area_data) {
@@ -435,14 +440,14 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
                 //general settings, but only a matching area is cherry picked
 
                 //If the key exists in the decoded data then we can process
-                if (array_key_exists($restore_area_main, $file_contents_decoded)) {
+                if (is_array($file_contents_decoded) && array_key_exists($restore_area_main, $file_contents_decoded)) {
                     $restore_area_key = $restore_area_main;
                     $area_data = $file_contents_decoded[$restore_area_main];
 
                     //If we're restoring channelOutputs, we might need the system settings.. eg when restoring the LED panel data we need to set the layout in settings
                     if ($restore_area_key == "channelOutputs" && array_key_exists('settings', $file_contents_decoded)) {
                         $system_settings = array();
-                        if (array_key_exists('system_settings', $file_contents_decoded['settings'])) {
+                        if (is_array($file_contents_decoded['settings']) &&  array_key_exists('system_settings', $file_contents_decoded['settings'])) {
                             $system_settings = $file_contents_decoded['settings']['system_settings'];
                             //modify the area data
                             $area_data_new = array('area_data' => $area_data, 'system_settings' => $system_settings);
@@ -470,7 +475,7 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
         error_log($backup_error_string);
     }
 
-    //$restore_done is set if we got to actuall call the function to restore data, if there was some sort of error with the data beforehand it will never get set
+    //$restore_done is set if we got to actually call the function to restore data, if there was some sort of error with the data beforehand it will never get set
     //use this as a simple check so we can return other data (what errors we had)
     return !empty($restore_result) ? array('success' => true, 'message' => $restore_result) : array('success' => false, 'message' => $backup_errors);
 }
@@ -581,7 +586,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
 
     //Check to see if the area data contains the area_data or system_settings keys
     //break them out if so & overwrite $restore_area_data with the actual area data
-    if (array_key_exists('area_data', $restore_area_data) && array_key_exists('system_settings', $restore_area_data)) {
+    if (is_array($restore_area_data) && array_key_exists('area_data', $restore_area_data) && array_key_exists('system_settings', $restore_area_data)) {
         $restore_area_system_settings = $restore_area_data['system_settings'];
         $restore_area_data = $restore_area_data['area_data'];
     }
@@ -591,7 +596,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
     $restore_data_is_empty = (empty($restore_area_data) || is_null($restore_area_data)) ? true : false;
 
     //set some initial values
-    $settings_restored[$restore_area_key] = $save_result;
+    $settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
     $settings_restored[$restore_area_key]['VALID_DATA'] = !$restore_data_is_empty; //Negate the value as this described is the data is empty or not, so false is valid data, true means data was empty so it isn't valid data
 
     //////////////////////////////////
@@ -746,9 +751,12 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
 									$panel_layout = null;
 
 									//Generate the single LED Panel size from info in the LED Panel layout e.g 32x16 1/2 Scan
-									if (array_key_exists('panelHeight', $final_file_restore_data['channelOutputs'][0])
-										&& array_key_exists('panelWidth', $final_file_restore_data['channelOutputs'][0])
-										&& array_key_exists('panelScan', $final_file_restore_data['channelOutputs'][0])
+									if (is_array($final_file_restore_data['channelOutputs'][0]) &&
+										(
+											array_key_exists('panelHeight', $final_file_restore_data['channelOutputs'][0])
+											&& array_key_exists('panelWidth', $final_file_restore_data['channelOutputs'][0])
+											&& array_key_exists('panelScan', $final_file_restore_data['channelOutputs'][0])
+										)
 									) {
 										$singlePanelSize = $final_file_restore_data['channelOutputs'][0]['panelWidth'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelHeight'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelScan'];
 										WriteSettingToFile('LEDPanelsSize', $singlePanelSize);
@@ -756,7 +764,9 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
 
 									//Write the panel layout, e.g 4x4 into the system settings
                                     //This setting can exist in a few places (by default it's in the system settings)
-									if (array_key_exists('ledPanelsLayout', $final_file_restore_data['channelOutputs'][0])) {
+									if (is_array($final_file_restore_data['channelOutputs'][0]) &&
+										array_key_exists('ledPanelsLayout', $final_file_restore_data['channelOutputs'][0])
+									) {
 										WriteSettingToFile('LEDPanelsLayout', $final_file_restore_data['channelOutputs'][0]['ledPanelsLayout']);
 									} elseif (!empty($restore_area_system_settings)) {
                                         // If it's a full backup we can get the panel settings from the system settings
@@ -1037,7 +1047,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                     ) {
                         $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
 
-                        if (array_key_exists('emailenable', $restore_data)) {
+                        if (is_array($restore_data) && array_key_exists('emailenable', $restore_data)) {
                             $emailenable = $restore_data['emailenable'];
                             WriteSettingToFile('emailenable', $emailenable);
                         }
@@ -1152,7 +1162,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                 //Check if the net_type in the network config area
                 //the new type will be wired_network, wifi_network or like interface.eth1 etc for an extra interface(s)
                 //the net_type is also the filename of the interfaces file when it was backed up
-                if (array_key_exists($net_type, $system_config_areas['network']['file']) == false) {
+				if (is_array($system_config_areas['network']['file']) && !array_key_exists($net_type, $system_config_areas['network']['file'])) {
                     //Set it's location for restore
                     $system_config_areas['network']['file'][$net_type] = array('type' => 'file', 'location' => $settings['configDirectory'] . "/" . $net_type);
 
@@ -1226,7 +1236,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                 }
             }
         } else {
-            error_log("RESTORE: Failed to restore " . $restore_area_key . " - 'Keep Existing Network Settings' selected - NOT OVERWRITING: ");
+			error_log("RESTORE: Not restoring " . $restore_area_key . " - 'Keep Existing Network Settings' selected - NOT OVERWRITING: ");
             //no attempt was made so remove the key for tracking attempts
             unset($settings_restored[$restore_area_key]);
         }
@@ -1279,9 +1289,15 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
     }
 
     //wrote message out
-    if (!$save_result) {
-        error_log("RESTORE: Failed to restore " . $restore_area . " - " . json_encode($settings_restored));
-    }
+	if (!$restore_data_is_empty &&
+		(array_key_exists($restore_area_key, $settings_restored)
+			&& array_key_exists('ATTEMPT', $settings_restored[$restore_area_key])
+			&& $settings_restored[$restore_area_key]['ATTEMPT']
+			&& !$save_result
+		)
+	) {
+		error_log("RESTORE: Failed to restore " . $restore_area . " - " . json_encode($settings_restored));
+	}
 
     //Return save result
     return $settings_restored;
@@ -1798,7 +1814,7 @@ function SavePixelnetDMXFile_F16v2Alpha($restore_data)
  */
 function performBackup($area = "all", $allowDownload = true, $backupComment = "User Initiated Manual Backup", $backupTriggerSource = null)
 {
-    global $fpp_backup_version, $system_config_areas, $protectSensitiveData, $known_json_config_files, $known_ini_config_files;
+    global $fpp_backup_format_version, $system_config_areas, $protectSensitiveData, $known_json_config_files, $known_ini_config_files;
 
     //Toggle the flag to disallow the backup file to be downloaded by the browser
     if ($allowDownload === false) {
@@ -2081,7 +2097,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
         //Add the trigger source also, this may be used internally when clearing/manging number of backup files
         $tmp_settings_data['backup_trigger_source'] = $backupTriggerSource;
         //Lastly insert the backup system version (moved from doBackupDownload to here)
-        $tmp_settings_data['fpp_backup_version'] = $fpp_backup_version;
+        $tmp_settings_data['fpp_backup_version'] = $fpp_backup_format_version;
         //Add the current UNIX epoc time, representing the time the backup as taken, may make it easier in the future to calculate when the backup was taken
         $tmp_settings_data['backup_taken'] = time();
 
@@ -2238,10 +2254,10 @@ function retrieveNetworkInterfaces()
 
     //Remove eth0 and wlan0, since the backup system will already include them by default
     //anything remaining is a extra interface
-    if (array_key_exists('interface.eth0', $network_interfaces)) {
+    if (is_array($network_interfaces) && array_key_exists('interface.eth0', $network_interfaces)) {
         unset($network_interfaces['interface.eth0']);
     }
-    if (array_key_exists('interface.wlan0', $network_interfaces)) {
+    if (is_array($network_interfaces) && array_key_exists('interface.wlan0', $network_interfaces)) {
         unset($network_interfaces['interface.wlan0']);
     }
 
@@ -3604,14 +3620,14 @@ foreach ($backup_errors as $backup_error) {
 foreach ($settings_restored as $area_restored => $success) {
             $success_str = "";
             if (is_array($success)) {
-                $success_area_data = false;
+//                $success_area_data = false;
                 $success_messages = "";
 
                 //If the ATTEMPT and SUCCESS keys don't exist in the array, then try to process the internals which will be a sub areas and possibly have them.
                 if (!array_key_exists('ATTEMPT', $success) && !array_key_exists('SUCCESS', $success) && !empty($success)) {
                     //process internal array for areas with sub areas
                     foreach ($success as $success_area_idx => $success_area_data) {
-                        if (array_key_exists('ATTEMPT', $success_area_data) && array_key_exists('SUCCESS', $success_area_data)) {
+                        if (is_array($success_area_data) && array_key_exists('ATTEMPT', $success_area_data) && array_key_exists('SUCCESS', $success_area_data)) {
                             $success_area_attempt = $success_area_data['ATTEMPT'];
                             $success_area_success = $success_area_data['SUCCESS'];
 
@@ -3631,10 +3647,10 @@ foreach ($settings_restored as $area_restored => $success) {
 
                     if ($success_area_attempt == true && $success_area_success == true) {
                         $success_str = "Success";
-						$success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "<br/>";
+						$success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
 					} else {
                         $success_str = "Failed";
-						$success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "<br/>";
+						$success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
 					}
 
                 } // No Attempt key, then we shouldn't print the success
@@ -3647,10 +3663,10 @@ foreach ($settings_restored as $area_restored => $success) {
                 //normal area
                 if ($success == true) {
                     $success_str = "Success";
-					$success_messages = "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "<br/>";
+					$success_messages = "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
 				} else {
                     $success_str = "Failed";
-					$success_messages = "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "<br/>";
+					$success_messages = "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
 
 				}
                 echo $success_messages;
@@ -3663,7 +3679,7 @@ foreach ($settings_restored as $area_restored => $success) {
                 if (!empty($network_ip_address)) {
                     echo ucwords(str_replace("_", " ", $idx)) . " - Network Settings" . "<br/>";
                     //If there is a SSID, print it also
-                    if (array_key_exists('SSID', $network_ip_address)) {
+                    if (is_array($network_ip_address) && array_key_exists('SSID', $network_ip_address)) {
                         echo "SSID: " . ($network_ip_address['SSID']) . "<br/>";
                     }
                     //Print out details for static addresses
