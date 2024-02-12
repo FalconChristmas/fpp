@@ -42,7 +42,6 @@ void sigTermHandler(int sig) {
 }
 
 int main(int argc, char* argv[]) {
-    PinCapabilities::InitGPIO("FPPOLED", new PLAT_GPIO_CLASS());
     printf("FPP OLED Status Display Driver\n");
     int lt = getRawSettingInt("LEDDisplayType", 7);
     if (!OLEDPage::InitializeDisplay(lt)) {
@@ -57,6 +56,9 @@ int main(int argc, char* argv[]) {
         ++count;
         capeDetectionDone = FileExists("/home/fpp/media/tmp/cape_detect_done");
     }
+
+    // wait until after cape detection so gpio expanders are registered and available
+    PinCapabilities::InitGPIO("FPPOLED", new PLAT_GPIO_CLASS());
     LoadSettings(argv[0]);
     int ledType = getSettingInt("LEDDisplayType");
     printf("    Led Type: %d\n", ledType);

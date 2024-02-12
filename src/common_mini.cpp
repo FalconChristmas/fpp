@@ -673,6 +673,10 @@ std::map<std::string, std::string> loadSettingsFile(const std::string& filename)
             std::string value = line.substr(idx + 1);
             TrimWhiteSpace(key);
             TrimWhiteSpace(value);
+            if (!value.empty() && value[0] == '"') {
+                value = value.substr(1);
+                value = value.substr(0, value.size() - 1);
+            }
             ret[key] = value;
         }
     }
