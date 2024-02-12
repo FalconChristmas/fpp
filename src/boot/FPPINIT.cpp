@@ -706,7 +706,7 @@ static void handleBootDelay() {
     } else if (i == -1) {
         const auto processor_count = std::thread::hardware_concurrency();
         if (processor_count > 2) {
-            //super fast Pi, we need a minimal delay for devices to be found
+            // super fast Pi, we need a minimal delay for devices to be found
             std::this_thread::sleep_for(std::chrono::seconds(5));
         }
 
@@ -1095,7 +1095,6 @@ int main(int argc, char* argv[]) {
         cleanupChromiumFiles();
         setupAudio();
         waitForInterfacesUp(); // call to flite requires audio, so do audio before this
-        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
         if (!FileExists("/etc/fpp/desktop")) {
             maybeEnableTethering();
             detectNetworkModules();
