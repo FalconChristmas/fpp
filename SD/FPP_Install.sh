@@ -741,6 +741,7 @@ case "${FPPPLATFORM}" in
             echo "bcm2835_codec" >> /etc/modules-load.d/modules.conf
             echo "snd_usb_audio" >> /etc/modules-load.d/modules.conf
 
+            echo "[ALL]">> ${BOOTDIR}/config.txt
             echo "FPP - Enabling SPI in device tree"
             echo >> ${BOOTDIR}/config.txt
             echo "# Enable SPI in device tree" >> ${BOOTDIR}/config.txt

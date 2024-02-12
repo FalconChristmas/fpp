@@ -2,7 +2,7 @@
 Description=Inialization routines for FPP
 DefaultDependencies=no
 Before=fpprtc.service fpp_postnetwork.service systemd-networkd.service networking.service networking.target
-After=home-fpp-media.mount tmp.mount
+After=home-fpp-media.mount tmp.mount haveged.service
 Wants=home-fpp-media.mount tmp.mount systemd-networkd.service networking.target
 
 [Service]
