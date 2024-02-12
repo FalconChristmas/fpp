@@ -394,7 +394,7 @@ case "${OSVER}" in
             python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
             gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv iwd"
         if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
-            PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer"
+            PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer mender-client"
         fi
         if $desktop; then
             #don't remove anything from a desktop
@@ -701,6 +701,7 @@ case "${FPPPLATFORM}" in
         rm -f  /etc/modules-load.d/network.conf
 
         systemctl disable keyboard-setup
+        systemctl disable unattended-upgrades
 		;;
 
 	'Raspberry Pi')
@@ -1304,6 +1305,10 @@ sed -i '$s/$/\npool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer
 if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     #######################################
     systemctl disable dev-hugepages.mount
+    
+    # CPU frequency scaling is disabled in our kernel, no need for the service to run
+    systemctl disable cpufrequtils
+    systemctl disable loadcpufreq.service
     
     if [ ! -f "/opt/source/bb.org-overlays/Makefile" ]; then
         mkdir -p /opt/source
