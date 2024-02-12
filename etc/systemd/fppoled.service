@@ -1,12 +1,14 @@
 [Unit]
 Description=FPP OLED Status Display
 Documentation=https://falconchristmas.com/forum/
-After=fppinit.service
-Wants=fppinit.service
+DefaultDependencies=no
+Before=fpp_postnetwork.service systemd-networkd.service networking.service networking.target
+After=home-fpp-media.mount tmp.mount
+Wants=home-fpp-media.mount tmp.mount systemd-networkd.service networking.target
 
 [Service]
 ExecStart=/opt/fpp/src/fppoled
 Type=simple
 
 [Install]
-WantedBy=default.target
+WantedBy=sysinit.target

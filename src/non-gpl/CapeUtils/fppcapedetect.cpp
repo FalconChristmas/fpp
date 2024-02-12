@@ -58,10 +58,12 @@ int main(int argc, char* argv[]) {
     remove_recursive("/home/fpp/media/tmp/", false);
     try {
         CapeUtils::INSTANCE.initCape(false);
-        struct passwd* pwd = getpwnam("fpp");
-        if (pwd) {
-            for (const auto& entry : std::filesystem::directory_iterator("/home/fpp/media/tmp/")) {
-                chown(entry.path().c_str(), pwd->pw_uid, pwd->pw_gid);
+        if (argc > 1 && strcmp(argv[1], "-no-set-permissions") != 0) {
+            struct passwd* pwd = getpwnam("fpp");
+            if (pwd) {
+                for (const auto& entry : std::filesystem::directory_iterator("/home/fpp/media/tmp/")) {
+                    chown(entry.path().c_str(), pwd->pw_uid, pwd->pw_gid);
+                }
             }
         }
     } catch (std::exception& e) {

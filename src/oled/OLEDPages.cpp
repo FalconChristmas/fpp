@@ -58,6 +58,14 @@ void OLEDPage::SetOLEDType(OLEDType tp) {
     oledType = tp;
 }
 
+void OLEDPage::displayBootingNotice() {
+    if (displayDriver) {
+        displayDriver->clearDisplay();
+        displayDriver->printString(0, 0, "FPP Booting...", true);
+        displayDriver->flushDisplay();
+    }
+}
+
 void OLEDPage::flushDisplay() {
     if (displayDriver) {
         displayDriver->flushDisplay();
@@ -404,7 +412,7 @@ void MenuOLEDPage::display() {
     flushDisplay();
 }
 bool MenuOLEDPage::doAction(const std::string& action) {
-    //printf("In menu action %s\n", action.c_str());
+    // printf("In menu action %s\n", action.c_str());
     if (action == "Down" || action == "Test/Down") {
         curSelected++;
         if (curSelected >= items.size()) {

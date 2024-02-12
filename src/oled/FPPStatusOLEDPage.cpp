@@ -277,7 +277,7 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
             }
         }
     } else {
-        if (count < 40) {
+        if (count < 60) {
             printString(0, startY, "FPP Booting...");
         } else {
             printString(0, startY, "No Network");

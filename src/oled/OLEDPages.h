@@ -62,6 +62,7 @@ public:
     static void displayOff();
 
     static int getMinimumRefresh();
+    static void displayBootingNotice();
 
 protected:
     static OLEDType oledType;
@@ -98,8 +99,8 @@ public:
     virtual void ItemSelected(const std::string& item);
 
     virtual void display() override;
-protected:
 
+protected:
     std::string msg1;
     std::string msg2;
     std::vector<std::string> items;
@@ -116,6 +117,7 @@ public:
     virtual bool doAction(const std::string& action) override;
 
     virtual void display() override;
+
 protected:
     virtual void displayScrollArrows(int startY);
 
@@ -138,6 +140,7 @@ public:
     virtual void itemSelected(const std::string& item);
 
     virtual void display() override;
+
 protected:
     int curSelected;
     std::function<void(const std::string&)> itemSelectedCallback;

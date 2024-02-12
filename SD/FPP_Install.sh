@@ -49,7 +49,7 @@
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="2024-02"
-FPPCFGVER="83"
+FPPCFGVER="84"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -1403,7 +1403,7 @@ if $isimage; then
     # Make sure the journal is large enough to store the full boot logs
     # but not get too large which starts slowing down journalling (and thus boot)
     if [ -f /etc/systemd/journald.conf ]; then
-        sed -i -e "s/^.*SystemMaxUse.*/SystemMaxUse=64M/g" /etc/systemd/journald.conf
+        sed -i -e "s/^.*SystemMaxUse.*/SystemMaxUse=96M/g" /etc/systemd/journald.conf
     fi
     
     rm -f /etc/systemd/network/*eth*

@@ -16,21 +16,36 @@
 #include <sys/wait.h>
 #include <array>
 #include <dirent.h>
-#include <filesystem>
-#include <iomanip>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <string>
-#include <thread>
 #include <unistd.h>
 
+#include <filesystem>
+#include <iomanip>
+#include <string>
+#include <thread>
+
 #include "common_mini.h"
-#include "non-gpl/CapeUtils/CapeUtils.h"
+#include <arpa/inet.h>
+#include <ifaddrs.h>
 
 static const std::string FPP_MEDIA_DIR = "/home/fpp/media";
+
+void teeOutput(const std::string& log) {
+    std::string cmd = "tee -a ";
+    cmd += log;
+    mkdir("/home/fpp/media/", 0775);
+    mkdir("/home/fpp/media/log", 0775);
+
+    FILE* f = popen(cmd.c_str(), "w");
+    if (dup2(fileno(f), STDOUT_FILENO) < 0) {
+        printf("Couldn't redirect output to log file\n");
+    }
+    setvbuf(stdout, NULL, _IOLBF, 0);
+}
 
 int remove_recursive(const char* const path, bool removeThis = true) {
     DIR* const directory = opendir(path);
@@ -64,13 +79,6 @@ int remove_recursive(const char* const path, bool removeThis = true) {
     return 0;
 }
 
-static void DetectCape() {
-#ifdef CAPEDETECT
-    remove_recursive("/home/fpp/media/tmp/", false);
-    CapeUtils::INSTANCE.initCape(false);
-#endif
-}
-
 static void exec(const std::string& cmd) {
     std::array<char, 128> buffer;
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
@@ -80,6 +88,9 @@ static void exec(const std::string& cmd) {
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
         printf(buffer.data());
     }
+}
+static void execbg(const std::string& cmd) {
+    system(cmd.c_str());
 }
 static std::string execAndReturn(const std::string& cmd) {
     std::array<char, 128> buffer;
@@ -94,6 +105,13 @@ static std::string execAndReturn(const std::string& cmd) {
     return ret;
 }
 
+static void DetectCape() {
+#ifdef CAPEDETECT
+    remove_recursive("/home/fpp/media/tmp/", false);
+    exec("/opt/fpp/src/fppcapedetect -no-set-permissions");
+#endif
+    PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
+}
 static void modprobe(const char* mod) {
     std::string cmd = std::string("/usr/sbin/modprobe ") + mod;
     exec(cmd);
@@ -319,8 +337,8 @@ static std::string FindTetherWIFIAdapater() {
         for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net/")) {
             std::string dev = entry.path().filename();
             if (startsWith(dev, "wl")) {
-                std::string output = execAndReturn("iwconfig " + dev);
-                if (contains(output, "Not-Associated")) {
+                std::string output = execAndReturn("iw " + dev + " link");
+                if (contains(output, "Not connected")) {
                     return dev;
                 }
             }
@@ -665,26 +683,402 @@ static void checkUnpartitionedSpace() {
         }
     }
 }
+static void setupTimezone() {
+    std::string s;
+    getRawSetting("TimeZone", s);
+    TrimWhiteSpace(s);
+    if (!s.empty()) {
+        std::string c = GetFileContents("/etc/timezone");
+        TrimWhiteSpace(c);
+        if (c != s) {
+            printf("Resetting timezone from %s to %s\n", c.c_str(), s.c_str());
+            exec("/usr/bin/timedatectl set-timezone " + s);
+            exec("/usr/sbin/dpkg-reconfigure -f noninteractive tzdata");
+        }
+    }
+}
+
+static void handleBootDelay() {
+    int i = getRawSettingInt("bootDelay", -99);
+    if (i == -99) {
+        const auto processor_count = std::thread::hardware_concurrency();
+        if (processor_count > 2) {
+            i = 5;
+        } else {
+            i = 0;
+        }
+    }
+
+    if (i > 0) {
+        printf("FPP - Sleeping for %s seconds\n", i);
+        std::this_thread::sleep_for(std::chrono::seconds(i));
+    } else if (i == -1) {
+        struct stat attr;
+        stat("/etc/fpp/rfs_version", &attr);
+        struct tm tmFile, tmNow;
+        localtime_r(&(attr.st_ctime), &tmFile);
+        time_t t = time(nullptr);
+        localtime_r(&(attr.st_ctime), &tmNow);
+
+        time_t t1 = mktime(&tmFile);
+        time_t t2 = mktime(&tmNow);
+        double diffSecs = difftime(t1, t2);
+        if (diffSecs > 0) {
+            char buffer[26];
+            strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", &tmFile);
+            printf("FPP - FPP - Waiting until system date is at least %s or 15s\n", buffer);
+        }
+        int count = 0;
+        while (diffSecs > 0 && count < 150) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            t = time(nullptr);
+            localtime_r(&(attr.st_ctime), &tmNow);
+            t2 = mktime(&tmNow);
+            count++;
+        }
+    }
+}
+void cleanupChromiumFiles() {
+    exec("rm -rf /home/fpp/.config/chromium/Singleton* 2>/dev/null > /dev/null");
+}
+
+static void waitForInterfacesUp() {
+    bool found = false;
+    int count = 0;
+    std::string announce;
+    do {
+        announce = "I Have Found The Following I P Addresses";
+        struct ifaddrs* ifAddrStruct = NULL;
+        struct ifaddrs* ifa = NULL;
+        void* tmpAddrPtr = NULL;
+        getifaddrs(&ifAddrStruct);
+        for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+            if (!ifa->ifa_addr) {
+                continue;
+            }
+            std::string nm = ifa->ifa_name;
+            if (startsWith(nm, "usb") || startsWith(nm, "lo")) {
+                continue;
+            }
+            if (ifa->ifa_addr->sa_family == AF_INET) { // check it is IP4
+                // is a valid IP4 Address
+                tmpAddrPtr = &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr;
+                char addressBuffer[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+                printf("FPP - Found %s IP Address %s\n", ifa->ifa_name, addressBuffer);
+                std::string addr = addressBuffer;
+                if (!contains(addr, "192.168.6.2") && !contains(addr, "192.168.7.2") && !contains(addr, "192.168.8.1")) {
+                    announce += ", " + std::string(addressBuffer);
+                    found = true;
+                }
+            }
+        }
+        if (ifAddrStruct != NULL) {
+            freeifaddrs(ifAddrStruct);
+        }
+        if (!found) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            ++count;
+        }
+    } while (!found && (count < 100));
+    if (!found) {
+        printf("FPP - Could not get a valid IP address\n");
+    } else {
+        printf("FPP - Waited for %d seconds for IP address\n", (count / 5));
+        if (!getRawSettingInt("disableIPAnnouncement", 0) && FileExists("/usr/bin/flite")) {
+            execbg("/usr/bin/flite -voice awb -t \"" + announce + "\" &");
+        }
+    }
+}
+static void disableWLANPowerManagement() {
+    struct ifaddrs* ifAddrStruct = NULL;
+    struct ifaddrs* ifa = NULL;
+    void* tmpAddrPtr = NULL;
+    getifaddrs(&ifAddrStruct);
+    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr) {
+            continue;
+        }
+        std::string nm = ifa->ifa_name;
+        if (startsWith(nm, "wl")) {
+            printf("FPP - Disabling power saving for %s\n", nm.c_str());
+            exec("iw dev " + nm + " set power_save off 2>/dev/null > /dev/null");
+        }
+    }
+}
+
+static void maybeEnableTethering() {
+    int te = getRawSettingInt("EnableTethering", 0);
+    if (te == 0) {
+        bool found = false;
+        struct ifaddrs* ifAddrStruct = NULL;
+        struct ifaddrs* ifa = NULL;
+        void* tmpAddrPtr = NULL;
+        getifaddrs(&ifAddrStruct);
+        for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+            if (!ifa->ifa_addr) {
+                continue;
+            }
+            std::string nm = ifa->ifa_name;
+            if (startsWith(nm, "usb") || startsWith(nm, "lo")) {
+                continue;
+            }
+            if (ifa->ifa_addr->sa_family == AF_INET) { // check it is IP4
+                // is a valid IP4 Address
+                tmpAddrPtr = &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr;
+                char addressBuffer[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+                std::string addr = addressBuffer;
+                if (!contains(addr, "192.168.6.2") && !contains(addr, "192.168.7.2") && !contains(addr, "192.168.8.1")) {
+                    found = true;
+                }
+            }
+        }
+        if (ifAddrStruct != NULL) {
+            freeifaddrs(ifAddrStruct);
+        }
+        if (!found) {
+            // did not find an ip address
+            te = 1;
+        }
+    }
+    std::string tetherInterface = FindTetherWIFIAdapater();
+    if (te == 1) {
+        if (!FileExists("/sys/class/net/" + tetherInterface)) {
+            printf("No interface for tethering.\n");
+            te = 2;
+        }
+    }
+    if (te == 1) {
+        std::string c = CreateHostAPDConfig(tetherInterface);
+        PutFileContents("/etc/hostapd/hostapd.conf", c);
+        std::string content = "[Match]\nName=";
+        content.append(tetherInterface).append("\nType=wlan\n\n"
+                                               "[Network]\n"
+                                               "DHCP=no\n"
+                                               "Address=192.168.8.1/24\n"
+                                               "DHCPServer=yes\n\n");
+
+        content.append("[DHCPServer]\n"
+                       "PoolOffset=10\n"
+                       "PoolSize=100\n"
+                       "EmitDNS=no\n\n");
+        PutFileContents("/etc/systemd/network/10-" + tetherInterface + ".network", content);
+        exec("systemctl reload-or-restart systemd-networkd.service");
+        exec("systemctl reload-or-restart hostapd.service");
+    }
+}
+static void detectNetworkModules() {
+    std::string content;
+    for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net/")) {
+        const std::string filename = entry.path().filename();
+        std::string modName = "/sys/class/net/" + filename + "/device/driver/module";
+        if (FileExists(modName)) {
+            char buf[256];
+            readlink(modName.c_str(), buf, sizeof(buf));
+            std::string mod = buf;
+            mod = mod.substr(mod.rfind("/") + 1);
+            content += mod;
+            content += "\n";
+        }
+    }
+    if (!content.empty()) {
+        PutFileContents("/etc/modules-load.d/fpp-network.conf", content);
+    }
+}
+
+static void setupAudio() {
+    if (!FileExists("/root/.libao")) {
+        PutFileContents("/root/.libao", "dev=default");
+    }
+    std::string aplay = execAndReturn("aplay -l 2>&1");
+    if (contains(aplay, "no soundcards")) {
+        printf("FPP - No Soundcard Detected, loading snd-dummy\n");
+        modprobe("snd-dummy");
+    }
+    int card = getRawSettingInt("AudioOutput", 0);
+    int count = 0;
+    bool found = false;
+    do {
+        std::string amixer = execAndReturn("amixer -c " + std::to_string(card) + " cset numid=3 1  2>&1");
+        if (contains(amixer, "Invalid ")) {
+            ++count;
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        } else {
+            found = true;
+        }
+    } while (!found && count < 50);
+    if (!found) {
+        printf("FPP - Could not find audio device %d, defaulting to device 0.\n", card);
+        CopyFileContents("/opt/fpp/etc/asoundrc.plain", "/root/.asoundrc");
+        setRawSetting("AudioOutput", "0");
+    } else {
+        printf("FPP - Waited for %d seconds for audio device\n", (count / 5));
+    }
+    int v = getRawSettingInt("volume", -1);
+    if (v == -1) {
+        setRawSetting("volume", "70");
+        v = 70;
+    }
+    std::string origAudio0CardType;
+    getRawSetting("AudioCard0Type", origAudio0CardType);
+    std::string audioCardType = "unknown";
+    std::string aplayl = execAndReturn("aplay -l | grep 'card " + std::to_string(card) + "'");
+#ifdef PLATFORM_PI
+    // Pi needs a volume adjustment, in reality a lot of sound cards do, but we
+    // don't want to put in a lot of special cases here so only handle the Pi
+    if (card == 0) {
+        if (contains(aplayl, "[bcm2")) {
+            v = (v / 2) + 50;
+            audioCardType = "bcm2";
+        }
+    }
+#endif
+    if (audioCardType != origAudio0CardType) {
+        setRawSetting("AudioCard0Type", audioCardType);
+    }
+    std::string cardType = aplayl.substr(aplayl.find("[") + 1);
+    cardType = cardType.substr(0, cardType.find("]"));
+    printf("FPP - Found sound card of type %s\n", cardType.c_str());
+    std::string asoundrc;
+    if (FileExists("/home/fpp/media/tmp/asoundrc")) {
+        if (contains(cardType, "pcm510")) {
+            printf("FPP - Using Cape Provided asoundrc\n");
+            asoundrc = GetFileContents("/home/fpp/media/tmp/asoundrc");
+        } else {
+            asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.dmix");
+        }
+    } else {
+        if (contains(cardType, "bcm2")) {
+            asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.plain");
+        } else {
+            asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.dmix");
+        }
+    }
+    for (int x = 0; x < 10; x++) {
+        if (x != card) {
+            replaceAll(asoundrc, "card " + std::to_string(x), "card " + std::to_string(card));
+        }
+    }
+    int rate = getRawSettingInt("AudioFormat", 0);
+    switch (rate) {
+    case 1:
+    case 2:
+    case 3:
+        // replaceAll(asoundrc, "rate 44100", "rate 44100");
+        break;
+    case 4:
+    case 5:
+    case 6:
+        replaceAll(asoundrc, "rate 44100", "rate 48000");
+        break;
+    case 7:
+    case 8:
+    case 9:
+        replaceAll(asoundrc, "rate 44100", "rate 96000");
+        break;
+    default:
+        break;
+    }
+    PutFileContents("/root/.asoundrc", asoundrc);
+    std::string mixers = execAndReturn("amixer -c " + std::to_string(card) + " scontrols | head -1 | cut -f2 -d\"'\"");
+    if (mixers.empty()) {
+        // for some sound cards, the mixer devices won't show up
+        // until something is played.  Play one second of silence
+        exec("aplay -d 1 /opt/fpp/media/silence_5sec.wav >> /dev/null 2>&1  &");
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        mixers = execAndReturn("amixer -c " + std::to_string(card) + " scontrols | head -1 | cut -f2 -d\"'\"");
+    }
+    TrimWhiteSpace(mixers);
+    std::string mixer;
+    getRawSetting("AudioMixerDevice", mixer);
+    std::string origMixer = mixer;
+    if (mixer.empty() || !contains(mixers, mixer)) {
+        mixer = mixers;
+        if (mixer.find("\n") != std::string::npos) {
+            mixer = mixer.substr(0, mixer.find("\n"));
+        }
+    }
+    if (mixer != origMixer) {
+        printf("FPP - Setting mixer device to %s\n", mixer.c_str());
+        setRawSetting("AudioMixerDevice", mixer);
+    }
+    exec("amixer -c " + std::to_string(card) + " set " + mixer + " " + std::to_string(v) + "% > /dev/null 2>&1");
+    setRawSetting("AudioCardType", cardType);
+}
+void detectFalconHardware() {
+#ifdef PLATFORM_PI
+    printf("FPP - Checking for Falcon hardware on SPI port\n");
+    int fnd = system("/opt/fpp/src/fppd -H");
+    setRawSetting("FalconHardwareDetected", fnd ? "1" : "0");
+#endif
+}
+void setupKiosk() {
+    int km = getRawSettingInt("Kiosk", 0);
+    if (km) {
+        std::string url = "http://localhost/";
+        getRawSetting("KioskUrl", url);
+        std::string value = "{\"RestoreOnStartup\": 4,\"RestoreOnStartupURLs\": [\"" + url + "\"]}";
+        PutFileContents("/etc/chromium/policies/managed/policy.json", value);
+    }
+    if (FileExists("/fpp_kiosk")) {
+        unlink("/fpp_kiosk");
+        if (!FileExists("/etc/fpp/kiosk")) {
+            // need to re-install kiosk mode
+            exec("/opt/fpp/SD/FPP_Kiosk.sh");
+            if (FileExists("/etc/fpp/kiosk")) {
+                exec("reboot");
+            }
+        }
+    }
+}
+
+static void setupChannelOutputs() {
+#ifdef PLATFORM_PI
+    exec("/opt/fpp/scripts/runFunction setupChannelOutputs");
+#endif
+}
 
 int main(int argc, char* argv[]) {
     std::string action = "start";
     if (argc > 1) {
         action = argv[1];
     }
+    FILE* f = fopen((FPP_MEDIA_DIR + "/logs/fpp_init.log").c_str(), "a+");
+    int sleepCount = 0;
+    while (!f && sleepCount < 30) {
+        printf("Could not open log\n");
+        sleepCount++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        f = fopen((FPP_MEDIA_DIR + "/logs/fpp_init.log").c_str(), "a+");
+    }
+    if (f) {
+        fclose(f);
+        if (action == "start") {
+            teeOutput(FPP_MEDIA_DIR + "/logs/fpp_init.log");
+        } else if (action == "postNetwork") {
+            teeOutput(FPP_MEDIA_DIR + "/logs/fpp_boot.log");
+        }
+    } else {
+        printf("Could not too output to log.  Directory might not be writable or maybe full.\n");
+    }
     printf("------------------------------\nRunning FPPINIT %s\n", action.c_str());
     if (action == "start") {
         createDirectories();
+        printf("FPP - Directories created\n");
+        checkSSHKeys();
+        handleBootPartition();
+        checkHostName();
+        checkFSTAB();
+        setupApache();
+        setupTimezone();
+        printf("FPP - Checking for Cape/Hat\n");
         DetectCape();
         int reboot = getRawSettingInt("rebootFlag", 0);
         if (reboot) {
             printf("FPP - Clearing reboot flags\n");
             setRawSetting("rebootFlag", "0");
         }
-        checkSSHKeys();
-        handleBootPartition();
-        checkHostName();
-        checkFSTAB();
-        setupApache();
         handleBootActions();
         runScripts("boot", true);
         int skipNetwork = FileExists("/etc/fpp/desktop") || getRawSettingInt("SkipNetworkReset", 0);
@@ -693,15 +1087,35 @@ int main(int argc, char* argv[]) {
         }
         configureBBB();
         configureScreenBlanking();
-#ifdef PLATFORM_PI
-        exec("/opt/fpp/scripts/runFunction setupChannelOutputs");
-#endif
+        setupChannelOutputs();
         checkUnpartitionedSpace();
+        printf("Setting file owndership\n");
         setFileOwnership();
     } else if (action == "postNetwork") {
-        // for now...
-        exec("/opt/fpp/scripts/fpp_boot");
+        handleBootDelay();
+        cleanupChromiumFiles();
+        setupAudio();
+        waitForInterfacesUp(); // call to flite requires audio, so do audio before this
+        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+        if (!FileExists("/etc/fpp/desktop")) {
+            maybeEnableTethering();
+            detectNetworkModules();
+        }
+        detectFalconHardware();
+        setupKiosk();
         setFileOwnership();
+    } else if (action == "bootPre") {
+        int restart = getRawSettingInt("restartFlag", 0);
+        if (restart) {
+            printf("FPP - Clearing restart flags\n");
+            setRawSetting("restartFlag", "0");
+        }
+        setupChannelOutputs();
+        runScripts("preStart", true);
+        configureScreenBlanking();
+    } else if (action == "bootPost") {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        runScripts("postStart", false);
     } else if (action == "runPreStartScripts") {
         runScripts("preStart", true);
     } else if (action == "runPostStartScripts") {
