@@ -699,20 +699,17 @@ static void setupTimezone() {
 }
 
 static void handleBootDelay() {
-    int i = getRawSettingInt("bootDelay", -99);
-    if (i == -99) {
-        const auto processor_count = std::thread::hardware_concurrency();
-        if (processor_count > 2) {
-            i = 5;
-        } else {
-            i = 0;
-        }
-    }
-
+    int i = getRawSettingInt("bootDelay", -1);
     if (i > 0) {
-        printf("FPP - Sleeping for %s seconds\n", i);
+        printf("FPP - Sleeping for %d seconds\n", i);
         std::this_thread::sleep_for(std::chrono::seconds(i));
     } else if (i == -1) {
+        const auto processor_count = std::thread::hardware_concurrency();
+        if (processor_count > 2) {
+            //super fast Pi, we need a minimal delay for devices to be found
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+        }
+
         struct stat attr;
         stat("/etc/fpp/rfs_version", &attr);
         struct tm tmFile, tmNow;
@@ -728,12 +725,14 @@ static void handleBootDelay() {
             strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", &tmFile);
             printf("FPP - FPP - Waiting until system date is at least %s or 15s\n", buffer);
         }
+
         int count = 0;
         while (diffSecs > 0 && count < 150) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             t = time(nullptr);
             localtime_r(&(attr.st_ctime), &tmNow);
             t2 = mktime(&tmNow);
+            diffSecs = difftime(t1, t2);
             count++;
         }
     }
