@@ -803,6 +803,8 @@ case "${FPPPLATFORM}" in
             echo "[pi2]" >> ${BOOTDIR}/config.txt
             echo "gpu_mem=64" >> ${BOOTDIR}/config.txt
             echo "" >> /config.txt
+            echo "[all]" >> /config.txt
+            echo "" >> /config.txt
 
             echo "FPP - Freeing up more space by removing unnecessary packages"
             apt-get -y purge wolfram-engine sonic-pi minecraft-pi firmware-iwlwifi libglusterfs0 mesa-va-drivers mesa-vdpau-drivers mesa-vulkan-drivers mkvtoolnix ncurses-term poppler-data va-driver-all librados2 libcephfs2
