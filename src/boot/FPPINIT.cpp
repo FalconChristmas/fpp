@@ -188,7 +188,7 @@ static void checkHostName() {
                 hosts += hn;
             }
             PutFileContents("/etc/hosts", hosts);
-            exec("systemctl restart avahi-daemon");
+            execbg("systemctl restart avahi-daemon &");
         }
     }
 }
@@ -513,21 +513,21 @@ static void setupNetwork() {
                     addressLines.append("Address=192.168.8.1/24\n");
                 } else if (!interfaceSettings["SSID"].empty()) {
                     std::string wpa = "ctrl_interface=/var/run/wpa_supplicant\nctrl_interface_group=0\nupdate_config=1\ncountry=";
-                    wpa.append(WifiRegulatoryDomain).append("\n\nnetwork={\n  ssid=").append(interfaceSettings["SSID"]);
+                    wpa.append(WifiRegulatoryDomain).append("\n\nnetwork={\n  ssid=\"").append(interfaceSettings["SSID"]);
                     if (!interfaceSettings["PSK"].empty()) {
-                        wpa.append("\n  psk=").append(interfaceSettings["PSK"]);
+                        wpa.append("\"\n  psk=\"").append(interfaceSettings["PSK"]);
                     }
-                    wpa.append("\n  key_mgmt=WPA-PSK\n  scan_ssid=1\n  priority=100\n}\n\n");
+                    wpa.append("\"\n  key_mgmt=WPA-PSK\n  scan_ssid=1\n  priority=100\n}\n\n");
                     if (!interfaceSettings["BACKUPSSID"].empty() && interfaceSettings["BACKUPSSID"] != "\"\"") {
-                        wpa.append("\nnetwork={\n  ssid=").append(interfaceSettings["BACKUPSSID"]);
+                        wpa.append("\nnetwork={\n  ssid=\"").append(interfaceSettings["BACKUPSSID"]);
                         if (!interfaceSettings["BACKUPPSK"].empty()) {
-                            wpa.append("\n  psk=").append(interfaceSettings["BACKUPPSK"]);
+                            wpa.append("\"\n  psk=\"").append(interfaceSettings["BACKUPPSK"]);
                         }
-                        wpa.append("\n  key_mgmt=WPA-PSK\n  scan_ssid=1\n  priority=100\n}\n\n");
+                        wpa.append("\"\n  key_mgmt=WPA-PSK\n  scan_ssid=1\n  priority=100\n}\n\n");
                     }
                     filesNeeded["/etc/wpa_supplicant/wpa_supplicant-" + interface + ".conf"] = wpa;
-                    commandsToRun.emplace_back("systemctl enable \"wpa_supplicant@" + interface + ".service\"");
-                    commandsToRun.emplace_back("systemctl reload-or-restart \"wpa_supplicant@" + interface + ".service\"");
+                    commandsToRun.emplace_back("systemctl enable \"wpa_supplicant@" + interface + ".service\" &");
+                    commandsToRun.emplace_back("systemctl reload-or-restart \"wpa_supplicant@" + interface + ".service\" &");
                 }
             }
             if (DHCPSERVER) {
@@ -599,7 +599,7 @@ static void setupNetwork() {
             if (startsWith(ftc, "/etc/wpa_supplicant/")) {
                 std::string intf = ftc.substr(ftc.find("-") + 1);
                 intf = intf.substr(0, intf.find("."));
-                exec("systemctl disable wpa_supplicant@" + intf + ".service");
+                execbg("systemctl disable wpa_supplicant@" + intf + ".service &");
             }
         }
     }
@@ -609,15 +609,15 @@ static void setupNetwork() {
         for (auto& c : commandsToRun) {
             exec(c);
         }
-        exec("systemctl reload-or-restart systemd-networkd.service");
+        execbg("systemctl reload-or-restart systemd-networkd.service &");
         if (hostapd) {
-            exec("systemctl reload-or-restart hostapd.service");
+            execbg("systemctl reload-or-restart hostapd.service &");
         } else {
             if (contains(execAndReturn("systemctl is-enabled hostapd"), "enabled")) {
-                exec("systemctl disable hostapd.service");
+                execbg("systemctl disable hostapd.service &");
             }
             if (!contains(execAndReturn("systemctl is-active hostapd"), "inactive")) {
-                exec("systemctl stop hostapd.service");
+                execbg("systemctl stop hostapd.service &");
             }
         }
     }
@@ -883,6 +883,7 @@ static void detectNetworkModules() {
     }
     if (!content.empty()) {
         PutFileContents("/etc/modules-load.d/fpp-network.conf", content);
+        // PutFileContents("/home/fpp/media/config/fpp-network-modules.conf", content);
     }
 }
 
