@@ -8,9 +8,9 @@ Wants=home-fpp-media.mount tmp.mount systemd-networkd.service networking.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStartPre=-mkdir -p /home/fpp/media/logs
+ExecStartPre=-/bin/sh -c "mkdir -p /home/fpp/media/logs"
 ExecStart=/opt/fpp/src/fppinit start
-ExecStop=-rm -rf /home/fpp/media/tmp/*
+ExecStop=-/bin/sh -c "rm -rf /home/fpp/media/tmp/*"
 
 [Install]
 WantedBy=sysinit.target
