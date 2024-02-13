@@ -242,6 +242,12 @@
                 "tableColorPair4B"
             ]
         },
+        "wifiDomainGroup": {
+            "description": "WIFI Domain",
+            "settings": [
+                "WifiRegulatoryDomain"
+            ]
+        },
         "wifiDriversGroup": {
             "description": "WIFI Drivers/Domain",
             "settings": [
