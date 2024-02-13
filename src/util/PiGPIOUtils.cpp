@@ -14,6 +14,7 @@
 
 #include <fcntl.h>
 
+#include "common_mini.h"
 #include "PiFaceUtils.h"
 #include "PiGPIOUtils.h"
 #include "bcm2835.h"
