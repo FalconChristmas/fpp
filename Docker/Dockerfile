@@ -41,7 +41,7 @@ RUN cp /opt/fpp/etc/asoundrc.plain /root/.asoundrc
 
 # this will do additional updates and create the required directories
 # and set permissions
-RUN /opt/fpp/scripts/init_pre_network
+RUN /opt/fpp/src/fppinit start
 
 VOLUME /home/fpp/media
 

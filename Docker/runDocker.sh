@@ -3,7 +3,7 @@ if [ ! -f /opt/fpp/src/fpp ]; then
     cd /opt/fpp/src
     make -j 4
 fi
-/opt/fpp/scripts/init_pre_network
+/opt/fpp/src/fppinit start
 /opt/fpp/scripts/fppd_start
 
 mkdir /run/php

@@ -105,10 +105,13 @@ static std::string execAndReturn(const std::string& cmd) {
 }
 
 static void DetectCape() {
+    if (!FileExists("/.dockerenv")) {
 #ifdef CAPEDETECT
-    remove_recursive("/home/fpp/media/tmp/", false);
-    exec("/opt/fpp/src/fppcapedetect -no-set-permissions");
+        printf("FPP - Checking for Cape/Hat\n");
+        remove_recursive("/home/fpp/media/tmp/", false);
+        exec("/opt/fpp/src/fppcapedetect -no-set-permissions");
 #endif
+    }
     PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
 }
 static void modprobe(const char* mod) {
@@ -153,7 +156,7 @@ static void checkHostName() {
     std::string hn;
     if (FileExists("/.dockerenv")) {
         std::string CID = execAndReturn("head -1 /proc/1/cgroup | sed -e \"s/.*docker-//\" | cut -c1-12");
-        hn = execAndReturn("hotname");
+        hn = execAndReturn("hostname");
         TrimWhiteSpace(hn);
         setRawSetting("HostName", hn);
         setRawSetting("HostDescription", "Docker ID: " + CID);
@@ -1071,7 +1074,6 @@ int main(int argc, char* argv[]) {
         checkFSTAB();
         setupApache();
         setupTimezone();
-        printf("FPP - Checking for Cape/Hat\n");
         DetectCape();
         int reboot = getRawSettingInt("rebootFlag", 0);
         if (reboot) {
