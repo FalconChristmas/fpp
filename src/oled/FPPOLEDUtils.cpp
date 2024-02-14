@@ -558,6 +558,10 @@ void FPPOLEDUtils::run() {
                     }
                 }
             }
+            if (ntime > (lastActionTime + 18000000000L)) {
+                // most likely the system time jumped due to NTP or RTC, we'll reset the counter
+                lastActionTime = ntime;
+            }
             if (ntime > (lastActionTime + 180000000)) {
                 if (OLEDPage::GetCurrentPage() != statusPage) {
                     OLEDPage::SetCurrentPage(statusPage);
