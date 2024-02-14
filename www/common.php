@@ -255,6 +255,46 @@ function LoadPluginSettingInfos($plugin)
         $pluginSettingInfosLoaded = 1;
     }
 }
+
+function filterForPlatformControls($data)
+{
+    $key = "platforms";
+    $filtered_result = $data;
+
+    // check arrays contained in this array.
+    foreach ($data as $element) {
+        //var_dump($element);
+        //var_dump($element);
+        echo "<br><br>";
+        if (is_array($element) && $element[$key] === "all") {
+            $filtered_result = array_merge($filtered_result, $element);}
+    }
+
+    //var_dump($filtered_result);
+    return $filtered_result;
+
+}
+
+function LoadTroubleShootingCommands()
+{
+    global $troubleshootingCommands;
+    global $troubleshootingCommandGroups;
+    global $troubleshootingCommandsLoaded;
+
+    if (!$troubleshootingCommandsLoaded) {
+        $file = '/opt/fpp/www/troubleshoot-commands.json';
+
+        if (file_exists($file)) {
+            $data = json_decode(file_get_contents($file), true);
+            $troubleshootingCommandGroupsRaw = $data["CommandGroups"];
+            //filter for only current platform commands
+            $troubleshootingCommandGroups = $troubleshootingCommandGroupsRaw;
+            //$troubleshootingCommandGroups = filterForPlatformControls($troubleshootingCommandGroupsRaw);
+            $troubleshootingCommandsLoaded = 1;
+        } else {echo "error no troubleshoot-commands.json";}
+    }
+}
+
 function MergeDefaultsFromPluginSettings($plugin)
 {
     global $pluginSettingInfos;
@@ -2034,7 +2074,7 @@ function PrintToolTip($setting)
     if ((isset($settingInfos[$setting])) &&
         (isset($settingInfos[$setting]['tip']))) {
         $tip = $settingInfos[$setting]['tip'];
-        echo "<span id='" . $setting ."_tip' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='" . $tip . "'>";
+        echo "<span id='" . $setting . "_tip' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='" . $tip . "'>";
         echo "<img id='$setting" . "_img' src='images/redesign/help-icon.svg' class='icon-help'>";
         echo "</span>";
     }
@@ -2308,8 +2348,8 @@ function sanitizeFilename($file)
 function is_valid_domain_name($domain_name)
 {
     return (preg_match("/^([a-z\d](-*[a-z\d])*)(\.([a-z\d](-*[a-z\d])*))*$/i", $domain_name) //valid chars check
-         && preg_match("/^.{1,253}$/", $domain_name) //overall length check
-         && preg_match("/^[^\.]{1,63}(\.[^\.]{1,63})*$/", $domain_name)); //length of each label
+        && preg_match("/^.{1,253}$/", $domain_name) //overall length check
+        && preg_match("/^[^\.]{1,63}(\.[^\.]{1,63})*$/", $domain_name)); //length of each label
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2379,9 +2419,9 @@ function GetSystemInfoJsonInternal($simple = false)
     $result['uuid'] = $output[0];
     if (isset($settings['cape-info'])) {
         $capeInfo = $settings['cape-info'];
-        $result['capeInfo']['name']= $capeInfo['name'];
-        $result['capeInfo']['id']= $capeInfo['id'];
-        $result['capeInfo']['version']= $capeInfo['version'];
+        $result['capeInfo']['name'] = $capeInfo['name'];
+        $result['capeInfo']['id'] = $capeInfo['id'];
+        $result['capeInfo']['version'] = $capeInfo['version'];
     }
     if (!$simple) {
         //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
@@ -2630,39 +2670,42 @@ function GenerateBackupComment($setting_name, $setting_value)
  * @param $all bool Optional - If set to true then both usable and unusable devices are returned
  * @return array
  */
-function GetAvailableBackupsDevices($all=false)
+function GetAvailableBackupsDevices($all = false)
 {
-	global $SUDO;
-	$devices = array();
+    global $SUDO;
+    $devices = array();
 
-	foreach (scandir("/dev/") as $deviceName) {
-		if (preg_match("/^sd[a-z][0-9]/", $deviceName)) {
-			exec($SUDO . " sfdisk -s /dev/$deviceName", $output, $return_val);
-			$GB = round(intval($output[0]) / 1024.0 / 1024.0, 1);
-			unset($output);
+    foreach (scandir("/dev/") as $deviceName) {
+        if (preg_match("/^sd[a-z][0-9]/", $deviceName)) {
+            exec($SUDO . " sfdisk -s /dev/$deviceName", $output, $return_val);
+            $GB = round(intval($output[0]) / 1024.0 / 1024.0, 1);
+            unset($output);
 
-			if ($GB <= 0.1)
-				continue;
+            if ($GB <= 0.1) {
+                continue;
+            }
 
-			if (!$all) {
-				$unusable = CheckIfDeviceIsUsable($deviceName);
-				if ($unusable != '')
-					continue;
-			}
+            if (!$all) {
+                $unusable = CheckIfDeviceIsUsable($deviceName);
+                if ($unusable != '') {
+                    continue;
+                }
 
-			$baseDevice = preg_replace('/[0-9]*$/', '', $deviceName);
+            }
 
-			$device = array();
-			$device['name'] = $deviceName;
-			$device['size'] = $GB;
-			$device['model'] = exec("cat /sys/block/$baseDevice/device/model");
-			$device['vendor'] = exec("cat /sys/block/$baseDevice/device/vendor");
+            $baseDevice = preg_replace('/[0-9]*$/', '', $deviceName);
 
-			array_push($devices, $device);
-		}
-	}
+            $device = array();
+            $device['name'] = $deviceName;
+            $device['size'] = $GB;
+            $device['model'] = exec("cat /sys/block/$baseDevice/device/model");
+            $device['vendor'] = exec("cat /sys/block/$baseDevice/device/vendor");
 
-	return $devices;
+            array_push($devices, $device);
+        }
+    }
+
+    return $devices;
 }
 
 /**
@@ -2673,20 +2716,22 @@ function GetAvailableBackupsDevices($all=false)
  */
 function CheckIfDeviceIsUsable($deviceName)
 {
-	global $SUDO;
+    global $SUDO;
 
-	// Check if in use / Mount / List / Unmount
-	$mountPoint = exec($SUDO . " lsblk /dev/$deviceName");
-	$mountPoint = preg_replace('/.*disk ?/', '', $mountPoint);
-	$mountPoint = preg_replace('/.*part ?/', '', $mountPoint);
-	if (preg_match('/[a-z0-9\/]/', $mountPoint))
-		return "ERROR: Partition is mounted on: $mountPoint";
+    // Check if in use / Mount / List / Unmount
+    $mountPoint = exec($SUDO . " lsblk /dev/$deviceName");
+    $mountPoint = preg_replace('/.*disk ?/', '', $mountPoint);
+    $mountPoint = preg_replace('/.*part ?/', '', $mountPoint);
+    if (preg_match('/[a-z0-9\/]/', $mountPoint)) {
+        return "ERROR: Partition is mounted on: $mountPoint";
+    }
 
-	$isSwap = exec("grep /dev/$deviceName /proc/swaps");
-	if ($isSwap != "")
-		return "ERROR: $deviceName is a swap partition";
+    $isSwap = exec("grep /dev/$deviceName /proc/swaps");
+    if ($isSwap != "") {
+        return "ERROR: $deviceName is a swap partition";
+    }
 
-	return "";
+    return "";
 }
 
 ?>
