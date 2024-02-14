@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html>
 <?php
-require_once('troubleshootingCommands.php');
+require_once 'common.php';
+require_once 'config.php';
 ?>
 
 <head>
-<?php include 'common/menuHead.inc'; ?>
+<?php include 'common/menuHead.inc';?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 <style>
 .back2top{
         position: fixed;
@@ -28,44 +29,75 @@ require_once('troubleshootingCommands.php');
 
 <body>
 <div id="bodyWrapper">
-  <?php 
-  $activeParentMenuItem = 'help'; 
-  include 'menu.inc'; ?>
+  <?php
+$activeParentMenuItem = 'help';
+include 'menu.inc';?>
   <div class="mainContainer">
 
     <h1 class="title">Troubleshooting</h1>
     <div class="pageContent">
       <h2>Troubleshooting Commands</h2>
-        <div id="troubleshooting-hot-links"> </div>
-        <hr>
-        <div style="overflow: hidden; padding: 10px;">
-      <div class="clear"></div>
-  <?
-  
-  $hotLinks = "<ul>";
-  $jsArray = array();
-  $cnt = 1;
 
-  foreach ($commands as $title => $command)
-  {
-    $key = "command_" . $cnt;
-    $header = "header_" . $cnt;
-    $hotLinks .= "<li><a href=\"#$header\">$title</a></li>";
-    $jsArray[$key] = $title;
-  ?>
-          <a class="troubleshoot-anchor" name="<? echo $header ?>">.</a><h3><? echo $title . ':&nbsp;&nbsp;&nbsp;&nbsp;' . $command; ?></h3>
-          <pre id="<? echo $key ?>"><i>Loading...</i></pre>
-          <hr>
-  <?
-    ++$cnt;
-  }
-  $hotLinks .="</ul>";
-  ?>
+    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+    <?
+//LoadCommands
+$troubleshootingCommandsLoaded = 0;
+LoadTroubleShootingCommands();
 
+//Display Nav Tabs - one per group
+foreach (array_keys($troubleshootingCommandGroups) as $commandGrpID) {
+    //Loop through groupings
+    echo "<li class=\"nav-item\" role=\"presentation\">";
+    echo "<button class=\"nav-link" . ($commandGrpID == array_key_first($troubleshootingCommandGroups) ? " active" : "") . "\" id=\"pills-" . $commandGrpID . "-tab\" data-bs-toggle=\"pill\" data-bs-target=\"#pills-" . $commandGrpID . "\" type=\"button\" role=\"tab\" aria-controls=\"pills-" . $commandGrpID . "\" aria-selected=\"true\">" . $troubleshootingCommandGroups[$commandGrpID]["grpDisplayTitle"] . "</button>";
+    echo "</li>";
+}
+?>
+    </ul>
+
+
+    <div class="tab-content" id="pills-tabContent">
+<?
+////Display Command Contents
+foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
+
+    ${'hotlinks-' . $commandGrpID} = "<ul>";
+    echo "<div class=\"tab-pane fade" . ($commandGrpID == array_key_first($troubleshootingCommandGroups) ? " show active" : "") . "\" id=\"pills-" . $commandGrpID . "\" role=\"tabpanel\" aria-labelledby=\"pills-" . $commandGrpID . "-tab\">";
+    ?>
+    <div id="troubleshooting-grp-<?echo $commandGrpID; ?>" class="backdrop">
+    <h4><?echo $commandGrp["grpDescription"]; ?></h4>
+    <div id="troubleshooting-hot-links-<?echo $commandGrpID; ?>"> </div>
     </div>
-    
+    <hr>
+    <div style="overflow: hidden; padding: 10px;\">
+
+    <?
+    //Loop through commands in grp
+    echo "<div id=\"troubleshooting-results-" . $commandGrpID . "\">";
+    foreach ($commandGrp["commands"] as $commandKey => $commandID) {
+        $commandTitle = $commandID["title"];
+        $commandCmd = $commandID["cmd"];
+        $header = "header_" . $commandKey;
+        ${'hotlinks-' . $commandGrpID} .= "<li><a href=\"#$header\">$commandTitle</a></li>";
+        ?>
+
+        <a class="troubleshoot-anchor" name="<?echo $header ?>">.</a><h4><?echo $commandTitle; ?></h4>
+        <h4><?echo "(Command: " . $commandCmd . ")"; ?></h4>
+        <pre id="<?echo ("command_" . $commandKey) ?>"><i>Loading...</i></pre>
+        <hr>
+<?
+    }
+    ${'hotlinks-' . $commandGrpID} .= "</ul>";
+    ?></div>
+    </div></div><?
+
+}
+
+?>
+</div>
+
+
   </div>
-  <?php include 'common/footer.inc'; ?>
+  <?php include 'common/footer.inc';?>
 </div>
 <button type="button" class="back2top">Back to top</button>
 
@@ -73,7 +105,7 @@ require_once('troubleshootingCommands.php');
 
 /*
  * Anchors are dynamiclly via ajax thus auto scrolling if anchor is in url
- * will fail.  This will workaround that problem by forcing a scroll 
+ * will fail.  This will workaround that problem by forcing a scroll
  * afterward dynamic content is loaded.
  */
 function fixScroll() {
@@ -88,37 +120,35 @@ function fixScroll() {
    }
 }
 
-
+//$(document).on('shown.bs.tab', function(){
 $( document ).ready(function() {
+<?
+foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
+    echo ("document.querySelector(\"#troubleshooting-hot-links-" . $commandGrpID . "\").innerHTML ='" . ${'hotlinks-' . $commandGrpID} . "'; \n");
 
-  document.querySelector("#troubleshooting-hot-links").innerHTML = '<?php echo $hotLinks ?>';
+    foreach ($commandGrp["commands"] as $commandKey => $commandID) {
+        $url = "./troubleshootingHelper.php?key=" . urlencode($commandKey);
+        ?>
+      $.ajax({
+            url: "<?php echo $url ?>",
+            type: 'GET',
+            success: function(data) {
+                document.querySelector("#<?php echo ("command_" . $commandKey) ?>").innerHTML = data;
+                fixScroll();
+            },
+            error: function() {
+                DialogError('Failed to query command', "Error: Unable to query for <?php echo $commandKey ?>");
+            }
+        });
+
+<?php
+}}
+?>
   $(".back2top").click(() => $("html, body").animate({scrollTop: 0}, "slow") && false);
   $(window).scroll(function(){
       if ($(this).scrollTop() > 100) $('.back2top').fadeIn();
       else $('.back2top').fadeOut();
   });
-
-<?
-  foreach($jsArray as $key => $command)
-{
-  $url = "./troubleshootingHelper.php?key=" . urlencode($command);
-?>
-      $.ajax({
-            url: "<?php echo $url ?>",
-            type: 'GET',
-            success: function(data) {
-                document.querySelector("#<?php echo $key ?>").innerHTML = data;
-                fixScroll();
-            },
-            error: function() {
-                DialogError('Failed to query comand', "Error: Unable to query for <?php echo $command ?>");
-            }
-        });
-
-<?php
-}
-?>
-
 }); // end document ready
 </script>
 
