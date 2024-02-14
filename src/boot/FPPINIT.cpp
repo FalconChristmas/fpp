@@ -37,7 +37,7 @@ void teeOutput(const std::string& log) {
     std::string cmd = "tee -a ";
     cmd += log;
     mkdir("/home/fpp/media/", 0775);
-    mkdir("/home/fpp/media/log", 0775);
+    mkdir("/home/fpp/media/logs", 0775);
 
     FILE* f = popen(cmd.c_str(), "w");
     if (dup2(fileno(f), STDOUT_FILENO) < 0) {
