@@ -419,6 +419,20 @@
                     ]
                 }
             }
+        },
+        "RPISPECIFIC": {
+            "grpDisplayTitle": "RPI INFO",
+            "grpDescription": "Raspberry Pi System Info",
+            "commands": {
+                "RPIINFO": {
+                    "title": "RPI Info",
+                    "description": "Raspberry Pi inbuilt info tool",
+                    "cmd": "/bin/raspinfo",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                }
+            }
         }
     }
 }
