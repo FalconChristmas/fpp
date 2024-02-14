@@ -48,8 +48,8 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2024-01"
-FPPCFGVER="80"
+FPPIMAGEVER="2024-02"
+FPPCFGVER="84"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -394,7 +394,7 @@ case "${OSVER}" in
             python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
             gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv iwd"
         if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
-            PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer"
+            PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer mender-client"
         fi
         if $desktop; then
             #don't remove anything from a desktop
@@ -487,7 +487,7 @@ case "${OSVER}" in
                       php${PHPVER}-bcmath php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
-                      git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain \
+                      gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev qrencode libusb-1.0-0-dev \
                       flex bison pkg-config libasound2-dev python3-distutils libssl-dev libtool bsdextrautils iw"
@@ -680,9 +680,6 @@ fi
 # Platform-specific config
 case "${FPPPLATFORM}" in
 	'BeagleBone Black')
-        echo "blacklist spidev" > /etc/modprobe.d/blacklist-spidev.conf
-        echo "# allocate 3M instead of the default 256K" > /etc/modprobe.d/uio_pruss.conf
-        echo "options uio_pruss extram_pool_sz=3145728" >> /etc/modprobe.d/uio_pruss.conf
 
         # need to blacklist the gyroscope and barometer on the SanCloud enhanced or it consumes some pins
         echo "blacklist st_pressure_spi" > /etc/modprobe.d/blacklist-gyro.conf
@@ -693,21 +690,18 @@ case "${FPPPLATFORM}" in
         echo "blacklist st_sensors_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
         echo "blacklist inv_mpu6050" >> /etc/modprobe.d/blacklist-gyro.conf
         echo "blacklist st_sensors" >> /etc/modprobe.d/blacklist-gyro.conf
+        echo "blacklist spidev" > /etc/modprobe.d/blacklist-spidev.conf
 
         # need to blacklist the bluetooth on BBG Gateway or it tends to crash the kernel, we don't need it
         echo "blacklist btusb" > /etc/modprobe.d/blacklist-bluetooth.conf
         echo "blacklist bluetooth" >> /etc/modprobe.d/blacklist-bluetooth.conf
         echo "blacklist hci_uart" >> /etc/modprobe.d/blacklist-bluetooth.conf
         echo "blacklist bnep" >> /etc/modprobe.d/blacklist-bluetooth.conf
-        
-        # we will need the PRU's, we might as well bring them up immediately for faster boot
-        echo "pruss_soc_bus" >> /etc/modules-load.d/modules.conf
-        echo "pru_rproc" >> /etc/modules-load.d/modules.conf
-        echo "pruss" >> /etc/modules-load.d/modules.conf
-        echo "irq_pruss_intc" >> /etc/modules-load.d/modules.conf
-        echo "remoteproc" >> /etc/modules-load.d/modules.conf
+
+        rm -f  /etc/modules-load.d/network.conf
 
         systemctl disable keyboard-setup
+        systemctl disable unattended-upgrades
 		;;
 
 	'Raspberry Pi')
@@ -748,6 +742,7 @@ case "${FPPPLATFORM}" in
             echo "bcm2835_codec" >> /etc/modules-load.d/modules.conf
             echo "snd_usb_audio" >> /etc/modules-load.d/modules.conf
 
+            echo "[ALL]">> ${BOOTDIR}/config.txt
             echo "FPP - Enabling SPI in device tree"
             echo >> ${BOOTDIR}/config.txt
             echo "# Enable SPI in device tree" >> ${BOOTDIR}/config.txt
@@ -807,6 +802,8 @@ case "${FPPPLATFORM}" in
             echo "gpu_mem=64" >> ${BOOTDIR}/config.txt
             echo "[pi2]" >> ${BOOTDIR}/config.txt
             echo "gpu_mem=64" >> ${BOOTDIR}/config.txt
+            echo "" >> /config.txt
+            echo "[all]" >> /config.txt
             echo "" >> /config.txt
 
             echo "FPP - Freeing up more space by removing unnecessary packages"
@@ -1309,18 +1306,11 @@ sed -i '$s/$/\npool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer
 
 if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     #######################################
-    echo "FPP - Updating HotSpot"
-    sed -i -e "s/USE_PERSONAL_SSID=.*/USE_PERSONAL_SSID=FPP/" /etc/default/bb-wl18xx
-    sed -i -e "s/USE_PERSONAL_PASSWORD=.*/USE_PERSONAL_PASSWORD=Christmas/" /etc/default/bb-wl18xx
-    
     systemctl disable dev-hugepages.mount
-
-    echo "FPP - update BBB boot scripts for faster boot, don't force getty"
-    cd /opt/scripts
-    git reset --hard
-    git pull
-    sed -i 's/systemctl restart serial-getty/systemctl is-enabled serial-getty/g' boot/am335x_evm.sh
-    git commit -a -m "delay getty start" --author='fpp<fpp>'
+    
+    # CPU frequency scaling is disabled in our kernel, no need for the service to run
+    systemctl disable cpufrequtils
+    systemctl disable loadcpufreq.service
     
     if [ ! -f "/opt/source/bb.org-overlays/Makefile" ]; then
         mkdir -p /opt/source
@@ -1334,7 +1324,7 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     make clean
     
     # install the newer pru code generator
-    apt-get install ti-pru-cgt-v2.3 ti-pru-pru-v2.3
+    apt-get install ti-pru-cgt-v2.3
     
     #Set colored prompt
     sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
@@ -1347,8 +1337,6 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     sed -i -e "s+ quiet+ quiet rootwait+g"  /boot/uEnv.txt
     sed -i -e "s+ net.ifnames=.+ +g"  /boot/uEnv.txt
     sed -i -e "s+^uboot_overlay_pru=+#uboot_overlay_pru=+g"  /boot/uEnv.txt
-    sed -i -e "s+#uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+g" /boot/uEnv.txt
-    sed -i -e "s+#uboot_overlay_pru=AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+g" /boot/uEnv.txt
     echo "bootdelay=0" >> /boot/uEnv.txt
     echo "#cmdline=init=/opt/fpp/SD/BBB-AutoFlash.sh" >> /boot/uEnv.txt
 
@@ -1384,6 +1372,11 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/mcde*
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/meson*
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/ingenic*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/mali*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/mxs*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/rep*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/sun*
+    rm -rf /usr/lib/arm-linux-gnueabihf/dri/vmw*
 fi
 
 if $isimage; then
@@ -1407,7 +1400,6 @@ fi
 systemctl disable mosquitto
 systemctl daemon-reload
 systemctl enable fppinit.service
-systemctl enable fppcapedetect.service
 systemctl enable fpprtc.service
 systemctl enable fppoled.service
 systemctl enable fppd.service
@@ -1419,7 +1411,7 @@ if $isimage; then
     # Make sure the journal is large enough to store the full boot logs
     # but not get too large which starts slowing down journalling (and thus boot)
     if [ -f /etc/systemd/journald.conf ]; then
-        sed -i -e "s/^.*SystemMaxUse.*/SystemMaxUse=64M/g" /etc/systemd/journald.conf
+        sed -i -e "s/^.*SystemMaxUse.*/SystemMaxUse=96M/g" /etc/systemd/journald.conf
     fi
     
     rm -f /etc/systemd/network/*eth*

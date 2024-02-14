@@ -16,40 +16,26 @@ function SetTimeZone($timezone)
 
 function SetHWClock()
 {
-    global $settings;
-
-    $rtcDevice = "/dev/rtc0";
-    if ($settings['Platform'] == "BeagleBone Black") {
-        if (file_exists("/sys/class/rtc/rtc0/name")) {
-            $rtcname = file_get_contents("/sys/class/rtc/rtc0/name");
-            if (strpos($rtcname, "omap_rtc") !== false) {
-                $rtcDevice = "/dev/rtc1";
-            }
-        }
-    }
-    exec("sudo hwclock -w -f $rtcDevice");
+    global $fppDir;
+    exec("sudo $fppDir/src/fpprtc set");
 }
 
 function SetDate($date)
 {
     // Need to pass in the current time or it gets reset to 00:00:00
     exec("sudo date +\"%Y-%m-%d %H:%M:%S\" -s \"$date \$(date +%H:%M:%S)\"");
-
     SetHWClock();
 }
 
 function SetTime($time)
 {
     exec("sudo date +%k:%M:%S -s \"$time\"");
-
     SetHWClock();
 }
 
 function SetRTC($rtc)
 {
-    global $fppDir;
-
-    exec("sudo $fppDir/scripts/piRTC set");
+    SetHWClock();
 }
 
 function RestartNTPD()
@@ -220,13 +206,13 @@ function SetForceHDMIResolution($value, $postfix)
                 if (strpos(file_get_contents(GetDirSetting('boot') . "/config.txt"), "hdmi_cvt". $postfix) == false) {
                     error_log("adding cvt");
                     exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "/hdmi_cvt" . $postfix . "=\\nhdmi_mode/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-                }    
+                }
                 exec("sudo sed -i -e 's/^#hdmi_cvt" . $postfix . "=/hdmi_cvt" . $postfix . "=/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-                exec("sudo sed -i -e 's/^hdmi_cvt" . $postfix . "=.*/hdmi_cvt" . $postfix . "=" . $parts[2] . "/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);    
+                exec("sudo sed -i -e 's/^hdmi_cvt" . $postfix . "=.*/hdmi_cvt" . $postfix . "=" . $parts[2] . "/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
             } else {
-                exec("sudo sed -i -e 's/^hdmi_cvt" . $postfix . "=/#hdmi_cvt" . $postfix . "=/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);    
+                exec("sudo sed -i -e 's/^hdmi_cvt" . $postfix . "=/#hdmi_cvt" . $postfix . "=/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
             }
-        }    
+        }
     }
 }
 
@@ -238,7 +224,9 @@ function SetWifiDrivers($value)
         exec("sudo rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val);
         exec("sudo rm -f /etc/modprobe.d/50-8188eu.conf", $output, $return_val);
     } else {
-        exec("sudo cp " . $settings["fppDir"] . "/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val);
+        if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
+            exec("sudo cp " . $settings["fppDir"] . "/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val);
+        }
         exec("sudo rm -f /etc/modprobe.d/blacklist-8192cu.conf", $output, $return_val);
         exec("sudo rm -f /etc/modprobe.d/50-8188eu.conf", $output, $return_val);
     }
@@ -282,7 +270,7 @@ function ApplyServiceSetting($setting, $value, $now)
 function SetGPIOFanProperties() {
     global $settings;
     $fanOn = ReadSettingFromFile('GPIOFan');
-    $fanTemp = ReadSettingFromFile('GPIOFanTemperature') . "000"; 
+    $fanTemp = ReadSettingFromFile('GPIOFanTemperature') . "000";
     $pfx = "";
 
     if ($fanTemp == '000') {

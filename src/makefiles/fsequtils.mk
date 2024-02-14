@@ -1,5 +1,6 @@
 OBJECTS_fsequtils = \
 	common.o \
+	common_mini.o \
 	fppversion.o \
     log.o \
 	Warnings.o \

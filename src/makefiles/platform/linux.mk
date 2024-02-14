@@ -44,8 +44,9 @@ CFLAGS += -DPLATFORM_DOCKER
 else
 BUILD_FPPOLED=1
 BUILD_FPPCAPEDETECT=1
+BUILD_FPPRTC=1
 endif
-
+BUILD_FPPINIT=1
 
 LDFLAGS_fppd += -L.
 LDFLAGS_fppd += $(shell log4cpp-config --libs)
@@ -53,8 +54,6 @@ LDFLAGS_fppd += $(shell log4cpp-config --libs)
 OBJECTS_GPIO_ADDITIONS+=
 LIBS_GPIO_ADDITIONS+=-lgpiod -lgpiodcxx
 OBJECTS_fppoled += util/SPIUtils.o
-BUILD_FPPOLED=1
-BUILD_FPPCAPEDETECT=1
 
 LDFLAGS=-lrt -lpthread
 SHLIB_EXT=so

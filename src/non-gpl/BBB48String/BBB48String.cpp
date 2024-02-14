@@ -335,7 +335,7 @@ int BBB48StringOutput::Init(Json::Value config) {
                 m_strings[x]->m_outputChannels = chanCount;
             }
             allMax = std::max(allMax, m_strings[x]->m_outputChannels);
-            if (pin.gpioIdx == 0) {
+            if (pin.mappedGPIOIdx() == 0) {
                 m_gpio0Data.gpioStringMap.push_back(x);
                 m_gpio0Data.maxStringLen = std::max(m_gpio0Data.maxStringLen, m_strings[x]->m_outputChannels);
             } else {
@@ -410,7 +410,7 @@ int BBB48StringOutput::Init(Json::Value config) {
         int idx = m_gpioData.gpioStringMap[x];
         if (idx >= 0) {
             const PinCapabilities& pin = PinCapabilities::getPinByName(root["outputs"][idx]["pin"].asString());
-            outputFile << "#define o" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpioIdx) << "\n";
+            outputFile << "#define o" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.mappedGPIOIdx()) << "\n";
             outputFile << "#define o" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
         } else {
             split1args.push_back("-DNOOUT" + std::to_string(x + 1));
@@ -431,7 +431,7 @@ int BBB48StringOutput::Init(Json::Value config) {
             int idx = m_gpio0Data.gpioStringMap[x];
             if (idx >= 0) {
                 const PinCapabilities& pin = PinCapabilities::getPinByName(root["outputs"][idx]["pin"].asString());
-                outputFile << "#define o" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpioIdx) << "\n";
+                outputFile << "#define o" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.mappedGPIOIdx()) << "\n";
                 outputFile << "#define o" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
             } else {
                 split0args.push_back("-DNOOUT" + std::to_string(x + 1));

@@ -197,7 +197,7 @@ int BBBSerialOutput::Init(Json::Value config) {
             pin.configPin(mode);
             countOut++;
         }
-        outputFile << "#define ser" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpioIdx) << "\n";
+        outputFile << "#define ser" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.mappedGPIOIdx()) << "\n";
         outputFile << "#define ser" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
 
         const BBBPinCapabilities* bp = static_cast<const BBBPinCapabilities*>(&pin);

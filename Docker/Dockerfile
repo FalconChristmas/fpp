@@ -1,4 +1,4 @@
-FROM debian:bullseye
+FROM debian:bookworm
 
 # if we get a bunch of these installed up front in one shot (assume a desktop so plenty of memory to do all at once)
 # then the FPP_Install step is faster.   In addition, docker will cache this result
@@ -17,8 +17,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--for
     libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
     vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
     libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
-    git gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping libssl-dev libusb-1.0-0-dev \
-    wget flex bison pkg-config libasound2-dev mesa-common-dev ; apt-get clean
+    gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping libssl-dev libusb-1.0-0-dev \
+    wget flex bison pkg-config libasound2-dev mesa-common-dev python3-distutils libssl-dev libtool bsdextrautils iw ; apt-get clean
 
 # similar to above, do this once and Docker can cache the intermediary
 ADD SD/buildVLC.sh /root/buildVLC.sh
@@ -35,7 +35,7 @@ ARG FPPBRANCH
 
 ADD ./ /opt/fpp/
 ADD SD/FPP_Install.sh /root/FPP_Install.sh
-RUN ( yes | /root/FPP_Install.sh $EXTRA_INSTALL_FLAG --branch ${FPPBRANCH:-master} --skip-apt-install --skip-vlc ) || true
+RUN ( yes | bash /root/FPP_Install.sh $EXTRA_INSTALL_FLAG --branch ${FPPBRANCH:-master} --skip-apt-install --skip-vlc )
 RUN rm -rf /tmp/*
 RUN cp /opt/fpp/etc/asoundrc.plain /root/.asoundrc
 

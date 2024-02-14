@@ -17,6 +17,8 @@ src/fppcapedetect
 src/fppversion.c
 src/fppversion_defines.h
 src/fsequtils
+src/fpprtc
+src/fppinit
 src/util/seqdump
 src/Makefile.local
 src/libfpp*.so

@@ -21,6 +21,89 @@ $maxDepth = 0;
 $json = file_get_contents('http://localhost:32322/fppd/schedule');
 $data = json_decode($json, true);
 
+function checkIfHoliday($item, $wrap = false) {
+    global $data;
+    global $settings;
+
+    $holiday = '';
+    if (($data['schedule']['entries'][$item['id']]['startDateInt'] == $item['startDateInt']) &&
+        (!preg_match('/^[0-9]/', $data['schedule']['entries'][$item['id']]['startDate']))) {
+        $holiday = $data['schedule']['entries'][$item['id']]['startDate'];
+    }
+    if (($data['schedule']['entries'][$item['id']]['endDateInt'] == $item['endDateInt']) &&
+        (!preg_match('/^[0-9]/', $data['schedule']['entries'][$item['id']]['endDate']))) {
+        $holiday = $data['schedule']['entries'][$item['id']]['endDate'];
+    }
+
+    if (($holiday != '') &&
+        (isset($settings['locale'])) &&
+        (isset($settings['locale']['holidays']))) {
+        for ($h = 0; $h < count($settings['locale']['holidays']); $h++) {
+            if ($holiday == $settings['locale']['holidays'][$h]['shortName'])
+                if ($wrap)
+                    return ' (' . $settings['locale']['holidays'][$h]['name'] . ')';
+                else
+                    return $settings['locale']['holidays'][$h]['name'];
+        }
+    }
+
+    return $holiday;
+}
+
+function getItemInfo($item) {
+    global $data;
+
+    if (!isset($data['schedule']['entries'][$item['id']])) {
+        return "ERROR: Unable to find schedule entry with id: " . $item['id'];
+    }
+
+    $sch = $data['schedule']['entries'][$item['id']];
+
+    $info = "";
+
+    $info .= '<b>Start Date:</b> ';
+    if (preg_match('/^[0-9]/', $sch['startDate'])) {
+        $info .= $sch['startDate'];
+    } else {
+        $info .= checkIfHoliday($item);
+    }
+    $info .= '<br>';
+
+    $info .= '<b>End Date:</b> ';
+    if (preg_match('/^[0-9]/', $sch['endDate'])) {
+        $info .= $sch['endDate'];
+    } else {
+        $info .= checkIfHoliday($item);
+    }
+    $info .= '<br>';
+
+    $info .= '<b>Start Time:</b> ' . $sch['startTimeStr'];
+    if ($sch['startTimeOffset'] != 0)
+        $info .= (($sch['startTimeOffset'] > 0) ? ' +' : ' ') . $sch['startTimeOffset'] . ' ' . (($sch['startTimeOffset'] > 1) ? 'minutes' : 'minute');
+    $info .= '<br>';
+
+    $info .= '<b>End Time:</b> ' . $sch['endTimeStr'];
+    if ($sch['endTimeOffset'] != 0)
+        $info .= (($sch['endTimeOffset'] > 0) ? ' +' : ' ') . $sch['endTimeOffset'] . ' ' . (($sch['endTimeOffset'] > 1) ? 'minutes' : 'minute');
+    $info .= '<br>';
+
+    $info .= '<b>Days:</b> ' . $sch['dayStr'] . '<br>';
+    $info .= '<b>Stop:</b> ' . $sch['stopTypeStr'] . '<br>';
+
+    $info .= '<b>Repeat:</b> ';
+    if ($sch['repeat']) {
+        $info .= 'Immediate';
+    } else if ($sch['repeatInterval']) {
+        $mins = $sch['repeatInterval'] / 60;
+        $info .= "Every $mins minutes";
+    } else {
+        $info .= 'None';
+    }
+    $info .= '<br>';
+
+    return $info;
+}
+
 function showPlaylistEnds($currTime = 0) {
     global $endTimes;
     global $depth;
@@ -54,8 +137,9 @@ function showPlaylistEnds($currTime = 0) {
                         printf("<td width='20px' class='borderBottom'>&nbsp;</td>");
                 }
 
-                printf("<td>%s</td><th>&nbsp;-&nbsp;</th><td>End Playing</td><th>&nbsp;-&nbsp;</th><td>%s (%s Stop)</td></tr>\n<tr>",
+                printf("<td>%s%s</td><th>&nbsp;-&nbsp;</th><td>End Playing</td><th>&nbsp;-&nbsp;</th><td>%s (%s Stop)</td><td></td></tr>\n<tr>",
                     $endItem["endTimeStr"],
+                    checkIfHoliday($endItem, true),
                     $endItem["args"][0],
                     $data["schedule"]["entries"][$endItem["id"]]["stopTypeStr"]
                 );
@@ -72,6 +156,8 @@ function showPlaylistEnds($currTime = 0) {
         unset($endTimes[$eTime]);
     }
 }
+
+/////////////////////////////////////////////////////////////////////////////
 
 // determine max depth
 foreach ($data["schedule"]["items"] as $item) {
@@ -126,7 +212,7 @@ echo "<thead><tr>";
 for ($j = -1; $j < $maxDepth; $j++) {
     echo "<td>&nbsp;</td>";
 }
-echo "<th>Time</th><th></th><th>Action</th><th></th><th>Args</th></tr>";
+echo "<th>Time</th><th></th><th>Action</th><th></th><th>Args</th><th>Sch Info</th></tr>";
 echo "</thead><tbody>";
 
 
@@ -167,8 +253,10 @@ foreach ($data["schedule"]["items"] as $item) {
             printf("<td width='20px' class='borderTop'>&nbsp;</td>");
         }
 
-        printf("<td>%s</td><th>&nbsp;-&nbsp;</th><td>Start Playing</td><th>&nbsp;-&nbsp;</th><td>%s (%s w/ %s Stop)</td>",
+        printf("<td>%s%s</td><th>&nbsp;-&nbsp;</th><td>Start Playing</td><th>&nbsp;-&nbsp;</th><td>%s (%s w/ %s Stop)</td>",
             $item["startTimeStr"],
+            checkIfHoliday($item, true),
+            $holiday,
             $item["args"][0],
             $data["schedule"]["entries"][$item["id"]]["repeat"] == 1 ?
                 "Repeating" : "Non-Repeating",
@@ -186,11 +274,14 @@ foreach ($data["schedule"]["items"] as $item) {
                 printf("<td width='20px' class='borderTop borderBottom'>&nbsp;</td>");
         }
 
-        printf("<td>%s</td><th>&nbsp;-&nbsp;</th><td>%s</td><th>&nbsp;-&nbsp;</th><td>%s</td>",
+        printf("<td>%s%s</td><th>&nbsp;-&nbsp;</th><td>%s</td><th>&nbsp;-&nbsp;</th><td>%s</td>",
             $item["startTimeStr"],
+            checkIfHoliday($item, true),
             $item["command"],
             join(' | ', $item["args"]));
     }
+
+    echo "<td><span data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title=\"" . getItemInfo($item) . "\"><img src='images/redesign/help-icon.svg' class='icon-help'></span></td>";
 
     echo "</tr>\n";
 }
@@ -198,4 +289,6 @@ showPlaylistEnds();
 ?>
     </tbody>
 </table>
-
+<script>
+SetupToolTips();
+</script>

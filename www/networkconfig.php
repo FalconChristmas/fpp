@@ -29,12 +29,13 @@ $(document).ready(function() {
 
 <?php
 
-function PopulateInterfaces($uiLevel, $configDirectory) {
-    
+function PopulateInterfaces($uiLevel, $configDirectory)
+{
+
     $first = 1;
     $interfaces = network_list_interfaces_array();
-    $interfaces = array_map(function($value) {
-         return preg_replace("/:$/", "", $value);
+    $interfaces = array_map(function ($value) {
+        return preg_replace("/:$/", "", $value);
     }, $interfaces);
 
     foreach ($interfaces as $iface) {
@@ -44,13 +45,13 @@ function PopulateInterfaces($uiLevel, $configDirectory) {
     }
 
     if ($uiLevel >= 1) {
-            foreach (scandir($configDirectory) as $interface_file) {
+        foreach (scandir($configDirectory) as $interface_file) {
             if (preg_match("/^interface\..*/", $interface_file)) {
-                 $interface_file = preg_replace("/^interface\./", "", $interface_file);
-                 if (array_search($interface_file, $interfaces) === false) {
-                     echo "<option value='" . $interface_file . "'>" . $interface_file . " (not detected)</option>";
-                 }
-             }
+                $interface_file = preg_replace("/^interface\./", "", $interface_file);
+                if (array_search($interface_file, $interfaces) === false) {
+                    echo "<option value='" . $interface_file . "'>" . $interface_file . " (not detected)</option>";
+                }
+            }
         }
     }
 }
@@ -618,6 +619,8 @@ include 'menu.inc';?>
 <?php
 if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
     PrintSettingGroup("wifiDriversGroup");
+} else {
+    PrintSettingGroup("wifiDomainGroup");
 }
 ?>
         <h2> Interface Settings</h2>

@@ -41,15 +41,6 @@ apt-get update
 apt-get -y upgrade
 localectl set-locale LANG="en_US.UTF-8"
 
-# Need to make sure we get the latest systemd config
-echo "#Backports" >> /etc/apt/sources.list
-echo "deb http://deb.debian.org/debian bullseye-backports main contrib non-free" >> /etc/apt/sources.list
-echo "deb-src http://deb.debian.org/debian bullseye-backports main contrib non-free" >> /etc/apt/sources.list
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 648ACFD622F3D138 0E98404D386FA1D9
-apt-get update
-apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t bullseye-backports install systemd udev systemd-resolved wpasupplicant
-apt-get install wget
-
 
 # This MAY cause the beagle to change IP addresses, reboot to get things to settle and continue
 rm -f /etc/systemd/network/50-default.network
@@ -71,12 +62,12 @@ systemctl enable systemd-resolved
 
 #check
 cd /root
-export NEW_KERNEL_VERSION=5.10.168-fpp_5.10.168-fpp-2
+export NEW_KERNEL_VERSION=6.7.4-fpp12_1
 wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${NEW_KERNEL_VERSION}_armhf.deb
-wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-${NEW_KERNEL_VERSION}_armhf.deb
+# wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-${NEW_KERNEL_VERSION}_armhf.deb
 dpkg -i *.deb
 rm -f *.deb
-apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r) bbb.io-kernel-5.10-ti bbb.io-kernel-tasks
+apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r) bbb.io-kernel-tasks
 
 # delete old kernels and modules in /boot and /lib/modules
 # and in /boot/dtbs and any initrd's
@@ -145,9 +136,9 @@ rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-VERSION=7.4
-OSVERSION=2023-12
-DEVICE=/dev/sdc
+VERSION=8.0-pre-alpha2
+OSVERSION=2024-02
+DEVICE=/dev/sde
 dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 
 

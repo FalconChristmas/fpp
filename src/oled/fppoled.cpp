@@ -26,6 +26,7 @@
 #include "util/TmpFileGPIO.h"
 #define PLAT_GPIO_CLASS TmpFilePinProvider
 #endif
+#include <thread>
 
 static FPPOLEDUtils* oled = nullptr;
 void sigInteruptHandler(int sig) {
@@ -41,18 +42,32 @@ void sigTermHandler(int sig) {
 }
 
 int main(int argc, char* argv[]) {
-    PinCapabilities::InitGPIO("FPPOLED", new PLAT_GPIO_CLASS());
     printf("FPP OLED Status Display Driver\n");
-    LoadSettings(argv[0]);
+    int lt = getRawSettingInt("LEDDisplayType", 7);
+    if (!OLEDPage::InitializeDisplay(lt)) {
+        lt = 0;
+    } else {
+        OLEDPage::displayBootingNotice();
+    }
+    bool capeDetectionDone = FileExists("/home/fpp/media/tmp/cape_detect_done");
+    int count = 0;
+    while (!capeDetectionDone && count < 100) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        ++count;
+        capeDetectionDone = FileExists("/home/fpp/media/tmp/cape_detect_done");
+    }
 
+    // wait until after cape detection so gpio expanders are registered and available
+    PinCapabilities::InitGPIO("FPPOLED", new PLAT_GPIO_CLASS());
+    LoadSettings(argv[0]);
     int ledType = getSettingInt("LEDDisplayType");
     printf("    Led Type: %d\n", ledType);
     fflush(stdout);
-
-    if (!OLEDPage::InitializeDisplay(ledType)) {
-        ledType = 0;
+    if (lt != ledType) {
+        if (!OLEDPage::InitializeDisplay(ledType)) {
+            ledType = 0;
+        }
     }
-
     struct sigaction sigIntAction;
     sigIntAction.sa_handler = sigInteruptHandler;
     sigemptyset(&sigIntAction.sa_mask);
@@ -65,7 +80,6 @@ int main(int argc, char* argv[]) {
     sigTermAction.sa_flags = 0;
     sigaction(SIGTERM, &sigTermAction, NULL);
 
-    int count = 0;
     oled = new FPPOLEDUtils(ledType);
     oled->run();
 }

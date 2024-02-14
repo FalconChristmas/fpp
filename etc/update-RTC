@@ -1,20 +1,3 @@
 #!/bin/bash
 
-. /opt/fpp/scripts/common
-. /opt/fpp/scripts/functions
-
-RTCDEVICE="/dev/rtc0"
-
-if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-    if [ -f "/sys/class/rtc/rtc0/name" ]; then
-        RTCNAME=$(</sys/class/rtc/rtc0/name)
-        if [[ $RTCNAME == *"omap_rtc"* ]]; then
-            RTCDEVICE="/dev/rtc1"
-        fi
-    fi
-fi
-
-if [ -e ${RTCDEVICE} ]; then
-    hwclock -s -f ${RTCDEVICE}  > /dev/null 2>&1
-fi
-
+/opt/fpp/src/fpprtc set

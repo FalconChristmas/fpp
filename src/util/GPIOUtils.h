@@ -75,6 +75,11 @@ public:
     virtual bool isGPIOD() const { return false; }
     virtual void releaseGPIOD() const {}
 
+    // on some platforms (beagles), the gpiod index may not match how
+    // the gpio's are layed out memory.  Allow subclasses to remap
+    // the indexes
+    virtual int mappedGPIOIdx() const { return gpioIdx; }
+
     static const PinCapabilities& getPinByName(const std::string& n);
     static const PinCapabilities& getPinByGPIO(int i);
     static const PinCapabilities& getPinByUART(const std::string& n);

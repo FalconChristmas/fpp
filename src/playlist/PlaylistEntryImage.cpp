@@ -279,16 +279,13 @@ void PlaylistEntryImage::PrepImage(void) {
 
         if ((cols != m_width) || (rows != m_height)) {
             image.read(nextFile.c_str());
+            image.autoOrient();
             cols = image.columns();
             rows = image.rows();
         }
 
         if ((cols != m_width) && (rows != m_height)) {
             needToCache = true;
-
-#ifndef OLDGRAPHICSMAGICK
-//			image.autoOrient();
-#endif
 
             image.modifyImage();
 

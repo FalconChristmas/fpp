@@ -1,7 +1,7 @@
 [Unit]
 Description=FPPd
-After=network.target generic-board-startup.service remote-fs.target getty.target fpp_postnetwork.service
-Requires=network.target 
+After=fpp_postnetwork.service
+Requires=fpp_postnetwork.service
 DefaultDependencies=no
 StartLimitIntervalSec=60
 StartLimitBurst=5
@@ -10,8 +10,8 @@ StartLimitBurst=5
 Type=simple
 ExecStart=/opt/fpp/src/fppd -f
 ExecStop=/opt/fpp/scripts/fppd_stop
-ExecStartPre=-/opt/fpp/scripts/fppd_boot_pre
-ExecStartPost=-/opt/fpp/scripts/fppd_boot_post
+ExecStartPre=-/opt/fpp/src/fppinit bootPre
+ExecStartPost=-/opt/fpp/src/fppinit bootPost
 ExecReload=/opt/fpp/src/fpp -r
 Restart=always
 

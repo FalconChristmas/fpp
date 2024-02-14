@@ -37,6 +37,7 @@ OBJECTS_fpp_so += \
     commands/EventCommands.o \
     commands/MediaCommands.o \
 	common.o \
+	common_mini.o \
 	CurlManager.o \
 	e131bridge.o \
 	effects.o \
@@ -115,7 +116,6 @@ OBJECTS_fpp_so += \
 	util/TmpFileGPIO.o \
 	util/RegExCache.o \
     $(OBJECTS_GPIO_ADDITIONS)
-
 
 LIBS_fpp_so += \
     -lzstd -lz \

@@ -11,16 +11,63 @@
  * personal use, but modified copies MAY NOT be redistributed in any form.
  */
 
-#include "CapeUtils.h"
+#include <dirent.h>
 #include <filesystem>
+#include <grp.h>
+#include <pwd.h>
 #include <stdlib.h>
+#include <string.h>
+#include <thread>
+#include <unistd.h>
+
+#include "CapeUtils.h"
+
+int remove_recursive(const char* const path, bool removeThis = true) {
+    DIR* const directory = opendir(path);
+    if (directory) {
+        struct dirent* entry;
+        while ((entry = readdir(directory))) {
+            if (!strcmp(".", entry->d_name) || !strcmp("..", entry->d_name)) {
+                continue;
+            }
+            char filename[strlen(path) + strlen(entry->d_name) + 2];
+            sprintf(filename, "%s/%s", path, entry->d_name);
+            if (entry->d_type == DT_DIR) {
+                if (remove_recursive(filename)) {
+                    closedir(directory);
+                    return -1;
+                }
+            } else {
+                if (remove(filename)) {
+                    closedir(directory);
+                    return -1;
+                }
+            }
+        }
+        if (closedir(directory)) {
+            return -1;
+        }
+    }
+    if (removeThis) {
+        return remove(path);
+    }
+    return 0;
+}
 
 int main(int argc, char* argv[]) {
-    for (const auto& entry : std::filesystem::directory_iterator("/home/fpp/media/tmp/")) {
-        std::filesystem::remove_all(entry.path());
+    remove_recursive("/home/fpp/media/tmp/", false);
+    try {
+        CapeUtils::INSTANCE.initCape(false);
+        if (argc > 1 && strcmp(argv[1], "-no-set-permissions") != 0) {
+            struct passwd* pwd = getpwnam("fpp");
+            if (pwd) {
+                for (const auto& entry : std::filesystem::directory_iterator("/home/fpp/media/tmp/")) {
+                    chown(entry.path().c_str(), pwd->pw_uid, pwd->pw_gid);
+                }
+            }
+        }
+    } catch (std::exception& e) {
+        return -1;
     }
-
-    if (CapeUtils::INSTANCE.initCape(false) == CapeUtils::CapeStatus::NOT_PRESENT || CapeUtils::INSTANCE.initCape(false) == CapeUtils::CapeStatus::CORRUPT) {
-        exit(-1);
-    }
+    return 0;
 }

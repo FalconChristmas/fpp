@@ -1,4 +1,4 @@
-/home/fpp/media/logs/[b-zA-Z]*.log
+/home/fpp/media/logs/[b-zA-Z_]*.log
 {
 	su fpp fpp
 	daily

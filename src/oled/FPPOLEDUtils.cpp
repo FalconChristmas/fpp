@@ -18,9 +18,9 @@
 #include "FPPStatusOLEDPage.h"
 #include "OLEDPages.h"
 
-//shared memory area so other processes can see if the display is on
-//as well as let fppoled know to force it off (if the pins need to be
-//reconfigured so I2C no longer will work)
+// shared memory area so other processes can see if the display is on
+// as well as let fppoled know to force it off (if the pins need to be
+// reconfigured so I2C no longer will work)
 
 struct DisplayStatus {
     unsigned int i2cBus;
@@ -125,7 +125,7 @@ public:
 
 bool FPPOLEDUtils::InputAction::Action::checkAction(int i, long long ntimeus) {
     if (i <= actionValueMax && i >= actionValueMin && (ntimeus > nextActionTime)) {
-        //at least 10ms since last action.  Should cover any debounce time
+        // at least 10ms since last action.  Should cover any debounce time
         nextActionTime = ntimeus + minActionInterval;
         return true;
     }
@@ -189,18 +189,7 @@ FPPOLEDUtils::InputAction* FPPOLEDUtils::configureGPIOPin(const std::string& pin
                                                           const std::string& edge) {
     const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
     pin.configPin(mode, false);
-#ifdef HASGPIOD
-    const GPIODCapabilities* gpiodPin = dynamic_cast<const GPIODCapabilities*>(pin.ptr());
-    if (gpiodPin) {
-        //it's a gpiod pin and not a native pin, we need to handle these special
-        InputAction* action = new GPIOQueryPinAction(gpiodPin);
-        action->pin = pinName;
-        action->mode = mode;
-
-        action->file = gpiodPin->line.event_get_fd();
-        return action;
-    }
-#endif
+    pin.releaseGPIOD();
 
     InputAction* action = new InputAction();
     action->pin = pinName;
@@ -367,11 +356,11 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
 
                     std::string type = root["inputs"][x]["type"].asString();
                     if (type == "gpiod") {
-                        //this is the mode for various gpio extenders like the pca9675 chip that
-                        //use a single interrupt line (configured above) fall all the buttons.
-                        //The above will trigger an interupt after which we will need to
-                        //use libgpiod to get the value of each button to figure out
-                        //which triggered the action.  Thus, there are multiple actions
+                        // this is the mode for various gpio extenders like the pca9675 chip that
+                        // use a single interrupt line (configured above) fall all the buttons.
+                        // The above will trigger an interupt after which we will need to
+                        // use libgpiod to get the value of each button to figure out
+                        // which triggered the action.  Thus, there are multiple actions
 
                         std::string label = root["inputs"][x]["chip"].asString();
                         gpiod_chip* chip = getChip(label);
@@ -454,7 +443,7 @@ void FPPOLEDUtils::run() {
     std::vector<struct pollfd> fdset(actions.size());
 
     if (actions.size() == 0 && _ledType == 0) {
-        //no display and no actions, nothing to do.
+        // no display and no actions, nothing to do.
         exit(0);
     }
 
@@ -462,7 +451,7 @@ void FPPOLEDUtils::run() {
 
     statusPage = new FPPStatusOLEDPage();
     if (!checkStatusAbility()) {
-        //statusPage->disableFullStatus();
+        // statusPage->disableFullStatus();
     }
     OLEDPage::SetCurrentPage(statusPage);
 
@@ -472,7 +461,7 @@ void FPPOLEDUtils::run() {
     while (true) {
         bool forcedOff = currentStatus->forceOff;
         if (OLEDPage::IsForcedOff() && !forcedOff) {
-            //turning back on
+            // turning back on
             if (controlPin != "") {
                 printf("Re-enabling I2C Bus via pin: %s\n", controlPin.c_str());
                 const PinCapabilities& pin = PinCapabilities::getPinByName(controlPin);
@@ -545,7 +534,7 @@ void FPPOLEDUtils::run() {
                     }
                 }
                 if (action != "" && !currentStatus->displayOn) {
-                    //just turn the display on if button is hit
+                    // just turn the display on if button is hit
                     if (!currentStatus->forceOff) {
                         currentStatus->displayOn = true;
                         OLEDPage::SetCurrentPage(statusPage);
@@ -559,9 +548,9 @@ void FPPOLEDUtils::run() {
                             OLEDPage::GetCurrentPage()->doAction(action);
                         }
                     }
-                } else if (action != "" && ((ntime - lastActionTime) > 70000)) { //account for some debounce time
+                } else if (action != "" && ((ntime - lastActionTime) > 70000)) { // account for some debounce time
                     printf("Action: %s\n", action.c_str());
-                    //force immediate update
+                    // force immediate update
                     lastUpdateTime = 0;
                     lastActionTime = ntime;
                     if (OLEDPage::GetCurrentPage()) {
