@@ -92,7 +92,7 @@ static void setupBBBMemoryMap() {
             bbGPIOMap[0] = curChip;
         } else if (name == "P8_25 [mmc1_dat0]" || name == "P2.33") {
             bbGPIOMap[1] = curChip;
-        } else if (name == "P9_15B" || name == "[SYSBOOT 7]") {
+        } else if (name == "P9_15B" || name == "[SYSBOOT 7]" || name == "P2.20") {
             bbGPIOMap[2] = curChip;
         } else if (name == "[mii col]" || name == "P1.03 [USB1]") {
             bbGPIOMap[3] = curChip;
@@ -114,6 +114,16 @@ BBBPinCapabilities::BBBPinCapabilities(const std::string& n, uint32_t k, uint32_
     gpioIdx = bbGPIOMap[k / 32];
     gpio = k % 32;
 }
+
+int BBBPinCapabilities::mappedGPIOIdx() const {
+    for (int x = 0; x < 4; x++) {
+        if (bbGPIOMap[x] == gpioIdx) {
+            return x;
+        }
+    }
+    return gpioIdx;
+}
+
 Json::Value BBBPinCapabilities::toJSON() const {
     Json::Value ret = PinCapabilities::toJSON();
     if (pru != -1) {

@@ -500,19 +500,19 @@ void BBBMatrix::configurePanelPin(int x, const std::string& color, int row, Json
     const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
     pin.configPin();
     m_usedPins.push_back(pinName);
-    int gpioIdx = pin.gpioIdx;
+    int gpioIdx = pin.mappedGPIOIdx();
     minPort[gpioIdx] = std::min(minPort[gpioIdx], (int)pin.gpio);
-    outputFile << "#define " << color << std::to_string(x + 1) << std::to_string(row) << "_gpio " << std::to_string(pin.gpioIdx) << "\n";
+    outputFile << "#define " << color << std::to_string(x + 1) << std::to_string(row) << "_gpio " << std::to_string(pin.mappedGPIOIdx()) << "\n";
     outputFile << "#define " << color << std::to_string(x + 1) << std::to_string(row) << "_pin  " << std::to_string(pin.gpio) << "\n";
 
     if (color == "r") {
-        m_pinInfo[x].row[row - 1].r_gpio = pin.gpioIdx;
+        m_pinInfo[x].row[row - 1].r_gpio = pin.mappedGPIOIdx();
         m_pinInfo[x].row[row - 1].r_pin = 1UL << pin.gpio;
     } else if (color == "g") {
-        m_pinInfo[x].row[row - 1].g_gpio = pin.gpioIdx;
+        m_pinInfo[x].row[row - 1].g_gpio = pin.mappedGPIOIdx();
         m_pinInfo[x].row[row - 1].g_pin = 1UL << pin.gpio;
     } else {
-        m_pinInfo[x].row[row - 1].b_gpio = pin.gpioIdx;
+        m_pinInfo[x].row[row - 1].b_gpio = pin.mappedGPIOIdx();
         m_pinInfo[x].row[row - 1].b_pin = 1UL << pin.gpio;
     }
 }

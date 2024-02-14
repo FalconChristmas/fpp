@@ -39,6 +39,8 @@ public:
     virtual void setPWMValue(int valueNS) const override;
     virtual int getPWMRegisterAddress() const override;
 
+    virtual int mappedGPIOIdx() const override;
+
     virtual bool supportPWM() const override;
     virtual Json::Value toJSON() const override;
 
