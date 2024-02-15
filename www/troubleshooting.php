@@ -85,11 +85,13 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
         if (count(array_intersect($commandID["platforms"], $target_platforms)) > 0) {
             $commandTitle = $commandID["title"];
             $commandCmd = $commandID["cmd"];
+            $commandDesc = $commandID["description"];
             $header = "header_" . $commandKey;
             ${'hotlinks-' . $commandGrpID} .= "<li><a href=\"#$header\">$commandTitle</a></li>";
             ?>
 
         <a class="troubleshoot-anchor" name="<?echo $header ?>">.</a><h4><?echo $commandTitle; ?></h4>
+        <h4><?echo "Command Description: </h4>" . $commandDesc; ?>
         <h4><?echo "(Command: " . $commandCmd . ")"; ?></h4>
         <pre id="<?echo ("command_" . $commandKey) ?>"><i>Loading...</i></pre>
         <hr>
