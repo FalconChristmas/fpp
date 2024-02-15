@@ -463,7 +463,7 @@
             }
         },
         "RPISPECIFIC": {
-            "grpDisplayTitle": "RPI INFO",
+            "grpDisplayTitle": "RPI Utils",
             "grpDescription": "Raspberry Pi System Info",
             "platforms": [
                 "Raspberry Pi"
@@ -481,6 +481,14 @@
                     "title": "RPI pinctrl util",
                     "description": "Raspberry Pi util for displaying the GPIO and pin muxing state of a system, bypassing the kernel",
                     "cmd": "/bin/pinctrl",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                },
+                "VCLOG": {
+                    "title": "RPI vclog util",
+                    "description": "A tool to get VideoCore 'assert' or 'msg' logs with optional -f to wait for new logs to arrive.",
+                    "cmd": "/bin/vclog --msg",
                     "platforms": [
                         "Raspberry Pi"
                     ]
