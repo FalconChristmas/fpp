@@ -476,6 +476,14 @@
                     "platforms": [
                         "Raspberry Pi"
                     ]
+                },
+                "PINCTRL": {
+                    "title": "RPI pinctrl util",
+                    "description": "Raspberry Pi util for displaying the GPIO and pin muxing state of a system, bypassing the kernel",
+                    "cmd": "/bin/pinctrl",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
                 }
             }
         }
