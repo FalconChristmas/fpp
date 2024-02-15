@@ -91,8 +91,8 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
             ?>
 
         <a class="troubleshoot-anchor" name="<?echo $header ?>">.</a><h4><?echo $commandTitle; ?></h4>
-        <h4><?echo "Command Description: </h4>" . $commandDesc; ?>
-        <h4><?echo "(Command: " . $commandCmd . ")"; ?></h4>
+        <strong><?echo "Command Description: </strong>" . $commandDesc; ?>
+        <strong><?echo "<br>Command: </strong>" . $commandCmd; ?></strong>
         <pre id="<?echo ("command_" . $commandKey) ?>"><i>Loading...</i></pre>
         <hr>
 <?
