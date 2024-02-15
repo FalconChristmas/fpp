@@ -113,7 +113,7 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
 <script type="application/javascript">
 
 /*
- * Anchors are dynamiclly via ajax thus auto scrolling if anchor is in url
+ * Anchors are dynamically via ajax thus auto scrolling if anchor is in url
  * will fail.  This will workaround that problem by forcing a scroll
  * afterward dynamic content is loaded.
  */
