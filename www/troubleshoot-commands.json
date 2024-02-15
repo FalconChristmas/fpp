@@ -3,6 +3,9 @@
         "Networking": {
             "grpDisplayTitle": "Networking",
             "grpDescription": "Set of tools for network troubleshooting",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "Interfaces": {
                     "title": "Interfaces",
@@ -57,6 +60,9 @@
         "Disk": {
             "grpDisplayTitle": "Disk",
             "grpDescription": "Set of tools for storage related troubleshooting",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "BlockDevices": {
                     "title": "Block Devices",
@@ -95,6 +101,9 @@
         "DateTime": {
             "grpDisplayTitle": "Date / Time",
             "grpDescription": "Set of tools for Time and Date troubleshooting",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "Date": {
                     "title": "Date",
@@ -125,6 +134,9 @@
         "MemoryCPU": {
             "grpDisplayTitle": "Memory / CPU",
             "grpDescription": "Set of tools for SBC troubleshooting",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "Memory": {
                     "title": "Memory",
@@ -163,6 +175,9 @@
         "USB": {
             "grpDisplayTitle": "USB",
             "grpDescription": "Set of tools for USB troubleshooting",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "USBDeviceTree": {
                     "title": "USB Device Tree",
@@ -185,6 +200,9 @@
         "Audio": {
             "grpDisplayTitle": "Audio",
             "grpDescription": "Set of tools for Audio troubleshooting",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "SoundCards": {
                     "title": "Sound Cards",
@@ -207,6 +225,9 @@
         "Midi": {
             "grpDisplayTitle": "Midi",
             "grpDescription": "Set of tools for Midi troubleshooting",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "MidiDevices": {
                     "title": "Midi Devices",
@@ -221,6 +242,9 @@
         "Video": {
             "grpDisplayTitle": "Video",
             "grpDescription": "Set of tools for Video troubleshooting",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "Video": {
                     "title": "Video",
@@ -235,6 +259,9 @@
         "OS": {
             "grpDisplayTitle": "OS, Kernel, and SD image",
             "grpDescription": "FPP Version Info",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "OSVersion": {
                     "title": "OS Version",
@@ -289,6 +316,9 @@
         "i2c": {
             "grpDisplayTitle": "i2c",
             "grpDescription": "Set of tools for I2C troubleshooting",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "i2cdetect": {
                     "title": "i2cdetect",
@@ -303,6 +333,9 @@
         "Processes": {
             "grpDisplayTitle": "Processes",
             "grpDescription": "Set of tools for examining running processes",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "Processes": {
                     "title": "Processes",
@@ -317,6 +350,9 @@
         "Boot": {
             "grpDisplayTitle": "Boot",
             "grpDescription": "FPP Boot logs",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "FPPCapeDetectLog": {
                     "title": "FPP Cape Detect Log",
@@ -371,6 +407,9 @@
         "Git": {
             "grpDisplayTitle": "Git",
             "grpDescription": "Git source control info",
+            "platforms": [
+                "all"
+            ],
             "commands": {
                 "GitSourceIP": {
                     "title": "Git Source IP",
@@ -401,6 +440,9 @@
         "GPIO": {
             "grpDisplayTitle": "GPIO",
             "grpDescription": "Set of tools for GPIO troubleshooting",
+            "platforms": [
+                "Raspberry Pi"
+            ],
             "commands": {
                 "GPIO": {
                     "title": "GPIO",
@@ -423,6 +465,9 @@
         "RPISPECIFIC": {
             "grpDisplayTitle": "RPI INFO",
             "grpDescription": "Raspberry Pi System Info",
+            "platforms": [
+                "Raspberry Pi"
+            ],
             "commands": {
                 "RPIINFO": {
                     "title": "RPI Info",

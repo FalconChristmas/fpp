@@ -43,13 +43,17 @@ include 'menu.inc';?>
 //LoadCommands
 $troubleshootingCommandsLoaded = 0;
 LoadTroubleShootingCommands();
+$target_platforms = array('all', $settings['Platform']);
 
 //Display Nav Tabs - one per group
 foreach (array_keys($troubleshootingCommandGroups) as $commandGrpID) {
     //Loop through groupings
-    echo "<li class=\"nav-item\" role=\"presentation\">";
-    echo "<button class=\"nav-link" . ($commandGrpID == array_key_first($troubleshootingCommandGroups) ? " active" : "") . "\" id=\"pills-" . $commandGrpID . "-tab\" data-bs-toggle=\"pill\" data-bs-target=\"#pills-" . $commandGrpID . "\" type=\"button\" role=\"tab\" aria-controls=\"pills-" . $commandGrpID . "\" aria-selected=\"true\">" . $troubleshootingCommandGroups[$commandGrpID]["grpDisplayTitle"] . "</button>";
-    echo "</li>";
+    //Display group if relevant for current platform
+    if (count(array_intersect($troubleshootingCommandGroups[$commandGrpID]["platforms"], $target_platforms)) > 0) {
+        echo "<li class=\"nav-item\" role=\"presentation\">";
+        echo "<button class=\"nav-link" . ($commandGrpID == array_key_first($troubleshootingCommandGroups) ? " active" : "") . "\" id=\"pills-" . $commandGrpID . "-tab\" data-bs-toggle=\"pill\" data-bs-target=\"#pills-" . $commandGrpID . "\" type=\"button\" role=\"tab\" aria-controls=\"pills-" . $commandGrpID . "\" aria-selected=\"true\">" . $troubleshootingCommandGroups[$commandGrpID]["grpDisplayTitle"] . "</button>";
+        echo "</li>";
+    }
 }
 ?>
     </ul>
@@ -59,10 +63,12 @@ foreach (array_keys($troubleshootingCommandGroups) as $commandGrpID) {
 <?
 ////Display Command Contents
 foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
-
-    ${'hotlinks-' . $commandGrpID} = "<ul>";
-    echo "<div class=\"tab-pane fade" . ($commandGrpID == array_key_first($troubleshootingCommandGroups) ? " show active" : "") . "\" id=\"pills-" . $commandGrpID . "\" role=\"tabpanel\" aria-labelledby=\"pills-" . $commandGrpID . "-tab\">";
-    ?>
+    //Loop through groupings
+    //Display group if relevant for current platform
+    if (count(array_intersect($troubleshootingCommandGroups[$commandGrpID]["platforms"], $target_platforms)) > 0) {
+        ${'hotlinks-' . $commandGrpID} = "<ul>";
+        echo "<div class=\"tab-pane fade" . ($commandGrpID == array_key_first($troubleshootingCommandGroups) ? " show active" : "") . "\" id=\"pills-" . $commandGrpID . "\" role=\"tabpanel\" aria-labelledby=\"pills-" . $commandGrpID . "-tab\">";
+        ?>
     <div id="troubleshooting-grp-<?echo $commandGrpID; ?>" class="backdrop">
     <h4><?echo $commandGrp["grpDescription"]; ?></h4>
     <div id="troubleshooting-hot-links-<?echo $commandGrpID; ?>"> </div>
@@ -71,21 +77,24 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
     <div style="overflow: hidden; padding: 10px;\">
 
     <?
+    }
     //Loop through commands in grp
     echo "<div id=\"troubleshooting-results-" . $commandGrpID . "\">";
     foreach ($commandGrp["commands"] as $commandKey => $commandID) {
-        $commandTitle = $commandID["title"];
-        $commandCmd = $commandID["cmd"];
-        $header = "header_" . $commandKey;
-        ${'hotlinks-' . $commandGrpID} .= "<li><a href=\"#$header\">$commandTitle</a></li>";
-        ?>
+        //Display command if relevant for current platform
+        if (count(array_intersect($commandID["platforms"], $target_platforms)) > 0) {
+            $commandTitle = $commandID["title"];
+            $commandCmd = $commandID["cmd"];
+            $header = "header_" . $commandKey;
+            ${'hotlinks-' . $commandGrpID} .= "<li><a href=\"#$header\">$commandTitle</a></li>";
+            ?>
 
         <a class="troubleshoot-anchor" name="<?echo $header ?>">.</a><h4><?echo $commandTitle; ?></h4>
         <h4><?echo "(Command: " . $commandCmd . ")"; ?></h4>
         <pre id="<?echo ("command_" . $commandKey) ?>"><i>Loading...</i></pre>
         <hr>
 <?
-    }
+        }}
     ${'hotlinks-' . $commandGrpID} .= "</ul>";
     ?></div>
     </div></div><?
@@ -127,8 +136,10 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
     echo ("document.querySelector(\"#troubleshooting-hot-links-" . $commandGrpID . "\").innerHTML ='" . ${'hotlinks-' . $commandGrpID} . "'; \n");
 
     foreach ($commandGrp["commands"] as $commandKey => $commandID) {
-        $url = "./troubleshootingHelper.php?key=" . urlencode($commandKey);
-        ?>
+        //Run command if relevant for current platform
+        if (count(array_intersect($commandID["platforms"], $target_platforms)) > 0) {
+            $url = "./troubleshootingHelper.php?key=" . urlencode($commandKey);
+            ?>
       $.ajax({
             url: "<?php echo $url ?>",
             type: 'GET',
@@ -142,7 +153,7 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
         });
 
 <?php
-}}
+}}}
 ?>
   $(".back2top").click(() => $("html, body").animate({scrollTop: 0}, "slow") && false);
   $(window).scroll(function(){
