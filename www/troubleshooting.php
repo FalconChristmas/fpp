@@ -67,7 +67,7 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
     //Display group if relevant for current platform
     if (count(array_intersect($troubleshootingCommandGroups[$commandGrpID]["platforms"], $target_platforms)) > 0) {
         ${'hotlinks-' . $commandGrpID} = "<ul>";
-        echo "<div class=\"tab-pane fade" . ($commandGrpID == array_key_first($troubleshootingCommandGroups) ? " show active" : "") . "\" id=\"pills-" . $commandGrpID . "\" role=\"tabpanel\" aria-labelledby=\"pills-" . $commandGrpID . "-tab\">";
+        echo "<div class=\"tab-pane fade\"  id=\"pills-" . $commandGrpID . "\" role=\"tabpanel\" aria-labelledby=\"pills-" . $commandGrpID . "-tab\">";
         ?>
     <div id="troubleshooting-grp-<?echo $commandGrpID; ?>" class="backdrop">
     <h4><?echo $commandGrp["grpDescription"]; ?></h4>
@@ -131,17 +131,19 @@ function fixScroll() {
    }
 }
 
-//$(document).on('shown.bs.tab', function(){
-$( document ).ready(function() {
-<?
-foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
-    echo ("document.querySelector(\"#troubleshooting-hot-links-" . $commandGrpID . "\").innerHTML ='" . ${'hotlinks-' . $commandGrpID} . "'; \n");
 
-    foreach ($commandGrp["commands"] as $commandKey => $commandID) {
-        //Run command if relevant for current platform
-        if (count(array_intersect($commandID["platforms"], $target_platforms)) > 0) {
-            $url = "./troubleshootingHelper.php?key=" . urlencode($commandKey);
-            ?>
+    <?
+foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
+    //Create logic for grp if relevant for platform
+    if (count(array_intersect($commandGrp["platforms"], $target_platforms)) > 0) {
+        echo ("document.querySelector(\"#troubleshooting-hot-links-" . $commandGrpID . "\").innerHTML ='" . ${'hotlinks-' . $commandGrpID} . "'; \n");
+        ?> function dispTroubleTab<?echo $commandGrpID; ?>(){
+        <?
+        foreach ($commandGrp["commands"] as $commandKey => $commandID) {
+            //Run command if relevant for current platform
+            if (count(array_intersect($commandID["platforms"], $target_platforms)) > 0) {
+                $url = "./troubleshootingHelper.php?key=" . urlencode($commandKey);
+                ?>
       $.ajax({
             url: "<?php echo $url ?>",
             type: 'GET',
@@ -154,15 +156,33 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
             }
         });
 
-<?php
-}}}
+<?
+            }}?>}<?}}
 ?>
-  $(".back2top").click(() => $("html, body").animate({scrollTop: 0}, "slow") && false);
+
+
+$( document ).ready(function() {
+//default to show first tab in grp array active
+$('#pills-tab button[id="pills-<?echo array_key_first($troubleshootingCommandGroups) ?>-tab"]').tab('show');
+dispTroubleTab<?echo array_key_first($troubleshootingCommandGroups) ?>();
+document.getElementById("pills-<?echo array_key_first($troubleshootingCommandGroups) ?>").classList.add('active');
+document.getElementById("pills-<?echo array_key_first($troubleshootingCommandGroups) ?>").classList.add('show');
+
+//Call Function to run commands for selected tab
+    $('.nav-link').on('shown.bs.tab', function(){
+        var id = $(this).attr("id");
+        var cmdgrp = id.replace("pills-","").replace("-tab","");
+
+       var fn_string = "dispTroubleTab".concat(cmdgrp);
+       var fn = window[fn_string];
+       if (typeof fn === "function") fn();
+
+    $(".back2top").click(() => $("html, body").animate({scrollTop: 0}, "slow") && false);
   $(window).scroll(function(){
       if ($(this).scrollTop() > 100) $('.back2top').fadeIn();
       else $('.back2top').fadeOut();
   });
-}); // end document ready
+});}); // end document ready
 </script>
 
 </body>
