@@ -74,7 +74,7 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
     <div id="troubleshooting-hot-links-<?echo $commandGrpID; ?>"> </div>
     </div>
     <hr>
-    <div style="overflow: hidden; padding: 10px;\">
+    <div style="overflow: hidden; padding: 10px;">
 
     <?
     }
