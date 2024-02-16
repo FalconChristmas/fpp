@@ -219,7 +219,11 @@ public:
             }
         }
         if (vlcInstance) {
-            data->media = libvlc_media_new_path(data->fullMediaPath.c_str());
+            if (startsWith(data->fullMediaPath, "http://") || startsWith(data->fullMediaPath, "https://"))
+                data->media = libvlc_media_new_location(data->fullMediaPath.c_str());
+            else
+                data->media = libvlc_media_new_path(data->fullMediaPath.c_str());
+
             data->vlcPlayer = libvlc_media_player_new_from_media(vlcInstance, data->media);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), STOPPINGENUM, stoppedEventCallBack, data);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
@@ -305,10 +309,14 @@ VLCOutput::VLCOutput(const std::string& mediaFilename, MediaOutputStatus* status
         fullMediaPath = FPP_DIR_VIDEO("/" + mediaFilename);
         ;
     }
-    if (!FileExists(fullMediaPath)) {
-        LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullMediaPath.c_str());
-        currentMediaFilename = "";
-        return;
+    if (startsWith(mediaFilename, "http://") || startsWith(mediaFilename, "https://")) {
+        fullMediaPath = mediaFilename;
+    } else {
+        if (!FileExists(fullMediaPath)) {
+            LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullMediaPath.c_str());
+            currentMediaFilename = "";
+            return;
+        }
     }
     currentMediaFilename = mediaFilename;
     m_mediaFilename = mediaFilename;
