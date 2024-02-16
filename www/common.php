@@ -923,7 +923,7 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
     echo "
 <input type='text' id='$setting' maxlength='$maxlength' size='$size' value=\"";
 
-    if (isset($settings[$setting])) {
+    if (($pluginName == "") && isset($settings[$setting])) {
         echo $settings[$setting];
     } elseif (isset($pluginSettings[$setting])) {
         echo $pluginSettings[$setting];
@@ -1045,7 +1045,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     if ((isset($sData['alwaysReset'])) && ($sData['alwaysReset'] == 1)) {
         $curValue = $defaultValue;
     } else {
-        if (isset($settings[$setting])) {
+        if (($pluginName == "") && isset($settings[$setting])) {
             $curValue = $settings[$setting];
         } elseif (isset($pluginSettings[$setting])) {
             $curValue = $pluginSettings[$setting];
