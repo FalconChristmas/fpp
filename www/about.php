@@ -502,15 +502,19 @@ echo "<option value=''>-- Choose an OS Version --</option>\n";
 foreach ($osUpdateFiles as $key => $value) {
     echo "<option value='" . $value . "'>" . $value . "</option>\n";
 }
-echo "</select><span";
-if (getFPPBranch() != 'master') {
-    echo " style='display: none;'";
-}
-echo ">&nbsp&nbsp;";
+echo "</select>";
+
 if ($settings['uiLevel'] > 0) {
     echo "<br>Show All Platforms <input type='checkbox' id='allPlatforms' onClick='UpdatePlatforms();'><img id='allPlatforms_img' title='Show both BBB & Pi downloads' src='images/redesign/help-icon.svg' class='icon-help'></span>";
 }
-echo "&nbsp;&nbsp;<br>Preserve /opt/fpp <input type='checkbox' id='keepOptFPP'><img id='keepOptFPP_img' title='Preserve the FPP version in /opt/fpp across fppos upgrade.' src='images/redesign/help-icon.svg' class='icon-help'></span>";
+
+echo "<span";
+if (getFPPBranch() != 'master') {
+    echo " style='display: none;'";
+}
+echo ">";
+echo "<br>Preserve /opt/fpp <input type='checkbox' id='keepOptFPP'><img id='keepOptFPP_img' title='Preserve the FPP version in /opt/fpp across fppos upgrade.  WARNING: This will run the main OS upgrade script from /opt/fpp instead of using the version included in the .fppos image.  This may cause issues if the versions are not compatible.' src='images/redesign/help-icon.svg' class='icon-help'>";
+echo "</span>";
 
 
 echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'>&nbsp;<input type='button' disabled value='Download Only' onClick='DownloadOS();' class='buttons' id='OSDownload'></td></tr>";
