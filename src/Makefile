@@ -66,6 +66,8 @@ release: optimized
 
 debug: all
 
+local: $(TARGETS)
+
 fppversion.c: fppversion.sh
 	sh $(SRCDIR)fppversion.sh $(PWD)
 	php fppdefines.php > ../www/fppdefines.php
