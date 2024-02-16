@@ -54,11 +54,18 @@ mount -o bind /proc /mnt/proc
 if [ -f /home/fpp/media/tmp/keepOptFPP ]
 then
     # If we are on master and keeping /opt/fpp, run the existing part2 script
-    echo "keepOptFPP flag exists, script will not copy /opt/fpp from image"
+    echo "keepOptFPP flag exists, script will not copy /opt/fpp from image."
     echo "Passing control to existing upgradeOS-part2.sh from /opt/fpp"
     stdbuf --output=0 --error=0 chroot /mnt /mnt/opt/fpp/SD/upgradeOS-part2.sh
+elif [ -d "/boot/firmware" -a ! -d "/mnt/boot/firmware" ]
+then
+    # Downgrading from Raspbian 12 or higher to a pre-12 version without /boot/firmware
+    echo "Downgrading to OS version without /boot/firmware."
+    echo "Passing control to upgradeOS-part2.sh from current version."
+    cp /opt/fpp/SD/upgradeOS-part2.sh /home/fpp/media/tmp/upgradeOS-part2.sh
+    stdbuf --output=0 --error=0 chroot /mnt /mnt/home/fpp/media/tmp/upgradeOS-part2.sh
+    rm /home/fpp/media/tmp/upgradeOS-part2.sh
 else
-    # Not keeping /opt/fpp, so run part2 included in the fppos image
     echo "Passing control to upgradeOS-part2.sh from fppos image"
     stdbuf --output=0 --error=0 chroot /mnt /opt/fpp/SD/upgradeOS-part2.sh
 fi
