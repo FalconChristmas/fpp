@@ -11,6 +11,10 @@ function GetSequences()
     foreach (glob($dir . "/*.fseq") as $filename) {
         array_push($sequences, basename($filename, ".fseq"));
     }
+    $dir = $settings['effectDirectory'];
+    foreach (glob($dir . "/*.eseq") as $filename) {
+        array_push($sequences, basename($filename, ".eseq"));
+    }
 
     return json($sequences);
 }
@@ -22,10 +26,10 @@ function GetSequence()
     global $settings;
     
     $sequence = params('SequenceName');
-    if (substr($sequence, -5) != ".fseq") {
+    if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = $settings['sequenceDirectory'];
+    $dir = FSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         if (ob_get_level()) {
@@ -49,10 +53,10 @@ function GetSequenceMetaData()
 {
     global $settings, $fppDir;
     $sequence = params('SequenceName');
-    if (substr($sequence, -5) != ".fseq") {
+    if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = $settings['sequenceDirectory'];
+    $dir = FSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         $cmd = $fppDir . "/src/fsequtils -j " . escapeshellarg($file) . " 2> /dev/null";
@@ -62,7 +66,7 @@ function GetSequenceMetaData()
             return json($js);
         } else {
             $data = array();
-            $data['Name'] = $sequence . '.fseq';
+            $data['Name'] = $sequence;
             $data['Version'] = '?.?';
             $data['ID'] = '';
             $data['StepTime'] = -1;
@@ -72,7 +76,7 @@ function GetSequenceMetaData()
             return json($data);
         }
     }
-    halt(404, "Not found: " . $sequence);
+    halt(404, "Not found: " . $file);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -81,10 +85,10 @@ function PostSequence()
 {
     global $settings;
     $sequence = params('SequenceName');
-    if (substr($sequence, -5) != ".fseq") {
+    if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = $settings['sequenceDirectory'];
+    $dir = FSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
 
     $putdata = fopen("php://input", "r");
@@ -108,10 +112,10 @@ function DeleteSequences()
 {
     global $settings;
     $sequence = params('SequenceName');
-    if (substr($sequence, -5) != ".fseq") {
+    if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = $settings['sequenceDirectory'];
+    $dir = FSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         unlink($file);
@@ -130,6 +134,12 @@ function GetSequenceStart()
     global $settings;
 
     $sequence = params('SequenceName');
+    
+    if (substr($sequence, -5) == ".eseq") {
+        $rc = array("status" => "ERROR: This API call does only supports Sequences, not Effects");
+        return json($rc);
+    }
+
     if (substr($sequence, -5) != ".fseq") {
         $sequence = $sequence . ".fseq";
     }
@@ -179,4 +189,15 @@ function GetSequenceStepBack()
     $rc = array("status" => "OK");
     return json($rc);
 
+}
+
+// Helper function
+function FSeqOrEseqDirectory($seq)
+{
+    global $settings;
+    if (substr($seq, -5) == ".fseq") {
+       return $settings['sequenceDirectory'];
+    } else if (substr($seq, -5) == ".eseq") {
+       return $settings['effectDirectory'];
+    }
 }
