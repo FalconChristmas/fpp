@@ -129,7 +129,7 @@ static void checkSSHKeys() {
         }
     }
     printf("      - Renerating SSH keys\n");
-    exec("ssh-keygen -A");
+    exec("/usr/bin/ssh-keygen -A");
 }
 
 // Copies files/config from the /boot partition to /home/fpp/media
