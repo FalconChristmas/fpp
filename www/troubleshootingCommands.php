@@ -101,4 +101,10 @@ if ($settings['Platform'] != "MacOS") {
         // GPIO Info
         $commands['GPIO Info'] = $SUDO . ' gpioinfo ';
     }
+
+    $devices = explode("\n", trim(shell_exec("lsblk -nd --output NAME|grep -v zram|grep -v mmcblk")));
+    foreach ($devices as $device) {
+        $commands["Storage S.M.A.R.T Attributes - $device"] = $SUDO . " smartctl -A /dev/$device";
+    }
+
 }
