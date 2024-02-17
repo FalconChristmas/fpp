@@ -166,7 +166,8 @@ function PrintStorageDeviceSelect($platform)
 	foreach(scandir("/dev/") as $fileName)
 	{
 		if ((preg_match("/^sd[a-z][0-9]/", $fileName)) ||
-			(preg_match("/^mmcblk[0-9]p[0-9]/", $fileName)))
+			(preg_match("/^mmcblk[0-9]p[0-9]/", $fileName)) ||
+			(preg_match("/^nvme[0-9]n[0-9]p[0-9]/", $fileName)))
 		{
 			exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
 			$GB = intval($output[0]) / 1024.0 / 1024.0;
@@ -243,7 +244,7 @@ if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
             $addflashbutton = true;
         }
     }
-    if (((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false)) && (file_exists("/dev/sda"))) {
+    if (((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false)) && (file_exists("/dev/sda") || file_exists("/dev/nvme0n1"))) {
         $addflashbutton = true;
     }
 } else if (((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false)) && $rootDevice == 'sda2' && (file_exists("/dev/mmcblk0"))) {
@@ -287,7 +288,7 @@ if ($addflashbutton) {
    }
 } else if ($settings['Platform'] == "Raspberry Pi") {
 ?>
-<?  if ($rootDevice == 'mmcblk0p2') { ?>
+<? if (($rootDevice == 'mmcblk0p2') && file_exists("/dev/sda")) { ?>
     <h3>USB Actions:</h3>
     <div class="row">
         <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to USB' onClick='flashUSB("sda");'></div>
@@ -296,6 +297,16 @@ if ($addflashbutton) {
     <div class="row">
         <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Clone to USB' onClick='cloneUSB("sda");'></div>
         <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the USB device.  See note below for more information.</div>
+    </div>    
+<? } else if (($rootDevice == 'mmcblk0p2') && file_exists("/dev/nvme0n1")) { ?>
+    <h3>NVMe Actions:</h3>
+    <div class="row">
+        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to NVMe' onClick='flashUSB("nvme0n1");'></div>
+        <div class="col-auto">&nbsp;This will flash FPP to the NVMe device.  See note below for more information.</div>
+    </div>    
+    <div class="row">
+        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Clone to NVMe' onClick='cloneUSB("nvme0n1");'></div>
+        <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the NVMe device.  See note below for more information.</div>
     </div>    
 <? } else { ?>
     <h3>SD Card Actions:</h3>
@@ -349,7 +360,7 @@ In addition to the above, since it is not recommended, using USB storage is not 
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the eMMC can take a long time.  Do you wish to proceed?</p>
 </div>
 <div id="dialog-confirm-usb" class="hidden">
-<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the USB/SD can take a long time and will destroy all content on the target device.  Do you wish to proceed?</p>
+<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing to NVMe/USB/SD can take a long time and will destroy all content on the target device.  Do you wish to proceed?</p>
 </div>
 <div id="dialog-confirm-newpartition" class="hidden">
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating a new partition in the unused space will require a reboot to take effect.  Do you wish to proceed?</p>

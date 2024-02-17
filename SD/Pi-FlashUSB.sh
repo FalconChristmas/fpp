@@ -41,6 +41,16 @@ if [ "$DEVICE" = "sda" ]; then
     sed -i 's/root=\/dev\/[a-zA-Z0-9]* /root=\/dev\/sda2 /g' /mnt${FPPBOOTDIR}/cmdline.txt
     sed -i 's/LABEL=boot[a-zA-Z0-9]* /LABEL=bootsda /g' /mnt/etc/fstab
     sed -i 's/LABEL=root[a-zA-Z0-9]* /LABEL=rootfssda /g' /mnt/etc/fstab
+elif [ "$DEVICE" = "nvme0n1" ]; then
+    fatlabel /dev/nvme0n1p1 bootsda
+    e2label /dev/nvme0n1p2 rootfssda
+    mount /dev/nvme0n1p2 /mnt
+    mount /dev/nvme0n1p1 /mnt${FPPBOOTDIR}
+
+#    echo "program_usb_boot_mode=1" >> /mnt${FPPBOOTDIR}/config.txt
+    sed -i 's/root=\/dev\/[a-zA-Z0-9]* /root=\/dev\/nvme0n1p1 /g' /mnt${FPPBOOTDIR}/cmdline.txt
+    sed -i 's/LABEL=boot[a-zA-Z0-9]* /LABEL=bootnvme0n1p1 /g' /mnt/etc/fstab
+    sed -i 's/LABEL=root[a-zA-Z0-9]* /LABEL=rootfsnvme0n1p2 /g' /mnt/etc/fstab
 else 
     fatlabel /dev/mmcblk0p1 boot
     e2label /dev/mmcblk0p2 rootfs
