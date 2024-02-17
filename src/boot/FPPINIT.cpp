@@ -155,12 +155,17 @@ static void handleBootPartition() {
 static void checkHostName() {
     std::string hn;
     if (FileExists("/.dockerenv")) {
-        std::string CID = execAndReturn("head -1 /proc/1/cgroup | sed -e \"s/.*docker-//\" | cut -c1-12");
+        std::string CID = execAndReturn("/usr/bin/head -1 /proc/1/cgroup | sed -e \"s/.*docker-//\" | cut -c1-12");
         hn = execAndReturn("/usr/bin/hostname");
         TrimWhiteSpace(hn);
         setRawSetting("HostName", hn);
         setRawSetting("HostDescription", "Docker ID: " + CID);
-    } else if (getRawSetting("HostName", hn)) {
+    } else {
+        getRawSetting("HostName", hn);
+        // By default on installation, hostname is fpp, but it does not appear in the settings file
+        if (hn == "") {
+          hn = "fpp";
+        }
         char hostname[256];
         int result = gethostname(hostname, 256);
         if (result == 0 && hn != hostname) {
