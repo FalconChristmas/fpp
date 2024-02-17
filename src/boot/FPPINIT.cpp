@@ -156,7 +156,7 @@ static void checkHostName() {
     std::string hn;
     if (FileExists("/.dockerenv")) {
         std::string CID = execAndReturn("head -1 /proc/1/cgroup | sed -e \"s/.*docker-//\" | cut -c1-12");
-        hn = execAndReturn("hostname");
+        hn = execAndReturn("/usr/bin/hostname");
         TrimWhiteSpace(hn);
         setRawSetting("HostName", hn);
         setRawSetting("HostDescription", "Docker ID: " + CID);
@@ -190,7 +190,7 @@ static void checkHostName() {
                 hosts += hn;
             }
             PutFileContents("/etc/hosts", hosts);
-            execbg("systemctl restart avahi-daemon &");
+            execbg("/usr/bin/systemctl restart avahi-daemon &");
         }
     }
 }
@@ -302,7 +302,7 @@ void configureBBB() {
         // its a pocketbeagle
         // bug in kernel/device tree on pcoketbeagle where in P2-36 is not
         // properly set to be AIN so sensors won't read properly
-        exec("i2cset -y -f 0 0x24 9 5");
+        exec("/usr/sbin/i2cset -y -f 0 0x24 9 5");
     }
 
     // Beagle LEDS
@@ -313,10 +313,10 @@ void configureBBB() {
         } else {
             led = "0x38";
         }
-        exec("i2cset -f -y 0 0x24 0x0b 0x6e");
-        exec("i2cset -f -y 0 0x24 0x13 " + led);
-        exec("i2cset -f -y 0 0x24 0x0b 0x6e");
-        exec("i2cset -f -y 0 0x24 0x13 " + led);
+        exec("/usr/sbin/i2cset -f -y 0 0x24 0x0b 0x6e");
+        exec("/usr/sbin/i2cset -f -y 0 0x24 0x13 " + led);
+        exec("/usr/sbin/i2cset -f -y 0 0x24 0x0b 0x6e");
+        exec("/usr/sbin/i2cset -f -y 0 0x24 0x13 " + led);
     }
     if (getRawSetting("BBBLeds0", led) && !led.empty()) {
         PutFileContents("/sys/class/leds/beaglebone:green:usr0/trigger", led);
@@ -339,7 +339,7 @@ static std::string FindTetherWIFIAdapater() {
         for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net/")) {
             std::string dev = entry.path().filename();
             if (startsWith(dev, "wl")) {
-                std::string output = execAndReturn("iw " + dev + " link");
+                std::string output = execAndReturn("/usr/sbin/iw " + dev + " link");
                 if (contains(output, "Not connected")) {
                     return dev;
                 }
@@ -446,7 +446,7 @@ static void setupNetwork() {
     }
     std::string WifiRegulatoryDomain = "US";
     getRawSetting("WifiRegulatoryDomain", WifiRegulatoryDomain);
-    exec("iw reg set " + WifiRegulatoryDomain);
+    exec("/usr/sbin/iw reg set " + WifiRegulatoryDomain);
 
     int tetherEnabled = getRawSettingInt("EnableTethering", 0);
     std::string tetherInterface = FindTetherWIFIAdapater();
@@ -541,10 +541,10 @@ static void setupNetwork() {
             } else if (IPFORWARDING == 2) {
                 // systemd-networkd might not have masqarate support compiled in, we'll just do it manually
                 ipForward = true;
-                exec("modprobe iptable_nat");
-                exec("nft add table nat");
-                exec("nft 'add chain nat postrouting { type nat hook postrouting priority 100 ; }'");
-                exec("nft add rule nat postrouting oif " + interface + " masquerade");
+                exec("/usr/sbin/modprobe iptable_nat");
+                exec("/usr/sbin/nft add table nat");
+                exec("/usr/sbin/nft 'add chain nat postrouting { type nat hook postrouting priority 100 ; }'");
+                exec("/usr/sbin/nft add rule nat postrouting oif " + interface + " masquerade");
             }
             content.append(addressLines);
 #if __GNUC__ > 11
@@ -601,7 +601,7 @@ static void setupNetwork() {
             if (startsWith(ftc, "/etc/wpa_supplicant/")) {
                 std::string intf = ftc.substr(ftc.find("-") + 1);
                 intf = intf.substr(0, intf.find("."));
-                execbg("systemctl disable wpa_supplicant@" + intf + ".service &");
+                execbg("/usr/bin/systemctl disable wpa_supplicant@" + intf + ".service &");
             }
         }
     }
@@ -611,25 +611,25 @@ static void setupNetwork() {
         for (auto& c : commandsToRun) {
             exec(c);
         }
-        execbg("systemctl reload-or-restart systemd-networkd.service &");
+        execbg("/usr/bin/systemctl reload-or-restart systemd-networkd.service &");
         if (hostapd) {
-            execbg("systemctl reload-or-restart hostapd.service &");
+            execbg("/usr/bin/systemctl reload-or-restart hostapd.service &");
         } else {
-            if (contains(execAndReturn("systemctl is-enabled hostapd"), "enabled")) {
-                execbg("systemctl disable hostapd.service &");
+            if (contains(execAndReturn("/usr/bin/systemctl is-enabled hostapd"), "enabled")) {
+                execbg("/usr/bin/systemctl disable hostapd.service &");
             }
-            if (!contains(execAndReturn("systemctl is-active hostapd"), "inactive")) {
-                execbg("systemctl stop hostapd.service &");
+            if (!contains(execAndReturn("/usr/bin/systemctl is-active hostapd"), "inactive")) {
+                execbg("/usr/bin/systemctl stop hostapd.service &");
             }
         }
     }
 
     printf("FPP - Setting max IGMP memberships\n");
-    exec("sysctl net/ipv4/igmp_max_memberships=512 > /dev/null 2>&1");
+    exec("/usr/sbin/sysctl net/ipv4/igmp_max_memberships=512 > /dev/null 2>&1");
     if (ipForward) {
-        exec("sysctl net.ipv4.ip_forward=1");
+        exec("/usr/sbin/sysctl net.ipv4.ip_forward=1");
     } else {
-        exec("sysctl net.ipv4.ip_forward=0");
+        exec("/usr/sbin/sysctl net.ipv4.ip_forward=0");
     }
 }
 
@@ -640,22 +640,22 @@ static void configureScreenBlanking() {
         int to = getRawSettingInt("screensaverTimeout", 0);
         printf("FPP - Screen blanking set to %d minute(s)", to);
         if (to == 0) {
-            exec("TERM=linux setterm --clear all --blank 1  >> /dev/tty0");
-            exec("dd if=/dev/zero of=/dev/fb0 > /dev/null 2>&1");
+            exec("TERM=linux /usr/bin/setterm --clear all --blank 1  >> /dev/tty0");
+            exec("/usr/bin/dd if=/dev/zero of=/dev/fb0 > /dev/null 2>&1");
         } else {
-            exec("TERM=linux setterm --clear all --blank " + std::to_string(to) + "  >> /dev/tty0");
+            exec("TERM=linux /usr/bin/setterm --clear all --blank " + std::to_string(to) + "  >> /dev/tty0");
         }
     }
 }
 static void setFileOwnership() {
-    exec("chown -R fpp:fpp " + FPP_MEDIA_DIR);
+    exec("/usr/bin/chown -R fpp:fpp " + FPP_MEDIA_DIR);
 }
 static void checkUnpartitionedSpace() {
     if (!FileExists("/etc/fpp/desktop")) {
-        std::string sourceDev = execAndReturn("findmnt -n -o SOURCE " + FPP_MEDIA_DIR);
+        std::string sourceDev = execAndReturn("/usr/bin/findmnt -n -o SOURCE " + FPP_MEDIA_DIR);
         TrimWhiteSpace(sourceDev);
         if (sourceDev.empty()) {
-            sourceDev = execAndReturn("findmnt -n -o SOURCE /");
+            sourceDev = execAndReturn("/usr/bin/findmnt -n -o SOURCE /");
             TrimWhiteSpace(sourceDev);
         }
         if (!sourceDev.empty()) {
@@ -668,7 +668,7 @@ static void checkUnpartitionedSpace() {
         }
         std::string fs = "0";
         if (FileExists("/dev/mmcblk0")) {
-            fs = execAndReturn("sfdisk -F /dev/mmcblk0 | tail -n 1");
+            fs = execAndReturn("/usr/sbin/sfdisk -F /dev/mmcblk0 | tail -n 1");
             TrimWhiteSpace(fs);
             auto splits = split(fs, ' ');
             fs = splits.back();
@@ -740,7 +740,7 @@ static void handleBootDelay() {
     }
 }
 void cleanupChromiumFiles() {
-    exec("rm -rf /home/fpp/.config/chromium/Singleton* 2>/dev/null > /dev/null");
+    exec("/usr/bin/rm -rf /home/fpp/.config/chromium/Singleton* 2>/dev/null > /dev/null");
 }
 
 static void waitForInterfacesUp() {
@@ -803,7 +803,7 @@ static void disableWLANPowerManagement() {
         std::string nm = ifa->ifa_name;
         if (startsWith(nm, "wl")) {
             printf("FPP - Disabling power saving for %s\n", nm.c_str());
-            exec("iw dev " + nm + " set power_save off 2>/dev/null > /dev/null");
+            exec("/usr/sbin/iw dev " + nm + " set power_save off 2>/dev/null > /dev/null");
         }
     }
 }
@@ -865,8 +865,8 @@ static void maybeEnableTethering() {
                        "PoolSize=100\n"
                        "EmitDNS=no\n\n");
         PutFileContents("/etc/systemd/network/10-" + tetherInterface + ".network", content);
-        exec("systemctl reload-or-restart systemd-networkd.service");
-        exec("systemctl reload-or-restart hostapd.service");
+        exec("/usr/bin/systemctl reload-or-restart systemd-networkd.service");
+        exec("/usr/bin/systemctl reload-or-restart hostapd.service");
     }
 }
 static void detectNetworkModules() {
@@ -893,7 +893,7 @@ static void setupAudio() {
     if (!FileExists("/root/.libao")) {
         PutFileContents("/root/.libao", "dev=default");
     }
-    std::string aplay = execAndReturn("aplay -l 2>&1");
+    std::string aplay = execAndReturn("/usr/bin/aplay -l 2>&1");
     if (contains(aplay, "no soundcards")) {
         printf("FPP - No Soundcard Detected, loading snd-dummy\n");
         modprobe("snd-dummy");
@@ -902,7 +902,7 @@ static void setupAudio() {
     int count = 0;
     bool found = false;
     do {
-        std::string amixer = execAndReturn("amixer -c " + std::to_string(card) + " cset numid=3 1  2>&1");
+        std::string amixer = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " cset numid=3 1  2>&1");
         if (contains(amixer, "Invalid ")) {
             ++count;
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -925,7 +925,7 @@ static void setupAudio() {
     std::string origAudio0CardType;
     getRawSetting("AudioCard0Type", origAudio0CardType);
     std::string audioCardType = "unknown";
-    std::string aplayl = execAndReturn("aplay -l | grep 'card " + std::to_string(card) + "'");
+    std::string aplayl = execAndReturn("/usr/bin/aplay -l | grep 'card " + std::to_string(card) + "'");
 #ifdef PLATFORM_PI
     // Pi needs a volume adjustment, in reality a lot of sound cards do, but we
     // don't want to put in a lot of special cases here so only handle the Pi
@@ -983,13 +983,13 @@ static void setupAudio() {
         break;
     }
     PutFileContents("/root/.asoundrc", asoundrc);
-    std::string mixers = execAndReturn("amixer -c " + std::to_string(card) + " scontrols | head -1 | cut -f2 -d\"'\"");
+    std::string mixers = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " scontrols | head -1 | cut -f2 -d\"'\"");
     if (mixers.empty()) {
         // for some sound cards, the mixer devices won't show up
         // until something is played.  Play one second of silence
-        exec("aplay -d 1 /opt/fpp/media/silence_5sec.wav >> /dev/null 2>&1  &");
+        exec("/usr/bin/aplay -d 1 /opt/fpp/media/silence_5sec.wav >> /dev/null 2>&1  &");
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        mixers = execAndReturn("amixer -c " + std::to_string(card) + " scontrols | head -1 | cut -f2 -d\"'\"");
+        mixers = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " scontrols | head -1 | cut -f2 -d\"'\"");
     }
     TrimWhiteSpace(mixers);
     std::string mixer;
@@ -1005,7 +1005,7 @@ static void setupAudio() {
         printf("FPP - Setting mixer device to %s\n", mixer.c_str());
         setRawSetting("AudioMixerDevice", mixer);
     }
-    exec("amixer -c " + std::to_string(card) + " set " + mixer + " " + std::to_string(v) + "% > /dev/null 2>&1");
+    exec("/usr/bin/amixer -c " + std::to_string(card) + " set " + mixer + " " + std::to_string(v) + "% > /dev/null 2>&1");
     setRawSetting("AudioCardType", cardType);
 }
 void detectFalconHardware() {
@@ -1029,7 +1029,7 @@ void setupKiosk() {
             // need to re-install kiosk mode
             exec("/opt/fpp/SD/FPP_Kiosk.sh");
             if (FileExists("/etc/fpp/kiosk")) {
-                exec("reboot");
+                exec("/usr/sbin/reboot");
             }
         }
     }
