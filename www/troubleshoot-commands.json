@@ -500,6 +500,14 @@
                     "platforms": [
                         "Raspberry Pi"
                     ]
+                },
+                "DTC": {
+                    "title": "DT Details",
+                    "description": "A human-readable representation of the current state of the DT.",
+                    "cmd": "dtc -I fs /proc/device-tree",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
                 }
             }
         }
