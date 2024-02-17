@@ -1171,7 +1171,9 @@ echo "${FPPUSER} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 if $isimage; then
     #######################################
     # Setup mail
-    echo "FPP - Adding missing exim4 log directory"
+    echo "FPP - Adding missing exim4 & ntpsec log directory"
+    mkdir /var/log/ntpsec
+    chown ntpsec:ntpsec /var/log/ntpsec
     mkdir /var/log/exim4
     chown Debian-exim /var/log/exim4
     chgrp Debian-exim /var/log/exim4

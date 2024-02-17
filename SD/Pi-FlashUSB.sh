@@ -65,6 +65,12 @@ fi
 
 if [ "$ISCLONE" = "0" ]; then
     rm -rf /mnt/var/log/*
+    mkdir /mnt/var/log/ntpsec
+    chown ntpsec:ntpsec /mnt/var/log/ntpsec
+    mkdir /mnt/var/log/exim4
+    chown Debian-exim /mnt/var/log/exim4
+    chgrp Debian-exim /mnt/var/log/exim4
+
     rm /mnt/home/fpp/.bash_history
 fi
 umount /mnt${FPPBOOTDIR}
