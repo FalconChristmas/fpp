@@ -95,6 +95,14 @@
                     "platforms": [
                         "all"
                     ]
+                },
+                "SMART": {
+                    "title": "S.M.A.R.T. Attributes",
+                    "description": "",
+                    "cmd": "for smartdevice in $(lsblk -nd --output NAME|grep -v zram|grep -v mmcblk); do smartctl -A $smartdevice; done;",
+                    "platforms": [
+                        "all"
+                    ]
                 }
             }
         },
