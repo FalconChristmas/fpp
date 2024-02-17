@@ -104,14 +104,14 @@ function flashUSBDone() {
     EnableModalDialogCloseButton("flashUSBProgress");
 }
 function flashUSB(device) {
-    DisplayConfirmationDialog("flashUSB", "Flash to USB/SD", $("#dialog-confirm-usb"), function() {
-        DisplayProgressDialog("flashUSBProgress", "Flash to USB/SD");
+    DisplayConfirmationDialog("flashUSB", "Flash to NVMe/USB/SD", $("#dialog-confirm-usb"), function() {
+        DisplayProgressDialog("flashUSBProgress", "Flash to NVMe/USB/SD");
         StreamURL("flash-pi-usb.php?cone=false&dev=" + device, 'flashUSBProgressText', 'flashUSBDone', 'flashUSBDone');
     });
 }
 function cloneUSB(device) {
-    DisplayConfirmationDialog("flashUSB", "Clone to USB/SD", $("#dialog-confirm-usb"), function() {
-        DisplayProgressDialog("flashUSBProgress", "Clone to USB/SD");
+    DisplayConfirmationDialog("flashUSB", "Clone to NVMe/USB/SD", $("#dialog-confirm-usb"), function() {
+        DisplayProgressDialog("flashUSBProgress", "Clone to NVMe/USB/SD");
         StreamURL("flash-pi-usb.php?clone=true&dev=" + device, 'flashUSBProgressText', 'flashUSBDone', 'flashUSBDone');
     });
 }
