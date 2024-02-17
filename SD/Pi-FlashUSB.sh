@@ -42,8 +42,8 @@ if [ "$DEVICE" = "sda" ]; then
     sed -i 's/LABEL=boot[a-zA-Z0-9]* /LABEL=bootsda /g' /mnt/etc/fstab
     sed -i 's/LABEL=root[a-zA-Z0-9]* /LABEL=rootfssda /g' /mnt/etc/fstab
 elif [ "$DEVICE" = "nvme0n1" ]; then
-    fatlabel /dev/nvme0n1p1 bootsda
-    e2label /dev/nvme0n1p2 rootfssda
+    fatlabel /dev/nvme0n1p1 bootnvme0n1p1
+    e2label /dev/nvme0n1p2 rootfsnvme0n1p2
     mount /dev/nvme0n1p2 /mnt
     mount /dev/nvme0n1p1 /mnt${FPPBOOTDIR}
 
