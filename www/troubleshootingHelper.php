@@ -41,6 +41,8 @@ if (isset($_GET['key'])) {
         exec($SUDO . ' ' . "/bin/sh -c '" . $command . "' 2>&1 | fold -w 160 -s", $output, $return_val);
         if ($return_val == 0) {
             echo (implode("\n", $output) . "\n");
+        } else {
+            echo "Failed to return valid result";
         }
 
         unset($output);
