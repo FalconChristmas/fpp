@@ -128,7 +128,7 @@ static void checkSSHKeys() {
             }
         }
     }
-    printf("      - Renerating SSH keys\n");
+    printf("      - Regenerating SSH keys\n");
     exec("/usr/bin/ssh-keygen -A");
 }
 
@@ -257,7 +257,7 @@ static void setupApache() {
     } else {
         std::string content = GetFileContents(HTACCESSS);
         if (content.find("php_value") != std::string::npos) {
-            printf("    Modifying .htaccessfile\n");
+            printf("    Modifying .htaccess file\n");
             std::vector<std::string> lines = split(content, '\n');
             content = "";
             for (auto& line : lines) {
@@ -1095,7 +1095,7 @@ int main(int argc, char* argv[]) {
         configureScreenBlanking();
         setupChannelOutputs();
         checkUnpartitionedSpace();
-        printf("Setting file owndership\n");
+        printf("Setting file ownership\n");
         setFileOwnership();
     } else if (action == "postNetwork") {
         handleBootDelay();
