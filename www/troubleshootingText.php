@@ -8,7 +8,7 @@ $results = array();
 
 foreach ($commands as $title => $command) {
     $results[$command] = "Unknown";
-    exec($command . ' 2>&1 | fold -w 80 -s', $output, $return_val);
+    exec($command . ' 2>&1 | fold -w 160 -s', $output, $return_val);
     if ($return_val == 0) {
         $results[$command] = implode("\n", $output) . "\n";
     }
