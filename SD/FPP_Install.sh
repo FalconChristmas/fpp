@@ -785,7 +785,7 @@ case "${FPPPLATFORM}" in
             echo >> ${BOOTDIR}/config.txt
 
             echo "# Swap Pi 3 and Zero W UARTs with BT" >> ${BOOTDIR}/config.txt
-            echo "dtoverlay=pi3-miniuart-bt" >> ${BOOTDIR}/config.txt
+            echo "dtoverlay=miniuart-bt" >> ${BOOTDIR}/config.txt
             echo >> ${BOOTDIR}/config.txt
 
             echo "dtoverlay=dwc2" >> ${BOOTDIR}/config.txt
