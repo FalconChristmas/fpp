@@ -2,12 +2,8 @@
 <html>
 <?php
 require_once 'config.php';
+require_once 'common.php';
 
-function startsWith($string, $startString)
-{
-    $len = strlen($startString);
-    return (substr($string, 0, $len) === $startString);
-}
 
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
