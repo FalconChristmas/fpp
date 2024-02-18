@@ -362,14 +362,6 @@
                 "all"
             ],
             "commands": {
-                "FPPCapeDetectLog": {
-                    "title": "FPP Cape Detect Log",
-                    "description": "",
-                    "cmd": "journalctl -u fppcapedetect | tail -20",
-                    "platforms": [
-                        "all"
-                    ]
-                },
                 "FPPRTCLog": {
                     "title": "FPP RTC Log",
                     "description": "",
