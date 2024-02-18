@@ -5,7 +5,8 @@ FROM debian:bookworm
 # so building docker containers will be faster
 RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"  alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -o Acquire::Retries=32 \
+alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
     apache2 apache2-bin apache2-data apache2-utils \
     bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
     fbi fbset file flite ca-certificates lshw ffmpeg mp3gain \
@@ -18,10 +19,10 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--for
     vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
     libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
     gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping libssl-dev libusb-1.0-0-dev \
-    wget flex bison pkg-config libasound2-dev mesa-common-dev python3-distutils libssl-dev libtool bsdextrautils iw ; apt-get clean
+    wget flex bison pkg-config libasound2-dev mesa-common-dev python3-distutils libssl-dev libtool bsdextrautils iw && apt-get clean
 
 # similar to above, do this once and Docker can cache the intermediary
-ADD SD/buildVLC.sh /root/buildVLC.sh
+COPY SD/buildVLC.sh /root/buildVLC.sh
 RUN ( yes | /root/buildVLC.sh ) || true
 
 
@@ -33,8 +34,8 @@ ARG EXTRA_INSTALL_FLAG=
 # branch being build
 ARG FPPBRANCH
 
-ADD ./ /opt/fpp/
-ADD SD/FPP_Install.sh /root/FPP_Install.sh
+COPY ./ /opt/fpp/
+COPY SD/FPP_Install.sh /root/FPP_Install.sh
 RUN ( yes | bash /root/FPP_Install.sh $EXTRA_INSTALL_FLAG --branch ${FPPBRANCH:-master} --skip-apt-install --skip-vlc )
 RUN rm -rf /tmp/*
 RUN cp /opt/fpp/etc/asoundrc.plain /root/.asoundrc

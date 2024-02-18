@@ -382,8 +382,9 @@ case "${OSVER}" in
 				;;
 			*)
 				echo "FPP - Enabling non-free repo"
-				sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
-				sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
+				sed -i -e "s/Components: main/Components: main contrib non-free non-free-firmware/" /etc/apt/sources.list.d/debian.sources
+                #sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
+				#sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
 				;;
 		esac
 
@@ -968,7 +969,7 @@ fi
 
 #######################################
 # Upgrade the config if needed
-sh scripts/upgrade_config -notee
+bash scripts/upgrade_config -notee
 
 
 #######################################
@@ -1306,9 +1307,9 @@ esac
 echo "FPP - Configuring NTP Daemon"
 
 # Clear all existing servers and pools and set default pool to be falconplayer NTP Pool
-sed -i '/^server.*/d' /etc/ntp.conf 
-sed -i '/^pool.*/d' /etc/ntp.conf 
-sed -i '$s/$/\npool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer/' /etc/ntp.conf
+sed -i '/^server.*/d' /etc/ntpsec/ntp.conf 
+sed -i '/^pool.*/d' /etc/ntpsec/ntp.conf 
+sed -i '$s/$/\npool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer/' /etc/ntpsec/ntp.conf
 
 
 if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
