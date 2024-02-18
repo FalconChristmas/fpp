@@ -132,7 +132,7 @@
                 "RTC": {
                     "title": "RTC",
                     "description": "",
-                    "cmd": "hwclock -r -f \"$rtcDevice\"",
+                    "cmd": "hwclock -r -f [[rtcDevice]]",
                     "platforms": [
                         "all"
                     ]
@@ -331,7 +331,7 @@
                 "i2cdetect": {
                     "title": "i2cdetect",
                     "description": "",
-                    "cmd": "i2cdetect -y -r  . \"$i2cDevice\"",
+                    "cmd": "i2cdetect -y -r [[i2cDevice]]",
                     "platforms": [
                         "all"
                     ]
