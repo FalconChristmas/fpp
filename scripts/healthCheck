@@ -263,7 +263,7 @@ HC_RootDisk() {
 HC_MediaDisk() {
     #FSTAB=$(mount | grep "/home/fpp/media")
     #if [ "x${FSTAB}" = "x" ]
-    if [ ! -d "/home/fpp/media"]
+    if [ ! -d "/home/fpp/media" ]
     then
         return
     fi
