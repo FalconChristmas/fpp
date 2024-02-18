@@ -1,5 +1,9 @@
 <?php
+//stop settings javascript output in results
+$skipJSsettings =1;
+
 require_once 'common.php';
+
 
 //LoadCommands
 $troubleshootingCommandsLoaded = 0;

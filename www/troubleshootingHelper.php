@@ -1,5 +1,6 @@
 <?
-
+//stop settings javascript output in results
+$skipJSsettings =1;
 // This file runs each command when called via the specified key
 // and returns the raw results
 
