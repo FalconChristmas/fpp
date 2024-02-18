@@ -93,7 +93,7 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
         <a class="troubleshoot-anchor" name="<?echo $header ?>">.</a><h4><?echo $commandTitle; ?></h4>
         <strong><?echo "Command Description: </strong>" . $commandDesc; ?>
         <strong><?echo "<br>Command: </strong>" . $commandCmd; ?></strong>
-        <pre id="<?echo ("command_" . $commandKey) ?>"><img id="loading_gif" scr="www/images/loading_spinner.gif"><i>Loading...</i></pre>
+        <pre id="<?echo ("command_" . $commandKey) ?>"><img src="./images/loading_spinner.gif" width="100" height="100"><i>Loading...</i></pre>
         <hr>
 <?
         }}
