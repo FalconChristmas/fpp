@@ -261,14 +261,13 @@ HC_RootDisk() {
 }
 
 HC_MediaDisk() {
-    #FSTAB=$(mount | grep "/home/fpp/media")
-    #if [ "x${FSTAB}" = "x" ]
-    if [ ! -d "/home/fpp/media"]
+    FSTAB=$(mount | grep "/home/fpp/media")
+    if [ "x${FSTAB}" = "x" ]
     then
         return
     fi
 
-    PrintItemHead "Media Directory free space"
+    PrintItemHead "/home/fpp/media free space"
 
     USED=$(df -k /home/fpp/media | grep -v Filesystem | awk '{print $5}' | sed -e "s/%//")
     if [ ${USED} -lt 95 ]
