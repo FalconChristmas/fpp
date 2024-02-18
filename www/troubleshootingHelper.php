@@ -38,6 +38,14 @@ if (isset($_GET['key'])) {
     if (isset($commands[$key])) {
         $found = 1;
         $command = $commands[$key];
+
+        preg_match_all('/\[\[(.*?)\]\]/', $command, $matches);  
+        
+        foreach ($matches[1] as $value)
+        {
+            $command = str_replace('[['.$value.']]', ${$value}, $command);
+        }
+
         exec($SUDO . ' ' . "/bin/sh -c '" . $command . "' 2>&1 | fold -w 160 -s", $output, $return_val);
         if ($return_val == 0) {
             echo (implode("\n", $output) . "\n");
