@@ -18,7 +18,7 @@
                 "Wired": {
                     "title": "Wired",
                     "description": "",
-                    "cmd": "for interface in $(ifconfig | grep -oP \"^\\w+(?=:)\" | grep \"eth\"); do echo \" \"; ethtool \"$interface\"; done",
+                    "cmd": "for interface in $(ifconfig | grep -oP \"^\\w+(?=:)\" | grep \"eth\"); do echo \" \"; ethtool \"$interface\"; done;",
                     "platforms": [
                         "all"
                     ]
@@ -50,7 +50,7 @@
                 "InternetAccess": {
                     "title": "Internet Access",
                     "description": "",
-                    "cmd": "curl -S -s -o /dev/null -m 2 https://github.com/FalconChristmas/fpp/blob/master/README.md 2>&1 ; if [ \"$?\" -eq \"0\" ]; then echo \"GitHub reachable: **YES**\" ; else echo \"GitHub Reachable: ** NO **\"; fi",
+                    "cmd": "curl -S -s -o /dev/null -m 2 https://github.com/FalconChristmas/fpp/blob/master/README.md 2>&1 ; if [ \"$?\" -eq \"0\" ]; then echo \"GitHub reachable: **YES**\" ; else echo \"GitHub Reachable: ** NO **\"; fi;",
                     "platforms": [
                         "all"
                     ]
