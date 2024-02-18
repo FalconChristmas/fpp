@@ -99,7 +99,7 @@
                 "SMART": {
                     "title": "S.M.A.R.T. Attributes",
                     "description": "",
-                    "cmd": "for smartdevice in $(lsblk -nd --output NAME|grep -v zram|grep -v mmcblk); do smartctl -A $smartdevice; done;",
+                    "cmd": "for smartdevice in $(lsblk -nd --output NAME|grep -v zram|grep -v mmcblk); do smartctl -A /dev/$smartdevice; done;",
                     "platforms": [
                         "all"
                     ]
@@ -362,14 +362,6 @@
                 "all"
             ],
             "commands": {
-                "FPPCapeDetectLog": {
-                    "title": "FPP Cape Detect Log",
-                    "description": "",
-                    "cmd": "journalctl -u fppcapedetect | tail -20",
-                    "platforms": [
-                        "all"
-                    ]
-                },
                 "FPPRTCLog": {
                     "title": "FPP RTC Log",
                     "description": "",
