@@ -151,117 +151,6 @@ function showTestInputs(item) {
     $(item).parent().html(testInputs);
 }
 
-// Sort endpoints by name. (Becasue there are sort errors in the .json file)
-function sortByEndpoint(a,b) {
-    return a.endpoint.localeCompare(b.endpoint);
-}
-
-function endpointToheader(endpoint) {
-    return endpoint.replace(/[^a-zA-Z0-9]/g, "-");
-}
-
-var endpoints = {};
-function loadEndpoints() {
-    var menuTag = $('#api-list-hot-links ul');
-    $.get('<?echo $apiDir; ?>endpoints.json', function(data) {
-        data.endpoints.sort(sortByEndpoint);
-        endpoints = data;
-        var tables = [ 'endpoints' ];
-        for (var t = 0; t < tables.length; t++) {
-            var d = data[tables[t]];
-            var hiddenMethods = "";
-            var hiddenEndpoint = "";
-            for (var i = 0; i < d.length; i++) {
-                var methods = Object.keys(d[i].methods);
-                var row = "";
-                var rs = methods.length + 1;
-                if (d[i].endpoint == 'help')
-                    rs = methods.length;
-
-                // Add to main menu
-                var headerId = endpointToheader(d[i].endpoint);
-                menuTag.append('<li><a href="#' + headerId + '">' + d[i].endpoint + '</a></li>');
-                hiddenEndpoint = d[i].endpoint;
-
-                var extraMethodClass = "";
-                for (var m = 0; m < methods.length; m++) {
-                    row += "<tr";
-
-                    if (d[i].methods[methods[m]].hasOwnProperty('deprecated')) {
-                        if (d[i].methods[methods[m]].deprecated) {
-                            extraMethodClass = " deprecatedEndpoint"
-                        }
-                    }
-                    row += " class='endpointRow ";
-                    if (m == 0) {
-                        row += "firstMethod" + extraMethodClass;
-                        if (m == (methods.length - 1)) {
-                            row += ' lastMethod';
-                        }
-                        row += "'>";
-
-                        row += "<td class='endpointName' rowspan=" + rs + ">";
-                        row += '<a class="api-anchor" name="' + headerId + '">.</a>'
-
-                        if (d[i].hasOwnProperty('fppd')) {
-                            if (d[i].fppd)
-                                row += "<font color='red'><b>*</b></font>&nbsp;";
-                        }
-
-                        row += "/api/" + d[i].endpoint;
-
-                        hiddenMethods =  "<span class='methods' style='display: none;'>" + methods.join(',') + "</span>";
-                        hiddenMethods += "<span class='hiddenEndpoint' style='display: none;'>" + hiddenEndpoint + "</span>";
-
-                        row += '</td>';
-                    } else if (m == (methods.length - 1)) {
-                        row += "lastMethod" + extraMethodClass + "'>";
-                    } else {
-                        row += "middleMethod" + extraMethodClass +"'>";
-                    }
-                    row += "<td class ='endpointMethod'>" + methods[m] + "</td>";
-                    row += '<td class="endpointDescription">' + d[i].methods[methods[m]].desc + '</td>';
-
-                    var hasInput = 0;
-                    row += "<td class='exampleDataTD'>";
-                    if (d[i].methods[methods[m]].hasOwnProperty('input')) {
-                        hasInput = 1;
-                        row += "<b>Input:</b><br><pre class='inputData'>";
-                        row += getJson(d[i].methods[methods[m]].input);
-                        row += '</pre>';
-                    }
-
-                    if (d[i].methods[methods[m]].hasOwnProperty('output')) {
-                        if (hasInput)
-                            row += '<hr>';
-                        row += "<b>Output:</b><br><pre class='outputData'>";
-                        row += getJson(d[i].methods[methods[m]].output);
-                        row += '</pre>';
-                    }
-                    row += '</td>';
-
-                    row += "<td class='testDataTD' style='display: none;' rowspan= 2><pre class='testData'></pre></td>";
-
-                    row += "<td style='display: none;' class='endpoint'>" + d[i].endpoint + "</td>";
-                    row += '</tr>';
-                }
-
-                if (d[i].endpoint != 'help') {
-                    row += "<tr><td colspan=2 style='height: 100%;'>";
-                    row += hiddenMethods;
-                    row += "<input type='button' class='buttons smallButton' value='Test' onClick='showTestInputs(this);'></td></tr>";
-                }
-
-                row += '';
-                $('#' + tables[t]).append(row);
-            }
-        }
-        // Now data is loaded
-        fixScroll();
-
-    });
-}
-
 
 function defaultForArg(arg, json) {
     if (typeof arg["default"] != "undefined") {
@@ -331,7 +220,7 @@ function fixScroll() {
 }
 
 $(document).ready(function() {
-   // loadEndpoints();
+
     loadCommands();
 });
 
