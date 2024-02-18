@@ -40,12 +40,14 @@ if (isset($_GET['key'])) {
         $found = 1;
         $command = $commands[$key];
 
+        ////////// Substitute PHP variables denoted by [[ variable name (without $) ]] in command string to allow accessing normal settings variables and any specials declared above
         preg_match_all('/\[\[(.*?)\]\]/', $command, $matches);  
         
         foreach ($matches[1] as $value)
         {
             $command = str_replace('[['.$value.']]', ${$value}, $command);
         }
+        ////////
 
         exec($SUDO . ' ' . "/bin/sh -c '" . $command . "' 2>&1 | fold -w 160 -s", $output, $return_val);
         if ($return_val == 0) {
