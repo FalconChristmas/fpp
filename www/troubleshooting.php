@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html>
 <?php
-require_once('troubleshootingCommands.php');
+require_once 'common.php';
+require_once 'config.php';
 ?>
 
 <head>
-<?php include 'common/menuHead.inc'; ?>
+<?php include 'common/menuHead.inc';?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 <style>
 .back2top{
         position: fixed;
@@ -28,52 +29,94 @@ require_once('troubleshootingCommands.php');
 
 <body>
 <div id="bodyWrapper">
-  <?php 
-  $activeParentMenuItem = 'help'; 
-  include 'menu.inc'; ?>
+  <?php
+$activeParentMenuItem = 'help';
+include 'menu.inc';?>
   <div class="mainContainer">
 
     <h1 class="title">Troubleshooting</h1>
     <div class="pageContent">
       <h2>Troubleshooting Commands</h2>
-        <div id="troubleshooting-hot-links"> </div>
-        <hr>
-        <div style="overflow: hidden; padding: 10px;">
-      <div class="clear"></div>
-  <?
-  
-  $hotLinks = "<ul>";
-  $jsArray = array();
-  $cnt = 1;
 
-  foreach ($commands as $title => $command)
-  {
-    $key = "command_" . $cnt;
-    $header = "header_" . $cnt;
-    $hotLinks .= "<li><a href=\"#$header\">$title</a></li>";
-    $jsArray[$key] = $title;
-  ?>
-          <a class="troubleshoot-anchor" name="<? echo $header ?>">.</a><h3><? echo $title . ':&nbsp;&nbsp;&nbsp;&nbsp;' . $command; ?></h3>
-          <pre id="<? echo $key ?>"><i>Loading...</i></pre>
-          <hr>
-  <?
-    ++$cnt;
-  }
-  $hotLinks .="</ul>";
-  ?>
+    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+    <?
+//LoadCommands
+$troubleshootingCommandsLoaded = 0;
+LoadTroubleShootingCommands();
+$target_platforms = array('all', $settings['Platform']);
 
+//Display Nav Tabs - one per group
+foreach (array_keys($troubleshootingCommandGroups) as $commandGrpID) {
+    //Loop through groupings
+    //Display group if relevant for current platform
+    if (count(array_intersect($troubleshootingCommandGroups[$commandGrpID]["platforms"], $target_platforms)) > 0) {
+        echo "<li class=\"nav-item\" role=\"presentation\">";
+        echo "<button class=\"nav-link" . ($commandGrpID == array_key_first($troubleshootingCommandGroups) ? " active" : "") . "\" id=\"pills-" . $commandGrpID . "-tab\" data-bs-toggle=\"pill\" data-bs-target=\"#pills-" . $commandGrpID . "\" type=\"button\" role=\"tab\" aria-controls=\"pills-" . $commandGrpID . "\" aria-selected=\"true\">" . $troubleshootingCommandGroups[$commandGrpID]["grpDisplayTitle"] . "</button>";
+        echo "</li>";
+    }
+}
+?>
+    </ul>
+
+
+    <div class="tab-content" id="pills-tabContent">
+<?
+////Display Command Contents
+foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
+    //Loop through groupings
+    //Display group if relevant for current platform
+    if (count(array_intersect($troubleshootingCommandGroups[$commandGrpID]["platforms"], $target_platforms)) > 0) {
+        ${'hotlinks-' . $commandGrpID} = "<ul>";
+        echo "<div class=\"tab-pane fade\"  id=\"pills-" . $commandGrpID . "\" role=\"tabpanel\" aria-labelledby=\"pills-" . $commandGrpID . "-tab\">";
+        ?>
+    <div id="troubleshooting-grp-<?echo $commandGrpID; ?>" class="backdrop">
+    <h4><?echo $commandGrp["grpDescription"]; ?></h4>
+    <div id="troubleshooting-hot-links-<?echo $commandGrpID; ?>"> </div>
     </div>
-    
+    <hr>
+    <div style="overflow: hidden; padding: 10px;">
+
+    <?
+    }
+    //Loop through commands in grp
+    echo "<div id=\"troubleshooting-results-" . $commandGrpID . "\">";
+    foreach ($commandGrp["commands"] as $commandKey => $commandID) {
+        //Display command if relevant for current platform
+        if (count(array_intersect($commandID["platforms"], $target_platforms)) > 0) {
+            $commandTitle = $commandID["title"];
+            $commandCmd = $commandID["cmd"];
+            $commandDesc = $commandID["description"];
+            $header = "header_" . $commandKey;
+            ${'hotlinks-' . $commandGrpID} .= "<li><a href=\"#$header\">$commandTitle</a></li>";
+            ?>
+
+        <a class="troubleshoot-anchor" name="<?echo $header ?>">.</a><h4><?echo $commandTitle; ?></h4>
+        <strong><?echo "Command Description: </strong>" . $commandDesc; ?>
+        <strong><?echo "<br>Command: </strong>" . $commandCmd; ?></strong>
+        <pre id="<?echo ("command_" . $commandKey) ?>"><i>Loading...</i></pre>
+        <hr>
+<?
+        }}
+    ${'hotlinks-' . $commandGrpID} .= "</ul>";
+    ?></div>
+    </div></div><?
+
+}
+
+?>
+</div>
+
+
   </div>
-  <?php include 'common/footer.inc'; ?>
+  <?php include 'common/footer.inc';?>
 </div>
 <button type="button" class="back2top">Back to top</button>
 
 <script type="application/javascript">
 
 /*
- * Anchors are dynamiclly via ajax thus auto scrolling if anchor is in url
- * will fail.  This will workaround that problem by forcing a scroll 
+ * Anchors are dynamically via ajax thus auto scrolling if anchor is in url
+ * will fail.  This will workaround that problem by forcing a scroll
  * afterward dynamic content is loaded.
  */
 function fixScroll() {
@@ -89,37 +132,57 @@ function fixScroll() {
 }
 
 
-$( document ).ready(function() {
-
-  document.querySelector("#troubleshooting-hot-links").innerHTML = '<?php echo $hotLinks ?>';
-  $(".back2top").click(() => $("html, body").animate({scrollTop: 0}, "slow") && false);
-  $(window).scroll(function(){
-      if ($(this).scrollTop() > 100) $('.back2top').fadeIn();
-      else $('.back2top').fadeOut();
-  });
-
-<?
-  foreach($jsArray as $key => $command)
-{
-  $url = "./troubleshootingHelper.php?key=" . urlencode($command);
-?>
+    <?
+foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
+    //Create logic for grp if relevant for platform
+    if (count(array_intersect($commandGrp["platforms"], $target_platforms)) > 0) {
+        echo ("document.querySelector(\"#troubleshooting-hot-links-" . $commandGrpID . "\").innerHTML ='" . ${'hotlinks-' . $commandGrpID} . "'; \n");
+        ?> function dispTroubleTab<?echo $commandGrpID; ?>(){
+        <?
+        foreach ($commandGrp["commands"] as $commandKey => $commandID) {
+            //Run command if relevant for current platform
+            if (count(array_intersect($commandID["platforms"], $target_platforms)) > 0) {
+                $url = "./troubleshootingHelper.php?key=" . urlencode($commandKey);
+                ?>
       $.ajax({
             url: "<?php echo $url ?>",
             type: 'GET',
             success: function(data) {
-                document.querySelector("#<?php echo $key ?>").innerHTML = data;
+                document.querySelector("#<?php echo ("command_" . $commandKey) ?>").innerHTML = data;
                 fixScroll();
             },
             error: function() {
-                DialogError('Failed to query comand', "Error: Unable to query for <?php echo $command ?>");
+                DialogError('Failed to query command', "Error: Unable to query for <?php echo $commandKey ?>");
             }
         });
 
-<?php
-}
+<?
+            }}?>}<?}}
 ?>
 
-}); // end document ready
+
+$( document ).ready(function() {
+//default to show first tab in grp array active
+$('#pills-tab button[id="pills-<?echo array_key_first($troubleshootingCommandGroups) ?>-tab"]').tab('show');
+dispTroubleTab<?echo array_key_first($troubleshootingCommandGroups) ?>();
+document.getElementById("pills-<?echo array_key_first($troubleshootingCommandGroups) ?>").classList.add('active');
+document.getElementById("pills-<?echo array_key_first($troubleshootingCommandGroups) ?>").classList.add('show');
+
+//Call Function to run commands for selected tab
+    $('.nav-link').on('shown.bs.tab', function(){
+        var id = $(this).attr("id");
+        var cmdgrp = id.replace("pills-","").replace("-tab","");
+
+       var fn_string = "dispTroubleTab".concat(cmdgrp);
+       var fn = window[fn_string];
+       if (typeof fn === "function") fn();
+
+    $(".back2top").click(() => $("html, body").animate({scrollTop: 0}, "slow") && false);
+  $(window).scroll(function(){
+      if ($(this).scrollTop() > 100) $('.back2top').fadeIn();
+      else $('.back2top').fadeOut();
+  });
+});}); // end document ready
 </script>
 
 </body>

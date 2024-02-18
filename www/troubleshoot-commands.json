@@ -1,0 +1,515 @@
+{
+    "CommandGroups": {
+        "Networking": {
+            "grpDisplayTitle": "Networking",
+            "grpDescription": "Set of tools for network troubleshooting",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "Interfaces": {
+                    "title": "Interfaces",
+                    "description": "",
+                    "cmd": "ifconfig -a",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "Wired": {
+                    "title": "Wired",
+                    "description": "",
+                    "cmd": "for interface in $(ifconfig | grep -oP \"^\\w+(?=:)\" | grep \"eth\"); do echo \" \"; ethtool \"$interface\"; done",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "Wireless": {
+                    "title": "Wireless",
+                    "description": "",
+                    "cmd": "iwconfig; cat /proc/net/wireless",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "Routing": {
+                    "title": "Routing",
+                    "description": "",
+                    "cmd": "netstat -rn",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "DefaultGateway": {
+                    "title": "Default Gateway",
+                    "description": "",
+                    "cmd": "for gateway in $(netstat -rn | grep '^0.0.0.0' | awk '{print $2};' ); do ping -c 1 $gateway; done;",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "InternetAccess": {
+                    "title": "Internet Access",
+                    "description": "",
+                    "cmd": "curl -S -s -o /dev/null -m 2 https://github.com/FalconChristmas/fpp/blob/master/README.md 2>&1 ; if [ \"$?\" -eq \"0\" ]; then echo \"GitHub reachable: **YES**\" ; else echo \"GitHub Reachable: ** NO **\"; fi",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "Disk": {
+            "grpDisplayTitle": "Disk",
+            "grpDescription": "Set of tools for storage related troubleshooting",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "BlockDevices": {
+                    "title": "Block Devices",
+                    "description": "",
+                    "cmd": "lsblk -l",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "Partitions": {
+                    "title": "Partitions",
+                    "description": "",
+                    "cmd": "fdisk -l",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "Filesystems": {
+                    "title": "Filesystems",
+                    "description": "",
+                    "cmd": "df -k",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "Mounts": {
+                    "title": "Mounts",
+                    "description": "",
+                    "cmd": "mount | grep -v password",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "SMART": {
+                    "title": "S.M.A.R.T. Attributes",
+                    "description": "",
+                    "cmd": "for smartdevice in $(lsblk -nd --output NAME|grep -v zram|grep -v mmcblk); do smartctl -A $smartdevice; done;",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "DateTime": {
+            "grpDisplayTitle": "Date / Time",
+            "grpDescription": "Set of tools for Time and Date troubleshooting",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "Date": {
+                    "title": "Date",
+                    "description": "",
+                    "cmd": "date",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "NTPPeers": {
+                    "title": "NTP Peers",
+                    "description": "",
+                    "cmd": "pgrep ntpd > /dev/null && ntpq -c peers",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "RTC": {
+                    "title": "RTC",
+                    "description": "",
+                    "cmd": "hwclock -r -f \"$rtcDevice\"",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "MemoryCPU": {
+            "grpDisplayTitle": "Memory / CPU",
+            "grpDescription": "Set of tools for SBC troubleshooting",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "Memory": {
+                    "title": "Memory",
+                    "description": "",
+                    "cmd": "free",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "Uptime": {
+                    "title": "Uptime",
+                    "description": "",
+                    "cmd": "uptime",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "CPUUtilization": {
+                    "title": "CPU Utilization",
+                    "description": "",
+                    "cmd": "top -bn1 | head -20",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "CPUInfo": {
+                    "title": "CPUInfo",
+                    "description": "",
+                    "cmd": "cat /proc/cpuinfo",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "USB": {
+            "grpDisplayTitle": "USB",
+            "grpDescription": "Set of tools for USB troubleshooting",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "USBDeviceTree": {
+                    "title": "USB Device Tree",
+                    "description": "",
+                    "cmd": "lsusb -t",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "USBDevices": {
+                    "title": "USB Devices",
+                    "description": "",
+                    "cmd": "lsusb -v",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "Audio": {
+            "grpDisplayTitle": "Audio",
+            "grpDescription": "Set of tools for Audio troubleshooting",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "SoundCards": {
+                    "title": "Sound Cards",
+                    "description": "",
+                    "cmd": "aplay -l",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "MixerDevices": {
+                    "title": "Mixer Devices",
+                    "description": "",
+                    "cmd": "/bin/ls -1d /proc/asound/card[0-9] | sed -e \"s/.*\\/card//\" | while read ID; do echo \"CardID: ${ID}\"; sudo amixer -c ${ID} ; echo ; done",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "Midi": {
+            "grpDisplayTitle": "Midi",
+            "grpDescription": "Set of tools for Midi troubleshooting",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "MidiDevices": {
+                    "title": "Midi Devices",
+                    "description": "",
+                    "cmd": "aseqdump -l",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "Video": {
+            "grpDisplayTitle": "Video",
+            "grpDescription": "Set of tools for Video troubleshooting",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "Video": {
+                    "title": "Video",
+                    "description": "",
+                    "cmd": "test -e /dev/fb0 && echo \"/dev/fb0\" && fbset -s -fb /dev/fb0 ; test -e /dev/fb1 && echo \"/dev/fb1\" && fbset -s -fb /dev/fb1",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "OS": {
+            "grpDisplayTitle": "OS, Kernel, and SD image",
+            "grpDescription": "FPP Version Info",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "OSVersion": {
+                    "title": "OS Version",
+                    "description": "",
+                    "cmd": "test -e /etc/os-release && cat /etc/os-release",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "KernelVersion": {
+                    "title": "Kernel Version",
+                    "description": "",
+                    "cmd": "uname -a",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "KernelModules": {
+                    "title": "Kernel Modules",
+                    "description": "",
+                    "cmd": "lsmod",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "ImageVersion": {
+                    "title": "FPP Image Version",
+                    "description": "",
+                    "cmd": "cat /etc/fpp/rfs_version",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "ImagePlatform": {
+                    "title": "FPP Image Platform",
+                    "description": "",
+                    "cmd": "cat /etc/fpp/platform",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "ImageConfigVersion": {
+                    "title": "FPP Image Config Version",
+                    "description": "",
+                    "cmd": "cat /etc/fpp/config_version",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "i2c": {
+            "grpDisplayTitle": "i2c",
+            "grpDescription": "Set of tools for I2C troubleshooting",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "i2cdetect": {
+                    "title": "i2cdetect",
+                    "description": "",
+                    "cmd": "i2cdetect -y -r  . \"$i2cDevice\"",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "Processes": {
+            "grpDisplayTitle": "Processes",
+            "grpDescription": "Set of tools for examining running processes",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "Processes": {
+                    "title": "Processes",
+                    "description": "",
+                    "cmd": "ps -edaf --forest",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "Boot": {
+            "grpDisplayTitle": "Boot",
+            "grpDescription": "FPP Boot logs",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "FPPCapeDetectLog": {
+                    "title": "FPP Cape Detect Log",
+                    "description": "",
+                    "cmd": "journalctl -u fppcapedetect | tail -20",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "FPPRTCLog": {
+                    "title": "FPP RTC Log",
+                    "description": "",
+                    "cmd": "journalctl -u fpprtc | tail -20",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "FPPInitLog": {
+                    "title": "FPP Init Log",
+                    "description": "",
+                    "cmd": "journalctl -u fppinit | tail -20",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "FPPPostNetworkLogs": {
+                    "title": "FPP Post Network Logs",
+                    "description": "",
+                    "cmd": "journalctl -u fpp_postnetwork | tail -20",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "FPPOLEDLogs": {
+                    "title": "FPP OLED Logs",
+                    "description": "",
+                    "cmd": "journalctl -u fppoled | tail -20",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "FPPFPPDLogs": {
+                    "title": "FPP FPPD Logs",
+                    "description": "",
+                    "cmd": "journalctl -u fppd | tail -20",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "Git": {
+            "grpDisplayTitle": "Git",
+            "grpDescription": "Git source control info",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "GitSourceIP": {
+                    "title": "Git Source IP",
+                    "description": "",
+                    "cmd": "git remote get-url origin | cut -f3 -d/;",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "GitActiveBranch": {
+                    "title": "Git Active Branch",
+                    "description": "",
+                    "cmd": "git branch | grep \"^\\*\" | sed -e \"s/\\*\\s//\";",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "GitOriginInfo": {
+                    "title": "Git Origin Info",
+                    "description": "",
+                    "cmd": "git remote show origin",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
+        "GPIO": {
+            "grpDisplayTitle": "GPIO",
+            "grpDescription": "Set of tools for GPIO troubleshooting",
+            "platforms": [
+                "Raspberry Pi"
+            ],
+            "commands": {
+                "GPIO": {
+                    "title": "GPIO",
+                    "description": "",
+                    "cmd": "gpiodetect",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                },
+                "GPIOInfo": {
+                    "title": "GPIO Info",
+                    "description": "",
+                    "cmd": "gpioinfo",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                }
+            }
+        },
+        "RPISPECIFIC": {
+            "grpDisplayTitle": "RPI Utils",
+            "grpDescription": "Raspberry Pi System Info",
+            "platforms": [
+                "Raspberry Pi"
+            ],
+            "commands": {
+                "RPIINFO": {
+                    "title": "RPI Info",
+                    "description": "Raspberry Pi inbuilt info tool",
+                    "cmd": "/bin/raspinfo; rm -f raspinfo.txt",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                },
+                "PINCTRL": {
+                    "title": "RPI pinctrl util",
+                    "description": "Raspberry Pi util for displaying the GPIO and pin muxing state of a system, bypassing the kernel",
+                    "cmd": "/bin/pinctrl",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                },
+                "VCLOG": {
+                    "title": "RPI vclog util",
+                    "description": "A tool to get VideoCore 'assert' or 'msg' logs with optional -f to wait for new logs to arrive.",
+                    "cmd": "/bin/vclog --msg",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                },
+                "DTC": {
+                    "title": "DT Details",
+                    "description": "A human-readable representation of the current state of the DT.",
+                    "cmd": "dtc -I fs /proc/device-tree",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                }
+            }
+        }
+    }
+}
