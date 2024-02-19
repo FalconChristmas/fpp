@@ -42,7 +42,7 @@
                 "DefaultGateway": {
                     "title": "Default Gateway",
                     "description": "",
-                    "cmd": "for gateway in $(netstat -rn | grep \"^0.0.0.0\" | awk \"{print $2};\" ); do ping -c 1 $gateway; done;",
+                    "cmd": "for gateway in $(netstat -rn | grep \"^0.0.0.0\" | tr -s \" \" | cut -d \" \" -f 2); do ping -c 1 \"$gateway\"; done;",
                     "platforms": [
                         "all"
                     ]
