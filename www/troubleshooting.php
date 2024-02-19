@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 <?php
+//stop settings javascript output in results
+$skipJSsettings =1;
 require_once 'common.php';
 require_once 'config.php';
 ?>
@@ -90,10 +92,10 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
             ${'hotlinks-' . $commandGrpID} .= "<li><a href=\"#$header\">$commandTitle</a></li>";
             ?>
 
-        <a class="troubleshoot-anchor" name="<?echo $header ?>">.</a><h4><?echo $commandTitle; ?></h4>
+        <a class="troubleshoot-anchor" name="<?echo $header ?>">.</a><h3><?echo $commandTitle; ?></h3>
         <strong><?echo "Command Description: </strong>" . $commandDesc; ?>
         <strong><?echo "<br>Command: </strong>" . $commandCmd; ?></strong>
-        <pre id="<?echo ("command_" . $commandKey) ?>"><i>Loading...</i></pre>
+        <pre id="<?echo ("command_" . $commandKey) ?>"><img src="./images/loading_spinner.gif" width="100" height="100"><i>Loading...</i></pre>
         <hr>
 <?
         }}
