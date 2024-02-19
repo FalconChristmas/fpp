@@ -3,16 +3,29 @@ FROM debian:bookworm
 # if we get a bunch of these installed up front in one shot (assume a desktop so plenty of memory to do all at once)
 # then the FPP_Install step is faster.   In addition, docker will cache this result
 # so building docker containers will be faster
-RUN DEBIAN_FRONTEND=noninteractive apt-get update
-RUN DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -o Acquire::Retries=32 \
-alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
+
+RUN echo "force-unsafe-io" > /etc/dpkg/dpkg.cfg.d/02apt-speedup
+RUN echo '\
+Acquire::http {No-Cache=True;};\
+Acquire::https {No-Cache=True;};\
+Acquire::Retries "32";\
+Acquire::https::Timeout "240";\
+Acquire::http::Timeout "240";\
+APT::Get::Assume-Yes "true";\
+APT::Install-Recommends "false";\
+APT::Install-Suggests "false";\
+Debug::Acquire::https "true";\
+' > /etc/apt/apt.conf.d/99custom
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+    alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
     apache2 apache2-bin apache2-data apache2-utils \
     bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
     fbi fbset file flite ca-certificates lshw ffmpeg mp3gain \
     build-essential gcc g++ gdb ccache vim vim-common bison flex device-tree-compiler dh-autoreconf \
     git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
-    samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
+    samba rsync ssh sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
     mp3info mailutils dhcp-helper parprouted bridge-utils libiio-utils bsdextrautils \
     php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-xml php-fpm php-bcmath \
     libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
