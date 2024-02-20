@@ -1,7 +1,7 @@
 #pragma once
 /*
  * This file is part of the Falcon Player (FPP) and is Copyright (C)
- * 2013-2022 by the Falcon Player Developers.
+ * 2013-2024 by the Falcon Player Developers.
  *
  * The Falcon Player (FPP) is free software, and is covered under
  * multiple Open Source licenses.  Please see the included 'LICENSES'
