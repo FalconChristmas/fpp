@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php
-//stop settings javascript output in results
-$skipJSsettings =1;
+
 require_once 'common.php';
 require_once 'config.php';
 ?>
@@ -68,7 +67,7 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
     //Loop through groupings
     //Display group if relevant for current platform
     if (count(array_intersect($troubleshootingCommandGroups[$commandGrpID]["platforms"], $target_platforms)) > 0) {
-        ${'hotlinks-' . $commandGrpID} = "<ul>";
+        ${'hotlinks-' . $commandGrpID} = "<div class=\"container\"><div class=\"row mb-3\">";
         echo "<div class=\"tab-pane fade\"  id=\"pills-" . $commandGrpID . "\" role=\"tabpanel\" aria-labelledby=\"pills-" . $commandGrpID . "-tab\">";
         ?>
     <div id="troubleshooting-grp-<?echo $commandGrpID; ?>" class="backdrop">
@@ -89,7 +88,7 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
             $commandCmd = $commandID["cmd"];
             $commandDesc = $commandID["description"];
             $header = "header_" . $commandKey;
-            ${'hotlinks-' . $commandGrpID} .= "<li><a href=\"#$header\">$commandTitle</a></li>";
+            ${'hotlinks-' . $commandGrpID} .= "<div class=\"col-md-3\"><a href=\"#$header\">$commandTitle</a></div>";
             ?>
 
         <a class="troubleshoot-anchor" name="<?echo $header ?>">.</a><h3><?echo $commandTitle; ?></h3>
@@ -99,7 +98,7 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
         <hr>
 <?
         }}
-    ${'hotlinks-' . $commandGrpID} .= "</ul>";
+    ${'hotlinks-' . $commandGrpID} .= "</div></div>";
     ?></div>
     </div></div><?
 
