@@ -395,6 +395,14 @@ if ($settings['Platform'] == "Raspberry Pi") {
         if (typeof colordepth === 'undefined') {
             colordepth = 8;
         }
+        if (channelOutputsLookup["LEDPanelMatrix"].panelRowAddressType != null) {
+            var RowAddressType = channelOutputsLookup["LEDPanelMatrix"].panelRowAddressType;
+            $('#LEDPanelRowAddressType').val(RowAddressType);
+        }
+        if (channelOutputsLookup["LEDPanelMatrix"].panelRowAddressType != null) {
+            var RowAddressType = channelOutputsLookup["LEDPanelMatrix"].panelRowAddressType;
+            $('#LEDPanelRowAddressType').val(RowAddressType);
+        }
         if (channelOutputsLookup["LEDPanelMatrix"].panelInterleave != null) {
             var interleave = channelOutputsLookup["LEDPanelMatrix"].panelInterleave;
             $('#LEDPanelInterleave').val(interleave);
@@ -530,6 +538,12 @@ if ($settings['Platform'] == "Raspberry Pi") {
     if (LEDPanelAddressing) {
         config.panelAddressing = LEDPanelAddressing;
     }
+    if ($('#LEDPanelRowAddressType').val() != "0") {
+        config.panelRowAddressType = parseInt($('#LEDPanelRowAddressType').val());
+    }
+    if ($('#LEDPanelRowAddressType').val() != "0") {
+        config.panelRowAddressType = parseInt($('#LEDPanelRowAddressType').val());
+    }
     if ($('#LEDPanelInterleave').val() != "0") {
         config.panelInterleave = $('#LEDPanelInterleave').val();
     }
@@ -642,6 +656,10 @@ function LEDPanelsConnectionChanged()
 
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
+    echo "        $('#LEDPanelsRowAddressTypeLabel').hide();\n";
+    echo "        $('#LEDPanelRowAddressType').hide();\n";
+    echo "        $('#LEDPanelsRowAddressTypeLabel').hide();\n";
+    echo "        $('#LEDPanelRowAddressType').hide();\n";
     echo "        $('#LEDPanelsInterleaveLabel').hide();\n";
     echo "        $('#LEDPanelInterleave').hide();\n";
     echo "        $('#LEDPanelsOutputByRowLabel').hide();\n";
@@ -698,6 +716,10 @@ if ($settings['Platform'] == "BeagleBone Black") {
 <?
 } else {
     if ($settings['Platform'] == "Raspberry Pi") {
+        echo "        $('#LEDPanelsRowAddressTypeLabel').show();\n";
+        echo "        $('#LEDPanelRowAddressType').show();\n";
+        echo "        $('#LEDPanelsRowAddressTypeLabel').show();\n";
+        echo "        $('#LEDPanelRowAddressType').show();\n";
         echo "        $('#LEDPanelsInterleaveLabel').show();\n";
         echo "        $('#LEDPanelInterleave').show();\n";
         echo "        $('#LEDPanelsOutputCPUPWMLabel').show();\n";
@@ -1442,21 +1464,21 @@ if ($settings['Platform'] == "Raspberry Pi") {
     <?}?>
 
                 </div>
-                <div class="row">
+        <div class="row">
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsInterleaveLabel'><b>Panel Interleave:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3">
                         <?printLEDPanelInterleaveSelect($settings['Platform']);?>
                     </div>
-        <?if ($settings['Platform'] == "Raspberry Pi") {?>
+            <?if ($settings['Platform'] == "Raspberry Pi") {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsOutputCPUPWMLabel'><b>Use CPU PWM:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"><input id='LEDPanelsOutputCPUPWM' type='checkbox'></div>
-        <?} else if ($settings['Platform'] == "BeagleBone Black") {?>
+            <?} else if ($settings['Platform'] == "BeagleBone Black") {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsOutputBlankRowLabel'><b>Blank between rows:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"><input id='LEDPanelsOutputBlankRow' type='checkbox'></div>
-        <?} else {?>
+            <?} else {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
-        <?}?>
+            <?}?>
                 </div>
                 <div class="row">
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsColorDepthLabel'><b>Color Depth:</b></span></div>
@@ -1478,6 +1500,24 @@ if ($settings['Platform'] == "Raspberry Pi") {
                 </div>
             </div>
         </div>
+        <div class="row">
+            <?if ($settings['Platform'] == "Raspberry Pi") {?>
+                    <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsRowAddressTypeLabel'><b>Panel Row Address Type:</b></span></div>
+                    <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <select id='LEDPanelRowAddressType'>
+                            <option value='0' selected>Standard</option>
+                            <option value='1'>AB-Addressed Panels</option>
+                            <option value='2'>Direct Row Select</option>
+                            <option value='3'>ABC-Addressed Panels</option>
+                            <option value='4'>ABC Shift + DE Direct</option>
+                        </select>
+                    </div>
+            <?} else {?>
+                    <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
+                    <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
+            <?}?>
+        </div>
+  </div>
 
 		<div id='divLEDPanelsData'>
 			<div style="padding: 10px;">
