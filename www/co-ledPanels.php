@@ -399,10 +399,6 @@ if ($settings['Platform'] == "Raspberry Pi") {
             var RowAddressType = channelOutputsLookup["LEDPanelMatrix"].panelRowAddressType;
             $('#LEDPanelRowAddressType').val(RowAddressType);
         }
-        if (channelOutputsLookup["LEDPanelMatrix"].panelRowAddressType != null) {
-            var RowAddressType = channelOutputsLookup["LEDPanelMatrix"].panelRowAddressType;
-            $('#LEDPanelRowAddressType').val(RowAddressType);
-        }
         if (channelOutputsLookup["LEDPanelMatrix"].panelInterleave != null) {
             var interleave = channelOutputsLookup["LEDPanelMatrix"].panelInterleave;
             $('#LEDPanelInterleave').val(interleave);
@@ -541,9 +537,6 @@ if ($settings['Platform'] == "Raspberry Pi") {
     if ($('#LEDPanelRowAddressType').val() != "0") {
         config.panelRowAddressType = parseInt($('#LEDPanelRowAddressType').val());
     }
-    if ($('#LEDPanelRowAddressType').val() != "0") {
-        config.panelRowAddressType = parseInt($('#LEDPanelRowAddressType').val());
-    }
     if ($('#LEDPanelInterleave').val() != "0") {
         config.panelInterleave = $('#LEDPanelInterleave').val();
     }
@@ -658,8 +651,6 @@ function LEDPanelsConnectionChanged()
 if ($settings['Platform'] == "BeagleBone Black") {
     echo "        $('#LEDPanelsRowAddressTypeLabel').hide();\n";
     echo "        $('#LEDPanelRowAddressType').hide();\n";
-    echo "        $('#LEDPanelsRowAddressTypeLabel').hide();\n";
-    echo "        $('#LEDPanelRowAddressType').hide();\n";
     echo "        $('#LEDPanelsInterleaveLabel').hide();\n";
     echo "        $('#LEDPanelInterleave').hide();\n";
     echo "        $('#LEDPanelsOutputByRowLabel').hide();\n";
@@ -716,8 +707,6 @@ if ($settings['Platform'] == "BeagleBone Black") {
 <?
 } else {
     if ($settings['Platform'] == "Raspberry Pi") {
-        echo "        $('#LEDPanelsRowAddressTypeLabel').show();\n";
-        echo "        $('#LEDPanelRowAddressType').show();\n";
         echo "        $('#LEDPanelsRowAddressTypeLabel').show();\n";
         echo "        $('#LEDPanelRowAddressType').show();\n";
         echo "        $('#LEDPanelsInterleaveLabel').show();\n";
