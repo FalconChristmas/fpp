@@ -949,6 +949,17 @@ function GetPixelStringRows()
     return -1;
 }
 
+function CheckCapeType(type, subType) {
+    subType = GetPixelStringCapeFileNameForSubType(subType);
+    if (KNOWN_CAPES[subType] != null)  {
+        if (KNOWN_CAPES[subType]['driver'] != null) {
+            return KNOWN_CAPES[subType]['driver'];
+        }
+    }
+    return type;
+}
+
+
 //get array of header pin#s indexed by port#:
 //NOTE: used by non-BBB capes as well
 function GetPixelStringPins()
@@ -1396,6 +1407,7 @@ function populatePixelStringOutputs(data) {
 
                 $('#PixelString_enable').prop('checked', output.enabled);
                 var subType = output.subType;
+                type = CheckCapeType(type, subType);
                 $('#PixelStringSubType').val(subType);
                 var version = output.pinoutVersion;
                 if (version == '3.x') {
