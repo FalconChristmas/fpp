@@ -3298,7 +3298,11 @@ function GetFiles(dir) {
         url: "api/files/" + dir,
         success: function (data) {
             let i = 0;
-            $('#tbl' + dir).find('tbody').html('');
+            
+            $('#tbl' + dir).find('tbody').html('<tr><td colspan=8 align=\'center\'>No files found.</td></tr>');
+            if(data.files.length > 0){
+                $('#tbl' + dir).find('tbody').html('');
+            }
             data.files.forEach(function (f) {
                 var detail = f.sizeHuman;
                 if ("playtimeSeconds" in f) {

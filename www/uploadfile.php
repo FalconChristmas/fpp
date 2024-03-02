@@ -1,10 +1,15 @@
 <!DOCTYPE html>
 <html>
+<head>
 <?php
 require_once 'config.php';
+require_once "common.php";
+include 'common/menuHead.inc';
 ?>
-<head>
-<?php	include 'common/menuHead.inc';?>
+<script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
+
+
 
 
 <?php
@@ -590,6 +595,7 @@ include 'menu.inc';?>
                         <th>Date Modified</th>
                     </thead>
                     <tbody>
+                    <tr><td colspan=8 align='center'>No files found.</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -654,9 +660,11 @@ include 'menu.inc';?>
                 <div id="divVideoData" class="fileManagerDivData">
                   <table id="tblVideos" class="tablesorter">
                     <thead>
-                        <th>File</th>
-                        <th>Duration</th>
-                        <th>Date Modified</th>
+                        <tr role="row" class="tablesorter-headerRow">
+                            <th class="tablesorter-header">File</th>
+                            <th class="tablesorter-header">Duration</th>
+                            <th class="tablesorter-header">Date Modified</th>
+                        </tr>
                     </thead>
                     <tbody>
                     </tbody>
@@ -861,8 +869,6 @@ include 'menu.inc';?>
   </div>
 </div>
 
-<script src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
-<script src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
 <script>
 
 $(function(){
