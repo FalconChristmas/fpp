@@ -3299,9 +3299,11 @@ function GetFiles(dir) {
         success: function (data) {
             let i = 0;
             
-            $('#tbl' + dir).find('tbody').html('<tr><td colspan=8 align=\'center\'>No files found.</td></tr>');
             if(data.files.length > 0){
                 $('#tbl' + dir).find('tbody').html('');
+            }
+            else{
+                $('#tbl' + dir).html('<tr><td colspan=8 align=\'center\'>No files found.</td></tr>');
             }
             data.files.forEach(function (f) {
                 var detail = f.sizeHuman;
@@ -3316,12 +3318,12 @@ function GetFiles(dir) {
                 var tableRow = '';
                 if ((dir == 'Images') && (thumbSize > 0)) {
                     if (parseInt(f.sizeBytes) > 0) {
-                        tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td><img style='display: block; max-width: " + thumbSize + "px; max-height: " + thumbSize + "px; width: auto; height: auto;' src='api/file/" + dir + "/" + f.name + "' onClick=\"ViewImage('" + f.name + "');\" /></td></tr>";
+                        tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='filenameColumn fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td><img style='display: block; max-width: " + thumbSize + "px; max-height: " + thumbSize + "px; width: auto; height: auto;' src='api/file/" + dir + "/" + f.name + "' onClick=\"ViewImage('" + f.name + "');\" /></td></tr>";
                     } else {
-                        tableRow = "<tr class='fileDetails unselectableRow' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td>Empty Subdir</td></tr>";
+                        tableRow = "<tr class='fileDetails unselectableRow' id='fileDetail_" + i + "'><td class ='filenameColumn fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td>Empty Subdir</td></tr>";
                     }
                 } else {
-                    tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td></tr>";
+                    tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='filenameColumn fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td></tr>";
                 }
 
                 $('#tbl' + dir).find('tbody').append(tableRow);
