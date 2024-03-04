@@ -6,11 +6,10 @@ require_once 'config.php';
 require_once "common.php";
 include 'common/menuHead.inc';
 ?>
-<script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
-<script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
-
-
-
+<script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.min.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.min.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-metric.min.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/extras/jquery.metadata.min.js"></script>
 
 <?php
 exec("df -k " . $mediaDirectory . "/upload |awk '/\/dev\//{printf(\"%d\\n\", $5);}'", $output, $return_val);
@@ -517,6 +516,8 @@ function RunScript(scriptName)
 
 </script>
 
+
+
 </head>
 
 <body onload="GetAllFiles();">
@@ -590,12 +591,13 @@ include 'menu.inc';?>
                 <div id="divSeqData" class="fileManagerDivData">
                   <table id="tblSequences" class="tablesorter">
                     <thead>
-                        <th>File</th>
-                        <th>Size</th>
-                        <th>Date Modified</th>
+                        <tr role="row" class="tablesorter-headerRow">
+                            <th class="tablesorter-header filenameColumn">File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                        </tr>
                     </thead>
                     <tbody>
-                    <tr><td colspan=8 align='center'>No files found.</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -625,9 +627,11 @@ include 'menu.inc';?>
                 <div id="divMusicData" class="fileManagerDivData">
                   <table id="tblMusic"class="tablesorter">
                     <thead>
-                        <th>File</th>
-                        <th>Duration</th>
-                        <th>Date Modified</th>
+                        <tr role="row" class="tablesorter-headerRow">
+                            <th>File</th>
+                            <th>Duration</th>
+                            <th>Date Modified</th>
+                        </tr>
                     </thead>
                     <tbody>
                     </tbody>
@@ -661,7 +665,7 @@ include 'menu.inc';?>
                   <table id="tblVideos" class="tablesorter">
                     <thead>
                         <tr role="row" class="tablesorter-headerRow">
-                            <th class="tablesorter-header">File</th>
+                            <th class="tablesorter-header filenameColumn">File</th>
                             <th class="tablesorter-header">Duration</th>
                             <th class="tablesorter-header">Date Modified</th>
                         </tr>
@@ -694,9 +698,12 @@ include 'menu.inc';?>
                 <div id="divImageData" class="fileManagerDivData">
                   <table id="tblImages" class="tablesorter">
                     <thead>
-                        <th>File</th>
-                        <th>Size</th>
-                        <th>Date Modified</th>
+                        <tr role="row" class="tablesorter-headerRow">
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                            <th>Thumbnail</th>
+                        </tr>
                     </thead>
                     <tbody>
                     </tbody>
@@ -724,9 +731,11 @@ include 'menu.inc';?>
                 <div id="divEffectsData" class="fileManagerDivData">
                   <table id="tblEffects" class="tablesorter">
                     <thead>
-                        <th>File</th>
-                        <th>Size</th>
-                        <th>Date Modified</th>
+                        <tr role="row" class="tablesorter-headerRow">
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                        </tr>
                     </thead>
                     <tbody>
                     </tbody>
@@ -753,9 +762,11 @@ include 'menu.inc';?>
               <div id="divScriptsData" class="fileManagerDivData">
                 <table id="tblScripts" class="tablesorter">
                     <thead>
-                        <th>File</th>
-                        <th>Size</th>
-                        <th>Date Modified</th>
+                        <tr role="row" class="tablesorter-headerRow">
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                        </tr>
                     </thead>
                     <tbody>
                     </tbody>
@@ -785,9 +796,11 @@ include 'menu.inc';?>
               <div id="divLogsData" class="fileManagerDivData">
                 <table id="tblLogs" class="tablesorter">
                     <thead>
-                        <th>File</th>
-                        <th>Size</th>
-                        <th>Date Modified</th>
+                        <tr>
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                        </tr>
                     </thead>
                     <tbody>
                     </tbody>
@@ -814,9 +827,11 @@ include 'menu.inc';?>
               <div id="divUploadsData" class="fileManagerDivData">
                 <table id="tblUploads" class="tablesorter">
                     <thead>
-                        <th>File</th>
-                        <th>Size</th>
-                        <th>Date Modified</th>
+                        <tr role="row" class="tablesorter-headerRow">
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                        </tr>
                     </thead>
                     <tbody>
                     </tbody>
@@ -841,9 +856,11 @@ include 'menu.inc';?>
               <div id="divUploadsData" class="fileManagerDivData">
                 <table id="tblCrashes" class="tablesorter">
                     <thead>
-                        <th>File</th>
-                        <th>Size</th>
-                        <th>Date Modified</th>
+                        <tr role="row" class="tablesorter-headerRow">
+                            <th>File</th>
+                            <th>Size</th>
+                            <th>Date Modified</th>
+                        </tr>
                     </thead>
                     <tbody>
                     </tbody>
@@ -869,43 +886,7 @@ include 'menu.inc';?>
   </div>
 </div>
 
-<script>
 
-$(function(){
-    $("#tblVideos").tablesorter({widgets: ['zebra']});
-    $.extend($.tablesorter.themes.bootstrap, {
-      // table classes
-      table: 'table table-bordered table-striped',
-      caption: 'caption',
-      // *** header class names ***
-      // header classes
-      header: 'bootstrap-header',
-      sortNone: '',
-      sortAsc: '',
-      sortDesc: '',
-      // applied when column is sorted
-      active: '',
-      // hover class
-      hover: '',
-      // *** icon class names ***
-      // icon class added to the <i> in the header
-      icons: '',
-      // class name added to icon when column is not sorted
-      iconSortNone: 'bootstrap-icon-unsorted',
-      // class name added to icon when column has ascending sort
-      iconSortAsc: 'icon-chevron-up glyphicon glyphicon-chevron-up sort-asc',
-      // class name added to icon when column has descending sort
-      iconSortDesc: 'icon-chevron-down glyphicon glyphicon-chevron-down',
-      filterRow: '',
-      footerRow: '',
-      footerCells: '',
-      // even row zebra striping
-      even: '',
-      // odd row zebra striping
-      odd: ''
-  });
-  });
-  </script>
 
 <?php	include 'common/footer.inc';?>
 <script>
@@ -970,6 +951,282 @@ if (isset($_GET['tab'])) {
         </tbody>
     </table>
 </div>
+<script>
+$(function(){
+    var tablesorterOptions_Sequences = {
+        widthFixed: false,
+        theme: 'fpp',
+        cssInfoBlock: 'tablesorter-no-sort',
+        widgets: ['zebra','stickyHeaders','staticRow', 'saveSort'],
+        widgetOptions: {
+                // css class name applied to the sticky header row (tr)
+                stickyHeaders : 'tablesorter-stickyHeader',
+                zebra: [ "normal-row", "alt-row" ]
+                       },
+        header: 'tablesorter-header',
+        headers: {
+            0: { sorter: "text", sortInitialOrder: 'asc' },
+            1: { sorter: "metric" },
+            2: { sorter: "text" }
+    }
+};
 
+var tablesorterOptions_Music = {
+        widthFixed: false,
+        theme: 'fpp',
+        cssInfoBlock: 'tablesorter-no-sort',
+        widgets: ['zebra','stickyHeaders','staticRow', 'saveSort'],
+        initWidgets: true,
+        header: 'tablesorter-header',
+        headers: {
+            0: { sorter: "text", sortInitialOrder: 'asc' },
+            1: { sorter: "text" },
+            2: { sorter: "text" }
+    }
+};
+
+    var tablesorterOptions_Videos = {
+        widthFixed: false,
+        theme: 'fpp',
+        cssInfoBlock: 'tablesorter-no-sort',
+        widgets: ['zebra','stickyHeaders','staticRow', 'saveSort'],
+        header: 'tablesorter-header',
+        headers: {
+            0: { sorter: "text", sortInitialOrder: 'asc' },
+            1: { sorter: "text" },
+            2: { sorter: "text" }
+    }
+};
+
+var tablesorterOptions_Images = {
+        widthFixed: false,
+        theme: 'fpp',
+        cssInfoBlock: 'tablesorter-no-sort',
+        widgets: ['zebra','stickyHeaders','staticRow', 'saveSort'],
+        header: 'tablesorter-header',
+        headers: {
+            0: { sorter: "text", sortInitialOrder: 'asc' },
+            1: { sorter: "metric" },
+            2: { sorter: "text" },
+            3: { sorter: false}
+    }
+};
+
+var tablesorterOptions_Effects = {
+        widthFixed: false,
+        theme: 'fpp',
+        cssInfoBlock: 'tablesorter-no-sort',
+        widgets: ['zebra','stickyHeaders','staticRow', 'saveSort'],
+        header: 'tablesorter-header',
+        headers: {
+            0: { sorter: "text", sortInitialOrder: 'asc' },
+            1: { sorter: "text" },
+            2: { sorter: "text" }
+    }
+};
+
+var tablesorterOptions_Scripts = {
+        widthFixed: false,
+        theme: 'fpp',
+        cssInfoBlock: 'tablesorter-no-sort',
+        widgets: ['zebra','stickyHeaders','staticRow', 'saveSort'],
+        header: 'tablesorter-header',
+        headers: {
+            0: { sorter: "text", sortInitialOrder: 'asc' },
+            1: { sorter: "metric" },
+            2: { sorter: "text" }
+    }
+};
+
+var tablesorterOptions_Logs = {
+        widthFixed: false,
+        theme: 'fpp',
+        cssInfoBlock: 'tablesorter-no-sort',
+        widgets: ['zebra','stickyHeaders','staticRow', 'saveSort'],
+        widgetOptions: {
+                // css class name applied to the sticky header row (tr)
+                stickyHeaders : 'tablesorter-stickyHeader'
+                       },
+        header: 'tablesorter-header',
+        headers: {
+            0: { sorter: "text", sortInitialOrder: 'asc' },
+            1: { sorter: "metric" },
+            2: { sorter: "text" }
+    }
+};
+
+var tablesorterOptions_Uploads = {
+        widthFixed: false,
+        theme: 'fpp',
+        cssInfoBlock: 'tablesorter-no-sort',
+        widgets: ['zebra','stickyHeaders','staticRow', 'saveSort'],
+        header: 'tablesorter-header',
+        headers: {
+            0: { sorter: "text", sortInitialOrder: 'asc' },
+            1: { sorter: "metric" },
+            2: { sorter: "text" }
+    }
+};
+
+var tablesorterOptions_Crashes = {
+        widthFixed: false,
+        theme: 'fpp',
+        cssInfoBlock: 'tablesorter-no-sort',
+        widgets: ['zebra','stickyHeaders','staticRow', 'saveSort'],
+        header: 'tablesorter-header',
+        headers: {
+            0: { sorter: "text", sortInitialOrder: 'asc' },
+            1: { sorter: "metric" },
+            2: { sorter: "text" }
+    }
+};
+
+$("#fileManager").on("tabscreate", function(event,ui){
+    console.log("create triggered");
+
+    var $t = ui.panel.find('table');
+        $tableName = $t[0].id;
+        console.log("running create logic");
+        console.log($tableName);
+        console.log($t[0].config);
+        if ($t.length) {
+            switch($tableName)
+                {
+                    case "tblSequences":
+                        $t.tablesorter(tablesorterOptions_Sequences);
+                        break;
+                    case "tblMusic":
+                        $t.tablesorter(tablesorterOptions_Music);
+                        break;
+                    case "tblVideos":
+                        $t.tablesorter(tablesorterOptions_Videos);
+                        break;
+                    case "tblImages":
+                        $t.tablesorter(tablesorterOptions_Images);
+                        break;
+                    case "tblEffects":
+                        $t.tablesorter(tablesorterOptions_Effects);
+                        break;
+                    case "tblScripts":
+                        $t.tablesorter(tablesorterOptions_Scripts);
+                        break;
+                    case "tblLogs":
+                        $t.tablesorter(tablesorterOptions_Logs);
+                        break;
+                    case "tblUploads":
+                        $t.tablesorter(tablesorterOptions_Uploads);
+                        break;
+                    case "tblCrashes":
+                        $t.tablesorter(tablesorterOptions_Crashes);
+                        break;
+                };
+            $t.trigger('applyWidgets');
+            console.log($t[0].config);
+
+}});
+
+
+$("#fileManager").tabs({
+   /* create: function (event, ui) {
+        var $t = ui.panel.find('table');
+        $tableName = $t[0].id;
+        if ($t.length) {
+            $t.trigger('applyWidgets');
+            switch($tableName)
+                {
+                    case "tblSequences":
+                        $t.tablesorter(tablesorterOptions_Sequences);
+                        break;
+                    case "tblMusic":
+                        $t.tablesorter(tablesorterOptions_Music);
+                        break;
+                    case "tblVideos":
+                        $t.tablesorter(tablesorterOptions_Videos);
+                        break;
+                    case "tblImages":
+                        $t.tablesorter(tablesorterOptions_Images);
+                        break;
+                    case "tblEffects":
+                        $t.tablesorter(tablesorterOptions_Effects);
+                        break;
+                    case "tblScripts":
+                        $t.tablesorter(tablesorterOptions_Scripts);
+                        break;
+                    case "tblLogs":
+                        $t.tablesorter(tablesorterOptions_Logs);
+                        break;
+                    case "tblUploads":
+                        $t.tablesorter(tablesorterOptions_Uploads);
+                        break;
+                    case "tblCrashes":
+                        $t.tablesorter(tablesorterOptions_Crashes);
+                        break;
+                }
+
+        }
+    },
+*/
+    activate: function (event, ui) {
+        var $t = ui.newPanel.find('table');
+        //console.log($t[0].id);
+        $tableName = $t[0].id;
+        if ($t.length) {
+            console.log("activate code running");
+            console.log("table config: ");
+            console.log($t[0].config);
+            if ($t[0].config) {
+                console.log("activate - config exists - applying widgets for ");
+                console.log($tableName);
+               $t.trigger('applyWidgets');
+            } else {
+                switch($tableName)
+                {
+                    case "tblSequences":
+                        $t.tablesorter(tablesorterOptions_Sequences);
+                        $t.trigger('applyWidgets');
+                        console.log($t[0].config);
+                        break;
+                    case "tblMusic":
+                        $t.tablesorter(tablesorterOptions_Music);
+                        $t.trigger('applyWidgets');
+                        break;
+                    case "tblVideos":
+                        $t.tablesorter(tablesorterOptions_Videos);
+                        $t.trigger('applyWidgets');
+                        break;
+                    case "tblImages":
+                        $t.tablesorter(tablesorterOptions_Images);
+                        $t.trigger('applyWidgets');
+                        break;
+                    case "tblEffects":
+                        $t.tablesorter(tablesorterOptions_Effects);
+                        $t.trigger('applyWidgets');
+                        break;
+                    case "tblScripts":
+                        $t.tablesorter(tablesorterOptions_Scripts);
+                        $t.trigger('applyWidgets');
+                        break;
+                    case "tblLogs":
+                        $t.tablesorter(tablesorterOptions_Logs);
+                        $t.trigger('applyWidgets');
+                        break;
+                    case "tblUploads":
+                        $t.tablesorter(tablesorterOptions_Uploads);
+                        $t.trigger('applyWidgets');
+                        break;
+                    case "tblCrashes":
+                        $t.tablesorter(tablesorterOptions_Crashes);
+                        $t.trigger('applyWidgets');
+                        break;
+                }
+            }
+        }
+    }
+});
+
+});
+
+
+  </script>
 </body>
 </html>
