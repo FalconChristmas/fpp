@@ -35,7 +35,7 @@ typedef struct {
     volatile uint32_t response;
 
     uint32_t buffer[3]; // need a bit of a buffer
-    uint32_t commandTable[1789];
+    uint16_t commandTable[3578];
 } __attribute__((__packed__)) BBShiftStringData;
 
 class BBShiftStringOutput : public ChannelOutput {

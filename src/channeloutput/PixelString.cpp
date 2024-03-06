@@ -284,6 +284,10 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
     int obs = std::max(2400, m_outputChannels);
     m_outputBuffer = (uint8_t*)calloc(obs, 1);
 
+    if (pinConfig && pinConfig->isMember("inverted") && (*pinConfig)["inverted"].asBool()) {
+        invertOutput();
+    }
+
     return 1;
 }
 
@@ -604,6 +608,15 @@ void PixelString::DumpConfig(void) {
             LogDebug(VB_CHANNELOUT, "        zig zag       : %d\n", vs.zigZag);
             LogDebug(VB_CHANNELOUT, "        brightness    : %d\n", vs.brightness);
             LogDebug(VB_CHANNELOUT, "        gamma         : %.3f\n", vs.gamma);
+        }
+    }
+}
+
+void PixelString::invertOutput() {
+    m_isInverted = !m_isInverted;
+    for (auto& vs : m_virtualStrings) {
+        for (int x = 0; x < 256; x++) {
+            vs.brightnessMap[x] = ~vs.brightnessMap[x];
         }
     }
 }

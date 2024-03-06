@@ -63,19 +63,16 @@
 #define commandReg  r28
 #define data_len    r28.w0
 #define data_flags  r28.w2
+#define cur_data	r29.w0
 
 #define curCommand  r2.w0
 #define next_check  r2.w2
-#define cur_data	r3.w0
 
 
-//r4-r7 contains the output masks
-//currently just r4 and r5 (64 bits) but r6/7 
-//will be needed if we jump to more than 8pins
-//per shift out
-#define BYTES_FOR_MASKS 8
-// if we move to more than 8 pins, overflow will go to r8
-#define MASK_OVERFLOW r6
+//r4-r7 contains the output masks, r4/5 are high, r6/7 are low
+// read two extra bytes for the "next"
+#define BYTES_FOR_MASKS 18
+#define MASK_OVERFLOW r8.w0
 #define OUTPUT_MASKS r4
 //16 registers for channel data
 // r10 - r25
@@ -119,12 +116,10 @@ OUTPUT_HIGH .macro
 
 OUTPUT_LOW .macro
     .newblock
-    LDI r30.b0, 0
-    NOP
-    LOOP DONELOW?, 8
-        TOGGLE_CLOCK
-        NOP
-DONELOW?:
+    MOV r1.b1, r1.b0
+    LDI r1.b0, 24   //24 is r6.b0
+    OUTPUT_REG_INDIRECT
+    MOV r1.b0, r1.b1
     .endm
 
 
@@ -133,8 +128,8 @@ OUTPUT_FALCONV5_PACKET .macro
     QBBS  START_FALCONV5?, data_flags, 0
         JMP DONE_FALCONV5?
 
-    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, curCommand, BYTES_FOR_MASKS + 4
-    ADD curCommand, curCommand, BYTES_FOR_MASKS + 4
+    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, curCommand, BYTES_FOR_MASKS
+    ADD curCommand, curCommand, BYTES_FOR_MASKS 
     MOV next_check, MASK_OVERFLOW
 
 START_FALCONV5?:
@@ -260,13 +255,13 @@ CONT_DATA:
     SBCO    &r1, CONST_PRUDRAM, 4, 4
 
     // Reset the output masks
-    LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, 24, BYTES_FOR_MASKS + 4
+    LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, 24, BYTES_FOR_MASKS
     // reset the command table
     MOV next_check, MASK_OVERFLOW
     QBBC NO_CUSTOM_CHECKS, data_flags, 1
         MOV next_check, data_len
 NO_CUSTOM_CHECKS:
-    LDI curCommand, 24 + BYTES_FOR_MASKS + 4
+    LDI curCommand, 24 + BYTES_FOR_MASKS
 	LDI	cur_data, 1
 
     //start the clock
@@ -285,8 +280,8 @@ WORD_LOOP:
     JAL r1.w2, OUTPUT_FULL_BIT
     JAL r1.w2, OUTPUT_FULL_BIT
     QBNE NO_COMMAND_NEEDED, cur_data, next_check
-        LBCO &OUTPUT_MASKS, CONST_PRUDRAM, curCommand, BYTES_FOR_MASKS + 4
-        ADD curCommand, curCommand, BYTES_FOR_MASKS + 4
+        LBCO &OUTPUT_MASKS, CONST_PRUDRAM, curCommand, BYTES_FOR_MASKS
+        ADD curCommand, curCommand, BYTES_FOR_MASKS
         MOV next_check, MASK_OVERFLOW
 NO_COMMAND_NEEDED:
     ADD cur_data, cur_data, 1
