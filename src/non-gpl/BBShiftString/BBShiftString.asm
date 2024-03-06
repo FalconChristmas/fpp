@@ -32,9 +32,9 @@
 
 
 
-#define T0_TIME   275
-#define T1_TIME   675
-#define LOW_TIME  1100
+#define T0_TIME   220
+#define T1_TIME   750
+#define LOW_TIME  1120
 //if LOW_TIME needs to be more than 1250, you need to do:
 // #define SLOW_WAITNS
 
@@ -43,25 +43,30 @@
 #endif
 
 #ifdef RUNNING_ON_PRU1
-#define CLOCK_MASK 0x04
-#define LATCH_MASK 0x08
+#define CLOCK_PIN 2
+#define LATCH_PIN 3
+#define ENABLE_PIN 0
+#define UARTSEL_PIN 1
 #else
-#define CLOCK_MASK 0x80
-#define LATCH_MASK 0x40
+#define CLOCK_PIN 7
+#define LATCH_MASK 6
 #endif
 
-#define FALCONV5_PERIOD  1125
+#define FALCONV5_PERIOD  1130
 
 
 #include "FalconUtils.asm"
 #include "FalconPRUDefs.hp"
 
 /** Register map */
-#define data_addr	r0
+#define data_addr	r27
+#define commandReg  r28
+#define data_len    r28.w0
+#define data_flags  r28.w2
+
 #define curCommand  r2.w0
 #define next_check  r2.w2
 #define cur_data	r3.w0
-#define data_len    r3.w2
 
 
 //r4-r7 contains the output masks
@@ -79,45 +84,37 @@
 //data or load 4 bits at a time instaed of 8
 #define pixelData    r10
 
-#define data_flags   r29
 
 #define DATABLOCKSIZE 64
 
 TOGGLE_CLOCK .macro
-    LDI r30.b1, CLOCK_MASK
+    SET r30.b1, r30.b1, CLOCK_PIN
     NOP
-    NOP
-    LDI r30.b1, 0
-    NOP
+    CLR r30.b1, r30.b1, CLOCK_PIN
+    //NOP
     .endm
 
 TOGGLE_LATCH .macro
-    LDI r30.b1, LATCH_MASK
+    SET r30.b1, r30.b1, LATCH_PIN
     NOP
-    NOP
-    LDI r30.b1, 0
-    NOP
+    CLR r30.b1, r30.b1, LATCH_PIN
     NOP
     .endm
 
-
-OUTPUT_REG .macro REG
+OUTPUT_REG_INDIRECT .macro 
     .newblock
-    MOV r30.b0, REG.b0
+    LOOP ENDLOOP?, 8
+    MVIB r30.b0, *r1.b0++
     TOGGLE_CLOCK
-    MOV r30.b0, REG.b1
-    TOGGLE_CLOCK
-    MOV r30.b0, REG.b2
-    TOGGLE_CLOCK
-    MOV r30.b0, REG.b3
-    TOGGLE_CLOCK
+ENDLOOP?:
     .endm
-
 
 OUTPUT_HIGH .macro
     .newblock
-    OUTPUT_REG r4
-    OUTPUT_REG r5
+    MOV r1.b1, r1.b0
+    LDI r1.b0, 16   //16 is r4.b0
+    OUTPUT_REG_INDIRECT
+    MOV r1.b0, r1.b1
     .endm
 
 OUTPUT_LOW .macro
@@ -130,48 +127,25 @@ OUTPUT_LOW .macro
 DONELOW?:
     .endm
 
-OUTPUT_FULL_BIT .macro REG1, REG2
-    .newblock
-    OUTPUT_HIGH
-    //wait for the full cycle to complete
-    WAITNS  LOW_TIME, r8, r9
-    //start the clock
-    RESET_PRU_CLOCK r8, r9
-    TOGGLE_LATCH
-    OUTPUT_REG REG1
-    OUTPUT_REG REG2
-    WAITNS  T0_TIME, r8, r9
-    TOGGLE_LATCH
-    OUTPUT_LOW
-    WAITNS  T1_TIME, r8, r9
-    TOGGLE_LATCH
-    .endm
-
-OUTPUT_FULL_BIT_FV5 .macro REG1, REG2
-    OUTPUT_REG REG1
-    OUTPUT_REG REG2
-    WAITNS  FALCONV5_PERIOD, r8, r9
-    RESET_PRU_CLOCK r8, r9
-    TOGGLE_LATCH
-    .endm
 
 OUTPUT_FALCONV5_PACKET .macro
     .newblock
     QBBS  START_FALCONV5?, data_flags, 0
         JMP DONE_FALCONV5?
+
+    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, curCommand, BYTES_FOR_MASKS + 4
+    ADD curCommand, curCommand, BYTES_FOR_MASKS + 4
+    MOV next_check, MASK_OVERFLOW
+
 START_FALCONV5?:
     OUTPUT_LOW
     TOGGLE_LATCH
-    RESET_PRU_CLOCK r8, r9
-    LOOP HI_START?, 14
-        WAITNS  FALCONV5_PERIOD, r8, r9
-        RESET_PRU_CLOCK r8, r9
-HI_START?:    
+	SLEEPNS	15300, r8, 0
+
     OUTPUT_HIGH
     TOGGLE_LATCH
-    LOOP LONG_START?, 45
-        WAITNS  FALCONV5_PERIOD, r8, r9
-        RESET_PRU_CLOCK r8, r9
+
+	SLEEPNS	53500, r8, 0
 LONG_START?:
 
     LDI  data_len, 56
@@ -185,25 +159,34 @@ LONG_START?:
 FALCONV5_LOOP?:
     // start bit
     OUTPUT_LOW
-    WAITNS  FALCONV5_PERIOD, r8, r9
-    TOGGLE_LATCH
+    WAITNS_LOOP FALCONV5_PERIOD, r8, r9
     RESET_PRU_CLOCK r8, r9
-    OUTPUT_FULL_BIT_FV5 r10, r11
-    OUTPUT_FULL_BIT_FV5 r12, r13
-    OUTPUT_FULL_BIT_FV5 r14, r15
-    OUTPUT_FULL_BIT_FV5 r16, r17
-    OUTPUT_FULL_BIT_FV5 r18, r19
-    OUTPUT_FULL_BIT_FV5 r20, r21
-    OUTPUT_FULL_BIT_FV5 r22, r23
-    OUTPUT_FULL_BIT_FV5 r24, r25
-    OUTPUT_FULL_BIT_FV5 r4, r5    //stop bit
+    TOGGLE_LATCH
+    LDI r1.b0, 40
+    JAL r1.w2, OUTPUT_FULL_BIT_FV5
+    JAL r1.w2, OUTPUT_FULL_BIT_FV5
+    JAL r1.w2, OUTPUT_FULL_BIT_FV5 
+    JAL r1.w2, OUTPUT_FULL_BIT_FV5
+    JAL r1.w2, OUTPUT_FULL_BIT_FV5 
+    JAL r1.w2, OUTPUT_FULL_BIT_FV5
+    JAL r1.w2, OUTPUT_FULL_BIT_FV5
+    JAL r1.w2, OUTPUT_FULL_BIT_FV5
+    OUTPUT_HIGH //stop bit
+    WAITNS_LOOP  FALCONV5_PERIOD, r8, r9
+    RESET_PRU_CLOCK r8, r9
+    TOGGLE_LATCH
     QBEQ DONE_FALCONV5_LOOP?, data_len, 0
         LBBO    &r10, data_addr, 0, DATABLOCKSIZE
         ADD     data_addr, data_addr, DATABLOCKSIZE
         SUB     data_len, data_len, 1
         JMP FALCONV5_LOOP?
 DONE_FALCONV5_LOOP?:
-    WAITNS  LOW_TIME, r8, r9
+    //WAITNS  LOW_TIME, r8, r9
+    //CLR r30.b1, r30.b1, ENABLE_PIN
+    //SLEEPNS 100000, r8, 0
+	//SLEEPNS	400000, r8, 0
+	//SLEEPNS	400000, r8, 0
+    //SET r30.b1, r30.b1, ENABLE_PIN
 
 DONE_FALCONV5?:
     .endm
@@ -244,6 +227,11 @@ DONE_FALCONV5?:
 	LDI 	r2, 0x1
 	SBCO	&r2, CONST_PRUDRAM, 8, 4
 
+    // Make sure the data address and command are cleared at start
+	LDI 	r1, 0x0
+	LDI 	r2, 0x0
+	SBCO	&r1, CONST_PRUDRAM, 0, 8
+
 	// Wait for the start condition from the main program to indicate
 	// that we have a rendered frame ready to clock out.  This also
 	// handles the exit case if an invalid value is written to the start
@@ -252,29 +240,25 @@ _LOOP:
     //make sure the clock starts
     RESET_PRU_CLOCK r8, r9
 
-	// Load the pointer to the buffer from PRU DRAM into r0 and the
-	// start command into r1
+	// Load the pointer to the buffer from PRU DRAM into data_addr and the
+	// start command into commandReg
 	LBCO	&data_addr, CONST_PRUDRAM, 0, 8
 
 	// Wait for a non-zero command
-	QBEQ	_LOOP, r1, 0
+	QBEQ	_LOOP, commandReg, 0
 
 	// Command of 0xFFFF is the signal to exit
     LDI     r8, 0xFFFF
-	QBNE	CONT_DATA, r1, r8
+	QBNE	CONT_DATA, commandReg, r8
     JMP EXIT
 
 CONT_DATA:
-    // r1 (the command) is the data length in lower word
-    MOV data_len, r1.w0
-    MOV data_flags, r1.w2
-    RESET_PRU_CLOCK r8, r9
+    SET r30.b1, r30.b1, ENABLE_PIN
 
     // reset command to 0 so ARM side will send more data
     LDI     r1, 0
     SBCO    &r1, CONST_PRUDRAM, 4, 4
 
-    
     // Reset the output masks
     LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, 24, BYTES_FOR_MASKS + 4
     // reset the command table
@@ -291,14 +275,15 @@ NO_CUSTOM_CHECKS:
 WORD_LOOP:
     LBBO    &r10, data_addr, 0, DATABLOCKSIZE
     ADD     data_addr, data_addr, DATABLOCKSIZE
-    OUTPUT_FULL_BIT r10, r11
-    OUTPUT_FULL_BIT r12, r13
-    OUTPUT_FULL_BIT r14, r15
-    OUTPUT_FULL_BIT r16, r17
-    OUTPUT_FULL_BIT r18, r19
-    OUTPUT_FULL_BIT r20, r21
-    OUTPUT_FULL_BIT r22, r23
-    OUTPUT_FULL_BIT r24, r25
+    LDI r1.b0, 40
+    JAL r1.w2, OUTPUT_FULL_BIT
+    JAL r1.w2, OUTPUT_FULL_BIT
+    JAL r1.w2, OUTPUT_FULL_BIT
+    JAL r1.w2, OUTPUT_FULL_BIT
+    JAL r1.w2, OUTPUT_FULL_BIT
+    JAL r1.w2, OUTPUT_FULL_BIT
+    JAL r1.w2, OUTPUT_FULL_BIT
+    JAL r1.w2, OUTPUT_FULL_BIT
     QBNE NO_COMMAND_NEEDED, cur_data, next_check
         LBCO &OUTPUT_MASKS, CONST_PRUDRAM, curCommand, BYTES_FOR_MASKS + 4
         ADD curCommand, curCommand, BYTES_FOR_MASKS + 4
@@ -333,3 +318,26 @@ EXIT:
 	// Send notification to Host for program completion
 	LDI R31.b0, PRU_ARM_INTERRUPT+16
 	HALT
+
+
+OUTPUT_FULL_BIT:
+    OUTPUT_HIGH
+    //wait for the full cycle to complete
+    WAITNS_LOOP  LOW_TIME, r8, r9
+    //start the clock
+    RESET_PRU_CLOCK r8, r9
+    TOGGLE_LATCH
+    OUTPUT_REG_INDIRECT
+    WAITNS_LOOP  T0_TIME, r8, r9
+    TOGGLE_LATCH
+    OUTPUT_LOW
+    WAITNS_LOOP  T1_TIME, r8, r9
+    TOGGLE_LATCH
+    JMP r1.w2
+
+OUTPUT_FULL_BIT_FV5:
+    OUTPUT_REG_INDIRECT
+    WAITNS_LOOP  FALCONV5_PERIOD, r8, r9
+    TOGGLE_LATCH
+    RESET_PRU_CLOCK r8, r9
+    JMP r1.w2

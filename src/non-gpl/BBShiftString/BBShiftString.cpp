@@ -123,6 +123,9 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
         uint8_t b[4];
     } r45[2];
 
+    if (!d.pruData) {
+        return;
+    }
     std::map<int, std::vector<std::tuple<int, int, GPIOCommand>>> sizes;
     int bmask = 0x1;
     for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
@@ -145,7 +148,7 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
     auto i = sizes.begin();
     while (i != sizes.end()) {
         int min = i->first;
-        if (min != d.maxStringLen) {
+        if (min <= d.maxStringLen) {
             d.pruData->commandTable[curCommandTable++] = min;
             for (auto& t : i->second) {
                 auto [y, x, cmd] = t;
@@ -161,11 +164,10 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
             }
             d.pruData->commandTable[curCommandTable++] = r45[0].r;
             d.pruData->commandTable[curCommandTable++] = r45[1].r;
-        } else {
-            d.pruData->commandTable[curCommandTable] = 0xFFFF;
         }
         i++;
     }
+    d.pruData->commandTable[curCommandTable] = 0xFFFF;
 }
 
 /*
@@ -288,70 +290,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
     m_pru1.formattedData = (uint8_t*)calloc(1, m_pru1.frameSize);
 
     if (hasV5SR) {
-        constexpr int configPacketSize = 60;
-        falconV5Support = new FalconV5Support();
-        falconV5Support->addListeners(root["falconV5Listeners"]);
-
-        std::vector<std::array<uint8_t, configPacketSize>> packets;
-        packets.resize(m_strings.size());
-        for (auto& p : packets) {
-            memset(&p[0], 0, configPacketSize);
-        }
-
-        int x = 0;
-        while (x < m_strings.size()) {
-            int p = x;
-            PixelString* p1 = m_strings[x++];
-            if (p1->m_isSmartReceiver && p1->smartReceiverType == PixelString::ReceiverType::FalconV5) {
-                int grp = root["outputs"][x]["falconV5Listener"].asInt();
-
-                PixelString* p2 = x < m_strings.size() ? m_strings[x++] : nullptr;
-                PixelString* p3 = x < m_strings.size() ? m_strings[x++] : nullptr;
-                PixelString* p4 = x < m_strings.size() ? m_strings[x++] : nullptr;
-
-                FalconV5Support::ReceiverChain* rc = falconV5Support->addReceiverChain(p1, p2, p3, p4, grp);
-                rc->generateConfigPacket(&packets[p][0]);
-
-                // need to keep the port on, should not turn the GPIO off
-                p1->m_gpioCommands.back().type = 1;
-            }
-        }
-
-        offset = ((m_pru1.frameSize / 4096) + 2) * 4096;
-        // 0 position will be the config packet so its sent on first start
-        m_pru0.v5_config_packets[0] = (uint8_t*)calloc(1, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN);
-        m_pru1.v5_config_packets[0] = (uint8_t*)calloc(1, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN);
-
-        std::array<uint8_t, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN> pru0Data;
-        std::array<uint8_t, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN> pru1Data;
-
-        for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
-            uint8_t pinMask = 1 << y;
-            for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
-                int idx = m_pru0.stringMap[y][x];
-                if (idx != -1) {
-                    uint8_t* frame = &pru0Data[x + (y * NUM_STRINGS_PER_PIN)];
-                    for (int p = 0; p < 57; p++) {
-                        uint8_t b = packets[idx][p];
-                        b = ((b * 0x0802LU & 0x22110LU) | (b * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
-                        *frame = b;
-                        frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
-                    }
-                }
-                idx = m_pru1.stringMap[y][x];
-                if (idx != -1) {
-                    uint8_t* frame = &pru1Data[x + (y * NUM_STRINGS_PER_PIN)];
-                    for (int p = 0; p < 57; p++) {
-                        uint8_t b = packets[idx][p];
-                        b = ((b * 0x0802LU & 0x22110LU) | (b * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
-                        *frame = b;
-                        frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
-                    }
-                }
-            }
-        }
-        bitFlipData(&pru0Data[0], m_pru0.v5_config_packets[0], 57);
-        bitFlipData(&pru1Data[0], m_pru1.v5_config_packets[0], 57);
+        setupFalconV5Support(root);
     }
 
     PixelString::AutoCreateOverlayModels(m_strings);
@@ -369,17 +308,14 @@ int BBShiftStringOutput::StartPRU() {
         PinCapabilities::getPinByName("P8-44").configPin("pruout");
         PinCapabilities::getPinByName("P8-45").configPin("pruout");
         PinCapabilities::getPinByName("P8-46").configPin("pruout");
-        // PinCapabilities::getPinByName("P8-27").configPin("pruout");
-        // PinCapabilities::getPinByName("P8-29").configPin("pruout");
         PinCapabilities::getPinByName("P8-28").configPin("pruout");
         PinCapabilities::getPinByName("P8-30").configPin("pruout");
 
         m_pru1.pru = new BBBPru(1, true, true);
         m_pru1.pruData = (BBShiftStringData*)m_pru1.pru->data_ram;
-        m_pru1.pruData->command = 0;
-        m_pru1.pruData->address_dma = m_pru1.pru->ddr_addr;
 
         m_pru1.pru->run("/tmp/BBShiftString_pru1.out");
+
         createOutputLengths(m_pru1, "pru1");
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -397,8 +333,6 @@ int BBShiftStringOutput::StartPRU() {
 
         m_pru0.pru = new BBBPru(0, true, true);
         m_pru0.pruData = (BBShiftStringData*)m_pru0.pru->data_ram;
-        m_pru0.pruData->command = 0;
-        m_pru0.pruData->address_dma = m_pru0.pru->ddr_addr;
         m_pru0.pru->run("/tmp/BBShiftString_pru0.out");
         createOutputLengths(m_pru0, "pru0");
     }
@@ -449,6 +383,36 @@ void BBShiftStringOutput::StopPRU(bool wait) {
 int BBShiftStringOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "BBShiftStringOutput::Close()\n");
     StopPRU();
+
+    if (m_pru0.maxStringLen) {
+        PinCapabilities::getPinByName("P8-39").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-40").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-41").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-42").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-43").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-44").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-45").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-46").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-28").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-30").configPin("gpio", false);
+
+        PinCapabilities::getPinByName("P8-27").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-29").configPin("gpio", false);
+    }
+
+    if (m_pru0.maxStringLen) {
+        PinCapabilities::getPinByName("P9-31").configPin("gpio", false);
+        PinCapabilities::getPinByName("P9-29").configPin("gpio", false);
+        PinCapabilities::getPinByName("P9-30").configPin("gpio", false);
+        PinCapabilities::getPinByName("P9-28").configPin("gpio", false);
+        PinCapabilities::getPinByName("P9-92").configPin("gpio", false);
+        PinCapabilities::getPinByName("P9-27").configPin("gpio", false);
+        PinCapabilities::getPinByName("P9-91").configPin("gpio", false);
+        PinCapabilities::getPinByName("P9-25").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-12").configPin("gpio", false);
+        PinCapabilities::getPinByName("P8-11").configPin("gpio", false);
+    }
+
     return ChannelOutput::Close();
 }
 
@@ -674,7 +638,7 @@ void BBShiftStringOutput::sendData(FrameData& d) {
         // memcpy(d.curData, d.formattedData, d.frameSize);
         d.pruData->address_dma = (d.pru->ddr_addr + (d.curData - d.pru->ddr));
         if (d.v5_config_packets[d.curV5ConfigPacket]) {
-            memcpy(d.pru->shared_ram + d.pru->pru_num * 4096, d.v5_config_packets[d.curV5ConfigPacket], 57 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN);
+            memcpy(d.pru->shared_ram + d.pru->pru_num * 4096, d.v5_config_packets[d.curV5ConfigPacket]->data, d.v5_config_packets[d.curV5ConfigPacket]->len);
         }
         std::swap(d.lastData, d.curData);
     }
@@ -742,4 +706,113 @@ void BBShiftStringOutput::DumpConfig(void) {
     }
 
     ChannelOutput::DumpConfig();
+}
+void BBShiftStringOutput::StartingOutput() {
+    m_pru1.curV5ConfigPacket = 0;
+    m_pru0.curV5ConfigPacket = 0;
+}
+
+void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root) {
+    PinCapabilities::getPinByName("P8-27").configPin("pruout");
+    PinCapabilities::getPinByName("P8-29").configPin("pruout");
+
+    constexpr int configPacketSize = 60;
+    constexpr int numPacketTypes = 7;
+    falconV5Support = new FalconV5Support();
+    falconV5Support->addListeners(root["falconV5Listeners"]);
+
+    std::vector<std::array<uint8_t, configPacketSize>> packets;
+    packets.resize(m_strings.size() * numPacketTypes);
+    for (auto& p : packets) {
+        memset(&p[0], 0, configPacketSize);
+    }
+
+    int x = 0;
+    while (x < m_strings.size()) {
+        int p = x;
+        PixelString* p1 = m_strings[x++];
+        if (p1->m_isSmartReceiver && p1->smartReceiverType == PixelString::ReceiverType::FalconV5) {
+            int grp = root["outputs"][x]["falconV5Listener"].asInt();
+
+            PixelString* p2 = x < m_strings.size() ? m_strings[x++] : nullptr;
+            PixelString* p3 = x < m_strings.size() ? m_strings[x++] : nullptr;
+            PixelString* p4 = x < m_strings.size() ? m_strings[x++] : nullptr;
+
+            int max = p1->m_outputChannels;
+            max = std::max(max, p2 ? p2->m_outputChannels : 0);
+            max = std::max(max, p3 ? p3->m_outputChannels : 0);
+            max = std::max(max, p4 ? p4->m_outputChannels : 0);
+
+            FalconV5Support::ReceiverChain* rc = falconV5Support->addReceiverChain(p1, p2, p3, p4, grp);
+            rc->generateConfigPacket(&packets[p * numPacketTypes][0]);
+            for (int z = 0; z < 6; z++) {
+                // rc->generateQueryPacket(&packets[p * numPacketTypes + z + 1][0], z);
+            }
+
+            // need to keep the ports on.  With v5, all ports need to be kept on
+            // and must have edges that are aligned.  Need to turn OFF the 2-4 ports during
+            // the config packet
+            p1->m_gpioCommands.clear();
+            if (p2) {
+                p2->m_gpioCommands.clear();
+                p2->m_gpioCommands.emplace_back(2, max, 0, 0);
+            }
+            if (p3) {
+                p3->m_gpioCommands.clear();
+                p3->m_gpioCommands.emplace_back(3, max, 0, 0);
+            }
+            if (p4) {
+                p4->m_gpioCommands.clear();
+                p4->m_gpioCommands.emplace_back(4, max, 0, 0);
+            }
+        }
+    }
+
+    std::array<uint8_t, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN> pru0Data;
+    std::array<uint8_t, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN> pru1Data;
+
+    for (int z = 0; z < NUM_CONFIG_PACKETS; z++) {
+        int pidx = -1;
+        if (z % 12 == 0) {
+            // every 12 is a config pack which is "type 0"
+            pidx = 0;
+        }
+
+        if (pidx >= 0) {
+            if (m_pru0.v5_config_packets[z] == nullptr) {
+                m_pru0.v5_config_packets[z] = new FalconV5PacketInfo(configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN);
+                m_pru1.v5_config_packets[z] = new FalconV5PacketInfo(configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN);
+            }
+
+            for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
+                uint8_t pinMask = 1 << y;
+                for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
+                    int idx = m_pru0.stringMap[y][x];
+                    if (idx != -1) {
+                        uint8_t* frame = &pru0Data[x + (y * NUM_STRINGS_PER_PIN)];
+                        for (int p = 0; p < 57; p++) {
+                            uint8_t b = packets[idx * numPacketTypes + pidx][p];
+                            b = ((b * 0x0802LU & 0x22110LU) | (b * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
+                            *frame = b;
+                            frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+                        }
+                    }
+                    idx = m_pru1.stringMap[y][x];
+                    if (idx != -1) {
+                        uint8_t* frame = &pru1Data[x + (y * NUM_STRINGS_PER_PIN)];
+                        for (int p = 0; p < 57; p++) {
+                            uint8_t b = packets[idx * numPacketTypes + pidx][p];
+                            b = ((b * 0x0802LU & 0x22110LU) | (b * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
+                            *frame = b;
+                            frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+                        }
+                    }
+                }
+            }
+            bitFlipData(&pru0Data[0], m_pru0.v5_config_packets[z]->data, 57);
+            bitFlipData(&pru1Data[0], m_pru1.v5_config_packets[z]->data, 57);
+        }
+    }
+    createOutputLengths(m_pru0, "pru0");
+    createOutputLengths(m_pru1, "pru1");
 }

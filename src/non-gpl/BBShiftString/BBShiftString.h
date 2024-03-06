@@ -22,7 +22,7 @@
 
 constexpr int NUM_STRINGS_PER_PIN = 8;
 constexpr int MAX_PINS_PER_PRU = 8;
-constexpr int NUM_CONFIG_PACKETS = 12;
+constexpr int NUM_CONFIG_PACKETS = 96;
 
 // structure of the data at the start of the PRU ram
 // that the pru program expects to see
@@ -52,6 +52,8 @@ public:
 
     void addControlCallbacks(std::map<int, std::function<bool(int)>>& callbacks);
 
+    virtual void StartingOutput() override;
+
     virtual int SendData(unsigned char* channelData) override;
     virtual void PrepData(unsigned char* channelData) override;
     virtual void DumpConfig(void) override;
@@ -66,6 +68,23 @@ private:
     int StartPRU();
 
     std::string m_subType;
+
+    class FalconV5PacketInfo {
+    public:
+        FalconV5PacketInfo(int l) {
+            len = l;
+            data = (uint8_t*)calloc(l, 1);
+        }
+        ~FalconV5PacketInfo() {
+            if (data) {
+                free(data);
+            }
+        }
+
+        int len = 0;
+        uint8_t* data = nullptr;
+        bool listen = false;
+    };
 
     class FrameData {
     public:
@@ -86,7 +105,7 @@ private:
                 free(formattedData);
             for (int y = 0; y < NUM_CONFIG_PACKETS; ++y) {
                 if (v5_config_packets[y]) {
-                    free(v5_config_packets[y]);
+                    delete v5_config_packets[y];
                 }
             }
         }
@@ -103,7 +122,7 @@ private:
         int maxStringLen = 0;
         int outputStringLen = 0;
 
-        uint8_t* v5_config_packets[NUM_CONFIG_PACKETS];
+        FalconV5PacketInfo* v5_config_packets[NUM_CONFIG_PACKETS];
         int curV5ConfigPacket = 0;
     } m_pru0, m_pru1;
 
@@ -123,4 +142,6 @@ private:
     void bitFlipData(uint8_t* stringChannelData, uint8_t* bitSwapped, size_t len);
 
     void createOutputLengths(FrameData& d, const std::string& pfx);
+
+    void setupFalconV5Support(const Json::Value& root);
 };
