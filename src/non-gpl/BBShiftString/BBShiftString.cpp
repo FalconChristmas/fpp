@@ -119,55 +119,84 @@ static void compilePRUCode(const char* program, const std::string& pru, const st
 
 void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& pfx) {
     union {
-        uint32_t r = 0;
+        uint16_t r[2];
         uint8_t b[4];
-    } r45[2];
+    } r45[4];
 
     if (!d.pruData) {
         return;
     }
-    std::map<int, std::vector<std::tuple<int, int, GPIOCommand>>> sizes;
+    for (int x = 0; x < 4; x++) {
+        r45[x].r[0] = 0;
+        r45[x].r[1] = 0;
+    }
+    std::map<int, std::vector<std::tuple<int, int, GPIOCommand, bool>>> sizes;
     int bmask = 0x1;
     for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
         for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
             int pc = d.stringMap[y][x];
             if (pc >= 0) {
                 for (auto& a : m_strings[pc]->m_gpioCommands) {
-                    sizes[a.channelOffset].push_back(std::make_tuple(y, x, a));
+                    sizes[a.channelOffset].push_back(std::make_tuple(y, x, a, m_strings[pc]->m_isInverted));
                 }
                 int breg = x % 4;
                 int idx = x / 4;
-                r45[idx].b[breg] |= bmask;
+                if (m_strings[pc]->m_isInverted) {
+                    r45[idx + 2].b[breg] |= bmask;
+                } else {
+                    r45[idx].b[breg] |= bmask;
+                }
             }
         }
         bmask <<= 1;
     }
-    d.pruData->commandTable[0] = r45[0].r;
-    d.pruData->commandTable[1] = r45[1].r;
-    int curCommandTable = 2;
+    d.pruData->commandTable[0] = r45[0].r[0];
+    d.pruData->commandTable[1] = r45[0].r[1];
+    d.pruData->commandTable[2] = r45[1].r[0];
+    d.pruData->commandTable[3] = r45[1].r[1];
+    d.pruData->commandTable[4] = r45[2].r[0];
+    d.pruData->commandTable[5] = r45[2].r[1];
+    d.pruData->commandTable[6] = r45[3].r[0];
+    d.pruData->commandTable[7] = r45[3].r[1];
+
+    int curCommandTable = 8;
     auto i = sizes.begin();
     while (i != sizes.end()) {
-        int min = i->first;
+        uint16_t min = i->first & 0xFFFF;
         if (min <= d.maxStringLen) {
             d.pruData->commandTable[curCommandTable++] = min;
             for (auto& t : i->second) {
-                auto [y, x, cmd] = t;
+                auto [y, x, cmd, inverted] = t;
 
                 int reg = (x / 4);
                 int breg = x % 4;
                 uint8_t mask = 0x1 << y;
                 if (cmd.type) {
-                    r45[reg].b[breg] |= mask;
+                    if (inverted) {
+                        r45[reg].b[breg] &= ~mask;
+                    } else {
+                        r45[reg].b[breg] |= mask;
+                    }
                 } else {
-                    r45[reg].b[breg] &= ~mask;
+                    if (inverted) {
+                        r45[reg].b[breg] |= mask;
+                    } else {
+                        r45[reg].b[breg] &= ~mask;
+                    }
                 }
             }
-            d.pruData->commandTable[curCommandTable++] = r45[0].r;
-            d.pruData->commandTable[curCommandTable++] = r45[1].r;
+            d.pruData->commandTable[curCommandTable++] = r45[0].r[0];
+            d.pruData->commandTable[curCommandTable++] = r45[0].r[1];
+            d.pruData->commandTable[curCommandTable++] = r45[1].r[0];
+            d.pruData->commandTable[curCommandTable++] = r45[1].r[1];
+            d.pruData->commandTable[curCommandTable++] = r45[2].r[0];
+            d.pruData->commandTable[curCommandTable++] = r45[2].r[1];
+            d.pruData->commandTable[curCommandTable++] = r45[3].r[0];
+            d.pruData->commandTable[curCommandTable++] = r45[3].r[1];
         }
         i++;
     }
-    d.pruData->commandTable[curCommandTable] = 0xFFFF;
+    d.pruData->commandTable[curCommandTable++] = 0xFFFF;
 }
 
 /*
@@ -222,8 +251,12 @@ int BBShiftStringOutput::Init(Json::Value config) {
 
     config["base"] = root;
 
+    int curRecPort = -1;
     for (int x = 0; x < m_strings.size(); x++) {
-        if (m_strings[x]->m_outputChannels > 0) {
+        if (m_strings[x]->smartReceiverType == PixelString::ReceiverType::FalconV5) {
+            curRecPort = 0;
+        }
+        if (m_strings[x]->m_outputChannels > 0 || curRecPort >= 0) {
             // need to output this pin, configure it
             int pru = root["outputs"][x]["pru"].asInt();
             int pin = root["outputs"][x]["pin"].asInt();
@@ -253,6 +286,9 @@ int BBShiftStringOutput::Init(Json::Value config) {
             } else {
                 m_pru1.stringMap[pin][pinIdx] = x;
                 m_pru1.maxStringLen = std::max(m_pru1.maxStringLen, m_strings[x]->m_outputChannels);
+            }
+            if (++curRecPort == 4) {
+                curRecPort = -1;
             }
         }
     }
@@ -712,6 +748,12 @@ void BBShiftStringOutput::StartingOutput() {
     m_pru0.curV5ConfigPacket = 0;
 }
 
+static void invertPacket(uint8_t* d) {
+    for (int x = 0; x < 57; x++) {
+        d[x] = ~d[x];
+    }
+}
+
 void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root) {
     PinCapabilities::getPinByName("P8-27").configPin("pruout");
     PinCapabilities::getPinByName("P8-29").configPin("pruout");
@@ -727,6 +769,7 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root) {
         memset(&p[0], 0, configPacketSize);
     }
 
+    int max = std::max(m_pru0.maxStringLen, m_pru1.maxStringLen);
     int x = 0;
     while (x < m_strings.size()) {
         int p = x;
@@ -738,11 +781,6 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root) {
             PixelString* p3 = x < m_strings.size() ? m_strings[x++] : nullptr;
             PixelString* p4 = x < m_strings.size() ? m_strings[x++] : nullptr;
 
-            int max = p1->m_outputChannels;
-            max = std::max(max, p2 ? p2->m_outputChannels : 0);
-            max = std::max(max, p3 ? p3->m_outputChannels : 0);
-            max = std::max(max, p4 ? p4->m_outputChannels : 0);
-
             FalconV5Support::ReceiverChain* rc = falconV5Support->addReceiverChain(p1, p2, p3, p4, grp);
             rc->generateConfigPacket(&packets[p * numPacketTypes][0]);
             for (int z = 0; z < 6; z++) {
@@ -753,15 +791,35 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root) {
             // and must have edges that are aligned.  Need to turn OFF the 2-4 ports during
             // the config packet
             p1->m_gpioCommands.clear();
+            if (p1->m_isInverted) {
+                for (int z = 0; z < numPacketTypes; z++) {
+                    invertPacket(&packets[(p)*numPacketTypes + z][0]);
+                }
+            }
             if (p2) {
+                if (p2->m_isInverted) {
+                    for (int z = 0; z < numPacketTypes; z++) {
+                        invertPacket(&packets[(p + 1) * numPacketTypes + z][0]);
+                    }
+                }
                 p2->m_gpioCommands.clear();
                 p2->m_gpioCommands.emplace_back(2, max, 0, 0);
             }
             if (p3) {
+                if (p3->m_isInverted) {
+                    for (int z = 0; z < numPacketTypes; z++) {
+                        invertPacket(&packets[(p + 2) * numPacketTypes + z][0]);
+                    }
+                }
                 p3->m_gpioCommands.clear();
                 p3->m_gpioCommands.emplace_back(3, max, 0, 0);
             }
             if (p4) {
+                if (p4->m_isInverted) {
+                    for (int z = 0; z < numPacketTypes; z++) {
+                        invertPacket(&packets[(p + 3) * numPacketTypes + z][0]);
+                    }
+                }
                 p4->m_gpioCommands.clear();
                 p4->m_gpioCommands.emplace_back(4, max, 0, 0);
             }

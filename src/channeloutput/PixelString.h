@@ -74,6 +74,7 @@ public:
 
     int Init(Json::Value config, Json::Value* pinConfig = nullptr);
     void DumpConfig(void);
+    void invertOutput();
 
     int m_portNumber;
     int m_channelOffset;
@@ -94,6 +95,7 @@ public:
     };
     ReceiverType smartReceiverType = PixelString::ReceiverType::Standard;
     bool m_isSmartReceiver = false;
+    bool m_isInverted = false;
 
     static void AutoCreateOverlayModels(const std::vector<PixelString*>& strings);
 
