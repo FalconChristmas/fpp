@@ -51,6 +51,21 @@ waitloop?:
 #endif
     .endm
 
+
+/* Wait until the clock has incremented a given number of nanoseconds but use HW loop. */
+/* Cannot be used within an existing harware loop (LOOP) */
+/* Slightly more accurate than WAITNS and uses only one register, but cannot be used within a LOOP */
+WAITNS_LOOP .macro  ns, treg1, treg2
+    .newblock
+    LDI32 treg1, PRU_CONTROL_REG
+    LBBO &treg2, treg1, 0xC, 4
+    MAX treg1, treg2, (ns - 10)/5  // MAX and SUB are 10ns
+    SUB treg1, treg1, treg2
+    LOOP endloop?, treg1
+        NOP
+endloop?:
+    .endm 
+
 /* Busy sleep for the given number of ns */
 SLEEPNS .macro  ns, treg, extra
        .newblock

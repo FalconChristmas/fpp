@@ -26,9 +26,10 @@ bool decodeFalconV5Packet(uint8_t* packet, Json::Value& result);
 
 class FalconV5Listener {
 public:
-    FalconV5Listener(Json::Value& config) {
+    FalconV5Listener(const Json::Value& config) {
         std::string pin = config["pin"].asString();
         const PinCapabilities& p = PinCapabilities::getPinByName(pin);
+        p.configPin("uart");
         std::string uart = "/dev/" + p.uart;
         uart = uart.substr(0, uart.find('-'));
         fd = SerialOpen(uart.c_str(), 800000, "8N1", false);
@@ -77,7 +78,7 @@ FalconV5Support::ReceiverChain* FalconV5Support::addReceiverChain(PixelString* p
     return rc;
 }
 
-void FalconV5Support::addListeners(Json::Value& config) {
+void FalconV5Support::addListeners(const Json::Value& config) {
     for (int x = 0; x < config.size(); x++) {
         listeners.push_back(new FalconV5Listener(config[x]));
     }
@@ -118,4 +119,10 @@ bool FalconV5Support::ReceiverChain::generateConfigPacket(uint8_t* packet) const
         return encodeFalconV5Packet(config, packet);
     }
     return false;
+}
+bool FalconV5Support::ReceiverChain::generateQueryPacket(uint8_t* packet, int receiver) const {
+    Json::Value config;
+    config["type"] = "query";
+    config["receiver"] = receiver;
+    return encodeFalconV5Packet(config, packet);
 }

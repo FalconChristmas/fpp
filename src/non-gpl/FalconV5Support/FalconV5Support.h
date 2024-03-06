@@ -34,6 +34,7 @@ public:
             strings[3] = p4;
         }
         bool generateConfigPacket(uint8_t* packet) const;
+        bool generateQueryPacket(uint8_t* packet, int receiver) const;
 
         const std::array<const PixelString*, 4>& getPixelStrings() const { return strings; };
 
@@ -45,7 +46,7 @@ public:
     ReceiverChain* addReceiverChain(PixelString* p1, PixelString* p2, PixelString* p3, PixelString* p4, int group);
     const std::list<const ReceiverChain*>& getReceiverChains() const { return receiverChains; };
 
-    void addListeners(Json::Value& config);
+    void addListeners(const Json::Value& config);
 
     void addControlCallbacks(std::map<int, std::function<bool(int)>>& callbacks);
 
