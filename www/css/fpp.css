@@ -150,7 +150,13 @@ body .ui-widget button {
 .ui-button,
 html .ui-button.ui-state-disabled:hover,
 html .ui-button.ui-state-disabled:active {
-    background: #ECECEC;
+    background: none;
+    border: none;
+}
+
+.fileManagerDivData {
+    position: relative;
+    overflow-x: auto;
 }
 
 .ui-state-active,
@@ -170,7 +176,7 @@ body .pageContent .ui-widget.ui-widget-content {
 body .ui-widget-header {
     background: none;
     border: 0;
-    border-bottom: 1px solid #aaaaaa;
+    border-bottom: none;
     border-radius: 0;
 }
 
