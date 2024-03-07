@@ -1060,7 +1060,7 @@ $files = scandir('/home/fpp/media/upload/', SCANDIR_SORT_DESCENDING);
                                         </div>
                                         <br>
                                         Firmware backups are automatically created whenever an EEPROM is upgraded or signed.  You may delete old
-                                        backups from the <a href='uploadfile.php#tab-uploads'>File Manager</a>.
+                                        backups from the <a href='filemanager.php#tab-uploads'>File Manager</a>.
                                     </div>
                                 </div>
                             </div>

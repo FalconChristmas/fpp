@@ -286,7 +286,7 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
         Content Setup
         </a>
         <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
-        <a class="dropdown-item" href="uploadfile.php"><i class="fas fa-upload"></i> File Manager</a>
+        <a class="dropdown-item" href="filemanager.php"><i class="fas fa-upload"></i> File Manager</a>
           <a class="dropdown-item" href="playlists.php"><i class="fas fa-list-ol"></i> Playlists</a>
 
 <? if (($settings['fppMode'] == 'player') || ($uiLevel >= 1)) { ?>
