@@ -72,7 +72,7 @@ $(function () {
     } else {
         $('body').addClass('no-touch');
     }
-    $("[data-bs-toggle=pill], [data-bs-toggle=tab]").click(function () {
+    $("[data-bs-toggle=pill], [data-bs-toggle=tab]").on("click", function () {
         if (history.pushState) {
             history.pushState(null, null, $(this).attr('href'));
         }
@@ -6314,7 +6314,7 @@ function ToggleMenu() {
         $('#bodyClick').fadeOut("slow", function () { $('#bodyClick').remove(); });
     } else {
         div = '<div id="bodyClick"></div>';
-        $(div).appendTo("body").click(function () {
+        $(div).appendTo("body").on("click", function () {
             $('.navbar-toggler').trigger("click");
             $('html').removeClass('nav-open');
             gblNavbarMenuVisible = 0;
