@@ -163,39 +163,39 @@ function HandleMouseClick(event, row, table) {
 }
 
 $(function() {
-    $('#tblSequences').on('mousedown', 'tr', function(event,ui){
+    $('#tblSequences').on('mousedown', 'tbody tr', function(event,ui){
         HandleMouseClick(event, $(this), 'Sequences');
     });
 
-    $('#tblMusic').on('mousedown', 'tr', function(event,ui){
+    $('#tblMusic').on('mousedown', 'tbody tr', function(event,ui){
         HandleMouseClick(event, $(this), 'Music');
     });
 
-    $('#tblVideos').on('mousedown', 'tr', function(event,ui){
+    $('#tblVideos').on('mousedown', 'tbody tr', function(event,ui){
         HandleMouseClick(event, $(this), 'Videos');
     });
 
-    $('#tblImages').on('mousedown', 'tr', function(event,ui){
+    $('#tblImages').on('mousedown', 'tbody tr', function(event,ui){
         HandleMouseClick(event, $(this), 'Images');
     });
 
-    $('#tblEffects').on('mousedown', 'tr', function(event,ui){
+    $('#tblEffects').on('mousedown', 'tbody tr', function(event,ui){
         HandleMouseClick(event, $(this), 'Effects');
     });
 
-    $('#tblScripts').on('mousedown', 'tr', function(event,ui){
+    $('#tblScripts').on('mousedown', 'tbody tr', function(event,ui){
         HandleMouseClick(event, $(this), 'Scripts');
     });
 
-    $('#tblLogs').on('mousedown', 'tr', function(event,ui){
+    $('#tblLogs').on('mousedown', 'tbody tr', function(event,ui){
         HandleMouseClick(event, $(this), 'Logs');
     });
 
-    $('#tblUploads').on('mousedown', 'tr', function(event,ui){
+    $('#tblUploads').on('mousedown', 'tbody tr', function(event,ui){
         HandleMouseClick(event, $(this), 'Uploads');
     });
 
-    $('#tblCrashes').on('mousedown', 'tr', function(event,ui){
+    $('#tblCrashes').on('mousedown', 'tbody tr', function(event,ui){
         HandleMouseClick(event, $(this), 'Crashes');
     });
 
@@ -472,7 +472,7 @@ function RunScript(scriptName)
 
 function SetupTableSorter(){
 
-    var tablesorterOptions_Common = {
+var tablesorterOptions_Common = {
 
 		// *** APPEARANCE ***
 		// Add a theme - 'blackice', 'blue', 'dark', 'default', 'dropbox',
@@ -623,7 +623,7 @@ widgetClass: 'widget-{name}',
 // 'columns', 'filter', 'stickyHeaders' & 'resizable'
 // 'uitheme' is another widget, but requires loading
 // a different skin and a jQuery UI theme.
-widgets: ['columns', 'uitheme','cssStickyHeaders'],
+widgets: ['uitheme','cssStickyHeaders'],
 
 widgetOptions: {
 
@@ -854,8 +854,6 @@ cssIconDesc: '',
 // don't sort tbody with this class name
 // (only one class name allowed here!)
 cssInfoBlock: 'tablesorter-infoOnly',
-// class name added to table header which allows clicks to bubble up
-cssAllowClicks: 'tablesorter-allowClicks',
 // header row to ignore; cells within this row will not be added
 // to table.config.$headers
 cssIgnoreRow: 'tablesorter-ignoreRow',
@@ -919,7 +917,7 @@ odd: 'ui-state-default'
 
 
 var tablesorterOptions_Override_Sequences = {
-    theme: "fpp",
+        theme: 'fpp',
         headers: {
             0: { sorter: "text", sortInitialOrder: 'asc' },
             1: { sorter: "metric"},
@@ -1039,65 +1037,19 @@ var tablesorterOptions_Logs= $.extend({}, tablesorterOptions_Common, tablesorter
 var tablesorterOptions_Uploads= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Uploads);
 var tablesorterOptions_Crashes= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Crashes);
 
- /*$("#fileManager").on("tabscreate", function(event,ui){
-  //  GetAllFiles();
-    console.log("create triggered");
-    console.log(ui);
-
-console.log(ui.panel[0].id);
-    var $t = ui.panel.find('table');
-        $tableName = $t[0].id;
-        console.log("running create logic");
-        console.log($tableName);
-        console.log($t[0].config);
-        if ($t.length) {
-            switch($tableName)
-                {
-                    case "tblSequences":
-                        $t.tablesorter(tablesorterOptions_Sequences);
-                        break;
-                    case "tblMusic":
-                        $t.tablesorter(tablesorterOptions_Music);
-                        break;
-                    case "tblVideos":
-                        $t.tablesorter(tablesorterOptions_Videos);
-                        break;
-                    case "tblImages":
-                        $t.tablesorter(tablesorterOptions_Images);
-                        break;
-                    case "tblEffects":
-                        $t.tablesorter(tablesorterOptions_Effects);
-                        break;
-                    case "tblScripts":
-                        $t.tablesorter(tablesorterOptions_Scripts);
-                        break;
-                    case "tblLogs":
-                        $t.tablesorter(tablesorterOptions_Logs);
-                        break;
-                    case "tblUploads":
-                        $t.tablesorter(tablesorterOptions_Uploads);
-                        break;
-                    case "tblCrashes":
-                        $t.tablesorter(tablesorterOptions_Crashes);
-                        break;
-                };
-            $t.trigger('applyWidgets');
-            console.log($t[0].config);
-            ui.panel.activate;
-
-}});*/
-
 $("#fileManager").tabs({
     create: function (event, ui) {
         GetAllFiles();
         var $t = ui.panel.find('table');
+        console.log("create table object:");
+        console.log($t);
         $tableName = $t[0].id;
-        console.log("running create");
+        console.log("create table name:");
         console.log($tableName);
-        console.log($t[0].config);
+      //  console.log($t[0].config);
 
         if ($t.length) {
-            console.log('sdsdsdsd');
+        //    console.log('sdsdsdsd');
             switch($tableName)
                 {
                     case "tblSequences":
@@ -1128,8 +1080,8 @@ $("#fileManager").tabs({
                         $t.tablesorter(tablesorterOptions_Crashes);
                         break;
                 }
-                console.log($t[0].config);
-
+          //      console.log($t[0].config);
+console.log('aoplying widgets');
                 $t.trigger('applyWidgets');
 
         }
@@ -1141,12 +1093,12 @@ $("#fileManager").tabs({
         //console.log($t[0].id);
         $tableName = $t[0].id;
         if ($t.length) {
-            console.log("activate code running");
-            console.log("table config: ");
-            console.log($t[0].config);
+          //  console.log("activate code running");
+          //  console.log("table config: ");
+          //  console.log($t[0].config);
             if ($t[0].config) {
-                console.log("activate - config exists - applying widgets for ");
-                console.log($tableName);
+            //    console.log("activate - config exists - applying widgets for ");
+            //    console.log($tableName);
                $t.trigger('applyWidgets');
             } else {
                 switch($tableName)
@@ -1154,7 +1106,7 @@ $("#fileManager").tabs({
                     case "tblSequences":
                         $t.tablesorter(tablesorterOptions_Sequences);
                         $t.trigger('applyWidgets');
-                        console.log($t[0].config);
+              //          console.log($t[0].config);
                         break;
                     case "tblMusic":
                         $t.tablesorter(tablesorterOptions_Music);
@@ -1175,7 +1127,7 @@ $("#fileManager").tabs({
                     case "tblScripts":
                         $t.tablesorter(tablesorterOptions_Scripts);
                         $t.trigger('applyWidgets');
-                        console.log($t[0].config);
+            //            console.log($t[0].config);
                         break;
                     case "tblLogs":
                         $t.tablesorter(tablesorterOptions_Logs);
