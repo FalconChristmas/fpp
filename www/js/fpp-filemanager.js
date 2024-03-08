@@ -924,7 +924,7 @@ var tablesorterOptions_Override_Sequences = {
             2: { sorter: "text" }
         },
         widgetOptions: {
-            cssStickyHeaders_attachTo: $('#divSeqData')
+           cssStickyHeaders_attachTo: $('#divSeqData')
         }
 };
 
@@ -962,6 +962,7 @@ var tablesorterOptions_Override_Images = {
         },
         widgetOptions: {
             cssStickyHeaders_attachTo: $('#divImagesData')
+
         }
 };
 
@@ -1037,6 +1038,9 @@ var tablesorterOptions_Logs= $.extend({}, tablesorterOptions_Common, tablesorter
 var tablesorterOptions_Uploads= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Uploads);
 var tablesorterOptions_Crashes= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Crashes);
 
+
+
+
 $("#fileManager").tabs({
     create: function (event, ui) {
         GetAllFiles();
@@ -1080,25 +1084,18 @@ $("#fileManager").tabs({
                         $t.tablesorter(tablesorterOptions_Crashes);
                         break;
                 }
-          //      console.log($t[0].config);
-console.log('aoplying widgets');
-                $t.trigger('applyWidgets');
+
+               $t.trigger('applyWidgets');
 
         }
     },
 
     activate: function (event, ui) {
         var $t = ui.newPanel.find('table');
-
-        //console.log($t[0].id);
         $tableName = $t[0].id;
         if ($t.length) {
-          //  console.log("activate code running");
-          //  console.log("table config: ");
-          //  console.log($t[0].config);
+
             if ($t[0].config) {
-            //    console.log("activate - config exists - applying widgets for ");
-            //    console.log($tableName);
                $t.trigger('applyWidgets');
             } else {
                 switch($tableName)
@@ -1106,7 +1103,6 @@ console.log('aoplying widgets');
                     case "tblSequences":
                         $t.tablesorter(tablesorterOptions_Sequences);
                         $t.trigger('applyWidgets');
-              //          console.log($t[0].config);
                         break;
                     case "tblMusic":
                         $t.tablesorter(tablesorterOptions_Music);
@@ -1127,7 +1123,6 @@ console.log('aoplying widgets');
                     case "tblScripts":
                         $t.tablesorter(tablesorterOptions_Scripts);
                         $t.trigger('applyWidgets');
-            //            console.log($t[0].config);
                         break;
                     case "tblLogs":
                         $t.tablesorter(tablesorterOptions_Logs);
@@ -1145,11 +1140,17 @@ console.log('aoplying widgets');
             }
         }
     }
-});
+}); 
+
+
+//still need to fix first tab/table not loading cssStickyHeaders correctly due to JQuery UI Tabs but struggling to find route cause
+// seems to be the interaction between JQUERY UI tabs and tablesorter not playing happily together
 }
+
 
 if (document.readyState ==="loading"){
     document.addEventListener("DOMContentLoaded",SetupTableSorter);
 }else{
     SetupTableSorter();
+    
 }
