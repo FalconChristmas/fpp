@@ -1748,7 +1748,8 @@ function SetButtonState(button, state) {
         $(button).addClass('buttons').addClass($(button).data('btn-enabled-class'));
         $(button).removeClass('disableButtons');
         $(button).removeClass('disabled');
-        $(button).removeAttr("disabled");
+        //  $(button).removeAttr("disabled"); //commented out as depreci in latest jquery version - left in to test implications of inserting replacement line below
+        $(button).prop("disabled", false);
     }
     else {
         $(button).removeClass('buttons').removeClass($(button).data('btn-enabled-class'));
