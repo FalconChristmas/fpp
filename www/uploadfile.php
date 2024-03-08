@@ -481,8 +481,8 @@ function RunScript(scriptName)
             }
         });
     }
-        
-        
+
+
 	function SaveScript(scriptName)
 	{
 		var contents = $('#scriptText').val();
@@ -583,7 +583,14 @@ include 'menu.inc';?>
             <div class="backdrop">
                 <h2> Sequence Files (.fseq) </h2>
                 <div id="divSeqData" class="fileManagerDivData">
-                  <table id="tblSequences">
+                  <table id="tblSequences" class="tablesorter">
+                    <thead>
+                        <th>File</th>
+                        <th>Size</th>
+                        <th>Date Modified</th>
+                    </thead>
+                    <tbody>
+                    </tbody>
                   </table>
                 </div>
 
@@ -610,16 +617,23 @@ include 'menu.inc';?>
               <div class="backdrop">
                 <h2> Music Files (.mp3/.ogg/.m4a/.flac/.aac/.wav/.m4p) </h2>
                 <div id="divMusicData" class="fileManagerDivData">
-                  <table id="tblMusic">
+                  <table id="tblMusic"class="tablesorter">
+                    <thead>
+                        <th>File</th>
+                        <th>Duration</th>
+                        <th>Date Modified</th>
+                    </thead>
+                    <tbody>
+                    </tbody>
                   </table>
                 </div>
 
                 <div class='form-actions'>
                   <input onclick="ClearSelections('Music');" class="buttons" type="button" value="Clear" />
                   <input onclick="ButtonHandler('Music', 'playInBrowser');" id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton" type="button"  value="Listen" />
-                  <? if (file_exists("/bin/mp3gain") || file_exists("/usr/bin/mp3gain") || file_exists("/opt/homebrew/bin/mp3gain") || file_exists("/usr/local/bin/mp3gain")) { ?>
+                  <?if (file_exists("/bin/mp3gain") || file_exists("/usr/bin/mp3gain") || file_exists("/opt/homebrew/bin/mp3gain") || file_exists("/usr/local/bin/mp3gain")) {?>
                     <input onclick="ButtonHandler('Music', 'mp3gain');" id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="MP3Gain" />
-                  <? } ?>
+                  <?}?>
 
                   <input onclick="ButtonHandler('Music', 'addToPlaylist');" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Add To Playlist" />
                   <input onclick="ButtonHandler('Music', 'download');" id="btnDownloadMusic" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Download" />
@@ -638,7 +652,14 @@ include 'menu.inc';?>
               <div class="backdrop">
                 <h2> Video Files (.mp4/.mkv/.avi/.mpg/.mov) </h2>
                 <div id="divVideoData" class="fileManagerDivData">
-                  <table id="tblVideos">
+                  <table id="tblVideos" class="tablesorter">
+                    <thead>
+                        <th>File</th>
+                        <th>Size</th>
+                        <th>Date Modified</th>
+                    </thead>
+                    <tbody>
+                    </tbody>
                   </table>
                 </div>
 
@@ -663,7 +684,14 @@ include 'menu.inc';?>
               <div class="backdrop">
                 <h2> Images </h2>
                 <div id="divImageData" class="fileManagerDivData">
-                  <table id="tblImages">
+                  <table id="tblImages" class="tablesorter">
+                    <thead>
+                        <th>File</th>
+                        <th>Size</th>
+                        <th>Date Modified</th>
+                    </thead>
+                    <tbody>
+                    </tbody>
                   </table>
                 </div>
 
@@ -686,7 +714,14 @@ include 'menu.inc';?>
               <div class="backdrop">
                 <h2> Effect Sequences (.eseq) </h2>
                 <div id="divEffectsData" class="fileManagerDivData">
-                  <table id="tblEffects">
+                  <table id="tblEffects" class="tablesorter">
+                    <thead>
+                        <th>File</th>
+                        <th>Size</th>
+                        <th>Date Modified</th>
+                    </thead>
+                    <tbody>
+                    </tbody>
                   </table>
                 </div>
 
@@ -708,7 +743,14 @@ include 'menu.inc';?>
             <div class="backdrop">
               <legend> Scripts (.sh/.pl/.pm/.php/.py)</legend>
               <div id="divScriptsData" class="fileManagerDivData">
-                <table id="tblScripts">
+                <table id="tblScripts" class="tablesorter">
+                    <thead>
+                        <th>File</th>
+                        <th>Size</th>
+                        <th>Date Modified</th>
+                    </thead>
+                    <tbody>
+                    </tbody>
                 </table>
               </div>
 
@@ -733,7 +775,14 @@ include 'menu.inc';?>
             <div class="backdrop">
               <legend> Log Files </legend>
               <div id="divLogsData" class="fileManagerDivData">
-                <table id="tblLogs">
+                <table id="tblLogs" class="tablesorter">
+                    <thead>
+                        <th>File</th>
+                        <th>Size</th>
+                        <th>Date Modified</th>
+                    </thead>
+                    <tbody>
+                    </tbody>
                 </table>
               </div>
 
@@ -755,7 +804,14 @@ include 'menu.inc';?>
             <div class="backdrop">
               <legend> Uploaded Files </legend>
               <div id="divUploadsData" class="fileManagerDivData">
-                <table id="tblUploads">
+                <table id="tblUploads" class="tablesorter">
+                    <thead>
+                        <th>File</th>
+                        <th>Size</th>
+                        <th>Date Modified</th>
+                    </thead>
+                    <tbody>
+                    </tbody>
                 </table>
               </div>
 
@@ -775,7 +831,14 @@ include 'menu.inc';?>
             <div class="backdrop">
               <legend> Crash Reports </legend>
               <div id="divUploadsData" class="fileManagerDivData">
-                <table id="tblCrashes">
+                <table id="tblCrashes" class="tablesorter">
+                    <thead>
+                        <th>File</th>
+                        <th>Size</th>
+                        <th>Date Modified</th>
+                    </thead>
+                    <tbody>
+                    </tbody>
                 </table>
               </div>
 

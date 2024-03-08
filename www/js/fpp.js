@@ -3298,7 +3298,7 @@ function GetFiles(dir) {
         url: "api/files/" + dir,
         success: function (data) {
             let i = 0;
-            $('#tbl' + dir).html('');
+            $('#tbl' + dir).find('tbody').html('');
             data.files.forEach(function (f) {
                 var detail = f.sizeHuman;
                 if ("playtimeSeconds" in f) {
@@ -3320,7 +3320,7 @@ function GetFiles(dir) {
                     tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td></tr>";
                 }
 
-                $('#tbl' + dir).append(tableRow);
+                $('#tbl' + dir).find('tbody').append(tableRow);
                 ++i;
             });
         },
