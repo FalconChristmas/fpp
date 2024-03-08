@@ -421,10 +421,10 @@ $(document).ready(function(){
     LoadNetworkConfig();
     LoadDNSConfig();
 
-    $("#dns1").change(validateDNSFields);
-    $("#dns2").change(validateDNSFields);
+    $("#dns1").on("change", validateDNSFields);
+    $("#dns2").on("change", validateDNSFields);
 
-    $("#eth_static").click(function() {
+    $("#eth_static").on("click",function() {
         DisableNetworkFields(false);
         $('#eth_dhcp').prop('checked', false);
 
@@ -433,7 +433,7 @@ $(document).ready(function(){
         DisableDNSFields(false);
     });
 
-    $("#eth_dhcp").click(function(){
+    $("#eth_dhcp").on("click",function(){
         DisableNetworkFields(true);
         $('#eth_static').prop('checked', false);
         $('#eth_ip').val("");
@@ -445,12 +445,12 @@ $(document).ready(function(){
 <?}?>
     });
 
-    $("#dns_manual").click(function(){
+    $("#dns_manual").on("click", function(){
         DisableDNSFields(false);
         $('#dns_dhcp').prop('checked', false);
     });
 
-    $("#dns_dhcp").click(function(){
+    $("#dns_dhcp").on("click", function(){
         DisableDNSFields(true);
         $('#dns_manual').prop('checked', false);
         $('#dns1').val("");

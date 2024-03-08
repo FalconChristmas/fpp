@@ -741,7 +741,7 @@ $(document).ready(function(){
 				SetTestMode();
 			}
 		}
-	}).keyup(function(){
+	}).on("keyup", function(){
 		$(this).colpickSetColor(this.value);
 	})
 	.css('background-color', '#ff00ff');

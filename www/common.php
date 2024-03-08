@@ -1046,7 +1046,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     if (isset($sData['regex']) && isset($sData['regexDesc'])) {
         echo "
         if (!RegexCheckData(\"" . $sData['regex'] . "\", value, \"" . $sData['regexDesc'] . "\", '$inputType' == 'password')) {
-            $('#" . $escSetting . "').focus();
+            $('#" . $escSetting . "').on(\"focus\");
             return;
         }
 ";

@@ -2,8 +2,8 @@
 <html>
 <head>
 <?php
-require_once("common.php");
-require_once('universeentry.php');
+require_once "common.php";
+require_once 'universeentry.php';
 if (file_exists(__DIR__ . "/fppdefines.php")) {
     include_once __DIR__ . '/fppdefines.php';
 } else {
@@ -20,13 +20,13 @@ var currentTabTitle = "E1.31/DDP Input";
 $(document).ready(function() {
 	$('.default-value').each(function() {
 		var default_value = this.value;
-		$(this).focus(function() {
+		$(this).on("focus", function() {
 			if(this.value == default_value) {
 				this.value = '';
 				$(this).css('color', '#333');
 			}
 		});
-		$(this).blur(function() {
+		$(this).on("blur", function() {
 			if(this.value == '') {
 				$(this).css('color', '#999');
 				this.value = default_value;
@@ -35,7 +35,7 @@ $(document).ready(function() {
 	});
 
 	$.ajax({
-	   url: "api/settings/BridgeInputDelayBeforeBlack", 
+	   url: "api/settings/BridgeInputDelayBeforeBlack",
 	   method: "GET",
 	   dataType: "json",
 	   success: function (data) {
@@ -51,11 +51,11 @@ $(document).ready(function() {
 		$(this).select();
 	});
 
-	$('#txtBridgeInputDelayBeforeBlack').change(function() {
+	$('#txtBridgeInputDelayBeforeBlack').on("change", function() {
 	   var newValue = $('#txtBridgeInputDelayBeforeBlack').val();
 	   $.ajax({
 	      url: "api/settings/BridgeInputDelayBeforeBlack",
-		  data: newValue, 
+		  data: newValue,
 	      method: "PUT",
 	      dataType: "text",
 	      success: function (data) {
@@ -97,7 +97,7 @@ $(document).ready(function() {
 		$.extend(sortableOptions,{handle:'.rowGrip'});
 	}
 	$('#tblUniversesBody').sortable(sortableOptions).disableSelection();
-	
+
 	$('#tblUniverses').on('mousedown', 'tr', function(event,ui){
 		$('#tblUniverses tr').removeClass('selectedEntry');
 		$(this).addClass('selectedEntry');
@@ -105,7 +105,7 @@ $(document).ready(function() {
 		UniverseSelected  = items.index(this);
 	});
 
-	$('#frmUniverses').submit(function(event) {
+	$('#frmUniverses').on("submit", function(event) {
          event.preventDefault();
          var success = validateUniverseData();
          if(success == true) {
@@ -175,17 +175,17 @@ $(document).ready(function(){
 }
 </style>
 
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 </head>
 <body>
 	<div id="bodyWrapper">
-		<?php 
-		$activeParentMenuItem = 'input-output';
-		include 'menu.inc'; ?>
+		<?php
+$activeParentMenuItem = 'input-output';
+include 'menu.inc';?>
   <div class="mainContainer">
 	<h1 class="title">Channel Inputs</h1>
 	<div class="pageContent">
-		
+
 		<div id='channelInputManager'>
 
 
@@ -199,9 +199,9 @@ $(document).ready(function(){
 		</ul>
 
 		<!-- --------------------------------------------------------------------- -->
-		
 
-		
+
+
 		<div class="tab-content" id="channelOutputTabsContent">
 			<div class="tab-pane fade show active" id="tab-e131" role="tabpanel" aria-labelledby="tab-e131-tab">
 
@@ -243,7 +243,7 @@ $(document).ready(function(){
                     </div>
                 </div>
 
-		
+
 		    <div class='fppTableWrapper'>
 		        <div class='fppTableContents' role="region" aria-labelledby="tblUniverses" tabindex="0">
 		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable'>
@@ -268,20 +268,20 @@ $(document).ready(function(){
 				<small class="text-muted">(Drag entry to reposition) </small>
 				</form>
 			</div>
-		
+
 								</div>
-								
+
 						</div>
-			
-		
+
+
 		<!-- --------------------------------------------------------------------- -->
-		
+
 		</div>
 		</div>
-		
+
 		<div id='debugOutput'>
 		</div>
-		
+
 		<div id="dialog-panelLayout" title="panelLayout" style="display: none">
 		  <div id="layoutText">
 		  </div>
@@ -289,7 +289,7 @@ $(document).ready(function(){
 	</div>
 </div>
 
-	<?php	include 'common/footer.inc'; ?>
+	<?php	include 'common/footer.inc';?>
 </div>
 </body>
 </html>
