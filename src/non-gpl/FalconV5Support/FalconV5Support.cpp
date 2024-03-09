@@ -241,13 +241,13 @@ void FalconV5Support::setCurrentMux(int i) {
     }
 }
 FalconV5Support::ReceiverChain::ReceiverChain(PixelString* p1, PixelString* p2, PixelString* p3, PixelString* p4, int grp, int m) :
-    group(grp), mux(m), numReceivers(0) {
+    group(grp), mux(m), numReceivers(1) {
     strings[0] = p1;
     strings[1] = p2;
     strings[2] = p3;
     strings[3] = p4;
     for (auto& s : strings) {
-        uint32_t srCount = 0;
+        uint32_t srCount = 1;
         for (auto& vs : s->m_virtualStrings) {
             if (vs.isFalconV5SmartReceiver()) {
                 srCount++;
