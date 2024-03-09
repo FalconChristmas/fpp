@@ -46,7 +46,6 @@
 #define CLOCK_PIN 2
 #define LATCH_PIN 3
 #define ENABLE_PIN 0
-#define UARTSEL_PIN 1
 #else
 #define CLOCK_PIN 7
 #define LATCH_MASK 6
@@ -59,9 +58,16 @@
 #include "FalconPRUDefs.hp"
 
 /** Register map */
-#define data_addr	r27
+#define data_addr	r26
+#define fv5_data_addr r27
 #define commandReg  r28
 #define data_len    r28.w0
+
+// data_flags:
+//    t0 :  ignore output table
+//    t1 :  send falcon receiver packet
+//    t2 :  send a second receiver packet
+//    t4 :  enable listen and wait after packet
 #define data_flags  r28.w2
 #define cur_data	r29.w0
 
@@ -125,12 +131,7 @@ OUTPUT_LOW .macro
 
 OUTPUT_FALCONV5_PACKET .macro
     .newblock
-    QBBS  START_FALCONV5?, data_flags, 0
-        JMP DONE_FALCONV5?
-
-    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, curCommand, BYTES_FOR_MASKS
-    ADD curCommand, curCommand, BYTES_FOR_MASKS 
-    MOV next_check, MASK_OVERFLOW
+    QBBC  DONE_FALCONV5?, data_flags, 1
 
 START_FALCONV5?:
     OUTPUT_LOW
@@ -139,18 +140,12 @@ START_FALCONV5?:
 
     OUTPUT_HIGH
     TOGGLE_LATCH
-
 	SLEEPNS	53500, r8, 0
-LONG_START?:
 
+FALCONV5_SETUP_LOOP?:
+    LBBO    &r10, fv5_data_addr, 0, DATABLOCKSIZE
+    ADD     fv5_data_addr, fv5_data_addr, DATABLOCKSIZE
     LDI  data_len, 56
-#ifdef RUNNING_ON_PRU1
-    LDI32   data_addr, 0x00011000
-#else
-    LDI32   data_addr, 0x00010000
-#endif    
-    LBBO    &r10, data_addr, 0, DATABLOCKSIZE
-    ADD     data_addr, data_addr, DATABLOCKSIZE
 FALCONV5_LOOP?:
     // start bit
     OUTPUT_LOW
@@ -171,17 +166,43 @@ FALCONV5_LOOP?:
     RESET_PRU_CLOCK r8, r9
     TOGGLE_LATCH
     QBEQ DONE_FALCONV5_LOOP?, data_len, 0
-        LBBO    &r10, data_addr, 0, DATABLOCKSIZE
-        ADD     data_addr, data_addr, DATABLOCKSIZE
+        LBBO    &r10, fv5_data_addr, 0, DATABLOCKSIZE
+        ADD     fv5_data_addr, fv5_data_addr, DATABLOCKSIZE
         SUB     data_len, data_len, 1
         JMP FALCONV5_LOOP?
 DONE_FALCONV5_LOOP?:
-    //WAITNS  LOW_TIME, r8, r9
-    //CLR r30.b1, r30.b1, ENABLE_PIN
-    //SLEEPNS 100000, r8, 0
-	//SLEEPNS	400000, r8, 0
-	//SLEEPNS	400000, r8, 0
-    //SET r30.b1, r30.b1, ENABLE_PIN
+    QBBC  DO_FALCONV5_LISTNER?, data_flags, 2
+    CLR data_flags, data_flags, 2
+    OUTPUT_HIGH
+    TOGGLE_LATCH
+    SLEEPNS 70000, r8, 0
+    JMP FALCONV5_SETUP_LOOP?
+
+DO_FALCONV5_LISTNER?:
+    QBBC  DONE_FALCONV5?, data_flags, 3
+    OUTPUT_LOW
+    TOGGLE_LATCH
+    SLEEPNS	15500, r8, 0
+    OUTPUT_HIGH
+    TOGGLE_LATCH
+    SLEEPNS	20000, r8, 0
+
+    CLR r30.b1, r30.b1, ENABLE_PIN
+    LDI r8, 1
+    LDI r9, 0
+    XOUT 10, &r8, 8
+    SLEEPNS	500000, r8, 0
+    XIN 10, &r9, 4
+    QBEQ NO_DATA_FOUND, r9, 0
+    SLEEPNS	500000, r8, 0
+    SLEEPNS	500000, r8, 0
+    SLEEPNS	500000, r8, 0
+    SLEEPNS	100000, r8, 0
+NO_DATA_FOUND:
+    LDI r8, 0
+    XOUT 10, &r8, 4
+    SLEEPNS	10000, r8, 0
+    SET r30.b1, r30.b1, ENABLE_PIN
 
 DONE_FALCONV5?:
     .endm
@@ -235,9 +256,9 @@ _LOOP:
     //make sure the clock starts
     RESET_PRU_CLOCK r8, r9
 
-	// Load the pointer to the buffer from PRU DRAM into data_addr and the
+	// Load the pointer to the buffer from PRU DRAM into data_addr, packet addr and the
 	// start command into commandReg
-	LBCO	&data_addr, CONST_PRUDRAM, 0, 8
+	LBCO	&data_addr, CONST_PRUDRAM, 0, 12
 
 	// Wait for a non-zero command
 	QBEQ	_LOOP, commandReg, 0
@@ -252,13 +273,13 @@ CONT_DATA:
 
     // reset command to 0 so ARM side will send more data
     LDI     r1, 0
-    SBCO    &r1, CONST_PRUDRAM, 4, 4
+    SBCO    &r1, CONST_PRUDRAM, 8, 4
 
     // Reset the output masks
     LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, 24, BYTES_FOR_MASKS
     // reset the command table
     MOV next_check, MASK_OVERFLOW
-    QBBC NO_CUSTOM_CHECKS, data_flags, 1
+    QBBC NO_CUSTOM_CHECKS, data_flags, 0
         MOV next_check, data_len
 NO_CUSTOM_CHECKS:
     LDI curCommand, 24 + BYTES_FOR_MASKS
@@ -308,7 +329,7 @@ WORD_LOOP_DONE:
 EXIT:
 	// Write a 0xFFFF into the response field so that they know we're done
 	LDI r2, 0xFFFF
-	SBCO &r2, CONST_PRUDRAM, 8, 4
+	SBCO &r2, CONST_PRUDRAM, 12, 4
 
 	// Send notification to Host for program completion
 	LDI R31.b0, PRU_ARM_INTERRUPT+16

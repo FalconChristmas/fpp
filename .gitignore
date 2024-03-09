@@ -24,6 +24,7 @@ src/libFalconV5.so
 src/libfpp*.dylib
 src/fsequtils.zip
 src/libjson*.dylib
+src/non-gpl/FalconV5Support/FalconV5PRUListener_pru0.out
 cscope.out
 tags
 pixelnetDMX
