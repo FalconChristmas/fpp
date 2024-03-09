@@ -22,19 +22,24 @@
 
 constexpr int NUM_STRINGS_PER_PIN = 8;
 constexpr int MAX_PINS_PER_PRU = 8;
-constexpr int NUM_CONFIG_PACKETS = 96;
+
+// when output restarts, there are some packets that need to be sent first
+// but not when looped around
+constexpr int FIRST_LOOPING_CONFIG_PACKET = 6;
+constexpr int NUM_CONFIG_PACKETS = 96 + FIRST_LOOPING_CONFIG_PACKET;
 
 // structure of the data at the start of the PRU ram
 // that the pru program expects to see
 typedef struct {
     // in the DDR shared with the PRU
     uintptr_t address_dma;
+    uintptr_t address_dma_packet;
 
     // write data length to start, 0xFFFF to abort. will be cleared when started
     volatile uint32_t command;
     volatile uint32_t response;
 
-    uint32_t buffer[3]; // need a bit of a buffer
+    uint32_t buffer[2]; // need a bit of a buffer
     uint16_t commandTable[3578];
 } __attribute__((__packed__)) BBShiftStringData;
 
@@ -50,9 +55,8 @@ public:
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
-    void addControlCallbacks(std::map<int, std::function<bool(int)>>& callbacks);
-
     virtual void StartingOutput() override;
+    virtual void StoppingOutput() override;
 
     virtual int SendData(unsigned char* channelData) override;
     virtual void PrepData(unsigned char* channelData) override;
@@ -71,18 +75,26 @@ private:
 
     class FalconV5PacketInfo {
     public:
-        FalconV5PacketInfo(int l) {
-            len = l;
-            data = (uint8_t*)calloc(l, 1);
+        FalconV5PacketInfo(int l, uint8_t* d, bool list) :
+            len(l), data(d), listen(list) {
+        }
+        FalconV5PacketInfo() :
+            len(0), data(nullptr), listen(false) {
         }
         ~FalconV5PacketInfo() {
-            if (data) {
-                free(data);
-            }
         }
-
-        int len = 0;
-        uint8_t* data = nullptr;
+        uint32_t getCommandFlags() {
+            uint32_t f = 0x20000;
+            if (len == 2) {
+                f |= 0x40000;
+            }
+            if (listen) {
+                f |= 0x80000;
+            }
+            return f;
+        }
+        int len;
+        uint8_t* data;
         bool listen = false;
     };
 
@@ -104,7 +116,7 @@ private:
             if (formattedData)
                 free(formattedData);
             for (int y = 0; y < NUM_CONFIG_PACKETS; ++y) {
-                if (v5_config_packets[y]) {
+                if (v5_config_packets[y] && v5_config_packets[y] != &dynamicPacketInfo2 && v5_config_packets[y] != &dynamicPacketInfo1) {
                     delete v5_config_packets[y];
                 }
             }
@@ -123,6 +135,9 @@ private:
         int outputStringLen = 0;
 
         FalconV5PacketInfo* v5_config_packets[NUM_CONFIG_PACKETS];
+        FalconV5PacketInfo dynamicPacketInfo1;
+        FalconV5PacketInfo dynamicPacketInfo2;
+        FalconV5PacketInfo* dynamicPacketInfo = nullptr;
         int curV5ConfigPacket = 0;
     } m_pru0, m_pru1;
 
@@ -143,5 +158,6 @@ private:
 
     void createOutputLengths(FrameData& d, const std::string& pfx);
 
-    void setupFalconV5Support(const Json::Value& root);
+    void setupFalconV5Support(const Json::Value& root, uint8_t* memLoc);
+    void encodeFalconV5Packet(std::vector<std::array<uint8_t, 64>>& packets, uint8_t* memLocPru0, uint8_t* memLocPru1);
 };

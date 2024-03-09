@@ -33,22 +33,14 @@
 #include "util/BBBUtils.h"
 
 #include "Plugin.h"
-class BBShiftStringPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin, public FPPPlugins::APIProviderPlugin {
+class BBShiftStringPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
     BBShiftStringPlugin() :
         FPPPlugins::Plugin("BBShiftString") {
     }
     virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
-        BBShiftStringOutput* o = new BBShiftStringOutput(startChannel, channelCount);
-        outputs.push_back(o);
-        return o;
+        return new BBShiftStringOutput(startChannel, channelCount);
     }
-    virtual void addControlCallbacks(std::map<int, std::function<bool(int)>>& callbacks) {
-        for (auto o : outputs) {
-            o->addControlCallbacks(callbacks);
-        }
-    }
-    std::list<BBShiftStringOutput*> outputs;
 };
 
 extern "C" {
@@ -80,11 +72,6 @@ BBShiftStringOutput::~BBShiftStringOutput() {
     }
     if (falconV5Support) {
         delete falconV5Support;
-    }
-}
-void BBShiftStringOutput::addControlCallbacks(std::map<int, std::function<bool(int)>>& callbacks) {
-    if (falconV5Support) {
-        falconV5Support->addControlCallbacks(callbacks);
     }
 }
 
@@ -326,7 +313,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
     m_pru1.formattedData = (uint8_t*)calloc(1, m_pru1.frameSize);
 
     if (hasV5SR) {
-        setupFalconV5Support(root);
+        setupFalconV5Support(root, m_pru1.lastData + offset);
     }
 
     PixelString::AutoCreateOverlayModels(m_strings);
@@ -433,7 +420,6 @@ int BBShiftStringOutput::Close(void) {
         PinCapabilities::getPinByName("P8-30").configPin("gpio", false);
 
         PinCapabilities::getPinByName("P8-27").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-29").configPin("gpio", false);
     }
 
     if (m_pru0.maxStringLen) {
@@ -653,6 +639,30 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
     prepData(m_pru0, channelData);
     prepData(m_pru1, channelData);
     m_testCycle = -1;
+
+    if (m_pru1.curV5ConfigPacket > FIRST_LOOPING_CONFIG_PACKET && falconV5Support && m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] == nullptr) {
+        std::vector<std::array<uint8_t, 64>> packets;
+        packets.resize(m_strings.size());
+        for (auto& p : packets) {
+            memset(&p[0], 0, 64);
+        }
+        bool listen = false;
+        if (falconV5Support->generateDynamicPacket(packets, listen)) {
+            if (m_pru0.dynamicPacketInfo == &m_pru0.dynamicPacketInfo1) {
+                m_pru0.dynamicPacketInfo = &m_pru0.dynamicPacketInfo2;
+                m_pru1.dynamicPacketInfo = &m_pru1.dynamicPacketInfo2;
+            } else {
+                m_pru0.dynamicPacketInfo = &m_pru0.dynamicPacketInfo1;
+                m_pru1.dynamicPacketInfo = &m_pru1.dynamicPacketInfo1;
+            }
+            encodeFalconV5Packet(packets, m_pru0.dynamicPacketInfo->data, m_pru1.dynamicPacketInfo->data);
+            m_pru0.dynamicPacketInfo->listen = listen;
+            m_pru1.dynamicPacketInfo->listen = listen;
+            m_pru0.v5_config_packets[m_pru0.curV5ConfigPacket] = m_pru0.dynamicPacketInfo;
+            m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] = m_pru1.dynamicPacketInfo;
+        }
+    }
+
     /*
     uint32_t *iframe = (uint32_t*)m_pru1.curData;
     for (int x = 0; x < 3; x++) {
@@ -671,10 +681,11 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
 
 void BBShiftStringOutput::sendData(FrameData& d) {
     if (d.outputStringLen) {
-        // memcpy(d.curData, d.formattedData, d.frameSize);
         d.pruData->address_dma = (d.pru->ddr_addr + (d.curData - d.pru->ddr));
         if (d.v5_config_packets[d.curV5ConfigPacket]) {
-            memcpy(d.pru->shared_ram + d.pru->pru_num * 4096, d.v5_config_packets[d.curV5ConfigPacket]->data, d.v5_config_packets[d.curV5ConfigPacket]->len);
+            d.pruData->address_dma_packet = (d.pru->ddr_addr + (d.v5_config_packets[d.curV5ConfigPacket]->data - d.pru->ddr));
+        } else {
+            d.pruData->address_dma_packet = 0;
         }
         std::swap(d.lastData, d.curData);
     }
@@ -684,6 +695,10 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBShiftStringOutput::SendData(%p)\n", channelData);
     if (m_pru1.stringMap.empty() && m_pru0.stringMap.empty()) {
         return 0;
+    }
+
+    if (falconV5Support) {
+        falconV5Support->processListenerData();
     }
     sendData(m_pru0);
     sendData(m_pru1);
@@ -695,28 +710,34 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
     if (m_pru0.pruData) {
         uint32_t c = m_pru0.outputStringLen;
         if (m_pru0.v5_config_packets[m_pru0.curV5ConfigPacket]) {
-            c |= 0x10000; // flag a config packet needing to be sent
+            c |= m_pru0.v5_config_packets[m_pru0.curV5ConfigPacket]->getCommandFlags();
+            if (m_pru0.v5_config_packets[m_pru0.curV5ConfigPacket] == m_pru0.dynamicPacketInfo) {
+                m_pru0.v5_config_packets[m_pru0.curV5ConfigPacket] = nullptr;
+            }
         }
         if (m_pru0.outputStringLen != m_pru0.maxStringLen) {
-            c |= 0x20000; // flag that the output len is custom and ignore the off config
+            c |= 0x10000; // flag that the output len is custom and ignore the off config
         }
         m_pru0.curV5ConfigPacket++;
         if (m_pru0.curV5ConfigPacket == NUM_CONFIG_PACKETS) {
-            m_pru0.curV5ConfigPacket = 0;
+            m_pru0.curV5ConfigPacket = FIRST_LOOPING_CONFIG_PACKET;
         }
         m_pru0.pruData->command = c;
     }
     if (m_pru1.pruData) {
         uint32_t c = m_pru1.outputStringLen;
         if (m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket]) {
-            c |= 0x10000; // flag a config packet needing to be sent
+            c |= m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket]->getCommandFlags();
+            if (m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] == m_pru1.dynamicPacketInfo) {
+                m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] = nullptr;
+            }
         }
         if (m_pru1.outputStringLen != m_pru1.maxStringLen) {
-            c |= 0x20000; // flag that the output len is custom and ignore the off config
+            c |= 0x10000; // flag that the output len is custom and ignore the off config
         }
         m_pru1.curV5ConfigPacket++;
         if (m_pru1.curV5ConfigPacket == NUM_CONFIG_PACKETS) {
-            m_pru1.curV5ConfigPacket = 0;
+            m_pru1.curV5ConfigPacket = FIRST_LOOPING_CONFIG_PACKET;
         }
         m_pru1.pruData->command = c;
     }
@@ -747,26 +768,82 @@ void BBShiftStringOutput::StartingOutput() {
     m_pru1.curV5ConfigPacket = 0;
     m_pru0.curV5ConfigPacket = 0;
 }
-
-static void invertPacket(uint8_t* d) {
+void BBShiftStringOutput::StoppingOutput() {
+    for (int y = 0; y < NUM_CONFIG_PACKETS; ++y) {
+        if (m_pru1.v5_config_packets[y] == &m_pru1.dynamicPacketInfo2 && m_pru1.v5_config_packets[y] == &m_pru1.dynamicPacketInfo1) {
+            m_pru1.v5_config_packets[y] = nullptr;
+        }
+        if (m_pru0.v5_config_packets[y] == &m_pru0.dynamicPacketInfo2 && m_pru0.v5_config_packets[y] == &m_pru0.dynamicPacketInfo1) {
+            m_pru0.v5_config_packets[y] = nullptr;
+        }
+    }
+    m_pru1.curV5ConfigPacket = 0;
+    m_pru0.curV5ConfigPacket = 0;
+}
+constexpr int numPacketTypes = 12;
+static void invertPackets(std::array<std::array<uint8_t, 64>, numPacketTypes>& pckt) {
+    for (auto& d : pckt) {
+        for (int x = 0; x < 57; x++) {
+            d[x] = ~d[x];
+        }
+    }
+}
+static void invertPacket(std::array<uint8_t, 64>& d) {
     for (int x = 0; x < 57; x++) {
         d[x] = ~d[x];
     }
 }
+void BBShiftStringOutput::encodeFalconV5Packet(std::vector<std::array<uint8_t, 64>>& packets, uint8_t* memLocPru0, uint8_t* memLocPru1) {
+    int x = 0;
+    while (x < m_strings.size()) {
+        int p = x;
+        PixelString* p1 = m_strings[x++];
+        if (p1->m_isInverted) {
+            invertPacket(packets[p]);
+        }
+    }
+    std::array<uint8_t, 57 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN> pru0Data;
+    std::array<uint8_t, 57 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN> pru1Data;
+    for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
+        uint8_t pinMask = 1 << y;
+        for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
+            int idx = m_pru0.stringMap[y][x];
+            if (idx != -1) {
+                uint8_t* frame = &pru0Data[x + (y * NUM_STRINGS_PER_PIN)];
+                for (int p = 0; p < 57; p++) {
+                    uint8_t b = packets[idx][p];
+                    b = ((b * 0x0802LU & 0x22110LU) | (b * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
+                    *frame = b;
+                    frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+                }
+            }
+            idx = m_pru1.stringMap[y][x];
+            if (idx != -1) {
+                uint8_t* frame = &pru1Data[x + (y * NUM_STRINGS_PER_PIN)];
+                for (int p = 0; p < 57; p++) {
+                    uint8_t b = packets[idx][p];
+                    b = ((b * 0x0802LU & 0x22110LU) | (b * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
+                    *frame = b;
+                    frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+                }
+            }
+        }
+    }
+    size_t pLen = 57 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+    if (m_pru0.maxStringLen) {
+        bitFlipData(&pru0Data[0], memLocPru0, 57);
+    }
+    if (m_pru1.maxStringLen) {
+        bitFlipData(&pru1Data[0], memLocPru1, 57);
+    }
+}
 
-void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root) {
-    PinCapabilities::getPinByName("P8-27").configPin("pruout");
-    PinCapabilities::getPinByName("P8-29").configPin("pruout");
-
-    constexpr int configPacketSize = 60;
-    constexpr int numPacketTypes = 7;
+void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root, uint8_t* memLoc) {
     falconV5Support = new FalconV5Support();
-    falconV5Support->addListeners(root["falconV5Listeners"]);
-
-    std::vector<std::array<uint8_t, configPacketSize>> packets;
-    packets.resize(m_strings.size() * numPacketTypes);
-    for (auto& p : packets) {
-        memset(&p[0], 0, configPacketSize);
+    bool supportsV5Listeners = root.isMember("falconV5ListenerConfig");
+    if (supportsV5Listeners) {
+        PinCapabilities::getPinByName("P8-27").configPin("pruout");
+        falconV5Support->addListeners(root["falconV5ListenerConfig"]);
     }
 
     int max = std::max(m_pru0.maxStringLen, m_pru1.maxStringLen);
@@ -775,102 +852,115 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root) {
         int p = x;
         PixelString* p1 = m_strings[x++];
         if (p1->m_isSmartReceiver && p1->smartReceiverType == PixelString::ReceiverType::FalconV5) {
-            int grp = root["outputs"][x]["falconV5Listener"].asInt();
-
+            int grp = 0;
+            int mux = 0;
+            if (root["outputs"][p].isMember("falconV5Listener")) {
+                grp = root["outputs"][p]["falconV5Listener"].asInt();
+            }
+            if (root["outputs"][p].isMember("falconV5ListenerMux")) {
+                mux = root["outputs"][p]["falconV5ListenerMux"].asInt();
+            }
             PixelString* p2 = x < m_strings.size() ? m_strings[x++] : nullptr;
             PixelString* p3 = x < m_strings.size() ? m_strings[x++] : nullptr;
             PixelString* p4 = x < m_strings.size() ? m_strings[x++] : nullptr;
 
-            FalconV5Support::ReceiverChain* rc = falconV5Support->addReceiverChain(p1, p2, p3, p4, grp);
-            rc->generateConfigPacket(&packets[p * numPacketTypes][0]);
-            for (int z = 0; z < 6; z++) {
-                // rc->generateQueryPacket(&packets[p * numPacketTypes + z + 1][0], z);
-            }
-
+            falconV5Support->addReceiverChain(p1, p2, p3, p4, grp, mux);
             // need to keep the ports on.  With v5, all ports need to be kept on
             // and must have edges that are aligned.  Need to turn OFF the 2-4 ports during
             // the config packet
             p1->m_gpioCommands.clear();
-            if (p1->m_isInverted) {
-                for (int z = 0; z < numPacketTypes; z++) {
-                    invertPacket(&packets[(p)*numPacketTypes + z][0]);
-                }
-            }
             if (p2) {
-                if (p2->m_isInverted) {
-                    for (int z = 0; z < numPacketTypes; z++) {
-                        invertPacket(&packets[(p + 1) * numPacketTypes + z][0]);
-                    }
-                }
                 p2->m_gpioCommands.clear();
                 p2->m_gpioCommands.emplace_back(2, max, 0, 0);
             }
             if (p3) {
-                if (p3->m_isInverted) {
-                    for (int z = 0; z < numPacketTypes; z++) {
-                        invertPacket(&packets[(p + 2) * numPacketTypes + z][0]);
-                    }
-                }
                 p3->m_gpioCommands.clear();
                 p3->m_gpioCommands.emplace_back(3, max, 0, 0);
             }
             if (p4) {
-                if (p4->m_isInverted) {
-                    for (int z = 0; z < numPacketTypes; z++) {
-                        invertPacket(&packets[(p + 3) * numPacketTypes + z][0]);
-                    }
-                }
                 p4->m_gpioCommands.clear();
                 p4->m_gpioCommands.emplace_back(4, max, 0, 0);
             }
         }
     }
-
-    std::array<uint8_t, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN> pru0Data;
-    std::array<uint8_t, configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN> pru1Data;
-
-    for (int z = 0; z < NUM_CONFIG_PACKETS; z++) {
-        int pidx = -1;
-        if (z % 12 == 0) {
-            // every 12 is a config pack which is "type 0"
-            pidx = 0;
-        }
-
-        if (pidx >= 0) {
-            if (m_pru0.v5_config_packets[z] == nullptr) {
-                m_pru0.v5_config_packets[z] = new FalconV5PacketInfo(configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN);
-                m_pru1.v5_config_packets[z] = new FalconV5PacketInfo(configPacketSize * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN);
+    if (!falconV5Support->getReceiverChains().empty()) {
+        // we have receiver chains, generate standard packets
+        for (int x = 0; x < 3; x++) {
+            std::vector<std::array<uint8_t, 64>> packets;
+            std::vector<std::array<uint8_t, 64>> packets2;
+            packets.resize(m_strings.size());
+            packets2.resize(m_strings.size());
+            for (auto& p : packets) {
+                memset(&p[0], 0, 64);
             }
-
-            for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
-                uint8_t pinMask = 1 << y;
-                for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
-                    int idx = m_pru0.stringMap[y][x];
-                    if (idx != -1) {
-                        uint8_t* frame = &pru0Data[x + (y * NUM_STRINGS_PER_PIN)];
-                        for (int p = 0; p < 57; p++) {
-                            uint8_t b = packets[idx * numPacketTypes + pidx][p];
-                            b = ((b * 0x0802LU & 0x22110LU) | (b * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
-                            *frame = b;
-                            frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
-                        }
-                    }
-                    idx = m_pru1.stringMap[y][x];
-                    if (idx != -1) {
-                        uint8_t* frame = &pru1Data[x + (y * NUM_STRINGS_PER_PIN)];
-                        for (int p = 0; p < 57; p++) {
-                            uint8_t b = packets[idx * numPacketTypes + pidx][p];
-                            b = ((b * 0x0802LU & 0x22110LU) | (b * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
-                            *frame = b;
-                            frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
-                        }
-                    }
+            for (auto& p : packets2) {
+                memset(&p[0], 0, 64);
+            }
+            int len = 0;
+            int idx = 0;
+            bool listen = false;
+            for (auto& rc : falconV5Support->getReceiverChains()) {
+                int port = rc->getPixelStrings()[0]->m_portNumber;
+                if (x == 0) {
+                    rc->generateConfigPacket(&packets[port][0]);
+                    idx = 0;
+                    len = 1;
+                } else if (x == 1) {
+                    rc->generateNumberPackets(&packets[port][0], &packets2[port][0]);
+                    idx = 1;
+                    len = 2;
+                } else if (x == 2) {
+                    rc->generateResetFusesPacket(&packets[port][0]);
+                    idx = 2;
+                    len = 1;
                 }
             }
-            bitFlipData(&pru0Data[0], m_pru0.v5_config_packets[z]->data, 57);
-            bitFlipData(&pru1Data[0], m_pru1.v5_config_packets[z]->data, 57);
+            if (m_pru0.v5_config_packets[idx] == nullptr) {
+                m_pru0.v5_config_packets[idx] = new FalconV5PacketInfo(len, memLoc, listen);
+                // 64 to keep on 4K memory alignment
+                memLoc += 64 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN * len;
+                m_pru1.v5_config_packets[idx] = new FalconV5PacketInfo(len, memLoc, listen);
+                memLoc += 64 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN * len;
+
+                encodeFalconV5Packet(packets, m_pru0.v5_config_packets[idx]->data, m_pru1.v5_config_packets[idx]->data);
+                if (len == 2) {
+                    size_t pLen = 57 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+                    encodeFalconV5Packet(packets2, m_pru0.v5_config_packets[idx]->data + pLen, m_pru1.v5_config_packets[idx]->data + pLen);
+                }
+
+                if (idx == 0) {
+                    // config packet, output in other spots
+                    idx += 12;
+                    while (idx < NUM_CONFIG_PACKETS) {
+                        m_pru0.v5_config_packets[idx] = new FalconV5PacketInfo(len, m_pru0.v5_config_packets[0]->data, listen);
+                        m_pru1.v5_config_packets[idx] = new FalconV5PacketInfo(len, m_pru1.v5_config_packets[0]->data, listen);
+                        idx += 12;
+                    }
+                } else if (idx == 1) {
+                    // number packet, resend once every loop
+                    int nidx = NUM_CONFIG_PACKETS - 1;
+                    while (m_pru0.v5_config_packets[nidx] != nullptr) {
+                        --nidx;
+                    }
+                    m_pru0.v5_config_packets[nidx] = new FalconV5PacketInfo(len, m_pru0.v5_config_packets[idx]->data, listen);
+                    m_pru1.v5_config_packets[nidx] = new FalconV5PacketInfo(len, m_pru1.v5_config_packets[idx]->data, listen);
+                }
+            }
         }
     }
+    // reserve space for the dynamic packets
+    m_pru0.dynamicPacketInfo1.data = memLoc;
+    memLoc += 64 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+    m_pru0.dynamicPacketInfo2.data = memLoc;
+    memLoc += 64 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+    m_pru1.dynamicPacketInfo1.data = memLoc;
+    memLoc += 64 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+    m_pru1.dynamicPacketInfo2.data = memLoc;
+    memLoc += 64 * MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;
+
+    m_pru0.dynamicPacketInfo = &m_pru0.dynamicPacketInfo1;
+    m_pru1.dynamicPacketInfo = &m_pru1.dynamicPacketInfo1;
+
     createOutputLengths(m_pru0, "pru0");
     createOutputLengths(m_pru1, "pru1");
 }

@@ -1092,8 +1092,8 @@ function SupportsSmartReceivers(subType) {
 function SupportsFalconV5SmartReceivers(subType) {
     var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    if (val && val.hasOwnProperty("supportsFalconV5SmartReceivers")) {
-        return val["supportsFalconV5SmartReceivers"];
+    if (val && val.hasOwnProperty("driver")) {
+        return val["driver"] == "BBShiftString";
     }
     return false;
 }
@@ -1276,7 +1276,7 @@ function PixelStringExpansionTypeChanged(port) {
                 str += "<option value='1'>Smart v1</option>";
                 str += "<option value='2'>Smart v2</option>";
                 if (SupportsFalconV5SmartReceivers(subType)) {
-                    str += "<option value='3'>Falcon v5</option>";
+                    str += "<option value='3'>Falcon v4/v5</option>";
                 }
             }
             str += "</select>";
@@ -1548,7 +1548,7 @@ function populatePixelStringOutputs(data) {
                                 str += "<option value='1'" + (diffType == 1 ? " selected" : "") + ">Smart v1</option>";
                                 str += "<option value='2'" + (diffType == 2 ? " selected" : "") + ">Smart v2</option>";
                                 if (supportFalconv5) {
-                                    str += "<option value='3'" + (diffType == 3 ? " selected" : "") + ">Falcon v5</option>";
+                                    str += "<option value='3'" + (diffType == 3 ? " selected" : "") + ">Falcon v4/v5</option>";
                                 }
                             }
                             str += "</select>";
