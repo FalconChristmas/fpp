@@ -40,8 +40,7 @@ function GetFiles(dir) {
             DialogError('Load Files', 'Error loading list of files in ' + dir + ' directory' + show_details([x, t, e]));
         },
         complete: function(){
-            console.log("get files loading finished for tbl"+dir);
-            NewSetupTableSorter('tbl'+dir);
+            SetupTableSorter('tbl'+dir);
         }
 
     });
@@ -927,7 +926,7 @@ selectorRemove: ".remove-me",
 
 // *** DEBUGING ***
 // send messages to console
-debug: true
+debug: false
 
 };
 
@@ -1092,7 +1091,7 @@ var tablesorterOptions_Logs= $.extend({}, tablesorterOptions_Common, tablesorter
 var tablesorterOptions_Uploads= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Uploads);
 var tablesorterOptions_Crashes= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Crashes);
 
-function NewSetupTableSorter(tableName) {
+function SetupTableSorter(tableName) {
     var fileType = tableName.substring(3);
     if ($('#'+tableName).find('tbody').length > 0) {
         $('#'+tableName).tablesorter(eval('tablesorterOptions_'+fileType));
@@ -1109,7 +1108,6 @@ function AddStickyHeaderWidget() {
         var loopSize = $t.length;
         for (let i = 0; i < loopSize; i += 1) {
             var tableName = $t[i].id;
-            //console.log(tableName);
             if ($t[i].config) {
                 $($t[i]).trigger('applyWidgetId','cssStickyHeaders');
             }
