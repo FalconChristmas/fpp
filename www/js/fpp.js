@@ -3333,6 +3333,10 @@ function GetFiles(dir) {
         },
         error: function (x, t, e) {
             DialogError('Load Files', 'Error loading list of files in ' + dir + ' directory' + show_details([x, t, e]));
+        },
+        complete: function(){
+            console.log("get files loading finished for tbl"+dir);
+            NewSetupTableSorter('tbl'+dir);
         }
 
     });

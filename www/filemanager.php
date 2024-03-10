@@ -6,12 +6,17 @@ require_once 'config.php';
 require_once "common.php";
 include 'common/menuHead.inc';
 ?>
+
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.min.js"></script>
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.min.js"></script>
-<script type="text/javascript" src="jquery/jquery.tablesorter/widgets/widget-cssStickyHeaders.min.js"></script>
 <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-metric.min.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/widgets/widget-cssStickyHeaders.min.js"></script>
 <script type="text/javascript" src="jquery/jquery.tablesorter/extras/jquery.metadata.min.js"></script>
 <script type="text/javascript" src="js/fpp-filemanager.js"></script>
+
+<script>
+GetAllFiles();
+</script>
 
 <?php
 exec("df -k " . $mediaDirectory . "/upload |awk '/\/dev\//{printf(\"%d\\n\", $5);}'", $output, $return_val);
@@ -44,6 +49,7 @@ unset($output);
     background-color: transparent;
 }
 </style>
+
 
 </head>
 
@@ -155,7 +161,7 @@ include 'menu.inc';?>
                 <div id="divMusicData" class="fileManagerDivData">
                   <table id="tblMusic"class="tablesorter">
                     <thead>
-                        <tr role="row" class="tablesorter-headerRow">
+                        <tr>
                             <th>File</th>
                             <th>Duration</th>
                             <th>Date Modified</th>
@@ -192,7 +198,7 @@ include 'menu.inc';?>
                 <div id="divVideoData" class="fileManagerDivData">
                   <table id="tblVideos" class="tablesorter">
                     <thead>
-                        <tr role="row" class="tablesorter-headerRow">
+                        <tr>
                             <th class="tablesorter-header filenameColumn">File</th>
                             <th class="tablesorter-header">Duration</th>
                             <th class="tablesorter-header">Date Modified</th>
@@ -226,7 +232,7 @@ include 'menu.inc';?>
                 <div id="divImagesData" class="fileManagerDivData">
                   <table id="tblImages" class="tablesorter">
                     <thead>
-                        <tr role="row" class="tablesorter-headerRow">
+                        <tr>
                             <th>File</th>
                             <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
                             <th>Date Modified</th>
@@ -259,7 +265,7 @@ include 'menu.inc';?>
                 <div id="divEffectsData" class="fileManagerDivData">
                   <table id="tblEffects" class="tablesorter">
                     <thead>
-                        <tr role="row" class="tablesorter-headerRow">
+                        <tr>
                             <th>File</th>
                             <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
                             <th>Date Modified</th>
@@ -290,7 +296,7 @@ include 'menu.inc';?>
               <div id="divScriptsData" class="fileManagerDivData">
                 <table id="tblScripts" class="tablesorter">
                     <thead>
-                        <tr role="row" class="tablesorter-headerRow">
+                        <tr>
                             <th>File</th>
                             <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
                             <th>Date Modified</th>
@@ -355,7 +361,7 @@ include 'menu.inc';?>
               <div id="divUploadsData" class="fileManagerDivData">
                 <table id="tblUploads" class="tablesorter">
                     <thead>
-                        <tr role="row" class="tablesorter-headerRow">
+                        <tr>
                             <th>File</th>
                             <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
                             <th>Date Modified</th>
@@ -384,9 +390,9 @@ include 'menu.inc';?>
               <div id="divCrashesData" class="fileManagerDivData">
                 <table id="tblCrashes" class="tablesorter">
                     <thead>
-                        <tr role="row" class="tablesorter-headerRow">
+                        <tr">
                             <th>File</th>
-                            <th>Size</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
                             <th>Date Modified</th>
                         </tr>
                     </thead>
@@ -443,7 +449,52 @@ include 'menu.inc';?>
         }, 100);
     });
 
+    $('#fileManager').tabs({
+        activate: function (event, ui) {
+
+        var $t = ui.newPanel.find('table');
+        $tableName = $t[0].id;
+        console.log("tab activate called on: "+$tableName );
+        if ($t.length && $t.find('tbody').length) {
+            $($t[0]).trigger('destroy');
+            switch($tableName)
+                {
+                    case "tblSequences":
+                      $($t[0]).tablesorter(tablesorterOptions_Sequences);
+                        break;
+                    case "tblMusic":
+                      $($t[0]).tablesorter(tablesorterOptions_Music);
+                        break;
+                    case "tblVideos":
+                      $($t[0]).tablesorter(tablesorterOptions_Videos);
+                        break;
+                    case "tblImages":
+                      $($t[0]).tablesorter(tablesorterOptions_Images);
+                        break;
+                    case "tblEffects":
+                      $($t[0]).tablesorter(tablesorterOptions_Effects);
+                        break;
+                    case "tblScripts":
+                      $($t[0]).tablesorter(tablesorterOptions_Scripts);
+                        break;
+                    case "tblLogs":
+                      $($t[0]).tablesorter(tablesorterOptions_Logs);
+                        break;
+                    case "tblUploads":
+                      $($t[0]).tablesorter(tablesorterOptions_Uploads);
+                        break;
+                    case "tblCrashes":
+                      $($t[0]).tablesorter(tablesorterOptions_Crashes);
+                        break;
+                }
+              $($t[0]).trigger('applyWidgets');
+            }
+      }
+    });
+
 </script>
+
+
 
 <div id='bulkAddTemplate' style='display:none;'>
     <span id='bulkAddTypeTemplate' style='display:none;'></span>

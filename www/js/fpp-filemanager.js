@@ -1,3 +1,71 @@
+function GetFiles(dir) {
+    $.ajax({
+        dataType: "json",
+        url: "api/files/" + dir,
+        success: function (data) {
+            let i = 0;
+            
+            if(data.files.length > 0){
+                $('#tbl' + dir).find('tbody').html('');
+            }
+            else{
+                $('#tbl' + dir).html('<tr><td colspan=8 align=\'center\'>No files found.</td></tr>');
+            }
+            data.files.forEach(function (f) {
+                var detail = f.sizeHuman;
+                if ("playtimeSeconds" in f) {
+                    detail = f.playtimeSeconds;
+                }
+
+                var thumbSize = 0;
+                if ((settings.hasOwnProperty('fileManagerThumbnailSize')) && (settings['fileManagerThumbnailSize'] > 0))
+                    thumbSize = settings['fileManagerThumbnailSize'];
+
+                var tableRow = '';
+                if ((dir == 'Images') && (thumbSize > 0)) {
+                    if (parseInt(f.sizeBytes) > 0) {
+                        tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='filenameColumn fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td><img style='display: block; max-width: " + thumbSize + "px; max-height: " + thumbSize + "px; width: auto; height: auto;' src='api/file/" + dir + "/" + f.name + "' onClick=\"ViewImage('" + f.name + "');\" /></td></tr>";
+                    } else {
+                        tableRow = "<tr class='fileDetails unselectableRow' id='fileDetail_" + i + "'><td class ='filenameColumn fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td>Empty Subdir</td></tr>";
+                    }
+                } else {
+                    tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='filenameColumn fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td></tr>";
+                }
+
+                $('#tbl' + dir).find('tbody').append(tableRow);
+                ++i;
+            });
+        },
+        error: function (x, t, e) {
+            DialogError('Load Files', 'Error loading list of files in ' + dir + ' directory' + show_details([x, t, e]));
+        },
+        complete: function(){
+            console.log("get files loading finished for tbl"+dir);
+            NewSetupTableSorter('tbl'+dir);
+        }
+
+    });
+}
+
+function GetAllFiles() {
+	GetFiles('Sequences');
+	GetFiles('Music');
+	GetFiles('Videos');
+	GetFiles('Images');
+	GetFiles('Effects');
+	GetFiles('Scripts');
+	GetFiles('Logs');
+	GetFiles('Uploads');
+	GetFiles('Crashes');
+
+    if (document.readyState ==="loading") {
+        document.addEventListener("DOMContentLoaded", AddStickyHeaderWidget);
+    } else{
+       AddStickyHeaderWidget(); 
+    }
+
+  }
+
 function GetSequenceInfo(file) {
     $('#fileText').html("Getting Sequence Info.");
 
@@ -200,18 +268,6 @@ $(function() {
     });
 
   });
-
-  function GetAllFiles() {
-	GetFiles('Sequences');
-	GetFiles('Music');
-	GetFiles('Videos');
-	GetFiles('Images');
-	GetFiles('Effects');
-	GetFiles('Scripts');
-	GetFiles('Logs');
-	GetFiles('Uploads');
-	GetFiles('Crashes');
-  }
 
 function AddFilesToPlaylist(type, files) {
     GetPlaylistArray();
@@ -470,8 +526,6 @@ function RunScript(scriptName)
 
 
 
-function SetupTableSorter(){
-
 var tablesorterOptions_Common = {
 
 		// *** APPEARANCE ***
@@ -543,7 +597,7 @@ resort: true,
 // but you can change or disable them
 // these can also be set using data-attributes or class names
 headers: {
-    // set "sorter : false" (no quotes) to disable the column
+   //  set "sorter : false" (no quotes) to disable the column
     0: { sorter: "text", sortInitialOrder: 'asc' },
             1: { sorter: "metric" },
             2: { sorter: "text" }
@@ -623,7 +677,7 @@ widgetClass: 'widget-{name}',
 // 'columns', 'filter', 'stickyHeaders' & 'resizable'
 // 'uitheme' is another widget, but requires loading
 // a different skin and a jQuery UI theme.
-widgets: ['uitheme','cssStickyHeaders'],
+widgets: ['columns','zebra','uitheme','cssStickyHeaders'],
 
 widgetOptions: {
 
@@ -828,7 +882,7 @@ widgetOptions: {
 
 // *** CALLBACKS ***
 // function called after tablesorter has completed initialization
-initialized: null, // function (table) {}
+initialized: null, // function (table) {},
 
 // *** extra css class names
 tableClass: '',
@@ -875,7 +929,7 @@ selectorRemove: ".remove-me",
 // send messages to console
 debug: true
 
-}
+};
 
 // Extend the themes to change any of the default class names
 // this example modifies the jQuery UI theme class names
@@ -919,12 +973,12 @@ odd: 'ui-state-default'
 var tablesorterOptions_Override_Sequences = {
         theme: 'fpp',
         headers: {
-            0: { sorter: "text", sortInitialOrder: 'asc' },
-            1: { sorter: "metric"},
+            0: { sorter: "text", sortInitialOrder: "asc" },
+            1: { sorter: "metric" },
             2: { sorter: "text" }
         },
         widgetOptions: {
-           cssStickyHeaders_attachTo: $('#divSeqData')
+            cssStickyHeaders_attachTo: '#divSeqData'
         }
 };
 
@@ -936,7 +990,7 @@ var tablesorterOptions_Override_Music = {
             2: { sorter: "text" }
         },
         widgetOptions: {
-            cssStickyHeaders_attachTo: $('#divMusicData')
+            cssStickyHeaders_attachTo: '#divMusicData'
         }
 };
 
@@ -948,7 +1002,7 @@ var tablesorterOptions_Override_Music = {
             2: { sorter: "text" }
         },
         widgetOptions: {
-            cssStickyHeaders_attachTo: $('#divVideoData')
+            cssStickyHeaders_attachTo: '#divVideoData'
         }
 };
 
@@ -961,7 +1015,7 @@ var tablesorterOptions_Override_Images = {
             3: { sorter: false}
         },
         widgetOptions: {
-            cssStickyHeaders_attachTo: $('#divImagesData')
+            cssStickyHeaders_attachTo: '#divImagesData'
 
         }
 };
@@ -974,7 +1028,7 @@ var tablesorterOptions_Override_Effects = {
             2: { sorter: "text" }
         },
         widgetOptions: {
-            cssStickyHeaders_attachTo: $('#divEffectsData')
+            cssStickyHeaders_attachTo: '#divEffectsData'
         }
 };
 
@@ -986,7 +1040,7 @@ var tablesorterOptions_Override_Scripts = {
             2: { sorter: "text" }
         },
         widgetOptions: {
-            cssStickyHeaders_attachTo: $('#divScriptsData')
+            cssStickyHeaders_attachTo: '#divScriptsData'
         }
 };
 
@@ -998,7 +1052,7 @@ var tablesorterOptions_Override_Logs = {
             2: { sorter: "text" }
         },
         widgetOptions: {
-            cssStickyHeaders_attachTo: $('#divLogsData')
+            cssStickyHeaders_attachTo: '#divLogsData'
         }
 };
 
@@ -1010,7 +1064,7 @@ var tablesorterOptions_Override_Uploads = {
             2: { sorter: "text" }
         },
         widgetOptions: {
-            cssStickyHeaders_attachTo: $('#divUploadsData')
+            cssStickyHeaders_attachTo: '#divUploadsData'
         }
 };
 
@@ -1022,7 +1076,7 @@ var tablesorterOptions_Override_Crashes = {
             2: { sorter: "text" }
         },
         widgetOptions: {
-            cssStickyHeaders_attachTo: $('#divCrashesData')
+            cssStickyHeaders_attachTo: '#divCrashesData'
         }
 };
 
@@ -1038,119 +1092,27 @@ var tablesorterOptions_Logs= $.extend({}, tablesorterOptions_Common, tablesorter
 var tablesorterOptions_Uploads= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Uploads);
 var tablesorterOptions_Crashes= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Crashes);
 
-
-
-
-$("#fileManager").tabs({
-    create: function (event, ui) {
-        GetAllFiles();
-        var $t = ui.panel.find('table');
-        console.log("create table object:");
-        console.log($t);
-        $tableName = $t[0].id;
-        console.log("create table name:");
-        console.log($tableName);
-      //  console.log($t[0].config);
-
-        if ($t.length) {
-        //    console.log('sdsdsdsd');
-            switch($tableName)
-                {
-                    case "tblSequences":
-                        $t.tablesorter(tablesorterOptions_Sequences);
-                        break;
-                    case "tblMusic":
-                        $t.tablesorter(tablesorterOptions_Music);
-                        break;
-                    case "tblVideos":
-                        $t.tablesorter(tablesorterOptions_Videos);
-                        break;
-                    case "tblImages":
-                        $t.tablesorter(tablesorterOptions_Images);
-                        break;
-                    case "tblEffects":
-                        $t.tablesorter(tablesorterOptions_Effects);
-                        break;
-                    case "tblScripts":
-                        $t.tablesorter(tablesorterOptions_Scripts);
-                        break;
-                    case "tblLogs":
-                        $t.tablesorter(tablesorterOptions_Logs);
-                        break;
-                    case "tblUploads":
-                        $t.tablesorter(tablesorterOptions_Uploads);
-                        break;
-                    case "tblCrashes":
-                        $t.tablesorter(tablesorterOptions_Crashes);
-                        break;
-                }
-
-               $t.trigger('applyWidgets');
-
-        }
-    },
-
-    activate: function (event, ui) {
-        var $t = ui.newPanel.find('table');
-        $tableName = $t[0].id;
-        if ($t.length) {
-
-            if ($t[0].config) {
-               $t.trigger('applyWidgets');
-            } else {
-                switch($tableName)
-                {
-                    case "tblSequences":
-                        $t.tablesorter(tablesorterOptions_Sequences);
-                        $t.trigger('applyWidgets');
-                        break;
-                    case "tblMusic":
-                        $t.tablesorter(tablesorterOptions_Music);
-                        $t.trigger('applyWidgets');
-                        break;
-                    case "tblVideos":
-                        $t.tablesorter(tablesorterOptions_Videos);
-                        $t.trigger('applyWidgets');
-                        break;
-                    case "tblImages":
-                        $t.tablesorter(tablesorterOptions_Images);
-                        $t.trigger('applyWidgets');
-                        break;
-                    case "tblEffects":
-                        $t.tablesorter(tablesorterOptions_Effects);
-                        $t.trigger('applyWidgets');
-                        break;
-                    case "tblScripts":
-                        $t.tablesorter(tablesorterOptions_Scripts);
-                        $t.trigger('applyWidgets');
-                        break;
-                    case "tblLogs":
-                        $t.tablesorter(tablesorterOptions_Logs);
-                        $t.trigger('applyWidgets');
-                        break;
-                    case "tblUploads":
-                        $t.tablesorter(tablesorterOptions_Uploads);
-                        $t.trigger('applyWidgets');
-                        break;
-                    case "tblCrashes":
-                        $t.tablesorter(tablesorterOptions_Crashes);
-                        $t.trigger('applyWidgets');
-                        break;
-                }
-            }
-        }
+function NewSetupTableSorter(tableName) {
+    var fileType = tableName.substring(3);
+    if ($('#'+tableName).find('tbody').length > 0) {
+        $('#'+tableName).tablesorter(eval('tablesorterOptions_'+fileType));
+        $('#'+tableName).trigger('applyWidgets');
     }
-}); 
-
-
-//still need to fix first tab/table not loading cssStickyHeaders correctly due to JQuery UI Tabs but struggling to find route cause
-// seems to be the interaction between JQUERY UI tabs and tablesorter not playing happily together
 }
 
 
-if (document.readyState ==="loading"){
-    document.addEventListener("DOMContentLoaded",SetupTableSorter);
-}else{
-    SetupTableSorter();
-    
+
+function AddStickyHeaderWidget() {
+    var $t=$('#fileManager').find('table');
+
+    if ($t.length) {
+        var loopSize = $t.length;
+        for (let i = 0; i < loopSize; i += 1) {
+            var tableName = $t[i].id;
+            //console.log(tableName);
+            if ($t[i].config) {
+                $($t[i]).trigger('applyWidgetId','cssStickyHeaders');
+            }
+        }
+    }
 }
