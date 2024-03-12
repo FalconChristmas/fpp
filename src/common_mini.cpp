@@ -50,6 +50,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <sstream>
 #include <unistd.h>
 #include <utility>
 #include <vector>
