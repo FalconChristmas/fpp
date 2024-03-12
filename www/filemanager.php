@@ -1,11 +1,22 @@
 <!DOCTYPE html>
 <html>
+<head>
 <?php
 require_once 'config.php';
+require_once "common.php";
+include 'common/menuHead.inc';
 ?>
-<head>
-<?php	include 'common/menuHead.inc';?>
 
+<script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.min.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.min.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-metric.min.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/widgets/widget-cssStickyHeaders.min.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/extras/jquery.metadata.min.js"></script>
+<script type="text/javascript" src="js/fpp-filemanager.js"></script>
+
+<script>
+GetAllFiles();
+</script>
 
 <?php
 exec("df -k " . $mediaDirectory . "/upload |awk '/\/dev\//{printf(\"%d\\n\", $5);}'", $output, $return_val);
@@ -39,482 +50,11 @@ unset($output);
 }
 </style>
 
-<script>
-function GetSequenceInfo(file) {
-    $('#fileText').html("Getting Sequence Info.");
-
-    $.get("api/sequence/" + file + "/meta", function (data) {
-        DoModalDialog({
-            id: "SequenceViewer",
-            title: "Sequence Info",
-            class: "modal-lg modal-dialog-scrollable",
-            body: '<pre>' + syntaxHighlight(JSON.stringify(data, null, 2)) + '</pre>',
-            keyboard: true,
-            backdrop: true,
-            buttons: {
-                "Close": function() {CloseModalDialog("SequenceViewer");}
-            }
-        });
-    });
-}
-
-function GetVideoInfo(file) {
-    $('#fileText').html("Getting Video Info.");
-
-    $.get("api/media/" + file + "/meta", function (data) {
-        DoModalDialog({
-            id: "VideoViewer",
-            title: "Video Info",
-            class: "modal-lg modal-dialog-scrollable",
-            body: '<pre>' + syntaxHighlight(JSON.stringify(data, null, 2)) + '</pre>',
-            keyboard: true,
-            backdrop: true,
-            buttons: {
-                "Close": function() {CloseModalDialog("VideoViewer");}
-            }
-        });
-    });
-}
-function mp3GainProgressDialogDone() {
-    $('#mp3GainProgressCloseButton').prop("disabled", false);
-    EnableModalDialogCloseButton("mp3GainProgress");
-}
-function ButtonHandler(table, button) {
-    var selectedCount = $('#tbl' + table + ' tr.selectedEntry').length;
-    var filename = '';
-    var filenames = [];
-    if (selectedCount == 1) {
-        filename = $('#tbl' + table + ' tr.selectedEntry').find('td:first').text();
-    }
-
-    if ((button == 'play') || (button == 'playHere')) {
-        if (selectedCount == 1) {
-            PlayPlaylist(filename, button == 'play' ? 1 : 0);
-        } else {
-            DialogError('Error', 'Error, unable to play multiple sequences at the same time.');
-        }
-    } else if (button == 'download') {
-        var files = [];
-        $('#tbl' + table + ' tr.selectedEntry').each(function() {
-            files.push($(this).find('td:first').text());
-        });
-        DownloadFiles(table, files);
-    } else if (button == 'rename') {
-        if (selectedCount == 1) {
-            RenameFile(table, filename);
-        } else {
-            DialogError('Error', 'Error, unable to rename multiple files at the same time.');
-        }
-    } else if (button == 'copyFile') {
-        if (selectedCount == 1) {
-            CopyFile(table, filename);
-        } else {
-            DialogError('Error', 'Error, unable to copy multiple files at the same time.');
-        }
-    } else if (button == 'delete') {
-        $('#tbl' + table + ' tr.selectedEntry').each(function() {
-            DeleteFile(table, $(this), $(this).find('td:first').text());
-        });
-    } else if (button == 'editScript') {
-        if (selectedCount == 1) {
-            EditScript(filename);
-        } else {
-            DialogError('Error', 'Error, unable to edit multiple files at the same time.');
-        }
-    } else if (button == 'playInBrowser') {
-        if (selectedCount == 1) {
-            PlayFileInBrowser(table, filename);
-        } else {
-            DialogError('Error', 'Error, unable to play multiple files at the same time.');
-        }
-    } else if (button == 'runScript') {
-        if (selectedCount == 1) {
-            RunScript(filename);
-        } else {
-            DialogError('Error', 'Error, unable to run multiple files at the same time.');
-        }
-    } else if (button == 'videoInfo') {
-        if (selectedCount == 1) {
-            GetVideoInfo(filename);
-        } else {
-            DialogError('Error', 'Error, unable to get info for multiple files at the same time.');
-        }
-    } else if (button == 'viewFile') {
-        if (selectedCount == 1) {
-            ViewFile(table, filename);
-        } else {
-            DialogError('Error', 'Error, unable to view multiple files at the same time.');
-        }
-    } else if (button == 'tailFile') {
-        if (selectedCount == 1) {
-            TailFile(table, filename, 50);
-        } else {
-            DialogError('Error', 'Error, unable to view multiple files at the same time.');
-        }
-    } else if (button == 'viewImage') {
-        if (selectedCount == 1) {
-            ViewImage(filename);
-        } else {
-            DialogError('Error', 'Error, unable to view multiple files at the same time.');
-        }
-    } else if (button == 'mp3gain') {
-        var files = [];
-        $('#tbl' + table + ' tr.selectedEntry').each(function() {
-            files.push($(this).find('td:first').text());
-        });
-        var postData = JSON.stringify(files);
-        DisplayProgressDialog("mp3GainProgress", "MP3Gain");
-        StreamURL("run_mp3gain.php", 'mp3GainProgressText', 'mp3GainProgressDialogDone', 'mp3GainProgressDialogDone', 'POST', postData, 'application/json');
-    } else if (button == 'addToPlaylist') {
-        var files = [];
-        $('#tbl' + table + ' tr.selectedEntry').each(function() {
-            files.push($(this).find('td:first').text());
-        });
-
-        AddFilesToPlaylist(table, files);
-    } else if (button == 'sequenceInfo') {
-        if (selectedCount == 1) {
-            GetSequenceInfo(filename);
-        } else {
-            DialogError('Error', 'Error, unable to get info for multiple files at the same time.');
-        }
-    }
-}
-
-
-
-function ClearSelections(table) {
-    $('#tbl' + table + ' tr').removeClass('selectedEntry');
-    DisableButtonClass('single' + table + 'Button');
-    DisableButtonClass('multi' + table + 'Button');
-}
-
-function HandleMouseClick(event, row, table) {
-    HandleTableRowMouseClick(event, row);
-
-    var selectedCount = $('#tbl' + table + ' tr.selectedEntry').length;
-
-    DisableButtonClass('single' + table + 'Button');
-    DisableButtonClass('multi' + table + 'Button');
-
-    if (selectedCount > 1) {
-        EnableButtonClass('multi' + table + 'Button');
-    } else if (selectedCount > 0) {
-        EnableButtonClass('single' + table + 'Button');
-    }
-}
-
-$(function() {
-    $('#tblSequences').on('mousedown', 'tr', function(event,ui){
-        HandleMouseClick(event, $(this), 'Sequences');
-    });
-
-    $('#tblMusic').on('mousedown', 'tr', function(event,ui){
-        HandleMouseClick(event, $(this), 'Music');
-    });
-
-    $('#tblVideos').on('mousedown', 'tr', function(event,ui){
-        HandleMouseClick(event, $(this), 'Videos');
-    });
-
-    $('#tblImages').on('mousedown', 'tr', function(event,ui){
-        HandleMouseClick(event, $(this), 'Images');
-    });
-
-    $('#tblEffects').on('mousedown', 'tr', function(event,ui){
-        HandleMouseClick(event, $(this), 'Effects');
-    });
-
-    $('#tblScripts').on('mousedown', 'tr', function(event,ui){
-        HandleMouseClick(event, $(this), 'Scripts');
-    });
-
-    $('#tblLogs').on('mousedown', 'tr', function(event,ui){
-        HandleMouseClick(event, $(this), 'Logs');
-    });
-
-    $('#tblUploads').on('mousedown', 'tr', function(event,ui){
-        HandleMouseClick(event, $(this), 'Uploads');
-    });
-
-    $('#tblCrashes').on('mousedown', 'tr', function(event,ui){
-        HandleMouseClick(event, $(this), 'Crashes');
-    });
-
-  });
-
-  function GetAllFiles() {
-	GetFiles('Sequences');
-	GetFiles('Music');
-	GetFiles('Videos');
-	GetFiles('Images');
-	GetFiles('Effects');
-	GetFiles('Scripts');
-	GetFiles('Logs');
-	GetFiles('Uploads');
-	GetFiles('Crashes');
-  }
-
-function AddFilesToPlaylist(type, files) {
-    GetPlaylistArray();
-
-    var plOptions = '';
-    for (var i = 0; i < playListArray.length; i++) {
-        plOptions += "<option value='" + playListArray[i].name + "'>" + playListArray[i].name + "</option>";
-    }
-
-    var sequenceFiles = {};
-    var mediaFiles = {};
-
-    if (type == 'Sequences') {
-        $('#tblMusic tr').each(function() {
-            mediaFiles[$(this).find('td:first').text()] = 1;
-        });
-        $('#tblVideos tr').each(function() {
-            mediaFiles[$(this).find('td:first').text()] = 1;
-        });
-    } else if ((type == 'Music') || (type == 'Videos')) {
-        $('#tblSequences tr').each(function() {
-            sequenceFiles[$(this).find('td:first').text()] = 1;
-        });
-    }
-
-    var etype = '';
-    var tbody = '';
-    var duration = 0.0;
-    var mediaFile = '';
-
-    for (var i = 0; i < files.length; i++) {
-        duration = 0.0;
-        mediaFile = '';
-
-        if (type == 'Sequences') {
-            etype = 'sequence';
-
-            var seqInfo = Get("api/sequence/" + files[i] + "/meta", false);
-            if (seqInfo.hasOwnProperty("NumFrames")) {
-                duration += 1.0 * seqInfo.NumFrames * seqInfo.StepTime / 1000;
-            }
-
-            if (seqInfo.hasOwnProperty('variableHeaders') && seqInfo.variableHeaders.hasOwnProperty('mf')) {
-                var mf = seqInfo.variableHeaders.mf.split(/[\\/]/).pop();
-                if (mediaFiles.hasOwnProperty(mf)) {
-                    mediaFile = mf;
-                } else {
-                    mf = mf.replace(/\.[^/.]+$/, "");
-                    if (mediaFiles.hasOwnProperty(mf + '.mp3')) {
-                        mediaFile = mf + '.mp3';
-                    } else if (mediaFiles.hasOwnProperty(mf + '.MP3')) {
-                        mediaFile = mf + '.MP3';
-                    } else if (mediaFiles.hasOwnProperty(mf + '.mp4')) {
-                        mediaFile = mf + '.mp4';
-                    } else if (mediaFiles.hasOwnProperty(mf + '.MP4')) {
-                        mediaFile = mf + '.MP4';
-                    }
-                }
-
-                if (mediaFile != '')
-                    etype = 'both';
-            }
-        } else if ((type == 'Music') || (type == 'Videos')) {
-            etype = 'media';
-
-            var mediaInfo = Get("api/media/" + files[i] + "/duration", false);
-            if (mediaInfo.hasOwnProperty(files[i])) {
-                duration = mediaInfo[files[i]].duration;
-            }
-
-            var sf = files[i].replace(/\.[^/.]+$/, ".fseq");
-            if (sequenceFiles.hasOwnProperty(sf)) {
-                etype = 'both';
-                mediaFile = files[i];
-                files[i] = sf;
-            }
-        } else if (type == 'Scripts') {
-            etype = 'command';
-        }
-
-        var fileStr = files[i];
-        if (mediaFile != '')
-            fileStr += ' (' + mediaFile + ')';
-
-        tbody += "<tr class='fppTableRow'><td class='file' file='" + files[i] + "' media='" + mediaFile + "' duration='" + duration + "'>" + fileStr + "</td><td class='type' etype='" + etype + "'>" + PlaylistEntryTypeToString(etype) + ((etype == 'command') ? ' (Run Script)' : '') + "</td><td>" + SecondsToHuman(duration, true) + "</td></tr>";
-    }
-
-    var options = {
-        id: "bulkAdd",
-        title: "Bulk Add",
-        body: $('#bulkAddTemplate').html().replaceAll('Template', ''),
-        class: 'modal-dialog-scrollable',
-        keyboard: true,
-        backdrop: true,
-        buttons: {
-            "Add": {
-                id: "bulkAddAddButton",
-                click: function() {
-                    BulkAddPlaylist();
-                    CloseModalDialog("bulkAdd");
-                }
-            },
-            "Cancel": {
-                id: "bulkAddCancelButton",
-                click: function() {
-                    CloseModalDialog("bulkAdd");
-                }
-            }
-        }
-    };
-
-    DoModalDialog(options);
-
-    $('#bulkAddPlaylist').html(plOptions);
-    $('#bulkAddPlaylistSection').val('mainPlaylist');
-    $('#bulkAddType').html(type);
-    $('#bulkAddList').html(tbody);
-}
-
-function BulkAddPlaylist() {
-    var playlistName = $('#bulkAddPlaylist').val();
-    var pl = Get('api/playlist/' + playlistName, false);
-    var files = 'Playlist: ' + playlistName + "\n";
-    $('#bulkAddList').find('tr').each(function() {
-        var file = $(this).find('td.file').attr('file');
-        var duration = parseFloat($(this).find('td.file').attr('duration'));
-
-        var e = {};
-        e.type = $(this).find('td.type').attr('etype');
-        e.enabled = 1;
-        e.playOnce = 0;
-        e.duration = duration;
-
-        if (e.type == 'both') {
-            e.sequenceName = file;
-            e.mediaName = $(this).find('td.file').attr('media');
-        } else if (e.type == 'sequence') {
-            e.sequenceName = file;
-        } else if (e.type == 'media') {
-            e.mediaName = file;
-        } else if (e.type == 'command') {
-            e.command = "Run Script";
-            e.args = [ file, "", "" ];
-        }
-
-        pl[$('#bulkAddPlaylistSection').val()].push(e);
-
-        pl.playlistInfo.total_duration += duration;
-        pl.playlistInfo.total_items += 1;
-    });
-
-    var result = Post('api/playlist/' + playlistName, false, JSON.stringify(pl));
-    if (result.hasOwnProperty('Status') && result.Status == 'Error') {
-        $.jGrowl("Error Saving Playlist: " + result.Message, { themeState: 'danger' });
-    } else {
-        $.jGrowl("Playlist updated", { themeState: 'success' });
-    }
-    CloseModalDialog("bulkAdd");
-}
-
-function RunScriptDone() {
-    $('#runScriptCloseButton').prop('disabled', false);
-    EnableModalDialogCloseButton('runScriptDialog');
-}
-
-function RunScript(scriptName)
-{
-    var options = {
-        id: 'runScriptDialog',
-        title: 'Run Script',
-        body: "<textarea style='width: 99%; height: 500px;' disabled id='runScriptText'></textarea>",
-        noClose: true,
-        keyboard: false,
-        backdrop: 'static',
-        footer: '',
-        buttons: {
-            'Close': {
-                id: 'runScriptCloseButton',
-                click: function() { CloseModalDialog('runScriptDialog'); },
-                disabled: true,
-                class: 'btn-success'
-            }
-        }
-    };
-
-    $('#runScriptCloseButton').prop('disabled', true);
-    DoModalDialog(options);
-
-    StreamURL('runEventScript.php?scriptName=' + scriptName + '&nohtml=1', 'runScriptText', 'RunScriptDone');
-}
-
-	function EditScript(scriptName)
-	{
-        var options = {
-            id: "scriptEditorDialog",
-            title: "Script Editor : "+scriptName,
-            body: "<div id='fileEditText' class='fileText'>Loading...</div>",
-            footer: "",
-            class: "modal-dialog-scrollable",
-            keyboard: true,
-            backdrop: true,
-            buttons: {
-                "Save": {
-                    id: 'fileViewerCloseButton',
-                    class: 'btn-success',
-                    click:function(){
-                      SaveScript($('#scriptText').data('scriptName'));
-                    }
-                },
-                "Cancel": {
-                    click: function() {
-                        AbortScriptChange();
-                    }
-                }
-
-            }
-        };
-        DoModalDialog(options);
-        $.get("api/Scripts/" + scriptName, function(text) {
-            var ext = scriptName.split('.').pop();
-            if (ext != "html") {
-                var html = "<textarea style='width: 100%' rows='25' id='scriptText'>" + text + "</textarea></center></div></fieldset>";
-                $('#fileEditText').html(html);
-                $('#scriptText').data('scriptName',scriptName);
-            }
-        });
-    }
-        
-        
-	function SaveScript(scriptName)
-	{
-		var contents = $('#scriptText').val();
-        var url = 'api/scripts/' + scriptName;
-		var postData = JSON.stringify(contents);
-
-		$.post(url, postData).done(function(data) {
-			if (data.status == "OK")
-			{
-                CloseModalDialog("scriptEditorDialog");
-				$.jGrowl("Script saved.",{themeState:'success'});
-			}
-			else
-			{
-				DialogError("Save Failed", "Save Failed: " + data.status);
-			}
-		}).fail(function() {
-			DialogError("Save Failed", "Save Failed!");
-		});
-
-	}
-
-	function AbortScriptChange()
-	{
-        CloseModalDialog("scriptEditorDialog");
-	}
-
-</script>
 
 </head>
 
-<body onload="GetAllFiles();">
+<body>
+
 <div id="bodyWrapper">
 <?php
 $activeParentMenuItem = 'content';
@@ -528,7 +68,7 @@ include 'menu.inc';?>
 
     <div id="fileManager">
 
-    <ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
+    <ul class="nav nav-pills pageContent-tabs" id="fileManagerTabs" role="tablist">
       <li class="nav-item">
         <a class="nav-link active" id="tab-sequence-tab" data-bs-toggle="pill" href="#tab-sequence" role="tab" aria-controls="tab-sequence" aria-selected="true">
           Sequences
@@ -583,7 +123,16 @@ include 'menu.inc';?>
             <div class="backdrop">
                 <h2> Sequence Files (.fseq) </h2>
                 <div id="divSeqData" class="fileManagerDivData">
-                  <table id="tblSequences">
+                  <table id="tblSequences" class="tablesorter">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
                   </table>
                 </div>
 
@@ -610,16 +159,25 @@ include 'menu.inc';?>
               <div class="backdrop">
                 <h2> Music Files (.mp3/.ogg/.m4a/.flac/.aac/.wav/.m4p) </h2>
                 <div id="divMusicData" class="fileManagerDivData">
-                  <table id="tblMusic">
+                  <table id="tblMusic"class="tablesorter">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Duration</th>
+                            <th>Date Modified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
                   </table>
                 </div>
 
                 <div class='form-actions'>
                   <input onclick="ClearSelections('Music');" class="buttons" type="button" value="Clear" />
                   <input onclick="ButtonHandler('Music', 'playInBrowser');" id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton" type="button"  value="Listen" />
-                  <? if (file_exists("/bin/mp3gain") || file_exists("/usr/bin/mp3gain") || file_exists("/opt/homebrew/bin/mp3gain") || file_exists("/usr/local/bin/mp3gain")) { ?>
+                  <?if (file_exists("/bin/mp3gain") || file_exists("/usr/bin/mp3gain") || file_exists("/opt/homebrew/bin/mp3gain") || file_exists("/usr/local/bin/mp3gain")) {?>
                     <input onclick="ButtonHandler('Music', 'mp3gain');" id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="MP3Gain" />
-                  <? } ?>
+                  <?}?>
 
                   <input onclick="ButtonHandler('Music', 'addToPlaylist');" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Add To Playlist" />
                   <input onclick="ButtonHandler('Music', 'download');" id="btnDownloadMusic" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Download" />
@@ -638,7 +196,16 @@ include 'menu.inc';?>
               <div class="backdrop">
                 <h2> Video Files (.mp4/.mkv/.avi/.mpg/.mov) </h2>
                 <div id="divVideoData" class="fileManagerDivData">
-                  <table id="tblVideos">
+                  <table id="tblVideos" class="tablesorter">
+                    <thead>
+                        <tr>
+                            <th class="tablesorter-header filenameColumn">File</th>
+                            <th class="tablesorter-header">Duration</th>
+                            <th class="tablesorter-header">Date Modified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
                   </table>
                 </div>
 
@@ -662,8 +229,18 @@ include 'menu.inc';?>
 
               <div class="backdrop">
                 <h2> Images </h2>
-                <div id="divImageData" class="fileManagerDivData">
-                  <table id="tblImages">
+                <div id="divImagesData" class="fileManagerDivData">
+                  <table id="tblImages" class="tablesorter">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                            <th>Thumbnail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
                   </table>
                 </div>
 
@@ -686,7 +263,16 @@ include 'menu.inc';?>
               <div class="backdrop">
                 <h2> Effect Sequences (.eseq) </h2>
                 <div id="divEffectsData" class="fileManagerDivData">
-                  <table id="tblEffects">
+                  <table id="tblEffects" class="tablesorter">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
                   </table>
                 </div>
 
@@ -708,7 +294,16 @@ include 'menu.inc';?>
             <div class="backdrop">
               <legend> Scripts (.sh/.pl/.pm/.php/.py)</legend>
               <div id="divScriptsData" class="fileManagerDivData">
-                <table id="tblScripts">
+                <table id="tblScripts" class="tablesorter">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
                 </table>
               </div>
 
@@ -733,7 +328,16 @@ include 'menu.inc';?>
             <div class="backdrop">
               <legend> Log Files </legend>
               <div id="divLogsData" class="fileManagerDivData">
-                <table id="tblLogs">
+                <table id="tblLogs" class="tablesorter">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
                 </table>
               </div>
 
@@ -755,7 +359,16 @@ include 'menu.inc';?>
             <div class="backdrop">
               <legend> Uploaded Files </legend>
               <div id="divUploadsData" class="fileManagerDivData">
-                <table id="tblUploads">
+                <table id="tblUploads" class="tablesorter">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
                 </table>
               </div>
 
@@ -774,8 +387,17 @@ include 'menu.inc';?>
           <div id= "divCrashes">
             <div class="backdrop">
               <legend> Crash Reports </legend>
-              <div id="divUploadsData" class="fileManagerDivData">
-                <table id="tblCrashes">
+              <div id="divCrashesData" class="fileManagerDivData">
+                <table id="tblCrashes" class="tablesorter">
+                    <thead>
+                        <tr">
+                            <th>File</th>
+                            <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
+                            <th>Date Modified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
                 </table>
               </div>
 
@@ -799,20 +421,12 @@ include 'menu.inc';?>
 </div>
 
 
+
 <?php	include 'common/footer.inc';?>
+
+
+
 <script>
-	var activeTabNumber =
-<?php
-if (isset($_GET['tab'])) {
-    print urlencode($_GET['tab']);
-} else {
-    print "0";
-}
-
-?>;
-
-    $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
-
     const pond = FilePond.create(
                 document.querySelector('#filepondInput'),
                 {
@@ -835,7 +449,52 @@ if (isset($_GET['tab'])) {
         }, 100);
     });
 
+    $('#fileManager').tabs({
+        activate: function (event, ui) {
+
+        var $t = ui.newPanel.find('table');
+        $tableName = $t[0].id;
+        console.log("tab activate called on: "+$tableName );
+        if ($t.length && $t.find('tbody').length) {
+            $($t[0]).trigger('destroy');
+            switch($tableName)
+                {
+                    case "tblSequences":
+                      $($t[0]).tablesorter(tablesorterOptions_Sequences);
+                        break;
+                    case "tblMusic":
+                      $($t[0]).tablesorter(tablesorterOptions_Music);
+                        break;
+                    case "tblVideos":
+                      $($t[0]).tablesorter(tablesorterOptions_Videos);
+                        break;
+                    case "tblImages":
+                      $($t[0]).tablesorter(tablesorterOptions_Images);
+                        break;
+                    case "tblEffects":
+                      $($t[0]).tablesorter(tablesorterOptions_Effects);
+                        break;
+                    case "tblScripts":
+                      $($t[0]).tablesorter(tablesorterOptions_Scripts);
+                        break;
+                    case "tblLogs":
+                      $($t[0]).tablesorter(tablesorterOptions_Logs);
+                        break;
+                    case "tblUploads":
+                      $($t[0]).tablesorter(tablesorterOptions_Uploads);
+                        break;
+                    case "tblCrashes":
+                      $($t[0]).tablesorter(tablesorterOptions_Crashes);
+                        break;
+                }
+              $($t[0]).trigger('applyWidgets');
+            }
+      }
+    });
+
 </script>
+
+
 
 <div id='bulkAddTemplate' style='display:none;'>
     <span id='bulkAddTypeTemplate' style='display:none;'></span>

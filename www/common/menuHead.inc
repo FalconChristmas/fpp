@@ -8,6 +8,7 @@ if (((!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == 
 
 	<!-- jquery -->
 	<script type="text/javascript" src="js/jquery-latest.min.js?ref=<?= filemtime('js/jquery-latest.min.js'); ?>"></script>
+    <!-- <script src="https://code.jquery.com/jquery-migrate-3.4.1.js"></script> -->
 	<script type="text/javascript" src="js/jquery-ui.min.js"></script>
 	<script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
 	<script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>

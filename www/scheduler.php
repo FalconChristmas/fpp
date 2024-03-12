@@ -26,7 +26,7 @@ foreach ($data as $cmd) {
 $(document).ready(function() {
 $('.default-value').each(function() {
 var default_value = this.value;
-$(this).focus(function() {
+$(this).on("focus", function() {
 if(this.value == default_value) {
 this.value = '';
 $(this).css('color', '#333');

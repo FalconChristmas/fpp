@@ -1046,7 +1046,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     if (isset($sData['regex']) && isset($sData['regexDesc'])) {
         echo "
         if (!RegexCheckData(\"" . $sData['regex'] . "\", value, \"" . $sData['regexDesc'] . "\", '$inputType' == 'password')) {
-            $('#" . $escSetting . "').focus();
+            $('#" . $escSetting . "').on(\"focus\");
             return;
         }
 ";
@@ -1430,14 +1430,20 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
  * @param int $decimals
  * @return string
  */
-function human_filesize($path)
+function human_filesize($path, $decimals = 2)
 {
     // cannot use PHP's filesize($path) as that returns a signed 32bit number so maxes out at 2GB
     // Using du -bs to return one human readable file size (or total directory size) even if subdirs are present
     // Additional shell ternary is to keep prior number formatting
-    return trim(shell_exec("tsz=$(du -bs \"" . $path . "\" | cut -f1); [ \$tsz -ge 1024 ] && numfmt --to=iec --format=%.2f \$tsz || echo \$tsz")) . "B";
+    // return trim(shell_exec("tsz=$(du -bs \"" . $path . "\" | cut -f1); [ \$tsz -ge 1024 ] && numfmt --to=iec --format=%.2f \$tsz || echo \$tsz")) . "B";
     // Alternative for 1000 bytes to 1KB
     //return trim(shell_exec("tsz=$(du -bs \"" . $path . "\" | cut -f1); [ \$tsz -ge 1000 ] && numfmt --to=si --format=%.2f \$tsz || echo \$tsz")) . "B";
+
+    $bytes = shell_exec("du -bs \"" . $path . "\" | cut -f1");
+    $sz = ' kMGTP';
+    $factor = floor((strlen($bytes) - 1) / 3);
+    return preg_replace('/\s+/', '', sprintf("%.{$decimals}f", $bytes / pow(1024, $factor)) . @$sz[$factor] . "B");
+
 }
 
 /**

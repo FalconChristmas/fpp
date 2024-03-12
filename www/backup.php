@@ -363,7 +363,7 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
     $keepMasterSlaveSettings = $restore_keepMasterSlaveSettings;
     //
     $file_contents_decoded = $restore_Data;
-	$_fpp_backup_version = null;
+    $_fpp_backup_version = null;
 
     //if restore area contains a forward slash, then we want to restore into a sub-area
     //split string to get the main area and sub-area
@@ -394,11 +394,11 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
             $is_version_3_backup = false;
             //Check backup version
             if (array_key_exists('fpp_backup_version', $file_contents_decoded)) {
-				if (!is_null($file_contents_decoded['fpp_backup_version'])) {
-					$_fpp_backup_version = floatval($file_contents_decoded['fpp_backup_version']); //Minimum version is 2
-				} else {
-					$_fpp_backup_version = floatval($fpp_backup_format_version);
-				}
+                if (!is_null($file_contents_decoded['fpp_backup_version'])) {
+                    $_fpp_backup_version = floatval($file_contents_decoded['fpp_backup_version']); //Minimum version is 2
+                } else {
+                    $_fpp_backup_version = floatval($fpp_backup_format_version);
+                }
 
                 if ($file_contents_decoded['fpp_backup_version'] == 2) {
                     $is_version_2_backup = true;
@@ -447,7 +447,7 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
                     //If we're restoring channelOutputs, we might need the system settings.. eg when restoring the LED panel data we need to set the layout in settings
                     if ($restore_area_key == "channelOutputs" && array_key_exists('settings', $file_contents_decoded)) {
                         $system_settings = array();
-                        if (is_array($file_contents_decoded['settings']) &&  array_key_exists('system_settings', $file_contents_decoded['settings'])) {
+                        if (is_array($file_contents_decoded['settings']) && array_key_exists('system_settings', $file_contents_decoded['settings'])) {
                             $system_settings = $file_contents_decoded['settings']['system_settings'];
                             //modify the area data
                             $area_data_new = array('area_data' => $area_data, 'system_settings' => $system_settings);
@@ -747,61 +747,61 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                                 }
 
                                 //if restore sub-area is LED panels, we need write the matrix size / layout setting to the settings file in case it's different to the backup
-								if (strtolower($restore_areas_idx) == "led_panels") {
-									$panel_layout = null;
+                                if (strtolower($restore_areas_idx) == "led_panels") {
+                                    $panel_layout = null;
 
-									//Generate the single LED Panel size from info in the LED Panel layout e.g 32x16 1/2 Scan
-									if (is_array($final_file_restore_data['channelOutputs'][0]) &&
-										(
-											array_key_exists('panelHeight', $final_file_restore_data['channelOutputs'][0])
-											&& array_key_exists('panelWidth', $final_file_restore_data['channelOutputs'][0])
-											&& array_key_exists('panelScan', $final_file_restore_data['channelOutputs'][0])
-										)
-									) {
-										$singlePanelSize = $final_file_restore_data['channelOutputs'][0]['panelWidth'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelHeight'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelScan'];
-										WriteSettingToFile('LEDPanelsSize', $singlePanelSize);
-									}
+                                    //Generate the single LED Panel size from info in the LED Panel layout e.g 32x16 1/2 Scan
+                                    if (is_array($final_file_restore_data['channelOutputs'][0]) &&
+                                        (
+                                            array_key_exists('panelHeight', $final_file_restore_data['channelOutputs'][0])
+                                            && array_key_exists('panelWidth', $final_file_restore_data['channelOutputs'][0])
+                                            && array_key_exists('panelScan', $final_file_restore_data['channelOutputs'][0])
+                                        )
+                                    ) {
+                                        $singlePanelSize = $final_file_restore_data['channelOutputs'][0]['panelWidth'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelHeight'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelScan'];
+                                        WriteSettingToFile('LEDPanelsSize', $singlePanelSize);
+                                    }
 
-									//Write the panel layout, e.g 4x4 into the system settings
+                                    //Write the panel layout, e.g 4x4 into the system settings
                                     //This setting can exist in a few places (by default it's in the system settings)
-									if (is_array($final_file_restore_data['channelOutputs'][0]) &&
-										array_key_exists('ledPanelsLayout', $final_file_restore_data['channelOutputs'][0])
-									) {
-										WriteSettingToFile('LEDPanelsLayout', $final_file_restore_data['channelOutputs'][0]['ledPanelsLayout']);
-									} elseif (!empty($restore_area_system_settings)) {
+                                    if (is_array($final_file_restore_data['channelOutputs'][0]) &&
+                                        array_key_exists('ledPanelsLayout', $final_file_restore_data['channelOutputs'][0])
+                                    ) {
+                                        WriteSettingToFile('LEDPanelsLayout', $final_file_restore_data['channelOutputs'][0]['ledPanelsLayout']);
+                                    } elseif (!empty($restore_area_system_settings)) {
                                         // If it's a full backup we can get the panel settings from the system settings
-										$panel_layout = $restore_area_system_settings[0]['LEDPanelsLayout'];
+                                        $panel_layout = $restore_area_system_settings[0]['LEDPanelsLayout'];
 
-										if ($panel_layout != null) {
-											//LEDPanelsLayout = "4x4"
-											WriteSettingToFile('LEDPanelsLayout', $panel_layout);
-										}
-									}else{
-										// ledPanelsLayout && LEDPanelsLayout don't exist so we can't determine the matrix size
-										//As a last resort we can calculate the matrix size from the led panel layout
-										$maxCol = $maxRow = null;
-										$panel_layout_data = $final_file_restore_data['channelOutputs'][0]['panels'];
+                                        if ($panel_layout != null) {
+                                            //LEDPanelsLayout = "4x4"
+                                            WriteSettingToFile('LEDPanelsLayout', $panel_layout);
+                                        }
+                                    } else {
+                                        // ledPanelsLayout && LEDPanelsLayout don't exist so we can't determine the matrix size
+                                        //As a last resort we can calculate the matrix size from the led panel layout
+                                        $maxCol = $maxRow = null;
+                                        $panel_layout_data = $final_file_restore_data['channelOutputs'][0]['panels'];
 
-										foreach ($panel_layout_data as $idx => $panel) {
-											if ($panel['col'] > $maxCol) {
-												$maxCol = $panel['col'];
-											}
-											if ($panel['row'] > $maxRow) {
-												$maxRow = $panel['row'];
-											}
-										}
+                                        foreach ($panel_layout_data as $idx => $panel) {
+                                            if ($panel['col'] > $maxCol) {
+                                                $maxCol = $panel['col'];
+                                            }
+                                            if ($panel['row'] > $maxRow) {
+                                                $maxRow = $panel['row'];
+                                            }
+                                        }
 
-										if ($maxCol != null && $maxRow != null) {
-											//Adjust max values due to the array being 0 base
-											$maxCol = $maxCol + 1;
-											$maxRow = $maxRow + 1;
+                                        if ($maxCol != null && $maxRow != null) {
+                                            //Adjust max values due to the array being 0 base
+                                            $maxCol = $maxCol + 1;
+                                            $maxRow = $maxRow + 1;
 
-											//LEDPanelsLayout = "4x4"
-											WriteSettingToFile('LEDPanelsLayout', $maxCol . "x" . $maxRow);
-										}
+                                            //LEDPanelsLayout = "4x4"
+                                            WriteSettingToFile('LEDPanelsLayout', $maxCol . "x" . $maxRow);
+                                        }
 
                                     }
-								}
+                                }
 
                                 //RESTORE TWEAKS FOR SPECIFIC VERSIONS
                                 //Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
@@ -1039,7 +1039,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                     //TODO rework this so it will work future email system implementation, were different providers are used
                     if (is_array($restore_data)
 //                        && array_key_exists('emailenable', $restore_data)
-                         && array_key_exists('emailserver', $restore_data)
+                        && array_key_exists('emailserver', $restore_data)
                         && array_key_exists('emailuser', $restore_data)
                         && array_key_exists('emailpass', $restore_data)
                         && array_key_exists('emailfromtext', $restore_data)
@@ -1162,7 +1162,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                 //Check if the net_type in the network config area
                 //the new type will be wired_network, wifi_network or like interface.eth1 etc for an extra interface(s)
                 //the net_type is also the filename of the interfaces file when it was backed up
-				if (is_array($system_config_areas['network']['file']) && !array_key_exists($net_type, $system_config_areas['network']['file'])) {
+                if (is_array($system_config_areas['network']['file']) && !array_key_exists($net_type, $system_config_areas['network']['file'])) {
                     //Set it's location for restore
                     $system_config_areas['network']['file'][$net_type] = array('type' => 'file', 'location' => $settings['configDirectory'] . "/" . $net_type);
 
@@ -1236,7 +1236,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                 }
             }
         } else {
-			error_log("RESTORE: Not restoring " . $restore_area_key . " - 'Keep Existing Network Settings' selected - NOT OVERWRITING: ");
+            error_log("RESTORE: Not restoring " . $restore_area_key . " - 'Keep Existing Network Settings' selected - NOT OVERWRITING: ");
             //no attempt was made so remove the key for tracking attempts
             unset($settings_restored[$restore_area_key]);
         }
@@ -1289,15 +1289,15 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
     }
 
     //wrote message out
-	if (!$restore_data_is_empty &&
-		(array_key_exists($restore_area_key, $settings_restored)
-			&& array_key_exists('ATTEMPT', $settings_restored[$restore_area_key])
-			&& $settings_restored[$restore_area_key]['ATTEMPT']
-			&& !$save_result
-		)
-	) {
-		error_log("RESTORE: Failed to restore " . $restore_area . " - " . json_encode($settings_restored));
-	}
+    if (!$restore_data_is_empty &&
+        (array_key_exists($restore_area_key, $settings_restored)
+            && array_key_exists('ATTEMPT', $settings_restored[$restore_area_key])
+            && $settings_restored[$restore_area_key]['ATTEMPT']
+            && !$save_result
+        )
+    ) {
+        error_log("RESTORE: Failed to restore " . $restore_area . " - " . json_encode($settings_restored));
+    }
 
     //Return save result
     return $settings_restored;
@@ -2363,18 +2363,18 @@ function changeLocalFPPBackupFileLocation($new_location)
  */
 function pruneOrRemoveAgedBackupFiles()
 {
-	global $fpp_backup_max_age, $fpp_backup_min_number_kept, $fpp_backup_max_plugin_backups_key, $fpp_backup_location, $backups_verbose_logging;
+    global $fpp_backup_max_age, $fpp_backup_min_number_kept, $fpp_backup_max_plugin_backups_key, $fpp_backup_location, $backups_verbose_logging;
 
     //gets all the files in the configs/backup directory via the API now since it will look in multiple areas
     $config_dir_files = file_get_contents('http://localhost/api/backups/configuration/list');
     $config_dir_files = json_decode($config_dir_files, true);
-	$config_dir_files_tmp = $config_dir_files;
-	$backups_to_delete = array();
-	$num_backups_deleted = 0;
+    $config_dir_files_tmp = $config_dir_files;
+    $backups_to_delete = array();
+    $num_backups_deleted = 0;
 
-	//If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop processing
+    //If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop processing
     if (count($config_dir_files) < $fpp_backup_min_number_kept) {
-		$aged_backup_removal_message = "SETTINGS BACKUP: NOT removing JSON Settings backup files. Since there are (" . count($config_dir_files) . ") backups available and this is less than the minimum backups we want to keep ($fpp_backup_min_number_kept) \r\n";
+        $aged_backup_removal_message = "SETTINGS BACKUP: NOT removing JSON Settings backup files. Since there are (" . count($config_dir_files) . ") backups available and this is less than the minimum backups we want to keep ($fpp_backup_min_number_kept) \r\n";
         error_log($aged_backup_removal_message);
         return;
     }
@@ -2383,94 +2383,94 @@ function pruneOrRemoveAgedBackupFiles()
 //    $config_dir_files = array_reverse($config_dir_files);
 
     //Select the backups that lie outside what we want to keep, because the array is a list of backups with the newest first then we'll be selecting older/dated backups
-	$plugin_backups_to_delete_tmp = array();
+    $plugin_backups_to_delete_tmp = array();
 
-	//Look through all the backups, select ones with a trigger source, because the backups are newest first, we'll be selecting the file at the position of our max limit through to the end of the list
-	$backups_by_trigger_source = array();
-	foreach ($config_dir_files as $backups_by_trigger_source_index => $backups_by_trigger_source_meta_data) {
-		$backup_filename = $backups_by_trigger_source_meta_data['backup_filename'];
+    //Look through all the backups, select ones with a trigger source, because the backups are newest first, we'll be selecting the file at the position of our max limit through to the end of the list
+    $backups_by_trigger_source = array();
+    foreach ($config_dir_files as $backups_by_trigger_source_index => $backups_by_trigger_source_meta_data) {
+        $backup_filename = $backups_by_trigger_source_meta_data['backup_filename'];
 
-		if ((stripos(strtolower($backup_filename), "-backup_") !== false) && (stripos(strtolower($backup_filename), ".json") !== false)) {
-			//
-			$backup_comment = $backups_by_trigger_source_meta_data['backup_comment'];
-			if (array_key_exists('backup_trigger_source', $backups_by_trigger_source_meta_data) && $backups_by_trigger_source_meta_data['backup_trigger_source'] !== null) {
-				//Get the trigger source name & add it and the backup meta data to a temp array, this will group like sources together
-				//then we'll limit those lists to enforce our backup limit
-				$backup_trigger_source = $backups_by_trigger_source_meta_data['backup_trigger_source'];
-				$backups_by_trigger_source[$backup_trigger_source][] = $backups_by_trigger_source_meta_data;
+        if ((stripos(strtolower($backup_filename), "-backup_") !== false) && (stripos(strtolower($backup_filename), ".json") !== false)) {
+            //
+            $backup_comment = $backups_by_trigger_source_meta_data['backup_comment'];
+            if (array_key_exists('backup_trigger_source', $backups_by_trigger_source_meta_data) && $backups_by_trigger_source_meta_data['backup_trigger_source'] !== null) {
+                //Get the trigger source name & add it and the backup meta data to a temp array, this will group like sources together
+                //then we'll limit those lists to enforce our backup limit
+                $backup_trigger_source = $backups_by_trigger_source_meta_data['backup_trigger_source'];
+                $backups_by_trigger_source[$backup_trigger_source][] = $backups_by_trigger_source_meta_data;
 
-				//Check the number of items for this trigger source, if it's > than our allowed limit then add the backup file to the $backups_to_delete list
-				if (count($backups_by_trigger_source[$backup_trigger_source]) > $fpp_backup_max_plugin_backups_key) {
-					$plugin_backups_to_delete_tmp[] = $backups_by_trigger_source_meta_data;
-					//Remove the entry from the list of backup files, because it will be deleted (we want this list to reflect the list after enforcing plugin backup limits)
-					//so that we can enforce the global limit after
-					unset($config_dir_files_tmp[$backups_by_trigger_source_index]);
-				}
-			}
-		}
-	}
+                //Check the number of items for this trigger source, if it's > than our allowed limit then add the backup file to the $backups_to_delete list
+                if (count($backups_by_trigger_source[$backup_trigger_source]) > $fpp_backup_max_plugin_backups_key) {
+                    $plugin_backups_to_delete_tmp[] = $backups_by_trigger_source_meta_data;
+                    //Remove the entry from the list of backup files, because it will be deleted (we want this list to reflect the list after enforcing plugin backup limits)
+                    //so that we can enforce the global limit after
+                    unset($config_dir_files_tmp[$backups_by_trigger_source_index]);
+                }
+            }
+        }
+    }
 
-	//Fix indexes
-	$config_dir_files_tmp = array_values($config_dir_files_tmp);
+    //Fix indexes
+    $config_dir_files_tmp = array_values($config_dir_files_tmp);
 
-	if (count($config_dir_files_tmp) > $fpp_backup_min_number_kept) {
-		$backups_to_delete = array_slice($config_dir_files_tmp, $fpp_backup_min_number_kept);
-	}
+    if (count($config_dir_files_tmp) > $fpp_backup_min_number_kept) {
+        $backups_to_delete = array_slice($config_dir_files_tmp, $fpp_backup_min_number_kept);
+    }
 
-	//tack on the plugin backups to be deleted
-	foreach ($plugin_backups_to_delete_tmp as $plugin_backups_to_delete_tmp_data) {
-		$backups_to_delete[] = $plugin_backups_to_delete_tmp_data;
-	}
+    //tack on the plugin backups to be deleted
+    foreach ($plugin_backups_to_delete_tmp as $plugin_backups_to_delete_tmp_data) {
+        $backups_to_delete[] = $plugin_backups_to_delete_tmp_data;
+    }
 
-	//loop over the backup files we've found that are beyond our set limit, all these to be deleted
-	foreach ($backups_to_delete as $backup_file_index => $backup_file_meta_data) {
-		$backup_filename = $backup_file_meta_data['backup_filename'];
+    //loop over the backup files we've found that are beyond our set limit, all these to be deleted
+    foreach ($backups_to_delete as $backup_file_index => $backup_file_meta_data) {
+        $backup_filename = $backup_file_meta_data['backup_filename'];
 
-		if ((stripos(strtolower($backup_filename), "-backup_") !== false) && (stripos(strtolower($backup_filename), ".json") !== false)) {
-			//File is one of our backup files, this check is just in case there is other json files in this directory placed there by the user which we want to avoid touching.
+        if ((stripos(strtolower($backup_filename), "-backup_") !== false) && (stripos(strtolower($backup_filename), ".json") !== false)) {
+            //File is one of our backup files, this check is just in case there is other json files in this directory placed there by the user which we want to avoid touching.
 
-			//reconstruct the path
-			$backup_file_location = $backup_file_meta_data['backup_filedirectory'];
-			$backup_file_path = $backup_file_location . $backup_filename;
-			//Backup Directory
-			$backup_directory = !$backup_file_meta_data['backup_alternative_location'] ? 'JsonBackups' : 'JsonBackupsAlternate';
-			//Collect the backup file
-			$backup_time = $backup_file_meta_data['backup_time_unix'];
-			//backup max_age time in seconds, since we are dealing with UNIX epoc time
-			$backup_max_age_seconds = ($fpp_backup_max_age * 86400);
+            //reconstruct the path
+            $backup_file_location = $backup_file_meta_data['backup_filedirectory'];
+            $backup_file_path = $backup_file_location . $backup_filename;
+            //Backup Directory
+            $backup_directory = !$backup_file_meta_data['backup_alternative_location'] ? 'JsonBackups' : 'JsonBackupsAlternate';
+            //Collect the backup file
+            $backup_time = $backup_file_meta_data['backup_time_unix'];
+            //backup max_age time in seconds, since we are dealing with UNIX epoc time
+            $backup_max_age_seconds = ($fpp_backup_max_age * 86400);
 
-			//Remove the file via API instead
-			//Build the URL
-			$url = 'http://localhost/api/backups/configuration/' . $backup_directory . '/' . $backup_filename;
-			//options for the request
-			$options = array(
-				'http' => array(
-					'header' => "Content-type: text/plain",
-					'method' => 'DELETE',
-				),
-			);
-			$context = stream_context_create($options);
+            //Remove the file via API instead
+            //Build the URL
+            $url = 'http://localhost/api/backups/configuration/' . $backup_directory . '/' . $backup_filename;
+            //options for the request
+            $options = array(
+                'http' => array(
+                    'header' => "Content-type: text/plain",
+                    'method' => 'DELETE',
+                ),
+            );
+            $context = stream_context_create($options);
 
-			//Make the call to the API to delete the backup file
-			$backup_deleted_call = file_get_contents($url, false, $context);
-			$backup_deleted_call_decoded = json_decode($backup_deleted_call, true);
+            //Make the call to the API to delete the backup file
+            $backup_deleted_call = file_get_contents($url, false, $context);
+            $backup_deleted_call_decoded = json_decode($backup_deleted_call, true);
 
-			if ($backup_deleted_call !== false && $backup_deleted_call_decoded['Status'] == 'OK') {
-				//Track how many were deleted
-				$num_backups_deleted++;
-			} else {
-				$aged_backup_removal_message = "SETTINGS BACKUP: Something went wrong pruning old JSON settings backup file ($backup_file_path). Error: " . $backup_deleted_call;
-				error_log($aged_backup_removal_message . PHP_EOL);
-			}
-		}
-	}
+            if ($backup_deleted_call !== false && $backup_deleted_call_decoded['Status'] == 'OK') {
+                //Track how many were deleted
+                $num_backups_deleted++;
+            } else {
+                $aged_backup_removal_message = "SETTINGS BACKUP: Something went wrong pruning old JSON settings backup file ($backup_file_path). Error: " . $backup_deleted_call;
+                error_log($aged_backup_removal_message . PHP_EOL);
+            }
+        }
+    }
 
-	//Note how many were deleted
-	if ($num_backups_deleted > 0) {
-		//Note what happened in the logs also
-		$aged_backup_removal_message = "SETTINGS BACKUP: Removed ($num_backups_deleted) old JSON settings backup files, because we only want to keep the $fpp_backup_min_number_kept most recent backups";
-		error_log($aged_backup_removal_message . PHP_EOL);
-	}
+    //Note how many were deleted
+    if ($num_backups_deleted > 0) {
+        //Note what happened in the logs also
+        $aged_backup_removal_message = "SETTINGS BACKUP: Removed ($num_backups_deleted) old JSON settings backup files, because we only want to keep the $fpp_backup_min_number_kept most recent backups";
+        error_log($aged_backup_removal_message . PHP_EOL);
+    }
 }
 
 /**
@@ -3633,11 +3633,11 @@ foreach ($settings_restored as $area_restored => $success) {
 
                             if ($success_area_attempt == true && $success_area_success == true) {
                                 $success_str = "Success";
-								$success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $success_area_idx)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
-							} else {
+                                $success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $success_area_idx)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                            } else {
                                 $success_str = "Failed";
-								$success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $success_area_idx)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
-							}
+                                $success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $success_area_idx)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                            }
                         }
                     }
                 } //There is an ATTEMPT and SUCCESS key, check values of both
@@ -3647,11 +3647,11 @@ foreach ($settings_restored as $area_restored => $success) {
 
                     if ($success_area_attempt == true && $success_area_success == true) {
                         $success_str = "Success";
-						$success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
-					} else {
+                        $success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                    } else {
                         $success_str = "Failed";
-						$success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
-					}
+                        $success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                    }
 
                 } // No Attempt key, then we shouldn't print the success
                 else if (!array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
@@ -3663,12 +3663,12 @@ foreach ($settings_restored as $area_restored => $success) {
                 //normal area
                 if ($success == true) {
                     $success_str = "Success";
-					$success_messages = "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
-				} else {
+                    $success_messages = "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                } else {
                     $success_str = "Failed";
-					$success_messages = "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                    $success_messages = "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
 
-				}
+                }
                 echo $success_messages;
             }
         }
@@ -3840,7 +3840,7 @@ foreach ($settings_restored as $area_restored => $success) {
                                                     <input id="btnUploadConfig" name="conffile" type="file"
                                                            accept=".json" id="conffile" autocomplete="off">
                                                     <script>
-                                                        $('#btnUploadConfig').change(function (e) {
+                                                        $('#btnUploadConfig').on("change", function (e) {
                                                             if (e.target.files[0].name.length > 4) {
                                                                 $('#btnRestoreConfig').show();
                                                             }
@@ -3918,7 +3918,7 @@ foreach ($settings_restored as $area_restored => $success) {
         <tr class='sendCompressed'>
             <td>Send Compressed Data: </td>
             <td>
-				<?php PrintSettingCheckbox('Send Compressed Data:', 'backup.sendCompressed', 0, 0, 1, 0, "", "", 0, ' (Compress files during copy to speed up the copy process. NOTE: Newer xLights versions already used a compressed FSEQ format, so this option may only slow down the transfer as FPP tries to recompress already-compressed data. Some data like Music and Videos are not compressed.)'); ?>
+				<?php PrintSettingCheckbox('Send Compressed Data:', 'backup.sendCompressed', 0, 0, 1, 0, "", "", 0, ' (Compress files during copy to speed up the copy process. NOTE: Newer xLights versions already used a compressed FSEQ format, so this option may only slow down the transfer as FPP tries to recompress already-compressed data. Some data like Music and Videos are not compressed.)');?>
                 <br>
             </td>
         </tr>
@@ -3989,7 +3989,7 @@ $eepromValue = file_exists('/home/fpp/media/config/cape-eeprom.bin') ? 1 : 0;
         </div>
     </div>
     <script>
-        $('#dataProtect').click(function () {
+        $('#dataProtect').on("click", function () {
             var checked = $(this).is(':checked');
             if (!checked) {
 

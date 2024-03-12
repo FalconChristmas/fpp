@@ -72,7 +72,7 @@ $(function () {
     } else {
         $('body').addClass('no-touch');
     }
-    $("[data-bs-toggle=pill], [data-bs-toggle=tab]").click(function () {
+    $("[data-bs-toggle=pill], [data-bs-toggle=tab]").on("click", function () {
         if (history.pushState) {
             history.pushState(null, null, $(this).attr('href'));
         }
@@ -1748,7 +1748,8 @@ function SetButtonState(button, state) {
         $(button).addClass('buttons').addClass($(button).data('btn-enabled-class'));
         $(button).removeClass('disableButtons');
         $(button).removeClass('disabled');
-        $(button).removeAttr("disabled");
+        //  $(button).removeAttr("disabled"); //commented out as depreci in latest jquery version - left in to test implications of inserting replacement line below
+        $(button).prop("disabled", false);
     }
     else {
         $(button).removeClass('buttons').removeClass($(button).data('btn-enabled-class'));
@@ -3298,7 +3299,13 @@ function GetFiles(dir) {
         url: "api/files/" + dir,
         success: function (data) {
             let i = 0;
-            $('#tbl' + dir).html('');
+            
+            if(data.files.length > 0){
+                $('#tbl' + dir).find('tbody').html('');
+            }
+            else{
+                $('#tbl' + dir).html('<tr><td colspan=8 align=\'center\'>No files found.</td></tr>');
+            }
             data.files.forEach(function (f) {
                 var detail = f.sizeHuman;
                 if ("playtimeSeconds" in f) {
@@ -3312,20 +3319,23 @@ function GetFiles(dir) {
                 var tableRow = '';
                 if ((dir == 'Images') && (thumbSize > 0)) {
                     if (parseInt(f.sizeBytes) > 0) {
-                        tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td><img style='display: block; max-width: " + thumbSize + "px; max-height: " + thumbSize + "px; width: auto; height: auto;' src='api/file/" + dir + "/" + f.name + "' onClick=\"ViewImage('" + f.name + "');\" /></td></tr>";
+                        tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='filenameColumn fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td><img style='display: block; max-width: " + thumbSize + "px; max-height: " + thumbSize + "px; width: auto; height: auto;' src='api/file/" + dir + "/" + f.name + "' onClick=\"ViewImage('" + f.name + "');\" /></td></tr>";
                     } else {
-                        tableRow = "<tr class='fileDetails unselectableRow' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td>Empty Subdir</td></tr>";
+                        tableRow = "<tr class='fileDetails unselectableRow' id='fileDetail_" + i + "'><td class ='filenameColumn fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td><td>Empty Subdir</td></tr>";
                     }
                 } else {
-                    tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td></tr>";
+                    tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='filenameColumn fileName'>" + f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td></tr>";
                 }
 
-                $('#tbl' + dir).append(tableRow);
+                $('#tbl' + dir).find('tbody').append(tableRow);
                 ++i;
             });
         },
         error: function (x, t, e) {
             DialogError('Load Files', 'Error loading list of files in ' + dir + ' directory' + show_details([x, t, e]));
+        },
+        complete: function(){
+            SetupTableSorter('tbl'+dir);
         }
 
     });
@@ -6308,7 +6318,7 @@ function ToggleMenu() {
         $('#bodyClick').fadeOut("slow", function () { $('#bodyClick').remove(); });
     } else {
         div = '<div id="bodyClick"></div>';
-        $(div).appendTo("body").click(function () {
+        $(div).appendTo("body").on("click", function () {
             $('.navbar-toggler').trigger("click");
             $('html').removeClass('nav-open');
             gblNavbarMenuVisible = 0;

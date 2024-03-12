@@ -165,11 +165,11 @@ if (isset($_GET['playlist'])) {
                 var $playlistActions = $("<div class='buttonActions' />");
                 var $playlistEditButton = $('<button class="playlistCardEditButton circularButton circularButton-sm circularEditButton">Edit</button>');
                 var $playlistDelete = $("<button class='circularButton circularButton-sm circularDeleteButton'>Delete</button>");
-                $playlistCard.click(function(e){
+                $playlistCard.on("click", function(e){
                     $('#playlistSelect').val($playlistName).trigger('change');
                     e.stopPropagation();
                 })
-                $playlistDelete.click(function(){
+                $playlistDelete.on("click", function(){
                     handleDeleteButtonClick($playlistName);
                 });
                 $playlistActions.append($playlistEditButton);
@@ -188,7 +188,7 @@ if (isset($_GET['playlist'])) {
             $('.playlistEditorHeaderTitle').html($(this).val());
         })
 
-        $('.playlistAddNewBtn').click(function(){
+        $('.playlistAddNewBtn').on("click", function(){
             $('#txtAddPlaylistName').val(""); // BUG #1391
             DoModalDialog({
                 id: "AddPlaylistDialog",
@@ -221,7 +221,7 @@ if (isset($_GET['playlist'])) {
                 }
             });
         });
-        $('.editPlaylistBtn').click(function(){
+        $('.editPlaylistBtn').on("click", function(){
             $("#verbosePlaylistItemDetailsRow .printSettingLabelCol").removeClass("col-xxxl-2");
             $("#verbosePlaylistItemDetailsRow .printSettingLabelCol").removeClass("col-lg-3");
             $("#verbosePlaylistItemDetailsRow .printSettingLabelCol").removeClass("col-md");
@@ -246,22 +246,22 @@ if (isset($_GET['playlist'])) {
                 }
             });
         })
-        $('.playlistEditorHeaderTitleEditButton').click(function(){
+        $('.playlistEditorHeaderTitleEditButton').on("click", function(){
             RenamePlaylist();
         })
-        $('.playlistEntriesAddNewBtn').click(function(){
+        $('.playlistEntriesAddNewBtn').on("click", function(){
             var playlistEntriesAddNewFooter = $('<div class="modal-actions"/>');
                     //  <a href="#" onclick="AddPlaylistEntry(2);" class="dropdown-item" value="Insert Before">Insert Before</a>
                     // <a href="#" onclick="AddPlaylistEntry(3);" class="dropdown-item" value="Insert After">Insert After</a>
-            var playlistEntriesAddNewAddBtn = $('<button class="buttons btn-success">Add</button>').click(function(){
+            var playlistEntriesAddNewAddBtn = $('<button class="buttons btn-success">Add</button>').on("click", function(){
                 AddPlaylistEntry();
                 $('#playlistEntryProperties').fppDialog('close');
             })
-            var playlistEntriesAddNewInsertBeforeBtn = $('<a href="#" class="dropdown-item" value="Insert Before">Before Selection</a>').click(function(){
+            var playlistEntriesAddNewInsertBeforeBtn = $('<a href="#" class="dropdown-item" value="Insert Before">Before Selection</a>').on("click", function(){
                 AddPlaylistEntry(2);
                 $('#playlistEntryProperties').fppDialog('close');
             })
-            var playlistEntriesAddNewInsertAfterBtn = $('<a href="#" class="dropdown-item" value="Insert After">After Selection</a>').click(function(){
+            var playlistEntriesAddNewInsertAfterBtn = $('<a href="#" class="dropdown-item" value="Insert After">After Selection</a>').on("click", function(){
                 AddPlaylistEntry(3);
                 $('#playlistEntryProperties').fppDialog('close');
             })
@@ -277,10 +277,10 @@ if (isset($_GET['playlist'])) {
             });
         });
 
-        $('.savePlaylistBtn').click(function(){
+        $('.savePlaylistBtn').on("click", function(){
             SavePlaylist($('#txtPlaylistName').val())
         })
-        $('.playlistEditorBackButton').click(function(){
+        $('.playlistEditorBackButton').on("click", function(){
             if (isCurrentPlaylistModified()) {
                 if (confirm("Leave without saving changes?") == false) {
                     return;

@@ -16,13 +16,13 @@ var simplifiedPlaylist = 0;
 function playlistEditorDocReady() {
 	$('.default-value').each(function() {
 		var default_value = this.value;
-		$(this).focus(function() {
+		$(this).on("focus", function() {
 			if(this.value == default_value) {
 				this.value = '';
 				$(this).css('color', '#333');
 			}
 		});
-		$(this).blur(function() {
+		$(this).on("blur", function() {
 			if(this.value == '') {
 				this.value = default_value;
 				$(this).css('color', '#999');

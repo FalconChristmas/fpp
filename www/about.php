@@ -116,7 +116,7 @@ GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'comman
 GetItemCount('api/configfile/schedule.json', 'scheduleCount');
 $('.default-value').each(function() {
 var default_value = this.value;
-$(this).focus(function() {
+$(this).on("focus", function() {
 if(this.value == default_value) {
 this.value = '';
 $(this).css('color', '#333');
@@ -145,7 +145,7 @@ function AppendGithubOS() {
 <?
 // we want at least a GB in order to be able to download the fppos and have space to then apply it
 if ($freeSpace > 1000000000) {
-?>
+    ?>
     var allPlatforms = '';
 
     if ($('#allPlatforms').is(':checked')) {
@@ -173,7 +173,7 @@ if ($freeSpace > 1000000000) {
         }
         showHideOsSelect();
     });
-<? } ?>
+<?}?>
 }
 
 function CloseFPPUpgradeDialog() {
@@ -313,7 +313,7 @@ function OSSelectChanged() {
 <?
 // we want at least a 200MB in order to be able to apply the fppos
 if ($freeSpace < 200000000) {
-    echo  "os = '';\n";
+    echo "os = '';\n";
 }
 ?>
     if (os == '') {
@@ -332,7 +332,7 @@ if ($freeSpace < 200000000) {
 function UpgradeFPP() {
     clearTimeout(statusTimeout);
     statusTimeout = null;
-    
+
     var options = {
         id: "upgradePopupStatus",
         title: "FPP Upgrade",
@@ -356,7 +356,7 @@ function UpgradeFPP() {
     StreamURL('manualUpdate.php?wrapped=1', 'streamedUpgradeText', 'FPPUpgradeDone');
 }
 
-function UpdatePlatforms() {  
+function UpdatePlatforms() {
     var allPlatforms = '';
     $('#OSSelect').html(originalFPPOS);
     AppendGithubOS();
@@ -483,14 +483,18 @@ if ($settings['uiLevel'] > 0) {
     foreach ($remotes as $desc => $host) {
         if ((!in_array($host, $IPs)) && (!preg_match('/^169\.254\./', $host))) {
             $upgradeSources[$desc] = $host;
-            if (isset($settings['UpgradeSource']) && ($settings['UpgradeSource'] == $host))
+            if (isset($settings['UpgradeSource']) && ($settings['UpgradeSource'] == $host)) {
                 $found = 1;
+            }
+
         }
     }
-    if (!$found && isset($settings['UpgradeSource']) && ($settings['UpgradeSource'] != 'github.com'))
+    if (!$found && isset($settings['UpgradeSource']) && ($settings['UpgradeSource'] != 'github.com')) {
         $upgradeSources = array($settings['UpgradeSource'] . ' (Unreachable)' => $settings['UpgradeSource'], 'github.com' => 'github.com') + $upgradeSources;
-    else
+    } else {
         $upgradeSources = array("github.com" => "github.com") + $upgradeSources;
+    }
+
     ?>
                 <tr><td>FPP Upgrade Source:</td><td><?PrintSettingSelect("Upgrade Source", "UpgradeSource", 0, 0, "github.com", $upgradeSources);?></td></tr>
     <?
@@ -516,7 +520,6 @@ echo ">";
 echo "<br>Preserve /opt/fpp <input type='checkbox' id='keepOptFPP'><img id='keepOptFPP_img' title='Preserve the FPP version in /opt/fpp across fppos upgrade.  WARNING: This will run the main OS upgrade script from /opt/fpp instead of using the version included in the .fppos image.  This may cause issues if the versions are not compatible.' src='images/redesign/help-icon.svg' class='icon-help'>";
 echo "</span>";
 
-
 echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'>&nbsp;<input type='button' disabled value='Download Only' onClick='DownloadOS();' class='buttons' id='OSDownload'></td></tr>";
 ?>
                 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
@@ -537,12 +540,12 @@ echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();
                 <tr><td><b>Player Stats</b></td><td>&nbsp;</td></tr>
                 <tr><td>Schedules:</td><td><a href='scheduler.php' class='nonULLink' id='scheduleCount'></a></td></tr>
                 <tr><td>Playlists:</td><td><a href='playlists.php' class='nonULLink'><?echo getFileCount($playlistDirectory); ?></a></td></tr>
-                <tr><td>Sequences:</td><td><a href='uploadfile.php' class='nonULLink'><?echo getFileCount($sequenceDirectory); ?></a></td></tr>
-                <tr><td>Audio Files:</td><td><a href='uploadfile.php#tab-audio' class='nonULLink'><?echo getFileCount($musicDirectory); ?></a></td></tr>
-                <tr><td>Videos:</td><td><a href='uploadfile.php#tab-video' class='nonULLink'><?echo getFileCount($videoDirectory); ?></a></td></tr>
+                <tr><td>Sequences:</td><td><a href='filemanager.php' class='nonULLink'><?echo getFileCount($sequenceDirectory); ?></a></td></tr>
+                <tr><td>Audio Files:</td><td><a href='filemanager.php#tab-audio' class='nonULLink'><?echo getFileCount($musicDirectory); ?></a></td></tr>
+                <tr><td>Videos:</td><td><a href='filemanager.php#tab-video' class='nonULLink'><?echo getFileCount($videoDirectory); ?></a></td></tr>
                 <tr><td>Command Presets:</td><td><a href='commandPresets.php' class='nonULLink' id='commandPresetCount'></a></td></tr>
-                <tr><td>Effects:</td><td><a href='uploadfile.php#tab-effects' class='nonULLink'><?echo getFileCount($effectDirectory); ?></a></td></tr>
-                <tr><td>Scripts:</td><td><a href='uploadfile.php#tab-scripts' class='nonULLink'><?echo getFileCount($scriptDirectory); ?></a></td></tr>
+                <tr><td>Effects:</td><td><a href='filemanager.php#tab-effects' class='nonULLink'><?echo getFileCount($effectDirectory); ?></a></td></tr>
+                <tr><td>Scripts:</td><td><a href='filemanager.php#tab-scripts' class='nonULLink'><?echo getFileCount($scriptDirectory); ?></a></td></tr>
 
                 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
@@ -611,7 +614,7 @@ if (isset($mediaDevice) && $mediaDevice != "" && $mediaDevice != $rootDevice) {
 
 <?
 if (!isset($settings['cape-info']) || !isset($settings['cape-info']['verifiedKeyId']) || ($settings['cape-info']['verifiedKeyId'] != 'fp')) {
-?>
+    ?>
                 <tr><td style='height: 50px;'></td></tr>
                 <tr><td colspan='2' style='width: 300px;'>
                     If you would like to donate to the Falcon Player development team to help support the continued development of FPP, you can use the donate button below.<br>

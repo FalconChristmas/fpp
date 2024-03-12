@@ -2225,8 +2225,8 @@ $(document).ready(function() {
 
     var $table = $('#fppSystemsTable');
 
-    $("#MultiSyncBroadcast").change(validateMultiSyncSettings);
-    $("#MultiSyncMulticast").change(validateMultiSyncSettings);
+    $("#MultiSyncBroadcast").on("change", validateMultiSyncSettings);
+    $("#MultiSyncMulticast").on("change", validateMultiSyncSettings);
 
     $.tablesorter.addParser({
         id: 'FPPIPParser',
