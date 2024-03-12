@@ -1439,7 +1439,7 @@ function human_filesize($path, $decimals = 2)
     // Alternative for 1000 bytes to 1KB
     //return trim(shell_exec("tsz=$(du -bs \"" . $path . "\" | cut -f1); [ \$tsz -ge 1000 ] && numfmt --to=si --format=%.2f \$tsz || echo \$tsz")) . "B";
 
-    $bytes = shell_exec("du -bs \"" . $path . "\" | cut -f1");
+    $bytes = intval(shell_exec("du -bs \"" . $path . "\" | cut -f1"));
     $sz = ' kMGTP';
     $factor = floor((strlen($bytes) - 1) / 3);
     return preg_replace('/\s+/', '', sprintf("%.{$decimals}f", $bytes / pow(1024, $factor)) . @$sz[$factor] . "B");
