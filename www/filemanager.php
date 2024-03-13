@@ -116,12 +116,25 @@ include 'menu.inc';?>
       </li>
     </ul>
 
+
+
+                <div id="tablefilterChk">
+                <?php PrintSetting('fileManagerTableFilter', 'FileManagerFilterToggled');?>
+              </div>
+                <script>
+                  //set filter state
+                    $('#fileManagerTableFilter').prop('checked', (settings.fileManagerTableFilter == "1" ? true : false));
+                </script>
+
       <div class="tab-content" id="fileUploadTabsContent">
 
         <div class="tab-pane fade show active" id="tab-sequence" role="tabpanel" aria-labelledby="tab-sequence-tab">
-          <div id= "divSeq">
+
+          <div id= "divSeq" >
             <div class="backdrop">
-                <h2> Sequence Files (.fseq) </h2>
+              <div class="tableHeaderRow">
+                  <h2> Sequence Files (.fseq) </h2>
+              </div>
                 <div id="divSeqData" class="fileManagerDivData">
                   <table id="tblSequences" class="tablesorter">
                     <thead>
@@ -236,7 +249,7 @@ include 'menu.inc';?>
                             <th>File</th>
                             <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE" data-metric-name-abbr="b|B">Size</th>
                             <th>Date Modified</th>
-                            <th>Thumbnail</th>
+                            <th class="filter-false">Thumbnail</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -407,8 +420,10 @@ include 'menu.inc';?>
                 <input onclick="ButtonHandler('Crashes', 'delete');" class="disableButtons singleCrashesButton multiCrashesButton" type="button"  value="Delete" />
               </div>
               <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
+
             </div>
           </div>
+
         </div>
         <div id='fileponduploader' class='fileponduploader ui-tabs-panel'>
             <input type="file" class="filepond" id="filepondInput" multiple>
@@ -453,8 +468,10 @@ include 'menu.inc';?>
         activate: function (event, ui) {
 
         var $t = ui.newPanel.find('table');
-        $tableName = $t[0].id;
-        console.log("tab activate called on: "+$tableName );
+        var $tableName = $t[0].id;
+        var fileType = $tableName.substring(3);
+        eval('tablesorterOptions_'+fileType).widgetOptions.filter_hideFilters = (settings.fileManagerTableFilter =="1" ? false : true);
+
         if ($t.length && $t.find('tbody').length) {
             $($t[0]).trigger('destroy');
             switch($tableName)

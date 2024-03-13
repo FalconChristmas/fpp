@@ -2200,6 +2200,10 @@ body .sm-clean a .sub-arrow {
     border-bottom-right-radius: 8px;
 }
 
+.hideme {
+    display: none;
+}
+
 .tablesorter thead th {
     padding-top: 1.1em;
 }
