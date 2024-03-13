@@ -13,7 +13,7 @@
             "image_download_sha256": "f884e2306562a632b199b725a04e8b535d1b7f94929756b3d10d06bbdf632028",
             "release_date": "2024-01-12",
             "devices": [
-                "pi4", "pi3", "pi3+", "pi2", "pi1", "pi0", "pi400"
+                "pi4-32bit", "pi3-32bit", "pi2-32bit", "pi1-32bit"
             ]
         },
         {
