@@ -191,10 +191,15 @@ include 'common/menuHead.inc';
         // check if Warnings window should be shown
         $(document).find('tr[id*="_warnings"').each(function(){
             let cnt = $(this).find('td[id*="_warningCell"').children().length;
-            if (cnt ==0) {
-                $(this).hide();
-            } else {
-                $(this).show();
+            if (cnt ==0) { //no warnings
+               $(this).addClass('filtered');
+
+            } else { //has warning messages
+                if ($(this).hasClass('filtered')) {
+                    $(this).find('td[id*="_warningCell"').addClass('filtered');
+                } else{
+                    $(this).find('td[id*="_warningCell"').removeClass('filtered');
+                }
             }
         });
 
