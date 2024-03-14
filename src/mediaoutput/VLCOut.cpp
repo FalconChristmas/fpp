@@ -177,15 +177,9 @@ public:
 #ifndef PLATFORM_OSX
             args.push_back("-A");
             args.push_back("alsa");
-#ifdef PLATFORM_PI
-            if (hardwareDecoding) {
-                args.push_back("-V");
-                args.push_back("mmal_vout");
-            }
-#else
+
             args.push_back("-I");
             args.push_back("dummy");
-#endif
 #else
             args.push_back("-I");
             args.push_back("macosx");
