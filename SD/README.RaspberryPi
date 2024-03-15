@@ -33,7 +33,7 @@ Disable the auto partition resize script on the SD and enable the SSH server whi
 we have the partition mounted:
 
 	# Make a temp mount location
-	mkdir /mnt/tmp
+	mkdir -f /mnt/tmp
 	# Mount the boot partition
 	mount /dev/sdc1 /mnt/tmp
 	# Backup the cmdline.txt file
@@ -62,7 +62,7 @@ we have the partition mounted:
 	# Sync the changes so it's safe to remove the SD card
 	sync
 
-Remove the SD card and boot it up in a Pi.
+Remove the SD card and boot it up in a Pi4 (preferred) or 3B+ (not Pi5).
 
 
 Do a system upgrade to make sure everything is at the latest versions
