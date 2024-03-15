@@ -726,10 +726,6 @@ case "${FPPPLATFORM}" in
 
             echo "FPP - Disabling the hdmi force hotplug setting"
             sed -i -e "s/hdmi_force_hotplug/#hdmi_force_hotplug/" ${BOOTDIR}/config.txt
-
-            echo "FPP - Disabling the VC4 OpenGL driver"
-            sed -i -e "s/dtoverlay=vc4-fkms-v3d/#dtoverlay=vc4-fkms-v3d/" ${BOOTDIR}/config.txt
-            sed -i -e "s/dtoverlay=vc4-kms-v3d/#dtoverlay=vc4-kms-v3d/" ${BOOTDIR}/config.txt
             
             echo "FPP - Disabling Camera AutoDetect"
             sed -i -e "s/camera_auto_detect/#camera_auto_detect/" ${BOOTDIR}/config.txt

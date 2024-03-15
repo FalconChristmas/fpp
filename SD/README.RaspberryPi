@@ -3,7 +3,7 @@ Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
 Install the latest Raspbian Bullseye Lite image to the SD card.  The last
-version tested 2023-12-05-raspios-bullseye-armhf-lite.img
+version tested 2024-03-12-raspios-bookworm-armhf-lite.img.xz
 
 Resize the root partition to 3.5GB using fdisk (substitute the proper device
 for your SD card).
@@ -73,9 +73,9 @@ Do a system upgrade to make sure everything is at the latest versions
 
 
 
-# For debian 12, we'd like to move to kernel 6.7+ and drop compiled wifi drivers, this still
+# For debian 12, we'd like to move to kernel 6.6+ and drop compiled wifi drivers, this still
 # needs some work to figure out and LOTS more testing
-PRUNE_MODULES=1 rpi-update rpi-6.7.y
+PRUNE_MODULES=1 rpi-update
 KV=$(uname -r)
 KV=${KV::-3}
 rm -f /boot/*-${KV}*
