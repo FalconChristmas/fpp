@@ -158,7 +158,7 @@ fi
 
 # Parse build options as arguments
 clone_fpp=true
-build_vlc=true
+build_vlc=false
 skip_apt_install=false
 desktop=true
 isimage=false;
@@ -215,6 +215,10 @@ while [ -n "$1" ]; do
             ;;
         --skip-vlc)
             build_vlc=false
+            shift
+            ;;
+        --build-vlc)
+            build_vlc=true
             shift
             ;;
         --skip-apt-install)
@@ -506,6 +510,9 @@ case "${OSVER}" in
         fi
         if $isimage; then
             PACKAGE_LIST="$PACKAGE_LIST networkd-dispatcher systemd-resolved"
+        fi
+        if ! $build_vlc; then
+            PACKAGE_LIST="$PACKAGE_LIST vlc libvlc-dev"
         fi
 
         if $skip_apt_install; then
