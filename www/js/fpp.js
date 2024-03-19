@@ -1078,7 +1078,7 @@ function GetItemCount(url, id, key = '') {
                 SetElementValue($('#' + id), data.length);
         },
         error: function () {
-            SetElementValue($('#' + id), 'Unknown');
+            SetElementValue($('#' + id), '0');
         }
     });
 }

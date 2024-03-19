@@ -2325,6 +2325,9 @@ function getKnownFPPSystems()
 {
     $backupHosts = array();
     $data = file_get_contents('http://localhost/api/fppd/multiSyncSystems');
+    if ( false === $data ) {
+        return $backupHosts;
+    }
     $arr = json_decode($data, true);
 
     if (array_key_exists("systems", $arr)) {
