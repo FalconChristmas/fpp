@@ -1,6 +1,6 @@
 <?
 $skipJSsettings = 1;
-require_once('common.php');
+require_once 'common.php';
 ?>
 
 <script>

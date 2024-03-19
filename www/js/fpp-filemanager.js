@@ -83,6 +83,41 @@ function GetSequenceInfo(file) {
     });
 }
 
+function FileManagerFilterToggled() {
+     value = (settings.fileManagerTableFilter == "1" ? true:false);
+     var $t=$('#fileManager').find('table');
+     if (!value) { //logic for hidden filter
+        $('.tablesorter-filter-row').addClass('hideme');
+        $('table').trigger('filterReset');
+
+        if ($t.length) {
+            var loopSize = $t.length;
+            for (let i = 0; i < loopSize; i += 1) {
+                var tableName = $t[i].id;
+                var fileType = tableName.substring(3);
+                if ($t[i].config) {
+                    $($t)[i].config.widgetOptions.filter_hideFilters = true; //set current instance
+                    eval('tablesorterOptions_'+fileType).widgetOptions.filter_hideFilters = true;  //set config option for when tabs regenerate
+                }
+            }
+        }
+     }
+     else { //logic for filter shown
+        $('.tablesorter-filter-row').removeClass('hideme');
+        if ($t.length) {
+            var loopSize = $t.length;
+            for (let i = 0; i < loopSize; i += 1) {
+                var tableName = $t[i].id;
+                var fileType = tableName.substring(3);
+                if ($t[i].config) {
+                    $($t)[i].config.widgetOptions.filter_hideFilters = false; //set current instance
+                    eval('tablesorterOptions_'+fileType).widgetOptions.filter_hideFilters = false;  //set config option for when tabs regenerate
+                }
+            }
+        }
+     }
+}
+
 function GetVideoInfo(file) {
     $('#fileText').html("Getting Video Info.");
 
@@ -676,7 +711,7 @@ widgetClass: 'widget-{name}',
 // 'columns', 'filter', 'stickyHeaders' & 'resizable'
 // 'uitheme' is another widget, but requires loading
 // a different skin and a jQuery UI theme.
-widgets: ['columns','zebra','uitheme','cssStickyHeaders'],
+widgets: ['columns','uitheme','cssStickyHeaders','filter'],
 
 widgetOptions: {
 
@@ -1014,8 +1049,8 @@ var tablesorterOptions_Override_Images = {
             3: { sorter: false}
         },
         widgetOptions: {
-            cssStickyHeaders_attachTo: '#divImagesData'
-
+            cssStickyHeaders_attachTo: '#divImagesData',
+            filter_excludeFilter: {3: 'hideme'}
         }
 };
 
@@ -1079,22 +1114,23 @@ var tablesorterOptions_Override_Crashes = {
         }
 };
 
-//create config options from common and table specific override settings
+//create config options from common and table specific override settings as well as UI setting for filter on/off
 
-var tablesorterOptions_Sequences = $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Sequences);
-var tablesorterOptions_Music= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Music);
-var tablesorterOptions_Videos= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Videos);
-var tablesorterOptions_Images= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Images);
-var tablesorterOptions_Effects= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Effects);
-var tablesorterOptions_Scripts= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Scripts);
-var tablesorterOptions_Logs= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Logs);
-var tablesorterOptions_Uploads= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Uploads);
-var tablesorterOptions_Crashes= $.extend({}, tablesorterOptions_Common, tablesorterOptions_Override_Crashes);
+var tablesorterOptions_Sequences = $.extend(true,{}, tablesorterOptions_Common, tablesorterOptions_Override_Sequences, {widgetOptions:{filter_hideFilters: (settings.fileManagerTableFilter =="1" ? false : true)}});
+var tablesorterOptions_Music= $.extend(true,{}, tablesorterOptions_Common, tablesorterOptions_Override_Music, {widgetOptions:{filter_hideFilters: (settings.fileManagerTableFilter =="1" ? false : true)}});
+var tablesorterOptions_Videos= $.extend(true,{}, tablesorterOptions_Common, tablesorterOptions_Override_Videos, {widgetOptions:{filter_hideFilters: (settings.fileManagerTableFilter =="1" ? false : true)}});
+var tablesorterOptions_Images= $.extend(true,{}, tablesorterOptions_Common, tablesorterOptions_Override_Images, {widgetOptions:{filter_hideFilters: (settings.fileManagerTableFilter =="1" ? false : true)}});
+var tablesorterOptions_Effects= $.extend(true,{}, tablesorterOptions_Common, tablesorterOptions_Override_Effects, {widgetOptions:{filter_hideFilters: (settings.fileManagerTableFilter =="1" ? false : true)}});
+var tablesorterOptions_Scripts= $.extend(true,{}, tablesorterOptions_Common, tablesorterOptions_Override_Scripts, {widgetOptions:{filter_hideFilters: (settings.fileManagerTableFilter =="1" ? false : true)}});
+var tablesorterOptions_Logs= $.extend(true,{}, tablesorterOptions_Common, tablesorterOptions_Override_Logs, {widgetOptions:{filter_hideFilters: (settings.fileManagerTableFilter =="1" ? false : true)}});
+var tablesorterOptions_Uploads= $.extend(true,{}, tablesorterOptions_Common, tablesorterOptions_Override_Uploads, {widgetOptions:{filter_hideFilters: (settings.fileManagerTableFilter =="1" ? false : true)}});
+var tablesorterOptions_Crashes= $.extend(true,{}, tablesorterOptions_Common, tablesorterOptions_Override_Crashes, {widgetOptions:{filter_hideFilters: (settings.fileManagerTableFilter =="1" ? false : true)}});
 
 function SetupTableSorter(tableName) {
     var fileType = tableName.substring(3);
     if ($('#'+tableName).find('tbody').length > 0) {
         $('#'+tableName).tablesorter(eval('tablesorterOptions_'+fileType));
+        $('#'+tableName)[0].config.widgetOptions.filter_hideFilters = (settings.fileManagerTableFilter =="1" ? false : true);
         $('#'+tableName).trigger('applyWidgets');
     }
 }

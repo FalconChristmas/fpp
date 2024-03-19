@@ -225,7 +225,8 @@
                 "DateFormat",
                 "TimeFormat",
                 "temperatureInF",
-                "fileManagerThumbnailSize"
+                "fileManagerThumbnailSize",
+                "fileManagerTableFilter"
             ]
         },
         "uiColors": {
@@ -962,6 +963,15 @@
                 "175 pixels": 175,
                 "200 pixels": 200
             }
+        },
+        "fileManagerTableFilter": {
+            "name": "fileManagerTableFilter",
+            "description": "File Manager Enable Filter",
+            "tip": "This setting allows filtering to be turned on in FileManager.",
+            "default": "1",
+            "type": "checkbox",
+            "checkedValue": "1",
+            "uncheckedValue": "0"
         },
         "FPP_UUID": {
             "name": "FPP_UUID",
