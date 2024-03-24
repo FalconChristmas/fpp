@@ -12,6 +12,7 @@
  */
 #include <functional>
 #include <string>
+#include <time.h>
 
 #define MQTT_READY_TOPIC_NAME "ready"
 
@@ -49,6 +50,13 @@ public:
 
 private:
     static void RunPublishThread();
-    static void PublishPlaylistStatus();
-    static void PublishFPPDStatus();
+};
+
+class EventNotifier {
+public:
+    int frequency;
+    time_t next_time = std::time(0);
+    virtual void notify() = 0;
+    EventNotifier(int freq) { this->frequency = freq; }
+    ~EventNotifier() {}
 };
