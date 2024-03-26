@@ -419,12 +419,12 @@ function AddNewModel() {
                 AddNewChannelModel();
                 CloseModalDialog("AddPixelOverlayModel");
             },
- <? if ($showAddFBButton) { ?>
+ <?if ($showAddFBButton) {?>
             FrameBuffer: function() {
                 AddNewFBModel();
                 CloseModalDialog("AddPixelOverlayModel");
             },
-<? } ?>            
+<?}?>
             SubModel: function() {
                 AddNewSubModel();
                 CloseModalDialog("AddPixelOverlayModel");
@@ -492,7 +492,7 @@ include 'menu.inc';?>
                 <hr>
 				<div class='fppTableWrapper fppTableWrapperAsTable'>
                     <div class='fppTableContents' role="region" aria-labelledby="channelMemMaps" tabindex="0">
-                        <table id="channelMemMaps" class="fppSelectableRowTable">
+                        <table id="channelMemMaps" class="fppSelectableRowTable fppStickyTheadTable">
                             <thead>
                                 <tr>
 									<th class="tblChannelMemMapsHeadGrip"></th>

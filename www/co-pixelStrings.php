@@ -1468,7 +1468,7 @@ function populatePixelStringOutputs(data) {
                 var str = "";
                 str += "<div class='fppTableWrapper'>" +
                     "<div class='fppTableContents' role='region' aria-labelledby='PixelString' tabindex='0'>";
-                str += "<table id='PixelString' class='fppSelectableRowTable' type='" + output.subType + "' ports='" + outputCount + "'>";
+                str += "<table id='PixelString' class='fppSelectableRowTable fppStickyTheadTable' type='" + output.subType + "' ports='" + outputCount + "'>";
                 str += pixelOutputTableHeader();
                 str += "<tbody>";
 
@@ -2695,5 +2695,6 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
 <a name='capeNotes'></a>
 <span class='capeNotes capeTypeRow' style='display: none;'><b>Cape Configuration Notes:</b><br></span>
 <span class='capeNotes capeTypeRow' id='capeNotes' style='display: none;'></span>
+
 
 

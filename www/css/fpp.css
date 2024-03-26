@@ -821,6 +821,11 @@ hr {
     margin-bottom: 1.5em;
 }
 
+.fppTableWrapper thead th {
+    background-color: white;
+    font-weight: bold;
+}
+
 .playlistRepeatCol {
     padding-left: 2em;
 }

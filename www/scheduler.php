@@ -851,7 +851,7 @@ include 'menu.inc';?>
                             </td>
                         </tr>
                     </table>
-                    <table id='tblSchedule' class="fppSelectableRowTable">
+                    <table id='tblSchedule' class="fppSelectableRowTable fppStickyTheadTable">
 
                         <thead id='tblScheduleHead'>
                             <tr>

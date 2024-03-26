@@ -246,7 +246,7 @@ include 'menu.inc';?>
 
 		    <div class='fppTableWrapper'>
 		        <div class='fppTableContents' role="region" aria-labelledby="tblUniverses" tabindex="0">
-		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable'>
+		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable fppStickyTheadTable'>
 		                <thead id='tblUniversesHead'>
 								<th class="tblScheduleHeadGrip"></th>
 				        		<th>Input</th>

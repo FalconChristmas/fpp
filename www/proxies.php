@@ -149,7 +149,7 @@ include 'menu.inc';?>
 
                 <div class="fppTableWrapper fppTableWrapperAsTable">
                     <div class='fppTableContents' role="region" aria-labelledby="proxyTable" tabindex="0">
-                        <table id="proxyTable" class="fppSelectableRowTable">
+                        <table id="proxyTable" class="fppSelectableRowTable fppStickyTheadTable">
                             <thead>
                                 <tr>
                                     <th>#</td>

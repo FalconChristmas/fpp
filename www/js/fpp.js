@@ -48,16 +48,20 @@ $(function () {
     $(document).on('click', '.navbar-toggler', ToggleMenu);
     $(document).on('keydown', handleKeypress);
 
-    var zp = new $.Zebra_Pin($('.tablePageHeader'), {
+     var zp_tablePageHeader = new $.Zebra_Pin($('.tablePageHeader'), {
         contained: true,
         top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0
-    });
-
+    }); 
+   
+    zebraPinSubContentTop = ($('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0) + $('.tablePageHeader').outerHeight(); 
+    
     $('a[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
-        zp.update();
-    });
+        zp_tablePageHeader.update();
+        //$('.tab-pane.active table').floatThead('destroy');
+        float_fppStickyThead();
 
-    zebraPinSubContentTop = $('.header').outerHeight() + $('.tablePageHeader').outerHeight();
+    }); 
+
 
     if (hasTouch == true) {
         $('body').addClass('has-touch');
@@ -92,7 +96,41 @@ $(function () {
     CheckRestartRebootFlags();
 
     window.onscroll = function () { checkScrollTopButton(); };
-});
+
+    if (document.readyState ==="loading") {
+        document.addEventListener("DOMContentLoaded", float_fppStickyThead);
+    } else{
+        float_fppStickyThead();
+    }
+
+    /* $('.pageContent').tabs({
+        activate: function(event, ui) {
+            float_fppStickyThead();
+        }
+    }); */
+
+})
+
+function float_fppStickyThead(){
+    //check if there is a stickyThead table to process
+    if ($('.fppStickyTheadTable').length > 0) {
+        if ($('.tab-pane.active table.fppStickyTheadTable thead').length > 0) {
+            //table in a tab
+            var tableToProcess = $('.tab-pane.active table');
+        } else {
+            //table not in tab
+            var tableToProcess = $('.fppStickyTheadTable');
+        }
+        console.log(tableToProcess);
+        //float th thead
+        tableToProcess.floatThead({
+                top: zebraPinSubContentTop,
+                zIndex: 990,
+                debug: false
+            });
+        
+    }
+}
 
 function getManualLink() {
     return "https://falconchristmas.github.io/FPP_Manual.pdf";
