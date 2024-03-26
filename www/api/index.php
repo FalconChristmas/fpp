@@ -94,6 +94,16 @@ dispatch_get('/network/wifi/scan/:interface', 'network_wifi_scan');
 dispatch_get('/network/wifi/strength', 'network_wifi_strength');
 dispatch_get('/network/wifi_strength', 'network_wifi_strength'); // Legacy mapping
 
+dispatch_get('/oled', 'GetOLEDStatus');
+dispatch_get('/oled/action/options', 'GetOLEDMenuActions');
+dispatch_get('/oled/action/up', 'SetOLEDActionUp');
+dispatch_get('/oled/action/down', 'SetOLEDActionDown');
+dispatch_get('/oled/action/back', 'SetOLEDActionBack');
+dispatch_get('/oled/action/right', 'SetOLEDActionRight');
+dispatch_get('/oled/action/enter', 'SetOLEDActionEnter');
+dispatch_get('/oled/action/test', 'SetOLEDActionTest');
+dispatch_get('/oled/action/testmultisync', 'SetOLEDActionTestMultiSync');
+
 dispatch_get('/options/:SettingName', 'GetOptions');
 
 dispatch_get('/playlists', 'playlist_list');

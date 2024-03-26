@@ -145,7 +145,7 @@ void GPIOManager::CheckGPIOInputs(void) {
                         a.doAction(val);
                     }
                 } else {
-                    //will need to check again
+                    // will need to check again
                     checkDebounces = true;
                 }
             }
@@ -261,9 +261,9 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                 if (a.lastTriggerTime < lastAllowedTime) {
                     a.doAction(v);
                 } else {
-                    //we are within the debounce time, we'll record this as a last value
-                    //and if we end up with a different value after the debounce time,
-                    //we'll send the command then
+                    // we are within the debounce time, we'll record this as a last value
+                    // and if we end up with a different value after the debounce time,
+                    // we'll send the command then
                     a.futureValue = v;
                     checkDebounces = true;
                 }
@@ -349,6 +349,18 @@ void GPIOManager::GPIOState::doAction(int v) {
         std::string command = (v == 0) ? fallingAction["command"].asString() : risingAction["command"].asString();
         if (command != "") {
             CommandManager::INSTANCE.run((v == 0) ? fallingAction : risingAction);
+
+            /* Debugging Code/ /////////////////////////////////////////////////////////
+            printf("Command run by gpio trigger was: %s\n", command.c_str());
+            printf("JSON: %s", command.c_str());
+            if (command == "OLED Menu Controls") {
+                // json test output
+                Json::StreamWriterBuilder builder;
+                builder["indentation"] = ""; // If you want whitespace-less output
+                const std::string output = Json::writeString(builder, fallingAction);
+                printf("JSON is %s\n", output.c_str());
+            }
+            /////////////////////////////////////////////////////////////////////////////*/
         }
     }
     lastTriggerTime = GetTime();

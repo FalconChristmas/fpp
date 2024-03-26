@@ -1360,6 +1360,16 @@
             }
         },
         {
+            "endpoint": "oled/action/:Action",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Sends Action to the OLED Menu, standard actions are: Up, Down, Back & Enter",
+                    "output": "OLED Menu :Action"
+                }
+            }
+        },
+        {
             "endpoint": "overlays/fonts",
             "fppd": true,
             "methods": {
