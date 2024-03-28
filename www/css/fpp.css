@@ -1616,6 +1616,10 @@ body .sm-clean a .sub-arrow {
 
 }
 
+.modal thead {
+    background: white;
+}
+
 
 .navbar-toggler {
     padding: 0.25rem 0.75rem;
