@@ -40,15 +40,53 @@ if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.m
 }
 
 /* On Page Ready Functions */
-
 $(function () {
+// do any page DOM manipulation required
+    common_PageLoad_DOM_Setup();
+    if (typeof pageSpecific_PageLoad_DOM_Setup === "function") {
+        pageSpecific_PageLoad_DOM_Setup();
+    }
+
+// Activate UI components / actions on fully loaded DOM
+    if (document.readyState ==="loading") {
+        document.addEventListener("DOMContentLoaded", loadPageReadyActions);
+    } else{
+        loadPageReadyActions();
+    }
+})
+
+function loadPageReadyActions(){
+    //call common setup actions
+    common_PageLoad_PostDOMLoad_ActionsSetup();
+    //call page specific setup actions
+    if (typeof pageSpecific_PageLoad_PostDOMLoad_ActionsSetup  === "function") {
+        pageSpecific_PageLoad_PostDOMLoad_ActionsSetup();
+    }
+}
+
+function common_PageLoad_DOM_Setup(){
     OnSystemStatusChange(RefreshHeaderBar);
     OnSystemStatusChange(IsFPPDrunning);
     bindVisibilityListener();
+
+    $('a.link-to-fpp-manual').attr("href", getManualLink());
+
+    $.jGrowl.defaults.closerTemplate = '<div>Close Notifications</div>';
+    SetupToolTips();
+    LoadSystemStatus();
+
+    CheckBrowser();
+    CheckRestartRebootFlags();
+}
+
+
+
+function common_PageLoad_PostDOMLoad_ActionsSetup(){
+
     $(document).on('click', '.navbar-toggler', ToggleMenu);
     $(document).on('keydown', handleKeypress);
 
-     var zp_tablePageHeader = new $.Zebra_Pin($('.tablePageHeader'), {
+    var zp_tablePageHeader = new $.Zebra_Pin($('.tablePageHeader'), {
         contained: true,
         top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0
     }); 
@@ -86,30 +124,32 @@ $(function () {
         $(".nav-link[href='" + location.hash + "']").tab('show');
     }
 
-
-    $('a.link-to-fpp-manual').attr("href", getManualLink());
-
-    $.jGrowl.defaults.closerTemplate = '<div>Close Notifications</div>';
-    SetupToolTips();
-    LoadSystemStatus();
-    CheckBrowser();
-    CheckRestartRebootFlags();
-
     window.onscroll = function () { checkScrollTopButton(); };
 
-    if (document.readyState ==="loading") {
-        document.addEventListener("DOMContentLoaded", float_fppStickyThead);
-    } else{
-        float_fppStickyThead();
-    }
+    float_fppStickyThead();
+    //$('.pageContent').tabs(); 
 
-    /* $('.pageContent').tabs({
-        activate: function(event, ui) {
-            float_fppStickyThead();
-        }
-    }); */
+}
 
-})
+
+
+
+function float_fppModalStickyThead(){
+    //Fix Table Headers on scroll
+    var $previewTable = $('table.schedulePreviewTable');
+
+    $previewTable.floatThead({
+            top: ($('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0) + $('.modal-content .modal-header').outerHeight(),
+            zIndex: 99999,
+            debug: true,
+            responsiveContainer: function($previewTable){
+	                return $previewTable.closest('.modal-body');
+            }
+    });
+
+    console.log('firing the modal sticky header function');
+}
+
 
 function float_fppStickyThead(){
     //check if there is a stickyThead table to process
@@ -6345,8 +6385,10 @@ function PreviewSchedule() {
         keyboard: true,
         backdrop: true
     };
-    DoModalDialog(options);
-    $('#schedulePreviewDiv').load('schedulePreview.php');
+
+       DoModalDialog(options);
+        $('#schedulePreviewDiv').load('schedulePreview.php', float_fppModalStickyThead);
+
 }
 
 function ToggleMenu() {
