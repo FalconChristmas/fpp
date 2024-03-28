@@ -95,9 +95,7 @@ function common_PageLoad_PostDOMLoad_ActionsSetup(){
     
     $('a[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
         zp_tablePageHeader.update();
-        //$('.tab-pane.active table').floatThead('destroy');
         float_fppStickyThead();
-
     }); 
 
 
@@ -127,7 +125,8 @@ function common_PageLoad_PostDOMLoad_ActionsSetup(){
     window.onscroll = function () { checkScrollTopButton(); };
 
     float_fppStickyThead();
-    //$('.pageContent').tabs(); 
+
+   //console.log('common page load actions running');
 
 }
 
@@ -139,7 +138,7 @@ function float_fppModalStickyThead(){
     var $previewTable = $('table.schedulePreviewTable');
 
     $previewTable.floatThead({
-            top: ($('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0) + $('.modal-content .modal-header').outerHeight(),
+            top: ($('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0) + $('#schedulePreview .modal-content .modal-header').outerHeight(),
             zIndex: 99999,
             debug: true,
             responsiveContainer: function($previewTable){
@@ -147,7 +146,6 @@ function float_fppModalStickyThead(){
             }
     });
 
-    console.log('firing the modal sticky header function');
 }
 
 
@@ -161,7 +159,6 @@ function float_fppStickyThead(){
             //table not in tab
             var tableToProcess = $('.fppStickyTheadTable');
         }
-        console.log(tableToProcess);
         //float th thead
         tableToProcess.floatThead({
                 top: zebraPinSubContentTop,
@@ -261,6 +258,12 @@ function DoModalDialog(options) {
         dlg.find(".modal-body").html(options.body);
     }
     new bootstrap.Modal('#' + options.id, options).show();
+
+    $('#' + options.id).on('shown.bs.modal', function (){
+       // alert('The modal is fully shown.');
+        console.log($('#schedulePreview .modal-content .modal-header').outerHeight());
+        float_fppModalStickyThead();
+    });
 }
 function DisplayProgressDialog(id, title) {
     DoModalDialog({
@@ -6377,17 +6380,27 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '
 }
 
 function PreviewSchedule() {
+
+    var response = '';
+    $.ajax({ type: "GET",   
+             url: "schedulePreview.php",   
+             async: false,
+             success : function(text)
+             {
+                 response = text;
+             }
+    });
+    
     var options = {
         id: "schedulePreview",
         title: "Schedule Preview",
-        body: "<div id='schedulePreviewDiv'></div>",
+        body: "<div id='schedulePreviewDiv'> "+ response + "</div>",
         class: "modal-dialog-scrollable",
         keyboard: true,
         backdrop: true
     };
 
        DoModalDialog(options);
-        $('#schedulePreviewDiv').load('schedulePreview.php', float_fppModalStickyThead);
 
 }
 
