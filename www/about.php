@@ -509,16 +509,12 @@ foreach ($osUpdateFiles as $key => $value) {
 echo "</select>";
 
 if ($settings['uiLevel'] > 0) {
-    echo "<br>Show All Platforms <input type='checkbox' id='allPlatforms' onClick='UpdatePlatforms();'><img id='allPlatforms_img' title='Show both BBB & Pi downloads' src='images/redesign/help-icon.svg' class='icon-help'></span>";
+    echo "<br><span><i class='fas fa-fw fa-graduation-cap ui-level-1'></i> Show All Platforms <input type='checkbox' id='allPlatforms' onClick='UpdatePlatforms();'><img id='allPlatforms_img' title='Show both BBB & Pi downloads' src='images/redesign/help-icon.svg' class='icon-help'></span>";
 }
 
-echo "<span";
-if (getFPPBranch() != 'master') {
-    echo " style='display: none;'";
+if ($settings['uiLevel'] == 3) {
+echo "<br><span><i class='fas fa-fw fa-code ui-level-3'></i> Preserve /opt/fpp <input type='checkbox' id='keepOptFPP'><img id='keepOptFPP_img' title='WARNING: This will upgrade the OS but will not upgrade the FPP version.  This may cause issues if the versions are not compatible.' src='images/redesign/help-icon.svg' class='icon-help'></span>";
 }
-echo ">";
-echo "<br>Preserve /opt/fpp <input type='checkbox' id='keepOptFPP'><img id='keepOptFPP_img' title='Preserve the FPP version in /opt/fpp across fppos upgrade.  WARNING: This will run the main OS upgrade script from /opt/fpp instead of using the version included in the .fppos image.  This may cause issues if the versions are not compatible.' src='images/redesign/help-icon.svg' class='icon-help'>";
-echo "</span>";
 
 echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'>&nbsp;<input type='button' disabled value='Download Only' onClick='DownloadOS();' class='buttons' id='OSDownload'></td></tr>";
 ?>
