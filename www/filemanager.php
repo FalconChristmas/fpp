@@ -445,7 +445,7 @@ include 'menu.inc';?>
 
 
 
-    <script>
+    <!-- <script>
       const pond = FilePond.create(
         document.querySelector('#filepondInput'), {
           labelIdle: `<b style="font-size: 1.3em;">Drag & Drop or Select Files to upload</b><br><br><span class="btn btn-dark filepond--label-action" style="text-decoration:none;">Select Files</span><br>`,
@@ -510,7 +510,7 @@ include 'menu.inc';?>
           }
         }
       });
-    </script>
+    </script> -->
 
 
 
