@@ -1307,11 +1307,13 @@ if ((isset($settings['cape-info'])) &&
             <div class="row">
                 <div class="col-md-auto">
                     <div class="backdrop-dark form-inline enableCheckboxWrapper">
-                        <div><b>Enable <span class='capeNamePanels'>Led Panels</span>:&nbsp;</b></div><div><input id='LEDPanelsEnabled' type='checkbox'></div>
+                        <div><b>Enable <span class='capeNamePanels'>Led Panels</span>:&nbsp;</b></div>
+                        <div><input id='LEDPanelsEnabled' type='checkbox'></div>
                     </div>
                 </div>
                 <div class="col-md-auto form-inline">
-                    <div id='LEDPanelsConnectionLabel'><b>Connection:&nbsp;</b></div><div>
+                    <div id='LEDPanelsConnectionLabel'><b>Connection:&nbsp;</b></div>
+                    <div>
                     <select id='LEDPanelsConnection' onChange='LEDPanelsConnectionChanged();'>
 <?
 if (in_array('all', $currentCapeInfo["provides"])
@@ -1319,10 +1321,12 @@ if (in_array('all', $currentCapeInfo["provides"])
     if ($settings['Platform'] == "Raspberry Pi") {
         ?>
                             <option value='RGBMatrix'>Hat/Cap/Cape</option>
-<?} else if ($settings['Platform'] == "BeagleBone Black") {?>
+<?
+    } else if ($settings['Platform'] == "BeagleBone Black") {?>
                             <option value='LEDscapeMatrix'>Hat/Cap/Cape</option>
 <?}?>
-<?}?>
+<?
+}?>
                             <option value='ColorLight5a75'>ColorLight</option>
 <?
 if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux")) {
@@ -1357,7 +1361,8 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
                                           <option value='v1'>Standard v1.x</option>
                                           <option value='v2'>v2.x</option>
                                 <?}?>
-                                <?}?>
+                                <?
+}?>
 					</select>
                 </div>
             </div>
@@ -1602,3 +1607,5 @@ if ($settings['Platform'] == "Raspberry Pi") {
 	    </div>
 	</div>
 </div>
+
+
