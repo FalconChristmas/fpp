@@ -674,3 +674,9 @@ void SetThreadName(const std::string& name) {
     pthread_setname_np(pthread_self(), name.c_str());
 #endif
 }
+
+std::string getPlatform() {
+    std::string platform = GetFileContents("/etc/fpp/platform");
+    TrimWhiteSpace(platform);
+    return platform;
+}

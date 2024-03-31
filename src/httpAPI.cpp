@@ -63,14 +63,20 @@ static std::time_t startupTime = std::time(nullptr);
 */
 void GetCurrentFPPDStatus(Json::Value& result) {
     static std::string UUID = getSetting("SystemUUID");
+    static std::string host_name = getSetting("HostName");
+    static std::string host_description = getSetting("HostDescription");
     static std::string fpp_version = getFPPVersion();
     static std::string fppd_branch = getFPPBranch();
+    static std::string platform = getPlatform();
 
     int mode = getFPPmode();
     result["fppd"] = "running";
     result["version"] = fpp_version;
     result["branch"] = fppd_branch;
+    result["platform"] = platform;
     result["uuid"] = UUID;
+    result["host_name"] = host_name;
+    result["host_description"] = host_description;
     result["mode"] = mode;
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
     result["status"] = Player::INSTANCE.GetStatus();
