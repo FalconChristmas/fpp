@@ -36,10 +36,12 @@ public:
     void EnableOutputs();
     void DisableOutputs();
 
-    void SetOutput(const std::string &port, bool on);
+    void SetOutput(const std::string& port, bool on);
 
     void AutoEnableOutputs();
     void AutoDisableOutputs();
+
+    void GetCurrentPortStatusJson(Json::Value& result);
 
     virtual HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
 

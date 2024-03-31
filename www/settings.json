@@ -128,6 +128,7 @@
                 "MQTTPassword",
                 "MQTTCaFile",
                 "MQTTFrequency",
+                "MQTTPortStatusFrequency",
                 "MQTTStatusFrequency",
                 "MQTTSubscribe"
             ]
@@ -1560,6 +1561,18 @@
             "max": 65535,
             "step": 1
         },
+        "MQTTPortStatusFrequency": {
+            "name": "MQTTPortStatusFrequency",
+            "description": "Publish Port Status Frequency",
+            "gatherStats": true,
+            "tip": "Optional frequency to publish Port Monitoring status Json to MQTT Broker.  Zero indicates that the status will not be published",
+            "restart": 2,
+            "default": 0,
+            "type": "number",
+            "min": 0,
+            "max": 3600,
+            "step": 1
+        },
         "MQTTPrefix": {
             "name": "MQTTPrefix",
             "description": "Topic Prefix",
@@ -1580,7 +1593,7 @@
         },
         "MQTTStatusFrequency": {
             "name": "MQTTStatusFrequency",
-            "description": "Publish Status Frequency",
+            "description": "Publish FPPD Status Frequency",
             "gatherStats": true,
             "tip": "Optional frequency to publish FPP status Json to MQTT Broker.  Zero indicates that the status will not be published",
             "restart": 2,
