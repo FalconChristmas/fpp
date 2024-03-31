@@ -201,7 +201,7 @@ public:
     static FPPEnablePortCommand INSTANCE;
     FPPEnablePortCommand() :
         Command("Set Port Status") {
-        args.push_back(CommandArg("Port", "string", "Port").setContentListUrl("api/fppd/ports/list"));  
+        args.push_back(CommandArg("Port", "string", "Port").setContentListUrl("api/fppd/ports/list"));
         args.push_back(CommandArg("on", "bool", "On"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
@@ -360,7 +360,7 @@ void OutputMonitor::DisableOutputs() {
     CommandManager::INSTANCE.TriggerPreset("OUTPUTS_DISABLED");
 }
 
-void OutputMonitor::SetOutput(const std::string &port, bool on) {
+void OutputMonitor::SetOutput(const std::string& port, bool on) {
     std::unique_lock<std::mutex> lock(gpioLock);
     for (auto p : portPins) {
         if (p->name == port && p->enablePin) {
@@ -373,7 +373,6 @@ void OutputMonitor::SetOutput(const std::string &port, bool on) {
         }
     }
 }
-
 
 void OutputMonitor::AddPortConfiguration(const std::string& name, const Json::Value& pinConfig, bool enabled) {
     PortPinInfo* pi = new PortPinInfo(name, pinConfig);
@@ -589,6 +588,15 @@ int OutputMonitor::GetPixelCount(int port) {
     return 0;
 }
 
+void OutputMonitor::GetCurrentPortStatusJson(Json::Value& result) {
+    if (!portPins.empty()) {
+        Sensors::INSTANCE.updateSensorSources();
+        for (auto a : portPins) {
+            a->appendTo(result);
+        }
+    }
+}
+
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> OutputMonitor::render_GET(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     if (plen > 1 && req.get_path_pieces()[1] == "ports") {
@@ -617,10 +625,8 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> OutputMonitor::re
             CommandManager::INSTANCE.run("Test Stop", args);
         }
         Sensors::INSTANCE.updateSensorSources();
-        Json::Value result;
-        for (auto a : portPins) {
-            a->appendTo(result);
-        }
+        Json::Value result = Json::arrayValue;
+        GetCurrentPortStatusJson(result);
         std::string resultStr = SaveJsonToString(result);
         return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
     }

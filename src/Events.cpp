@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <utility>
 
+#include "OutputMonitor.h"
 #include "Player.h"
 #include "Warnings.h"
 #include "common.h"
@@ -73,6 +74,22 @@ public:
     }
 };
 
+class PublishPortStatus : public EventNotifier {
+public:
+    PublishPortStatus(int freq) :
+        EventNotifier(freq) {}
+    ~PublishPortStatus() {}
+
+    void notify() {
+        Json::Value json = Json::arrayValue;
+        OutputMonitor::INSTANCE.GetCurrentPortStatusJson(json);
+        std::stringstream buffer;
+        buffer << json << std::endl;
+        LogDebug(VB_CONTROL, "Notify FPPDStatus\n");
+        Events::Publish("port_status", buffer.str());
+    }
+};
+
 class EventWarningListener : public WarningListener {
 public:
     EventWarningListener() {}
@@ -108,12 +125,18 @@ void Events::Ready() {
 
     int playlistFrequency = getSettingInt("MQTTFrequency");
     int statusFrequency = getSettingInt("MQTTStatusFrequency");
+    int portFrequency = getSettingInt("MQTTPortStatusFrequency");
+
     if (playlistFrequency > 0) {
         eventNotifiers.push_back(new PublishPlaylistStatus(playlistFrequency));
     }
 
     if (statusFrequency > 0) {
         eventNotifiers.push_back(new PublishFPPDStatus(statusFrequency));
+    }
+
+    if (portFrequency > 0) {
+        eventNotifiers.push_back(new PublishPortStatus(portFrequency));
     }
 
     if (EVENT_PUBLISH_THREAD == nullptr && eventNotifiers.size() > 0) {

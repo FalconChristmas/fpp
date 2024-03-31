@@ -32,6 +32,7 @@ FPP will published the following sub_topics (using the full topic format) if MQT
 */playlist/media/artist - The artist listing in the audio / video file being played
 */playlist_details - If the MQTT Playlist Publish Frequency option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified. 
 */fppd_status - If the MQTT Status Publish Frequency option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified. 
+*/port_status - If the MQTT Port Status Publish Frequency option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified. 
 
 Message Example for fppd_status
 ---------------------------------------------
@@ -180,6 +181,45 @@ entries in a Playlist are allowed, only one will be displayed in real life.
       }
    ]
 }
+
+Message Example for port_status 
+---------------------------------------------
+When output sensors are present, this will report the status of each port and how many milliamps were
+being pulled when the port was sampled. 
+[
+  {
+    "col": 1,
+    "enabled": true,
+    "ma": 435,
+    "name": "Port #1",
+    "row": 1,
+    "status": true
+  },
+  {
+    "col": 2,
+    "enabled": false,
+    "ma": 0,
+    "name": "Port #2",
+    "row": 1,
+    "status": true
+  },
+  {
+    "col": 3,
+    "enabled": false,
+    "ma": 0,
+    "name": "Port #3",
+    "row": 1,
+    "status": true
+  },
+  {
+    "col": 4,
+    "enabled": false,
+    "ma": 0,
+    "name": "Port #4",
+    "row": 1,
+    "status": true
+  }
+]
 
 
 
