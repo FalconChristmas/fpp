@@ -182,7 +182,7 @@ entries in a Playlist are allowed, only one will be displayed in real life.
    ]
 }
 
-Message Example for fppd_status
+Message Example for port_status 
 ---------------------------------------------
 When output sensors are present, this will report the status of each port and how many milliamps were
 being pulled when the port was sampled. 
