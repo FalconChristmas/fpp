@@ -39,7 +39,10 @@ if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.m
     hasTouch = true;
 }
 
-/* On Page Ready Functions */
+/* On Page Ready Function Handler
+All Pages should use the pageSpecific_PageLoad_DOM_Setup() and pageSpecific_PageLoad_PostDOMLoad_ActionsSetup()
+functions to load page specific page ready content and actions
+*/
 $(function () {
 // do any page DOM manipulation required
     common_PageLoad_DOM_Setup();
@@ -88,10 +91,10 @@ function common_PageLoad_PostDOMLoad_ActionsSetup(){
 
     var zp_tablePageHeader = new $.Zebra_Pin($('.tablePageHeader'), {
         contained: true,
-        top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0
+        top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight(true) : 0
     }); 
    
-    zebraPinSubContentTop = ($('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0) + $('.tablePageHeader').outerHeight(); 
+    zebraPinSubContentTop = ($('.header').css('position') == 'fixed' ? $('.header').outerHeight(true) : 0) + $('.tablePageHeader').outerHeight(true); 
     
     $('a[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
         zp_tablePageHeader.update();
@@ -138,7 +141,7 @@ function float_fppModalStickyThead(){
     var $previewTable = $('table.schedulePreviewTable');
 
     $previewTable.floatThead({
-            top: ($('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0) + $('#schedulePreview .modal-content .modal-header').outerHeight(),
+            top: ($('.header').css('position') == 'fixed' ? $('.header').outerHeight(true) : 0) + $('#schedulePreview .modal-content .modal-header').outerHeight(true),
             zIndex: 99999,
             debug: true,
             responsiveContainer: function($previewTable){
@@ -261,7 +264,7 @@ function DoModalDialog(options) {
 
     $('#' + options.id).on('shown.bs.modal', function (){
        // alert('The modal is fully shown.');
-        console.log($('#schedulePreview .modal-content .modal-header').outerHeight());
+        console.log($('#schedulePreview .modal-content .modal-header').outerHeight(true));
         float_fppModalStickyThead();
     });
 }
