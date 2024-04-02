@@ -232,7 +232,6 @@ if ($e131TabStyle == "") {
     $lpTabStyleActive = "active";
 }
 ?>
-		<div id="stuarttest" class="ui-tabs ui-widget ui-widget-content">
 			<ul class="ui-tabs-nav nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
               <li class="ui-tabs-tab nav-item <?=$e131TabStyle?>" id="tab-e131-LI">
                 <a class="nav-link <?=$e131TabStyleActive?>" id="tab-e131-tab" tabType='UDP' data-bs-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
@@ -348,7 +347,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 			</div>
 
 				</div> <!-- tabcontent close -->
-</div> <!-- stuarttest close -->
+
 		<!-- --------------------------------------------------------------------- -->
 
 
@@ -361,11 +360,6 @@ if ($settings['Platform'] == "Raspberry Pi") {
 	<div id='debugOutput'>
 	</div>
 
-	<!-- FIXME, can we put this in co-ledPanels.php? -->
-	<div id="dialog-panelLayout" title="panelLayout" style="display: none">
-	  <div id="layoutText">
-	  </div>
-	</div>
 </div>
 
 	<?php	include 'common/footer.inc';?>

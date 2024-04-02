@@ -282,10 +282,6 @@ include 'menu.inc';?>
 		<div id='debugOutput'>
 		</div>
 
-		<div id="dialog-panelLayout" title="panelLayout" style="display: none">
-		  <div id="layoutText">
-		  </div>
-		</div>
 	</div>
 </div>
 
