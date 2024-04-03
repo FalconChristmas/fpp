@@ -380,6 +380,7 @@ input#MultiSyncHTTPSubnets {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    padding-right: 0.25em;
 }
 
 .headerHostLink {
