@@ -3759,7 +3759,7 @@ foreach ($settings_restored as $area_restored => $success) {
 
                                             <div class="row">
                                                 <div class="col-md-12 table-download-existing-backups-container">
-                                                    <table class="table table-download-existing-backups">
+                                                    <table class="table table-download-existing-backups fppStickyTheadTable">
                                                         <thead>
                                                         <tr>
                                                             <th scope="col">Date</th>
@@ -3869,7 +3869,7 @@ foreach ($settings_restored as $area_restored => $success) {
 
                                             <div class="row">
                                                 <div class="col-md-12 table-restore-existing-backups-container">
-                                                    <table class="table table-restore-existing-backups">
+                                                    <table class="table table-restore-existing-backups fppStickyTheadTable">
                                                         <thead>
                                                         <tr>
                                                             <th scope="col">Date</th>
