@@ -226,9 +226,9 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
 
                 for (int cho = 0; cho < 3; cho++) {
                     if (node != -1 && cho < channelsPerNode) {
-                        channelMap[y * 3 + x + cho] = node * channelsPerNode + cho;
+                        channelMap[(y * width * 3) + (x * 3) + cho] = node * channelsPerNode + cho;
                     } else {
-                        channelMap[y * 3 + x + cho] = FPPD_OFF_CHANNEL;
+                        channelMap[(y * width * 3) + (x * 3) + cho] = FPPD_OFF_CHANNEL;
                     }
                 }
             }
