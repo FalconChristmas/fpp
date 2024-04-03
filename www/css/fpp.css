@@ -678,6 +678,7 @@ body.has-touch .pageContent-tabs>.nav-item:not(.hidden) {
 
 input[type=range] {
     -webkit-appearance: none;
+    appearance: none;
     /* Hides the slider so that custom slider can be made */
     width: 100%;
     /* Specific width is required for Firefox. */
@@ -720,6 +721,7 @@ input[type=range]::-webkit-slider-thumb {
 
 input[type=range]::-moz-range-thumb {
     -webkit-appearance: none;
+    appearance: none;
     box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.1);
     border-radius: 1.5em;
     border: 1px solid #D2D2D2;
@@ -732,6 +734,7 @@ input[type=range]::-moz-range-thumb {
 
 input[type=range]::-ms-thumb {
     -webkit-appearance: none;
+    appearance: none;
     box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.1);
     border-radius: 1.5em;
     border: 1px solid #D2D2D2;
@@ -792,8 +795,6 @@ input[type=range]::-ms-thumb {
 
 }
 
-.volumeControlsContainer .labelHeading {}
-
 .pageContent .volumeControls .buttons {
     border-color: #D2D2D2;
     border-radius: 29px;
@@ -839,8 +840,6 @@ hr {
     width: 100%;
 }
 
-.playlistEntriesBody {}
-
 .tblPlaylistDetailsHeader h2 {
     padding-right: 1.5em;
     font-size: 1.4em;
@@ -868,8 +867,6 @@ hr {
     color: #fff;
     background-color: #56B760;
 }
-
-.PlaylistRowPlaying td:first-child {}
 
 .PlaylistRowPlaying td:first-child:before {
     content: "\f04b";
@@ -1802,9 +1799,6 @@ body .sm-clean a .sub-arrow {
     flex: 7;
 }
 
-.playlistEdit {}
-
-.fppPluginInput {}
 
 #pluginInput {
     background-image: url(/images/redesign/search-24px.svg);
@@ -2401,8 +2395,6 @@ input[type=search].tablesorter-filter {
     background-position: right 10px center;
 }
 
-input[type=search].tablesorter-filter:placeholder-shown {}
-
 input[type=search].tablesorter-filter:not(:placeholder-shown) {
     background-image: none;
 
@@ -2517,8 +2509,6 @@ input[type=search].tablesorter-filter:disabled {
     width: 100%;
 }
 
-#table-download-existing-backups-content,
-#table-restore-existing-backups-conten {}
 
 #table-download-existing-backups-content>tr,
 #table-restore-existing-backups-content>tr {
@@ -2678,6 +2668,7 @@ input[type=search].tablesorter-filter:disabled {
 /* Remove borders around the browsers default color swatch,*/
 input[type="color"] {
     -webkit-appearance: none;
+    appearance: none;
     border: none;
     width: 5em;
     height: 2em;
