@@ -39,7 +39,7 @@ include 'menu.inc';?>
     <div class="pageContent">
       <h2>Troubleshooting Commands</h2>
 
-    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+    <ul class="nav nav-pills mb-3 pageContent-tabs" id="pills-tab" role="tablist">
     <?
 //LoadCommands
 $troubleshootingCommandsLoaded = 0;
