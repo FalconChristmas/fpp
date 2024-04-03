@@ -153,21 +153,23 @@ function float_fppModalStickyThead(){
 
 
 function float_fppStickyThead(){
-    //check if there is a stickyThead table to process
+    //check if there is at least 1 stickyThead table to process
     if ($('.fppStickyTheadTable').length > 0) {
         if ($('.tab-pane.active table.fppStickyTheadTable thead').length > 0) {
-            //table in a tab
-            var tableToProcess = $('.tab-pane.active table');
+            //tables in a tab
+            var tablesToProcess = $('.tab-pane.active table');
         } else {
-            //table not in tab
-            var tableToProcess = $('.fppStickyTheadTable');
+            //tables not in tab
+            var tablesToProcess = $('.fppStickyTheadTable');
         }
-        //float th thead
-        tableToProcess.floatThead({
+        //float th thead on all found tables
+        $(tablesToProcess).each(function(index, element){
+                $(element).floatThead({
                 top: zebraPinSubContentTop,
                 zIndex: 990,
                 debug: false
-            });
+                });
+        })
         
     }
 }
