@@ -375,7 +375,7 @@ input#MultiSyncHTTPSubnets {
 .headerHostName {
     display: flex;
     align-items: center;
-    font-size: 2.1em;
+    font-size: 1.9em;
     height: 40px;
     white-space: nowrap;
     overflow: hidden;
