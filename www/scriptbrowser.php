@@ -60,6 +60,17 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
 		});
 	}
 
+	function filterScripts(searchTxt){
+		var value = searchTxt.toLowerCase();
+		$('#fppScripts .fppScriptEntry').filter(function(){$(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)})
+	}
+
+	function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
+		$("#ScriptSearchInput").on("keyup", function() {
+		filterScripts($(this).val());
+		});
+	}
+
 </script>
 </head>
 <body>
@@ -71,6 +82,12 @@ include 'menu.inc';?>
 		<h1 class="title">Script Repository</h1>
 		<div class="pageContent">
 			<div id="uiscripts" class="settings">
+
+			<div class="row fppScriptSearch">
+				<div class="col">
+					<input type="text" id="ScriptSearchInput" class="form-control form-control-lg form-control-rounded has-shadow" placeholder="Search for a script..." />
+				</div>
+			</div>
 
 					<div id='fppScripts'>
 
