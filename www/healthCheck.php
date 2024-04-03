@@ -15,7 +15,17 @@ function HealthCheckDone() {
 function StartHealthCheck() {
     SetButtonState('#btnStartHealthCheck','disable');
     $('#healthCheckOutput').html('');
-    StreamURL('healthCheckHelper.php?output=php', 'healthCheckOutput', 'HealthCheckDone', '', 'GET', null, null, true, true);
+    //StreamURL('healthCheckHelper.php?output=php', 'healthCheckOutput', 'HealthCheckDone', '', 'GET', null, null, true, true);
+
+    $.ajax({
+        url: "healthCheckHelper.php?output=php",
+        method: "GET",
+        dataType: "HTML"
+    }).done(function(html) {
+        $("#healthCheckOutput").append(html);
+        HealthCheckDone();
+        }); 
+    
 }
 
 </script>
