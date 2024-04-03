@@ -312,6 +312,12 @@ int BBShiftStringOutput::Init(Json::Value config) {
     m_pru1.channelData = (uint8_t*)calloc(1, m_pru1.frameSize);
     m_pru1.formattedData = (uint8_t*)calloc(1, m_pru1.frameSize);
 
+    bool supportsV5Listeners = root.isMember("falconV5ListenerConfig");
+    if (supportsV5Listeners) {
+        // if the cape supports v5 listeners, the enable pin needs to be
+        // configured or data won't be sent on port1 of each receiver
+        PinCapabilities::getPinByName("P8-27").configPin("pruout");
+    }
     if (hasV5SR) {
         setupFalconV5Support(root, m_pru1.lastData + offset);
     }
@@ -842,7 +848,6 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root, uint8_t*
     falconV5Support = new FalconV5Support();
     bool supportsV5Listeners = root.isMember("falconV5ListenerConfig");
     if (supportsV5Listeners) {
-        PinCapabilities::getPinByName("P8-27").configPin("pruout");
         falconV5Support->addListeners(root["falconV5ListenerConfig"]);
     }
 
