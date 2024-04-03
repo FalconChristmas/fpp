@@ -2105,11 +2105,13 @@ body .sm-clean a .sub-arrow {
 
 .row.tablePageHeader {
     margin-bottom: 0;
+    padding-top: 0.5em;
 }
 
 .tablePageHeader .form-actions {
     margin-top: 0;
-    margin-bottom: 0.7em;
+    margin-bottom: 0;
+    padding-bottom: 0.7em;
 }
 
 .tablePageHeader.Zebra_Pin {
