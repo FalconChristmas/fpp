@@ -2498,6 +2498,14 @@ input[type=search].tablesorter-filter:disabled {
     padding-bottom: 0.8em;
 }
 
+.table-download-existing-backups thead {
+    background-color: #F5F5F5;
+}
+
+.table-restore-existing-backups thead {
+    background-color: #F5F5F5;
+}
+
 .table-download-existing-backups-container,
 .table-restore-existing-backups-container {
     overflow-y: scroll;
