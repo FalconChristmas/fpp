@@ -89,19 +89,29 @@ function common_PageLoad_PostDOMLoad_ActionsSetup(){
     $(document).on('click', '.navbar-toggler', ToggleMenu);
     $(document).on('keydown', handleKeypress);
 
+    //Pin Table Page Headers
     var zp_tablePageHeader = new $.Zebra_Pin($('.tablePageHeader'), {
         contained: true,
         top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight(true) : 0
     }); 
    
+    //Calc position of bottom of pinned tablePageHeader
     zebraPinSubContentTop = ($('.header').css('position') == 'fixed' ? $('.header').outerHeight(true) : 0) + $('.tablePageHeader').outerHeight(true); 
     
+    //Control Events on Tabs being shown
     $('a[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
         zp_tablePageHeader.update();
         float_fppStickyThead();
+        //$('table').floatThead('reflow');
     }); 
 
+    //showing tab directly if referenced in url
+    if (location.hash) {
+        $(".nav-link[href='" + location.hash + "']").tab('show');
+    }
 
+
+    //Handling touch
     if (hasTouch == true) {
         $('body').addClass('has-touch');
         var swipeHandler = new SwipeHandler($('.header').get(0));
@@ -115,21 +125,29 @@ function common_PageLoad_PostDOMLoad_ActionsSetup(){
     } else {
         $('body').addClass('no-touch');
     }
+
+    //button click functionality
     $("[data-bs-toggle=pill], [data-bs-toggle=tab]").on("click", function () {
         if (history.pushState) {
             history.pushState(null, null, $(this).attr('href'));
         }
     });
 
-    if (location.hash) {
-        $(".nav-link[href='" + location.hash + "']").tab('show');
-    }
 
+    //window scrolling events
     window.onscroll = function () { checkScrollTopButton(); };
 
-    float_fppStickyThead();
+    //Events for window resizing
+    $( window ).on( "resize", function() {
+        //reflow floatTHead tables if they exist
+        if ($('table').parent().hasClass('floatThead-container') ) {
+            $('table').floatThead('reflow');
+        }
+    });
 
-   //console.log('common page load actions running');
+
+    //set stickyTable headers for tables with fppStickyThead class added
+    float_fppStickyThead();
 
 }
 
@@ -143,7 +161,7 @@ function float_fppModalStickyThead(){
     $previewTable.floatThead({
             top: ($('.header').css('position') == 'fixed' ? $('.header').outerHeight(true) : 0) + $('#schedulePreview .modal-content .modal-header').outerHeight(true),
             zIndex: 99999,
-            debug: true,
+            debug: false,
             responsiveContainer: function($previewTable){
 	                return $previewTable.closest('.modal-body');
             }
@@ -164,10 +182,15 @@ function float_fppStickyThead(){
         }
         //float th thead on all found tables
         $(tablesToProcess).each(function(index, element){
-                $(element).floatThead({
+                var $table = $(element);
+                $table.floatThead({
                 top: zebraPinSubContentTop,
+                position: 'fixed',
                 zIndex: 990,
-                debug: false
+                debug: false ,
+                responsiveContainer: function($table) {
+                    return $table.closest(".fppTableContents");
+                } 
                 });
         })
         
@@ -265,8 +288,6 @@ function DoModalDialog(options) {
     new bootstrap.Modal('#' + options.id, options).show();
 
     $('#' + options.id).on('shown.bs.modal', function (){
-       // alert('The modal is fully shown.');
-        console.log($('#schedulePreview .modal-content .modal-header').outerHeight(true));
         float_fppModalStickyThead();
     });
 }
