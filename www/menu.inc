@@ -244,10 +244,10 @@ function RebuildFPPD() {
   <div class="collapse navbar-collapse" id="navbarNavDropdown">
     <ul id="fppMenuList" class="navbar-nav">
     <li class="nav-item dropdown <? echo $activeParentMenuItem=='status' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkStatus" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Status/Control
         </a>
-        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
+        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLinkStatus">
         <a class="dropdown-item" href="index.php"><i class="fas fa-info"></i> Status Page</a>
 <?
 if (isSet($settings['cape-info']) && isSet($settings['cape-info']['provides']) && in_array("currentMonitoring", $settings['cape-info']['provides'])) {
@@ -282,10 +282,10 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
       </li>
 
       <li class="nav-item dropdown <? echo $activeParentMenuItem=='content' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkContent" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Content Setup
         </a>
-        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
+        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLinkContent">
         <a class="dropdown-item" href="filemanager.php"><i class="fas fa-upload"></i> File Manager</a>
           <a class="dropdown-item" href="playlists.php"><i class="fas fa-list-ol"></i> Playlists</a>
 
@@ -299,10 +299,10 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
       </li>
 
       <li class="nav-item dropdown <? echo $activeParentMenuItem=='input-output' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkInOut" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Input/Output Setup
         </a>
-        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
+        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLinkInOut">
           <a class="dropdown-item" href="channelinputs.php"><i class="fas fa-project-diagram" style="color:red;"></i> Channel Inputs</a>
           <a class="dropdown-item" href="channeloutputs.php"><i class="fas fa-project-diagram" style="color:green;"></i> Channel Outputs</a>
           <a class="dropdown-item" href="outputprocessors.php"><i class="fas fa-microchip"></i> Output Processors</a>
@@ -313,10 +313,10 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
       </li>
 
       <li class="nav-item dropdown <? echo $activeParentMenuItem=='help' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkHelp" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Help
         </a>
-        <div class="dropdown-menu dropdown-with-icons dropdown-menu-end" aria-labelledby="navbarDropdownMenuLink">
+        <div class="dropdown-menu dropdown-with-icons dropdown-menu-end" aria-labelledby="navbarDropdownMenuLinkHelp">
           <a class="dropdown-item" href="about.php"><i class="fas fa-info-circle"></i> About</a>
 <?php
 $eepromFile = "/home/fpp/media/tmp/eeprom.bin";
