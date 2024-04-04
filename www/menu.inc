@@ -352,7 +352,7 @@ if ($settings["hideExternalURLs"]) {
             $baseLink = $_SERVER['HTTP_X_FORWARDED_HOST'] . '/proxy/' . $_SERVER['SERVER_ADDR'];
           }
           ?>
-          <a class="<?= $externalLinkClass ?>" href="http://<?=$baseLink?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
+          <a class="<?= $externalLinkClass ?>" href="http://<?=$baseLink?>:4200" target="_blank"><i class="fas fa-terminal"></i> SSH Shell</a>
           <?php list_plugin_entries("help"); ?>
         </div>
       </li>
