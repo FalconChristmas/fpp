@@ -101,7 +101,7 @@ function list_plugin_entries($menu) {
 		  <?
             if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank' class='platformLogoLink'>";
 		    if ($settings['Logo'] != "") {
-           echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; }
+           echo "<img src='images/" . $settings['Logo'] . "' class='logo' alt='" . $settings['Variant'] . " Logo'>"; }
 		    if ($settings['LogoLink'] != "") echo "</a>";
             if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image']) 
                 && $settings['FetchVendorLogos'] == 1) {
@@ -139,7 +139,7 @@ function list_plugin_entries($menu) {
 		</div>
 
   </div>
-  <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
+  <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;" alt=''></a></div>
   <div class='helpLinkDiv largeonly'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
 
   <button class='buttons' onclick="scrollToTop()" id="scrollTopButton">Top</button>
