@@ -451,10 +451,39 @@ function DeleteSelectedMemMap() {
 	}
 }
 
-$(document).ready(function(){
+
+function pageSpecific_PageLoad_DOM_Setup(){
 	SetupSelectableTableRow(tableInfo);
 	GetChannelMemMaps();
-});
+}
+
+function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
+    //Set StickyHeader on channelMemMaps table
+    var $table = $('#channelMemMaps');
+                $table.floatThead({
+                top: zebraPinSubContentTop,
+                position: 'fixed',
+                zIndex: 990,
+                debug: false ,
+                responsiveContainer: function($table) {
+                    return $table.closest(".fppTableContents");
+                    }
+                });
+
+    //Set StickyHeader on channelMemMapsAutoCreate table
+    var $table = $('#channelMemMapsAutoCreate');
+                $table.floatThead({
+                top: zebraPinSubContentTop,
+                position: 'fixed',
+                zIndex: 990,
+                debug: false ,
+                responsiveContainer: function($table) {
+                    return $table.closest(".fppTableContents");
+                    }
+                });
+
+
+}
 
 </script>
 
@@ -492,7 +521,7 @@ include 'menu.inc';?>
                 <hr>
 				<div class='fppTableWrapper fppTableWrapperAsTable'>
                     <div class='fppTableContents' role="region" aria-labelledby="channelMemMaps" tabindex="0">
-                        <table id="channelMemMaps" class="fppSelectableRowTable fppStickyTheadTable">
+                        <table id="channelMemMaps" class="fppSelectableRowTable">
                             <thead>
                                 <tr>
 									<th class="tblChannelMemMapsHeadGrip"></th>
