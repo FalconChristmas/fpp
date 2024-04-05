@@ -15,7 +15,7 @@ function HealthCheckDone() {
 function StartHealthCheck() {
     SetButtonState('#btnStartHealthCheck','disable');
     $('#healthCheckOutput').html('');
-    //StreamURL('healthCheckHelper.php?output=php', 'healthCheckOutput', 'HealthCheckDone', '', 'GET', null, null, true, true);
+    //StreamURL('healthCheckHelper.php?output=php', 'healthCheckOutput', 'HealthCheckDone', '', 'GET', null, null, true, true);  //commented out by onlinedynamic as function giving broken results on Firefox browser
 
     $.ajax({
         url: "healthCheckHelper.php?output=php",
