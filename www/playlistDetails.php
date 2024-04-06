@@ -50,7 +50,10 @@ $simplifiedPlaylist = 0;
                             	 <span class='playlistDurationMainPlaylist'>00m:00s</span>
                             	</div>
                             </div>
-                            
+                            <div>
+                                <div class="labelHeading">Randomize:</div>
+                                <div id="txtRandomize" class="labelValue">gfgf</div>
+                            </div>
                         </div>
                     </div>
                 </div>
