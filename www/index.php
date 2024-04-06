@@ -20,18 +20,21 @@ include 'common/menuHead.inc';
     SetStatusRefreshSeconds(1);
     PlayEntrySelected = 1;
 
-    $(function() {
-        $('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
+
+function pageSpecific_PageLoad_DOM_Setup(){
+
+}
+
+function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
+    //set mouse down actions on playlist:
+    $('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
             $('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
             $(this).addClass('playlistSelectedEntry');
             PlayEntrySelected = parseInt($(this).attr('id').substr(11));
         });
 
-//        $('#playlistDetailsContents').resizable({
-//            "handles": "s"
-//        });
-
-        $('#syncStatsTable').tablesorter({
+    //Setup Tablesorter
+    $('#syncStatsTable').tablesorter({
             headers: {
                 1: { sorter: 'ipAddress' }
             },
@@ -42,13 +45,8 @@ include 'common/menuHead.inc';
                 filter_hideFilters : true
             }
         });
-    });
+}
 
-</script>
-
-<title><?=$pageTitle?></title>
-
-    <script>
         function PageSetup() {
             //Store frequently elements in variables
             var slider  = $('#slider');
@@ -183,7 +181,7 @@ include 'common/menuHead.inc';
 
     </script>
 
-
+<title><?=$pageTitle?></title>
 </head>
 <body class="is-loading" onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);OnSystemStatusChange(GetFPPStatus);">
 <div id="bodyWrapper">
@@ -480,19 +478,16 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                 </div>
                 <div id="playlistOuterScroll">
                     <div class='statusBoxRight'>
-                        <div id='playerTime' class='statusTable'>
+                        <div id='playerTime' class='statusTable labelValue'>
                             <div>
-                                <div class="labelHeading">Elapsed:</div>
-                                <div id="txtTimePlayed" class="labelValue"></div>
+                                <div id="txtTimePlayed" class=""></div>
+                                <div class="labelHeading">Elapsed</div>
                             </div>
                             <div>
-                                <div class="labelHeading">Remaining:</div>
-                                <div id="txtTimeRemaining" class="labelValue"></div>
+                                <div id="txtTimeRemaining" class=""></div>
+                                <div class="labelHeading">Remaining</div>
                             </div>
-                            <div>
-                                <div class="labelHeading">Randomize:</div>
-                                <div id="txtRandomize" class="labelValue"></div>
-                            </div>
+
                         </div>
                     </div>
                     <div id="playerStatusBottom">
