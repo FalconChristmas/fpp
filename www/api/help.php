@@ -7,7 +7,7 @@ if (!isset($apiDir))
     $wrapped = 0;
     $apiDir = "";
 ?>
-<html>
+<html lang="en">
 <head>
 <link rel="stylesheet" href="../css/fpp.css">
 <style>
@@ -17,6 +17,7 @@ if (!isset($apiDir))
 </style>
 <script type='text/javascript' src='../js/jquery-latest.min.js'></script>
 <script type='text/javascript' src='../js/fpp.js'></script>
+
 <?
 }
 ?>

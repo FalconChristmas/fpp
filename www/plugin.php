@@ -30,7 +30,7 @@ if (!isset($_GET['nopage'])):
     ?>
 
 	<!DOCTYPE html>
-	<html>
+	<html lang="en">
 	<head>
 	<?php include 'common/menuHead.inc';?>
 	<title><?echo $pageTitle; ?></title>

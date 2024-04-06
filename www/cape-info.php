@@ -2,7 +2,7 @@
 header("Access-Control-Allow-Origin: *");
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <?php
 require_once 'common.php';
 require_once 'config.php';

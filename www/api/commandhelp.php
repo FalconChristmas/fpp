@@ -8,7 +8,7 @@ if (!isset($apiDir)) {
     $wrapped = 0;
     $apiDir = "";
     ?>
-<html>
+<html lang="en">
 <head>
 <link rel="stylesheet" href="../css/fpp.css">
 <style>
