@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+<head>
 <?php
 require_once 'config.php';
 require_once 'common.php';
@@ -8,7 +9,6 @@ require_once 'common.php';
 error_reporting(E_ALL);
 
 ?>
-<head>
 <?php include 'common/menuHead.inc';?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <title><?echo $pageTitle; ?></title>
