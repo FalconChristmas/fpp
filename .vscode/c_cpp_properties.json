@@ -4,8 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/src/**",
-                "/usr/include/c++/10",
-                "/usr/include/arm-linux-gnueabihf/c++/10",
+                "/usr/include/c++/12",
+                "/usr/include/arm-linux-gnueabihf/c++/12",
                 "/usr/include/libdrm"
             ],
             "defines": [
@@ -18,5 +18,5 @@
             "intelliSenseMode": "linux-gcc-arm"
         }
     ],
-    "version": 4
+    "version": 5
 }

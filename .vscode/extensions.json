@@ -6,6 +6,9 @@
         "coolchyni.beyond-debug",
         "streetsidesoftware.code-spell-checker",
         "xaver.clang-format",
-        "austin.code-gnu-global"
+        "austin.code-gnu-global",
+        "ms-vscode.cpptools-themes",
+        "cschlosser.doxdocgen",
+        "eamodio.gitlens"
     ]
 }
