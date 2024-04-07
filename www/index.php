@@ -192,7 +192,10 @@ include 'menu.inc';
 
 
 <div class="mainContainer">
-<h1 class="title statusTitle"><? if ($settings['fppMode'] == 'remote') echo "Remote ";?>Status <span class="statusHostname"><?=$settings["HostName"]?></span></h1>
+<h1 class="title statusTitle"><?if ($settings['fppMode'] == 'remote') {
+    echo "Remote ";
+}
+?>Status <span class="statusHostname"><?=$settings["HostName"]?></span></h1>
 
 <?php
 if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 0):
@@ -203,7 +206,10 @@ if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 
 <?php endif;?>
 
 <div class="statusDivTopWrap">
-    <div id="schedulerInfo" class="statusDiv statusDivTop" <? if ($settings['fppMode'] == 'remote') echo "style='display:none;'"; ?>>
+    <div id="schedulerInfo" class="statusDiv statusDivTop" <?if ($settings['fppMode'] == 'remote') {
+    echo "style='display:none;'";
+}
+?>>
         <div class="statusTable statusDivTopRow">
 
             <div class="statusDivTopCol">
@@ -306,8 +312,8 @@ if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 
                         <div class="labelHeading">Volume</div>
                         <span id='remoteVolume' class='volume'></span>
                     </div>
-                    <? if ($settings['disableAudioVolumeSlider'] != '1') {
-                    ?>
+                    <?if ($settings['disableAudioVolumeSlider'] != '1') {
+    ?>
                     <div class="volumeControls">
                         <button class='volumeButton buttons' onClick="DecrementVolume();">
                             <i class='fas fa-fw fa-volume-down'></i>
@@ -319,8 +325,8 @@ if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 
                         <span id='speaker'></span> <!-- Volume -->
                     </div>
                     <?php
-                    }
-                    ?>
+}
+?>
                 </div>
                 <hr>
                 <br>
@@ -448,14 +454,25 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                                     </span>
                                 </button>
                             </div>
-
+                        <div class='statusBoxRight col-md-auto'>
+                            <div id='playerTime' class='statusTable labelValue'>
+                                <div>
+                                    <div id="txtTimePlayed" class=""></div>
+                                    <div class="labelHeading">Elapsed</div>
+                                </div>
+                                <div>
+                                    <div id="txtTimeRemaining" class=""></div>
+                                    <div class="labelHeading">Remaining</div>
+                                </div>
+                            </div>
+                        </div>
                             <div class="volumeControlsContainer col-md-auto">
                                 <div>
                                     <div class="labelHeading">Volume</div>
                                     <span id='volume' class='volume'></span>
                                 </div>
-                                <? if ($settings['disableAudioVolumeSlider'] != '1') {
-                                ?>
+                                <?if ($settings['disableAudioVolumeSlider'] != '1') {
+    ?>
                                 <div class="volumeControls">
                                         <button class='volumeButton buttons' onClick="DecrementVolume();">
                                             <i class='fas fa-fw fa-volume-down'></i>
@@ -467,8 +484,8 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                                     <span id='speaker'></span> <!-- Volume -->
                                 </div>
                                 <?php
-                                }
-                                ?>
+}
+?>
                             </div>
 
                         </div>
@@ -477,19 +494,7 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                     <hr>
                 </div>
                 <div id="playlistOuterScroll">
-                    <div class='statusBoxRight'>
-                        <div id='playerTime' class='statusTable labelValue'>
-                            <div>
-                                <div id="txtTimePlayed" class=""></div>
-                                <div class="labelHeading">Elapsed</div>
-                            </div>
-                            <div>
-                                <div id="txtTimeRemaining" class=""></div>
-                                <div class="labelHeading">Remaining</div>
-                            </div>
 
-                        </div>
-                    </div>
                     <div id="playerStatusBottom">
                         <?php include "playlistDetails.php";?>
 
