@@ -118,26 +118,31 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
 
         function SetSpeakerIndicator(value) {
             var speaker = $('#speaker');
+            var speaker_d_flex = $('#speaker_d_flex');
             var remoteSpeaker = $('#remoteSpeaker');
 
             if(value <= 5)
             {
                 speaker.css('background-position', '0 0');
+                speaker_d_flex.css('background-position', '0 0');
                 remoteSpeaker.css('background-position', '0 0');
             }
             else if (value <= 25)
             {
                 speaker.css('background-position', '0 -25px');
+                speaker_d_flex.css('background-position', '0 -25px');
                 remoteSpeaker.css('background-position', '0 -25px');
             }
             else if (value <= 75)
             {
                 speaker.css('background-position', '0 -50px');
+                speaker_d_flex.css('background-position', '0 -50px');
                 remoteSpeaker.css('background-position', '0 -50px');
             }
             else
             {
                 speaker.css('background-position', '0 -75px');
+                speaker_d_flex.css('background-position', '0 -75px');
                 remoteSpeaker.css('background-position', '0 -75px');
             };
         }
@@ -322,7 +327,7 @@ if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 
                         <button class='volumeButton buttons' onClick="IncrementVolume();">
                             <i class='fas fa-fw fa-volume-up'></i>
                         </button>
-                        <span id='speaker'></span> <!-- Volume -->
+                        <span id='speaker_d_flex'></span> <!-- Volume -->
                     </div>
                     <?php
 }
@@ -401,7 +406,7 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                                 </div>
                                 <div class="col-auto playlistRepeatCol">
                                     <span class="settingLabelHeading">Repeat:</span>
-                                    <input type="checkbox" id="chkRepeat"></input>
+                                    <input type="checkbox" id="chkRepeat">
                                 </div>
                             </div>
                         </div>
@@ -454,7 +459,7 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                                     </span>
                                 </button>
                             </div>
-                        <div class='statusBoxRight col-md-auto'>
+                        <div class='timingsBoxCenter col-md-auto'>
                             <div id='playerTime' class='statusTable labelValue'>
                                 <div>
                                     <div id="txtTimePlayed" class=""></div>
