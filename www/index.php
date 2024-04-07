@@ -223,7 +223,7 @@ if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 
             </div>
             <div class="schedulerExtend schedulerEndTime statusDivTopCol ">
                 <div class="labelHeading">Extend Current Playlist:</div>
-                <div class='labelValue' colspan='2'>
+                <div class='labelValue'>
                     <div class="btn-group">
                         <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedulePopup();'>
                             <i class="fas fa-fw fa-calendar-plus"></i>Extend
