@@ -24,7 +24,7 @@ $helpPages = array(
 	  <h1 class="title">Help Index</h1>
 	  <div class="pageContent">
 	  	  
-	  	    <div style="margin:0 auto;"> <br />
+	  	    <div style="margin:0 auto;"> <br>
 	  	      <fieldset class="fieldSection">
 	  	        <legend>Help Index</legend>
 	  	        <div style="overflow: hidden; padding: 10px;">
