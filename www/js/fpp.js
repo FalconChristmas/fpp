@@ -4850,26 +4850,22 @@ function PopulatePlaylistDetails(data, editMode, name = "") {
     } else {
         SetPlaylistName(name);
     }
-    if (editMode) {
-        if (typeof data.random === "undefined") {
+
+    if (typeof data.random === "undefined") {
             $('#randomizePlaylist').val(0);
         } else {
             $('#randomizePlaylist').val(data.random);
         }
-    } else {
-        if (typeof data.random === "undefined") {
-            $('#txtRandomize').html('Off');
-        } else {
-            if (data.random == 0)
+    if (data.random == 0) {
                 $('#txtRandomize').html('Off');
+    }
             else if (data.random == 1)
                 $('#txtRandomize').html('Once at load time');
             else if (data.random == 2)
                 $('#txtRandomize').html('Once per iteration');
             else
                 $('#txtRandomize').html('Invalid value');
-        }
-    }
+        
 }
 
 function PopulatePlaylistDetailsEntries(playselected, playList) {
