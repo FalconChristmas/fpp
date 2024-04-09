@@ -40,6 +40,11 @@ if (isset($_GET['playlist'])) {
                 "Copy": function () {
                     var new_playlist_name = $("#CopyPlaylistDialog").find(".newPlaylistName").val();
 
+                    if (new_playlist_name === "") {
+                        DialogError('No name given', 'The playlist name cannot be empty.');
+                        return;
+                    }
+
                     if (name == new_playlist_name) {
                         DialogError('Error, same name given', 'Identical name given.');
                         return;
