@@ -209,7 +209,7 @@ if (isset($_GET['playlist'])) {
                     "Add Playlist": {
                         click: function() {
                             if ($("#txtAddPlaylistName").val() ===""){
-                                alert("Playlist Name cannot be empty");
+                                DialogError('No name given', 'The playlist name cannot be empty.');
                                 return;
                         } else {
                             SavePlaylistAs(
