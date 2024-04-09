@@ -157,13 +157,13 @@ if (isset($_GET['playlist'])) {
             $('.playlistSelectBody').html('');
             $('.playlistSelectCount').html(playListArray.length);
             $.each(playListArray,function(i,playList){
-                var $playlistCol = $('<div class="col-md-4"/>');
+                var $playlistCol = $('<div class="card-group col-md-4"/>');
                 var $playlistCard = $('<div class="card has-shadow playlistCard buttonActionsParent"/>');
                 var $playlistName = String(playList.name);
                 var $playlistDescription = String(playList.description);
-                var $playlistClass = playList.valid ? "" : 'class="playlist-warning" title="' + playList.messages.join(' ') + '"';
+                var $playlistClass = playList.valid ? 'class="card-title"' : 'class="card-title playlist-warning" title="' + playList.messages.join(' ') + '"';
                 var $playlistCardHeading = $('<h3 ' + $playlistClass + '>'+$playlistName+'</h3>');
-                var $playlistCardDescription = $('<h4 ' + $playlistClass + '>'+$playlistDescription+'</h4>');
+                var $playlistCardDescription = $('<div class="text-center"/><p class="card-text mb-2 text-muted">'+$playlistDescription+'</p></div>');
                 var $playlistActions = $("<div class='buttonActions' />");
                 var $playlistEditButton = $('<button class="playlistCardEditButton circularButton circularButton-sm circularEditButton">Edit</button>');
                 var $playlistDelete = $("<button class='circularButton circularButton-sm circularDeleteButton'>Delete</button>");
@@ -203,6 +203,10 @@ if (isset($_GET['playlist'])) {
                 buttons: {
                     "Add Playlist": {
                         click: function() {
+                            if ($("#txtAddPlaylistName").val() ===""){
+                                alert("Playlist Name cannot be empty");
+                                return;
+                        } else {
                             SavePlaylistAs(
                                 $("#txtAddPlaylistName").val(),
                                 {
@@ -217,13 +221,14 @@ if (isset($_GET['playlist'])) {
                                     CloseModalDialog("AddPlaylistDialog");
                                 }
                             )
+                        }},
+                            class:'btn-success'
                         },
-                        class:'btn-success'
-                    },
                     "Close": function() { CloseModalDialog("AddPlaylistDialog");}
                 }
-            });
-        });
+                });
+            })
+
         $('.editPlaylistBtn').on("click", function(){
             $("#verbosePlaylistItemDetailsRow .printSettingLabelCol").removeClass("col-xxxl-2");
             $("#verbosePlaylistItemDetailsRow .printSettingLabelCol").removeClass("col-lg-3");
