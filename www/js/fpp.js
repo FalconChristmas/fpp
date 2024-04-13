@@ -2249,7 +2249,7 @@ function GetPlaylistEntry(row) {
 function AddPlaylist(filter, callback) {
     var name = $('#txtAddPlaylistName').val();
     if (name == "") {
-        alert("Playlist name cannot be empty");
+        DialogError("Playlist name cannot be empty");
         return;
     }
 
@@ -2258,7 +2258,7 @@ function AddPlaylist(filter, callback) {
 function SavePlaylist(filter, callback) {
     var name = $('#txtPlaylistName').val();
     if (name == "") {
-        alert("Playlist name cannot be empty");
+        DialogError("Playlist name cannot be empty");
         return;
     }
 
@@ -3524,6 +3524,7 @@ function SetupUIForMode(fppMode) {
     }
     if ($("body").hasClass('is-loading')) {
         $("body").removeClass('is-loading');
+        //Pin Player Controls to top of index page
         var zp_playerControls = $.Zebra_Pin($('#playerModeInfo #playerControls'), {
 
             onPin: function (scroll, $element) {
@@ -3536,6 +3537,21 @@ function SetupUIForMode(fppMode) {
             },
             top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0,
             pinpoint_offset: 150,
+            contained: true
+        });
+        //Pin Progress bar to top of index page
+        var zp_playerTime = $.Zebra_Pin($('#playerModeInfo #playerTime'), {
+
+            onPin: function (scroll, $element) {
+                setTimeout(function () {
+                    $('#playerModeInfo #playerTime').css({
+                        width: $('#playerModeInfo #playerTime').parent().width(),
+                    });
+                }, 50);
+
+            },
+            top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight() : $('#playerModeInfo #playerControls').outerHeight(),
+            pinpoint_offset: 0,
             contained: true
         });
     }
@@ -3857,6 +3873,10 @@ function parseStatus(jsonStatus) {
             $('#playerTime').show();
             $('#txtTimePlayed').html(jsonStatus.time_elapsed);
             $('#txtTimeRemaining').html(jsonStatus.time_remaining);
+            jsonStatus.percentage_played = (parseInt(jsonStatus.seconds_elapsed)/(parseInt(jsonStatus.seconds_elapsed)+parseInt(jsonStatus.seconds_remaining))*100).toFixed(0);
+            $('#playerTime > .progress')[0].setAttribute("aria-valuenow",jsonStatus.percentage_played );
+            $('#playerTime > .progress > .progress-bar')[0].setAttribute("style","width: "+jsonStatus.percentage_played+"%");
+            $('#txtPercentageComplete').html(jsonStatus.percentage_played+"%");
             $('#txtSeqFilename').html(jsonStatus.current_sequence);
             $('#txtMediaFilename').html(jsonStatus.current_song);
 
