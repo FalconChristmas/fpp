@@ -427,7 +427,7 @@ include 'menu.inc';?>
           <div class="row">
             <div class="aboutLeft col-md">
               <table class='tblAbout'>
-                <tr><td><b>Version Info</b></td><td>&nbsp;</td></tr>
+                <tr><td><i class="fa-solid fa-tag fa-fw"></i><b>Version Info</b></td><td>&nbsp;</td></tr>
                 <tr><td>FPP Version:</td><td id='fppVersion'><?echo $fpp_version; ?></td></tr>
                 <tr><td>Platform:</td><td><?
 echo $settings['Platform'];
@@ -519,13 +519,13 @@ echo "<br><span><i class='fas fa-fw fa-code ui-level-3'></i> Preserve /opt/fpp <
 echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'>&nbsp;<input type='button' disabled value='Download Only' onClick='DownloadOS();' class='buttons' id='OSDownload'></td></tr>";
 ?>
                 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
-                <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>
+                <tr><td><i class="fa-solid fa-chart-line fa-fw"></i><b>System Utilization</b></td><td>&nbsp;</td></tr>
                 <tr><td>CPU Usage:</td><td><?printf("%.2f", get_server_cpu_usage());?>%</td></tr>
                 <tr><td>Memory Usage:</td><td><?printf("%.2f", get_server_memory_usage());?>%</td></tr>
                 <tr><td style="vertical-align:top;">Sensors:</td><td><div id="sensorData"></div></td></tr>
 
                 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
-                <tr><td><b>Uptime</b></td><td>&nbsp;</td></tr>
+                <tr><td><i class="fa-regular fa-clock fa-fw"></i><b>Uptime</b></td><td>&nbsp;</td></tr>
                 <tr><td colspan='2'><?echo $uptime; ?></td></tr>
 
               </table>
@@ -533,7 +533,7 @@ echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();
             </div>
             <div class="aboutRight col-md">
               <table class='tblAbout'>
-                <tr><td><b>Player Stats</b></td><td>&nbsp;</td></tr>
+                <tr><td><i class="fa-solid fa-chart-simple fa-fw"></i><b>Player Stats</b></td><td>&nbsp;</td></tr>
                 <tr><td>Schedules:</td><td><a href='scheduler.php' class='nonULLink' id='scheduleCount'></a></td></tr>
                 <tr><td>Playlists:</td><td><a href='playlists.php' class='nonULLink'><?echo getFileCount($playlistDirectory); ?></a></td></tr>
                 <tr><td>Sequences:</td><td><a href='filemanager.php' class='nonULLink'><?echo getFileCount($sequenceDirectory); ?></a></td></tr>
@@ -545,7 +545,7 @@ echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();
 
                 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
-                <tr><td><b>Disk Utilization</b></td><td>&nbsp;</td></tr>
+                <tr><td><i class="fa-regular fa-hard-drive fa-fw"></i><b>Disk Utilization</b></td><td>&nbsp;</td></tr>
     <?
 $diskTotal = disk_total_space("/");
 $diskFree = disk_free_space("/");
