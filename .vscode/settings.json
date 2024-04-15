@@ -129,5 +129,12 @@
         "charconv": "cpp"
     },
     "editor.formatOnSave": true,
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "[c++]": {
+            "editor.defaultFormatter": "xaver.clang-format"
+        },
+    "[javascript]": {
+            "editor.defaultFormatter": "numso.prettier-standard-vscode"
+        }
+   
 }
