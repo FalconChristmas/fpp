@@ -962,7 +962,7 @@ hr {
 }
 
 #playerTime {
-    margin-top: 0.65em;
+    margin-top: 0;
 }
 
 #playerTime .labelValue,
@@ -2120,6 +2120,12 @@ body .sm-clean a .sub-arrow {
 }
 
 #playerControls.Zebra_Pin {
+    background-color: #fff;
+    box-shadow: 0px 5px 4px -5px rgba(0, 0, 0, 0.2), 5px 0px 0px 0px #fff;
+    padding-top: 0.5em;
+}
+
+#playerTime.Zebra_Pin {
     background-color: #fff;
     box-shadow: 0px 5px 4px -5px rgba(0, 0, 0, 0.2), 5px 0px 0px 0px #fff;
     padding-top: 0.5em;
