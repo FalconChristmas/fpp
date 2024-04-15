@@ -130,14 +130,13 @@
     },
     "editor.formatOnSave": true,
     "cmake.configureOnOpen": false,
-    "[c++]": {
-            "editor.defaultFormatter": "xaver.clang-format"
-        },
+    "[cpp]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
     "[javascript]": {
-            "editor.defaultFormatter": "numso.prettier-standard-vscode"
-        },
+        "editor.defaultFormatter": "numso.prettier-standard-vscode"
+    },
     "[php]": {
-                "editor.defaultFormatter": "kokororin.vscode-phpfmt"
-            }
-   
+        "editor.defaultFormatter": "kokororin.vscode-phpfmt"
+    }
 }
