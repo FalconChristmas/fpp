@@ -10,6 +10,7 @@
         "ms-vscode.cpptools-themes",
         "cschlosser.doxdocgen",
         "eamodio.gitlens",
-        "numso.prettier-standard-vscode"
+        "numso.prettier-standard-vscode",
+        "rifi2k.format-html-in-php"
     ]
 }
