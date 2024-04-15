@@ -135,6 +135,9 @@
         },
     "[javascript]": {
             "editor.defaultFormatter": "numso.prettier-standard-vscode"
-        }
+        },
+    "[php]": {
+                "editor.defaultFormatter": "kokororin.vscode-phpfmt"
+            }
    
 }
