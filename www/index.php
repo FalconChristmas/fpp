@@ -45,6 +45,12 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
                 filter_hideFilters : true
             }
         });
+
+        $(window).on("resize", function(){
+            if (typeof zp_playerControls !== 'undefined') {
+                zp_playerControls.update();
+            }
+        });
 }
 
         function PageSetup() {
@@ -410,8 +416,8 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                                 </div>
                             </div>
                         </div>
-                        <div class="row statusPageControlsRow">
-                            <div id="playerControls" class="col-md" >
+                        <div class="row statusPageControlsRow d-flex justify-content-between">
+                            <div id="playerControls" class="col-md-7" >
                                 <button id="btnPlay" class="buttons btn-rounded btn-success disableButtons"
                                     onClick="StartPlaylistNow();">
 
@@ -459,19 +465,22 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                                     </span>
                                 </button>
                             </div>
-                        <div class='timingsBoxCenter col-md-auto'>
-                            <div id='playerTime' class='statusTable labelValue'>
-                                <div>
-                                    <div id="txtTimePlayed" class=""></div>
-                                    <div class="labelHeading">Elapsed</div>
-                                </div>
-                                <div>
-                                    <div id="txtTimeRemaining" class=""></div>
-                                    <div class="labelHeading">Remaining</div>
-                                </div>
+                        <div class='timingsBoxCenter col-md-2'>
+                            <div id='playerTime' class='statusTable labelValue container'>
+
+                                    <div class="labelHeading col-md-3 text-end"><span id="txtTimePlayed" class="text-end">02:00</span><br>Elapsed</div>
+                                    <div class="progress progress-linear col-md-6" role="progressbar" aria-label="Playlist Item Progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                        <div class="progress-bar bg-success" style="width: 0%">
+                                            <div id="txtPercentageComplete" class=""></div>
+                                        </div>
+                                    </div>
+                                    <div class="">
+                                        <div class="labelHeading col-md-3"><span id="txtTimeRemaining">02:00</span><br>Remaining</div>
+                                    </div>
+
                             </div>
                         </div>
-                            <div class="volumeControlsContainer col-md-auto">
+                            <div class="volumeControlsContainer col-md-3 container">
                                 <div>
                                     <div class="labelHeading">Volume</div>
                                     <span id='volume' class='volume'></span>
