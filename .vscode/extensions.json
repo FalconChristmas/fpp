@@ -9,6 +9,7 @@
         "austin.code-gnu-global",
         "ms-vscode.cpptools-themes",
         "cschlosser.doxdocgen",
-        "eamodio.gitlens"
+        "eamodio.gitlens",
+        "numso.prettier-standard-vscode"
     ]
 }
