@@ -49,14 +49,111 @@ include 'common/menuHead.inc';
             }
         });
 
+        // Pin Player Controls to top of index page
+        zp_playerControls = new $.Zebra_Pin($('#playerModeInfo #playerControls'), {
+            onPin: function(scroll, $element) {
+                setTimeout(function() {
+                    $('#playerModeInfo #playerControls').css({
+                        width: $('#playerModeInfo #playerControls').parent().width()
+                    });
+                }, 50);
+                console.log('onPin event triggered for player controls');
+            },
+            top_spacing: $('.header').css('position') == 'fixed' ?
+                $('.header').outerHeight() : 0,
+            pinpoint_offset: 150,
+            contained: true
+        });
+        // Pin Progress bar to top of index page
+        zp_playerTime = new $.Zebra_Pin($('#playerModeInfo #playerTime'), {
+            onPin: function(scroll, $element) {
+                setTimeout(function() {
+                    $('#playerModeInfo #playerTime').css({
+                        width: $('#playerModeInfo #playerTime').parent().width()
+                    });
+                }, 50);
+            },
+            top_spacing: $('.header').css('position') == 'fixed' ?
+                $('.header').outerHeight() : $('#playerModeInfo #playerControls').outerHeight(),
+            pinpoint_offset: 0,
+            contained: true
+        });
+
     }
 
     function pageSpecific_ViewPortChange() {
-        /*         console.log(gblCurrentBootstrapViewPort);
-                //handle player controls
-                if (typeof zp_playerControls !== 'undefined') {
-                    zp_playerControls.update();
-                } */
+
+        //Positioning Pinned divs working from top to bottom
+        //Player Controls
+        if (typeof zp_playerControls !== 'undefined') {
+            switch (gblCurrentBootstrapViewPort) {
+                case 'xs':
+                    //
+                    zp_playerControls.settings.top_spacing = 0;
+                    break;
+                case 'sm':
+                    //
+                    zp_playerControls.settings.top_spacing = 0;
+                    break;
+                case 'md':
+                    //
+                    zp_playerControls.settings.top_spacing = 0;
+                    break;
+                case 'lg':
+                    //has sticky page header
+                    zp_playerControls.settings.top_spacing = $('.header').css('position') == 'fixed' ?
+                        $('.header').outerHeight() : 0;
+                    break;
+                case 'xl':
+                    //has sticky page header
+                    zp_playerControls.settings.top_spacing = $('.header').css('position') == 'fixed' ?
+                        $('.header').outerHeight() : 0;
+                    break;
+                case 'xxl':
+                    //has sticky page header
+                    zp_playerControls.settings.top_spacing = $('.header').css('position') == 'fixed' ?
+                        $('.header').outerHeight() : 0;
+                    break;
+                default:
+            }
+            //refresh player control positioning
+            zp_playerControls.update();
+        }
+        //Player Time Progress
+        if (typeof zp_playerTime !== 'undefined') {
+            switch (gblCurrentBootstrapViewPort) {
+                case 'xs':
+                    //
+                    zp_playerTime.settings.top_spacing = $('#playerControls').outerHeight();
+                    break;
+                case 'sm':
+                    //
+                    zp_playerTime.settings.top_spacing = $('#playerControls').outerHeight();
+                    break;
+                case 'md':
+                    //
+                    zp_playerTime.settings.top_spacing = $('#playerControls').outerHeight();
+                    break;
+                case 'lg':
+                    //has sticky page header
+                    zp_playerTime.settings.top_spacing = ($('.header').css('position') == 'fixed' ?
+                        $('.header').outerHeight() : 0) + $('#playerControls').outerHeight();
+                    break;
+                case 'xl':
+                    //has sticky page header
+                    zp_playerTime.settings.top_spacing = ($('.header').css('position') == 'fixed' ?
+                        $('.header').outerHeight() : 0) + $('#playerControls').outerHeight();
+                    break;
+                case 'xxl':
+                    //has sticky page header
+                    zp_playerTime.settings.top_spacing = $('.header').css('position') == 'fixed' ?
+                        $('.header').outerHeight() : 0;
+                    break;
+                default:
+            }
+            //refresh player control positioning
+            zp_playerTime.update();
+        }
 
     }
 

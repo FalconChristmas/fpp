@@ -78,6 +78,8 @@ function loadPageReadyActions () {
 	if (typeof pageSpecific_PageLoad_PostDOMLoad_ActionsSetup === 'function') {
 		pageSpecific_PageLoad_PostDOMLoad_ActionsSetup();
 	}
+	// setup control of how to handle a change in bootstrap viewport size
+	setViewPortControl();
 }
 
 function common_PageLoad_DOM_Setup () {
@@ -155,9 +157,6 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 
 	// set stickyTable headers for tables with fppStickyThead class added
 	float_fppStickyThead();
-
-	// setup control of how to handle a change in bootstrap viewport size
-	setViewPortControl();
 }
 
 function common_ViewPortChange () {
@@ -4301,38 +4300,6 @@ function SetupUIForMode (fppMode) {
 	}
 	if ($('body').hasClass('is-loading')) {
 		$('body').removeClass('is-loading');
-		// Pin Player Controls to top of index page
-		zp_playerControls = $.Zebra_Pin($('#playerModeInfo #playerControls'), {
-			onPin: function (scroll, $element) {
-				setTimeout(function () {
-					$('#playerModeInfo #playerControls').css({
-						width: $('#playerModeInfo #playerControls').parent().width()
-					});
-				}, 50);
-			},
-			top_spacing:
-				$('.header').css('position') == 'fixed'
-					? $('.header').outerHeight()
-					: 0,
-			pinpoint_offset: 150,
-			contained: true
-		});
-		// Pin Progress bar to top of index page
-		zp_playerTime = $.Zebra_Pin($('#playerModeInfo #playerTime'), {
-			onPin: function (scroll, $element) {
-				setTimeout(function () {
-					$('#playerModeInfo #playerTime').css({
-						width: $('#playerModeInfo #playerTime').parent().width()
-					});
-				}, 50);
-			},
-			top_spacing:
-				$('.header').css('position') == 'fixed'
-					? $('.header').outerHeight()
-					: $('#playerModeInfo #playerControls').outerHeight(),
-			pinpoint_offset: 0,
-			contained: true
-		});
 	}
 }
 
