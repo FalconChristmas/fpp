@@ -49,11 +49,15 @@ include 'common/menuHead.inc';
             }
         });
 
-        $(window).on("resize", function() {
-            if (typeof zp_playerControls !== 'undefined') {
-                zp_playerControls.update();
-            }
-        });
+    }
+
+    function pageSpecific_ViewPortChange() {
+        /*         console.log(gblCurrentBootstrapViewPort);
+                //handle player controls
+                if (typeof zp_playerControls !== 'undefined') {
+                    zp_playerControls.update();
+                } */
+
     }
 
     function PageSetup() {
@@ -214,7 +218,7 @@ if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 
 
             <div class="statusDivTopWrap">
                 <div id="schedulerInfo" class="statusDiv statusDivTop" <?if ($settings['fppMode']=='remote' ) {
-                    echo "style='display:none;'" ; } ?>>
+                    echo "style='display:none;'" ; }?>>
                     <div class="statusTable statusDivTopRow">
 
                         <div class="statusDivTopCol">
