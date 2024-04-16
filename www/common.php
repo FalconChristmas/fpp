@@ -267,7 +267,8 @@ function filterForPlatformControls($data)
         //var_dump($element);
         echo "<br><br>";
         if (is_array($element) && $element[$key] === "all") {
-            $filtered_result = array_merge($filtered_result, $element);}
+            $filtered_result = array_merge($filtered_result, $element);
+        }
     }
 
     //var_dump($filtered_result);
@@ -1139,15 +1140,15 @@ function PrintSettingPasswordSaved($setting, $restart = 1, $reboot = 0, $maxleng
     ?>
 <script>
 function <?=$setting?>_showHidePassword() {
-  var x = document.getElementById("<?=$setting?>");
-  var b = document.getElementById("<?=$setting?>_showHideButton");
-  if (x.type === "password") {
-    x.type = "text";
-    b.value = "Hide";
-  } else {
-    x.type = "password";
-    b.value = "Show";
-  }
+    var x = document.getElementById("<?=$setting?>");
+    var b = document.getElementById("<?=$setting?>_showHideButton");
+    if (x.type === "password") {
+        x.type = "text";
+        b.value = "Hide";
+    } else {
+        x.type = "password";
+        b.value = "Show";
+    }
 }
 </script>
 <?
@@ -2325,7 +2326,7 @@ function getKnownFPPSystems()
 {
     $backupHosts = array();
     $data = file_get_contents('http://localhost/api/fppd/multiSyncSystems');
-    if ( false === $data ) {
+    if (false === $data) {
         return $backupHosts;
     }
     $arr = json_decode($data, true);
