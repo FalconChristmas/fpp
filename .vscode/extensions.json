@@ -10,6 +10,7 @@
         "cschlosser.doxdocgen",
         "eamodio.gitlens",
         "numso.prettier-standard-vscode",
-        "devsense.phptools-vscode"
+        "devsense.phptools-vscode",
+        "xdebug.php-debug"
     ]
 }
