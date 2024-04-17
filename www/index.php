@@ -463,7 +463,7 @@
 
                     <div class='fppTableWrapper backdrop'>
                         <div class='fppTableContents' role="region" aria-labelledby="syncStatsTable" tabindex="0">
-                            <table id='syncStatsTable'>
+                            <table id='syncStatsTable' class="tablesorter">
                                 <thead>
                                     <tr>
                                         <th rowspan=2>Host</th>
