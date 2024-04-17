@@ -1,16 +1,15 @@
 {
     "recommendations": [
-        "kokororin.vscode-phpfmt",
         "davidanson.vscode-markdownlint",
         "yzhang.markdown-all-in-one",
         "coolchyni.beyond-debug",
         "streetsidesoftware.code-spell-checker",
         "xaver.clang-format",
-        "austin.code-gnu-global",
+        "ms-vscode.cpptools",
         "ms-vscode.cpptools-themes",
         "cschlosser.doxdocgen",
         "eamodio.gitlens",
         "numso.prettier-standard-vscode",
-        "rifi2k.format-html-in-php"
+        "devsense.phptools-vscode"
     ]
 }
