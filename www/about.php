@@ -102,46 +102,46 @@ $freeSpace = disk_free_space($uploadDirectory);
 ?>
 
 <head>
-    <?php include 'common/menuHead.inc';?>
+    <?php include 'common/menuHead.inc'; ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <script language="Javascript">
-    var osAssetMap = {};
-    var originalFPPOS;
-    $(document).ready(function() {
-        OnSystemStatusChange(updateSensorStatus)
-        UpdateVersionInfo();
-        originalFPPOS = $('#OSSelect').html();
-        AppendGithubOS();
-        GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
-        GetItemCount('api/configfile/schedule.json', 'scheduleCount');
-        $('.default-value').each(function() {
-            var default_value = this.value;
-            $(this).on("focus", function() {
-                if (this.value == default_value) {
-                    this.value = '';
-                    $(this).css('color', '#333');
-                }
-            });
-            $(this).blur(function() {
-                if (this.value == '') {
-                    $(this).css('color', '#999');
-                    this.value = default_value;
-                }
+        var osAssetMap = {};
+        var originalFPPOS;
+        $(document).ready(function () {
+            OnSystemStatusChange(updateSensorStatus)
+            UpdateVersionInfo();
+            originalFPPOS = $('#OSSelect').html();
+            AppendGithubOS();
+            GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
+            GetItemCount('api/configfile/schedule.json', 'scheduleCount');
+            $('.default-value').each(function () {
+                var default_value = this.value;
+                $(this).on("focus", function () {
+                    if (this.value == default_value) {
+                        this.value = '';
+                        $(this).css('color', '#333');
+                    }
+                });
+                $(this).blur(function () {
+                    if (this.value == '') {
+                        $(this).css('color', '#999');
+                        this.value = default_value;
+                    }
+                });
             });
         });
-    });
 
-    function showHideOsSelect() {
-        if ($('#OSSelect option').length > 1) {
-            $('#osSelectRow').show();
-        } else {
-            $('#osSelectRow').hide();
+        function showHideOsSelect() {
+            if ($('#OSSelect option').length > 1) {
+                $('#osSelectRow').show();
+            } else {
+                $('#osSelectRow').hide();
+            }
         }
-    }
 
 
-    function AppendGithubOS() {
-        showHideOsSelect(); <
+        function AppendGithubOS() {
+            showHideOsSelect(); <
         ?
         // we want at least a GB in order to be able to download the fppos and have space to then apply it
         if ($freeSpace > 1000000000) {
@@ -149,302 +149,302 @@ $freeSpace = disk_free_space($uploadDirectory);
             >
             var allPlatforms = '';
 
-            if ($('#allPlatforms').is(':checked')) {
-                allPlatforms = 'api/git/releases/os/all';
-            } else {
-                allPlatforms = 'api/git/releases/os';
-            }
+                if ($('#allPlatforms').is(':checked')) {
+                    allPlatforms = 'api/git/releases/os/all';
+                } else {
+                    allPlatforms = 'api/git/releases/os';
+                }
 
-            $.get(allPlatforms, function(data) {
-                var devMode = (settings['uiLevel'] && (parseInt(settings['uiLevel']) == 3));
-                if ("files" in data) {
-                    for (const file of data["files"]) {
-                        if (!file["downloaded"] && (devMode || !file['filename'].match(/-v?(4\.|5\.[0-4])/))) {
-                            osAssetMap[file["asset_id"]] = {
-                                name: file["filename"],
-                                url: file["url"]
-                            };
+                $.get(allPlatforms, function (data) {
+                    var devMode = (settings['uiLevel'] && (parseInt(settings['uiLevel']) == 3));
+                    if ("files" in data) {
+                        for (const file of data["files"]) {
+                            if (!file["downloaded"] && (devMode || !file['filename'].match(/-v?(4\.|5\.[0-4])/))) {
+                                osAssetMap[file["asset_id"]] = {
+                                    name: file["filename"],
+                                    url: file["url"]
+                                };
 
-                            $('#OSSelect').append($('<option>', {
-                                value: file["asset_id"],
-                                text: file["filename"] + " (download)"
-                            }));
+                                $('#OSSelect').append($('<option>', {
+                                    value: file["asset_id"],
+                                    text: file["filename"] + " (download)"
+                                }));
+                            }
                         }
                     }
-                }
-                showHideOsSelect();
-            }); <
+                    showHideOsSelect();
+                }); <
             ?
         } ? >
     }
 
-    function CloseFPPUpgradeDialog() {
-        CloseModalDialog("upgradePopupStatus");
-        location.reload();
-    }
+        function CloseFPPUpgradeDialog() {
+            CloseModalDialog("upgradePopupStatus");
+            location.reload();
+        }
 
-    function FPPUpgradeDone() {
-        if (statusTimeout === null)
-            LoadSystemStatus();
+        function FPPUpgradeDone() {
+            if (statusTimeout === null)
+                LoadSystemStatus();
 
-        UpdateVersionInfo();
-        $("#fppUpgradeCloseDialogButton").prop("disabled", false);
-        EnableModalDialogCloseButton("upgradePopupStatus");
-    }
+            UpdateVersionInfo();
+            $("#fppUpgradeCloseDialogButton").prop("disabled", false);
+            EnableModalDialogCloseButton("upgradePopupStatus");
+        }
 
-    function DownloadDone() {
-        $("#fppDownloadCloseDialogButton").prop("disabled", false);
-        EnableModalDialogCloseButton("downloadPopupStatus");
-    }
+        function DownloadDone() {
+            $("#fppDownloadCloseDialogButton").prop("disabled", false);
+            EnableModalDialogCloseButton("downloadPopupStatus");
+        }
 
-    function UpgradeDone() {
-        if (statusTimeout === null)
-            LoadSystemStatus();
+        function UpgradeDone() {
+            if (statusTimeout === null)
+                LoadSystemStatus();
 
-        UpdateVersionInfo();
-        $("#fppUpgradeOSCloseDialogButton").prop("disabled", false);
-        EnableModalDialogCloseButton("upgradeOSPopupStatus");
-    }
+            UpdateVersionInfo();
+            $("#fppUpgradeOSCloseDialogButton").prop("disabled", false);
+            EnableModalDialogCloseButton("upgradeOSPopupStatus");
+        }
 
-    function UpdateVersionInfo() {
-        $.get('api/system/status', function(data) {
-            $('#fppVersion').html(data.advancedView.Version);
-            $('#fppdUptime').html(data.uptime);
-            $('#osVersion').html(data.advancedView.OSVersion);
-            $('#osRelease').html(data.advancedView.OSRelease);
+        function UpdateVersionInfo() {
+            $.get('api/system/status', function (data) {
+                $('#fppVersion').html(data.advancedView.Version);
+                $('#fppdUptime').html(data.uptime);
+                $('#osVersion').html(data.advancedView.OSVersion);
+                $('#osRelease').html(data.advancedView.OSRelease);
 
-            var localVer = data.advancedView.LocalGitVersion + " <a href='changelog.php'>ChangeLog</a>";
-            var remoteVer = data.advancedView.RemoteGitVersion;
-            if ((data.advancedView.RemoteGitVersion != "") &&
-                (data.advancedView.RemoteGitVersion != "Unknown") &&
-                (data.advancedView.RemoteGitVersion != data.advancedView.LocalGitVersion)) {
-                localVer += " <b class='text-success'>(Update is available)</b>";
-                remoteVer +=
-                    " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
+                var localVer = data.advancedView.LocalGitVersion + " <a href='changelog.php'>ChangeLog</a>";
+                var remoteVer = data.advancedView.RemoteGitVersion;
+                if ((data.advancedView.RemoteGitVersion != "") &&
+                    (data.advancedView.RemoteGitVersion != "Unknown") &&
+                    (data.advancedView.RemoteGitVersion != data.advancedView.LocalGitVersion)) {
+                    localVer += " <b class='text-success'>(Update is available)</b>";
+                    remoteVer +=
+                        " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
+                }
+
+                $('#localGitVersion').html(localVer);
+                $('#remoteGitVersion').html(remoteVer);
+            });
+        }
+
+        function UpgradeOS() {
+            var os = $('#OSSelect').val();
+            var osName = os;
+            var extra = "";
+
+            if (os == '')
+                return;
+
+            var keepOptFPP = '';
+            if ($('#keepOptFPP').is(':checked')) {
+                keepOptFPP = '&keepOptFPP=1';
             }
 
-            $('#localGitVersion').html(localVer);
-            $('#remoteGitVersion').html(remoteVer);
-        });
-    }
-
-    function UpgradeOS() {
-        var os = $('#OSSelect').val();
-        var osName = os;
-        var extra = "";
-
-        if (os == '')
-            return;
-
-        var keepOptFPP = '';
-        if ($('#keepOptFPP').is(':checked')) {
-            keepOptFPP = '&keepOptFPP=1';
-        }
-
-        if (os in osAssetMap) {
-            osName = osAssetMap[os].name;
-            os = osAssetMap[os].url;
-        }
-        if (confirm('Upgrade the OS using ' + osName +
+            if (os in osAssetMap) {
+                osName = osAssetMap[os].name;
+                os = osAssetMap[os].url;
+            }
+            if (confirm('Upgrade the OS using ' + osName +
                 '?\nThis can take a long time. It is also strongly recommended to run FPP backup first.')) {
 
-            var options = {
-                id: "upgradeOSPopupStatus",
-                title: "FPP OS Upgrade",
-                body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUpgradeOSText'></textarea>",
-                class: "modal-dialog-scrollable",
-                noClose: true,
-                keyboard: false,
-                backdrop: "static",
-                footer: "",
-                buttons: {
-                    "Close": {
-                        id: 'fppUpgradeOSCloseDialogButton',
-                        click: function() {
-                            CloseModalDialog("upgradeOSPopupStatus");
-                            location.reload();
-                        },
-                        disabled: true,
-                        class: 'btn-success'
+                var options = {
+                    id: "upgradeOSPopupStatus",
+                    title: "FPP OS Upgrade",
+                    body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUpgradeOSText'></textarea>",
+                    class: "modal-dialog-scrollable",
+                    noClose: true,
+                    keyboard: false,
+                    backdrop: "static",
+                    footer: "",
+                    buttons: {
+                        "Close": {
+                            id: 'fppUpgradeOSCloseDialogButton',
+                            click: function () {
+                                CloseModalDialog("upgradeOSPopupStatus");
+                                location.reload();
+                            },
+                            disabled: true,
+                            class: 'btn-success'
+                        }
                     }
-                }
-            };
-            $("#fppUpgradeOSCloseDialogButton").prop("disabled", true);
-            DoModalDialog(options);
+                };
+                $("#fppUpgradeOSCloseDialogButton").prop("disabled", true);
+                DoModalDialog(options);
 
-            clearTimeout(statusTimeout);
-            statusTimeout = null;
+                clearTimeout(statusTimeout);
+                statusTimeout = null;
 
-            StreamURL('upgradeOS.php?wrapped=1&os=' + os + keepOptFPP, 'streamedUpgradeOSText', 'UpgradeDone');
+                StreamURL('upgradeOS.php?wrapped=1&os=' + os + keepOptFPP, 'streamedUpgradeOSText', 'UpgradeDone');
+            }
         }
-    }
 
-    function DownloadOS() {
-        var os = $('#OSSelect').val();
-        var osName = os;
-        var extra = "";
+        function DownloadOS() {
+            var os = $('#OSSelect').val();
+            var osName = os;
+            var extra = "";
 
-        if (os == '')
-            return;
+            if (os == '')
+                return;
 
-        if (os in osAssetMap) {
-            osName = osAssetMap[os].name;
-            os = osAssetMap[os].url;
+            if (os in osAssetMap) {
+                osName = osAssetMap[os].name;
+                os = osAssetMap[os].url;
 
-            var options = {
-                id: "downloadPopupStatus",
-                title: "FPP Download OS Image",
-                body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUDownloadText'></textarea>",
-                class: "modal-dialog-scrollable",
-                noClose: true,
-                keyboard: false,
-                backdrop: "static",
-                footer: "",
-                buttons: {
-                    "Close": {
-                        id: 'fppDownloadCloseDialogButton',
-                        click: function() {
-                            CloseModalDialog("downloadPopupStatus");
-                            location.reload();
-                        },
-                        disabled: true,
-                        class: 'btn-success'
+                var options = {
+                    id: "downloadPopupStatus",
+                    title: "FPP Download OS Image",
+                    body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUDownloadText'></textarea>",
+                    class: "modal-dialog-scrollable",
+                    noClose: true,
+                    keyboard: false,
+                    backdrop: "static",
+                    footer: "",
+                    buttons: {
+                        "Close": {
+                            id: 'fppDownloadCloseDialogButton',
+                            click: function () {
+                                CloseModalDialog("downloadPopupStatus");
+                                location.reload();
+                            },
+                            disabled: true,
+                            class: 'btn-success'
+                        }
                     }
-                }
-            };
-            $("#fppDownloadCloseDialogButton").prop("disabled", true);
-            DoModalDialog(options);
+                };
+                $("#fppDownloadCloseDialogButton").prop("disabled", true);
+                DoModalDialog(options);
 
-            StreamURL('upgradeOS.php?wrapped=1&downloadOnly=1&os=' + os, 'streamedUDownloadText', 'DownloadDone');
-        } else {
-            alert('This fppos image has already been downloaded.');
+                StreamURL('upgradeOS.php?wrapped=1&downloadOnly=1&os=' + os, 'streamedUDownloadText', 'DownloadDone');
+            } else {
+                alert('This fppos image has already been downloaded.');
+            }
         }
-    }
 
-    function OSSelectChanged() {
-        var os = $('#OSSelect').val(); <
+        function OSSelectChanged() {
+            var os = $('#OSSelect').val(); <
         ?
         // we want at least a 200MB in order to be able to apply the fppos
         if ($freeSpace < 200000000) {
             echo "os = '';\n";
-        } ?
+            } ?
         >
         if (os == '') {
-            $('#OSUpgrade').attr('disabled', 'disabled');
-            $('#OSDownload').attr('disabled', 'disabled');
-        } else {
-            $('#OSUpgrade').removeAttr('disabled');
-            if (os in osAssetMap) {
-                $('#OSDownload').removeAttr('disabled');
-            } else {
+                $('#OSUpgrade').attr('disabled', 'disabled');
                 $('#OSDownload').attr('disabled', 'disabled');
-            }
-        }
-    }
-
-    function UpgradeFPP() {
-        clearTimeout(statusTimeout);
-        statusTimeout = null;
-
-        var options = {
-            id: "upgradePopupStatus",
-            title: "FPP Upgrade",
-            body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUpgradeText'></textarea>",
-            class: "modal-dialog-scrollable",
-            noClose: true,
-            keyboard: false,
-            backdrop: "static",
-            footer: "",
-            buttons: {
-                "Close": {
-                    id: 'fppUpgradeCloseDialogButton',
-                    click: function() {
-                        CloseFPPUpgradeDialog();
-                    },
-                    disabled: true,
-                    class: 'btn-success'
+            } else {
+                $('#OSUpgrade').removeAttr('disabled');
+                if (os in osAssetMap) {
+                    $('#OSDownload').removeAttr('disabled');
+                } else {
+                    $('#OSDownload').attr('disabled', 'disabled');
                 }
             }
-        };
-        $("#fppUpgradeCloseDialogButton").prop("disabled", true);
-        DoModalDialog(options);
-        StreamURL('manualUpdate.php?wrapped=1', 'streamedUpgradeText', 'FPPUpgradeDone');
-    }
+        }
 
-    function UpdatePlatforms() {
-        var allPlatforms = '';
-        $('#OSSelect').html(originalFPPOS);
-        AppendGithubOS();
-    }
+        function UpgradeFPP() {
+            clearTimeout(statusTimeout);
+            statusTimeout = null;
+
+            var options = {
+                id: "upgradePopupStatus",
+                title: "FPP Upgrade",
+                body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUpgradeText'></textarea>",
+                class: "modal-dialog-scrollable",
+                noClose: true,
+                keyboard: false,
+                backdrop: "static",
+                footer: "",
+                buttons: {
+                    "Close": {
+                        id: 'fppUpgradeCloseDialogButton',
+                        click: function () {
+                            CloseFPPUpgradeDialog();
+                        },
+                        disabled: true,
+                        class: 'btn-success'
+                    }
+                }
+            };
+            $("#fppUpgradeCloseDialogButton").prop("disabled", true);
+            DoModalDialog(options);
+            StreamURL('manualUpdate.php?wrapped=1', 'streamedUpgradeText', 'FPPUpgradeDone');
+        }
+
+        function UpdatePlatforms() {
+            var allPlatforms = '';
+            $('#OSSelect').html(originalFPPOS);
+            AppendGithubOS();
+        }
     </script>
     <title>
-        <?echo $pageTitle; ?>
+        <? echo $pageTitle; ?>
     </title>
     <style>
-    .no-close .ui-dialog-titlebar-close {
-        display: none
-    }
+        .no-close .ui-dialog-titlebar-close {
+            display: none
+        }
 
-    .clear {
-        clear: both;
-    }
+        .clear {
+            clear: both;
+        }
 
-    .items {
-        width: 40%;
-        background: rgb#FFF;
-        float: right;
-        margin: 0, auto;
-    }
+        .items {
+            width: 40%;
+            background: rgb#FFF;
+            float: right;
+            margin: 0, auto;
+        }
 
-    .selectedEntry {
-        background: #CCC;
-    }
+        .selectedEntry {
+            background: #CCC;
+        }
 
-    .pl_title {
-        font-size: larger;
-    }
+        .pl_title {
+            font-size: larger;
+        }
 
-    h4,
-    h3 {
-        padding: 0;
-        margin: 0;
-    }
+        h4,
+        h3 {
+            padding: 0;
+            margin: 0;
+        }
 
-    .tblheader {
-        background-color: #CCC;
-        text-align: center;
-    }
+        .tblheader {
+            background-color: #CCC;
+            text-align: center;
+        }
 
-    tr.rowScheduleDetails {
-        border: thin solid;
-        border-color: #CCC;
-    }
+        tr.rowScheduleDetails {
+            border: thin solid;
+            border-color: #CCC;
+        }
 
-    tr.rowScheduleDetails td {
-        padding: 1px 5px;
-    }
+        tr.rowScheduleDetails td {
+            padding: 1px 5px;
+        }
 
-    #tblSchedule {
-        border: thin;
-        border-color: #333;
-        border-collapse: collapse;
-    }
+        #tblSchedule {
+            border: thin;
+            border-color: #333;
+            border-collapse: collapse;
+        }
 
-    .time {
-        width: 100%;
-    }
+        .time {
+            width: 100%;
+        }
 
-    .center {
-        text-align: center;
-    }
+        .center {
+            text-align: center;
+        }
     </style>
 </head>
 
 <body>
     <div id="bodyWrapper">
         <?php
-$activeParentMenuItem = 'help';
-include 'menu.inc';?>
+        $activeParentMenuItem = 'help';
+        include 'menu.inc'; ?>
         <div class="mainContainer">
             <div class="title">About FPP</div>
             <div class="pageContent">
@@ -461,56 +461,56 @@ include 'menu.inc';?>
                                     <tr>
                                         <td>FPP Version:</td>
                                         <td id='fppVersion'>
-                                            <?echo $fpp_version; ?>
+                                            <? echo $fpp_version; ?>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Platform:</td>
                                         <td>
                                             <?
-echo $settings['Platform'];
-if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform'])) {
-    echo " (" . $settings['Variant'] . ")";
-}
-?>
+                                            echo $settings['Platform'];
+                                            if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform'])) {
+                                                echo " (" . $settings['Variant'] . ")";
+                                            }
+                                            ?>
                                         </td>
                                     </tr>
-                                    <?if ($os_build != "") {?>
-                                    <tr>
-                                        <td>FPP OS Build:</td>
-                                        <td id='osVersion'>
-                                            <?echo $os_build; ?>
-                                        </td>
-                                    </tr>
-                                    <?}?>
+                                    <? if ($os_build != "") { ?>
+                                        <tr>
+                                            <td>FPP OS Build:</td>
+                                            <td id='osVersion'>
+                                                <? echo $os_build; ?>
+                                            </td>
+                                        </tr>
+                                    <? } ?>
                                     <tr>
                                         <td>OS Version:</td>
                                         <td id='osRelease'>
-                                            <?echo $os_version; ?>
+                                            <? echo $os_version; ?>
                                         </td>
                                     </tr>
-                                    <?if (isset($serialNumber) && $serialNumber != "") {?>
-                                    <tr>
-                                        <td>Hardware Serial Number:</td>
-                                        <td>
-                                            <?echo $serialNumber; ?>
-                                        </td>
-                                    </tr>
-                                    <?}?>
+                                    <? if (isset($serialNumber) && $serialNumber != "") { ?>
+                                        <tr>
+                                            <td>Hardware Serial Number:</td>
+                                            <td>
+                                                <? echo $serialNumber; ?>
+                                            </td>
+                                        </tr>
+                                    <? } ?>
                                     <tr>
                                         <td>Kernel Version:</td>
                                         <td>
-                                            <?echo $kernel_version; ?>
+                                            <? echo $kernel_version; ?>
                                         </td>
                                     </tr>
-                                    <?if ($lastBoot != "") {?>
-                                    <tr>
-                                        <td>System Boot Time:</td>
-                                        <td id='lastBoot'>
-                                            <?echo $lastBoot; ?>
-                                        </td>
-                                    </tr>
-                                    <?}?>
+                                    <? if ($lastBoot != "") { ?>
+                                        <tr>
+                                            <td>System Boot Time:</td>
+                                            <td id='lastBoot'>
+                                                <? echo $lastBoot; ?>
+                                            </td>
+                                        </tr>
+                                    <? } ?>
                                     <tr>
                                         <td>fppd Uptime:</td>
                                         <td id='fppdUptime'></td>
@@ -519,29 +519,33 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
                                         <td>Local Git Version:</td>
                                         <td id='localGitVersion'>
                                             <?
-echo $git_version;
-echo " <a href='changelog.php'>ChangeLog</a>";
-if (($git_remote_version != "") &&
-    ($git_remote_version != "Unknown") &&
-    ($git_version != $git_remote_version)) {
-    echo " <b class='text-success'>(Update is available)</b>";
-}
+                                            echo $git_version;
+                                            echo " <a href='changelog.php'>ChangeLog</a>";
+                                            if (
+                                                ($git_remote_version != "") &&
+                                                ($git_remote_version != "Unknown") &&
+                                                ($git_version != $git_remote_version)
+                                            ) {
+                                                echo " <b class='text-success'>(Update is available)</b>";
+                                            }
 
-?>
+                                            ?>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Remote Git Version:</td>
                                         <td id='remoteGitVersion'>
                                             <?
-echo $git_remote_version;
-if (($git_remote_version != "") &&
-    ($git_remote_version != "Unknown") &&
-    ($git_version != $git_remote_version)) {
-    echo " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
-}
+                                            echo $git_remote_version;
+                                            if (
+                                                ($git_remote_version != "") &&
+                                                ($git_remote_version != "Unknown") &&
+                                                ($git_version != $git_remote_version)
+                                            ) {
+                                                echo " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
+                                            }
 
-?>
+                                            ?>
                                         </td>
                                     </tr>
                                     <tr>
@@ -550,59 +554,59 @@ if (($git_remote_version != "") &&
                                                 class='buttons btn-outline-success' id='ManualUpdate'></td>
                                     </tr>
                                     <?
-if ($settings['uiLevel'] > 0) {
-    $upgradeSources = array();
-    $remotes = getKnownFPPSystems();
+                                    if ($settings['uiLevel'] > 0) {
+                                        $upgradeSources = array();
+                                        $remotes = getKnownFPPSystems();
 
-    if ($settings["Platform"] != "MacOS") {
-        $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
-    } else {
-        $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | grep 'inet ' | awk '{print \$2}'")));
-    }
-    $found = 0;
-    foreach ($remotes as $desc => $host) {
-        if ((!in_array($host, $IPs)) && (!preg_match('/^169\.254\./', $host))) {
-            $upgradeSources[$desc] = $host;
-            if (isset($settings['UpgradeSource']) && ($settings['UpgradeSource'] == $host)) {
-                $found = 1;
-            }
+                                        if ($settings["Platform"] != "MacOS") {
+                                            $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
+                                        } else {
+                                            $IPs = explode("\n", trim(shell_exec("/sbin/ifconfig -a | grep 'inet ' | awk '{print \$2}'")));
+                                        }
+                                        $found = 0;
+                                        foreach ($remotes as $desc => $host) {
+                                            if ((!in_array($host, $IPs)) && (!preg_match('/^169\.254\./', $host))) {
+                                                $upgradeSources[$desc] = $host;
+                                                if (isset($settings['UpgradeSource']) && ($settings['UpgradeSource'] == $host)) {
+                                                    $found = 1;
+                                                }
 
-        }
-    }
-    if (!$found && isset($settings['UpgradeSource']) && ($settings['UpgradeSource'] != 'github.com')) {
-        $upgradeSources = array($settings['UpgradeSource'] . ' (Unreachable)' => $settings['UpgradeSource'], 'github.com' => 'github.com') + $upgradeSources;
-    } else {
-        $upgradeSources = array("github.com" => "github.com") + $upgradeSources;
-    }
+                                            }
+                                        }
+                                        if (!$found && isset($settings['UpgradeSource']) && ($settings['UpgradeSource'] != 'github.com')) {
+                                            $upgradeSources = array($settings['UpgradeSource'] . ' (Unreachable)' => $settings['UpgradeSource'], 'github.com' => 'github.com') + $upgradeSources;
+                                        } else {
+                                            $upgradeSources = array("github.com" => "github.com") + $upgradeSources;
+                                        }
 
-    ?>
-                                    <tr>
-                                        <td>FPP Upgrade Source:</td>
-                                        <td>
-                                            <?PrintSettingSelect("Upgrade Source", "UpgradeSource", 0, 0, "github.com", $upgradeSources);?>
-                                        </td>
-                                    </tr>
-                                    <?
-}
+                                        ?>
+                                        <tr>
+                                            <td>FPP Upgrade Source:</td>
+                                            <td>
+                                                <? PrintSettingSelect("Upgrade Source", "UpgradeSource", 0, 0, "github.com", $upgradeSources); ?>
+                                            </td>
+                                        </tr>
+                                        <?
+                                    }
 
-$osUpdateFiles = getFileList($uploadDirectory, "fppos");
-echo "<tr id='osSelectRow'><td style='vertical-align: top;'>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect' onChange='OSSelectChanged();'>\n";
-echo "<option value=''>-- Choose an OS Version --</option>\n";
-foreach ($osUpdateFiles as $key => $value) {
-    echo "<option value='" . $value . "'>" . $value . "</option>\n";
-}
-echo "</select>";
+                                    $osUpdateFiles = getFileList($uploadDirectory, "fppos");
+                                    echo "<tr id='osSelectRow'><td style='vertical-align: top;'>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect' onChange='OSSelectChanged();'>\n";
+                                    echo "<option value=''>-- Choose an OS Version --</option>\n";
+                                    foreach ($osUpdateFiles as $key => $value) {
+                                        echo "<option value='" . $value . "'>" . $value . "</option>\n";
+                                    }
+                                    echo "</select>";
 
-if ($settings['uiLevel'] > 0) {
-    echo "<br><span><i class='fas fa-fw fa-graduation-cap ui-level-1'></i> Show All Platforms <input type='checkbox' id='allPlatforms' onClick='UpdatePlatforms();'><img id='allPlatforms_img' title='Show both BBB & Pi downloads' src='images/redesign/help-icon.svg' class='icon-help'></span>";
-}
+                                    if ($settings['uiLevel'] > 0) {
+                                        echo "<br><span><i class='fas fa-fw fa-graduation-cap ui-level-1'></i> Show All Platforms <input type='checkbox' id='allPlatforms' onClick='UpdatePlatforms();'><img id='allPlatforms_img' title='Show both BBB & Pi downloads' src='images/redesign/help-icon.svg' class='icon-help'></span>";
+                                    }
 
-if ($settings['uiLevel'] == 3) {
-    echo "<br><span><i class='fas fa-fw fa-code ui-level-3'></i> Preserve /opt/fpp <input type='checkbox' id='keepOptFPP'><img id='keepOptFPP_img' title='WARNING: This will upgrade the OS but will not upgrade the FPP version.  This may cause issues if the versions are not compatible.' src='images/redesign/help-icon.svg' class='icon-help'></span>";
-}
+                                    if ($settings['uiLevel'] == 3) {
+                                        echo "<br><span><i class='fas fa-fw fa-code ui-level-3'></i> Preserve /opt/fpp <input type='checkbox' id='keepOptFPP'><img id='keepOptFPP_img' title='WARNING: This will upgrade the OS but will not upgrade the FPP version.  This may cause issues if the versions are not compatible.' src='images/redesign/help-icon.svg' class='icon-help'></span>";
+                                    }
 
-echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'>&nbsp;<input type='button' disabled value='Download Only' onClick='DownloadOS();' class='buttons' id='OSDownload'></td></tr>";
-?>
+                                    echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'>&nbsp;<input type='button' disabled value='Download Only' onClick='DownloadOS();' class='buttons' id='OSDownload'></td></tr>";
+                                    ?>
                                     <tr>
                                         <td>&nbsp;</td>
                                         <td>&nbsp;</td>
@@ -614,13 +618,13 @@ echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();
                                     <tr>
                                         <td>CPU Usage:</td>
                                         <td>
-                                            <?printf("%.2f", get_server_cpu_usage());?>%
+                                            <? printf("%.2f", get_server_cpu_usage()); ?>%
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Memory Usage:</td>
                                         <td>
-                                            <?printf("%.2f", get_server_memory_usage());?>%
+                                            <? printf("%.2f", get_server_memory_usage()); ?>%
                                         </td>
                                     </tr>
                                     <tr>
@@ -640,7 +644,7 @@ echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();
                                     </tr>
                                     <tr>
                                         <td colspan='2'>
-                                            <?echo $uptime; ?>
+                                            <? echo $uptime; ?>
                                         </td>
                                     </tr>
 
@@ -660,25 +664,25 @@ echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();
                                     <tr>
                                         <td>Playlists:</td>
                                         <td><a href='playlists.php' class='nonULLink'>
-                                                <?echo getFileCount($playlistDirectory); ?>
+                                                <? echo getFileCount($playlistDirectory); ?>
                                             </a></td>
                                     </tr>
                                     <tr>
                                         <td>Sequences:</td>
                                         <td><a href='filemanager.php' class='nonULLink'>
-                                                <?echo getFileCount($sequenceDirectory); ?>
+                                                <? echo getFileCount($sequenceDirectory); ?>
                                             </a></td>
                                     </tr>
                                     <tr>
                                         <td>Audio Files:</td>
                                         <td><a href='filemanager.php#tab-audio' class='nonULLink'>
-                                                <?echo getFileCount($musicDirectory); ?>
+                                                <? echo getFileCount($musicDirectory); ?>
                                             </a></td>
                                     </tr>
                                     <tr>
                                         <td>Videos:</td>
                                         <td><a href='filemanager.php#tab-video' class='nonULLink'>
-                                                <?echo getFileCount($videoDirectory); ?>
+                                                <? echo getFileCount($videoDirectory); ?>
                                             </a></td>
                                     </tr>
                                     <tr>
@@ -689,13 +693,13 @@ echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();
                                     <tr>
                                         <td>Effects:</td>
                                         <td><a href='filemanager.php#tab-effects' class='nonULLink'>
-                                                <?echo getFileCount($effectDirectory); ?>
+                                                <? echo getFileCount($effectDirectory); ?>
                                             </a></td>
                                     </tr>
                                     <tr>
                                         <td>Scripts:</td>
                                         <td><a href='filemanager.php#tab-scripts' class='nonULLink'>
-                                                <?echo getFileCount($scriptDirectory); ?>
+                                                <? echo getFileCount($scriptDirectory); ?>
                                             </a></td>
                                     </tr>
 
@@ -709,127 +713,136 @@ echo "<br><input type='button' disabled value='Upgrade OS' onClick='UpgradeOS();
                                         <td>&nbsp;</td>
                                     </tr>
                                     <?
-$diskTotal = disk_total_space("/");
-$diskFree = disk_free_space("/");
-$percentageUsed = 100 - ($diskFree * 100 / $diskTotal);
-$progressClass = "bg-success";
-if ($percentageUsed > 60) {$progressClass = "bg-warning";}
-if ($percentageUsed > 80) {$progressClass = "bg-danger";}
-if (file_exists("/bin/findmnt")) {
-    exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
-    $rootDevice = $output[0];
-    unset($output);
-    exec('findmnt -n -o SOURCE ' . $mediaDirectory . ' | colrm 1 5', $output, $return_val);
-    $mediaDevice = "";
-    if (count($output) > 0) {
-        $mediaDevice = $output[0];
-    }
-    unset($output);
-} else {
-    $rootDevice = "";
-    $mediaDevice = "";
-}
-?>
+                                    $diskTotal = disk_total_space("/");
+                                    $diskFree = disk_free_space("/");
+                                    $percentageUsed = 100 - ($diskFree * 100 / $diskTotal);
+                                    $progressClass = "bg-success";
+                                    if ($percentageUsed > 60) {
+                                        $progressClass = "bg-warning";
+                                    }
+                                    if ($percentageUsed > 80) {
+                                        $progressClass = "bg-danger";
+                                    }
+                                    if (file_exists("/bin/findmnt")) {
+                                        exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+                                        $rootDevice = $output[0];
+                                        unset($output);
+                                        exec('findmnt -n -o SOURCE ' . $mediaDirectory . ' | colrm 1 5', $output, $return_val);
+                                        $mediaDevice = "";
+                                        if (count($output) > 0) {
+                                            $mediaDevice = $output[0];
+                                        }
+                                        unset($output);
+                                    } else {
+                                        $rootDevice = "";
+                                        $mediaDevice = "";
+                                    }
+                                    ?>
                                     <tr>
                                         <td colspan="2">
                                             <div class="progress">
-                                                <div class="progress-bar <?echo $progressClass; ?>" role="progressbar"
-                                                    style="width: <?printf(" %2.0f%%", $percentageUsed);?>;"
+                                                <div class="progress-bar <? echo $progressClass; ?>" role="progressbar"
+                                                    style="width: <? printf(" %2.0f%%", $percentageUsed); ?>;"
                                                     aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
-                                                    <?printf("%2.0f%%", $percentageUsed);?>
+                                                    <? printf("%2.0f%%", $percentageUsed); ?>
                                                 </div>
                                             </div>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Root
-                                            <?if ($rootDevice != "") {
-    echo "(" . $rootDevice . ")";
-}
-?> Free Space:
+                                            <? if ($rootDevice != "") {
+                                                echo "(" . $rootDevice . ")";
+                                            }
+                                            ?> Free Space:
                                         </td>
                                         <td>
 
                                             <?
-printf("%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
-?>
+                                            printf("%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
+                                            ?>
                                         </td>
                                     </tr>
                                     <?
-if (isset($mediaDevice) && $mediaDevice != "" && $mediaDevice != $rootDevice) {
-    $diskTotal = disk_total_space($mediaDirectory);
-    $diskFree = disk_free_space($mediaDirectory);
-    $percentageUsed = 100 - ($diskFree * 100 / $diskTotal);
-    $progressClass = "bg-success";
-    if ($percentageUsed > 60) {$progressClass = "bg-warning";}
-    if ($percentageUsed > 80) {$progressClass = "bg-danger";}
-    ?>
-                                    <tr>
-                                        <td colspan="2">
-                                            <div class="progress mt-2">
-                                                <div class="progress-bar <?echo $progressClass; ?>" role="progressbar"
-                                                    style="width:<?printf(" %2.0f%%", $percentageUsed);?>;"
-                                                    aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
-                                                    <?printf("%2.0f%%", $percentageUsed);?>
+                                    if (isset($mediaDevice) && $mediaDevice != "" && $mediaDevice != $rootDevice) {
+                                        $diskTotal = disk_total_space($mediaDirectory);
+                                        $diskFree = disk_free_space($mediaDirectory);
+                                        $percentageUsed = 100 - ($diskFree * 100 / $diskTotal);
+                                        $progressClass = "bg-success";
+                                        if ($percentageUsed > 60) {
+                                            $progressClass = "bg-warning";
+                                        }
+                                        if ($percentageUsed > 80) {
+                                            $progressClass = "bg-danger";
+                                        }
+                                        ?>
+                                        <tr>
+                                            <td colspan="2">
+                                                <div class="progress mt-2">
+                                                    <div class="progress-bar <? echo $progressClass; ?>" role="progressbar"
+                                                        style="width:<? printf(" %2.0f%%", $percentageUsed); ?>;"
+                                                        aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
+                                                        <? printf("%2.0f%%", $percentageUsed); ?>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>Media (
-                                            <?echo $mediaDevice; ?>) Free Space:
-                                        </td>
-                                        <td>
-                                            <?
-    printf("%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
-    ?>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td></td>
-                                        <td></td>
-                                    </tr>
-                                    <?
-}?>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Media (
+                                                <? echo $mediaDevice; ?>) Free Space:
+                                            </td>
+                                            <td>
+                                                <?
+                                                printf("%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
+                                                ?>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        <?
+                                    } ?>
 
                                     <?
-if (!isset($settings['cape-info']) || !isset($settings['cape-info']['verifiedKeyId']) || ($settings['cape-info']['verifiedKeyId'] != 'fp')) {
-    ?>
-                                    <tr>
-                                        <td style='height: 50px;'></td>
-                                    </tr>
-                                    <tr>
-                                        <td colspan='2' style='width: 300px;'>
-                                            If you would like to donate to the Falcon Player development team to help
-                                            support the continued development of FPP, you can use the donate button
-                                            below.<br>
-                                            <form action="https://www.paypal.com/donate" method="post" target="_top">
-                                                <input type="hidden" name="hosted_button_id"
-                                                    value="ASF9XYZ2V2F5G" /><input style="height: 60px;" type="image"
-                                                    src="https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif"
-                                                    border="0" name="submit" title="Donate to the Falcon Player"
-                                                    alt="Donate to the Falcon Player" /><img alt="" border="0"
-                                                    src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1"
-                                                    height="1" /></form>
-                                        </td>
-                                    </tr>
-                                    <?
-}
-?>
+                                    if (!isset($settings['cape-info']) || !isset($settings['cape-info']['verifiedKeyId']) || ($settings['cape-info']['verifiedKeyId'] != 'fp')) {
+                                        ?>
+                                        <tr>
+                                            <td style='height: 50px;'></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan='2' style='width: 300px;'>
+                                                If you would like to donate to the Falcon Player development team to help
+                                                support the continued development of FPP, you can use the donate button
+                                                below.<br>
+                                                <form action="https://www.paypal.com/donate" method="post" target="_top">
+                                                    <input type="hidden" name="hosted_button_id"
+                                                        value="ASF9XYZ2V2F5G" /><input style="height: 60px;" type="image"
+                                                        src="https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif"
+                                                        border="0" name="submit" title="Donate to the Falcon Player"
+                                                        alt="Donate to the Falcon Player" /><img alt="" border="0"
+                                                        src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1"
+                                                        height="1" />
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        <?
+                                    }
+                                    ?>
                                 </table>
                             </div>
                             <div class="clear"></div>
                             </fieldset>
                         </div>
                         <?
-$eepromFile = "/home/fpp/media/tmp/eeprom.bin";
-if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
-    $eepromFile = "/home/fpp/media/config/cape-eeprom.bin";
-}
-if (file_exists($eepromFile)) {
-    echo "<hr>For Cape information and EEPROM signing, go to the <a href='cape-info.php'>Cape Info</a> page.\n";
-}
-?>
+                        $eepromFile = "/home/fpp/media/tmp/eeprom.bin";
+                        if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
+                            $eepromFile = "/home/fpp/media/config/cape-eeprom.bin";
+                        }
+                        if (file_exists($eepromFile)) {
+                            echo "<hr>For Cape information and EEPROM signing, go to the <a href='cape-info.php'>Cape Info</a> page.\n";
+                        }
+                        ?>
 
                         <div id='logViewer' title='Log Viewer' style="display: none">
                             <pre>
@@ -841,7 +854,7 @@ if (file_exists($eepromFile)) {
                 </div>
             </div>
         </div>
-        <?php include 'common/footer.inc';?>
+        <?php include 'common/footer.inc'; ?>
     </div>
 </body>
 

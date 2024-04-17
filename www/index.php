@@ -3,12 +3,12 @@
 
 <head>
     <?php
-require_once 'config.php';
-require_once 'common.php';
+    require_once 'config.php';
+    require_once 'common.php';
 
-include 'playlistEntryTypes.php';
-include 'common/menuHead.inc';
-?>
+    include 'playlistEntryTypes.php';
+    include 'common/menuHead.inc';
+    ?>
     <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
     <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
     <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.js"></script>
@@ -18,304 +18,305 @@ include 'common/menuHead.inc';
     <link rel="manifest" href="/manifest.json">
 
     <script>
-    SetStatusRefreshSeconds(1);
-    PlayEntrySelected = 1;
+        SetStatusRefreshSeconds(1);
+        PlayEntrySelected = 1;
 
 
-    function pageSpecific_PageLoad_DOM_Setup() {
+        function pageSpecific_PageLoad_DOM_Setup() {
 
-    }
+        }
 
-    function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
-        //set mouse down actions on playlist:
-        $('.playlistEntriesBody').on('mousedown', 'tr', function(event, ui) {
-            $('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
-            $(this).addClass('playlistSelectedEntry');
-            PlayEntrySelected = parseInt($(this).attr('id').substr(11));
-        });
+        function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
+            //set mouse down actions on playlist:
+            $('.playlistEntriesBody').on('mousedown', 'tr', function (event, ui) {
+                $('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
+                $(this).addClass('playlistSelectedEntry');
+                PlayEntrySelected = parseInt($(this).attr('id').substr(11));
+            });
 
-        //Setup Tablesorter
-        $('#syncStatsTable').tablesorter({
-            headers: {
-                1: {
-                    sorter: 'ipAddress'
+            //Setup Tablesorter
+            $('#syncStatsTable').tablesorter({
+                headers: {
+                    1: {
+                        sorter: 'ipAddress'
+                    }
+                },
+                widthFixed: false,
+                theme: 'fpp',
+                widgets: ['zebra', 'filter', 'staticRow'],
+                widgetOptions: {
+                    filter_hideFilters: true
                 }
-            },
-            widthFixed: false,
-            theme: 'fpp',
-            widgets: ['zebra', 'filter', 'staticRow'],
-            widgetOptions: {
-                filter_hideFilters: true
+            });
+
+            // Pin Player Controls to top of index page
+            zp_playerControls = new $.Zebra_Pin($('#playerModeInfo #playerControls'), {
+                onPin: function (scroll, $element) {
+                    setTimeout(function () {
+                        $('#playerModeInfo #playerControls').css({
+                            width: $('#playerModeInfo #playerControls').parent().width()
+                        });
+                    }, 50);
+                    console.log('onPin event triggered for player controls');
+                },
+                top_spacing: $('.header').css('position') == 'fixed' ?
+                    $('.header').outerHeight() : 0,
+                pinpoint_offset: 150,
+                contained: true
+            });
+            // Pin Progress bar to top of index page
+            zp_playerTime = new $.Zebra_Pin($('#playerModeInfo #playerTime'), {
+                onPin: function (scroll, $element) {
+                    setTimeout(function () {
+                        $('#playerModeInfo #playerTime').css({
+                            width: $('#playerModeInfo #playerTime').parent().width()
+                        });
+                    }, 50);
+                },
+                top_spacing: $('.header').css('position') == 'fixed' ?
+                    $('.header').outerHeight() : $('#playerModeInfo #playerControls').outerHeight(),
+                pinpoint_offset: 0,
+                contained: true
+            });
+
+        }
+
+        function pageSpecific_ViewPortChange() {
+
+            //Positioning Pinned divs working from top to bottom
+            //Player Controls
+            if (typeof zp_playerControls !== 'undefined') {
+                switch (gblCurrentBootstrapViewPort) {
+                    case 'xs':
+                        //
+                        zp_playerControls.settings.top_spacing = 0;
+                        break;
+                    case 'sm':
+                        //
+                        zp_playerControls.settings.top_spacing = 0;
+                        break;
+                    case 'md':
+                        //
+                        zp_playerControls.settings.top_spacing = 0;
+                        break;
+                    case 'lg':
+                        //has sticky page header
+                        zp_playerControls.settings.top_spacing = $('.header').css('position') == 'fixed' ?
+                            $('.header').outerHeight() : 0;
+                        break;
+                    case 'xl':
+                        //has sticky page header
+                        zp_playerControls.settings.top_spacing = $('.header').css('position') == 'fixed' ?
+                            $('.header').outerHeight() : 0;
+                        break;
+                    case 'xxl':
+                        //has sticky page header
+                        zp_playerControls.settings.top_spacing = $('.header').css('position') == 'fixed' ?
+                            $('.header').outerHeight() : 0;
+                        break;
+                    default:
+                }
+                //refresh player control positioning
+                zp_playerControls.update();
             }
-        });
-
-        // Pin Player Controls to top of index page
-        zp_playerControls = new $.Zebra_Pin($('#playerModeInfo #playerControls'), {
-            onPin: function(scroll, $element) {
-                setTimeout(function() {
-                    $('#playerModeInfo #playerControls').css({
-                        width: $('#playerModeInfo #playerControls').parent().width()
-                    });
-                }, 50);
-                console.log('onPin event triggered for player controls');
-            },
-            top_spacing: $('.header').css('position') == 'fixed' ?
-                $('.header').outerHeight() : 0,
-            pinpoint_offset: 150,
-            contained: true
-        });
-        // Pin Progress bar to top of index page
-        zp_playerTime = new $.Zebra_Pin($('#playerModeInfo #playerTime'), {
-            onPin: function(scroll, $element) {
-                setTimeout(function() {
-                    $('#playerModeInfo #playerTime').css({
-                        width: $('#playerModeInfo #playerTime').parent().width()
-                    });
-                }, 50);
-            },
-            top_spacing: $('.header').css('position') == 'fixed' ?
-                $('.header').outerHeight() : $('#playerModeInfo #playerControls').outerHeight(),
-            pinpoint_offset: 0,
-            contained: true
-        });
-
-    }
-
-    function pageSpecific_ViewPortChange() {
-
-        //Positioning Pinned divs working from top to bottom
-        //Player Controls
-        if (typeof zp_playerControls !== 'undefined') {
-            switch (gblCurrentBootstrapViewPort) {
-                case 'xs':
-                    //
-                    zp_playerControls.settings.top_spacing = 0;
-                    break;
-                case 'sm':
-                    //
-                    zp_playerControls.settings.top_spacing = 0;
-                    break;
-                case 'md':
-                    //
-                    zp_playerControls.settings.top_spacing = 0;
-                    break;
-                case 'lg':
-                    //has sticky page header
-                    zp_playerControls.settings.top_spacing = $('.header').css('position') == 'fixed' ?
-                        $('.header').outerHeight() : 0;
-                    break;
-                case 'xl':
-                    //has sticky page header
-                    zp_playerControls.settings.top_spacing = $('.header').css('position') == 'fixed' ?
-                        $('.header').outerHeight() : 0;
-                    break;
-                case 'xxl':
-                    //has sticky page header
-                    zp_playerControls.settings.top_spacing = $('.header').css('position') == 'fixed' ?
-                        $('.header').outerHeight() : 0;
-                    break;
-                default:
+            //Player Time Progress
+            if (typeof zp_playerTime !== 'undefined') {
+                switch (gblCurrentBootstrapViewPort) {
+                    case 'xs':
+                        //
+                        zp_playerTime.settings.top_spacing = $('#playerControls').outerHeight();
+                        break;
+                    case 'sm':
+                        //
+                        zp_playerTime.settings.top_spacing = $('#playerControls').outerHeight();
+                        break;
+                    case 'md':
+                        //
+                        zp_playerTime.settings.top_spacing = $('#playerControls').outerHeight();
+                        break;
+                    case 'lg':
+                        //has sticky page header
+                        zp_playerTime.settings.top_spacing = ($('.header').css('position') == 'fixed' ?
+                            $('.header').outerHeight() : 0) + $('#playerControls').outerHeight();
+                        break;
+                    case 'xl':
+                        //has sticky page header
+                        zp_playerTime.settings.top_spacing = ($('.header').css('position') == 'fixed' ?
+                            $('.header').outerHeight() : 0) + $('#playerControls').outerHeight();
+                        break;
+                    case 'xxl':
+                        //has sticky page header
+                        zp_playerTime.settings.top_spacing = $('.header').css('position') == 'fixed' ?
+                            $('.header').outerHeight() : 0;
+                        break;
+                    default:
+                }
+                //refresh player control positioning
+                zp_playerTime.update();
             }
-            //refresh player control positioning
-            zp_playerControls.update();
-        }
-        //Player Time Progress
-        if (typeof zp_playerTime !== 'undefined') {
-            switch (gblCurrentBootstrapViewPort) {
-                case 'xs':
-                    //
-                    zp_playerTime.settings.top_spacing = $('#playerControls').outerHeight();
-                    break;
-                case 'sm':
-                    //
-                    zp_playerTime.settings.top_spacing = $('#playerControls').outerHeight();
-                    break;
-                case 'md':
-                    //
-                    zp_playerTime.settings.top_spacing = $('#playerControls').outerHeight();
-                    break;
-                case 'lg':
-                    //has sticky page header
-                    zp_playerTime.settings.top_spacing = ($('.header').css('position') == 'fixed' ?
-                        $('.header').outerHeight() : 0) + $('#playerControls').outerHeight();
-                    break;
-                case 'xl':
-                    //has sticky page header
-                    zp_playerTime.settings.top_spacing = ($('.header').css('position') == 'fixed' ?
-                        $('.header').outerHeight() : 0) + $('#playerControls').outerHeight();
-                    break;
-                case 'xxl':
-                    //has sticky page header
-                    zp_playerTime.settings.top_spacing = $('.header').css('position') == 'fixed' ?
-                        $('.header').outerHeight() : 0;
-                    break;
-                default:
-            }
-            //refresh player control positioning
-            zp_playerTime.update();
+
         }
 
-    }
-
-    function PageSetup() {
-        //Store frequently elements in variables
-        var slider = $('#slider');
-        var rslider = $('#remoteVolumeSlider');
-        //Call the Slider
-        // slider.slider({
-        //  //Config
-        //  range: "min",
-        //  min: 1,
-        //  //value: 35,
-        // });
-        rslider.slider({
-            //Config
-            range: "min",
-            min: 1,
-            //value: 35,
-        });
+        function PageSetup() {
+            //Store frequently elements in variables
+            var slider = $('#slider');
+            var rslider = $('#remoteVolumeSlider');
+            //Call the Slider
+            // slider.slider({
+            //  //Config
+            //  range: "min",
+            //  min: 1,
+            //  //value: 35,
+            // });
+            rslider.slider({
+                //Config
+                range: "min",
+                min: 1,
+                //value: 35,
+            });
 
 
-        // slider.slider({
-        //  stop: function( event, ui ) {
-        //      var value = slider.slider('value');
+            // slider.slider({
+            //  stop: function( event, ui ) {
+            //      var value = slider.slider('value');
 
-        //      SetSpeakerIndicator(value);
-        //      $('#volume').html(value);
-        //         $('#remoteVolume').html(value);
-        //      SetVolume(value);
-        //  }
-        // });
-        slider.on('change', function(e) {
-            var value = slider.val();
-            SetSpeakerIndicator(value);
-            $('#volume').html(value);
-            $('#remoteVolume').html(value);
-            SetVolume(value);
-        });
-        rslider.on('change', function(e) {
-            var value = rslider.val();
-            SetSpeakerIndicator(value);
-            $('#volume').html(value);
-            $('#remoteVolume').html(value);
-            SetVolume(value);
-        });
-        SetupBanner();
-    };
-
-    function EnabledStats() {
-        SetSetting("statsPublish", "Enabled", 2);
-        $("#bannerRow").hide();
-    }
-
-    function SetupBanner() {
-        let showIt = true;
-        if (settings.hasOwnProperty('statsPublish') && settings.statsPublish != "Banner") {
-            showIt = false;
-        }
-
-        if (showIt) {
-            $("#bannerRow").html(
-                "Please consider enabling the collection of anonymous statistics " +
-                "on the hardware and features used to help us improve FPP in the " +
-                "future. You may preview the data or disable this banner on the " +
-                "<a href=\"settings.php#settings-privacy\">Privacy Settings Page</a>. " +
-                "<div style='margin-top:1em'><button class='buttons wideButton " +
-                "btn-outline-light' onClick='EnabledStats();'>Enable Stats</button></div>"
-            ).show();
-        }
-    }
-
-    function SetSpeakerIndicator(value) {
-        var speaker = $('#speaker');
-        var speaker_d_flex = $('#speaker_d_flex');
-        var remoteSpeaker = $('#remoteSpeaker');
-
-        if (value <= 5) {
-            speaker.css('background-position', '0 0');
-            speaker_d_flex.css('background-position', '0 0');
-            remoteSpeaker.css('background-position', '0 0');
-        } else if (value <= 25) {
-            speaker.css('background-position', '0 -25px');
-            speaker_d_flex.css('background-position', '0 -25px');
-            remoteSpeaker.css('background-position', '0 -25px');
-        } else if (value <= 75) {
-            speaker.css('background-position', '0 -50px');
-            speaker_d_flex.css('background-position', '0 -50px');
-            remoteSpeaker.css('background-position', '0 -50px');
-        } else {
-            speaker.css('background-position', '0 -75px');
-            speaker_d_flex.css('background-position', '0 -75px');
-            remoteSpeaker.css('background-position', '0 -75px');
+            //      SetSpeakerIndicator(value);
+            //      $('#volume').html(value);
+            //         $('#remoteVolume').html(value);
+            //      SetVolume(value);
+            //  }
+            // });
+            slider.on('change', function (e) {
+                var value = slider.val();
+                SetSpeakerIndicator(value);
+                $('#volume').html(value);
+                $('#remoteVolume').html(value);
+                SetVolume(value);
+            });
+            rslider.on('change', function (e) {
+                var value = rslider.val();
+                SetSpeakerIndicator(value);
+                $('#volume').html(value);
+                $('#remoteVolume').html(value);
+                SetVolume(value);
+            });
+            SetupBanner();
         };
-    }
 
-    function IncrementVolume() {
-        var volume = parseInt($('#volume').html());
-        volume += 1;
-        if (volume > 100)
-            volume = 100;
+        function EnabledStats() {
+            SetSetting("statsPublish", "Enabled", 2);
+            $("#bannerRow").hide();
+        }
 
-        updateVolumeUI(volume);
-        SetVolume(volume);
-    }
+        function SetupBanner() {
+            let showIt = true;
+            if (settings.hasOwnProperty('statsPublish') && settings.statsPublish != "Banner") {
+                showIt = false;
+            }
 
-    function DecrementVolume() {
-        var volume = parseInt($('#volume').html());
-        volume -= 1;
-        if (volume < 0)
-            volume = 0;
+            if (showIt) {
+                $("#bannerRow").html(
+                    "Please consider enabling the collection of anonymous statistics " +
+                    "on the hardware and features used to help us improve FPP in the " +
+                    "future. You may preview the data or disable this banner on the " +
+                    "<a href=\"settings.php#settings-privacy\">Privacy Settings Page</a>. " +
+                    "<div style='margin-top:1em'><button class='buttons wideButton " +
+                    "btn-outline-light' onClick='EnabledStats();'>Enable Stats</button></div>"
+                ).show();
+            }
+        }
 
-        updateVolumeUI(volume);
-        SetVolume(volume);
-    }
+        function SetSpeakerIndicator(value) {
+            var speaker = $('#speaker');
+            var speaker_d_flex = $('#speaker_d_flex');
+            var remoteSpeaker = $('#remoteSpeaker');
 
-    function PreviousPlaylistEntry() {
-        var url = 'api/command/Prev Playlist Item';
-        $.get(url)
-            .done(function() {})
-            .fail(function() {});
-    }
+            if (value <= 5) {
+                speaker.css('background-position', '0 0');
+                speaker_d_flex.css('background-position', '0 0');
+                remoteSpeaker.css('background-position', '0 0');
+            } else if (value <= 25) {
+                speaker.css('background-position', '0 -25px');
+                speaker_d_flex.css('background-position', '0 -25px');
+                remoteSpeaker.css('background-position', '0 -25px');
+            } else if (value <= 75) {
+                speaker.css('background-position', '0 -50px');
+                speaker_d_flex.css('background-position', '0 -50px');
+                remoteSpeaker.css('background-position', '0 -50px');
+            } else {
+                speaker.css('background-position', '0 -75px');
+                speaker_d_flex.css('background-position', '0 -75px');
+                remoteSpeaker.css('background-position', '0 -75px');
+            };
+        }
 
-    function NextPlaylistEntry() {
-        var url = 'api/command/Next Playlist Item';
-        $.get(url)
-            .done(function() {})
-            .fail(function() {});
-    }
+        function IncrementVolume() {
+            var volume = parseInt($('#volume').html());
+            volume += 1;
+            if (volume > 100)
+                volume = 100;
+
+            updateVolumeUI(volume);
+            SetVolume(volume);
+        }
+
+        function DecrementVolume() {
+            var volume = parseInt($('#volume').html());
+            volume -= 1;
+            if (volume < 0)
+                volume = 0;
+
+            updateVolumeUI(volume);
+            SetVolume(volume);
+        }
+
+        function PreviousPlaylistEntry() {
+            var url = 'api/command/Prev Playlist Item';
+            $.get(url)
+                .done(function () { })
+                .fail(function () { });
+        }
+
+        function NextPlaylistEntry() {
+            var url = 'api/command/Next Playlist Item';
+            $.get(url)
+                .done(function () { })
+                .fail(function () { });
+        }
     </script>
 
-    <title><?=$pageTitle?></title>
+    <title><?= $pageTitle ?></title>
 </head>
 
 <body class="is-loading" onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);OnSystemStatusChange(GetFPPStatus);">
     <div id="bodyWrapper">
         <?php
-$activeParentMenuItem = 'status';
-include 'menu.inc';
-?>
+        $activeParentMenuItem = 'status';
+        include 'menu.inc';
+        ?>
 
 
         <div class="mainContainer">
             <h1 class="title statusTitle">
-                <?if ($settings['fppMode'] == 'remote') {
-    echo "Remote ";
-}
-?>Status <span class="statusHostname"><?=$settings["HostName"]?></span>
+                <? if ($settings['fppMode'] == 'remote') {
+                    echo "Remote ";
+                }
+                ?>Status <span class="statusHostname"><?= $settings["HostName"] ?></span>
             </h1>
 
             <?php
-if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 0):
-?>
-            <div id='spaceFlag' class="alert alert-danger" role="alert">
-                SD card has unused space. Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
-                file system or create a new storage partition.
-            </div>
-            <?php endif;?>
+            if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 0):
+                ?>
+                <div id='spaceFlag' class="alert alert-danger" role="alert">
+                    SD card has unused space. Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
+                    file system or create a new storage partition.
+                </div>
+            <?php endif; ?>
 
             <div class="statusDivTopWrap">
-                <div id="schedulerInfo" class="statusDiv statusDivTop" <?if ($settings['fppMode']=='remote' ) {
-                    echo "style='display:none;'" ; }?>>
+                <div id="schedulerInfo" class="statusDiv statusDivTop" <? if ($settings['fppMode'] == 'remote') {
+                    echo "style='display:none;'";
+                } ?>>
                     <div class="statusTable statusDivTopRow">
 
                         <div class="statusDivTopCol">
@@ -427,21 +428,21 @@ if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 
                             <div class="labelHeading">Volume</div>
                             <span id='remoteVolume' class='volume'></span>
                         </div>
-                        <?if ($settings['disableAudioVolumeSlider'] != '1') {
-    ?>
-                        <div class="volumeControls">
-                            <button class='volumeButton buttons' onClick="DecrementVolume();">
-                                <i class='fas fa-fw fa-volume-down'></i>
-                            </button>
-                            <input type="range" min="0" max="100" class="slider" id="remoteVolumeSlider">
-                            <button class='volumeButton buttons' onClick="IncrementVolume();">
-                                <i class='fas fa-fw fa-volume-up'></i>
-                            </button>
-                            <span id='speaker_d_flex'></span> <!-- Volume -->
-                        </div>
-                        <?php
-}
-?>
+                        <? if ($settings['disableAudioVolumeSlider'] != '1') {
+                            ?>
+                            <div class="volumeControls">
+                                <button class='volumeButton buttons' onClick="DecrementVolume();">
+                                    <i class='fas fa-fw fa-volume-down'></i>
+                                </button>
+                                <input type="range" min="0" max="100" class="slider" id="remoteVolumeSlider">
+                                <button class='volumeButton buttons' onClick="IncrementVolume();">
+                                    <i class='fas fa-fw fa-volume-up'></i>
+                                </button>
+                                <span id='speaker_d_flex'></span> <!-- Volume -->
+                            </div>
+                            <?php
+                        }
+                        ?>
                     </div>
                     <hr>
                     <br>
@@ -454,8 +455,8 @@ if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 
                         </div>
                         <div class="col-auto ms-auto">
                             <?php
-PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0");
-?>
+                            PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0");
+                            ?>
                             Live Update Stats
                         </div>
                     </div>
@@ -594,21 +595,21 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                                         <div class="labelHeading">Volume</div>
                                         <span id='volume' class='volume'></span>
                                     </div>
-                                    <?if ($settings['disableAudioVolumeSlider'] != '1') {
-    ?>
-                                    <div class="volumeControls">
-                                        <button class='volumeButton buttons' onClick="DecrementVolume();">
-                                            <i class='fas fa-fw fa-volume-down'></i>
-                                        </button>
-                                        <input type="range" min="0" max="100" class="slider" id="slider">
-                                        <button class='volumeButton buttons' onClick="IncrementVolume();">
-                                            <i class='fas fa-fw fa-volume-up'></i>
-                                        </button>
-                                        <span id='speaker'></span> <!-- Volume -->
-                                    </div>
-                                    <?php
-}
-?>
+                                    <? if ($settings['disableAudioVolumeSlider'] != '1') {
+                                        ?>
+                                        <div class="volumeControls">
+                                            <button class='volumeButton buttons' onClick="DecrementVolume();">
+                                                <i class='fas fa-fw fa-volume-down'></i>
+                                            </button>
+                                            <input type="range" min="0" max="100" class="slider" id="slider">
+                                            <button class='volumeButton buttons' onClick="IncrementVolume();">
+                                                <i class='fas fa-fw fa-volume-up'></i>
+                                            </button>
+                                            <span id='speaker'></span> <!-- Volume -->
+                                        </div>
+                                        <?php
+                                    }
+                                    ?>
                                 </div>
 
                             </div>
@@ -619,7 +620,7 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                     <div id="playlistOuterScroll">
 
                         <div id="playerStatusBottom">
-                            <?php include "playlistDetails.php";?>
+                            <?php include "playlistDetails.php"; ?>
 
 
                             <div id='deprecationWarning' class="hidden callout callout-danger">
@@ -632,8 +633,8 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                     </div>
 
                     <div class="verbosePlaylistItemSetting">
-                        <?php PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled');?>
-                        <?php PrintSetting('playlistAutoScroll');?>
+                        <?php PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
+                        <?php PrintSetting('playlistAutoScroll'); ?>
                     </div>
                 </div>
                 <!-- Bridge Mode stats -->
@@ -648,7 +649,7 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
                                     value='Reset'>
                             </td>
                             <td style="text-align: right;">
-                                <?php PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0");?>
+                                <?php PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?>
                                 Live Update Stats
                             </td>
                         </tr>
@@ -667,7 +668,7 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
 
             </div>
         </div>
-        <?php include 'common/footer.inc'?>
+        <?php include 'common/footer.inc' ?>
     </div>
     <div id='upgradePopup' title='FPP Upgrade' style="display: none">
         <textarea style='width: 99%; height: 97%;' disabled id='upgradeText'></textarea>

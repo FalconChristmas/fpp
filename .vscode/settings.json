@@ -137,9 +137,6 @@
         "editor.defaultFormatter": "numso.prettier-standard-vscode"
     },
     "[php]": {
-        "editor.defaultFormatter": "kokororin.vscode-phpfmt"
-    },
-    "[html]": {
-        "editor.defaultFormatter": "rifi2k.format-html-in-php"
+        "editor.defaultFormatter": "devsense.phptools-vscode"
     }
 }
