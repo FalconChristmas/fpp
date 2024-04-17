@@ -2417,6 +2417,10 @@ input[type=search].tablesorter-filter:disabled {
     display: none;
 }
 
+#syncStatsTable {
+    width: 100%;
+}
+
 #tblSequences {
     width: 100%;
 }

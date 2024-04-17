@@ -11,6 +11,8 @@ include 'common/menuHead.inc';
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
 <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/widgets/widget-cssStickyHeaders.min.js"></script>
+  <script type="text/javascript" src="jquery/jquery.tablesorter/extras/jquery.metadata.min.js"></script>
 
 <link rel="stylesheet" href="jquery/jquery.tablesorter/css/theme.blue.css">
 
@@ -31,7 +33,7 @@ include 'common/menuHead.inc';
 //            "handles": "s"
 //        });
 
-        $('#syncStatsTable').tablesorter({
+         $('#syncStatsTable').tablesorter({
             headers: {
                 1: { sorter: 'ipAddress' }
             },
@@ -41,7 +43,7 @@ include 'common/menuHead.inc';
             widgetOptions: {
                 filter_hideFilters : true
             }
-        });
+        }); 
     });
 
 </script>
@@ -343,7 +345,7 @@ PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0,
 
                 <div class='fppTableWrapper backdrop'>
                     <div class='fppTableContents' role="region" aria-labelledby="syncStatsTable" tabindex="0">
-                        <table id='syncStatsTable'>
+                        <table id='syncStatsTable' class="tablesorter">
                             <thead>
                                 <tr>
                                     <th rowspan=2>Host</th>
