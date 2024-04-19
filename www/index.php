@@ -57,7 +57,7 @@
                             width: $('#playerModeInfo #playerControls').parent().width()
                         });
                     }, 50);
-                    console.log('onPin event triggered for player controls');
+                    //console.log('onPin event triggered for player controls');
                 },
                 top_spacing: $('.header').css('position') == 'fixed' ?
                     $('.header').outerHeight() : 0,
@@ -637,7 +637,7 @@
                         <?php PrintSetting('playlistAutoScroll'); ?>
                     </div>
                 </div>
-                <!-- Bridge Mode stats -->
+                <!-- Incoming E1.31/DDP/ArtNet stats (only displayed if "Channel Input" configured and enabled) -->
                 <div id="bridgeModeInfo" class="pageContent" style="margin-top: 5px;">
                     <h3>E1.31/DDP/ArtNet Packets and Bytes Received</h3>
                     <table style='width: 100%' class='statusTable'>
