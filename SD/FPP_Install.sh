@@ -48,7 +48,7 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2024-03"
+FPPIMAGEVER="2024-04"
 FPPCFGVER="86"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -495,7 +495,7 @@ case "${OSVER}" in
                       gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev qrencode libusb-1.0-0-dev \
-                      flex bison pkg-config libasound2-dev python3-distutils libssl-dev libtool bsdextrautils iw rsyslog smartmontools tzdata"
+                      flex bison pkg-config libasound2-dev python3-distutils libssl-dev libtool bsdextrautils iw rsyslog tzdata"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity zram-tools"
@@ -506,7 +506,7 @@ case "${OSVER}" in
             PACKAGE_LIST="$PACKAGE_LIST ccache"
         fi
         if [ "$FPPPLATFORM" != "BeagleBone Black" ]; then
-            PACKAGE_LIST="$PACKAGE_LIST libva-dev"
+            PACKAGE_LIST="$PACKAGE_LIST libva-dev smartmontools"
         fi
         if $isimage; then
             PACKAGE_LIST="$PACKAGE_LIST networkd-dispatcher systemd-resolved"
@@ -710,6 +710,7 @@ case "${FPPPLATFORM}" in
 
         systemctl disable keyboard-setup
         systemctl disable unattended-upgrades
+        systemctl disable resize_filesystem
 		;;
 
 	'Raspberry Pi')
@@ -1341,10 +1342,9 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
     
     #adjust a bunch of settings in /boot/uEnv.txt
+    sed -i -e "s+^#enable_uboot_cape_universal=\(.*\)+enable_uboot_cape_universal=1+g"  /boot/uEnv.txt
     sed -i -e "s+^#disable_uboot_overlay_video=\(.*\)+disable_uboot_overlay_video=1+g"  /boot/uEnv.txt
     sed -i -e "s+#uboot_overlay_addr0=\(.*\)+uboot_overlay_addr0=/lib/firmware/bbb-fpp-reserve-memory.dtbo+g"  /boot/uEnv.txt
-    sed -i -e "s+#uboot_overlay_addr4=\(.*\)+uboot_overlay_addr4=/lib/firmware/AM335X-I2C2-400-00A0.dtbo+g"  /boot/uEnv.txt
-    sed -i -e "s+#uboot_overlay_addr5=\(.*\)+uboot_overlay_addr5=/lib/firmware/AM335X-I2C1-400-00A0.dtbo+g"  /boot/uEnv.txt
     sed -i -e "s+ quiet+ quiet rootwait+g"  /boot/uEnv.txt
     sed -i -e "s+ net.ifnames=.+ +g"  /boot/uEnv.txt
     sed -i -e "s+^uboot_overlay_pru=+#uboot_overlay_pru=+g"  /boot/uEnv.txt
