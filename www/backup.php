@@ -2556,6 +2556,7 @@ moveBackupFiles_ToBackupDirectory();
 //See if we should skip spitting out the HTML code below
 if ($skipHTMLCodeOutput === false) {
     ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3536,11 +3537,40 @@ function GetBackupRemoteStorageDevice() {
     });
 }
 
-$(document).ready(function() {
+
+
+function pageSpecific_PageLoad_DOM_Setup() {
     $('#backup\\.Path').attr('list', 'usbDirectories');
     GetBackupDevices();
     GetJSONConfigBackupList();
-});
+}
+
+function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
+    $('a[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
+        $('table').floatThead('reflow');
+    });
+
+        //float th thead on download existing backups table
+        $('.table-download-existing-backups').floatThead({
+                zIndex: 990,
+                debug: true ,
+                scrollContainer: function() {
+                    return $('.table-download-existing-backups').closest(".table-download-existing-backups-container");
+                }
+        });
+
+
+        //float th thead on restore existing backups table
+        $('.table-restore-existing-backups').floatThead({
+                zIndex: 990,
+                debug: false ,
+                scrollContainer: function() {
+                    return $('.table-restore-existing-backups').closest(".table-restore-existing-backups-container");
+                }
+        });
+
+
+}
 
         var activeTabNumber =
 			<?php
@@ -3758,7 +3788,7 @@ foreach ($settings_restored as $area_restored => $success) {
                                             </div>
 
                                             <div class="row">
-                                                <div class="col-md-12 table-download-existing-backups-container">
+                                                <div class="col-md-12 table-download-existing-backups-container table-responsive">
                                                     <table class="table table-download-existing-backups">
                                                         <thead>
                                                         <tr>

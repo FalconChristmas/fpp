@@ -1044,7 +1044,7 @@ $(document).ready(function(){
 
                         <div class='fppTableWrapper'>
                             <div class='fppTableContents' role="region" aria-labelledby="tblOtherOutputs" tabindex="0">
-                                <table id="tblOtherOutputs" class="fppSelectableRowTable">
+                                <table id="tblOtherOutputs" class="fppSelectableRowTable fppStickyTheadTable">
                                     <thead>
                                         <tr class='tblheader'>
                                             <th>#</th>

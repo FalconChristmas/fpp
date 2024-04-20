@@ -264,7 +264,8 @@ function HandleMouseClick(event, row, table) {
     }
 }
 
-$(function() {
+function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
+    //setup the pageLoad actions unique for the file manager page
     $('#tblSequences').on('mousedown', 'tbody tr', function(event,ui){
         HandleMouseClick(event, $(this), 'Sequences');
     });
@@ -301,7 +302,71 @@ $(function() {
         HandleMouseClick(event, $(this), 'Crashes');
     });
 
-  });
+    const pond = FilePond.create(
+        document.querySelector('#filepondInput'), {
+          labelIdle: `<b style="font-size: 1.3em;">Drag & Drop or Select Files to upload</b><br><br><span class="btn btn-dark filepond--label-action" style="text-decoration:none;">Select Files</span><br>`,
+          server: 'api/file/upload',
+          credits: false,
+          chunkUploads: true,
+          chunkSize: 1024 * 1024 * 64,
+          chunkForce: true,
+          maxParallelUploads: 3,
+          labelTapToUndo: "Tap to Close",
+        }
+      );
+
+      pond.on("processfile", (error, file) => {
+        console.log("Process file: " + file.filename);
+        moveFile(file.filename);
+        setTimeout(function() {
+          GetAllFiles();
+        }, 100);
+      });
+
+      $('#fileManager').tabs({
+        activate: function(event, ui) {
+
+          var $t = ui.newPanel.find('table');
+          var $tableName = $t[0].id;
+          var fileType = $tableName.substring(3);
+          eval('tablesorterOptions_' + fileType).widgetOptions.filter_hideFilters = (settings.fileManagerTableFilter == "1" ? false : true);
+
+          if ($t.length && $t.find('tbody').length) {
+            $($t[0]).trigger('destroy');
+            switch ($tableName) {
+              case "tblSequences":
+                $($t[0]).tablesorter(tablesorterOptions_Sequences);
+                break;
+              case "tblMusic":
+                $($t[0]).tablesorter(tablesorterOptions_Music);
+                break;
+              case "tblVideos":
+                $($t[0]).tablesorter(tablesorterOptions_Videos);
+                break;
+              case "tblImages":
+                $($t[0]).tablesorter(tablesorterOptions_Images);
+                break;
+              case "tblEffects":
+                $($t[0]).tablesorter(tablesorterOptions_Effects);
+                break;
+              case "tblScripts":
+                $($t[0]).tablesorter(tablesorterOptions_Scripts);
+                break;
+              case "tblLogs":
+                $($t[0]).tablesorter(tablesorterOptions_Logs);
+                break;
+              case "tblUploads":
+                $($t[0]).tablesorter(tablesorterOptions_Uploads);
+                break;
+              case "tblCrashes":
+                $($t[0]).tablesorter(tablesorterOptions_Crashes);
+                break;
+            }
+            $($t[0]).trigger('applyWidgets');
+          }
+        }
+      });
+  }
 
 function AddFilesToPlaylist(type, files) {
     GetPlaylistArray();

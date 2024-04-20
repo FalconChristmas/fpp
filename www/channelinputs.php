@@ -246,7 +246,7 @@ include 'menu.inc';?>
 
 		    <div class='fppTableWrapper'>
 		        <div class='fppTableContents' role="region" aria-labelledby="tblUniverses" tabindex="0">
-		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable'>
+		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable fppStickyTheadTable'>
 		                <thead id='tblUniversesHead'>
 								<th class="tblScheduleHeadGrip"></th>
 				        		<th>Input</th>
@@ -282,10 +282,6 @@ include 'menu.inc';?>
 		<div id='debugOutput'>
 		</div>
 
-		<div id="dialog-panelLayout" title="panelLayout" style="display: none">
-		  <div id="layoutText">
-		  </div>
-		</div>
 	</div>
 </div>
 

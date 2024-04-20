@@ -39,26 +39,79 @@ if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.m
     hasTouch = true;
 }
 
-/* On Page Ready Functions */
-
+/* On Page Ready Function Handler
+All Pages should use the pageSpecific_PageLoad_DOM_Setup() and pageSpecific_PageLoad_PostDOMLoad_ActionsSetup()
+functions to load page specific page ready content and actions
+*/
 $(function () {
+// do any page DOM manipulation required
+    common_PageLoad_DOM_Setup();
+    if (typeof pageSpecific_PageLoad_DOM_Setup === "function") {
+        pageSpecific_PageLoad_DOM_Setup();
+    }
+
+// Activate UI components / actions on fully loaded DOM
+    if (document.readyState ==="loading") {
+        document.addEventListener("DOMContentLoaded", loadPageReadyActions);
+    } else{
+        loadPageReadyActions();
+    }
+})
+
+function loadPageReadyActions(){
+    //call common setup actions
+    common_PageLoad_PostDOMLoad_ActionsSetup();
+    //call page specific setup actions
+    if (typeof pageSpecific_PageLoad_PostDOMLoad_ActionsSetup  === "function") {
+        pageSpecific_PageLoad_PostDOMLoad_ActionsSetup();
+    }
+}
+
+function common_PageLoad_DOM_Setup(){
     OnSystemStatusChange(RefreshHeaderBar);
     OnSystemStatusChange(IsFPPDrunning);
     bindVisibilityListener();
+
+    $('a.link-to-fpp-manual').attr("href", getManualLink());
+
+    $.jGrowl.defaults.closerTemplate = '<div>Close Notifications</div>';
+    SetupToolTips();
+    LoadSystemStatus();
+
+    CheckBrowser();
+    CheckRestartRebootFlags();
+}
+
+
+
+function common_PageLoad_PostDOMLoad_ActionsSetup(){
+
     $(document).on('click', '.navbar-toggler', ToggleMenu);
     $(document).on('keydown', handleKeypress);
 
-    var zp = new $.Zebra_Pin($('.tablePageHeader'), {
+    //Pin Table Page Headers
+    var zp_tablePageHeader = new $.Zebra_Pin($('.tablePageHeader'), {
         contained: true,
-        top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight() : 0
-    });
-
+        top_spacing: $('.header').css('position') == 'fixed' ? $('.header').outerHeight(true) : 0
+    }); 
+   
+    //Calc position of bottom of pinned tablePageHeader
+    zebraPinSubContentTop = ($('.header').css('position') == 'fixed' ? $('.header').outerHeight(true) : 0) + $('.tablePageHeader').outerHeight(true); 
+    
+    //Control Events on Tabs being shown
     $('a[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
-        zp.update();
-    });
+        zp_tablePageHeader.update();
+        float_fppStickyThead();
+        //$('table').floatThead('reflow');
+    }); 
 
-    zebraPinSubContentTop = $('.header').outerHeight() + $('.tablePageHeader').outerHeight();
+    //showing tab directly if referenced in url
+    if (location.hash) {
+        $(".nav-link[href='" + location.hash + "']").tab('show');
+    }
 
+
+    //Handling touch
     if (hasTouch == true) {
         $('body').addClass('has-touch');
         var swipeHandler = new SwipeHandler($('.header').get(0));
@@ -72,27 +125,77 @@ $(function () {
     } else {
         $('body').addClass('no-touch');
     }
+
+    //button click functionality
     $("[data-bs-toggle=pill], [data-bs-toggle=tab]").on("click", function () {
         if (history.pushState) {
             history.pushState(null, null, $(this).attr('href'));
         }
     });
 
-    if (location.hash) {
-        $(".nav-link[href='" + location.hash + "']").tab('show');
-    }
 
-
-    $('a.link-to-fpp-manual').attr("href", getManualLink());
-
-    $.jGrowl.defaults.closerTemplate = '<div>Close Notifications</div>';
-    SetupToolTips();
-    LoadSystemStatus();
-    CheckBrowser();
-    CheckRestartRebootFlags();
-
+    //window scrolling events
     window.onscroll = function () { checkScrollTopButton(); };
-});
+
+    //Events for window resizing
+    $( window ).on( "resize", function() {
+        //reflow floatTHead tables if they exist
+        if ($('table').parent().hasClass('floatThead-container') ) {
+            $('table').floatThead('reflow');
+        }
+    });
+
+
+    //set stickyTable headers for tables with fppStickyThead class added
+    float_fppStickyThead();
+
+}
+
+
+
+
+function float_fppModalStickyThead(){
+    //Fix Table Headers on scroll
+    var $previewTable = $('table.schedulePreviewTable');
+
+    $previewTable.floatThead({
+            top: ($('.header').css('position') == 'fixed' ? $('.header').outerHeight(true) : 0) + $('#schedulePreview .modal-content .modal-header').outerHeight(true),
+            zIndex: 99999,
+            debug: false,
+            responsiveContainer: function($previewTable){
+	                return $previewTable.closest('.modal-body');
+            }
+    });
+
+}
+
+
+function float_fppStickyThead(){
+    //check if there is at least 1 stickyThead table to process
+    if ($('.fppStickyTheadTable').length > 0) {
+        if ($('.tab-pane.active table.fppStickyTheadTable thead').length > 0) {
+            //tables in a tab
+            var tablesToProcess = $('.tab-pane.active table');
+        } else {
+            //tables not in tab
+            var tablesToProcess = $('.fppStickyTheadTable');
+        }
+        //float th thead on all found tables
+        $(tablesToProcess).each(function(index, element){
+                var $table = $(element);
+                $table.floatThead({
+                top: zebraPinSubContentTop,
+                position: 'fixed',
+                zIndex: 990,
+                debug: false ,
+                responsiveContainer: function($table) {
+                    return $table.closest(".fppTableContents");
+                } 
+                });
+        })
+        
+    }
+}
 
 function getManualLink() {
     return "https://falconchristmas.github.io/FPP_Manual.pdf";
@@ -183,6 +286,10 @@ function DoModalDialog(options) {
         dlg.find(".modal-body").html(options.body);
     }
     new bootstrap.Modal('#' + options.id, options).show();
+
+    $('#' + options.id).on('shown.bs.modal', function (){
+        float_fppModalStickyThead();
+    });
 }
 function DisplayProgressDialog(id, title) {
     DoModalDialog({
@@ -6299,16 +6406,28 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '
 }
 
 function PreviewSchedule() {
+
+    var response = '';
+    $.ajax({ type: "GET",   
+             url: "schedulePreview.php",   
+             async: false,
+             success : function(text)
+             {
+                 response = text;
+             }
+    });
+    
     var options = {
         id: "schedulePreview",
         title: "Schedule Preview",
-        body: "<div id='schedulePreviewDiv'></div>",
+        body: "<div id='schedulePreviewDiv'> "+ response + "</div>",
         class: "modal-dialog-scrollable",
         keyboard: true,
         backdrop: true
     };
-    DoModalDialog(options);
-    $('#schedulePreviewDiv').load('schedulePreview.php');
+
+       DoModalDialog(options);
+
 }
 
 function ToggleMenu() {

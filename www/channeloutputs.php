@@ -164,8 +164,7 @@ function handleCOKeypress(e)
 }
 
 
-$(document).ready(function(){
-	$(document).on('keydown', handleCOKeypress);
+function pageSpecific_PageLoad_DOM_Setup(){
 
 	var channelOutputsJSON = "<?echo $channelOutputsJSON; ?>";
 
@@ -175,8 +174,13 @@ $(document).ready(function(){
 		channelOutputs.channelOutputs = [];
 
 	UpdateChannelOutputLookup();
+}
 
-});
+function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
+	$(document).on('keydown', handleCOKeypress);
+}
+
+
 
 </script>
 <title><?echo $pageTitle; ?></title>
@@ -228,9 +232,8 @@ if ($e131TabStyle == "") {
     $lpTabStyleActive = "active";
 }
 ?>
-
-			<ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
-              <li class="nav-item <?=$e131TabStyle?>" id="tab-e131-LI">
+			<ul class="ui-tabs-nav nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
+              <li class="ui-tabs-tab nav-item <?=$e131TabStyle?>" id="tab-e131-LI">
                 <a class="nav-link <?=$e131TabStyleActive?>" id="tab-e131-tab" tabType='UDP' data-bs-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
 					E1.31 / ArtNet / DDP / KiNet
 				</a>
@@ -253,7 +256,7 @@ if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Ras
         }
     }
     ?>
-                <li class="nav-item <?=$stringTabStyle?>" id="tab-strings-LI" >
+                <li class="ui-tabs-tab nav-item <?=$stringTabStyle?>" id="tab-strings-LI" >
                     <a class="nav-link <?=$stringTabStyleActive?>" id="stringTab-tab" tabType='strings' data-bs-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
                         <?echo $stringTabText; ?>
                     </a>
@@ -263,7 +266,7 @@ if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Ras
 if ($settings['Platform'] == "Raspberry Pi") {
     if (in_array('fpd', $currentCapeInfo["provides"])) {
         ?>
-						<li class="nav-item">
+						<li class="ui-tabs-tab nav-item">
 							<a class="nav-link" id="tab-fpd-tab" tabType='FPD' data-bs-toggle="pill" href='#tab-fpd' role="tab" aria-controls="tab-fpd">
 								Falcon Pixelnet/DMX
 							</a>
@@ -283,17 +286,18 @@ if ((isset($settings['cape-info'])) &&
 
 }
 ?>
-						<li class="nav-item <?=$lpTabStyle?>" id="tab-LEDPanels-LI">
+						<li class="ui-tabs-tab nav-item <?=$lpTabStyle?>" id="tab-LEDPanels-LI">
 							<a class="nav-link <?=$lpTabStyleActive?>" id="tab-LEDPanels-tab" tabType='panels' data-bs-toggle="pill" href='#tab-LEDPanels' role="tab" aria-controls="tab-LEDPanels">
                                 <?echo $ledTabText; ?>
 							</a>
 						</li>
-						<li class="nav-item">
+						<li class="ui-tabs-tab nav-item">
 							<a class="nav-link" id="tab-other-tab" tabType='other' data-bs-toggle="pill" href='#tab-other' role="tab" aria-controls="tab-other">
 								Other
 							</a>
 						</li>
 					</ul>
+
 
 		<!-- --------------------------------------------------------------------- -->
 <?
@@ -306,7 +310,7 @@ if ($e131TabStyle == "") {
 }
 ?>
 
-		<div class="tab-content" id="channelOutputTabsContent">
+		<div id="channelOutputTabsContent" class="tab-content">
 			<div class="tab-pane fade <?=$e131TabStyleActive?>" id="tab-e131" role="tabpanel" aria-labelledby="tab-e131-tab">
 				<?include_once 'co-universes.php';?>
 			</div>
@@ -342,7 +346,8 @@ if ($settings['Platform'] == "Raspberry Pi") {
 				<?include_once "co-other.php";?>
 			</div>
 
-				</div>
+				</div> <!-- tabcontent close -->
+
 		<!-- --------------------------------------------------------------------- -->
 
 
@@ -355,11 +360,6 @@ if ($settings['Platform'] == "Raspberry Pi") {
 	<div id='debugOutput'>
 	</div>
 
-	<!-- FIXME, can we put this in co-ledPanels.php? -->
-	<div id="dialog-panelLayout" title="panelLayout" style="display: none">
-	  <div id="layoutText">
-	  </div>
-	</div>
 </div>
 
 	<?php	include 'common/footer.inc';?>

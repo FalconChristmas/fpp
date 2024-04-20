@@ -39,7 +39,7 @@ include 'menu.inc';?>
     <div class="pageContent">
       <h2>Troubleshooting Commands</h2>
 
-    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+    <ul class="nav nav-pills mb-3 pageContent-tabs" id="pills-tab" role="tablist">
     <?
 //LoadCommands
 $troubleshootingCommandsLoaded = 0;
@@ -97,7 +97,8 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
         <pre id="<?echo ("command_" . $commandKey) ?>"><img src="./images/loading_spinner.gif" width="100" height="100"><i>Loading...</i></pre>
         <hr>
 <?
-        }}
+        }
+    }
     ${'hotlinks-' . $commandGrpID} .= "</div></div>";
     ?></div>
     </div></div><?
@@ -158,18 +159,20 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
         });
 
 <?
-            }}?>}<?}}
+            }
+        }?>}<?
+    }
+}
 ?>
 
+function pageSpecific_PageLoad_DOM_Setup(){
+    document.getElementById("pills-<?echo array_key_first($troubleshootingCommandGroups) ?>").classList.add('active');
+    document.getElementById("pills-<?echo array_key_first($troubleshootingCommandGroups) ?>").classList.add('show');
+}
 
-$( document ).ready(function() {
-//default to show first tab in grp array active
-$('#pills-tab button[id="pills-<?echo array_key_first($troubleshootingCommandGroups) ?>-tab"]').tab('show');
-dispTroubleTab<?echo array_key_first($troubleshootingCommandGroups) ?>();
-document.getElementById("pills-<?echo array_key_first($troubleshootingCommandGroups) ?>").classList.add('active');
-document.getElementById("pills-<?echo array_key_first($troubleshootingCommandGroups) ?>").classList.add('show');
-
-//Call Function to run commands for selected tab
+function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
+//Setup action functions
+    // commands for selected tab
     $('.nav-link').on('shown.bs.tab', function(){
         var id = $(this).attr("id");
         var cmdgrp = id.replace("pills-","").replace("-tab","");
@@ -177,13 +180,22 @@ document.getElementById("pills-<?echo array_key_first($troubleshootingCommandGro
        var fn_string = "dispTroubleTab".concat(cmdgrp);
        var fn = window[fn_string];
        if (typeof fn === "function") fn();
+    });
 
+       //scroll to top
     $(".back2top").click(() => $("html, body").animate({scrollTop: 0}, "slow") && false);
-  $(window).scroll(function(){
+    $(window).scroll(function(){
       if ($(this).scrollTop() > 100) $('.back2top').fadeIn();
       else $('.back2top').fadeOut();
-  });
-});}); // end document ready
+    });
+
+    //default to show first tab in grp array active
+    $('#pills-tab button[id="pills-<?echo array_key_first($troubleshootingCommandGroups) ?>-tab"]').tab('show');
+    dispTroubleTab<?echo array_key_first($troubleshootingCommandGroups) ?>();
+
+}
+
+
 </script>
 
 </body>

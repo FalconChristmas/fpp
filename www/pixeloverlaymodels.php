@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
 <?php
 require_once "common.php";
 
 ?>
-<head>
+
 <?php include 'common/menuHead.inc';?>
 <script language="Javascript">
 var FBDevices = new Array();
@@ -419,12 +420,12 @@ function AddNewModel() {
                 AddNewChannelModel();
                 CloseModalDialog("AddPixelOverlayModel");
             },
- <? if ($showAddFBButton) { ?>
+<?if ($showAddFBButton) {?>
             FrameBuffer: function() {
                 AddNewFBModel();
                 CloseModalDialog("AddPixelOverlayModel");
             },
-<? } ?>            
+<?}?>
             SubModel: function() {
                 AddNewSubModel();
                 CloseModalDialog("AddPixelOverlayModel");
@@ -451,10 +452,55 @@ function DeleteSelectedMemMap() {
 	}
 }
 
-$(document).ready(function(){
+
+function pageSpecific_PageLoad_DOM_Setup(){
 	SetupSelectableTableRow(tableInfo);
 	GetChannelMemMaps();
-});
+}
+
+function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
+    //Set StickyHeader on channelMemMaps table
+     var $table = $('#channelMemMaps');
+                $table.floatThead({
+                top: zebraPinSubContentTop,
+                position: 'fixed',
+                zIndex: 990,
+                debug: false ,
+                autoReflow: true,
+                responsiveContainer: function($table) {
+                    return $table.closest(".fppTableContents");
+                    }
+                });
+
+    //Set StickyHeader on channelMemMapsAutoCreate table
+      var $table = $('#channelMemMapsAutoCreate');
+                $table.floatThead({
+                top: zebraPinSubContentTop,
+                position: 'fixed',
+                zIndex: 990,
+                debug: false ,
+                autoReflow: true,
+                responsiveContainer: function($table) {
+                    return $table.closest(".fppTableContents");
+                    }
+                });
+
+        //Mouse click on table rows
+        $('#channelMemMaps').on('mousedown', 'tr', function(event,ui) {
+			HandleTableRowMouseClick(event, $(this));
+
+			//console.log(event.target.nodeName);
+
+			if ($('#channelMemMaps > tr.selectedEntry').length > 0) {
+				EnableButtonClass('btnDelete');
+			} else {
+				DisableButtonClass('btnDelete');
+			}
+		});
+
+
+
+}
 
 </script>
 
@@ -469,8 +515,6 @@ include 'menu.inc';?>
 	<h1 class="title">Pixel Overlay Models</h1>
 	<div class="pageContent">
 
-
-		<div id="time" class="settings">
 
 				<div class="row tablePageHeader">
 					<div class="col-md">
@@ -546,26 +590,8 @@ include 'menu.inc';?>
 </div>
 
 		<?php	include 'common/footer.inc';?>
-	</div>
+</div>
 
-<script language="Javascript">
-
-	$(function() {
-		$('#channelMemMaps').on('mousedown', 'tr', function(event,ui) {
-			HandleTableRowMouseClick(event, $(this));
-
-			console.log(event.target.nodeName);
-
-			if ($('#channelMemMaps > tr.selectedEntry').length > 0) {
-				EnableButtonClass('btnDelete');
-			} else {
-				DisableButtonClass('btnDelete');
-			}
-		});
-	});
-
-
-</script>
 
 </body>
 </html>

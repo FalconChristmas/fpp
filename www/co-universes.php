@@ -177,7 +177,7 @@ function PopulateInterfaces()
 
                         <div class='fppTableWrapper'>
                             <div class='fppTableContents' class='universeTable fullWidth' role="region" aria-labelledby="tblUniverses" tabindex="0">
-						<table id="tblUniverses" class="fppSelectableRowTable">
+						<table id="tblUniverses" class="fppSelectableRowTable fppStickyTheadTable">
 							<thead id='tblUniversesHead'>
                                 <tr>
 									<th class="tblScheduleHeadGrip"></th>
