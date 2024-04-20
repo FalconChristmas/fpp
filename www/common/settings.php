@@ -48,7 +48,7 @@ function SetNTPServer($value)
     if ($value != '') {
         exec("sudo sed -i '/^server.*/d' /etc/ntp.conf ; sudo sed -i '/^pool.*/d' /etc/ntp.conf ; sudo sed -i '\$s/\$/\\nserver $value iburst/' /etc/ntp.conf");
     } else {
-		// Updated as we should be using our own zone falconplayer.pool.ntp.org
+        // Updated as we should be using our own zone falconplayer.pool.ntp.org
         exec("sudo sed -i '/^server.*/d' /etc/ntp.conf ; sudo sed -i '/^pool.*/d' /etc/ntp.conf ; sudo sed -i '\$s/\$/\\npool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer/' /etc/ntp.conf");
     }
 
@@ -203,7 +203,7 @@ function SetForceHDMIResolution($value, $postfix)
             exec("sudo sed -i -e 's/^hdmi_group" . $postfix . "=.*/hdmi_group" . $postfix . "=" . $parts[0] . "/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
             exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "=.*/hdmi_mode" . $postfix . "=" . $parts[1] . "/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
             if ($numParts == 3) {
-                if (strpos(file_get_contents(GetDirSetting('boot') . "/config.txt"), "hdmi_cvt". $postfix) == false) {
+                if (strpos(file_get_contents(GetDirSetting('boot') . "/config.txt"), "hdmi_cvt" . $postfix) == false) {
                     error_log("adding cvt");
                     exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "/hdmi_cvt" . $postfix . "=\\nhdmi_mode/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
                 }
@@ -219,16 +219,22 @@ function SetForceHDMIResolution($value, $postfix)
 function SetWifiDrivers($value)
 {
     global $settings;
+    exec("sudo rm -f /etc/modules-load.d/fpp-network.conf", $output, $return_val);
+    exec("sudo rm -f /etc/modprobe.d/50-8188eu.conf", $output, $return_val);
     if ($value == "Kernel") {
         exec("sudo rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val);
         exec("sudo rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val);
-        exec("sudo rm -f /etc/modprobe.d/50-8188eu.conf", $output, $return_val);
+        if (file_exists("/etc/fpp/wifi/blacklist-external-wifi.conf")) {
+            exec("sudo cp /etc/fpp/wifi/blacklist-external-wifi.conf /etc/modprobe.d", $output, $return_val);
+        }
     } else {
-        if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
+        exec("sudo rm -f /etc/modprobe.d/blacklist-external-wifi.conf", $output, $return_val);
+        exec("sudo rm -f /etc/modprobe.d/blacklist-8192cu.conf", $output, $return_val);
+        if (file_exists("/etc/fpp/wifi/blacklist-native-wifi.conf")) {
+            exec("sudo cp /etc/fpp/wifi/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val);
+        } else if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
             exec("sudo cp " . $settings["fppDir"] . "/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val);
         }
-        exec("sudo rm -f /etc/modprobe.d/blacklist-8192cu.conf", $output, $return_val);
-        exec("sudo rm -f /etc/modprobe.d/50-8188eu.conf", $output, $return_val);
     }
 }
 function SetInstalledCape($value)
@@ -258,16 +264,24 @@ function ApplyServiceSetting($setting, $value, $now)
         if (preg_match('/^Service_(rsync|smbd_nmbd|vsftpd)$/', $setting)) {
             $services = preg_split('/_/', preg_replace("/^Service_/", "", $setting));
             foreach ($services as $service) {
+                //enabling/disabling a service that is already in that state is very slow
+                //so query the current state and only set it if needed
+                $isEnabled = trim(shell_exec("sudo systemctl is-enabled $service"));
                 if ($value == '0') {
-                    exec( "sudo systemctl " . $now . " disable $service >/dev/null &");
+                    if ($isEnabled != "disabled") {
+                        exec("sudo systemctl " . $now . " disable $service >/dev/null &");
+                    }
                 } else if ($value == '1') {
-                    exec( "sudo systemctl " . $now . " enable $service >/dev/null &");
+                    if ($isEnabled != "enabled") {
+                        exec("sudo systemctl " . $now . " enable $service >/dev/null &");
+                    }
                 }
             }
         }
     }
 }
-function SetGPIOFanProperties() {
+function SetGPIOFanProperties()
+{
     global $settings;
     $fanOn = ReadSettingFromFile('GPIOFan');
     $fanTemp = ReadSettingFromFile('GPIOFanTemperature') . "000";
