@@ -151,6 +151,22 @@ echo "blacklist rtw88_8822bu" >> /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtw88_8822b" >> /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtw88_usb" >> /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtw88_core" >> /etc/modprobe.d/blacklist-native-wifi.conf
+mkdir -p /etc/fpp/wifi
+cp -f /etc/modprobe.d/blacklist-native-wifi.conf /etc/fpp/wifi
+
+echo "blacklist 8188eu" > /etc/fpp/wifi/blacklist-external-wifi.conf
+echo "blacklist 8192eu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
+echo "blacklist 8723au" >> /etc/fpp/wifi/blacklist-external-wifi.conf
+echo "blacklist 8723bu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
+echo "blacklist 8812au" >> /etc/fpp/wifi/blacklist-external-wifi.conf
+echo "blacklist 8814au" >> /etc/fpp/wifi/blacklist-external-wifi.conf
+echo "blacklist 8821au" >> /etc/fpp/wifi/blacklist-external-wifi.conf
+echo "blacklist 8821cu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
+echo "blacklist 8852au" >> /etc/fpp/wifi/blacklist-external-wifi.conf
+echo "blacklist 8852bu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
+echo "blacklist 88x2bu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
+echo "blacklist rtl8188fu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
+
 
 
 
