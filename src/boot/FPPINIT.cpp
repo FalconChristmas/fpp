@@ -134,7 +134,9 @@ static void checkSSHKeys() {
         // with some random data
         exec("dd if=/dev/hwrng of=/dev/urandom count=1 bs=4096 status=none");
     }
-    execbg("/usr/bin/ssh-keygen -A &");
+    execbg("/usr/bin/ssh-keygen -q -N \"\" -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key &");
+    execbg("/usr/bin/ssh-keygen -q -N \"\" -t ed25519 -f /etc/ssh/ssh_host_ed25519_key &");
+    execbg("/usr/bin/ssh-keygen -q -N \"\" -t rsa -b 2048 -f /etc/ssh/ssh_host_rsa_key &");
 }
 
 // Copies files/config from the /boot partition to /home/fpp/media
