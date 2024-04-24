@@ -1294,7 +1294,7 @@ if ((isset($settings['cape-info'])) &&
 
 <div id='tab-LEDPanels'>
 	<div id='divLEDPanels'>
-        <div class="row tablePageHeader">
+        <div class="row tableTabPageHeader">
             <div class="col-md"><h2><span class='capeNamePanels'>LED Panels</span> </h2></div>
             <div class="col-md-auto ms-lg-auto">
                 <div class="form-actions">
@@ -1606,6 +1606,6 @@ if ($settings['Platform'] == "Raspberry Pi") {
 		    </div>
 	    </div>
 	</div>
-</div>
+
 
 

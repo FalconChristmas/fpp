@@ -2426,24 +2426,8 @@ function pinTableHeader() {
 }
 
 $(document).ready(function(){
-<?
-if ((isset($settings['cape-info'])) &&
-    ((in_array('all', $settings['cape-info']["provides"])) ||
-        (in_array('strings', $settings['cape-info']["provides"])))) {
-    ?>
-    if (currentCapeName != "" && currentCapeName != "Unknown") {
-        $('.capeNamePixels').html(currentCapeName);
-        $('.capeTypeLabel').html("Cape Config");
-    }
-<?
-}
-?>
 
-    $.get('/api/gpio')
-	.done(data => selected_string_details.gpio = data)
-        .fail(err => $.jGrowl('Error: Unable to retrieve GPIO pin info.', { themeState: 'danger' }));
-    populateCapeList();
-    loadPixelStringOutputs();
+    //loadPixelStringOutputs();
 });
 
 </script>
@@ -2451,7 +2435,7 @@ if ((isset($settings['cape-info'])) &&
 <div id='tab-PixelString'>
     <div id='divPixelString'>
 
-        <div class="row tablePageHeader capeTypeRow">
+        <div class="row tableTabPageHeader capeTypeRow">
             <div class="col-md"><h2><span class='capeNamePixels'>String Capes</span> </h2></div>
             <div class="col-md-auto ml-lg-auto">
                 <div class="form-actions">
@@ -2619,7 +2603,7 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                         <div id='bankSlider'></div>
                     </div>
 
-                    <div id='pixelOutputs'>
+                    <div id='pixelOutputs' class="fppFThScrollContainer">
 
                     </div>
 

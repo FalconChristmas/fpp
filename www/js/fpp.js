@@ -102,31 +102,8 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 	$(document).on('keydown', handleKeypress);
 
 	// Pin Table Page Headers
-	zp_tablePageHeader = new $.Zebra_Pin($('.tablePageHeader'), {
-		contained: true,
-		top_spacing:
-			$('.header').css('position') == 'fixed'
-				? $('.header').outerHeight(true)
-				: 0
-	});
-
-	// Calc position of bottom of pinned tablePageHeader
-	zebraPinSubContentTop =
-		($('.header').css('position') == 'fixed'
-			? $('.header').outerHeight(true)
-			: 0) + $('.tablePageHeader').outerHeight(true);
-
-	// Control Events on Tabs being shown
-	$('a[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
-		zp_tablePageHeader.update();
-		float_fppStickyThead();
-		//$('table').floatThead('reflow');
-	});
-
-	// showing tab directly if referenced in url
-	if (location.hash) {
-		$(".nav-link[href='" + location.hash + "']").tab('show');
-	}
+	/* 	SetTablePageHeader_ZebraPin();
+	float_fppStickyThead(); */
 
 	// Handling touch
 	if (hasTouch == true) {
@@ -155,40 +132,67 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		checkScrollTopButton();
 	};
 
-	// set stickyTable headers for tables with fppStickyThead class added
-	float_fppStickyThead();
+	// showing tab directly if referenced in url
+	if (location.hash) {
+		$(".nav-link[href='" + location.hash + "']").tab('show');
+	}
 }
 
 function common_ViewPortChange () {
 	// Events to run on window viewport resizing
-	console.log('View port changed - fixing layout');
-
-	// Update Zebra pinned elements
-	var ZPInstances = findPrefixedVariable('zp_');
-	console.log(ZPInstances);
-	if (ZPInstances.length > 0) {
-		ZPInstances.forEach(UpdateZebraPinInstance);
-	}
-
-	// reflow floatTHead tables if they exist
-	if ($('table').parent().hasClass('floatThead-container')) {
-		$('table').floatThead('reflow');
-	}
+	console.log(
+		'View port changed to: ' + gblCurrentBootstrapViewPort + ' - fixing layout'
+	);
+	SetTablePageHeader_ZebraPin();
+	float_fppStickyThead();
 }
 
-function UpdateZebraPinInstance (item) {
-	// Generic Function for updating Zebra Pin instances - contains logic for each type of zp_* object
-	// Update zp_tablePageHeader
-	if (item === 'zp_tablePageHeader') {
-		zp_tablePageHeader.settings.top_spacing =
-			$('.header').css('position') == 'fixed'
-				? $('.header').outerHeight(true)
-				: 0;
-		zp_tablePageHeader.update();
-		console.log('updated zp_tablePageHeader');
+function SetTablePageHeader_ZebraPin () {
+	console.log('running zebra pin');
+	//if Zebra pin already exists destroy it
+	if (window.hasOwnProperty('zp_tablePageHeader')) {
+		zp_tablePageHeader.destroy(); //needs Zebra Pin v3 to work
+		delete zp_tablePageHeader;
 	}
 
-	console.log(item);
+	//check if a normal or tabbed page layout
+	if ($('.ui-tabs').length > 0) {
+		hasTabs = true;
+	} else {
+		hasTabs = false;
+	}
+
+	if (hasTabs) {
+		// Pin Visible Table Tab Page Headers
+		zp_tablePageHeader = new $.Zebra_Pin($('.tableTabPageHeader:visible'), {
+			contained: true,
+			top_spacing:
+				$('.header').css('position') == 'fixed'
+					? $('.header').outerHeight(true)
+					: 0
+		});
+
+		// Calc position of bottom of pinned tableTabPageHeader
+		zebraPinSubContentTop =
+			($('.header').css('position') == 'fixed'
+				? $('.header').outerHeight(true)
+				: 0) + $('.tableTabPageHeader:visible').outerHeight(true);
+	} else {
+		// Pin Table Page Headers
+		zp_tablePageHeader = new $.Zebra_Pin($('.tablePageHeader'), {
+			contained: true,
+			top_spacing:
+				$('.header').css('position') == 'fixed'
+					? $('.header').outerHeight(true)
+					: 0
+		});
+
+		// Calc position of bottom of pinned tablePageHeader
+		zebraPinSubContentTop =
+			($('.header').css('position') == 'fixed'
+				? $('.header').outerHeight(true)
+				: 0) + $('.tablePageHeader').outerHeight(true);
+	}
 }
 
 function getViewport () {
@@ -252,29 +256,49 @@ function float_fppModalStickyThead () {
 }
 
 function float_fppStickyThead () {
+	//Destroy any existing floatTheads
+	for (element in window) {
+		if (element.substring(0, 3) == 'ft_') {
+			//console.log('destroying ' + window[element]);
+			var reinit = window[element].floatThead('destroy');
+			//console.log(reinit);
+			delete window[element];
+		}
+	}
+
 	// check if there is at least 1 stickyThead table to process
 	if ($('.fppStickyTheadTable').length > 0) {
 		if ($('.tab-pane.active table.fppStickyTheadTable thead').length > 0) {
 			// tables in a tab
-			var tablesToProcess = $('.tab-pane.active table');
+			var tablesToProcess = $('.tab-pane.active table.fppStickyTheadTable').not(
+				'.floatThead-table'
+			);
 		} else {
 			// tables not in tab
-			var tablesToProcess = $('.fppStickyTheadTable');
+			var tablesToProcess = $('.fppStickyTheadTable').not('.floatThead-table');
 		}
 		// float th thead on all found tables
 		$(tablesToProcess).each(function (index, element) {
 			var $table = $(element);
 
-			console.log('ft_' + $table[0].id);
-			window['ft_' + $table[0].id] = $table.floatThead({
-				top: zebraPinSubContentTop,
-				position: 'fixed',
-				zIndex: 990,
-				debug: false,
-				responsiveContainer: function ($table) {
-					return $table.closest('.fppTableContents');
-				}
-			});
+			//console.log('ft_' + $table[0].id);
+
+			//only add float if doesn't already have float
+			if (
+				!window.hasOwnProperty('ft_' + $table[0].id) ||
+				$table.floatThead('getRowGroups').length < 2
+			) {
+				window['ft_' + $table[0].id] = $table.floatThead({
+					top: zebraPinSubContentTop,
+					position: 'fixed',
+					zIndex: 990,
+					debug: false,
+					responsiveContainer: function ($table) {
+						return $table.closest('.fppFThScrollContainer');
+					}
+				});
+			}
+			$table.trigger('reflow');
 		});
 	}
 }
@@ -4653,11 +4677,11 @@ function parseStatus (jsonStatus) {
 						parseInt(jsonStatus.seconds_remaining))) *
 				100
 			).toFixed(0);
-			$('#playerTime > .progress')[0].setAttribute(
+			$('#playerTime .progress')[0].setAttribute(
 				'aria-valuenow',
 				jsonStatus.percentage_played
 			);
-			$('#playerTime > .progress > .progress-bar')[0].setAttribute(
+			$('#playerTime .progress > .progress-bar')[0].setAttribute(
 				'style',
 				'width: ' + jsonStatus.percentage_played + '%'
 			);
