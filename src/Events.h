@@ -10,6 +10,7 @@
  * This source file is covered under the LGPL v2.1 as described in the
  * included LICENSE.LGPL file.
  */
+#include <ctime>
 #include <functional>
 #include <string>
 #include <time.h>
