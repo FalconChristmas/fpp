@@ -19,27 +19,80 @@ function OnDisableClicked(name) {
 function CountPixels() {
     $.get("api/fppd/ports/pixelCount");
 }
+
+function FormatSmartReceiver(name, k, port, row, col) {
+    if (port == null) {
+        return "";
+    }
+    var html = "";
+    if (name != "") {
+        html += "<b>" + name + "</b><br>";
+    }
+    html += "<b>" + k + ":</b><br>";
+    html += "<div style='margin-left: 15px;'>";
+
+    if (port["enabled"]) {
+        html += "Enabled: <i class='fas fa-check-circle text-success' title='Port Enabled' onclick='OnDisableClicked(\"" + name + k + "\")'></i><br>";
+    } else if (port["status"]) {
+        html += "Enabled: <i class='fas fa-times-circle text-info' title='Port Disabled' onclick='OnEnableClicked(\"" + name + k + "\")'></i><br>";
+    } else {
+        html += "Enabled: <i class='fas fa-times-circle text-danger' title='eFuse Triggered' onclick='OnEnableClicked(\"" + name + k + "\")'></i><br>";
+    }
+    if (port["status"]) {
+        html += "Status: <i class='fas fa-check-circle text-success' title='eFuse Normal'></i><br>";
+    } else {
+        html += "Status: <i class='fas fa-times-circle text-danger' title='eFuse Triggered'></i><br>";
+    }
+    if (typeof port.pixelCount !== 'undefined') {
+        html += "Pixels: " + port["pixelCount"] + "<br>";
+    }
+    html += port["ma"] + " ma";
+
+    html += "</div>";
+    $("#fppPorts tr:nth-child(" + row + ") td:nth-child(" + col + ")").html(html);
+    $("#fppPorts tr:nth-child(" + row + ")").show();
+}
 function StartMonitoring() {
     $.get('api/fppd/ports', function(data) {
         data.forEach(function(port) {
-            var html = "<b>" + port["name"] + "</b><br>";
-            if (port["enabled"]) {
-                html += "Enabled: <i class='fas fa-check-circle text-success' title='Port Enabled' onclick='OnDisableClicked(\"" + port["name"] + "\")'></i><br>";
-            } else if (port["status"]) {
-                html += "Enabled: <i class='fas fa-times-circle text-info' title='Port Disabled' onclick='OnEnableClicked(\"" + port["name"] + "\")'></i><br>";
+            var count = $('#fppPorts tr').length;
+            var rn = port["row"];
+            if (port["smartReceivers"]) {
+                rn += 6;
+            }
+            while (rn >= count) {
+                $('#fppPorts').append("<tr style='display:none'><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>");
+                count++;
+            }
+            if (!port["smartReceivers"]) {
+                $("#fppPorts tr:nth-child(" + port["row"] + ")").show();
+                var html = "<b>" + port["name"] + "</b><br>";
+                if (port["enabled"]) {
+                    html += "Enabled: <i class='fas fa-check-circle text-success' title='Port Enabled' onclick='OnDisableClicked(\"" + port["name"] + "\")'></i><br>";
+                } else if (port["status"]) {
+                    html += "Enabled: <i class='fas fa-times-circle text-info' title='Port Disabled' onclick='OnEnableClicked(\"" + port["name"] + "\")'></i><br>";
+                } else {
+                    html += "Enabled: <i class='fas fa-times-circle text-danger' title='eFuse Triggered' onclick='OnEnableClicked(\"" + port["name"] + "\")'></i><br>";
+                }
+                if (port["status"]) {
+                    html += "Status: <i class='fas fa-check-circle text-success' title='eFuse Normal'></i><br>";
+                } else {
+                    html += "Status: <i class='fas fa-times-circle text-danger' title='eFuse Triggered'></i><br>";
+                }
+                if (typeof port.pixelCount !== 'undefined') {
+                    html += "Pixels: " + port["pixelCount"] + "<br>";
+                }
+                html += port["ma"] + " ma";
+                $("#fppPorts tr:nth-child(" + port["row"] + ") td:nth-child(" + port["col"] + ")").html(html);
             } else {
-                html += "Enabled: <i class='fas fa-times-circle text-danger' title='eFuse Triggered' onclick='OnEnableClicked(\"" + port["name"] + "\")'></i><br>";
+                rn = port["row"];
+                FormatSmartReceiver(port["name"], "A", port["A"], rn, port["col"]);
+                FormatSmartReceiver(port["name"], "B", port["B"], rn + 1, port["col"]);
+                FormatSmartReceiver(port["name"], "C", port["C"], rn + 2, port["col"]);
+                FormatSmartReceiver(port["name"], "D", port["D"], rn + 3, port["col"]);
+                FormatSmartReceiver(port["name"], "E", port["E"], rn + 4, port["col"]);
+                FormatSmartReceiver(port["name"], "F", port["F"], rn + 5, port["col"]);
             }
-            if (port["status"]) {
-                html += "Status: <i class='fas fa-check-circle text-success' title='eFuse Normal'></i><br>";
-            } else {
-                html += "Status: <i class='fas fa-times-circle text-danger' title='eFuse Triggered'></i><br>";
-            }
-            if (typeof port.pixelCount !== 'undefined') {
-                html += "Pixels: " + port["pixelCount"] + "<br>";
-            }
-            html += port["ma"] + " ma";
-            $("#fppPorts tr:nth-child(" + port["row"] + ") td:nth-child(" + port["col"] + ")").html(html);
         });
     });
 }
@@ -68,11 +121,6 @@ include 'menu.inc';?>
         		<table id='fppPortsTable' cellpadding='4' width="100%">
                     <tbody id='fppPorts' width="100%">
                         <tr><td width="12%"></td><td width="12%"></td><td width="12%"></td><td width="12%"></td><td width="12%"></td><td width="12%"></td><td width="12%"></td><td width="12%"></td></tr>
-                        <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-                        <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-                        <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-                        <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-                        <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
                     </tbody>
                 </table>
             </div>

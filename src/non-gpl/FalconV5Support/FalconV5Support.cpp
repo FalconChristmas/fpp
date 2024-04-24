@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "FalconV5Support.h"
+#include "OutputMonitor.h"
 #include "Warnings.h"
 #include "common.h"
 #include "channeloutput/PixelString.h"
@@ -101,8 +102,13 @@ public:
 };
 
 FalconV5Support::FalconV5Support() {
+    OutputMonitor::INSTANCE.setSmartReceiverEventCallback([this](int port, int index, const std::string& cmd) {
+        togglePort = port;
+        toggleIndex = index;
+    });
 }
 FalconV5Support::~FalconV5Support() {
+    OutputMonitor::INSTANCE.setSmartReceiverEventCallback(nullptr);
     for (auto rc : receiverChains) {
         delete rc;
     }
@@ -320,6 +326,13 @@ bool FalconV5Support::ReceiverChain::generateQueryPacket(uint8_t* packet, int re
     config["receiver"] = receiver;
     return encodeFalconV5Packet(config, packet);
 }
+bool FalconV5Support::ReceiverChain::generateToggleEFusePacket(uint8_t* packet, int receiver, int port) const {
+    Json::Value config;
+    config["type"] = "toggleFuse";
+    config["receiver"] = receiver;
+    config["port"] = port;
+    return encodeFalconV5Packet(config, packet);
+}
 
 bool FalconV5Support::ReceiverChain::generateNumberPackets(uint8_t* packet, uint8_t* packet2) const {
     Json::Value config;
@@ -343,10 +356,17 @@ bool FalconV5Support::ReceiverChain::generateQueryPacket(uint8_t* packet) {
     }
     return generateQueryPacket(packet, curReceiverQuery++);
 }
+bool FalconV5Support::ReceiverChain::generatePixelCountPacket(uint8_t* packet) const {
+    Json::Value config;
+    config["type"] = "pixelCount";
+    return encodeFalconV5Packet(config, packet);
+}
 
 void FalconV5Support::ReceiverChain::handleQueryResponse(Json::Value& json) {
     int index = json["index"].asInt();
     int port = json["port"].asInt();
+    int dial = json["dial"].asInt();
+
     int numPorts = json["numPorts"].asInt();
     if (ports[index].size() < numPorts) {
         ports[index].resize(numPorts);
@@ -356,6 +376,13 @@ void FalconV5Support::ReceiverChain::handleQueryResponse(Json::Value& json) {
         ports[index][x].pixelCount = json["ports"][x]["pixelCount"].asInt() == 0xFFFF ? 0 : json["pixelCount"].asInt();
         ports[index][x].fuseBlown = json["ports"][x]["fuseBlown"].asBool();
         ports[index][x].fuseOn = json["ports"][x]["fuseOn"].asBool();
+
+        OutputMonitor::INSTANCE.setSmartReceiverInfo(port + x % 4, x / 4,
+                                                     ports[index][x].fuseOn,
+                                                     ports[index][x].fuseBlown,
+                                                     ports[index][x].current,
+                                                     json["ports"][x]["pixelCount"].asInt());
+
         if (ports[index][x].fuseBlown) {
             char idx = 'A' + index;
             std::string w = "eFUSE Triggered for port " + std::to_string(port + x + 1) + idx;
@@ -383,6 +410,7 @@ bool FalconV5Support::generateDynamicPacket(std::vector<std::array<uint8_t, 64>>
         int newMux = curMux + 1;
         if (newMux >= maxCount.size()) {
             newMux = 0;
+            triggerPixelCount = false;
         }
         if (newMux != curMux) {
             setCurrentMux(newMux);
@@ -401,8 +429,23 @@ bool FalconV5Support::generateDynamicPacket(std::vector<std::array<uint8_t, 64>>
             g.second.push_back(rc);
             rc = g.second.front();
         }
-        rc->generateQueryPacket(&packets[rc->getPixelStrings().front()->m_portNumber][0]);
+        int rcP = rc->getPixelStrings().front()->m_portNumber;
+        if (rcP <= togglePort && (rcP + 4) > togglePort) {
+            rc->generateToggleEFusePacket(&packets[rc->getPixelStrings().front()->m_portNumber][0], toggleIndex, togglePort % 4);
+            togglePort = -1;
+        } else if (triggerPixelCount) {
+            rc->generatePixelCountPacket(&packets[rc->getPixelStrings().front()->m_portNumber][0]);
+            listen = false;
+        } else {
+            rc->generateQueryPacket(&packets[rc->getPixelStrings().front()->m_portNumber][0]);
+            listen = true;
+        }
     }
-    listen = true;
     return true;
+}
+
+void FalconV5Support::sendCountPixelPackets() {
+    setCurrentMux(0);
+    curCount = 0;
+    triggerPixelCount = true;
 }

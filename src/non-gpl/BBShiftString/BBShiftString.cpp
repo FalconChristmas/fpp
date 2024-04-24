@@ -605,6 +605,9 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
 
     PixelStringTester* tester = nullptr;
     if (m_testType && m_testCycle >= 0) {
+        if (m_testType == 999 && falconV5Support && m_testCycle == 0) {
+            falconV5Support->sendCountPixelPackets();
+        }
         tester = PixelStringTester::getPixelStringTester(m_testType);
         tester->prepareTestData(m_testCycle, m_testPercent);
     }

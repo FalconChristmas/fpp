@@ -41,6 +41,7 @@ public:
         bool generateNumberPackets(uint8_t* packet, uint8_t* packet2) const;
         bool generateQueryPacket(uint8_t* packet, int receiver) const;
         bool generateResetFusesPacket(uint8_t* packet) const;
+        bool generateToggleEFusePacket(uint8_t* packet, int receiver, int port) const;
 
         const std::array<const PixelString*, 4>& getPixelStrings() const { return strings; };
         uint32_t getReceiverCount() const { return numReceivers; }
@@ -49,6 +50,7 @@ public:
         void resetQueryCount() { curReceiverQuery = 0; }
         bool generateQueryPacket(uint8_t* packet);
         void handleQueryResponse(Json::Value& json);
+        bool generatePixelCountPacket(uint8_t* packet) const;
 
     private:
         std::array<const PixelString*, 4> strings;
@@ -71,6 +73,8 @@ public:
 
     bool generateDynamicPacket(std::vector<std::array<uint8_t, 64>>& packets, bool& listen);
 
+    void sendCountPixelPackets();
+
 private:
     std::list<ReceiverChain*> receiverChains;
     std::list<FalconV5Listener*> listeners;
@@ -81,4 +85,8 @@ private:
     std::vector<int> maxCount;
     bool curMux = 0;
     int curCount = 0;
+    bool triggerPixelCount = false;
+
+    int togglePort = -1;
+    int toggleIndex = -1;
 };
