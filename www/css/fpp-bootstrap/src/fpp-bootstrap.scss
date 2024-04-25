@@ -1,4 +1,3 @@
-@import './variables';
 @import './mixins';
 
 
@@ -9,7 +8,7 @@
 @import "./bootstrap-scss-src/utilities";
 @import "./bootstrap-scss-src/mixins";
 
-
+@import './variables';
 @import './spacing';
 
 $theme-colors-rgb: map-loop($theme-colors, to-rgb, "$value");
