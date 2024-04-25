@@ -73,4 +73,7 @@ private:
     int curGroup = -1;
 
     std::function<void(int port, int index, const std::string& cmd)> srCallback;
+
+    void addEFuseWarning(PortPinInfo* port, int rec = 0);
+    void clearEFuseWarning(PortPinInfo* port, int rec = 0);
 };

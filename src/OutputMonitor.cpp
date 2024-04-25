@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <vector>
 
+#include "Sequence.h"
 #include "Timers.h"
 #include "Warnings.h"
 #include "common.h"
@@ -177,9 +178,14 @@ public:
             for (int x = 0; x < 6; x++) {
                 if (receivers[x].enabled) {
                     std::string sri(1, (char)('A' + x));
-                    v[sri]["enabled"] = receivers[x].isOn;
                     v[sri]["ma"] = receivers[x].current;
-                    v[sri]["status"] = (receivers[x].isOn && !receivers[x].hasTriggered) || !receivers[x].isOn;
+                    if (receivers[x].hasTriggered) {
+                        v[sri]["status"] = false;
+                        v[sri]["enabled"] = false;
+                    } else {
+                        v[sri]["enabled"] = receivers[x].isOn;
+                        v[sri]["status"] = receivers[x].enabled;
+                    }
                     if (receivers[x].pixelCount >= 0 && receivers[x].pixelCount < 0xFFFF) {
                         v[sri]["pixelCount"] = receivers[x].pixelCount;
                     }
@@ -392,7 +398,7 @@ void OutputMonitor::EnableOutputs() {
     }
     for (auto p : portPins) {
         if (p->eFusePin && p->eFusePin->getValue() == p->eFuseOKValue) {
-            WarningHolder::RemoveWarning("eFUSE Triggered for " + p->name);
+            clearEFuseWarning(p, 0);
         }
     }
     lock.unlock();
@@ -425,14 +431,16 @@ void OutputMonitor::SetOutput(const std::string& port, bool on) {
             p->receivers[0].hasTriggered = false;
             p->receivers[0].isOn = on;
             int value = p->highToEnable ? on : !on;
-            WarningHolder::RemoveWarning("eFUSE Triggered for " + p->name);
+            clearEFuseWarning(p, 0);
             p->enablePin->setValue(value);
             return;
         } else if (p->isSmartReceiver) {
             for (int x = 0; x < 6; x++) {
                 if (port == std::string(p->name) + std::string(1, 'A' + x)) {
                     bool isOn = p->receivers[x].isOn && !p->receivers[x].hasTriggered;
-                    if (on != isOn) {
+                    if (p->receivers[x].hasTriggered) {
+                        srCallback(pn, x, "ResetOutput");
+                    } else if (on != isOn) {
                         srCallback(pn, x, "ToggleOutput");
                     }
                 }
@@ -513,8 +521,7 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
                                     }
                                     if (a->receivers[0].isOn && !a->receivers[0].hasTriggered) {
                                         // Output SHOULD be on, but the fuse triggered.  That's a warning.
-                                        LogWarn(VB_CHANNELOUT, "eFUSE Triggered for " + a->name + "\n");
-                                        WarningHolder::AddWarning("eFUSE Triggered for " + a->name);
+                                        addEFuseWarning(a, 0);
                                         a->receivers[0].hasTriggered = true;
                                     }
                                 }
@@ -557,13 +564,7 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
                             pi->enablePin->setValue(pi->highToEnable ? 0 : 1);
                         }
                         if (pi->receivers[0].isOn) {
-                            LogWarn(VB_CHANNELOUT, "eFUSE Triggered for " + pi->name + "\n");
-                            // Output SHOULD be on, but the fuse triggered.  That's a warning.
-                            WarningHolder::AddWarning("eFUSE Triggered for " + pi->name);
-
-                            std::map<std::string, std::string> keywords;
-                            keywords["PORT"] = pi->name;
-                            CommandManager::INSTANCE.TriggerPreset("EFUSE_TRIGGERED", keywords);
+                            addEFuseWarning(pi, 0);
                         }
                     }
                     return true;
@@ -710,6 +711,37 @@ void OutputMonitor::GetCurrentPortStatusJson(Json::Value& result) {
     }
 }
 
+void OutputMonitor::addEFuseWarning(PortPinInfo* pi, int rec) {
+    std::string name = pi->name;
+    if (pi->isSmartReceiver) {
+        name += std::string(1, 'A' + rec);
+    }
+    std::string warn = "eFUSE Triggered for " + name;
+
+    if (!pi->receivers[rec].warning.starts_with(warn)) {
+        if (sequence->IsSequenceRunning()) {
+            std::string seq = sequence->m_seqFilename;
+            int sTime = sequence->m_seqMSElapsed / 1000;
+            warn += " (" + seq + "/" + std::to_string(sTime / 60) + ":" + std::to_string(sTime % 60) + ")";
+        }
+
+        LogWarn(VB_CHANNELOUT, warn + "\n");
+        // Output SHOULD be on, but the fuse triggered.  That's a warning.
+        WarningHolder::AddWarning(warn);
+        pi->receivers[rec].warning = warn;
+
+        std::map<std::string, std::string> keywords;
+        keywords["PORT"] = name;
+        CommandManager::INSTANCE.TriggerPreset("EFUSE_TRIGGERED", keywords);
+    }
+}
+void OutputMonitor::clearEFuseWarning(PortPinInfo* port, int rec) {
+    if (!port->receivers[rec].warning.empty()) {
+        WarningHolder::RemoveWarning(port->receivers[rec].warning);
+        port->receivers[rec].warning.clear();
+    }
+}
+
 void OutputMonitor::setSmartReceiverInfo(int port, int index, bool enabled, bool tripped, int current, int pixelCount) {
     // printf("      %d  %c:     Current:  %d     PC:  %d    EN: %d    TR: %d\n", port + 1, (char)('A' + index), current, pixelCount, enabled, tripped);
     if (port < portPins.size()) {
@@ -718,6 +750,13 @@ void OutputMonitor::setSmartReceiverInfo(int port, int index, bool enabled, bool
         portPins[port]->receivers[index].hasTriggered = tripped;
         portPins[port]->receivers[index].pixelCount = pixelCount;
         portPins[port]->receivers[index].current = current;
+
+        if (tripped) {
+            // printf("      %d  %c:     Current:  %d     PC:  %d    EN: %d    TR: %d\n", port + 1, (char)('A' + index), current, pixelCount, enabled, tripped);
+            addEFuseWarning(portPins[port], index);
+        } else {
+            clearEFuseWarning(portPins[port], index);
+        }
     }
 }
 

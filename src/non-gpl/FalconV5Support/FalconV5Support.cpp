@@ -105,6 +105,7 @@ FalconV5Support::FalconV5Support() {
     OutputMonitor::INSTANCE.setSmartReceiverEventCallback([this](int port, int index, const std::string& cmd) {
         togglePort = port;
         toggleIndex = index;
+        command = cmd;
     });
 }
 FalconV5Support::~FalconV5Support() {
@@ -345,6 +346,14 @@ bool FalconV5Support::ReceiverChain::generateNumberPackets(uint8_t* packet, uint
     }
     return false;
 }
+bool FalconV5Support::ReceiverChain::generateResetEFusePacket(uint8_t* packet, int receiver, int port) const {
+    Json::Value config;
+    config["type"] = "resetFuses";
+    config["receiver"] = receiver;
+    config["port"] = port;
+    return encodeFalconV5Packet(config, packet);
+}
+
 bool FalconV5Support::ReceiverChain::generateResetFusesPacket(uint8_t* packet) const {
     Json::Value config;
     config["type"] = "resetFuses";
@@ -366,34 +375,13 @@ void FalconV5Support::ReceiverChain::handleQueryResponse(Json::Value& json) {
     int index = json["index"].asInt();
     int port = json["port"].asInt();
     int dial = json["dial"].asInt();
-
     int numPorts = json["numPorts"].asInt();
-    if (ports[index].size() < numPorts) {
-        ports[index].resize(numPorts);
-    }
     for (int x = 0; x < numPorts; x++) {
-        ports[index][x].current = json["ports"][x]["current"].asInt();
-        ports[index][x].pixelCount = json["ports"][x]["pixelCount"].asInt() == 0xFFFF ? 0 : json["pixelCount"].asInt();
-        ports[index][x].fuseBlown = json["ports"][x]["fuseBlown"].asBool();
-        ports[index][x].fuseOn = json["ports"][x]["fuseOn"].asBool();
-
         OutputMonitor::INSTANCE.setSmartReceiverInfo(port + x % 4, x / 4,
-                                                     ports[index][x].fuseOn,
-                                                     ports[index][x].fuseBlown,
-                                                     ports[index][x].current,
+                                                     json["ports"][x]["fuseOn"].asBool(),
+                                                     json["ports"][x]["fuseBlown"].asBool(),
+                                                     json["ports"][x]["current"].asInt(),
                                                      json["ports"][x]["pixelCount"].asInt());
-
-        if (ports[index][x].fuseBlown) {
-            char idx = 'A' + index;
-            std::string w = "eFUSE Triggered for port " + std::to_string(port + x + 1) + idx;
-            if (w != ports[index][x].warning) {
-                ports[index][x].warning = w;
-                WarningHolder::AddWarning(ports[index][x].warning);
-            }
-        } else if (!ports[index][x].warning.empty()) {
-            WarningHolder::RemoveWarning(ports[index][x].warning);
-            ports[index][x].warning = "";
-        }
     }
 }
 
@@ -431,7 +419,11 @@ bool FalconV5Support::generateDynamicPacket(std::vector<std::array<uint8_t, 64>>
         }
         int rcP = rc->getPixelStrings().front()->m_portNumber;
         if (rcP <= togglePort && (rcP + 4) > togglePort) {
-            rc->generateToggleEFusePacket(&packets[rc->getPixelStrings().front()->m_portNumber][0], toggleIndex, togglePort % 4);
+            if (command == "ToggleOutput") {
+                rc->generateToggleEFusePacket(&packets[rc->getPixelStrings().front()->m_portNumber][0], toggleIndex, togglePort % 4);
+            } else if (command == "ResetOutput") {
+                rc->generateResetEFusePacket(&packets[rc->getPixelStrings().front()->m_portNumber][0], toggleIndex, togglePort % 4);
+            }
             togglePort = -1;
         } else if (triggerPixelCount) {
             rc->generatePixelCountPacket(&packets[rc->getPixelStrings().front()->m_portNumber][0]);

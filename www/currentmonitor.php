@@ -87,11 +87,11 @@ function StartMonitoring() {
             } else {
                 rn = port["row"];
                 FormatSmartReceiver(port["name"], "A", port["A"], rn, port["col"]);
-                FormatSmartReceiver(port["name"], "B", port["B"], rn + 1, port["col"]);
-                FormatSmartReceiver(port["name"], "C", port["C"], rn + 2, port["col"]);
-                FormatSmartReceiver(port["name"], "D", port["D"], rn + 3, port["col"]);
-                FormatSmartReceiver(port["name"], "E", port["E"], rn + 4, port["col"]);
-                FormatSmartReceiver(port["name"], "F", port["F"], rn + 5, port["col"]);
+                FormatSmartReceiver("", "B", port["B"], rn + 1, port["col"]);
+                FormatSmartReceiver("", "C", port["C"], rn + 2, port["col"]);
+                FormatSmartReceiver("", "D", port["D"], rn + 3, port["col"]);
+                FormatSmartReceiver("", "E", port["E"], rn + 4, port["col"]);
+                FormatSmartReceiver("", "F", port["F"], rn + 5, port["col"]);
             }
         });
     });

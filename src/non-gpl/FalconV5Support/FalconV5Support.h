@@ -26,14 +26,6 @@ public:
     FalconV5Support();
     ~FalconV5Support();
 
-    class PortInfo {
-    public:
-        uint32_t current = 0;
-        uint32_t pixelCount = 0;
-        bool fuseBlown = false;
-        bool fuseOn = false;
-        std::string warning;
-    };
     class ReceiverChain {
     public:
         ReceiverChain(PixelString* p1, PixelString* p2, PixelString* p3, PixelString* p4, int grp = 0, int m = 0);
@@ -42,6 +34,7 @@ public:
         bool generateQueryPacket(uint8_t* packet, int receiver) const;
         bool generateResetFusesPacket(uint8_t* packet) const;
         bool generateToggleEFusePacket(uint8_t* packet, int receiver, int port) const;
+        bool generateResetEFusePacket(uint8_t* packet, int receiver, int port) const;
 
         const std::array<const PixelString*, 4>& getPixelStrings() const { return strings; };
         uint32_t getReceiverCount() const { return numReceivers; }
@@ -59,8 +52,6 @@ public:
         uint32_t numReceivers;
 
         uint32_t curReceiverQuery = 0;
-
-        std::array<std::vector<PortInfo>, 6> ports;
     };
 
     ReceiverChain* addReceiverChain(PixelString* p1, PixelString* p2, PixelString* p3, PixelString* p4, int group, int mux);
@@ -89,4 +80,5 @@ private:
 
     int togglePort = -1;
     int toggleIndex = -1;
+    std::string command;
 };
