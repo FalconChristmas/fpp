@@ -148,5 +148,10 @@
             "savePathReplacementPairs": null
         }
     ],
-    "liveSassCompile.settings.forceBaseDirectory": "www/css/fpp-bootstrap/src"
+    "liveSassCompile.settings.forceBaseDirectory": "www/css/fpp-bootstrap/src",
+    "liveSassCompile.settings.excludeList": [
+        "/**/node_modules/**",
+        "/.vscode/**",
+        "/**/bootstrap-scss-src/**"
+    ]
 }
