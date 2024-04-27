@@ -1,90 +1,3 @@
-<style>
-.outputTable {
-	background: #F0F0F0;
-	width: 100%;
-	border-spacing: 0px;
-	border-collapse: collapse;
-}
-
-.outputTable th {
-    vertical-align: bottom;
-    text-align: center;
-    border: solid 2px #888888;
-    font-size: 0.8em;
-}
-
-.outputTable td {
-	text-align: center;
-    padding: 0px 9px 0px 0px ;
-}
-
-.outputTable tbody tr td input[type=text] {
-	text-align: center;
-    width: 100%;
-}
-.outputTable tbody tr td input[type=number] {
-    text-align: center;
-    width: 100%;
-}
-
-h2.divider {
-    width: 100%;
-    text-align: left;
-    border-bottom: 2px solid #000;
-    line-height: 0.1em;
-    margin: 12px 0 10px;
-}
-
-h2.divider span {
-    background: #f5f5f5;
-    padding: 0 10px;
-}
-
-/* prevent table header from scrolling: */
-#PixelString {
-  text-align: left;
-  position: relative; /* required for th sticky to work */
-}
-#PixelString thead th {
-    font-weight: bold;
-    background: #fff; /* prevent add/delete circular buttons from showing through */
-    position: sticky;
-    top: 0;
-    z-index: 20; /* draw table header on top of add/delete buttons */
-    padding: 8px 0 0 5px;
-    border-bottom: 2px solid #d5d7da
-}
-
-<?
-if ($settings['Platform'] == "BeagleBone Black") {
-    //  BBB only supports ws2811 at this point
-    ?>
-    #PixelString tr > th:nth-of-type(2),
-    #PixelString tr > td:nth-of-type(2) {
-        display: none;
-    }
-    <?
-}
-if ((isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {
-    // don't support virtual strings
-    ?>
-    #PixelString tr > th:nth-of-type(3),
-    #PixelString tr > td:nth-of-type(3) {
-        display: none;
-    }
-
-    <?
-}
-?>
-
-
-#ModelPixelStrings_Output_0 tr > th:nth-of-type(2),
-#ModelPixelStrings_Output_0 tr > td:nth-of-type(2) {
-    display: none;
-}
-</style>
-
-
 <script type="text/javascript">
 
 var KNOWN_CAPES = {
@@ -2248,7 +2161,7 @@ if (count($capes) > 0 && isset($capes[0]['pinoutVersion'])) {
 <?
 define("xLights_MODELS", $mediaDirectory . "/upload/xlights_rgbeffects.xml");
 $models_err = "";
-clearstatcache(true); //TODO: is this needed?
+clearstatcache(true); // is this needed?
 $models_json = "";
 if (file_exists(xLights_MODELS)) {
     $models_str = file_get_contents(xLights_MODELS);
@@ -2426,23 +2339,7 @@ function pinTableHeader() {
 }
 
 $(document).ready(function(){
-<?
-if ((isset($settings['cape-info'])) &&
-    ((in_array('all', $settings['cape-info']["provides"])) ||
-        (in_array('strings', $settings['cape-info']["provides"])))) {
-    ?>
-    if (currentCapeName != "" && currentCapeName != "Unknown") {
-        $('.capeNamePixels').html(currentCapeName);
-        $('.capeTypeLabel').html("Cape Config");
-    }
-<?
-}
-?>
 
-    $.get('/api/gpio')
-	.done(data => selected_string_details.gpio = data)
-        .fail(err => $.jGrowl('Error: Unable to retrieve GPIO pin info.', { themeState: 'danger' }));
-    populateCapeList();
     loadPixelStringOutputs();
 });
 
@@ -2451,7 +2348,7 @@ if ((isset($settings['cape-info'])) &&
 <div id='tab-PixelString'>
     <div id='divPixelString'>
 
-        <div class="row tablePageHeader capeTypeRow">
+        <div class="row tableTabPageHeader capeTypeRow">
             <div class="col-md"><h2><span class='capeNamePixels'>String Capes</span> </h2></div>
             <div class="col-md-auto ml-lg-auto">
                 <div class="form-actions">
@@ -2611,7 +2508,7 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
 
                     <div id='bankSliderDiv' style='display: none;'>
                         <b>This cape config uses banks of outputs which share max pixel counts.</b>
-                        <table border=0 cellpadding=1 cellspacing=1>
+                        <table>
                             <tr><td><b>Bank 1 Size:</b></td><td id='bank1Size'>0</td><td style='width: 50px;'></td>
                                 <td class='bank2Class'><b>Bank 2 Size:</b></td><td id='bank2Size' class='bank2Class'>0</td><td style='width: 50px;'></td>
                                 <td class='bank3Class' style='display: none;'><b>Bank 3 Size:</b></td><td id='bank3Size' class='bank3Class' style='display: none;'>0</td></tr>
@@ -2619,13 +2516,40 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                         <div id='bankSlider'></div>
                     </div>
 
-                    <div id='pixelOutputs'>
-
+                    <div id='pixelOutputs' class="fppFThScrollContainer">
+                        <!-- skeleton framework of table for floatThead to work - actual html within div reloaded during page load -->
+                        <div class='fppTableWrapper'>
+                            <div class='fppTableContents' role='region' aria-labelledby='PixelString' tabindex='0'>
+                                <table id='PixelString' class='fppSelectableRowTable fppStickyTheadTable'>
+                                    <thead>
+                                        <tr>
+                                        <th>Port</th>
+                                        <th>Protocol</th>
+                                        <th>&nbsp;</th>
+                                        <th>Description</th>
+                                        <th>Start<br>Channel</th>
+                                        <th>Pixel<br>Count</th>
+                                        <th>Group<br>Count</th>
+                                        <th>End<br>Channel</th>
+                                        <th>Direction</th>
+                                        <th>Color<br>Order</th>
+                                        <th>Start<br>Nulls</th>
+                                        <th>End<br>Nulls</th>
+                                        <th>Zig<br>Zag</th>
+                                        <th>Bright-<br>ness</th>
+                                        <th>Gamma</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>    
+                            </div>
+                        </div>
                     </div>
 
                     <br>
-                    <span id='BBBSerialOutputs'>
-                        <table border=0 cellspacing=3>
+                    <div id='BBBSerialOutputs'>
+                        <table>
 
                         <tr id='BBBSerialSelect'>
                             <td><b>Serial Mode:</b></td>
@@ -2635,7 +2559,7 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                                     <option value='Pixelnet'>Pixelnet</option>
                                 </select>
                             </td>
-                            <td width=20>&nbsp;</td>
+                            <td>&nbsp;</td>
                             <td><div id="DMXNumChannelOutput">Num&nbsp;DMX&nbsp;Channels:&nbsp;<input id='BBBSerialNumDMXChannels' size='6' maxlength='6' value='512'></div></td>
                         </tr>
                     </table>
@@ -2644,8 +2568,8 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                         <table ports='8' id='BBBSerial_Output' class="fppSelectableRowTable">
                             <thead>
                                 <tr>
-                                    <th width='30px'>#</th>
-                                    <th width='90px'>Start<br>Channel</th>
+                                    <th>#</th>
+                                    <th>Start<br>Channel</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -2685,7 +2609,7 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                         </table>
                         </div>
                         </div>
-                    </span>
+</div>
                 </div>
             </div>
 

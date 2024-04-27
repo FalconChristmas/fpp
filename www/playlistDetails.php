@@ -52,7 +52,7 @@ $simplifiedPlaylist = 0;
                             </div>
                             <div>
                                 <div class="labelHeading">Randomize:</div>
-                                <div id="txtRandomize" class="labelValue">gfgf</div>
+                                <div id="txtRandomize" class="labelValue">NULL</div>
                             </div>
                         </div>
                     </div>

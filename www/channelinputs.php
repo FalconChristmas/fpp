@@ -1,291 +1,295 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<?php
-require_once "common.php";
-require_once 'universeentry.php';
-if (file_exists(__DIR__ . "/fppdefines.php")) {
-    include_once __DIR__ . '/fppdefines.php';
-} else {
-    include_once __DIR__ . '/fppdefines_unknown.php';
-}
-include 'common/menuHead.inc';
-?>
-<script language="Javascript">
+	<?php
+	require_once "common.php";
+	require_once 'universeentry.php';
+	if (file_exists(__DIR__ . "/fppdefines.php")) {
+		include_once __DIR__ . '/fppdefines.php';
+	} else {
+		include_once __DIR__ . '/fppdefines_unknown.php';
+	}
+	include 'common/menuHead.inc';
+	?>
+	<script language="Javascript">
 
-var currentTabTitle = "E1.31/DDP Input";
+		var currentTabTitle = "E1.31/DDP Input";
 
-/////////////////////////////////////////////////////////////////////////////
-// E1.31 support functions here
-$(document).ready(function() {
-	$('.default-value').each(function() {
-		var default_value = this.value;
-		$(this).on("focus", function() {
-			if(this.value == default_value) {
-				this.value = '';
-				$(this).css('color', '#333');
-			}
-		});
-		$(this).on("blur", function() {
-			if(this.value == '') {
-				$(this).css('color', '#999');
-				this.value = default_value;
-			}
-		});
-	});
-
-	$.ajax({
-	   url: "api/settings/BridgeInputDelayBeforeBlack",
-	   method: "GET",
-	   dataType: "json",
-	   success: function (data) {
-		   let val = 0;
-		   if ("value" in data) {
-			   val = data.value;
-		   }
-		   $('#txtBridgeInputDelayBeforeBlack').val(val);
-	   }
-	});
-
-	$('#txtUniverseCount').on('focus',function() {
-		$(this).select();
-	});
-
-	$('#txtBridgeInputDelayBeforeBlack').on("change", function() {
-	   var newValue = $('#txtBridgeInputDelayBeforeBlack').val();
-	   $.ajax({
-	      url: "api/settings/BridgeInputDelayBeforeBlack",
-		  data: newValue,
-	      method: "PUT",
-	      dataType: "text",
-	      success: function (data) {
-		      $.jGrowl("Input Delay Saved",{themeState:'success'});
-		      SetRestartFlag(2);
-		      CheckRestartRebootFlags();
-	      }
-	   });
-
-	});
-
-    if (window.innerWidth > 600) {
-
-    }
-	var sortableOptions = {
-		start: function (event, ui) {
-			start_pos = ui.item.index();
-		},
-		update: function(event, ui) {
-			SetUniverseInputNames();
-		},
-		beforeStop: function (event, ui) {
-			//undo the firefox fix.
-			// Not sure what this is, but copied from playlists.php to here
-			if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
-				$(window).unbind('scroll.sortableplaylist');
-				ui.helper.css('margin-top', 0);
-			}
-		},
-		helper: function (e, ui) {
-			ui.children().each(function () {
-				$(this).width($(this).width());
+		/////////////////////////////////////////////////////////////////////////////
+		// E1.31 support functions here
+		$(document).ready(function () {
+			$('.default-value').each(function () {
+				var default_value = this.value;
+				$(this).on("focus", function () {
+					if (this.value == default_value) {
+						this.value = '';
+						$(this).css('color', '#333');
+					}
+				});
+				$(this).on("blur", function () {
+					if (this.value == '') {
+						$(this).css('color', '#999');
+						this.value = default_value;
+					}
+				});
 			});
-			return ui;
-		},
-		scroll: true
-	}
-	if(hasTouch){
-		$.extend(sortableOptions,{handle:'.rowGrip'});
-	}
-	$('#tblUniversesBody').sortable(sortableOptions).disableSelection();
 
-	$('#tblUniverses').on('mousedown', 'tr', function(event,ui){
-		$('#tblUniverses tr').removeClass('selectedEntry');
-		$(this).addClass('selectedEntry');
-		var items = $('#tblUniverses tbody tr');
-		UniverseSelected  = items.index(this);
-	});
+			$.ajax({
+				url: "api/settings/BridgeInputDelayBeforeBlack",
+				method: "GET",
+				dataType: "json",
+				success: function (data) {
+					let val = 0;
+					if ("value" in data) {
+						val = data.value;
+					}
+					$('#txtBridgeInputDelayBeforeBlack').val(val);
+				}
+			});
 
-	$('#frmUniverses').on("submit", function(event) {
-         event.preventDefault();
-         var success = validateUniverseData();
-         if(success == true) {
-             postUniverseJSON(true);
-             return false;
-         } else {
-             DialogError("Save E1.31 Universes", "Validation Failed");
-         }
-	});
-});
+			$('#txtUniverseCount').on('focus', function () {
+				$(this).select();
+			});
 
-/////////////////////////////////////////////////////////////////////////////
+			$('#txtBridgeInputDelayBeforeBlack').on("change", function () {
+				var newValue = $('#txtBridgeInputDelayBeforeBlack').val();
+				$.ajax({
+					url: "api/settings/BridgeInputDelayBeforeBlack",
+					data: newValue,
+					method: "PUT",
+					dataType: "text",
+					success: function (data) {
+						$.jGrowl("Input Delay Saved", { themeState: 'success' });
+						SetRestartFlag(2);
+						CheckRestartRebootFlags();
+					}
+				});
 
-function handleCIKeypress(e)
-{
-	if (e.keyCode == 113) {
-//		if (currentTabTitle == "Pi Pixel Strings")
-//			setPixelStringsStartChannelOnNextRow();
-	}
-}
+			});
 
-$(document).ready(function(){
-	$(document).on('keydown', handleCIKeypress);
+			if (window.innerWidth > 600) {
 
-	// E1.31 initialization
-	InitializeUniverses();
-	getUniverses('TRUE', 1);
+			}
+			var sortableOptions = {
+				start: function (event, ui) {
+					start_pos = ui.item.index();
+				},
+				update: function (event, ui) {
+					SetUniverseInputNames();
+				},
+				beforeStop: function (event, ui) {
+					//undo the firefox fix.
+					// Not sure what this is, but copied from playlists.php to here
+					if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
+						$(window).unbind('scroll.sortableplaylist');
+						ui.helper.css('margin-top', 0);
+					}
+				},
+				helper: function (e, ui) {
+					ui.children().each(function () {
+						$(this).width($(this).width());
+					});
+					return ui;
+				},
+				scroll: true
+			}
+			if (hasTouch) {
+				$.extend(sortableOptions, { handle: '.rowGrip' });
+			}
+			$('#tblUniversesBody').sortable(sortableOptions).disableSelection();
 
-	// Init tabs
-	$tabs = $("#tabs").tabs({
-		activate: function(e, ui) {
-			currentTabTitle = $(ui.newTab).text();
-		},
-  		cache: true,
-		spinner: "",
-		fx: {
-			opacity: 'toggle',
-			height: 'toggle'
+			$('#tblUniverses').on('mousedown', 'tr', function (event, ui) {
+				$('#tblUniverses tr').removeClass('selectedEntry');
+				$(this).addClass('selectedEntry');
+				var items = $('#tblUniverses tbody tr');
+				UniverseSelected = items.index(this);
+			});
+
+			$('#frmUniverses').on("submit", function (event) {
+				event.preventDefault();
+				var success = validateUniverseData();
+				if (success == true) {
+					postUniverseJSON(true);
+					return false;
+				} else {
+					DialogError("Save E1.31 Universes", "Validation Failed");
+				}
+			});
+		});
+
+		/////////////////////////////////////////////////////////////////////////////
+
+		function handleCIKeypress(e) {
+			if (e.keyCode == 113) {
+				//		if (currentTabTitle == "Pi Pixel Strings")
+				//			setPixelStringsStartChannelOnNextRow();
+			}
 		}
-	});
 
-	var total = $tabs.find('.ui-tabs-nav li').length;
-	if (total > 1)
-	{
-		var currentLoadingTab = 1;
-		$tabs.bind('tabsload', function() {
-			currentLoadingTab++;
-			if (currentLoadingTab < total)
-				$tabs.tabs('load',currentLoadingTab);
-			else
-				$tabs.unbind('tabsload');
-		}).tabs('load',currentLoadingTab);
-	}
+		$(document).ready(function () {
+			$(document).on('keydown', handleCIKeypress);
 
-});
+			// E1.31 initialization
+			InitializeUniverses();
+			getUniverses('TRUE', 1);
 
-</script>
-<!-- FIXME, move this to CSS to standardize the UI -->
-<style>
-.tblheader{
-    background-color:#CCC;
-    text-align:center;
-    }
-.tblheader td {
-    border: solid 2px #888888;
-    text-align:center;
-}
-</style>
+			// Init tabs
+			$tabs = $("#tabs").tabs({
+				activate: function (e, ui) {
+					currentTabTitle = $(ui.newTab).text();
+				},
+				cache: true,
+				spinner: "",
+				fx: {
+					opacity: 'toggle',
+					height: 'toggle'
+				}
+			});
 
-<title><?echo $pageTitle; ?></title>
+			var total = $tabs.find('.ui-tabs-nav li').length;
+			if (total > 1) {
+				var currentLoadingTab = 1;
+				$tabs.bind('tabsload', function () {
+					currentLoadingTab++;
+					if (currentLoadingTab < total)
+						$tabs.tabs('load', currentLoadingTab);
+					else
+						$tabs.unbind('tabsload');
+				}).tabs('load', currentLoadingTab);
+			}
+
+		});
+
+	</script>
+
+	<title><? echo $pageTitle; ?></title>
 </head>
+
 <body>
 	<div id="bodyWrapper">
 		<?php
-$activeParentMenuItem = 'input-output';
-include 'menu.inc';?>
-  <div class="mainContainer">
-	<h1 class="title">Channel Inputs</h1>
-	<div class="pageContent">
+		$activeParentMenuItem = 'input-output';
+		include 'menu.inc'; ?>
+		<div class="mainContainer">
+			<h1 class="title">Channel Inputs</h1>
+			<div class="pageContent">
 
-		<div id='channelInputManager'>
-
-
-
-		<ul class="nav nav-pills pageContent-tabs" id="channelInputTabs" role="tablist">
-              <li class="nav-item">
-                <a class="nav-link active" id="tab-e131-tab" tabType='UDP' data-bs-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
-				E1.31/ArtNet/DDP Inputs
-				</a>
-              </li>
-		</ul>
-
-		<!-- --------------------------------------------------------------------- -->
+				<div id='channelInputManager'>
 
 
 
-		<div class="tab-content" id="channelOutputTabsContent">
-			<div class="tab-pane fade show active" id="tab-e131" role="tabpanel" aria-labelledby="tab-e131-tab">
+					<ul class="nav nav-pills pageContent-tabs" id="channelInputTabs" role="tablist">
+						<li class="nav-item">
+							<a class="nav-link active" id="tab-e131-tab" tabType='UDP' data-bs-toggle="pill"
+								href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
+								E1.31/ArtNet/DDP Inputs
+							</a>
+						</li>
+					</ul>
+
+					<!-- --------------------------------------------------------------------- -->
 
 
-						<div id='divE131'>
+
+					<div class="tab-content" id="channelOutputTabsContent">
+						<div class="tab-pane fade show active" id="tab-e131" role="tabpanel"
+							aria-labelledby="tab-e131-tab">
 
 
-		    <form id="frmUniverses">
-                <div class="row tablePageHeader">
-                    <div class="col-md"><h2>E1.31 / ArtNet / DDP Inputs</h2></div>
-                    <div class="col-md-auto ms-lg-auto">
-                        <div class="form-actions">
-                                <input name="input" type="hidden" value="0" />
-                                <input id="btnDeleteUniverses" class="buttons btn-outline-danger" type="button" value = "Delete" onClick="DeleteUniverse(1);" />
-                                <input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" />
-                                <input id="btnSaveUniverses" class="buttons btn-success ms-1" type="submit" value = "Save" />
-                        </div>
-                    </div>
-                </div>
-                <div class="backdrop tableOptionsForm">
-                    <div class="row">
-                        <div class="col-md-auto">
-                            <div class="backdrop-dark form-inline enableCheckboxWrapper">
-                            <div><b>Enable Input:</b></div>
-                                <div> <input type="checkbox" id="E131Enabled"/></div>
-                            </div>
-                        </div>
-                            <div class="col-md-auto form-inline">
-                                <div><b>Timeout:</b></div>
-                                <div ><input id="bridgeTimeoutMS" type="number" min="0" max="9999" size="4" maxlength="4">
-                                        <img id="timeout_img" title="Timeout for input channel data (in MS).  If no new data is received for this time, the input data is cleared." src="images/redesign/help-icon.svg" width=22 height=22>
-                                </div>
-                            </div>
-							<div class="col-md-auto form-inline">
-								<div><b>Inputs Count: </b></div>
-								<div ><input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /></div>
-								<div><input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" /></div>
+							<div id='divE131'>
+
+
+								<form id="frmUniverses">
+									<div class="row tablePageHeader">
+										<div class="col-md">
+											<h2>E1.31 / ArtNet / DDP Inputs</h2>
+										</div>
+										<div class="col-md-auto ms-lg-auto">
+											<div class="form-actions">
+												<input name="input" type="hidden" value="0" />
+												<input id="btnDeleteUniverses" class="buttons btn-outline-danger"
+													type="button" value="Delete" onClick="DeleteUniverse(1);" />
+												<input id="btnCloneUniverses" class="buttons" type="button"
+													value="Clone" onClick="CloneUniverse();" />
+												<input id="btnSaveUniverses" class="buttons btn-success ms-1"
+													type="submit" value="Save" />
+											</div>
+										</div>
+									</div>
+									<div class="backdrop tableOptionsForm">
+										<div class="row">
+											<div class="col-md-auto">
+												<div class="backdrop-dark form-inline enableCheckboxWrapper">
+													<div><b>Enable Input:</b></div>
+													<div> <input type="checkbox" id="E131Enabled" /></div>
+												</div>
+											</div>
+											<div class="col-md-auto form-inline">
+												<div><b>Timeout:</b></div>
+												<div><input id="bridgeTimeoutMS" type="number" min="0" max="9999"
+														size="4" maxlength="4">
+													<img id="timeout_img"
+														title="Timeout for input channel data (in MS).  If no new data is received for this time, the input data is cleared."
+														src="images/redesign/help-icon.svg" width=22 height=22>
+												</div>
+											</div>
+											<div class="col-md-auto form-inline">
+												<div><b>Inputs Count: </b></div>
+												<div><input id="txtUniverseCount" class="default-value" type="text"
+														value="Enter Universe Count" size="3" maxlength="3" /></div>
+												<div><input id="btnUniverseCount" onclick="SetUniverseCount(1);"
+														type="button" class="buttons" value="Set" /></div>
+											</div>
+										</div>
+									</div>
+
+
+									<div class='fppTableWrapper'>
+										<div class='fppTableContents fppFThScrollContainer' role="region"
+											aria-labelledby="tblUniverses" tabindex="0">
+											<table id="tblUniverses"
+												class='universeTable fullWidth fppSelectableRowTable fppStickyTheadTable'>
+												<thead id='tblUniversesHead'>
+													<th class="tblScheduleHeadGrip"></th>
+													<th>Input</th>
+													<th>Active</th>
+													<th>Description</th>
+													<th>Input Type</th>
+													<th>FPP Channel Start</th>
+													<th>FPP Channel End</th>
+													<th>Universe #</th>
+													<th>Universe Count</th>
+													<th>Universe Size</th>
+													</tr>
+												</thead>
+												<tbody id='tblUniversesBody'>
+												</tbody>
+											</table>
+										</div>
+									</div>
+									<small class="text-muted">(Drag entry to reposition) </small>
+								</form>
 							</div>
-                    </div>
-                </div>
-
-
-		    <div class='fppTableWrapper'>
-		        <div class='fppTableContents' role="region" aria-labelledby="tblUniverses" tabindex="0">
-		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable fppStickyTheadTable'>
-		                <thead id='tblUniversesHead'>
-								<th class="tblScheduleHeadGrip"></th>
-				        		<th>Input</th>
-		                        <th>Active</th>
-		                        <th>Description</th>
-		                        <th>Input Type</th>
-		                        <th>FPP Channel Start</th>
-		                        <th>FPP Channel End</th>
-		                        <th>Universe #</th>
-		                        <th>Universe Count</th>
-		                        <th>Universe Size</th>
-		                    </tr>
-		                </thead>
-		                <tbody id='tblUniversesBody'>
-		                </tbody>
-		            </table>
-		        </div>
-		    </div>
-				<small class="text-muted">(Drag entry to reposition) </small>
-				</form>
-			</div>
-
-								</div>
 
 						</div>
 
+					</div>
 
-		<!-- --------------------------------------------------------------------- -->
+
+					<!-- --------------------------------------------------------------------- -->
+
+				</div>
+			</div>
+
+			<div id='debugOutput'>
+			</div>
 
 		</div>
-		</div>
-
-		<div id='debugOutput'>
-		</div>
-
 	</div>
-</div>
 
-	<?php	include 'common/footer.inc';?>
-</div>
+	<?php include 'common/footer.inc'; ?>
+	</div>
 </body>
+
 </html>
