@@ -23,12 +23,26 @@
 
 // 6. Optionally include any other parts as needed
 @import "./bootstrap-scss-src/utilities";
+@import "./bootstrap-scss-src/close";
+@import "./bootstrap-scss-src/buttons";
+@import "./bootstrap-scss-src/button-group";
+@import "./bootstrap-scss-src/alert";
+@import "./bootstrap-scss-src/forms";
+@import "./bootstrap-scss-src/dropdown";
 @import "./bootstrap-scss-src/reboot";
 @import "./bootstrap-scss-src/type";
 @import "./bootstrap-scss-src/images";
 @import "./bootstrap-scss-src/containers";
 @import "./bootstrap-scss-src/grid";
 @import "./bootstrap-scss-src/helpers";
+@import "./bootstrap-scss-src/nav";
+@import "./bootstrap-scss-src/navbar";
+@import "./bootstrap-scss-src/modal";
+@import "./bootstrap-scss-src/tooltip";
+@import "./bootstrap-scss-src/containers";
+@import "./bootstrap-scss-src/card";
+@import "./bootstrap-scss-src/transitions";
+
 
 // 7. Optionally include utilities API last to generate classes based on the Sass map in `_utilities.scss`
 @import "./bootstrap-scss-src/utilities/api";
