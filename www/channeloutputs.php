@@ -92,7 +92,7 @@
                 display: none;
             }
 
-            <?
+        <?
         }
         if ((isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {
             // don't support virtual strings
@@ -102,7 +102,7 @@
                 display: none;
             }
 
-            <?
+        <?
         }
         ?>
 
@@ -272,7 +272,7 @@
                     $('.capeNamePixels').html(currentCapeName);
                     $('.capeTypeLabel').html("Cape Config");
                 }
-                <?
+            <?
             }
             ?>
 
@@ -347,7 +347,7 @@
         <div class="mainContainer">
             <h1 class='title'>Channel Outputs</h1>
             <div class="pageContent">
-                <div id='channelOutputManager' class="ui-tabs ui-corner-all ui-widget ui-widget-content">
+                <div id='channelOutputManager' class="ui-corner-all ui-widget ui-widget-content">
 
                     <?
                     $lpTabStyle = " hidden";
@@ -390,13 +390,13 @@
                         $lpTabStyleActive = "active";
                     }
                     ?>
-                    <ul class="ui-tabs-nav nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
-                        <li class="ui-tabs-tab nav-item <?= $e131TabStyle ?>" id="tab-e131-LI">
-                            <a class="nav-link <?= $e131TabStyleActive ?>" id="tab-e131-tab" tabType='UDP'
-                                data-bs-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131"
-                                aria-selected="true">
+                    <ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
+                        <li class="nav-item <?= $e131TabStyle ?>" id="tab-e131-LI" role="presentation">
+                            <button class="nav-link <?= $e131TabStyleActive ?>" id="tab-e131-tab" type="button"
+                                tabType='UDP' data-bs-toggle="pill" data-bs-target="#tab-e131" role="tab"
+                                aria-controls="tab-e131" aria-selected="true">
                                 E1.31 / ArtNet / DDP / KiNet
-                            </a>
+                            </button>
                         </li>
 
                         <?
@@ -420,24 +420,25 @@
                                 }
                             }
                             ?>
-                            <li class="ui-tabs-tab nav-item <?= $stringTabStyle ?>" id="tab-strings-LI">
-                                <a class="nav-link <?= $stringTabStyleActive ?>" id="stringTab-tab" tabType='strings'
-                                    data-bs-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
+                            <li class="nav-item <?= $stringTabStyle ?>" id="tab-strings-LI">
+                                <button class="nav-link <?= $stringTabStyleActive ?>" id="stringTab-tab" type="button"
+                                    tabType='strings' data-bs-toggle="pill" data-bs-target='#stringTab' role="tab"
+                                    aria-controls="stringTab">
                                     <? echo $stringTabText; ?>
-                                </a>
+                                </button>
                             </li>
-                            <?
+                        <?
                         }
                         if ($settings['Platform'] == "Raspberry Pi") {
                             if (in_array('fpd', $currentCapeInfo["provides"])) {
                                 ?>
-                                <li class="ui-tabs-tab nav-item">
-                                    <a class="nav-link" id="tab-fpd-tab" tabType='FPD' data-bs-toggle="pill" href='#tab-fpd'
-                                        role="tab" aria-controls="tab-fpd">
+                                <li class="nav-item">
+                                    <button class="nav-link" id="tab-fpd-tab" type="button" tabType='FPD' data-bs-toggle="pill"
+                                        data-bs-target='#tab-fpd' role="tab" aria-controls="tab-fpd">
                                         Falcon Pixelnet/DMX
-                                    </a>
+                                    </button>
                                 </li>
-                                <?
+                            <?
                             }
                         }
 
@@ -454,17 +455,18 @@
 
                         }
                         ?>
-                        <li class="ui-tabs-tab nav-item <?= $lpTabStyle ?>" id="tab-LEDPanels-LI">
-                            <a class="nav-link <?= $lpTabStyleActive ?>" id="tab-LEDPanels-tab" tabType='panels'
-                                data-bs-toggle="pill" href='#tab-LEDPanels' role="tab" aria-controls="tab-LEDPanels">
+                        <li class="nav-item <?= $lpTabStyle ?>" id="tab-LEDPanels-LI">
+                            <button class="nav-link <?= $lpTabStyleActive ?>" id="tab-LEDPanels-tab" type="button"
+                                tabType='panels' data-bs-toggle="pill" data-bs-target='#tab-LEDPanels' role="tab"
+                                aria-controls="tab-LEDPanels">
                                 <? echo $ledTabText; ?>
-                            </a>
+                            </button>
                         </li>
-                        <li class="ui-tabs-tab nav-item" id="tab-other-LI">
-                            <a class="nav-link" id="tab-other-tab" tabType='other' data-bs-toggle="pill"
-                                href='#tab-other' role="tab" aria-controls="tab-other">
+                        <li class="nav-item" id="tab-other-LI">
+                            <button class="nav-link" id="tab-other-tab" type="button" tabType='other'
+                                data-bs-toggle="pill" data-bs-target='#tab-other' role="tab" aria-controls="tab-other">
                                 Other
-                            </a>
+                            </button>
                         </li>
                     </ul>
 
@@ -497,7 +499,7 @@
                                 aria-labelledby="stringTab-tab">
                                 <? include_once 'co-pixelStrings.php'; ?>
                             </div>
-                            <?
+                        <?
                         }
                         if ($settings['Platform'] == "Raspberry Pi") {
                             if (in_array('fpd', $currentCapeInfo["provides"])) {
@@ -505,7 +507,7 @@
                                 <div class="tab-pane fade" id="tab-fpd" role="tabpanel" aria-labelledby="tab-fpd-tab">
                                     <? include_once 'co-fpd.php'; ?>
                                 </div>
-                                <?
+                            <?
                             }
                         }
                         ?>
