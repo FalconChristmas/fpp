@@ -6335,6 +6335,33 @@ progress {
   }
 }
 
+.badge {
+  --bs-badge-padding-x: 0.6em;
+  --bs-badge-padding-y: 0.35em;
+  --bs-badge-font-size: 0.75em;
+  --bs-badge-font-weight: 700;
+  --bs-badge-color: #fff;
+  --bs-badge-border-radius: 16px;
+  display: inline-block;
+  padding: var(--bs-badge-padding-y) var(--bs-badge-padding-x);
+  font-size: var(--bs-badge-font-size);
+  font-weight: var(--bs-badge-font-weight);
+  line-height: 1;
+  color: var(--bs-badge-color);
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: var(--bs-badge-border-radius);
+}
+.badge:empty {
+  display: none;
+}
+
+.btn .badge, .pageContent .disableButtons .badge, .ui-dialog .disableButtons .badge, .modal .disableButtons .badge, .ajax-file-upload .badge, .buttons .badge, .ui-dialog-buttonset button .badge {
+  position: relative;
+  top: -1px;
+}
+
 .align-baseline {
   vertical-align: baseline !important;
 }

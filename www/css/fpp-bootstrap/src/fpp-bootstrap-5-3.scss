@@ -1,5 +1,6 @@
-// Custom.scss
-// Option B: Include parts of Bootstrap
+// Custom fpp-bootstrap.scss
+// Create following instructions at: https://getbootstrap.com/docs/5.3/customize/sass/
+// Option B: Include only parts of Bootstrap required
 
 // 1. Include functions first (so you can manipulate colors, SVGs, calc, etc)
 @import "./bootstrap-scss-src/functions";
@@ -42,6 +43,7 @@
 @import "./bootstrap-scss-src/containers";
 @import "./bootstrap-scss-src/card";
 @import "./bootstrap-scss-src/transitions";
+@import "./bootstrap-scss-src/badge";
 
 
 // 7. Optionally include utilities API last to generate classes based on the Sass map in `_utilities.scss`
