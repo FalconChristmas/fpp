@@ -34,7 +34,7 @@
                 PlayEntrySelected = parseInt($(this).attr('id').substr(11));
             });
 
-            //Setup Tablesorter
+            //Setup Tablesorter on Sync Stats Table (shown on E1.31/DDP Input)
             $('#syncStatsTable').tablesorter({
                 headers: {
                     1: {
@@ -50,7 +50,7 @@
             });
 
             // Pin Player Controls to top of index page
-            zp_playerControls = new $.Zebra_Pin($('#playerModeInfo #playerControls'), {
+            zp_playerControls = new $.Zebra_Pin($('#playerModeInfo #controlsSection'), {
                 onPin: function (scroll, $element) {
                     setTimeout(function () {
                         $('#playerModeInfo #playerControls').css({
@@ -65,19 +65,19 @@
                 contained: true
             });
             // Pin Progress bar to top of index page
-            zp_playerTime = new $.Zebra_Pin($('#playerModeInfo #playerTime'), {
-                onPin: function (scroll, $element) {
-                    setTimeout(function () {
-                        $('#playerModeInfo #playerTime').css({
-                            width: $('#playerModeInfo #playerTime').parent().width()
-                        });
-                    }, 50);
-                },
-                top_spacing: $('.header').css('position') == 'fixed' ?
-                    $('.header').outerHeight() : $('#playerModeInfo #playerControls').outerHeight(),
-                pinpoint_offset: 0,
-                contained: true
-            });
+            /*             zp_playerTime = new $.Zebra_Pin($('#playerModeInfo #playerTime'), {
+                            onPin: function (scroll, $element) {
+                                setTimeout(function () {
+                                    $('#playerModeInfo #playerTime').css({
+                                        width: $('#playerModeInfo #playerTime').parent().width()
+                                    });
+                                }, 50);
+                            },
+                            top_spacing: $('.header').css('position') == 'fixed' ?
+                                $('.header').outerHeight() : $('#playerModeInfo #playerControls').outerHeight(),
+                            pinpoint_offset: 0,
+                            contained: true
+                        }); */
 
         }
 
@@ -521,8 +521,10 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="row statusPageControlsRow d-flex justify-content-between">
-                                <div id="playerControls" class="col-md-7">
+
+                            <div id="controlsSection" class="row statusPageControlsRow d-flex justify-content-between">
+                                <!-- Player Controls -->
+                                <div id="playerControls" class="col-xs-12 col-md-8 col-lg-8 col-xxl-7">
                                     <button id="btnPlay" class="buttons btn-rounded btn-success disableButtons"
                                         onClick="StartPlaylistNow();">
 
@@ -571,12 +573,14 @@
                                         </span>
                                     </button>
                                 </div>
-                                <div class='timingsBoxCenter col-md-2'>
-                                    <div id='playerTime' class='statusTable labelValue container'>
 
-                                        <div class="labelHeading col-md-3 text-end"><span id="txtTimePlayed"
+                                <!-- elapsed status -->
+
+                                <div id='playerTime' class='col-xs-12 col-md-4 col-lg-4 col-xxl-2 container'>
+                                    <div class="d-flex justify-content-around">
+                                        <div class="labelHeading col-3 text-end"><span id="txtTimePlayed"
                                                 class="text-end">02:00</span><br>Elapsed</div>
-                                        <div class="progress progress-linear col-md-6" role="progressbar"
+                                        <div class="progress progress-linear col-6" role="progressbar"
                                             aria-label="Playlist Item Progress" aria-valuenow="0" aria-valuemin="0"
                                             aria-valuemax="100">
                                             <div class="progress-bar bg-success" style="width: 0%">
@@ -584,13 +588,15 @@
                                             </div>
                                         </div>
                                         <div class="">
-                                            <div class="labelHeading col-md-3"><span
+                                            <div class="labelHeading col-3 text-start"><span
                                                     id="txtTimeRemaining">02:00</span><br>Remaining</div>
                                         </div>
-
                                     </div>
                                 </div>
-                                <div class="volumeControlsContainer col-md-3 container">
+
+
+                                <!-- Volume Controls -->
+                                <div class="volumeControlsContainer col-xs-12 col-md-12 col-lg-12 col-xxl-3 container">
                                     <div>
                                         <div class="labelHeading">Volume</div>
                                         <span id='volume' class='volume'></span>

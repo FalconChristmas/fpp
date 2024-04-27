@@ -32,7 +32,8 @@
         "vbuffer",
         "ntime",
         "ntimeus",
-        "MQTT"
+        "MQTT",
+        "EEPROM"
     ],
     "files.associations": {
         "*.tcc": "c",
@@ -137,6 +138,15 @@
         "editor.defaultFormatter": "numso.prettier-standard-vscode"
     },
     "[php]": {
-        "editor.defaultFormatter": "devsense.phptools-vscode"
-    }
+        "editor.defaultFormatter": "DEVSENSE.phptools-vscode"
+    },
+    "liveSassCompile.settings.formats": [
+        {
+            "format": "expanded",
+            "extensionName": ".css",
+            "savePath": "~/../dist-new",
+            "savePathReplacementPairs": null
+        }
+    ],
+    "liveSassCompile.settings.forceBaseDirectory": "www/css/fpp-bootstrap/src"
 }

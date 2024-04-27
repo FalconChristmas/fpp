@@ -21,6 +21,98 @@
         var currentCapeName = '';
     </script>
 
+    <style>
+        .outputTable {
+            background: #F0F0F0;
+            width: 100%;
+            border-spacing: 0px;
+            border-collapse: collapse;
+        }
+
+        .outputTable th {
+            vertical-align: bottom;
+            text-align: center;
+            border: solid 2px #888888;
+            font-size: 0.8em;
+        }
+
+        .outputTable td {
+            text-align: center;
+            padding: 0px 9px 0px 0px;
+        }
+
+        .outputTable tbody tr td input[type=text] {
+            text-align: center;
+            width: 100%;
+        }
+
+        .outputTable tbody tr td input[type=number] {
+            text-align: center;
+            width: 100%;
+        }
+
+        h2.divider {
+            width: 100%;
+            text-align: left;
+            border-bottom: 2px solid #000;
+            line-height: 0.1em;
+            margin: 12px 0 10px;
+        }
+
+        h2.divider span {
+            background: #f5f5f5;
+            padding: 0 10px;
+        }
+
+        /* prevent table header from scrolling: */
+        #PixelString {
+            text-align: left;
+            position: relative;
+            /* required for th sticky to work */
+        }
+
+        #PixelString thead th {
+            font-weight: bold;
+            background: #fff;
+            /* prevent add/delete circular buttons from showing through */
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            /* draw table header on top of add/delete buttons */
+            padding: 8px 0 0 5px;
+            border-bottom: 2px solid #d5d7da
+        }
+
+        <?
+        if ($settings['Platform'] == "BeagleBone Black") {
+            //  BBB only supports ws2811 at this point
+            ?>
+            #PixelString tr>th:nth-of-type(2),
+            #PixelString tr>td:nth-of-type(2) {
+                display: none;
+            }
+
+            <?
+        }
+        if ((isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {
+            // don't support virtual strings
+            ?>
+            #PixelString tr>th:nth-of-type(3),
+            #PixelString tr>td:nth-of-type(3) {
+                display: none;
+            }
+
+            <?
+        }
+        ?>
+
+
+        #ModelPixelStrings_Output_0 tr>th:nth-of-type(2),
+        #ModelPixelStrings_Output_0 tr>td:nth-of-type(2) {
+            display: none;
+        }
+    </style>
+
     <?
     $currentCape = "";
     $currentCapeInfo = json_decode("{ \"provides\": [\"all\"]}", true);
@@ -393,10 +485,6 @@
                             aria-labelledby="tab-e131-tab">
                             <? include_once 'co-universes.php'; ?>
                         </div>
-
-                        <div class="tab-pane fade" id="pills-contact" role="tabpanel"
-                            aria-labelledby="pills-contact-tab">Tab 3</div>
-
 
                         <?
 

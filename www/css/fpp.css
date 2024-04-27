@@ -990,7 +990,7 @@ hr {
 
 #playerTime>div:first-child>div,
 .tblPlaylistHeaderDetails>div:first-child>div {
-    padding-left: 30px;
+    padding-left: 0px;
 }
 
 #playerTime>div:last-child>div,
@@ -2119,6 +2119,35 @@ body .sm-clean a .sub-arrow {
     margin-bottom: 0;
 }
 
+.row.tableTabPageHeader {
+    margin-bottom: 0;
+    padding-top: 0.5em;
+}
+
+.tableTabPageHeader .form-actions {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-bottom: 0.7em;
+}
+
+.tableTabPageHeader.Zebra_Pin {
+    background-color: #fff;
+    box-shadow: 0px 5px 4px -5px rgba(0, 0, 0, 0.2), 5px 0px 0px 0px #fff;
+    padding-top: 0.5em;
+}
+
+.tableTabPageHeader.Zebra_Pin .form-actions {
+    margin-bottom: 0;
+}
+
+
+#controlsSection.Zebra_Pin {
+    background-color: #fff;
+    box-shadow: 0px 5px 4px -5px rgba(0, 0, 0, 0.2), 5px 0px 0px 0px #fff;
+    padding-top: 0.5em;
+}
+
+
 #playerControls.Zebra_Pin {
     background-color: #fff;
     box-shadow: 0px 5px 4px -5px rgba(0, 0, 0, 0.2), 5px 0px 0px 0px #fff;
@@ -2713,6 +2742,15 @@ input[type="color"]::-moz-color-swatch {
         min-width: 34px;
     }
 
+    .tableTabPageHeader .btn-success,
+    .tableTabPageHeader .btn-outline-success {
+        min-width: 100px;
+    }
+
+    .tableTabPageHeader .dropdown-toggle {
+        min-width: 34px;
+    }
+
     .smallonly {
         display: none;
     }
@@ -2898,7 +2936,10 @@ input[type="color"]::-moz-color-swatch {
 
 @media(max-width:480px) {
     .headerHostName {
-        max-width: 170px;
+        max-width: 200px;
+        padding-left: 3px;
+        padding-right: 3px;
+        font-size: 1.5em;
     }
 
     .header.swiped .headerLeft .logo {
@@ -2962,16 +3003,20 @@ input[type="color"]::-moz-color-swatch {
         margin-bottom: 1.2em;
     }
 
-    #playerControls.Zebra_Pin .buttons,
-    #playerControls.Zebra_Pin .disableButtons {
+    #controlsSection.Zebra_Pin #playerControls {
+        margin-bottom: 0.8em;
+    }
+
+    #controlsSection.Zebra_Pin .buttons,
+    #controlsSection.Zebra_Pin .disableButtons {
         display: inline-block;
         width: auto;
         font-size: 1.2em;
         display: inline-block;
     }
 
-    #playerControls.Zebra_Pin .buttons .playerControlButton-text,
-    #playerControls.Zebra_Pin .disableButtons .playerControlButton-text {
+    #controlsSection.Zebra_Pin .buttons .playerControlButton-text,
+    #controlsSection.Zebra_Pin .disableButtons .playerControlButton-text {
         display: none;
     }
 
@@ -3085,6 +3130,15 @@ input[type="color"]::-moz-color-swatch {
     }
 
     .tablePageHeader .form-actions .buttons {
+        margin-bottom: 0.4em;
+    }
+
+    .tableTabPageHeader .form-actions,
+    .tableTabPageHeader .form-actions .buttons {
+        margin-bottom: 0em;
+    }
+
+    .tableTabPageHeader .form-actions .buttons {
         margin-bottom: 0.4em;
     }
 

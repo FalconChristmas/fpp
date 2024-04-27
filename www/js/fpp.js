@@ -132,9 +132,16 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		checkScrollTopButton();
 	};
 
+	// when the tab is selected update the url with the hash
+	$('.ui-tabs').bind('tabsselect', function (event, ui) {
+		window.location.hash = ui.tab.hash;
+	});
+
 	// showing tab directly if referenced in url
 	if (location.hash) {
-		$(".nav-link[href='" + location.hash + "']").tab('show');
+		//$(".nav-link[href='" + location.hash + "']").tab('show');
+		//$(".ui-tabs ul a[href='" + location.hash + "']")[0].click();
+		//$('.ui-tabs ul a[href="#stringTab"]').click()
 	}
 }
 
@@ -148,7 +155,7 @@ function common_ViewPortChange () {
 }
 
 function SetTablePageHeader_ZebraPin () {
-	console.log('running zebra pin');
+	//console.log('running zebra pin');
 	//if Zebra pin already exists destroy it
 	if (window.hasOwnProperty('zp_tablePageHeader')) {
 		zp_tablePageHeader.destroy(); //needs Zebra Pin v3 to work

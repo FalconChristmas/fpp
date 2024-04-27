@@ -1016,55 +1016,53 @@
 	});
 </script>
 
-<div id='tab-other'>
-	<div id='divOther'>
-		<div class="row tableTabPageHeader">
+<div id='divOther'>
+	<div class="row tableTabPageHeader">
 
-			<div class="col-md">
-				<h2> Other Outputs </h2>
-			</div>
-			<div class="col-md-auto ms-lg-auto">
-				<input name="command" type="hidden" value="saveOtherOutputs" />
-				<div class="form-actions">
+		<div class="col-md">
+			<h2> Other Outputs </h2>
+		</div>
+		<div class="col-md-auto ms-lg-auto">
+			<input name="command" type="hidden" value="saveOtherOutputs">
+			<div class="form-actions">
 
-					<input id="btnDeleteOther" class="disableButtons" type="button" value="Delete"
-						data-btn-enabled-class="btn-outline-danger" onClick="DeleteOtherOutput();">
-					<button id="btnAddOther" class="buttons btn-outline-success" type="button" value="Add"
-						onClick="AddOtherOutput();"><i class="fas fa-plus"></i> Add</button>
-					<input id="btnSaveOther" class="buttons btn-success ms-1" type="button" value="Save"
-						onClick='SaveOtherChannelOutputs();' />
+				<input id="btnDeleteOther" class="disableButtons" type="button" value="Delete"
+					data-btn-enabled-class="btn-outline-danger" onClick="DeleteOtherOutput();">
+				<button id="btnAddOther" class="buttons btn-outline-success" type="button" value="Add"
+					onClick="AddOtherOutput();"><i class="fas fa-plus"></i> Add</button>
+				<input id="btnSaveOther" class="buttons btn-success ms-1" type="button" value="Save"
+					onClick='SaveOtherChannelOutputs();'>
 
-				</div>
 			</div>
 		</div>
-
-		<div id='divOtherData'>
-			<div style="overflow: hidden; padding: 5px;">
-				<form id="frmOtherOutputs">
-
-
-					<div class='fppTableWrapper'>
-						<div class='fppTableContents fppFThScrollContainer' role="region"
-							aria-labelledby="tblOtherOutputs" tabindex="0">
-							<table id="tblOtherOutputs" class="fppSelectableRowTable fppStickyTheadTable">
-								<thead>
-									<tr class='tblheader'>
-										<th>#</th>
-										<th>Active</th>
-										<th>Output Type</th>
-										<th>Start<br>Ch.</th>
-										<th>Channel<br>Count</th>
-										<th>Output Config</th>
-									</tr>
-								</thead>
-								<tbody>
-								</tbody>
-							</table>
-						</div>
-					</div>
-				</form>
-			</div>
-		</div>
-
 	</div>
+
+	<div id='divOtherData'>
+		<div style="overflow: hidden; padding: 5px;">
+			<form id="frmOtherOutputs">
+
+
+				<div class='fppTableWrapper'>
+					<div class='fppTableContents fppFThScrollContainer' role="region" aria-labelledby="tblOtherOutputs"
+						tabindex="0">
+						<table id="tblOtherOutputs" class="fppSelectableRowTable fppStickyTheadTable">
+							<thead>
+								<tr class='tblheader'>
+									<th>#</th>
+									<th>Active</th>
+									<th>Output Type</th>
+									<th>Start<br>Ch.</th>
+									<th>Channel<br>Count</th>
+									<th>Output Config</th>
+								</tr>
+							</thead>
+							<tbody>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+
 </div>

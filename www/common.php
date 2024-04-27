@@ -104,12 +104,12 @@ function ReadSettingFromFile($settingName, $plugin = "")
         if (preg_match("/^" . $settingName . "/m", $settingsStr)) {
             $result = preg_match("/^" . $settingName . "\s*=(.+)/m", $settingsStr, $output_array);
             if ($result == 0) {
-//        error_log("The setting " . $settingName . " could not be found in " . $filename);
+                //        error_log("The setting " . $settingName . " could not be found in " . $filename);
                 return false;
             }
             return trim($output_array[1], " \t\n\r\0\x0B\"");
         } else {
-//      error_log("The setting " . $settingName . " could not be found in " . $filename);
+            //      error_log("The setting " . $settingName . " could not be found in " . $filename);
             return false;
         }
     } else {
@@ -178,8 +178,10 @@ function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaul
             $pluginSettings[$setting] = $defaultValue;
         }
 
-        if ((isset($pluginSettings[$setting])) &&
-            ($pluginSettings[$setting] == $value)) {
+        if (
+            (isset($pluginSettings[$setting])) &&
+            ($pluginSettings[$setting] == $value)
+        ) {
             echo $print;
         }
 
@@ -188,8 +190,10 @@ function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaul
             $settings[$setting] = $defaultValue;
         }
 
-        if ((isset($settings[$setting])) &&
-            ($settings[$setting] == $value)) {
+        if (
+            (isset($settings[$setting])) &&
+            ($settings[$setting] == $value)
+        ) {
             echo $print;
         }
 
@@ -212,8 +216,10 @@ function IfSettingInListPrint($setting, $value, $print, $pluginName = "", $defau
             $pluginSettings[$setting] = $defaultValue;
         }
 
-        if ((isset($pluginSettings[$setting])) &&
-            IsInList($value, $pluginSettings[$setting])) {
+        if (
+            (isset($pluginSettings[$setting])) &&
+            IsInList($value, $pluginSettings[$setting])
+        ) {
             echo $print;
         }
 
@@ -222,8 +228,10 @@ function IfSettingInListPrint($setting, $value, $print, $pluginName = "", $defau
             $settings[$setting] = $defaultValue;
         }
 
-        if ((isset($settings[$setting])) &&
-            IsInList($value, $settings[$setting])) {
+        if (
+            (isset($settings[$setting])) &&
+            IsInList($value, $settings[$setting])
+        ) {
             echo $print;
         }
 
@@ -292,7 +300,9 @@ function LoadTroubleShootingCommands()
             $troubleshootingCommandGroups = $troubleshootingCommandGroupsRaw;
             //$troubleshootingCommandGroups = filterForPlatformControls($troubleshootingCommandGroupsRaw);
             $troubleshootingCommandsLoaded = 1;
-        } else {echo "error no troubleshoot-commands.json";}
+        } else {
+            echo "error no troubleshoot-commands.json";
+        }
     }
 }
 
@@ -377,8 +387,10 @@ function ShouldPrintSetting($s)
         }
     }
     if (isset($s['fppModes'])) {
-        if (!in_array('ALL', $s['fppModes']) &&
-            !in_array($settings['fppMode'], $s['fppModes'])) {
+        if (
+            !in_array('ALL', $s['fppModes']) &&
+            !in_array($settings['fppMode'], $s['fppModes'])
+        ) {
             return false;
         }
     }
@@ -635,13 +647,15 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
     $g = $settingGroups[$group];
     $level = isset($g['level']) ? $g['level'] : 0;
 
-    if (($settings['uiLevel'] >= $level) &&
+    if (
+        ($settings['uiLevel'] >= $level) &&
         ((!isset($g['fppModes'])) ||
             (in_array('ALL', $g['fppModes'])) ||
             (in_array($settings['fppMode'], $g['fppModes']))) &&
         ((!isset($g['platforms'])) ||
             (in_array('ALL', $g['platforms'])) ||
-            (in_array($settings['Platform'], $g['platforms'])))) {
+            (in_array($settings['Platform'], $g['platforms'])))
+    ) {
         if ($heading == true) {
             echo "<h2>" . $g['description'] . "</h2>\n";
         }
@@ -811,7 +825,7 @@ function " . $changedFunction . "() {
     if ($desc != "") {
         echo '>' . $desc . "</input>\n";
     } else {
-        echo " />\n";
+        echo " >\n";
     }
 
 }
@@ -1138,20 +1152,20 @@ function PrintSettingPasswordSaved($setting, $restart = 1, $reboot = 0, $maxleng
     echo "&nbsp;<input id='" . $setting . "_showHideButton' type='button' class='buttons' value='Show' onclick='" . $setting . "_showHidePassword()'>";
 
     ?>
-<script>
-function <?=$setting?>_showHidePassword() {
-    var x = document.getElementById("<?=$setting?>");
-    var b = document.getElementById("<?=$setting?>_showHideButton");
-    if (x.type === "password") {
-        x.type = "text";
-        b.value = "Hide";
-    } else {
-        x.type = "password";
-        b.value = "Show";
-    }
-}
-</script>
-<?
+    <script>
+        function <?= $setting ?>_showHidePassword() {
+            var x = document.getElementById("<?= $setting ?>");
+            var b = document.getElementById("<?= $setting ?>_showHideButton");
+            if (x.type === "password") {
+                x.type = "text";
+                b.value = "Hide";
+            } else {
+                x.type = "password";
+                b.value = "Show";
+            }
+        }
+    </script>
+    <?
 }
 
 function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginName = "", $callbackName = "")
@@ -1327,7 +1341,7 @@ function get_sequence_file_info($mediaName)
                         $sequenceMediaName = unpack("A*", substr($seek_data, $media_filename_data_offset, $remaining_header_len))[1]; //decode as string
                     }
 
-//                    $all_data['variable_header_len'] = $variable_header_len;
+                    //                    $all_data['variable_header_len'] = $variable_header_len;
                     //                    $all_data['variable_header_type_of_code'] = $variable_header_type_of_code;
                     //                    $all_data['variable_header_media_filename'] = unpack("A*", substr($seek_data, $media_filename_data_offset, $remaining_header_len));
                     //                    $all_data['variable_header_media_offset'] = $media_filename_data_offset;
@@ -1526,19 +1540,19 @@ function file_cache($cache_name, $data_to_cache, $cache_age = 90)
             //            $cache_data[$cache_name] = array('data' => $data_to_cache);
             $cache_data_return = $data_to_cache;
 
-//            exec("echo \"$data_to_cache\" | sudo tee $file_path", $output, $return_val);
+            //            exec("echo \"$data_to_cache\" | sudo tee $file_path", $output, $return_val);
             file_put_contents($file_path, $data_to_cache, LOCK_EX);
         }
     } else {
         //else cache exists and is valid, replaces/append duration to it
         $cache_data_contents = file_get_contents($file_path);
 
-//        $handle = fopen($file_path, 'r');
+        //        $handle = fopen($file_path, 'r');
         //        $cache_data_contents = trim(fread($handle,filesize($file_path)));
         //        fclose($handle);
 
         if ($cache_data_contents !== false && !empty($cache_data_contents)) {
-//            $cache_data = json_decode($cache_data, true);
+            //            $cache_data = json_decode($cache_data, true);
             //if file hashes are the same - then it's the same file
             //if (array_key_exists($cache_name, $cache_data)) {
             //Key exists, then return the cached duration
@@ -1549,7 +1563,7 @@ function file_cache($cache_name, $data_to_cache, $cache_age = 90)
             //            $cache_data[$cache_name] = array('data' => $data_to_cache);
             $cache_data_return = $data_to_cache;
 
-//            exec("echo \"$data_to_cache\" | sudo tee $file_path", $output, $return_val);
+            //            exec("echo \"$data_to_cache\" | sudo tee $file_path", $output, $return_val);
             file_put_contents($file_path, $data_to_cache, LOCK_EX);
         }
     }
@@ -1587,8 +1601,10 @@ function get_cpu_stats()
         foreach ($stats as $statLine) {
             $statLineData = explode(" ", trim($statLine));
             // Found!
-            if ((count($statLineData) >= 5)
-                && ($statLineData[0] == "cpu")) {
+            if (
+                (count($statLineData) >= 5)
+                && ($statLineData[0] == "cpu")
+            ) {
                 return array(
                     $statLineData[1],
                     $statLineData[2],
@@ -1922,7 +1938,10 @@ function ApplyEmailConfig()
         "dc_hide_mailname='false'\n" .
         "dc_mailname_in_oh='true'\n" .
         "dc_localdelivery='mail_spool'\n",
-        $hostname, $emailserver, $emailport);
+        $hostname,
+        $emailserver,
+        $emailport
+    );
 
     $fp = fopen($exim4Directory . '/update-exim4.conf.conf', 'w');
     fwrite($fp, $exim4Conf);
@@ -1999,13 +2018,15 @@ function prettyPrintJSON($json)
             $in_quotes = !$in_quotes;
         } else if (!$in_quotes) {
             switch ($char) {
-                case '}':case ']':
+                case '}':
+                case ']':
                     $level--;
                     $ends_line_level = null;
                     $new_line_level = $level;
                     break;
 
-                case '{':case '[':
+                case '{':
+                case '[':
                     $level++;
                 case ',':
                     $ends_line_level = $level;
@@ -2015,7 +2036,10 @@ function prettyPrintJSON($json)
                     $post = " ";
                     break;
 
-                case " ":case "\t":case "\n":case "\r":
+                case " ":
+                case "\t":
+                case "\n":
+                case "\r":
                     $char = "";
                     $ends_line_level = $new_line_level;
                     $new_line_level = null;
@@ -2078,8 +2102,10 @@ function PrintToolTip($setting)
         LoadSettingInfos();
     }
 
-    if ((isset($settingInfos[$setting])) &&
-        (isset($settingInfos[$setting]['tip']))) {
+    if (
+        (isset($settingInfos[$setting])) &&
+        (isset($settingInfos[$setting]['tip']))
+    ) {
         $tip = $settingInfos[$setting]['tip'];
         echo "<span id='" . $setting . "_tip' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='" . $tip . "'>";
         echo "<img id='$setting" . "_img' src='images/redesign/help-icon.svg' class='icon-help'>";
@@ -2635,7 +2661,8 @@ function DoJsonBackupToUSB()
                     'jsonConfigBackupUSBLocation' => $selected_jsonConfigBackupUSBLocation,
                     'fileCopy_BackupPath' => $fileCopy_BackupPath,
                 ]
-            ));
+            )
+            );
         } else {
             $result = true;
         }
