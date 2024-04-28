@@ -59,3 +59,9 @@ To install clang-format on a Debian Based system(FPP, Ubuntu, etc.), run the fol
 ```
 sudo apt install clang-format
 ```
+
+## Live Sass Compiler Extension
+
+
+## Devsense PHP Extension
+
