@@ -133,9 +133,9 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 	};
 
 	// when the tab is selected update the url with the hash
-	$('.ui-tabs').bind('tabsselect', function (event, ui) {
+	/* 	$('.ui-tabs').bind('tabsselect', function (event, ui) {
 		window.location.hash = ui.tab.hash;
-	});
+	}); */
 
 	// showing tab directly if referenced in url
 	if (location.hash) {
@@ -163,7 +163,7 @@ function SetTablePageHeader_ZebraPin () {
 	}
 
 	//check if a normal or tabbed page layout
-	if ($('.ui-tabs').length > 0) {
+	if ($('.nav-pills').children().length > 0) {
 		hasTabs = true;
 	} else {
 		hasTabs = false;
@@ -275,11 +275,11 @@ function float_fppStickyThead () {
 
 	// check if there is at least 1 stickyThead table to process
 	if ($('.fppStickyTheadTable').length > 0) {
-		if ($('.tab-pane.active table.fppStickyTheadTable thead').length > 0) {
+		if ($('.tab-pane.active.show table.fppStickyTheadTable thead').length > 0) {
 			// tables in a tab
-			var tablesToProcess = $('.tab-pane.active table.fppStickyTheadTable').not(
-				'.floatThead-table'
-			);
+			var tablesToProcess = $(
+				'.tab-pane.active.show table.fppStickyTheadTable'
+			).not('.floatThead-table');
 		} else {
 			// tables not in tab
 			var tablesToProcess = $('.fppStickyTheadTable').not('.floatThead-table');

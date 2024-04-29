@@ -92,7 +92,7 @@
                 display: none;
             }
 
-        <?
+            <?
         }
         if ((isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {
             // don't support virtual strings
@@ -102,7 +102,7 @@
                 display: none;
             }
 
-        <?
+            <?
         }
         ?>
 
@@ -272,7 +272,7 @@
                     $('.capeNamePixels').html(currentCapeName);
                     $('.capeTypeLabel').html("Cape Config");
                 }
-            <?
+                <?
             }
             ?>
 
@@ -289,46 +289,46 @@
             $(document).on('keydown', handleCOKeypress);
 
             //Setup Tab actions
-            $('#channelOutputManager').tabs({
-                activate: function (event, ui) {
-
-                    console.log('activate triggered ' + ui.newPanel[0].id);
-                    SetTablePageHeader_ZebraPin();
-                    float_fppStickyThead();
-                    //UpdateZebraPinInstance("zp_tableTabPageHeader_" + ui.newPanel[0].id);
-
-                    /* var $t = ui.newPanel.find('table.fppStickyTheadTable').not('.floatThead-table');
-                    var $tableName = $t[0].id;
-
-                    //handle stickytableheaders on tabs
-                    if ($t.length && $t.find('thead').length) {
-                        window['ft_' + $tableName] = $t.floatThead({
-                            top: zebraPinSubContentTop,
-                            position: 'fixed',
-                            zIndex: 990,
-                            debug: false,
-                            responsiveContainer: function ($t) {
-                                return $t.closest('.fppFThScrollContainer');
-                            }
-                        });
-                    } */
-                },
-                load: function (event, ui) {
-                    console.log('tab load event');
-                },
-                create: function (event, ui) {
-
-                    console.log('tab create event');
-                    //SetTablePageHeader_ZebraPin();
-
-                    //SetZebraPinInstance("zp_tableTabPageHeader", "channelOutputManager");
-                    //float_fppStickyThead();
-                }
-            });
+            /*  $('#channelOutputManager').tabs({
+                 activate: function (event, ui) {
+ 
+                     console.log('activate triggered ' + ui.newPanel[0].id);
+                     SetTablePageHeader_ZebraPin();
+                     float_fppStickyThead();
+                     //UpdateZebraPinInstance("zp_tableTabPageHeader_" + ui.newPanel[0].id);
+ 
+                     /* var $t = ui.newPanel.find('table.fppStickyTheadTable').not('.floatThead-table');
+                     var $tableName = $t[0].id;
+ 
+                     //handle stickytableheaders on tabs
+                     if ($t.length && $t.find('thead').length) {
+                         window['ft_' + $tableName] = $t.floatThead({
+                             top: zebraPinSubContentTop,
+                             position: 'fixed',
+                             zIndex: 990,
+                             debug: false,
+                             responsiveContainer: function ($t) {
+                                 return $t.closest('.fppFThScrollContainer');
+                             }
+                         });
+                     } 
+                 },
+                 load: function (event, ui) {
+                     console.log('tab load event');
+                 },
+                 create: function (event, ui) {
+ 
+                     console.log('tab create event');
+                     //SetTablePageHeader_ZebraPin();
+ 
+                     //SetZebraPinInstance("zp_tableTabPageHeader", "channelOutputManager");
+                     //float_fppStickyThead();
+                 }
+             }); */
 
             //show first active tab
-            var first_visible_tab_index = $(".pageContent li.ui-tab").index($('.pageContent li.ui-tab:visible:eq(0)'));
-            $("#channelOutputManager").tabs("option", "active", first_visible_tab_index);
+            //var first_visible_tab_index = $(".pageContent li.ui-tab").index($('.pageContent li.ui-tab:visible:eq(0)'));
+            //$("#channelOutputManager").tabs("option", "active", first_visible_tab_index);
 
 
         }
@@ -427,7 +427,7 @@
                                     <? echo $stringTabText; ?>
                                 </button>
                             </li>
-                        <?
+                            <?
                         }
                         if ($settings['Platform'] == "Raspberry Pi") {
                             if (in_array('fpd', $currentCapeInfo["provides"])) {
@@ -438,7 +438,7 @@
                                         Falcon Pixelnet/DMX
                                     </button>
                                 </li>
-                            <?
+                                <?
                             }
                         }
 
@@ -499,7 +499,7 @@
                                 aria-labelledby="stringTab-tab">
                                 <? include_once 'co-pixelStrings.php'; ?>
                             </div>
-                        <?
+                            <?
                         }
                         if ($settings['Platform'] == "Raspberry Pi") {
                             if (in_array('fpd', $currentCapeInfo["provides"])) {
@@ -507,7 +507,7 @@
                                 <div class="tab-pane fade" id="tab-fpd" role="tabpanel" aria-labelledby="tab-fpd-tab">
                                     <? include_once 'co-fpd.php'; ?>
                                 </div>
-                            <?
+                                <?
                             }
                         }
                         ?>
