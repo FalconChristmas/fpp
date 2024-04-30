@@ -20,12 +20,12 @@ function CountPixels() {
     $.get("api/fppd/ports/pixelCount");
 }
 
-function FormatSmartReceiver(name, k, port, row, col) {
+function FormatSmartReceiver(first, name, k, port, row, col, totals) {
     if (port == null) {
         return "";
     }
     var html = "";
-    if (name != "") {
+    if (first) {
         html += "<b>" + name + "</b><br>";
     }
     html += "<b>" + k + ":</b><br>";
@@ -51,12 +51,23 @@ function FormatSmartReceiver(name, k, port, row, col) {
     html += "</div>";
     $("#fppPorts tr:nth-child(" + row + ") td:nth-child(" + col + ")").html(html);
     $("#fppPorts tr:nth-child(" + row + ")").show();
+
+
+    var idx = name.substr(5);
+    idx = (idx - 1) & 0xFFFC;
+    var key = "Smart Receiver " + (idx + 1) + "-" + (idx + 4) + k;
+    if (!totals.has(key)) {
+        totals.set(key, port["ma"]);
+    } else {
+        totals.set(key,  port["ma"] + totals.get(key));
+    }
 }
 function StartMonitoring() {
     $.get('api/fppd/ports', function(data) {
+        var totals = new Map();
         data.forEach(function(port) {
             var count = $('#fppPorts tr').length;
-            var rn = port["row"];
+            var rn = port["row"] + 1;
             if (port["smartReceivers"]) {
                 rn += 6;
             }
@@ -84,16 +95,41 @@ function StartMonitoring() {
                 }
                 html += port["ma"] + " ma";
                 $("#fppPorts tr:nth-child(" + port["row"] + ") td:nth-child(" + port["col"] + ")").html(html);
+
+                var key;
+                if (!port["bank"]) {
+                    var idx = port["name"].substr(5);
+                    idx = Math.floor((idx - 1) / 8);
+                    key = "Ports " + (idx * 8 + 1) + "-" + (idx * 8 + 8);
+                } else {
+                    key = port["bank"];
+                }
+                if (!totals.has(key)) {
+                    totals.set(key, port["ma"]);
+                } else {
+                    totals.set(key,  port["ma"] + totals.get(key));
+                }
             } else {
                 rn = port["row"];
-                FormatSmartReceiver(port["name"], "A", port["A"], rn, port["col"]);
-                FormatSmartReceiver("", "B", port["B"], rn + 1, port["col"]);
-                FormatSmartReceiver("", "C", port["C"], rn + 2, port["col"]);
-                FormatSmartReceiver("", "D", port["D"], rn + 3, port["col"]);
-                FormatSmartReceiver("", "E", port["E"], rn + 4, port["col"]);
-                FormatSmartReceiver("", "F", port["F"], rn + 5, port["col"]);
+                FormatSmartReceiver(true, port["name"], "A", port["A"], rn, port["col"], totals);
+                FormatSmartReceiver(false, port["name"], "B", port["B"], rn + 1, port["col"], totals);
+                FormatSmartReceiver(false, port["name"], "C", port["C"], rn + 2, port["col"], totals);
+                FormatSmartReceiver(false, port["name"], "D", port["D"], rn + 3, port["col"], totals);
+                FormatSmartReceiver(false, port["name"], "E", port["E"], rn + 4, port["col"], totals);
+                FormatSmartReceiver(false, port["name"], "F", port["F"], rn + 5, port["col"], totals);
             }
         });
+        var banks = "<b>Banks</b><br>";
+        for (const [key, value] of totals.entries()) {
+            banks += key + ": " + value + " ma<br>";
+        }
+        var count = $('#fppPorts tr').length;
+        $("#fppPorts tr:nth-child(" + (count - 1)  + ") td:nth-child(1)").html(banks);
+        $("#fppPorts tr:nth-child(" + (count - 1)  + ") td:nth-child(2)").remove();
+        $("#fppPorts tr:nth-child(" + (count - 1)  + ") td:nth-child(3)").remove();
+        $("#fppPorts tr:nth-child(" + (count - 1)  + ") td:nth-child(4)").remove();
+        $("#fppPorts tr:nth-child(" + (count - 1)  + ") td:nth-child(1)").attr("colspan", 4);
+        $("#fppPorts tr:nth-child(" + (count - 1) + ")").show();
     });
 }
 function StopPixelCount() {
