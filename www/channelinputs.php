@@ -201,7 +201,7 @@
 
 
 								<form id="frmUniverses">
-									<div class="row tablePageHeader">
+									<div class="row tableTabPageHeader">
 										<div class="col-md">
 											<h2>E1.31 / ArtNet / DDP Inputs</h2>
 										</div>

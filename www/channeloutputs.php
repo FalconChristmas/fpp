@@ -288,48 +288,6 @@
         function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
             $(document).on('keydown', handleCOKeypress);
 
-            //Setup Tab actions
-            /*  $('#channelOutputManager').tabs({
-                 activate: function (event, ui) {
- 
-                     console.log('activate triggered ' + ui.newPanel[0].id);
-                     SetTablePageHeader_ZebraPin();
-                     float_fppStickyThead();
-                     //UpdateZebraPinInstance("zp_tableTabPageHeader_" + ui.newPanel[0].id);
- 
-                     /* var $t = ui.newPanel.find('table.fppStickyTheadTable').not('.floatThead-table');
-                     var $tableName = $t[0].id;
- 
-                     //handle stickytableheaders on tabs
-                     if ($t.length && $t.find('thead').length) {
-                         window['ft_' + $tableName] = $t.floatThead({
-                             top: zebraPinSubContentTop,
-                             position: 'fixed',
-                             zIndex: 990,
-                             debug: false,
-                             responsiveContainer: function ($t) {
-                                 return $t.closest('.fppFThScrollContainer');
-                             }
-                         });
-                     } 
-                 },
-                 load: function (event, ui) {
-                     console.log('tab load event');
-                 },
-                 create: function (event, ui) {
- 
-                     console.log('tab create event');
-                     //SetTablePageHeader_ZebraPin();
- 
-                     //SetZebraPinInstance("zp_tableTabPageHeader", "channelOutputManager");
-                     //float_fppStickyThead();
-                 }
-             }); */
-
-            //show first active tab
-            //var first_visible_tab_index = $(".pageContent li.ui-tab").index($('.pageContent li.ui-tab:visible:eq(0)'));
-            //$("#channelOutputManager").tabs("option", "active", first_visible_tab_index);
-
 
         }
 
@@ -392,11 +350,11 @@
                     ?>
                     <ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
                         <li class="nav-item <?= $e131TabStyle ?>" id="tab-e131-LI" role="presentation">
-                            <button class="nav-link <?= $e131TabStyleActive ?>" id="tab-e131-tab" type="button"
-                                tabType='UDP' data-bs-toggle="pill" data-bs-target="#tab-e131" role="tab"
-                                aria-controls="tab-e131" aria-selected="true">
+                            <a class="nav-link <?= $e131TabStyleActive ?>" id="tab-e131-tab" type="button" tabType='UDP'
+                                data-bs-toggle="pill" data-bs-target="#tab-e131" role="tab" aria-controls="tab-e131"
+                                aria-selected="true">
                                 E1.31 / ArtNet / DDP / KiNet
-                            </button>
+                            </a>
                         </li>
 
                         <?
@@ -421,11 +379,11 @@
                             }
                             ?>
                             <li class="nav-item <?= $stringTabStyle ?>" id="tab-strings-LI">
-                                <button class="nav-link <?= $stringTabStyleActive ?>" id="stringTab-tab" type="button"
+                                <a class="nav-link <?= $stringTabStyleActive ?>" id="stringTab-tab" type="button"
                                     tabType='strings' data-bs-toggle="pill" data-bs-target='#stringTab' role="tab"
                                     aria-controls="stringTab">
                                     <? echo $stringTabText; ?>
-                                </button>
+                                </a>
                             </li>
                             <?
                         }
@@ -433,10 +391,10 @@
                             if (in_array('fpd', $currentCapeInfo["provides"])) {
                                 ?>
                                 <li class="nav-item">
-                                    <button class="nav-link" id="tab-fpd-tab" type="button" tabType='FPD' data-bs-toggle="pill"
+                                    <a class="nav-link" id="tab-fpd-tab" type="button" tabType='FPD' data-bs-toggle="pill"
                                         data-bs-target='#tab-fpd' role="tab" aria-controls="tab-fpd">
                                         Falcon Pixelnet/DMX
-                                    </button>
+                                    </a>
                                 </li>
                                 <?
                             }
@@ -456,17 +414,17 @@
                         }
                         ?>
                         <li class="nav-item <?= $lpTabStyle ?>" id="tab-LEDPanels-LI">
-                            <button class="nav-link <?= $lpTabStyleActive ?>" id="tab-LEDPanels-tab" type="button"
+                            <a class="nav-link <?= $lpTabStyleActive ?>" id="tab-LEDPanels-tab" type="button"
                                 tabType='panels' data-bs-toggle="pill" data-bs-target='#tab-LEDPanels' role="tab"
                                 aria-controls="tab-LEDPanels">
                                 <? echo $ledTabText; ?>
-                            </button>
+                            </a>
                         </li>
                         <li class="nav-item" id="tab-other-LI">
-                            <button class="nav-link" id="tab-other-tab" type="button" tabType='other'
-                                data-bs-toggle="pill" data-bs-target='#tab-other' role="tab" aria-controls="tab-other">
+                            <a class="nav-link" id="tab-other-tab" type="button" tabType='other' data-bs-toggle="pill"
+                                data-bs-target='#tab-other' role="tab" aria-controls="tab-other">
                                 Other
-                            </button>
+                            </a>
                         </li>
                     </ul>
 

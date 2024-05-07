@@ -101,10 +101,6 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 	$(document).on('click', '.navbar-toggler', ToggleMenu);
 	$(document).on('keydown', handleKeypress);
 
-	// Pin Table Page Headers
-	/* 	SetTablePageHeader_ZebraPin();
-	float_fppStickyThead(); */
-
 	// Handling touch
 	if (hasTouch == true) {
 		$('body').addClass('has-touch');
@@ -132,17 +128,40 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		checkScrollTopButton();
 	};
 
-	// when the tab is selected update the url with the hash
-	/* 	$('.ui-tabs').bind('tabsselect', function (event, ui) {
-		window.location.hash = ui.tab.hash;
-	}); */
+	//show first active tab (if no tab specified in url)
+	if (!location.hash) {
+		const triggerFirstTabEl = document.querySelector(
+			'[role="tablist"] li:first-child a'
+		);
+		bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
+		//setup sticky on first page load
+		if (triggerFirstTabEl) {
+			SetTablePageHeader_ZebraPin();
+			float_fppStickyThead();
+		}
+	}
 
 	// showing tab directly if referenced in url
 	if (location.hash) {
-		//$(".nav-link[href='" + location.hash + "']").tab('show');
-		//$(".ui-tabs ul a[href='" + location.hash + "']")[0].click();
-		//$('.ui-tabs ul a[href="#stringTab"]').click()
+		bootstrap.Tab.getOrCreateInstance(
+			document.querySelector(
+				'[role="tablist"] a[data-bs-target="' + location.hash + '"]'
+			)
+		).show();
 	}
+
+	//Setup Tab actions
+	const triggerTabList = document.querySelectorAll('[role="tablist"] a');
+	triggerTabList.forEach(triggerEl => {
+		const tabTrigger = new bootstrap.Tab(triggerEl);
+
+		triggerEl.addEventListener('shown.bs.tab', event => {
+			// when the tab is selected update the url with the hash
+			window.location.hash = event.target.dataset.bsTarget;
+			SetTablePageHeader_ZebraPin();
+			float_fppStickyThead();
+		});
+	});
 }
 
 function common_ViewPortChange () {
@@ -1285,7 +1304,7 @@ function StreamURL (
 		}
 	})
 		.done(function (data) {
-			// Because xhrFields.onprogress is not guarenteed to fire on the last chunk
+			// Because xhrFields.onprogress is not guaranteed to fire on the last chunk
 			// any scripts at the end may be missed.  This will execute those, but has
 			// the side effecting of running all other streamScripts again.
 			$('script.streamScript').each(function () {
