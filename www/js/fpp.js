@@ -133,9 +133,9 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		const triggerFirstTabEl = document.querySelector(
 			'[role="tablist"] li:first-child a'
 		);
-		bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
-		//setup sticky on first page load
 		if (triggerFirstTabEl) {
+			bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
+			//setup sticky on first page load
 			SetTablePageHeader_ZebraPin();
 			float_fppStickyThead();
 		}
@@ -148,6 +148,9 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 				'[role="tablist"] a[data-bs-target="' + location.hash + '"]'
 			)
 		).show();
+		SetTablePageHeader_ZebraPin();
+		float_fppStickyThead();
+		scrollToTop();
 	}
 
 	//Setup Tab actions
@@ -160,6 +163,7 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 			window.location.hash = event.target.dataset.bsTarget;
 			SetTablePageHeader_ZebraPin();
 			float_fppStickyThead();
+			scrollToTop();
 		});
 	});
 }
@@ -190,14 +194,15 @@ function SetTablePageHeader_ZebraPin () {
 
 	if (hasTabs) {
 		// Pin Visible Table Tab Page Headers
-		zp_tablePageHeader = new $.Zebra_Pin($('.tableTabPageHeader:visible'), {
-			contained: true,
-			top_spacing:
-				$('.header').css('position') == 'fixed'
-					? $('.header').outerHeight(true)
-					: 0
-		});
-
+		if ($('.tableTabPageHeader:visible')) {
+			zp_tablePageHeader = new $.Zebra_Pin($('.tableTabPageHeader:visible'), {
+				contained: true,
+				top_spacing:
+					$('.header').css('position') == 'fixed'
+						? $('.header').outerHeight(true)
+						: 0
+			});
+		}
 		// Calc position of bottom of pinned tableTabPageHeader
 		zebraPinSubContentTop =
 			($('.header').css('position') == 'fixed'
@@ -205,13 +210,15 @@ function SetTablePageHeader_ZebraPin () {
 				: 0) + $('.tableTabPageHeader:visible').outerHeight(true);
 	} else {
 		// Pin Table Page Headers
-		zp_tablePageHeader = new $.Zebra_Pin($('.tablePageHeader'), {
-			contained: true,
-			top_spacing:
-				$('.header').css('position') == 'fixed'
-					? $('.header').outerHeight(true)
-					: 0
-		});
+		if ($('.tablePageHeader')) {
+			zp_tablePageHeader = new $.Zebra_Pin($('.tablePageHeader'), {
+				contained: true,
+				top_spacing:
+					$('.header').css('position') == 'fixed'
+						? $('.header').outerHeight(true)
+						: 0
+			});
+		}
 
 		// Calc position of bottom of pinned tablePageHeader
 		zebraPinSubContentTop =
