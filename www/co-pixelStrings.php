@@ -1366,8 +1366,7 @@ function populatePixelStringOutputs(data) {
                 }
                 $('#PixelStringPixelTiming').val(pixelTiming);
 
-
-                $('#pixelOutputs').html("");
+                $('#PixelString tbody').html("");
 
                 var outputCount = GetPixelStringRows();
                 var sourceOutputCount = output.outputCount;
@@ -1379,11 +1378,6 @@ function populatePixelStringOutputs(data) {
                 }
 
                 var str = "";
-                str += "<div class='fppTableWrapper'>" +
-                    "<div class='fppTableContents' role='region' aria-labelledby='PixelString' tabindex='0'>";
-                str += "<table id='PixelString' class='fppSelectableRowTable fppStickyTheadTable' type='" + output.subType + "' ports='" + outputCount + "'>";
-                str += pixelOutputTableHeader();
-                str += "<tbody>";
 
                 var expansions = [];
                 var expansionType = 0;
@@ -1568,13 +1562,7 @@ function populatePixelStringOutputs(data) {
                     }
                 }
 
-                str += "</tbody>";
-                str += "</table>";
-                str += "<b>Mouse over the Port Number for additional Port details.</b><br>";
-                str += "</div>";
-                str += "</div>";
-
-                $('#pixelOutputs').append(str);
+                $('#PixelString tbody').append(str);
 
                 expansions.forEach(function(r) {
                                    PixelStringExpansionTypeChanged(r);
@@ -2517,7 +2505,6 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                     </div>
 
                     <div id='pixelOutputs' class="fppFThScrollContainer">
-                        <!-- skeleton framework of table for floatThead to work - actual html within div reloaded during page load -->
                         <div class='fppTableWrapper'>
                             <div class='fppTableContents' role='region' aria-labelledby='PixelString' tabindex='0'>
                                 <table id='PixelString' class='fppSelectableRowTable fppStickyTheadTable'>
@@ -2541,8 +2528,10 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        <!-- skeleton table framework for floatThead to work - actual html within tbody here loaded during page load -->
                                     </tbody>
                                 </table>    
+                                <b>Mouse over the Port Number for additional Port details.</b><br>
                             </div>
                         </div>
                     </div>

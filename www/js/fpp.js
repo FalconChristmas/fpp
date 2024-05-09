@@ -128,13 +128,16 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		checkScrollTopButton();
 	};
 
-	//show first active tab (if no tab specified in url)
+	//show first visible tab (if no tab specified in url)
 	if (!location.hash) {
-		const triggerFirstTabEl = document.querySelector(
+		const triggerFirstTabEl = $('[role="tablist"] li:visible a').first()[0];
+		/*const triggerFirstTabEl = document.querySelector(
 			'[role="tablist"] li:first-child a'
-		);
+		);*/
 		if (triggerFirstTabEl) {
 			bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
+			console.log(triggerFirstTabEl);
+			//$('[role="tablist"] li:visible a').first()[0].addClass('active');
 			//setup sticky on first page load
 			SetTablePageHeader_ZebraPin();
 			float_fppStickyThead();
