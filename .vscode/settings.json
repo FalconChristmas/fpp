@@ -133,7 +133,8 @@
         "filesystem": "cpp",
         "numbers": "cpp",
         "semaphore": "cpp",
-        "charconv": "cpp"
+        "charconv": "cpp",
+        "execution": "cpp"
     },
     "editor.formatOnSave": true,
     "cmake.configureOnOpen": false,

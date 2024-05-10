@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <vector>
 
+#include "Sequence.h"
 #include "Timers.h"
 #include "Warnings.h"
 #include "common.h"
@@ -40,6 +41,7 @@ OutputMonitor OutputMonitor::INSTANCE;
 
 class CurrentMonitorBase {
 public:
+    CurrentMonitorBase() {}
     CurrentMonitorBase(const Json::Value& c) {
         currentMonitorScale = c["scale"].asFloat();
         if (c.isMember("offset")) {
@@ -111,22 +113,46 @@ public:
     int channel = 0;
 };
 
+class ReceiverInfo {
+public:
+    bool isOn = false;
+    bool hasTriggered = false;
+    bool enabled = false;
+    int pixelCount = -1;
+    int configuredCount = -1;
+    float current = 0.0f;
+    std::string warning;
+};
+
 class PortPinInfo {
 public:
     PortPinInfo(const std::string& n, const Json::Value& c) :
-        name(n), config(c) {}
+        name(n), config(c) {
+        if (config.isMember("row")) {
+            row = config["row"].asInt();
+        }
+        if (config.isMember("col")) {
+            col = config["col"].asInt();
+        }
+    }
     ~PortPinInfo() {
         if (currentMonitor) {
             delete currentMonitor;
         }
     }
 
+    void setConfig(const Json::Value& c) {
+        config = c;
+        if (config.isMember("row")) {
+            row = config["row"].asInt();
+        }
+        if (config.isMember("col")) {
+            col = config["col"].asInt();
+        }
+    }
+
     std::string name;
     Json::Value config;
-
-    bool isOn = false;
-    bool hasTriggered = false;
-    bool enabled = true;
     uint32_t group = 0;
 
     const PinCapabilities* enablePin = nullptr;
@@ -137,35 +163,59 @@ public:
     const PinCapabilities* eFuseInterruptPin = nullptr;
     CurrentMonitorBase* currentMonitor = nullptr;
 
-    int pixelCount = -1;
-    int configuredCount = -1;
-    std::string warning;
+    bool isSmartReceiver = false;
+    ReceiverInfo receivers[6];
+
+    int row = -1;
+    int col = -1;
 
     void appendTo(Json::Value& result) {
         Json::Value v;
         v["name"] = name;
-        if (enablePin) {
-            int pv = enablePin->getValue();
-            v["enabled"] = (pv && highToEnable) || (!pv && !highToEnable);
-        }
-        if (isOn && eFusePin) {
-            v["status"] = eFuseOKValue == eFusePin->getValue();
+
+        if (isSmartReceiver) {
+            v["smartReceivers"] = true;
+            for (int x = 0; x < 6; x++) {
+                if (receivers[x].enabled) {
+                    std::string sri(1, (char)('A' + x));
+                    v[sri]["ma"] = receivers[x].current;
+                    if (receivers[x].hasTriggered) {
+                        v[sri]["status"] = false;
+                        v[sri]["enabled"] = false;
+                    } else {
+                        v[sri]["enabled"] = receivers[x].isOn;
+                        v[sri]["status"] = receivers[x].enabled;
+                    }
+                    if (receivers[x].pixelCount >= 0 && receivers[x].pixelCount < 0xFFFF) {
+                        v[sri]["pixelCount"] = receivers[x].pixelCount;
+                    }
+                }
+            }
         } else {
-            v["status"] = true;
+            if (enablePin) {
+                int pv = enablePin->getValue();
+                v["enabled"] = (pv && highToEnable) || (!pv && !highToEnable);
+            }
+            if (receivers[0].isOn && eFusePin) {
+                v["status"] = eFuseOKValue == eFusePin->getValue();
+            } else {
+                v["status"] = true;
+            }
+            if (currentMonitor) {
+                float f = currentMonitor->getValue();
+                int c = std::round(f);
+                v["ma"] = c;
+            }
+            if (receivers[0].pixelCount >= 0) {
+                v["pixelCount"] = receivers[0].pixelCount;
+            }
         }
-        if (currentMonitor) {
-            float f = currentMonitor->getValue();
-            int c = std::round(f);
-            v["ma"] = c;
+
+        if (row != -1) {
+            v["row"] = row;
         }
-        if (config.isMember("row")) {
-            v["row"] = config["row"];
-        }
-        if (config.isMember("col")) {
-            v["col"] = config["col"];
-        }
-        if (pixelCount >= 0) {
-            v["pixelCount"] = pixelCount;
+        if (col != -1) {
+            v["col"] = col;
         }
         result.append(v);
     }
@@ -305,21 +355,27 @@ void OutputMonitor::checkPixelCounts(const std::string& portList, const std::str
     }
     for (auto p : portPins) {
         if (ports.find(p->name) != ports.end()) {
-            int diff = std::abs(p->configuredCount - p->pixelCount);
-            std::string newWarn;
-            if (diff > sensitivty) {
-                newWarn = p->name + " configured for " + std::to_string(p->configuredCount) + " pixels but " + std::to_string(p->pixelCount) + " pixels detected.";
-            }
-            if (action == "Warn" && newWarn != p->warning) {
-                if (!p->warning.empty()) {
-                    WarningHolder::RemoveWarning(p->warning);
+            for (int x = 0; x < 6; x++) {
+                int diff = std::abs(p->receivers[x].configuredCount - p->receivers[x].pixelCount);
+                std::string newWarn;
+                if (diff > sensitivty) {
+                    newWarn = p->name;
+                    if (p->isSmartReceiver) {
+                        p += (char)('A' + x);
+                    }
+                    newWarn += " configured for " + std::to_string(p->receivers[x].configuredCount) + " pixels but " + std::to_string(p->receivers[x].pixelCount) + " pixels detected.";
                 }
-                p->warning = newWarn;
-                if (!p->warning.empty()) {
-                    WarningHolder::AddWarning(p->warning);
+                if (action == "Warn" && newWarn != p->receivers[x].warning) {
+                    if (!p->receivers[x].warning.empty()) {
+                        WarningHolder::RemoveWarning(p->receivers[x].warning);
+                    }
+                    p->receivers[x].warning = newWarn;
+                    if (!p->receivers[x].warning.empty()) {
+                        WarningHolder::AddWarning(p->receivers[x].warning);
+                    }
+                } else if (action == "Log") {
+                    LogInfo(VB_CHANNELOUT, "%s\n", newWarn.c_str());
                 }
-            } else if (action == "Log") {
-                LogInfo(VB_CHANNELOUT, "%s\n", newWarn.c_str());
             }
         }
     }
@@ -333,14 +389,16 @@ void OutputMonitor::EnableOutputs() {
     PinCapabilities::SetMultiPinValue(pullHighOutputPins, 1);
     PinCapabilities::SetMultiPinValue(pullLowOutputPins, 0);
     for (auto p : portPins) {
-        if (p->enabled) {
-            p->isOn = true;
-            p->hasTriggered = false;
+        for (auto& r : p->receivers) {
+            if (r.enabled) {
+                r.isOn = true;
+                r.hasTriggered = false;
+            }
         }
     }
     for (auto p : portPins) {
         if (p->eFusePin && p->eFusePin->getValue() == p->eFuseOKValue) {
-            WarningHolder::RemoveWarning("eFUSE Triggered for " + p->name);
+            clearEFuseWarning(p, 0);
         }
     }
     lock.unlock();
@@ -352,7 +410,12 @@ void OutputMonitor::DisableOutputs() {
     }
     std::unique_lock<std::mutex> lock(gpioLock);
     for (auto p : portPins) {
-        p->isOn = false;
+        for (auto& r : p->receivers) {
+            r.isOn = false;
+            if (p->isSmartReceiver) {
+                r.current = 0;
+            }
+        }
     }
     PinCapabilities::SetMultiPinValue(pullHighOutputPins, 0);
     PinCapabilities::SetMultiPinValue(pullLowOutputPins, 1);
@@ -362,28 +425,48 @@ void OutputMonitor::DisableOutputs() {
 
 void OutputMonitor::SetOutput(const std::string& port, bool on) {
     std::unique_lock<std::mutex> lock(gpioLock);
+    int pn = 0;
     for (auto p : portPins) {
         if (p->name == port && p->enablePin) {
-            p->hasTriggered = false;
-            p->isOn = on;
+            p->receivers[0].hasTriggered = false;
+            p->receivers[0].isOn = on;
             int value = p->highToEnable ? on : !on;
-            WarningHolder::RemoveWarning("eFUSE Triggered for " + p->name);
+            clearEFuseWarning(p, 0);
             p->enablePin->setValue(value);
             return;
+        } else if (p->isSmartReceiver) {
+            for (int x = 0; x < 6; x++) {
+                if (port == std::string(p->name) + std::string(1, 'A' + x)) {
+                    bool isOn = p->receivers[x].isOn && !p->receivers[x].hasTriggered;
+                    if (p->receivers[x].hasTriggered) {
+                        srCallback(pn, x, "ResetOutput");
+                    } else if (on != isOn) {
+                        srCallback(pn, x, "ToggleOutput");
+                    }
+                }
+            }
         }
+        pn++;
     }
 }
 
-void OutputMonitor::AddPortConfiguration(const std::string& name, const Json::Value& pinConfig, bool enabled) {
+void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig, bool enabled) {
+    std::string name = "Port " + std::to_string(port + 1);
+    if (port < portPins.size() && portPins[port]->name == name) {
+        portPins[port]->setConfig(pinConfig);
+        return;
+    }
+
     PortPinInfo* pi = new PortPinInfo(name, pinConfig);
     bool hasInfo = false;
+    pi->receivers[0].enabled = true;
     if (pinConfig.isMember("enablePin")) {
         std::string ep = pinConfig.get("enablePin", "").asString();
         if (ep != "") {
             pi->enablePin = AddOutputPin(name, ep);
             pi->highToEnable = (ep[0] != '!');
             if (!enabled) {
-                pi->enabled = false;
+                pi->receivers[0].enabled = false;
                 if (pi->highToEnable) {
                     pullHighOutputPins.pop_back();
                 } else {
@@ -436,11 +519,10 @@ void OutputMonitor::AddPortConfiguration(const std::string& name, const Json::Va
                                         // make sure the port is turned off
                                         a->enablePin->setValue(a->highToEnable ? 0 : 1);
                                     }
-                                    if (a->isOn && !a->hasTriggered) {
+                                    if (a->receivers[0].isOn && !a->receivers[0].hasTriggered) {
                                         // Output SHOULD be on, but the fuse triggered.  That's a warning.
-                                        LogWarn(VB_CHANNELOUT, "eFUSE Triggered for " + a->name + "\n");
-                                        WarningHolder::AddWarning("eFUSE Triggered for " + a->name);
-                                        a->hasTriggered = true;
+                                        addEFuseWarning(a, 0);
+                                        a->receivers[0].hasTriggered = true;
                                     }
                                 }
                             }
@@ -474,21 +556,15 @@ void OutputMonitor::AddPortConfiguration(const std::string& name, const Json::Va
             if (pi->eFuseInterruptPin == nullptr) {
                 GPIOManager::INSTANCE.AddGPIOCallback(pi->eFusePin, [this, pi](int v) {
                     std::unique_lock<std::mutex> lock(gpioLock);
-                    //printf("eFuse for %s trigger: %d    %d\n", pi->name.c_str(), v, pi->eFusePin->getValue());
+                    // printf("eFuse for %s trigger: %d    %d\n", pi->name.c_str(), v, pi->eFusePin->getValue());
                     v = pi->eFusePin->getValue();
                     if (v != pi->eFuseOKValue) {
                         if (pi->enablePin) {
                             // make sure the port is turned off
                             pi->enablePin->setValue(pi->highToEnable ? 0 : 1);
                         }
-                        if (pi->isOn) {
-                            LogWarn(VB_CHANNELOUT, "eFUSE Triggered for " + pi->name + "\n");
-                            // Output SHOULD be on, but the fuse triggered.  That's a warning.
-                            WarningHolder::AddWarning("eFUSE Triggered for " + pi->name);
-
-                            std::map<std::string, std::string> keywords;
-                            keywords["PORT"] = pi->name;
-                            CommandManager::INSTANCE.TriggerPreset("EFUSE_TRIGGERED", keywords);
+                        if (pi->receivers[0].isOn) {
+                            addEFuseWarning(pi, 0);
                         }
                     }
                     return true;
@@ -506,9 +582,47 @@ void OutputMonitor::AddPortConfiguration(const std::string& name, const Json::Va
             pi->currentMonitor = new SensorCurrentMonitor(pinConfig["currentSensor"]);
         }
     }
-
     if (hasInfo) {
         portPins.push_back(pi);
+    } else if (pinConfig.isMember("falconV5Listener")) {
+        int mr = -1;
+        bool hasSR = false;
+        for (auto a : portPins) {
+            mr = std::max(mr, a->row);
+            hasSR |= a->isSmartReceiver;
+        }
+
+        int col = portPins.empty() ? 1 : portPins.back()->col;
+
+        pi->isSmartReceiver = true;
+        pi->group = -1;
+        pi->receivers[0].enabled = false;
+        portPins.push_back(pi);
+
+        if (!hasSR || col == 8) {
+            col = 1;
+            mr += hasSR ? 8 : 1;
+        } else {
+            col = 5;
+        }
+
+        if (pi->row == -1) {
+            pi->col = col;
+            pi->row = mr;
+        }
+        int mc = pi->col;
+        mr = pi->row;
+        for (int x = 1; x < 4; x++) {
+            std::string name = "Port " + std::to_string(port + 1 + x);
+            pi = new PortPinInfo(name, pinConfig);
+            if (pi->row == -1) {
+                pi->row = mr;
+                pi->col = mc + x;
+            }
+            pi->isSmartReceiver = true;
+            pi->group = -1;
+            portPins.push_back(pi);
+        }
     } else {
         delete pi;
     }
@@ -559,7 +673,7 @@ void OutputMonitor::lockToGroup(int i) {
     Sensors::INSTANCE.lockToGroup(i);
 }
 bool OutputMonitor::isPortInGroup(int group, int port) {
-    return ((port < portPins.size()) && (group == portPins[port]->group));
+    return ((port < portPins.size()) && portPins[port] && (group == portPins[port]->group));
 }
 
 std::vector<float> OutputMonitor::GetPortCurrentValues() {
@@ -570,20 +684,20 @@ std::vector<float> OutputMonitor::GetPortCurrentValues() {
         if (a->currentMonitor && ((curGroup == -1) || (curGroup == a->group))) {
             ret.push_back(a->currentMonitor->getValue());
         } else {
-            ret.push_back(0);
+            ret.push_back(a->receivers[0].current);
         }
     }
     return ret;
 }
 void OutputMonitor::SetPixelCount(int port, int pc, int cc) {
-    if (port < portPins.size() && ((curGroup == -1) || (curGroup == portPins[port]->group))) {
-        portPins[port]->pixelCount = pc;
-        portPins[port]->configuredCount = cc;
+    if (port < portPins.size() && portPins[port] && ((curGroup == -1) || (curGroup == portPins[port]->group))) {
+        portPins[port]->receivers[0].pixelCount = pc;
+        portPins[port]->receivers[0].configuredCount = cc;
     }
 }
 int OutputMonitor::GetPixelCount(int port) {
-    if (port < portPins.size()) {
-        return portPins[port]->pixelCount;
+    if (port < portPins.size() && portPins[port]) {
+        return portPins[port]->receivers[0].pixelCount;
     }
     return 0;
 }
@@ -597,6 +711,55 @@ void OutputMonitor::GetCurrentPortStatusJson(Json::Value& result) {
     }
 }
 
+void OutputMonitor::addEFuseWarning(PortPinInfo* pi, int rec) {
+    std::string name = pi->name;
+    if (pi->isSmartReceiver) {
+        name += std::string(1, 'A' + rec);
+    }
+    std::string warn = "eFUSE Triggered for " + name;
+
+    if (!pi->receivers[rec].warning.starts_with(warn)) {
+        if (sequence->IsSequenceRunning()) {
+            std::string seq = sequence->m_seqFilename;
+            int sTime = sequence->m_seqMSElapsed / 1000;
+            warn += " (" + seq + "/" + std::to_string(sTime / 60) + ":" + std::to_string(sTime % 60) + ")";
+        }
+
+        LogWarn(VB_CHANNELOUT, warn + "\n");
+        // Output SHOULD be on, but the fuse triggered.  That's a warning.
+        WarningHolder::AddWarning(warn);
+        pi->receivers[rec].warning = warn;
+
+        std::map<std::string, std::string> keywords;
+        keywords["PORT"] = name;
+        CommandManager::INSTANCE.TriggerPreset("EFUSE_TRIGGERED", keywords);
+    }
+}
+void OutputMonitor::clearEFuseWarning(PortPinInfo* port, int rec) {
+    if (!port->receivers[rec].warning.empty()) {
+        WarningHolder::RemoveWarning(port->receivers[rec].warning);
+        port->receivers[rec].warning.clear();
+    }
+}
+
+void OutputMonitor::setSmartReceiverInfo(int port, int index, bool enabled, bool tripped, int current, int pixelCount) {
+    // printf("      %d  %c:     Current:  %d     PC:  %d    EN: %d    TR: %d\n", port + 1, (char)('A' + index), current, pixelCount, enabled, tripped);
+    if (port < portPins.size()) {
+        portPins[port]->receivers[index].enabled = true;
+        portPins[port]->receivers[index].isOn = enabled;
+        portPins[port]->receivers[index].hasTriggered = tripped;
+        portPins[port]->receivers[index].pixelCount = pixelCount;
+        portPins[port]->receivers[index].current = current;
+
+        if (tripped) {
+            // printf("      %d  %c:     Current:  %d     PC:  %d    EN: %d    TR: %d\n", port + 1, (char)('A' + index), current, pixelCount, enabled, tripped);
+            addEFuseWarning(portPins[port], index);
+        } else {
+            clearEFuseWarning(portPins[port], index);
+        }
+    }
+}
+
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> OutputMonitor::render_GET(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     if (plen > 1 && req.get_path_pieces()[1] == "ports") {
@@ -604,7 +767,15 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> OutputMonitor::re
             Json::Value result;
             result.append("--ALL--");
             for (auto a : portPins) {
-                result.append(a->name);
+                if (a->isSmartReceiver) {
+                    for (int x = 0; x < 6; x++) {
+                        if (a->receivers[x].enabled) {
+                            result.append(a->name + std::string(1, 'A' + x));
+                        }
+                    }
+                } else {
+                    result.append(a->name);
+                }
             }
             std::string resultStr = SaveJsonToString(result);
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));

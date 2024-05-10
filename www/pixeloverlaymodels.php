@@ -459,37 +459,6 @@ function pageSpecific_PageLoad_DOM_Setup(){
 }
 
 function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
-    //Set StickyHeader on channelMemMaps table
-    //console.log('here hreher erer');
-/*      var $table = $('#channelMemMaps');
-                $table.floatThead({
-                top: zebraPinSubContentTop,
-                bottom: zebraPinSubContentTop,
-                position: 'fixed',
-                zIndex: 990,
-                debug: false ,
-                autoReflow: true,
-                responsiveContainer: function($table) {
-                    return $table.closest(".fppTableContents");
-                    }
-                });
-                
-
-    //Set StickyHeader on channelMemMapsAutoCreate table
-    if ($('#channelMemMapsAutoCreate tbody tr').length > 0) {
-      var $table = $('#channelMemMapsAutoCreate');
-                $table.floatThead({
-                top: zebraPinSubContentTop,
-                position: 'fixed',
-                zIndex: 990,
-                debug: false ,
-                autoReflow: true,
-                responsiveContainer: function($table) {
-                    return $table.closest(".fppTableContents");
-                    }
-                });
-            } */
-
         //Mouse click on table rows
         $('#channelMemMaps').on('mousedown', 'tr', function(event,ui) {
 			HandleTableRowMouseClick(event, $(this));

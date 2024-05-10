@@ -30,7 +30,7 @@ public:
     void Initialize(std::map<int, std::function<bool(int)>>& callbacks);
     void Cleanup();
 
-    void AddPortConfiguration(const std::string& name, const Json::Value& config, bool enabled = true);
+    void AddPortConfiguration(int port, const Json::Value& config, bool enabled = true);
     const PinCapabilities* AddOutputPin(const std::string& name, const std::string& pin);
 
     void EnableOutputs();
@@ -54,6 +54,11 @@ public:
 
     void checkPixelCounts(const std::string& portList, const std::string& action, int sensitivy);
 
+    void setSmartReceiverInfo(int port, int index, bool enabled, bool tripped, int current, int pixelCount);
+    void setSmartReceiverEventCallback(std::function<void(int port, int index, const std::string& cmd)>&& f) {
+        srCallback = f;
+    }
+
 private:
     OutputMonitor();
     ~OutputMonitor();
@@ -66,4 +71,9 @@ private:
     std::mutex gpioLock;
     int numGroups = 1;
     int curGroup = -1;
+
+    std::function<void(int port, int index, const std::string& cmd)> srCallback;
+
+    void addEFuseWarning(PortPinInfo* port, int rec = 0);
+    void clearEFuseWarning(PortPinInfo* port, int rec = 0);
 };

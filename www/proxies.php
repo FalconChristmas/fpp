@@ -56,6 +56,7 @@ if (file_exists("$mediaDirectory/config/proxies")) {
                 "</td></tr>");
         }
 
+
         function RenumberColumns(tableName) {
             var id = 1;
             $('#' + tableName + ' tbody tr').each(function () {
@@ -63,6 +64,7 @@ if (file_exists("$mediaDirectory/config/proxies")) {
                 $this.find("td:first").html(id);
                 id++;
             });
+
         }
         function DeleteSelectedProxy() {
             if (tableInfo.selected >= 0) {

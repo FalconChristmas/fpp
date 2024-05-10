@@ -103,7 +103,8 @@ extraCommands = [
                 "Up", "Down", "Back", "Enter", "Test", "Test/Down", "Test Multisync"
             ]
         }
-    ]
+    ],
+    "supportsMulticast" : false
 }
 ];
 

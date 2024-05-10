@@ -246,7 +246,7 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
         AddVirtualString(VirtualString());
     }
     if (pinConfig) {
-        OutputMonitor::INSTANCE.AddPortConfiguration("Port #" + std::to_string(m_portNumber + 1), *pinConfig, m_outputChannels > 0);
+        OutputMonitor::INSTANCE.AddPortConfiguration(m_portNumber, *pinConfig, m_outputChannels > 0);
     }
 
     m_outputMap.resize(m_outputChannels);

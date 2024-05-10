@@ -765,9 +765,9 @@ static const int V2FSEQ_HEADER_SIZE = 32;
 static const int V2FSEQ_SPARSE_RANGE_SIZE = 6;
 static const int V2FSEQ_COMPRESSION_BLOCK_SIZE = 8;
 #if !defined(NO_ZLIB) || !defined(NO_ZSTD)
-static const int V2FSEQ_OUT_BUFFER_SIZE = 1024 * 1024;          // 1MB output buffer
-static const int V2FSEQ_OUT_BUFFER_FLUSH_SIZE = 900 * 1024;     // 90% full, flush it
-static const int V2FSEQ_OUT_COMPRESSION_BLOCK_SIZE = 64 * 1024; // 64KB blocks
+static const int V2FSEQ_OUT_BUFFER_SIZE = 8 * 1024 * 1024;       // 8MB output buffer
+static const int V2FSEQ_OUT_BUFFER_FLUSH_SIZE = 4 * 1024 * 1024; // 50% full, flush it
+static const int V2FSEQ_OUT_COMPRESSION_BLOCK_SIZE = 64 * 1024;  // 64KB blocks
 #endif
 
 class V2Handler {
@@ -1203,21 +1203,20 @@ public:
         return data;
     }
     void compressData(ZSTD_CStream* m_cctx, ZSTD_inBuffer_s& input, ZSTD_outBuffer_s& output) {
-        ZSTD_compressStream(m_cctx, &output, &input);
-        int count = input.pos;
-        int total = input.size;
+        ZSTD_compressStream2(m_cctx, &output, &input, ZSTD_e_continue);
+        size_t count = input.pos;
+        size_t total = input.size;
         uint8_t* curData = (uint8_t*)input.src;
         while (count < total) {
-            count += input.pos;
             curData += input.pos;
             input.src = curData;
             input.size -= input.pos;
             input.pos = 0;
-            if (output.pos) {
+            if (output.pos > V2FSEQ_OUT_BUFFER_FLUSH_SIZE) {
                 write(output.dst, output.pos);
                 output.pos = 0;
             }
-            ZSTD_compressStream(m_cctx, &output, &input);
+            ZSTD_compressStream2(m_cctx, &output, &input, ZSTD_e_continue);
             count += input.pos;
         }
     }
@@ -1277,7 +1276,10 @@ public:
         //we'll start a new block.  We want the first block to be small so startup is
         //quicker and we can get the first few frames as fast as possible.
         if ((m_curBlock == 0 && m_curFrameInBlock == 10) || (m_curFrameInBlock >= m_framesPerBlock && m_file->m_frameOffsets.size() < m_maxBlocks)) {
-            while (ZSTD_endStream(m_cctx, &m_outBuffer) > 0) {
+            ZSTD_inBuffer_s input = {
+                0, 0, 0
+            };
+            while (ZSTD_compressStream2(m_cctx, &m_outBuffer, &input, ZSTD_e_end) > 0) {
                 write(m_outBuffer.dst, m_outBuffer.pos);
                 m_outBuffer.pos = 0;
             }
@@ -1290,7 +1292,10 @@ public:
     }
     virtual void finalize() override {
         if (m_curFrameInBlock) {
-            while (ZSTD_endStream(m_cctx, &m_outBuffer) > 0) {
+            ZSTD_inBuffer_s input = {
+                0, 0, 0
+            };
+            while (ZSTD_compressStream2(m_cctx, &m_outBuffer, &input, ZSTD_e_end) > 0) {
                 write(m_outBuffer.dst, m_outBuffer.pos);
                 m_outBuffer.pos = 0;
             }
@@ -1303,7 +1308,7 @@ public:
         V2CompressedHandler::finalize();
     }
 
-    ZSTD_CStream* m_cctx = nullptr;
+    ZSTD_CCtx* m_cctx = nullptr;
     ZSTD_DStream* m_dctx = nullptr;
     ZSTD_outBuffer_s m_outBuffer;
     ZSTD_inBuffer_s m_inBuffer;
