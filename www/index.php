@@ -522,102 +522,106 @@
                                 </div>
                             </div>
 
-                            <div id="controlsSection" class="row statusPageControlsRow d-flex justify-content-between">
-                                <!-- Player Controls -->
-                                <div id="playerControls" class="col-xs-12 col-md-8 col-lg-8 col-xxl-7">
-                                    <button id="btnPlay" class="buttons btn-rounded btn-success disableButtons"
-                                        onClick="StartPlaylistNow();">
+                            <div id="controlsSection" class="row container">
+                                <div class="row">
+                                    <!-- Player Controls -->
+                                    <div id="playerControls" class="container col-xs-12 col-md-8 col-lg-8 col-xxl-7">
+                                        <button id="btnPlay" class="buttons btn-rounded btn-success disableButtons"
+                                            onClick="StartPlaylistNow();">
 
-                                        <i class='fas fa-fw fa-play'></i>
-                                        <span class="playerControlButton-text">Play</span>
-                                    </button>
-                                    <button id="btnPrev" class="buttons btn-rounded btn-pleasant disableButtons"
-                                        onClick="PreviousPlaylistEntry();">
+                                            <i class='fas fa-fw fa-play'></i>
+                                            <span class="playerControlButton-text">Play</span>
+                                        </button>
+                                        <button id="btnPrev" class="buttons btn-rounded btn-pleasant disableButtons"
+                                            onClick="PreviousPlaylistEntry();">
 
-                                        <i class='fas fa-fw fa-step-backward'></i>
-                                        <span class="playerControlButton-text">Previous</span>
-                                    </button>
-                                    <button id="btnNext" class="buttons btn-rounded btn-pleasant disableButtons"
-                                        onClick="NextPlaylistEntry();">
+                                            <i class='fas fa-fw fa-step-backward'></i>
+                                            <span class="playerControlButton-text">Previous</span>
+                                        </button>
+                                        <button id="btnNext" class="buttons btn-rounded btn-pleasant disableButtons"
+                                            onClick="NextPlaylistEntry();">
 
-                                        <i class='fas fa-fw fa-step-forward'></i>
-                                        <span class="playerControlButton-text">Next</span>
-                                    </button>
-                                    <button id="btnStopGracefully"
-                                        class="buttons btn-rounded btn-graceful disableButtons"
-                                        onClick="StopGracefully();">
+                                            <i class='fas fa-fw fa-step-forward'></i>
+                                            <span class="playerControlButton-text">Next</span>
+                                        </button>
+                                        <button id="btnStopGracefully"
+                                            class="buttons btn-rounded btn-graceful disableButtons"
+                                            onClick="StopGracefully();">
 
-                                        <i class='fas fa-fw fa-stop'></i>
-                                        <span class="playerControlButton-text">
-                                            Stop
-                                            <span class="playerControlButton-text-important">Graceful</span>ly
-                                        </span>
-                                    </button>
-                                    <button id="btnStopGracefullyAfterLoop"
-                                        class="buttons btn-rounded btn-detract disableButtons"
-                                        onClick="StopGracefullyAfterLoop();">
+                                            <i class='fas fa-fw fa-stop'></i>
+                                            <span class="playerControlButton-text">
+                                                Stop
+                                                <span class="playerControlButton-text-important">Graceful</span>ly
+                                            </span>
+                                        </button>
+                                        <button id="btnStopGracefullyAfterLoop"
+                                            class="buttons btn-rounded btn-detract disableButtons"
+                                            onClick="StopGracefullyAfterLoop();">
 
-                                        <i class='fas fa-fw fa-hourglass-half'></i>
-                                        <span class="playerControlButton-text">
-                                            Stop
-                                            <span class="playerControlButton-text-important">After Loop</span>
-                                        </span>
-                                    </button>
-                                    <button id="btnStopNow" class="buttons btn-rounded btn-danger disableButtons"
-                                        onClick="StopNow();">
+                                            <i class='fas fa-fw fa-hourglass-half'></i>
+                                            <span class="playerControlButton-text">
+                                                Stop
+                                                <span class="playerControlButton-text-important">After Loop</span>
+                                            </span>
+                                        </button>
+                                        <button id="btnStopNow" class="buttons btn-rounded btn-danger disableButtons"
+                                            onClick="StopNow();">
 
-                                        <i class='fas fa-fw fa-hand-paper'></i>
-                                        <span class="playerControlButton-text">
-                                            Stop
-                                            <span class="playerControlButton-text-important">Now</span>
-                                        </span>
-                                    </button>
-                                </div>
+                                            <i class='fas fa-fw fa-hand-paper'></i>
+                                            <span class="playerControlButton-text">
+                                                Stop
+                                                <span class="playerControlButton-text-important">Now</span>
+                                            </span>
+                                        </button>
+                                    </div>
 
-                                <!-- elapsed status -->
+                                    <!-- elapsed status -->
 
-                                <div id='playerTime' class='col-xs-12 col-md-4 col-lg-4 col-xxl-2 container'>
-                                    <div class="d-flex justify-content-around">
-                                        <div class="labelHeading col-3 text-end"><span id="txtTimePlayed"
-                                                class="text-end">02:00</span><br>Elapsed</div>
-                                        <div class="progress progress-linear col-6" role="progressbar"
-                                            aria-label="Playlist Item Progress" aria-valuenow="0" aria-valuemin="0"
-                                            aria-valuemax="100">
-                                            <div class="progress-bar bg-success" style="width: 0%">
-                                                <div id="txtPercentageComplete" class=""></div>
+                                    <div id='playerTime' class='col-xs-12 col-md-4 col-lg-4 col-xxl-2 container'>
+                                        <div class="d-flex">
+                                            <div class="labelHeading col-3">
+                                                <p class="text-end"><span id="txtTimePlayed">02:00</span><br>
+                                                    Elapsed</p>
+                                            </div>
+                                            <div class="progress progress-linear col-6" role="progressbar"
+                                                aria-label="Playlist Item Progress" aria-valuenow="0" aria-valuemin="0"
+                                                aria-valuemax="100">
+                                                <div class="progress-bar bg-success" style="width: 0%">
+                                                    <div id="txtPercentageComplete" class=""></div>
+                                                </div>
+                                            </div>
+                                            <div class="">
+                                                <div class="labelHeading col-3 text-start"><span
+                                                        id="txtTimeRemaining">02:00</span><br>Remaining</div>
                                             </div>
                                         </div>
-                                        <div class="">
-                                            <div class="labelHeading col-3 text-start"><span
-                                                    id="txtTimeRemaining">02:00</span><br>Remaining</div>
+                                    </div>
+
+
+                                    <!-- Volume Controls -->
+                                    <div
+                                        class="volumeControlsContainer col-xs-12 col-md-12 col-lg-12 col-xxl-3 container">
+                                        <div>
+                                            <div class="labelHeading">Volume</div>
+                                            <span id='volume' class='volume'></span>
                                         </div>
-                                    </div>
-                                </div>
-
-
-                                <!-- Volume Controls -->
-                                <div class="volumeControlsContainer col-xs-12 col-md-12 col-lg-12 col-xxl-3 container">
-                                    <div>
-                                        <div class="labelHeading">Volume</div>
-                                        <span id='volume' class='volume'></span>
-                                    </div>
-                                    <? if ($settings['disableAudioVolumeSlider'] != '1') {
+                                        <? if ($settings['disableAudioVolumeSlider'] != '1') {
+                                            ?>
+                                            <div class="volumeControls">
+                                                <button class='volumeButton buttons' onClick="DecrementVolume();">
+                                                    <i class='fas fa-fw fa-volume-down'></i>
+                                                </button>
+                                                <input type="range" min="0" max="100" class="slider" id="slider">
+                                                <button class='volumeButton buttons' onClick="IncrementVolume();">
+                                                    <i class='fas fa-fw fa-volume-up'></i>
+                                                </button>
+                                                <span id='speaker'></span> <!-- Volume -->
+                                            </div>
+                                            <?php
+                                        }
                                         ?>
-                                        <div class="volumeControls">
-                                            <button class='volumeButton buttons' onClick="DecrementVolume();">
-                                                <i class='fas fa-fw fa-volume-down'></i>
-                                            </button>
-                                            <input type="range" min="0" max="100" class="slider" id="slider">
-                                            <button class='volumeButton buttons' onClick="IncrementVolume();">
-                                                <i class='fas fa-fw fa-volume-up'></i>
-                                            </button>
-                                            <span id='speaker'></span> <!-- Volume -->
-                                        </div>
-                                        <?php
-                                    }
-                                    ?>
+                                    </div>
                                 </div>
-
                             </div>
                         </div>
 
