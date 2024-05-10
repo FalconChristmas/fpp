@@ -98,7 +98,7 @@ function printLEDPanelGammaSelect($platform, $gamma)
     if (!isset($gamma) || $gamma == "" || $gamma == "0") {
         $gamma = "2.2";
     }
-    echo "<input type='number' min='0.1' max='5.0' step='0.1' value='$gamma' id='LEDPanelsGamma'/>";
+    echo "<input type='number' min='0.1' max='5.0' step='0.1' value='$gamma' id='LEDPanelsGamma'>";
 }
 
 function printLEDPanelInterleaveSelect($platform)
@@ -1292,9 +1292,8 @@ if ((isset($settings['cape-info'])) &&
 
 </script>
 
-<div id='tab-LEDPanels'>
 	<div id='divLEDPanels'>
-        <div class="row tablePageHeader">
+        <div class="row tableTabPageHeader">
             <div class="col-md"><h2><span class='capeNamePanels'>LED Panels</span> </h2></div>
             <div class="col-md-auto ms-lg-auto">
                 <div class="form-actions">
@@ -1513,7 +1512,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
         </div>
   </div>
 
-		<div id='divLEDPanelsData'>
+		<div id='divLEDPanelsLayoutData'>
 			<div style="padding: 10px;">
                 <br>
                 <b>LED Panel Layout:</b><br>
@@ -1530,8 +1529,8 @@ if ($settings['Platform'] == "Raspberry Pi") {
                     <table class='ledPanelCanvasUI' style='display:none;'>
                         <tr>
                             <td><canvas id='ledPanelCanvas' width='900' height='400' style='border: 2px solid rgb(0,0,0);'></canvas></td>
-                            <td width='10px'></td>
-                            <td valign='top'>
+                            <td></td>
+                            <td>
                                 <b>Selected Panel:</b><br>
                                 <table>
                                     <tr><td>Output:</td><td>
@@ -1565,7 +1564,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
                                     <tr>
                                         <td><b>UI Layout Size:</b></td>
                                         <td>Pixels Wide:</td><td><?PrintSettingTextSaved("LEDPanelUIPixelsWide", 2, 0, 4, 4, "", "256", "SetCanvasSize");?></td>
-                                        <td width='10px'></td>
+                                        <td></td>
                                         <td>Pixels High:</td><td><?PrintSettingTextSaved("LEDPanelUIPixelsHigh", 2, 0, 4, 4, "", "128", "SetCanvasSize");?></td>
                                     </tr>
                                 </table>
@@ -1573,7 +1572,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
                         </tr>
                     </table>
                     <div class='ledPanelSimpleUI'>
-                        <table id='LEDPanelTable' border=1>
+                        <table id='LEDPanelTable'>
                             <tbody>
                             </tbody>
                         </table>
@@ -1581,7 +1580,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 				    - O-# is physical output number.<br>
 			    	- P-# is panel number on physical output.<br>
 		    		- C-(color) is color order if panel has different color order than default (C-Def).<br>
-	    			- Arrow <img src='images/arrow_N.png' height=17 width=17> indicates panel orientation, click arrow to rotate.<br>
+	    			- Arrow <img src='images/arrow_N.png' height=17 width=17 alt="panel orientation"> indicates panel orientation, click arrow to rotate.<br>
                 </div>
                 <br>
                 <b>Notes and hints:</b>
@@ -1605,7 +1604,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
                 </ul>
 		    </div>
 	    </div>
-	</div>
-</div>
+
+
 
 

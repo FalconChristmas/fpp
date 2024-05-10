@@ -105,8 +105,12 @@ function playlist_list_validate()
             $valid = false;
         }
 
+        //print_r($pl);
+        $plDesc = $pl->desc;
+
         array_push($rc, array(
             "name" => $plName,
+            "description" => $plDesc,
             "valid" => $valid,
             "messages" => $msg,
         )

@@ -2,7 +2,7 @@
 header("Access-Control-Allow-Origin: *");
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <?php
 require_once 'common.php';
 require_once 'config.php';
@@ -831,7 +831,7 @@ if (isset($currentCapeInfo['vendor']['url'])) {
             if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "" && $settings['SendVendorSerial'] == 1) {
                 $iurl = $iurl . "&cs=" . $currentCapeInfo['cs'];
             }
-            echo "<tr><td colspan=\"2\"><a href=\"" . $landing . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $iurl . "\" /></a></td></tr>";
+            echo "<tr><td colspan=\"2\"><a href=\"" . $landing . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $iurl . "\" ></a></td></tr>";
         }
         ?>
                        </table>

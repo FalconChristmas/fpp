@@ -459,32 +459,6 @@ function pageSpecific_PageLoad_DOM_Setup(){
 }
 
 function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
-    //Set StickyHeader on channelMemMaps table
-     var $table = $('#channelMemMaps');
-                $table.floatThead({
-                top: zebraPinSubContentTop,
-                position: 'fixed',
-                zIndex: 990,
-                debug: false ,
-                autoReflow: true,
-                responsiveContainer: function($table) {
-                    return $table.closest(".fppTableContents");
-                    }
-                });
-
-    //Set StickyHeader on channelMemMapsAutoCreate table
-      var $table = $('#channelMemMapsAutoCreate');
-                $table.floatThead({
-                top: zebraPinSubContentTop,
-                position: 'fixed',
-                zIndex: 990,
-                debug: false ,
-                autoReflow: true,
-                responsiveContainer: function($table) {
-                    return $table.closest(".fppTableContents");
-                    }
-                });
-
         //Mouse click on table rows
         $('#channelMemMaps').on('mousedown', 'tr', function(event,ui) {
 			HandleTableRowMouseClick(event, $(this));
@@ -534,9 +508,9 @@ include 'menu.inc';?>
                 Create Overlays Automatically From Outputs: <input id="AutoCreatePixelOverlays" type="checkbox" checked/>
                 </div>
                 <hr>
-				<div class='fppTableWrapper fppTableWrapperAsTable'>
+				<div class='fppTableWrapper fppTableWrapperAsTable fppFThScrollContainer'>
                     <div class='fppTableContents' role="region" aria-labelledby="channelMemMaps" tabindex="0">
-                        <table id="channelMemMaps" class="fppSelectableRowTable">
+                        <table id="channelMemMaps" class="fppSelectableRowTable fppStickyTheadTable">
                             <thead>
                                 <tr>
 									<th class="tblChannelMemMapsHeadGrip"></th>
@@ -563,9 +537,9 @@ include 'menu.inc';?>
                         <h2>Auto Created Pixel Overlay Models</h2>
                     </div>
                 </div>
-				<div class='fppTableWrapper fppTableWrapperAsTable'>
+				<div class='fppTableWrapper fppTableWrapperAsTable fppFThScrollContainer'>
                     <div class='fppTableContents' role="region" aria-labelledby="channelMemMapsAutoCreate" tabindex="0">
-                        <table id="channelMemMapsAutoCreate" class="fppSelectableRowTable">
+                        <table id="channelMemMapsAutoCreate" class="fppSelectableRowTable fppStickyTheadTable">
                             <thead>
                                 <tr>
 									<th class="tblChannelMemMapsHeadGrip"></th>

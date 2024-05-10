@@ -70,9 +70,9 @@ function list_plugin_entries($menu) {
     <div class="headerLeft">
           <div class="headerLeftCol fppBrand">
             <a href="index.php">
-              <img src='<?= $themeInfo["HEADER_LOGO1"] ?>' class="logo" title="Host: <? echo $settings['HostName']; ?>" />
+              <img src='<?= $themeInfo["HEADER_LOGO1"] ?>' class="logo" title="Host: <? echo $settings['HostName']; ?>" >
               <? if (isset($themeInfo["HEADER_LOGO2"]) && $themeInfo["HEADER_LOGO2"] != "" ) {
-                echo "<img src='" . $themeInfo["HEADER_LOGO2"] . "' class='fpp-logo'  title='Host: " . $settings["HostName"] . "' />";
+                echo "<img src='" . $themeInfo["HEADER_LOGO2"] . "' class='fpp-logo'  title='Host: " . $settings["HostName"] . "' >";
               }
               ?>
             </a>
@@ -128,7 +128,7 @@ function list_plugin_entries($menu) {
                       <div class="capeVendor">
                         <div class="capeVendorLogo">
                           <a href="<? echo $landing; ?>" target="capeVendor">
-                           <img src="<? echo $iurl; ?>" class="logo" / >
+                           <img src="<? echo $iurl; ?>" class="logo" >
                           </a>
                         </div>
                       </div>

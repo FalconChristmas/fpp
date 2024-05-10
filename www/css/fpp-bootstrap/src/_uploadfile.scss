@@ -63,7 +63,7 @@ display: inline-block
 }
 .ajax-file-upload {
     @extend .btn;
-    @extend .btn-dark; 
+    @extend .btn-dark !optional; 
     max-width: 250px;
 }
     

@@ -2,7 +2,7 @@
 header( "Access-Control-Allow-Origin: *");
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <?
 $skipJSsettings = 1;
 require_once("common.php");

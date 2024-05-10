@@ -2,7 +2,7 @@
 if (!isset($_GET['nohtml'])) {
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <?php
 }
 

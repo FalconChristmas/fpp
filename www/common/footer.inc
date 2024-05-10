@@ -21,7 +21,7 @@
 
 
 <div id="footer">
-<br />
+<br>
   <div id="rebootShutdown">
     <button type='button' class='buttons wideButton btn-outline-light' onClick='ShowRunCommandPopup();'><span class='hidden' id='runCommandJSON'></span><i class='fas fa-fw fa-terminal fa-nbsp'></i>Run FPP Command</button>
     <div class="dropup" id="fppModeDropdown">
@@ -43,7 +43,7 @@
  
  
   </div>
-<br />
+<br>
 <div class="footerLink">
 <a href='<?= $themeInfo["FOOTER_URL"] ?>'><?= $themeInfo["FOOTER_URL_TEXT"] ?></a>
 <?
@@ -53,8 +53,8 @@ if ($themeInfo["FOOTER_URL_TEXT"] != "www.falconplayer.com") {
 ?>
 </div>
 
-<br />
-<br />
+<br>
+<br>
 </div>
 
 </div> <!-- div for fppOuterContainer opened in menu.inc -->
