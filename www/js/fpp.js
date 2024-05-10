@@ -5421,7 +5421,8 @@ function LoadCommandList(commandSelect) {
         PopulateCommandListCache();
     }
 
-    $.each(commandList, function (key, val) {
+    commandListByName = Object.fromEntries(Object.entries(commandListByName).sort());
+    $.each(commandListByName, function (key, val) {
         option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
         commandSelect.append(option);
     });
@@ -5531,7 +5532,7 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
         });
     }
     var line = "<tr id='" + tblCommand + "_multisync_row' ";
-    if (!allowMultisyncCommands || command == "") {
+    if (!allowMultisyncCommands || command == "" || ("supportsMulticast" in co && !co["supportsMulticast"])) {
         line += "style='display:none'";
     }
     line += "><td>Multicast:</td><td><input type='checkbox' id='" + tblCommand
