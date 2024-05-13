@@ -117,8 +117,10 @@ function LoadLocale()
 function ApprovedCape($v)
 {
     if (isset($v["vendor"])) {
-        if (isset($v["vendor"]["name"]) && ($v["vendor"]["name"] == "Upgrade")
-            && isset($v["designer"]) && ($v["designer"] == "Unknown")) {
+        if (
+            isset($v["vendor"]["name"]) && ($v["vendor"]["name"] == "Upgrade")
+            && isset($v["designer"]) && ($v["designer"] == "Unknown")
+        ) {
             return true;
         }
         if (isset($v["vendor"]["name"]) && ($v["vendor"]["name"] == 'FalconChristmas.com')) {
@@ -252,9 +254,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
     } else if (preg_match('/Pi 4/', $settings['SubPlatform']) || preg_match('/Pi Compute Module 4/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 4";
         $settings['Logo'] = "Raspberry_Pi_4.png";
-    } else if (preg_match('/Pi 5/', $settings['SubPlatform']) ) {
+    } else if (preg_match('/Pi 5/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 5";
-        $settings['Logo'] = "Raspberry_Pi_5.png"; 
+        $settings['Logo'] = "Raspberry_Pi_5.png";
     } else if (preg_match('/Pi Zero 2/', $settings['SubPlatform'])) {
         $settings['Variant'] = "PiZero 2";
         $settings['Logo'] = "Raspberry_Pi_Zero2.png";
@@ -403,8 +405,10 @@ if ($fd) {
         if ($key != "") {
             // If we have a Directory setting that doesn't
             // end in a slash, then add one
-            if ((preg_match("/Directory$/", $key)) &&
-                (!preg_match("/\/$/", $value))) {
+            if (
+                (preg_match("/Directory$/", $key)) &&
+                (!preg_match("/\/$/", $value))
+            ) {
                 $value .= "/";
             }
 
@@ -708,12 +712,12 @@ if (file_exists($pluginDirectory)) {
 // so we'll make sure it's in a comment so that discovery will work
 if (!isset($skipJSsettings)) {
     ?>
-<!-- Falcon Player - FPP -->
-<script type="text/javascript">
-    MINYEAR = <?echo MINYEAR; ?>;
-    MAXYEAR = <?echo MAXYEAR; ?>;
-	var settings = new Array();
-<?
+    <!-- Falcon Player - FPP -->
+    <script type="text/javascript">
+        MINYEAR = <?echo MINYEAR; ?>;
+        MAXYEAR = <?echo MAXYEAR; ?>;
+        var settings = new Array();
+        <?
     foreach ($settings as $key => $value) {
         if (!is_array($value)) {
             printf("	settings['%s'] = \"%s\";\n", $key, $value);
@@ -724,32 +728,30 @@ if (!isset($skipJSsettings)) {
     }
     ?>
 
-    var FPP_FULL_VERSION = '<?echo getFPPVersion(); ?>';
-    var FPP_VERSION = '<?echo getFPPVersionFloatStr(); ?>';
-    var FPP_MAJOR_VERSION = <?echo getFPPMajorVersion(); ?>;
-    var FPP_MINOR_VERSION = <?echo getFPPMinorVersion(); ?>;
-    <?if (getFPPPatchVersion() == "") {?>
-    var FPP_PATCH_VERSION = 0;
-    <?} else {?>
-    var FPP_PATCH_VERSION = <?echo getFPPPatchVersion(); ?>;
-    <?}?>
+        var FPP_FULL_VERSION = '<?echo getFPPVersion(); ?>';
+        var FPP_VERSION = '<?echo getFPPVersionFloatStr(); ?>';
+        var FPP_MAJOR_VERSION = <?echo getFPPMajorVersion(); ?>;
+        var FPP_MINOR_VERSION = <?echo getFPPMinorVersion(); ?>;
+        <?if (getFPPPatchVersion() == "") {?>
+            var FPP_PATCH_VERSION = 0;
+        <?} else {?>
+            var FPP_PATCH_VERSION = <?echo getFPPPatchVersion(); ?>;
+        <?}?>
 
-	var pageName = "<?echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
+        var pageName = "<?echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
 
-  var helpPage = "<?echo basename($_SERVER['PHP_SELF']) ?>";
-  if (pageName == "plugin")
-  {
-    var pluginPage = "<?echo preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI']); ?>";
-    var pluginBase = "<?echo preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI'])); ?>";
-    helpPage = pluginBase + "nopage=1&page=help/" + pluginPage;
-  }
-  else
-  {
-    helpPage = "help/" + helpPage;
-  }
+        var helpPage = "<?echo basename($_SERVER['PHP_SELF']) ?>";
+        if (pageName == "plugin") {
+            var pluginPage = "<?echo preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI']); ?>";
+            var pluginBase = "<?echo preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI'])); ?>";
+            helpPage = pluginBase + "nopage=1&page=help/" + pluginPage;
+        }
+        else {
+            helpPage = "help/" + helpPage;
+        }
 
-</script>
-<?
+    </script>
+    <?
 }
 
 // Put variables here that we don't want in the JavaScript settings array

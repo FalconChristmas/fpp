@@ -19,7 +19,7 @@ if (isset($_GET["raw"]) || $_GET["raw"] == 1) {
 if ($raw == 0) {
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <title>
 Remote Push

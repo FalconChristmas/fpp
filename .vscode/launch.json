@@ -1,4 +1,3 @@
-
 {
     "version": "0.2.0",
     "configurations": [
@@ -7,9 +6,32 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "/opt/fpp/src/fppd",
-            "args": [ "-f"],
+            "args": [
+                "-f"
+            ],
             "stopAtEntry": false,
             "cwd": "/opt/fpp/src",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "fppoled (gdb) Foreground",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/opt/fpp/src/fppoled",
+            "args": [
+                "-f"
+            ],
+            "stopAtEntry": false,
+            "cwd": "/opt/fpp/src/oled",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
