@@ -54,7 +54,8 @@
                 onPin: function (scroll, $element) {
                     setTimeout(function () {
                         $('#playerModeInfo .controlsSectionToPin').css({
-                            width: $('#playerModeInfo .controlsSectionToPin').parent().width()
+                            // width: $('#playerModeInfo .controlsSectionToPin').parent().width()
+                            width: $('#programControl').width()
                         });
                     }, 50);
                     //console.log('onPin event triggered for player controls');
@@ -62,8 +63,8 @@
                 top_spacing: $('.header').css('position') == 'fixed' ?
                     $('.header').outerHeight() : 0,
                 //pinpoint_offset: 150,
-                contained: true,
-                position: "relative"
+                contain: false
+
             });
             // Pin Progress bar to top of index page
             /*             zp_playerTime = new $.Zebra_Pin($('#playerModeInfo #playerTime'), {
@@ -81,7 +82,7 @@
                         }); */
 
             //refresh player control positioning
-            pageSpecific_ViewPortChange();
+            zp_playerControls.update();
 
         }
 
