@@ -339,7 +339,13 @@ function ButtonHandler (table, button) {
 				'Error, unable to get info for multiple files at the same time.'
 			);
 		}
-	}
+	} else if (button == 'fileInfo') {
+        if (selectedCount == 1) {
+            eval("FileInfo" + table + "(\"" + filename + "\");");
+        } else {
+            DialogError('Error', 'Error, unable to get info for multiple files at the same time.');
+        }
+    }
 }
 
 function ClearSelections (table) {

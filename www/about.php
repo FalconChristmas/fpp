@@ -92,6 +92,7 @@ function getFileCount($dir)
             }
 
         }
+        closedir($handle);
     }
 
     return $i;
@@ -697,7 +698,34 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                 <? echo getFileCount($scriptDirectory); ?>
                                             </a></td>
                                     </tr>
-
+                                    <?php
+                                    if (file_exists($pluginDirectory)) {
+                                        $handle = opendir($pluginDirectory);
+                                        while (($plugin = readdir($handle)) !== false) {
+                                            if (!in_array($plugin, array('.', '..'))) {
+                                                $pluginInfoFile = $pluginDirectory . "/" . $plugin . "/pluginInfo.json";
+                                                if (file_exists($pluginInfoFile)) {
+                                                    $pluginConfig = json_decode(file_get_contents($pluginInfoFile), true);
+                                                    if (isset($pluginConfig["fileExtensions"])) {
+                                                        foreach ($pluginConfig["fileExtensions"] as $key => $value) {
+                                                            if (isset($value["tab"]) && isset($value["folder"])) {
+                                                                $folder = $mediaDirectory . "/" . $value["folder"];
+                                                                ?>
+                                                                <tr>
+                                                                    <td><?= $value["tab"] ?>:</td>
+                                                                    <td><a href='filemanager.php#tab-<?= $key ?>'
+                                                                            class='nonULLink'><? echo getFileCount($folder); ?></a></td>
+                                                                </tr>
+                                                                <?
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        closedir($handle);                                        
+                                    }
+                                    ?>
                                     <tr>
                                         <td>&nbsp;</td>
                                         <td>&nbsp;</td>
