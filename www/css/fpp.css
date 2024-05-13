@@ -2161,11 +2161,15 @@ body .sm-clean a .sub-arrow {
     margin-bottom: 0;
 }
 
+.controlsSectionToPin {
+    width: 100pc;
+}
 
 .controlsSectionToPin.Zebra_Pin {
     background-color: #fff;
     box-shadow: 0px 5px 4px -5px rgba(0, 0, 0, 0.2), 5px 0px 0px 0px #fff;
     padding-top: 0.5em;
+    margin-left: 0%;
 }
 
 
@@ -3025,7 +3029,11 @@ input[type="color"]::-moz-color-swatch {
     }
 
     .controlsSectionToPin.Zebra_Pin #playerControls {
-        margin-bottom: 0.8em;
+        margin-bottom: 0.2em;
+    }
+
+    .controlsSectionToPin.Zebra_Pin .controlsSection {
+        padding-left: 0.1em;
     }
 
     .controlsSectionToPin.Zebra_Pin #playerControls .buttons,
@@ -3033,13 +3041,15 @@ input[type="color"]::-moz-color-swatch {
         display: inline-block;
         width: auto;
         font-size: 1.2em;
-        display: inline-block;
+        margin-bottom: 0.2em;
     }
 
     .controlsSectionToPin.Zebra_Pin .buttons .playerControlButton-text,
     .controlsSectionToPin.Zebra_Pin .disableButtons .playerControlButton-text {
         display: none;
     }
+
+    
 
     #btnPrev,
     #btnNext {
