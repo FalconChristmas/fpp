@@ -187,7 +187,7 @@ static inline unsigned short readVal(unsigned char* channelData, int dt, int tp,
     case ABSOLUTE_16BIT: {
         unsigned short t = channelData[pos];
         pos++;
-        t = t << 8;
+        val = val << 8;
         val += t;
     } break;
     case ABSOLUTE_8BIT:
