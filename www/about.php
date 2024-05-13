@@ -141,12 +141,10 @@ $freeSpace = disk_free_space($uploadDirectory);
 
 
         function AppendGithubOS() {
-            showHideOsSelect(); <
-        ?
+            showHideOsSelect(); <?
         // we want at least a GB in order to be able to download the fppos and have space to then apply it
         if ($freeSpace > 1000000000) {
-            ?
-            >
+            ?>
             var allPlatforms = '';
 
                 if ($('#allPlatforms').is(':checked')) {
@@ -173,9 +171,8 @@ $freeSpace = disk_free_space($uploadDirectory);
                         }
                     }
                     showHideOsSelect();
-                }); <
-            ?
-        } ? >
+                }); <?
+        } ?>
     }
 
         function CloseFPPUpgradeDialog() {
