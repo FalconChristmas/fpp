@@ -4716,7 +4716,7 @@ function parseStatus (jsonStatus) {
 				'style',
 				'width: ' + jsonStatus.percentage_played + '%'
 			);
-			$('#txtPercentageComplete').html(jsonStatus.percentage_played + '%');
+			$('#txtPercentageComplete p').html(jsonStatus.percentage_played + '%');
 			$('#txtSeqFilename').html(jsonStatus.current_sequence);
 			$('#txtMediaFilename').html(jsonStatus.current_song);
 

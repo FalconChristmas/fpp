@@ -522,9 +522,8 @@
                                 </div>
                             </div>
 
-                            <div id="controlsSection" class="row container">
-                                <div class="row">
-                                    <!-- Player Controls -->
+                            <div id="controlsSection" class="row">
+                                <div class="controlsSection col-md-7 col-xl-7">
                                     <div id="playerControls" class="container col-xs-12 col-md-8 col-lg-8 col-xxl-7">
                                         <button id="btnPlay" class="buttons btn-rounded btn-success disableButtons"
                                             onClick="StartPlaylistNow();">
@@ -574,30 +573,38 @@
                                             </span>
                                         </button>
                                     </div>
+                                </div>
+                                <div class="controlsSection col-md-5 col-xl-2">
+                                    <!-- elapsed time -->
 
-                                    <!-- elapsed status -->
+                                    <div id='playerTime'
+                                        class='col-xs-12 col-md-4 col-lg-4 col-xxl-2 container mx-auto'>
 
-                                    <div id='playerTime' class='col-xs-12 col-md-4 col-lg-4 col-xxl-2 container'>
-                                        <div class="d-flex">
-                                            <div class="labelHeading col-3">
-                                                <p class="text-end"><span id="txtTimePlayed">02:00</span><br>
-                                                    Elapsed</p>
-                                            </div>
-                                            <div class="progress progress-linear col-6" role="progressbar"
+                                        <div class="col-3">
+                                            <p class="text-end"><span id="txtTimePlayed">02:00</span></p>
+                                            <p class="text-end">Elapsed</p>
+                                        </div>
+                                        <div id="progressBar" class="h-auto col-5">
+                                            <div class="progress progress-linear" role="progressbar"
                                                 aria-label="Playlist Item Progress" aria-valuenow="0" aria-valuemin="0"
                                                 aria-valuemax="100">
                                                 <div class="progress-bar bg-success" style="width: 0%">
-                                                    <div id="txtPercentageComplete" class=""></div>
+                                                    <div id="txtPercentageComplete" class="">
+                                                        <p class="text-center"></p>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div class="">
-                                                <div class="labelHeading col-3 text-start"><span
-                                                        id="txtTimeRemaining">02:00</span><br>Remaining</div>
-                                            </div>
                                         </div>
+
+                                        <div class="col-3">
+                                            <p class="text-start"><span id="txtTimeRemaining">02:00</span>
+                                            <p class="text-start">Remaining</p>
+                                        </div>
+
+
                                     </div>
-
-
+                                </div>
+                                <div class="controlsSection col-md-12 col-xl-3">
                                     <!-- Volume Controls -->
                                     <div
                                         class="volumeControlsContainer col-xs-12 col-md-12 col-lg-12 col-xxl-3 container">
