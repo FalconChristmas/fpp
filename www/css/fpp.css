@@ -784,6 +784,10 @@ input[type=range]::-ms-thumb {
     margin-bottom: 0.4em;
 }
 
+.volumeControlsContainer .labelHeading{
+    margin-bottom: 0%;
+}
+
 .volumeControls {
     display: flex;
     align-items: center;
