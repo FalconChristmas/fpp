@@ -50,36 +50,37 @@
             });
 
             // Pin Player Controls to top of index page
-            zp_playerControls = new $.Zebra_Pin($('#playerModeInfo .controlsSectionToPin'), {
-                onPin: function (scroll, $element) {
-                    setTimeout(function () {
-                        $('#playerModeInfo .controlsSectionToPin').css({
-                            // width: $('#playerModeInfo .controlsSectionToPin').parent().width()
-                            width: $('#programControl').width()
-                        });
-                    }, 50);
-                    //console.log('onPin event triggered for player controls');
-                },
-                top_spacing: $('.header').css('position') == 'fixed' ?
-                    $('.header').outerHeight() : 0,
-                //pinpoint_offset: 150,
-                contain: false
-
-            });
-            // Pin Progress bar to top of index page
-            /*             zp_playerTime = new $.Zebra_Pin($('#playerModeInfo #playerTime'), {
+            /*             zp_playerControls = new $.Zebra_Pin($('#playerModeInfo .controlsSectionToPin'), {
                             onPin: function (scroll, $element) {
                                 setTimeout(function () {
-                                    $('#playerModeInfo #playerTime').css({
-                                        width: $('#playerModeInfo #playerTime').parent().width()
+                                    $('#playerModeInfo .controlsSectionToPin').css({
+                                        // width: $('#playerModeInfo .controlsSectionToPin').parent().width()
+                                        width: $('#programControl').width()
                                     });
                                 }, 50);
+                                //console.log('onPin event triggered for player controls');
                             },
                             top_spacing: $('.header').css('position') == 'fixed' ?
-                                $('.header').outerHeight() : $('#playerModeInfo #playerControls').outerHeight(),
-                            pinpoint_offset: 0,
-                            contained: true
-                        }); */
+                                $('.header').outerHeight() : 0,
+                            //pinpoint_offset: 150,
+                            contain: false 
+
+        });
+        
+        // Pin Progress bar to top of index page
+        /*             zp_playerTime = new $.Zebra_Pin($('#playerModeInfo #playerTime'), {
+                        onPin: function (scroll, $element) {
+                            setTimeout(function () {
+                                $('#playerModeInfo #playerTime').css({
+                                    width: $('#playerModeInfo #playerTime').parent().width()
+                                });
+                            }, 50);
+                        },
+                        top_spacing: $('.header').css('position') == 'fixed' ?
+                            $('.header').outerHeight() : $('#playerModeInfo #playerControls').outerHeight(),
+                        pinpoint_offset: 0,
+                        contained: true
+                    }); */
 
             //refresh player control positioning
             zp_playerControls.update();
