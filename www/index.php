@@ -50,34 +50,40 @@
             });
 
             // Pin Player Controls to top of index page
-            zp_playerControls = new $.Zebra_Pin($('#playerModeInfo #controlsSection'), {
-                onPin: function (scroll, $element) {
-                    setTimeout(function () {
-                        $('#playerModeInfo #playerControls').css({
-                            width: $('#playerModeInfo #playerControls').parent().width()
-                        });
-                    }, 50);
-                    //console.log('onPin event triggered for player controls');
-                },
-                top_spacing: $('.header').css('position') == 'fixed' ?
-                    $('.header').outerHeight() : 0,
-                pinpoint_offset: 150,
-                contained: true
-            });
-            // Pin Progress bar to top of index page
-            /*             zp_playerTime = new $.Zebra_Pin($('#playerModeInfo #playerTime'), {
+            /*             zp_playerControls = new $.Zebra_Pin($('#playerModeInfo .controlsSectionToPin'), {
                             onPin: function (scroll, $element) {
                                 setTimeout(function () {
-                                    $('#playerModeInfo #playerTime').css({
-                                        width: $('#playerModeInfo #playerTime').parent().width()
+                                    $('#playerModeInfo .controlsSectionToPin').css({
+                                        // width: $('#playerModeInfo .controlsSectionToPin').parent().width()
+                                        width: $('#programControl').width()
                                     });
                                 }, 50);
+                                //console.log('onPin event triggered for player controls');
                             },
                             top_spacing: $('.header').css('position') == 'fixed' ?
-                                $('.header').outerHeight() : $('#playerModeInfo #playerControls').outerHeight(),
-                            pinpoint_offset: 0,
-                            contained: true
-                        }); */
+                                $('.header').outerHeight() : 0,
+                            //pinpoint_offset: 150,
+                            contain: false 
+
+        });
+        
+        // Pin Progress bar to top of index page
+        /*             zp_playerTime = new $.Zebra_Pin($('#playerModeInfo #playerTime'), {
+                        onPin: function (scroll, $element) {
+                            setTimeout(function () {
+                                $('#playerModeInfo #playerTime').css({
+                                    width: $('#playerModeInfo #playerTime').parent().width()
+                                });
+                            }, 50);
+                        },
+                        top_spacing: $('.header').css('position') == 'fixed' ?
+                            $('.header').outerHeight() : $('#playerModeInfo #playerControls').outerHeight(),
+                        pinpoint_offset: 0,
+                        contained: true
+                    }); */
+
+            //refresh player control positioning
+            zp_playerControls.update();
 
         }
 
@@ -120,7 +126,7 @@
                 zp_playerControls.update();
             }
             //Player Time Progress
-            if (typeof zp_playerTime !== 'undefined') {
+            /* if (typeof zp_playerTime !== 'undefined') {
                 switch (gblCurrentBootstrapViewPort) {
                     case 'xs':
                         //
@@ -153,7 +159,7 @@
                 }
                 //refresh player control positioning
                 zp_playerTime.update();
-            }
+            } */
 
         }
 
@@ -522,7 +528,7 @@
                                 </div>
                             </div>
 
-                            <div id="controlsSection" class="row">
+                            <div class="controlsSectionToPin row">
                                 <div class="controlsSection col-md-7 col-xl-7">
                                     <div id="playerControls" class="container col-xs-12 col-md-8 col-lg-8 col-xxl-7">
                                         <button id="btnPlay" class="buttons btn-rounded btn-success disableButtons"
