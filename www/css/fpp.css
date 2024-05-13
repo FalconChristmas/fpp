@@ -957,12 +957,26 @@ hr {
     display: flex;
 }
 
+.controlsSection {
+    padding-top: 5px;
+}
+
 #playerTime {
     display: flex;
 }
 
 #playerTime {
     margin-top: 0;
+}
+
+#playerTime p {
+    margin-bottom: 0;
+    font-size: 0.75rem;
+}
+
+#progressBar {
+padding-left: 5%;
+padding-right: 5%;
 }
 
 #playerTime .labelValue,

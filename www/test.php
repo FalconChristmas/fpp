@@ -4,6 +4,8 @@
 <head>
     <script type="text/javascript"
         src="js/bootstrap.bundle.min.js?ref=<?= filemtime('js/bootstrap.bundle.min.js'); ?>"></script>
+    <link rel="stylesheet" href="css/fontawesome.all.min.css">
+    <link rel="stylesheet" href="webfonts/fpp-icons/styles.css">
 
     <!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,9 +17,9 @@
 </head>
 
 <body>
-    <div class="container">
+    <div>
         <div class="row">
-            <div class="col-md-7 col-xl-7 bg-primary-subtle">player controls
+            <div class="controlsSection col-md-7 col-xl-7 bg-primary-subtle">
                 <div id="playerControls" class="container col-xs-12 col-md-8 col-lg-8 col-xxl-7">
                     <button id="btnPlay" class="buttons btn-rounded btn-success disableButtons"
                         onClick="StartPlaylistNow();">
@@ -65,29 +67,33 @@
                     </button>
                 </div>
             </div>
-            <div class="col-md-5 col-xl-3 bg-success ml-auto">elapsed time
+            <div class="controlsSection col-md-5 col-xl-2 bg-success">
                 <!-- elapsed time -->
 
-                <div id='playerTime' class='col-xs-12 col-md-4 col-lg-4 col-xxl-2 container'>
-                    <div class="d-flex justify-content-center">
-                        <div class="labelHeading col-4">
-                            <p class="text-end"><span id="txtTimePlayed">02:00</span><br>
-                                Elapsed</p>
-                        </div>
-                        <div class="progress progress-linear col-5" role="progressbar"
-                            aria-label="Playlist Item Progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                <div id='playerTime' class='col-xs-12 col-md-4 col-lg-4 col-xxl-2 container mx-auto'>
+
+                    <div class="col-3">
+                        <p class="text-end"><span id="txtTimePlayed">02:00</span></p>
+                        <p class="text-end">Elapsed</p>
+                    </div>
+                    <div id="progressBar" class="h-auto col-5">
+                        <div class="progress progress-linear" role="progressbar" aria-label="Playlist Item Progress"
+                            aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
                             <div class="progress-bar bg-success" style="width: 0%">
                                 <div id="txtPercentageComplete" class=""></div>
                             </div>
                         </div>
-                        <div class="">
-                            <div class="labelHeading col-3 text-start"><span
-                                    id="txtTimeRemaining">02:00</span><br>Remaining</div>
-                        </div>
                     </div>
+
+                    <div class="col-3">
+                        <p class="text-start"><span id="txtTimeRemaining">02:00</span>
+                        <p class="text-start">Remaining</p>
+                    </div>
+
+
                 </div>
             </div>
-            <div class="col-md-12 col-xl-2 bg-danger">volume controls
+            <div class="controlsSection col-md-12 col-xl-3 bg-danger">
                 <!-- Volume Controls -->
                 <div class="volumeControlsContainer col-xs-12 col-md-12 col-lg-12 col-xxl-3 container">
                     <div>
