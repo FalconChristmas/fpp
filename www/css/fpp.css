@@ -1002,9 +1002,12 @@ padding-right: 5%;
 
 }
 
-#playerTime>div:first-child>div,
-.tblPlaylistHeaderDetails>div:first-child>div {
+#playerTime>div:first-child>div {
     padding-left: 0px;
+}
+
+.tblPlaylistHeaderDetails>div:first-child>div {
+    padding-left: 30px;
 }
 
 #playerTime>div:last-child>div,
