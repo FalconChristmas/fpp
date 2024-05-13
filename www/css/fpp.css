@@ -2840,8 +2840,8 @@ input[type="color"]::-moz-color-swatch {
 
 @media (min-width:1361px) {
 
-    #playerControls.Zebra_Pin .buttons,
-    #playerControls.Zebra_Pin .disableButtons {
+    .Zebra_Pin #playerControls .buttons,
+    .Zebra_Pin #playerControls .disableButtons {
         margin-bottom: 0.65em;
     }
 }
@@ -3028,8 +3028,8 @@ input[type="color"]::-moz-color-swatch {
         margin-bottom: 0.8em;
     }
 
-    .controlsSectionToPin.Zebra_Pin .buttons,
-    .controlsSectionToPin.Zebra_Pin .disableButtons {
+    .controlsSectionToPin.Zebra_Pin #playerControls .buttons,
+    .controlsSectionToPin.Zebra_Pin #playerControls .disableButtons {
         display: inline-block;
         width: auto;
         font-size: 1.2em;
