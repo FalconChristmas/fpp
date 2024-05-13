@@ -1007,7 +1007,7 @@ padding-right: 5%;
 }
 
 .tblPlaylistHeaderDetails>div:first-child>div {
-    padding-left: 30px;
+    padding-left: 0px;
 }
 
 #playerTime>div:last-child>div,
