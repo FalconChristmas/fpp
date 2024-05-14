@@ -18,12 +18,12 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
 #include <unistd.h>
 #include <utility>
-#include <pwd.h>
 
 #include "common.h"
 #include "log.h"
@@ -124,30 +124,33 @@ void SettingsConfig::Init() {
 }
 
 void SettingsConfig::LoadSettingsInfo() {
-    settingsInfo = LoadJsonFromFile(getFPPDDir("/www/settings.json"));
+    std::string settingsJson = getFPPDDir("/www/settings.json");
+    if (FileExists(settingsJson)) {
+        settingsInfo = LoadJsonFromFile(settingsJson);
 
-    Json::Value s = settingsInfo["settings"];
-    Json::Value::Members memberNames = s.getMemberNames();
+        Json::Value s = settingsInfo["settings"];
+        Json::Value::Members memberNames = s.getMemberNames();
 
-    for (int i = 0; i < memberNames.size(); i++) {
-        std::string type = s[memberNames[i]]["type"].asString();
-        std::string def = "";
+        for (int i = 0; i < memberNames.size(); i++) {
+            std::string type = s[memberNames[i]]["type"].asString();
+            std::string def = "";
 
-        if (s[memberNames[i]].isMember("default")) {
-            def = s[memberNames[i]]["default"].asString();
-        } else {
-            if ((type == "checkbox") ||
-                (type == "number")) {
-                def = std::string("0");
+            if (s[memberNames[i]].isMember("default")) {
+                def = s[memberNames[i]]["default"].asString();
             } else {
-                def = std::string("");
+                if ((type == "checkbox") ||
+                    (type == "number")) {
+                    def = std::string("0");
+                } else {
+                    def = std::string("");
+                }
             }
-        }
 
-        settings[memberNames[i]] = def;
-        // The following will never be logged due to startup order
-        LogExcess(VB_SETTING, "Setting default for '%s' setting to '%s'\n",
-                  memberNames[i].c_str(), def.c_str());
+            settings[memberNames[i]] = def;
+            // The following will never be logged due to startup order
+            LogExcess(VB_SETTING, "Setting default for '%s' setting to '%s'\n",
+                      memberNames[i].c_str(), def.c_str());
+        }
     }
 #ifdef PLATFORM_OSX
     char hostname[256];
