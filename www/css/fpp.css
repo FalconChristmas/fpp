@@ -672,7 +672,7 @@ body.has-touch .pageContent-tabs>.nav-item:not(.hidden) {
 
 .volume {
     display: block;
-    font-size: 1.3em;
+    font-size: 1.1em;
     font-weight: bold;
 }
 
@@ -778,6 +778,11 @@ input[type=range]::-ms-thumb {
 #schedulerInfo {
     display: flex;
 }
+
+#volumeControl .labelHeading {
+    margin-bottom: 0;
+}
+
 
 .volumeControlsContainer {
     display: flex;
@@ -961,8 +966,12 @@ hr {
     display: flex;
 }
 
-.controlsSection {
-    padding-top: 5px;
+
+#controlsSection.container-fluid, #controlsSection.container-fluid .row {
+    padding-top: 0;
+    padding-left: 0;
+    padding-right: 0;
+    margin: 0;
 }
 
 #playerTime {
@@ -1014,7 +1023,9 @@ padding-right: 5%;
     padding-left: 30px;
 }
 
-#playerTime>div:last-child>div,
+#playerTime>div:last-child>div {
+    padding-right: 10px;
+}
 .tblPlaylistHeaderDetails>div:last-child>div {
     padding-right: 30px;
 }
@@ -2161,15 +2172,15 @@ body .sm-clean a .sub-arrow {
     margin-bottom: 0;
 }
 
-.controlsSectionToPin {
-    width: 100pc;
-}
-
 .controlsSectionToPin.Zebra_Pin {
     background-color: #fff;
     box-shadow: 0px 5px 4px -5px rgba(0, 0, 0, 0.2), 5px 0px 0px 0px #fff;
     padding-top: 0.5em;
     margin-left: 0%;
+}
+
+#playerControls {
+    padding: 0;
 }
 
 
@@ -3025,10 +3036,6 @@ input[type="color"]::-moz-color-swatch {
     }
 
     #playerControls {
-        margin-bottom: 1.2em;
-    }
-
-    .controlsSectionToPin.Zebra_Pin #playerControls {
         margin-bottom: 0.2em;
     }
 
@@ -3036,16 +3043,17 @@ input[type="color"]::-moz-color-swatch {
         padding-left: 0.1em;
     }
 
-    .controlsSectionToPin.Zebra_Pin #playerControls .buttons,
-    .controlsSectionToPin.Zebra_Pin #playerControls .disableButtons {
+
+    #controlsSection.Zebra_Pin #playerControls .buttons,
+    #controlsSection.Zebra_Pin #playerControls .disableButtons {
         display: inline-block;
         width: auto;
         font-size: 1.2em;
         margin-bottom: 0.2em;
     }
 
-    .controlsSectionToPin.Zebra_Pin .buttons .playerControlButton-text,
-    .controlsSectionToPin.Zebra_Pin .disableButtons .playerControlButton-text {
+    #controlsSection.Zebra_Pin .buttons .playerControlButton-text,
+    #controlsSection.Zebra_Pin .disableButtons .playerControlButton-text {
         display: none;
     }
 
