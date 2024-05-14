@@ -21,7 +21,7 @@
                         foreach ($pluginConfig["fileExtensions"] as $key => $value) {
                             if (isset($value["tab"])) {
                                 $tabStr = "<li class=\"nav-item\">";
-                                $tabStr .= "<a class=\"nav-link \" id=\"tab-" . $key . "-tab\" data-bs-toggle=\"pill\" href=\"#tab-" . $key . "\" role=\"tab\" aria-controls=\"tab-" . $key . "\">";
+                                $tabStr .= "<a class=\"nav-link \" id=\"tab-" . $key . "-tab\" data-bs-toggle=\"pill\" data-bs-target=\"#tab-" . $key . "\" href=\"#tab-" . $key . "\" role=\"tab\" aria-controls=\"tab-" . $key . "\">";
                                 $tabStr .= $value["tab"];
                                 $tabStr .= "</a></li>";
                                 array_push($tabStrings, $tabStr);
@@ -50,12 +50,8 @@
     <script type="text/javascript" src="js/fpp-filemanager.js"></script>
 
     <script>
+        const pluginFileExtensions = [ <? echo implode(", ", array_map(fn($arg) => "'$arg'", $fileExtensions)); ?> ];
         GetAllFiles();
-        <?
-        foreach ($fileExtensions as $ext) {
-            echo "    GetFiles(\"$ext\");";
-        }
-        ?>
     </script>
 
     <?php
@@ -113,61 +109,66 @@
 
                     <ul class="nav nav-pills pageContent-tabs" id="fileManagerTabs" role="tablist">
                         <li class="nav-item">
-                            <a class="nav-link active" id="tab-sequence-tab" data-bs-toggle="pill" href="#tab-sequence"
-                                role="tab" aria-controls="tab-sequence" aria-selected="true">
+                            <a class="nav-link active" id="tab-sequence-tab" data-bs-toggle="pill"
+                                data-bs-target="#tab-sequence" href="#tab-sequence" role="tab"
+                                aria-controls="tab-sequence" aria-selected="true">
                                 Sequences
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link " id="tab-audio-tab" data-bs-toggle="pill" href="#tab-audio" role="tab"
-                                aria-controls="tab-audio">
+                            <a class="nav-link " id="tab-audio-tab" data-bs-toggle="pill" data-bs-target="#tab-audio"
+                                href="#tab-audio" role="tab" aria-controls="tab-audio">
                                 Audio
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link " id="tab-video-tab" data-bs-toggle="pill" href="#tab-video" role="tab"
-                                aria-controls="tab-video">
+                            <a class="nav-link " id="tab-video-tab" data-bs-toggle="pill" data-bs-target="#tab-video"
+                                href="#tab-video" role="tab" aria-controls="tab-video">
                                 Video
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link " id="tab-images-tab" data-bs-toggle="pill" href="#tab-images" role="tab"
-                                aria-controls="tab-images">
+                            <a class="nav-link " id="tab-images-tab" data-bs-toggle="pill" data-bs-target="#tab-images"
+                                href="#tab-images" role="tab" aria-controls="tab-images">
                                 Images
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link " id="tab-effects-tab" data-bs-toggle="pill" href="#tab-effects"
-                                role="tab" aria-controls="tab-effects">
+                            <a class="nav-link " id="tab-effects-tab" data-bs-toggle="pill"
+                                data-bs-target="#tab-effects" href="#tab-effects" role="tab"
+                                aria-controls="tab-effects">
                                 Effects
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link " id="tab-scripts-tab" data-bs-toggle="pill" href="#tab-scripts"
-                                role="tab" aria-controls="tab-scripts">
+                            <a class="nav-link " id="tab-scripts-tab" data-bs-toggle="pill"
+                                data-bs-target="#tab-scripts" href="#tab-scripts" role="tab"
+                                aria-controls="tab-scripts">
                                 Scripts
                             </a>
                         </li>
-<?
-foreach ($tabStrings as $ts) {
-    echo $ts;
-}
-?>
+                        <?
+                        foreach ($tabStrings as $ts) {
+                            echo $ts;
+                        }
+                        ?>
                         <li class="nav-item">
-                            <a class="nav-link " id="tab-logs-tab" data-bs-toggle="pill" href="#tab-logs" role="tab"
-                                aria-controls="tab-logs">
+                            <a class="nav-link " id="tab-logs-tab" data-bs-toggle="pill" data-bs-target="#tab-logs"
+                                href="#tab-logs" role="tab" aria-controls="tab-logs">
                                 Logs
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link " id="tab-uploads-tab" data-bs-toggle="pill" href="#tab-uploads"
-                                role="tab" aria-controls="tab-uploads">
+                            <a class="nav-link " id="tab-uploads-tab" data-bs-toggle="pill"
+                                data-bs-target="#tab-uploads" href="#tab-uploads" role="tab"
+                                aria-controls="tab-uploads">
                                 Uploads
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link " id="tab-crashes-tab" data-bs-toggle="pill" href="#tab-crashes"
-                                role="tab" aria-controls="tab-crashes">
+                            <a class="nav-link " id="tab-crashes-tab" data-bs-toggle="pill"
+                                data-bs-target="#tab-crashes" href="#tab-crashes" role="tab"
+                                aria-controls="tab-crashes">
                                 Crash Reports
                             </a>
                         </li>
@@ -461,11 +462,11 @@ foreach ($tabStrings as $ts) {
                                 </div>
                             </div>
                         </div>
-<?php
-foreach ($tabDivs as $td) {
-    echo $td;
-}
-?>
+                        <?php
+                        foreach ($tabDivs as $td) {
+                            echo $td;
+                        }
+                        ?>
                         <div class="tab-pane fade" id="tab-logs" role="tabpanel" aria-labelledby="tab-logs-tab">
                             <div id="divLogs">
                                 <div class="backdrop">

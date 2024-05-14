@@ -107,6 +107,10 @@ function GetAllFiles () {
 	GetFiles('Uploads');
 	GetFiles('Crashes');
 
+	pluginFileExtensions.forEach(ext => {
+		GetFiles(ext);
+	});
+
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', AddStickyHeaderWidget);
 	} else {
@@ -340,12 +344,15 @@ function ButtonHandler (table, button) {
 			);
 		}
 	} else if (button == 'fileInfo') {
-        if (selectedCount == 1) {
-            eval("FileInfo" + table + "(\"" + filename + "\");");
-        } else {
-            DialogError('Error', 'Error, unable to get info for multiple files at the same time.');
-        }
-    }
+		if (selectedCount == 1) {
+			eval('FileInfo' + table + '("' + filename + '");');
+		} else {
+			DialogError(
+				'Error',
+				'Error, unable to get info for multiple files at the same time.'
+			);
+		}
+	}
 }
 
 function ClearSelections (table) {
@@ -463,6 +470,10 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 						break;
 					case 'tblCrashes':
 						$($t[0]).tablesorter(tablesorterOptions_Crashes);
+						break;
+					default:
+						var opts = eval('tablesorterOptions_' + $tableName.substring(3));
+						$($t[0]).tablesorter(opts);
 						break;
 				}
 				$($t[0]).trigger('applyWidgets');
