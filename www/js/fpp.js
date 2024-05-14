@@ -134,8 +134,11 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		if (triggerFirstTabEl) {
 			bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
 			//setup sticky on first page load
-			SetTablePageHeader_ZebraPin();
-			float_fppStickyThead();
+			setTimeout(function () {
+				SetTablePageHeader_ZebraPin();
+				float_fppStickyThead();
+				scrollToTop();
+			}, 50);
 		}
 	}
 
@@ -146,9 +149,11 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 				'[role="tablist"] a[data-bs-target="' + location.hash + '"]'
 			)
 		).show();
-		SetTablePageHeader_ZebraPin();
-		float_fppStickyThead();
-		scrollToTop();
+		setTimeout(function () {
+			SetTablePageHeader_ZebraPin();
+			float_fppStickyThead();
+			scrollToTop();
+		}, 50);
 	}
 
 	//Setup Tab actions
