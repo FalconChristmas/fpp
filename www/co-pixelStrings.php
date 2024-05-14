@@ -1,7 +1,7 @@
 <script type="text/javascript">
 
 var KNOWN_CAPES = {
-<?
+<?php
 function sortByLongName($a, $b)
 {
     return strcmp($a['longName'], $b['longName']);
@@ -2161,7 +2161,7 @@ if ($models_str == "") {
 } else {
     $sv_errh = libxml_use_internal_errors(true); //enable user error handling
     $models_xml = simplexml_load_string($models_str);
-    if (!models_xml) {
+    if (!$models_xml) {
         foreach (libxml_get_errors() as $error) {
             $models_err = $models_err . "\n" . $error;
         }
