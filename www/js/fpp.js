@@ -173,9 +173,9 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 
 function common_ViewPortChange () {
 	// Events to run on window viewport resizing
-	console.log(
+	/* 	console.log(
 		'View port changed to: ' + gblCurrentBootstrapViewPort + ' - fixing layout'
-	);
+	); */
 	SetTablePageHeader_ZebraPin();
 	float_fppStickyThead();
 }
