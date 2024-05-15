@@ -10,9 +10,11 @@ function GetFiles (dir) {
 					.find('tbody')
 					.html('');
 			} else {
-				$('#tbl' + dir).html(
-					"<tr><td colspan=8 align='center'>No files found.</td></tr>"
-				);
+				$('#tbl' + dir)
+					.find('tbody')
+					.html(
+						"<tr class='unselectableRow'><td colspan=8 align='center'>No files found.</td></tr>"
+					);
 			}
 			data.files.forEach(function (f) {
 				var detail = f.sizeHuman;
@@ -427,10 +429,9 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 
 	pond.on('processfile', (error, file) => {
 		console.log('Process file: ' + file.filename);
-		moveFile(file.filename);
-		setTimeout(function () {
+		moveFile(file.filename, function () {
 			GetAllFiles();
-		}, 100);
+		});
 	});
 
 	$('#fileManager').tabs({

@@ -4188,9 +4188,11 @@ function GetFiles (dir) {
 					.find('tbody')
 					.html('');
 			} else {
-				$('#tbl' + dir).html(
-					"<tr><td colspan=8 align='center'>No files found.</td></tr>"
-				);
+				$('#tbl' + dir)
+					.find('tbody')
+					.html(
+						"<tr class='unselectableRow'><td colspan=8 align='center'>No files found.</td></tr>"
+					);
 			}
 			data.files.forEach(function (f) {
 				var detail = f.sizeHuman;
@@ -4293,15 +4295,21 @@ function show_details (args) {
 	return retval.join('<br/>');
 }
 
-function moveFile (file) {
+function moveFile (file, callback = null) {
 	$.get('api/file/move/' + encodeURIComponent(file))
 		.done(function (data) {
 			if ('OK' != data.status) {
 				DialogError('File Move Error', data.status);
 			}
+			if (callback != null) {
+				callback();
+			}
 		})
 		.fail(function (data) {
 			DialogError('File Move Error', 'Unexpected error while to move file');
+			if (callback != null) {
+				callback();
+			}
 		});
 }
 

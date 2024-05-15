@@ -233,10 +233,11 @@ function CallPluginFileUploaded($dir, $filename)
                         foreach ($pluginConfig["fileExtensions"] as $key => $value) {
                             if (endsWith($filename, $key) && isset($value["onUpload"])) {
                                 closedir($handle);
-                                $cmd = $pluginDirectory . "/" . $pluginConfig["fileExtensions"][$key]["onUpload"];
+                                $cmd = $pluginDirectory . "/" . $plugin . "/" . $pluginConfig["fileExtensions"][$key]["onUpload"];
                                 $cmd .= " ";
                                 $cmd .= escapeshellarg($dir . "/" . $filename);
                                 exec($cmd);
+                                clearstatcache();
                                 return;
                             }
                         }
@@ -317,7 +318,7 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         return;
     }
 
-    if ($isLog && (substr($filename, 0, 8) == "var/log/")) {
+    if ($isLog == 1 && (substr($filename, 0, 8) == "var/log/")) {
         $dir = "/var/log";
         $filename = substr($filename, 8);
     }
