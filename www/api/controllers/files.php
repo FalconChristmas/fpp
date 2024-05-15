@@ -233,9 +233,9 @@ function CallPluginFileUploaded($dir, $filename)
                             $cmd = $pluginDirectory . "/" . $plugin . "/" . $pluginConfig["fileExtensions"][$key]["onUpload"];
                             $cmd .= " ";
                             $cmd .= escapeshellarg($dir . "/" . $filename);
-                            exec($cmd);
+                            $ret = shell_exec($cmd);
                             clearstatcache();
-                            return;
+                            return $ret;
                         }
                     }
                 }
@@ -243,6 +243,14 @@ function CallPluginFileUploaded($dir, $filename)
         }
     }
 }
+function PluginFileOnUpload()
+{
+    global $mediaDirectory;
+    $ext = params("ext");
+    $fileName = params(0);
+    return CallPluginFileUploaded($mediaDirectory . "/" . $ext, $fileName);
+}
+
 
 function MovePluginFile($uploadDir, $filename)
 {

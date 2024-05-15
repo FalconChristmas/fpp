@@ -355,6 +355,8 @@ function ButtonHandler (table, button) {
 				'Error, unable to get info for multiple files at the same time.'
 			);
 		}
+	} else {
+		eval(table + button + 'Pressed("' + filename + '");');
 	}
 }
 
