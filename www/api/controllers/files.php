@@ -19,8 +19,7 @@ function MapExtention($filename)
     } else {
         $pluginDirectory = GetDirSetting("plugins");
         if (file_exists($pluginDirectory)) {
-            $handle = opendir($pluginDirectory);
-            while (($plugin = readdir($handle)) !== false) {
+            foreach (scandir($pluginDirectory) as $plugin) {
                 if (!in_array($plugin, array('.', '..'))) {
                     $pluginInfoFile = $pluginDirectory . "/" . $plugin . "/pluginInfo.json";
                     if (file_exists($pluginInfoFile)) {
@@ -28,7 +27,6 @@ function MapExtention($filename)
                         if (isset($pluginConfig["fileExtensions"])) {
                             foreach ($pluginConfig["fileExtensions"] as $key => $value) {
                                 if (endsWith($filename, $key) && isset($value["folder"])) {
-                                    closedir($handle);
                                     return $mediaDirectory . "/" . $value["folder"];
                                 }
                             }
@@ -36,7 +34,6 @@ function MapExtention($filename)
                     }
                 }
             }
-            closedir($handle);
         }
         return "";
     }
@@ -223,29 +220,27 @@ function CallPluginFileUploaded($dir, $filename)
 {
     $pluginDirectory = GetDirSetting("plugins");
     if (file_exists($pluginDirectory)) {
-        $handle = opendir($pluginDirectory);
-        while (($plugin = readdir($handle)) !== false) {
-            if (!in_array($plugin, array('.', '..'))) {
-                $pluginInfoFile = $pluginDirectory . "/" . $plugin . "/pluginInfo.json";
-                if (file_exists($pluginInfoFile)) {
-                    $pluginConfig = json_decode(file_get_contents($pluginInfoFile), true);
-                    if (isset($pluginConfig["fileExtensions"])) {
-                        foreach ($pluginConfig["fileExtensions"] as $key => $value) {
-                            if (endsWith($filename, $key) && isset($value["onUpload"])) {
-                                closedir($handle);
-                                $cmd = $pluginDirectory . "/" . $plugin . "/" . $pluginConfig["fileExtensions"][$key]["onUpload"];
-                                $cmd .= " ";
-                                $cmd .= escapeshellarg($dir . "/" . $filename);
-                                exec($cmd);
-                                clearstatcache();
-                                return;
-                            }
+        foreach (scandir($pluginDirectory) as $plugin) {
+            if ($plugin == "." || $plugin == "..") {
+                continue;
+            }
+            $pluginInfoFile = $pluginDirectory . "/" . $plugin . "/pluginInfo.json";
+            if (file_exists($pluginInfoFile)) {
+                $pluginConfig = json_decode(file_get_contents($pluginInfoFile), true);
+                if (isset($pluginConfig["fileExtensions"])) {
+                    foreach ($pluginConfig["fileExtensions"] as $key => $value) {
+                        if (endsWith($filename, $key) && isset($value["onUpload"])) {
+                            $cmd = $pluginDirectory . "/" . $plugin . "/" . $pluginConfig["fileExtensions"][$key]["onUpload"];
+                            $cmd .= " ";
+                            $cmd .= escapeshellarg($dir . "/" . $filename);
+                            exec($cmd);
+                            clearstatcache();
+                            return;
                         }
                     }
                 }
             }
         }
-        closedir($handle);
     }
 }
 
@@ -254,8 +249,7 @@ function MovePluginFile($uploadDir, $filename)
     global $mediaDirectory;
     $pluginDirectory = GetDirSetting("plugins");
     if (file_exists($pluginDirectory)) {
-        $handle = opendir($pluginDirectory);
-        while (($plugin = readdir($handle)) !== false) {
+        foreach (scandir($pluginDirectory) as $plugin) {
             if (!in_array($plugin, array('.', '..'))) {
                 $pluginInfoFile = $pluginDirectory . "/" . $plugin . "/pluginInfo.json";
                 if (file_exists($pluginInfoFile)) {
@@ -263,7 +257,6 @@ function MovePluginFile($uploadDir, $filename)
                     if (isset($pluginConfig["fileExtensions"])) {
                         foreach ($pluginConfig["fileExtensions"] as $key => $value) {
                             if (endsWith($filename, $key) && isset($value["folder"])) {
-                                closedir($handle);
                                 if (!rename($uploadDir . "/" . $filename, $mediaDirectory . "/" . $value["folder"] . "/" . $filename)) {
                                     return false;
                                 }
@@ -274,7 +267,6 @@ function MovePluginFile($uploadDir, $filename)
                 }
             }
         }
-        closedir($handle);
     }
     return true;
 }

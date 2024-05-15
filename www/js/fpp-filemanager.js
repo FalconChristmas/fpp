@@ -26,8 +26,9 @@ function GetFiles (dir) {
 				if (
 					settings.hasOwnProperty('fileManagerThumbnailSize') &&
 					settings['fileManagerThumbnailSize'] > 0
-				)
+				) {
 					thumbSize = settings['fileManagerThumbnailSize'];
+				}
 
 				var tableRow = '';
 				if (dir == 'Images' && thumbSize > 0) {
