@@ -3611,12 +3611,12 @@ $activeParentMenuItem = 'status';
                     <ul id="fppBackupTabs" class="nav nav-pills pageContent-tabs" role="tablist">
 
                         <li class="nav-item">
-                            <a class="nav-link active" id="backups-jsonBackup-tab" data-bs-toggle="tab" href="#tab-jsonBackup" role="tab" aria-controls="tab-jsonBackup" aria-selected="true">
+                            <a class="nav-link active" id="backups-jsonBackup-tab" data-bs-toggle="tab" data-bs-target="#tab-jsonBackup" href="#tab-jsonBackup" role="tab" aria-controls="tab-jsonBackup" aria-selected="true">
                             JSON Configuration Backup
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" id="backups-fileCopy-tab" data-bs-toggle="tab" href="#tab-fileCopy" role="tab" aria-controls="tab-fileCopy" aria-selected="false">
+                            <a class="nav-link" id="backups-fileCopy-tab" data-bs-toggle="tab" data-bs-target="#tab-fileCopy" href="#tab-fileCopy" role="tab" aria-controls="tab-fileCopy" aria-selected="false">
                             File Copy Backup
                             </a>
                         </li>
