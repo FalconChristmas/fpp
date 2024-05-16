@@ -924,7 +924,7 @@ function " . $changedFunction . "() {
         echo "<select id='$setting' onChange='" . $changedFunction . "();' ";
     }
 
-    $classList = "class='form-select ";
+    $classList = "class='form-select col-auto ";
 
     if ($multiple) {
         if (isset($sData['children'])) {
