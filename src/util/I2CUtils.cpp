@@ -42,7 +42,8 @@ I2CUtils::I2CUtils(const char* bus, int address) {
     snprintf(dev, sizeof(dev), "/dev/%s", bus);
     Init(dev, address);
 }
-void I2CUtils::Init(const char* dev, int address) {
+void I2CUtils::Init(const char* dev, int addr) {
+    address = addr;
     file = -1;
     funcs = -1;
 #ifdef HAS_I2C
@@ -175,7 +176,7 @@ int I2CUtils::writeBlockData(int reg, const uint8_t* buf, int count) {
     if (file != -1) {
         union i2c_smbus_data data;
         if (count > 32)
-            count = 32; //max for SMBus
+            count = 32; // max for SMBus
         data.block[0] = count;
         for (int x = 0; x < count; x++) {
             data.block[x + 1] = buf[x];
@@ -192,7 +193,7 @@ int I2CUtils::writeI2CBlockData(int reg, const uint8_t* buf, int count) {
     if (file != -1) {
         union i2c_smbus_data data;
         if (count > 32)
-            count = 32; //max
+            count = 32; // max
         data.block[0] = count;
         for (int x = 0; x < count; x++) {
             data.block[x + 1] = buf[x];
@@ -210,7 +211,7 @@ int I2CUtils::readI2CBlockData(int reg, uint8_t* buf, int count) {
     if (file != -1) {
         union i2c_smbus_data data;
         if (count > 32)
-            count = 32; //max
+            count = 32; // max
         data.block[0] = count;
         for (int x = 0; x < count; x++) {
             data.block[x + 1] = buf[x];
@@ -227,6 +228,18 @@ int I2CUtils::readI2CBlockData(int reg, uint8_t* buf, int count) {
     }
     return -1;
 }
+
+int I2CUtils::writeRawI2CBlockData(int reg, const uint8_t* buf, int count) {
+    if (file != -1) {
+        uint8_t bytes[257];
+        bytes[0] = reg;
+        memcpy(bytes + 1, buf, count);
+        ioctl(file, I2C_SLAVE, address);
+        return write(file, bytes, count + 1);
+    }
+    return -1;
+}
+
 #else
 int I2CUtils::readByte() { return -1; }
 int I2CUtils::writeByte(unsigned val) { return -1; }
@@ -237,4 +250,6 @@ int I2CUtils::writeWordData(int reg, unsigned val) { return -1; }
 int I2CUtils::writeBlockData(int reg, const uint8_t* buf, int count) { return -1; }
 int I2CUtils::writeI2CBlockData(int reg, const uint8_t* buf, int count) { return -1; }
 int I2CUtils::readI2CBlockData(int reg, uint8_t* buf, int count) { return -1; }
+int I2CUtils::writeRawI2CBlockData(int reg, const uint8_t* buf, int count) { return -1; }
+
 #endif
