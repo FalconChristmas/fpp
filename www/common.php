@@ -924,15 +924,22 @@ function " . $changedFunction . "() {
         echo "<select id='$setting' onChange='" . $changedFunction . "();' ";
     }
 
+    $classList = "class='form-select ";
+
     if ($multiple) {
         if (isset($sData['children'])) {
-            echo "multiple class='parentSetting multiSelect' ";
+            echo "multiple ";
+            $classList .= "parentSetting multiSelect ";
         } else {
             echo "multiple class='multiSelect' ";
+            $classList .= "multiSelect ";
         }
     } else if (isset($sData['children'])) {
-        echo "class='parentSetting' ";
+        $classList .= "parentSetting ";
     }
+
+    $classList .= "'";
+    echo "$classList";
 
     echo ">\n";
 
@@ -2655,13 +2662,14 @@ function DoJsonBackupToUSB()
 
         if (file_get_contents($url, false) === false) {
             /* Handle error */
-            error_log('DoJsonBackupToUSB: Something went wrong trying to call filecopy endpoint to copy JSON Backups to the specified device. (' . json_encode(
-                [
-                    'url' => $url,
-                    'jsonConfigBackupUSBLocation' => $selected_jsonConfigBackupUSBLocation,
-                    'fileCopy_BackupPath' => $fileCopy_BackupPath,
-                ]
-            )
+            error_log(
+                'DoJsonBackupToUSB: Something went wrong trying to call filecopy endpoint to copy JSON Backups to the specified device. (' . json_encode(
+                    [
+                        'url' => $url,
+                        'jsonConfigBackupUSBLocation' => $selected_jsonConfigBackupUSBLocation,
+                        'fileCopy_BackupPath' => $fileCopy_BackupPath,
+                    ]
+                )
             );
         } else {
             $result = true;
