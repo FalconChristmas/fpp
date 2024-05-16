@@ -348,7 +348,7 @@ function ButtonHandler (table, button) {
 		}
 	} else if (button == 'fileInfo') {
 		if (selectedCount == 1) {
-			eval('FileInfo' + table + '("' + filename + '");');
+			eval('FileInfo' + table + '("' + filename.replace('"', '\\"') + '");');
 		} else {
 			DialogError(
 				'Error',
@@ -356,7 +356,7 @@ function ButtonHandler (table, button) {
 			);
 		}
 	} else {
-		eval(table + button + 'Pressed("' + filename + '");');
+		eval(table + button + 'Pressed("' + filename.replace('"', '\\"') + '");');
 	}
 }
 
