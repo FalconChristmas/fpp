@@ -88,7 +88,8 @@
             //  BBB only supports ws2811 at this point
             ?>
             #PixelString tr>th:nth-of-type(2),
-            #PixelString tr>td:nth-of-type(2) {
+            #PixelString tr>td:nth-of-type(2),
+            div[aria-labelledby="PixelString"] .floatThead-table tr>th:nth-of-type(2) {
                 display: none;
             }
 
@@ -98,6 +99,7 @@
             // don't support virtual strings
             ?>
             #PixelString tr>th:nth-of-type(3),
+            div[aria-labelledby="PixelString"] .floatThead-table tr>th:nth-of-type(3)
             #PixelString tr>td:nth-of-type(3) {
                 display: none;
             }
