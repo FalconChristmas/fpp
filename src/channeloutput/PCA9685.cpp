@@ -12,13 +12,13 @@
 
 #include "fpp-pch.h"
 
+#include <cinttypes>
 #include <thread>
 
+#include "PCA9685.h"
+#include "Plugin.h"
 #include "../log.h"
 
-#include "PCA9685.h"
-
-#include "Plugin.h"
 class PCA9685Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
     PCA9685Plugin() :
@@ -83,6 +83,21 @@ int PCA9685Output::Init(Json::Value config) {
         asUsec = config["asUsec"].asInt();
     }
 
+    float fs = 25000000.0f;
+    // float fs = 24578000.0f;
+    float ofs = fs;
+    fs /= 4096.f;
+    fs /= m_frequency;
+
+    int fsi = (int)(fs + 0.5f);
+    if (fsi < 3) {
+        fsi = 3;
+    }
+
+    float actualFreq = ofs / (fsi * 4096.0f);
+
+    // printf("%0.3f   fsi:  %d     of: %0.2f\n", fs, fsi, actualFreq);
+    LogDebug(VB_CHANNELOUT, "PCA9685 using actual frequency of: %0.2f\n", actualFreq);
     for (int x = 0; x < 16; x++) {
         m_ports[x].m_min = config["ports"][x]["min"].asInt();
         m_ports[x].m_max = config["ports"][x]["max"].asInt();
@@ -93,23 +108,24 @@ int PCA9685Output::Init(Json::Value config) {
         }
 
         if (asUsec) {
-            int z = m_ports[x].m_min;
-            z *= m_frequency;
-            z *= 4095;
+            float z = m_ports[x].m_min;
+            z *= actualFreq;
+            z *= 4096;
             z /= 1000000;
-            m_ports[x].m_min = z;
+            m_ports[x].m_min = std::round(z);
 
             z = m_ports[x].m_max;
-            z *= m_frequency;
-            z *= 4095;
+            z *= actualFreq;
+            z *= 4096;
             z /= 1000000;
-            m_ports[x].m_max = z;
+            m_ports[x].m_max = std::round(z);
 
             z = m_ports[x].m_center;
-            z *= m_frequency;
-            z *= 4095;
+            z *= actualFreq;
+            z *= 4096;
             z /= 1000000;
-            m_ports[x].m_center = z;
+            m_ports[x].m_center = std::round(z);
+            LogDebug(VB_CHANNELOUT, "PCA9685 pulse ranges for output %d:   %d  %d  %d\n", x, m_ports[x].m_min, m_ports[x].m_center, m_ports[x].m_max);
         }
 
         m_ports[x].m_dataType = config["ports"][x]["dataType"].asInt();
@@ -128,16 +144,6 @@ int PCA9685Output::Init(Json::Value config) {
     int m0 = (oldmode & 0x7f) | 0x10;
     i2c->writeByteData(0x00, m0);
 
-    float fs = 25000000.0f;
-    fs /= 4096.f;
-    fs /= m_frequency;
-    fs += 0.5;
-
-    int fsi = (int)fs;
-    if (fsi < 3) {
-        fsi = 3;
-    }
-
     i2c->writeByteData(0xFE, fsi);
     i2c->writeByteData(0x00, oldmode);
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -147,7 +153,6 @@ int PCA9685Output::Init(Json::Value config) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
     oldmode = i2c->readByteData(0x00);
-
     oldmode = i2c->readByteData(0xfe);
 
     return ChannelOutput::Init(config);
@@ -227,17 +232,17 @@ int PCA9685Output::SendData(unsigned char* channelData) {
                 val = 0;
             } else {
                 if (val >= 32767) {
-                    int scale = m_ports[x].m_max - m_ports[x].m_center;
+                    float scale = m_ports[x].m_max - m_ports[x].m_center + 1;
                     val -= 32767;
                     scale *= val;
                     scale /= 32767;
-                    val = scale;
+                    val = std::round(scale);
                     val += m_ports[x].m_center;
                 } else {
-                    int scale = m_ports[x].m_center - m_ports[x].m_min;
+                    float scale = m_ports[x].m_center - m_ports[x].m_min + 1;
                     scale *= val;
                     scale /= 32767;
-                    val = scale;
+                    val = std::round(scale);
                     val += m_ports[x].m_min;
                 }
                 if (val > m_ports[x].m_max) {
