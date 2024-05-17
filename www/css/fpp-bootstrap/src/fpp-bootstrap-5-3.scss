@@ -763,6 +763,9 @@ table.settingsTable div.th{
 }
 .fppSelectableRowTable>tbody>tr:first-child>td:last-child, #tblSchedule>tbody>tr:first-child>td:nth-last-child(2) {
 	border-top-right-radius: 8px;
+    border-top-color: lightgray;
+    border-top-style: inherit;
+    border-top-width: 0.15em;
 }
 .fppSelectableRowTable>tbody>tr:last-child>td{
 	border-bottom: none;
