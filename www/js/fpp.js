@@ -26,6 +26,7 @@ var lastStatus = '';
 var lastStatusJSON = null;
 var statusChangeFuncs = [];
 var zebraPinSubContentTop = 0;
+var VolumeChangeInProgress = false;
 
 /* jQuery Colpick activation */
 var fppCommandColorPicker_fppDialogIntervalTimer = null;
@@ -4489,11 +4490,14 @@ function modeToString (mode) {
 }
 
 function updateVolumeUI (Volume) {
-	$('#volume').html(Volume);
-	$('#remoteVolume').html(Volume);
-	$('#slider').val(Volume);
-	$('#remoteVolumeSlider').val(Volume);
-	SetSpeakerIndicator(Volume);
+	//only update UI if no current change in progress
+	if (VolumeChangeInProgress !== true) {
+		$('#volume').html(Volume);
+		$('#remoteVolume').html(Volume);
+		$('#slider').val(Volume);
+		$('#remoteVolumeSlider').val(Volume);
+		SetSpeakerIndicator(Volume);
+	}
 }
 
 var firstStatusLoad = 1;
@@ -5907,10 +5911,13 @@ function SetVolume (value) {
 	var obj = { volume: value };
 	$.post({ url: 'api/system/volume', data: JSON.stringify(obj) })
 		.done(function (data) {
-			// Nothing
+			// Unblock volume UI updates
+			VolumeChangeInProgress = false;
+			console.log('api volume update completed');
 		})
 		.fail(function () {
 			DialogError('ERROR', 'Failed to set volume to ' + value);
+			VolumeChangeInProgress = false;
 		});
 }
 

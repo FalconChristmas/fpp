@@ -142,16 +142,40 @@
         }
 
         function PageSetup() {
+
+            //Volume Controls
             //Store frequently elements in variables
             var slider = $('#slider');
             var rslider = $('#remoteVolumeSlider');
-            //Call the Slider
-            // slider.slider({
-            //  //Config
-            //  range: "min",
-            //  min: 1,
-            //  //value: 35,
-            // });
+            //Define Volume change event steps
+            function VolumeControlChange() {
+                var value = slider.val();
+                SetSpeakerIndicator(value);
+                $('#volume').html(value);
+                $('#remoteVolume').html(value);
+                SetVolume(value);
+            }
+            //Initialize the Player Mode Slider
+            //triggered on move of slider
+            slider.on('mousemove', function (e) {
+                VolumeChangeInProgress = true;
+                console.log("sliding slider with mouse");
+                VolumeControlChange();
+            });
+            //triggered on move of slider
+            slider.on('touchmove', function (e) {
+                VolumeChangeInProgress = true;
+                console.log("sliding slider with touch");
+                VolumeControlChange();
+            });
+            //Triggered after the user slides a handle, if the value has changed
+            slider.on('change', function (e) {
+                VolumeChangeInProgress = true;
+                console.log("slider value changed");
+                VolumeControlChange();
+            });
+
+            //Initialize the Remote Mode Slider
             rslider.slider({
                 //Config
                 range: "min",
@@ -159,31 +183,20 @@
                 //value: 35,
             });
 
-
-            // slider.slider({
-            //  stop: function( event, ui ) {
-            //      var value = slider.slider('value');
-
-            //      SetSpeakerIndicator(value);
-            //      $('#volume').html(value);
-            //         $('#remoteVolume').html(value);
-            //      SetVolume(value);
-            //  }
-            // });
-            slider.on('change', function (e) {
-                var value = slider.val();
-                SetSpeakerIndicator(value);
-                $('#volume').html(value);
-                $('#remoteVolume').html(value);
-                SetVolume(value);
+            rslider.on('click', function (e) {
+                VolumeChangeInProgress = true;
             });
             rslider.on('change', function (e) {
+                VolumeChangeInProgress = true;
                 var value = rslider.val();
                 SetSpeakerIndicator(value);
                 $('#volume').html(value);
                 $('#remoteVolume').html(value);
                 SetVolume(value);
             });
+
+
+
             SetupBanner();
         };
 
@@ -235,6 +248,7 @@
         }
 
         function IncrementVolume() {
+            VolumeChangeInProgress = true;
             var volume = parseInt($('#volume').html());
             volume += 1;
             if (volume > 100)
@@ -245,6 +259,7 @@
         }
 
         function DecrementVolume() {
+            VolumeChangeInProgress = true;
             var volume = parseInt($('#volume').html());
             volume -= 1;
             if (volume < 0)
