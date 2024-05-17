@@ -924,7 +924,7 @@ function " . $changedFunction . "() {
         echo "<select id='$setting' onChange='" . $changedFunction . "();' ";
     }
 
-    $classList = "class='form-select col-auto ";
+    $classList = "class='form-select col-auto mw-100 ";
 
     if ($multiple) {
         if (isset($sData['children'])) {
@@ -983,7 +983,7 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
     }
 
     echo "
-<input type='text' id='$setting' maxlength='$maxlength' size='$size' value=\"";
+<input type='text' id='$setting' class='mw-100' maxlength='$maxlength' size='$size' value=\"";
 
     if (($pluginName == "") && isset($settings[$setting])) {
         echo $settings[$setting];
@@ -1091,7 +1091,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     </script>
 ";
 
-    echo "<input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' ";
+    echo "<input type='$inputType' id='$setting' class='mw-100' $maxTag='$maxlength' $sizeTag='$size' ";
 
     if (isset($sData['step']) && $sData['step'] != 1) {
         echo "step='" . $sData['step'] . "' ";
