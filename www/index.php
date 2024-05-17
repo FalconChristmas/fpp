@@ -50,6 +50,10 @@
             });
 
             // Pin Player Controls to top of index page
+            //kill any existing instance in the browser
+            if (typeof zp_playerControls !== 'undefined') {
+                zp_playerControls.destroy();
+            }
             zp_playerControls = new $.Zebra_Pin($('#controlsSection'), {
                 top_spacing: $('.header').css('position') == 'fixed' ?
                     $('.header').outerHeight() : 0,
@@ -147,11 +151,17 @@
             //Store frequently elements in variables
             var slider = $('#slider');
             var rslider = $('#remoteVolumeSlider');
-            //Define Volume change event steps
+            //Define Volume change event steps for Player Mode
             function VolumeControlChange() {
                 var value = slider.val();
                 SetSpeakerIndicator(value);
                 $('#volume').html(value);
+                SetVolume(value);
+            }
+            //Define Volume change event steps for Player Mode
+            function RemoteVolumeControlChange() {
+                var value = rslider.val();
+                SetSpeakerIndicator(value);
                 $('#remoteVolume').html(value);
                 SetVolume(value);
             }
@@ -176,24 +186,44 @@
             });
 
             //Initialize the Remote Mode Slider
-            rslider.slider({
-                //Config
-                range: "min",
-                min: 1,
-                //value: 35,
-            });
-
-            rslider.on('click', function (e) {
+            //triggered on move of slider
+            rslider.on('mousemove', function (e) {
                 VolumeChangeInProgress = true;
+                console.log("sliding slider with mouse");
+                RemoteVolumeControlChange();
             });
+            //triggered on move of slider
+            rslider.on('touchmove', function (e) {
+                VolumeChangeInProgress = true;
+                console.log("sliding slider with touch");
+                RemoteVolumeControlChange();
+            });
+            //Triggered after the user slides a handle, if the value has changed
             rslider.on('change', function (e) {
                 VolumeChangeInProgress = true;
-                var value = rslider.val();
-                SetSpeakerIndicator(value);
-                $('#volume').html(value);
-                $('#remoteVolume').html(value);
-                SetVolume(value);
+                console.log("slider value changed");
+                RemoteVolumeControlChange();
             });
+
+            /*             //Initialize the Remote Mode Slider
+                        rslider.slider({
+                            //Config
+                            range: "min",
+                            min: 1,
+                            //value: 35,
+                        });
+            
+                        rslider.on('click', function (e) {
+                            VolumeChangeInProgress = true;
+                        });
+                        rslider.on('change', function (e) {
+                            VolumeChangeInProgress = true;
+                            var value = rslider.val();
+                            SetSpeakerIndicator(value);
+                            $('#volume').html(value);
+                            $('#remoteVolume').html(value);
+                            SetVolume(value);
+                        }); */
 
 
 
