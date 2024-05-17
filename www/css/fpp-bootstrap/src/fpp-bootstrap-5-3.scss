@@ -316,11 +316,14 @@ input[type=checkbox], .form-inline input[type=checkbox]{
     }
 }
 input[type=checkbox]:checked{
-
-
 	border:1px solid #56B760;
-
 	background: #56B760 url(/images/redesign/check-white.svg) no-repeat;
+	background-position: center center;
+}
+
+input[type=checkbox][disabled=""]:checked {
+	border:1px solid #969996;
+	background: #bdd3bf url(/images/redesign/check-white.svg) no-repeat;
 	background-position: center center;
 }
 .nav-pills{

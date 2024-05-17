@@ -2174,6 +2174,15 @@ function SetButtonState (button, state) {
 	}
 }
 
+function SetCheckBoxState (checkbox, state) {
+	// Enable Checkbox
+	if (state == 'enable') {
+		$(checkbox).prop('disabled', false);
+	} else {
+		$(checkbox).prop('disabled', true);
+	}
+}
+
 function EnableButtonClass (c) {
 	$('.' + c).each(function () {
 		SetButtonState(this, 'enable');
@@ -4650,6 +4659,7 @@ function parseStatus (jsonStatus) {
 			SetButtonState('#btnNext', 'disable');
 			SetButtonState('#btnStopGracefully', 'disable');
 			SetButtonState('#btnStopGracefullyAfterLoop', 'disable');
+			SetCheckBoxState('#chkRepeat', 'enable');
 			$('#playlistSelect').removeAttr('disabled');
 			UpdateCurrentEntryPlaying(0);
 		} else if (currentPlaylist.playlist != '') {
@@ -4694,6 +4704,8 @@ function parseStatus (jsonStatus) {
 			SetButtonState('#btnNext', 'enable');
 			SetButtonState('#btnStopGracefully', 'enable');
 			SetButtonState('#btnStopGracefullyAfterLoop', 'enable');
+			SetCheckBoxState('#chkRepeat', 'disable');
+
 			$('#playlistSelect').attr('disabled');
 
 			if (fppStatus == STATUS_STOPPING_GRACEFULLY) {

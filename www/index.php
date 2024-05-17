@@ -524,7 +524,7 @@
                                     </div>
                                     <div class="col-auto playlistRepeatCol">
                                         <span class="settingLabelHeading">Repeat:</span>
-                                        <input type="checkbox" id="chkRepeat">
+                                        <input class="form-check-input" type="checkbox" value="" id="chkRepeat">
                                     </div>
                                 </div>
                             </div>

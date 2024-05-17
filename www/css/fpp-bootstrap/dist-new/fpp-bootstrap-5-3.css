@@ -18227,6 +18227,12 @@ input[type=checkbox]:checked {
   background-position: center center;
 }
 
+input[type=checkbox][disabled=""]:checked {
+  border: 1px solid #969996;
+  background: #bdd3bf url(/images/redesign/check-white.svg) no-repeat;
+  background-position: center center;
+}
+
 .nav-pills {
   margin-left: -4px;
   margin-right: -4px;
