@@ -316,11 +316,14 @@ input[type=checkbox], .form-inline input[type=checkbox]{
     }
 }
 input[type=checkbox]:checked{
-
-
 	border:1px solid #56B760;
-
 	background: #56B760 url(/images/redesign/check-white.svg) no-repeat;
+	background-position: center center;
+}
+
+input[type=checkbox][disabled=""]:checked {
+	border:1px solid #969996;
+	background: #bdd3bf url(/images/redesign/check-white.svg) no-repeat;
 	background-position: center center;
 }
 .nav-pills{
@@ -763,6 +766,9 @@ table.settingsTable div.th{
 }
 .fppSelectableRowTable>tbody>tr:first-child>td:last-child, #tblSchedule>tbody>tr:first-child>td:nth-last-child(2) {
 	border-top-right-radius: 8px;
+    border-top-color: lightgray;
+    border-top-style: inherit;
+    border-top-width: 0.15em;
 }
 .fppSelectableRowTable>tbody>tr:last-child>td{
 	border-bottom: none;
@@ -915,4 +921,7 @@ input[type=file]::file-selector-button {
 input[type=file]::file-selector-button:hover {
     background-color: #171720;
     color: #FFFFFF;
+}
+.form-select {
+    display:inline-block;
 }

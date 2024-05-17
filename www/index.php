@@ -50,6 +50,10 @@
             });
 
             // Pin Player Controls to top of index page
+            //kill any existing instance in the browser
+            if (typeof zp_playerControls !== 'undefined') {
+                zp_playerControls.destroy();
+            }
             zp_playerControls = new $.Zebra_Pin($('#controlsSection'), {
                 top_spacing: $('.header').css('position') == 'fixed' ?
                     $('.header').outerHeight() : 0,
@@ -142,48 +146,65 @@
         }
 
         function PageSetup() {
+
+            //Volume Controls
             //Store frequently elements in variables
             var slider = $('#slider');
             var rslider = $('#remoteVolumeSlider');
-            //Call the Slider
-            // slider.slider({
-            //  //Config
-            //  range: "min",
-            //  min: 1,
-            //  //value: 35,
-            // });
-            rslider.slider({
-                //Config
-                range: "min",
-                min: 1,
-                //value: 35,
-            });
-
-
-            // slider.slider({
-            //  stop: function( event, ui ) {
-            //      var value = slider.slider('value');
-
-            //      SetSpeakerIndicator(value);
-            //      $('#volume').html(value);
-            //         $('#remoteVolume').html(value);
-            //      SetVolume(value);
-            //  }
-            // });
-            slider.on('change', function (e) {
+            //Define Volume change event steps for Player Mode
+            function VolumeControlChange() {
                 var value = slider.val();
                 SetSpeakerIndicator(value);
                 $('#volume').html(value);
-                $('#remoteVolume').html(value);
                 SetVolume(value);
-            });
-            rslider.on('change', function (e) {
+            }
+            //Define Volume change event steps for Player Mode
+            function RemoteVolumeControlChange() {
                 var value = rslider.val();
                 SetSpeakerIndicator(value);
-                $('#volume').html(value);
                 $('#remoteVolume').html(value);
                 SetVolume(value);
+            }
+            //Initialize the Player Mode Slider
+            //triggered on move of slider
+            slider.on('mousemove', function (e) {
+                VolumeChangeInProgress = true;
+                //console.log("sliding slider with mouse");
+                VolumeControlChange();
             });
+            //triggered on move of slider
+            slider.on('touchmove', function (e) {
+                VolumeChangeInProgress = true;
+                //console.log("sliding slider with touch");
+                VolumeControlChange();
+            });
+            //Triggered after the user slides a handle, if the value has changed
+            slider.on('change', function (e) {
+                VolumeChangeInProgress = true;
+                //console.log("slider value changed");
+                VolumeControlChange();
+            });
+
+            //Initialize the Remote Mode Slider
+            //triggered on move of slider
+            rslider.on('mousemove', function (e) {
+                VolumeChangeInProgress = true;
+                //console.log("sliding slider with mouse");
+                RemoteVolumeControlChange();
+            });
+            //triggered on move of slider
+            rslider.on('touchmove', function (e) {
+                VolumeChangeInProgress = true;
+                //console.log("sliding slider with touch");
+                RemoteVolumeControlChange();
+            });
+            //Triggered after the user slides a handle, if the value has changed
+            rslider.on('change', function (e) {
+                VolumeChangeInProgress = true;
+                //console.log("slider value changed");
+                RemoteVolumeControlChange();
+            });
+
             SetupBanner();
         };
 
@@ -235,6 +256,7 @@
         }
 
         function IncrementVolume() {
+            VolumeChangeInProgress = true;
             var volume = parseInt($('#volume').html());
             volume += 1;
             if (volume > 100)
@@ -245,6 +267,7 @@
         }
 
         function DecrementVolume() {
+            VolumeChangeInProgress = true;
             var volume = parseInt($('#volume').html());
             volume -= 1;
             if (volume < 0)
@@ -501,7 +524,7 @@
                                     </div>
                                     <div class="col-auto playlistRepeatCol">
                                         <span class="settingLabelHeading">Repeat:</span>
-                                        <input type="checkbox" id="chkRepeat">
+                                        <input class="form-check-input" type="checkbox" value="" id="chkRepeat">
                                     </div>
                                 </div>
                             </div>
