@@ -169,19 +169,19 @@
             //triggered on move of slider
             slider.on('mousemove', function (e) {
                 VolumeChangeInProgress = true;
-                console.log("sliding slider with mouse");
+                //console.log("sliding slider with mouse");
                 VolumeControlChange();
             });
             //triggered on move of slider
             slider.on('touchmove', function (e) {
                 VolumeChangeInProgress = true;
-                console.log("sliding slider with touch");
+                //console.log("sliding slider with touch");
                 VolumeControlChange();
             });
             //Triggered after the user slides a handle, if the value has changed
             slider.on('change', function (e) {
                 VolumeChangeInProgress = true;
-                console.log("slider value changed");
+                //console.log("slider value changed");
                 VolumeControlChange();
             });
 
@@ -189,43 +189,21 @@
             //triggered on move of slider
             rslider.on('mousemove', function (e) {
                 VolumeChangeInProgress = true;
-                console.log("sliding slider with mouse");
+                //console.log("sliding slider with mouse");
                 RemoteVolumeControlChange();
             });
             //triggered on move of slider
             rslider.on('touchmove', function (e) {
                 VolumeChangeInProgress = true;
-                console.log("sliding slider with touch");
+                //console.log("sliding slider with touch");
                 RemoteVolumeControlChange();
             });
             //Triggered after the user slides a handle, if the value has changed
             rslider.on('change', function (e) {
                 VolumeChangeInProgress = true;
-                console.log("slider value changed");
+                //console.log("slider value changed");
                 RemoteVolumeControlChange();
             });
-
-            /*             //Initialize the Remote Mode Slider
-                        rslider.slider({
-                            //Config
-                            range: "min",
-                            min: 1,
-                            //value: 35,
-                        });
-            
-                        rslider.on('click', function (e) {
-                            VolumeChangeInProgress = true;
-                        });
-                        rslider.on('change', function (e) {
-                            VolumeChangeInProgress = true;
-                            var value = rslider.val();
-                            SetSpeakerIndicator(value);
-                            $('#volume').html(value);
-                            $('#remoteVolume').html(value);
-                            SetVolume(value);
-                        }); */
-
-
 
             SetupBanner();
         };

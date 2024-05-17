@@ -5913,7 +5913,7 @@ function SetVolume (value) {
 		.done(function (data) {
 			// Unblock volume UI updates
 			VolumeChangeInProgress = false;
-			console.log('api volume update completed');
+			//console.log('api volume update completed');
 		})
 		.fail(function () {
 			DialogError('ERROR', 'Failed to set volume to ' + value);
