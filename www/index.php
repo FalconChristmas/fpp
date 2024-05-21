@@ -317,10 +317,13 @@
 
         <div class="mainContainer">
             <h1 class="title statusTitle">
-                <? if ($settings['fppMode'] == 'remote') {
-                    echo "Remote ";
+                Status <? if ($settings['fppMode'] == 'remote') {
+                    echo " - Remote Mode";
+                } else {
+                    echo " - Player Mode";
                 }
-                ?>Status <span class="statusHostname"><?= $settings["HostName"] ?></span>
+
+                ?><span class="statusHostname"><?= $settings["HostName"] ?></span>
             </h1>
 
             <?php

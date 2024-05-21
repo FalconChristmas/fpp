@@ -4369,12 +4369,14 @@ function SetupUIForMode (fppMode) {
 		// Remote Mode
 		$('#playerModeInfo').hide();
 		$('#remoteModeInfo').show();
+		$('h1.title.statusTitle')[0].innerHTML = 'Status - Remote Mode';
 	} else {
 		// Player Mode
 		if ($('#bridgeModeInfo').is(':hidden')) {
 			$('#playerModeInfo').show();
 		}
 		$('#remoteModeInfo').hide();
+		$('h1.title.statusTitle')[0].innerHTML = 'Status - Player Mode';
 	}
 	if ($('body').hasClass('is-loading')) {
 		$('body').removeClass('is-loading');
@@ -5971,18 +5973,15 @@ function SetFPPDmode (modeText) {
 }
 
 function AdjustFPPDModeFromStatus (mode) {
-	var cur = $('#selFPPDmode').val();
 	SetupUIForMode(mode);
-	if (mode != cur) {
-		if (mode == 8) {
-			// Remote Mode
-			$('#selFPPDmode').prop('selectedIndex', 1);
-			$('#textFPPDmode').text('Player (Remote)');
-		} else {
-			// Player
-			$('#selFPPDmode').prop('selectedIndex', 0);
-			$('#textFPPDmode').text('Player (Player)');
-		}
+	if (mode == 8) {
+		// Remote Mode
+		$('#selFPPDmode').prop('selectedIndex', 1);
+		$('#textFPPDmode').text('Player (Remote)');
+	} else {
+		// Player
+		$('#selFPPDmode').prop('selectedIndex', 0);
+		$('#textFPPDmode').text('Player (Player)');
 	}
 }
 
