@@ -157,11 +157,197 @@
             <h2 class="title d-none d-sm-block ">FPP Current Monitor</h2>
             <div class="pageContent">
 
-                <input id="btnCountPixels" class="buttons" type="button" value="Count Pixels"
-                    onClick="CountPixels();" />
+                <!-- Example Code -->
+
+                < class="container-flex">
+                    <div id="bank1">
+                        <div class="row">
+                            <div class="card col" style="width: 18rem;">
+                                <div class="card-body">
+                                    <h5 class="card-title">Port 1</h5>
+
+                                </div>
+                                <svg class="bd-placeholder-img card-img-top" width="100%" height="180"
+                                    xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placeholder: Image cap"
+                                    preserveAspectRatio="xMidYMid slice" focusable="false">
+                                    <title>Placeholder</title>
+                                    <rect width="100%" height="100%" fill="#868e96"></rect><text x="50%" y="50%"
+                                        fill="#dee2e6" dy=".3em">Image cap</text>
+                                </svg>
+                                <div class="card-body">
+
+                                    <p class="card-text">Pixels.</p>
+                                    <p class="card-text">Current: </p>
+                                    <a href="#" class="btn btn-primary">Test String</a>
+                                </div>
+                            </div>
+                            <div class="card col" style="width: 18rem;">
+                                <div class="card-body">
+                                    <h5 class="card-title">Port 2</h5>
+
+                                </div>
+                                <svg class="bd-placeholder-img card-img-top" width="100%" height="180"
+                                    xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placeholder: Image cap"
+                                    preserveAspectRatio="xMidYMid slice" focusable="false">
+                                    <title>Placeholder</title>
+                                    <rect width="100%" height="100%" fill="#868e96"></rect><text x="50%" y="50%"
+                                        fill="#dee2e6" dy=".3em">Image cap</text>
+                                </svg>
+                                <div class="card-body">
+
+                                    <p class="card-text">Pixels.</p>
+                                    <p class="card-text">Current: </p>
+                                    <a href="#" class="btn btn-primary">Test String</a>
+                                </div>
+                            </div>
+                            <div class="card col" style="width: 18rem;">
+                                <div class="card-body">
+                                    <h5 class="card-title">Port 3</h5>
+
+                                </div>
+                                <svg class="bd-placeholder-img card-img-top" width="100%" height="180"
+                                    xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placeholder: Image cap"
+                                    preserveAspectRatio="xMidYMid slice" focusable="false">
+                                    <title>Placeholder</title>
+                                    <rect width="100%" height="100%" fill="#868e96"></rect><text x="50%" y="50%"
+                                        fill="#dee2e6" dy=".3em">Image cap</text>
+                                </svg>
+                                <div class="card-body">
+
+                                    <p class="card-text">Pixels.</p>
+                                    <p class="card-text">Current: </p>
+                                    <a href="#" class="btn btn-primary">Test String</a>
+                                </div>
+                            </div>
+                            <div class="card col" style="width: 18rem;">
+                                <div class="card-body">
+                                    <h5 class="card-title">Port 4</h5>
+
+                                </div>
+                                <svg class="bd-placeholder-img card-img-top" width="100%" height="180"
+                                    xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placeholder: Image cap"
+                                    preserveAspectRatio="xMidYMid slice" focusable="false">
+                                    <title>Placeholder</title>
+                                    <rect width="100%" height="100%" fill="#868e96"></rect><text x="50%" y="50%"
+                                        fill="#dee2e6" dy=".3em">Image cap</text>
+                                </svg>
+                                <div class="card-body">
+
+                                    <p class="card-text">Pixels.</p>
+                                    <p class="card-text">Current: </p>
+                                    <a href="#" class="btn btn-primary">Test String</a>
+                                </div>
+                            </div>
+                            <div class="card col" style="width: 18rem;">
+                                <div class="card-body">
+                                    <h5 class="card-title">Port 5</h5>
+
+                                </div>
+                                <svg class="bd-placeholder-img card-img-top" width="100%" height="180"
+                                    xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placeholder: Image cap"
+                                    preserveAspectRatio="xMidYMid slice" focusable="false">
+                                    <title>Placeholder</title>
+                                    <rect width="100%" height="100%" fill="#868e96"></rect><text x="50%" y="50%"
+                                        fill="#dee2e6" dy=".3em">Image cap</text>
+                                </svg>
+                                <div class="card-body">
+
+                                    <p class="card-text">Pixels.</p>
+                                    <p class="card-text">Current: </p>
+                                    <a href="#" class="btn btn-primary">Test String</a>
+                                </div>
+                            </div>
+                            <div class="card col" style="width: 18rem;">
+                                <div class="card-body">
+                                    <h5 class="card-title">Port 6</h5>
+
+                                </div>
+                                <svg class="bd-placeholder-img card-img-top" width="100%" height="180"
+                                    xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placeholder: Image cap"
+                                    preserveAspectRatio="xMidYMid slice" focusable="false">
+                                    <title>Placeholder</title>
+                                    <rect width="100%" height="100%" fill="#868e96"></rect><text x="50%" y="50%"
+                                        fill="#dee2e6" dy=".3em">Image cap</text>
+                                </svg>
+                                <div class="card-body">
+
+                                    <p class="card-text">Pixels.</p>
+                                    <p class="card-text">Current: </p>
+                                    <a href="#" class="btn btn-primary">Test String</a>
+                                </div>
+                            </div>
+                            <div class="card col" style="width: 18rem;">
+                                <div class="card-body">
+                                    <h5 class="card-title">Port 7</h5>
+
+                                </div>
+                                <svg class="bd-placeholder-img card-img-top" width="100%" height="75"
+                                    xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placeholder: Image cap"
+                                    preserveAspectRatio="xMidYMid slice" focusable="false">
+                                    <title>Port1</title>
+                                    <rect width="100%" height="50%" fill="#868e96"></rect><text x="50%" y="50%"
+                                        fill="#dee2e6" dy=".3em">Image cap</text>
+                                </svg>
+                                <div class="card-body">
+
+                                    <p class="card-text">Pixels.</p>
+                                    <p class="card-text">Current: </p>
+                                    <a href="#" class="btn btn-primary">Test String</a>
+                                </div>
+                            </div>
+                            <div class="card col" style="width: 18rem;">
+                                <div class="card-body">
+                                    <h5 class="card-title">Port 8</h5>
+
+                                </div>
+                                <svg class="bd-placeholder-img card-img-top" width="100%" height="180"
+                                    xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placeholder: Image cap"
+                                    preserveAspectRatio="xMidYMid slice" focusable="false">
+                                    <title>Placeholder</title>
+                                    <rect width="100%" height="100%" fill="#868e96"></rect><text x="50%" y="50%"
+                                        fill="#dee2e6" dy=".3em">Image cap</text>
+                                </svg>
+                                <div class="card-body">
+
+                                    <p class="card-text">Pixels.</p>
+                                    <p class="card-text">Current: </p>
+                                    <a href="#" class="btn btn-primary">Test String</a>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div id="bank2">
+
+                            <div class="card col" style="width: 10rem;">
+                                <div class="card-body">
+                                    <h5 class="card-title">Port 9</h5>
+
+                                </div>
+                                <svg class="bd-placeholder-img card-img-top" width="100%" height="180"
+                                    xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placeholder: Image cap"
+                                    preserveAspectRatio="xMidYMid slice" focusable="false">
+                                    <title>Placeholder</title>
+                                    <rect width="100%" height="100%" fill="#868e96"></rect><text x="50%" y="50%"
+                                        fill="#dee2e6" dy=".3em">Image cap</text>
+                                </svg>
+                                <div class="card-body">
+
+                                    <p class="card-text">Pixels.</p>
+                                    <p class="card-text">Current: </p>
+                                    <a href="#" class="btn btn-primary">Test String</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
             </div>
+            <!-- End Example Code -->
+
+
+            <input id="btnCountPixels" class="buttons" type="button" value="Count Pixels" onClick="CountPixels();" />
         </div>
-        <?php include 'common/footer.inc'; ?>
+    </div>
+    <?php include 'common/footer.inc'; ?>
     </div>
 </body>
 
