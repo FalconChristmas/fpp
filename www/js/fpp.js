@@ -5933,6 +5933,20 @@ function SetVolume (value) {
 		});
 }
 
+respondToVisibility = function (element, callback) {
+	var options = {
+		root: document.documentElement
+	};
+
+	var observer = new IntersectionObserver((entries, observer) => {
+		entries.forEach(entry => {
+			callback(entry.intersectionRatio > 0);
+		});
+	}, options);
+
+	observer.observe(element);
+};
+
 function SetFPPDmode (modeText) {
 	// var mode = $('#selFPPDmode').val();
 	//  var modeText = "unknown"; // 0

@@ -62,6 +62,18 @@
 
             });
 
+            //Reset the player controls when the visibility of the PlayerInfoMode section VolumeChangeInProgress
+            respondToVisibility(document.getElementById("playerModeInfo"), visible => {
+                if (visible) {
+                    //visible
+                    zp_playerControls.update();
+                }
+                else {
+                    //not visible
+                    zp_playerControls.update();
+                }
+            });
+
             //refresh player control positioning - tiny delay to help chromium based browsers
             setTimeout(function () { zp_playerControls.update(); }, 50);
 
