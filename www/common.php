@@ -483,13 +483,15 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
         $restart = isset($s['restart']) ? $s['restart'] : 0;
         $reboot = isset($s['reboot']) ? $s['reboot'] : 0;
         $suffix = isset($s['suffix']) ? $s['suffix'] : '';
+        $labelClass = isset($s['labelClass']) ? $s['labelClass'] : 'col-md-4 col-lg-3 col-xxxl-2';
+        $fieldClass = isset($s['fieldClass']) ? $s['fieldClass'] : 'col-md';
 
         if ($textOnRight) {
-            echo "<div class='row' id='" . $setting . "Row'><div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2'>";
+            echo "<div class='row' id='" . $setting . "Row'><div class='printSettingLabelCol " . $labelClass . "'>";
         } else {
-            echo "<div class='row' id='" . $setting . "Row'><div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2'><div class='description'>";
+            echo "<div class='row' id='" . $setting . "Row'><div class='printSettingLabelCol " . $labelClass . "'><div class='description'>";
             PrintIcon($level);
-            echo $s['description'] . "</div></div><div class='printSettingFieldCol col-md'>";
+            echo $s['description'] . "</div></div><div class='printSettingFieldCol " . $fieldClass . "'>";
         }
 
         switch ($s['type']) {
