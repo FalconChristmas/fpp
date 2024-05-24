@@ -108,14 +108,19 @@ $freeSpace = disk_free_space($uploadDirectory);
     <script language="Javascript">
         var osAssetMap = {};
         var originalFPPOS;
-        $(document).ready(function () {
-            OnSystemStatusChange(updateSensorStatus)
-            UpdateVersionInfo();
-            originalFPPOS = $('#OSSelect').html();
-            AppendGithubOS();
-            GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
-            GetItemCount('api/configfile/schedule.json', 'scheduleCount');
-            $('.default-value').each(function () {
+
+//Page Load Logic
+    function pageSpecific_PageLoad_DOM_Setup() {
+        UpdateVersionInfo();
+        originalFPPOS = $('#OSSelect').html();
+        AppendGithubOS();
+        GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
+        GetItemCount('api/configfile/schedule.json', 'scheduleCount');
+	}
+
+	function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
+        OnSystemStatusChange(updateSensorStatus);
+        $('.default-value').each(function () {
                 var default_value = this.value;
                 $(this).on("focus", function () {
                     if (this.value == default_value) {
@@ -130,7 +135,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                     }
                 });
             });
-        });
+	}
 
         function showHideOsSelect() {
             if ($('#OSSelect option').length > 1) {
@@ -142,12 +147,13 @@ $freeSpace = disk_free_space($uploadDirectory);
 
 
         function AppendGithubOS() {
-            showHideOsSelect(); <?
+            showHideOsSelect(); 
+            <?php
         // we want at least a GB in order to be able to download the fppos and have space to then apply it
         if ($freeSpace > 1000000000) {
             ?>
+            
             var allPlatforms = '';
-
                 if ($('#allPlatforms').is(':checked')) {
                     allPlatforms = 'api/git/releases/os/all';
                 } else {
@@ -172,7 +178,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                         }
                     }
                     showHideOsSelect();
-                }); <?
+                }); <?php
         } ?>
     }
 
@@ -320,7 +326,8 @@ $freeSpace = disk_free_space($uploadDirectory);
         }
 
         function OSSelectChanged() {
-            var os = $('#OSSelect').val(); <?
+            var os = $('#OSSelect').val(); 
+            <?php
         // we want at least a 200MB in order to be able to apply the fppos
         if ($freeSpace < 200000000) {
             echo "os = '';\n";
@@ -374,7 +381,7 @@ $freeSpace = disk_free_space($uploadDirectory);
         }
     </script>
     <title>
-        <? echo $pageTitle; ?>
+        <?php echo $pageTitle; ?>
     </title>
     <style>
         .no-close .ui-dialog-titlebar-close {
@@ -457,13 +464,13 @@ $freeSpace = disk_free_space($uploadDirectory);
                                     <tr>
                                         <td>FPP Version:</td>
                                         <td id='fppVersion'>
-                                            <? echo $fpp_version; ?>
+                                            <?php echo $fpp_version; ?>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Platform:</td>
                                         <td>
-                                            <?
+                                            <?php
                                             echo $settings['Platform'];
                                             if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform'])) {
                                                 echo " (" . $settings['Variant'] . ")";
@@ -471,42 +478,42 @@ $freeSpace = disk_free_space($uploadDirectory);
                                             ?>
                                         </td>
                                     </tr>
-                                    <? if ($os_build != "") { ?>
+                                    <?php if ($os_build != "") { ?>
                                         <tr>
                                             <td>FPP OS Build:</td>
                                             <td id='osVersion'>
-                                                <? echo $os_build; ?>
+                                                <?php echo $os_build; ?>
                                             </td>
                                         </tr>
-                                    <? } ?>
+                                    <?php } ?>
                                     <tr>
                                         <td>OS Version:</td>
                                         <td id='osRelease'>
-                                            <? echo $os_version; ?>
+                                            <?php echo $os_version; ?>
                                         </td>
                                     </tr>
-                                    <? if (isset($serialNumber) && $serialNumber != "") { ?>
+                                    <?php if (isset($serialNumber) && $serialNumber != "") { ?>
                                         <tr>
                                             <td>Hardware Serial Number:</td>
                                             <td>
-                                                <? echo $serialNumber; ?>
+                                                <?php echo $serialNumber; ?>
                                             </td>
                                         </tr>
-                                    <? } ?>
+                                    <?php } ?>
                                     <tr>
                                         <td>Kernel Version:</td>
                                         <td>
-                                            <? echo $kernel_version; ?>
+                                            <?php echo $kernel_version; ?>
                                         </td>
                                     </tr>
-                                    <? if ($lastBoot != "") { ?>
+                                    <?php if ($lastBoot != "") { ?>
                                         <tr>
                                             <td>System Boot Time:</td>
                                             <td id='lastBoot'>
-                                                <? echo $lastBoot; ?>
+                                                <?php echo $lastBoot; ?>
                                             </td>
                                         </tr>
-                                    <? } ?>
+                                    <?php } ?>
                                     <tr>
                                         <td>fppd Uptime:</td>
                                         <td id='fppdUptime'></td>
@@ -514,7 +521,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                     <tr>
                                         <td>Local Git Version:</td>
                                         <td id='localGitVersion'>
-                                            <?
+                                            <?php
                                             echo $git_version;
                                             echo " <a href='changelog.php'>ChangeLog</a>";
                                             if (
@@ -549,7 +556,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                         <td><input type='button' value='Upgrade FPP' onClick='UpgradeFPP();'
                                                 class='buttons btn-outline-success' id='ManualUpdate'></td>
                                     </tr>
-                                    <?
+                                    <?php
                                     if ($settings['uiLevel'] > 0) {
                                         $upgradeSources = array();
                                         $remotes = getKnownFPPSystems();
@@ -579,10 +586,10 @@ $freeSpace = disk_free_space($uploadDirectory);
                                         <tr>
                                             <td>FPP Upgrade Source:</td>
                                             <td>
-                                                <? PrintSettingSelect("Upgrade Source", "UpgradeSource", 0, 0, "github.com", $upgradeSources); ?>
+                                                <?php PrintSettingSelect("Upgrade Source", "UpgradeSource", 0, 0, "github.com", $upgradeSources); ?>
                                             </td>
                                         </tr>
-                                        <?
+                                        <?php
                                     }
 
                                     $osUpdateFiles = getFileList($uploadDirectory, "fppos");
@@ -614,13 +621,13 @@ $freeSpace = disk_free_space($uploadDirectory);
                                     <tr>
                                         <td>CPU Usage:</td>
                                         <td>
-                                            <? printf("%.2f", get_server_cpu_usage()); ?>%
+                                            <?php printf("%.2f", get_server_cpu_usage()); ?>%
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Memory Usage:</td>
                                         <td>
-                                            <? printf("%.2f", get_server_memory_usage()); ?>%
+                                            <?php printf("%.2f", get_server_memory_usage()); ?>%
                                         </td>
                                     </tr>
                                     <tr>
@@ -640,7 +647,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                     </tr>
                                     <tr>
                                         <td colspan='2'>
-                                            <? echo $uptime; ?>
+                                            <?php echo $uptime; ?>
                                         </td>
                                     </tr>
 
@@ -660,25 +667,25 @@ $freeSpace = disk_free_space($uploadDirectory);
                                     <tr>
                                         <td>Playlists:</td>
                                         <td><a href='playlists.php' class='nonULLink'>
-                                                <? echo getFileCount($playlistDirectory); ?>
+                                                <?php echo getFileCount($playlistDirectory); ?>
                                             </a></td>
                                     </tr>
                                     <tr>
                                         <td>Sequences:</td>
                                         <td><a href='filemanager.php' class='nonULLink'>
-                                                <? echo getFileCount($sequenceDirectory); ?>
+                                                <?php echo getFileCount($sequenceDirectory); ?>
                                             </a></td>
                                     </tr>
                                     <tr>
                                         <td>Audio Files:</td>
                                         <td><a href='filemanager.php#tab-audio' class='nonULLink'>
-                                                <? echo getFileCount($musicDirectory); ?>
+                                                <?php echo getFileCount($musicDirectory); ?>
                                             </a></td>
                                     </tr>
                                     <tr>
                                         <td>Videos:</td>
                                         <td><a href='filemanager.php#tab-video' class='nonULLink'>
-                                                <? echo getFileCount($videoDirectory); ?>
+                                                <?php echo getFileCount($videoDirectory); ?>
                                             </a></td>
                                     </tr>
                                     <tr>
@@ -689,13 +696,13 @@ $freeSpace = disk_free_space($uploadDirectory);
                                     <tr>
                                         <td>Effects:</td>
                                         <td><a href='filemanager.php#tab-effects' class='nonULLink'>
-                                                <? echo getFileCount($effectDirectory); ?>
+                                                <?php echo getFileCount($effectDirectory); ?>
                                             </a></td>
                                     </tr>
                                     <tr>
                                         <td>Scripts:</td>
                                         <td><a href='filemanager.php#tab-scripts' class='nonULLink'>
-                                                <? echo getFileCount($scriptDirectory); ?>
+                                                <?php echo getFileCount($scriptDirectory); ?>
                                             </a></td>
                                     </tr>
                                     <?php
@@ -712,11 +719,11 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                                 $folder = $mediaDirectory . "/" . $value["folder"];
                                                                 ?>
                                                                 <tr>
-                                                                    <td><?= $value["tab"] ?>:</td>
-                                                                    <td><a href='filemanager.php#tab-<?= $key ?>'
-                                                                            class='nonULLink'><? echo getFileCount($folder); ?></a></td>
+                                                                    <td><?php $value["tab"] ?>:</td>
+                                                                    <td><a href='filemanager.php#tab-<?php $key ?>'
+                                                                            class='nonULLink'><?php echo getFileCount($folder); ?></a></td>
                                                                 </tr>
-                                                                <?
+                                                                <?php
                                                             }
                                                         }
                                                     }
@@ -735,7 +742,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                         <td><i class="fa-regular fa-hard-drive fa-fw"></i><b>Disk Utilization</b></td>
                                         <td>&nbsp;</td>
                                     </tr>
-                                    <?
+                                    <?php
                                     $diskTotal = disk_total_space("/");
                                     $diskFree = disk_free_space("/");
                                     $percentageUsed = 100 - ($diskFree * 100 / $diskTotal);
@@ -764,29 +771,29 @@ $freeSpace = disk_free_space($uploadDirectory);
                                     <tr>
                                         <td colspan="2">
                                             <div class="progress">
-                                                <div class="progress-bar <? echo $progressClass; ?>" role="progressbar"
-                                                    style="width: <? printf(" %2.0f%%", $percentageUsed); ?>;"
+                                                <div class="progress-bar <?php echo $progressClass; ?>" role="progressbar"
+                                                    style="width: <?php printf(" %2.0f%%", $percentageUsed); ?>;"
                                                     aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
-                                                    <? printf("%2.0f%%", $percentageUsed); ?>
+                                                    <?php printf("%2.0f%%", $percentageUsed); ?>
                                                 </div>
                                             </div>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Root
-                                            <? if ($rootDevice != "") {
+                                            <?php if ($rootDevice != "") {
                                                 echo "(" . $rootDevice . ")";
                                             }
                                             ?> Free Space:
                                         </td>
                                         <td>
 
-                                            <?
+                                            <?php
                                             printf("%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
                                             ?>
                                         </td>
                                     </tr>
-                                    <?
+                                    <?php
                                     if (isset($mediaDevice) && $mediaDevice != "" && $mediaDevice != $rootDevice) {
                                         $diskTotal = disk_total_space($mediaDirectory);
                                         $diskFree = disk_free_space($mediaDirectory);
@@ -802,20 +809,21 @@ $freeSpace = disk_free_space($uploadDirectory);
                                         <tr>
                                             <td colspan="2">
                                                 <div class="progress mt-2">
-                                                    <div class="progress-bar <? echo $progressClass; ?>" role="progressbar"
-                                                        style="width:<? printf(" %2.0f%%", $percentageUsed); ?>;"
+                                                    <div class="progress-bar <?php echo $progressClass; ?>" role="progressbar"
+                                                        style="width:<?php printf(" %2.0f%%", $percentageUsed); ?>;"
                                                         aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
-                                                        <? printf("%2.0f%%", $percentageUsed); ?>
+                                                        <?php printf("%2.0f%%", $percentageUsed); ?>
                                                     </div>
                                                 </div>
-                                            </td>
+                                                                                      </td>
                                         </tr>
                                         <tr>
                                             <td>Media (
-                                                <? echo $mediaDevice; ?>) Free Space:
+                                                <?php echo $mediaDevice; ?>
+                                                ) Free Space:
                                             </td>
                                             <td>
-                                                <?
+                                                <?php
                                                 printf("%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
                                                 ?>
                                             </td>
@@ -824,10 +832,10 @@ $freeSpace = disk_free_space($uploadDirectory);
                                             <td></td>
                                             <td></td>
                                         </tr>
-                                        <?
+                                        <?php
                                     } ?>
 
-                                    <?
+                                    <?php
                                     if (!isset($settings['cape-info']) || !isset($settings['cape-info']['verifiedKeyId']) || ($settings['cape-info']['verifiedKeyId'] != 'fp')) {
                                         ?>
                                         <tr>
@@ -849,7 +857,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                 </form>
                                             </td>
                                         </tr>
-                                        <?
+                                        <?php
                                     }
                                     ?>
                                 </table>
@@ -857,7 +865,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                             <div class="clear"></div>
                             </fieldset>
                         </div>
-                        <?
+                        <?php
                         $eepromFile = "/home/fpp/media/tmp/eeprom.bin";
                         if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
                             $eepromFile = "/home/fpp/media/config/cape-eeprom.bin";
