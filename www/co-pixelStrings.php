@@ -1,6 +1,3 @@
-<script type="text/javascript">
-
-var KNOWN_CAPES = {
 <?php
 function sortByLongName($a, $b)
 {
@@ -18,7 +15,7 @@ function readCapes($cd, $capes)
                 $string = "";
             } else {
                 $string = file_get_contents($cd . $file);
-//            echo "/* file len " . strlen($string) . "*/\n";
+                //            echo "/* file len " . strlen($string) . "*/\n";
                 //            echo "/* ends with '" . substr($string, -4) . "' */\n";
             }
 
@@ -40,7 +37,12 @@ function readCapes($cd, $capes)
     }
     return $capes;
 }
+?>
 
+<script type="text/javascript">
+
+var KNOWN_CAPES = {
+<?php
 $virtualEEPROMDir = '';
 if ($settings['Platform'] == "Raspberry Pi") {
     $virtualEEPROMDir = $fppDir . '/capes/pi';
@@ -55,6 +57,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 
 $capes = array();
 $capes = readCapes($mediaDirectory . "/tmp/strings/", $capes);
+
 if (count($capes) == 0 || $settings["showAllOptions"] == 1) {
     if ($settings['Platform'] == "Raspberry Pi") {
         $capedir = $fppDir . "/capes/pi/strings/";
@@ -70,7 +73,7 @@ if (count($capes) == 0 || $settings["showAllOptions"] == 1) {
 }
 usort($capes, 'sortByLongName');
 ?>
-};
+}
 
 function isLicensedDriver(driver) {
     if ((driver == 'BBB48String') || (driver == 'DPIPixels') || (driver == 'BBShiftString'))
@@ -83,13 +86,14 @@ function showVirtualEEPROMSelect() {
     $('.capeTypeRow').hide();
     $('.capeEEPROMRow').show();
 }
+
 function downloadEEPROM() {
     window.location.href = "cape-info.php";
 }
+
 function cancelVirtualEEPROMSelect() {
     reloadPage();
 }
-
 
 function RemoveVirtualEEPROM() {
     DeleteFile("config", null, "cape-eeprom.bin", true);
@@ -104,6 +108,7 @@ function UpgradeDone() {
     EnableModalDialogCloseButton("InstallVirtualEEPROM");
     $("#InstallVirtualEEPROMCloseButton").prop("disabled", false);
 }
+
 function InstallFirmwareDone() {
     var txt = $('#InstallVirtualEEPROMText').val();
     if (txt.includes("Cape does not match new firmware")) {
@@ -2504,9 +2509,9 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                         <div id='bankSlider'></div>
                     </div>
 
-                    <div id='pixelOutputs' class="fppFThScrollContainer">
+                    <div id='pixelOutputs'>
                         <div class='fppTableWrapper'>
-                            <div class='fppTableContents' role='region' aria-labelledby='PixelString' tabindex='0'>
+                            <div class='fppTableContents fppFThScrollContainer' role='region' aria-labelledby='PixelString' tabindex='0'>
                                 <table id='PixelString' class='fppSelectableRowTable fppStickyTheadTable'>
                                     <thead>
                                         <tr>

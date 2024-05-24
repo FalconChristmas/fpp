@@ -290,16 +290,24 @@ function float_fppModalStickyThead () {
 			return $previewTable.closest('.modal-body');
 		}
 	});
+	//TO-DO - currently only working for the one named table, need to change to class based selection for future alternative table use
 }
 
 function float_fppStickyThead () {
 	//Destroy any existing floatTheads
 	for (element in window) {
 		if (element.substring(0, 3) == 'ft_') {
+			tablename = element.substring(3);
 			//console.log('destroying ' + window[element]);
 			var reinit = window[element].floatThead('destroy');
 			//console.log(reinit);
 			delete window[element];
+			//remove created thead elements
+			$.each($('#' + tablename + ' thead'), function () {
+				if ($(this).find('tr.size-row').length > 0) {
+					$(this).remove();
+				}
+			});
 		}
 	}
 
@@ -330,6 +338,8 @@ function float_fppStickyThead () {
 					position: 'fixed',
 					zIndex: 990,
 					debug: false,
+					autoReflow: true,
+					copyTableClass: true,
 					responsiveContainer: function ($table) {
 						return $table.closest('.fppFThScrollContainer');
 					}
