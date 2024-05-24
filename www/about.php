@@ -103,19 +103,24 @@ $freeSpace = disk_free_space($uploadDirectory);
 ?>
 
 <head>
-    <?php include 'common/menuHead.inc'; ?>
+    <? include 'common/menuHead.inc'; ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <script language="Javascript">
         var osAssetMap = {};
         var originalFPPOS;
-        $(document).ready(function () {
-            OnSystemStatusChange(updateSensorStatus)
-            UpdateVersionInfo();
-            originalFPPOS = $('#OSSelect').html();
-            AppendGithubOS();
-            GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
-            GetItemCount('api/configfile/schedule.json', 'scheduleCount');
-            $('.default-value').each(function () {
+
+//Page Load Logic
+    function pageSpecific_PageLoad_DOM_Setup() {
+        UpdateVersionInfo();
+        originalFPPOS = $('#OSSelect').html();
+        AppendGithubOS();
+        GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
+        GetItemCount('api/configfile/schedule.json', 'scheduleCount');
+	}
+
+	function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
+        OnSystemStatusChange(updateSensorStatus);
+        $('.default-value').each(function () {
                 var default_value = this.value;
                 $(this).on("focus", function () {
                     if (this.value == default_value) {
@@ -130,7 +135,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                     }
                 });
             });
-        });
+	}
 
         function showHideOsSelect() {
             if ($('#OSSelect option').length > 1) {
@@ -142,12 +147,13 @@ $freeSpace = disk_free_space($uploadDirectory);
 
 
         function AppendGithubOS() {
-            showHideOsSelect(); <?
+            showHideOsSelect(); 
+            <?
         // we want at least a GB in order to be able to download the fppos and have space to then apply it
         if ($freeSpace > 1000000000) {
             ?>
+            
             var allPlatforms = '';
-
                 if ($('#allPlatforms').is(':checked')) {
                     allPlatforms = 'api/git/releases/os/all';
                 } else {
@@ -320,7 +326,8 @@ $freeSpace = disk_free_space($uploadDirectory);
         }
 
         function OSSelectChanged() {
-            var os = $('#OSSelect').val(); <?
+            var os = $('#OSSelect').val(); 
+            <?
         // we want at least a 200MB in order to be able to apply the fppos
         if ($freeSpace < 200000000) {
             echo "os = '';\n";
@@ -438,7 +445,7 @@ $freeSpace = disk_free_space($uploadDirectory);
 
 <body>
     <div id="bodyWrapper">
-        <?php
+        <?
         $activeParentMenuItem = 'help';
         include 'menu.inc'; ?>
         <div class="mainContainer">
@@ -698,7 +705,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                 <? echo getFileCount($scriptDirectory); ?>
                                             </a></td>
                                     </tr>
-                                    <?php
+                                    <?
                                     if (file_exists($pluginDirectory)) {
                                         $handle = opendir($pluginDirectory);
                                         while (($plugin = readdir($handle)) !== false) {
@@ -713,7 +720,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                                 ?>
                                                                 <tr>
                                                                     <td><?= $value["tab"] ?>:</td>
-                                                                    <td><a href='filemanager.php#tab-<?= $key ?>'
+                                                                    <td><a href='filemanager.php#tab-<? $key ?>'
                                                                             class='nonULLink'><? echo getFileCount($folder); ?></a></td>
                                                                 </tr>
                                                                 <?
@@ -808,11 +815,12 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                         <? printf("%2.0f%%", $percentageUsed); ?>
                                                     </div>
                                                 </div>
-                                            </td>
+                                                                                      </td>
                                         </tr>
                                         <tr>
                                             <td>Media (
-                                                <? echo $mediaDevice; ?>) Free Space:
+                                                <? echo $mediaDevice; ?>
+                                                ) Free Space:
                                             </td>
                                             <td>
                                                 <?
@@ -877,7 +885,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                 </div>
             </div>
         </div>
-        <?php include 'common/footer.inc'; ?>
+        <? include 'common/footer.inc'; ?>
     </div>
 </body>
 
