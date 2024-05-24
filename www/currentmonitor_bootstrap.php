@@ -146,7 +146,8 @@
     <title><? echo $pageTitle; ?></title>
     <style>
         .progress-bar-vertical {
-            width: 20px;
+            max-width: 20px;
+            min-width: 10px;
             min-height: 100px;
             display: flex;
             align-items: flex-end;
@@ -215,12 +216,12 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
-                                            <p class="card-text">Pixels:</p>
-                                            <p class="card-text">Current: </p>
+                                            <p class="card-text">Pixels: <span id="port1_pix_count">10</span></p>
+                                            <p class="card-text">Current: <span id="port1_current">452</span>mA</p>
                                             <a href="#" class="btn btn-primary">Test String</a>
                                         </div>
                                     </div>
@@ -240,12 +241,12 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
-                                            <p class="card-text">Pixels:</p>
-                                            <p class="card-text">Current: </p>
+                                            <p class="card-text">Pixels: <span id="port1_pix_count">10</span></p>
+                                            <p class="card-text">Current: <span id="port1_current">452</span>mA</p>
                                             <a href="#" class="btn btn-primary">Test String</a>
                                         </div>
                                     </div>
@@ -265,12 +266,12 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
-                                            <p class="card-text">Pixels:</p>
-                                            <p class="card-text">Current: </p>
+                                            <p class="card-text">Pixels: <span id="port1_pix_count">10</span></p>
+                                            <p class="card-text">Current: <span id="port1_current">452</span>mA</p>
                                             <a href="#" class="btn btn-primary">Test String</a>
                                         </div>
                                     </div>
@@ -290,12 +291,12 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
-                                            <p class="card-text">Pixels:</p>
-                                            <p class="card-text">Current: </p>
+                                            <p class="card-text">Pixels: <span id="port1_pix_count">10</span></p>
+                                            <p class="card-text">Current: <span id="port1_current">452</span>mA</p>
                                             <a href="#" class="btn btn-primary">Test String</a>
                                         </div>
                                     </div>
@@ -316,12 +317,12 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
-                                            <p class="card-text">Pixels:</p>
-                                            <p class="card-text">Current: </p>
+                                            <p class="card-text">Pixels: <span id="port1_pix_count">10</span></p>
+                                            <p class="card-text">Current: <span id="port1_current">452</span>mA</p>
                                             <a href="#" class="btn btn-primary">Test String</a>
                                         </div>
                                     </div>
@@ -341,12 +342,12 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
-                                            <p class="card-text">Pixels:</p>
-                                            <p class="card-text">Current: </p>
+                                            <p class="card-text">Pixels: <span id="port1_pix_count">10</span></p>
+                                            <p class="card-text">Current: <span id="port1_current">452</span>mA</p>
                                             <a href="#" class="btn btn-primary">Test String</a>
                                         </div>
                                     </div>
@@ -366,12 +367,12 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
-                                            <p class="card-text">Pixels:</p>
-                                            <p class="card-text">Current: </p>
+                                            <p class="card-text">Pixels: <span id="port1_pix_count">10</span></p>
+                                            <p class="card-text">Current: <span id="port1_current">452</span>mA</p>
                                             <a href="#" class="btn btn-primary">Test String</a>
                                         </div>
                                     </div>
@@ -391,12 +392,12 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
-                                            <p class="card-text">Pixels:</p>
-                                            <p class="card-text">Current: </p>
+                                            <p class="card-text">Pixels: <span id="port1_pix_count">10</span></p>
+                                            <p class="card-text">Current: <span id="port1_current">452</span>mA</p>
                                             <a href="#" class="btn btn-primary">Test String</a>
                                         </div>
                                     </div>
@@ -414,6 +415,14 @@
                             <div class="bankinfo col-2 card">
                                 <div class="card-body">
                                     <h5 class="card-title">Bank 2</h5>
+                                    <div class="container">
+                                        <div class="progress progress-bar-vertical">
+                                            <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated"
+                                                role="progressbar" aria-valuenow="75" aria-valuemin="0"
+                                                aria-valuemax="100" style="height: 750%;">
+                                            </div>
+                                        </div>
+                                    </div>
                                     <p class="card-text">Total Current Draw:</p>
                                 </div>
                             </div>
@@ -435,7 +444,7 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
@@ -460,7 +469,7 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
@@ -485,7 +494,7 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
@@ -510,7 +519,7 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
@@ -536,7 +545,7 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
@@ -561,7 +570,7 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
@@ -586,7 +595,7 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
@@ -611,7 +620,7 @@
                                             </div>
                                             <div class="col-10">
                                                 <img src="images/3P-phoenix-cad.svg" style="--color_fill: red;"
-                                                    alt="Port-img-1" width="80%" />
+                                                    alt="Port-img-1" width="70%" />
                                             </div>
                                         </div>
                                         <div class="card-body">
