@@ -1,6 +1,14 @@
 <?php include 'co-other-modules.php'; ?>
 <script>
 
+	function pageSpecific_PageLoad_DOM_Setup() {
+		GetChannelOutputs();
+	}
+
+	function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
+		SetupSelectableTableRow(otherTableInfo);
+	}
+
 	/////////////////////////////////////////////////////////////////////////////
 	// nRF Support functions
 	function nRFSpeedSelect(speedArray, currentValue) {
@@ -950,11 +958,11 @@
 		<?
 		if ($settings['Platform'] == "Raspberry Pi") {
 			?>
-			if (Object.keys(SPIDevices).length > 0) {
-				newRow += "<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
-					"<option value='MAX7219Matrix'>MAX7219 Matrix</option>";
-			}
-			<?
+				if (Object.keys(SPIDevices).length > 0) {
+	newRow += "<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
+		"<option value='MAX7219Matrix'>MAX7219 Matrix</option>";
+						}
+						<?
 		}
 		?>
 		newRow += "<option value='HTTPVirtualDisplay'>HTTP Virtual Display</option>";
@@ -1010,10 +1018,10 @@
 		}
 	}
 
-	$(document).ready(function () {
+/* 	$(document).ready(function () {
 		SetupSelectableTableRow(otherTableInfo);
 		GetChannelOutputs();
-	});
+	}); */
 </script>
 
 <div id='divOther'>
