@@ -1018,10 +1018,7 @@
 		}
 	}
 
-/* 	$(document).ready(function () {
-		SetupSelectableTableRow(otherTableInfo);
-		GetChannelOutputs();
-	}); */
+
 </script>
 
 <div id='divOther'>
