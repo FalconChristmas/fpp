@@ -18671,6 +18671,12 @@ table.settingsTable div.th {
   border-bottom: 1px solid #d5d7da;
 }
 
+.fppSelectableRowTable > tbody > tr:first-child {
+  border-top-color: lightgray;
+  border-top-style: inherit;
+  border-top-width: 0.15em;
+}
+
 .fppSelectableRowTable > tbody > tr:first-child > td {
   padding-top: 0.85em;
 }
