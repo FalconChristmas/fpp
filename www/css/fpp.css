@@ -205,6 +205,38 @@ body .ui-tabs .ui-tabs-nav li {
     overflow-y: scroll;
 }
 
+.fppMinMaxSliderRange {
+    width: 100%;
+    background-color: white !important;
+    z-index: 1 !important; 
+    border: 1px !important;
+    border-style: solid !important;
+    border-color:  #c5c5c5ca !important;
+}
+
+.fppMinMaxSliderRange.ui-widget.ui-widget-content{
+    border: 1px;
+    border-style: solid;
+    border-color:  #c5c5c5;
+}
+    
+.fppMinMaxSliderRange .ui-slider-handle {
+    background-color: lightgrey;    
+    border: 1px;
+        border-style: solid;
+    border-color:  #c5c5c5;
+    height: 1.7em;
+    width: 1.7em;
+}
+
+.fppMinMaxSliderRange .ui-slider-range {
+    background-color: lightgreen;    
+    border: 1px;
+    border-style: solid;
+    border-color:  #c5c5c5;  
+}
+
+
 @media(min-width:991px) {
     .header {
         position: fixed;

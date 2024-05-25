@@ -193,7 +193,7 @@
             <div class="pageContent">
                 <input id="btnCountPixels" class="buttons" type="button" value="Count Pixels" onClick="CountPixels();">
 
-                <div id="slider-range"></div>
+                <div id="slider-range" class="fppMinMaxSliderRange"></div>
                 <input type="text" id="amount" readonly="" style="border:0; color:#f6931f; font-weight:bold;">
 
 
