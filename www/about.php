@@ -148,7 +148,7 @@ $freeSpace = disk_free_space($uploadDirectory);
 
         function AppendGithubOS() {
             showHideOsSelect(); 
-            <?php
+            <?
         // we want at least a GB in order to be able to download the fppos and have space to then apply it
         if ($freeSpace > 1000000000) {
             ?>
@@ -178,7 +178,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                         }
                     }
                     showHideOsSelect();
-                }); <?php
+                }); <?
         } ?>
     }
 
@@ -327,7 +327,7 @@ $freeSpace = disk_free_space($uploadDirectory);
 
         function OSSelectChanged() {
             var os = $('#OSSelect').val(); 
-            <?php
+            <?
         // we want at least a 200MB in order to be able to apply the fppos
         if ($freeSpace < 200000000) {
             echo "os = '';\n";
@@ -445,7 +445,7 @@ $freeSpace = disk_free_space($uploadDirectory);
 
 <body>
     <div id="bodyWrapper">
-        <?php
+        <?
         $activeParentMenuItem = 'help';
         include 'menu.inc'; ?>
         <div class="mainContainer">
@@ -470,7 +470,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                     <tr>
                                         <td>Platform:</td>
                                         <td>
-                                            <?php
+                                            <?
                                             echo $settings['Platform'];
                                             if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform'])) {
                                                 echo " (" . $settings['Variant'] . ")";
@@ -521,7 +521,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                     <tr>
                                         <td>Local Git Version:</td>
                                         <td id='localGitVersion'>
-                                            <?php
+                                            <?
                                             echo $git_version;
                                             echo " <a href='changelog.php'>ChangeLog</a>";
                                             if (
@@ -556,7 +556,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                         <td><input type='button' value='Upgrade FPP' onClick='UpgradeFPP();'
                                                 class='buttons btn-outline-success' id='ManualUpdate'></td>
                                     </tr>
-                                    <?php
+                                    <?
                                     if ($settings['uiLevel'] > 0) {
                                         $upgradeSources = array();
                                         $remotes = getKnownFPPSystems();
@@ -589,7 +589,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                 <? PrintSettingSelect("Upgrade Source", "UpgradeSource", 0, 0, "github.com", $upgradeSources); ?>
                                             </td>
                                         </tr>
-                                        <?php
+                                        <?
                                     }
 
                                     $osUpdateFiles = getFileList($uploadDirectory, "fppos");
@@ -705,7 +705,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                 <? echo getFileCount($scriptDirectory); ?>
                                             </a></td>
                                     </tr>
-                                    <?php
+                                    <?
                                     if (file_exists($pluginDirectory)) {
                                         $handle = opendir($pluginDirectory);
                                         while (($plugin = readdir($handle)) !== false) {
@@ -723,7 +723,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                                     <td><a href='filemanager.php#tab-<? $key ?>'
                                                                             class='nonULLink'><? echo getFileCount($folder); ?></a></td>
                                                                 </tr>
-                                                                <?php
+                                                                <?
                                                             }
                                                         }
                                                     }
@@ -742,7 +742,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                         <td><i class="fa-regular fa-hard-drive fa-fw"></i><b>Disk Utilization</b></td>
                                         <td>&nbsp;</td>
                                     </tr>
-                                    <?php
+                                    <?
                                     $diskTotal = disk_total_space("/");
                                     $diskFree = disk_free_space("/");
                                     $percentageUsed = 100 - ($diskFree * 100 / $diskTotal);
@@ -788,12 +788,12 @@ $freeSpace = disk_free_space($uploadDirectory);
                                         </td>
                                         <td>
 
-                                            <?php
+                                            <?
                                             printf("%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
                                             ?>
                                         </td>
                                     </tr>
-                                    <?php
+                                    <?
                                     if (isset($mediaDevice) && $mediaDevice != "" && $mediaDevice != $rootDevice) {
                                         $diskTotal = disk_total_space($mediaDirectory);
                                         $diskFree = disk_free_space($mediaDirectory);
@@ -823,7 +823,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                 ) Free Space:
                                             </td>
                                             <td>
-                                                <?php
+                                                <?
                                                 printf("%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
                                                 ?>
                                             </td>
@@ -832,10 +832,10 @@ $freeSpace = disk_free_space($uploadDirectory);
                                             <td></td>
                                             <td></td>
                                         </tr>
-                                        <?php
+                                        <?
                                     } ?>
 
-                                    <?php
+                                    <?
                                     if (!isset($settings['cape-info']) || !isset($settings['cape-info']['verifiedKeyId']) || ($settings['cape-info']['verifiedKeyId'] != 'fp')) {
                                         ?>
                                         <tr>
@@ -857,7 +857,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                 </form>
                                             </td>
                                         </tr>
-                                        <?php
+                                        <?
                                     }
                                     ?>
                                 </table>
@@ -865,7 +865,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                             <div class="clear"></div>
                             </fieldset>
                         </div>
-                        <?php
+                        <?
                         $eepromFile = "/home/fpp/media/tmp/eeprom.bin";
                         if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
                             $eepromFile = "/home/fpp/media/config/cape-eeprom.bin";
