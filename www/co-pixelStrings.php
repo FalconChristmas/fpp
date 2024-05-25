@@ -2332,7 +2332,23 @@ function pinTableHeader() {
 }
 
 $(document).ready(function(){
+    <?
+if ((isset($settings['cape-info'])) &&
+    ((in_array('all', $settings['cape-info']["provides"])) ||
+        (in_array('strings', $settings['cape-info']["provides"])))) {
+    ?>
+    if (currentCapeName != "" && currentCapeName != "Unknown") {
+        $('.capeNamePixels').html(currentCapeName);
+        $('.capeTypeLabel').html("Cape Config");
+    }
+<?
+}
+?>
 
+    $.get('/api/gpio')
+	.done(data => selected_string_details.gpio = data)
+        .fail(err => $.jGrowl('Error: Unable to retrieve GPIO pin info.', { themeState: 'danger' }));
+    populateCapeList();
     loadPixelStringOutputs();
 });
 
@@ -2439,7 +2455,7 @@ foreach ($files as $file) {
                 <div class="col-md-auto form-inline">
                     <div><b><span class='capeTypeLabel'>Cape Type</span>:&nbsp;</b></div>
 		    <div ><select id='PixelStringSubType' onChange='PixelStringSubTypeChanged();'
-<?if (isset($settings['cape-info']) && isset($settings['cape-info']['capeTypeTip'])) {?>
+<? if (isset($settings['cape-info']) && isset($settings['cape-info']['capeTypeTip'])) {?>
 title="<?=$settings['cape-info']['capeTypeTip']?>"
 <?}?>
                           ></select><span id='PixelStringSubTypeSpan'> </span></div>
