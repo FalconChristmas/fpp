@@ -163,7 +163,21 @@
             transition: height 0.6s ease;
         }
     </style>
-
+    <script>
+        $(function () {
+            $("#slider-range").slider({
+                range: true,
+                min: 0,
+                max: 500,
+                values: [75, 300],
+                slide: function (event, ui) {
+                    $("#amount").val("$" + ui.values[0] + " - $" + ui.values[1]);
+                }
+            });
+            $("#amount").val("$" + $("#slider-range").slider("values", 0) +
+                " - $" + $("#slider-range").slider("values", 1));
+        });
+    </script>
 
 </head>
 
@@ -177,8 +191,13 @@
         <div class="mainContainer">
             <h2 class="title d-none d-sm-block ">FPP Current Monitor</h2>
             <div class="pageContent">
-                <input id="btnCountPixels" class="buttons" type="button" value="Count Pixels"
-                    onClick="CountPixels();" />
+                <input id="btnCountPixels" class="buttons" type="button" value="Count Pixels" onClick="CountPixels();">
+
+                <div id="slider-range"></div>
+                <input type="text" id="amount" readonly="" style="border:0; color:#f6931f; font-weight:bold;">
+
+
+
                 <!-- Example Code -->
 
                 <div class="container-flex">
