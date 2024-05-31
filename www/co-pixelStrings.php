@@ -446,7 +446,7 @@ function setPixelStringsStartChannelOnNextRow()
         var chanPerNode = (pixelType || "RGB").length;
         var nextStart = startChannel + (chanPerNode * pixelCount)/groupCount;
 
-        $('#pixelOutputs table tr').removeClass('selectedEntry');
+        $('#PixelString tr').removeClass('selectedEntry');
 
         while ((nextRow.find('.vsStartChannel').length == 0) && (nextRow.next('tr').length)) {
             nextRow = nextRow.next('tr');
@@ -671,8 +671,9 @@ function getPixelStringOutputJSON()
 	var postData = {};
 	postData.channelOutputs = [];
 
-	$('#pixelOutputs table').each(function() {
+	$('#PixelString').each(function() {
 		$this = $(this);
+
 		var tableId = $this.attr('id');
 		var enableId = tableId + '_enable';
 		var output = {};
@@ -1388,9 +1389,10 @@ function populatePixelStringOutputs(data) {
                 var expansionType = 0;
                 var inExpansion = false;
 
+                $('#PixelString').attr('type', output.subType);
+                $('#PixelString').attr('ports', outputCount);
 
-                for (var o = 0; o < outputCount; o++)
-                {
+                for (var o = 0; o < outputCount; o++) {
                     var protocols = GetPixelStringProtocols(o);
                     var defProtocol = GetPixelStringDefaultProtocol(o);
                     var port = {"differentialType" : 0, "expansionType" : 0};
@@ -1574,7 +1576,7 @@ function populatePixelStringOutputs(data) {
                                    });
 
                 $('#PixelString').on('mousedown', 'tr', function(event, ui) {
-                    $('#pixelOutputs table tr').removeClass('selectedEntry');
+                    $('#PixelString tr').removeClass('selectedEntry');
                     if ($(this).find('.vsPixelCount').length != 0) {
                         $(this).addClass('selectedEntry');
                         selectedPixelStringRowId = $(this).attr('id');
@@ -1728,11 +1730,11 @@ function sanityCheckOutputs() {
     var ok = true;
     var outtype = $('#PixelStringSubType').val();
     var driver = MapPixelStringType(outtype);
-    var rowCount = $('#pixelOutputs table tbody').find('tr').length;
-    var tbody = $('#pixelOutputs table tbody');
+    var rowCount = $('#PixelString tbody').find('tr').length;
+    var tbody = $('#PixelString tbody');
 
     var outputCount = 0;
-	$('#pixelOutputs table').each(function() {
+	$('#PixelString').each(function() {
 		$this = $(this);
         outputCount = parseInt($this.attr('ports'));
     });
@@ -1758,7 +1760,7 @@ function sanityCheckOutputs() {
 
     // Collect the start/end pairs and total pixel counts by pid
     for (r = 0; r < rowCount; r++) {
-        var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+        var tRow = $('#PixelString tbody').find('tr').eq(r);
 
         startChannels[r] = 0;
         endChannels[r] = 0;
@@ -1943,7 +1945,7 @@ if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name'])) {
     }
 
     var outputCount = 0;
-	$('#pixelOutputs table').each(function() {
+	$('#PixelString').each(function() {
 		$this = $(this);
         outputCount = parseInt($this.attr('ports'));
 
@@ -1971,7 +1973,7 @@ if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name'])) {
 }
 
 function setupBankLimits() {
-    var rowCount = $('#pixelOutputs table tbody').find('tr').length;
+    var rowCount = $('#PixelString  tbody').find('tr').length;
     var subType = GetPixelStringCapeFileName();
     if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].pixelLimits) {
         for (limit of KNOWN_CAPES[subType].pixelLimits) {
@@ -1980,7 +1982,7 @@ function setupBankLimits() {
                 var bankLimit = parseInt($('#' + sname).html());
                 SetSetting(sname, bankLimit, 0, 0, true);
                 for (r = 0; r < rowCount; r++) {
-                    var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+                    var tRow = $('#PixelString tbody').find('tr').eq(r);
                     if (tRow.find('.vsPixelCount').length != 0) {
                         var pid = parseInt(tRow.attr('pid'));
                         if (licensedOutputs > pid) {
@@ -2005,7 +2007,7 @@ function setupBankLimits() {
 
 function setupPixelLimits() {
     var subType = GetPixelStringCapeFileName();
-    var rowCount = $('#pixelOutputs table tbody').find('tr').length;
+    var rowCount = $('#PixelString tbody').find('tr').length;
     $('#bankSliderDiv').hide();
     if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].hasOwnProperty('pixelLimits')) {
         for (limit of KNOWN_CAPES[subType].pixelLimits) {
@@ -2020,7 +2022,7 @@ function setupPixelLimits() {
                 }
                 if (!savedValues) {
                     for (r = 0; r < rowCount; r++) {
-                        var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+                        var tRow = $('#PixelString tbody').find('tr').eq(r);
                         if (tRow.find('.vsPixelCount').length != 0) {
                             var pid = parseInt(tRow.attr('pid'));
                             var pixels = parseInt(tRow.find('.vsPixelCount').val());
@@ -2086,7 +2088,7 @@ function setupPixelLimits() {
         var outtype = $('#PixelStringSubType').val();
         var driver = MapPixelStringType(outtype);
         for (r = 0; r < rowCount; r++) {
-            var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+            var tRow = $('#PixelString tbody').find('tr').eq(r);
             if (tRow.find('.vsPixelCount').length != 0) {
                 var pid = parseInt(tRow.attr('pid'));
                 if (!isLicensedDriver(driver) || (pid < licensedOutputs)) {
