@@ -26,7 +26,7 @@
                                 $tabStr .= "</a></li>";
                                 array_push($tabStrings, $tabStr);
                                 array_push($fileExtensions, $key);
-                                array_push($tabDivs, file_get_contents($pluginDirectory . "/" . $plugin . "/" . $key . "-tab.inc"));
+                                array_push($tabDivs, $pluginDirectory . "/" . $plugin . "/" . $key . "-tab.inc");
                             }
                             if (isset($value["folder"])) {
                                 if (!is_dir($mediaDirectory . "/" . $value["folder"])) {
@@ -464,7 +464,7 @@
                         </div>
                         <?php
                         foreach ($tabDivs as $td) {
-                            echo $td;
+                            include ($td);
                         }
                         ?>
                         <div class="tab-pane fade" id="tab-logs" role="tabpanel" aria-labelledby="tab-logs-tab">

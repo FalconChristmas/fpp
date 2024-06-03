@@ -1,13 +1,22 @@
 <?php include 'co-other-modules.php'; ?>
 <script>
 
+/*
+    // The individual tabs on channeloutputs cannot use these functions
+    // as they are already defined in  channeloutputs.php and thus would 
+    // break other tabs.
 	function pageSpecific_PageLoad_DOM_Setup() {
 		GetChannelOutputs();
 	}
-
 	function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
 		SetupSelectableTableRow(otherTableInfo);
 	}
+*/
+    $(document).ready(function(){
+        GetChannelOutputs();
+        SetupSelectableTableRow(otherTableInfo);
+    });
+
 
 	/////////////////////////////////////////////////////////////////////////////
 	// nRF Support functions
