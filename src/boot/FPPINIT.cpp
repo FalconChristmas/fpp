@@ -129,7 +129,14 @@ static void checkSSHKeys() {
         }
     }
     printf("      - Regenerating SSH keys\n");
-    exec("/usr/bin/ssh-keygen -A");
+    if (FileExists("/dev/hwrng")) {
+        // if the hwrng exists, use it to see the urandom generator
+        // with some random data
+        exec("dd if=/dev/hwrng of=/dev/urandom count=1 bs=4096 status=none");
+    }
+    execbg("/usr/bin/ssh-keygen -q -N \"\" -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key &");
+    execbg("/usr/bin/ssh-keygen -q -N \"\" -t ed25519 -f /etc/ssh/ssh_host_ed25519_key &");
+    execbg("/usr/bin/ssh-keygen -q -N \"\" -t rsa -b 2048 -f /etc/ssh/ssh_host_rsa_key &");
 }
 
 // Copies files/config from the /boot partition to /home/fpp/media
@@ -164,7 +171,7 @@ static void checkHostName() {
         getRawSetting("HostName", hn);
         // By default on installation, hostname is fpp, but it does not appear in the settings file
         if (hn == "") {
-          hn = "fpp";
+            hn = "fpp";
         }
         char hostname[256];
         int result = gethostname(hostname, 256);

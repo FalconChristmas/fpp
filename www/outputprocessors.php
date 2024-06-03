@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <?php
 require_once "common.php";
 ?>
@@ -467,7 +467,7 @@ include 'menu.inc';?>
 
         				<div class='fppTableWrapper fppTableWrapperAsTablefpp'>
                             <div class='fppTableContents' role="region" aria-labelledby="outputProcessors" tabindex="0">
-                                <table id="outputProcessors" class="fppSelectableRowTable">
+                                <table id="outputProcessors" class="fppSelectableRowTable fppStickyTheadTable">
                                     <thead>
                                         <tr>
                                             <th>#</td>

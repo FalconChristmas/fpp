@@ -1920,6 +1920,7 @@
                     "output": [
                         {
                             "name": "Delete_Media",
+                            "description": "User entered playlist description",
                             "valid": false,
                             "message": [
                                 "Invalid Playlist Christmas Every Day.mp3"
@@ -1927,6 +1928,7 @@
                         },
                         {
                             "name": "Delete_Sequence",
+                            "description": "User entered playlist description",
                             "valid": false,
                             "message": [
                                 "Invalid mediaName Christmas Every Day.mp3",
@@ -1935,6 +1937,7 @@
                         },
                         {
                             "name": "Delete_Sequence2",
+                            "description": "User entered playlist description",
                             "valid": false,
                             "message": [
                                 "Invalid Sequence Christmas Every Day_128.fseq"
@@ -1942,6 +1945,7 @@
                         },
                         {
                             "name": "Parent_delete_test",
+                            "description": "User entered playlist description",
                             "valid": false,
                             "message": [
                                 "Invalid Playlist deleted_playlist"
@@ -1949,21 +1953,25 @@
                         },
                         {
                             "name": "Test1",
+                            "description": "User entered playlist description",
                             "valid": true,
                             "message": []
                         },
                         {
                             "name": "Test2",
+                            "description": "User entered playlist description",
                             "valid": true,
                             "message": []
                         },
                         {
                             "name": "Test3",
+                            "description": "User entered playlist description",
                             "valid": true,
                             "message": []
                         },
                         {
                             "name": "Test4",
+                            "description": "User entered playlist description",
                             "valid": true,
                             "message": []
                         }

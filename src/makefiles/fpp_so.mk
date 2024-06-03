@@ -133,7 +133,6 @@ LIBS_fpp_so += \
 	-lavcodec \
 	-lavutil \
 	-lswresample \
-	-L/usr/local/lib \
 	-lswscale \
 	-lGraphicsMagick \
 	-lGraphicsMagickWand \
@@ -141,7 +140,11 @@ LIBS_fpp_so += \
     $(LIBS_GPIO_ADDITIONS)
 
 ifneq ($(wildcard /usr/local/include/vlc/vlc.h),)
+LIBS_fpp_so += -L/usr/local/lib -lvlc 
+else 
+ifneq ($(wildcard /usr/include/vlc/vlc.h),)
 LIBS_fpp_so += -lvlc
+endif
 endif
 
 ifneq ($(wildcard /usr/include/libdrm/drm.h),)

@@ -29,9 +29,13 @@
 #include "VLCOut.h"
 
 #if LIBVLC_VERSION_MAJOR > 3
+#define LIBVLC_MEDIA_NEWPATH(a, b) libvlc_media_new_path(b)
+#define LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(a, b) libvlc_media_player_new_from_media(a, b)
 #define MEDIA_PLAYER_SET_TIME(a, b) libvlc_media_player_set_time(a, b, false)
 #define MEDIA_PLAYER_STOP(a) libvlc_media_player_stop_async(a)
 #else
+#define LIBVLC_MEDIA_NEWPATH(a, b) libvlc_media_new_path(a, b)
+#define LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(a, b) libvlc_media_player_new_from_media(b)
 #define MEDIA_PLAYER_SET_TIME(a, b) libvlc_media_player_set_time(a, b)
 #define MEDIA_PLAYER_STOP(a) libvlc_media_player_stop(a)
 #endif
@@ -58,8 +62,8 @@ public:
 
     float currentRate = 1.0f;
 
-    //circular buffer to record the last 10 diffs/rates so
-    //we can detect trends
+    // circular buffer to record the last 10 diffs/rates so
+    // we can detect trends
     static const int MAX_DIFFS = 10;
     std::array<std::pair<int, float>, MAX_DIFFS> diffs;
     int diffsSize = 0;
@@ -85,7 +89,7 @@ public:
         diffs[diffIdx].second = rate;
     }
 
-    int lastDiff = -1; //initalize at -1ms so speedup/slowdown logic initally assumes we are slightly behind the master (most common)
+    int lastDiff = -1; // initalize at -1ms so speedup/slowdown logic initally assumes we are slightly behind the master (most common)
     int rateDiff = 0;
 };
 
@@ -156,7 +160,7 @@ public:
 
     int load(VLCInternalData* data) {
         if (vlcInstance == nullptr) {
-            //const char *args[] {"-A", "alsa", "-V", "mmal_vout", nullptr};
+            // const char *args[] {"-A", "alsa", "-V", "mmal_vout", nullptr};
             if (FileExists("/etc/fpp/desktop")) {
                 const char* dsp = getenv("DISPLAY");
                 if (dsp == nullptr) {
@@ -173,15 +177,9 @@ public:
 #ifndef PLATFORM_OSX
             args.push_back("-A");
             args.push_back("alsa");
-#ifdef PLATFORM_PI
-            if (hardwareDecoding) {
-                args.push_back("-V");
-                args.push_back("mmal_vout");
-            }
-#else
+
             args.push_back("-I");
             args.push_back("dummy");
-#endif
 #else
             args.push_back("-I");
             args.push_back("macosx");
@@ -220,11 +218,11 @@ public:
         }
         if (vlcInstance) {
             if (startsWith(data->fullMediaPath, "http://") || startsWith(data->fullMediaPath, "https://"))
-                data->media = libvlc_media_new_location(data->fullMediaPath.c_str());
+                data->media = LIBVLC_MEDIA_NEWPATH(vlcInstance, data->fullMediaPath.c_str());
             else
-                data->media = libvlc_media_new_path(data->fullMediaPath.c_str());
+                data->media = LIBVLC_MEDIA_NEWPATH(vlcInstance, data->fullMediaPath.c_str());
 
-            data->vlcPlayer = libvlc_media_player_new_from_media(vlcInstance, data->media);
+            data->vlcPlayer = LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(vlcInstance, data->media);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), STOPPINGENUM, stoppedEventCallBack, data);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
             data->length = libvlc_media_player_get_length(data->vlcPlayer);
@@ -265,12 +263,12 @@ public:
             /*
              * Per https://mailman.videolan.org/pipermail/vlc-devel/2008-May/043240.html
              *
-             * This isn't needed.  libvlc_media_player_release will do it.   
+             * This isn't needed.  libvlc_media_player_release will do it.
              * I *think* we need to wait for  libvlc_MediaPlayerStopped event
              * Before freeing.    I don't have time to test this now
              * But will soon.
              */
-            //libvlc_media_release(data->media);
+            // libvlc_media_release(data->media);
             data->media = nullptr;
 
             if (data->equalizer) {
@@ -362,7 +360,7 @@ int VLCOutput::Stop(void) {
 }
 
 int VLCOutput::Process(void) {
-    //LogExcess(VB_MEDIAOUT, "VLCOutput::Process(%X) %0.3f\n", data, m_mediaOutputStatus->mediaSeconds);
+    // LogExcess(VB_MEDIAOUT, "VLCOutput::Process(%X) %0.3f\n", data, m_mediaOutputStatus->mediaSeconds);
     if (!data || !data->vlcPlayer) {
         return 0;
     }
@@ -378,9 +376,9 @@ int VLCOutput::Process(void) {
             m_mediaOutputStatus->secondsRemaining = seconds;
             m_mediaOutputStatus->subSecondsRemaining = 0;
         }
-        //printf("cur: %d    len: %d     Pos: %f        %ld\n", (int)cur, (int)data->length, libvlc_media_player_get_position(data->vlcPlayer), GetTimeMS() % 100000);
+        // printf("cur: %d    len: %d     Pos: %f        %ld\n", (int)cur, (int)data->length, libvlc_media_player_get_position(data->vlcPlayer), GetTimeMS() % 100000);
         if (cur != data->lastPos) {
-            //printf("cur: %d    len: %d     Pos: %f        %ld\n", (int)cur, (int)data->length, libvlc_media_player_get_position(data->vlcPlayer), GetTimeMS() % 100000);
+            // printf("cur: %d    len: %d     Pos: %f        %ld\n", (int)cur, (int)data->length, libvlc_media_player_get_position(data->vlcPlayer), GetTimeMS() % 100000);
             data->lastPos = cur;
         }
 
@@ -478,8 +476,8 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
 
         int oldSign = data->lastDiff < 0 ? -1 : 1;
         if ((oldSign != sign) && (data->lastDiff != 0) && (data->currentRate != 1.0)) {
-            //last time was slightly behind and we are now slightly ahead
-            //or vice versa, reset current rate to normal speed
+            // last time was slightly behind and we are now slightly ahead
+            // or vice versa, reset current rate to normal speed
             LogDebug(VB_MEDIAOUT, "Diff: %d	Flipped, reset speed to normal	(%0.3f)\n", rawdiff, 1.0);
             libvlc_media_player_set_rate(data->vlcPlayer, 1.0);
             // reset rate average list to 1.0
@@ -526,7 +524,7 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             rateSum += 1.0;
             data->currentRate = 1.0;
             data->rateDiff = 0;
-            data->lastDiff = -1; //after seeking, vlc is going to be slightly behind master, so this initializes the ahead/behind logic properly
+            data->lastDiff = -1; // after seeking, vlc is going to be slightly behind master, so this initializes the ahead/behind logic properly
             return 1;
         } else if (diff < 100) {
             // very close, but the diff could just be transient network issues
@@ -545,8 +543,8 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
                 rateDiff = 10;
             }
         } else {
-            //in first 10 seconds, use larger rate changes
-            // to try and get on track sooner
+            // in first 10 seconds, use larger rate changes
+            //  to try and get on track sooner
             rateDiff /= 50.0f;
             if (rateDiff > 20) {
                 rateDiff = 20;
@@ -556,7 +554,7 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
         rateDiff *= sign;
         int rateDiffI = (int)std::round(rateDiff);
         int oldrateDiffI = (int)std::round(data->rateDiff);
-        //rate = data->currentRate;
+        // rate = data->currentRate;
 
         LogExcess(VB_MEDIAOUT, "Diff: %d	rateDiffI: %d  data->rateDiff: %d\n", rawdiff, rateDiffI, data->rateDiff);
         if (rateDiffI < data->rateDiff) {
@@ -570,7 +568,7 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             }
             LogDebug(VB_MEDIAOUT, "Diff: %d	SlowDown %0.3f/%0.3f [goal/current]\n", rawdiff, rate, data->currentRate);
         } else {
-            //no rate change
+            // no rate change
             LogExcess(VB_MEDIAOUT, "Diff: %d	no rate change\n");
             return 1;
         }
@@ -597,9 +595,9 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
         if (rate < 0.5)
             rate = 0.5; // limit min to half-speed
 
-        //if (rate > 0.991 && rate < 1.009) {
-        //    rate = 1.0;
-        //}
+        // if (rate > 0.991 && rate < 1.009) {
+        //     rate = 1.0;
+        // }
 
         if ((int)(rate * 1000) != (int)(data->currentRate * 1000)) {
             LogDebug(VB_MEDIAOUT, "Diff: %d	libvlc_media_player_set_rate	(%0.3f)\n", rawdiff, rate);

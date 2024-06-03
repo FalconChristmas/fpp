@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <utility>
 
+#include "OutputMonitor.h"
 #include "Player.h"
 #include "Warnings.h"
 #include "common.h"
@@ -37,6 +38,57 @@ static std::list<EventHandler*> EVENT_HANDLERS;
 static std::map<std::string, std::function<void(const std::string& topic, const std::string& payload)>> EVENT_CALLBACKS;
 static std::thread* EVENT_PUBLISH_THREAD = nullptr;
 static volatile bool EVENT_PUBLISH_THREAD_RUN = true;
+static std::vector<EventNotifier*> eventNotifiers;
+
+class PublishPlaylistStatus : public EventNotifier {
+public:
+    PublishPlaylistStatus(int freq) :
+        EventNotifier(freq) {}
+    ~PublishPlaylistStatus() {}
+
+    void notify() {
+        Json::Value json = Player::INSTANCE.GetMqttStatusJSON();
+        std::stringstream buffer;
+        buffer << json << std::endl;
+        LogDebug(VB_CONTROL, "Notify PublishPlaylist\n");
+        Events::Publish("playlist_details", buffer.str());
+    }
+};
+
+extern void GetCurrentFPPDStatus(Json::Value& result);
+
+class PublishFPPDStatus : public EventNotifier {
+public:
+    PublishFPPDStatus(int freq) :
+        EventNotifier(freq) {}
+    ~PublishFPPDStatus() {}
+
+    void notify() {
+        Json::Value json;
+        GetCurrentFPPDStatus(json);
+
+        std::stringstream buffer;
+        buffer << json << std::endl;
+        LogDebug(VB_CONTROL, "Notify FPPDStatus\n");
+        Events::Publish("fppd_status", buffer.str());
+    }
+};
+
+class PublishPortStatus : public EventNotifier {
+public:
+    PublishPortStatus(int freq) :
+        EventNotifier(freq) {}
+    ~PublishPortStatus() {}
+
+    void notify() {
+        Json::Value json = Json::arrayValue;
+        OutputMonitor::INSTANCE.GetCurrentPortStatusJson(json);
+        std::stringstream buffer;
+        buffer << json << std::endl;
+        LogDebug(VB_CONTROL, "Notify FPPDStatus\n");
+        Events::Publish("port_status", buffer.str());
+    }
+};
 
 class EventWarningListener : public WarningListener {
 public:
@@ -73,7 +125,21 @@ void Events::Ready() {
 
     int playlistFrequency = getSettingInt("MQTTFrequency");
     int statusFrequency = getSettingInt("MQTTStatusFrequency");
-    if (EVENT_PUBLISH_THREAD == nullptr && (playlistFrequency > 0) || (statusFrequency > 0)) {
+    int portFrequency = getSettingInt("MQTTPortStatusFrequency");
+
+    if (playlistFrequency > 0) {
+        eventNotifiers.push_back(new PublishPlaylistStatus(playlistFrequency));
+    }
+
+    if (statusFrequency > 0) {
+        eventNotifiers.push_back(new PublishFPPDStatus(statusFrequency));
+    }
+
+    if (portFrequency > 0) {
+        eventNotifiers.push_back(new PublishPortStatus(portFrequency));
+    }
+
+    if (EVENT_PUBLISH_THREAD == nullptr && eventNotifiers.size() > 0) {
         EVENT_PUBLISH_THREAD = new std::thread();
         // create  background Publish Thread
         EVENT_PUBLISH_THREAD = new std::thread(Events::RunPublishThread);
@@ -150,19 +216,10 @@ void Events::RunPublishThread() {
     SetThreadName("FPP-Events");
     sleep(3); // Give everything time to start up
 
-    int playlistFrequency = getSettingInt("MQTTFrequency");
-    int statusFrequency = getSettingInt("MQTTStatusFrequency");
-    if (playlistFrequency < 0) {
-        playlistFrequency = 0;
-    }
-    if (statusFrequency < 0) {
-        statusFrequency = 0;
-    }
-
-    LogInfo(VB_CONTROL, "Starting Publish Thread with Playlist Frequency: %d and Status Frequency %d\n", playlistFrequency, statusFrequency);
-    if ((playlistFrequency == 0) && (statusFrequency == 0)) {
+    LogInfo(VB_CONTROL, "Starting Publish Thread\n");
+    if (eventNotifiers.size() == 0) {
         // kill thread
-        LogInfo(VB_CONTROL, "Stopping Publish Thread as frequency is zero.\nc");
+        LogInfo(VB_CONTROL, "Stopping Publish Thread as frequency is zero.\n");
         return;
     }
 
@@ -172,37 +229,15 @@ void Events::RunPublishThread() {
     time_t lastPlaylist = std::time(0);
     while (EVENT_PUBLISH_THREAD_RUN) {
         time_t now = std::time(0);
-        int statusDiff = statusFrequency == 0 ? INT_MIN : (int)(now - lastStatus);
-        int playlistDiff = playlistFrequency == 0 ? INT_MIN : (int)(now - lastPlaylist);
-        if (playlistDiff >= playlistFrequency) {
-            Events::PublishPlaylistStatus();
-            lastPlaylist = now;
-            playlistDiff = 0;
-        }
-        if (statusDiff >= statusFrequency) {
-            Events::PublishFPPDStatus();
-            lastStatus = now;
-            statusDiff = 0;
-        }
-        int playlistSleep = playlistFrequency == 0 ? INT_MAX : (playlistFrequency - playlistDiff);
-        int statusSleep = statusFrequency == 0 ? INT_MAX : (statusFrequency - statusDiff);
+        int sleep_dur = INT_MAX;
 
-        sleep(std::min(playlistSleep, statusSleep));
+        for (auto it = eventNotifiers.begin(); it != eventNotifiers.end(); it++) {
+            if ((*it)->next_time < now) {
+                (*it)->notify();
+                (*it)->next_time = (now + (*it)->frequency);
+            }
+            sleep_dur = std::min(sleep_dur, (int)((*it)->next_time - now));
+        }
+        sleep(sleep_dur);
     }
-}
-void Events::PublishPlaylistStatus() {
-    Json::Value json = Player::INSTANCE.GetMqttStatusJSON();
-
-    std::stringstream buffer;
-    buffer << json << std::endl;
-    Publish("playlist_details", buffer.str());
-}
-extern void GetCurrentFPPDStatus(Json::Value& result);
-void Events::PublishFPPDStatus() {
-    Json::Value json;
-    GetCurrentFPPDStatus(json);
-
-    std::stringstream buffer;
-    buffer << json << std::endl;
-    Publish("fppd_status", buffer.str());
 }

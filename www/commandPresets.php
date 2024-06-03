@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <?php
 include 'common.php';
@@ -212,7 +212,7 @@ include 'menu.inc';?>
                         </tr>
                     </table>
 
-                    <table class="fppSelectableRowTable">
+                    <table class="fppSelectableRowTable fppStickyTheadTable">
                         <thead>
                             <tr>
                                 <th class="tblCommandsHeadGrip"></th>

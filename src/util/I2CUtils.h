@@ -30,14 +30,20 @@ public:
     int readWordData(int reg);
     int writeWordData(int reg, unsigned val);
 
+    // these are limitted to 32bytes due to smbus protocol restrictions
     int writeBlockData(int reg, const uint8_t* buf, int count);
     int writeI2CBlockData(int reg, const uint8_t* buf, int count);
     int readI2CBlockData(int reg, uint8_t* buf, int count);
+
+    // this writes the bytes directly via i2c and would be limitted to the
+    // 254 bytes data (+byte for len +byte for reg)
+    int writeRawI2CBlockData(int reg, const uint8_t* buf, int count);
 
     bool isOk() { return file != -1; }
 
 private:
     void Init(const char*, int address);
     int file;
+    int address;
     unsigned long funcs;
 };

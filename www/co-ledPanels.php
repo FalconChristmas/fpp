@@ -98,7 +98,7 @@ function printLEDPanelGammaSelect($platform, $gamma)
     if (!isset($gamma) || $gamma == "" || $gamma == "0") {
         $gamma = "2.2";
     }
-    echo "<input type='number' min='0.1' max='5.0' step='0.1' value='$gamma' id='LEDPanelsGamma'/>";
+    echo "<input type='number' min='0.1' max='5.0' step='0.1' value='$gamma' id='LEDPanelsGamma'>";
 }
 
 function printLEDPanelInterleaveSelect($platform)
@@ -395,6 +395,10 @@ if ($settings['Platform'] == "Raspberry Pi") {
         if (typeof colordepth === 'undefined') {
             colordepth = 8;
         }
+        if (channelOutputsLookup["LEDPanelMatrix"].panelRowAddressType != null) {
+            var RowAddressType = channelOutputsLookup["LEDPanelMatrix"].panelRowAddressType;
+            $('#LEDPanelRowAddressType').val(RowAddressType);
+        }
         if (channelOutputsLookup["LEDPanelMatrix"].panelInterleave != null) {
             var interleave = channelOutputsLookup["LEDPanelMatrix"].panelInterleave;
             $('#LEDPanelInterleave').val(interleave);
@@ -530,6 +534,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
     if (LEDPanelAddressing) {
         config.panelAddressing = LEDPanelAddressing;
     }
+    if ($('#LEDPanelRowAddressType').val() != "0") {
+        config.panelRowAddressType = parseInt($('#LEDPanelRowAddressType').val());
+    }
     if ($('#LEDPanelInterleave').val() != "0") {
         config.panelInterleave = $('#LEDPanelInterleave').val();
     }
@@ -642,6 +649,8 @@ function LEDPanelsConnectionChanged()
 
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
+    echo "        $('#LEDPanelsRowAddressTypeLabel').hide();\n";
+    echo "        $('#LEDPanelRowAddressType').hide();\n";
     echo "        $('#LEDPanelsInterleaveLabel').hide();\n";
     echo "        $('#LEDPanelInterleave').hide();\n";
     echo "        $('#LEDPanelsOutputByRowLabel').hide();\n";
@@ -698,6 +707,8 @@ if ($settings['Platform'] == "BeagleBone Black") {
 <?
 } else {
     if ($settings['Platform'] == "Raspberry Pi") {
+        echo "        $('#LEDPanelsRowAddressTypeLabel').show();\n";
+        echo "        $('#LEDPanelRowAddressType').show();\n";
         echo "        $('#LEDPanelsInterleaveLabel').show();\n";
         echo "        $('#LEDPanelInterleave').show();\n";
         echo "        $('#LEDPanelsOutputCPUPWMLabel').show();\n";
@@ -1281,9 +1292,8 @@ if ((isset($settings['cape-info'])) &&
 
 </script>
 
-<div id='tab-LEDPanels'>
 	<div id='divLEDPanels'>
-        <div class="row tablePageHeader">
+        <div class="row tableTabPageHeader">
             <div class="col-md"><h2><span class='capeNamePanels'>LED Panels</span> </h2></div>
             <div class="col-md-auto ms-lg-auto">
                 <div class="form-actions">
@@ -1296,11 +1306,13 @@ if ((isset($settings['cape-info'])) &&
             <div class="row">
                 <div class="col-md-auto">
                     <div class="backdrop-dark form-inline enableCheckboxWrapper">
-                        <div><b>Enable <span class='capeNamePanels'>Led Panels</span>:&nbsp;</b></div><div><input id='LEDPanelsEnabled' type='checkbox'></div>
+                        <div><b>Enable <span class='capeNamePanels'>Led Panels</span>:&nbsp;</b></div>
+                        <div><input id='LEDPanelsEnabled' type='checkbox'></div>
                     </div>
                 </div>
                 <div class="col-md-auto form-inline">
-                    <div id='LEDPanelsConnectionLabel'><b>Connection:&nbsp;</b></div><div>
+                    <div id='LEDPanelsConnectionLabel'><b>Connection:&nbsp;</b></div>
+                    <div>
                     <select id='LEDPanelsConnection' onChange='LEDPanelsConnectionChanged();'>
 <?
 if (in_array('all', $currentCapeInfo["provides"])
@@ -1308,10 +1320,12 @@ if (in_array('all', $currentCapeInfo["provides"])
     if ($settings['Platform'] == "Raspberry Pi") {
         ?>
                             <option value='RGBMatrix'>Hat/Cap/Cape</option>
-<?} else if ($settings['Platform'] == "BeagleBone Black") {?>
+<?
+    } else if ($settings['Platform'] == "BeagleBone Black") {?>
                             <option value='LEDscapeMatrix'>Hat/Cap/Cape</option>
 <?}?>
-<?}?>
+<?
+}?>
                             <option value='ColorLight5a75'>ColorLight</option>
 <?
 if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux")) {
@@ -1346,7 +1360,8 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
                                           <option value='v1'>Standard v1.x</option>
                                           <option value='v2'>v2.x</option>
                                 <?}?>
-                                <?}?>
+                                <?
+}?>
 					</select>
                 </div>
             </div>
@@ -1442,21 +1457,21 @@ if ($settings['Platform'] == "Raspberry Pi") {
     <?}?>
 
                 </div>
-                <div class="row">
+        <div class="row">
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsInterleaveLabel'><b>Panel Interleave:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3">
                         <?printLEDPanelInterleaveSelect($settings['Platform']);?>
                     </div>
-        <?if ($settings['Platform'] == "Raspberry Pi") {?>
+            <?if ($settings['Platform'] == "Raspberry Pi") {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsOutputCPUPWMLabel'><b>Use CPU PWM:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"><input id='LEDPanelsOutputCPUPWM' type='checkbox'></div>
-        <?} else if ($settings['Platform'] == "BeagleBone Black") {?>
+            <?} else if ($settings['Platform'] == "BeagleBone Black") {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsOutputBlankRowLabel'><b>Blank between rows:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"><input id='LEDPanelsOutputBlankRow' type='checkbox'></div>
-        <?} else {?>
+            <?} else {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
-        <?}?>
+            <?}?>
                 </div>
                 <div class="row">
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsColorDepthLabel'><b>Color Depth:</b></span></div>
@@ -1478,8 +1493,26 @@ if ($settings['Platform'] == "Raspberry Pi") {
                 </div>
             </div>
         </div>
+        <div class="row">
+            <?if ($settings['Platform'] == "Raspberry Pi") {?>
+                    <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsRowAddressTypeLabel'><b>Panel Row Address Type:</b></span></div>
+                    <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <select id='LEDPanelRowAddressType'>
+                            <option value='0' selected>Standard</option>
+                            <option value='1'>AB-Addressed Panels</option>
+                            <option value='2'>Direct Row Select</option>
+                            <option value='3'>ABC-Addressed Panels</option>
+                            <option value='4'>ABC Shift + DE Direct</option>
+                        </select>
+                    </div>
+            <?} else {?>
+                    <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
+                    <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
+            <?}?>
+        </div>
+  </div>
 
-		<div id='divLEDPanelsData'>
+		<div id='divLEDPanelsLayoutData'>
 			<div style="padding: 10px;">
                 <br>
                 <b>LED Panel Layout:</b><br>
@@ -1496,8 +1529,8 @@ if ($settings['Platform'] == "Raspberry Pi") {
                     <table class='ledPanelCanvasUI' style='display:none;'>
                         <tr>
                             <td><canvas id='ledPanelCanvas' width='900' height='400' style='border: 2px solid rgb(0,0,0);'></canvas></td>
-                            <td width='10px'></td>
-                            <td valign='top'>
+                            <td></td>
+                            <td>
                                 <b>Selected Panel:</b><br>
                                 <table>
                                     <tr><td>Output:</td><td>
@@ -1531,7 +1564,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
                                     <tr>
                                         <td><b>UI Layout Size:</b></td>
                                         <td>Pixels Wide:</td><td><?PrintSettingTextSaved("LEDPanelUIPixelsWide", 2, 0, 4, 4, "", "256", "SetCanvasSize");?></td>
-                                        <td width='10px'></td>
+                                        <td></td>
                                         <td>Pixels High:</td><td><?PrintSettingTextSaved("LEDPanelUIPixelsHigh", 2, 0, 4, 4, "", "128", "SetCanvasSize");?></td>
                                     </tr>
                                 </table>
@@ -1539,7 +1572,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
                         </tr>
                     </table>
                     <div class='ledPanelSimpleUI'>
-                        <table id='LEDPanelTable' border=1>
+                        <table id='LEDPanelTable'>
                             <tbody>
                             </tbody>
                         </table>
@@ -1547,7 +1580,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 				    - O-# is physical output number.<br>
 			    	- P-# is panel number on physical output.<br>
 		    		- C-(color) is color order if panel has different color order than default (C-Def).<br>
-	    			- Arrow <img src='images/arrow_N.png' height=17 width=17> indicates panel orientation, click arrow to rotate.<br>
+	    			- Arrow <img src='images/arrow_N.png' height=17 width=17 alt="panel orientation"> indicates panel orientation, click arrow to rotate.<br>
                 </div>
                 <br>
                 <b>Notes and hints:</b>
@@ -1571,5 +1604,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
                 </ul>
 		    </div>
 	    </div>
-	</div>
-</div>
+
+
+
+

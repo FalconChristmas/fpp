@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <?php
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
@@ -26,7 +26,7 @@ foreach ($data as $cmd) {
 $(document).ready(function() {
 $('.default-value').each(function() {
 var default_value = this.value;
-$(this).focus(function() {
+$(this).on("focus", function() {
 if(this.value == default_value) {
 this.value = '';
 $(this).css('color', '#333');
@@ -851,7 +851,7 @@ include 'menu.inc';?>
                             </td>
                         </tr>
                     </table>
-                    <table id='tblSchedule' class="fppSelectableRowTable">
+                    <table id='tblSchedule' class="fppSelectableRowTable fppStickyTheadTable">
 
                         <thead id='tblScheduleHead'>
                             <tr>

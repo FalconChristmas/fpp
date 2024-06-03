@@ -1,5 +1,9 @@
 /dts-v1/;
 /plugin/;
+
+#include <dt-bindings/board/am335x-bbw-bbb-base.h>
+#include <dt-bindings/pinctrl/am33xx.h>
+
 /* Reserve 4M DDR memory for the pixel buffers */
 / {
 
@@ -22,11 +26,26 @@
 				};      
 			};
    
-            fpp: fpp@8f000000 {
-                memory-region = <&fpp_reserved>;
-                status = "okay";
-            };
+			fpp: fpp@8f000000 {
+		                memory-region = <&fpp_reserved>;
+			        status = "okay";
+			};
 		};
 	};
-    
+
+	fragment@1 {
+                target = <&i2c1>;
+                __overlay__ {
+                        status = "okay";
+                        clock-frequency = <400000>;
+		};
+	};
+        fragment@2 {
+                target = <&i2c2>;
+                __overlay__ {
+                        status = "okay";
+                        clock-frequency = <400000>;
+                };
+        };
 };
+

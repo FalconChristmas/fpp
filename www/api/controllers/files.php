@@ -2,6 +2,8 @@
 
 function MapExtention($filename)
 {
+    global $mediaDirectory, $settings;
+
     if (preg_match("/\.(fseq|fseq.gz)$/i", $filename)) {
         return GetDirSetting("sequence");
     } else if (preg_match("/\.(p3|ogg|m4a|wav|au|m4p|wma|flac)$/i", $filename)) {
@@ -15,8 +17,34 @@ function MapExtention($filename)
     } else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $filename)) {
         return GetDirSetting("scripts");
     } else {
+        $pluginDirectory = GetDirSetting("plugins");
+        if (file_exists($pluginDirectory)) {
+            foreach (scandir($pluginDirectory) as $plugin) {
+                if (!in_array($plugin, array('.', '..'))) {
+                    $pluginInfoFile = $pluginDirectory . "/" . $plugin . "/pluginInfo.json";
+                    if (file_exists($pluginInfoFile)) {
+                        $pluginConfig = json_decode(file_get_contents($pluginInfoFile), true);
+                        if (isset($pluginConfig["fileExtensions"])) {
+                            foreach ($pluginConfig["fileExtensions"] as $key => $value) {
+                                if (endsWith($filename, $key) && isset($value["folder"])) {
+                                    return $mediaDirectory . "/" . $value["folder"];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         return "";
     }
+}
+function MapDirectoryKey($dirName)
+{
+    $dir = GetDirSetting($dirName);
+    if ($dir == "") {
+        $dir = MapExtention($dirName);
+    }
+    return $dir;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -27,7 +55,7 @@ function files_copy()
     $newfilename = params("dest");
     $dir = params("DirName");
 
-    $dir = GetDirSetting($dir);
+    $dir = MapDirectoryKey($dir);
 
     if ($dir == "") {
         return json(array("status" => "Invalid Directory"));
@@ -52,7 +80,7 @@ function files_rename()
     $filename = params("source");
     $newfilename = params("dest");
     $dir = params("DirName");
-    $dir = GetDirSetting($dir);
+    $dir = MapDirectoryKey($dir);
 
     if ($dir == "") {
         return json(array("status" => "Invalid Directory"));
@@ -72,14 +100,15 @@ function files_rename()
     return json($result);
 }
 
-
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/files/:DirName
-function GetFilesHelper($dirName, $prefix = '') {
+function GetFilesHelper($dirName, $prefix = '')
+{
     $files = array();
 
-    if ($prefix != '')
+    if ($prefix != '') {
         $prefix .= '/';
+    }
 
     // if ?nameOnly=1 was passed, then just array of names
     if (isset($_GET['nameOnly']) && ($_GET['nameOnly'] == '1')) {
@@ -144,7 +173,7 @@ function GetFiles()
 {
     $dirName = params("DirName");
     check($dirName, "dirName", __FUNCTION__);
-    $dirName = GetDirSetting($dirName);
+    $dirName = MapDirectoryKey($dirName);
     if ($dirName == "") {
         return json(array("status" => "Invalid Directory"));
     }
@@ -154,6 +183,100 @@ function GetFiles()
     } else {
         return json(array("status" => "ok", "files" => GetFilesHelper($dirName)));
     }
+}
+function GetPluginFileInfo()
+{
+    global $mediaDirectory;
+
+    $pluginName = params("plugin");
+    $ext = params("ext");
+    $fileName = params(0);
+
+    $pluginDirectory = GetDirSetting("plugins") . "/" . $pluginName;
+    if (is_dir($pluginDirectory)) {
+        $pluginInfoFile = $pluginDirectory . "/pluginInfo.json";
+        if (file_exists($pluginInfoFile)) {
+            $pluginConfig = json_decode(file_get_contents($pluginInfoFile), true);
+            if (
+                isset($pluginConfig["fileExtensions"])
+                && isset($pluginConfig["fileExtensions"][$ext])
+                && isset($pluginConfig["fileExtensions"][$ext]["infoCommand"])
+            ) {
+                $cmd = $pluginDirectory . "/" . $pluginConfig["fileExtensions"][$ext]["infoCommand"];
+                $cmd .= " ";
+
+                if (isset($pluginConfig["fileExtensions"][$ext]["folder"])) {
+                    $fileName = $mediaDirectory . "/" . $pluginConfig["fileExtensions"][$ext]["folder"] . "/" . $fileName;
+                }
+                $cmd .= escapeshellarg($fileName);
+                send_header('Content-Type: application/json; charset=' . strtolower(option('encoding')));
+                return shell_exec($cmd);
+            }
+        }
+    }
+    return json(array("status" => "ERROR: Could not find information for file $fileName"));
+}
+function CallPluginFileUploaded($dir, $filename)
+{
+    $pluginDirectory = GetDirSetting("plugins");
+    if (file_exists($pluginDirectory)) {
+        foreach (scandir($pluginDirectory) as $plugin) {
+            if ($plugin == "." || $plugin == "..") {
+                continue;
+            }
+            $pluginInfoFile = $pluginDirectory . "/" . $plugin . "/pluginInfo.json";
+            if (file_exists($pluginInfoFile)) {
+                $pluginConfig = json_decode(file_get_contents($pluginInfoFile), true);
+                if (isset($pluginConfig["fileExtensions"])) {
+                    foreach ($pluginConfig["fileExtensions"] as $key => $value) {
+                        if (endsWith($filename, $key) && isset($value["onUpload"])) {
+                            $cmd = $pluginDirectory . "/" . $plugin . "/" . $pluginConfig["fileExtensions"][$key]["onUpload"];
+                            $cmd .= " ";
+                            $cmd .= escapeshellarg($dir . "/" . $filename);
+                            $ret = shell_exec($cmd);
+                            clearstatcache();
+                            return $ret;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+function PluginFileOnUpload()
+{
+    global $mediaDirectory;
+    $ext = params("ext");
+    $fileName = params(0);
+    return CallPluginFileUploaded($mediaDirectory . "/" . $ext, $fileName);
+}
+
+
+function MovePluginFile($uploadDir, $filename)
+{
+    global $mediaDirectory;
+    $pluginDirectory = GetDirSetting("plugins");
+    if (file_exists($pluginDirectory)) {
+        foreach (scandir($pluginDirectory) as $plugin) {
+            if (!in_array($plugin, array('.', '..'))) {
+                $pluginInfoFile = $pluginDirectory . "/" . $plugin . "/pluginInfo.json";
+                if (file_exists($pluginInfoFile)) {
+                    $pluginConfig = json_decode(file_get_contents($pluginInfoFile), true);
+                    if (isset($pluginConfig["fileExtensions"])) {
+                        foreach ($pluginConfig["fileExtensions"] as $key => $value) {
+                            if (endsWith($filename, $key) && isset($value["folder"])) {
+                                if (!rename($uploadDir . "/" . $filename, $mediaDirectory . "/" . $value["folder"] . "/" . $filename)) {
+                                    return false;
+                                }
+                                CallPluginFileUploaded($mediaDirectory . "/" . $value["folder"], $filename);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return true;
 }
 
 function GetFile()
@@ -189,21 +312,21 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         $isLog = 1;
     }
 
-    $dir = GetDirSetting($dir);
+    $dir = MapDirectoryKey($dir);
 
     if ($dir == "") {
         return;
     }
 
-    if ($isLog && (substr($filename, 0, 8) == "var/log/")) {
+    if ($isLog == 1 && (substr($filename, 0, 8) == "var/log/")) {
         $dir = "/var/log";
         $filename = substr($filename, 8);
     }
 
-	if (!file_exists($dir . '/' . $filename)){
-		echo "File $dir/$filename does not exist.";
-		return;
-	}
+    if (!file_exists($dir . '/' . $filename)) {
+        echo "File $dir/$filename does not exist.";
+        return;
+    }
 
     if ($play) {
         if (preg_match('/mp3$/i', $filename)) {
@@ -286,7 +409,6 @@ function MoveFile()
 
     $file = findFile($uploadDirectory, params("fileName"));
 
-
     // Fix double quote uploading by simply moving the file first, if we find it with URL encoding
     if (strstr($file, '"')) {
         if (!rename($uploadDirectory . "/" . preg_replace('/"/', '%22', $file), $uploadDirectory . "/" . $file)) {
@@ -353,6 +475,11 @@ function MoveFile()
                 $status = "ERROR: Couldn't move eeprom file";
                 return json(array("status" => $status));
             }
+        } else {
+            if (!MovePluginFile($uploadDirectory, $file)) {
+                $status = "ERROR: Couldn't move file";
+                return json(array("status" => $status));
+            }
         }
     } else {
         $status = "ERROR: Couldn't find file '" . $file . "' in upload directory";
@@ -391,7 +518,7 @@ function GetZipDir()
         } else if (strtolower($dirName) == "config") {
             ZipConfigs($zip);
         } else {
-            $dir = GetDirSetting($dirName);
+            $dir = MapDirectoryKey($dirName);
             if (file_exists($dir) && $dir != "") {
                 ZipDirectory($zip, $dirName, $dir);
             } else {
@@ -542,7 +669,7 @@ function DeleteFile()
 {
     $status = "File not found";
     $dirName = params("DirName");
-    $dir = GetDirSetting($dirName);
+    $dir = MapDirectoryKey($dirName);
     $fileName = findFile($dir, params(0));
 
     $fullPath = "$dir/$fileName";
@@ -603,11 +730,11 @@ function PatchFile()
     $fileName = $_SERVER['HTTP_UPLOAD_NAME'];
     if (!preg_match("//u", $fileName)) {
         $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
-    }    
+    }
     $offset = $_SERVER['HTTP_UPLOAD_OFFSET'];
     $length = $_SERVER['HTTP_UPLOAD_LENGTH'];
 
-    $dir = GetDirSetting($dirName);
+    $dir = MapDirectoryKey($dirName);
     $fullPath = "$dir/$fileName";
     if ($offset == 0) {
         //for the first chunk, clear out any existing patches
@@ -674,6 +801,11 @@ function PatchFile()
 
         // done with file
         fclose($file_handle);
+
+        if ($dirName != "upload" && $dirName != "uploads") {
+            // uploads to the upload directory will have this called during MoveFile
+            CallPluginFileUploaded($dir, $fileName);
+        }
     }
     return json(array("status" => $status, "file" => $fileName, "dir" => $dirName, "size" => $size));
 }
@@ -684,7 +816,7 @@ function PostFile()
     $dirName = params("DirName");
     $fileName = params("Name");
 
-    $dir = GetDirSetting($dirName);
+    $dir = MapDirectoryKey($dirName);
     $fullPath = "$dir/$fileName";
     $size = 0;
     $totalSize = 0;
@@ -776,7 +908,7 @@ function CreateDir()
     $dirName = params("DirName");
     $subDir = params("SubDir");
     $sanitized = sanitizeFilename($subDir);
-    $dir = GetDirSetting($dirName);
+    $dir = MapDirectoryKey($dirName);
     $fullPath = "$dir/$subDir";
 
     if ($sanitized != $subDir) {
@@ -803,7 +935,7 @@ function DeleteDir()
     $dirName = params("DirName");
     $subDir = params("SubDir");
     $sanitized = sanitizeFilename($subDir);
-    $dir = GetDirSetting($dirName);
+    $dir = MapDirectoryKey($dirName);
     $fullPath = "$dir/$subDir";
 
     if ($sanitized != $subDir) {
@@ -822,4 +954,3 @@ function DeleteDir()
 
     return json(array("status" => $status, "subdir" => $subDir, "dir" => $dirName));
 }
-

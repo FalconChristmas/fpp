@@ -70,9 +70,9 @@ function list_plugin_entries($menu) {
     <div class="headerLeft">
           <div class="headerLeftCol fppBrand">
             <a href="index.php">
-              <img src='<?= $themeInfo["HEADER_LOGO1"] ?>' class="logo" title="Host: <? echo $settings['HostName']; ?>" />
+              <img src='<?= $themeInfo["HEADER_LOGO1"] ?>' class="logo" title="Host: <? echo $settings['HostName']; ?>" >
               <? if (isset($themeInfo["HEADER_LOGO2"]) && $themeInfo["HEADER_LOGO2"] != "" ) {
-                echo "<img src='" . $themeInfo["HEADER_LOGO2"] . "' class='fpp-logo'  title='Host: " . $settings["HostName"] . "' />";
+                echo "<img src='" . $themeInfo["HEADER_LOGO2"] . "' class='fpp-logo'  title='Host: " . $settings["HostName"] . "' >";
               }
               ?>
             </a>
@@ -101,7 +101,7 @@ function list_plugin_entries($menu) {
 		  <?
             if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank' class='platformLogoLink'>";
 		    if ($settings['Logo'] != "") {
-           echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; }
+           echo "<img src='images/" . $settings['Logo'] . "' class='logo' alt='" . $settings['Variant'] . " Logo'>"; }
 		    if ($settings['LogoLink'] != "") echo "</a>";
             if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image']) 
                 && $settings['FetchVendorLogos'] == 1) {
@@ -128,7 +128,7 @@ function list_plugin_entries($menu) {
                       <div class="capeVendor">
                         <div class="capeVendorLogo">
                           <a href="<? echo $landing; ?>" target="capeVendor">
-                           <img src="<? echo $iurl; ?>" class="logo" / >
+                           <img src="<? echo $iurl; ?>" class="logo" >
                           </a>
                         </div>
                       </div>
@@ -139,7 +139,7 @@ function list_plugin_entries($menu) {
 		</div>
 
   </div>
-  <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
+  <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;" alt=''></a></div>
   <div class='helpLinkDiv largeonly'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
 
   <button class='buttons' onclick="scrollToTop()" id="scrollTopButton">Top</button>
@@ -244,10 +244,10 @@ function RebuildFPPD() {
   <div class="collapse navbar-collapse" id="navbarNavDropdown">
     <ul id="fppMenuList" class="navbar-nav">
     <li class="nav-item dropdown <? echo $activeParentMenuItem=='status' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkStatus" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Status/Control
         </a>
-        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
+        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLinkStatus">
         <a class="dropdown-item" href="index.php"><i class="fas fa-info"></i> Status Page</a>
 <?
 if (isSet($settings['cape-info']) && isSet($settings['cape-info']['provides']) && in_array("currentMonitoring", $settings['cape-info']['provides'])) {
@@ -282,11 +282,11 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
       </li>
 
       <li class="nav-item dropdown <? echo $activeParentMenuItem=='content' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkContent" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Content Setup
         </a>
-        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
-        <a class="dropdown-item" href="uploadfile.php"><i class="fas fa-upload"></i> File Manager</a>
+        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLinkContent">
+        <a class="dropdown-item" href="filemanager.php"><i class="fas fa-upload"></i> File Manager</a>
           <a class="dropdown-item" href="playlists.php"><i class="fas fa-list-ol"></i> Playlists</a>
 
 <? if (($settings['fppMode'] == 'player') || ($uiLevel >= 1)) { ?>
@@ -299,10 +299,10 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
       </li>
 
       <li class="nav-item dropdown <? echo $activeParentMenuItem=='input-output' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkInOut" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Input/Output Setup
         </a>
-        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
+        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLinkInOut">
           <a class="dropdown-item" href="channelinputs.php"><i class="fas fa-project-diagram" style="color:red;"></i> Channel Inputs</a>
           <a class="dropdown-item" href="channeloutputs.php"><i class="fas fa-project-diagram" style="color:green;"></i> Channel Outputs</a>
           <a class="dropdown-item" href="outputprocessors.php"><i class="fas fa-microchip"></i> Output Processors</a>
@@ -313,10 +313,10 @@ if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2) ) {
       </li>
 
       <li class="nav-item dropdown <? echo $activeParentMenuItem=='help' ? 'active' :''; ?>">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkHelp" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Help
         </a>
-        <div class="dropdown-menu dropdown-with-icons dropdown-menu-end" aria-labelledby="navbarDropdownMenuLink">
+        <div class="dropdown-menu dropdown-with-icons dropdown-menu-end" aria-labelledby="navbarDropdownMenuLinkHelp">
           <a class="dropdown-item" href="about.php"><i class="fas fa-info-circle"></i> About</a>
 <?php
 $eepromFile = "/home/fpp/media/tmp/eeprom.bin";
@@ -352,7 +352,7 @@ if ($settings["hideExternalURLs"]) {
             $baseLink = $_SERVER['HTTP_X_FORWARDED_HOST'] . '/proxy/' . $_SERVER['SERVER_ADDR'];
           }
           ?>
-          <a class="<?= $externalLinkClass ?>" href="http://<?=$baseLink?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
+          <a class="<?= $externalLinkClass ?>" href="http://<?=$baseLink?>:4200" target="_blank"><i class="fas fa-terminal"></i> SSH Shell</a>
           <?php list_plugin_entries("help"); ?>
         </div>
       </li>

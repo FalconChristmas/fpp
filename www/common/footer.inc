@@ -21,14 +21,14 @@
 
 
 <div id="footer">
-<br />
+<br>
   <div id="rebootShutdown">
     <button type='button' class='buttons wideButton btn-outline-light' onClick='ShowRunCommandPopup();'><span class='hidden' id='runCommandJSON'></span><i class='fas fa-fw fa-terminal fa-nbsp'></i>Run FPP Command</button>
     <div class="dropup" id="fppModeDropdown">
       <button class="buttons btn-outline-light dropdown-toggle"  type="button" id="fppModeDropdownButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         FPP Mode: <span id="fppModeDropdownButtonModeText"></span>
       </button>
-      <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton"  >
+      <div class="dropdown-menu dropdown-menu-right" aria-labelledby="fppModeDropdownButton"  >
         <button class="dropdown-item" onClick="SetFPPDmode('player');" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="This FPP will control itself and not be controlled by another FPP">Player</button>
         <button class="dropdown-item" onClick="SetFPPDmode('remote');" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="This FPP will be controlled by a Player FPP Instance">Remote</button>
       </div>
@@ -43,7 +43,7 @@
  
  
   </div>
-<br />
+<br>
 <div class="footerLink">
 <a href='<?= $themeInfo["FOOTER_URL"] ?>'><?= $themeInfo["FOOTER_URL_TEXT"] ?></a>
 <?
@@ -53,8 +53,8 @@ if ($themeInfo["FOOTER_URL_TEXT"] != "www.falconplayer.com") {
 ?>
 </div>
 
-<br />
-<br />
+<br>
+<br>
 </div>
 
 </div> <!-- div for fppOuterContainer opened in menu.inc -->

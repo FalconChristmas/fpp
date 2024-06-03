@@ -246,7 +246,7 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
         AddVirtualString(VirtualString());
     }
     if (pinConfig) {
-        OutputMonitor::INSTANCE.AddPortConfiguration("Port #" + std::to_string(m_portNumber + 1), *pinConfig, m_outputChannels > 0);
+        OutputMonitor::INSTANCE.AddPortConfiguration(m_portNumber, *pinConfig, m_outputChannels > 0);
     }
 
     m_outputMap.resize(m_outputChannels);
@@ -283,6 +283,10 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
     // buffer larger than the number of pixels configured
     int obs = std::max(2400, m_outputChannels);
     m_outputBuffer = (uint8_t*)calloc(obs, 1);
+
+    if (pinConfig && pinConfig->isMember("inverted") && (*pinConfig)["inverted"].asBool()) {
+        invertOutput();
+    }
 
     return 1;
 }
@@ -604,6 +608,15 @@ void PixelString::DumpConfig(void) {
             LogDebug(VB_CHANNELOUT, "        zig zag       : %d\n", vs.zigZag);
             LogDebug(VB_CHANNELOUT, "        brightness    : %d\n", vs.brightness);
             LogDebug(VB_CHANNELOUT, "        gamma         : %.3f\n", vs.gamma);
+        }
+    }
+}
+
+void PixelString::invertOutput() {
+    m_isInverted = !m_isInverted;
+    for (auto& vs : m_virtualStrings) {
+        for (int x = 0; x < 256; x++) {
+            vs.brightnessMap[x] = ~vs.brightnessMap[x];
         }
     }
 }

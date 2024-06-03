@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
 <?php
 require_once "common.php";
 
 ?>
-<head>
+
 <?php include 'common/menuHead.inc';?>
 <script language="Javascript">
 var FBDevices = new Array();
@@ -419,12 +420,12 @@ function AddNewModel() {
                 AddNewChannelModel();
                 CloseModalDialog("AddPixelOverlayModel");
             },
- <? if ($showAddFBButton) { ?>
+<?if ($showAddFBButton) {?>
             FrameBuffer: function() {
                 AddNewFBModel();
                 CloseModalDialog("AddPixelOverlayModel");
             },
-<? } ?>            
+<?}?>
             SubModel: function() {
                 AddNewSubModel();
                 CloseModalDialog("AddPixelOverlayModel");
@@ -451,10 +452,29 @@ function DeleteSelectedMemMap() {
 	}
 }
 
-$(document).ready(function(){
+
+function pageSpecific_PageLoad_DOM_Setup(){
 	SetupSelectableTableRow(tableInfo);
 	GetChannelMemMaps();
-});
+}
+
+function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
+        //Mouse click on table rows
+        $('#channelMemMaps').on('mousedown', 'tr', function(event,ui) {
+			HandleTableRowMouseClick(event, $(this));
+
+			//console.log(event.target.nodeName);
+
+			if ($('#channelMemMaps > tr.selectedEntry').length > 0) {
+				EnableButtonClass('btnDelete');
+			} else {
+				DisableButtonClass('btnDelete');
+			}
+		});
+
+
+
+}
 
 </script>
 
@@ -469,8 +489,6 @@ include 'menu.inc';?>
 	<h1 class="title">Pixel Overlay Models</h1>
 	<div class="pageContent">
 
-
-		<div id="time" class="settings">
 
 				<div class="row tablePageHeader">
 					<div class="col-md">
@@ -490,9 +508,9 @@ include 'menu.inc';?>
                 Create Overlays Automatically From Outputs: <input id="AutoCreatePixelOverlays" type="checkbox" checked/>
                 </div>
                 <hr>
-				<div class='fppTableWrapper fppTableWrapperAsTable'>
+				<div class='fppTableWrapper fppTableWrapperAsTable fppFThScrollContainer'>
                     <div class='fppTableContents' role="region" aria-labelledby="channelMemMaps" tabindex="0">
-                        <table id="channelMemMaps" class="fppSelectableRowTable">
+                        <table id="channelMemMaps" class="fppSelectableRowTable fppStickyTheadTable">
                             <thead>
                                 <tr>
 									<th class="tblChannelMemMapsHeadGrip"></th>
@@ -519,9 +537,9 @@ include 'menu.inc';?>
                         <h2>Auto Created Pixel Overlay Models</h2>
                     </div>
                 </div>
-				<div class='fppTableWrapper fppTableWrapperAsTable'>
+				<div class='fppTableWrapper fppTableWrapperAsTable fppFThScrollContainer'>
                     <div class='fppTableContents' role="region" aria-labelledby="channelMemMapsAutoCreate" tabindex="0">
-                        <table id="channelMemMapsAutoCreate" class="fppSelectableRowTable">
+                        <table id="channelMemMapsAutoCreate" class="fppSelectableRowTable fppStickyTheadTable">
                             <thead>
                                 <tr>
 									<th class="tblChannelMemMapsHeadGrip"></th>
@@ -546,26 +564,8 @@ include 'menu.inc';?>
 </div>
 
 		<?php	include 'common/footer.inc';?>
-	</div>
+</div>
 
-<script language="Javascript">
-
-	$(function() {
-		$('#channelMemMaps').on('mousedown', 'tr', function(event,ui) {
-			HandleTableRowMouseClick(event, $(this));
-
-			console.log(event.target.nodeName);
-
-			if ($('#channelMemMaps > tr.selectedEntry').length > 0) {
-				EnableButtonClass('btnDelete');
-			} else {
-				DisableButtonClass('btnDelete');
-			}
-		});
-	});
-
-
-</script>
 
 </body>
 </html>

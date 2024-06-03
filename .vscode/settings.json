@@ -1,38 +1,45 @@
 {
     "cSpell.words": [
         "Avidemux",
+        "colpick",
+        "configfile",
+        "EEPROM",
         "ESEQ",
         "FPP's",
-        "Gadgetoid",
-        "Helvetica",
-        "Lavf",
-        "Leds",
-        "Multisync",
-        "Pixelnet",
-        "Renard",
-        "SSID",
-        "configfile",
         "fppcapedetect",
         "fppd",
-        "isom",
-        "isomiso",
-        "spixels",
-        "wifi",
-        "wlan",
-        "xbkp",
+        "fppdefines",
         "fppoled",
-        "OLED",
+        "Gadgetoid",
         "GPIO",
         "gpiod",
         "gpiodChips",
-        "HASGPIOD",
-        "smfd",
         "gpioline",
+        "HASGPIOD",
+        "Helvetica",
+        "isom",
+        "isomiso",
+        "Lavf",
+        "Leds",
         "libgpiod",
-        "vbuffer",
+        "MQTT",
+        "Multisync",
         "ntime",
         "ntimeus",
-        "MQTT"
+        "OLED",
+        "Pixelnet",
+        "Renard",
+        "RGBAN",
+        "rgbhex",
+        "RGBN",
+        "smfd",
+        "spixels",
+        "SSID",
+        "testmode",
+        "vbuffer",
+        "wifi",
+        "wlan",
+        "xbkp"
     ],
     "files.associations": {
         "*.tcc": "c",
@@ -126,8 +133,32 @@
         "filesystem": "cpp",
         "numbers": "cpp",
         "semaphore": "cpp",
-        "charconv": "cpp"
+        "charconv": "cpp",
+        "execution": "cpp"
     },
     "editor.formatOnSave": true,
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "[cpp]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "numso.prettier-standard-vscode"
+    },
+    "[php]": {
+        "editor.defaultFormatter": "DEVSENSE.phptools-vscode"
+    },
+    "liveSassCompile.settings.formats": [
+        {
+            "format": "expanded",
+            "extensionName": ".css",
+            "savePath": "~/../dist-new",
+            "savePathReplacementPairs": null
+        }
+    ],
+    "liveSassCompile.settings.forceBaseDirectory": "www/css/fpp-bootstrap/src",
+    "liveSassCompile.settings.excludeList": [
+        "/**/node_modules/**",
+        "/.vscode/**",
+        "/**/bootstrap-scss-src/**"
+    ]
 }

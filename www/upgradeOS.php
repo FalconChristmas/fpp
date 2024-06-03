@@ -25,6 +25,7 @@ if (isset($_GET['keepOptFPP'])) {
 
 if (!$wrapped) {
     echo "<html>\n";
+    echo "<head>\n";
 }
 
 $skipJSsettings = 1;
@@ -34,7 +35,7 @@ DisableOutputBuffering();
 
 if (!$wrapped) {
     ?>
-<head>
+
 <title>
 FPP OS Upgrade
 </title>
@@ -94,7 +95,7 @@ if ($applyUpdate) {
     chmod($TMP_FILE, 0775);
     #system($SUDO . " stdbuf --output=L --error=L $TMP_FILE /home/fpp/media/upload/$baseFile");
     $return_code = 0;
-    system($SUDO . " $TMP_FILE /home/fpp/media/upload/$baseFile",$return_code);
+    system($SUDO . " $TMP_FILE /home/fpp/media/upload/$baseFile", $return_code);
 } else {
     echo ("Skipping update\n");
 }

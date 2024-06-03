@@ -1,94 +1,4 @@
-<style>
-.outputTable {
-	background: #F0F0F0;
-	width: 100%;
-	border-spacing: 0px;
-	border-collapse: collapse;
-}
-
-.outputTable th {
-    vertical-align: bottom;
-    text-align: center;
-    border: solid 2px #888888;
-    font-size: 0.8em;
-}
-
-.outputTable td {
-	text-align: center;
-    padding: 0px 9px 0px 0px ;
-}
-
-.outputTable tbody tr td input[type=text] {
-	text-align: center;
-    width: 100%;
-}
-.outputTable tbody tr td input[type=number] {
-    text-align: center;
-    width: 100%;
-}
-
-h2.divider {
-    width: 100%;
-    text-align: left;
-    border-bottom: 2px solid #000;
-    line-height: 0.1em;
-    margin: 12px 0 10px;
-}
-
-h2.divider span {
-    background: #f5f5f5;
-    padding: 0 10px;
-}
-
-/* prevent table header from scrolling: */
-#PixelString {
-  text-align: left;
-  position: relative; /* required for th sticky to work */
-}
-#PixelString thead th {
-    font-weight: bold;
-    background: #fff; /* prevent add/delete circular buttons from showing through */
-    position: sticky;
-    top: 0;
-    z-index: 20; /* draw table header on top of add/delete buttons */
-    padding: 8px 0 0 5px;
-    border-bottom: 2px solid #d5d7da
-}
-
-<?
-if ($settings['Platform'] == "BeagleBone Black") {
-    //  BBB only supports ws2811 at this point
-    ?>
-    #PixelString tr > th:nth-of-type(2),
-    #PixelString tr > td:nth-of-type(2) {
-        display: none;
-    }
-    <?
-}
-if ((isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {
-    // don't support virtual strings
-    ?>
-    #PixelString tr > th:nth-of-type(3),
-    #PixelString tr > td:nth-of-type(3) {
-        display: none;
-    }
-
-    <?
-}
-?>
-
-
-#ModelPixelStrings_Output_0 tr > th:nth-of-type(2),
-#ModelPixelStrings_Output_0 tr > td:nth-of-type(2) {
-    display: none;
-}
-</style>
-
-
-<script type="text/javascript">
-
-var KNOWN_CAPES = {
-<?
+<?php
 function sortByLongName($a, $b)
 {
     return strcmp($a['longName'], $b['longName']);
@@ -105,7 +15,7 @@ function readCapes($cd, $capes)
                 $string = "";
             } else {
                 $string = file_get_contents($cd . $file);
-//            echo "/* file len " . strlen($string) . "*/\n";
+                //            echo "/* file len " . strlen($string) . "*/\n";
                 //            echo "/* ends with '" . substr($string, -4) . "' */\n";
             }
 
@@ -127,7 +37,12 @@ function readCapes($cd, $capes)
     }
     return $capes;
 }
+?>
 
+<script type="text/javascript">
+
+var KNOWN_CAPES = {
+<?php
 $virtualEEPROMDir = '';
 if ($settings['Platform'] == "Raspberry Pi") {
     $virtualEEPROMDir = $fppDir . '/capes/pi';
@@ -142,6 +57,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 
 $capes = array();
 $capes = readCapes($mediaDirectory . "/tmp/strings/", $capes);
+
 if (count($capes) == 0 || $settings["showAllOptions"] == 1) {
     if ($settings['Platform'] == "Raspberry Pi") {
         $capedir = $fppDir . "/capes/pi/strings/";
@@ -157,7 +73,7 @@ if (count($capes) == 0 || $settings["showAllOptions"] == 1) {
 }
 usort($capes, 'sortByLongName');
 ?>
-};
+}
 
 function isLicensedDriver(driver) {
     if ((driver == 'BBB48String') || (driver == 'DPIPixels') || (driver == 'BBShiftString'))
@@ -170,13 +86,14 @@ function showVirtualEEPROMSelect() {
     $('.capeTypeRow').hide();
     $('.capeEEPROMRow').show();
 }
+
 function downloadEEPROM() {
     window.location.href = "cape-info.php";
 }
+
 function cancelVirtualEEPROMSelect() {
     reloadPage();
 }
-
 
 function RemoveVirtualEEPROM() {
     DeleteFile("config", null, "cape-eeprom.bin", true);
@@ -191,6 +108,7 @@ function UpgradeDone() {
     EnableModalDialogCloseButton("InstallVirtualEEPROM");
     $("#InstallVirtualEEPROMCloseButton").prop("disabled", false);
 }
+
 function InstallFirmwareDone() {
     var txt = $('#InstallVirtualEEPROMText').val();
     if (txt.includes("Cape does not match new firmware")) {
@@ -528,7 +446,7 @@ function setPixelStringsStartChannelOnNextRow()
         var chanPerNode = (pixelType || "RGB").length;
         var nextStart = startChannel + (chanPerNode * pixelCount)/groupCount;
 
-        $('#pixelOutputs table tr').removeClass('selectedEntry');
+        $('#PixelString tr').removeClass('selectedEntry');
 
         while ((nextRow.find('.vsStartChannel').length == 0) && (nextRow.next('tr').length)) {
             nextRow = nextRow.next('tr');
@@ -753,8 +671,9 @@ function getPixelStringOutputJSON()
 	var postData = {};
 	postData.channelOutputs = [];
 
-	$('#pixelOutputs table').each(function() {
+	$('#PixelString').each(function() {
 		$this = $(this);
+
 		var tableId = $this.attr('id');
 		var enableId = tableId + '_enable';
 		var output = {};
@@ -949,6 +868,17 @@ function GetPixelStringRows()
     return -1;
 }
 
+function CheckCapeType(type, subType) {
+    subType = GetPixelStringCapeFileNameForSubType(subType);
+    if (KNOWN_CAPES[subType] != null)  {
+        if (KNOWN_CAPES[subType]['driver'] != null) {
+            return KNOWN_CAPES[subType]['driver'];
+        }
+    }
+    return type;
+}
+
+
 //get array of header pin#s indexed by port#:
 //NOTE: used by non-BBB capes as well
 function GetPixelStringPins()
@@ -1081,8 +1011,8 @@ function SupportsSmartReceivers(subType) {
 function SupportsFalconV5SmartReceivers(subType) {
     var subType = GetPixelStringCapeFileName();
     var val = KNOWN_CAPES[subType];
-    if (val && val.hasOwnProperty("supportsFalconV5SmartReceivers")) {
-        return val["supportsFalconV5SmartReceivers"];
+    if (val && val.hasOwnProperty("driver")) {
+        return val["driver"] == "BBShiftString";
     }
     return false;
 }
@@ -1265,7 +1195,7 @@ function PixelStringExpansionTypeChanged(port) {
                 str += "<option value='1'>Smart v1</option>";
                 str += "<option value='2'>Smart v2</option>";
                 if (SupportsFalconV5SmartReceivers(subType)) {
-                    str += "<option value='3'>Falcon v5</option>";
+                    str += "<option value='3'>Falcon v4/v5</option>";
                 }
             }
             str += "</select>";
@@ -1396,6 +1326,7 @@ function populatePixelStringOutputs(data) {
 
                 $('#PixelString_enable').prop('checked', output.enabled);
                 var subType = output.subType;
+                type = CheckCapeType(type, subType);
                 $('#PixelStringSubType').val(subType);
                 var version = output.pinoutVersion;
                 if (version == '3.x') {
@@ -1441,8 +1372,7 @@ function populatePixelStringOutputs(data) {
                 }
                 $('#PixelStringPixelTiming').val(pixelTiming);
 
-
-                $('#pixelOutputs').html("");
+                $('#PixelString tbody').html("");
 
                 var outputCount = GetPixelStringRows();
                 var sourceOutputCount = output.outputCount;
@@ -1454,19 +1384,15 @@ function populatePixelStringOutputs(data) {
                 }
 
                 var str = "";
-                str += "<div class='fppTableWrapper'>" +
-                    "<div class='fppTableContents' role='region' aria-labelledby='PixelString' tabindex='0'>";
-                str += "<table id='PixelString' class='fppSelectableRowTable' type='" + output.subType + "' ports='" + outputCount + "'>";
-                str += pixelOutputTableHeader();
-                str += "<tbody>";
 
                 var expansions = [];
                 var expansionType = 0;
                 var inExpansion = false;
 
+                $('#PixelString').attr('type', output.subType);
+                $('#PixelString').attr('ports', outputCount);
 
-                for (var o = 0; o < outputCount; o++)
-                {
+                for (var o = 0; o < outputCount; o++) {
                     var protocols = GetPixelStringProtocols(o);
                     var defProtocol = GetPixelStringDefaultProtocol(o);
                     var port = {"differentialType" : 0, "expansionType" : 0};
@@ -1536,7 +1462,7 @@ function populatePixelStringOutputs(data) {
                                 str += "<option value='1'" + (diffType == 1 ? " selected" : "") + ">Smart v1</option>";
                                 str += "<option value='2'" + (diffType == 2 ? " selected" : "") + ">Smart v2</option>";
                                 if (supportFalconv5) {
-                                    str += "<option value='3'" + (diffType == 3 ? " selected" : "") + ">Falcon v5</option>";
+                                    str += "<option value='3'" + (diffType == 3 ? " selected" : "") + ">Falcon v4/v5</option>";
                                 }
                             }
                             str += "</select>";
@@ -1643,20 +1569,14 @@ function populatePixelStringOutputs(data) {
                     }
                 }
 
-                str += "</tbody>";
-                str += "</table>";
-                str += "<b>Mouse over the Port Number for additional Port details.</b><br>";
-                str += "</div>";
-                str += "</div>";
-
-                $('#pixelOutputs').append(str);
+                $('#PixelString tbody').append(str);
 
                 expansions.forEach(function(r) {
                                    PixelStringExpansionTypeChanged(r);
                                    });
 
                 $('#PixelString').on('mousedown', 'tr', function(event, ui) {
-                    $('#pixelOutputs table tr').removeClass('selectedEntry');
+                    $('#PixelString tr').removeClass('selectedEntry');
                     if ($(this).find('.vsPixelCount').length != 0) {
                         $(this).addClass('selectedEntry');
                         selectedPixelStringRowId = $(this).attr('id');
@@ -1810,11 +1730,11 @@ function sanityCheckOutputs() {
     var ok = true;
     var outtype = $('#PixelStringSubType').val();
     var driver = MapPixelStringType(outtype);
-    var rowCount = $('#pixelOutputs table tbody').find('tr').length;
-    var tbody = $('#pixelOutputs table tbody');
+    var rowCount = $('#PixelString tbody').find('tr').length;
+    var tbody = $('#PixelString tbody');
 
     var outputCount = 0;
-	$('#pixelOutputs table').each(function() {
+	$('#PixelString').each(function() {
 		$this = $(this);
         outputCount = parseInt($this.attr('ports'));
     });
@@ -1840,7 +1760,7 @@ function sanityCheckOutputs() {
 
     // Collect the start/end pairs and total pixel counts by pid
     for (r = 0; r < rowCount; r++) {
-        var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+        var tRow = $('#PixelString tbody').find('tr').eq(r);
 
         startChannels[r] = 0;
         endChannels[r] = 0;
@@ -2025,7 +1945,7 @@ if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name'])) {
     }
 
     var outputCount = 0;
-	$('#pixelOutputs table').each(function() {
+	$('#PixelString').each(function() {
 		$this = $(this);
         outputCount = parseInt($this.attr('ports'));
 
@@ -2053,7 +1973,7 @@ if (!isset($settings['cape-info']) || !isset($settings['cape-info']['name'])) {
 }
 
 function setupBankLimits() {
-    var rowCount = $('#pixelOutputs table tbody').find('tr').length;
+    var rowCount = $('#PixelString  tbody').find('tr').length;
     var subType = GetPixelStringCapeFileName();
     if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].pixelLimits) {
         for (limit of KNOWN_CAPES[subType].pixelLimits) {
@@ -2062,7 +1982,7 @@ function setupBankLimits() {
                 var bankLimit = parseInt($('#' + sname).html());
                 SetSetting(sname, bankLimit, 0, 0, true);
                 for (r = 0; r < rowCount; r++) {
-                    var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+                    var tRow = $('#PixelString tbody').find('tr').eq(r);
                     if (tRow.find('.vsPixelCount').length != 0) {
                         var pid = parseInt(tRow.attr('pid'));
                         if (licensedOutputs > pid) {
@@ -2087,7 +2007,7 @@ function setupBankLimits() {
 
 function setupPixelLimits() {
     var subType = GetPixelStringCapeFileName();
-    var rowCount = $('#pixelOutputs table tbody').find('tr').length;
+    var rowCount = $('#PixelString tbody').find('tr').length;
     $('#bankSliderDiv').hide();
     if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].hasOwnProperty('pixelLimits')) {
         for (limit of KNOWN_CAPES[subType].pixelLimits) {
@@ -2102,7 +2022,7 @@ function setupPixelLimits() {
                 }
                 if (!savedValues) {
                     for (r = 0; r < rowCount; r++) {
-                        var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+                        var tRow = $('#PixelString tbody').find('tr').eq(r);
                         if (tRow.find('.vsPixelCount').length != 0) {
                             var pid = parseInt(tRow.attr('pid'));
                             var pixels = parseInt(tRow.find('.vsPixelCount').val());
@@ -2168,7 +2088,7 @@ function setupPixelLimits() {
         var outtype = $('#PixelStringSubType').val();
         var driver = MapPixelStringType(outtype);
         for (r = 0; r < rowCount; r++) {
-            var tRow = $('#pixelOutputs table tbody').find('tr').eq(r);
+            var tRow = $('#PixelString tbody').find('tr').eq(r);
             if (tRow.find('.vsPixelCount').length != 0) {
                 var pid = parseInt(tRow.attr('pid'));
                 if (!isLicensedDriver(driver) || (pid < licensedOutputs)) {
@@ -2236,7 +2156,7 @@ if (count($capes) > 0 && isset($capes[0]['pinoutVersion'])) {
 <?
 define("xLights_MODELS", $mediaDirectory . "/upload/xlights_rgbeffects.xml");
 $models_err = "";
-clearstatcache(true); //TODO: is this needed?
+clearstatcache(true); // is this needed?
 $models_json = "";
 if (file_exists(xLights_MODELS)) {
     $models_str = file_get_contents(xLights_MODELS);
@@ -2248,7 +2168,7 @@ if ($models_str == "") {
 } else {
     $sv_errh = libxml_use_internal_errors(true); //enable user error handling
     $models_xml = simplexml_load_string($models_str);
-    if (!models_xml) {
+    if (!$models_xml) {
         foreach (libxml_get_errors() as $error) {
             $models_err = $models_err . "\n" . $error;
         }
@@ -2414,23 +2334,7 @@ function pinTableHeader() {
 }
 
 $(document).ready(function(){
-<?
-if ((isset($settings['cape-info'])) &&
-    ((in_array('all', $settings['cape-info']["provides"])) ||
-        (in_array('strings', $settings['cape-info']["provides"])))) {
-    ?>
-    if (currentCapeName != "" && currentCapeName != "Unknown") {
-        $('.capeNamePixels').html(currentCapeName);
-        $('.capeTypeLabel').html("Cape Config");
-    }
-<?
-}
-?>
 
-    $.get('/api/gpio')
-	.done(data => selected_string_details.gpio = data)
-        .fail(err => $.jGrowl('Error: Unable to retrieve GPIO pin info.', { themeState: 'danger' }));
-    populateCapeList();
     loadPixelStringOutputs();
 });
 
@@ -2439,7 +2343,7 @@ if ((isset($settings['cape-info'])) &&
 <div id='tab-PixelString'>
     <div id='divPixelString'>
 
-        <div class="row tablePageHeader capeTypeRow">
+        <div class="row tableTabPageHeader capeTypeRow">
             <div class="col-md"><h2><span class='capeNamePixels'>String Capes</span> </h2></div>
             <div class="col-md-auto ml-lg-auto">
                 <div class="form-actions">
@@ -2599,7 +2503,7 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
 
                     <div id='bankSliderDiv' style='display: none;'>
                         <b>This cape config uses banks of outputs which share max pixel counts.</b>
-                        <table border=0 cellpadding=1 cellspacing=1>
+                        <table>
                             <tr><td><b>Bank 1 Size:</b></td><td id='bank1Size'>0</td><td style='width: 50px;'></td>
                                 <td class='bank2Class'><b>Bank 2 Size:</b></td><td id='bank2Size' class='bank2Class'>0</td><td style='width: 50px;'></td>
                                 <td class='bank3Class' style='display: none;'><b>Bank 3 Size:</b></td><td id='bank3Size' class='bank3Class' style='display: none;'>0</td></tr>
@@ -2608,12 +2512,40 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                     </div>
 
                     <div id='pixelOutputs'>
-
+                        <div class='fppTableWrapper'>
+                            <div class='fppTableContents fppFThScrollContainer' role='region' aria-labelledby='PixelString' tabindex='0'>
+                                <table id='PixelString' class='fppSelectableRowTable fppStickyTheadTable'>
+                                    <thead>
+                                        <tr>
+                                        <th>Port</th>
+                                        <th>Protocol</th>
+                                        <th>&nbsp;</th>
+                                        <th>Description</th>
+                                        <th>Start<br>Channel</th>
+                                        <th>Pixel<br>Count</th>
+                                        <th>Group<br>Count</th>
+                                        <th>End<br>Channel</th>
+                                        <th>Direction</th>
+                                        <th>Color<br>Order</th>
+                                        <th>Start<br>Nulls</th>
+                                        <th>End<br>Nulls</th>
+                                        <th>Zig<br>Zag</th>
+                                        <th>Bright-<br>ness</th>
+                                        <th>Gamma</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- skeleton table framework for floatThead to work - actual html within tbody here loaded during page load -->
+                                    </tbody>
+                                </table>    
+                                <b>Mouse over the Port Number for additional Port details.</b><br>
+                            </div>
+                        </div>
                     </div>
 
                     <br>
-                    <span id='BBBSerialOutputs'>
-                        <table border=0 cellspacing=3>
+                    <div id='BBBSerialOutputs'>
+                        <table>
 
                         <tr id='BBBSerialSelect'>
                             <td><b>Serial Mode:</b></td>
@@ -2623,7 +2555,7 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                                     <option value='Pixelnet'>Pixelnet</option>
                                 </select>
                             </td>
-                            <td width=20>&nbsp;</td>
+                            <td>&nbsp;</td>
                             <td><div id="DMXNumChannelOutput">Num&nbsp;DMX&nbsp;Channels:&nbsp;<input id='BBBSerialNumDMXChannels' size='6' maxlength='6' value='512'></div></td>
                         </tr>
                     </table>
@@ -2632,8 +2564,8 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                         <table ports='8' id='BBBSerial_Output' class="fppSelectableRowTable">
                             <thead>
                                 <tr>
-                                    <th width='30px'>#</th>
-                                    <th width='90px'>Start<br>Channel</th>
+                                    <th>#</th>
+                                    <th>Start<br>Channel</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -2673,7 +2605,7 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
                         </table>
                         </div>
                         </div>
-                    </span>
+</div>
                 </div>
             </div>
 
@@ -2683,5 +2615,6 @@ title="<?=$settings['cape-info']['capeTypeTip']?>"
 <a name='capeNotes'></a>
 <span class='capeNotes capeTypeRow' style='display: none;'><b>Cape Configuration Notes:</b><br></span>
 <span class='capeNotes capeTypeRow' id='capeNotes' style='display: none;'></span>
+
 
 
