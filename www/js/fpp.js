@@ -1316,7 +1316,9 @@ function StreamURL (
 					outputArea.value += this_response;
 				}
 
-				ProcessStreamedScript(orig_response);
+				if (orig_response.includes('<script')) {
+					ProcessStreamedScript(orig_response);
+				}
 
 				outputArea.scrollTop = outputArea.scrollHeight;
 				outputArea.parentElement.scrollTop =
