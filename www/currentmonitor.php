@@ -119,7 +119,7 @@ function StartMonitoring() {
                 FormatSmartReceiver(false, port["name"], "F", port["F"], rn + 5, port["col"], totals);
             }
         });
-        var banks = "<b>Banks</b><br>";
+        var banks = "<b>Totals</b><br>";
         for (const [key, value] of totals.entries()) {
             banks += key + ": " + value + " ma<br>";
         }
