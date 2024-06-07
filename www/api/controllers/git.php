@@ -13,10 +13,13 @@ function GetGitOriginLog()
         if (startsWith($line, "Git changes") || startsWith($line, "=========")) {
             continue;
         }
-        $pos = strpos($line, " ");
+        $pos = strpos($line, "~~~~");
+        $elements = explode("~~~~", $line);
         if ($pos > 0) {
-            $h = substr($line, 0, $pos);
-            $row = array("hash" => $h, "author" => "stu", "msg" => substr($line, $pos + 1));
+            $h = $elements[0];
+            $a = $elements[1];
+            $msg = $elements[2];
+            $row = array("hash" => $h, "author" => $a, "msg" => $msg);
             array_push($rows, $row);
         }
     }
