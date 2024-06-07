@@ -6116,6 +6116,8 @@ function GetGitOriginLog () {
 					html.push('">');
 					html.push(r.hash.substring(0, 8));
 					html.push('</a></td><td>');
+					html.push(r.author);
+					html.push('</td><td>');
 					html.push(r.msg);
 					html.push('</td></tr>');
 				});
