@@ -250,7 +250,10 @@ int InitializeChannelOutputs(void) {
         "/co-universes.json",
         "/co-other.json",
         "/co-pixelStrings.json",
+        "/co-pwm.json",
+#ifdef PLATFORM_BBB
         "/co-bbbStrings.json",
+#endif
         "/channeloutputs.json",
         NULL
     };

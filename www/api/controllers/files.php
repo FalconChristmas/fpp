@@ -615,6 +615,7 @@ function ZipConfigs($zip)
         "config/channeloutputs.json",
         "config/ci-universes.json",
         "config/co-bbbStrings.json",
+        "config/co-pwm.json",
         "config/commandPresets.json",
         "config/co-other.json",
         "config/co-pixelStrings.json",
@@ -623,7 +624,6 @@ function ZipConfigs($zip)
         "config/model-overlays.json",
         "config/outputprocessors.json",
         "config/schedule.json",
-        //
         "pixelnetDMX",
         "settings",
         "universes",

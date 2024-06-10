@@ -11,9 +11,9 @@
  * personal use, but modified copies MAY NOT be redistributed in any form.
  */
 
+#include <cstdint>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 class CapeInfo;
 namespace Json
@@ -40,7 +40,9 @@ public:
 
     int getLicensedOutputs();
     std::string getKeyId();
+
     bool getStringConfig(const std::string& type, Json::Value& val);
+    bool getPWMConfig(const std::string& type, Json::Value& val);
 
 private:
     CapeUtils();

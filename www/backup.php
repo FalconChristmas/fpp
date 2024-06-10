@@ -55,6 +55,7 @@ $system_config_areas = array(
             'falcon_pixelnet_DMX' => array('type' => 'function', 'location' => array('backup' => 'LoadPixelnetDMXFiles', 'restore' => 'SavePixelnetDMXFiles')),
             'pixel_strings' => array('type' => 'file', 'location' => $settings['co-pixelStrings']),
             'bbb_strings' => array('type' => 'file', 'location' => $settings['co-bbbStrings']),
+            'pwm' => array('type' => 'file', 'location' => $settings['co-pwm']),
             'led_panels' => array('type' => 'file', 'location' => $settings['channelOutputsJSON']),
             'other' => array('type' => 'file', 'location' => $settings['co-other']),
         ),
@@ -178,7 +179,7 @@ $network_settings_restored_applied_ips = array('wired_network' => array(), 'wifi
 $sensitive_data = array('emailpass', 'password', 'secret');
 
 //Lookup arrays for what is a json and a ini file
-$known_json_config_files = array('channelInputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'led_panels', 'other', 'model-overlays');
+$known_json_config_files = array('channelInputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'pwm', 'led_panels', 'other', 'model-overlays');
 $known_ini_config_files = array('settings', 'system_settings', 'network', 'wired', 'wifi');
 
 //Remove BBB Strings from the system areas if we're on a Pi or any other platform that isn't a BBB
