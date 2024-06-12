@@ -1245,7 +1245,7 @@ EOF
         echo "FPP - Configuring tmpfs filesystems"
         sed -i 's|tmpfs\s*/tmp\s*tmpfs.*||g' /etc/fstab
         echo "#####################################" >> /etc/fstab
-        echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
+        echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=75M 0 0" >> /etc/fstab
         echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
         echo "#####################################" >> /etc/fstab
     fi
