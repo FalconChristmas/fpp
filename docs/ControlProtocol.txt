@@ -127,6 +127,9 @@ buf[9] = App/Hardware Type
            - 0x87 - F48
            - 0x88 - F16v4
            - 0x89 - F48v4
+           - 0x8A - F16v5
+           - 0x8B - F32v5
+           - 0x8C - F48v5
          - 0xA0-0xAF = Experience Lights
            - 0xA0 - Genius Pixel 16
            - 0xA1 - Genius Pixel 8
