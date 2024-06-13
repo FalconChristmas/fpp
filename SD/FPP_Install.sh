@@ -791,6 +791,8 @@ case "${FPPPLATFORM}" in
 
             echo "# Swap Pi 3 and Zero W UARTs with BT" >> ${BOOTDIR}/config.txt
             echo "dtoverlay=miniuart-bt" >> ${BOOTDIR}/config.txt
+            echo "# Make sure the uart is actually enabled on Pi4/5" >> ${BOOTDIR}/config.txt
+            echo "dtparam=uart0=on" >> ${BOOTDIR}/config.txt
             echo >> ${BOOTDIR}/config.txt
 
             echo "dtoverlay=dwc2" >> ${BOOTDIR}/config.txt
@@ -811,9 +813,9 @@ case "${FPPPLATFORM}" in
             echo "gpu_mem=64" >> ${BOOTDIR}/config.txt
             echo "[pi2]" >> ${BOOTDIR}/config.txt
             echo "gpu_mem=64" >> ${BOOTDIR}/config.txt
-            echo "" >> /config.txt
-            echo "[all]" >> /config.txt
-            echo "" >> /config.txt
+            echo "" >> ${BOOTDIR}/config.txt
+            echo "[all]" >> ${BOOTDIR}/config.txt
+            echo "" >> ${BOOTDIR}/config.txt
 
             echo "FPP - Freeing up more space by removing unnecessary packages"
             apt-get -y purge wolfram-engine sonic-pi minecraft-pi firmware-iwlwifi libglusterfs0 mesa-va-drivers mesa-vdpau-drivers mesa-vulkan-drivers mkvtoolnix ncurses-term poppler-data va-driver-all librados2 libcephfs2
