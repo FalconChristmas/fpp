@@ -13,10 +13,12 @@
 #include "fpp-pch.h"
 
 #include <cinttypes>
+#include <cmath>
 #include <thread>
 
 #include "PCA9685.h"
 #include "Plugin.h"
+#include "../common.h"
 #include "../log.h"
 
 #include "non-gpl/CapeUtils/CapeUtils.h"
@@ -109,7 +111,7 @@ static PCA9685Output::DataType decodeDataType(const std::string& i) {
     }
     return PCA9685Output::DataType::ABSOLUTE;
 }
-static int decodeFrequency(const std::string &fr) {
+static int decodeFrequency(const std::string& fr) {
     int it = atoi(fr.c_str());
     if (it > 0) {
         return it;
@@ -204,7 +206,7 @@ unsigned short PCA9685Output::PCA9685Port::readValue(unsigned char* channelData,
             }
             if (val < m_min) {
                 val = m_min;
-            }                
+            }
             if (m_reverse) {
                 int offset = val - m_min;
                 val = m_max - offset;
@@ -291,7 +293,7 @@ int PCA9685Output::Init(Json::Value config) {
     m_actualFrequency = ofs / (fsi * 4096.0f);
     uint32_t sc = m_startChannel;
 
-    //printf("%0.3f   fsi:  %d     of: %0.2f\n", fs, fsi, m_actualFrequency);
+    // printf("%0.3f   fsi:  %d     of: %0.2f\n", fs, fsi, m_actualFrequency);
     LogDebug(VB_CHANNELOUT, "PCA9685 using actual frequency of: %0.2f\n", m_actualFrequency);
     numPorts = portConfigs.size();
     for (int x = 0; x < numPorts; x++) {
@@ -328,7 +330,7 @@ int PCA9685Output::Init(Json::Value config) {
             z /= 1000000;
             m_ports[x].m_center = std::round(z);
             LogDebug(VB_CHANNELOUT, "PCA9685 pulse ranges for output %d:   %d  %d  %d     Steps: %d\n", x, m_ports[x].m_min, m_ports[x].m_center, m_ports[x].m_max, m_ports[x].m_max - m_ports[x].m_min);
-            //printf("PCA9685 pulse ranges for output %d:   %d  %d  %d     Steps: %d\n", x, m_ports[x].m_min, m_ports[x].m_center, m_ports[x].m_max, m_ports[x].m_max - m_ports[x].m_min);
+            // printf("PCA9685 pulse ranges for output %d:   %d  %d  %d     Steps: %d\n", x, m_ports[x].m_min, m_ports[x].m_center, m_ports[x].m_max, m_ports[x].m_max - m_ports[x].m_min);
         }
 
         if (m_ports[x].type == PCA9685Output::PWMType::SERVO) {
@@ -411,7 +413,7 @@ int PCA9685Output::Init(Json::Value config) {
     i2c->writeByteData(0x00, m0);
 
     i2c->writeByteData(0x01, 0x04); // ON STOP
-    //i2c->writeByteData(0x01, 0x0C); // ON ACK
+    // i2c->writeByteData(0x01, 0x0C); // ON ACK
 
     // turn on the external clock
     if (externalClock) {
@@ -427,7 +429,7 @@ int PCA9685Output::Init(Json::Value config) {
     oldmode |= 0x20;
     i2c->writeByteData(0x00, oldmode);
 
-    // clear sleep bit if set to restart oscillator 
+    // clear sleep bit if set to restart oscillator
     oldmode &= 0x6F;
     i2c->writeByteData(0x00, oldmode);
 
@@ -446,14 +448,13 @@ int PCA9685Output::Close(void) {
     return ChannelOutput::Close();
 }
 
-
 void PCA9685Output::StartingOutput() {
     uint8_t b = i2c->readByteData(0x00);
     i2c->writeByteData(0x00, b & 0x6F);
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 void PCA9685Output::StoppingOutput() {
-    uint8_t allOff[4] = {0x00, 0x00, 0x00, 0x10};
+    uint8_t allOff[4] = { 0x00, 0x00, 0x00, 0x10 };
     i2c->writeRawI2CBlockData(0xFA, allOff, 4);
     std::this_thread::sleep_for(std::chrono::milliseconds(3));
     uint8_t b = i2c->readByteData(0x00);
