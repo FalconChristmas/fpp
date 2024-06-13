@@ -35,6 +35,7 @@ public:
         bool generateResetFusesPacket(uint8_t* packet) const;
         bool generateToggleEFusePacket(uint8_t* packet, int receiver, int port) const;
         bool generateResetEFusePacket(uint8_t* packet, int receiver, int port) const;
+        bool generateSetFusesPacket(uint8_t* packet, bool on) const;
 
         const std::array<const PixelString*, 4>& getPixelStrings() const { return strings; };
         uint32_t getReceiverCount() const { return numReceivers; }

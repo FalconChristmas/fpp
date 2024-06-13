@@ -918,7 +918,7 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root, uint8_t*
                     idx = 1;
                     len = 2;
                 } else if (x == 2) {
-                    rc->generateResetFusesPacket(&packets[port][0]);
+                    rc->generateSetFusesPacket(&packets[port][0], 1);
                     idx = 2;
                     len = 1;
                 }

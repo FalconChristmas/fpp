@@ -224,9 +224,8 @@ void FalconV5Support::processListenerData() {
                 // printDataBuf(pidx, packet);
                 Json::Value json;
                 if (pidx != 0 && decodeFalconV5Packet(packet, json)) {
-                    // std::string s = SaveJsonToString(json, "    ");
-                    // printf("%s\n", s.c_str());
                     int port = json["port"].asInt();
+                    // printf("Port:  %d    %s\n", port, SaveJsonToString(json, "  ").c_str());
                     for (auto& rc : receiverChains) {
                         if (rc->getPixelStrings()[0]->m_portNumber == port) {
                             rc->handleQueryResponse(json);
@@ -354,6 +353,13 @@ bool FalconV5Support::ReceiverChain::generateResetEFusePacket(uint8_t* packet, i
     return encodeFalconV5Packet(config, packet);
 }
 
+bool FalconV5Support::ReceiverChain::generateSetFusesPacket(uint8_t* packet, bool on) const {
+    Json::Value config;
+    config["type"] = "setFuses";
+    config["state"] = on ? 1 : 0;
+    return encodeFalconV5Packet(config, packet);
+}
+
 bool FalconV5Support::ReceiverChain::generateResetFusesPacket(uint8_t* packet) const {
     Json::Value config;
     config["type"] = "resetFuses";
@@ -376,6 +382,8 @@ void FalconV5Support::ReceiverChain::handleQueryResponse(Json::Value& json) {
     int port = json["port"].asInt();
     int dial = json["dial"].asInt();
     int numPorts = json["numPorts"].asInt();
+    int id = json["id"].asInt();
+    // printf("Resp:  Idx: %d     Port: %d    dial:  %d    NP: %d    ID: %d\n", index, port, dial, numPorts, id);
     for (int x = 0; x < numPorts; x++) {
         OutputMonitor::INSTANCE.setSmartReceiverInfo(port + x % 4, x / 4,
                                                      json["ports"][x]["fuseOn"].asBool(),
