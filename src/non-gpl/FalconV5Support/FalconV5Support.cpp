@@ -225,7 +225,8 @@ void FalconV5Support::processListenerData() {
                 Json::Value json;
                 if (pidx != 0 && decodeFalconV5Packet(packet, json)) {
                     int port = json["port"].asInt();
-                    // printf("Port:  %d    %s\n", port, SaveJsonToString(json, "  ").c_str());
+                    // printf("Port:  %d   Index: %d\n", port, json["index"].asInt());
+                    //  printf("%s\n", SaveJsonToString(json, "  ").c_str());
                     for (auto& rc : receiverChains) {
                         if (rc->getPixelStrings()[0]->m_portNumber == port) {
                             rc->handleQueryResponse(json);
@@ -385,7 +386,7 @@ void FalconV5Support::ReceiverChain::handleQueryResponse(Json::Value& json) {
     int id = json["id"].asInt();
     // printf("Resp:  Idx: %d     Port: %d    dial:  %d    NP: %d    ID: %d\n", index, port, dial, numPorts, id);
     for (int x = 0; x < numPorts; x++) {
-        OutputMonitor::INSTANCE.setSmartReceiverInfo(port + x % 4, x / 4,
+        OutputMonitor::INSTANCE.setSmartReceiverInfo(port + x % 4, index,
                                                      json["ports"][x]["fuseOn"].asBool(),
                                                      json["ports"][x]["fuseBlown"].asBool(),
                                                      json["ports"][x]["current"].asInt(),
