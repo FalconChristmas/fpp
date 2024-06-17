@@ -1130,6 +1130,9 @@ ccache --set-config=temporary_dir=/tmp
 ccache --set-config=sloppiness=pch_defines,time_macros
 ccache --set-config=hard_link=true
 ccache --set-config=pch_external_checksum=true
+mkdir -p /home/fpp/.config/ccache
+cp /root/.ccache/ccache.conf /home/fpp/.config/ccache
+chown -R fpp:fpp /home/fpp/.config
 
 if $isimage; then
     #######################################
