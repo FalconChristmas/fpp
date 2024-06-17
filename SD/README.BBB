@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# am335x-debian-11.8-minimal-armhf-2023-10-07-2gb.img.xz
-# from https://rcn-ee.net/rootfs/release/2023-10-07/bullseye-minimal-armhf/
+# am335x-debian-12.5-minimal-armhf-2024-06-12-2gb.img.xz
+# from https://rcn-ee.net/rootfs/debian-armhf-12-bookworm-minimal-mainline/2024-06-12/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -47,8 +47,13 @@ rm -f /etc/systemd/network/50-default.network
 wget -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
 sed -i -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' /etc/systemd/network/50-default.network
 
+#install resolved service
+apt-get install systemd-resolved
+
+#this may "hang" as it may grab a different IP address.  You may need to log back in
 systemctl reload systemd-networkd
 
+ 
 systemctl unmask systemd-networkd
 systemctl unmask systemd-resolved
 
@@ -197,9 +202,9 @@ rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-VERSION=8.0-pre-alpha4
-OSVERSION=2024-04
-DEVICE=/dev/sdc
+VERSION=8.0-alpha5
+OSVERSION=2024-06
+DEVICE=/dev/sdb
 dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 
 

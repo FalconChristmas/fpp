@@ -48,7 +48,7 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2024-04"
+FPPIMAGEVER="2024-06"
 FPPCFGVER="86"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -495,7 +495,7 @@ case "${OSVER}" in
                       gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev qrencode libusb-1.0-0-dev \
-                      flex bison pkg-config libasound2-dev python3-distutils libssl-dev libssl1.1 libtool bsdextrautils iw rsyslog tzdata"
+                      flex bison pkg-config libasound2-dev python3-distutils libssl-dev libtool bsdextrautils iw rsyslog tzdata"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity zram-tools"
@@ -735,6 +735,10 @@ case "${FPPPLATFORM}" in
             echo "FPP - Disabling the hdmi force hotplug setting"
             sed -i -e "s/hdmi_force_hotplug/#hdmi_force_hotplug/" ${BOOTDIR}/config.txt
             
+            echo "FPP - Disabling the VC4 OpenGL driver"
+            sed -i -e "s/dtoverlay=vc4-fkms-v3d/#dtoverlay=vc4-fkms-v3d/" ${BOOTDIR}/config.txt
+            sed -i -e "s/dtoverlay=vc4-kms-v3d/#dtoverlay=vc4-kms-v3d/" ${BOOTDIR}/config.txt
+            
             echo "FPP - Disabling Camera AutoDetect"
             sed -i -e "s/camera_auto_detect/#camera_auto_detect/" ${BOOTDIR}/config.txt
 
@@ -747,7 +751,7 @@ case "${FPPPLATFORM}" in
             echo "bcm2835_codec" >> /etc/modules-load.d/modules.conf
             echo "snd_usb_audio" >> /etc/modules-load.d/modules.conf
 
-            echo "[ALL]">> ${BOOTDIR}/config.txt
+            echo "[all]">> ${BOOTDIR}/config.txt            
             echo "FPP - Enabling SPI in device tree"
             echo >> ${BOOTDIR}/config.txt
             echo "# Enable SPI in device tree" >> ${BOOTDIR}/config.txt
@@ -791,16 +795,16 @@ case "${FPPPLATFORM}" in
 
             echo "# Swap Pi 3 and Zero W UARTs with BT" >> ${BOOTDIR}/config.txt
             echo "dtoverlay=miniuart-bt" >> ${BOOTDIR}/config.txt
-            echo "# Make sure the uart is actually enabled on Pi4/5" >> ${BOOTDIR}/config.txt
-            echo "dtparam=uart0=on" >> ${BOOTDIR}/config.txt
             echo >> ${BOOTDIR}/config.txt
 
             echo "dtoverlay=dwc2" >> ${BOOTDIR}/config.txt
             echo >> ${BOOTDIR}/config.txt
 
+            echo "# Model Specific configuration" >>  ${BOOTDIR}/config.txt
             echo "# GPU memory set to 128 to deal with error in omxplayer with hi-def videos" >> ${BOOTDIR}/config.txt
             echo "[pi5]" >> ${BOOTDIR}/config.txt
             echo "gpu_mem=256" >> ${BOOTDIR}/config.txt
+            echo "dtparam=uart0=on" >> ${BOOTDIR}/config.txt
             echo "[pi4]" >> ${BOOTDIR}/config.txt
             echo "gpu_mem=256" >> ${BOOTDIR}/config.txt
             echo "[pi3]" >> ${BOOTDIR}/config.txt

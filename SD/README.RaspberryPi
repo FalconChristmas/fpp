@@ -75,7 +75,7 @@ Do a system upgrade to make sure everything is at the latest versions
 
 # For debian 12, we'd like to move to kernel 6.6+ and drop compiled wifi drivers, this still
 # needs some work to figure out and LOTS more testing
-PRUNE_MODULES=1 rpi-update
+PRUNE_MODULES=1 WANT_PI5=1 rpi-update
 KV=$(uname -r)
 KV=${KV::-3}
 rm -f /boot/*-${KV}*
@@ -122,8 +122,8 @@ the proper device name for your SD card in place of '/dev/sdg'):
        apt-get install zerofree squashfs-tools
 
     DEVICE=/dev/sdc
-    VERSION=8.0-pre-alpha2
-    OSVERSION=2024-02
+    VERSION=8.0-alpha5
+    OSVERSION=2024-06
     BLOCKS=6800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
@@ -151,7 +151,7 @@ mount ${DEVICE}2 /mnt
 mount ${DEVICE}1 /mnt/boot/firmware
 mksquashfs /mnt Pi-${VERSION}_${OSVERSION}.fppos -b 512K -comp xz
 cd /mnt/root
-tar -czf ~/ccache-Pi-2023.x-v${VERSION}.tar.gz .ccache
+tar -czf ~/ccache-Pi-2024.x-v${VERSION}.tar.gz .ccache
 cd ~
 umount /mnt/boot/firmware
 umount /mnt
