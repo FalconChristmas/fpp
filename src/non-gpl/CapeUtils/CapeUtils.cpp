@@ -1325,3 +1325,20 @@ bool CapeUtils::getStringConfig(const std::string& type, Json::Value& val) {
     }
     return false;
 }
+
+bool CapeUtils::getPWMConfig(const std::string& type, Json::Value& val) {
+    Json::Value result;
+    Json::CharReaderBuilder factory;
+    std::string errors;
+
+    std::string fn = "/tmp/pwm/" + type + ".json";
+    if (getLicensedOutputs() > 0 && hasFile(fn)) {
+        const std::vector<uint8_t>& f = getFile(fn);
+        std::istringstream istream(std::string((const char*)&f[0], f.size()));
+        bool success = Json::parseFromStream(factory, istream, &val, &errors);
+        if (success) {
+            return true;
+        }
+    }
+    return false;
+}

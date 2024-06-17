@@ -58,6 +58,7 @@ $files['channeloutputs'] = array(
     'config/co-other.json',
     'config/co-pixelStrings.json',
     'config/co-universes.json',
+    'config/co-pwm.json',
 );
 $files['schedule'] = array(
     'config/schedule.json',

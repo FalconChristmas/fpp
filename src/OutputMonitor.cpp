@@ -128,12 +128,7 @@ class PortPinInfo {
 public:
     PortPinInfo(const std::string& n, const Json::Value& c) :
         name(n), config(c) {
-        if (config.isMember("row")) {
-            row = config["row"].asInt();
-        }
-        if (config.isMember("col")) {
-            col = config["col"].asInt();
-        }
+        setConfig(c);
     }
     ~PortPinInfo() {
         if (currentMonitor) {
@@ -149,9 +144,13 @@ public:
         if (config.isMember("col")) {
             col = config["col"].asInt();
         }
+        if (config.isMember("bank")) {
+            bankLabel = config["bank"].asString();
+        }
     }
 
     std::string name;
+    std::string bankLabel;
     Json::Value config;
     uint32_t group = 0;
 
@@ -216,6 +215,9 @@ public:
         }
         if (col != -1) {
             v["col"] = col;
+        }
+        if (!bankLabel.empty()) {
+            v["bank"] = bankLabel;
         }
         result.append(v);
     }

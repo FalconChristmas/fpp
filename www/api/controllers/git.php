@@ -1,4 +1,3 @@
-
 <?
 // GET /api/git/originLog
 function GetGitOriginLog()
@@ -14,10 +13,13 @@ function GetGitOriginLog()
         if (startsWith($line, "Git changes") || startsWith($line, "=========")) {
             continue;
         }
-        $pos = strpos($line, " ");
+        $pos = strpos($line, "~~~~");
+        $elements = explode("~~~~", $line);
         if ($pos > 0) {
-            $h = substr($line, 0, $pos);
-            $row = array("hash" => $h, "msg" => substr($line, $pos + 1));
+            $h = $elements[0];
+            $a = $elements[1];
+            $msg = $elements[2];
+            $row = array("hash" => $h, "author" => $a, "msg" => $msg);
             array_push($rows, $row);
         }
     }
@@ -80,7 +82,7 @@ function GitOSReleases()
         $rc["downloaded"] = $existingFiles;
         $releases = array();
         foreach ($data as $r) {
-            if (isset($r["assets"]) && $settings['OSImagePrefix'] != "" ) {
+            if (isset($r["assets"]) && $settings['OSImagePrefix'] != "") {
                 foreach ($r["assets"] as $file) {
                     $name = $file["name"];
                     if (endsWith($name, ".fppos")) {
@@ -134,7 +136,7 @@ function GitOSReleaseSizes()
     curl_close($curl);
 
     $rc = "";
-  
+
     if ($request_content != false) {
         $data = json_decode($request_content, true);
         foreach ($data as $r) {
@@ -142,12 +144,12 @@ function GitOSReleaseSizes()
                 foreach ($r["assets"] as $file) {
                     $name = $file["name"];
                     if (endsWith($name, ".fppos") && startsWith($name, $settings['OSImagePrefix'])) {
-			           $rc = $rc . $name . "," . $file["size"] . "\n";
+                        $rc = $rc . $name . "," . $file["size"] . "\n";
                     }
                 }
             }
         }
-      
+
     } else {
         $rc = "Error: " . curl_error($curl) . "\n";
     }
@@ -171,15 +173,17 @@ function GitBranches()
         if (startsWith($line, "origin/")) {
             $branch = substr($line, 7);
 
-            if (!(preg_match("*v[01]\.[0-9x]*", $branch)   // very very old v0.x and v1.x branches
-                || preg_match("*v2\.[0-9x]*", $branch)   // old v2.x branchs, that can no longer work (wrong lib versions)
-                || preg_match("*v3\.[0-9x]*", $branch)   // old v3.x branchs, that can no longer work (wrong libhttp versions)
-                || preg_match("*v4\.[0-9x]*", $branch)   // old v4.x branchs, that can no longer work (wrong vlc versions)
-                || preg_match("*v4\.[0-9x]*", $branch)   // old v4.x branchs, that can no longer work (wrong vlc versions)
-                || preg_match("*v5\.[0-9x]*", $branch)   // old v5.x branchs, that can no longer work (wrong OS versions)
-                || startsWith($branch, "dependabot/")    // dependabot created branches
-                || startsWith($branch, "HEAD ")  
-                )) {
+            if (
+                !(preg_match("*v[01]\.[0-9x]*", $branch)   // very very old v0.x and v1.x branches
+                    || preg_match("*v2\.[0-9x]*", $branch)   // old v2.x branchs, that can no longer work (wrong lib versions)
+                    || preg_match("*v3\.[0-9x]*", $branch)   // old v3.x branchs, that can no longer work (wrong libhttp versions)
+                    || preg_match("*v4\.[0-9x]*", $branch)   // old v4.x branchs, that can no longer work (wrong vlc versions)
+                    || preg_match("*v4\.[0-9x]*", $branch)   // old v4.x branchs, that can no longer work (wrong vlc versions)
+                    || preg_match("*v5\.[0-9x]*", $branch)   // old v5.x branchs, that can no longer work (wrong OS versions)
+                    || startsWith($branch, "dependabot/")    // dependabot created branches
+                    || startsWith($branch, "HEAD ")
+                )
+            ) {
                 array_push($rows, $branch);
             }
 

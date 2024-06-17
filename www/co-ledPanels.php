@@ -1208,6 +1208,7 @@ function PanelSubtypeChanged() {
     html +="<option value='64x32x8'>64x32 1/8 Scan</option>"
     html +="<option value='64x64x8'>64x64 1/8 Scan</option>"
     if ($('#LEDPanelsConnection').val() === 'ColorLight5a75') {
+        html += "<option value='48x48x6'>48x48 1/6 Scan</option>"
         html += "<option value='80x40x10'>80x40 1/10 Scan</option>"
         html += "<option value='80x40x20'>80x40 1/20 Scan</option>"
     }
@@ -1596,6 +1597,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
         echo "<li><font color='red'>" . $panelCapes[0]["warnings"]["*"] . "</font></li>\n";
     }
 }?>
+                    <li><font color='red'>New Colorlight receiver firmware eg 13.x is currently incompatible with FPP, please see <a href="https://github.com/FalconChristmas/fpp/issues/1849">Issue 1849</a></font></li>
                     <li>When wiring panels, divide the panels across as many outputs as possible.  Shorter chains on more outputs will have higher refresh than longer chains on fewer outputs.</li>
                     <li>If not using all outputs, use all the outputs from 1 up to what is needed.   Data is always sent on outputs up to the highest configured, even if no panels are attached.</li>
                     <?if ($settings['Platform'] == "Raspberry Pi") {?>

@@ -219,23 +219,21 @@ body .ui-tabs .ui-tabs-nav li {
     border-style: solid;
     border-color:  #c5c5c5;
 }
-    
+
+
 .fppMinMaxSliderRange .ui-slider-handle {
     background-color: lightgrey;    
     border: 1px;
-        border-style: solid;
+    border-style: solid;
     border-color:  #c5c5c5;
-    height: 1.7em;
-    width: 1.7em;
+    border-radius: 0.5rem;
+    width: 0.75em;
+    height: 1.25em;
 }
 
 .fppMinMaxSliderRange .ui-slider-range {
-    background-color: lightgreen;    
-    border: 1px;
-    border-style: solid;
-    border-color:  #c5c5c5;  
+    background-color: #adb5bd;    
 }
-
 
 @media(min-width:991px) {
     .header {

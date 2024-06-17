@@ -344,7 +344,9 @@
                         ) {
                             $stringTabText = "Pixel Strings";
                             if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-                                if (
+                                if (isset($currentCapeInfo["labels"]) && isset($currentCapeInfo["labels"]["strings"])) {
+                                    $stringTabText = $currentCapeInfo["labels"]["strings"];
+                                } else if (
                                     (isset($settings['cape-info'])) &&
                                     ((in_array('all', $settings['cape-info']["provides"])) || (in_array('strings', $settings['cape-info']["provides"]))) &&
                                     (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")
@@ -353,7 +355,6 @@
                                     if (in_array('all', $settings['cape-info']["provides"]) || in_array('panels', $settings['cape-info']["provides"])) {
                                         $stringTabText .= " Pixel Strings";
                                     }
-
                                 }
                             }
                             ?>
@@ -377,6 +378,20 @@
                                 </li>
                                 <?
                             }
+                        }
+                        if (in_array('pwm', $currentCapeInfo["provides"]) && isset($currentCapeInfo['verifiedKeyId'])) {
+                            $pwmTabText = "PWM";
+                            if (isset($currentCapeInfo["labels"]) && isset($currentCapeInfo["labels"]["pwm"])) {
+                                $pwmTabText = $currentCapeInfo["labels"]["pwm"];
+                            } 
+                            ?>
+                            <li class="nav-item">
+                                <a class="nav-link" id="tab-pwm-tab" type="button" tabType='PWM' data-bs-toggle="pill"
+                                    data-bs-target='#tab-pwm' role="tab" aria-controls="tab-pwm">
+                                    <? echo $pwmTabText; ?>
+                                </a>
+                            </li>
+                            <?
                         }
 
                         $ledTabText = "LED Panels";
@@ -446,6 +461,13 @@
                                 </div>
                                 <?
                             }
+                        }
+                        if (in_array('pwm', $currentCapeInfo["provides"])) {
+                            ?>
+                            <div class="tab-pane fade" id="tab-pwm" role="tabpanel" aria-labelledby="tab-pwm-tab">
+                                <? include_once 'co-pwm.php'; ?>
+                            </div>
+                            <?
                         }
                         ?>
 

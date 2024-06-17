@@ -22,30 +22,72 @@ public:
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
+    virtual void PrepData(unsigned char* channelData) override;
     virtual int SendData(unsigned char* channelData) override;
+    
+    virtual void StartingOutput() override;
+    virtual void StoppingOutput() override;
 
     virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override {
-        addRange(m_startChannel, m_startChannel + m_channelCount - 1);
-    }
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
+
+    enum class ZeroType {
+        HOLD = 0,
+        NORMAL = 1,
+        CENTER = 2,
+        OFF = 3,
+        MIN = 4,
+        MAX = 5
+    };
+
+    enum class DataType {
+        SCALED,
+        ABSOLUTE,
+        ABSOLUTE_HALF,
+        ABSOLUTE_DOUBLE
+    };
+
+    enum class PWMType {
+        SERVO,
+        LED
+    };
 
 private:
     I2CUtils* i2c;
     int m_deviceID;
     std::string m_i2cDevice;
     int m_frequency;
+    float m_actualFrequency;
 
     class PCA9685Port {
     public:
+        std::string description;
+        PWMType type = PWMType::SERVO;
+        bool is16Bit = true;
+        uint32_t startChannel = 0;
+
+        // servo properties
         int m_min = 1000;
         int m_max = 2000;
         int m_center = 1500;
-        int m_dataType = 0;
-        int m_zeroBehavior = 0;
+        DataType m_dataType = DataType::SCALED;
+        ZeroType m_zeroBehavior = ZeroType::HOLD;
+        bool m_reverse = false;
 
-        unsigned short m_lastValue;
+        // LED properties
+        float gamma = 1.0f;
+        uint32_t brightness = 100;
+
+        unsigned short m_lastValue = 0;
+        unsigned short m_nextValue = 0;
+
+        unsigned short readValue(unsigned char* channelData, float frequency, int port);
     };
 
     PCA9685Port m_ports[16];
+    uint32_t numPorts = 16;
+
+    std::atomic<uint64_t> lastFrameTime;
+    std::array<uint16_t, 32> data;
 };

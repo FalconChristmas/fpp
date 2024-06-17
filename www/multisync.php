@@ -337,7 +337,7 @@ include 'common/menuHead.inc';
     function isFalconV4(typeId) {
         typeId = parseInt(typeId);
 
-        if ((typeId >= 0x88) && (typeId <= 0x90))
+        if ((typeId >= 0x88) && (typeId <= 0xAF))
             return true;
 
         return false;

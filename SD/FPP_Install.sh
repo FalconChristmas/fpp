@@ -43,8 +43,8 @@
 #############################################################################
 # Other platforms which may be functioning:
 #
-# NOTE: FPP Development is based on the latest Debian Bullseye images, so
-#       hardware which does not support Bullseye may have issues.
+# NOTE: FPP Development is based on the latest Debian Bookworm images, so
+#       hardware which does not support Bookworm may have issues.
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
@@ -495,7 +495,7 @@ case "${OSVER}" in
                       gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev qrencode libusb-1.0-0-dev \
-                      flex bison pkg-config libasound2-dev python3-distutils libssl-dev libtool bsdextrautils iw rsyslog tzdata"
+                      flex bison pkg-config libasound2-dev python3-distutils libssl-dev libssl1.1 libtool bsdextrautils iw rsyslog tzdata"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity zram-tools"
@@ -791,6 +791,8 @@ case "${FPPPLATFORM}" in
 
             echo "# Swap Pi 3 and Zero W UARTs with BT" >> ${BOOTDIR}/config.txt
             echo "dtoverlay=miniuart-bt" >> ${BOOTDIR}/config.txt
+            echo "# Make sure the uart is actually enabled on Pi4/5" >> ${BOOTDIR}/config.txt
+            echo "dtparam=uart0=on" >> ${BOOTDIR}/config.txt
             echo >> ${BOOTDIR}/config.txt
 
             echo "dtoverlay=dwc2" >> ${BOOTDIR}/config.txt
@@ -811,9 +813,9 @@ case "${FPPPLATFORM}" in
             echo "gpu_mem=64" >> ${BOOTDIR}/config.txt
             echo "[pi2]" >> ${BOOTDIR}/config.txt
             echo "gpu_mem=64" >> ${BOOTDIR}/config.txt
-            echo "" >> /config.txt
-            echo "[all]" >> /config.txt
-            echo "" >> /config.txt
+            echo "" >> ${BOOTDIR}/config.txt
+            echo "[all]" >> ${BOOTDIR}/config.txt
+            echo "" >> ${BOOTDIR}/config.txt
 
             echo "FPP - Freeing up more space by removing unnecessary packages"
             apt-get -y purge wolfram-engine sonic-pi minecraft-pi firmware-iwlwifi libglusterfs0 mesa-va-drivers mesa-vdpau-drivers mesa-vulkan-drivers mkvtoolnix ncurses-term poppler-data va-driver-all librados2 libcephfs2
@@ -1128,6 +1130,9 @@ ccache --set-config=temporary_dir=/tmp
 ccache --set-config=sloppiness=pch_defines,time_macros
 ccache --set-config=hard_link=true
 ccache --set-config=pch_external_checksum=true
+mkdir -p /home/fpp/.config/ccache
+cp /root/.ccache/ccache.conf /home/fpp/.config/ccache
+chown -R fpp:fpp /home/fpp/.config
 
 if $isimage; then
     #######################################
@@ -1245,7 +1250,7 @@ EOF
         echo "FPP - Configuring tmpfs filesystems"
         sed -i 's|tmpfs\s*/tmp\s*tmpfs.*||g' /etc/fstab
         echo "#####################################" >> /etc/fstab
-        echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
+        echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=75M 0 0" >> /etc/fstab
         echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
         echo "#####################################" >> /etc/fstab
     fi

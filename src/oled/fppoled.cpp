@@ -60,11 +60,13 @@ int main(int argc, char* argv[]) {
     // wait until after cape detection so gpio expanders are registered and available
     PinCapabilities::InitGPIO("FPPOLED", new PLAT_GPIO_CLASS());
     LoadSettings(argv[0]);
-    int ledType = getSettingInt("LEDDisplayType");
+    int ledType = getRawSettingInt("LEDDisplayType", 99);
     printf("    Led Type: %d\n", ledType);
     fflush(stdout);
     if (lt != ledType) {
-        if (!OLEDPage::InitializeDisplay(ledType)) {
+        if (ledType == 99) {
+            ledType = lt;
+        } else if (!OLEDPage::InitializeDisplay(ledType)) {
             ledType = 0;
         }
     }

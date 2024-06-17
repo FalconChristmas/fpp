@@ -2,7 +2,7 @@
 
 function stats_generate($statsFile)
 {
-//////////// MAIN ////////////
+    //////////// MAIN ////////////
     $tasks = array(
         "uuid" => 'stats_getUUID',
         "systemInfo" => 'stats_getSystemInfo',
@@ -22,6 +22,7 @@ function stats_generate($statsFile)
         "output_other" => 'stats_other_out',
         "output_pixel_pi" => 'stats_pixel_pi_out',
         "output_pixel_bbb" => 'stats_pixel_bbb_out',
+        "output_pwm" => 'stats_pwm_out',
         "timezone" => 'stats_timezone',
     );
 
@@ -173,10 +174,10 @@ function stats_publish_stats_file()
     curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonString);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 800);
     curl_setopt($ch, CURLOPT_TIMEOUT_MS, 3000);
-// execute!
+    // execute!
     $response = json_decode(curl_exec($ch));
 
-// close the connection, release resources used
+    // close the connection, release resources used
     curl_close($ch);
     return json($response);
 }
@@ -457,7 +458,8 @@ function stats_getCapeInfo()
             "serialNumber" => "serialNumber",
             "designer" => "designer",
             "verifiedKeyId" => "verifiedKeyId",
-            "vendor" => "vendor");
+            "vendor" => "vendor"
+        );
     } else {
         $mapping = array(
             "type" => "type",
@@ -465,7 +467,8 @@ function stats_getCapeInfo()
             "name" => "name",
             "designer" => "designer",
             "verifiedKeyId" => "verifiedKeyId",
-            "vendor" => "vendor");
+            "vendor" => "vendor"
+        );
     }
 
     $data = json_decode(file_get_contents("http://localhost/api/cape"), true);
@@ -733,4 +736,45 @@ function stats_timezone()
     $output = [];
     exec("date '+%z %Z'", $output);
     return $output[0];
+}
+
+function stats_pwm_out()
+{
+    global $settings;
+    global $settings;
+    $rc = array("file" => $settings['co-pwm']);
+    if (!file_exists($rc['file'])) {
+        $rc['status'] = "File not found";
+        return $rc;
+    }
+
+    $data = json_decode(file_get_contents($rc['file']), true);
+    if (!isset($data["channelOutputs"])) {
+        $rc['status'] = "ChannelOutputs not found";
+        return $rc;
+    }
+
+    $data = $data["channelOutputs"][0];
+
+    $mapping = array(
+        "type" => "type",
+        "subType" => "subType",
+        "enabled" => "enabled",
+        "frequency" => "frequency"
+    );
+    validateAndAdd($rc, $data, $mapping);
+
+    $types = array();
+    $types["LED"] = 0;
+    $types["Servo"] = 0;
+    if (isset($data['outputs'])) {
+        foreach ($data['outputs'] as $row) {
+            if (isset($row['type'])) {
+                $types[$row['type']] += 1;
+            }
+        }
+    }
+    $rc['types'] = $types;
+
+    return $rc;
 }
