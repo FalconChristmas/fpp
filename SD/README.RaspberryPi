@@ -81,6 +81,8 @@ KV=${KV::-3}
 rm -f /boot/*-${KV}*
 rm -rf /lib/modules/${KV}*
 rm -rf /usr/lib/linux-image-${KV}*
+# remove the 16K page kernel as some of the libraries are incompatible with it
+rm -rf /boot/firmware/kernel_2712.img
 
 
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
