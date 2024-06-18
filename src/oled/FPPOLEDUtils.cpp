@@ -16,12 +16,9 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-// #include <chrono>
 #include <fcntl.h>
 #include <gpiod.h>
-// #include <iostream>
 #include <poll.h>
-// #include <thread>
 #include <unistd.h>
 
 #include "I2C.h"
