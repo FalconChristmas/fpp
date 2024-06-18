@@ -83,8 +83,9 @@ int main(int argc, char* argv[]) {
     printf("    Led Type: %d\n", ledType);
     fflush(stdout);
     if (lt != ledType) {
-        // handle startup failure
-    if (!OLEDPage::InitializeDisplay(ledType)) {
+        if (ledType == 99) {
+            ledType = lt;
+        } else if (!OLEDPage::InitializeDisplay(ledType)) {
             ledType = 0;
         }
     }
