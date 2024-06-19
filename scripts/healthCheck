@@ -268,16 +268,15 @@ HC_DateTime() {
     STATUS=1
     STATUSSTR="Your FPP system date/time is aligned to the browser"
 
+    if [ "$fppsystem_timestamp" -ge "$WARN_MAX" ] || [ "$fppsystem_timestamp" -le "$WARN_MIN" ]; then
+        STATUS=2
+        STATUSSTR="Your FPP system date/time is more than 10 mins different to the browser, please verify"
+    fi
 
     if [ "$fppsystem_timestamp" -ge "$FAIL_MAX" ] || [ "$fppsystem_timestamp" -le "$FAIL_MIN" ]; then
         STATUS=0
         STATUSSTR="Your FPP system date/time is significantly different to the browser, please verify"
-        if [ "$fppsystem_timestamp" -le "$WARN_MAX" ] || [ "$fppsystem_timestamp" -ge "$WARN_MIN" ]; then
-        STATUS=2
-        STATUSSTR="Your FPP system date/time is more than 10 mins different to the browser, please verify"
-        fi
     fi
-
 
     PrintItemFoot
 }
