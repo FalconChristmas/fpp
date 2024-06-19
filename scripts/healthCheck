@@ -21,6 +21,12 @@ then
     PHPOUT="y"
 fi
 
+
+if [ ${#2} -gt 1 ]
+then
+    BROWSER_TIME="$2"
+fi
+
 ID=0
 
 #############################################################################
@@ -226,7 +232,7 @@ HC_DNS() {
 }
 
 HC_NTPOffset() {
-    PrintItemHead "Time Offset"
+    PrintItemHead "Network Time Protocol Offset"
 
     # ntpq is not fully reliable, additional verification may be required
     offsets=$(ntpq -nc peers | tail -n +3 | cut -c 62-66 | tr -d '\.-')
@@ -240,6 +246,38 @@ HC_NTPOffset() {
             STATUSSTR="Your time may be incorrect, please verify"
         fi
     done
+
+    PrintItemFoot
+}
+
+HC_DateTime() {
+    PrintItemHead "FPP Date/Time Alignment to Browser"
+
+    # Compare FPP system time against the browser setting (passed as 2nd arg to script)
+    fppsystem_timestamp=$(date +%s)
+    WARN_THRESHOLD=600 #10 minutes (in seconds)
+    FAIL_THRESHOLD=14400 #4 hours (in seconds)
+    WARN_MIN=$(($BROWSER_TIME - $WARN_THRESHOLD))
+    WARN_MAX=$(($BROWSER_TIME + $WARN_THRESHOLD))
+    FAIL_MIN=$(($BROWSER_TIME - $FAIL_THRESHOLD))
+    FAIL_MAX=$(($BROWSER_TIME + $FAIL_THRESHOLD))
+    #echo "FPP TIME: "$fppsystem_timestamp
+    #echo "BROWSER TIME: "$BROWSER_TIME
+    #echo "WARN_MIN: $WARN_MIN"
+    #echo "WARN_MAX: $WARN_MAX"
+    STATUS=1
+    STATUSSTR="Your FPP system date/time is aligned to the browser"
+
+
+    if [ "$fppsystem_timestamp" -ge "$FAIL_MAX" ] || [ "$fppsystem_timestamp" -le "$FAIL_MIN" ]; then
+        STATUS=0
+        STATUSSTR="Your FPP system date/time is significantly different to the browser, please verify"
+        if [ "$fppsystem_timestamp" -le "$WARN_MAX" ] || [ "$fppsystem_timestamp" -ge "$WARN_MIN" ]; then
+        STATUS=2
+        STATUSSTR="Your FPP system date/time is more than 10 mins different to the browser, please verify"
+        fi
+    fi
+
 
     PrintItemFoot
 }
@@ -346,6 +384,9 @@ then
         fi
     fi
 fi
+############################
+# Date / Time
+HC_DateTime
 
 #############################
 # System Resources
