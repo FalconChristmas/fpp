@@ -13,9 +13,10 @@
 	}
 */
     $(document).ready(function(){
-        SetupSelectableTableRow(otherTableInfo);
         GetChannelOutputs();
+        SetupSelectableTableRow(otherTableInfo);
     });
+
 
 	/////////////////////////////////////////////////////////////////////////////
 	// nRF Support functions
@@ -944,6 +945,11 @@
 	}
 
 	function AddOtherOutput() {
+	//Check there isn't a new unconfigured output already displayed
+	if ($('select#outputType').length > 0 ) {
+		DialogError("Configure One Output At a Time","Please configure the newly added output row before adding another");
+	} else {
+
 		var currentRows = $("#tblOtherOutputs > tbody > tr").length;
 
 		var newRow =
@@ -998,8 +1004,10 @@
 			return a < b ? -1 : 1
 		}));
 
-		$('#outputType').html($('#outputType').find('option').sort(function (a, b) { return $(a).text().toUpperCase() < $(b).text().toUpperCase() ? -1 : 1 }));
-	}
+		//Default to 'Select a Type' as default selected option
+		$('#outputType').find('option')[0].selected=true;
+
+	}}
 
 	var otherTableInfo = {
 		tableName: "tblOtherOutputs",

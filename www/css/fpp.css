@@ -205,7 +205,6 @@ body .ui-tabs .ui-tabs-nav li {
     overflow-y: scroll;
 }
 
-
 .fppMinMaxSliderRange {
     width: 100%;
     background-color: white !important;
@@ -220,6 +219,7 @@ body .ui-tabs .ui-tabs-nav li {
     border-style: solid;
     border-color:  #c5c5c5;
 }
+
 
 .fppMinMaxSliderRange .ui-slider-handle {
     background-color: lightgrey;    

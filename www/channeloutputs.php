@@ -263,33 +263,10 @@
 
             UpdateChannelOutputLookup();
 
-            <?
-            if (
-                (isset($settings['cape-info'])) &&
-                ((in_array('all', $settings['cape-info']["provides"])) ||
-                    (in_array('strings', $settings['cape-info']["provides"])))
-            ) {
-                ?>
-                if (currentCapeName != "" && currentCapeName != "Unknown") {
-                    $('.capeNamePixels').html(currentCapeName);
-                    $('.capeTypeLabel').html("Cape Config");
-                }
-                <?
-            }
-            ?>
-
-            $.get('/api/gpio')
-                .done(data => selected_string_details.gpio = data)
-                .fail(err => $.jGrowl('Error: Unable to retrieve GPIO pin info.', { themeState: 'danger' }));
-            populateCapeList();
-
-            loadPixelStringOutputs();
-
         }
 
         function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
             $(document).on('keydown', handleCOKeypress);
-
 
         }
 
