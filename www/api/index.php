@@ -177,7 +177,8 @@ dispatch_get('/system/status', 'SystemGetStatus');
 dispatch_get('/system/info', 'SystemGetInfo');
 dispatch_get('/system/volume', 'SystemGetAudio');
 dispatch_post('/system/volume', 'SystemSetAudio');
-dispatch_post('/system/proxies', 'SystemSetProxies');
+dispatch_post('/system/proxies', 'PostProxies');
+dispatch_get('/system/proxies', 'GetProxies');
 
 dispatch_get('/testmode', 'testMode_Get');
 dispatch_post('/testmode', 'testMode_Set');

@@ -10,13 +10,17 @@ function LoadProxyList()
         $hta = array();
     }
     $proxies = array();
+    $description = "";
     foreach ($hta as $line) {
         if (strpos($line, 'http://') !== false) {
             $parts = preg_split("/[\s]+/", $line);
             $host = preg_split("/[\/]+/", $parts[2])[1];
             if ($host != "$1") {
-                $proxies[] = $host;
+                $proxies[] = array("host" => $host, "description" => $description);
+                $description = "";
             }
+        } else if (strpos($line, '# D:') !== false) {
+            $description = substr($line, 4);
         }
     }
     return $proxies;
@@ -43,7 +47,12 @@ function WriteProxyFile($proxies)
     $mediaDirectory = $settings['mediaDirectory'];
 
     $newht = "RewriteEngine on\nRewriteBase /proxy/\n\n";
-    foreach ($proxies as $host) {
+    foreach ($proxies as $item) {
+        $host = $item['host'];
+        $description = $item['description'];
+        if ($description != "") {
+            $newht = $newht . "# D:" . $description . "\n";
+        }
         $newht = $newht . "RewriteRule ^" . $host . "$  " . $host . "/  [R,L]\n";
         $newht = $newht . "RewriteRule ^" . $host . "/(.*)$  http://" . $host . "/$1  [P,L]\n\n";
     }
@@ -62,9 +71,10 @@ function GetProxies()
 function AddProxy()
 {
     $pip = params('ProxyIp');
+    $pdesp = '';
     $proxies = LoadProxyList();
     if (!in_array($pip, $proxies)) {
-        $proxies[] = $pip;
+        $proxies[] = array("host" => $pip, "description" => $pdesp);
     }
     WriteProxyFile($proxies);
 
@@ -78,13 +88,22 @@ function DeleteProxy()
 {
     $pip = params('ProxyIp');
     $proxies = LoadProxyList();
-    $proxies = array_diff($proxies, array($pip));
-    WriteProxyFile($proxies);
+    //$proxies = array_diff($proxies, array($pip));
+    
+    $newproxies = [];
+    foreach($json as $key => $host) {
+            if($host->host != pip) {
+                    $newproxies[] = $host;
+            }
+    }
+
+    //print_r(json_encode($newproxies));
+    WriteProxyFile($newproxies);
 
 	//Trigger a JSON Configuration Backup
 	GenerateBackupViaAPI('Proxy ' . $pip . ' was deleted.');
 
-    return json($proxies);
+    return json($newproxies);
 }
 
 function GetRemotes()

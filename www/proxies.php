@@ -4,12 +4,6 @@
 require_once 'config.php';
 include 'common/menuHead.inc';
 require_once "common.php";
-
-if (file_exists("$mediaDirectory/config/proxies")) {
-    $hta = file("$mediaDirectory/config/proxies", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-} else {
-    $hta = array();
-}
 ?>
 
 <head>
@@ -78,7 +72,7 @@ if (file_exists("$mediaDirectory/config/proxies")) {
         function SetProxies() {
             var formStr = "<form action='proxies.php' method='post' id='proxyForm'>";
 
-            var json = new Object();
+            var json = new Array();
             var row = 0;
             $(".proxyRow").each(function () {
                 console.log("Hello!!!");
@@ -86,11 +80,14 @@ if (file_exists("$mediaDirectory/config/proxies")) {
                 console.log("" + ip);
                 if (isValidHostname(ip) || isValidIpAddress(ip)) {
                     var desc = $(this).find("#descRow" + row).val();
-                    json[ip] = desc;
+                    json.push({
+                            "host" : ip,
+                            "description" : desc
+                        });
                     ++row;
                 }
             });
-            Post("api/system/proxies", false, JSON.stringify(json, null, 2));
+            Post("api/proxies", false, JSON.stringify(json, null, 2));
             location.reload();
         }
 
@@ -103,21 +100,23 @@ if (file_exists("$mediaDirectory/config/proxies")) {
 
         $(document).ready(function () {
             SetupSelectableTableRow(tableInfo);
-            <?php
-            $description = "";
-            foreach ($hta as $line) {
-                if (strpos($line, 'http://') !== false) {
-                    $parts = preg_split("/[\s]+/", $line);
-                    $host = preg_split("/[\/]+/", $parts[2])[1];
-                    if ($host != "$1") {
-                        echo "AddProxyForHost('" . $host . "', '" . $description . "');";
-                        $description = "";
-                    }
-                } else if (strpos($line, '# D:') !== false) {
-                    $description = substr($line, 4);
-                }
-            }
-            ?>
+
+            $.ajax({
+				url: 'api/proxies',
+				type: 'GET',
+				async: true,
+				dataType: 'json',
+				success: function (data) {
+					proxyInfos = data;
+					for (var i = 0; i < proxyInfos.length; i++) {
+						AddProxyForHost(proxyInfos[i].host, proxyInfos[i].description);						
+					}
+				},
+				error: function () {
+					$.jGrowl('Error: Unable to get list of proxies', { themeState: 'danger' });
+				}
+			});
+            
         });
     </script>
 
