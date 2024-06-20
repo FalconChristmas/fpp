@@ -183,12 +183,17 @@ function PopulateChannelMemMapTable(data) {
                 if (model.Orientation != "custom") {
                     postr += "<td>" + GetStartingCornerInput(model.StartCorner, attr) + "</td>" +
                     "<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + model.StringCount + "'" + attr + "></td>" +
-                    "<td><input class='strands' type='text' size='2' maxlength='2' value='" + model.StrandsPerString + "'" + attr + "></td><td>";
+                    "<td><input class='strands' type='text' size='2' maxlength='2' value='" + model.StrandsPerString + "'" + attr + "></td>";
                 } else {
                     postr += "<td><input class='corner' type='hidden' value='" + model.StartCorner + "'><input class='data' type='hidden' value='" + model.data + "'></td>" +
                         "<td><input class='strcnt' type='hidden' value='" + model.StringCount + "'></td>" +
-                        "<td><input class='strands' type='hidden' value='" + model.StrandsPerString + "'></td><td>";
+                        "<td><input class='strands' type='hidden' value='" + model.StrandsPerString + "'></td>";
                 }
+                var xlchecked = "";
+                if (model.xLights) {
+                    xlchecked = " checked";
+                }
+                postr += "<td><input class='xlights' type='checkbox'" + xlchecked + " disabled></td><td>"
                 break;
             case "FB":
                 var pWidth = parseInt(model.Width / model.PixelSize);
@@ -213,6 +218,7 @@ function PopulateChannelMemMapTable(data) {
 
                 postr += "<td colspan='2'>Pixel Size: <input class='pixelSize' type='number' min='1' max='64' value='" + model.PixelSize + "'" + attr + " onChange='WidthOrHeightModified(this);'></td>";
                 postr += "</td>" +
+                    "<td></td>" +
                     "<td>";
                 break;
             case "Sub":
@@ -228,6 +234,7 @@ function PopulateChannelMemMapTable(data) {
                     "<td>yOffset: <input class='yOffset' type='number' min='0' max='2160' value='" + model.YOffset + "'" + attr + "></td>" +
                     "<td colspan='2'><input class='width' type='number' min='8' max='4096' value='" + model.Width + "'" + attr + " onChange='WidthOrHeightModified(this);'> <b>X</b>" +
                         "<input class='height' type='number' min='8' max='2160' value='" + model.Height + "'" + attr + " onChange='WidthOrHeightModified(this);'></td>" +
+                        "<td></td>" +
                     "<td>";
                 break;
         }
@@ -288,6 +295,7 @@ function SetChannelMemMaps() {
                     model.StringCount = parseInt($this.find("input.strcnt").val());
                     model.StrandsPerString = parseInt($this.find("input.strands").val());
                     model.ChannelCountPerNode = parseInt($this.find("input.cpn").val());
+                    model.xLights = $this.find("input.xlights").is(':checked');
 
                     if ((model.StartChannel > 0) &&
                         (model.ChannelCount > 0)) {
@@ -366,6 +374,7 @@ function AddNewChannelModel() {
             "<td>" + GetStartingCornerInput('') + "</td>" +
             "<td><input class='strcnt' type='text' size='3' maxlength='3' value='1'></td>" +
             "<td><input class='strands' type='text' size='2' maxlength='2' value='1'></td>" +
+            "<td><input class='xlights' type='checkbox' disabled></td><td>" +
             "<td></td>" +
             "</tr>");
 }
@@ -387,6 +396,7 @@ function AddNewFBModel() {
             "</td>" +
             "<td colspan='2'>Pixel Size: <input class='pixelSize' type='number' min='1' max='64' value='1' onChange='WidthOrHeightModified(this);'></td>" +
             "<td></td>" +
+            "<td></td>" +
             "</tr>");
 }
 
@@ -403,6 +413,7 @@ function AddNewSubModel() {
             "<td>yOffset: <input class='yOffset' type='number' min='0' max='2160' value='0'></td>" +
             "<td colspan='2'><input class='width' type='number' min='8' max='4096' value='64' onChange='WidthOrHeightModified(this);'> <b>X</b>" +
                 "<input class='height' type='number' min='8' max='2160' value='32' onChange='WidthOrHeightModified(this);'></td>" +
+            "<td></td>" +
             "<td></td>" +
             "</tr>");
 }
@@ -452,6 +463,15 @@ function DeleteSelectedMemMap() {
 	}
 }
 
+function DeleteXlightsModels() {
+    $('#channelMemMaps tbody tr').each(function() {
+		$this = $(this);
+        if($this.find("input.xlights").is(':checked'))
+        {
+            $this.remove();
+        }
+    });
+}
 
 function pageSpecific_PageLoad_DOM_Setup(){
 	SetupSelectableTableRow(tableInfo);
@@ -471,9 +491,6 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
 				DisableButtonClass('btnDelete');
 			}
 		});
-
-
-
 }
 
 </script>
@@ -498,6 +515,7 @@ include 'menu.inc';?>
 						<div class="form-actions">
 
 								<input type=button value='Delete' onClick='DeleteSelectedMemMap();' data-btn-enabled-class="btn-outline-danger" id='btnDelete' class='disableButtons'>
+                                <input type=button value='Delete xLights Generated' onClick='DeleteXlightsModels();' id='btnDeleteXlights' class='buttons btn-outline-danger'>
 								<button type=button value='Add' onClick='AddNewModel();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
 								<input type=button value='Save' onClick='SetChannelMemMaps();' class='buttons btn-success ml-1'>
 
@@ -523,6 +541,7 @@ include 'menu.inc';?>
                                     <th><span title='Starting Corner'>Start Corner</span></th>
                                     <th><span title='Number of Strings or Width of FB/X11/Sub-Model'>Strings</span></th>
                                     <th><span title='Number of Strands Per String or Height of FB/X11/Sub-Model'>Strands</span></th>
+                                    <th><span title='Model was Generated and Uploaded from xLights'>xLights Generated</span></th>
                                     <th><span title='Running Effect'>Running Effect</span></th>
                                 </tr>
                             </thead>
