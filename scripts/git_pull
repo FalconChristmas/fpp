@@ -31,8 +31,10 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
     if [ "x${FPPDIR}" = "x/opt/fpp" ]
     then
         cd ${FPPDIR} && $SUDO git pull && $SUDO git fetch --tags -f
-        $SUDO git config --global --add safe.directory ${FPPDIR}
-        git config --global --add safe.directory ${FPPDIR}
+        if [ $(git config --list | grep -c 'safe.directory=/opt/fpp') < 1 ]; then
+            $SUDO git config --global --add safe.directory ${FPPDIR}
+        fi
+        
         if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
             if [ "${SOURCEIP}" == "github.com" ]; then
                 cd ${FPPDIR} && $SUDO git submodule sync && $SUDO git submodule update --init --remote
