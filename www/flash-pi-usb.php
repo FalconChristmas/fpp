@@ -7,7 +7,7 @@ require_once("common.php");
 DisableOutputBuffering();
 
 
-$device = $_GET['dev'];
+$device = escapeshellarg($_GET['dev']);
 $clone = $_GET['clone'];
 $cloneFlag = "";
 if ($clone == 'true') {
