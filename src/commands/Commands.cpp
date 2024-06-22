@@ -1,6 +1,6 @@
 /*
  * This file is part of the Falcon Player (FPP) and is Copyright (C)
- * 2013-2022 by the Falcon Player Developers.
+ * 2013-2023 by the Falcon Player Developers.
  *
  * The Falcon Player (FPP) is free software, and is covered under
  * multiple Open Source licenses.  Please see the included 'LICENSES'
@@ -22,6 +22,7 @@
 #include "EventCommands.h"
 #include "MediaCommands.h"
 #include "MultiSync.h"
+#include "OLEDCommands.h"
 #include "PlaylistCommands.h"
 
 CommandManager CommandManager::INSTANCE;
@@ -132,6 +133,7 @@ void CommandManager::Init() {
     addCommand(new RunRemoteScriptEvent());
     addCommand(new StartRemoteFSEQEffectCommand());
     addCommand(new StartRemotePlaylistCommand());
+    addCommand(new OLEDMenuCommand());
 
     std::function<void(const std::string&, const std::string&)> f =
         [](const std::string& topic, const std::string& payload) {
@@ -185,7 +187,7 @@ void CommandManager::Cleanup() {
         Command* cmd = commands.begin()->second;
         commands.erase(commands.begin());
 
-        if (cmd->name != "GPIO") { // No idea why deleteing the GPIO command causes a crash on exit
+        if (cmd->name != "GPIO") { // No idea why deleting the GPIO command causes a crash on exit
             delete cmd;
         }
     }
