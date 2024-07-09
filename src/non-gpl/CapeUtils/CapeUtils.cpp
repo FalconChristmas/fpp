@@ -1332,7 +1332,7 @@ bool CapeUtils::getPWMConfig(const std::string& type, Json::Value& val) {
     std::string errors;
 
     std::string fn = "/tmp/pwm/" + type + ".json";
-    if (getLicensedOutputs() > 0 && hasFile(fn)) {
+    if (hasFile(fn) && getLicensedOutputs() > 0) {
         const std::vector<uint8_t>& f = getFile(fn);
         std::istringstream istream(std::string((const char*)&f[0], f.size()));
         bool success = Json::parseFromStream(factory, istream, &val, &errors);
