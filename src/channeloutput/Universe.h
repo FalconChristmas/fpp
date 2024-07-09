@@ -15,17 +15,23 @@
 #define E131_TYPE_UNICAST 1
 #define ARTNET_TYPE_BROADCAST 2
 #define ARTNET_TYPE_UNICAST 3
+#define DMX_TYPE 4
 
-typedef struct {
-    uint32_t active;
-    uint32_t universe;
-    uint32_t size;
-    uint32_t startAddress;
-    uint32_t type;
+class UniverseEntry {
+public:
+    uint32_t active = 0;
+    uint32_t universe = -1;
+    uint32_t size = 512;
+    uint32_t startAddress = 0;
+    uint32_t type = 0;
     char unicastAddress[16];
-    uint32_t bytesReceived;
-    uint32_t packetsReceived;
-    uint32_t errorPackets;
-    uint32_t lastSequenceNumber;
-    uint32_t priority;
-} UniverseEntry;
+    uint32_t bytesReceived = 0;
+    uint32_t packetsReceived = 0;
+    uint32_t errorPackets = 0;
+    uint32_t lastSequenceNumber = 0;
+    uint32_t priority = 0;
+
+    std::string dmxDevice;
+    uint64_t lastTimestamp = 0;
+    uint32_t lastIndex = 0;
+};

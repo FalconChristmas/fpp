@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <fstream>
 #include <ifaddrs.h>
+#include <inttypes.h>
 #include <map>
 #include <memory>
 #include <stdio.h>
@@ -45,6 +46,8 @@
 #include "channeloutput/Universe.h"
 #include "channeloutput/channeloutputthread.h"
 #include "commands/Commands.h"
+
+#include "channeloutput/serialutil.h"
 
 #include "e131bridge.h"
 
@@ -120,7 +123,7 @@ int CreateArtNetSocket() {
 #else
         setsockopt(artnetSock, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
 #endif
-        int bufSize = 512*1024;
+        int bufSize = 512 * 1024;
         setsockopt(artnetSock, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
 
         memset((char*)&addr, 0, sizeof(addr));
@@ -337,7 +340,7 @@ bool Bridge_Initialize_Internal() {
             LogDebug(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", strerror(errno));
             exit(1);
         }
-        int bufSize = 512*1024;
+        int bufSize = 512 * 1024;
         setsockopt(ddpSock, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
     }
 
@@ -380,7 +383,7 @@ bool Bridge_Initialize_Internal() {
             exit(1);
         }
 
-        int bufSize = 512*1024;
+        int bufSize = 512 * 1024;
         setsockopt(bridgeSock, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
 
         // get all the addresses
@@ -768,6 +771,9 @@ Json::Value GetE131UniverseBytesReceived() {
         Json::Value universe;
 
         universe["id"] = InputUniverses[i].universe;
+        if (InputUniverses[i].dmxDevice != "") {
+            universe["id"] = InputUniverses[i].dmxDevice;
+        }
         universe["startChannel"] = InputUniverses[i].startAddress;
 
         universe["bytesReceived"] = std::to_string(InputUniverses[i].bytesReceived);
@@ -921,6 +927,79 @@ void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
                 return Bridge_ReceiveArtNetData();
             };
             callbacks[artnetSock] = f;
+        }
+    }
+    std::string filename = FPP_DIR_CONFIG("/ci-dmx.json");
+    if (FileExists(filename)) {
+        Json::Value root;
+        if (LoadJsonFromFile(filename, root)) {
+            Json::Value outputs = root["channelInputs"];
+            for (int c = 0; c < outputs.size(); c++) {
+                if (outputs[c]["type"].asString() == "dmx") {
+                    int start = outputs[c]["startAddress"].asInt();
+                    int count = outputs[c]["channelCount"].asInt();
+                    bool denabled = outputs[c]["enabled"].asBool();
+                    std::string device = outputs[c]["device"].asString();
+                    if (denabled) {
+                        std::string devPath = "/dev/" + device;
+                        int dmxIn = SerialOpen(devPath.c_str(), 250000, "N82", false);
+                        if (dmxIn > 0) {
+                            InputUniverses.resize(InputUniverseCount + 1);
+                            InputUniverses[InputUniverseCount].active = 1;
+                            InputUniverses[InputUniverseCount].universe = 0;
+                            InputUniverses[InputUniverseCount].startAddress = start - 1;
+                            InputUniverses[InputUniverseCount].size = count;
+                            InputUniverses[InputUniverseCount].type = DMX_TYPE;
+
+                            strcpy(InputUniverses[InputUniverseCount].unicastAddress, "\0");
+
+                            InputUniverses[InputUniverseCount].dmxDevice = device;
+                            InputUniverses[InputUniverseCount].lastTimestamp = 0;
+
+                            InputUniverses[InputUniverseCount].priority = 0;
+                            int dmxIdx = InputUniverseCount;
+                            InputUniverseCount++;
+                            std::function<bool(int)> f = [dmxIdx, count](int i) {
+                                uint8_t buffer[513] = { 0, 0, 0, 0 };
+                                int sz = read(i, buffer, sizeof(buffer));
+                                while (sz > 0) {
+                                    uint64_t ts = GetTimeMicros();
+                                    uint64_t diff = ts - InputUniverses[dmxIdx].lastTimestamp;
+                                    InputUniverses[dmxIdx].lastTimestamp = ts;
+
+                                    if (sz > 0 && buffer[0] == 0 && diff > 3000) {
+                                        // it's a reset...
+                                        SetBridgeData(&buffer[1], InputUniverses[dmxIdx].startAddress, std::min(sz - 1, count), (ts / 1000) + expireOffSet);
+                                        InputUniverses[dmxIdx].lastIndex = sz - 1;
+                                        InputUniverses[dmxIdx].packetsReceived++;
+                                        sz -= 1;
+                                    } else if (diff < 3000) {
+                                        int num = sz;
+                                        if (count < InputUniverses[dmxIdx].lastIndex) {
+                                            num = 0;
+                                        } else if (count < InputUniverses[dmxIdx].lastIndex + sz) {
+                                            num = count - InputUniverses[dmxIdx].lastIndex;
+                                        }
+                                        if (num) {
+                                            SetBridgeData(buffer, InputUniverses[dmxIdx].startAddress + InputUniverses[dmxIdx].lastIndex, num, (ts / 1000) + expireOffSet);
+                                        }
+                                        InputUniverses[dmxIdx].lastIndex += sz;
+                                    } else {
+                                        sz = 0;
+                                        InputUniverses[dmxIdx].errorPackets++;
+                                    }
+                                    InputUniverses[dmxIdx].bytesReceived += sz;
+                                    sz = read(i, buffer, sizeof(buffer));
+                                }
+                                return 0;
+                            };
+                            callbacks[dmxIn] = f;
+                        } else {
+                            WarningHolder::AddWarning("Could not open DMX input device " + device);
+                        }
+                    }
+                }
+            }
         }
     }
 }

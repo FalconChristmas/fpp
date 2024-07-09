@@ -614,6 +614,7 @@ function ZipConfigs($zip)
         //new v2 config files
         "config/channeloutputs.json",
         "config/ci-universes.json",
+        "config/ci-dmx.json",
         "config/co-bbbStrings.json",
         "config/co-pwm.json",
         "config/commandPresets.json",

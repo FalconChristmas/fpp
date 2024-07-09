@@ -169,6 +169,9 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output) {
 
     tty.c_cc[VMIN] = 0;
     tty.c_cc[VTIME] = 0;
+    if (!output) {
+        tty.c_iflag |= BRKINT;
+    }
 
     if (tcsetattr(fd, TCSANOW, &tty) == -1) {
         LogErr(VB_CHANNELOUT, "%s: Error setting port attributes\n", device);

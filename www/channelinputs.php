@@ -117,7 +117,67 @@
                 }
             });
         });
+        var SerialDevices = [];
+        <?
+        $dmxStyle = "hidden";
+        foreach (scandir("/dev/") as $fileName) {
+            if (
+                (preg_match("/^ttySC?[0-9]+/", $fileName)) ||
+                (preg_match("/^ttyACM[0-9]+/", $fileName)) ||
+                (preg_match("/^ttyO[0-9]/", $fileName)) ||
+                (preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
+                (preg_match("/^ttyUSB[0-9]+/", $fileName))
+            ) {
+                echo "SerialDevices.push('$fileName');\n";
+                $dmxStyle = "";
+            }
+        }
+        ?>
 
+        function SaveDMX() {
+            var dmxs = [];
+            $('#tblDMXs tbody tr').each(function () {
+                var row = $(this);
+                var device = row.attr('id');
+                var enabled = row.find('input[type="checkbox"]').prop('checked');
+                var startAddress = parseInt(row.find('input[type="number"]').eq(0).val());
+                var numChannels = parseInt(row.find('input[type="number"]').eq(1).val());
+                dmxs.push({
+                    device: device,
+                    enabled: enabled,
+                    startAddress: startAddress,
+                    channelCount: numChannels,
+                    type: "dmx"
+                });
+            });
+            var data = {
+                channelInputs: dmxs
+            };
+
+            $.post('api/channel/output/dmxInputs', JSON.stringify(data))
+                .done(function (data) {
+                    $.jGrowl('DMX Inputs Saved', { themeState: 'success' });
+                    SetRestartFlag(2);
+                    CheckRestartRebootFlags();
+                })
+                .fail(function () {
+                    DialogError('Save Universes', 'Error: Unable to save DMX Inputs.');
+                });
+
+        }
+        function LoadDMX() {
+            $.get('api/channel/output/dmxInputs')
+                .done(function (data) {
+                    data.channelInputs.forEach(function (dmx) {
+                        var row = $('#' + dmx.device);
+                        if (row.length) {
+                            row.find('input[type="checkbox"]').prop('checked', dmx.enabled);
+                            row.find('input[type="number"]').eq(0).val(dmx.startAddress);
+                            row.find('input[type="number"]').eq(1).val(dmx.channelCount);
+                        }
+                    });
+                });
+        }
         /////////////////////////////////////////////////////////////////////////////
 
         function handleCIKeypress(e) {
@@ -133,6 +193,7 @@
             // E1.31 initialization
             InitializeUniverses();
             getUniverses('TRUE', 1);
+            LoadDMX();
 
             // Init tabs
             $tabs = $("#tabs").tabs({
@@ -175,14 +236,17 @@
             <div class="pageContent">
 
                 <div id='channelInputManager'>
-
-
-
-                    <ul class="nav nav-pills pageContent-tabs" id="channelInputTabs" role="tablist">
+                    <ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
                         <li class="nav-item">
                             <a class="nav-link active" id="tab-e131-tab" tabType='UDP' data-bs-toggle="pill"
                                 href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
                                 E1.31/ArtNet/DDP Inputs
+                            </a>
+                        </li>
+                        <li class="nav-item <?= $dmxStyle ?>">
+                            <a class="nav-link" id="tab-dmx-tab" tabType='DMX' data-bs-toggle="pill" href="#tab-dmx"
+                                role="tab" data-bs-target="#tab-dmx" aria-controls="tab-dmx" aria-selected="false">
+                                DMX
                             </a>
                         </li>
                     </ul>
@@ -242,24 +306,23 @@
                                             </div>
                                         </div>
                                     </div>
-
-
                                     <div class='fppTableWrapper'>
                                         <div class='fppTableContents fppFThScrollContainer' role="region"
                                             aria-labelledby="tblUniverses" tabindex="0">
                                             <table id="tblUniverses"
                                                 class='universeTable fullWidth fppSelectableRowTable fppStickyTheadTable'>
                                                 <thead id='tblUniversesHead'>
-                                                    <th class="tblScheduleHeadGrip"></th>
-                                                    <th>Input</th>
-                                                    <th>Active</th>
-                                                    <th>Description</th>
-                                                    <th>Input Type</th>
-                                                    <th>FPP Channel Start</th>
-                                                    <th>FPP Channel End</th>
-                                                    <th>Universe #</th>
-                                                    <th>Universe Count</th>
-                                                    <th>Universe Size</th>
+                                                    <tr>
+                                                        <th class="tblScheduleHeadGrip"></th>
+                                                        <th>Input</th>
+                                                        <th>Active</th>
+                                                        <th>Description</th>
+                                                        <th>Input Type</th>
+                                                        <th>FPP Channel Start</th>
+                                                        <th>FPP Channel End</th>
+                                                        <th>Universe #</th>
+                                                        <th>Universe Count</th>
+                                                        <th>Universe Size</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id='tblUniversesBody'>
@@ -270,25 +333,65 @@
                                     <small class="text-muted">(Drag entry to reposition) </small>
                                 </form>
                             </div>
-
                         </div>
-
                     </div>
-
-
-                    <!-- --------------------------------------------------------------------- -->
-
+                    <div class="tab-content" id="channelOututTabsContent">
+                        <div class="tab-pane fade" id="tab-dmx" role="tabpanel" aria-labelledby="tab-dmx-tab">
+                            <div id='divDMX'>
+                                <div class="row tableTabPageHeader">
+                                    <div class="col-md">
+                                        <h2>DMX</h2>
+                                    </div>
+                                    <div class="col-md-auto ms-lg-auto">
+                                        <div class="form-actions">
+                                            <input id="btnSaveUniverses" class="buttons btn-success ms-1" type="button"
+                                                value="Save" onClick="SaveDMX()" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class='fppTableWrapper'>
+                                    <div class='fppTableContents fppFThScrollContainer' role="region"
+                                        aria-labelledby="tblDMXs" tabindex="0">
+                                        <table id="tblDMXs"
+                                            class='dmxTable fullWidth fppSelectableRowTable fppStickyTheadTable'>
+                                            <thead id='tblDMXHead'>
+                                                <tr>
+                                                    <th>Enable</th>
+                                                    <th>Serial Port</th>
+                                                    <th>Start Channel</th>
+                                                    <th>Num Channels</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id='tblUniversesBody'>
+                                                <script>
+                                                    SerialDevices.forEach(function (device) {
+                                                        var row = "<tr id='" + device + "'>";
+                                                        row += "<td><input type='checkbox'></td>";
+                                                        row += "<td>" + device + "</td>";
+                                                        row += "<td><input class='txtStartAddress singleDigitInput' type='number' min='1' max='8388608' value='1' id='txtStartAddress-" + device + "'></td>";
+                                                        row += "<td><input type='number' min='1' max='512' value='512'></td>";
+                                                        row += "</tr>";
+                                                        $('#tblDMXs tbody').append(row);
+                                                    });
+                                                </script>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- --------------------------------------------------------------------- -->
+                    </div>
                 </div>
-            </div>
 
-            <div id='debugOutput'>
-            </div>
+                <div id='debugOutput'>
+                </div>
 
+            </div>
         </div>
     </div>
 
     <?php include 'common/footer.inc'; ?>
-    </div>
 </body>
 
 </html>

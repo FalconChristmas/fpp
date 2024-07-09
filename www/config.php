@@ -527,6 +527,7 @@ $settings['co-bbbStrings'] = $mediaDirectory . "/config/co-bbbStrings.json";
 $settings['co-pwm'] = $mediaDirectory . "/config/co-pwm.json";
 $settings['universeOutputs'] = $mediaDirectory . "/config/co-universes.json";
 $settings['universeInputs'] = $mediaDirectory . "/config/ci-universes.json";
+$settings['dmxInputs'] = $mediaDirectory . "/config/ci-dmx.json";
 $settings['model-overlays'] = $mediaDirectory . "/config/model-overlays.json";
 $settings['scheduleJsonFile'] = $mediaDirectory . "/config/schedule.json";
 $settings['scriptDirectory'] = $scriptDirectory;
@@ -715,36 +716,36 @@ if (!isset($skipJSsettings)) {
     ?>
     <!-- Falcon Player - FPP -->
     <script type="text/javascript">
-        MINYEAR = <?echo MINYEAR; ?>;
-        MAXYEAR = <?echo MAXYEAR; ?>;
+        MINYEAR = <? echo MINYEAR; ?>;
+        MAXYEAR = <? echo MAXYEAR; ?>;
         var settings = new Array();
         <?
-    foreach ($settings as $key => $value) {
-        if (!is_array($value)) {
-            printf("	settings['%s'] = \"%s\";\n", $key, $value);
-        } else {
-            $js_array = json_encode($value);
-            printf("    settings['%s'] = %s;\n", $key, $js_array);
+        foreach ($settings as $key => $value) {
+            if (!is_array($value)) {
+                printf("	settings['%s'] = \"%s\";\n", $key, $value);
+            } else {
+                $js_array = json_encode($value);
+                printf("    settings['%s'] = %s;\n", $key, $js_array);
+            }
         }
-    }
-    ?>
+        ?>
 
-        var FPP_FULL_VERSION = '<?echo getFPPVersion(); ?>';
-        var FPP_VERSION = '<?echo getFPPVersionFloatStr(); ?>';
-        var FPP_MAJOR_VERSION = <?echo getFPPMajorVersion(); ?>;
-        var FPP_MINOR_VERSION = <?echo getFPPMinorVersion(); ?>;
-        <?if (getFPPPatchVersion() == "") {?>
+        var FPP_FULL_VERSION = '<? echo getFPPVersion(); ?>';
+        var FPP_VERSION = '<? echo getFPPVersionFloatStr(); ?>';
+        var FPP_MAJOR_VERSION = <? echo getFPPMajorVersion(); ?>;
+        var FPP_MINOR_VERSION = <? echo getFPPMinorVersion(); ?>;
+        <? if (getFPPPatchVersion() == "") { ?>
             var FPP_PATCH_VERSION = 0;
-        <?} else {?>
-            var FPP_PATCH_VERSION = <?echo getFPPPatchVersion(); ?>;
-        <?}?>
+        <? } else { ?>
+            var FPP_PATCH_VERSION = <? echo getFPPPatchVersion(); ?>;
+        <? } ?>
 
-        var pageName = "<?echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
+        var pageName = "<? echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
 
-        var helpPage = "<?echo basename($_SERVER['PHP_SELF']) ?>";
+        var helpPage = "<? echo basename($_SERVER['PHP_SELF']) ?>";
         if (pageName == "plugin") {
-            var pluginPage = "<?echo preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI']); ?>";
-            var pluginBase = "<?echo preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI'])); ?>";
+            var pluginPage = "<? echo preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI']); ?>";
+            var pluginBase = "<? echo preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI'])); ?>";
             helpPage = pluginBase + "nopage=1&page=help/" + pluginPage;
         }
         else {
