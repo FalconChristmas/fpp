@@ -130,7 +130,6 @@ function PrintStorageDeviceSelect($platform)
 {
     global $SUDO;
 
-    # FIXME, this would be much simpler by parsing "lsblk -l"
     exec('lsblk -l | grep ' . GetDirSetting('boot') . ' | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
     if (count($output) > 0) {
         $bootDevice = $output[0];
@@ -156,7 +155,7 @@ function PrintStorageDeviceSelect($platform)
     }
 
     $storageDevice = "";
-    exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
+    exec('df -P ' . GetSettingValue('mediaDirectory') . '  | awk \'END{print $1}\' | sed -e "s/\/dev\///"', $output, $return_val);
     if (isset($output[0]))
         $storageDevice = $output[0];
     unset($output);
@@ -195,6 +194,10 @@ function PrintStorageDeviceSelect($platform)
 
             $key = $fileName . " ";
             $type = "";
+
+            if (preg_match("/^$storageDevice/", $fileName)) {
+                $type .= " (current storage device)";
+            }
 
             if (preg_match("/^$bootDevice/", $fileName)) {
                 $type .= " (boot device)";
@@ -417,7 +420,8 @@ if (!empty($systems_UsbDevices)) {
             <div id="unmount_<?php echo $usbName; ?>" class="row">
                 <div id="mounted-usb-info" class="row">
                     <div id="mounted-usb-name_<?php echo $usbName; ?>" class="col-md-3">
-                        <?php echo $usbName . " - " . $usbVendor . " - " . $usbModel . " - " . $usbSize; ?></div>
+                        <?php echo $usbName . " - " . $usbVendor . " - " . $usbModel . " - " . $usbSize; ?>
+                    </div>
                     <div id="mounted-usb-location_<?php echo $usbName; ?>" class="col-md-2">Mounted
                         at: <?php echo $usbMountLocation; ?></div>
                     <div id="mounted-usb-action_<?php echo $usbName; ?>" class="col-md-2">
