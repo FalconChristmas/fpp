@@ -191,6 +191,8 @@
                         nv = (getFPPMajorVersion() - 1) + ".999";
                         data.versions[i].maxFPPVersion = nv;
                         untestedVersion = i;
+                    } else if (nv == getFPPMajorVersion()) {
+                        maxFPPVersion = -1;
                     }
                 }
 
@@ -253,7 +255,8 @@
             html += '</div></div>';
             html += '<div class="row fppPluginEntryFooter"><div class="col-lg"><a href="' + data.homeURL + '" target="_blank"><i class="fas fa-home"></i> ' + data.homeURL + '</a></div>';
             html += '<div class="col-lg-auto"><a href="' + data.srcURL + '" target="_blank"><i class="fas fa-code"></i> View Source</a>';
-            html += ' <a href="' + data.bugURL + '" target="_blank" class="ps-2"><i class="fas fa-bug"></i> Report a Bug</a></div>';
+            html += ' <a href="' + data.bugURL + '" target="_blank" class="ps-2"><i class="fas fa-bug"></i> Report a Bug</a>';
+            html += '</div>';
             html += '</div>';
             html += '</div>';
 
@@ -304,7 +307,7 @@
 
                 InsertPluginTableItem('installedPlugins', data.name, html);
             } else if (data.repoName == 'fpp-plugin-Template') {
-                if (ettings["uiLevel"] > 2) {
+                if (settings["uiLevel"] > 2) {
                     $('#templatePlugin').show();
                     $('#templatePlugin').append(html);
                 }
