@@ -130,7 +130,8 @@ function PrintStorageDeviceSelect($platform)
 {
     global $SUDO;
 
-    exec('lsblk -l | grep ' . GetDirSetting('boot') . ' | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
+    //exec('lsblk -l | grep ' . GetDirSetting('boot') . ' | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
+    exec('lsblk -l | grep ' . GetDirSetting('boot') . ' | cut -f1 -d" "', $output, $return_val);
     if (count($output) > 0) {
         $bootDevice = $output[0];
     } else {
@@ -144,7 +145,7 @@ function PrintStorageDeviceSelect($platform)
         unset($output);
 
         if ($bootDevice == "") {
-            exec('findmnt -n -o SOURCE / | colrm 1 5 | sed -e "s/p[0-9]$//"', $output, $return_val);
+            exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
             $bootDevice = $output[0];
             unset($output);
         }
