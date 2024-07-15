@@ -551,48 +551,44 @@
                                     <div class="col-xs-12 col-md-6 col-lg-8 col-xxl-7">
                                         <div id="playerControls"
                                             class="container text-center col-xs-12 col-md-8 col-lg-8 col-xxl-7">
-                                            <button id="btnPlay" class="buttons btn-rounded btn-success disableButtons"
+                                            <button id="btnPlay" type="button"
+                                                class="btn btn-rounded btn-success disableButtons"
                                                 onClick="StartPlaylistNow();">
-
                                                 <i class='fas fa-fw fa-play'></i>
                                                 <span class="playerControlButton-text">Play</span>
                                             </button>
-                                            <button id="btnPrev" class="buttons btn-rounded btn-pleasant disableButtons"
+                                            <button id="btnPrev" type="button"
+                                                class="btn btn-rounded btn-pleasant disableButtons"
                                                 onClick="PreviousPlaylistEntry();">
-
                                                 <i class='fas fa-fw fa-step-backward'></i>
                                                 <span class="playerControlButton-text">Previous</span>
                                             </button>
-                                            <button id="btnNext" class="buttons btn-rounded btn-pleasant disableButtons"
+                                            <button id="btnNext" type="button"
+                                                class="btn btn-rounded btn-pleasant disableButtons"
                                                 onClick="NextPlaylistEntry();">
-
                                                 <i class='fas fa-fw fa-step-forward'></i>
                                                 <span class="playerControlButton-text">Next</span>
                                             </button>
-                                            <button id="btnStopGracefully"
-                                                class="buttons btn-rounded btn-graceful disableButtons"
+                                            <button id="btnStopGracefully" type="button"
+                                                class="btn btn-rounded btn-graceful disableButtons"
                                                 onClick="StopGracefully();">
-
                                                 <i class='fas fa-fw fa-stop'></i>
                                                 <span class="playerControlButton-text">
                                                     Stop
                                                     <span class="playerControlButton-text-important">Graceful</span>ly
                                                 </span>
                                             </button>
-                                            <button id="btnStopGracefullyAfterLoop"
-                                                class="buttons btn-rounded btn-detract disableButtons"
+                                            <button id="btnStopGracefullyAfterLoop" type="button"
+                                                class="btn btn-rounded btn-detract disableButtons"
                                                 onClick="StopGracefullyAfterLoop();">
-
                                                 <i class='fas fa-fw fa-hourglass-half'></i>
                                                 <span class="playerControlButton-text">
                                                     Stop
                                                     <span class="playerControlButton-text-important">After Loop</span>
                                                 </span>
                                             </button>
-                                            <button id="btnStopNow"
-                                                class="buttons btn-rounded btn-danger disableButtons"
-                                                onClick="StopNow();">
-
+                                            <button id="btnStopNow" type="button"
+                                                class="btn btn-rounded btn-danger disableButtons" onClick="StopNow();">
                                                 <i class='fas fa-fw fa-hand-paper'></i>
                                                 <span class="playerControlButton-text">
                                                     Stop
