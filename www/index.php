@@ -559,13 +559,13 @@
                                             </button>
                                             <button id="btnPrev" type="button"
                                                 class="btn btn-rounded btn-pleasant disableButtons"
-                                                onClick="PreviousPlaylistEntry();">
+                                                onClick="this.blur();PreviousPlaylistEntry();">
                                                 <i class='fas fa-fw fa-step-backward'></i>
                                                 <span class="playerControlButton-text">Previous</span>
                                             </button>
                                             <button id="btnNext" type="button"
                                                 class="btn btn-rounded btn-pleasant disableButtons"
-                                                onClick="NextPlaylistEntry();">
+                                                onClick="this.blur();NextPlaylistEntry();">
                                                 <i class='fas fa-fw fa-step-forward'></i>
                                                 <span class="playerControlButton-text">Next</span>
                                             </button>
