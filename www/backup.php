@@ -527,11 +527,11 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
 
 		if ($backup_version < 8.0) {
 			//Get the existing channel input data
-            $restore_area_data_ci['channelInputs'] = $restore_area_data;
-            //Remove the old channelInputs key and replace it with universe_inputs (to match the new format for the channel input section
-            unset($restore_area_data['channelInputs']);
-            $restore_area_data['universe_inputs'] = $restore_area_data_ci;
-            unset($restore_area_data_ci);
+			$restore_area_data_ci['channelInputs'] = $restore_area_data;
+			//Remove the old channelInputs key and replace it with universe_inputs (to match the new format for the channel input section
+			unset($restore_area_data['channelInputs']);
+			$restore_area_data['universe_inputs'] = $restore_area_data_ci;
+			unset($restore_area_data_ci);
 		}
 
 		$restore_areas = $system_config_areas[$restore_area_key]['file'];
