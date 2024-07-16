@@ -2956,6 +2956,8 @@ function GetJSONConfigBackupList() {
                    });
                    //Once were done with the backup panel, populate the restore list
                    GetJSONConfigRestoreList();
+
+                   $('table').floatThead('reflow');
                }
         },
         error: function (data) {
