@@ -47,7 +47,14 @@ require_once 'commandsocket.php';
 //Define a map of backup/restore areas and setting locations, this is also used to populate the area select lists
 $system_config_areas = array(
     'all' => array('friendly_name' => 'All', 'file' => false),
-    'channelInputs' => array('friendly_name' => 'Channel Inputs (E1.31 Bridge)', 'file' => $settings['universeInputs']),
+    'channelInputs' => array(
+            'friendly_name' => 'Channel Inputs (E1.31 Bridge)',
+            'file' => array(
+                'universe_inputs' => array('type' => 'file', 'location' => $settings['universeInputs']),
+                'dmx_inputs' => array('type' => 'file', 'location' => $settings['dmxInputs']),
+            ),
+		'special' => true,
+    ),
     'channelOutputs' => array(
         'friendly_name' => 'Channel Outputs (Universe, Falcon, LED Panels, etc.)',
         'file' => array(
@@ -117,7 +124,7 @@ $system_config_areas = array(
 
 //FPP Backup version - This is used for tracking the CURRENT backup file format or "backup" version as we may move things around and need backwards compatibility when restoring older version
 //When restoring, this value is read from the uploaded file and in processRestoreData() used to decide on what extra massaging old data needs to work with the current script
-$fpp_backup_format_version = "7.4";
+$fpp_backup_format_version = "8.0";
 
 //The v4, v5, vX that appears in backup filename was originally using $fpp_backup_version but to save user confusion will now match the FPP major version
 //it was originally intended as a visual aid to help discern between different backup versions.
@@ -179,7 +186,7 @@ $network_settings_restored_applied_ips = array('wired_network' => array(), 'wifi
 $sensitive_data = array('emailpass', 'password', 'secret');
 
 //Lookup arrays for what is a json and a ini file
-$known_json_config_files = array('channelInputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'pwm', 'led_panels', 'other', 'model-overlays');
+$known_json_config_files = array('channelInputs', 'universe_inputs', 'dmx_inputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'pwm', 'led_panels', 'other', 'model-overlays');
 $known_ini_config_files = array('settings', 'system_settings', 'network', 'wired', 'wifi');
 
 //Remove BBB Strings from the system areas if we're on a Pi or any other platform that isn't a BBB
@@ -254,91 +261,6 @@ if (isset($_POST['btnDownloadConfig'])) {
                 $file_contents_decoded = json_decode($file_contents, true);
 
                 //successful decode
-                //                if ($file_contents_decoded !== false && is_array($file_contents_decoded)) {
-                //                    //Get value of protected state and remove it from the array
-                //                    if (array_key_exists('protected', $file_contents_decoded)) {
-                //                        $uploadDataProtected = $file_contents_decoded['protected'];
-                //                        unset($file_contents_decoded['protected']);
-                //                    }
-                //
-                //                    //work out of backup file is version 2 or not
-                //                    //if it's not a version 2 file, then we can only really restore settings
-                //                    //email can be restored because it's contained in the settings
-                //
-                //                    //Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
-                //                    //Version 3 backups need to restore the schedule to a different file
-                //                    $is_version_2_backup = false;
-                //                    $is_version_3_backup = false;
-                //                    //Check backup version
-                //                    if (array_key_exists('fpp_backup_version', $file_contents_decoded)) {
-                //                        $_fpp_backup_version = $file_contents_decoded['fpp_backup_version']; //Minimum version is 2
-                //
-                //                        if ($file_contents_decoded['fpp_backup_version'] == 2) {
-                //                            $is_version_2_backup = true;
-                //                        } else if ($file_contents_decoded['fpp_backup_version'] = $fpp_backup_version) {
-                //                            $is_version_3_backup = true;
-                //                        }
-                //                    }
-                //                    //Version 4-6 so far don't need any compatibility fixes when being restored
-                //
-                //
-                //                    //Remove the platform key as it's not used for anything yet
-                //                    unset($file_contents_decoded['platform']);
-                //                    unset($file_contents_decoded['fpp_backup_version']);
-                //                    unset($file_contents_decoded['backup_comment']);
-                //                    unset($file_contents_decoded['backup_taken']);
-                //
-                //                    //Restore all areas
-                //                    if (strtolower($restore_area) == "all" && ($is_version_2_backup || $is_version_3_backup)) {
-                //                        // ALL SETTING RESTORE
-                //                        //read each area and process it
-                //                        foreach ($file_contents_decoded as $restore_area_key => $area_data) {
-                //                            //Pass the restore area and data to the restore function
-                //                            $restore_done = processRestoreData($restore_area_key, $area_data, $_fpp_backup_version);
-                //                        }
-                //
-                ////                    } else if (strtolower($restore_area) == "email" && $is_version_2_backup) {
-                //                        //                        //get email settings, from the actual system settings
-                //                        //                        $area_data = $file_contents_decoded['settings']['system_settings'];
-                //                        //                        //Pass the restore area and data to the restore function
-                //                        //                        $restore_done = processRestoreData("email", $area_data);
-                //                        //                    }
-                //                        //Restore all other areas, settings can be restored regardless of version
-                //                        //if the area is not settings or it's not a v2 backup then nothing will be done
-                //                    } else {
-                //                        // ALL OTHER SETTING RESTORE
-                //                        //Process specific restore areas, this work almost like the 'all' area
-                //                        //general settings, but only a matching area is cherry picked
-                //
-                //                        //If the key exists in the decoded data then we can process
-                //                        if (array_key_exists($restore_area_main, $file_contents_decoded)) {
-                //                            $restore_area_key = $restore_area_main;
-                //                            $area_data = $file_contents_decoded[$restore_area_main];
-                //
-                //                            //If we're restoring channelOutputs, we might need the system settings.. eg when restoring the LED panel data we need to set the layout in settings
-                //                            if ($restore_area_key == "channelOutputs" && array_key_exists('settings', $file_contents_decoded)) {
-                //                                $system_settings = array();
-                //                                if (array_key_exists('system_settings', $file_contents_decoded['settings'])) {
-                //                                    $system_settings = $file_contents_decoded['settings']['system_settings'];
-                //                                    //modify the area data
-                //                                    $area_data_new = array('area_data' => $area_data, 'system_settings' => $system_settings);
-                //                                    $area_data = $area_data_new;
-                //                                }
-                //                            }
-                //
-                //                            //Pass the restore area and data to the restore function
-                //                            $restore_done = processRestoreData($restore_area, $area_data, $_fpp_backup_version);
-                //                        }
-                //                    }
-                //
-                //                    //All processed
-                //                    //                    $restore_done = true;
-                //                } else {
-                //                    $backup_error_string = "RESTORE: The backup " . $rstfname . " data could not be decoded properly. Is it a valid backup file?";
-                //                    $backup_errors[] = $backup_error_string;
-                //                    error_log($backup_error_string);
-                //                }
-
                 doRestore($restore_area, $file_contents_decoded, $rstfname, $keepNetworkSettings, $keepMasterSlaveSettings, 'page');
             }
         }
@@ -391,8 +313,6 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
 
             //Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
             //Version 3 backups need to restore the schedule to a different file
-            $is_version_2_backup = false;
-            $is_version_3_backup = false;
             //Check backup version
             if (array_key_exists('fpp_backup_version', $file_contents_decoded)) {
                 if (!is_null($file_contents_decoded['fpp_backup_version'])) {
@@ -400,15 +320,9 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
                 } else {
                     $_fpp_backup_version = floatval($fpp_backup_format_version);
                 }
-
-                if ($file_contents_decoded['fpp_backup_version'] == 2) {
-                    $is_version_2_backup = true;
-                } else if ($file_contents_decoded['fpp_backup_version'] == 3) {
-                    $is_version_3_backup = true;
-                }
             }
             //Version 4-6 so far don't need any compatibility fixes when being restored
-            //Handling of version differences is also done in processRestoreData()
+            //Handling of version differences for specific areas is also done in more detail in processRestoreData()
 
             //Remove the platform key as it's not used for anything yet
             unset($file_contents_decoded['platform']);
@@ -427,12 +341,6 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
                     $restore_done = true;
                 }
 
-//                    } else if (strtolower($restore_area) == "email" && $is_version_2_backup) {
-                //                        //get email settings, from the actual system settings
-                //                        $area_data = $file_contents_decoded['settings']['system_settings'];
-                //                        //Pass the restore area and data to the restore function
-                //                        $restore_done = processRestoreData("email", $area_data);
-                //                    }
                 //Restore all other areas, settings can be restored regardless of version
                 //if the area is not settings or it's not a v2 backup then nothing will be done
             } else {
@@ -514,48 +422,6 @@ function remove_sensitive_data($input_array)
 
     return $input_array;
 }
-
-/**
- * Looks in a directory and reads file contents of files within it
- * @param $directory String directory to search in
- * @param $return_data Boolean switch to include file data
- * @param bool $sort_by_date Boolean sort results by date oldest to newest
- * @return array Array of file names and respective data
- */
-//function read_directory_files($directory, $return_data = true, $sort_by_date = false)
-//{
-//    $file_list = array();
-//    $file_data = false;
-//
-//    if ($handle = opendir($directory)) {
-//        while (false !== ($file = readdir($handle))) {
-//            // do something with the file
-//            // note that '.' and '..' is returned even
-//            // if file isn't this directory or its parent, add it to the results
-//            // also must include ._* files as binary files that OSX may create
-//            if ($file[0] != "." || (strlen($file) > 1 && $file[1] != "." && $file[1] != "_")) {
-//                // collect the filenames & data
-//                if ($return_data == true) {
-//                    $file_data = explode("\n", file_get_contents($directory . '/' . $file));
-//                }
-//
-//                $file_list[$file] = $file_data;
-//            }
-//        }
-//        closedir($handle);
-//    }
-//
-//    //Sort the results if sort flag  is true
-//    if ($sort_by_date == true) {
-//        //Modified version of https://stackoverflow.com/questions/2667065/sort-files-by-date-in-php
-//        //uksort to sort by key & insert out directory variable
-//        uksort($file_list, function ($a, $b) use ($directory) {
-//            return filemtime($directory . "/" . $a) - filemtime($directory . "/" . $b);
-//        });
-//    }
-//
-//    return $file_list;
-//}
 
 /**
  * Function to look after backup restorations
@@ -651,21 +517,25 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
         WriteSettingToFile('restartFlag', 1);
     }
 
-    //CHANNEL INPUTS - E1.31 BRIDGE
+    //CHANNEL INPUTS - E1.31 BRIDGE, DMX
     if ($restore_area_key == "channelInputs" && !$restore_data_is_empty) {
-        //Just overwrite the channeInputs file
-        $channelInputs_filepath = $system_config_areas['channelInputs']['file'];
+		$settings_restored[$restore_area_key] = array();
 
-        $settings_restored[$restore_area_key]['ATTEMPT'] = true;
-        //PrettyPrint the JSON data and save it
-        $channelInputs_data = prettyPrintJSON(json_encode($restore_area_data));
-        if (file_put_contents($channelInputs_filepath, $channelInputs_data) === false) {
-            $save_result = false;
-        } else {
-            $save_result = true;
-        }
+		//RESTORE TWEAKS FOR SPECIFIC VERSIONS
+		//Version 8.0 backups - channelInputs now holds an array of channel input configurations (E1.31/DDP, DMX etc), instead of a single entry for the default E1.31
+		//                    - <8.0 we massage the data so it's in the new format (channelInputs => ['universe_inputs' => "data", "dmx_inputs" => "data"]
 
-        $settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
+		if ($backup_version < 8.0) {
+			//Get the existing channel input data
+            $restore_area_data_ci['channelInputs'] = $restore_area_data;
+            //Remove the old channelInputs key and replace it with universe_inputs (to match the new format for the channel input section
+            unset($restore_area_data['channelInputs']);
+            $restore_area_data['universe_inputs'] = $restore_area_data_ci;
+            unset($restore_area_data_ci);
+		}
+
+		$restore_areas = $system_config_areas[$restore_area_key]['file'];
+		processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data,$backup_version);
     }
 
     //GPIO INPUTS - GPIO Input Triggers
@@ -685,221 +555,14 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
         $settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
     }
 
-    //SHOW SETUP & CHANNEL OUTPUT RESTORATION
+    //SHOW SETUP, CHANNEL OUTPUT AND MISC CONFIG RESTORATION
     if (($restore_area_key == "show_setup" || $restore_area_key == "channelOutputs" || $restore_area_key == "misc_configs") && !$restore_data_is_empty) {
         $settings_restored[$restore_area_key] = array();
 
         $script_filenames = array();
         $restore_areas = $system_config_areas[$restore_area_key]['file'];
 
-        //search through the files that should of been backed up
-        //and then loop over the restore data and match up the data and restore it
-        foreach ($restore_areas as $restore_areas_idx => $restore_areas_data) {
-            $restore_location = $restore_areas_data['location'];
-            $restore_type = $restore_areas_data['type'];
-            $final_file_restore_data = "";
-
-            //If $restore_area_sub_key is empty then no sub-area has been chosen -- restore as normal and restore all sub areas, which should be everything under $system_config_areas['channelOutputs']
-            //Or if $restore_area_sub_key is equal to the $show_setup_area_index we're on, then restore just this area because it matches users selection
-            //and break the loop
-            if ($restore_area_sub_key == "" || ($restore_area_sub_key == $restore_areas_idx)) {
-                //if the restore key and the $system_config_areas key match then restore data to whatever location it is
-                //eg. if we are on events, then look for events in the restore data, when found restore data to the events location (eg look at the location)
-                foreach ($restore_area_data as $restore_area_data_index => $restore_area_data_data) {
-                    $save_result = false;
-
-                    //$restore_area_data_data is an array representing the file contents
-                    //$restore_area_data_index represents the filename (used to key the array)
-                    if ($restore_areas_idx == $restore_area_data_index) {
-                        //data is an array then we can go
-                        if (is_array($restore_area_data_data)) {
-                            //loop over all the files and their data and restore each
-                            //$restore_area_data_data array will look like
-                            //array ('event'=> array('01_01.fevt' => array(data), '21_10.fevt' => array(data)))
-                            foreach ($restore_area_data_data as $fn_to_restore => $fn_data) {
-                                $save_result = false;
-
-                                $restore_location = $restore_areas_data['location']; //reset
-                                $final_file_restore_data = ""; //store restore data in variable
-
-                                //Work out what method we need to use to get the data back into an array
-                                if ($restore_type == "dir" || $restore_type == "file") {
-                                    if (in_array($restore_area_data_index, $known_json_config_files)) {
-                                        //JSON
-                                        $final_file_restore_data = $fn_data;
-                                    } else {
-                                        //everything else
-                                        //line separate the lines
-                                        $final_file_restore_data = implode("\n", $fn_data);
-                                    }
-                                } else if ($restore_type == "function") {
-                                    //get the data as in without any modification so we can pass it into the restore function
-                                    $final_file_restore_data = $fn_data;
-                                }
-
-                                //If backup/restore type of a sub-area is folder, then build the full path to where the file will be restored
-                                if ($restore_type == "dir") {
-                                    $restore_location .= "/" . $fn_to_restore;
-                                }
-
-                                //if restore sub-area is scripts, capture the file names so we can pass those along through RestoreScripts which will perform any InstallActions
-                                if (strtolower($restore_areas_idx) == "scripts") {
-                                    $script_filenames[] = $fn_to_restore;
-                                }
-
-                                //if restore sub-area is LED panels, we need write the matrix size / layout setting to the settings file in case it's different to the backup
-                                if (strtolower($restore_areas_idx) == "led_panels") {
-                                    $panel_layout = null;
-
-                                    //Generate the single LED Panel size from info in the LED Panel layout e.g 32x16 1/2 Scan
-                                    if (is_array($final_file_restore_data['channelOutputs'][0]) &&
-                                        (
-                                            array_key_exists('panelHeight', $final_file_restore_data['channelOutputs'][0])
-                                            && array_key_exists('panelWidth', $final_file_restore_data['channelOutputs'][0])
-                                            && array_key_exists('panelScan', $final_file_restore_data['channelOutputs'][0])
-                                        )
-                                    ) {
-                                        $singlePanelSize = $final_file_restore_data['channelOutputs'][0]['panelWidth'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelHeight'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelScan'];
-                                        WriteSettingToFile('LEDPanelsSize', $singlePanelSize);
-                                    }
-
-                                    //Write the panel layout, e.g 4x4 into the system settings
-                                    //This setting can exist in a few places (by default it's in the system settings)
-                                    if (is_array($final_file_restore_data['channelOutputs'][0]) &&
-                                        array_key_exists('ledPanelsLayout', $final_file_restore_data['channelOutputs'][0])
-                                    ) {
-                                        WriteSettingToFile('LEDPanelsLayout', $final_file_restore_data['channelOutputs'][0]['ledPanelsLayout']);
-                                    } elseif (!empty($restore_area_system_settings)) {
-                                        // If it's a full backup we can get the panel settings from the system settings
-                                        $panel_layout = $restore_area_system_settings[0]['LEDPanelsLayout'];
-
-                                        if ($panel_layout != null) {
-                                            //LEDPanelsLayout = "4x4"
-                                            WriteSettingToFile('LEDPanelsLayout', $panel_layout);
-                                        }
-                                    } else {
-                                        // ledPanelsLayout && LEDPanelsLayout don't exist so we can't determine the matrix size
-                                        //As a last resort we can calculate the matrix size from the led panel layout
-                                        $maxCol = $maxRow = null;
-                                        $panel_layout_data = $final_file_restore_data['channelOutputs'][0]['panels'];
-
-                                        foreach ($panel_layout_data as $idx => $panel) {
-                                            if ($panel['col'] > $maxCol) {
-                                                $maxCol = $panel['col'];
-                                            }
-                                            if ($panel['row'] > $maxRow) {
-                                                $maxRow = $panel['row'];
-                                            }
-                                        }
-
-                                        if ($maxCol != null && $maxRow != null) {
-                                            //Adjust max values due to the array being 0 base
-                                            $maxCol = $maxCol + 1;
-                                            $maxRow = $maxRow + 1;
-
-                                            //LEDPanelsLayout = "4x4"
-                                            WriteSettingToFile('LEDPanelsLayout', $maxCol . "x" . $maxRow);
-                                        }
-
-                                    }
-                                }
-
-                                //RESTORE TWEAKS FOR SPECIFIC VERSIONS
-                                //Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
-                                //Version 3 backups need to restore the schedule to it's new json location
-                                //Version 4 backups - nothing changed
-                                //Version 5 backups - FPD/Falcon Pixlenet at the root of ['channelOutputs']['falcon_pixelnet_DMX'] is FPDv1 data
-                                //Version 6 backups - FPD/Falcon Pixlenet DMX data is keyed by the file it came from to more easily support a future version
-                                //                  - ['channelOutputs']['falcon_pixelnet_DMX'] will contain an additional key for each FPD file read
-                                //                  - eg Falcon.FPDV1 and in the future Falcon.F16V2
-                                //Version >7.2 backups - Panel layout is generated from the actual panel config (using col & row data) if the layout doesn't exist anywhere
-                                //                    - Single Panel size is generated from the same config and also written to the system settings
-
-                                //if restore sub-area is the schedule, determine how to restore it based on the $backup_version
-                                if (strtolower($restore_areas_idx) == "schedule") {
-                                    if ($backup_version == 2) {
-                                        //Override the restore location so we write to the old schedule file, FPPD will convert this to the new json file
-                                        $restore_location = $scheduleFile;
-                                    }
-//                                    else if ($backup_version == 3){
-                                    //                                    //restore it to the new json file - don't adjust the path it'll go to configured path
-                                    //                                    }
-                                }
-
-                                //if restore sub-area is falcon_pixelnet_DMX (under channelOutputs), determine how to restore it based on the $backup_version
-                                if (strtolower($restore_areas_idx) == "falcon_pixelnet_dmx") {
-                                    //For FPD, backups from version 5 and under contain Falcon.FPDV1 data at it's root, extract and re-key the data, so it can be used correctly by the restore function
-                                    //This change was also made part way through the usage of version 6, we can check the version and presence of the Falcon.FPDV1 key and do the same thing
-                                    if ($backup_version <= 5 || ($backup_version == 6 and !array_key_exists('Falcon.FPDV1', $final_file_restore_data))) {
-                                        $FPD_temp = array('Falcon.FPDV1' => $final_file_restore_data);
-                                        $final_file_restore_data = $FPD_temp;
-                                    }
-                                }
-
-                                ///////////////////////////////////////////////////
-                                //////////////////////////////////////////////////
-                                //If we have data then write to where it needs to go
-                                if (!empty($final_file_restore_data)) {
-                                    //Set we have valid ata
-                                    $settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = true;
-
-                                    //Decide what action to take based on the restore type
-                                    if (($restore_type == "dir" || $restore_type == "file")) {
-                                        $settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
-
-                                        //Work out what method we need to use to get the data back out into the correct format
-                                        if (in_array($restore_area_data_index, $known_json_config_files)) {
-                                            //JSON
-                                            $final_file_restore_data = prettyPrintJSON(json_encode($final_file_restore_data));
-                                        }
-                                        //Save out the file
-                                        if (file_put_contents($restore_location, $final_file_restore_data) === false) {
-                                            $save_result = false;
-                                        } else {
-                                            $save_result = true;
-                                        }
-                                    } //If restore type is function
-                                    else if ($restore_type == "function") {
-                                        $settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
-
-                                        $restore_function = $restore_areas_data['location']['restore'];
-                                        //if we have valid data and the function exists, call it
-                                        if (function_exists($restore_function)) {
-                                            $save_result = $restore_function($final_file_restore_data);
-                                        }
-                                    } else {
-                                        //Unlikely - but no match on restore type
-                                        $save_result = false;
-                                    }
-                                } else {
-                                    //Restore data is still empty after massaging
-                                    $settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = false;
-                                }
-                            }
-                        } else {
-                            //Not an array, we need an array here, so data is not valid
-                            $settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = false;
-                        }
-                        $settings_restored[$restore_area_key][$restore_area_data_index]['SUCCESS'] = $save_result;
-
-                        //Cheat and remove the success key if no attempt was even made (no attempt key) and there was no valid data
-                        //meaning that we didn't even try, this check is done after the key and value is set because $restore_area_data_index might not exist at all if the ATTEMPT or VALID_DATA key was set
-                        if (!array_key_exists('ATTEMPT', $settings_restored[$restore_area_key][$restore_area_data_index])
-                            &&
-                            !array_key_exists('VALID_DATA', $settings_restored[$restore_area_key][$restore_area_data_index])) {
-                            unset($settings_restored[$restore_area_key][$restore_area_data_index]);
-                        }
-
-                        break; //break after data is restored for this section
-                    }
-                }
-                //Don't break if area key is empty, because we want to process all the sub-areas
-                if ($restore_area_sub_key != "") {
-                    //we found the sub-area, stop looking
-                    break;
-                }
-            }
-        }
+		processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data,$backup_version);
 
         //Cause any InstallActions to be run for the restored scripts
         RestoreScripts($script_filenames);
@@ -1204,7 +867,6 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                     //else it will hold the first line of the interface configuration e.g. "INTERFACE=wlan0",
                     if (!empty($network_data[0])) {
                         foreach ($network_data as $ini_key => $ini_value) {
-//                        $ini_string .= "$ini_key='$ini_value'\n";
                             $ini_string .= "$ini_value\n";
                         }
                     }
@@ -1220,9 +882,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                             $network_settings_restored = true;
                             //Map out the interface wired network and wifi network
                             $parsed_ini_string = parse_ini_string($ini_string);
-//                            $interface = $parsed_ini_string['INTERFACE'];
-                            //
-                            //                            $network_settings_restored_post_apply[$network_type] = ($SUDO . " " . $settings['fppDir'] . "/scripts/config_network $interface");
+
                             $network_settings_restored_applied_ips[$network_type] = $parsed_ini_string;
 
                             //Reboot required for network settings to be applied.
@@ -1242,9 +902,9 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
             unset($settings_restored[$restore_area_key]);
         }
 
-//        $settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
     }
 
+    //Virtual EEPROM for capes
     if ($restore_area_key == "virtualEEPROM" && !$restore_data_is_empty) {
         $settings_restored[$restore_area_key]['ATTEMPT'] = true;
         $save_result = false;
@@ -1284,7 +944,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
     //        $settings_restored[$restore_area_key] = $save_result;
     //    }
 
-    //finally if there was no data for the restore area remove it's key for tracking attempts, this is fine here as the seperate restore area tests above will avoid restore areas with no data
+    //finally if there was no data for the restore area remove it's key for tracking attempts, this is fine here as the separate restore area tests above will avoid restore areas with no data
     if ($restore_data_is_empty) {
         unset($settings_restored[$restore_area_key]);
     }
@@ -1302,6 +962,233 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
 
     //Return save result
     return $settings_restored;
+}
+
+/**
+ * Process restore data that exists an array of multiple files (e.g channelOutputs is made yp of multiple files)
+ *
+ * @param $restore_area_key String The parent restore area e.g channelOutputs
+ * @param $restore_area_sub_key String The child area e.g pixel_strings (under channelOutputs
+ * @param $restore_areas Array The parent restore area and its child areas's/files
+ * @param $restore_area_data Array The uploaded data for this parent restore area
+ * @param $backup_version Float Backup version used to determine any backward compatibility tweaks
+ * @return void
+ */
+function processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data,$backup_version)
+{
+	global $SUDO, $settings, $mediaDirectory, $scheduleFile, $system_config_areas, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadData_IsProtected, $settings_restored,
+		   $network_settings_restored, $network_settings_restored_post_apply, $network_settings_restored_applied_ips,
+		   $known_ini_config_files, $known_json_config_files;
+	global $args;
+
+	//RESTORE TWEAKS FOR SPECIFIC VERSIONS (all changes done by the logic below
+	//Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
+	//Version 3 backups need to restore the schedule to it's new json location
+	//Version 4 backups - nothing changed
+	//Version 5 backups - FPD/Falcon Pixlenet at the root of ['channelOutputs']['falcon_pixelnet_DMX'] is FPDv1 data
+	//Version 6 backups - FPD/Falcon Pixlenet DMX data is keyed by the file it came from to more easily support a future version
+	//                  - ['channelOutputs']['falcon_pixelnet_DMX'] will contain an additional key for each FPD file read
+	//                  - eg Falcon.FPDV1 and in the future Falcon.F16V2
+	//Version >7.2 backups - Panel layout is generated from the actual panel config (using col & row data) if the layout doesn't exist anywhere
+	//                    - Single Panel size is generated from the same config and also written to the system settings
+
+	//search through the files that should of been backed up for the specified area, eg. channelOutputs has multiple files
+	//and then loop over the restore data and match up the data and restore it if anything exists.
+	foreach ($restore_areas as $restore_areas_idx => $restore_areas_data) {
+		$restore_location = $restore_areas_data['location'];
+		$restore_type = $restore_areas_data['type'];
+		$final_file_restore_data = "";
+
+		//If $restore_area_sub_key is empty then no sub-area has been chosen -- restore as normal and restore all sub areas, which should be everything under e.g $system_config_areas['channelOutputs']
+		//Or if $restore_area_sub_key is equal to the $show_setup_area_index we're on, then restore just this area because it matches users selection e.g user may just want the show schedule
+		//and break the loop
+		if ($restore_area_sub_key == "" || ($restore_area_sub_key == $restore_areas_idx)) {
+			//if the restore key and the $system_config_areas key match then restore data to whatever location it is
+			//eg. if we are on events, then look for events in the restore data, when found restore data to the events location (eg look at the location)
+			foreach ($restore_area_data as $restore_area_data_index => $restore_area_data_payload) {
+				$save_result = false;
+
+				//$restore_area_data_data is an array representing the file contents
+				//$restore_area_data_index represents the filename (used to key the array)
+				if ($restore_areas_idx == $restore_area_data_index) {
+					//data is an array then we can go
+					if (is_array($restore_area_data_payload)) {
+						//loop over all the files and their data and restore each
+						//e.g $restore_area_data_data array will look like
+						//array ('event'=> array('01_01.fevt' => array(data), '21_10.fevt' => array(data)))
+						foreach ($restore_area_data_payload as $filename_to_restore => $file_data) {
+							$save_result = false;
+
+							$restore_location = $restore_areas_data['location']; //reset
+							$final_file_restore_data = ""; //store restore data in variable
+
+							//Work out what method we need to use to get the data back into an array
+							if ($restore_type == "dir" || $restore_type == "file") {
+								if (in_array($restore_area_data_index, $known_json_config_files)) {
+									//JSON
+									$final_file_restore_data = $file_data;
+								} else {
+									//everything else
+									//line separate the lines
+									$final_file_restore_data = implode("\n", $file_data);
+								}
+							} else if ($restore_type == "function") {
+								//get the data as in without any modification so we can pass it into the restore function
+								$final_file_restore_data = $file_data;
+							}
+
+							//If backup/restore type of a sub-area is folder, then build the full path to where the file will be restored
+							if ($restore_type == "dir") {
+								$restore_location .= "/" . $filename_to_restore;
+							}
+
+							//if restore sub-area is scripts, capture the file names so we can pass those along through RestoreScripts which will perform any InstallActions
+							if (strtolower($restore_areas_idx) == "scripts") {
+								$script_filenames[] = $filename_to_restore;
+							}
+
+							//if restore sub-area is LED panels, we need write the matrix size / layout setting to the settings file in case it's different to the backup
+							if (strtolower($restore_areas_idx) == "led_panels") {
+								$panel_layout = null;
+
+								//Generate the single LED Panel size from info in the LED Panel layout e.g 32x16 1/2 Scan
+								if (is_array($final_file_restore_data['channelOutputs'][0]) &&
+									(
+										array_key_exists('panelHeight', $final_file_restore_data['channelOutputs'][0])
+										&& array_key_exists('panelWidth', $final_file_restore_data['channelOutputs'][0])
+										&& array_key_exists('panelScan', $final_file_restore_data['channelOutputs'][0])
+									)
+								) {
+									$singlePanelSize = $final_file_restore_data['channelOutputs'][0]['panelWidth'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelHeight'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelScan'];
+									WriteSettingToFile('LEDPanelsSize', $singlePanelSize);
+								}
+
+								//Write the panel layout, e.g 4x4 into the system settings
+								//This setting can exist in a few places (by default it's in the system settings)
+								if (is_array($final_file_restore_data['channelOutputs'][0]) &&
+									array_key_exists('ledPanelsLayout', $final_file_restore_data['channelOutputs'][0])
+								) {
+									WriteSettingToFile('LEDPanelsLayout', $final_file_restore_data['channelOutputs'][0]['ledPanelsLayout']);
+								} elseif (!empty($restore_area_system_settings)) {
+									// If it's a full backup we can get the panel settings from the system settings
+									$panel_layout = $restore_area_system_settings[0]['LEDPanelsLayout'];
+
+									if ($panel_layout != null) {
+										//LEDPanelsLayout = "4x4"
+										WriteSettingToFile('LEDPanelsLayout', $panel_layout);
+									}
+								} else {
+									// ledPanelsLayout && LEDPanelsLayout don't exist so we can't determine the matrix size
+									//As a last resort we can calculate the matrix size from the led panel layout
+									$maxCol = $maxRow = null;
+									$panel_layout_data = $final_file_restore_data['channelOutputs'][0]['panels'];
+
+									foreach ($panel_layout_data as $idx => $panel) {
+										if ($panel['col'] > $maxCol) {
+											$maxCol = $panel['col'];
+										}
+										if ($panel['row'] > $maxRow) {
+											$maxRow = $panel['row'];
+										}
+									}
+
+									if ($maxCol != null && $maxRow != null) {
+										//Adjust max values due to the array being 0 base
+										$maxCol = $maxCol + 1;
+										$maxRow = $maxRow + 1;
+
+										//LEDPanelsLayout = "4x4"
+										WriteSettingToFile('LEDPanelsLayout', $maxCol . "x" . $maxRow);
+									}
+
+								}
+							}
+
+							//if restore sub-area is the schedule, determine how to restore it based on the $backup_version
+							if (strtolower($restore_areas_idx) == "schedule") {
+								if ($backup_version == 2) {
+									//Override the restore location so we write to the old schedule file, FPPD will convert this to the new json file
+									$restore_location = $scheduleFile;
+								}
+//                                    else if ($backup_version == 3){
+								//                                    //restore it to the new json file - don't adjust the path it'll go to configured path
+								//                                    }
+							}
+
+							//if restore sub-area is falcon_pixelnet_DMX (under channelOutputs), determine how to restore it based on the $backup_version
+							if (strtolower($restore_areas_idx) == "falcon_pixelnet_dmx") {
+								//For FPD, backups from version 5 and under contain Falcon.FPDV1 data at it's root, extract and re-key the data, so it can be used correctly by the restore function
+								//This change was also made part way through the usage of version 6, we can check the version and presence of the Falcon.FPDV1 key and do the same thing
+								if ($backup_version <= 5 || ($backup_version == 6 and !array_key_exists('Falcon.FPDV1', $final_file_restore_data))) {
+									$FPD_temp = array('Falcon.FPDV1' => $final_file_restore_data);
+									$final_file_restore_data = $FPD_temp;
+								}
+							}
+
+							///////////////////////////////////////////////////
+							//////////////////////////////////////////////////
+							//If we have data then write to where it needs to go
+							if (!empty($final_file_restore_data)) {
+								//Set we have valid ata
+								$settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = true;
+
+								//Decide what action to take based on the restore type
+								if (($restore_type == "dir" || $restore_type == "file")) {
+									$settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
+
+									//Work out what method we need to use to get the data back out into the correct format
+									if (in_array($restore_area_data_index, $known_json_config_files)) {
+										//JSON
+										$final_file_restore_data = prettyPrintJSON(json_encode($final_file_restore_data));
+									}
+									//Save out the file
+									if (file_put_contents($restore_location, $final_file_restore_data) === false) {
+										$save_result = false;
+									} else {
+										$save_result = true;
+									}
+								} //If restore type is function - call the function
+								else if ($restore_type == "function") {
+									$settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
+
+									$restore_function = $restore_areas_data['location']['restore'];
+									//if we have valid data and the function exists, call it
+									if (function_exists($restore_function)) {
+										$save_result = $restore_function($final_file_restore_data);
+									}
+								} else {
+									//Unlikely - but no match on restore type
+									$save_result = false;
+								}
+							} else {
+								//Restore data is still empty after massaging
+								$settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = false;
+							}
+						}
+					} else {
+						//Not an array, we need an array here, so data is not valid
+						$settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = false;
+					}
+					$settings_restored[$restore_area_key][$restore_area_data_index]['SUCCESS'] = $save_result;
+
+					//Cheat and remove the success key if no attempt was even made (no attempt key) and there was no valid data
+					//meaning that we didn't even try, this check is done after the key and value is set because $restore_area_data_index might not exist at all if the ATTEMPT or VALID_DATA key was set
+					if (!array_key_exists('ATTEMPT', $settings_restored[$restore_area_key][$restore_area_data_index])
+						&&
+						!array_key_exists('VALID_DATA', $settings_restored[$restore_area_key][$restore_area_data_index])) {
+						unset($settings_restored[$restore_area_key][$restore_area_data_index]);
+					}
+
+					break; //break after data is restored for this section
+				}
+			}
+			//Don't break if area key is empty, because we want to process all the sub-areas
+			if ($restore_area_sub_key != "") {
+				//we found the sub-area, stop looking
+				break;
+			}
+		}
+	}
 }
 
 /**
@@ -1843,10 +1730,6 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                 $backup_file_data = '';
                 //if setting file value is an array then there are one or more setting files related to this backup
                 if (is_array($setting_file_to_backup)) {
-//                    if (array_key_exists('special', $setting_file)) {
-                    //                        $special = $tmp_config_areas[$config_key]['file']['special'];
-                    //                    }
-
                     //loop over the array
                     foreach ($setting_file_to_backup as $sfi => $sfd) {
                         $file_data = array();
@@ -1953,29 +1836,6 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                 }
                 //End for loop processing each individual "area" in order to get all areas
             }
-//            } else if (strtolower($area) == "email") {
-            //                //AREA - EMAIL BACKUP
-            //                $emailgpass = '';
-            //                //Do a quick work around to obtain the emailgpass
-            //                if ($tmp_config_areas['settings']['file'] !== false && file_exists($tmp_config_areas['settings']['file'])) {
-            //                    $setting_file_data = parse_ini_string(file_get_contents($tmp_config_areas['settings']['file']));
-            //                    if (array_key_exists('emailgpass', $setting_file_data)) {
-            //                        //get pass
-            //                        $emailgpass = $setting_file_data['emailgpass'];
-            //                    }
-            //                }
-            //
-            //                //special treatment for email settings as they are inside the general settings file
-            //                //collect them together here
-            //                $email_settings = array(
-            //                    'emailenable' => $settings['emailenable'],
-            //                    'emailguser' => $settings['emailguser'],
-            //                    'emailgpass' => $emailgpass,
-            //                    'emailfromtext' => $settings['emailfromtext'],
-            //                    'emailtoemail' => $settings['emailtoemail']
-            //                );
-            //
-            //                $tmp_settings_data['email'] = $email_settings;
             //End processing "ALL" backup areas
         } else {
             //AREA - Individual Backup section selections will arrive here
@@ -1984,9 +1844,6 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
 
             //if setting file value is an array then there are one or more setting files related to this backup
             if (is_array($setting_file_to_backup)) {
-//                    if (array_key_exists('special', $tmp_config_areas[$area]['file'])) {
-                //                        $special = $tmp_config_areas[$area]['file']['special'];
-                //                    }
                 //loop over the array
                 foreach ($setting_file_to_backup as $sfi => $sfd) {
                     $file_data = array();
@@ -2040,21 +1897,6 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                             //Collect the backup data
                             $file_data = array($backup_file_data);
                         } //end else
-
-//                            //Get the data out of the file
-                        //                            if (in_array($sfi, $known_ini_config_files)) {
-                        //                                //INI
-                        //                                //parse ini properly
-                        //                                $backup_file_data = parse_ini_string(file_get_contents($sfd['location']));
-                        //                            } else if (in_array($sfi, $known_json_config_files)) {
-                        //                                //JSON
-                        //                                //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-                        //                                $backup_file_data = json_decode(file_get_contents($sfd['location']), true);
-                        //                            } else {
-                        //                                //all other files are std flat files, process them into an array by splitting at line breaks
-                        //                                $backup_file_data = explode("\n", file_get_contents($sfd['location']));
-                        //                            }
-                        //                            $file_data = array($backup_file_data);
 
                     } else if ($sfd['type'] == "function") {
                         $backup_function = $sfd['location']['backup'];
