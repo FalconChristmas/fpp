@@ -12,7 +12,7 @@ apt-get clean
 if [ "${FPPPLATFORM}" == "Raspberry Pi" ]; then
     # on the Pi's we need to update the config.txt to make sure it has the vc4-kms-v3d
     # dtoverlay so that KMS will work
-    echo "[ALL]" >> /boot/firmware/config.txt
+    echo "[all]" >> /boot/firmware/config.txt
     echo "dtoverlay=vc4-kms-v3d" >> /boot/firmware/config.txt
     echo "" >> /boot/firmware/config.txt
 
