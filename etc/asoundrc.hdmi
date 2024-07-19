@@ -1,0 +1,18 @@
+pcm.!default {
+    type plug
+    slave.pcm "softvol"
+}
+
+pcm.!softvol {
+    type softvol
+    slave.pcm "hdmi:CARDTYPE"
+    control {
+        name "PCM"
+        card 0
+    }
+}
+
+pcm.!hdmi:CARDTYPE {
+   type hw
+   card 0
+}

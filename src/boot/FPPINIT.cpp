@@ -956,13 +956,18 @@ static void setupAudio() {
         } else {
             asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.dmix");
         }
-    } else {
-        if (contains(cardType, "bcm2")) {
+    }
+    if (asoundrc.empty()) {
+        if (contains(cardType, "vc4-hdmi")) {
+            replaceAll(cardType, "-", "");
+            asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.hdmi");
+        } else if (contains(cardType, "bcm2")) {
             asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.plain");
         } else {
             asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.dmix");
         }
     }
+    replaceAll(asoundrc, "CARDTYPE", cardType);
     for (int x = 0; x < 10; x++) {
         if (x != card) {
             replaceAll(asoundrc, "card " + std::to_string(x), "card " + std::to_string(card));
@@ -1228,6 +1233,8 @@ int main(int argc, char* argv[]) {
         runScripts("preStop", true);
     } else if (action == "runPostStopScripts") {
         runScripts("postStop", false);
+    } else if (action == "setupAudio") {
+        setupAudio();
     }
     return 0;
 }
