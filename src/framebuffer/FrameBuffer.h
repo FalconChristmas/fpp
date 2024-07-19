@@ -17,7 +17,7 @@
 #include <mutex>
 #include <thread>
 
-#include "config.h"
+#include "../config.h"
 
 typedef enum {
     IT_Random = -2,

@@ -11,11 +11,11 @@
  * included LICENSE.LGPL file.
  */
 
+#include "FrameBuffer.h"
+
 #ifdef USE_FRAMEBUFFER_SOCKET
 #include <sys/socket.h>
 #include <sys/un.h>
-
-#include "FrameBuffer.h"
 
 class SocketFrameBuffer : public FrameBuffer {
 public:
