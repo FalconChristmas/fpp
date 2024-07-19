@@ -172,7 +172,15 @@ public:
             std::vector<const char*> args;
             args.push_back("--no-osd");
             if (!hardwareDecoding) {
-                args.push_back("--no-hw-dec");
+                if (LIBVLC_VERSION_MAJOR > 3) {
+                    args.push_back("--no-hw-dec");
+                } else {
+                    args.push_back("--avcodec-hw");
+                    args.push_back("none");
+                }
+            } else if (LIBVLC_VERSION_MAJOR <= 3) {
+                args.push_back("--avcodec-hw");
+                args.push_back("any");
             }
 #ifndef PLATFORM_OSX
             args.push_back("-A");

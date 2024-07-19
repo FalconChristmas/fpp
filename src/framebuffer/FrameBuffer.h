@@ -19,22 +19,6 @@
 
 #include "config.h"
 
-#ifdef USE_FRAMEBUFFER_SOCKET
-#include <sys/socket.h>
-#include <sys/un.h>
-#else
-#include <linux/fb.h>
-#include <linux/kd.h>
-#if __has_include(<xf86drm.h>)
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#define HAS_DRM
-#endif
-#endif
-#ifdef USE_X11
-#include <X11/Xlib.h>
-#endif
-
 typedef enum {
     IT_Random = -2,
     IT_Default = -1,
@@ -76,16 +60,23 @@ typedef enum {
 } ImageTransitionType;
 
 class FrameBuffer {
-public:
+protected:
     FrameBuffer();
-    ~FrameBuffer();
 
-    int FBInit(const Json::Value& config);
-    void FBCopyData(const uint8_t* buffer, int draw = 0);
+public:
+    static FrameBuffer* createFrameBuffer(const Json::Value& config);
+
+    virtual ~FrameBuffer();
+
+    virtual int InitializeFrameBuffer() = 0;
+    virtual void DestroyFrameBuffer();
+    virtual void SyncLoop() = 0;
+    virtual void SyncDisplay(bool pageChanged = false) = 0;
+    virtual void FBCopyData(const uint8_t* buffer, int draw = 0);
+
     void FBStartDraw(ImageTransitionType transitionType = IT_Default);
 
-    void Dump(void);
-
+    virtual void Dump(void);
     void DrawLoop(void);
 
     int Width() { return m_width; }
@@ -95,8 +86,7 @@ public:
     int PageSize() { return m_pageSize; }
     int RowStride() { return m_rowStride; }
     int RowPadding() { return m_rowPadding; }
-    uint8_t* Buffer() { return m_buffer; }
-    uint8_t* BufferPage(int page = 0) { return (m_buffer + (m_pageSize * page)); }
+    uint8_t* BufferPage(int page = 0);
     int BitsPerPixel() { return m_bpp; }
     int BytesPerPixel() { return m_bpp / 8; }
     bool IsDirty(int page) { return (m_dirtyPages[page] == 1); }
@@ -106,9 +96,9 @@ public:
     void Clear();
 
     void NextPage(bool producer = false);
-    void SyncDisplay(bool pageChanged = false);
 
-private:
+protected:
+    int FBInit(const Json::Value& config);
     void FBDrawNormal(void);
     void FBDrawSlideUp(void);
     void FBDrawSlideDown(void);
@@ -126,20 +116,6 @@ private:
 
     // Helpers
     void DrawSquare(int dx, int dy, int w, int h, int sx = -1, int sy = -1);
-
-    int InitializeFrameBuffer(void);
-    void DestroyFrameBuffer(void);
-#ifdef USE_FRAMEBUFFER_SOCKET
-    int InitializeFrameBufferSocket(void);
-    void DestroyFrameBufferSocket(void);
-#else
-    int InitializeFrameBufferIOCTL(void);
-    void DestroyFrameBufferIOCTL(void);
-#ifdef HAS_DRM
-    int InitializeFrameBufferDRM(void);
-    void DestroyFrameBufferDRM(void);
-#endif
-#endif
 
     std::string m_name;
     std::string m_device;
@@ -182,47 +158,4 @@ private:
     int m_bufferSize = 0;
     int m_rowStride = 0;
     int m_rowPadding = 0;
-    int m_frameSize = 0;
-    uint8_t* m_lastFrame = nullptr;
-
-    bool usingDRM = false;
-#ifdef HAS_DRM
-    drmModeConnectorPtr m_connector = nullptr;
-    drmModeCrtcPtr m_crtc = nullptr;
-    uint32_t m_mode = 0;
-    uint32_t m_bufferHandles[2] = { 0, 0 };
-#endif
-
-#ifdef USE_FRAMEBUFFER_SOCKET
-    void SyncLoopFBSocket();
-    void sendFramebufferConfig();
-    void sendFramebufferFrame();
-
-    int shmemFile = -1;
-    struct sockaddr_un dev_address;
-    bool targetExists = false;
-#else
-    void SyncLoopFB();
-
-    struct fb_var_screeninfo m_vInfo;
-    struct fb_fix_screeninfo m_fInfo;
-
-    int m_ttyFd = -1;
-
-    // Support for 16-bit framebuffer output
-    uint16_t*** m_rgb565map = nullptr;
-#endif
-
-#ifdef USE_X11
-    int InitializeX11Window(void);
-    void DestroyX11Window(void);
-    void SyncLoopX11();
-
-    Display* m_display = nullptr;
-    int m_screen = 0;
-    Window m_window;
-    GC m_gc;
-    Pixmap m_pixmap;
-    XImage* m_xImage = nullptr;
-#endif
 };

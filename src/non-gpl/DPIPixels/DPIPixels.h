@@ -15,9 +15,9 @@
 #include <string>
 #include <vector>
 
-#include "FrameBuffer.h"
 #include "channeloutput/ChannelOutput.h"
 #include "channeloutput/PixelString.h"
+#include "framebuffer/FrameBuffer.h"
 #include "util/SPIUtils.h"
 
 constexpr int MAX_DPI_PIXEL_BANKS = 3;

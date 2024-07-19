@@ -11,8 +11,8 @@
  * included LICENSE.LGPL file.
  */
 
-#include "FrameBuffer.h"
 #include "PixelOverlayModel.h"
+#include "framebuffer/FrameBuffer.h"
 
 class PixelOverlayModelFB : public PixelOverlayModel {
 public:

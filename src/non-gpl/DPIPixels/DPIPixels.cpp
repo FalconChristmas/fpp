@@ -43,24 +43,14 @@
 // #define TEST_USING_X11
 
 /*
- * https://www.raspberrypi.com/documentation/computers/raspberry-pi.html
- * https://www.raspberrypi.com/documentation/computers/config_txt.html
- *
  * To use this code, the framebuffer must be setup to a specific resolution
  * and timing.  This is normally handled by setupChannelOutputs in
- * /opt/fpp/scripts/functions.  Below are sample configs for config.txt
+ * /opt/fpp/src/boot/FPPINIT.cpp.  Below are sample configs for config.txt
  *
- * # minimum DPI Pixels FB config.txt entries:
- * enable_dpi_lcd=1
- * dpi_group=2
- * dpi_mode=87
- * dpi_output_format=0x17
- * max_framebuffers=2
- *
- * NOTE: A 'dpi_timings' line is also needed to set the refresh rate and max
- * pixels per string.  These are currently only documented in the functions
- * script in case they are changed.  The auto-detect in FrameBufferIsConfigured()
- * will also need to be updated in this case to detect the new resolution(s).
+ * This requires a dtoverlay to set the appropriate clock frequency and
+ * resolution and other timing parameters.  The source for the FPP overlay
+ * is in /opt/fpp/capes/drivers/pi .  The clock  frequency is differnt for
+ * the Pi4 and pre-Pi4's so two dtbo's are generated.
  *
  *
  * Frame Buffer layout:
@@ -351,9 +341,18 @@ int DPIPixelsOutput::Init(Json::Value config) {
     }
 
     Json::Value fbConfig;
-    device = "fb1";
-    if (!FileExists("/dev/fb1") && FileExists("/dev/fb0")) {
-        device = "fb0";
+    // Read dimensions from current since we need a config.txt entry to set dpi_timings
+    fbConfig["Width"] = 0;
+    fbConfig["Height"] = 0;
+
+    // Default is now to use KMS which would be named DPI-1
+    device = "DPI-1";
+    if (!FileExists("/sys/class/drm/card0-DPI-1/modes") && !FileExists("/sys/class/drm/card1-DPI-1/modes")) {
+        // fallbacks, may or may not work
+        device = "fb1";
+        if (!FileExists("/dev/fb1") && FileExists("/dev/fb0")) {
+            device = "fb0";
+        }
     }
     fbConfig["Device"] = device;
     fbConfig["BitsPerPixel"] = 24;
@@ -364,10 +363,6 @@ int DPIPixelsOutput::Init(Json::Value config) {
     fbConfig["AutoSync"] = true;
 #endif
 
-    // Read dimensions from current since we need a config.txt entry to set dpi_timings
-    fbConfig["Width"] = 0;
-    fbConfig["Height"] = 0;
-
 #ifdef TEST_USING_X11
     device = "x11";
     fbConfig["Device"] = device;
@@ -376,8 +371,8 @@ int DPIPixelsOutput::Init(Json::Value config) {
     fbConfig["Height"] = 324;
 #endif
 
-    fb = new FrameBuffer();
-    if (!fb->FBInit(fbConfig)) {
+    fb = FrameBuffer::createFrameBuffer(fbConfig);
+    if (fb == nullptr) {
         LogErr(VB_CHANNELOUT, "Error: cannot open FrameBuffer device for %s.\n", device.c_str());
         WarningHolder::AddWarning("DPIPixels: Could not open FrameBuffer device for " + device);
         return 0;
@@ -392,8 +387,9 @@ int DPIPixelsOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "The framebuffer device %s was opened successfully.\n", device.c_str());
 
     bool initOK = false;
-    if (protocol == "ws2811")
+    if (protocol == "ws2811") {
         initOK = InitializeWS281x();
+    }
 
     if (!initOK) {
         LogErr(VB_CHANNELOUT, "Error initializing pixel protocol, Channel Output will be disabled.\n");
@@ -708,7 +704,7 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
     protoDestExtra = fb->RowPadding() + (2 * sBeginEndSize * fb->BytesPerPixel());
 
     // Skip the first FB pixel for WS data
-    protoDest = fb->Buffer() + fb->BytesPerPixel() * sBeginEndSize;
+    protoDest = fb->BufferPage(0) + fb->BytesPerPixel() * sBeginEndSize;
 
     while (y < longestString) {
         // For each WS281x pixel on the scan line
@@ -805,7 +801,7 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
 
     for (int p = 1; p < fb->PageCount(); p++) {
         // Copy first page to rest of pages
-        memcpy(fb->Buffer() + (fb->PageSize() * p), fb->Buffer(), fb->PageSize());
+        memcpy(fb->BufferPage(p), fb->BufferPage(0), fb->PageSize());
     }
 
     // Inside OutputPixelRowWS281x(), we'll skip an extra 2 FB pixels due to the way it works

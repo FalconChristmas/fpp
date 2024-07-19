@@ -18,10 +18,9 @@
 
 PixelOverlayModelFB::PixelOverlayModelFB(const Json::Value& c) :
     PixelOverlayModel(c) {
-    fb = new FrameBuffer();
-
-    if (!fb->FBInit(config)) {
-        LogErr(VB_CHANNELOUT, "Error initialzing underlying FrameBuffer for Pixel Overlay Model '%s'\n", name.c_str());
+    fb = FrameBuffer::createFrameBuffer(config);
+    if (fb == nullptr) {
+        LogErr(VB_CHANNELOUT, "Error initializing underlying FrameBuffer for Pixel Overlay Model '%s'\n", name.c_str());
         delete fb;
         fb = nullptr;
     }

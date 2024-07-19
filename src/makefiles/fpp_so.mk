@@ -44,7 +44,11 @@ OBJECTS_fpp_so += \
 	Events.o \
 	falcon.o \
 	fppversion.o \
-	FrameBuffer.o \
+	framebuffer/FrameBuffer.o \
+	framebuffer/IOCTLFrameBuffer.o \
+	framebuffer/KMSFrameBuffer.o \
+	framebuffer/SocketFrameBuffer.o \
+	framebuffer/X11FrameBuffer.o \
 	fseq/FSEQFile.o \
 	gpio.o \
 	httpAPI.o \
@@ -145,10 +149,8 @@ LIBS_fpp_so += -lvlc
 endif
 endif
 
-ifneq ($(wildcard /usr/include/libdrm/drm.h),)
-CXXFLAGS_FrameBuffer.o += -I/usr/include/libdrm
-CXXFLAGS_overlays/PixelOverlay.o  += -I/usr/include/libdrm
-CXXFLAGS_overlays/PixelOverlayModelFB.o  += -I/usr/include/libdrm
+ifneq ($(wildcard /usr/include/kms++/kms++.h),)
+LIBS_fpp_so += -lkms++ -lkms++util
 endif
 
 

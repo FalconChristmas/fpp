@@ -150,19 +150,15 @@ function SetOSPassword($value)
 
 function SetForceHDMI($value)
 {
-
-    if (strpos(file_get_contents(GetDirSetting('boot') . "/config.txt"), "hdmi_force_hotplug:1") == false) {
-        exec("sudo sed -i -e 's/hdmi_force_hotplug=\(.*\)$/hdmi_force_hotplug=\\1\\nhdmi_force_hotplug:1=1/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^hdmi_force_hotplug:1/#hdmi_force_hotplug:1/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-    }
-    if (strpos(file_get_contents(GetDirSetting('boot') . "/config.txt"), "hdmi_force_hotplug:1=1") == false) {
-        exec("sudo sed -i -e 's/hdmi_force_hotplug:1=0/hdmi_force_hotplug:1=1/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-    }
-    if ($value == '1') {
-        exec("sudo sed -i -e 's/#hdmi_force_hotplug/hdmi_force_hotplug/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/#hdmi_force_hotplug/hdmi_force_hotplug/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-    } else {
-        exec("sudo sed -i -e 's/^hdmi_force_hotplug/#hdmi_force_hotplug/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
+    global $settings;
+    if ($settings["Platform"] == "Raspberry Pi") {
+        if ($value == 0) {
+            $cmd = "sudo sed -i -e 's/^c\(.*\)vc4.force_hotplug=[x0-9]*\(.*\)/c\\1 \\2/' " . GetDirSetting('boot') . "/cmdline.txt";
+        } else {
+            $cmd = "sudo sed -i -e 's/^c\(.*\) */c\\1 vc4.force_hotplug=0x03 /' " . GetDirSetting('boot') . "/cmdline.txt";
+        }
+        exec($cmd, $output, $return_val);
+        exec("sudo sed -i -e 's/  */ /g' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
     }
 }
 function SetEnableBBBHDMI($value)
@@ -184,34 +180,17 @@ function SetForceHDMIResolution($value, $postfix)
             exec("sudo sed -i -e 's/^cmdline\(.*\)/cmdline\\1 video=HDMI-A-1:" . $value . "/' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
         }
     } else {
-        $parts = explode(":", $value);
+        $parts = explode("@", $value);
         $numParts = count($parts);
-        if (strpos(file_get_contents(GetDirSetting('boot') . "/config.txt"), "hdmi_group:1") == false) {
-            exec("sudo sed -i -e 's/hdmi_group=\(.*\)$/hdmi_group=\\1\\nhdmi_group:1=0/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-            exec("sudo sed -i -e 's/hdmi_mode=\(.*\)$/hdmi_mode=\\1\\nhdmi_mode:1=0/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-            exec("sudo sed -i -e 's/^hdmi_cvt=/#hdmi_cvt=/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-            exec("sudo sed -i -e 's/^hdmi_group:1/#hdmi_group:1/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-            exec("sudo sed -i -e 's/^hdmi_mode:1/#hdmi_mode:1/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-            exec("sudo sed -i -e 's/^hdmi_cvt:1/#hdmi_cvt:1/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-        }
-        if ($parts[0] == '0') {
-            exec("sudo sed -i -e 's/^hdmi_group" . $postfix . "=/#hdmi_group" . $postfix . "=/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-            exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "=/#hdmi_mode" . $postfix . "=/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-        } else {
-            exec("sudo sed -i -e 's/^#hdmi_group" . $postfix . "=/hdmi_group" . $postfix . "=/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-            exec("sudo sed -i -e 's/^#hdmi_mode" . $postfix . "=/hdmi_mode" . $postfix . "=/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-            exec("sudo sed -i -e 's/^hdmi_group" . $postfix . "=.*/hdmi_group" . $postfix . "=" . $parts[0] . "/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-            exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "=.*/hdmi_mode" . $postfix . "=" . $parts[1] . "/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-            if ($numParts == 3) {
-                if (strpos(file_get_contents(GetDirSetting('boot') . "/config.txt"), "hdmi_cvt" . $postfix) == false) {
-                    error_log("adding cvt");
-                    exec("sudo sed -i -e 's/^hdmi_mode" . $postfix . "/hdmi_cvt" . $postfix . "=\\nhdmi_mode/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-                }
-                exec("sudo sed -i -e 's/^#hdmi_cvt" . $postfix . "=/hdmi_cvt" . $postfix . "=/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-                exec("sudo sed -i -e 's/^hdmi_cvt" . $postfix . "=.*/hdmi_cvt" . $postfix . "=" . $parts[2] . "/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-            } else {
-                exec("sudo sed -i -e 's/^hdmi_cvt" . $postfix . "=/#hdmi_cvt" . $postfix . "=/' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
+        file_put_contents("/home/fpp/foo.txt", $postfix . " " . $value . " " . $numParts);
+        if ($numParts == 2 || $value == "Default") {
+            exec("sudo sed -i -e 's/^c\(.*\) video=HDMI-A-" . $postfix . ":\([A-Za-z@0-9]*\)\(.*\)/c\\1 \\3/' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
+            exec("sudo sed -i 's/[ \\t]*$//' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
+            if ($value != 'Default') {
+                exec("sudo sed -i -e 's/^c\(.*\)/c\\1 video=HDMI-A-" . $postfix . ":" . $value . "/' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
             }
+        } else {
+            //  likely old format, not really easy to migrate
         }
     }
 }
@@ -306,43 +285,82 @@ function SetGPIOFanProperties()
     }
 }
 
+function SetupScreenBlanking($value)
+{
+    global $settings;
+    $timeout = ReadSettingFromFile('screensaverTimeout');
+    if (!$timeout || $timeout == '') {
+        $timeout = "1";
+    }
+
+    if ($settings["Platform"] == "Raspberry Pi") {
+        if ($value == 0) {
+            $cmd = "sudo sed -i -e 's/^c\(.*\)consoleblank=[0-9]*\(.*\)/c\\1 \\2/' " . GetDirSetting('boot') . "/cmdline.txt";
+        } else {
+            $cmd = "sudo sed -i -e 's/^c\(.*\) */c\\1 consoleblank=" . $timeout . "/' " . GetDirSetting('boot') . "/cmdline.txt";
+        }
+        exec($cmd, $output, $return_val);
+        exec("sudo sed -i -e 's/  */ /g' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
+    }
+}
+
+
+
 function ApplySetting($setting, $value)
 {
     global $settings;
     switch ($setting) {
-        case 'ClockDate':SetDate($value);
+        case 'ClockDate':
+            SetDate($value);
             break;
-        case 'ClockTime':SetTime($value);
+        case 'ClockTime':
+            SetTime($value);
             break;
-        case 'ntpServer':SetNTPServer($value);
+        case 'ntpServer':
+            SetNTPServer($value);
             break;
-        case 'passwordEnable':EnableUIPassword($value);
+        case 'passwordEnable':
+            EnableUIPassword($value);
             break;
-        case 'password':SetUIPassword($value);
+        case 'password':
+            SetUIPassword($value);
             break;
-        case 'osPasswordEnable':EnableOSPassword($value);
+        case 'osPasswordEnable':
+            EnableOSPassword($value);
             break;
-        case 'osPassword':SetOSPassword($value);
+        case 'osPassword':
+            SetOSPassword($value);
             break;
-        case 'piRTC':SetRTC($value);
+        case 'piRTC':
+            SetRTC($value);
             break;
-        case 'TimeZone':SetTimeZone($value);
+        case 'TimeZone':
+            SetTimeZone($value);
             break;
-        case 'ForceHDMI':SetForceHDMI($value);
+        case 'ForceHDMI':
+            SetForceHDMI($value);
             break;
-        case 'EnableBBBHDMI':SetEnableBBBHDMI($value);
+        case 'EnableBBBHDMI':
+            SetEnableBBBHDMI($value);
             break;
-        case 'ForceHDMIResolution':SetForceHDMIResolution($value, "");
+        case 'ForceHDMIResolution':
+            SetForceHDMIResolution($value, "1");
             break;
-        case 'ForceHDMIResolutionPort2':SetForceHDMIResolution($value, ":1");
+        case 'ForceHDMIResolutionPort2':
+            SetForceHDMIResolution($value, "2");
             break;
-        case 'wifiDrivers':SetWifiDrivers($value);
+        case 'wifiDrivers':
+            SetWifiDrivers($value);
             break;
-        case 'InstalledCape':SetInstalledCape($value);
+        case 'InstalledCape':
+            SetInstalledCape($value);
             break;
         case 'GPIOFanTemperature':
         case 'GPIOFan':
             SetGPIOFanProperties();
+            break;
+        case 'screensaver':
+            SetupScreenBlanking($value);
             break;
         default:
             ApplyServiceSetting($setting, $value, "--now");

@@ -14,9 +14,6 @@ sed -i -e "s/^restartFlag .*/restartFlag = \"0\"/" ${FPPHOME}/media/settings
 
 if [ -f "/.dockerenv" ]
 then
-    echo "Setup channel outputs"
-    setupChannelOutputs
-
     echo "Running pre-start scripts"
     runPreStartScripts
 

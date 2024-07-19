@@ -31,6 +31,14 @@
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 
+#ifdef PLATFORM_PI
+#if __has_include(<jsoncpp/json/json.h>)
+#include <jsoncpp/json/json.h>
+#elif __has_include(<json/json.h>)
+#include <json/json.h>
+#endif
+#endif
+
 static const std::string FPP_MEDIA_DIR = "/home/fpp/media";
 
 void teeOutput(const std::string& log) {
@@ -645,20 +653,6 @@ static void setupNetwork() {
     }
 }
 
-static void configureScreenBlanking() {
-    PutFileContents("/sys/class/graphics/fbcon/cursor_blink", "0");
-    int i = getRawSettingInt("screensaver", 0);
-    if (i) {
-        int to = getRawSettingInt("screensaverTimeout", 0);
-        printf("FPP - Screen blanking set to %d minute(s)", to);
-        if (to == 0) {
-            exec("TERM=linux /usr/bin/setterm --clear all --blank 1  >> /dev/tty0");
-            exec("/usr/bin/dd if=/dev/zero of=/dev/fb0 > /dev/null 2>&1");
-        } else {
-            exec("TERM=linux /usr/bin/setterm --clear all --blank " + std::to_string(to) + "  >> /dev/tty0");
-        }
-    }
-}
 static void setFileOwnership() {
     exec("/usr/bin/chown -R fpp:fpp " + FPP_MEDIA_DIR);
 }
@@ -1047,9 +1041,107 @@ void setupKiosk() {
     }
 }
 
+#ifdef PLATFORM_PI
+static bool LoadJsonFromString(const std::string& str, Json::Value& root) {
+    Json::CharReaderBuilder builder;
+    Json::CharReader* reader = builder.newCharReader();
+    std::string errors;
+    builder["collectComments"] = false;
+    bool success = reader->parse(str.c_str(), str.c_str() + str.size(), &root, &errors);
+    delete reader;
+    if (!success) {
+        Json::Value empty;
+        root = empty;
+        return false;
+    }
+    return true;
+}
+#endif
+
 static void setupChannelOutputs() {
 #ifdef PLATFORM_PI
-    exec("/opt/fpp/scripts/runFunction setupChannelOutputs");
+    bool hasRPI = false;
+    bool hasDPI = false;
+    bool hasRPIMatrix = false;
+    Json::Value v;
+    if (FileExists("/home/fpp/media/config/channelOutputs.json")) {
+        if (LoadJsonFromString(GetFileContents("/home/fpp/media/config/channelOutputs.json"), v)) {
+            for (int x = 0; x < v["channelOutputs"].size(); x++) {
+                if (v["channelOutputs"][x]["subType"].asString() == "RGBMatrix" && v["channelOutputs"][x]["enabled"].asInt() == 1) {
+                    hasRPIMatrix = true;
+                }
+            }
+        }
+    }
+    if (FileExists("/home/fpp/media/config/co-pixelStrings.json")) {
+        if (LoadJsonFromString(GetFileContents("/home/fpp/media/config/co-pixelStrings.json"), v)) {
+            for (int x = 0; x < v["channelOutputs"].size(); x++) {
+                if (v["channelOutputs"][x]["type"].asString() == "RPIWS281X" && v["channelOutputs"][x]["enabled"].asInt() == 1) {
+                    hasRPI = true;
+                }
+                if (v["channelOutputs"][x]["type"].asString() == "DPIPixels" && v["channelOutputs"][x]["enabled"].asInt() == 1) {
+                    hasDPI = true;
+                }
+            }
+        }
+    }
+    bool changed = false;
+    if (hasRPI || hasRPIMatrix) {
+        if (!FileExists("/etc/modprobe.d/blacklist-bcm2835.conf")) {
+            PutFileContents("/etc/modprobe.d/blacklist-bcm2835.conf", "blacklist snd_bcm2835");
+            changed = true;
+        }
+        // Preemptively load the USB sound driver so it will detect before snd-dummy is created
+        // and get the default card0 slot
+        exec("modprobe snd_usb_audio");
+
+        // load the dummy sound driver so things that expect a sound device to be there will still work
+        exec("modprobe snd-dummy");
+        exec("modprobe snd-seq-dummy");
+    } else {
+        if (FileExists("/etc/modprobe.d/blacklist-bcm2835.conf")) {
+            unlink("/etc/modprobe.d/blacklist-bcm2835.conf");
+        }
+        exec("modprobe snd-bcm2835");
+        exec("modprobe snd_usb_audio");
+    }
+    std::string content = GetFileContents("/boot/firmware/config.txt");
+    size_t idx = content.find("dtoverlay=vc4-kms-dpi-fpp-");
+    std::string origLine = "";
+    if (idx != std::string::npos) {
+        size_t idx2 = content.find("\n", idx);
+        origLine = content.substr(idx, idx2 - idx);
+    }
+    if (hasDPI) {
+        int fps = getRawSettingInt("DPI_FPS", 40);
+        std::string model = GetFileContents("/sys/firmware/devicetree/base/model");
+        std::string type = "pi3";
+        std::string width = "362";
+        std::string height = fps == 40 ? "162" : "324";
+        if (contains(model, "Pi 4") || contains(model, "Pi 5")) {
+            type = "pi4";
+            width = "1084";
+        }
+        std::string line = "dtoverlay=vc4-kms-dpi-fpp-" + type + ",rgb888,hactive=" + width + ",hfp=0,hsync=1,hbp=0,vactive=" + height + ",vfp=1,vsync=1,vbp=1";
+        if (line != origLine) {
+            if (origLine != "") {
+                content.replace(idx, origLine.size(), line);
+            } else {
+                content.append(line).append("\n");
+            }
+            PutFileContents("/boot/firmware/config.txt", content);
+            changed = true;
+        }
+    } else if (origLine != "") {
+        size_t idx2 = content.find("\n", idx);
+        content.erase(idx, idx2 - idx);
+        PutFileContents("/boot/firmware/config.txt", content);
+        changed = true;
+    }
+    if (changed) {
+        printf("\n\nRebooting to load new settings.\n\n");
+        exec("/usr/sbin/reboot");
+    }
 #endif
 }
 
@@ -1099,13 +1191,14 @@ int main(int argc, char* argv[]) {
             setupNetwork();
         }
         configureBBB();
-        configureScreenBlanking();
         setupChannelOutputs();
         checkUnpartitionedSpace();
         printf("Setting file ownership\n");
         setFileOwnership();
     } else if (action == "postNetwork") {
         handleBootDelay();
+        // turn off blinking cursor
+        PutFileContents("/sys/class/graphics/fbcon/cursor_blink", "0");
         cleanupChromiumFiles();
         setupAudio();
         waitForInterfacesUp(); // call to flite requires audio, so do audio before this
@@ -1124,7 +1217,6 @@ int main(int argc, char* argv[]) {
         }
         setupChannelOutputs();
         runScripts("preStart", true);
-        configureScreenBlanking();
     } else if (action == "bootPost") {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         runScripts("postStart", false);

@@ -49,7 +49,7 @@
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="2024-06"
-FPPCFGVER="86"
+FPPCFGVER="88"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -495,6 +495,7 @@ case "${OSVER}" in
                       gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev qrencode libusb-1.0-0-dev \
+                      libkms++-dev \
                       flex bison pkg-config libasound2-dev python3-distutils libssl-dev libtool bsdextrautils iw rsyslog tzdata"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
@@ -734,11 +735,7 @@ case "${FPPPLATFORM}" in
 
             echo "FPP - Disabling the hdmi force hotplug setting"
             sed -i -e "s/hdmi_force_hotplug/#hdmi_force_hotplug/" ${BOOTDIR}/config.txt
-            
-            echo "FPP - Disabling the VC4 OpenGL driver"
-            sed -i -e "s/dtoverlay=vc4-fkms-v3d/#dtoverlay=vc4-fkms-v3d/" ${BOOTDIR}/config.txt
-            sed -i -e "s/dtoverlay=vc4-kms-v3d/#dtoverlay=vc4-kms-v3d/" ${BOOTDIR}/config.txt
-            
+                        
             echo "FPP - Disabling Camera AutoDetect"
             sed -i -e "s/camera_auto_detect/#camera_auto_detect/" ${BOOTDIR}/config.txt
 
@@ -763,7 +760,7 @@ case "${FPPPLATFORM}" in
 
 
             echo "FPP - Updating SPI buffer size and enabling HDMI audio devices"
-            sed -i 's/$/ spidev.bufsiz=102400 snd_bcm2835.enable_hdmi=1 snd_bcm2835.enable_compat_alsa=1/' ${BOOTDIR}/cmdline.txt
+            sed -i 's/$/ spidev.bufsiz=102400 snd_bcm2835.enable_headphones=1/' ${BOOTDIR}/cmdline.txt
 
             echo "FPP - Updating root partition device"
             sed -i 's/root=PARTUUID=[A-Fa-f0-9-]* /root=\/dev\/mmcblk0p2 /g' ${BOOTDIR}/cmdline.txt
@@ -771,7 +768,7 @@ case "${FPPPLATFORM}" in
             sed -i 's/PARTUUID=[A-Fa-f0-9]*-02/\/dev\/mmcblk0p2/g' /etc/fstab
 
             echo "FPP - Disabling fancy network interface names"
-            sed -i -e 's/rootwait/rootwait net.ifnames=0 biosdevname=0/' ${BOOTDIR}/cmdline.txt
+            sed -i -e 's/rootwait/rootwait net.ifnames=0 /' ${BOOTDIR}/cmdline.txt
 
             echo "# Enable I2C in device tree" >> ${BOOTDIR}/config.txt
             echo "dtparam=i2c_arm=on,i2c_arm_baudrate=400000" >> ${BOOTDIR}/config.txt
@@ -795,9 +792,6 @@ case "${FPPPLATFORM}" in
 
             echo "# Swap Pi 3 and Zero W UARTs with BT" >> ${BOOTDIR}/config.txt
             echo "dtoverlay=miniuart-bt" >> ${BOOTDIR}/config.txt
-            echo >> ${BOOTDIR}/config.txt
-
-            echo "dtoverlay=dwc2" >> ${BOOTDIR}/config.txt
             echo >> ${BOOTDIR}/config.txt
 
             echo "# Model Specific configuration" >>  ${BOOTDIR}/config.txt
@@ -832,6 +826,7 @@ case "${FPPPLATFORM}" in
 
             echo "FPP - Disabling Swap to save SD card"
             systemctl disable dphys-swapfile
+            systemctl disable smartmontools
 
             echo "FPP - Kernel doesn't support cgroups so remove to silence warnings on boot"
             update-rc.d -f cgroup-bin remove
@@ -877,6 +872,13 @@ EOF
             echo "FPP - Removing extraneous blacklisted modules"
             rm -f /etc/modprobe.d/blacklist-*8192cu.conf
             rm -f /etc/modprobe.d/blacklist-*8xxxu.conf
+
+            echo "FPP - Creating FPP DPI Overlays"
+            cd /opt/fpp/capes/drivers/pi
+            make -j ${CPUS}
+            make install
+            make clean
+            cd ~
         fi
         
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
@@ -1039,13 +1041,14 @@ addgroup --gid 500 ${FPPUSER}
 adduser --uid 500 --home ${FPPHOME} --shell /bin/bash --ingroup ${FPPUSER} --gecos "Falcon Player" --disabled-password ${FPPUSER}
 adduser ${FPPUSER} adm
 adduser ${FPPUSER} sudo
-if compgen -G "/dev/gpiochip*" > /dev/null; then
+if getent group gpio > /dev/null; then
     adduser ${FPPUSER} gpio
 fi
-if compgen -G "/dev/i2c*" > /dev/null; then
+
+if getent group i2c > /dev/null; then
     adduser ${FPPUSER} i2c
 fi
-if compgen -G "/dev/spidev*" > /dev/null; then
+if getent group spi > /dev/null; then
     adduser ${FPPUSER} spi
 fi
 adduser ${FPPUSER} video

@@ -171,8 +171,6 @@ then
         i2cset -y -f 0 0x24 9 5
     fi
 
-    #configure the LEDS per user settings
-    configureBBBLeds
 fi
 
 # Make sure the proxies link is in place
@@ -180,16 +178,7 @@ if [ ! -e /opt/fpp/www/proxy/.htaccess ]; then
     ln -s /home/fpp/media/config/proxies /opt/fpp/www/proxy/.htaccess
 fi
 
-##############################################################################
-# Leave these things till last so user can see output of anything above here
-##############################################################################
-if [ ! -f /etc/fpp/desktop ]; then
-applyScreenBlankSetting
-fi
 
-# Make sure modules and configuration required for channel outputs
-# is handled
-setupChannelOutputs
 
 #make sure the entire media dir and subdirs is writable by fpp user
 chown -R ${FPPUSER}:${FPPUSER} ${FPPHOME}/media
