@@ -18,15 +18,18 @@
 #include <sys/mman.h>
 
 std::atomic_int KMSFrameBuffer::FRAMEBUFFER_COUNT(0);
-kms::Card* KMSFrameBuffer::CARD = nullptr;
-kms::ResourceManager* KMSFrameBuffer::RESOURCE_MANAGER = nullptr;
+std::map<kms::Card*, kms::ResourceManager*> KMSFrameBuffer::CARDS;
 
 KMSFrameBuffer::KMSFrameBuffer() {
     LogDebug(VB_CHANNELOUT, "KMSFrameBuffer::KMSFrameBuffer()\n");
 
     if (FRAMEBUFFER_COUNT == 0) {
-        CARD = new kms::Card();
-        RESOURCE_MANAGER = new kms::ResourceManager(*CARD);
+        for (int cn = 0; cn < 10; cn++) {
+            if (FileExists("/dev/dri/card" + std::to_string(cn))) {
+                kms::Card* card = new kms::Card("/dev/dri/card" + std::to_string(cn));
+                CARDS[card] = new kms::ResourceManager(*card);
+            }
+        }
     }
     ++FRAMEBUFFER_COUNT;
 }
@@ -34,72 +37,74 @@ KMSFrameBuffer::KMSFrameBuffer() {
 KMSFrameBuffer::~KMSFrameBuffer() {
     --FRAMEBUFFER_COUNT;
     if (FRAMEBUFFER_COUNT == 0) {
-        delete RESOURCE_MANAGER;
-        RESOURCE_MANAGER = nullptr;
-        delete CARD;
-        CARD = nullptr;
+        for (auto& i : CARDS) {
+            delete i.first;
+            delete i.second;
+        }
+        CARDS.clear();
     }
 }
 int KMSFrameBuffer::InitializeFrameBuffer(void) {
     LogDebug(VB_CHANNELOUT, "KMSFrameBuffer::InitializeFrameBuffer()\n");
-    if (!CARD->has_kms() || !CARD->has_atomic()) {
-        return 0;
-    }
-    for (auto& conn : CARD->get_connectors()) {
-        if (m_device == conn->fullname() && conn->connected()) {
-            m_connector = RESOURCE_MANAGER->reserve_connector(conn);
-            m_crtc = RESOURCE_MANAGER->reserve_crtc(conn);
-            if (m_crtc == nullptr) {
-                m_crtc = RESOURCE_MANAGER->reserve_crtc(m_connector);
-            }
-            if (m_crtc == nullptr) {
-                return 0;
-            }
-            bool foundMode = false;
-            bool foundMultiMode = false;
-            kms::Videomode multiMode;
 
-            for (auto& m : m_connector->get_modes()) {
-                if (m.hdisplay >= m_width && m.vdisplay >= m_height) {
-                    m_mode = m;
-                    foundMode = true;
+    for (auto& card : CARDS) {
+        for (auto& conn : card.first->get_connectors()) {
+            if (m_device == conn->fullname() && conn->connected()) {
+                m_resourceManager = card.second;
+                m_connector = m_resourceManager->reserve_connector(conn);
+                m_crtc = m_resourceManager->reserve_crtc(conn);
+                if (m_crtc == nullptr) {
+                    m_crtc = m_resourceManager->reserve_crtc(m_connector);
                 }
-                if (m_width > 0 && m_height > 0 && ((m.hdisplay % m_width) == 0) && ((m.vdisplay % m_height) == 0)) {
-                    foundMultiMode = true;
-                    multiMode = m;
+                if (m_crtc == nullptr) {
+                    return 0;
                 }
-            }
-            if (!foundMode) {
-                return 0;
-            }
-            if (foundMultiMode) {
-                m_mode = multiMode;
-            }
-            LogDebug(VB_CHANNELOUT, "KMSFrameBuffer:   Connector: %s   Mode: %dx%d\n", conn->fullname().c_str(), m_mode.hdisplay, m_mode.vdisplay);
-            m_crtc->set_mode(m_connector, m_mode);
+                bool foundMode = false;
+                bool foundMultiMode = false;
+                kms::Videomode multiMode;
 
-            for (int x = 0; x < 2; x++) {
-                m_fb[x] = new kms::DumbFramebuffer(*CARD, m_mode.hdisplay, m_mode.vdisplay, kms::PixelFormat::RGB888);
-                m_pageBuffers[x] = m_fb[x]->map(0);
-            }
-            m_plane = RESOURCE_MANAGER->reserve_generic_plane(m_crtc, m_fb[0]->format());
-            m_pages = 2;
+                for (auto& m : m_connector->get_modes()) {
+                    if (m.hdisplay >= m_width && m.vdisplay >= m_height) {
+                        m_mode = m;
+                        foundMode = true;
+                    }
+                    if (m_width > 0 && m_height > 0 && ((m.hdisplay % m_width) == 0) && ((m.vdisplay % m_height) == 0)) {
+                        foundMultiMode = true;
+                        multiMode = m;
+                    }
+                }
+                if (!foundMode) {
+                    return 0;
+                }
+                if (foundMultiMode) {
+                    m_mode = multiMode;
+                }
+                LogDebug(VB_CHANNELOUT, "KMSFrameBuffer:   Connector: %s   Mode: %dx%d\n", conn->fullname().c_str(), m_mode.hdisplay, m_mode.vdisplay);
+                m_crtc->set_mode(m_connector, m_mode);
 
-            if (m_width == 0) {
-                m_width = m_mode.hdisplay;
+                for (int x = 0; x < 2; x++) {
+                    m_fb[x] = new kms::DumbFramebuffer(*card.first, m_mode.hdisplay, m_mode.vdisplay, kms::PixelFormat::RGB888);
+                    m_pageBuffers[x] = m_fb[x]->map(0);
+                }
+                m_plane = m_resourceManager->reserve_generic_plane(m_crtc, m_fb[0]->format());
+                m_pages = 2;
+
+                if (m_width == 0) {
+                    m_width = m_mode.hdisplay;
+                }
+                if (m_height == 0) {
+                    m_height = m_mode.vdisplay;
+                }
+                m_cPage = 0;
+                m_pPage = 0;
+                m_bpp = 24;
+                m_rowStride = m_fb[0]->stride(0);
+                m_rowPadding = m_rowStride - (m_width * m_bpp / 8);
+                m_pageSize = m_fb[0]->size(0);
+                m_bufferSize = m_pageSize;
+                m_crtc->set_plane(m_plane, *m_fb[0], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
+                return 1;
             }
-            if (m_height == 0) {
-                m_height = m_mode.vdisplay;
-            }
-            m_cPage = 0;
-            m_pPage = 0;
-            m_bpp = 24;
-            m_rowStride = m_fb[0]->stride(0);
-            m_rowPadding = m_rowStride - (m_width * m_bpp / 8);
-            m_pageSize = m_fb[0]->size(0);
-            m_bufferSize = m_pageSize;
-            m_crtc->set_plane(m_plane, *m_fb[0], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
-            return 1;
         }
     }
     return 0;
@@ -114,13 +119,13 @@ void KMSFrameBuffer::DestroyFrameBuffer(void) {
         }
     }
     if (m_plane) {
-        RESOURCE_MANAGER->release_plane(m_plane);
+        m_resourceManager->release_plane(m_plane);
     }
     if (m_crtc) {
-        RESOURCE_MANAGER->release_crtc(m_crtc);
+        m_resourceManager->release_crtc(m_crtc);
     }
     if (m_connector) {
-        RESOURCE_MANAGER->release_connector(m_connector);
+        m_resourceManager->release_connector(m_connector);
     }
 
     m_connector = nullptr;
@@ -135,8 +140,10 @@ void KMSFrameBuffer::SyncLoop() {
     if (m_pages == 1) {
         return;
     }
-    if (CARD->is_master()) {
-        CARD->drop_master();
+    for (auto& card : CARDS) {
+        if (card.first->is_master()) {
+            card.first->drop_master();
+        }
     }
 
     while (m_runLoop) {
@@ -163,8 +170,10 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
         return;
 
     m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
-    if (CARD->is_master()) {
-        CARD->drop_master();
+    for (auto& card : CARDS) {
+        if (card.first->is_master()) {
+            card.first->drop_master();
+        }
     }
 }
 

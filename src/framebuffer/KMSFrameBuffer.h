@@ -17,6 +17,8 @@
 #include <kms++util/kms++util.h>
 #define HAS_KMS_FB
 
+#include <map>
+
 class KMSFrameBuffer : public FrameBuffer {
 public:
     KMSFrameBuffer();
@@ -32,10 +34,10 @@ public:
     kms::Videomode m_mode;
     kms::DumbFramebuffer* m_fb[3] = { nullptr, nullptr, nullptr };
     kms::Plane* m_plane = nullptr;
+    kms::ResourceManager* m_resourceManager = nullptr;
 
     static std::atomic_int FRAMEBUFFER_COUNT;
-    static kms::Card* CARD;
-    static kms::ResourceManager* RESOURCE_MANAGER;
+    static std::map<kms::Card*, kms::ResourceManager*> CARDS;
 };
 
 #endif

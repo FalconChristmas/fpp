@@ -13,9 +13,8 @@ LIBS_fpp = \
 TARGETS+=fpp
 OBJECTS_ALL+=$(OBJECTS_fpp)
 
-ifneq ($(wildcard /usr/include/libdrm/drm.h),)
-CXXFLAGS_fpp.o += -I/usr/include/libdrm
-LIBS_fpp += -ldrm
+ifneq ($(wildcard /usr/include/kms++/kms++.h),)
+LIBS_fpp += -lkms++ -lkms++util
 endif
 
 fpp: $(OBJECTS_fpp)

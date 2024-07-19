@@ -23,10 +23,10 @@
 #include <string>
 #include <unistd.h>
 
-#if __has_include(<xf86drm.h>)
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#define HAS_DRM
+#if __has_include(<kms++/kms++.h>)
+#include <kms++/kms++.h>
+#include <kms++util/kms++util.h>
+#define HAS_KMS_FB
 #endif
 
 #include "common.h"
@@ -50,51 +50,6 @@ void Usage(char* appname);
 
 socklen_t address_length;
 
-#ifdef HAS_DRM
-static std::string GetConnectorType(uint32_t i) {
-    switch (i) {
-    case DRM_MODE_CONNECTOR_VGA:
-        return "VGA";
-    case DRM_MODE_CONNECTOR_DVII:
-        return "DVII";
-    case DRM_MODE_CONNECTOR_DVID:
-        return "DVID";
-    case DRM_MODE_CONNECTOR_DVIA:
-        return "DVIA";
-    case DRM_MODE_CONNECTOR_Composite:
-        return "Composite";
-    case DRM_MODE_CONNECTOR_SVIDEO:
-        return "SVIDEO";
-    case DRM_MODE_CONNECTOR_LVDS:
-        return "LVDS";
-    case DRM_MODE_CONNECTOR_Component:
-        return "Component";
-    case DRM_MODE_CONNECTOR_9PinDIN:
-        return "9PinDIN";
-    case DRM_MODE_CONNECTOR_DisplayPort:
-        return "DisplayPort";
-    case DRM_MODE_CONNECTOR_HDMIA:
-        return "HDMI-A";
-    case DRM_MODE_CONNECTOR_HDMIB:
-        return "HDMI-B";
-    case DRM_MODE_CONNECTOR_TV:
-        return "TV";
-    case DRM_MODE_CONNECTOR_eDP:
-        return "eDP";
-    case DRM_MODE_CONNECTOR_VIRTUAL:
-        return "VIRTUAL";
-    case DRM_MODE_CONNECTOR_DSI:
-        return "DSI";
-    case DRM_MODE_CONNECTOR_DPI:
-        return "DPI";
-    case DRM_MODE_CONNECTOR_WRITEBACK:
-        return "WRITEBACK";
-    case DRM_MODE_CONNECTOR_SPI:
-        return "SPI";
-    }
-    return "unknown";
-}
-#endif
 void GetFrameBufferDevices(Json::Value& v, bool debug) {
     std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/";
     for (int x = 0; x < 10; x++) {
@@ -109,64 +64,31 @@ void GetFrameBufferDevices(Json::Value& v, bool debug) {
             }
         }
     }
-#ifdef HAS_DRM
-    for (int x = 0; x < 10; x++) {
-        std::string dev = "/dev/dri/card";
-        dev += std::to_string(x);
-        if (FileExists(dev)) {
-            int fd = open(dev.c_str(), O_RDWR);
-
-            drmModeResPtr res = drmModeGetResources(fd);
-            if (res == nullptr) {
-                close(fd);
-                continue;
-            }
-
-            std::set<std::string> formats;
-            drmModePlaneResPtr planeRes = drmModeGetPlaneResources(fd);
-            for (int i = 0; i < planeRes->count_planes; i++) {
-                drmModePlanePtr plane = drmModeGetPlane(fd, planeRes->planes[i]);
-                //printf("plane %d: %X  (crtc %X)\n", i, plane->plane_id, plane->crtc_id);
-                //printf("  %dx%d   %dx%d\n", plane->crtc_x, plane->crtc_y, plane->x, plane->y);
-                for (int f = 0; f < plane->count_formats; f++) {
-                    uint32_t buf[2] = { 0, 0 };
-                    buf[0] = plane->formats[f];
-                    std::string s = std::string((const char*)buf);
-                    formats.emplace(s);
-                    //printf("    Format %s\n", buf);
-                }
-                drmModeFreePlane(plane);
-            }
-            drmModeFreePlaneResources(planeRes);
-            drmModeConnectorPtr connector = 0;
-            for (int i = 0; i < res->count_connectors; i++) {
-                char name[32];
-
-                connector = drmModeGetConnectorCurrent(fd, res->connectors[i]);
-                if (!connector) {
-                    continue;
-                }
-                if (connector->count_modes) {
-                    std::string fb = GetConnectorType(connector->connector_type) + "-" + std::to_string(connector->connector_type_id);
-                    if (debug) {
-                        Json::Value vm;
-                        for (int i = 0; i < connector->count_modes; i++) {
-                            auto resolution = &connector->modes[i];
-                            std::string s = std::to_string(resolution->hdisplay) + "x" + std::to_string(resolution->vdisplay) + " " + std::to_string(resolution->vrefresh) + "hz" + ((resolution->type & DRM_MODE_TYPE_PREFERRED) ? " (preferred)" : "");
-                            vm["modes"].append(s);
+#ifdef HAS_KMS_FB
+    for (int cn = 0; cn < 10; cn++) {
+        if (FileExists("/dev/dri/card" + std::to_string(cn))) {
+            kms::Card card("/dev/dri/card" + std::to_string(cn));
+            for (auto& c : card.get_connectors()) {
+                std::string cname = c->fullname();
+                if (debug) {
+                    std::set<std::string> formats;
+                    if (c->get_current_crtc()) {
+                        for (auto& f : c->get_current_crtc()->get_primary_plane()->get_formats()) {
+                            formats.insert(PixelFormatToFourCC(f));
                         }
-                        for (auto& a : formats) {
-                            vm["formats"].append(a);
-                        }
-                        v[fb] = vm;
-                    } else {
-                        v.append(fb);
                     }
+                    Json::Value v2(Json::objectValue);
+                    for (auto m : c->get_modes()) {
+                        v2["modes"].append(m.to_string_short());
+                    }
+                    for (auto& a : formats) {
+                        v2["formats"].append(a);
+                    }
+                    v[cname] = v2;
+                } else {
+                    v.append(cname);
                 }
-
-                drmModeFreeConnector(connector);
             }
-            close(fd);
         }
     }
 #endif
