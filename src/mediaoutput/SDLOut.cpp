@@ -113,11 +113,11 @@ public:
         }
 
         if (audioCodecContext) {
-            avcodec_close(audioCodecContext);
+            avcodec_free_context(&audioCodecContext);
             audioCodecContext = nullptr;
         }
         if (videoCodecContext) {
-            avcodec_close(videoCodecContext);
+            avcodec_free_context(&videoCodecContext);
             videoCodecContext = nullptr;
         }
         if (swsCtx != nullptr) {
