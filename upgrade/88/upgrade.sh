@@ -26,6 +26,10 @@ if [ "${FPPPLATFORM}" == "Raspberry Pi" ]; then
     sed -i -e '/^include dpipixels.txt/d' /boot/firmware/config.txt
     rm -f /boot/firmware/dpipixels.txt.new
 
+    cd /opt/fpp/capes/drivers/pi
+    make install
+    make clean
+
     # Set the reboot flag so the config/cmdline changes will be picked up
     setSetting rebootFlag 1
 fi
