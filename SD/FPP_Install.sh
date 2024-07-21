@@ -525,7 +525,7 @@ case "${OSVER}" in
         (cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.19.0 && ./bootstrap && autoupdate && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr --disable-examples && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
         
         echo "FPP - Installing libkms++"
-        (cd /opt/ && git clone https://github.com/tomba/kmsxx && cd kmsxx && apt-get install -y meson cmake && meson setup build --prefix=/usr -Dpykms=disabled && ninja -C build install && cd /opt/ && rm -rf kmsxx && apt-get remove -y --purge --autoremove meson cmake && ccache -C)
+        (cd /opt/ && git clone https://github.com/tomba/kmsxx && cd kmsxx && apt-get install -y meson cmake libfmt-dev && meson setup build --prefix=/usr -Dpykms=disabled && ninja -C build install && cd /opt/ && rm -rf kmsxx && apt-get remove -y --purge --autoremove meson cmake libfmt-dev && ccache -C)
         
         if $isimage; then
             if [ "${OSVER}" == "debian_12" ]; then
