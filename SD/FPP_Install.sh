@@ -495,7 +495,6 @@ case "${OSVER}" in
                       gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev qrencode libusb-1.0-0-dev \
-                      libkms++-dev \
                       flex bison pkg-config libasound2-dev python3-distutils libssl-dev libtool bsdextrautils iw rsyslog tzdata"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
@@ -521,6 +520,13 @@ case "${OSVER}" in
         else
             apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${PACKAGE_LIST}
         fi
+        
+        echo "FPP - Installing libhttpserver 0.19.0"
+        (cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.19.0 && ./bootstrap && autoupdate && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr --disable-examples && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
+        
+        echo "FPP - Installing libkms++"
+        (cd /opt/ && git clone https://github.com/tomba/kmsxx && cd kmsxx && apt-get install -y meson cmake && meson setup build --prefix=/usr -Dpykms=disabled && ninja -C build install && cd /opt/ && rm -rf kmsxx && apt-get remove -y --purge --autoremove meson cmake && ccache -C)
+        
         if $isimage; then
             if [ "${OSVER}" == "debian_12" ]; then
                 apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install systemd wpasupplicant
@@ -535,9 +541,6 @@ case "${OSVER}" in
         echo "FPP - Cleaning up after installing packages"
         apt-get -y clean
 
-
-		echo "FPP - Installing libhttpserver 0.19.0"
-		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.19.0 && ./bootstrap && autoupdate && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr --disable-examples && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
         echo "FPP - Configuring shellinabox to use /var/tmp"
         echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
@@ -1527,4 +1530,3 @@ echo ""
 
 cp /root/FPP_Install.* ${FPPHOME}/
 chown fpp:fpp ${FPPHOME}/FPP_Install.*
-
