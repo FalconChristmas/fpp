@@ -487,7 +487,7 @@ case "${OSVER}" in
                       build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
                       git git-core hdparm i2c-tools ifplugd jq less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
-                      mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils \
+                      mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils libfmt9 \
                       php${PHPVER} php${PHPVER}-cli php${PHPVER}-fpm php${PHPVER}-common php${PHPVER}-curl php-pear \
                       php${PHPVER}-bcmath php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
