@@ -67,8 +67,8 @@ systemctl enable systemd-resolved
 
 #check
 cd /root
-export BASE_NEW_KERNEL_VERSION=6.6.25-fpp14
-export NEW_KERNEL_VERSION=6.6.25-fpp14_1
+export BASE_NEW_KERNEL_VERSION=6.6.36-fpp15
+export NEW_KERNEL_VERSION=6.6.36-fpp15_1
 wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${NEW_KERNEL_VERSION}_armhf.deb
 # wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-${NEW_KERNEL_VERSION}_armhf.deb
 dpkg -i *.deb
@@ -202,8 +202,8 @@ rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-VERSION=8.0-alpha5
-OSVERSION=2024-06
+VERSION=8.0-beta1
+OSVERSION=2024-07
 DEVICE=/dev/sdb
 dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 

@@ -124,8 +124,8 @@ the proper device name for your SD card in place of '/dev/sdg'):
        apt-get install zerofree squashfs-tools
 
     DEVICE=/dev/sdc
-    VERSION=8.0-alpha5
-    OSVERSION=2024-06
+    VERSION=8.0-beta1
+    OSVERSION=2024-07
     BLOCKS=6800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
