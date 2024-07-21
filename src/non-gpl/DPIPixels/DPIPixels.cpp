@@ -134,6 +134,12 @@ int DPIPixelsOutput::Init(Json::Value config) {
         return 0;
     }
 
+    if (licensedOutputs == 0 && startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5")) {
+        // Pi 5 doesn't have onboard sound but also doesn't work with RPIWS281x.  We'll allow a standard
+        // PiHat with two strings to work with DPI on the Pi5.  More than two strings will require a license
+        licensedOutputs = 2;
+    }
+
     config["base"] = root;
 
     // Setup bit offsets for 24 outputs
@@ -268,7 +274,6 @@ int DPIPixelsOutput::Init(Json::Value config) {
              nonZeroStrings, stringCount);
 
     if (stringCount > licensedOutputs) {
-        std::string warning;
         std::string outputList;
         int pixels = 0;
         for (int s = 0; s < stringCount; s++) {
@@ -281,15 +286,14 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 outputList += std::to_string(s + 1);
             }
         }
-
-        if (outputList != "") {
-            warning = "DPIPixels is licensed for ";
-            warning += std::to_string(licensedOutputs);
-            warning += " outputs, but one or more outputs is configured for more than 50 pixels.  Output(s): ";
-            warning += outputList;
-            WarningHolder::AddWarning(warning);
-            LogWarn(VB_CHANNELOUT, "WARNING: %s\n", warning.c_str());
-        }
+    }
+    if (outputList != "") {
+        std::string warning = "DPIPixels is licensed for ";
+        warning += std::to_string(licensedOutputs);
+        warning += " outputs, but one or more outputs is configured for more than 50 pixels.  Output(s): ";
+        warning += outputList;
+        WarningHolder::AddWarning(warning);
+        LogWarn(VB_CHANNELOUT, "WARNING: %s\n", warning.c_str());
     }
 
     if (licensedOutputs) {
