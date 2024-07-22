@@ -875,13 +875,6 @@ EOF
             echo "FPP - Removing extraneous blacklisted modules"
             rm -f /etc/modprobe.d/blacklist-*8192cu.conf
             rm -f /etc/modprobe.d/blacklist-*8xxxu.conf
-
-            echo "FPP - Creating FPP DPI Overlays"
-            cd /opt/fpp/capes/drivers/pi
-            make -j ${CPUS}
-            make install
-            make clean
-            cd ~
         fi
         
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
@@ -978,6 +971,13 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
     git submodule update --init external/spixels
     cd /opt/fpp/src
     make gitsubmodules
+    
+    echo "FPP - Creating FPP DPI Overlays"
+    cd /opt/fpp/capes/drivers/pi
+    make -j ${CPUS}
+    make install
+    make clean
+    cd ~
 fi
 
 

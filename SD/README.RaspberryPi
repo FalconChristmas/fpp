@@ -33,7 +33,7 @@ Disable the auto partition resize script on the SD and enable the SSH server whi
 we have the partition mounted:
 
 	# Make a temp mount location
-	mkdir -f /mnt/tmp
+	mkdir /mnt/tmp
 	# Mount the boot partition
 	mount /dev/sdc1 /mnt/tmp
 	# Backup the cmdline.txt file
@@ -83,6 +83,7 @@ rm -rf /lib/modules/${KV}*
 rm -rf /usr/lib/linux-image-${KV}*
 # remove the 16K page kernel as some of the libraries are incompatible with it
 rm -rf /boot/firmware/kernel_2712.img
+rm -rf /lib/modules/*-16k*
 
 
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
@@ -123,7 +124,7 @@ the proper device name for your SD card in place of '/dev/sdg'):
     NOTE: the linux system needs to have zerofree and squashfs-tools installed
        apt-get install zerofree squashfs-tools
 
-    DEVICE=/dev/sdc
+    DEVICE=/dev/sdb
     VERSION=8.0-beta1
     OSVERSION=2024-07
     BLOCKS=6800

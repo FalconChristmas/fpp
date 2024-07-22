@@ -204,7 +204,7 @@ rmdir /tmp/rootfs
 # the proper device name for your SD card in place of '/dev/sdc'):
 VERSION=8.0-beta1
 OSVERSION=2024-07
-DEVICE=/dev/sdb
+DEVICE=/dev/sdc
 dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 
 
