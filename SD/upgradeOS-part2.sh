@@ -5,81 +5,34 @@
 
 cd /
 
-LEGACYBOOT=no
-FPPBOOTSRCDIR=boot
-FPPBOOTDESTDIR=boot
-BOOTMOUNT=$(mount | grep /boot | awk '{print $3}')
-if [ -d "/boot/firmware" ]
-then
-    # Upgrading to a Raspbian 12 or newer system which mounts /boot/firmware instead of /boot
-    FPPBOOTSRCDIR=boot/firmware
-    FPPBOOTDESTDIR=boot/firmware
-
-    if [ "${BOOTMOUNT}" = "/mnt/boot" ]
-    then
-        LEGACYBOOT=yes
-        FPPBOOTDESTDIR=boot
-    fi
-elif [ "${BOOTMOUNT}" = "/mnt/boot/firmware" ]
-then
-    # Running on Raspbian 12 or newer but appear to be downgrading to a pre-12 version
-    FPPBOOTSRCDIR=boot
-    FPPBOOTDESTDIR=boot/firmware
-    LEGACYBOOT=downgrading
-fi
-
 echo "Running rsync to update boot file system:"
 if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
-    BOOTSIZE=$(sfdisk -q -l -o size /dev/mmcblk0 2>/dev/null | grep M)
-    BOOTSIZE=${BOOTSIZE::-1}
-    if [ `echo "$BOOTSIZE < 120"|bc` -eq 1 ]; then
-        # 2.x image, boot partition is tiny and cannot fit everything needed for Pi4 and higher so we need to exclude some more things
-        rsync --outbuf=N -aAXxvc ${FPPBOOTSRCDIR}/ /mnt/${FPPBOOTDESTDIR}/ --delete-before --exclude=kernel8.img  --exclude=kernel7l.img --exclude=.Spotlight*
-    else
-        rsync --outbuf=N -aAXxvc ${FPPBOOTSRCDIR}/ /mnt/${FPPBOOTDESTDIR}/ --delete-before
+    ROOTDEV=$(df / | tail -n 1 | awk '{print $1}');
+    BOOTMOUNT=$(mount | grep /boot | awk '{print $3}')
+    BOOTMOUNTDEV=$(mount | grep /boot | awk '{print $1}')
+    # Upgrading to a Raspbian 12 or newer system which mounts /boot/firmware instead of /boot
+    if [ "${BOOTMOUNT}" = "/mnt/boot" ]; then
+        echo "Need to remount /mnt/boot to /mnt/boot/firmware"
+        umount /mnt/boot
+        mkdir -p /mnt/boot/firmware
+        mount ${BOOTMOUNTDEV} /mnt/boot/firmware
     fi
 
-    if [ "${LEGACYBOOT}" = "yes" ]
-    then
+    rsync --outbuf=N -aAXxvc /boot/ /mnt/boot/ --delete-before
+
+    if [ "${BOOTMOUNT}" = "/mnt/boot" ]; then
+        echo "Adjusting /etc/fstab"
         # We are converting a system which was mounting /boot to now mount /boot/firmware
         # Fixup boot partition mount point in /etc/fstab
         sed -e "s# /boot # /boot/firmware #" -i /mnt/etc/fstab
-
-        # Unmount /mnt/boot so we can see the actual /boot directory and create the new mount point
-        umount /mnt/boot
-        mkdir /mnt/boot/firmware
-
-        # Create some necessary links to the new file locations
-        find /boot/ -maxdepth 1 -type l | while read LINK
-        do
-            LINK=$(basename ${LINK})
-            ln -s firmware/${LINK} /mnt/boot/${LINK}
-        done
-    elif [ "${LEGACYBOOT}" = "downgrading" ]
-    then
-        # Downgrading from Raspbian 12 or higher to a an older pre-12 version
-        # Fixup boot partition mount point in /etc/fstab
-        sed -e "s# /boot/firmware # /boot #" -i /mnt/etc/fstab
-
-        # Unmount /mnt/boot/firmware so we can remove the mountpoint
-        umount /mnt/boot/firmware
-        rmdir /mnt/boot/firmware
-
-        # Clean up any firmware.bak since it will be hidden by the mount
-        rm -rf /mnt/boot/firmware.bak 2> /dev/null
-
-        # Remove any links under /boot, they'll be hidden by the mount anyway
-        find /mnt/boot/ -maxdepth 1 -type l | while read LINK
-        do
-            LINK=$(basename ${LINK})
-            rm /mnt/boot/${LINK}
-        done
     fi
+    sed -i "s|root=/dev/[a-zA-Z0-9]* |root=${ROOTDEV} |g" /mnt/boot/firmware/cmdline.txt
 else
     # Beaglebone
-    rsync -aAXxvc ${FPPBOOTSRCDIR}/ /mnt/${FPPBOOTDESTDIR}/ --delete-during
+    rsync -aAXxvc /boot/ /mnt/boot/ --delete-during
 fi
+
 echo
 
 if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
