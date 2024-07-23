@@ -4,6 +4,10 @@
 . /opt/fpp/scripts/functions
 
 apt-get update
+if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+    # need this to initialize the GPU on the Pi5
+    apt-get install -y gldriver-test
+fi
 apt-get install -y --no-install-recommends xserver-xorg x11-xserver-utils xinit openbox
 apt-get install -y --no-install-recommends chromium-browser
 apt-get clean
