@@ -342,6 +342,7 @@
         function LoadInstalledPlugins() {
             for (var i = 0; i < installedPlugins.length; i++) {
                 var url = 'api/plugin/' + installedPlugins[i];
+                let index = i;
                 $.ajax({
                     url: url,
                     dataType: 'json',
@@ -350,7 +351,7 @@
                         FilterPlugins();
                     },
                     error: function () {
-                        alert('Error, failed to fetch ' + installedPlugins[i]);
+                        alert('Error, failed to fetch ' + installedPlugins[index]);
                     }
                 });
             }
@@ -360,7 +361,7 @@
             for (var i = 0; i < pluginList.length; i++) {
                 if (!PluginIsInstalled(pluginList[i][0])) {
                     var url = pluginList[i][1];
-
+                    let index = i;
                     pluginInfoURLs[pluginList[i][0]] = url;
 
                     $('html,body').css('cursor', 'wait');
@@ -374,9 +375,12 @@
                             FilterPlugins();
 
                         },
-                        error: function () {
+                        error: function (d) {
                             $('html,body').css('cursor', 'auto');
-                            alert('Error, failed to fetch ' + pluginList[i]);
+                            if (d.statusText !== undefined) {
+                                d = d.statusText;
+                            }
+                            alert('Error, failed to fetch ' + pluginList[index] + " - " + d);
                         }
                     });
                 }
@@ -402,9 +406,12 @@
                         $('#pluginInput').val('');
                         FilterPlugins();
                     },
-                    error: function () {
+                    error: function (d) {
                         $('html,body').css('cursor', 'auto');
-                        alert('Error, failed to fetch ' + pluginInfos[i]);
+                        if (d.statusText !== undefined) {
+                            d = d.statusText;
+                        }
+                        alert('Error, failed to fetch ' + pluginInfos[i] + " - " + d);
                     }
                 });
             }
