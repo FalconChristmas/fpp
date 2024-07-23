@@ -8,9 +8,9 @@ cd /
 echo "Running rsync to update boot file system:"
 if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
-    ROOTDEV=$(df / | tail -n 1 | awk '{print $1}');
+    ROOTDEV=$(findmnt -T /mnt | tail -n 1 | awk '{print $2}');
     BOOTMOUNT=$(mount | grep /boot | awk '{print $3}')
-    BOOTMOUNTDEV=$(mount | grep /boot | awk '{print $1}')
+    BOOTMOUNTDEV=$(findmnt -T /mnt/boot | tail -n 1 | awk '{print $2}')
     # Upgrading to a Raspbian 12 or newer system which mounts /boot/firmware instead of /boot
     if [ "${BOOTMOUNT}" = "/mnt/boot" ]; then
         echo "Need to remount /mnt/boot to /mnt/boot/firmware"
