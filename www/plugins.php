@@ -131,6 +131,25 @@
             });
         }
 
+        function ShowUninstallPluginPopup(plugin, pluginName) {
+            DoModalDialog({
+                id: "uninstallPluginDialog",
+                class: "modal-lg",
+                title: "Warning: Uninstalling Plugin",
+                body: "Please confirm you wish to uninstall the " + pluginName + " plugin",
+                backdrop: true,
+                keyboard: true,
+                buttons: {
+                    Uninstall: function () {
+                        UninstallPlugin(plugin);
+                    },
+                    Abort: function () {
+                        CloseModalDialog("uninstallPluginDialog");
+                    }
+                }
+            });
+        }
+
         function FindPluginInfo(plugin) {
             for (var i = 0; i < pluginInfos.length; i++) {
                 if (pluginInfos[i].repoName == plugin)
@@ -240,7 +259,7 @@
                 }
 
                 html += '</div><div align="right">';
-                html += "<button class='buttons btn-outline-danger'  onClick='UninstallPlugin(\"" + data.repoName + "\");'><i class='fas fa-trash-alt'></i> Uninstall</button>";
+                html += "<button class='buttons btn-outline-danger'  onClick='ShowUninstallPluginPopup(\"" + data.repoName + "\",\"" + data.name + "\");'><i class='fas fa-trash-alt'></i> Uninstall</button>";
             } else {
                 html += '</div><div align="right">';
                 html += '</div><div align="right">';
