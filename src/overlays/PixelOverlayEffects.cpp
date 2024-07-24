@@ -662,6 +662,11 @@ public:
         std::string color = args[0];
         unsigned int cint = PixelOverlayManager::mapColor(color);
         std::string font = PixelOverlayManager::INSTANCE.mapFont(args[1]);
+        if (font.empty()) {
+            std::string warn = "Text Overlay Effect - Could not find font \'" + args[1] + "\'";
+            WarningHolder::AddWarning(warn);
+            return false;
+        }
         int fontSize = std::atoi(args[2].c_str());
         if (fontSize < 4) {
             fontSize = 12;

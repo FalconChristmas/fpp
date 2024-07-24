@@ -323,6 +323,9 @@ PixelOverlayModel* PixelOverlayManager::getModel(const std::string& name) {
 static bool isTTF(const std::string& mainStr) {
     return (mainStr.size() >= 4) && (mainStr.compare(mainStr.size() - 4, 4, ".ttf") == 0);
 }
+static bool isPFB(const std::string& mainStr) {
+    return (mainStr.size() >= 4) && (mainStr.compare(mainStr.size() - 4, 4, ".pfb") == 0);
+}
 static void findFonts(const std::string& dir, std::map<std::string, std::string>& fonts) {
     DIR* dp;
     struct dirent* ep;
@@ -346,7 +349,7 @@ static void findFonts(const std::string& dir, std::map<std::string, std::string>
                 continue;
             } else if (S_ISDIR(statbuf.st_mode)) {
                 findFonts(dname + "/", fonts);
-            } else if (isTTF(ep->d_name)) {
+            } else if (isTTF(ep->d_name) || isPFB(ep->d_name)) {
                 std::string fname = ep->d_name;
                 fname.resize(fname.size() - 4);
                 fonts[fname] = dname;
@@ -359,14 +362,8 @@ static void findFonts(const std::string& dir, std::map<std::string, std::string>
 void PixelOverlayManager::loadFonts() {
     if (!fontsLoaded) {
 #ifndef PLATFORM_OSX
-        long unsigned int i = 0;
-        char** mlfonts = MagickLib::GetTypeList("*", &i);
-        for (int x = 0; x < i; x++) {
-            fonts[mlfonts[x]] = "";
-            free(mlfonts[x]);
-        }
-        free(mlfonts);
         findFonts("/usr/share/fonts/truetype/", fonts);
+        findFonts("/usr/share/fonts/X11/Type1/", fonts);
         findFonts("/usr/local/share/fonts/", fonts);
 #else
         findFonts("/System/Library/fonts/", fonts);
@@ -376,10 +373,11 @@ void PixelOverlayManager::loadFonts() {
 }
 
 const std::string& PixelOverlayManager::mapFont(const std::string& f) {
+    static std::string EMPTY_STR;
     if (fonts[f] != "") {
         return fonts[f];
     }
-    return f;
+    return EMPTY_STR;
 }
 
 Json::Value PixelOverlayManager::getModelsAsJson() {
