@@ -109,17 +109,22 @@ function list_plugin_entries($menu)
     if ($settings['LogoLink'] != "")
       echo "</a>";
     if (
-      isset($settings['cape-info']) && isset($settings['cape-info']['vendor']) && isset($settings['cape-info']['vendor']['image'])
+      isset($settings['cape-info']) && isset($settings['cape-info']['vendor']) && (isset($settings['cape-info']['vendor']['image']) || isset($settings['cape-info']['header_cape_image']))
       && $settings['FetchVendorLogos'] == 1
     ) {
       $landing = $settings['cape-info']['vendor']['url'];
       if (isset($settings['cape-info']['vendor']['landingPage'])) {
         $landing = $settings['cape-info']['vendor']['landingPage'];
       }
+
+      isset($settings['cape-info']['header_cape_image']) ?
+        $image_url = $settings['cape-info']['header_cape_image'] :
+        $image_url = $settings['cape-info']['vendor']['image'];
+
       if ($settings['SendVendorSerial'] == 1) {
-        $iurl = $settings['cape-info']['vendor']['image'] . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
+        $iurl = $image_url . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
       } else {
-        $iurl = $settings['cape-info']['vendor']['image'];
+        $iurl = $image_url;
       }
 
       if ($settings['SendVendorSerial'] == 1) {
@@ -212,7 +217,7 @@ function list_plugin_entries($menu)
     <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
       <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
         <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-      </textarea>
+                  </textarea>
       </div>
       <script>
         function RebuildFPPDDone() {
