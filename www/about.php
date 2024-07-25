@@ -109,18 +109,18 @@ $freeSpace = disk_free_space($uploadDirectory);
         var osAssetMap = {};
         var originalFPPOS;
 
-//Page Load Logic
-    function pageSpecific_PageLoad_DOM_Setup() {
-        UpdateVersionInfo();
-        originalFPPOS = $('#OSSelect').html();
-        AppendGithubOS();
-        GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
-        GetItemCount('api/configfile/schedule.json', 'scheduleCount');
-	}
+        //Page Load Logic
+        function pageSpecific_PageLoad_DOM_Setup() {
+            UpdateVersionInfo();
+            originalFPPOS = $('#OSSelect').html();
+            AppendGithubOS();
+            GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
+            GetItemCount('api/configfile/schedule.json', 'scheduleCount');
+        }
 
-	function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
-        OnSystemStatusChange(updateSensorStatus);
-        $('.default-value').each(function () {
+        function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
+            OnSystemStatusChange(updateSensorStatus);
+            $('.default-value').each(function () {
                 var default_value = this.value;
                 $(this).on("focus", function () {
                     if (this.value == default_value) {
@@ -135,7 +135,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                     }
                 });
             });
-	}
+        }
 
         function showHideOsSelect() {
             if ($('#OSSelect option').length > 1) {
@@ -147,13 +147,13 @@ $freeSpace = disk_free_space($uploadDirectory);
 
 
         function AppendGithubOS() {
-            showHideOsSelect(); 
+            showHideOsSelect();
             <?
-        // we want at least a GB in order to be able to download the fppos and have space to then apply it
-        if ($freeSpace > 1000000000) {
-            ?>
-            
-            var allPlatforms = '';
+            // we want at least a GB in order to be able to download the fppos and have space to then apply it
+            if ($freeSpace > 1000000000) {
+                ?>
+
+                var allPlatforms = '';
                 if ($('#allPlatforms').is(':checked')) {
                     allPlatforms = 'api/git/releases/os/all';
                 } else {
@@ -177,10 +177,11 @@ $freeSpace = disk_free_space($uploadDirectory);
                             }
                         }
                     }
+                    sortHTMLSelectByText('#OSSelect', true, false);
                     showHideOsSelect();
                 }); <?
-        } ?>
-    }
+            } ?>
+        }
 
         function CloseFPPUpgradeDialog() {
             CloseModalDialog("upgradePopupStatus");
@@ -326,13 +327,13 @@ $freeSpace = disk_free_space($uploadDirectory);
         }
 
         function OSSelectChanged() {
-            var os = $('#OSSelect').val(); 
+            var os = $('#OSSelect').val();
             <?
-        // we want at least a 200MB in order to be able to apply the fppos
-        if ($freeSpace < 200000000) {
-            echo "os = '';\n";
+            // we want at least a 200MB in order to be able to apply the fppos
+            if ($freeSpace < 200000000) {
+                echo "os = '';\n";
             } ?>
-        if (os == '') {
+            if (os == '') {
                 $('#OSUpgrade').attr('disabled', 'disabled');
                 $('#OSDownload').attr('disabled', 'disabled');
             } else {
@@ -730,7 +731,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                 }
                                             }
                                         }
-                                        closedir($handle);                                        
+                                        closedir($handle);
                                     }
                                     ?>
                                     <tr>
@@ -815,7 +816,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                                         <? printf("%2.0f%%", $percentageUsed); ?>
                                                     </div>
                                                 </div>
-                                                                                      </td>
+                                            </td>
                                         </tr>
                                         <tr>
                                             <td>Media (
