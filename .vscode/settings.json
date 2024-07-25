@@ -134,7 +134,8 @@
         "numbers": "cpp",
         "semaphore": "cpp",
         "charconv": "cpp",
-        "execution": "cpp"
+        "execution": "cpp",
+        "menu.inc": "php"
     },
     "editor.formatOnSave": true,
     "cmake.configureOnOpen": false,
