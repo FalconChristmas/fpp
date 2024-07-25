@@ -177,6 +177,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                             }
                         }
                     }
+                    sortHTMLSelectByText('#OSSelect', true, false);
                     showHideOsSelect();
                 }); <?
             } ?>
