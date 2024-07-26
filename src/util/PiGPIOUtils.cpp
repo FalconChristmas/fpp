@@ -200,7 +200,7 @@ void PiGPIOPinProvider::Init() {
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-10", 15));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-11", 17));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-12", 18).setPwm(0, 0));
-        PI_PINS.push_back(PiGPIOPinCapabilities("P1-13", 27).setPwm(1, 0));
+        PI_PINS.push_back(PiGPIOPinCapabilities("P1-13", 27));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-15", 22));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-16", 23));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-18", 24));
@@ -215,7 +215,7 @@ void PiGPIOPinProvider::Init() {
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-29", 5));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-31", 6));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-32", 12).setPwm(0, 0));
-        PI_PINS.push_back(PiGPIOPinCapabilities("P1-33", 13));
+        PI_PINS.push_back(PiGPIOPinCapabilities("P1-33", 13).setPwm(1, 0));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-35", 19).setPwm(1, 0));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-36", 16));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-37", 26));
