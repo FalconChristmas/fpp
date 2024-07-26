@@ -2,6 +2,7 @@
     "id": "sample-pi-strings",
     "version": "1.0",
     "name": "sample-pi-strings",
+    "header_cape_image": "https://www.yoursite.com/path/to/some/header_logo.png",
     "defaultSettings": {
         "LEDDisplayType" : "1"
     },
