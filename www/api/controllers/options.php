@@ -243,11 +243,16 @@ function GetOptions_VideoOutput($playlist)
     $VideoOutputModels = array();
     if ($playlist) {
         $VideoOutputModels['--Default--'] = "--Default--";
-    } else {
-        if ($settings['Platform'] != "BeagleBone Black") {
-            $VideoOutputModels['HDMI'] = "HDMI";
+    }
+    $path = "/sys/class/drm/";
+    $files = array_diff(scandir($path), array('.', '..'));
+    foreach ($files as $file) {
+        if (str_contains($file, "HDMI")) {
+            $file = substr($file, stripos($file, "HDMI"));
+            $VideoOutputModels[$file] = $file;
         }
     }
+
     $VideoOutputModels['Disabled'] = "Disabled";
 
     $curl = curl_init('http://localhost:32322/models');
@@ -260,7 +265,9 @@ function GetOptions_VideoOutput($playlist)
     if ($request_content !== false) {
         $data = json_decode($request_content);
         foreach ($data as $value) {
-            $VideoOutputModels[$value->Name] = $value->Name;
+            if ($value->Type != "FB" || !$value->autoCreated) {
+                $VideoOutputModels[$value->Name] = $value->Name;
+            }
         }
     }
     return json($VideoOutputModels);
@@ -273,17 +280,28 @@ function GetOptions()
     $SettingName = params('SettingName');
 
     switch ($SettingName) {
-        case 'AudioMixerDevice':return GetOptions_AudioMixerDevice();
-        case 'AudioOutput':return GetOptions_AudioOutputDevice(false);
-        case 'AudioInput':return GetOptions_AudioInputDevice(false);
-        case 'AudioOutputList':return GetOptions_AudioOutputDevice(true);
-        case 'AudioInputList':return GetOptions_AudioInputDevice(true);
-        case 'FrameBuffer':return GetOptions_FrameBuffer();
-        case 'Locale':return GetOptions_Locale();
-        case 'RTC':return GetOptions_RTC();
-        case 'PlaylistVideoOutput':return GetOptions_VideoOutput(1);
-        case 'TimeZone':return GetOptions_TimeZone();
-        case 'VideoOutput':return GetOptions_VideoOutput(0);
+        case 'AudioMixerDevice':
+            return GetOptions_AudioMixerDevice();
+        case 'AudioOutput':
+            return GetOptions_AudioOutputDevice(false);
+        case 'AudioInput':
+            return GetOptions_AudioInputDevice(false);
+        case 'AudioOutputList':
+            return GetOptions_AudioOutputDevice(true);
+        case 'AudioInputList':
+            return GetOptions_AudioInputDevice(true);
+        case 'FrameBuffer':
+            return GetOptions_FrameBuffer();
+        case 'Locale':
+            return GetOptions_Locale();
+        case 'RTC':
+            return GetOptions_RTC();
+        case 'PlaylistVideoOutput':
+            return GetOptions_VideoOutput(1);
+        case 'TimeZone':
+            return GetOptions_TimeZone();
+        case 'VideoOutput':
+            return GetOptions_VideoOutput(0);
     }
 
     return json("{}");

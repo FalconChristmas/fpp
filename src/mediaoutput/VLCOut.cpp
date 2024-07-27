@@ -47,11 +47,13 @@
 
 class VLCInternalData {
 public:
-    VLCInternalData(const std::string& m, VLCOutput* out) :
+    VLCInternalData(const std::string& m, VLCOutput* out, const std::string &op) :
         fullMediaPath(m),
-        vlcOutput(out) {
+        vlcOutput(out),
+        outputPort(op) {
     }
     VLCOutput* vlcOutput;
+    std::string outputPort;
     libvlc_media_player_t* vlcPlayer = nullptr;
     libvlc_media_t* media = nullptr;
     libvlc_equalizer_t* equalizer = nullptr;
@@ -153,13 +155,15 @@ class VLCManager {
 public:
     VLCManager() {}
     ~VLCManager() {
-        if (vlcInstance) {
-            libvlc_release(vlcInstance);
+        for (auto &i : vlcInstances) {
+            if (i.second) {
+                libvlc_release(i.second);
+            }
         }
     }
 
     int load(VLCInternalData* data) {
-        if (vlcInstance == nullptr) {
+        if (vlcInstances[data->outputPort] == nullptr) {
             // const char *args[] {"-A", "alsa", "-V", "mmal_vout", nullptr};
             if (FileExists("/etc/fpp/desktop")) {
                 const char* dsp = getenv("DISPLAY");
@@ -182,6 +186,10 @@ public:
                 args.push_back("--avcodec-hw");
                 args.push_back("any");
             }
+
+            args.push_back("--drm-vout-display");
+            args.push_back(data->outputPort.c_str());
+            args.push_back("--no-drm-vout-no-modeset");
 #ifndef PLATFORM_OSX
             args.push_back("-A");
             args.push_back("alsa");
@@ -216,14 +224,16 @@ public:
             }
 
             args.push_back(nullptr);
-            vlcInstance = libvlc_new(args.size() - 1, &args[0]);
+            libvlc_instance_t *vlcInstance = libvlc_new(args.size() - 1, &args[0]);
 
             if (vlcInstance) {
                 libvlc_log_set(vlcInstance, logCallback, this);
+                vlcInstances[data->outputPort] = vlcInstance;
             } else {
                 WarningHolder::AddWarningTimeout("Could not create Video Ouput Device.", 60);
             }
         }
+        libvlc_instance_t *vlcInstance = vlcInstances[data->outputPort];
         if (vlcInstance) {
             if (startsWith(data->fullMediaPath, "http://") || startsWith(data->fullMediaPath, "https://"))
                 data->media = LIBVLC_MEDIA_NEWPATH(vlcInstance, data->fullMediaPath.c_str());
@@ -287,7 +297,7 @@ public:
         return 0;
     }
 
-    libvlc_instance_t* vlcInstance = nullptr;
+    std::map<std::string, libvlc_instance_t*> vlcInstances;
 };
 
 static VLCManager vlcManager;
@@ -326,7 +336,7 @@ VLCOutput::VLCOutput(const std::string& mediaFilename, MediaOutputStatus* status
     }
     currentMediaFilename = mediaFilename;
     m_mediaFilename = mediaFilename;
-    data = new VLCInternalData(fullMediaPath, this);
+    data = new VLCInternalData(fullMediaPath, this, videoOut);
     vlcManager.load(data);
 }
 VLCOutput::~VLCOutput() {

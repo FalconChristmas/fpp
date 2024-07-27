@@ -219,6 +219,13 @@ bool HasVideoForMedia(std::string& filename) {
     return fp != "";
 }
 
+static bool IsHDMIOut(std::string &vOut) {
+    if (vOut == "--HDMI--" || vOut == "HDMI") {
+        vOut = "HDMI-A-1";
+    }
+    return vOut.starts_with("HDMI-");
+}
+
 MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::string& vOut) {
     std::string tmpFile(mediaFilename);
     std::size_t found = mediaFilename.find_last_of(".");
@@ -228,7 +235,7 @@ MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::
         return nullptr;
     }
     std::string ext = toLowerCopy(mediaFilename.substr(found + 1));
-
+    std::string vo = vOut;
 #ifdef HAS_VLC
     if (IsExtensionAudio(ext)) {
         if (getFPPmode() == REMOTE_MODE) {
@@ -236,12 +243,12 @@ MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::
         } else {
             return new SDLOutput(mediaFilename, &mediaOutputStatus, "--Disabled--");
         }
-    } else if (IsExtensionVideo(ext) && (vOut == "--HDMI--" || vOut == "HDMI")) {
-        return new VLCOutput(mediaFilename, &mediaOutputStatus, vOut);
+    } else if (IsExtensionVideo(ext) && IsHDMIOut(vo)) {
+        return new VLCOutput(mediaFilename, &mediaOutputStatus, vo);
     } else if (IsExtensionVideo(ext))
 #endif
     {
-        return new SDLOutput(mediaFilename, &mediaOutputStatus, vOut);
+        return new SDLOutput(mediaFilename, &mediaOutputStatus, vo);
     }
     return nullptr;
 }
