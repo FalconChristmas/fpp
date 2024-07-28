@@ -14,6 +14,8 @@
 #include "KMSFrameBuffer.h"
 
 #ifdef HAS_KMS_FB
+#include <sys/ioctl.h>
+#include <drm/drm.h>
 
 #include <sys/mman.h>
 
@@ -28,6 +30,7 @@ KMSFrameBuffer::KMSFrameBuffer() {
             if (FileExists("/dev/dri/card" + std::to_string(cn))) {
                 kms::Card* card = new kms::Card("/dev/dri/card" + std::to_string(cn));
                 CARDS[card] = new kms::ResourceManager(*card);
+                card->drop_master();
             }
         }
     }
@@ -108,6 +111,7 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
                 m_pageSize = m_fb[0]->size(0);
                 m_bufferSize = m_pageSize;
                 m_crtc->set_plane(m_plane, *m_fb[0], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
+                m_cardFd = card.first->fd();
                 return 1;
             }
         }
@@ -141,14 +145,8 @@ void KMSFrameBuffer::DestroyFrameBuffer(void) {
 
 void KMSFrameBuffer::SyncLoop() {
     int dummy = 0;
-
     if (m_pages == 1) {
         return;
-    }
-    for (auto& card : CARDS) {
-        if (card.first->is_master()) {
-            card.first->drop_master();
-        }
     }
 
     while (m_runLoop) {
@@ -174,12 +172,13 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
     if (!pageChanged | m_pages == 1)
         return;
 
-    m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
-    for (auto& card : CARDS) {
-        if (card.first->is_master()) {
-            card.first->drop_master();
-        }
+    ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
+    int i = m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
+    if (i) {
+        m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
+        m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
     }
+    ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
 }
 
 #endif

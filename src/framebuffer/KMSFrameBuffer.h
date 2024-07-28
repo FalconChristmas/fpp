@@ -29,6 +29,7 @@ public:
     virtual void SyncLoop() override;
     virtual void SyncDisplay(bool pageChanged = false) override;
 
+    int m_cardFd = -1;
     kms::Connector* m_connector = nullptr;
     kms::Crtc* m_crtc = nullptr;
     kms::Videomode m_mode;
