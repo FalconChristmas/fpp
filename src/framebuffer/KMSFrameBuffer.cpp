@@ -15,7 +15,7 @@
 
 #ifdef HAS_KMS_FB
 #include <sys/ioctl.h>
-#include <drm/drm.h>
+#include <libdrm/drm.h>
 
 #include <sys/mman.h>
 
