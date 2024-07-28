@@ -379,7 +379,7 @@ cd /opt 2> /dev/null || mkdir /opt
 export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
-	debian_11 | debian_12 | ubuntu_22.04 | ubuntu_22.10 | linuxmint_21)
+	debian_11 | debian_12 | ubuntu_22.* | ubuntu_24.* | linuxmint_21)
 		case $FPPPLATFORM in
 			'BeagleBone Black')
 				echo "FPP - Skipping non-free for $FPPPLATFORM"
@@ -394,7 +394,7 @@ case "${OSVER}" in
 
 
         #remove a bunch of packages that aren't neeeded, free's up space
-        PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools triggerhappy pocketsphinx-en-us python3-smbus guile-2.2-libs \
+        PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy triggerhappy pocketsphinx-en-us python3-smbus guile-2.2-libs \
             python3-werkzeug python3-click python3-colorama python3-decorator python3-dev python3-distro \
             python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
             gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv iwd"
@@ -495,7 +495,7 @@ case "${OSVER}" in
                       gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev qrencode libusb-1.0-0-dev \
-                      flex bison pkg-config libasound2-dev python3-distutils libssl-dev libtool bsdextrautils iw rsyslog tzdata"
+                      flex bison pkg-config libasound2-dev python3-setuptools libssl-dev libtool bsdextrautils iw rsyslog tzdata"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity zram-tools"
@@ -514,7 +514,9 @@ case "${OSVER}" in
         if ! $build_vlc; then
             PACKAGE_LIST="$PACKAGE_LIST vlc libvlc-dev"
         fi
-
+        if [ "${OSVER}" == "debian_12" ]; then
+            PACKAGE_LIST="$PACKAGE_LIST python3-distutils"
+        fi
         if $skip_apt_install; then
             PACKAGE_LIST=""
         else
@@ -988,12 +990,12 @@ bash scripts/upgrade_config -notee
 
 
 #######################################
-PHPDIR="/etc/php/7.4"
-if [ "${OSVER}" == "ubuntu_22.10" ]; then
-    PHPDIR="/etc/php/8.1"
-fi
-if [ "${OSVER}" == "debian_12" ]; then
+if [ -d /etc/php/8.3 ]; then
+    PHPDIR="/etc/php/8.3"
+elif [ -d /etc/php/8.2 ]; then
     PHPDIR="/etc/php/8.2"
+elif [ -d /etc/php/8.1 ]; then
+    PHPDIR="/etc/php/8.1"
 fi
 
 echo "FPP - Configuring PHP"

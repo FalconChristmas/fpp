@@ -82,8 +82,14 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
                 LogDebug(VB_CHANNELOUT, "KMSFrameBuffer:   Connector: %s   Mode: %dx%d\n", conn->fullname().c_str(), m_mode.hdisplay, m_mode.vdisplay);
                 m_crtc->set_mode(m_connector, m_mode);
 
+                m_bpp = 24;
                 for (int x = 0; x < 2; x++) {
-                    m_fb[x] = new kms::DumbFramebuffer(*card.first, m_mode.hdisplay, m_mode.vdisplay, kms::PixelFormat::RGB888);
+                    try {
+                        m_fb[x] = new kms::DumbFramebuffer(*card.first, m_mode.hdisplay, m_mode.vdisplay, kms::PixelFormat::RGB888);
+                    } catch (...) {
+                        m_fb[x] = new kms::DumbFramebuffer(*card.first, m_mode.hdisplay, m_mode.vdisplay, kms::PixelFormat::XRGB8888);
+                        m_bpp = 32;
+                    }
                     m_pageBuffers[x] = m_fb[x]->map(0);
                 }
                 m_plane = m_resourceManager->reserve_generic_plane(m_crtc, m_fb[0]->format());
@@ -97,7 +103,6 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
                 }
                 m_cPage = 0;
                 m_pPage = 0;
-                m_bpp = 24;
                 m_rowStride = m_fb[0]->stride(0);
                 m_rowPadding = m_rowStride - (m_width * m_bpp / 8);
                 m_pageSize = m_fb[0]->size(0);
