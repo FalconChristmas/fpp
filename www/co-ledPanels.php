@@ -630,6 +630,8 @@ function PopulateEthernetInterfaces()
 
 function LEDPanelsConnectionChanged()
 {
+    WarnIfSlowNIC();
+
 	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "X11PanelMatrix")) {
 		$('#LEDPanelsGPIOSlowdownLabel').hide();
 		$('#LEDPanelsGPIOSlowdown').hide();
@@ -1262,6 +1264,16 @@ function TogglePanelTestPattern() {
     }
 }
 
+function WarnIfSlowNIC() {
+    var NicSpeed = parseInt($('#LEDPanelsInterface').find(":selected").text().split('(')[1].split('M')[0]);
+    if (NicSpeed < 1000 && $('#LEDPanelsConnection').find(":selected").text()=="ColorLight") {
+        $('#divLEDPanelWarnings').html('<div class="alert alert-danger">Selected interface does not support 1000+ Mbps, which is the Colorlight minimum</div>');
+    } else
+    {
+        $('#divLEDPanelWarnings').html("");
+    }
+}
+
 $(document).ready(function(){
 	InitializeLEDPanels();
 	LEDPanelsConnectionChanged();
@@ -1289,7 +1301,7 @@ if ((isset($settings['cape-info'])) &&
 <?
 }
 ?>
-
+WarnIfSlowNIC();
 });
 
 </script>
@@ -1303,6 +1315,9 @@ if ((isset($settings['cape-info'])) &&
                     <input type='button' class="buttons btn-success ms-1" onClick='SaveChannelOutputsJSON();' value='Save'>
                 </div>
             </div>
+        </div>
+        <div id="divLEDPanelWarnings">
+
         </div>
         <div class="backdrop tableOptionsForm">
             <div class="row">
@@ -1339,7 +1354,7 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
                 </div>
                 <div class="col-md-auto form-inline" id="LEDPanelsConnectionInterface">
                     <b>Interface:</b>
-                    <select id='LEDPanelsInterface' type='hidden'>
+                    <select id='LEDPanelsInterface' type='hidden' onChange='WarnIfSlowNIC();'>
                         <?PopulateEthernetInterfaces();?>
                     </select>
                 </div>
