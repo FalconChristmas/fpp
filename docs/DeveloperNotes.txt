@@ -43,7 +43,11 @@ sudo apt-get install distcc
 
 On the Pi, you need to run something similar to:
 sudo distccd -a 192.168.0.0/16 -j 6 --daemon
-but use the network/mask that works for you network.
+but use the network/mask that works for you network.   If you want it setup to start
+automatically with all the proper settings, edit /etc/default/distcc and set:
+STARTDISTCC="true"
+ALLOWEDNETS="192.168.0.0/16"
+and comment out the listener line.   Then run "systemctl enable distcc".
 
 On the Beagle, before running make, run:
 export DISTCC_SKIP_LOCAL_RETRY=true
