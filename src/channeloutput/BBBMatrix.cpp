@@ -987,14 +987,7 @@ int BBBMatrix::Init(Json::Value config) {
     if ((m_frames[7] + alignedLen) < maxPtr) {
         m_numFrames++;
     }
-    m_curFrame = m_numFrames - 1;
-    memset(m_pru->ddr + m_dataOffset, 0, m_pru->ddr_size - m_dataOffset);
-    m_pruData->address_dma = m_pru->ddr_addr + m_dataOffset;
-    // make sure memory is flushed before command is set to 1
-    __asm__ __volatile__("" ::
-                             : "memory");
-    m_pruData->command = 1;
-
+    m_curFrame = 0;
     if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::string dd = "LED Panels";
         if (config.isMember("description")) {
@@ -1011,6 +1004,19 @@ int BBBMatrix::Init(Json::Value config) {
                                                           "H", m_invertedData ? "BL" : "TL",
                                                           m_height, 1);
     }
+    // We need to send the data once to make sure the panels are cleared and "off"
+    // However, this doesn't always work so we'll set everything slightly "on" first
+    // real quick to make sure all the memory changes and is properly mapped into
+    // the process, then we'll reset everything to off
+    for (int x = 0; x < m_numFrames; x++) {
+        memset(m_frames[x], 0x1, m_fullFrameLen);
+    }
+    msync(m_frames[0], m_pru->ddr_size, MS_SYNC | MS_INVALIDATE);
+    SendData(nullptr);
+    for (int x = 0; x < m_numFrames; x++) {
+        memset(m_frames[x], 0x0, m_fullFrameLen);
+    }
+    SendData(nullptr);
     return ChannelOutput::Init(config);
 }
 
@@ -1186,6 +1192,7 @@ void BBBMatrix::PrepData(unsigned char* channelData) {
 }
 int BBBMatrix::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBBMatrix::SendData(%p)\n", channelData);
+
     // long long startTime = GetTime();
     uint8_t* addr = (uint8_t*)m_pru->ddr_addr + m_dataOffset;
     addr += (m_frames[m_curFrame] - m_frames[0]);
@@ -1203,7 +1210,7 @@ int BBBMatrix::SendData(unsigned char* channelData) {
     }
 
     // make sure memory is flushed before command is set to 1
-    msync(ptr, m_fullFrameLen, MS_SYNC);
+    msync(ptr, m_fullFrameLen, MS_SYNC | MS_INVALIDATE);
     m_pruData->address_dma = (uintptr_t)addr;
 
     __asm__ __volatile__("" ::

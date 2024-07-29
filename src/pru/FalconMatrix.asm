@@ -398,6 +398,13 @@ DONETIMES:
     RESET_PRU_CLOCK tmp_reg1, tmp_reg2
     LDI statOffset, 0
 
+    //zero out data
+    LDI32 data_addr, 0
+    LDI32 r2, 0
+    SBCO &data_addr, CONST_PRUDRAM, 0, 8
+
+    // make sure the display is off
+    DISPLAY_OFF
 READ_LOOP:
     ; Load the pointer to the buffer from PRU DRAM into r1
     ; command into r2
