@@ -7,7 +7,7 @@ After=home-fpp-media.mount tmp.mount
 Wants=home-fpp-media.mount tmp.mount systemd-networkd.service networking.target
 
 [Service]
-ExecStartPre=-/bin/sh -c "rm -rf /home/fpp/media/tmp/*"
+ExecStartPre=-/bin/sh -c "rm -rf /home/fpp/media/tmp/cape_detect_done"
 ExecStart=/opt/fpp/src/fppoled
 Type=simple
 

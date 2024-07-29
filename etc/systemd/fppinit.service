@@ -9,7 +9,7 @@ Wants=home-fpp-media.mount tmp.mount systemd-networkd.service networking.target
 Type=oneshot
 RemainAfterExit=yes
 TimeoutStartSec=60
-ExecStartPre=-/bin/sh -c "mkdir -p /home/fpp/media/logs"
+ExecStartPre=-/bin/sh -c "mkdir -p /home/fpp/media/logs; rm -f /home/fpp/media/tmp/cape_detect_done"
 ExecStart=/opt/fpp/src/fppinit start
 ExecStop=-/bin/sh -c "rm -rf /home/fpp/media/tmp/*"
 

@@ -116,7 +116,6 @@ static void DetectCape() {
     if (!FileExists("/.dockerenv")) {
 #ifdef CAPEDETECT
         printf("FPP - Checking for Cape/Hat\n");
-        remove_recursive("/home/fpp/media/tmp/", false);
         exec("/opt/fpp/src/fppcapedetect -no-set-permissions");
 #endif
     }
@@ -1175,6 +1174,12 @@ int main(int argc, char* argv[]) {
     }
     printf("------------------------------\nRunning FPPINIT %s\n", action.c_str());
     if (action == "start") {
+        if (!FileExists("/.dockerenv")) {
+#ifdef CAPEDETECT
+            printf("FPP - Cleaning tmp\n");
+            remove_recursive("/home/fpp/media/tmp/", false);
+#endif
+        }
         createDirectories();
         printf("FPP - Directories created\n");
         checkSSHKeys();
@@ -1200,6 +1205,7 @@ int main(int argc, char* argv[]) {
         checkUnpartitionedSpace();
         printf("Setting file ownership\n");
         setFileOwnership();
+	PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
     } else if (action == "postNetwork") {
         handleBootDelay();
         // turn off blinking cursor
