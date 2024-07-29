@@ -621,8 +621,9 @@ function PopulateEthernetInterfaces()
         if ($iface === "eth0") {
             echo " selected";
         }
-
-        echo ">" . $iface . "</option>";
+        
+        $ifaceSpeed = (int)file_get_contents("/sys/class/net/$iface/speed");
+        echo ">" . $iface . " (" . $ifaceSpeed ."Mbps)</option>";
     }
 }
 ?>
