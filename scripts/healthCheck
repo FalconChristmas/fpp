@@ -202,7 +202,7 @@ HC_PingGateway() {
 HC_Internet() {
     PrintItemHead "Internet Access"
 
-    curl http://1.1.1.1/cdn-cgi/trace --max-time 2 > /dev/null 2>&1
+    curl http://192.0.43.10 --max-time 2 > /dev/null 2>&1 #this checks the iana example.com
     if [ $? -eq 0 ]
     then
         STATUS=1
