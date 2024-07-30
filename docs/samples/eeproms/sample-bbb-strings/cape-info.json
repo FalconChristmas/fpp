@@ -2,7 +2,8 @@
     "id": "sample-bbb-strings",
     "version": "1.0",
     "name": "sample-bbb-strings",
-	"sendStats": 1,
+    "header_cape_image": "https://www.yoursite.com/path/to/some/header_logo.png",
+    "sendStats": 1,
     "defaultSettings": {
         "LEDDisplayType" : "1"
     },
