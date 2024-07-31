@@ -5646,34 +5646,65 @@ function GetRunningEffects () {
 }
 
 function Reboot () {
-	if (confirm('REBOOT the Falcon Player?')) {
-		ClearRestartFlag();
-		ClearRebootFlag();
-
-		// Delay reboot for 1 second to allow flags to be cleared
-		setTimeout(function () {
-			$.get({
-				url: 'api/system/reboot',
-				data: '',
-				success: function (data) {
-					// Show FPP is rebooting notification for 60 seconds then reload the page
-					$.jGrowl('FPP is rebooting..', {
-						life: 60000,
-						themeState: 'detract'
-					});
-					setTimeout(function () {
-						location.href = 'index.php';
-					}, 60000);
-				},
-				error: function (...args) {
-					DialogError(
-						'Command failed',
-						'Reboot Command failed' + show_details(args)
-					);
+	DoModalDialog({
+		id: 'RebootModal',
+		title: 'Reboot FPP Device?',
+		noClose: false,
+		backdrop: 'static',
+		keyboard: false,
+		body: 'Are you sure you wish to reboot the device?',
+		class: 'modal-sm',
+		buttons: {
+			Reboot: {
+				disabled: false,
+				id: 'RebootButton',
+				class: 'btn-danger',
+				click: function () {
+					//CloseModalDialog('RebootModal');
+					//location.reload();
+					RebootFPP();
+					CloseModalDialog('RebootModal');
 				}
-			});
-		}, 1000);
-	}
+			},
+			Abort: {
+				disabled: false,
+				id: 'AbortButton',
+				click: function () {
+					CloseModalDialog('RebootModal');
+					location.reload();
+				}
+			}
+		}
+	});
+}
+
+function RebootFPP () {
+	ClearRestartFlag();
+	ClearRebootFlag();
+
+	// Delay reboot for 1 second to allow flags to be cleared
+	setTimeout(function () {
+		$.get({
+			url: 'api/system/reboot',
+			data: '',
+			success: function (data) {
+				// Show FPP is rebooting notification for 60 seconds then reload the page
+				$.jGrowl('FPP is rebooting..', {
+					life: 60000,
+					themeState: 'detract'
+				});
+				setTimeout(function () {
+					location.href = 'index.php';
+				}, 60000);
+			},
+			error: function (...args) {
+				DialogError(
+					'Command failed',
+					'Reboot Command failed' + show_details(args)
+				);
+			}
+		});
+	}, 1000);
 }
 
 function Shutdown () {
