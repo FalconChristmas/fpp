@@ -9,9 +9,6 @@ else
     BREWLOC="/usr/local"
 fi
 
-export PHP_VERSION=8.2
-
-
 echo "FPP macOS Installation"
 echo ""
 echo "Welcome to the FPP install script for macOS.   Installing FPP on a Mac is"
@@ -84,7 +81,7 @@ ccache -M 350M
 ccache --set-config=temporary_dir=/tmp
 ccache --set-config=sloppiness=pch_defines,time_macros
 echo ""
-echo "The dependencies are now installed.   We will not proceed to setup FPP."
+echo "The dependencies are now installed.   We will now proceed to setup FPP."
 echo "We will now clone FPP into the current directory and create a bunch of "
 echo "subdirectories to store configuration, plugins, etc...   We will also"
 echo "build FPPD and configure the HTTP server."
@@ -163,6 +160,14 @@ SetEnvIfNoCase ^Authorization$ "(.+)" HTTP_AUTHORIZATION=\$1
     Require all denied
 </FilesMatch>
 EOF
+
+if [ -d ${BREWLOC}/etc/php/8.3 ]; then
+    PHP_VERSION="8.3"
+elif [ -d ${BREWLOC}/etc/php/8.2 ]; then
+    PHP_VERSION="8.2"
+elif [ -d ${BREWLOC}/etc/php/8.1 ]; then
+    PHP_VERSION="8.1"
+fi
 
 
 echo "Configuring PHP"
