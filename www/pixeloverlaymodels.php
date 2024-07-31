@@ -430,16 +430,19 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                 buttons: {
                     Channel: function () {
                         AddNewChannelModel();
+                        common_ViewPortChange();
                         CloseModalDialog("AddPixelOverlayModel");
                     },
                     <? if ($showAddFBButton) { ?>
                         FrameBuffer: function () {
                             AddNewFBModel();
+                            common_ViewPortChange();
                             CloseModalDialog("AddPixelOverlayModel");
                         },
                     <? } ?>
                     SubModel: function () {
                         AddNewSubModel();
+                        common_ViewPortChange();
                         CloseModalDialog("AddPixelOverlayModel");
                     }
                 }
@@ -461,6 +464,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                 $('#channelMemMaps .selectedEntry').remove();
                 tableInfo.selected = -1;
                 SetButtonState("#btnDelete", "disable");
+                common_ViewPortChange();
             }
         }
 
@@ -471,6 +475,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                     $this.remove();
                 }
             });
+            common_ViewPortChange();
         }
 
         function pageSpecific_PageLoad_DOM_Setup() {
