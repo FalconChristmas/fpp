@@ -218,6 +218,7 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
         $.post("api/channel/output/co-pwm", JSON.stringify(postData)).done(function (data) {
             $.jGrowl("PWM/Servo Output Configuration Saved", { themeState: 'success' });
             SetRestartFlag(1);
+            common_ViewPortChange();
         }).fail(function () {
             DialogError("Save PWM/Servo Outputs", "Save Failed");
         });
@@ -266,15 +267,17 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
                     </div>
                 </div>
                 <div class="col-md-auto form-inline">
-                    <span style=' white-space: nowrap; display:inline; overflow:auto; align-items:center;'>&nbsp;<b>Frequency:</b>&nbsp;<select id='PWMFrequency'>
-                        <option value='50hz'>50hz</optoin>
-                        <option value='80hz'>80hz</optoin>
-                        <option value='100hz'>100hz</optoin>
-                        <option value='120hz'>120hz</optoin>
-                        <option value='150hz'>150hz</optoin>
-                        <option value='200hz'>200hz</optoin>
-                        <option value='240hz'>240hz</optoin>
-                        <option value='250hz'>250hz</optoin>
+                    <span
+                        style=' white-space: nowrap; display:inline; overflow:auto; align-items:center;'>&nbsp;<b>Frequency:</b>&nbsp;<select
+                            id='PWMFrequency'>
+                            <option value='50hz'>50hz</optoin>
+                            <option value='80hz'>80hz</optoin>
+                            <option value='100hz'>100hz</optoin>
+                            <option value='120hz'>120hz</optoin>
+                            <option value='150hz'>150hz</optoin>
+                            <option value='200hz'>200hz</optoin>
+                            <option value='240hz'>240hz</optoin>
+                            <option value='250hz'>250hz</optoin>
                         </select>
                     </span>
                 </div>

@@ -1,21 +1,21 @@
 <?php include 'co-other-modules.php'; ?>
 <script>
 
-/*
-    // The individual tabs on channeloutputs cannot use these functions
-    // as they are already defined in  channeloutputs.php and thus would 
-    // break other tabs.
-	function pageSpecific_PageLoad_DOM_Setup() {
+	/*
+		// The individual tabs on channeloutputs cannot use these functions
+		// as they are already defined in  channeloutputs.php and thus would 
+		// break other tabs.
+		function pageSpecific_PageLoad_DOM_Setup() {
+			GetChannelOutputs();
+		}
+		function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
+			SetupSelectableTableRow(otherTableInfo);
+		}
+	*/
+	$(document).ready(function () {
 		GetChannelOutputs();
-	}
-	function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
 		SetupSelectableTableRow(otherTableInfo);
-	}
-*/
-    $(document).ready(function(){
-        GetChannelOutputs();
-        SetupSelectableTableRow(otherTableInfo);
-    });
+	});
 
 
 	/////////////////////////////////////////////////////////////////////////////
@@ -853,6 +853,7 @@
 			PopulateChannelOutputTable(data);
 			$.jGrowl("Channel Output Configuration Saved", { themeState: 'success' });
 			SetRestartFlag(1);
+			common_ViewPortChange();
 		}).fail(function () {
 			DialogError("Save Channel Outputs", "Save Failed");
 		});
@@ -945,69 +946,70 @@
 	}
 
 	function AddOtherOutput() {
-	//Check there isn't a new unconfigured output already displayed
-	if ($('select#outputType').length > 0 ) {
-		DialogError("Configure One Output At a Time","Please configure the newly added output row before adding another");
-	} else {
+		//Check there isn't a new unconfigured output already displayed
+		if ($('select#outputType').length > 0) {
+			DialogError("Configure One Output At a Time", "Please configure the newly added output row before adding another");
+		} else {
 
-		var currentRows = $("#tblOtherOutputs > tbody > tr").length;
+			var currentRows = $("#tblOtherOutputs > tbody > tr").length;
 
-		var newRow =
-			"<tr class='rowUniverseDetails'><td style='vertical-align:top'>" + (currentRows + 1) + "</td>" +
-			"<td style='vertical-align:top'><input class='act' type=checkbox></td>" +
-			"<td style='vertical-align:top' class='type'><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
-			"<option value=''>Select a type</option>";
+			var newRow =
+				"<tr class='rowUniverseDetails'><td style='vertical-align:top'>" + (currentRows + 1) + "</td>" +
+				"<td style='vertical-align:top'><input class='act' type=checkbox></td>" +
+				"<td style='vertical-align:top' class='type'><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
+				"<option value=''>Select a type</option>";
 
 
-		if (Object.keys(SerialDevices).length > 0) {
-			newRow += "<option value='DMX-Pro'>DMX-Pro</option>" +
-				"<option value='DMX-Open'>DMX-Open</option>" +
-				"<option value='GenericSerial'>Generic Serial</option>" +
-				"<option value='LOR'>LOR</option>" +
-				"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
-				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
-				"<option value='USBRelay'>USBRelay</option>" +
-				"<option value='Renard'>Renard</option>";
-		}
-		<?
-		if ($settings['Platform'] == "Raspberry Pi") {
-			?>
+			if (Object.keys(SerialDevices).length > 0) {
+				newRow += "<option value='DMX-Pro'>DMX-Pro</option>" +
+					"<option value='DMX-Open'>DMX-Open</option>" +
+					"<option value='GenericSerial'>Generic Serial</option>" +
+					"<option value='LOR'>LOR</option>" +
+					"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
+					"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
+					"<option value='USBRelay'>USBRelay</option>" +
+					"<option value='Renard'>Renard</option>";
+			}
+			<?
+			if ($settings['Platform'] == "Raspberry Pi") {
+				?>
 				if (Object.keys(SPIDevices).length > 0) {
-	newRow += "<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
-		"<option value='MAX7219Matrix'>MAX7219 Matrix</option>";
-						}
-						<?
+					newRow += "<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
+						"<option value='MAX7219Matrix'>MAX7219 Matrix</option>";
+				}
+				<?
+			}
+			?>
+			newRow += "<option value='HTTPVirtualDisplay'>HTTP Virtual Display</option>";
+			newRow += "</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
+				"<td style='vertical-align:top'><input class='start' type='text' size=7 maxlength=7 value='' style='display: none;'></td>" +
+				"<td style='vertical-align:top'><input class='count' type='text' size=7 maxlength=7 value='' style='display: none;'></td>" +
+				"<td> </td>" +
+				"</tr>";
+
+			$('#tblOtherOutputs > tbody').append(newRow);
+
+			///////new method
+			output_modules.forEach(function addOption(output_module) {
+				$('#outputType').append(new Option(output_module.typeFriendlyName, output_module.typeName));
+			})
+
+			// Sort options but keep 'Select a type' at the top
+			$('#outputType').html($('#outputType').find('option').sort(function (a, b) {
+				a = $(a).text().toUpperCase();
+				b = $(b).text().toUpperCase();
+
+				if (a == 'SELECT A TYPE') return -1;
+				if (b == 'SELECT A TYPE') return 1;
+
+				return a < b ? -1 : 1
+			}));
+
+			//Default to 'Select a Type' as default selected option
+			$('#outputType').find('option')[0].selected = true;
+
 		}
-		?>
-		newRow += "<option value='HTTPVirtualDisplay'>HTTP Virtual Display</option>";
-		newRow += "</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
-			"<td style='vertical-align:top'><input class='start' type='text' size=7 maxlength=7 value='' style='display: none;'></td>" +
-			"<td style='vertical-align:top'><input class='count' type='text' size=7 maxlength=7 value='' style='display: none;'></td>" +
-			"<td> </td>" +
-			"</tr>";
-
-		$('#tblOtherOutputs > tbody').append(newRow);
-
-		///////new method
-		output_modules.forEach(function addOption(output_module) {
-			$('#outputType').append(new Option(output_module.typeFriendlyName, output_module.typeName));
-		})
-
-		// Sort options but keep 'Select a type' at the top
-		$('#outputType').html($('#outputType').find('option').sort(function (a, b) {
-			a = $(a).text().toUpperCase();
-			b = $(b).text().toUpperCase();
-
-			if (a == 'SELECT A TYPE') return -1;
-			if (b == 'SELECT A TYPE') return 1;
-
-			return a < b ? -1 : 1
-		}));
-
-		//Default to 'Select a Type' as default selected option
-		$('#outputType').find('option')[0].selected=true;
-
-	}}
+	}
 
 	var otherTableInfo = {
 		tableName: "tblOtherOutputs",
