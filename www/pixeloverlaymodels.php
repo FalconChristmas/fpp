@@ -355,6 +355,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             $.post("api/models", postData).done(function (data) {
                 $.jGrowl("Pixel Overlay Models saved.", { themeState: 'success' });
                 SetRestartFlag(2);
+                common_ViewPortChange();
             }).fail(function () {
                 DialogError("Save Pixel Overlay Models", "Save Failed, is fppd running?");
             });
