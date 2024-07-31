@@ -63,6 +63,7 @@
                         $.jGrowl("Input Delay Saved", { themeState: 'success' });
                         SetRestartFlag(2);
                         CheckRestartRebootFlags();
+                        common_ViewPortChange();
                     }
                 });
 
@@ -159,6 +160,7 @@
                     $.jGrowl('DMX Inputs Saved', { themeState: 'success' });
                     SetRestartFlag(2);
                     CheckRestartRebootFlags();
+                    common_ViewPortChange();
                 })
                 .fail(function () {
                     DialogError('Save Universes', 'Error: Unable to save DMX Inputs.');
