@@ -74,6 +74,7 @@ function SaveGPIOInputs() {
                     if (data.Status == 'OK') {
                         $.jGrowl("GPIO Inputs Saved.",{themeState:'success'});
                         SetRestartFlag(2);
+                        common_ViewPortChange();
                     } else {
                         alert('ERROR: ' + data.Message);
                     }
