@@ -276,7 +276,7 @@ function LEDPanelsLayoutChanged() {
             settings['LEDPanelsLayout'] = value;
             LEDPanelLayoutChanged();
             SetRestartFlag(2);
-
+            common_ViewPortChange();
         }).fail(function() {
             DialogError('Panel Layout', 'Failed to save Panel Layout');
         });

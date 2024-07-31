@@ -2272,6 +2272,7 @@ function readCapes($cd, $capes)
         $.post("api/channel/output/" + PIXEL_STRING_FILE_NAME, JSON.stringify(postData)).done(function (data) {
             $.jGrowl("Pixel String Output Configuration Saved", { themeState: 'success' });
             SetRestartFlag(1);
+            common_ViewPortChange();
         }).fail(function () {
             DialogError("Save Pixel String Outputs", "Save Failed");
         });
