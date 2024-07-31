@@ -280,6 +280,7 @@ require_once "common.php";
                 $.jGrowl("Output Processors Table saved", { themeState: 'success' });
                 PopulateOutputProcessorTable(data);
                 SetRestartFlag(2);
+                common_ViewPortChange();
             }).fail(function () {
                 DialogError("Save Output Processors Table", "Save Failed");
             });
