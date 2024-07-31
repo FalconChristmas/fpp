@@ -92,6 +92,19 @@ void GetFrameBufferDevices(Json::Value& v, bool debug) {
         }
     }
 #endif
+#ifdef PLATFORM_OSX
+    if (v.size() == 0) {
+        if (debug) {
+            v["fb0"] = Json::Value(Json::objectValue);
+            v["fb1"] = Json::Value(Json::objectValue);
+            v["fb2"] = Json::Value(Json::objectValue);
+        } else {
+            v.append("fb0");
+            v.append("fb1");
+            v.append("fb2");
+        }
+    }
+#endif
 }
 
 int main(int argc, char* argv[]) {
