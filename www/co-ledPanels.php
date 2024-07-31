@@ -1266,7 +1266,7 @@ function TogglePanelTestPattern() {
 
 function WarnIfSlowNIC() {
     var NicSpeed = parseInt($('#LEDPanelsInterface').find(":selected").text().split('(')[1].split('M')[0]);
-    if (NicSpeed < 1000 && $('#LEDPanelsConnection').find(":selected").text()=="ColorLight") {
+    if (NicSpeed < 1000 && $('#LEDPanelsConnection').find(":selected").text()=="ColorLight" && $('#LEDPanelsEnabled').is(":checked")==true) {
         $('#divLEDPanelWarnings').html('<div class="alert alert-danger">Selected interface does not support 1000+ Mbps, which is the Colorlight minimum</div>');
     } else
     {
@@ -1324,7 +1324,7 @@ WarnIfSlowNIC();
                 <div class="col-md-auto">
                     <div class="backdrop-dark form-inline enableCheckboxWrapper">
                         <div><b>Enable <span class='capeNamePanels'>Led Panels</span>:&nbsp;</b></div>
-                        <div><input id='LEDPanelsEnabled' type='checkbox'></div>
+                        <div><input id='LEDPanelsEnabled' type='checkbox' onChange="WarnIfSlowNIC();"></div>
                     </div>
                 </div>
                 <div class="col-md-auto form-inline">
