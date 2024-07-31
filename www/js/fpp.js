@@ -5708,25 +5708,56 @@ function RebootFPP () {
 }
 
 function Shutdown () {
-	if (confirm('SHUTDOWN the Falcon Player?')) {
-		$.get({
-			url: 'api/system/shutdown',
-			data: '',
-			success: function (data) {
-				// Show FPP is rebooting notification for 60 seconds then reload the page
-				$.jGrowl('FPP is shutting down..', {
-					life: 60000,
-					themeState: 'detract'
-				});
+	DoModalDialog({
+		id: 'ShutdownModal',
+		title: 'Shutdown FPP Device?',
+		noClose: false,
+		backdrop: 'static',
+		keyboard: false,
+		body: 'Are you sure you wish to shutdown the device?',
+		class: 'modal-sm',
+		buttons: {
+			Shutdown: {
+				disabled: false,
+				id: 'ShutdownButton',
+				class: 'btn-danger',
+				click: function () {
+					//CloseModalDialog('RebootModal');
+					//location.reload();
+					ShutdownFPP();
+					CloseModalDialog('ShutdownModal');
+				}
 			},
-			error: function (...args) {
-				DialogError(
-					'Command failed',
-					'Shutdown Command failed' + show_details(args)
-				);
+			Abort: {
+				disabled: false,
+				id: 'AbortButton',
+				click: function () {
+					CloseModalDialog('ShutdownModal');
+					location.reload();
+				}
 			}
-		});
-	}
+		}
+	});
+}
+
+function ShutdownFPP () {
+	$.get({
+		url: 'api/system/shutdown',
+		data: '',
+		success: function (data) {
+			// Show FPP is rebooting notification for 60 seconds then reload the page
+			$.jGrowl('FPP is shutting down..', {
+				life: 60000,
+				themeState: 'detract'
+			});
+		},
+		error: function (...args) {
+			DialogError(
+				'Command failed',
+				'Shutdown Command failed' + show_details(args)
+			);
+		}
+	});
 }
 
 function UpgradePlaylist (data, editMode) {
