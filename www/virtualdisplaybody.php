@@ -1,4 +1,5 @@
-<script type="text/javascript" src="jquery/jcanvas.js"></script>
+
+<script type="module" src="jquery/jcanvas.js"></script>
 <script>
 var cellColors = [];
 var scaleMap = [];
@@ -89,8 +90,6 @@ var ctx;
 var buffer;
 var bctx;
 
-$.jCanvas.defaults.fromCenter = false;
-
 function initCanvas()
 {
 	$('#vCanvas').removeLayers();
@@ -101,16 +100,16 @@ function initCanvas()
 		fillStyle: '#000',
 		x: 0,
 		y: 0,
-		width: canvasWidth,
-		height: canvasHeight
+		width: canvasWidth*window.devicePixelRatio,
+		height: canvasHeight*window.devicePixelRatio
 	});
 
 	$('#vCanvas').drawImage({
 		layer: true,
 		opacity: 0.2,
 		source: 'api/file/Images/virtualdisplaybackground.jpg',
-		width: canvasWidth,
-		height: canvasHeight
+		width: canvasWidth*window.devicePixelRatio,
+		height: canvasHeight*window.devicePixelRatio
 	});
 
 	var c = document.getElementById('vCanvas');

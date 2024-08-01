@@ -3,7 +3,7 @@
  * Copyright 2017-2024 Caleb Evans
  * Released under the MIT license
  */
-import $ from 'jquery';
+
 
 // Define local aliases to frequently used properties
 var defaults,
