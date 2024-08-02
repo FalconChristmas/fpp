@@ -163,7 +163,7 @@ require_once 'config.php';
                                 }
                             });
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <?
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <?
                         }
                     } ?>}<?
         }
@@ -224,7 +224,7 @@ require_once 'config.php';
                     bootstrap.Tab.getOrCreateInstance(
                         document.querySelector('[data-bs-target="#' + target_tab + '"]')
                     ).show();
-                    location.hash = orig_hotlink;
+                    window.location.hash = orig_hotlink;
                     setTimeout(function () {
                         SetTablePageHeader_ZebraPin();
                         float_fppStickyThead();
