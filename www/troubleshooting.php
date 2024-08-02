@@ -163,7 +163,7 @@ require_once 'config.php';
                                 }
                             });
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <?
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <?
                         }
                     } ?>}<?
         }
@@ -203,9 +203,7 @@ require_once 'config.php';
 
             //if hash is tab
             if (location.hash.includes('pills-')) {
-                console.log('this is con');
                 CmdGrp = location.hash.replace('#pills-', '').toString();
-                console.log("cmd group:" + CmdGrp);
                 var fn_string = "dispTroubleTab".concat(CmdGrp);
                 var fn = window[fn_string];
                 if (typeof fn === "function") fn();
@@ -217,7 +215,6 @@ require_once 'config.php';
             $('a.troubleshoot-anchor').each(function () {
                 hotlinks.push($(this).attr('name'));
             });
-            console.log(hotlinks);
             if (location.hash && hotlinks.includes(location.hash.replace('#', ''))) {
                 orig_hotlink = location.hash;
 
