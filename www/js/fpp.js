@@ -142,13 +142,15 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 			}, 50);
 		}
 	}
+	var listOfTabs = [];
+	$('[role="tab"]').each(function () {
+		listOfTabs.push($(this).attr('data-bs-target'));
+	});
 
 	// showing tab directly if referenced in url
-	if (location.hash) {
+	if (location.hash && listOfTabs.includes(location.hash)) {
 		bootstrap.Tab.getOrCreateInstance(
-			document.querySelector(
-				'[role="tablist"] a[data-bs-target="' + location.hash + '"]'
-			)
+			document.querySelector('[data-bs-target="' + location.hash + '"]')
 		).show();
 		setTimeout(function () {
 			SetTablePageHeader_ZebraPin();
