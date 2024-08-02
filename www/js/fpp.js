@@ -159,9 +159,25 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		}, 50);
 	}
 
-	//Setup Tab actions
-	const triggerTabList = document.querySelectorAll('[role="tablist"] a');
-	triggerTabList.forEach(triggerEl => {
+	//Setup Tab actions for <a> based tabs
+	const triggerTabList_a = document.querySelectorAll('[role="tablist"] a');
+	triggerTabList_a.forEach(triggerEl => {
+		const tabTrigger = new bootstrap.Tab(triggerEl);
+
+		triggerEl.addEventListener('shown.bs.tab', event => {
+			// when the tab is selected update the url with the hash
+			window.location.hash = event.target.dataset.bsTarget;
+			SetTablePageHeader_ZebraPin();
+			float_fppStickyThead();
+			scrollToTop();
+		});
+	});
+
+	//Setup Tab actions for button based tabs
+	const triggerTabList_btn = document.querySelectorAll(
+		'[role="tablist"] li button'
+	);
+	triggerTabList_btn.forEach(triggerEl => {
 		const tabTrigger = new bootstrap.Tab(triggerEl);
 
 		triggerEl.addEventListener('shown.bs.tab', event => {

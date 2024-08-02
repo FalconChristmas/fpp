@@ -163,7 +163,7 @@ require_once 'config.php';
                                 }
                             });
 
-                <?
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <?
                         }
                     } ?>}<?
         }
@@ -176,6 +176,7 @@ require_once 'config.php';
         }
 
         function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
+
             //Setup action functions
             // commands for selected tab
             $('.nav-link').on('shown.bs.tab', function () {
@@ -195,9 +196,45 @@ require_once 'config.php';
             });
 
             //default to show first tab in grp array active
-            $('#pills-tab button[id="pills-<? echo array_key_first($troubleshootingCommandGroups) ?>-tab"]').tab('show');
-            dispTroubleTab<? echo array_key_first($troubleshootingCommandGroups) ?>();
+            if (!location.hash) {
+                $('#pills-tab button[id="pills-<? echo array_key_first($troubleshootingCommandGroups) ?>-tab"]').tab('show');
+                dispTroubleTab<? echo array_key_first($troubleshootingCommandGroups) ?>();
+            }
 
+            //if hash is tab
+            if (location.hash.includes('pills-')) {
+                console.log('this is con');
+                CmdGrp = location.hash.replace('#pills-', '').toString();
+                console.log("cmd group:" + CmdGrp);
+                var fn_string = "dispTroubleTab".concat(CmdGrp);
+                var fn = window[fn_string];
+                if (typeof fn === "function") fn();
+
+            }
+
+            //if hash is location on a tab, derive correct tab and move to tab and hash
+            var hotlinks = [];
+            $('a.troubleshoot-anchor').each(function () {
+                hotlinks.push($(this).attr('name'));
+            });
+            console.log(hotlinks);
+            if (location.hash && hotlinks.includes(location.hash.replace('#', ''))) {
+                orig_hotlink = location.hash;
+
+                //find ancestor with class tab-pane
+                target_tab = $('a.troubleshoot-anchor[name="' + location.hash.replace('#', '') + '"]').closest('.tab-pane').attr('id')
+                if (target_tab) {
+                    bootstrap.Tab.getOrCreateInstance(
+                        document.querySelector('[data-bs-target="#' + target_tab + '"]')
+                    ).show();
+                    location.hash = orig_hotlink;
+                    setTimeout(function () {
+                        SetTablePageHeader_ZebraPin();
+                        float_fppStickyThead();
+                        scrollToTop();
+                    }, 50);
+                }
+            }
         }
 
 
