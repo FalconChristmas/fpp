@@ -330,7 +330,7 @@
             if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 0):
                 ?>
                 <div id='spaceFlag' class="alert alert-danger" role="alert">
-                    SD card has unused space. Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
+                    SD card has unused space. Go to <a href="settings.php#settings-storage">Storage Settings</a> to expand the
                     file system or create a new storage partition.
                 </div>
             <?php endif; ?>
