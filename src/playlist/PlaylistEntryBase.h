@@ -53,6 +53,8 @@ public:
     std::string GetType(void) { return m_type; }
     int IsPrepped(void) { return m_isPrepped; }
 
+    int64_t GetTimeCode() const { return m_timeCode; }
+
     enum class PlaylistBranchType {
         NoBranch,
         Index,
@@ -86,4 +88,6 @@ protected:
     Json::Value m_config;
     PlaylistEntryBase* m_parent;
     Playlist* m_parentPlaylist;
+
+    int64_t m_timeCode = -1;
 };

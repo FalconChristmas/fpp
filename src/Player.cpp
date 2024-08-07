@@ -299,8 +299,8 @@ int Player::WasScheduled() {
     return playlist->WasScheduled();
 }
 
-int Player::FindPosForMS(uint64_t& ms) {
-    return playlist->FindPosForMS(ms);
+int Player::FindPosForMS(uint64_t& ms, bool itemDefinedOnly) {
+    return playlist->FindPosForMS(ms, itemDefinedOnly);
 }
 
 void Player::GetFilenamesForPos(int pos, std::string& seq, std::string& med) {

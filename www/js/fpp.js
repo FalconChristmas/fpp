@@ -1205,7 +1205,10 @@ function Convert24HFromUIFormat (tm) {
 }
 
 function InitializeTimeInputs (format = 'H:i:s') {
-	$('.time').timepicker({ timeFormat: format, typeaheadHighlight: false });
+	$('.time').timepicker({
+		timeFormat: format,
+		typeaheadHighlight: false
+	});
 }
 
 function InitializeDateInputs (format = 'yy-mm-dd') {
@@ -6992,6 +6995,7 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 	var haveTime = 0;
 	var haveDate = 0;
 	var children = [];
+	var timeOptions = new Map();
 
 	$.each(args, function (key, val) {
 		if (val['type'] == 'args') return;
@@ -7003,9 +7007,24 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 			return;
 		}
 
+		var rowStyle = '';
+		if (
+			val.hasOwnProperty('advanced') &&
+			val.advanced == true &&
+			settings['uiLevel'] < 1
+		) {
+			rowStyle = " style='display:hidden; visibility:collapse'";
+		}
+
 		var ID = tblCommand + '_arg_' + count;
 		var line =
-			"<tr id='" + ID + "_row' class='arg_row_" + val['name'] + "'><td>";
+			"<tr id='" +
+			ID +
+			"_row' class='arg_row_" +
+			val['name'] +
+			"'" +
+			rowStyle +
+			'><td>';
 		var subCommandInitFunc = null;
 
 		if (children.includes(val['name']))
@@ -7212,7 +7231,16 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				val['name'] +
 				"' id='" +
 				ID +
-				"' type='text' size='8' value='00:00:00'/>";
+				"' type='text' size='8' value='";
+			if (val.hasOwnProperty('default')) {
+				line += val['default'];
+			} else {
+				line += '00:00:00';
+			}
+			line += "'/>";
+			if (val.hasOwnProperty('extraOptions')) {
+				timeOptions.set(ID, val['extraOptions']);
+			}
 		} else if (val['type'] == 'date') {
 			haveDate = 1;
 			line +=
@@ -7357,6 +7385,9 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 
 	if (haveTime) {
 		InitializeTimeInputs();
+		for (const [key, value] of timeOptions) {
+			$('#' + key).timepicker(value);
+		}
 	}
 
 	if (haveDate) {

@@ -1,676 +1,733 @@
 {
-    "branch": {
-        "name": "branch",
-        "description": "Branch",
-        "args": {
-            "branchTest": {
-                "name": "branchTest",
-                "description": "Test Condition",
-                "type": "string",
-                "contents": {
-                    "Time": "Time",
-                    "Loop Number": "Loop",
-                    "MQTT Topic Message": "MQTT"
-                },
-                "children": {
-                    "Time": [
-                        "startTime",
-                        "endTime"
-                    ],
-                    "Loop": [
-                        "loopTest"
-                    ],
-                    "MQTT": [
-                        "mqttTopic",
-                        "mqttMessage"
-                    ]
-                },
-                "optional": false,
-                "simpleUI": true
-            },
-            "startTime": {
-                "name": "startTime",
-                "description": "Start Time",
-                "type": "time",
-                "optional": false,
-                "simpleUI": true
-            },
-            "endTime": {
-                "name": "endTime",
-                "description": "End Time",
-                "type": "time",
-                "optional": false,
-                "simpleUI": true
-            },
-            "loopTest": {
-                "name": "loopTest",
-                "description": "Loop Test",
-                "type": "string",
-                "default": "iteration",
-                "contents": {
-                    "Iteration": "iteration"
-                },
-                "children": {
-                    "iteration": [
-                        "iterationStart",
-                        "iterationCount"
-                    ]
-                },
-                "optional": false,
-                "simpleUI": true
-            },
-            "iterationStart": {
-                "name": "iterationStart",
-                "description": "Starting iteration",
-                "type": "int",
-                "default": 1,
-                "min": 1,
-                "max": 99,
-                "optional": false,
-                "simpleUI": true
-            },
-            "iterationCount": {
-                "name": "iterationCount",
-                "description": "Every",
-                "type": "int",
-                "default": 2,
-                "min": 1,
-                "max": 99,
-                "unit": "loop iterations",
-                "optional": false,
-                "simpleUI": true
-            },
-            "mqttTopic": {
-                "name": "mqttTopic",
-                "description": "MQTT Topic",
-                "type": "string",
-                "placeholder": "MQTT Topic",
-                "optional": true,
-                "simpleUI": true
-            },
-            "mqttMessage": {
-                "name": "mqttMessage",
-                "description": "MQTT Message",
-                "type": "string",
-                "placeholder": "MQTT Message",
-                "optional": true,
-                "simpleUI": true
-            },
-            "trueNextBranchType": {
-                "name": "trueNextBranchType",
-                "description": "If True",
-                "type": "string",
-                "default": "Offset",
-                "onChange": "BranchTypeChanged",
-                "contents": {
-                    "Do Nothing": "None",
-                    "Jump to Index": "Index",
-                    "Jump to Offset": "Offset",
-                    "Call Playlist": "Playlist"
-                },
-                "children": {
-                    "Index": [
-                        "trueNextSection",
-                        "trueNextItem"
-                    ],
-                    "Offset": [
-                        "trueNextItem"
-                    ],
-                    "Playlist": [
-                        "trueBranchPlaylist"
-                    ]
-                },
-                "optional": false
-            },
-            "trueNextSection": {
-                "name": "trueNextSection",
-                "description": "Section",
-                "type": "string",
-                "optional": false,
-                "contents": {
-                    "** Same **": "",
-                    "Lead In": "leadIn",
-                    "Main Playlist": "mainPlaylist",
-                    "Lead Out": "leadOut"
-                }
-            },
-            "trueNextItem": {
-                "name": "trueNextItem",
-                "description": "Item",
-                "type": "int",
-                "min": -99,
-                "max": 99,
-                "default": 1,
-                "optional": false
-            },
-            "trueBranchPlaylist": {
-                "name": "trueBranchPlaylist",
-                "description": "Playlist",
-                "type": "string",
-                "contentListUrl": "api/playlists",
-                "optional": false
-            },
-            "falseNextBranchType": {
-                "name": "falseNextBranchType",
-                "description": "If False",
-                "type": "string",
-                "default": "Offset",
-                "onChange": "BranchTypeChanged",
-                "contents": {
-                    "Do Nothing": "None",
-                    "Jump to Index": "Index",
-                    "Jump to Offset": "Offset",
-                    "Call Playlist": "Playlist"
-                },
-                "children": {
-                    "Index": [
-                        "falseNextSection",
-                        "falseNextItem"
-                    ],
-                    "Offset": [
-                        "falseNextItem"
-                    ],
-                    "Playlist": [
-                        "falseBranchPlaylist"
-                    ]
-                },
-                "optional": false
-            },
-            "falseNextSection": {
-                "name": "falseNextSection",
-                "description": "Section",
-                "type": "string",
-                "optional": false,
-                "contents": {
-                    "** Same **": "",
-                    "Lead In": "leadIn",
-                    "Main Playlist": "mainPlaylist",
-                    "Lead Out": "leadOut"
-                }
-            },
-            "falseNextItem": {
-                "name": "falseNextItem",
-                "description": "Item",
-                "type": "int",
-                "default": 1,
-                "min": -99,
-                "max": 99,
-                "optional": false
-            },
-            "falseBranchPlaylist": {
-                "name": "falseBranchPlaylist",
-                "description": "Playlist",
-                "type": "string",
-                "contentListUrl": "api/playlists",
-                "optional": false
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "dynamic": {
-        "name": "dynamic",
-        "description": "Dynamic",
-        "args": {
-            "subType": {
-                "name": "subType",
-                "description": "Source Type",
-                "type": "string",
-                "contents": {
-                    "File": "file",
-                    "Plugin": "plugin",
-                    "URL": "url"
-                },
-                "children": {
-                    "file": [
-                        "dataFile"
-                    ],
-                    "plugin": [
-                        "pluginName",
-                        "pluginHost",
-                        "drainQueue"
-                    ],
-                    "url": [
-                        "url"
-                    ]
-                },
-                "optional": false,
-                "simpleUI": true
-            },
-            "dataFile": {
-                "name": "dataFile",
-                "description": "File",
-                "type": "string",
-                "placeholder": "Full File Name of JSON file",
-                "optional": true,
-                "simpleUI": true
-            },
-            "pluginName": {
-                "name": "pluginName",
-                "description": "Plugin",
-                "type": "string",
-                "contentListUrl": "api/plugin",
-                "optional": true,
-                "simpleUI": true
-            },
-            "pluginHost": {
-                "name": "pluginHost",
-                "description": "Plugin Host",
-                "type": "string",
-                "contentListUrl": "api/remotes",
-                "optional": true
-            },
-            "url": {
-                "name": "url",
-                "description": "URL",
-                "type": "string",
-                "placeholder": "URL to JSON data",
-                "optional": true,
-                "simpleUI": true
-            },
-            "drainQueue": {
-                "name": "drainQueue",
-                "description": "Drain Queue",
-                "type": "bool",
-                "optional": false
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "command": {
-        "name": "command",
-        "description": "FPP Command",
-        "args": {
-            "command": {
-                "name": "command",
-                "description": "Command",
-                "type": "string",
-                "init": "LoadCommandArg",
-                "onChange": "CommandArgChanged",
-                "optional": false,
-                "simpleUI": true
-            },
-            "multisyncCommand": {
-                "name": "multisyncCommand",
-                "description": "Multicast",
-                "type": "bool",
-                "optional": true,
-                "hidden": true
-            },
-            "multisyncHosts": {
-                "name": "multisyncHosts",
-                "description": "Multicast Hosts",
-                "type": "string",
-                "optional": true,
-                "hidden": true
-            },
-            "args": {
-                "name": "args",
-                "description": "Args",
-                "type": "args",
-                "optional": false
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "image": {
-        "name": "image",
-        "description": "Image",
-        "args": {
-            "imagePath": {
-                "name": "imagePath",
-                "description": "Image",
-                "type": "file",
-                "directory": "images",
-                "optional": false,
-                "simpleUI": true
-            },
-            "imageFilename": {
-                "name": "imageFilename",
-                "description": "File",
-                "type": "string",
-                "optional": true,
-                "statusOnly": true
-            },
-            "modelName": {
-                "name": "modelName",
-                "description": "Pixel Overlay Model",
-                "contentListUrl": "api/models?simple=true",
-                "type": "string",
-                "optional": false
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "media": {
-        "name": "media",
-        "description": "Media",
-        "longDescription": "Media Only",
-        "args": {
-            "fileMode": {
-                "name": "fileMode",
-                "description": "File Mode",
-                "type": "string",
-                "default": "single",
-                "contents": {
-                    "Single File": "single",
-                    "Random Video": "randomVideo",
-                    "Random Audio": "randomAudio"
-                },
-                "children": {
-                    "single": [
-                        "mediaName"
-                    ],
-		    "randomVideo": [
- 			"mediaPrefix"
-		    ],
-		    "randomAudio": [
- 			"mediaPrefix"
-		    ]
-                },
-                "optional": false,
-                "simpleUI": true
-            },
-            "mediaName": {
-                "name": "mediaName",
-                "description": "Media",
-                "contentListUrl": "api/media",
-                "type": "string",
-                "onChange": "MediaChanged",
-                "optional": true,
-                "simpleUI": true
-            },
-            "mediaPrefix": {
-                "name": "mediaPrefix",
-                "description": "Play files starting with this prefix only",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            },
-            "videoOut": {
-                "name": "videoOut",
-                "description": "Video Out",
-                "type": "string",
-                "contentListUrl": "api/options/PlaylistVideoOutput",
-                "optional": true
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "pause": {
-        "name": "pause",
-        "description": "Pause",
-        "args": {
-            "duration": {
-                "name": "duration",
-                "description": "Duration",
-                "type": "float",
-                "min": 0,
-                "max": 9999,
-                "step": 1.0,
-                "default": 1,
-                "unit": "seconds",
-                "optional": false,
-                "simpleUI": true
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "playlist": {
-        "name": "playlist",
-        "description": "Playlist",
-        "args": {
-            "name": {
-                "name": "name",
-                "description": "Playlist",
-                "type": "string",
-                "contentListUrl": "api/playlists",
-                "optional": false,
-                "simpleUI": true
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "remap": {
-        "name": "remap",
-        "description": "Remap",
-        "args": {
-            "action": {
-                "name": "action",
-                "description": "Action",
-                "type": "string",
-                "contents": {
-                    "Add": "add",
-                    "Remove": "remove"
-                },
-                "optional": false,
-                "simpleUI": true
-            },
-            "source": {
-                "name": "source",
-                "description": "Source",
-                "type": "int",
-                "min": 1,
-                "max": 99999999,
-                "optional": false
-            },
-            "destination": {
-                "name": "destination",
-                "description": "Destination",
-                "type": "int",
-                "min": 1,
-                "max": 99999999,
-                "optional": false
-            },
-            "count": {
-                "name": "count",
-                "description": "Count",
-                "type": "int",
-                "min": 1,
-                "max": 99999999,
-                "optional": false
-            },
-            "loops": {
-                "name": "loops",
-                "description": "Loops",
-                "type": "int",
-                "default": 1,
-                "min": 1,
-                "max": 9999,
-                "optional": false
-            },
-            "reverse": {
-                "name": "reverse",
-                "description": "Reverse",
-                "type": "bool",
-                "optional": false
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "script": {
-        "name": "script",
-        "description": "Script",
-        "args": {
-            "scriptName": {
-                "name": "scriptName",
-                "description": "Script",
-                "type": "string",
-                "contentListUrl": "api/scripts",
-                "optional": false,
-                "simpleUI": true
-            },
-            "scriptArgs": {
-                "name": "scriptArgs",
-                "description": "Args",
-                "type": "string",
-                "optional": false,
-                "simpleUI": true
-            },
-            "blocking": {
-                "name": "blocking",
-                "description": "Blocking",
-                "type": "bool",
-                "optional": false
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "both": {
-        "name": "both",
-        "description": "Seq+Med",
-        "longDescription": "Sequence and Media",
-        "args": {
-            "sequenceName": {
-                "name": "sequenceName",
-                "description": "Sequence",
-                "contentListUrl": "api/files/sequences?nameOnly=1",
-                "type": "string",
-                "onChange": "SequenceChanged",
-                "optional": false,
-                "simpleUI": true
-            },
-            "mediaName": {
-                "name": "mediaName",
-                "description": "Media",
-                "contentListUrl": "api/media",
-                "type": "string",
-                "onChange": "MediaChanged",
-                "optional": false,
-                "simpleUI": true
-            },
-            "videoOut": {
-                "name": "videoOut",
-                "description": "Video Out",
-                "type": "string",
-                "contentListUrl": "api/options/PlaylistVideoOutput",
-                "optional": true
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "sequence": {
-        "name": "sequence",
-        "description": "Sequence",
-        "longDescription": "Sequence Only",
-        "args": {
-            "sequenceName": {
-                "name": "sequenceName",
-                "description": "Sequence",
-                "contentListUrl": "api/files/sequences?nameOnly=1",
-                "type": "string",
-                "onChange": "SequenceChanged",
-                "optional": false,
-                "simpleUI": true
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    },
-    "url": {
-        "name": "url",
-        "description": "URL",
-        "args": {
-            "method": {
-                "name": "method",
-                "description": "Method",
-                "type": "string",
-                "contents": {
-                    "GET": "GET",
-                    "POST": "POST"
-                },
-                "children": {
-                    "POST": [
-                        "data"
-                    ]
-                },
-                "optional": false,
-                "simpleUI": true
-            },
-            "url": {
-                "name": "url",
-                "description": "URL",
-                "type": "string",
-                "optional": false,
-                "simpleUI": true
-            },
-            "data": {
-                "name": "data",
-                "description": "POST Data",
-                "type": "string",
-                "optional": false
-            },
-            "note": {
-                "name": "note",
-                "description": "Note",
-                "type": "string",
-                "optional": true,
-                "simpleUI": false
-            }
-        }
-    }
+	"branch": {
+		"name": "branch",
+		"description": "Branch",
+		"args": {
+			"branchTest": {
+				"name": "branchTest",
+				"description": "Test Condition",
+				"type": "string",
+				"contents": {
+					"Time": "Time",
+					"Loop Number": "Loop",
+					"MQTT Topic Message": "MQTT"
+				},
+				"children": {
+					"Time": [
+						"startTime",
+						"endTime"
+					],
+					"Loop": [
+						"loopTest"
+					],
+					"MQTT": [
+						"mqttTopic",
+						"mqttMessage"
+					]
+				},
+				"optional": false,
+				"simpleUI": true
+			},
+			"startTime": {
+				"name": "startTime",
+				"description": "Start Time",
+				"type": "time",
+				"optional": false,
+				"simpleUI": true
+			},
+			"endTime": {
+				"name": "endTime",
+				"description": "End Time",
+				"type": "time",
+				"optional": false,
+				"simpleUI": true
+			},
+			"loopTest": {
+				"name": "loopTest",
+				"description": "Loop Test",
+				"type": "string",
+				"default": "iteration",
+				"contents": {
+					"Iteration": "iteration"
+				},
+				"children": {
+					"iteration": [
+						"iterationStart",
+						"iterationCount"
+					]
+				},
+				"optional": false,
+				"simpleUI": true
+			},
+			"iterationStart": {
+				"name": "iterationStart",
+				"description": "Starting iteration",
+				"type": "int",
+				"default": 1,
+				"min": 1,
+				"max": 99,
+				"optional": false,
+				"simpleUI": true
+			},
+			"iterationCount": {
+				"name": "iterationCount",
+				"description": "Every",
+				"type": "int",
+				"default": 2,
+				"min": 1,
+				"max": 99,
+				"unit": "loop iterations",
+				"optional": false,
+				"simpleUI": true
+			},
+			"mqttTopic": {
+				"name": "mqttTopic",
+				"description": "MQTT Topic",
+				"type": "string",
+				"placeholder": "MQTT Topic",
+				"optional": true,
+				"simpleUI": true
+			},
+			"mqttMessage": {
+				"name": "mqttMessage",
+				"description": "MQTT Message",
+				"type": "string",
+				"placeholder": "MQTT Message",
+				"optional": true,
+				"simpleUI": true
+			},
+			"trueNextBranchType": {
+				"name": "trueNextBranchType",
+				"description": "If True",
+				"type": "string",
+				"default": "Offset",
+				"onChange": "BranchTypeChanged",
+				"contents": {
+					"Do Nothing": "None",
+					"Jump to Index": "Index",
+					"Jump to Offset": "Offset",
+					"Call Playlist": "Playlist"
+				},
+				"children": {
+					"Index": [
+						"trueNextSection",
+						"trueNextItem"
+					],
+					"Offset": [
+						"trueNextItem"
+					],
+					"Playlist": [
+						"trueBranchPlaylist"
+					]
+				},
+				"optional": false
+			},
+			"trueNextSection": {
+				"name": "trueNextSection",
+				"description": "Section",
+				"type": "string",
+				"optional": false,
+				"contents": {
+					"** Same **": "",
+					"Lead In": "leadIn",
+					"Main Playlist": "mainPlaylist",
+					"Lead Out": "leadOut"
+				}
+			},
+			"trueNextItem": {
+				"name": "trueNextItem",
+				"description": "Item",
+				"type": "int",
+				"min": -99,
+				"max": 99,
+				"default": 1,
+				"optional": false
+			},
+			"trueBranchPlaylist": {
+				"name": "trueBranchPlaylist",
+				"description": "Playlist",
+				"type": "string",
+				"contentListUrl": "api/playlists",
+				"optional": false
+			},
+			"falseNextBranchType": {
+				"name": "falseNextBranchType",
+				"description": "If False",
+				"type": "string",
+				"default": "Offset",
+				"onChange": "BranchTypeChanged",
+				"contents": {
+					"Do Nothing": "None",
+					"Jump to Index": "Index",
+					"Jump to Offset": "Offset",
+					"Call Playlist": "Playlist"
+				},
+				"children": {
+					"Index": [
+						"falseNextSection",
+						"falseNextItem"
+					],
+					"Offset": [
+						"falseNextItem"
+					],
+					"Playlist": [
+						"falseBranchPlaylist"
+					]
+				},
+				"optional": false
+			},
+			"falseNextSection": {
+				"name": "falseNextSection",
+				"description": "Section",
+				"type": "string",
+				"optional": false,
+				"contents": {
+					"** Same **": "",
+					"Lead In": "leadIn",
+					"Main Playlist": "mainPlaylist",
+					"Lead Out": "leadOut"
+				}
+			},
+			"falseNextItem": {
+				"name": "falseNextItem",
+				"description": "Item",
+				"type": "int",
+				"default": 1,
+				"min": -99,
+				"max": 99,
+				"optional": false
+			},
+			"falseBranchPlaylist": {
+				"name": "falseBranchPlaylist",
+				"description": "Playlist",
+				"type": "string",
+				"contentListUrl": "api/playlists",
+				"optional": false
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			}
+		}
+	},
+	"dynamic": {
+		"name": "dynamic",
+		"description": "Dynamic",
+		"args": {
+			"subType": {
+				"name": "subType",
+				"description": "Source Type",
+				"type": "string",
+				"contents": {
+					"File": "file",
+					"Plugin": "plugin",
+					"URL": "url"
+				},
+				"children": {
+					"file": [
+						"dataFile"
+					],
+					"plugin": [
+						"pluginName",
+						"pluginHost",
+						"drainQueue"
+					],
+					"url": [
+						"url"
+					]
+				},
+				"optional": false,
+				"simpleUI": true
+			},
+			"dataFile": {
+				"name": "dataFile",
+				"description": "File",
+				"type": "string",
+				"placeholder": "Full File Name of JSON file",
+				"optional": true,
+				"simpleUI": true
+			},
+			"pluginName": {
+				"name": "pluginName",
+				"description": "Plugin",
+				"type": "string",
+				"contentListUrl": "api/plugin",
+				"optional": true,
+				"simpleUI": true
+			},
+			"pluginHost": {
+				"name": "pluginHost",
+				"description": "Plugin Host",
+				"type": "string",
+				"contentListUrl": "api/remotes",
+				"optional": true
+			},
+			"url": {
+				"name": "url",
+				"description": "URL",
+				"type": "string",
+				"placeholder": "URL to JSON data",
+				"optional": true,
+				"simpleUI": true
+			},
+			"drainQueue": {
+				"name": "drainQueue",
+				"description": "Drain Queue",
+				"type": "bool",
+				"optional": false
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			}
+		}
+	},
+	"command": {
+		"name": "command",
+		"description": "FPP Command",
+		"args": {
+			"command": {
+				"name": "command",
+				"description": "Command",
+				"type": "string",
+				"init": "LoadCommandArg",
+				"onChange": "CommandArgChanged",
+				"optional": false,
+				"simpleUI": true
+			},
+			"multisyncCommand": {
+				"name": "multisyncCommand",
+				"description": "Multicast",
+				"type": "bool",
+				"optional": true,
+				"hidden": true
+			},
+			"multisyncHosts": {
+				"name": "multisyncHosts",
+				"description": "Multicast Hosts",
+				"type": "string",
+				"optional": true,
+				"hidden": true
+			},
+			"args": {
+				"name": "args",
+				"description": "Args",
+				"type": "args",
+				"optional": false
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			}
+		}
+	},
+	"image": {
+		"name": "image",
+		"description": "Image",
+		"args": {
+			"imagePath": {
+				"name": "imagePath",
+				"description": "Image",
+				"type": "file",
+				"directory": "images",
+				"optional": false,
+				"simpleUI": true
+			},
+			"imageFilename": {
+				"name": "imageFilename",
+				"description": "File",
+				"type": "string",
+				"optional": true,
+				"statusOnly": true
+			},
+			"modelName": {
+				"name": "modelName",
+				"description": "Pixel Overlay Model",
+				"contentListUrl": "api/models?simple=true",
+				"type": "string",
+				"optional": false
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			}
+		}
+	},
+	"media": {
+		"name": "media",
+		"description": "Media",
+		"longDescription": "Media Only",
+		"args": {
+			"fileMode": {
+				"name": "fileMode",
+				"description": "File Mode",
+				"type": "string",
+				"default": "single",
+				"contents": {
+					"Single File": "single",
+					"Random Video": "randomVideo",
+					"Random Audio": "randomAudio"
+				},
+				"children": {
+					"single": [
+						"mediaName"
+					],
+					"randomVideo": [
+						"mediaPrefix"
+					],
+					"randomAudio": [
+						"mediaPrefix"
+					]
+				},
+				"optional": false,
+				"simpleUI": true
+			},
+			"mediaName": {
+				"name": "mediaName",
+				"description": "Media",
+				"contentListUrl": "api/media",
+				"type": "string",
+				"onChange": "MediaChanged",
+				"optional": true,
+				"simpleUI": true
+			},
+			"mediaPrefix": {
+				"name": "mediaPrefix",
+				"description": "Play files starting with this prefix only",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			},
+			"videoOut": {
+				"name": "videoOut",
+				"description": "Video Out",
+				"type": "string",
+				"contentListUrl": "api/options/PlaylistVideoOutput",
+				"optional": true
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			},
+			"timecode": {
+				"name": "timecode",
+				"description": "Time Code",
+				"type": "time",
+				"optional": true,
+				"simpleUI": false,
+				"advanced": true,
+				"default": "Default",
+				"extraOptions": {
+					"timeFormat": "H:i",
+					"typeaheadHighlight": false,
+					"noneOption": [
+						{
+							"label": "Default",
+							"value": "Default"
+						}
+					]
+				}
+			}
+		}
+	},
+	"pause": {
+		"name": "pause",
+		"description": "Pause",
+		"args": {
+			"duration": {
+				"name": "duration",
+				"description": "Duration",
+				"type": "float",
+				"min": 0,
+				"max": 9999,
+				"step": 1,
+				"default": 1,
+				"unit": "seconds",
+				"optional": false,
+				"simpleUI": true
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			}
+		}
+	},
+	"playlist": {
+		"name": "playlist",
+		"description": "Playlist",
+		"args": {
+			"name": {
+				"name": "name",
+				"description": "Playlist",
+				"type": "string",
+				"contentListUrl": "api/playlists",
+				"optional": false,
+				"simpleUI": true
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			}
+		}
+	},
+	"remap": {
+		"name": "remap",
+		"description": "Remap",
+		"args": {
+			"action": {
+				"name": "action",
+				"description": "Action",
+				"type": "string",
+				"contents": {
+					"Add": "add",
+					"Remove": "remove"
+				},
+				"optional": false,
+				"simpleUI": true
+			},
+			"source": {
+				"name": "source",
+				"description": "Source",
+				"type": "int",
+				"min": 1,
+				"max": 99999999,
+				"optional": false
+			},
+			"destination": {
+				"name": "destination",
+				"description": "Destination",
+				"type": "int",
+				"min": 1,
+				"max": 99999999,
+				"optional": false
+			},
+			"count": {
+				"name": "count",
+				"description": "Count",
+				"type": "int",
+				"min": 1,
+				"max": 99999999,
+				"optional": false
+			},
+			"loops": {
+				"name": "loops",
+				"description": "Loops",
+				"type": "int",
+				"default": 1,
+				"min": 1,
+				"max": 9999,
+				"optional": false
+			},
+			"reverse": {
+				"name": "reverse",
+				"description": "Reverse",
+				"type": "bool",
+				"optional": false
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			}
+		}
+	},
+	"script": {
+		"name": "script",
+		"description": "Script",
+		"args": {
+			"scriptName": {
+				"name": "scriptName",
+				"description": "Script",
+				"type": "string",
+				"contentListUrl": "api/scripts",
+				"optional": false,
+				"simpleUI": true
+			},
+			"scriptArgs": {
+				"name": "scriptArgs",
+				"description": "Args",
+				"type": "string",
+				"optional": false,
+				"simpleUI": true
+			},
+			"blocking": {
+				"name": "blocking",
+				"description": "Blocking",
+				"type": "bool",
+				"optional": false
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			}
+		}
+	},
+	"both": {
+		"name": "both",
+		"description": "Seq+Med",
+		"longDescription": "Sequence and Media",
+		"args": {
+			"sequenceName": {
+				"name": "sequenceName",
+				"description": "Sequence",
+				"contentListUrl": "api/files/sequences?nameOnly=1",
+				"type": "string",
+				"onChange": "SequenceChanged",
+				"optional": false,
+				"simpleUI": true
+			},
+			"mediaName": {
+				"name": "mediaName",
+				"description": "Media",
+				"contentListUrl": "api/media",
+				"type": "string",
+				"onChange": "MediaChanged",
+				"optional": false,
+				"simpleUI": true
+			},
+			"videoOut": {
+				"name": "videoOut",
+				"description": "Video Out",
+				"type": "string",
+				"contentListUrl": "api/options/PlaylistVideoOutput",
+				"optional": true
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			},
+			"timecode": {
+				"name": "timecode",
+				"description": "Time Code",
+				"type": "time",
+				"optional": true,
+				"simpleUI": false,
+				"advanced": true,
+				"default": "Default",
+				"extraOptions": {
+					"timeFormat": "H:i",
+					"typeaheadHighlight": false,
+					"noneOption": [
+						{
+							"label": "Default",
+							"value": "Default"
+						}
+					]
+				}
+			}
+		}
+	},
+	"sequence": {
+		"name": "sequence",
+		"description": "Sequence",
+		"longDescription": "Sequence Only",
+		"args": {
+			"sequenceName": {
+				"name": "sequenceName",
+				"description": "Sequence",
+				"contentListUrl": "api/files/sequences?nameOnly=1",
+				"type": "string",
+				"onChange": "SequenceChanged",
+				"optional": false,
+				"simpleUI": true
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			},
+			"timecode": {
+				"name": "timecode",
+				"description": "Time Code",
+				"type": "time",
+				"optional": true,
+				"simpleUI": false,
+				"advanced": true,
+				"default": "Default",
+				"extraOptions": {
+					"timeFormat": "H:i",
+					"typeaheadHighlight": false,
+					"noneOption": [
+						{
+							"label": "Default",
+							"value": "Default"
+						}
+					]
+				}
+			}
+		}
+	},
+	"url": {
+		"name": "url",
+		"description": "URL",
+		"args": {
+			"method": {
+				"name": "method",
+				"description": "Method",
+				"type": "string",
+				"contents": {
+					"GET": "GET",
+					"POST": "POST"
+				},
+				"children": {
+					"POST": [
+						"data"
+					]
+				},
+				"optional": false,
+				"simpleUI": true
+			},
+			"url": {
+				"name": "url",
+				"description": "URL",
+				"type": "string",
+				"optional": false,
+				"simpleUI": true
+			},
+			"data": {
+				"name": "data",
+				"description": "POST Data",
+				"type": "string",
+				"optional": false
+			},
+			"note": {
+				"name": "note",
+				"description": "Note",
+				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			}
+		}
+	}
 }

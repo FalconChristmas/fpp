@@ -60,6 +60,27 @@ int PlaylistEntryBase::Init(Json::Value& config) {
     m_isFinished = 0;
     m_config = config;
 
+    if (config.isMember("timecode")) {
+        std::string v = config["timecode"].asString();
+        if (v == "Default") {
+            m_timeCode = -1;
+        } else {
+            try {
+                std::vector<std::string> sparts = split(v, ':');
+                if (sparts.size() == 2) {
+                    m_timeCode = std::stoi(sparts[0]) * 60 * 60;
+                    m_timeCode += std::stoi(sparts[1]) * 60;
+                } else if (sparts.size() == 2) {
+                    m_timeCode = std::stoi(sparts[0]) * 60 * 60;
+                    m_timeCode += std::stoi(sparts[1]) * 60;
+                    m_timeCode += std::stoi(sparts[2]);
+                }
+            } catch (...) {
+                LogWarn(VB_PLAYLIST, "%s not a valid time code\n", v.c_str());
+                m_timeCode = -1;
+            }
+        }
+    }
     return 1;
 }
 

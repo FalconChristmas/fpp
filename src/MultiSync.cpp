@@ -2291,8 +2291,8 @@ void MultiSync::SyncPlaylistToMS(uint64_t ms, int pos, const std::string& pl, bo
     }
 
     int desiredpos = pos;
-    if (pos == -1) {
-        desiredpos = Player::INSTANCE.FindPosForMS(ms);
+    if (pos <= -1) {
+        desiredpos = Player::INSTANCE.FindPosForMS(ms, pos == -2);
     }
     float seconds = ms;
     seconds /= 1000;

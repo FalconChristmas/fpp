@@ -1487,27 +1487,63 @@ void Playlist::GetFilenamesForPos(int pos, std::string& seq, std::string& med) {
     }
 }
 
-int Playlist::FindPosForMS(uint64_t& t) {
-    for (auto& a : m_leadIn) {
-        uint64_t i = a->GetLengthInMS();
-        if (t < i) {
-            return a->GetPositionInPlaylist();
+int Playlist::FindPosForMS(uint64_t& t, bool itemDefinedOnly) {
+    if (itemDefinedOnly) {
+        PlaylistEntryBase* bestOption = nullptr;
+        uint64_t diff = 0xFFFFFFFFFFL;        
+        for (auto& a : m_leadIn) {
+            if (a->GetTimeCode() >= t) {
+                uint64_t d2 = a->GetTimeCode() - t;
+                if (d2 < diff) {
+                    diff = d2;
+                    bestOption = a;
+                }
+            }
         }
-        t -= i;
-    }
-    for (auto& a : m_mainPlaylist) {
-        uint64_t i = a->GetLengthInMS();
-        if (t < i) {
-            return a->GetPositionInPlaylist();
+        for (auto& a : m_mainPlaylist) {
+            if (a->GetTimeCode() >= t) {
+                uint64_t d2 = a->GetTimeCode() - t;
+                if (d2 < diff) {
+                    diff = d2;
+                    bestOption = a;
+                }
+            }
         }
-        t -= i;
-    }
-    for (auto& a : m_leadOut) {
-        uint64_t i = a->GetLengthInMS();
-        if (t < i) {
-            return a->GetPositionInPlaylist();
+        for (auto& a : m_leadOut) {
+            if (a->GetTimeCode() >= t) {
+                uint64_t d2 = a->GetTimeCode() - t;
+                if (d2 < diff) {
+                    diff = d2;
+                    bestOption = a;
+                }
+            }
         }
-        t -= i;
+        if (bestOption) {
+            t -= bestOption->GetTimeCode();
+            return bestOption->GetPositionInPlaylist();
+        }
+    } else {
+        for (auto& a : m_leadIn) {
+            uint64_t i = a->GetLengthInMS();
+            if (t < i) {
+                return a->GetPositionInPlaylist();
+            }
+            t -= i;
+        }
+        for (auto& a : m_mainPlaylist) {
+            uint64_t i = a->GetLengthInMS();
+            if (t < i) {
+                return a->GetPositionInPlaylist();
+            }
+            t -= i;
+        }
+        for (auto& a : m_leadOut) {
+            uint64_t i = a->GetLengthInMS();
+            if (t < i) {
+                return a->GetPositionInPlaylist();
+            }
+            t -= i;
+        }
     }
     t = 0;
     return -1;
@@ -1516,20 +1552,30 @@ int Playlist::FindPosForMS(uint64_t& t) {
 uint64_t Playlist::GetCurrentPosInMS() {
     int pos = 0;
     uint64_t posms;
-    return GetCurrentPosInMS(pos, posms);
+    return GetCurrentPosInMS(pos, posms, false);
 }
-uint64_t Playlist::GetCurrentPosInMS(int& position, uint64_t& posms) {
+uint64_t Playlist::GetCurrentPosInMS(int& position, uint64_t& posms, bool itemDefinedOnly) {
     position = -1;
     posms = 0;
     if (m_currentState == "idle" || m_currentSection == nullptr) {
         return 0;
     }
+    position = m_currentSection->at(m_sectionPosition)->GetPositionInPlaylist();
+    posms = m_currentSection->at(m_sectionPosition)->GetElapsedMS();
+    if (itemDefinedOnly) {
+        int pos =  m_currentSection->at(m_sectionPosition)->GetTimeCode();
+        if (pos >= 0) {
+            return pos + posms;
+        } else {
+            posms = 0;
+            return 0;
+        }
+    }
+
     uint64_t pos = 0;
     for (int x = 0; x < m_sectionPosition; x++) {
         pos += m_currentSection->at(x)->GetLengthInMS();
     }
-    position = m_currentSection->at(m_sectionPosition)->GetPositionInPlaylist();
-    posms = m_currentSection->at(m_sectionPosition)->GetElapsedMS();
     pos += posms;
     // if we aren't in the LeadIn, add the time of the LeadIn
     if (m_currentSectionStr != "LeadIn") {
@@ -1638,7 +1684,8 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     result["current_playlist"]["playlist"] = plname;
     result["current_playlist"]["type"] = type;
 
-    int secsElapsed = (int)(ple->GetElapsedMS() / 1000);
+    int msecs = ple->GetElapsedMS();
+    int secsElapsed = (int)(msecs / 1000);
     int secsRemaining = (int)((ple->GetLengthInMS() - ple->GetElapsedMS()) / 1000);
     std::string currentSeq;
     std::string currentSong;
@@ -1662,6 +1709,7 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     result["current_song"] = currentSong;
     result["seconds_played"] = std::to_string(secsElapsed);
     result["seconds_elapsed"] = std::to_string(secsElapsed);
+    result["milliseconds_elapsed"] = msecs;
     result["seconds_remaining"] = std::to_string(secsRemaining);
     result["time_elapsed"] = secondsToTime(secsElapsed);
     result["time_remaining"] = secondsToTime(secsRemaining);

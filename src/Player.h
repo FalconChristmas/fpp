@@ -64,7 +64,7 @@ public:
     Json::Value GetMqttStatusJSON();
     int WasScheduled();
 
-    int FindPosForMS(uint64_t& ms); //ms will be updated with how far into Pos it would be
+    int FindPosForMS(uint64_t& ms, bool itemDefinedOnly); //ms will be updated with how far into Pos it would be
     void GetFilenamesForPos(int pos, std::string& seq, std::string& med);
 
     int Load(const std::string filename);
