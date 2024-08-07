@@ -112,41 +112,15 @@ int main(int argc, char* argv[]) {
     memset(command, 0, sizeof(command));
     SetupDomainSocket();
     if (argc > 1) {
-        // Status - example "fpp -s"
-        if (strncmp(argv[1], "-s", 2) == 0) {
-            SendCommand("s");
-        }
-        // Set Volume - example "fpp -v 50"
-        else if (strncmp(argv[1], "-v", 2) == 0) {
-            snprintf(command, sizeof(command), "v,%s,", argv[2]);
-            SendCommand(command);
-        }
-        // Display version information
-        else if (strncmp(argv[1], "-V", 2) == 0) {
-            printVersionInfo();
-            exit(0);
-        }
-        // Shutdown fppd daemon
+        // Shutdown fppd daemon used by scripts/fppd_stop
         else if (strncmp(argv[1], "-q", 2) == 0) {
             snprintf(command, sizeof(command), "q");
-            SendCommand(command);
-        }
-        // Restart fppd daemon
-        else if (strncmp(argv[1], "-r", 2) == 0) {
-            snprintf(command, sizeof(command), "restart");
             SendCommand(command);
         }
         // Reload schedule example "fpp -R"
         else if (strncmp(argv[1], "-R", 2) == 0) {
             snprintf(command, sizeof(command), "R");
             SendCommand(command);
-        }
-        // Trigger a FPP Command Preset Slot - example "fpp -t 12"
-        else if ((strncmp(argv[1], "-t", 2) == 0) && argc > 2) {
-            snprintf(command, sizeof(command), "t,%s,", argv[2]);
-            SendCommand(command);
-        } else if (strncmp(argv[1], "-h", 2) == 0) {
-            Usage(argv[0]);
         }
         // Set new log level - "fpp --log-level info"   "fpp --log-level debug"
         else if ((strcmp(argv[1], "--log-level") == 0) && argc > 2) {
@@ -182,17 +156,6 @@ int main(int argc, char* argv[]) {
         } else if ((strncmp(argv[1], "-g", 2) == 0) && argc == 5) {
             snprintf(command, sizeof(command), "ExtGPIO,%s,%s,%s", argv[2], argv[3], argv[4]);
             SendCommand(command);
-        } else if ((strncmp(argv[1], "-C", 2) == 0)) {
-            Json::Value val;
-            val["command"] = argv[2];
-            for (int x = 3; x < argc; x++) {
-                val["args"].append(argv[x]);
-            }
-            std::string js = SaveJsonToString(val);
-            std::string resp;
-            urlPost("http://localhost/api/command", js, resp);
-            printf("Result: %s\n", resp.c_str());
-            return 0;
         } else if ((strncmp(argv[1], "-FBdebug", 8) == 0)) {
             Json::Value val;
             GetFrameBufferDevices(val, true);
@@ -293,22 +256,23 @@ void Usage(char* appname) {
            "certain information and send commands to a running fppd daemon.\n"
            "\n"
            "Options:\n"
-           "  -V                           - Print version information\n"
-           "  -s                           - Get fppd status\n"
-           "  -v VOLUME                    - Set volume to 'VOLUME'\n"
            "  -q                           - Shutdown fppd daemon\n"
-           "  -r                           - Restart fppd daemon\n"
            "  -R                           - Reload schedule config file\n"
-           "  -t CommandPresetSlot         - Trigger FPP Command Preset via Slot # or Preset Name\n"
            "  -G GPIO MODE                 - Configure the given GPIO to MODE. MODEs include:\n"
            "                                 Input    - Set to Input. For PiFace inputs this only enables the pull-up\n"
            "                                 Output   - Set to Output. (This is not needed for PiFace outputs)\n"
            "                                 SoftPWM  - Set to Software PWM.\n"
            "  -g GPIO MODE VALUE           - Set the given GPIO to VALUE applicable to the given MODEs defined above\n"
            "                                 VALUE is ignored for Input mode\n"
-           "  -C FPPCOMMAND ARG1 ARG2 ...  - Trigger the FPP Command\n"
            "  -FB                          - Query usable framebuffer devices\n\n\n"
-           " The following commands are now depreacted and the FPP API should be used instead.  Eg http://<fpp hostname/api/command/Stop Now\n"
+           " The following commands are now deprecated and the FPP API should be used instead.  Eg http://<fpp hostname>/api/command/Stop Now\n"
+           " Further information on the FPP API can be found at http://<fpp hostname>/apihelp.php\n\n"
+           "  -V                           - Print version information\n"
+           "                                            /api/fppd/version\n"
+           "  -r                           - Restart fppd daemon\n"
+           "                                            /api/system/fppd/restart\n"
+           "  -s                           - Get fppd status\n"
+           "                                            /api/system/status\n"
            "  -c PLAYLIST_ACTION           - Perform a playlist action.\n"
            "                                 next     - skip to next item in the playlist\n"
            "                                            /api/command/Next Playlist Item\n"
@@ -341,6 +305,13 @@ void Usage(char* appname) {
            "                                 /api/command/Effect Start/EFFECTNAME/[CH]/[True for Loop]\n"
            "  -E EFFECTNAME                - Stop Effect EFFECTNAME\n"
            "                                 /api/command/Effect Stop/EFFECTNAME\n"
+           "  -C FPPCOMMAND ARG1 ARG2 ...  - Trigger the FPP Command\n"
+           "                                 /api/command/<FPPCOMMAND/ARG1/ARG2/etc\n"
+           "  -t CommandPresetSlot         - Trigger FPP Command Preset via Slot # or Preset Name\n"
+           "                                 /api/command/Trigger Command Preset Slot/<Slot #>\n"
+           "                                 /api/command/Trigger Command Preset/<Preset Name>\n"
+           "  -v VOLUME                    - Set volume to 'VOLUME'\n"
+           "                                 /api/command/Volume Set/VOLUME\n"
            "\n",
            appname);
 }
