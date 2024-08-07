@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
     SetupDomainSocket();
     if (argc > 1) {
         // Shutdown fppd daemon used by scripts/fppd_stop
-        else if (strncmp(argv[1], "-q", 2) == 0) {
+        if (strncmp(argv[1], "-q", 2) == 0) {
             snprintf(command, sizeof(command), "q");
             SendCommand(command);
         }
