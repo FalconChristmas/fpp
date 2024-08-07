@@ -126,31 +126,6 @@ int main(int argc, char* argv[]) {
             printVersionInfo();
             exit(0);
         }
-        // Play Playlist - example "fpp -p playlistFile"
-        else if ((strncmp(argv[1], "-p", 2) == 0) && argc > 2) {
-            snprintf(command, sizeof(command), "p,%s,%s,", argv[2], argv[3]);
-            SendCommand(command);
-        }
-        // Play Playlist only once- example "fpp -P playlistFile 1"
-        else if ((strncmp(argv[1], "-P", 2) == 0) && argc > 2) {
-            snprintf(command, sizeof(command), "P,%s,%s,", argv[2], argv[3]);
-            SendCommand(command);
-        }
-        // Stop gracefully - example "fpp -S"
-        else if (strncmp(argv[1], "-S", 2) == 0) {
-            snprintf(command, sizeof(command), "StopGracefully");
-            SendCommand(command);
-        }
-        // Stop gracefully After Loop - example "fpp -L"
-        else if (strncmp(argv[1], "-L", 2) == 0) {
-            snprintf(command, sizeof(command), "StopGracefullyAfterLoop");
-            SendCommand(command);
-        }
-        // Stop now - example "fpp -d"
-        else if (strncmp(argv[1], "-d", 2) == 0) {
-            snprintf(command, sizeof(command), "StopNow");
-            SendCommand(command);
-        }
         // Shutdown fppd daemon
         else if (strncmp(argv[1], "-q", 2) == 0) {
             snprintf(command, sizeof(command), "q");
@@ -164,38 +139,6 @@ int main(int argc, char* argv[]) {
         // Reload schedule example "fpp -R"
         else if (strncmp(argv[1], "-R", 2) == 0) {
             snprintf(command, sizeof(command), "R");
-            SendCommand(command);
-        } else if ((strncmp(argv[1], "-c", 2) == 0) && argc > 2) {
-            if (!strcmp(argv[2], "next"))
-                strcpy(command, "NextPlaylistItem");
-            else if (!strcmp(argv[2], "prev"))
-                strcpy(command, "PrevPlaylistItem");
-            else if (!strcmp(argv[2], "pause"))
-                snprintf(command, sizeof(command), "ToggleSequencePause");
-            else if (!strcmp(argv[2], "step"))
-                snprintf(command, sizeof(command), "SingleStepSequence");
-            else if (!strcmp(argv[2], "stepback"))
-                snprintf(command, sizeof(command), "SingleStepSequenceBack");
-            else if (!strcmp(argv[2], "stop"))
-                snprintf(command, sizeof(command), "StopNow");
-            else if (!strcmp(argv[2], "graceful"))
-                snprintf(command, sizeof(command), "StopGracefully");
-            SendCommand(command);
-        }
-        // Start an effect - example "fpp -e effectName"
-        else if ((strncmp(argv[1], "-e", 2) == 0) && argc > 2) {
-            if (strchr(argv[2], ','))
-                snprintf(command, sizeof(command), "e,%s,", argv[2]);
-            else
-                snprintf(command, sizeof(command), "e,%s,1,0,", argv[2]);
-            SendCommand(command);
-        }
-        // Stop an effect - example "fpp -e effectName"
-        else if ((strncmp(argv[1], "-E", 2) == 0) && argc > 2) {
-            if (!strcmp(argv[2], "ALL"))
-                strcpy(command, "StopAllEffects,");
-            else
-                snprintf(command, sizeof(command), "StopEffectByName,%s,", argv[2]);
             SendCommand(command);
         }
         // Trigger a FPP Command Preset Slot - example "fpp -t 12"
@@ -353,27 +296,9 @@ void Usage(char* appname) {
            "  -V                           - Print version information\n"
            "  -s                           - Get fppd status\n"
            "  -v VOLUME                    - Set volume to 'VOLUME'\n"
-           "  -p PLAYLISTNAME [STARTITEM]  - Play Playlist PLAYLISTNAME in repeat mode\n"
-           "  -P PLAYLISTNAME [STARTITEM]  - Play Playlist PLAYLISTNAME once, optionally\n"
-           "                                 starting on item STARTITEM in the playlist\n"
-           "  -c PLAYLIST_ACTION           - Perform a playlist action.  Actions include:\n"
-           "                                 next     - skip to next item in the playlist\n"
-           "                                 prev     - jump back to previous item\n"
-           "                                 stop     - stop the playlist immediately\n"
-           "                                 graceful - stop the playlist gracefully\n"
-           "                                 pause    - pause a sequence (not media)\n"
-           "                                 step     - single-step a paused sequence\n"
-           "                                 stepback - step a paused sequence backwards\n"
-           "  -S                           - Stop Playlist gracefully\n"
-           "  -L                           - Stop Playlist gracefully after current loop\n"
-           "  -d                           - Stop Playlist immediately\n"
            "  -q                           - Shutdown fppd daemon\n"
            "  -r                           - Restart fppd daemon\n"
            "  -R                           - Reload schedule config file\n"
-           "  -e EFFECTNAME[,CH[,LOOP]]    - Start Effect EFFECTNAME with optional\n"
-           "                                 start channel set to CH and optional\n"
-           "                                 looping if LOOP is set to 1\n"
-           "  -E EFFECTNAME                - Stop Effect EFFECTNAME\n"
            "  -t CommandPresetSlot         - Trigger FPP Command Preset via Slot # or Preset Name\n"
            "  -G GPIO MODE                 - Configure the given GPIO to MODE. MODEs include:\n"
            "                                 Input    - Set to Input. For PiFace inputs this only enables the pull-up\n"
@@ -382,7 +307,40 @@ void Usage(char* appname) {
            "  -g GPIO MODE VALUE           - Set the given GPIO to VALUE applicable to the given MODEs defined above\n"
            "                                 VALUE is ignored for Input mode\n"
            "  -C FPPCOMMAND ARG1 ARG2 ...  - Trigger the FPP Command\n"
-           "  -FB                          - Query usable framebuffer devices"
+           "  -FB                          - Query usable framebuffer devices\n\n\n"
+           " The following commands are now depreacted and the FPP API should be used instead.  Eg http://<fpp hostname/api/command/Stop Now\n"
+           "  -c PLAYLIST_ACTION           - Perform a playlist action.\n"
+           "                                 next     - skip to next item in the playlist\n"
+           "                                            /api/command/Next Playlist Item\n"
+           "                                 prev     - jump back to previous item\n"
+           "                                            /api/command/Prev Playlist Item\n"
+           "                                 stop     - stop the playlist immediately\n"
+           "                                            /api/command/Stop Now\n"
+           "                                 graceful - stop the playlist gracefully\n"
+           "                                            /api/command/Stop Gracefully\n"
+           "                                 pause    - pause a sequence (not media)\n"
+           "                                            /api/command/Pause Playlist\n"
+           "                                 step     - single-step a paused sequence\n"
+           "                                            No direct replacement\n"
+           "                                 stepback - step a paused sequence backwards\n"
+           "                                            No direct replacement\n"
+           "  -p PLAYLISTNAME [STARTITEM]  - Play Playlist PLAYLISTNAME in repeat mode\n"
+           "                                 /api/command/Start Playlist/<PLAYLISTNAME>/<1 or STARTITEM>/true\n"
+           "  -P PLAYLISTNAME [STARTITEM]  - Play Playlist PLAYLISTNAME once, optionally\n"
+           "                                 starting on item STARTITEM in the playlist\n"
+           "                                 /api/command/Start Playlist/<PLAYLISTNAME>/<1 or STARTITEM>/false\n"
+           "  -S                           - Stop Playlist gracefully\n"
+           "                                 /api/command/Stop Gracefully\n"
+           "  -L                           - Stop Playlist gracefully after current loop\n"
+           "                                 /api/command/Stop Gracefully/true\n"
+           "  -d                           - Stop Playlist immediately\n"
+           "                                 /api/command/Stop Now\n"
+           "  -e EFFECTNAME[,CH[,LOOP]]    - Start Effect EFFECTNAME with optional\n"
+           "                                 start channel set to CH and optional\n"
+           "                                 looping if LOOP is set to 1\n"
+           "                                 /api/command/Effect Start/EFFECTNAME/[CH]/[True for Loop]\n"
+           "  -E EFFECTNAME                - Stop Effect EFFECTNAME\n"
+           "                                 /api/command/Effect Stop/EFFECTNAME\n"
            "\n",
            appname);
 }
