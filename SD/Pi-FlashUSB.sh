@@ -62,7 +62,7 @@ elif [ "$DEVICE" = "nvme0n1" ]; then
     # Clean up
     rm /tmp/boot.conf /tmp/new-eeprom.bin
     
-    echo "BOOT_ORDER set to ${BOOT_ORDER}.
+    echo "BOOT_ORDER set to ${BOOT_ORDER}."
 
     sed -i 's/root=\/dev\/[a-zA-Z0-9]* /root=\/dev\/nvme0n1p2 /g' /mnt${FPPBOOTDIR}/cmdline.txt
     sed -i 's/LABEL=boot[a-zA-Z0-9]* /LABEL=bootnvme /g' /mnt/etc/fstab
