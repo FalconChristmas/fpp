@@ -298,7 +298,7 @@ if ($addflashbutton) {
                 <div class="row">
                     <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to USB'
                             onClick='flashUSB("sda");'></div>
-                    <div class="col-auto">&nbsp;This will flash FPP to the USB device. See note below for more information.</div>
+                    <div class="col-auto">&nbsp;This will clone FPP to the USB device. See note below for more information.</div>
                 </div>
                 <div class="row">
                     <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Clone to USB'
@@ -311,13 +311,12 @@ if ($addflashbutton) {
                     <div class="row">
                         <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to NVMe'
                                 onClick='flashUSB("nvme0n1");'></div>
-                        <div class="col-auto">&nbsp;This will flash FPP to the NVMe device. See note below for more information.</div>
+                        <div class="col-auto">&nbsp;This will clone FPP to the NVMe device.</div>
                     </div>
                     <div class="row">
                         <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Clone to NVMe'
                                 onClick='cloneUSB("nvme0n1");'></div>
-                        <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the NVMe device. See note
-                            below for more information.</div>
+                        <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the NVMe device.</div>
                     </div>
         <? } else { ?>
                     <h3>SD Card Actions:</h3>
@@ -344,13 +343,13 @@ if ($settings['Platform'] != "Docker") { ?>
 
 
         <div class="callout callout-warning">
-            Changing the storage device to anything other than the SD card is strongly discouraged. There are all kinds of
+            Changing the storage device to USB devices is strongly discouraged. There are all kinds of
             problems that using USB storage introduce into the system which can easily result in various problems include
             network lag, packet drops, audio clicks/pops, high CPU usage, etc... Using USB storage also results in longer bootup
             time. In addition, many advanced features and various capes/hats are known to NOT work when using USB storage.
             <br><br>
-            In addition to the above, since it is not recommended, using USB storage is not tested nearly as extensively by the
-            FPP developers. Thus, upgrades (even "patch" upgrades) have a higher risk of unexpected problems. By selecting a USB
+            In addition to the above, since it is not recommended, using NVMe/USB storage is not tested nearly as extensively by the
+            FPP developers. Thus, upgrades (even "patch" upgrades) have a higher risk of unexpected problems. By selecting a NVMe/USB
             storage device, you assume much higher risk of problems and issues than when selecting an SD partition.
         </div>
     <? } else { ?>
