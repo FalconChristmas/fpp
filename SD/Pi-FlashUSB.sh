@@ -47,7 +47,23 @@ elif [ "$DEVICE" = "nvme0n1" ]; then
     mount /dev/nvme0n1p2 /mnt
     mount /dev/nvme0n1p1 /mnt${FPPBOOTDIR}
 
-#    echo "program_usb_boot_mode=1" >> /mnt${FPPBOOTDIR}/config.txt
+    # Set BOOT_ORDER in the EEPROM configuration
+    BOOT_ORDER=0xf61
+
+    # Create a temporary configuration file
+    echo -e "[all]\nBOOT_ORDER=${BOOT_ORDER}" > /tmp/boot.conf
+    
+    # Apply the configuration using the rpi-eeprom-config tool
+    sudo rpi-eeprom-config --config /tmp/boot.conf --out /tmp/new-eeprom.bin
+    
+    # Flash the EEPROM with the new configuration
+    sudo rpi-eeprom-update -d -f /tmp/new-eeprom.bin
+    
+    # Clean up
+    rm /tmp/boot.conf /tmp/new-eeprom.bin
+    
+    echo "BOOT_ORDER set to ${BOOT_ORDER}.
+
     sed -i 's/root=\/dev\/[a-zA-Z0-9]* /root=\/dev\/nvme0n1p2 /g' /mnt${FPPBOOTDIR}/cmdline.txt
     sed -i 's/LABEL=boot[a-zA-Z0-9]* /LABEL=bootnvme /g' /mnt/etc/fstab
     sed -i 's/LABEL=root[a-zA-Z0-9]* /LABEL=rootfsnvme /g' /mnt/etc/fstab
@@ -73,8 +89,8 @@ if [ "$ISCLONE" = "0" ]; then
 
     rm /mnt/home/fpp/.bash_history
 fi
-umount /mnt${FPPBOOTDIR}
-umount /mnt
+#umount /mnt${FPPBOOTDIR}
+#umount /mnt
 
 echo ""
 echo ""

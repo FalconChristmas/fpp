@@ -233,7 +233,7 @@ $addnewfsbutton = false;
 $addflashbutton = false;
 exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
 $rootDevice = $output[0];
-if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
+if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2' || $rootDevice == 'nvme0n1p2' || $rootDevice == 'sda2' ) {
     if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 0) {
         $addnewfsbutton = true;
     }
