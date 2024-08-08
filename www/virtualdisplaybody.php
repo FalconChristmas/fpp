@@ -100,30 +100,29 @@ function initCanvas()
 		fillStyle: '#000',
 		x: 0,
 		y: 0,
-		width: canvasWidth*window.devicePixelRatio,
-		height: canvasHeight*window.devicePixelRatio
+		width: canvasWidth * window.devicePixelRatio,
+		height: canvasHeight * window.devicePixelRatio
 	});
 
 	$('#vCanvas').drawImage({
 		layer: true,
 		opacity: 0.2,
 		source: 'api/file/Images/virtualdisplaybackground.jpg',
-		width: canvasWidth*window.devicePixelRatio,
-		height: canvasHeight*window.devicePixelRatio
+		width: canvasWidth * window.devicePixelRatio,
+		height: canvasHeight * window.devicePixelRatio
 	});
 
 	var c = document.getElementById('vCanvas');
 	ctx = c.getContext('2d');
 
 	buffer = document.createElement('canvas');
-	buffer.width = c.width;
-	buffer.height = c.height;
+	buffer.width = c.width * window.devicePixelRatio;
+	buffer.height = c.height * window.devicePixelRatio;
 	bctx = buffer.getContext('2d');
 
 	// Draw the black pixels
 	bctx.fillStyle = '#000000';
-	for (var key in cellColors)
-	{
+	for (var key in cellColors) {
 		bctx.fillRect(cellColors[key].x, cellColors[key].y, 1, 1);
 	}
 }
@@ -191,6 +190,6 @@ $(document).ready(function() {
 <input type='button' id='stopButton' onClick='stopSSE();' value='Stop Virtual Display'><br>
 <table border=0>
 <tr><td valign='top'>
-<canvas id='vCanvas' width='<? echo $canvasWidth; ?>' height='<? echo $canvasHeight; ?>'></canvas></td>
+<canvas id='vCanvas' width='<?= $canvasWidth ?>px' height='<?= $canvasHeight ?>px'></canvas></td>
 <td id='data'></td></tr></table>
 
