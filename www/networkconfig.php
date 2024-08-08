@@ -497,6 +497,13 @@
                 } else {
                     $('#eth_hidden').prop('checked', false);
                 }
+                $('#backupeth_ssid').val(data.BACKUPSSID);
+                $('#backupeth_psk').val(data.BACKUPPSK);
+                if (data.BACKUPHIDDEN == "1") {
+                    $('#backupeth_hidden').prop('checked', true);
+                } else {
+                    $('#backupeth_hidden').prop('checked', false);
+                }
             }
             <? if ($settings['uiLevel'] >= 1) { ?>
                 if (data.ROUTEMETRIC) {
