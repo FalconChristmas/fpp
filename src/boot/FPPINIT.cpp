@@ -899,14 +899,53 @@ static void setupAudio() {
         PutFileContents("/root/.libao", "dev=default");
     }
     std::string aplay = execAndReturn("/usr/bin/aplay -l 2>&1");
-    if (contains(aplay, "no soundcards")) {
+    std::vector<std::string> lines = split(aplay, '\n');
+    std::map<std::string, std::string> cards;
+    std::map<std::string, bool> hdmiStatus;
+    bool hasNonHDMI = false;
+    for (auto & l : lines) {
+        if (l.starts_with("card ")) {
+            std::string k = l.substr(0, 6);
+            std::string v = l.substr(8);
+            int idx = v.find(' ');
+            v = v.substr(0, idx);
+            cards[k] = v;
+            hasNonHDMI |= !l.contains("vc4hdmi");
+        }
+    }
+    for (int x = 0; x < 4; x++) {
+        std::string cstr = "/sys/class/drm/card" + std::to_string(x) + "-HDMI-A-1/status";
+        if (FileExists(cstr)) {
+            for (int p = 1; p < 5; p++) {
+                std::string cstr = "/sys/class/drm/card" + std::to_string(x) + "-HDMI-A-" + std::to_string(p) + "/status";
+                std::string c = GetFileContents(cstr);
+                std::string k = "vc4hdmi1" + std::to_string(x - 1);
+                hdmiStatus[k] = c == "connected";
+            }
+        }
+    }
+    if (!hasNonHDMI || contains(aplay, "no soundcards")) {
         printf("FPP - No Soundcard Detected, loading snd-dummy\n");
         modprobe("snd-dummy");
     }
     int card = getRawSettingInt("AudioOutput", 0);
-    int count = 0;
+    std::string cstr = "card " + std::to_string(card);
+    std::string hdmistr = "vc4hdmi1" + std::to_string(card);
     bool found = false;
-    do {
+    int count = 0;
+    if (cards[cstr].starts_with("vc4hdmi") && !hdmiStatus[hdmistr]) {
+        // nothing connected to the HDMI port so it's definitely not going to work
+        // flip to the dummy output
+        if (!cards.empty() && !cards["card 0"].starts_with("vc4hdmi")) {
+            printf("FPP - Could not find audio device %d, attempting device 0.\n", card);
+            card = 0;
+        } else {
+            card = cards.size();
+            found = true;
+            setRawSetting("AudioOutput", std::to_string(card));
+        }
+    }
+    while (!found && count < 50) {
         std::string amixer = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " cset numid=3 1  2>&1");
         if (contains(amixer, "Invalid ")) {
             ++count;
@@ -914,7 +953,7 @@ static void setupAudio() {
         } else {
             found = true;
         }
-    } while (!found && count < 50);
+    }
     if (!found) {
         printf("FPP - Could not find audio device %d, defaulting to device 0.\n", card);
         CopyFileContents("/opt/fpp/etc/asoundrc.plain", "/root/.asoundrc");
