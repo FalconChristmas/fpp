@@ -1,6 +1,6 @@
 /*
  * This file is part of the Falcon Player (FPP) and is Copyright (C)
- * 2013-2022 by the Falcon Player Developers.
+ * 2013-2023 by the Falcon Player Developers.
  *
  * The Falcon Player (FPP) is free software, and is covered under
  * multiple Open Source licenses.  Please see the included 'LICENSES'
@@ -27,6 +27,7 @@
 #include <string>
 #include <unistd.h>
 
+#include "OLEDMenuController.h"
 #include "Player.h"
 #include "Scheduler.h"
 #include "Sequence.h"
@@ -534,6 +535,46 @@ char* ProcessCommand(char* command, char* response) {
                 snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Setting GPIO,%d,%s,%d,,,,,,,,\n", getFPPmode(), COMMAND_FAILED, atoi(s), s2, atoi(s3));
             }
         }
+    } else if (!strcmp(CommandStr, "SetOLEDCommand")) {
+        s = strtok(NULL, ",");
+        std::string ActionStr(s);
+        int enumAction = OLEDMenuController::s_mapStringValues[ActionStr];
+        switch (enumAction) {
+        case OLEDMenuController::OLEDMenuControlOption::OLED_M_CMD_UP:
+            // function to pass required action to fppoled to process
+            OLEDMenuController::INSTANCE.SendActionToOLEDProcess(enumAction);
+            snprintf(response, MAX_RESPONSE_SIZE - 1, "OLED Up", getFPPmode(), COMMAND_SUCCESS);
+            break;
+        case OLEDMenuController::OLEDMenuControlOption::OLED_M_CMD_DOWN:
+            OLEDMenuController::INSTANCE.SendActionToOLEDProcess(enumAction);
+            snprintf(response, MAX_RESPONSE_SIZE - 1, "OLED Down", getFPPmode(), COMMAND_SUCCESS);
+            break;
+        case OLEDMenuController::OLEDMenuControlOption::OLED_M_CMD_BACK:
+            OLEDMenuController::INSTANCE.SendActionToOLEDProcess(enumAction);
+            snprintf(response, MAX_RESPONSE_SIZE - 1, "OLED Back", getFPPmode(), COMMAND_SUCCESS);
+            break;
+        case OLEDMenuController::OLEDMenuControlOption::OLED_M_CMD_RIGHT:
+            OLEDMenuController::INSTANCE.SendActionToOLEDProcess(enumAction);
+            snprintf(response, MAX_RESPONSE_SIZE - 1, "OLED Right", getFPPmode(), COMMAND_SUCCESS);
+            break;
+        case OLEDMenuController::OLEDMenuControlOption::OLED_M_CMD_ENTER:
+            OLEDMenuController::INSTANCE.SendActionToOLEDProcess(enumAction);
+            snprintf(response, MAX_RESPONSE_SIZE - 1, "OLED Enter", getFPPmode(), COMMAND_SUCCESS);
+            break;
+        case OLEDMenuController::OLEDMenuControlOption::OLED_M_CMD_TEST:
+            OLEDMenuController::INSTANCE.SendActionToOLEDProcess(enumAction);
+            snprintf(response, MAX_RESPONSE_SIZE - 1, "OLED Test", getFPPmode(), COMMAND_SUCCESS);
+            break;
+        case OLEDMenuController::OLEDMenuControlOption::OLED_M_CMD_MODE:
+            OLEDMenuController::INSTANCE.SendActionToOLEDProcess(enumAction);
+            snprintf(response, MAX_RESPONSE_SIZE - 1, "OLED Mode", getFPPmode(), COMMAND_SUCCESS);
+            break;
+        case OLEDMenuController::OLEDMenuControlOption::OLED_M_CMD_TESTMUTLISYNC:
+            OLEDMenuController::INSTANCE.SendActionToOLEDProcess(enumAction);
+            snprintf(response, MAX_RESPONSE_SIZE - 1, "OLED Test Multisync", getFPPmode(), COMMAND_SUCCESS);
+            break;
+        }
+
     } else {
         snprintf(response, MAX_RESPONSE_SIZE - 1, "Invalid command: '%s'\n", CommandStr);
     }

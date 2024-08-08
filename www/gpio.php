@@ -91,7 +91,8 @@ function SaveGPIOInputs() {
 $(document).ready(function(){
 });
 
-extraCommands = [
+/// This section removed in favour of new OLED control commands being created
+/* extraCommands = [
 {
     "name": "OLED Navigation",
     "args": [
@@ -107,7 +108,7 @@ extraCommands = [
     ],
     "supportsMulticast" : false
 }
-];
+]; */
 
 </script>
 
