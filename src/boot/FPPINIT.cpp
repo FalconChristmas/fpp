@@ -1066,14 +1066,19 @@ void detectFalconHardware() {
 }
 void setupKiosk() {
     int km = getRawSettingInt("Kiosk", 0);
+    if (FileExists("/fpp_kiosk")) {
+        unlink("/fpp_kiosk");
+        km = true;
+    }
     if (km) {
         std::string url = "http://localhost/";
         getRawSetting("KioskUrl", url);
         std::string value = "{\"RestoreOnStartup\": 4,\"RestoreOnStartupURLs\": [\"" + url + "\"]}";
+        mkdir("/etc/chromium/", 0775);
+        mkdir("/etc/chromium/policies", 0775);
+        mkdir("/etc/chromium/policies/managed", 0775);
         PutFileContents("/etc/chromium/policies/managed/policy.json", value);
-    }
-    if (FileExists("/fpp_kiosk")) {
-        unlink("/fpp_kiosk");
+        
         if (!FileExists("/etc/fpp/kiosk")) {
             // need to re-install kiosk mode
             exec("/opt/fpp/SD/FPP_Kiosk.sh");

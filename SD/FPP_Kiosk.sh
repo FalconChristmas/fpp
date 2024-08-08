@@ -45,5 +45,7 @@ cat >> /home/fpp/.bashrc << EOF
 EOF
 chown fpp:fpp /home/fpp/.bashrc
 
+echo "kiosk" > /etc/fpp/kiosk
+
 setSetting Kiosk 1
 setSetting rebootFlag 1
