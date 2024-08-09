@@ -274,10 +274,8 @@ foreach ($data["schedule"]["items"] as $item) {
         printf("<td>%s%s</td><th>&nbsp;-&nbsp;</th><td>Start Playing</td><th>&nbsp;-&nbsp;</th><td>%s (%s w/ %s Stop)</td>",
             $item["startTimeStr"],
             checkIfHoliday($item, true),
-            $holiday,
             $item["args"][0],
-            $data["schedule"]["entries"][$item["id"]]["repeat"] == 1 ?
-            "Repeating" : "Non-Repeating",
+            $data["schedule"]["entries"][$item["id"]]["repeat"] == 1 ? "Repeating" : "Non-Repeating",
             $data["schedule"]["entries"][$item["id"]]["stopTypeStr"]
         );
     } else {
