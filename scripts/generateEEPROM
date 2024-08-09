@@ -320,6 +320,7 @@ function Usage() {
     printf( "                               if it were unsigned by FPP.\n");
     printf( "  -V, --Variable KEY=VALUE   - Add a variable to the EEPROM\n");
     printf( "  -d, --directory DIRECTORY  - Directory to package in EEPROM\n");
+    printf( "  -x, --xtract DIRECTORY     - Directory to extract EEPROM to\n");
     printf( "  -o, --output OUTPUTFILE    - File name of generated EEPROM file\n");
     printf( "                               Defaults to CAPENAME-SERIAL-eeprom.bin\n");
     printf( "\n");
@@ -338,6 +339,9 @@ function Usage() {
     printf( "  # Clone an EEPROM to a new file with a new serial number\n");
     printf( "  %s -e MyCape-eeprom.bin -s 0123456789\n", $exe);
     printf( "  %s -e MyCape-eeprom.bin -s\n", $exe);
+    printf( "\n");
+    printf( "  # Extract an EEPROM to directory called tmp\n");
+    printf( "  %s -e MyCape-eeprom.bin -x tmp\n", $exe);
     printf( "\n");
 
     exit(0);
