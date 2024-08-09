@@ -458,6 +458,8 @@ Json::Value PlaylistEntryMedia::GetConfig(void) {
         result["minutesTotal"] = status.minutesTotal;
         result["secondsTotal"] = status.secondsTotal;
         result["mediaSeconds"] = status.mediaSeconds;
+        result["mediaSeconds"] = status.mediaSeconds;
+        result["millisecondsElapsed"] = status.secondsElapsed * 1000 + status.subSecondsElapsed * 10;
     }
 
     return result;
@@ -467,6 +469,7 @@ Json::Value PlaylistEntryMedia::GetMqttStatus(void) {
     Json::Value result = PlaylistEntryBase::GetMqttStatus();
     MediaOutputStatus status = IsPaused() ? m_pausedStatus : mediaOutputStatus;
     result["secondsElapsed"] = status.secondsElapsed;
+    result["millisecondsElapsed"] = status.secondsElapsed * 1000 + status.subSecondsElapsed * 10;
     result["secondsRemaining"] = status.secondsRemaining;
     result["secondsTotal"] = status.minutesTotal * 60 + status.secondsTotal;
     result["mediaName"] = m_mediaFilename;

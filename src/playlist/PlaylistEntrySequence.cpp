@@ -168,9 +168,11 @@ Json::Value PlaylistEntrySequence::GetConfig(void) {
     if (sequence->m_seqFilename == m_sequenceName) {
         if (IsPaused()) {
             int pos = m_pausedFrame * m_sequenceFrameTime;
+            result["millisecondsElapsed"] = pos;
             result["secondsElapsed"] = pos / 1000;
             result["secondsRemaining"] = (m_duration - pos) / 1000;
         } else {
+            result["millisecondsElapsed"] = sequence->m_seqMSElapsed;
             result["secondsElapsed"] = sequence->m_seqMSElapsed / 1000;
             result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
         }
@@ -182,6 +184,7 @@ Json::Value PlaylistEntrySequence::GetMqttStatus(void) {
     result["sequenceName"] = m_sequenceName;
     if (IsPaused()) {
         int pos = m_pausedFrame * m_sequenceFrameTime;
+        result["millisecondsElapsed"] = pos;
         result["secondsElapsed"] = pos / 1000;
         result["secondsRemaining"] = (m_duration - pos) / 1000;
         result["secondsTotal"] = m_duration / 1000;
@@ -189,6 +192,7 @@ Json::Value PlaylistEntrySequence::GetMqttStatus(void) {
         result["secondsElapsed"] = sequence->m_seqMSElapsed / 1000;
         result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
         result["secondsTotal"] = sequence->m_seqMSDuration / 1000;
+        result["millisecondsElapsed"] = sequence->m_seqMSElapsed;
     }
     return result;
 }
