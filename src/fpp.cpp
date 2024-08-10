@@ -156,6 +156,10 @@ int main(int argc, char* argv[]) {
         } else if ((strncmp(argv[1], "-g", 2) == 0) && argc == 5) {
             snprintf(command, sizeof(command), "ExtGPIO,%s,%s,%s", argv[2], argv[3], argv[4]);
             SendCommand(command);
+        } else if (strncmp(argv[1], "-r", 2) == 0) {
+            // Restart fppd daemon
+            snprintf(command, sizeof(command), "restart");
+            SendCommand(command);
         } else if ((strncmp(argv[1], "-FBdebug", 8) == 0)) {
             Json::Value val;
             GetFrameBufferDevices(val, true);
