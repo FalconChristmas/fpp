@@ -1459,14 +1459,14 @@ function LoadPixelnetDMXFiles()
         }
     }
 
-    if (file_exists($settings['configDirectory'] . "/Falcon.F16V2-alpha") || file_exists($settings['configDirectory'] . "/Falcon.F16V2")) {
-        $FPD_V2_data = LoadPixelnetDMXFile_FPDV2();
-
-        //If data is valid put into return array to be saved into the JSON file
-        if (is_array($FPD_V1_data) && !empty($FPD_V1_data)) {
-            $return_data['Falcon.F16V2'] = $FPD_V2_data;
-        }
-    }
+//    if (file_exists($settings['configDirectory'] . "/Falcon.F16V2-alpha") || file_exists($settings['configDirectory'] . "/Falcon.F16V2")) {
+//        $FPD_V2_data = LoadPixelnetDMXFile_FPDV2();
+//
+//        //If data is valid put into return array to be saved into the JSON file
+//        if (is_array($FPD_V1_data) && !empty($FPD_V1_data)) {
+//            $return_data['Falcon.F16V2'] = $FPD_V2_data;
+//        }
+//    }
     return $return_data;
 }
 
@@ -1488,15 +1488,15 @@ function SavePixelnetDMXFiles($restore_data)
         $write_status_arr['Falcon.FPDV1'] = $FPD_V1_Restore_data;
     }
 
-    if (array_key_exists('Falcon.F16V2-alpha', $restore_data) && !empty($restore_data['Falcon.F16V2-alpha'])) {
-        $FPD_V2_Restore_data = SavePixelnetDMXFile_F16v2Alpha($restore_data['Falcon.F16V2-alpha']);
-
-        $write_status_arr['Falcon.F16V2-alpha'] = $FPD_V2_Restore_data;
-    } else if (array_key_exists('Falcon.F16V2', $restore_data) && !empty($restore_data['Falcon.F16V2'])) {
-        $FPD_V2_Restore_data = SavePixelnetDMXFile_F16v2Alpha($restore_data['Falcon.F16V2']);
-
-        $write_status_arr['Falcon.F16V2'] = $FPD_V2_Restore_data;
-    }
+//    if (array_key_exists('Falcon.F16V2-alpha', $restore_data) && !empty($restore_data['Falcon.F16V2-alpha'])) {
+//        $FPD_V2_Restore_data = SavePixelnetDMXFile_F16v2Alpha($restore_data['Falcon.F16V2-alpha']);
+//
+//        $write_status_arr['Falcon.F16V2-alpha'] = $FPD_V2_Restore_data;
+//    } else if (array_key_exists('Falcon.F16V2', $restore_data) && !empty($restore_data['Falcon.F16V2'])) {
+//        $FPD_V2_Restore_data = SavePixelnetDMXFile_F16v2Alpha($restore_data['Falcon.F16V2']);
+//
+//        $write_status_arr['Falcon.F16V2'] = $FPD_V2_Restore_data;
+//    }
 
     return $write_status_arr;
 }
@@ -1630,61 +1630,60 @@ function SavePixelnetDMXFile_FPDv1($restore_data)
  * @param $restore_data array FPDv2 data to restore
  * @return bool Success state file write
  */
-function SavePixelnetDMXFile_F16v2Alpha($restore_data)
-{
-    global $settings;
-    $outputCount = 16;
-    $write_status = false;
-
-    if (!empty($restore_data) && is_array($restore_data)) {
-        $carr = array();
-        for ($i = 0; $i < 1024; $i++) {
-            $carr[$i] = 0x0;
-        }
-
-        $i = 0;
-
-        // Header
-        $carr[$i++] = 0x55;
-        $carr[$i++] = 0x55;
-        $carr[$i++] = 0x55;
-        $carr[$i++] = 0x55;
-        $carr[$i++] = 0x55;
-        $carr[$i++] = 0xCD;
-
-        // Some byte
-        $carr[$i++] = 0x01;
-
-        for ($o = 0; $o < $outputCount; $o++) {
-            $cur = $restore_data[$o];
-            $nodeCount = $cur['nodeCount'];
-            $carr[$i++] = intval($nodeCount % 256);
-            $carr[$i++] = intval($nodeCount / 256);
-
-            $startChannel = $cur['startChannel'] - 1; // 0-based values in config file
-            $carr[$i++] = intval($startChannel % 256);
-            $carr[$i++] = intval($startChannel / 256);
-
-            // Node Type is set on groups of 4 ports
-            $carr[$i++] = intval($cur['nodeType']);
-
-            $carr[$i++] = intval($cur['rgbOrder']);
-            $carr[$i++] = intval($cur['direction']);
-            $carr[$i++] = intval($cur['groupCount']);
-            $carr[$i++] = intval($cur['nullNodes']);
-        }
-
-        $f = fopen($settings['configDirectory'] . "/Falcon.F16V2-alpha", "wb");
-
-        if (fwrite($f, implode(array_map("chr", $carr)), 1024) === false) {
-            $write_status = false;
-        } else {
-            $write_status = true;
-        }
-
-        fclose($f);
-//    SendCommand('w');
-    }
+//function SavePixelnetDMXFile_F16v2Alpha($restore_data)
+//{
+//    global $settings;
+//    $outputCount = 16;
+//    $write_status = false;
+//
+//    if (!empty($restore_data) && is_array($restore_data)) {
+//        $carr = array();
+//        for ($i = 0; $i < 1024; $i++) {
+//            $carr[$i] = 0x0;
+//        }
+//
+//        $i = 0;
+//
+//        // Header
+//        $carr[$i++] = 0x55;
+//        $carr[$i++] = 0x55;
+//        $carr[$i++] = 0x55;
+//        $carr[$i++] = 0x55;
+//        $carr[$i++] = 0x55;
+//        $carr[$i++] = 0xCD;
+//
+//        // Some byte
+//        $carr[$i++] = 0x01;
+//
+//        for ($o = 0; $o < $outputCount; $o++) {
+//            $cur = $restore_data[$o];
+//            $nodeCount = $cur['nodeCount'];
+//            $carr[$i++] = intval($nodeCount % 256);
+//            $carr[$i++] = intval($nodeCount / 256);
+//
+//            $startChannel = $cur['startChannel'] - 1; // 0-based values in config file
+//            $carr[$i++] = intval($startChannel % 256);
+//            $carr[$i++] = intval($startChannel / 256);
+//
+//            // Node Type is set on groups of 4 ports
+//            $carr[$i++] = intval($cur['nodeType']);
+//
+//            $carr[$i++] = intval($cur['rgbOrder']);
+//            $carr[$i++] = intval($cur['direction']);
+//            $carr[$i++] = intval($cur['groupCount']);
+//            $carr[$i++] = intval($cur['nullNodes']);
+//        }
+//
+//        $f = fopen($settings['configDirectory'] . "/Falcon.F16V2-alpha", "wb");
+//
+//        if (fwrite($f, implode(array_map("chr", $carr)), 1024) === false) {
+//            $write_status = false;
+//        } else {
+//            $write_status = true;
+//        }
+//
+//        fclose($f);
+//    }
 
     return $write_status;
 }

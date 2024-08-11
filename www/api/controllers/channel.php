@@ -52,9 +52,7 @@ function channel_put_pixelnetDMX()
     $model = $input['model'];
     $firmware = $input['firmware'];
 
-    if ($model == "F16V2-alpha") {
-        SaveF16v2Alpha($input["pixels"]);
-    } else if ($model == "FPDv1") {
+    if ($model == "FPDv1") {
         SaveFPDv1($input["pixels"]);
     } else {
         $status = 'Failure, Unknown Model';
@@ -65,54 +63,6 @@ function channel_put_pixelnetDMX()
 	GenerateBackupViaAPI('PixelnetDMX Output was modified.');
 
     return json(array("status" => "OK"));
-}
-
-function SaveF16v2Alpha($pixels)
-{
-    global $settings;
-    $outputCount = 16;
-
-    $carr = array();
-    for ($i = 0; $i < 1024; $i++) {
-        $carr[$i] = 0x0;
-    }
-
-    $i = 0;
-
-    // Header
-    $carr[$i++] = 0x55;
-    $carr[$i++] = 0x55;
-    $carr[$i++] = 0x55;
-    $carr[$i++] = 0x55;
-    $carr[$i++] = 0x55;
-    $carr[$i++] = 0xCD;
-
-    // Some byte
-    $carr[$i++] = 0x01;
-
-    for ($o = 0; $o < $outputCount; $o++) {
-        $cur = $pixels[$o];
-        $nodeCount = $cur['nodeCount'];
-        $carr[$i++] = intval($nodeCount % 256);
-        $carr[$i++] = intval($nodeCount / 256);
-
-        $startChannel = $cur['startChannel'] - 1; // 0-based values in config file
-        $carr[$i++] = intval($startChannel % 256);
-        $carr[$i++] = intval($startChannel / 256);
-
-        // Node Type is set on groups of 4 ports
-        $carr[$i++] = intval($cur['nodeType']);
-
-        $carr[$i++] = intval($cur['rgbOrder']);
-        $carr[$i++] = intval($cur['direction']);
-        $carr[$i++] = intval($cur['groupCount']);
-        $carr[$i++] = intval($cur['nullNodes']);
-    }
-
-    $f = fopen($settings['configDirectory'] . "/Falcon.F16V2-alpha", "wb");
-    fwrite($f, implode(array_map("chr", $carr)), 1024);
-    fclose($f);
-    SendCommand('w');
 }
 
 function SaveFPDv1($pixels)
