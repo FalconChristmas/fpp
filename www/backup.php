@@ -1683,9 +1683,9 @@ function SavePixelnetDMXFile_FPDv1($restore_data)
 //
 //        fclose($f);
 //    }
-
-    return $write_status;
-}
+//
+//    return $write_status;
+//}
 
 /**
  * Performs all the work to gather files to be backed up for the specified backup area
