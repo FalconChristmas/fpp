@@ -1617,7 +1617,6 @@ function SavePixelnetDMXFile_FPDv1($restore_data)
         }
 
         fclose($f);
-//    SendCommand('w');
 
     }
     return $write_status;
