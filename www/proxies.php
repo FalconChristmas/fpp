@@ -30,8 +30,8 @@ require_once "common.php";
             $('#proxyTable tbody').append(
                 "<tr id='row'" + currentRows + " class='fppTableRow proxyRow'>" +
                 "<td>" + (currentRows + 1) + "</td>" +
-                "<td><input id='ipRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")'></td>" +
-                "<td><input id='descRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value=''></td>" +
+                "<td><input id='ipRow" + currentRows + "' class='ipaddress' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")'></td>" +
+                "<td><input id='descRow" + currentRows + "' class='description' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value=''></td>" +
                 "<td id='linkRow" + currentRows + "'> </td>" +
                 "</tr>");
         }
@@ -41,8 +41,8 @@ require_once "common.php";
             $('#proxyTable tbody').append(
                 "<tr id='row'" + currentRows + " class='fppTableRow proxyRow'>" +
                 "<td>" + (currentRows + 1) + "</td>" +
-                "<td><input id='ipRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + host + "'></td>" +
-                "<td><input id='descRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + description + "'></td>" +
+                "<td><input id='ipRow" + currentRows + "' class='ipaddress' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + host + "'></td>" +
+                "<td><input id='descRow" + currentRows + "' class='description' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + description + "'></td>" +
                 "<td id='linkRow" + currentRows + "'>" +
                 <? if (!$settings['hideExternalURLs']) { ?>
                     "<a target='_blank' href='proxy/" + host + "'>" + host + "</a>" +
@@ -73,18 +73,21 @@ require_once "common.php";
             var formStr = "<form action='proxies.php' method='post' id='proxyForm'>";
 
             var json = new Array();
-            var row = 0;
             $(".proxyRow").each(function () {
-                console.log("Hello!!!");
-                var ip = $(this).find("#ipRow" + row).val();
-                console.log("" + ip);
+                console.log(this);                
+                var ip = $(this).find(".ipaddress").val();
+                if(ip === undefined || ip === null || ip === '')
+                { ip = "";}
                 if (isValidHostname(ip) || isValidIpAddress(ip)) {
-                    var desc = $(this).find("#descRow" + row).val();
+                    var desc = $(this).find(".description" ).val();
+                    if(desc === undefined || desc === null || desc === '')
+                    {
+                        desc = "";
+                    }                    
                     json.push({
                             "host" : ip,
                             "description" : desc
-                        });
-                    ++row;
+                        });                       
                 }
             });
             Post("api/proxies", false, JSON.stringify(json, null, 2));
