@@ -1492,8 +1492,8 @@ int Playlist::FindPosForMS(uint64_t& t, bool itemDefinedOnly) {
         PlaylistEntryBase* bestOption = nullptr;
         uint64_t diff = 0xFFFFFFFFFFL;        
         for (auto& a : m_leadIn) {
-            if (a->GetTimeCode() >= t) {
-                uint64_t d2 = a->GetTimeCode() - t;
+            if (a->GetTimeCode() < t) {
+                uint64_t d2 = t - a->GetTimeCode();
                 if (d2 < diff) {
                     diff = d2;
                     bestOption = a;
@@ -1501,8 +1501,8 @@ int Playlist::FindPosForMS(uint64_t& t, bool itemDefinedOnly) {
             }
         }
         for (auto& a : m_mainPlaylist) {
-            if (a->GetTimeCode() >= t) {
-                uint64_t d2 = a->GetTimeCode() - t;
+            if (a->GetTimeCode() < t) {
+                uint64_t d2 = t - a->GetTimeCode();
                 if (d2 < diff) {
                     diff = d2;
                     bestOption = a;
@@ -1510,8 +1510,8 @@ int Playlist::FindPosForMS(uint64_t& t, bool itemDefinedOnly) {
             }
         }
         for (auto& a : m_leadOut) {
-            if (a->GetTimeCode() >= t) {
-                uint64_t d2 = a->GetTimeCode() - t;
+            if (a->GetTimeCode() < t) {
+                uint64_t d2 = t - a->GetTimeCode();
                 if (d2 < diff) {
                     diff = d2;
                     bestOption = a;

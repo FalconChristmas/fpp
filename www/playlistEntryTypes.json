@@ -433,7 +433,7 @@
 				"advanced": true,
 				"default": "Default",
 				"extraOptions": {
-					"timeFormat": "H:i",
+					"timeFormat": "H:i:s",
 					"typeaheadHighlight": false,
 					"noneOption": [
 						{
@@ -634,7 +634,7 @@
 				"advanced": true,
 				"default": "Default",
 				"extraOptions": {
-					"timeFormat": "H:i",
+					"timeFormat": "H:i:s",
 					"typeaheadHighlight": false,
 					"noneOption": [
 						{
@@ -676,7 +676,7 @@
 				"advanced": true,
 				"default": "Default",
 				"extraOptions": {
-					"timeFormat": "H:i",
+					"timeFormat": "H:i:s",
 					"typeaheadHighlight": false,
 					"noneOption": [
 						{
