@@ -242,10 +242,12 @@ function CallPluginFileUploaded($dir, $filename)
             }
         }
     }
+    return "Could not find plugin to handle " . $filename;
 }
 function PluginFileOnUpload()
 {
     global $mediaDirectory;
+
     $ext = params("ext");
     $fileName = params(0);
     return CallPluginFileUploaded($mediaDirectory . "/" . $ext, $fileName);
