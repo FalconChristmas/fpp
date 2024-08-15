@@ -232,7 +232,7 @@ void Events::RunPublishThread() {
         int sleep_dur = INT_MAX;
 
         for (auto it = eventNotifiers.begin(); it != eventNotifiers.end(); it++) {
-            if ((*it)->next_time < now) {
+            if ((*it)->next_time <= now) {
                 (*it)->notify();
                 (*it)->next_time = (now + (*it)->frequency);
             }
