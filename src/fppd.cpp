@@ -998,7 +998,7 @@ void MainLoop(void) {
                 doPing = true;
             }
         }
-        if (doPing) {
+        if (doPing) {            
             idleCount = 0;
             multiSync->PeriodicPing();
             if (--publishCounter < 0) {
@@ -1007,11 +1007,12 @@ void MainLoop(void) {
                 publishCounter = 60480;
                 publishReason = "normal";
             }
+            // also do the periodic work in the api server while idle
+            apiServer.periodicWork();
         }
         Timers::INSTANCE.fireTimers();
         CurlManager::INSTANCE.processCurls();
         GPIOManager::INSTANCE.CheckGPIOInputs();
-        apiServer.periodicWork();
     }
     close(epollf);
 
