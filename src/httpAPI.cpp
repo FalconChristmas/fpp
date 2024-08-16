@@ -16,6 +16,7 @@
 #include <sys/sysctl.h>
 #else
 #include <sys/sysinfo.h>
+#include <sys/ioctl.h>	
 #endif
 
 #include <cstdlib>
@@ -305,9 +306,15 @@ void LogResponse(const http_request& req, int responseCode, const std::string& c
     }
 }
 
+
 PlayerResource::PlayerResource() {
 #ifdef PLATFORM_PI    
-    piPowerFile = open("/sys/class/leds/PWR/brightness", O_RDONLY | O_NONBLOCK);
+    #define DEVICE_FILE_NAME "/dev/vcio"
+    #define MAJOR_NUM 100
+    #define IOCTL_MBOX_PROPERTY _IOWR(MAJOR_NUM, 0, char *)
+    #define MAX_STRING 1024
+    #define GET_GENCMD_RESULT 0x00030080
+    piPowerFile = open(DEVICE_FILE_NAME, 0);
 #else
     piPowerFile = -1;    
 #endif    
@@ -846,16 +853,34 @@ void PlayerResource::PostSchedule(const Json::Value data, Json::Value& result) {
 
 void PlayerResource::periodicWork() {
     if (piPowerFile > 0) {
-        char buf[256];
-        lseek(piPowerFile, 0, SEEK_SET);
-        int i = read(piPowerFile, buf, 255);
-        if (i > 0) {
-            piPowerBad = buf[0] == '0';
+        #ifdef PLATFORM_PI    
+        int i = 0;
+        int32_t p[(MAX_STRING>>2) + 7];
+        p[i++] = 0; // size
+        p[i++] = 0x00000000; // process request
+
+        p[i++] = GET_GENCMD_RESULT; // (the tag id)
+        p[i++] = MAX_STRING;// buffer_len
+        p[i++] = 0; // request_len (set to response length)
+        p[i++] = 0; // error repsonse
+
+        memcpy(p+i, "get_throttled", strlen("get_throttled") + 1);
+        i += MAX_STRING >> 2;
+        p[i++] = 0x00000000; // end tag
+        p[0] = i*sizeof *p; // actual size
+
+        int ret_val = ioctl(piPowerFile, IOCTL_MBOX_PROPERTY, p);
+        std::string s = (char *)&p[6];
+        if (s.starts_with("throttled=0x")) {
+            s = s.substr(12);
+            uint32_t res = std::stol(s, nullptr, 16);
+            piPowerBad = res & 0x1;
             if (piPowerBad && !piPowerWarningAdded) {
                 WarningHolder::AddWarning("Raspberry Pi Voltage Too Low");
                 piPowerWarningAdded = true;
             }
         }
+        #endif
     }
 }
 
