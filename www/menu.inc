@@ -100,14 +100,19 @@ function list_plugin_entries($menu)
     </div>
   </div>
   <div class="headerRight largeonly">
+    <div class="platformLogoDiv" style="position:relative;">
     <?
-    if ($settings['LogoLink'] != "")
+    if ($settings['LogoLink'] != "") {
       echo "<a href='" . $settings['LogoLink'] . "' target='_blank' class='platformLogoLink'>";
-    if ($settings['Logo'] != "") {
-      echo "<img src='images/" . $settings['Logo'] . "' class='logo' alt='" . $settings['Variant'] . " Logo'>";
     }
-    if ($settings['LogoLink'] != "")
+    if ($settings['Logo'] != "") {
+      echo "<img style='z-index: -100;' src='images/" . $settings['Logo'] . "' class='logo' id='platformLogo' alt='" . $settings['Variant'] . " Logo'>";
+    }
+    if ($settings['LogoLink'] != "") {
       echo "</a>";
+    }
+    echo "<span class='overlay' id='powerPlaceHolder' style='z-index: 100;  position:absolute; left: 5px; top: 5px;'></span>";
+    echo "</div>";
     if (
       isset($settings['cape-info']) && isset($settings['cape-info']['vendor']) && (isset($settings['cape-info']['vendor']['image']) || isset($settings['cape-info']['header_cape_image']))
       && $settings['FetchVendorLogos'] == 1

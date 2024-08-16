@@ -57,6 +57,7 @@
 #include "httpAPI.h"
 
 static std::time_t startupTime = std::time(nullptr);
+static bool piPowerBad = false;
 
 /*
  Build a Status JSON String
@@ -82,6 +83,7 @@ void GetCurrentFPPDStatus(Json::Value& result) {
     result["status"] = Player::INSTANCE.GetStatus();
     result["bridging"] = HasBridgeData();
     result["multisync"] = multiSync->isMultiSyncEnabled();
+    result["powerBad"] = piPowerBad;
 
     if (ChannelTester::INSTANCE.Testing()) {
         result["status_name"] = "testing";
@@ -304,6 +306,16 @@ void LogResponse(const http_request& req, int responseCode, const std::string& c
 }
 
 PlayerResource::PlayerResource() {
+#ifdef PLATFORM_PI    
+    piPowerFile = open("/sys/class/leds/PWR/brightness", O_RDONLY | O_NONBLOCK);
+#else
+    piPowerFile = -1;    
+#endif    
+}
+PlayerResource::~PlayerResource() {
+    if (piPowerFile > 0) {
+        close(piPowerFile);
+    }
 }
 
 /*
@@ -829,5 +841,26 @@ void PlayerResource::PostSchedule(const Json::Value data, Json::Value& result) {
         scheduler->ReloadScheduleFile();
 
         SetOKResult(result, "Schedule reload triggered");
+    }
+}
+
+void PlayerResource::periodicWork() {
+    if (piPowerFile > 0) {
+        char buf[256];
+        lseek(piPowerFile, 0, SEEK_SET);
+        int i = read(piPowerFile, buf, 255);
+        if (i > 0) {
+            piPowerBad = buf[0] == '0';
+            if (piPowerBad && !piPowerWarningAdded) {
+                WarningHolder::AddWarning("Raspberry Pi Voltage Too Low");
+                piPowerWarningAdded = true;
+            }
+        }
+    }
+}
+
+void APIServer::periodicWork() {
+    if (m_pr) {
+        m_pr->periodicWork();
     }
 }

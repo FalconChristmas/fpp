@@ -23,12 +23,14 @@ using namespace httpserver;
 class PlayerResource : public http_resource {
 public:
     PlayerResource();
+    ~PlayerResource();
 
     HTTP_RESPONSE_CONST std::shared_ptr<http_response> render_GET(const http_request& req);
     HTTP_RESPONSE_CONST std::shared_ptr<http_response> render_DELETE(const http_request& req);
     HTTP_RESPONSE_CONST std::shared_ptr<http_response> render_POST(const http_request& req);
     HTTP_RESPONSE_CONST std::shared_ptr<http_response> render_PUT(const http_request& req);
 
+    void periodicWork();
 private:
     void GetRunningEffects(Json::Value& result);
     void GetLogSettings(Json::Value& result);
@@ -50,6 +52,9 @@ private:
 
     void SetOKResult(Json::Value& result, const std::string& msg);
     void SetErrorResult(Json::Value& result, const int respCode, const std::string& msg);
+
+    int piPowerFile = -1;
+    bool piPowerWarningAdded = false;
 };
 
 class APIServer {
@@ -58,9 +63,10 @@ public:
     ~APIServer();
 
     void Init();
-
+    void periodicWork();
 private:
     create_webserver m_params;
     webserver* m_ws;
     PlayerResource* m_pr;
+
 };

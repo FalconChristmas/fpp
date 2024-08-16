@@ -4914,6 +4914,12 @@ function parseStatus (jsonStatus) {
 			);
 		else $('#nextPlaylist').html('No playlist scheduled.');
 	}
+    const pph = document.querySelector("#powerPlaceHolder");
+    if (jsonStatus['powerBad']) {
+        pph.innerHTML = "<i class='fas fa-2xl fa-bolt' style='color:yellow;''></i>";
+    } else {
+        pph.textContent = "";
+    }
 
 	updateSensorStatus(jsonStatus);
 	firstStatusLoad = 0;

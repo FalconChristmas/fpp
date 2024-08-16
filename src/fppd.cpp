@@ -1011,6 +1011,7 @@ void MainLoop(void) {
         Timers::INSTANCE.fireTimers();
         CurlManager::INSTANCE.processCurls();
         GPIOManager::INSTANCE.CheckGPIOInputs();
+        apiServer.periodicWork();
     }
     close(epollf);
 
