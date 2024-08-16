@@ -627,10 +627,10 @@ compileBinaries() {
             # we'll allocate a swap file so it shouldn't fail, but
             # will likely be slow.   We DON'T want an "always" swapfile
             # to avoid killing the SD cards.
-            fallocate -l 256M "${FPPHOME}/media/tmp/swapfile"
-            chmod 600 "${FPPHOME}/media/tmp/swapfile"
-            mkswap -q "${FPPHOME}/media/tmp/swapfile"
-            swapon "${FPPHOME}/media/tmp/swapfile"
+            ${SUDO} fallocate -l 256M "${FPPHOME}/media/tmp/swapfile"
+            ${SUDO} chmod 600 "${FPPHOME}/media/tmp/swapfile"
+            ${SUDO} mkswap -q "${FPPHOME}/media/tmp/swapfile"
+            ${SUDO} swapon "${FPPHOME}/media/tmp/swapfile"
         fi
     fi
 
@@ -653,8 +653,8 @@ compileBinaries() {
     if [ "${FPPPLATFORM}" != "MacOS" ]; then    
         if [ -f "${FPPHOME}/media/tmp/swapfile" ]; then
             #remove the swap that was created
-            swapoff "${FPPHOME}/media/tmp/swapfile"
-            rm -f "${FPPHOME}/media/tmp/swapfile"
+            ${SUDO} swapoff "${FPPHOME}/media/tmp/swapfile"
+            ${SUDO} rm -f "${FPPHOME}/media/tmp/swapfile"
         fi
     fi
 }
