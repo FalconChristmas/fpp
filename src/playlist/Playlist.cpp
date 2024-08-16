@@ -796,6 +796,8 @@ int Playlist::Process(void) {
 
         LogDebug(VB_PLAYLIST, "============================================================================\n");
 
+        PluginManager::INSTANCE.playlistCallback(GetInfo(), "query_next", m_currentSectionStr, m_sectionPosition);
+
         if (m_status == FPP_STATUS_STOPPING_GRACEFULLY) {
             if ((m_currentSectionStr == "LeadIn") ||
                 (m_currentSectionStr == "MainPlaylist")) {
