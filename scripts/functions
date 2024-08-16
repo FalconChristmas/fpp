@@ -613,17 +613,24 @@ compileBinaries() {
     unset HOME
 
     if [ "${FPPPLATFORM}" != "MacOS" ]; then
-        # Stop fppd on systems with really low memory
         MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
         FPPDPID=$(pgrep fppd)
-        if [ ${MEMORY} -lt 256000 -a "${FPPDPID}" != "" ]; then
-            echo "System has less than 256MB RAM, stopping fppd."
-            if [ -f "/.dockerenv" ]
-            then
-                sudo /opt/fpp/scripts/fppd_stop
-            else
-                sudo systemctl stop fppd
-            fi
+        if [ ${MEMORY} -lt 512000 -a "${FPPDPID}" != "" ]; then
+            echo "System has less than 512MB RAM, activating swap."
+            # Create swapfile in fpp media so it will go onto the 
+            # storage location most likely having space on it (not 
+            # eMMC on Beagles)
+            #
+            # some of the larger C++ files are consuming a lot of memory
+            # and are starting to cause compile failures on the devices
+            # with limitted memory (PiZeros, older Pi's, etc...) so
+            # we'll allocate a swap file so it shouldn't fail, but
+            # will likely be slow.   We DON'T want an "always" swapfile
+            # to avoid killing the SD cards.
+            fallocate -l 256M "${FPPHOME}/media/tmp/swapfile"
+            chmod 600 "${FPPHOME}/media/tmp/swapfile"
+            mkswap -q "${FPPHOME}/media/tmp/swapfile"
+            swapon "${FPPHOME}/media/tmp/swapfile"
         fi
     fi
 
@@ -643,11 +650,11 @@ compileBinaries() {
         fi
     done
 
-    if [ "${FPPPLATFORM}" != "MacOS" ]; then
-        # Restart fppd if we stopped it due to low memory
-        if [ ${MEMORY} -lt 256000 -a "${FPPDPID}" != "" ]; then
-            echo "Restarting fppd"
-            sudo systemctl start fppd
+    if [ "${FPPPLATFORM}" != "MacOS" ]; then    
+        if [ -f "${FPPHOME}/media/tmp/swapfile" ]; then
+            #remove the swap that was created
+            swapoff "${FPPHOME}/media/tmp/swapfile"
+            rm -f "${FPPHOME}/media/tmp/swapfile"
         fi
     fi
 }
