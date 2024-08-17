@@ -26,6 +26,7 @@ struct gpiod_chip {};
 #endif
 
 constexpr int MAX_GPIOD_CHIPS = 8;
+constexpr uint32_t DEFAULT_GPIO_DEBOUNCE_TIME = 100000;
 
 class PinCapabilities;
 class GPIOManager : public httpserver::http_resource {
@@ -59,6 +60,7 @@ private:
         Json::Value risingAction;
         std::function<bool(int)> callback;
         bool hasCallback = false;
+        uint32_t debounceTime = DEFAULT_GPIO_DEBOUNCE_TIME;
 
         void doAction(int newVal);
     };

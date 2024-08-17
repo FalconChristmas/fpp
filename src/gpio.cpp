@@ -28,8 +28,6 @@
 
 #include "gpio.h"
 
-#define GPIO_DEBOUNCE_TIME 100000
-
 /*
  * Setup given GPIO for external use
  */
@@ -128,7 +126,7 @@ void GPIOManager::CheckGPIOInputs(void) {
     for (auto& a : pollStates) {
         int val = a.pin->getValue();
         if (val != a.lastValue) {
-            long long lastAllowedTime = tm - GPIO_DEBOUNCE_TIME; // usec's ago
+            long long lastAllowedTime = tm - a.debounceTime; // usec's ago
             if ((a.lastTriggerTime < lastAllowedTime)) {
                 a.doAction(val);
             }
@@ -138,14 +136,14 @@ void GPIOManager::CheckGPIOInputs(void) {
         checkDebounces = false;
         for (auto& a : eventStates) {
             if (a.futureValue != a.lastValue) {
-                long long lastAllowedTime = tm - GPIO_DEBOUNCE_TIME; // usec's ago
+                long long lastAllowedTime = tm - a.debounceTime; // usec's ago
                 if ((a.lastTriggerTime < lastAllowedTime)) {
                     int val = a.pin->getValue();
                     if (val != a.lastValue) {
                         a.doAction(val);
                     }
                 } else {
-                    //will need to check again
+                    // will need to check again
                     checkDebounces = true;
                 }
             }
@@ -224,6 +222,9 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                 if (!state.pin && gpio != -1) {
                     state.pin = PinCapabilities::getPinByGPIO(gpio).ptr();
                 }
+                if (v.isMember("debounceTime")) {
+                    state.debounceTime = v["debounceTime"].asInt() * 1000;
+                }
                 if (state.pin) {
                     if (v.isMember("rising")) {
                         state.risingAction = v["rising"];
@@ -257,13 +258,13 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
 
             int v = event.event_type == GPIOD_LINE_EVENT_RISING_EDGE;
             if (v != a.lastValue) {
-                long long lastAllowedTime = GetTime() - GPIO_DEBOUNCE_TIME; // usec's ago
+                long long lastAllowedTime = GetTime() - a.debounceTime; // usec's ago
                 if (a.lastTriggerTime < lastAllowedTime) {
                     a.doAction(v);
                 } else {
-                    //we are within the debounce time, we'll record this as a last value
-                    //and if we end up with a different value after the debounce time,
-                    //we'll send the command then
+                    // we are within the debounce time, we'll record this as a last value
+                    // and if we end up with a different value after the debounce time,
+                    // we'll send the command then
                     a.futureValue = v;
                     checkDebounces = true;
                 }

@@ -33,34 +33,35 @@ echo "\n";
 
 function SaveGPIOInputs() {
     var gpios = Array();
-    $.each( gpioPinNames, function( key, val ) {
-           var gp = {};
-           gp["pin"] = val;
-           gp["enabled"] = $("#gpio_" + key + "_enabled").is(':checked');
-           gp["mode"] = $("#gpio_" + key + "_PullUpDown").val();
-	   gp["desc"] = $('#gpio_' + key + '_Desc').val();
+    $.each(gpioPinNames, function(key, val) {
+        var gp = {};
+        gp["pin"] = val;
+        gp["enabled"] = $("#gpio_" + key + "_enabled").is(':checked');
+        gp["mode"] = $("#gpio_" + key + "_PullUpDown").val();
+        gp["desc"] = $('#gpio_' + key + '_Desc').val();
+        gp["debounceTime"] = $("#gpio_" + key + "_debounce").val();
 
-           var rc = $('#gpio_' + key + '_RisingCommand').val();
-           if (rc != "") {
-                gp["rising"] = {};
-                CommandToJSON("gpio_" + key + "_RisingCommand", "tableRisingGPIO" + key, gp["rising"]);
-           }
-           var fc = $('#gpio_' + key + '_FallingCommand').val();
-           if ( fc != "") {
-                gp["falling"] = {};
-                CommandToJSON('gpio_' + key + '_FallingCommand', 'tableFallingGPIO' + key , gp["falling"]);
-           }
+        var rc = $('#gpio_' + key + '_RisingCommand').val();
+        if (rc != "") {
+            gp["rising"] = {};
+            CommandToJSON("gpio_" + key + "_RisingCommand", "tableRisingGPIO" + key, gp["rising"]);
+        }
+        var fc = $('#gpio_' + key + '_FallingCommand').val();
+        if (fc != "") {
+            gp["falling"] = {};
+            CommandToJSON('gpio_' + key + '_FallingCommand', 'tableFallingGPIO' + key , gp["falling"]);
+        }
 
-           if (rc === undefined) {
+        if (rc === undefined) {
             rc = "";
-           }
-           if (fc === undefined) {
+        }
+        if (fc === undefined) {
             fc = "";
-           }
-           if (gp["enabled"] || rc != "" || fc != "") {
-                gpios.push(gp);
-           }
-        });
+        }
+        if (gp["enabled"] || rc != "" || fc != "") {
+            gpios.push(gp);
+        }
+    });
 
     var postData = JSON.stringify(gpios, null, 4);
     $.ajax({
@@ -152,6 +153,7 @@ include 'menu.inc';?>
                         <th >Hdr-Pin</th>
                         <th >GPIO# - GPIOD</th>
                         <th  id='pullHeader' >Pull Up/Down</th>
+                        <th  id='debounceHeadaer'>Debounce<br>(ms)</th>
                         <th >Description</th>
                         <th >Commands: Rising Edge</th>
                         <th >Commands: Falling Edge</th>
@@ -199,7 +201,10 @@ foreach ($gpiojson as $gpio) {
         ?>
                 </select>
             </td>
-        <?
+            <td>
+            <input type="number" min="10" max="60000" id="gpio_<?=$pinNameClean?>_debounce" value="100">
+            </td>
+            <?
     } else if ($pCount > 0) {
         echo "<td></td>";
     }
@@ -261,6 +266,9 @@ if (file_exists($mediaDirectory . '/config/gpio.json')) {
         }
 
         echo "$('#gpio_" . $pinNameClean . "_Desc').val(\"" . $gpio["desc"] . "\");\n";
+        if (isset($gpio["debounceTime"])) {
+            echo "$('#gpio_" . $pinNameClean . "_debounce').val(\"" . $gpio["debounceTime"] . "\");\n";
+        }
 
         echo "PopulateExistingCommand(gpioConfig[" . $x . "][\"falling\"], 'gpio_" . $pinNameClean . "_FallingCommand', 'tableFallingGPIO" . $pinNameClean . "', false);\n";
         echo "PopulateExistingCommand(gpioConfig[" . $x . "][\"rising\"], 'gpio_" . $pinNameClean . "_RisingCommand', 'tableRisingGPIO" . $pinNameClean . "', false);\n";
