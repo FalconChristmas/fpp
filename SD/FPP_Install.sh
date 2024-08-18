@@ -48,7 +48,7 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2024-07"
+FPPIMAGEVER="2024-08"
 FPPCFGVER="89"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -481,7 +481,7 @@ case "${OSVER}" in
             PHPVER="8.2"
         fi
         PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
-                      apache2 apache2-bin apache2-data apache2-utils \
+                      apache2 apache2-bin apache2-data apache2-utils libavahi-client-dev \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
                       fbi fbset file flite ca-certificates lshw gettext wget iproute2 \
                       build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
