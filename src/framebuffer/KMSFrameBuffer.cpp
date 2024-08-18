@@ -14,8 +14,8 @@
 #include "KMSFrameBuffer.h"
 
 #ifdef HAS_KMS_FB
-#include <sys/ioctl.h>
 #include <libdrm/drm.h>
+#include <sys/ioctl.h>
 
 #include <sys/mman.h>
 
@@ -55,6 +55,9 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
             if (m_device == conn->fullname() && conn->connected()) {
                 m_resourceManager = card.second;
                 m_connector = m_resourceManager->reserve_connector(conn);
+                if (m_connector == nullptr) {
+                    continue;
+                }
                 m_crtc = m_resourceManager->reserve_crtc(conn);
                 if (m_crtc == nullptr) {
                     m_crtc = m_resourceManager->reserve_crtc(m_connector);
