@@ -39,7 +39,7 @@ function SaveGPIOInputs() {
         gp["enabled"] = $("#gpio_" + key + "_enabled").is(':checked');
         gp["mode"] = $("#gpio_" + key + "_PullUpDown").val();
         gp["desc"] = $('#gpio_' + key + '_Desc').val();
-        gp["debounceTime"] = $("#gpio_" + key + "_debounce").val();
+        gp["debounceTime"] = parseInt($("#gpio_" + key + "_debounce").val());
 
         var rc = $('#gpio_' + key + '_RisingCommand').val();
         if (rc != "") {
