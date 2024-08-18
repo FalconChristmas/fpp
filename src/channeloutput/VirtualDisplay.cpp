@@ -125,7 +125,6 @@ int VirtualDisplayOutput::Init(Json::Value config) {
         return 0;
     }
 
-    m_model->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
     m_width = m_model->getWidth();
     m_height = m_model->getHeight();
 
@@ -149,7 +148,9 @@ int VirtualDisplayOutput::Init(Json::Value config) {
 
     // Put the background image onto the model.
     m_model->setData(m_virtualDisplay);
-
+    if (m_model->getState() == 0) {
+        m_model->doOverlay(m_virtualDisplay);
+    }
     return 1;
 }
 
@@ -206,8 +207,9 @@ int VirtualDisplayOutput::SendData(unsigned char* channelData) {
                 m_model->setPixelValue(pixel.xs + 1, pixel.ys, r, g, b);
         }
     }
-
     m_model->setBufferIsDirty(true);
-
+    if (m_model->getState() == 0) {
+        m_model->doOverlay(m_model->getOverlayBuffer());
+    }
     return m_channelCount;
 }
