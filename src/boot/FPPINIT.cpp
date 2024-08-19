@@ -913,14 +913,16 @@ static void setupAudio() {
             hasNonHDMI |= !l.contains("vc4hdmi");
         }
     }
+    int hdmiIdx = 0;
     for (int x = 0; x < 4; x++) {
         std::string cstr = "/sys/class/drm/card" + std::to_string(x) + "-HDMI-A-1/status";
         if (FileExists(cstr)) {
             for (int p = 1; p < 5; p++) {
                 std::string cstr = "/sys/class/drm/card" + std::to_string(x) + "-HDMI-A-" + std::to_string(p) + "/status";
                 std::string c = GetFileContents(cstr);
-                std::string k = "vc4hdmi1" + std::to_string(x - 1);
-                hdmiStatus[k] = c == "connected";
+                std::string k = "vc4hdmi" + std::to_string(hdmiIdx);
+                hdmiStatus[k] = c.contains("connected") && !c.contains("disconnected");
+                hdmiIdx++;
             }
         }
     }
@@ -930,7 +932,7 @@ static void setupAudio() {
     }
     int card = getRawSettingInt("AudioOutput", 0);
     std::string cstr = "card " + std::to_string(card);
-    std::string hdmistr = "vc4hdmi1" + std::to_string(card);
+    std::string hdmistr = "vc4hdmi" + std::to_string(card);
     bool found = false;
     int count = 0;
     if (cards[cstr].starts_with("vc4hdmi") && !hdmiStatus[hdmistr]) {
