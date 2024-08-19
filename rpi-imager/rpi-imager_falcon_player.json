@@ -28,6 +28,35 @@
             "image_download_size": 923472051,
             "image_download_sha256": "cfd66aed2a232ef1b9bf92416477e584f8b724693d1201142d2835f49ee76c84",
             "release_date": "2024-01-12"
+        },
+        {
+            "name": "FPP v8.0-beta2 Pi",
+            "description": "Falcon Player for all RPi models",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.0-pre-alpha1/FPP-v8.0-beta2-Pi.img.zip",
+            "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
+            "init_format": "none",
+            "website": "https://www.falconplayer.com/",
+            "extract_size": 7130316800,
+            "extract_sha256": "277fdbe47d84592bc4623540e680d8325c08b06abe490a44dfea1c47979f5d5b",
+            "image_download_size": 1352289445,
+            "image_download_sha256": "ed62cc068d7df89ad952c2e63d7ae766928e694447150180a9f56bf14ef4741d",
+            "release_date": "2024-08-19",
+            "devices": [
+                "pi4-32bit", "pi3-32bit", "pi2-32bit", "pi1-32bit"
+            ]
+        },
+        {
+            "name": "FPP v8.0-beta2 BBB",
+            "description": "Falcon Player for all BeagleBone models",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.0-pre-alpha1/FPP-v8.0-beta2-BBB.img.zip",
+            "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
+            "init_format": "none",
+            "website": "https://www.falconplayer.com/",
+            "extract_size": 3745513472,
+            "extract_sha256": "c13a9e1a2e9d9ebd00016d1fbd2ed7caf1c55fedbc91b69772ee709da674d362",
+            "image_download_size": 1095155359,
+            "image_download_sha256": "2267133db62aef993ea7d52d4d6fab90b81f48c96fc5623f271b188e6afeea08",
+            "release_date": "2024-08-19"
         }
     ]
 }
