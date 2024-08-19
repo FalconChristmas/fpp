@@ -47,7 +47,7 @@
 
 class VLCInternalData {
 public:
-    VLCInternalData(const std::string& m, VLCOutput* out, const std::string &op) :
+    VLCInternalData(const std::string& m, VLCOutput* out, const std::string& op) :
         fullMediaPath(m),
         vlcOutput(out),
         outputPort(op) {
@@ -155,7 +155,7 @@ class VLCManager {
 public:
     VLCManager() {}
     ~VLCManager() {
-        for (auto &i : vlcInstances) {
+        for (auto& i : vlcInstances) {
             if (i.second) {
                 libvlc_release(i.second);
             }
@@ -189,7 +189,7 @@ public:
 
             args.push_back("--drm-vout-display");
             args.push_back(data->outputPort.c_str());
-            args.push_back("--no-drm-vout-no-modeset");
+            args.push_back("--drm-vout-no-modeset");
 #ifndef PLATFORM_OSX
             args.push_back("-A");
             args.push_back("alsa");
@@ -224,7 +224,7 @@ public:
             }
 
             args.push_back(nullptr);
-            libvlc_instance_t *vlcInstance = libvlc_new(args.size() - 1, &args[0]);
+            libvlc_instance_t* vlcInstance = libvlc_new(args.size() - 1, &args[0]);
 
             if (vlcInstance) {
                 libvlc_log_set(vlcInstance, logCallback, this);
@@ -233,7 +233,7 @@ public:
                 WarningHolder::AddWarningTimeout("Could not create Video Ouput Device.", 60);
             }
         }
-        libvlc_instance_t *vlcInstance = vlcInstances[data->outputPort];
+        libvlc_instance_t* vlcInstance = vlcInstances[data->outputPort];
         if (vlcInstance) {
             if (startsWith(data->fullMediaPath, "http://") || startsWith(data->fullMediaPath, "https://"))
                 data->media = LIBVLC_MEDIA_NEWPATH(vlcInstance, data->fullMediaPath.c_str());
