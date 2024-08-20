@@ -3,11 +3,8 @@
 cd /opt
 git clone https://code.videolan.org/videolan/vlc.git
 cd vlc
-# this is latest master as of 01/21/2024
-git checkout 5d643c7b14c6bfa02adbe119af8668c43d9a1acc
-# this commit is causing a segfault, logged as:
-# https://code.videolan.org/videolan/vlc/-/issues/25790
-git revert -n --no-edit fbb54457118b61f56f4d2c12c5e7a170c04ea48d
+# this is latest master as of 08/20/2024
+git checkout qfeb88734eb114cfb4057235d7672a74a5793901b
 
 # make sure symlink to libGL exists.  On Beagles and docker, it won't unless
 # a BUNCH of dev packages are installed which we'd like to avoid

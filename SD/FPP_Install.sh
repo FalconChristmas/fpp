@@ -158,7 +158,7 @@ fi
 
 # Parse build options as arguments
 clone_fpp=true
-build_vlc=false
+build_vlc=true
 skip_apt_install=false
 desktop=true
 isimage=false;
