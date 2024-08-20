@@ -223,7 +223,16 @@ static bool IsHDMIOut(std::string &vOut) {
     if (vOut == "--HDMI--" || vOut == "HDMI") {
         vOut = "HDMI-A-1";
     }
-    return vOut.starts_with("HDMI-");
+    if (vOut.starts_with("HDMI-")) {
+        for (int x = 0; x < 4; x++) {
+            std::string conn = "/sys/class/drm/card" + std::to_string(x) + "-" + vOut + "/status";
+            if (FileExists(conn)) {
+                std::string status = GetFileContents(conn);
+                return !status.contains("disconnected");
+            }
+        }
+    } 
+    return false;
 }
 
 MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::string& vOut) {
