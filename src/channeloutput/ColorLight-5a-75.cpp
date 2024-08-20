@@ -273,6 +273,22 @@ int ColorLight5a75Output::Init(Json::Value config) {
     m_rowSize = m_longestChain * m_panelWidth * 3;
 
 #ifndef PLATFORM_OSX
+
+    // Check if interface is up
+    std::ifstream ifstate_src("/sys/class/net/" + m_ifName + "/operstate");
+    std::string ifstate;
+    
+    if (ifstate_src.is_open()) {
+        ifstate_src >> ifstate;  // pipe file's content into stream
+        ifstate_src.close();
+    }
+    
+    if (ifstate != "up") {
+        LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s does not have link %s\n", m_ifName.c_str(), strerror(errno));
+        WarningHolder::AddWarning("ColorLight: Configured interface " + m_ifName + " does not have link");
+        return 0;
+    }
+
     // Check interface is 1000Mbps capable and display error if not
     std::ifstream ifspeed_src("/sys/class/net/" + m_ifName + "/speed");
 
