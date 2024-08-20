@@ -85,7 +85,7 @@ void PiGPIOPinCapabilities::setPWMValue(int valueNS) const {
 
 class Pi5GPIODCapabilities : public GPIODCapabilities   {
 public:
-    Pi5GPIODCapabilities(const std::string& n, uint32_t kg) : GPIODCapabilities(n, kg) { gpioIdx = 4; gpio = kg; }
+    Pi5GPIODCapabilities(const std::string& n, uint32_t kg) : GPIODCapabilities(n, kg) { gpioIdx = getPinctrlRpiChip(); gpio = kg; }
 
     virtual ~Pi5GPIODCapabilities() {
         if (dutyFile != nullptr) {
@@ -156,9 +156,32 @@ public:
         }
     }
 
-    mutable FILE *dutyFile = nullptr;
-};
 
+    static int getPinctrlRpiChip() {
+        if (pinctrlRpiChip == -1) {
+            pinctrlRpiChip = 0;
+            for (auto& a : gpiod::make_chip_iter()) {
+                std::string label = a.label();
+                if (label == "pinctrl-rp1") {
+                    return pinctrlRpiChip;
+                }
+                pinctrlRpiChip++;
+            }
+            // didn't find it by name, try finding the chip with 54 lines
+            pinctrlRpiChip = 0;
+            for (auto& a : gpiod::make_chip_iter()) {
+                if (a.num_lines() == 54) {
+                    return pinctrlRpiChip;
+                }
+                pinctrlRpiChip++;                
+            }
+        }
+        return pinctrlRpiChip;
+    }
+    mutable FILE *dutyFile = nullptr;
+    static int pinctrlRpiChip;
+};
+int Pi5GPIODCapabilities::pinctrlRpiChip = -1;
 static std::vector<PiGPIOPinCapabilities> PI_PINS;
 static std::vector<Pi5GPIODCapabilities> PI5_PINS;
 
