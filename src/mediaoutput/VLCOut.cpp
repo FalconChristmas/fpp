@@ -61,6 +61,7 @@ public:
 
     uint64_t length = 0;
     uint64_t lastPos = 0;
+    uint64_t lastPosTime = 0;
 
     float currentRate = 1.0f;
 
@@ -196,7 +197,7 @@ public:
                     if (status.contains("disconnected")) {
                         connected = false;
                     }
-                    cardPath = "/dev/dri/card" + std::to_string(x);                    
+                    cardPath = "/dev/dri/card" + std::to_string(x);
                     x = 4;
                 }
             }
@@ -420,15 +421,18 @@ int VLCOutput::Process(void) {
             m_mediaOutputStatus->secondsRemaining = seconds;
             m_mediaOutputStatus->subSecondsRemaining = 0;
         }
-        // printf("cur: %d    len: %d     Pos: %f        %ld\n", (int)cur, (int)data->length, libvlc_media_player_get_position(data->vlcPlayer), GetTimeMS() % 100000);
-        if (cur != data->lastPos) {
-            // printf("cur: %d    len: %d     Pos: %f        %ld\n", (int)cur, (int)data->length, libvlc_media_player_get_position(data->vlcPlayer), GetTimeMS() % 100000);
-            data->lastPos = cur;
-        }
-
         if ((cur > 0 && !libvlc_media_player_is_playing(data->vlcPlayer)) || (cur == 0 && libvlc_media_player_get_position(data->vlcPlayer) < -0.5f)) {
             cur = data->length;
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+        }
+
+        // printf("cur: %d    len: %d     Pos: %f        %ld\n", (int)cur, (int)data->length, libvlc_media_player_get_position(data->vlcPlayer), GetTimeMS() % 100000);
+        if (cur != data->lastPos || data->lastPosTime == 0) {
+            data->lastPos = cur;
+            data->lastPosTime = GetTimeMS();
+        } else if (cur > 0) {
+            uint64_t ts = GetTimeMS();
+            cur += ts - data->lastPosTime;
         }
 
         float seconds = cur;
