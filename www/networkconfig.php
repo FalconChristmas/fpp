@@ -89,7 +89,7 @@
             }
         }
 
-        function validateNetworkFields() {
+        function validateNetworkFields(callback) {
             var eth_ip = $('#eth_ip').val();
             $("#ipWarning").html('');
             if ($('#eth_static').is(':checked')) {
@@ -108,8 +108,50 @@
                     $.jGrowl("Invalid Gateway. Expect format like 192.168.0.1", { themeState: 'danger' });
                     return false;
                 }
+
+                // Check if another interface already has a gateway set
+                $.get("api/network/interface", function (interfaces) {
+                    var gatewayAlreadySet = false;
+        
+                    interfaces.forEach(function (ifaceData) {
+                        // Ensure the config and INTERFACE properties are defined
+                        if (ifaceData.config && ifaceData.config.INTERFACE) {
+                            // Exclude WLAN interfaces without an SSID
+                            if (ifaceData.config.INTERFACE.startsWith('wl') && !ifaceData.config.SSID) {
+                                return;
+                            }
+        
+                            if (ifaceData.config.INTERFACE !== $('#selInterfaces').val() &&
+                                ifaceData.config.PROTO === "static" &&
+                                ifaceData.config.GATEWAY) {
+                                gatewayAlreadySet = true;
+                            }
+                        }
+                    });
+        
+                    if (gatewayAlreadySet && $('#eth_gateway').val()) {
+                        $.jGrowl("A gateway is already set on another interface. You cannot set multiple gateways.", { themeState: 'danger' });
+                        return callback(false);
+                    }
+        
+                    // If no gateway is set anywhere and we're in static mode, ensure one is set
+                    if (!gatewayAlreadySet && !$('#eth_gateway').val()) {
+                        $.jGrowl("You must set a gateway when using static IPs.", { themeState: 'danger' });
+                        return callback(false);
+                    }
+        
+                    // If all checks passed, validation succeeds
+                    return callback(true);
+        
+                }).fail(function () {
+                    $.jGrowl("Failed to validate network interfaces.", { themeState: 'danger' });
+                    return callback(false);
+                });
+        
+            } else {
+                // If not in static mode, validation passes
+                return callback(true);
             }
-            return true;
         }
 
         function validateDNSFields() {
@@ -236,70 +278,73 @@
         }
 
         function SaveNetworkConfig() {
-            if (validateNetworkFields() == false) {
-                DialogError("Invalid Network Config", "Save Failed");
-                return;
-            }
-
-            var iface = $('#selInterfaces').val();
-            var url;
-            var data = {};
-            data.INTERFACE = iface;
-            if ($('#eth_static').is(':checked')) {
-                data.PROTO = 'static';
-                data.ADDRESS = $('#eth_ip').val();
-                data.NETMASK = $('#eth_netmask').val();
-                data.GATEWAY = $('#eth_gateway').val();
-            } else {
-                data.PROTO = 'dhcp';
-            }
-            <? if ($settings['uiLevel'] >= 1) { ?>
-                data.ROUTEMETRIC = $('#routeMetric').val();
-                data.DHCPSERVER = $('#dhcpServer').is(':checked');
-                data.DHCPOFFSET = $('#dhcpOffset').val();
-                data.DHCPPOOLSIZE = $('#dhcpPoolSize').val();
-                data.IPFORWARDING = $('#ipForwarding').val();
-            <? } ?>
-
-            if (iface.substr(0, 2) == "wl") {
-                data.SSID = $('#eth_ssid').val();
-                data.PSK = $('#eth_psk').val();
-                data.HIDDEN = $('#eth_hidden').is(':checked');
-                data.BACKUPSSID = $('#backupeth_ssid').val();
-                data.BACKUPPSK = $('#backupeth_psk').val();
-                data.BACKUPHIDDEN = $('#backupeth_hidden').is(':checked');
-            }
-
-            data.Leases = {};
-            $('#staticLeasesTable > tbody > tr').each(function () {
-                var checkBox = $(this).find('#static_enabled');
-                if (checkBox.is(":checked")) {
-                    var ip = $(this).find('#static_ip').val();
-                    var mac = $(this).find('#static_mac').val();
-                    data.Leases[ip] = mac;
+            validateNetworkFields(function(isValid) {
+                if (!isValid) {
+                    DialogError("Invalid Network Config", "Save Failed");
+                    return;
                 }
-            })
-
-            var postData = JSON.stringify(data);
-
-            $.post("api/network/interface/" + iface, postData
-            ).done(function (rc) {
-                if (rc.status == "OK") {
-                    LoadNetworkConfig();
-                    $.jGrowl(iface + " network interface configuration saved", { themeState: 'success' });
-                    $('#btnConfigNetwork').show();
-
-                    if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
-                        DialogOK("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.")
-                    }
+    
+                var iface = $('#selInterfaces').val();
+                var url;
+                var data = {};
+                data.INTERFACE = iface;
+                if ($('#eth_static').is(':checked')) {
+                    data.PROTO = 'static';
+                    data.ADDRESS = $('#eth_ip').val();
+                    data.NETMASK = $('#eth_netmask').val();
+                    data.GATEWAY = $('#eth_gateway').val();
                 } else {
-                    DialogError("Save Network Config", "Save Failed: " + rc.status);
+                    data.PROTO = 'dhcp';
                 }
-            }).fail(function () {
-                DialogError("Save Network Config", "Save Failed");
+                <? if ($settings['uiLevel'] >= 1) { ?>
+                    data.ROUTEMETRIC = $('#routeMetric').val();
+                    data.DHCPSERVER = $('#dhcpServer').is(':checked');
+                    data.DHCPOFFSET = $('#dhcpOffset').val();
+                    data.DHCPPOOLSIZE = $('#dhcpPoolSize').val();
+                    data.IPFORWARDING = $('#ipForwarding').val();
+                <? } ?>
+    
+                if (iface.substr(0, 2) == "wl") {
+                    data.SSID = $('#eth_ssid').val();
+                    data.PSK = $('#eth_psk').val();
+                    data.HIDDEN = $('#eth_hidden').is(':checked');
+                    data.BACKUPSSID = $('#backupeth_ssid').val();
+                    data.BACKUPPSK = $('#backupeth_psk').val();
+                    data.BACKUPHIDDEN = $('#backupeth_hidden').is(':checked');
+                }
+    
+                data.Leases = {};
+                $('#staticLeasesTable > tbody > tr').each(function () {
+                    var checkBox = $(this).find('#static_enabled');
+                    if (checkBox.is(":checked")) {
+                        var ip = $(this).find('#static_ip').val();
+                        var mac = $(this).find('#static_mac').val();
+                        data.Leases[ip] = mac;
+                    }
+                })
+    
+                var postData = JSON.stringify(data);
+    
+                $.post("api/network/interface/" + iface, postData
+                ).done(function (rc) {
+                    if (rc.status == "OK") {
+                        LoadNetworkConfig();
+                        $.jGrowl(iface + " network interface configuration saved", { themeState: 'success' });
+                        $('#btnConfigNetwork').show();
+    
+                        if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
+                            DialogError("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.<br><br<span style='color: red;'>If you do not do this, your FPP will have no Internet Access</span>");
+                            return;
+                        }
+                    } else {
+                        DialogError("Save Network Config", "Save Failed: " + rc.status);
+                    }
+                }).fail(function () {
+                    DialogError("Save Network Config", "Save Failed");
+                });
+    
+                SaveDNSConfig();
             });
-
-            SaveDNSConfig();
         }
 
         function AddInterface() {
