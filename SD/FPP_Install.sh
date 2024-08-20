@@ -1123,6 +1123,14 @@ sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 sed -i -e "s/weekly/daily/" /etc/logrotate.d/rsyslog
 
 #######################################
+# Disable duplicate logging to save on disk space 
+sudo sed -i '/auth,authpriv\.\*/s/^/# /' /etc/rsyslog.conf
+sudo sed -i '/cron\.\*/s/^/# /' /etc/rsyslog.conf
+sudo sed -i '/kern\.\*/s/^/# /' /etc/rsyslog.conf
+sudo sed -i '/mail\.\*/s/^/# /' /etc/rsyslog.conf
+sudo sed -i '/user\.\*/s/^/# /' /etc/rsyslog.conf
+
+#######################################
 # Configure ccache
 echo "FPP - Configuring ccache"
 mkdir -p /root/.ccache
