@@ -35,7 +35,7 @@ fi
 export LDFLAGS="-latomic"
 ./bootstrap
 export LDFLAGS="-latomic"
-./configure --disable-gles2 --disable-lua --disable-a52 --disable-chromecast --disable-chromaprint  --disable-pulse --disable-jack --disable-dbus --disable-avahi --disable-qt $DISABLES --enable-run-as-root
+./configure --disable-gles2 --disable-lua --disable-a52 --disable-chromecast --disable-chromaprint  --disable-pulse --disable-jack --disable-dbus --disable-avahi --disable-qt $DISABLES --enable-run-as-root --enable-libdrm
 make -j ${CPUS}
 make install
 ldconfig

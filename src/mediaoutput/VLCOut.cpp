@@ -187,9 +187,35 @@ public:
                 args.push_back("any");
             }
 
-            args.push_back("--drm-vout-display");
-            args.push_back(data->outputPort.c_str());
-            args.push_back("--drm-vout-no-modeset");
+            std::string cardPath = "/dev/dri/card0";
+            bool connected = true;
+            for (int x = 0; x < 4; x++) {
+                std::string conn = "/sys/class/drm/card" + std::to_string(x) + "-" + data->outputPort + "/status";
+                if (FileExists(conn)) {
+                    std::string status = GetFileContents(conn);
+                    if (status.contains("disconnected")) {
+                        connected = false;
+                    }
+                    cardPath = "/dev/dri/card" + std::to_string(x);                    
+                    x = 4;
+                }
+            }
+
+            if (connected) {
+                if (LIBVLC_VERSION_MAJOR <= 3) {
+                    args.push_back("--drm-vout-display");
+                    args.push_back(data->outputPort.c_str());
+                    args.push_back("--drm-vout-no-modeset");
+                } else {
+                    // vlc4+
+                    args.push_back("--kms-device");
+                    args.push_back(cardPath.c_str());
+                    args.push_back("--kms-connector");
+                    args.push_back(data->outputPort.c_str());
+                }
+            } else {
+                args.push_back("--no-video");
+            }
 #ifndef PLATFORM_OSX
             args.push_back("-A");
             args.push_back("alsa");
