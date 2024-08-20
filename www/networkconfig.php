@@ -298,6 +298,8 @@
             }).fail(function () {
                 DialogError("Save Network Config", "Save Failed");
             });
+
+            SaveDNSConfig();
         }
 
         function AddInterface() {
@@ -629,7 +631,7 @@
                     <li class="nav-item">
                         <a class="nav-link" id="tab-host-dns-tab" data-bs-toggle="tab" data-bs-target="#tab-host-dns"
                             href="#tab-host-dns" role="tab" aria-controls="tab-host-dns" aria-selected="false">
-                            Host & DNS Settings
+                            Host Settings
                         </a>
                     </li>
                     <li class="nav-item">
@@ -716,6 +718,38 @@
                                     </div>
                                 </div>
                             </div>
+                        <h2>DNS Settings</h2>
+                        <div class="warning-text" id="dns_warning"></div>
+
+                        <div class="container-fluid settingsTable settingsGroupTable">
+                            <div class="row" id="dnsServerRow">
+                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                    <div class="description">DNS Server Mode</div>
+                                </div>
+                                <div class="printSettingFieldCol col-md"><label><input type="radio" id="dns_manual"
+                                            value="manual">
+                                        Manual</label>
+                                    <label><input type="radio" id="dns_dhcp" value="dhcp" checked>
+                                        DHCP</label>
+                                </div>
+                            </div>
+                            <div class="row" id="dns1Row">
+                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                    <div class="description">DNS Server 1</div>
+                                </div>
+                                <div class="printSettingFieldCol col-md"><input type="text" name="dns1" id="dns1"><input
+                                        type="button" class="buttons" onClick='PingIP($("#dns1").val(), 3);'
+                                        value='Ping'></div>
+                            </div>
+                            <div class="row" id="dns2Row">
+                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                    <div class="description">DNS Server 2</div>
+                                </div>
+                                <div class="printSettingFieldCol col-md"><input type="text" name="dns2" id="dns2"><input
+                                        type="button" class="buttons" onClick='PingIP($("#dns2").val(), 3);'
+                                        value='Ping'></div>
+                            </div>
+                        </div>
                             <div id="WirelessSettings">
                                 <h2>Wireless Settings</h2>
                                 <div class="container-fluid settingsTable settingsGroupTable">
@@ -797,7 +831,7 @@
                             </div>
                             <br>
                             <input name="btnSetInterface" type="button" style="" class="buttons btn-success"
-                                value="Update Interface" onClick="SaveNetworkConfig();">
+                                value="Update" onClick="SaveNetworkConfig();">
                             <input id="btnConfigNetwork" type="button" style="display: none;" class="buttons"
                                 value="Restart Network" onClick="ApplyNetworkConfig();">
 
@@ -819,41 +853,6 @@
                         <?
                         PrintSettingGroup('host');
                         ?>
-                        <h2>DNS Settings</h2>
-                        <div class="warning-text" id="dns_warning"></div>
-
-                        <div class="container-fluid settingsTable settingsGroupTable">
-                            <div class="row" id="dnsServerRow">
-                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                    <div class="description">DNS Server Mode</div>
-                                </div>
-                                <div class="printSettingFieldCol col-md"><label><input type="radio" id="dns_manual"
-                                            value="manual">
-                                        Manual</label>
-                                    <label><input type="radio" id="dns_dhcp" value="dhcp" checked>
-                                        DHCP</label>
-                                </div>
-                            </div>
-                            <div class="row" id="dns1Row">
-                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                    <div class="description">DNS Server 1</div>
-                                </div>
-                                <div class="printSettingFieldCol col-md"><input type="text" name="dns1" id="dns1"><input
-                                        type="button" class="buttons" onClick='PingIP($("#dns1").val(), 3);'
-                                        value='Ping'></div>
-                            </div>
-                            <div class="row" id="dns2Row">
-                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                    <div class="description">DNS Server 2</div>
-                                </div>
-                                <div class="printSettingFieldCol col-md"><input type="text" name="dns2" id="dns2"><input
-                                        type="button" class="buttons" onClick='PingIP($("#dns2").val(), 3);'
-                                        value='Ping'></div>
-                            </div>
-                        </div>
-                        <br>
-                        <input name="btnSetDNS" type="" class="buttons btn-success" value="Update DNS"
-                            onClick="SaveDNSConfig();">
 
 
 
