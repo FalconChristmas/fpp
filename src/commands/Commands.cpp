@@ -38,8 +38,8 @@ Command::~Command() {}
 Json::Value Command::getDescription() {
     Json::Value cmd;
     cmd["name"] = name;
-    if (description != "") {
-        cmd["description"] = description;
+    if (!description.empty()) {
+        cmd["description"] = description;        
     }
     for (auto& ar : args) {
         Json::Value a;
@@ -52,7 +52,7 @@ Json::Value Command::getDescription() {
             a["min"] = ar.min;
             a["max"] = ar.max;
         }
-        if (ar.contentListUrl != "") {
+        if (!ar.contentListUrl.empty()) {
             a["contentListUrl"] = ar.contentListUrl;
             a["allowBlanks"] = ar.allowBlanks;
         } else if (!ar.contentList.empty()) {
@@ -65,7 +65,7 @@ Json::Value Command::getDescription() {
         }
         if (ar.adjustable) {
             a["adjustable"] = true;
-            if (ar.adjustableGetValueURL != "") {
+            if (!ar.adjustableGetValueURL.empty()) {
                 a["adjustableGetValueURL"] = ar.adjustableGetValueURL;
             }
         }
@@ -158,7 +158,7 @@ void CommandManager::Init() {
                         foundp = true;
                     }
                 }
-                if (payload != "" && !foundp) {
+                if (!payload.empty() && !foundp) {
                     args.push_back(payload);
                 }
                 if (args.size() == 0 && payload != "") {

@@ -6743,9 +6743,10 @@ function CommandSelectChanged (
 ) {
 	for (var x = 1; x < 25; x++) {
 		$('#' + tblCommand + '_arg_' + x + '_row').remove();
-		$('#' + tblCommand + '_multisync_row').remove();
-		$('#' + tblCommand + '_multisyncHosts_row').remove();
 	}
+    $('#' + tblCommand + '_multisync_row').remove();
+    $('#' + tblCommand + '_multisyncHosts_row').remove();
+    $('#' + tblCommand + '_description_row').remove();
 	var command = $('#' + commandSelect).val();
 	if (typeof command == 'undefined' || command == null) {
 		return;
@@ -6763,6 +6764,11 @@ function CommandSelectChanged (
 			}
 		});
 	}
+    if (co.hasOwnProperty('description')) {
+        var line = "<tr id='" + tblCommand + "_description_row' ><td></td><td>" + co['description'] + "</td></tr>";
+        $('#' + tblCommand).append(line);
+    }
+
 	var line = "<tr id='" + tblCommand + "_multisync_row' ";
 	if (!allowMultisyncCommands || command == '') {
 		line += "style='display:none'";
