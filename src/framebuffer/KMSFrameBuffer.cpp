@@ -19,6 +19,9 @@
 
 #include <sys/mman.h>
 
+#include "../common_mini.h"
+#include "../log.h"
+
 std::atomic_int KMSFrameBuffer::FRAMEBUFFER_COUNT(0);
 std::map<kms::Card*, kms::ResourceManager*> KMSFrameBuffer::CARDS;
 

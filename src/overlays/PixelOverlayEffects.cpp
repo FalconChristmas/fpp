@@ -29,6 +29,7 @@
 #include <utility>
 #include <vector>
 
+#include "../Warnings.h"
 #include "../commands/Commands.h"
 #include "../common.h"
 #include "../log.h"
@@ -136,13 +137,13 @@ public:
             nowTime -= startTime;
 
             if (nowTime < fadeIn) {
-                //fading in
+                // fading in
                 float f = nowTime;
                 f /= fadeIn;
                 uint32_t c = applyColorPct(color, f);
                 fill(c);
             } else if ((nowTime >= fadeIn) && (nowTime <= (fadeIn + fadeOut))) {
-                //fading out
+                // fading out
                 nowTime -= fadeIn;
                 float f = nowTime;
                 f /= fadeOut;
@@ -150,7 +151,7 @@ public:
                 uint32_t c = applyColorPct(color, f);
                 fill(c);
             } else if (!done && autoEnable) {
-                //end
+                // end
                 if (!fadeOut) {
                     fill(color);
                 } else {
@@ -313,7 +314,7 @@ public:
                 }
                 apply(f);
             } else if (!done && autoEnable) {
-                //end
+                // end
                 apply(1.0f);
                 done = true;
                 return EFFECT_AFTER_NEXT_OUTPUT;
@@ -547,7 +548,7 @@ public:
 
         if (position == "Centered" || position == "Center") {
             image->magick("RGB");
-            //one shot, just draw the text and return
+            // one shot, just draw the text and return
             double rr = r;
             double rg = g;
             double rb = b;
@@ -576,7 +577,7 @@ public:
             delete image;
         } else {
             delete image;
-            //movement
+            // movement
             double rr = r;
             double rg = g;
             double rb = b;

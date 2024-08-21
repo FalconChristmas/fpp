@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "../Warnings.h"
 #include "../common.h"
 
 #include "IIOSensorSource.h"
@@ -30,7 +31,7 @@ IIOSensorSource::IIOSensorSource(Json::Value& config) :
     } else {
         usingBuffers = FileExists("/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/buffer/enable") && FileExists("/dev/iio:device" + std::to_string(iioDevNumber));
     }
-    //usingBuffers = false;
+    // usingBuffers = false;
     std::string base = "/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/in_voltage";
     int max = -1;
     for (int x = 0; x < 16; x++) {
@@ -46,6 +47,8 @@ IIOSensorSource::IIOSensorSource(Json::Value& config) :
             channelMapping[x] = -1;
             values[x] = 0;
         }
+    } else {
+        WarningHolder::AddWarning("Could not enable IIOSensorSorce");
     }
 }
 IIOSensorSource::~IIOSensorSource() {
@@ -184,5 +187,8 @@ void IIOSensorSource::enable(int id) {
 }
 
 int32_t IIOSensorSource::getValue(int id) {
+    if (id >= values.size()) {
+        return 0;
+    }
     return values[id];
 };
