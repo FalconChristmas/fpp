@@ -81,6 +81,9 @@ cp -a wireless/* /lib/modules/${BASE_NEW_KERNEL_VERSION}/kernel/drivers/net/wire
 depmod -a ${BASE_NEW_KERNEL_VERSION}
 rm -rf wireless
 rm -f wireless-${BASE_NEW_KERNEL_VERSION}.tgz
+# need to copy these or the older bootloader on freshly shipped Beagles will not be able to see
+# the IIO sensor or the eMMC
+cp -a /boot/dtbs/${BASE_NEW_KERNEL_VERSION}/BB-* /lib/firmware
 
 # delete old kernels and modules in /boot and /lib/modules
 # and in /boot/dtbs and any initrd's
