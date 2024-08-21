@@ -219,6 +219,16 @@
             return self.indexOf(value) === index;
         }
 
+        function escapeHtml(unsafe)
+        {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
         function LoadSIDS(interface) {
             $("#wifisearch").show();
             $.get("api/network/wifi/scan/" + interface,
@@ -236,9 +246,11 @@
                 ssids.sort();
                 html = [];
                 ssids.forEach(function (n) {
-                    html.push("<option value='");
-                    html.push(n);
-                    html.push("'>");
+                    if(typeof(n) != "undefined") {
+                        html.push("<option value='");
+                        html.push(escapeHtml(n));
+                        html.push("'>");
+                    }
                 });
                 $("#eth_ssids").html(html.join(''));
             }).fail(function () {
