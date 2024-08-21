@@ -45,11 +45,13 @@ function RestartNTPD()
 
 function SetNTPServer($value)
 {
+    $ntpConfigFile = '/etc/ntpsec/ntp.conf';
     if ($value != '') {
-        exec("sudo sed -i '/^server.*/d' /etc/ntp.conf ; sudo sed -i '/^pool.*/d' /etc/ntp.conf ; sudo sed -i '\$s/\$/\\nserver $value iburst/' /etc/ntp.conf");
+        // Remove existing server and pool lines, then add the new server line
+        exec("sudo sed -i '/^server.*/d' $ntpConfigFile ; sudo sed -i '/^pool.*/d' $ntpConfigFile ; sudo sed -i '\$a\\server $value iburst' $ntpConfigFile");
     } else {
-        // Updated as we should be using our own zone falconplayer.pool.ntp.org
-        exec("sudo sed -i '/^server.*/d' /etc/ntp.conf ; sudo sed -i '/^pool.*/d' /etc/ntp.conf ; sudo sed -i '\$s/\$/\\npool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer/' /etc/ntp.conf");
+        // Remove existing server and pool lines, then add the custom pool line
+        exec("sudo sed -i '/^server.*/d' $ntpConfigFile ; sudo sed -i '/^pool.*/d' $ntpConfigFile ; sudo sed -i '\$a\\pool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer' $ntpConfigFile");
     }
 
     // Note: Assume NTP is always enabled now.
