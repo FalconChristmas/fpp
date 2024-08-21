@@ -191,14 +191,13 @@ include 'common/menuHead.inc';
         // check if Warnings window should be shown
         $(document).find('tr[id*="_warnings"').each(function(){
             let cnt = $(this).find('td[id*="_warningCell"').children().length;
-            if (cnt ==0) { //no warnings
-               $(this).addClass('filtered');
-
+            if (cnt == 0) { //no warnings
+                $(this).hide();
             } else { //has warning messages
                 if ($(this).hasClass('filtered')) {
-                    $(this).find('td[id*="_warningCell"').addClass('filtered');
-                } else{
-                    $(this).find('td[id*="_warningCell"').removeClass('filtered');
+                    $(this).hide();
+                } else {
+                    $(this).show();
                 }
             }
         });
@@ -931,7 +930,6 @@ include 'common/menuHead.inc';
                 $('#fppSystems').append(newRow);
 
                 var colspan = 9;
-
                 newRow = "<tr id='" + rowID + "_warnings' class='tablesorter-childRow warning-row'><td colspan='" + colspan + "' id='" + rowID + "_warningCell'></td></tr>";
                 $('#fppSystems').append(newRow);
 

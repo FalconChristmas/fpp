@@ -365,7 +365,9 @@ static void handleCrash(int s) {
     runMainFPPDLoop = 0;
     if (s != SIGQUIT && s != SIGUSR1) {
         WarningHolder::StopNotifyThread();
-        WarningHolder::writeWarningsFile("['FPPD has crashed.  Check crash reports.']");
+        WarningHolder::RemoveAllWarnings();
+        WarningHolder::AddWarning("FPPD has crashed.  Check crash reports.");
+        WarningHolder::WriteWarningsFile();
         exit(-1);
     }
 }
@@ -774,7 +776,7 @@ int main(int argc, char* argv[]) {
     CloseCommand();
     CloseOpenFiles();
 
-    WarningHolder::clearWarningsFile();
+    WarningHolder::ClearWarningsFile();
 
     if (restartFPPD) {
         LogInfo(VB_GENERAL, "Performing Restart.\n");

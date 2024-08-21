@@ -170,9 +170,9 @@ void GetCurrentFPPDStatus(Json::Value& result) {
     result["uptimeStr"] = totalTime.str();
 
     Sensors::INSTANCE.reportSensors(result);
-    std::list<std::string> warnings = WarningHolder::GetWarnings();
-    for (auto& warn : warnings) {
-        result["warnings"].append(warn);
+    for (auto& warn : WarningHolder::GetWarnings()) {
+        result["warnings"].append(warn.message());
+        result["warningInfo"].append(warn);
     }
     if (mode == 1) {
         // bridge mode only returns the base information
@@ -347,9 +347,8 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PlayerResource::r
     } else if (url == "status") {
         GetCurrentStatus(result);
     } else if (url == "warnings") {
-        std::list<std::string> warnings = WarningHolder::GetWarnings();
         result = Json::Value(Json::ValueType::arrayValue);
-        for (auto& warn : warnings) {
+        for (auto& warn : WarningHolder::GetWarnings()) {
             result.append(warn);
         }
     } else if (url == "e131stats") {

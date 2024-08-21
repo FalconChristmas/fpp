@@ -412,6 +412,7 @@ int VLCOutput::Process(void) {
 
     if (data->vlcPlayer) {
         uint64_t cur = libvlc_media_player_get_time(data->vlcPlayer);
+
         if (!data->length) {
             data->length = libvlc_media_player_get_length(data->vlcPlayer);
             int seconds = data->length / 1000;

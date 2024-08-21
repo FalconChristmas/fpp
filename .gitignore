@@ -42,6 +42,7 @@ www/fppversion.php
 www/fppdefines.php
 www/media_root.txt
 www/warnings.json
+www/warnings_full.json
 external/rasclock/modules.order
 external/rasclock/Module.symvers
 external/rasclock/rtc-pcf2127a.*

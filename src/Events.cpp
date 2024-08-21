@@ -95,13 +95,12 @@ public:
     EventWarningListener() {}
     virtual ~EventWarningListener() {}
 
-    virtual void handleWarnings(std::list<std::string>& warnings) {
+    virtual void handleWarnings(const std::list<FPPWarning>& warnings) {
         if (Events::HasEventHandlers()) {
             Json::Value rc = Json::Value(Json::arrayValue);
-            for (std::list<std::string>::iterator it = warnings.begin(); it != warnings.end(); ++it) {
-                rc.append(*it);
+            for (auto &w: warnings) {
+                rc.append(w);
             }
-
             std::string msg = SaveJsonToString(rc);
             LogDebug(VB_CONTROL, "Sending warning message: %s\n", msg.c_str());
             Events::Publish("warnings", msg);
