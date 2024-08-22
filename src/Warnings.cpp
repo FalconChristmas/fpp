@@ -131,6 +131,11 @@ void WarningHolder::AddWarningTimeout(int seconds, int id, const std::string& w,
     }
     std::unique_lock<std::mutex> lck(notifyLock);
     std::unique_lock<std::recursive_mutex> lock(warningsLock);
+    for (auto it = warnings.begin(); it != warnings.end(); ++it) {
+        if (it->id() == id && it->message() == w) {
+            return;
+        }
+    }
     auto& ref = warnings.emplace_back(id, w);
     if (!data.empty()) {
         for (auto &i : data) {
