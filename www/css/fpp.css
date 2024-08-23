@@ -700,6 +700,21 @@ body.has-touch .pageContent-tabs>.nav-item:not(.hidden) {
     margin-bottom: 0;
 }
 
+.warning-link a:link {
+    text-decoration: none;
+    color: white;
+}
+
+.warning-link a:visited {
+    text-decoration: none;
+    color: white;
+}
+
+.warning-link a:hover{
+    text-decoration: none;
+    color: yellow;
+}
+
 .volume {
     display: block;
     font-size: 1.1em;
