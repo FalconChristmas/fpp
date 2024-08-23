@@ -27,6 +27,8 @@ var lastStatusJSON = null;
 var statusChangeFuncs = [];
 var zebraPinSubContentTop = 0;
 var VolumeChangeInProgress = false;
+var currentWarnings = [];
+var warningDefinitions = [];
 
 /* jQuery Colpick activation */
 var fppCommandColorPicker_fppDialogIntervalTimer = null;
@@ -42,6 +44,12 @@ if (
 ) {
 	hasTouch = true;
 }
+
+/* Load warnings definitions */
+$.getJSON('warnings-definitions.json', function (json) {
+	//console.log(json); // this will show the info it in firebug console
+	warningDefinitions = json;
+});
 
 /* On Page Ready Function Handler
 There is a common set of content loading, action setting and viewport change functions in this file.
@@ -4541,17 +4549,80 @@ function GetFPPStatus () {
 function updateWarnings (jsonStatus) {
 	if (jsonStatus.hasOwnProperty('warnings')) {
 		var txt =
-			'<b>Abnormal Conditions - May cause poor performance or other issues</b>';
-		for (var i = 0; i < jsonStatus.warnings.length; i++) {
-			// txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
-			txt += '<br/>' + jsonStatus.warnings[i];
+			'<b>Abnormal Conditions - May cause poor performance or other issues (Click icon warnings for more info)</b>';
+
+		$.ajax({
+			url: 'warnings_full.json',
+			async: false,
+			dataType: 'json',
+			success: function (response) {
+				currentWarnings = response;
+			}
+		});
+		/*
+		$.getJSON('warnings_full.json', function (json) {
+			currentWarnings = json;
+		}); */
+
+		for (var i = 0; i < currentWarnings.length; i++) {
+			var warningID = currentWarnings[i]['id'];
+			if (warningID == 0) {
+				//handle old style warnings with no id with legacy behavior
+				txt += '<br/>' + currentWarnings[i]['message'];
+			} else {
+				//find extra warning info from definitions
+				for (var z = 0; z < warningDefinitions['Warnings'].length; z++) {
+					if (warningDefinitions['Warnings'][z]['id'] == warningID) {
+						currentWarnings[i]['HelpPage'] =
+							warningDefinitions['Warnings'][z]['HelpPage'];
+						currentWarnings[i]['Title'] =
+							warningDefinitions['Warnings'][z]['Title'];
+						currentWarnings[i]['HelpTxt'] =
+							warningDefinitions['Warnings'][z]['HelpTxt'];
+						var warningGrp = warningDefinitions['Warnings'][z]['WarningGroup'];
+						currentWarnings[i]['icon'] =
+							warningDefinitions['WarningGroups'][warningGrp]['fa-icon'];
+					}
+				}
+
+				//determine click through behavior
+				var clickFunction;
+				switch (currentWarnings[i]['HelpPage'].split('.').pop()) {
+					case 'php':
+						clickFunction = 'doWarningPHPModal(' + warningID + ')';
+						break;
+					case 'md':
+						clickFunction = 'doWarningMDModal(' + warningID + ')';
+						break;
+					default:
+						clickFunction = 'doWarningBasicModal(' + warningID + ')';
+				}
+				//create output string for each warning
+				txt +=
+					'<br/><span class="warning-link"><a href="javascript:void(0)" onclick="' +
+					clickFunction +
+					';"><i class="fas fa-' +
+					currentWarnings[i]['icon'] +
+					'"></i> ' +
+					currentWarnings[i]['message'] +
+					' (Warning Id: ' +
+					warningID +
+					')</a></span>';
+			}
 		}
+
 		document.getElementById('warningsDiv').innerHTML = txt;
 		$('#warningsRow').show();
 	} else {
 		$('#warningsRow').hide();
 	}
 }
+
+function doWarningPHPModal (id) {}
+
+function doWarningMDModal (id) {}
+
+function doWarningBasicModal (id) {}
 
 function modeToString (mode) {
 	switch (mode) {
@@ -4914,12 +4985,12 @@ function parseStatus (jsonStatus) {
 			);
 		else $('#nextPlaylist').html('No playlist scheduled.');
 	}
-    const pph = document.querySelector("#powerPlaceHolder");
-    if (jsonStatus['powerBad']) {
-        pph.innerHTML = "<i class='fas fa-2xl fa-bolt' style='color:yellow;''></i>";
-    } else {
-        pph.textContent = "";
-    }
+	const pph = document.querySelector('#powerPlaceHolder');
+	if (jsonStatus['powerBad']) {
+		pph.innerHTML = "<i class='fas fa-2xl fa-bolt' style='color:yellow;''></i>";
+	} else {
+		pph.textContent = '';
+	}
 
 	updateSensorStatus(jsonStatus);
 	firstStatusLoad = 0;
@@ -6744,9 +6815,9 @@ function CommandSelectChanged (
 	for (var x = 1; x < 25; x++) {
 		$('#' + tblCommand + '_arg_' + x + '_row').remove();
 	}
-    $('#' + tblCommand + '_multisync_row').remove();
-    $('#' + tblCommand + '_multisyncHosts_row').remove();
-    $('#' + tblCommand + '_description_row').remove();
+	$('#' + tblCommand + '_multisync_row').remove();
+	$('#' + tblCommand + '_multisyncHosts_row').remove();
+	$('#' + tblCommand + '_description_row').remove();
 	var command = $('#' + commandSelect).val();
 	if (typeof command == 'undefined' || command == null) {
 		return;
@@ -6764,10 +6835,15 @@ function CommandSelectChanged (
 			}
 		});
 	}
-    if (co.hasOwnProperty('description')) {
-        var line = "<tr id='" + tblCommand + "_description_row' ><td></td><td>" + co['description'] + "</td></tr>";
-        $('#' + tblCommand).append(line);
-    }
+	if (co.hasOwnProperty('description')) {
+		var line =
+			"<tr id='" +
+			tblCommand +
+			"_description_row' ><td></td><td>" +
+			co['description'] +
+			'</td></tr>';
+		$('#' + tblCommand).append(line);
+	}
 
 	var line = "<tr id='" + tblCommand + "_multisync_row' ";
 	if (!allowMultisyncCommands || command == '') {
