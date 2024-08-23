@@ -366,7 +366,7 @@ static void handleCrash(int s) {
     if (s != SIGQUIT && s != SIGUSR1) {
         WarningHolder::StopNotifyThread();
         WarningHolder::RemoveAllWarnings();
-        WarningHolder::AddWarning("FPPD has crashed.  Check crash reports.");
+        WarningHolder::AddWarning(1, "FPPD has crashed.  Check crash reports.");
         WarningHolder::WriteWarningsFile();
         exit(-1);
     }
@@ -622,7 +622,7 @@ int main(int argc, char* argv[]) {
     FPPLogger::INSTANCE.Init();
     LoadSettings(argv[0]);
 
-    // save the UUID so crash reports can add that to the filename 
+    // save the UUID so crash reports can add that to the filename
     // to make it easier to collect crashes from a single system
     // for analysis
     SystemUUID = getSetting("SystemUUID", "unknown");
@@ -891,9 +891,9 @@ void MainLoop(void) {
 
     int lowestLogLevel = FPPLogger::INSTANCE.MinimumLogLevel();
     if (lowestLogLevel == LOG_EXCESSIVE)
-        WarningHolder::AddWarning(EXCESSIVE_LOG_LEVEL_WARNING);
+        WarningHolder::AddWarning(2, EXCESSIVE_LOG_LEVEL_WARNING);
     else if (lowestLogLevel == LOG_DEBUG)
-        WarningHolder::AddWarning(DEBUG_LOG_LEVEL_WARNING);
+        WarningHolder::AddWarning(3, DEBUG_LOG_LEVEL_WARNING);
 
     memset(events, 0, sizeof(events));
     int idleCount = 0;
@@ -1000,7 +1000,7 @@ void MainLoop(void) {
                 doPing = true;
             }
         }
-        if (doPing) {            
+        if (doPing) {
             idleCount = 0;
             multiSync->PeriodicPing();
             if (--publishCounter < 0) {

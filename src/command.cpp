@@ -125,7 +125,7 @@ char* ProcessCommand(char* command, char* response) {
     CommandStr[sizeof(CommandStr) - 1] = '\0';
 
     if ((!strcmp(CommandStr, "d")) ||
-               (!strcmp(CommandStr, "StopNow"))) {
+        (!strcmp(CommandStr, "StopNow"))) {
         if ((Player::INSTANCE.GetStatus() == FPP_STATUS_PLAYLIST_PLAYING) ||
             (Player::INSTANCE.GetStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
             (Player::INSTANCE.GetStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
@@ -188,9 +188,9 @@ char* ProcessCommand(char* command, char* response) {
             WarningHolder::RemoveWarning(DEBUG_LOG_LEVEL_WARNING);
             int lowestLogLevel = FPPLogger::INSTANCE.MinimumLogLevel();
             if (lowestLogLevel == LOG_EXCESSIVE)
-                WarningHolder::AddWarning(EXCESSIVE_LOG_LEVEL_WARNING);
+                WarningHolder::AddWarning(2, EXCESSIVE_LOG_LEVEL_WARNING);
             else if (lowestLogLevel == LOG_DEBUG)
-                WarningHolder::AddWarning(DEBUG_LOG_LEVEL_WARNING);
+                WarningHolder::AddWarning(3, DEBUG_LOG_LEVEL_WARNING);
         } else {
             snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Error Updating Log Level,%s,%s,,,,,,,,,\n",
                      getFPPmode(), COMMAND_FAILED, s, s2);
