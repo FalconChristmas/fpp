@@ -1,0 +1,45 @@
+{
+    "WarningGroups": {
+        "Network_Warnings": {
+            "fa-icon": "network-wired"
+        },
+        "Disk_Warnings": {
+            "fa-icon": "floppy-disk"
+        },
+        "Output_Warnings": {
+            "fa-icon": "up-right-from-square"
+        },
+        "Device_Warnings": {
+            "fa-icon": "microchip"
+        },
+        "Log_Warnings": {
+            "fa-icon": "pencil"
+        },
+        "FPPD_Warnings": {
+            "fa-icon": "feather"
+        }
+    },
+    "Warnings": [
+        {
+            "id": 1,
+            "Title": "FPPD Has Crashed.",
+            "HelpTxt": "",
+            "HelpPage": null,
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 2,
+            "Title": "Log Level Set to Excessive.",
+            "HelpTxt": "",
+            "HelpPage": "warning-2.md",
+            "WarningGroup": "Log_Warnings"
+        },
+        {
+            "id": 3,
+            "Title": "Log Level Set to Debug.",
+            "HelpTxt": "",
+            "HelpPage": "warning-3.md",
+            "WarningGroup": "Log_Warnings"
+        }
+    ]
+}
