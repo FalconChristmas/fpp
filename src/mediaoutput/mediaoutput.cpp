@@ -228,7 +228,7 @@ static bool IsHDMIOut(std::string &vOut) {
             std::string conn = "/sys/class/drm/card" + std::to_string(x) + "-" + vOut + "/status";
             if (FileExists(conn)) {
                 std::string status = GetFileContents(conn);
-                return !status.contains("disconnected");
+                return !contains(status, "disconnected");
             }
         }
     } 
