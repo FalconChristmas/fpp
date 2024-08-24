@@ -713,6 +713,10 @@ void Playlist::Resume() {
 
             // Notify of current playlists because was likely changed when Paused.
             Events::Publish("playlist/name/status", m_name);
+            Events::Publish("status", m_currentState);
+            Events::Publish("playlist/section/status", m_currentSectionStr);
+            Events::Publish("playlist/sectionPosition/status", m_sectionPosition);
+            PluginManager::INSTANCE.playlistCallback(GetInfo(), "playing", m_currentSectionStr, m_sectionPosition);
         }
     }
 }
