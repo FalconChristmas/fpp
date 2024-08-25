@@ -4566,6 +4566,7 @@ function updateWarnings (jsonStatus) {
 
 		for (var i = 0; i < currentWarnings.length; i++) {
 			var warningID = currentWarnings[i]['id'];
+			var warningMessage = currentWarnings[i]['message'];
 			if (warningID == 0) {
 				//handle old style warnings with no id with legacy behavior
 				txt += '<br/>' + currentWarnings[i]['message'];
@@ -4589,13 +4590,16 @@ function updateWarnings (jsonStatus) {
 				var clickFunction;
 				switch (currentWarnings[i]['HelpPage'].split('.').pop()) {
 					case 'php':
-						clickFunction = 'doWarningPHPModal(' + warningID + ')';
+						clickFunction =
+							'doWarningPHPModal(' + warningID + ",'" + warningMessage + "')";
 						break;
 					case 'md':
-						clickFunction = 'doWarningMDModal(' + warningID + ')';
+						clickFunction =
+							'doWarningMDModal(' + warningID + ",'" + warningMessage + "')";
 						break;
 					default:
-						clickFunction = 'doWarningBasicModal(' + warningID + ')';
+						clickFunction =
+							'doWarningBasicModal(' + warningID + ",'" + warningMessage + "')";
 				}
 				//create output string for each warning
 				txt +=
@@ -4605,7 +4609,7 @@ function updateWarnings (jsonStatus) {
 					currentWarnings[i]['icon'] +
 					'"></i> ' +
 					currentWarnings[i]['message'] +
-					' (Warning Id: ' +
+					' (Warning ID: ' +
 					warningID +
 					')</a></span>';
 			}
@@ -4618,11 +4622,31 @@ function updateWarnings (jsonStatus) {
 	}
 }
 
-function doWarningPHPModal (id) {}
+function doWarningPHPModal (id, message) {}
 
-function doWarningMDModal (id) {}
+function doWarningMDModal (id, message) {
+	var mdFile = 'help/warning-helpers/warning-' + id + '.md';
+	var options = {
+		id: 'warningHelpDialog',
+		title: 'Warning ID: ' + id + ' - ' + message,
+		body: '<zero-md src="' + mdFile + '"></zero-md>',
+		class: 'modal-dialog-scrollable',
+		keyboard: true,
+		backdrop: true
+	};
+	$.ajax({
+		url: mdFile,
+		type: 'HEAD',
+		error: function () {
+			//file not exists
+		},
+		success: function () {
+			DoModalDialog(options);
+		}
+	});
+}
 
-function doWarningBasicModal (id) {}
+function doWarningBasicModal (id, message) {}
 
 function modeToString (mode) {
 	switch (mode) {
