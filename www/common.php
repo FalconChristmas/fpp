@@ -1824,12 +1824,12 @@ function get_local_git_version()
  * Returns version of the remote Git branch for the supplied branch
  * @return string
  */
-function get_remote_git_version($git_branch)
+function get_remote_git_version()
 {
     global $settings;
 
     $git_remote_version = "Unknown";
-
+    $git_branch = getFPPBranch();
     $origin = "github.com";
     if (isset($settings['UpgradeSource'])) {
         $origin = $settings['UpgradeSource'];
@@ -1843,6 +1843,8 @@ function get_remote_git_version($git_branch)
         //Check the cache for git_<branch>, if null is returned no cache file exists or it's expired, so then off to github
         $git_remote_version = file_cache($cachefile_name, function() {
             global $settings;
+
+            $git_branch = getFPPBranch();
 
             //if for some reason name resolution fails ping will take roughly 10 seconds to return (Default DNS Timeout 5 seconds x 2 retries)
             //to try work around this ping the google public DNS @ 8.8.8.8 (to skip DNS) waiting for a reply for max 1 second, if that's ok we have a route to the internet, then it's highly likely DNS will also work
@@ -2524,7 +2526,7 @@ function GetSystemInfoJsonInternal($simple = false, $network = true)
 
         $result['Kernel'] = get_kernel_version();
         $result['LocalGitVersion'] = get_local_git_version();
-        $result['RemoteGitVersion'] = get_remote_git_version(getFPPBranch());
+        $result['RemoteGitVersion'] = get_remote_git_version();
 
         $uploadDir = GetDirSetting("uploads"); // directory under media
         $result['Utilization']['Disk']["Media"]['Free'] = disk_free_space($uploadDir);
