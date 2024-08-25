@@ -343,12 +343,14 @@ function SystemGetInfo()
 // This function adds some local information to the multi-sync result
 // That doesn't come from fppd
 //
-function finalizeStatusJson($obj)
+function finalizeStatusJson($obj, $simple = false)
 {
     global $settings;
 
-    $obj['wifi'] = network_wifi_strength_obj();
-    $obj['interfaces'] = network_list_interfaces_obj();
+    if (!isset($_GET['nonetwork'])) { 
+        $obj['wifi'] = network_wifi_strength_obj();
+        $obj['interfaces'] = network_list_interfaces_obj();
+    }
 
     if (isset($settings['rebootFlag'])) {
         $obj['rebootFlag'] = intval($settings['rebootFlag']);
@@ -363,7 +365,7 @@ function finalizeStatusJson($obj)
     }
 
     //Get the advanced info directly as an array
-    $request_expert_content = GetSystemInfoJsonInternal(false);
+    $request_expert_content = GetSystemInfoJsonInternal(isset($_GET['simple']));
     //check we have valid data
     if ($request_expert_content === false) {
         $request_expert_content = array();
