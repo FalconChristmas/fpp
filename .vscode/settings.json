@@ -135,7 +135,9 @@
         "semaphore": "cpp",
         "charconv": "cpp",
         "execution": "cpp",
-        "menu.inc": "php"
+        "menu.inc": "php",
+        "footer.inc": "php",
+        "menuHead.inc": "php"
     },
     "editor.formatOnSave": true,
     "cmake.configureOnOpen": false,
