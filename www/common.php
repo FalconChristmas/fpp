@@ -1717,18 +1717,37 @@ function get_server_cpu_usage()
  */
 function get_server_uptime($uptime_value_only = false)
 {
-    $uptime = exec("uptime", $output, $return_val);
-    if ($return_val != 0) {
-        $uptime = "";
-    }
+     global $settings;
 
-    unset($output);
-    $uptime = preg_replace('/[0-9]+ users?, /', '', $uptime);
-    if ($uptime_value_only) {
-        $uptime_portion = explode(",", $uptime, 2)[0];
-        if (!empty($uptime_portion) && stripos($uptime_portion, "up") !== false) {
-            $uptime = trim(explode("up", $uptime_portion, 2)[1]);
+    if ($settings["Platform"] == "MacOS") {
+        $uptime = exec("uptime", $output, $return_val);
+        if ($return_val != 0) {
+            $uptime = "";
         }
+
+        unset($output);
+        $uptime = preg_replace('/[0-9]+ users?, /', '', $uptime);
+        if ($uptime_value_only) {
+            $uptime_portion = explode(",", $uptime, 2)[0];
+            if (!empty($uptime_portion) && stripos($uptime_portion, "up") !== false) {
+                $uptime = trim(explode("up", $uptime_portion, 2)[1]);
+            }
+        }
+    } else {
+        $str   = @file_get_contents('/proc/uptime');
+        $num   = floatval($str);
+        $secs  = $num % 60;
+        $num   = (int)($num / 60);
+        $mins  = $num % 60;
+        $num   = (int)($num / 60);
+        $hours = $num % 24;
+        $num   = (int)($num / 24);
+        $days  = $num;
+        $uptime = "";
+        if ($days) {
+            $uptime = "" . $days . " days ";
+        }
+        $uptime .= $hours . ":" . $mins;
     }
     return $uptime;
 }
@@ -2437,7 +2456,7 @@ function getSystemUUID()
     return file_get_contents("/tmp/fpp_uuid");
 }
 
-function GetSystemInfoJsonInternal($simple = false)
+function GetSystemInfoJsonInternal($simple = false, $network = true)
 {
     global $settings;
 
@@ -2519,49 +2538,49 @@ function GetSystemInfoJsonInternal($simple = false)
             $result['UpgradeSource'] = 'github.com';
         }
 
-        if ($settings["Platform"] != "MacOS") {
-            $output = array();
-            $IPs = array();
-            exec("ip --json -4 address show", $output);
-            //print(join("", $output));
-            $ipAddresses = json_decode(join("", $output), true);
-            foreach ($ipAddresses as $key => $value) {
-                if ($value["ifname"] != "lo" && strpos($value["ifname"], 'usb') === false) {
-                    foreach ($value["addr_info"] as $key2 => $value2) {
-                        $IPs[] = $value2["local"];
+        if ($network) {
+            if ($settings["Platform"] != "MacOS") {
+                $output = array();
+                $IPs = array();
+                exec("/usr/sbin/ip --json -4 address show", $output);
+                $ipAddresses = json_decode(join("", $output), true);
+                foreach ($ipAddresses as $key => $value) {
+                    if ($value["ifname"] != "lo" && strpos($value["ifname"], 'usb') === false) {
+                        foreach ($value["addr_info"] as $key2 => $value2) {
+                            $IPs[] = $value2["local"];
+                        }
                     }
                 }
-            }
 
-            $result['IPs'] = $IPs;
-        } else {
-            $IPs = array();
-            $output = exec("ipconfig getiflist");
-            $parts = preg_split("/\s+/", trim($output));
-            foreach ($parts as $cnt => $int) {
-                exec("ipconfig getsummary " . $int, $config);
-                $lastKey = "";
-                foreach ($config as $line) {
-                    // do stuff with $line
-                    $line = trim($line);
-                    $array = explode(':', $line);
-                    $key = trim($array[0]);
-                    if (count($array) > 1) {
-                        $value = trim($array[1]);
-                    } else {
-                        $value = "";
+                $result['IPs'] = $IPs;
+            } else {
+                $IPs = array();
+                $output = exec("ipconfig getiflist");
+                $parts = preg_split("/\s+/", trim($output));
+                foreach ($parts as $cnt => $int) {
+                    exec("ipconfig getsummary " . $int, $config);
+                    $lastKey = "";
+                    foreach ($config as $line) {
+                        // do stuff with $line
+                        $line = trim($line);
+                        $array = explode(':', $line);
+                        $key = trim($array[0]);
+                        if (count($array) > 1) {
+                            $value = trim($array[1]);
+                        } else {
+                            $value = "";
+                        }
+                        if ($key == "0" && $lastKey == "Addresses") {
+                            $IPs[] = $value;
+                        } else {
+                            $lastKey = $key;
+                        }
                     }
-                    if ($key == "0" && $lastKey == "Addresses") {
-                        $IPs[] = $value;
-                    } else {
-                        $lastKey = $key;
-                    }
+                    unset($config);
                 }
-                unset($config);
+                $result['IPs'] = $IPs;
             }
-            $result['IPs'] = $IPs;
         }
-
     }
     return $result;
 }

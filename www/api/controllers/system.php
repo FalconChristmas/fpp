@@ -343,7 +343,7 @@ function SystemGetInfo()
 // This function adds some local information to the multi-sync result
 // That doesn't come from fppd
 //
-function finalizeStatusJson($obj, $simple = false)
+function finalizeStatusJson($obj)
 {
     global $settings;
 
@@ -365,7 +365,7 @@ function finalizeStatusJson($obj, $simple = false)
     }
 
     //Get the advanced info directly as an array
-    $request_expert_content = GetSystemInfoJsonInternal(isset($_GET['simple']));
+    $request_expert_content = GetSystemInfoJsonInternal(isset($_GET['simple']), !isset($_GET['nonetwork']));
     //check we have valid data
     if ($request_expert_content === false) {
         $request_expert_content = array();
