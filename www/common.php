@@ -2406,6 +2406,17 @@ function gitBaseDirectory()
     return dirname(dirname(__FILE__));
 }
 
+function getSystemUUID()
+{
+    global $fppDir;
+    if (!file_exists("/tmp/fpp_uuid")) {
+        $output = array();
+        exec($fppDir . "/scripts/get_uuid", $output);
+        file_put_contents("/tmp/fpp_uuid", trim($output[0]));
+    }
+    return file_get_contents("/tmp/fpp_uuid");
+}
+
 function GetSystemInfoJsonInternal($simple = false)
 {
     global $settings;
@@ -2459,9 +2470,7 @@ function GetSystemInfoJsonInternal($simple = false)
         $result['minorVersion'] = $json['minorVersion'];
         $result['typeId'] = $json['typeId'];
     }
-    $output = array();
-    exec($settings['fppDir'] . "/scripts/get_uuid", $output);
-    $result['uuid'] = $output[0];
+    $result['uuid'] = getSystemUUID();
     if (isset($settings['cape-info'])) {
         $capeInfo = $settings['cape-info'];
         $result['capeInfo']['name'] = $capeInfo['name'];

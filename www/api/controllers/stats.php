@@ -437,12 +437,7 @@ function stats_getPlugins()
 
 function stats_getUUID()
 {
-    global $fppDir;
-
-    $output = array();
-    exec($fppDir . "/scripts/get_uuid", $output);
-
-    return $output[0];
+    return getSystemUUID();
 }
 
 function stats_getCapeInfo()
