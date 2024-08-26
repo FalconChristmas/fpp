@@ -66,3 +66,12 @@ HOSTS by space separating them.   Then run "make -j4" or similar to have it comp
 multiple files in parallel. The Beagle will do the precompile step, send it to the
 Pi to be compiled, and then the Beagle will do all the linking.
 
+# zero-md
+
+zero-md is installed in the fpp ww structure to allow quick rendering of markdown (.md) files in the UI html
+To display a .md include the following in the generated page HTML:
+
+```html
+<zero-md src="file.md"></zero-md>
+```
+
