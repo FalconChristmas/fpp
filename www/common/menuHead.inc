@@ -35,14 +35,19 @@ if (((!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == 
     License - https://github.com/zerodevx/zero-md/blob/main/LICENSE (ISC License)
 -->
 <script type="module">
-    import ZeroMdBase from './js/zero-md/zero-md-base.js'
-    import ZeroMd from './js/zero-md/zero-md.js'
-    import { STYLES, LOADERS } from './js/zero-md/presets.js'
+    import ZeroMdBase from '/js/zero-md/zero-md-base.js'
+    import ZeroMd from '/js/zero-md/zero-md.js'
+    import { STYLES, LOADERS } from '/js/zero-md/presets.js'
 
     customElements.define('zero-md', class extends ZeroMd {
         async load() {
             await super.load()
-            this.template = STYLES.preset('light') // or STYLES.preset('dark')
+            this.template = `
+<style>:host { display: block; }</style>
+<link rel="stylesheet" href="/js/zero-md/css/github-markdown-light.min.css">
+<link rel="stylesheet" href="/js/zero-md/css/github-markdown.min.css">
+<link rel="stylesheet" href="/js/zero-md/css/katex.min.css">`
+            //this.template = STYLES.preset('light') // or STYLES.preset('dark')
         }
     })
 
