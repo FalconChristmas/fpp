@@ -25,6 +25,7 @@
 #include <fstream>
 #include <httpserver.hpp>
 #include <iomanip>
+#include <iostream>
 #include <list>
 #include <stdint.h>
 #include <string>
@@ -210,9 +211,9 @@ void GetCurrentFPPDStatus(Json::Value& result) {
 
         result["playlist"] = seqFilename;
         result["sequence_filename"] = seqFilename;
-        result["media_filename"] = mediaFilename;
+        result["media_filename"] = mediaFilename.substr(mediaFilename.find_last_of("/\\") + 1);
         result["current_sequence"] = seqFilename;
-        result["current_song"] = mediaFilename;
+        result["current_song"] = result["media_filename"];
         result["seconds_played"] = std::to_string(secsElapsed);
         result["seconds_elapsed"] = std::to_string(secsElapsed);
         result["seconds_remaining"] = std::to_string(secsRemaining);
