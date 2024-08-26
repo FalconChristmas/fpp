@@ -4549,7 +4549,7 @@ function GetFPPStatus () {
 function updateWarnings (jsonStatus) {
 	if (jsonStatus.hasOwnProperty('warnings')) {
 		var txt =
-			'<b>Abnormal Conditions - May cause poor performance or other issues (Click icon warnings for more info)</b>';
+			'<b>Abnormal Conditions - May cause poor performance or other issues (Click icon warnings for more info)</b><br/><ul>';
 
 		$.ajax({
 			url: 'warnings_full.json',
@@ -4569,7 +4569,7 @@ function updateWarnings (jsonStatus) {
 			var warningMessage = currentWarnings[i]['message'];
 			if (warningID == 0) {
 				//handle old style warnings with no id with legacy behavior
-				txt += '<br/>' + currentWarnings[i]['message'];
+				txt += '<li>' + currentWarnings[i]['message'] + '</li>';
 			} else {
 				//find extra warning info from definitions
 				for (var z = 0; z < warningDefinitions['Warnings'].length; z++) {
@@ -4609,7 +4609,7 @@ function updateWarnings (jsonStatus) {
 				}
 				//create output string for each warning
 				txt +=
-					'<br/><span class="warning-link"><a href="javascript:void(0)" onclick="' +
+					'<li><span class="warning-link"><a href="javascript:void(0)" onclick="' +
 					clickFunction +
 					';"><i class="fas fa-' +
 					currentWarnings[i]['icon'] +
@@ -4617,9 +4617,11 @@ function updateWarnings (jsonStatus) {
 					currentWarnings[i]['message'] +
 					' (Warning ID: ' +
 					warningID +
-					')</a></span>';
+					')</a></span></li>';
 			}
 		}
+
+		txt += '</ul>';
 
 		document.getElementById('warningsDiv').innerHTML = txt;
 		$('#warningsRow').show();
