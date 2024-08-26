@@ -8,6 +8,6 @@
 - [Remote FPP Debugging with VS Code](./FPP-with-vs-code.md) - Describes how to use VSCode on a laptop for developing FPP on a BBB or PI.
 - [FSEQ_Sequence_File_Format.txt](./FSEQ_Sequence_File_Format.txt) - Describes the format of the `.fseq` file format.
 - [MQTT.txt](./MQTT.txt) - Describes the topics supported by FPP for communicating via MQTT.
-- [DeveloperNotes.txt](./DeveloperNotes.txt) - Various developer topics including Valgrind, CCache, etc...
+- [DeveloperNotes.md](./DeveloperNotes.md) - Various developer topics including Valgrind, CCache, etc...
 - [WarningHandling.md](.WarningHandling.md) - Describes the warning framework and the steps required to define, set and display warning
 
