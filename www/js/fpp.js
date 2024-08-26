@@ -4599,7 +4599,13 @@ function updateWarnings (jsonStatus) {
 						break;
 					default:
 						clickFunction =
-							'doWarningBasicModal(' + warningID + ",'" + warningMessage + "')";
+							'doWarningBasicModal(' +
+							warningID +
+							",'" +
+							warningMessage +
+							"','" +
+							currentWarnings[i]['HelpTxt'] +
+							"')";
 				}
 				//create output string for each warning
 				txt +=
@@ -4646,7 +4652,18 @@ function doWarningMDModal (id, message) {
 	});
 }
 
-function doWarningBasicModal (id, message) {}
+function doWarningBasicModal (id, message, helptxt) {
+	var options = {
+		id: 'warningHelpDialog',
+		title: 'Warning ID: ' + id + ' - ' + message,
+		body: helptxt,
+		class: 'modal-dialog-scrollable',
+		keyboard: true,
+		backdrop: true
+	};
+
+	DoModalDialog(options);
+}
 
 function modeToString (mode) {
 	switch (mode) {
