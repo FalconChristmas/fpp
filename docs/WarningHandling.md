@@ -47,21 +47,21 @@ This file has a simple structure which allows the definitio of warninggroups and
             "id": 1,
             "Title": "FPPD Has Crashed.",
             "HelpTxt": "",
-            "HelpPage": null,
+            "HelpPageType": null,
             "WarningGroup": "FPPD_Warnings"
         },
         {
             "id": 2,
             "Title": "Log Level Set to Excessive.",
             "HelpTxt": "",
-            "HelpPage": "warning-2.md",
+            "HelpPageType": "md",
             "WarningGroup": "Log_Warnings"
         },
         {
             "id": 3,
             "Title": "Log Level Set to Debug.",
             "HelpTxt": "",
-            "HelpPage": "warning-3.md",
+            "HelpPageType": "php",
             "WarningGroup": "Log_Warnings"
         }
     ]
@@ -74,10 +74,11 @@ The warning attributes are defined as:
 * Title - generic title for this warning type (this is static and different to the message which can be parsed to the Handler on warning creation)
 * WarningGroup - assign the warning to one of the groups defined at beginning of definitions file
 * HelpTxt - basic string of warning help text which will be displayed if no MD or php warning help file defined
-* HelpPage - this is the filename of the warning help page - needs to be either a .md extension or .php and the file naming needs to be:
-* ```
-  warning-<id>.md or   warning-<id>.php
-  ```
+* HelpPageType - this is the type of warning help page - needs to be either "md" or "php" depending on the extension of the file in the www/help/warning-helpers folder
 
-warning files need to be in the www/help/warning-helpers folder
+Warning help pages in www/help/warning-helpers need to have naming format of:
+
+```
+warning-<id>.md or warning-<id>.php
+```
 
