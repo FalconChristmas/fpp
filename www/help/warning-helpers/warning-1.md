@@ -1,7 +1,5 @@
 # FPPD Not Running
 
-##### Warning ID: 1
-
 The FPPD executable (the operational brain) is not currently running... this could be the result of several things...
 
 1. Check if fppd file exist -- If not, may have been failed upgrade
