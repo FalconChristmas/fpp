@@ -1719,7 +1719,7 @@ function get_server_uptime($uptime_value_only = false)
 {
      global $settings;
 
-    if ($settings["Platform"] == "MacOS") {
+    if (!$uptime_value_only || $settings["Platform"] == "MacOS") {
         $uptime = exec("uptime", $output, $return_val);
         if ($return_val != 0) {
             $uptime = "";
