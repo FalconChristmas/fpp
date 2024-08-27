@@ -24,22 +24,29 @@
             "id": 1,
             "Title": "FPPD Has Crashed.",
             "HelpTxt": "",
-            "HelpPage": null,
+            "HelpPageType": null,
             "WarningGroup": "FPPD_Warnings"
         },
         {
             "id": 2,
             "Title": "Log Level Set to Excessive.",
             "HelpTxt": "",
-            "HelpPage": "warning-2.md",
+            "HelpPageType": "php",
             "WarningGroup": "Log_Warnings"
         },
         {
             "id": 3,
             "Title": "Log Level Set to Debug.",
             "HelpTxt": "",
-            "HelpPage": "warning-3.md",
+            "HelpPageType": "md",
             "WarningGroup": "Log_Warnings"
+        },
+        {
+            "id": 4,
+            "Title": "MQTT Disconnected.",
+            "HelpTxt": "",
+            "HelpPageType": "",
+            "WarningGroup": "Network_Warnings"
         }
     ]
 }
