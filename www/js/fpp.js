@@ -4555,6 +4555,7 @@ function updateWarnings (jsonStatus) {
 			url: 'warnings_full.json',
 			async: false,
 			dataType: 'json',
+			cache: false,
 			success: function (response) {
 				currentWarnings = response;
 			}
