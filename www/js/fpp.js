@@ -4549,7 +4549,7 @@ function GetFPPStatus () {
 function updateWarnings (jsonStatus) {
 	if (jsonStatus.hasOwnProperty('warnings')) {
 		var txt =
-			'<b>Abnormal Conditions - May cause poor performance or other issues (Click icon warnings for more info)</b><br/><ul>';
+			'<b>Abnormal Conditions - May cause poor performance or other issues (Click link icon for help)</b><br/><ul>';
 
 		$.ajax({
 			url: 'warnings_full.json',
@@ -4559,10 +4559,6 @@ function updateWarnings (jsonStatus) {
 				currentWarnings = response;
 			}
 		});
-		/*
-		$.getJSON('warnings_full.json', function (json) {
-			currentWarnings = json;
-		}); */
 
 		for (var i = 0; i < currentWarnings.length; i++) {
 			var warningID = currentWarnings[i]['id'];
@@ -4609,17 +4605,30 @@ function updateWarnings (jsonStatus) {
 								"')";
 					}
 				}
-				//create output string for each warning
-				txt +=
-					'<li><span class="warning-link"><a href="javascript:void(0)" onclick="' +
-					clickFunction +
-					';"><i class="fas fa-' +
-					currentWarnings[i]['icon'] +
-					'"></i> ' +
-					currentWarnings[i]['message'] +
-					' (Warning ID: ' +
-					warningID +
-					')</a></span></li>';
+
+				//create output link string for each warning with a valid definition
+				if (
+					currentWarnings[i]['HelpPage'] !== (null || '') ||
+					currentWarnings[i]['HelpTxt'] !== (null || '')
+				) {
+					txt +=
+						'<li><span class="warning-link"><a href="javascript:void(0)" onclick="' +
+						clickFunction +
+						';"><i class="fas fa-' +
+						currentWarnings[i]['icon'] +
+						'"></i> ' +
+						currentWarnings[i]['message'] +
+						' (<i class="fas fa-link"></i> Warning ID: ' +
+						warningID +
+						')</a></span></li>';
+				} else {
+					txt +=
+						'<li><i class="fas fa-' +
+						currentWarnings[i]['icon'] +
+						'"></i> ' +
+						currentWarnings[i]['message'] +
+						'</li>';
+				}
 			}
 		}
 
