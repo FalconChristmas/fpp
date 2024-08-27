@@ -4642,7 +4642,6 @@ function updateWarnings (jsonStatus) {
 }
 
 function doWarningPHPModal (id, message) {
-	var phpWarningFile = 'help/warning-helpers/warning-' + id + '.php';
 	var options = {
 		id: 'warningHelpDialog',
 		title: 'Warning ID: ' + id + ' - ' + message,

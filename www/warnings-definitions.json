@@ -31,7 +31,7 @@
             "id": 2,
             "Title": "Log Level Set to Excessive.",
             "HelpTxt": "",
-            "HelpPageType": "php",
+            "HelpPageType": "md",
             "WarningGroup": "Log_Warnings"
         },
         {
