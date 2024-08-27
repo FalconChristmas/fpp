@@ -66,10 +66,10 @@ void mosq_disc_callback(struct mosquitto* mosq, void* userdata, int level) {
         ((MosquittoClient*)userdata)->HandleDisconnect();
     }
     /*
-	 * Don't call reconnect here. Per documentation, loop_start() will handle
-	 * reconnect automatically.
-	 */
-    //mosquitto_reconnect(mosq);
+     * Don't call reconnect here. Per documentation, loop_start() will handle
+     * reconnect automatically.
+     */
+    // mosquitto_reconnect(mosq);
 }
 
 void mosq_connect_callback(struct mosquitto* mosq, void* userdata, int level) {
@@ -101,7 +101,7 @@ MosquittoClient::MosquittoClient(const std::string& host, const int port,
     LogDebug(VB_CONTROL, "MosquittoClient::MosquittoClient('%s', %d, '%s')\n",
              host.c_str(), port, topicPrefix.c_str());
 
-    WarningHolder::AddWarning("MQTT Disconnected");
+    WarningHolder::AddWarning(4, "MQTT Disconnected");
     if (m_topicPrefix.size()) {
         m_topicPrefix += "/";
     }
@@ -378,7 +378,7 @@ void MosquittoClient::HandleConnect() {
         }
     }
 
-    WarningHolder::RemoveWarning("MQTT Disconnected");
+    WarningHolder::RemoveWarning(4, "MQTT Disconnected");
     LogInfo(VB_CONTROL, "MQTT HandleConnect Complete\n");
 }
 
@@ -388,7 +388,7 @@ void MosquittoClient::HandleDisconnect() {
     m_isConnected = false;
     Timers::INSTANCE.addTimer("MosquittoDisconnect", tm + 10000, [this, tm]() {
         if (!m_isConnected) {
-            WarningHolder::AddWarning("MQTT Disconnected");
+            WarningHolder::AddWarning(4, "MQTT Disconnected");
         }
     });
 }
