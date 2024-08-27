@@ -112,6 +112,7 @@
                 // Check if another interface already has a gateway set
                 $.get("api/network/interface", function (interfaces) {
                     var gatewayAlreadySet = false;
+                    var dhcpOperStateUp = false;
         
                     interfaces.forEach(function (ifaceData) {
                         // Ensure the config and INTERFACE properties are defined
@@ -126,16 +127,21 @@
                                 ifaceData.config.GATEWAY) {
                                 gatewayAlreadySet = true;
                             }
+
+                            // Check if there's a DHCP interface with operstate UP
+                            if (ifaceData.config.PROTO === "dhcp" && ifaceData.operstate === "UP") {
+                                dhcpOperStateUp = true;
+                            }
                         }
                     });
         
-                    if (gatewayAlreadySet && $('#eth_gateway').val()) {
-                        $.jGrowl("A gateway is already set on another interface. You cannot set multiple gateways.", { themeState: 'danger' });
+                    if ((gatewayAlreadySet || dhcpOperStateUp) && $('#eth_gateway').val()) {
+                        $.jGrowl("A gateway is already set on another interface, or another interface is configured as DHCP. You cannot set multiple gateways.", { themeState: 'danger' });
                         return callback(false);
                     }
         
                     // If no gateway is set anywhere and we're in static mode, ensure one is set
-                    if (!gatewayAlreadySet && !$('#eth_gateway').val()) {
+                    if (!gatewayAlreadySet && !$('#eth_gateway').val() && !dhcpOperStateUp) {
                         $.jGrowl("You must set a gateway when using static IPs.", { themeState: 'danger' });
                         return callback(false);
                     }
