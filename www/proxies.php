@@ -74,22 +74,37 @@ require_once "common.php";
 
             var json = new Array();
             $(".proxyRow").each(function () {
-                console.log(this);                
                 var ip = $(this).find(".ipaddress").val();
-                if(ip === undefined || ip === null || ip === '')
-                { ip = "";}
+                if (ip === undefined || ip === null || ip === '') { ip = ""; }
                 if (isValidHostname(ip) || isValidIpAddress(ip)) {
-                    var desc = $(this).find(".description" ).val();
-                    if(desc === undefined || desc === null || desc === '')
-                    {
+                    var desc = $(this).find(".description").val();
+                    if (desc === undefined || desc === null || desc === '') {
                         desc = "";
-                    }                    
+                    }
                     json.push({
-                            "host" : ip,
-                            "description" : desc
-                        });                       
+                        "host": ip,
+                        "description": desc
+                    });
                 }
             });
+            if ($(".proxyRow").length == 0) {
+                $.ajax({
+                    url: 'api/proxies',
+                    type: 'GET',
+                    async: true,
+                    dataType: 'json',
+                    success: function (data) {
+                        proxyInfos = data;
+                        for (var i = 0; i < proxyInfos.length; i++) {
+                            Delete("api/proxies/" + proxyInfos[i].host, true, null, true);
+                        }
+                    },
+                    error: function () {
+                        $.jGrowl('Error: Unable to get list of proxies', { themeState: 'danger' });
+                    }
+                });
+            }
+
             Post("api/proxies", false, JSON.stringify(json, null, 2));
             location.reload();
         }
@@ -105,21 +120,21 @@ require_once "common.php";
             SetupSelectableTableRow(tableInfo);
 
             $.ajax({
-				url: 'api/proxies',
-				type: 'GET',
-				async: true,
-				dataType: 'json',
-				success: function (data) {
-					proxyInfos = data;
-					for (var i = 0; i < proxyInfos.length; i++) {
-						AddProxyForHost(proxyInfos[i].host, proxyInfos[i].description);						
-					}
-				},
-				error: function () {
-					$.jGrowl('Error: Unable to get list of proxies', { themeState: 'danger' });
-				}
-			});
-            
+                url: 'api/proxies',
+                type: 'GET',
+                async: true,
+                dataType: 'json',
+                success: function (data) {
+                    proxyInfos = data;
+                    for (var i = 0; i < proxyInfos.length; i++) {
+                        AddProxyForHost(proxyInfos[i].host, proxyInfos[i].description);
+                    }
+                },
+                error: function () {
+                    $.jGrowl('Error: Unable to get list of proxies', { themeState: 'danger' });
+                }
+            });
+
         });
     </script>
 
