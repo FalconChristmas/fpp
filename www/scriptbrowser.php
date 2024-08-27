@@ -160,7 +160,7 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
 
                     <h2>Incompatible Scripts</h2>
                     <div class="callout">
-                        The scripts below are from other versions of FPP and are known not to function with this version of FPP. They are listed here for your reference only.  Many of them can be replaced by FPP command functionality for instance.
+                        The scripts below are from other versions of FPP and are known not to function with this version of FPP or have been replaced by plugins, FPP command functionality or other built-in functions. They are listed here for your reference only.  
                     </div>
                     <div id='fppScriptsNonMatching'>
                         <? foreach ($nonMatchingScripts as $parts) : ?>
