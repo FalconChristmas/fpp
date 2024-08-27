@@ -1438,6 +1438,10 @@ function Put (url, async, data, silent = false) {
 	return PostPutHelper(url, async, data, silent, 'PUT');
 }
 
+function Delete (url, async, data, silent = false) {
+	return PostPutHelper(url, async, data, silent, 'DELETE');
+}
+
 function Get (url, async, silent = false) {
 	var result = {};
 
