@@ -5540,22 +5540,53 @@ function SetRebootFlag () {
 	}
 }
 
+function showRestartAlert () {
+	if ($('#restartFlag').is(':hidden')) {
+		$('#restartFlag').show();
+		common_ViewPortChange();
+	}
+}
+
+function hideRestartAlert () {
+	if ($('#restartFlag').is(':visible')) {
+		$('#restartFlag').hide();
+		common_ViewPortChange();
+	}
+}
+
+function showRebootAlert () {
+	if ($('#rebootFlag').is(':hidden')) {
+		$('#rebootFlag').show();
+		common_ViewPortChange();
+	}
+}
+
+function hideRebootAlert () {
+	if ($('#rebootFlag').is(':visible')) {
+		$('#rebootFlag').hide();
+		common_ViewPortChange();
+	}
+}
+
 function CheckRestartRebootFlags () {
 	if (settings['disableUIWarnings'] == 1) {
 		setTopScrollText('Top');
-		$('#restartFlag').hide();
-		$('#rebootFlag').hide();
+		hideRestartAlert();
+		hideRebootAlert();
 		return;
 	}
 
-	if (settings['restartFlag'] >= 1) $('#restartFlag').show();
-	else $('#restartFlag').hide();
+	if (settings['restartFlag'] >= 1) {
+		showRestartAlert();
+	} else {
+		hideRestartAlert();
+	}
 
 	if (settings['rebootFlag'] == 1) {
-		$('#restartFlag').hide();
-		$('#rebootFlag').show();
+		hideRestartAlert();
+		showRebootAlert();
 	} else {
-		$('#rebootFlag').hide();
+		hideRebootAlert();
 	}
 
 	// Adjust the scroll up text to match state.
