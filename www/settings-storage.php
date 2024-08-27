@@ -283,7 +283,7 @@ if ($addflashbutton) {
         </div>
         <? if ($uiLevel >= 1) { ?>
             <div class="row mt-2">
-                <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC'
+                <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC (BTRFS)'
                         onClick='flashEMMCBtrfs();'></div>
                 <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i>&nbsp;This will copy FPP to the internal
                     eMMC, but use BTRFS for the root filesystem.<br>BTRFS uses compression to save a lot of space on the eMMC, but
