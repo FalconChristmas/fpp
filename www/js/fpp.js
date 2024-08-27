@@ -4587,25 +4587,27 @@ function updateWarnings (jsonStatus) {
 				}
 
 				//determine click through behavior
-				var clickFunction;
-				switch (currentWarnings[i]['HelpPage'].split('.').pop()) {
-					case 'php':
-						clickFunction =
-							'doWarningPHPModal(' + warningID + ",'" + warningMessage + "')";
-						break;
-					case 'md':
-						clickFunction =
-							'doWarningMDModal(' + warningID + ",'" + warningMessage + "')";
-						break;
-					default:
-						clickFunction =
-							'doWarningBasicModal(' +
-							warningID +
-							",'" +
-							warningMessage +
-							"','" +
-							currentWarnings[i]['HelpTxt'] +
-							"')";
+				var clickFunction = null;
+				if (currentWarnings[i]['HelpPage'] !== (null || '')) {
+					switch (currentWarnings[i]['HelpPage'].split('.').pop()) {
+						case 'php':
+							clickFunction =
+								'doWarningPHPModal(' + warningID + ",'" + warningMessage + "')";
+							break;
+						case 'md':
+							clickFunction =
+								'doWarningMDModal(' + warningID + ",'" + warningMessage + "')";
+							break;
+						default:
+							clickFunction =
+								'doWarningBasicModal(' +
+								warningID +
+								",'" +
+								warningMessage +
+								"','" +
+								currentWarnings[i]['HelpTxt'] +
+								"')";
+					}
 				}
 				//create output string for each warning
 				txt +=
@@ -4630,7 +4632,27 @@ function updateWarnings (jsonStatus) {
 	}
 }
 
-function doWarningPHPModal (id, message) {}
+function doWarningPHPModal (id, message) {
+	var phpWarningFile = 'help/warning-helpers/warning-' + id + '.php';
+	var options = {
+		id: 'warningHelpDialog',
+		title: 'Warning ID: ' + id + ' - ' + message,
+		class: 'modal-dialog-scrollable',
+		keyboard: true,
+		backdrop: true
+	};
+	$.ajax({
+		url: 'warningHelper.php?id=' + id,
+		type: 'GET',
+		error: function () {
+			//file not exists
+		},
+		success: function (response) {
+			options.body = response;
+			DoModalDialog(options);
+		}
+	});
+}
 
 function doWarningMDModal (id, message) {
 	var mdFile = 'help/warning-helpers/warning-' + id + '.md';
