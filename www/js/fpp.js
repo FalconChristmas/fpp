@@ -4570,8 +4570,8 @@ function updateWarnings (jsonStatus) {
 				//find extra warning info from definitions
 				for (var z = 0; z < warningDefinitions['Warnings'].length; z++) {
 					if (warningDefinitions['Warnings'][z]['id'] == warningID) {
-						currentWarnings[i]['HelpPage'] =
-							warningDefinitions['Warnings'][z]['HelpPage'];
+						currentWarnings[i]['HelpPageType'] =
+							warningDefinitions['Warnings'][z]['HelpPageType'];
 						currentWarnings[i]['Title'] =
 							warningDefinitions['Warnings'][z]['Title'];
 						currentWarnings[i]['HelpTxt'] =
@@ -4585,7 +4585,7 @@ function updateWarnings (jsonStatus) {
 				//determine click through behavior
 				var clickFunction = null;
 				if (currentWarnings[i]['HelpPage'] !== (null || '')) {
-					switch (currentWarnings[i]['HelpPage'].split('.').pop()) {
+					switch (currentWarnings[i]['HelpPageType']) {
 						case 'php':
 							clickFunction =
 								'doWarningPHPModal(' + warningID + ",'" + warningMessage + "')";
@@ -4608,7 +4608,7 @@ function updateWarnings (jsonStatus) {
 
 				//create output link string for each warning with a valid definition
 				if (
-					currentWarnings[i]['HelpPage'] !== (null || '') ||
+					currentWarnings[i]['HelpPageType'] !== (null || '') ||
 					currentWarnings[i]['HelpTxt'] !== (null || '')
 				) {
 					txt +=
