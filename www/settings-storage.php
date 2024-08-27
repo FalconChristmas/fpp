@@ -1,6 +1,6 @@
 <?
 $skipJSsettings = 1;
-require_once ('common.php');
+require_once('common.php');
 ?>
 
 <script type="text/javascript" src="jquery/jQuery.msgBox/scripts/jquery.msgBox.js"></script>
@@ -156,7 +156,7 @@ function PrintStorageDeviceSelect($platform)
     }
 
     $storageDevice = "";
-    exec('df -P ' . GetSettingValue('mediaDirectory') . '  | awk \'END{print $1}\' | sed -e "s/\/dev\///"', $output, $return_val);
+    exec('findmnt -no source -T ' . GetSettingValue('mediaDirectory') . '  | sed -e "s/\/dev\///"', $output, $return_val);
     if (isset($output[0]))
         $storageDevice = $output[0];
     unset($output);
@@ -233,7 +233,7 @@ $addnewfsbutton = false;
 $addflashbutton = false;
 exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
 $rootDevice = $output[0];
-if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2' || $rootDevice == 'nvme0n1p2' || $rootDevice == 'sda2' ) {
+if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2' || $rootDevice == 'nvme0n1p2' || $rootDevice == 'sda2') {
     if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 0) {
         $addnewfsbutton = true;
     }
@@ -348,8 +348,10 @@ if ($settings['Platform'] != "Docker") { ?>
             network lag, packet drops, audio clicks/pops, high CPU usage, etc... Using USB storage also results in longer bootup
             time. In addition, many advanced features and various capes/hats are known to NOT work when using USB storage.
             <br><br>
-            In addition to the above, since it is not recommended, using NVMe/USB storage is not tested nearly as extensively by the
-            FPP developers. Thus, upgrades (even "patch" upgrades) have a higher risk of unexpected problems. By selecting a NVMe/USB
+            In addition to the above, since it is not recommended, using NVMe/USB storage is not tested nearly as extensively by
+            the
+            FPP developers. Thus, upgrades (even "patch" upgrades) have a higher risk of unexpected problems. By selecting a
+            NVMe/USB
             storage device, you assume much higher risk of problems and issues than when selecting an SD partition.
         </div>
     <? } else { ?>
