@@ -3462,6 +3462,10 @@ a.api-anchor {
     justify-content: center;
 }
 
+.modal-dialog-scrollable .modal-dialog {
+    height:100%;
+}
+
 @media (min-width: 800px) {
     .modal-dialog {
         max-width: 700px;

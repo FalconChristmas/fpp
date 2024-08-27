@@ -537,7 +537,7 @@ function DisplayProgressDialog (id, title) {
 		backdrop: 'static',
 		keyboard: false,
 		body:
-			" <textarea style='width: 100%;' rows='25'  disabled id='" +
+			" <textarea style='max-width:100%; max-height:100%; width: 100%; height:100%;' disabled id='" +
 			id +
 			"Text'></textarea>",
 		class: 'modal-dialog-scrollable',
