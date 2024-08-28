@@ -353,7 +353,7 @@ $freeSpace = disk_free_space($uploadDirectory);
             var options = {
                 id: "upgradePopupStatus",
                 title: "FPP Upgrade",
-                body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUpgradeText'></textarea>",
+                body: "<textarea style='max-width:100%; max-height:100%; width: 100%; height:100%;' disabled id='streamedUpgradeText'></textarea>",
                 class: "modal-dialog-scrollable",
                 noClose: true,
                 keyboard: false,
