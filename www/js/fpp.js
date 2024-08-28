@@ -4487,7 +4487,11 @@ function GetFPPStatus () {
 			if (!('warnings' in response)) {
 				response.warnings = [];
 			}
+			if (!('warningInfo' in response)) {
+				response.warningInfo = [];
+			}
 			response.warnings.push('FPPD Daemon is not running');
+			response.warningInfo.push({'message': 'FPPD Daemon is not running', 'id':1});
 
 			$.get('api/system/volume')
 				.done(function (data) {

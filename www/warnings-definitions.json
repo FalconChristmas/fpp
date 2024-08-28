@@ -16,7 +16,7 @@
             "fa-icon": "pencil"
         },
         "FPPD_Warnings": {
-            "fa-icon": "feather"
+            "fa-icon": "feather-alt"
         },
         "Plugin_Warnings": {
             "fa-icon": "puzzle-piece"
@@ -27,7 +27,7 @@
             "id": 1,
             "Title": "FPPD Has Crashed.",
             "HelpTxt": "",
-            "HelpPageType": null,
+            "HelpPageType": "md",
             "WarningGroup": "FPPD_Warnings"
         },
         {
