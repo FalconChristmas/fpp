@@ -484,7 +484,7 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
 FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName) {
     void* handle = dlopen(shlibName.c_str(), RTLD_NOW);
     if (handle == nullptr) {
-        if (!FileExists(shlibName)) {
+        if (!FileExists(shlibName) && !FileExists(getFPPDDir("/" + shlibName))) {
             LogErr(VB_PLUGIN, "Failed to find shlib %s\n", shlibName.c_str());
         }
         char *er = dlerror();
