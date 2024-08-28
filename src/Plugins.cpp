@@ -335,7 +335,10 @@ void PluginManager::loadUserPlugins() {
                     continue;
             }
             if (mLoadedUserPlugins.find(ep->d_name) == mLoadedUserPlugins.end()) {
-                loadUserPlugin(ep->d_name);
+                auto *p = loadUserPlugin(ep->d_name);
+                if (p == nullptr) {
+                    WarningHolder::AddWarning(5, "Could not load plugin " + std::string(ep->d_name));
+                }
             }
         }
         closedir(dp);
@@ -478,9 +481,14 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
 }
 
 FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName) {
+    if (!FileExists(shlibName)) {
+        LogErr(VB_PLUGIN, "Failed to find shlib %s\n", shlibName.c_str());
+        return nullptr;        
+    }
     void* handle = dlopen(shlibName.c_str(), RTLD_NOW);
     if (handle == nullptr) {
-        LogErr(VB_PLUGIN, "Failed to find shlib %s\n", shlibName.c_str());
+        char *er = dlerror();
+        LogErr(VB_PLUGIN, "Failed to load shlib: %s\n", er);
         return nullptr;
     }
     FPPPlugin* (*fptr)();
