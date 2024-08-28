@@ -1249,7 +1249,7 @@ if (isset($settings["cape-info"])) {
         ?>
     </div>
     <div id='upgradePopup' title='FPP Upgrade' style="display: none">
-        <textarea style='width: 99%; height: 500px;' disabled id='upgradeText'>
+        <textarea style='max-width:100%; max-height:100%; width: 100%; height:100%;' disabled id='upgradeText'>
     </textarea>
         <input id='closeDialogButton' type='button' class='buttons dialogCloseButton' value='Close'
             onClick='CloseUpgradeDialog(true);' style='display: none;'>

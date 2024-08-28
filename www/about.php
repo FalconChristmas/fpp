@@ -256,7 +256,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                 var options = {
                     id: "upgradeOSPopupStatus",
                     title: "FPP OS Upgrade",
-                    body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUpgradeOSText'></textarea>",
+                    body: "<textarea style='max-width:100%; max-height:100%; width: 100%; height:100%;' disabled id='streamedUpgradeOSText'></textarea>",
                     class: "modal-dialog-scrollable",
                     noClose: true,
                     keyboard: false,
@@ -299,7 +299,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                 var options = {
                     id: "downloadPopupStatus",
                     title: "FPP Download OS Image",
-                    body: "<textarea style='width: 99%; height: 500px;' disabled id='streamedUDownloadText'></textarea>",
+                    body: "<textarea style='max-width:100%; max-height:100%; width: 100%; height:100%;' disabled id='streamedUDownloadText'></textarea>",
                     class: "modal-dialog-scrollable",
                     noClose: true,
                     keyboard: false,
