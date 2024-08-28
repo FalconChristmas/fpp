@@ -385,11 +385,15 @@ function finalizeStatusJson($obj)
             }
 
             if ($settings['ShareCrashData'] == '0') {
-                $obj["warnings"][] = "There $verb $num <a href='filemanager.php#tab-crashes'>crash report$plural</a> available, please submit to FPP developers or delete.";
+                $crWarning = "There $verb $num <a href='filemanager.php#tab-crashes'>crash report$plural</a> available, please submit to FPP developers or delete.";
             } else {
-                $obj["warnings"][] = "There $verb $num <a href='filemanager.php#tab-crashes'>crash report$plural</a> available. " .
+                $crWarning = "There $verb $num <a href='filemanager.php#tab-crashes'>crash report$plural</a> available. " .
                     "This system is configured to automatically upload these to the FPP developers, you may delete the old reports at any time.";
             }
+            $obj["warnings"][] = $crWarning;
+            $wi["message"] = $crWarning;
+            $wi["id"] = 0;
+            $obj["warningInfo"][] = $wi;
         }
     }
 
