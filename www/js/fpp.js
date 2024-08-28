@@ -4553,24 +4553,28 @@ function GetFPPStatus () {
 function updateWarnings (jsonStatus) {
 	if (jsonStatus.hasOwnProperty('warnings')) {
 		var txt =
-			'<b>Abnormal Conditions - May cause poor performance or other issues (Click link icon for help)</b><br/><ul>';
+			'<b>Abnormal Conditions - May cause poor performance or other issues (Click link icon for help)</b><br/><ul style="list-style-type: none;">';
 
-		$.ajax({
-			url: 'warnings_full.json',
-			async: false,
-			dataType: 'json',
-			cache: false,
-			success: function (response) {
-				currentWarnings = response;
-			}
-		});
+            if (jsonStatus.hasOwnProperty('warningInfo')) {
+                currentWarnings = jsonStatus["warningInfo"];
+            } else {
+            $.ajax({
+                url: 'warnings_full.json',
+                async: false,
+                dataType: 'json',
+                cache: false,
+                success: function (response) {
+                    currentWarnings = response;
+                }
+            });
+        }
 
 		for (var i = 0; i < currentWarnings.length; i++) {
 			var warningID = currentWarnings[i]['id'];
 			var warningMessage = currentWarnings[i]['message'];
 			if (warningID == 0) {
 				//handle old style warnings with no id with legacy behavior
-				txt += '<li>' + currentWarnings[i]['message'] + '</li>';
+				txt += '<li><i class="fas fa-solid fa-circle fa-2xs"></i>  ' + currentWarnings[i]['message'] + '</li>';
 			} else {
 				//find extra warning info from definitions
 				for (var z = 0; z < warningDefinitions['Warnings'].length; z++) {
