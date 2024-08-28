@@ -335,10 +335,7 @@ void PluginManager::loadUserPlugins() {
                     continue;
             }
             if (mLoadedUserPlugins.find(ep->d_name) == mLoadedUserPlugins.end()) {
-                auto *p = loadUserPlugin(ep->d_name);
-                if (p == nullptr) {
-                    WarningHolder::AddWarning(5, "Could not load plugin " + std::string(ep->d_name));
-                }
+                loadUserPlugin(ep->d_name);
             }
         }
         closedir(dp);
@@ -472,7 +469,11 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
                 }
                 delete spl;
                 mLoadedUserPlugins.emplace(name);
-                return loadSHLIBPlugin(shlibName);
+                auto *p = loadSHLIBPlugin(shlibName); 
+                if (p == nullptr) {
+                    WarningHolder::AddWarning(5, "Could not load plugin " + name);
+                }
+                return p;
             }
         }
         delete spl;
