@@ -28,9 +28,10 @@ constexpr int UNKNOWN_WARNING_ID = 0;
 
 class FPPWarning : public Json::Value {
 public:
-    FPPWarning(int i, const std::string &m);
+    FPPWarning(int i, const std::string &m, const std::string &p);
 
     std::string message() const;
+    std::string plugin() const;
     int id() const;
     
     int timeout;
@@ -56,8 +57,8 @@ public:
         RemoveWarning(UNKNOWN_WARNING_ID, w);
     }
 
-    static void AddWarningTimeout(int seconds, int id, const std::string& w, const std::map<std::string, std::string>& data = {});
-    static void RemoveWarning(int id, const std::string& w);
+    static void AddWarningTimeout(int seconds, int id, const std::string& w, const std::map<std::string, std::string>& data = {}, const std::string &plugin = "");
+    static void RemoveWarning(int id, const std::string& w, const std::string &plugin = "");
     static void RemoveAllWarnings();
 
     static void AddWarningListener(WarningListener* l);

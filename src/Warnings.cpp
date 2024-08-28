@@ -39,14 +39,23 @@ std::set<WarningListener*> WarningHolder::listenerList;
 
 
 
-FPPWarning::FPPWarning(int i, const std::string &m) {
+FPPWarning::FPPWarning(int i, const std::string &m, const std::string &p) {
     (*this)["id"] = i;
     (*this)["message"] = m;
+    if (!p.empty()) {
+        (*this)["plugin"] = p;
+    }
     timeout = -1;
 }
 
 std::string FPPWarning::message() const {
     return (*this)["message"].asString();
+}
+std::string FPPWarning::plugin() const {
+    if (this->isMember("plugin")) {
+        return (*this)["plugin"].asString();
+    }
+    return "";
 }
 
 int FPPWarning::id() const {
@@ -122,7 +131,7 @@ void WarningHolder::NotifyListenersMain() {
     }
 }
 
-void WarningHolder::AddWarningTimeout(int seconds, int id, const std::string& w, const std::map<std::string, std::string>& data) {
+void WarningHolder::AddWarningTimeout(int seconds, int id, const std::string& w, const std::map<std::string, std::string>& data, const std::string &plugin) {
     LogDebug(VB_GENERAL, "Adding Warning: %s\n", w.c_str());
     if (seconds != -1) {
         auto nowtime = std::chrono::steady_clock::now();
@@ -136,7 +145,7 @@ void WarningHolder::AddWarningTimeout(int seconds, int id, const std::string& w,
             return;
         }
     }
-    auto& ref = warnings.emplace_back(id, w);
+    auto& ref = warnings.emplace_back(id, w, plugin);
     if (!data.empty()) {
         for (auto &i : data) {
             ref["data"][i.first] = i.second;
@@ -146,12 +155,12 @@ void WarningHolder::AddWarningTimeout(int seconds, int id, const std::string& w,
     // Notify Listeners
     notifyCV.notify_all();
 }
-void WarningHolder::RemoveWarning(int id, const std::string& w) {
+void WarningHolder::RemoveWarning(int id, const std::string& w, const std::string &plugin) {
     LogDebug(VB_GENERAL, "Removing Warning: %s\n", w.c_str());
     std::unique_lock<std::mutex> lck(notifyLock);
     std::unique_lock<std::recursive_mutex> lock(warningsLock);
     for (auto it = warnings.begin(); it != warnings.end(); ++it) {
-        if (it->id() == id && it->message() == w) {
+        if (it->id() == id && it->message() == w && it->plugin() == plugin) {
             warnings.erase(it);
             // Notify Listeners
             notifyCV.notify_all();
