@@ -936,6 +936,15 @@
 				"Remote": "remote"
 			}
 		},
+		"FPDEnabled": {
+			"name": "FPDEnabled",
+			"description": "FPD PixelNet Board Enabled",
+			"tip": "Whether the FPD PixelNet Board is Enabled.",
+			"gatherStats": true,
+			"type": "checkbox",
+			"default": 0,
+			"platforms": ["Raspberry Pi"]
+		},
 		"FetchVendorLogos": {
 			"name": "FetchVendorLogos",
 			"description": "Fetch cape logos from vendors",
