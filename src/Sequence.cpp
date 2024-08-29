@@ -515,6 +515,7 @@ void Sequence::SingleStepSequence(void) {
     m_seqSingleStep = 1;
 }
 
+// Broken per issue #986
 void Sequence::SingleStepSequenceBack(void) {
     m_seqSingleStepBack = 1;
 }
