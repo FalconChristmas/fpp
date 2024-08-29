@@ -182,15 +182,6 @@ function GetSequenceStop()
 
 }
 
-// GET api/sequence/current/step
-function GetSequenceStepBack()
-{
-    SendCommand("SingleStepSequenceBack");
-    $rc = array("status" => "OK");
-    return json($rc);
-
-}
-
 // Helper function
 function FSeqOrEseqDirectory($seq)
 {

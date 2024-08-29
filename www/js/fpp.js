@@ -5358,17 +5358,6 @@ function SingleStepSequence () {
 		});
 }
 
-function SingleStepSequenceBack () {
-	var url = 'api/sequence/current/stepBack';
-	$.get(url)
-		.done(function () {
-			$.jGrowl('Sequence StepBack', { themeState: 'success' });
-		})
-		.fail(function () {
-			DialogError('Failed Step Current Sequence Back', 'Step failed');
-		});
-}
-
 function SetSettingReboot (key, value) {
 	SetSetting(key, value, 0, 1);
 }

@@ -1175,11 +1175,6 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 														onClick='SingleStepSequence();'></td>
 												<td>Single-step a paused sequence one frame</td>
 											</tr>
-											<tr>
-												<td><input type='button' class="buttons" value='Step Back'
-														onClick='SingleStepSequenceBack();'></td>
-												<td>Single-step a paused sequence backwards one frame</td>
-											</tr>
 										</table>
 										<br>
 										<div class="callout">

@@ -256,14 +256,15 @@ char* ProcessCommand(char* command, char* response) {
               (Player::INSTANCE.GetInfo()["currentEntry"]["type"] == "sequence")))) {
             sequence->SingleStepSequence();
         }
-    } else if (!strcmp(CommandStr, "SingleStepSequenceBack")) {
-        if ((sequence->IsSequenceRunning()) &&
-            (sequence->SequenceIsPaused()) &&
-            ((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) ||
-             ((Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) &&
-              (Player::INSTANCE.GetInfo()["currentEntry"]["type"] == "sequence")))) {
-            sequence->SingleStepSequenceBack();
-        }
+// Has been broken for some time issue #986
+//    } else if (!strcmp(CommandStr, "SingleStepSequenceBack")) {
+//        if ((sequence->IsSequenceRunning()) &&
+//            (sequence->SequenceIsPaused()) &&
+//            ((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) ||
+//             ((Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) &&
+//              (Player::INSTANCE.GetInfo()["currentEntry"]["type"] == "sequence")))) {
+//            sequence->SingleStepSequenceBack();
+//        }
     } else if (!strcmp(CommandStr, "SetupExtGPIO")) {
         // Configure the given GPIO to the given mode
         s = strtok(NULL, ",");
