@@ -219,7 +219,7 @@ function PrintStorageDeviceSelect($platform)
 
     if (!$found) {
         $arr = array_reverse($values, true);
-        $values = array_reverse($arr);
+        $values = $arr;
     }
     if ($storageDevice == "") {
         $storageDevice = $rootDevice;
