@@ -117,6 +117,14 @@
                     interfaces.forEach(function (ifaceData) {
                         // Ensure the config and INTERFACE properties are defined
                         if (ifaceData.config && ifaceData.config.INTERFACE) {
+
+                            var iface = $('#selInterfaces').val();
+
+                            // Exclude the interface we are trying to save
+                            if (ifaceData.config.INTERFACE == iface) {
+                                return;
+                            }
+
                             // Exclude WLAN interfaces without an SSID
                             if (ifaceData.config.INTERFACE.startsWith('wl') && !ifaceData.config.SSID) {
                                 return;
