@@ -429,6 +429,9 @@ int VLCOutput::Process(void) {
         if ((cur > 0 && !libvlc_media_player_is_playing(data->vlcPlayer)) || (cur == 0 && libvlc_media_player_get_position(data->vlcPlayer) < -0.5f)) {
             cur = data->length;
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+            m_mediaOutputStatus->output = "";
+            // call stop to make sure the KMS buffer is released so a virtual matrix can display
+            MEDIA_PLAYER_STOP(data->vlcPlayer);
         }
 
         // printf("cur: %d    len: %d     Pos: %f        %ld\n", (int)cur, (int)data->length, libvlc_media_player_get_position(data->vlcPlayer), GetTimeMS() % 100000);
@@ -505,6 +508,10 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             LogDebug(VB_MEDIAOUT, "Can't adjust speed if not playing yet (%0.3f/%0.3f)\n", masterMediaPosition, m_mediaOutputStatus->mediaSeconds);
             return 1;
         }
+        if (m_mediaOutputStatus->mediaSeconds > 1 && m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_IDLE) {
+            LogDebug(VB_MEDIAOUT, "Can't adjust speed if beyond end of media (%0.3f/%0.3f)\n", masterMediaPosition, m_mediaOutputStatus->mediaSeconds);
+            return 1;
+        }
         float rate = data->currentRate;
 
         if (lastRates.size() == 0) {
@@ -526,7 +533,7 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             LogExcess(VB_MEDIAOUT, "Diff: %d	Master: %0.3f  Local: %0.3f  Rate: %0.3f\n", rawdiff, masterMediaPosition, m_mediaOutputStatus->mediaSeconds, data->currentRate);
         }
         data->push(rawdiff, data->currentRate);
-
+        // printf("Diff: %4d	Master: %0.3f  Local: %0.3f  Rate: %0.3f\n", rawdiff, masterMediaPosition, m_mediaOutputStatus->mediaSeconds, data->currentRate);
         int oldSign = data->lastDiff < 0 ? -1 : 1;
         if ((oldSign != sign) && (data->lastDiff != 0) && (data->currentRate != 1.0)) {
             // last time was slightly behind and we are now slightly ahead
