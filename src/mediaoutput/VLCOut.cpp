@@ -19,6 +19,7 @@
 
 #include <cmath>
 
+#include "mediaoutput.h"
 #include "../MultiSync.h"
 #include "../Warnings.h"
 #include "../channeloutput/channeloutputthread.h"
@@ -282,6 +283,7 @@ public:
     }
     int start(VLCInternalData* data, int startPos) {
         if (data->vlcPlayer) {
+            mediaOutputStatus.output = data->outputPort;
             libvlc_media_player_play(data->vlcPlayer);
             if (startPos) {
                 MEDIA_PLAYER_SET_TIME(data->vlcPlayer, startPos);
@@ -293,6 +295,7 @@ public:
     }
     int restart(VLCInternalData* data) {
         if (data->vlcPlayer) {
+            mediaOutputStatus.output = data->outputPort;
             libvlc_media_player_set_media(data->vlcPlayer, data->media);
             libvlc_media_player_play(data->vlcPlayer);
             MEDIA_PLAYER_SET_TIME(data->vlcPlayer, 0);
@@ -320,6 +323,7 @@ public:
                 libvlc_audio_equalizer_release(data->equalizer);
                 data->equalizer = nullptr;
             }
+            mediaOutputStatus.output = "";
         }
         return 0;
     }

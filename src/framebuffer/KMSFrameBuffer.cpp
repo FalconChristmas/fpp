@@ -21,6 +21,7 @@
 
 #include "../common_mini.h"
 #include "../log.h"
+#include "../mediaoutput/mediaoutput.h"
 
 std::atomic_int KMSFrameBuffer::FRAMEBUFFER_COUNT(0);
 std::map<kms::Card*, kms::ResourceManager*> KMSFrameBuffer::CARDS;
@@ -178,13 +179,20 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
     if (!pageChanged | m_pages == 1)
         return;
 
-    ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
-    int i = m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
-    if (i) {
-        m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
-        m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    if (mediaOutputStatus.output != m_connector->fullname()) {
+        // if there isn't media being output on this connector, we can display the page
+        int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
+        if (im == 0) {
+            // was able to get master so we cana page flip
+            int i = m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
+            if (i) {
+                m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
+                m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
+            }
+            ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
+        }
     }
-    ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
 }
 
 #endif

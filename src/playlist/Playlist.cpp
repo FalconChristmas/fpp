@@ -1003,10 +1003,10 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
  *
  */
 void Playlist::ProcessMedia(void) {
-    pthread_mutex_lock(&mediaOutputLock);
-    if (mediaOutput)
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    if (mediaOutput) {
         mediaOutput->Process();
-    pthread_mutex_unlock(&mediaOutputLock);
+    }
 }
 
 /*

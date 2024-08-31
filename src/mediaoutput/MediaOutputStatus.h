@@ -11,7 +11,10 @@
  * included LICENSE.GPL file.
  */
 
-typedef struct mediaOutputStatus {
+#include <string>
+
+class MediaOutputStatus {
+public:
     int status;
     int secondsElapsed;
     int subSecondsElapsed;
@@ -20,4 +23,5 @@ typedef struct mediaOutputStatus {
     int minutesTotal;
     int secondsTotal;
     float mediaSeconds;
-} MediaOutputStatus;
+    std::string output;
+};

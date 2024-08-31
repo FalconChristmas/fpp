@@ -11,13 +11,13 @@
  * included LICENSE.LGPL file.
  */
 
-#include <pthread.h>
+#include <mutex>
 
 #include "MediaOutputBase.h"
 #include "MediaOutputStatus.h"
 
 extern MediaOutputBase* mediaOutput;
-extern pthread_mutex_t mediaOutputLock;
+extern std::mutex mediaOutputLock;
 extern MediaOutputStatus mediaOutputStatus;
 
 void InitMediaOutput(void);

@@ -36,7 +36,7 @@
 /////////////////////////////////////////////////////////////////////////////
 MediaOutputBase* mediaOutput = 0;
 float masterMediaPosition = 0.0;
-pthread_mutex_t mediaOutputLock;
+std::mutex mediaOutputLock;
 
 static bool firstOutCreate = true;
 
@@ -48,10 +48,6 @@ MediaOutputStatus mediaOutputStatus = {
  *
  */
 void InitMediaOutput(void) {
-    if (pthread_mutex_init(&mediaOutputLock, NULL) != 0) {
-        LogDebug(VB_MEDIAOUT, "ERROR: Media Output mutex init failed!\n");
-    }
-
 #ifndef PLATFORM_OSX
     int vol = getSettingInt("volume", -1);
     if (vol < 0) {
@@ -66,8 +62,6 @@ void InitMediaOutput(void) {
  */
 void CleanupMediaOutput(void) {
     CloseMediaOutput();
-
-    pthread_mutex_destroy(&mediaOutputLock);
 }
 
 #ifndef PLATFORM_OSX
@@ -113,11 +107,9 @@ void setVolume(int vol) {
     MacOSSetVolume(vol);
 #endif
 
-    pthread_mutex_lock(&mediaOutputLock);
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
     if (mediaOutput)
         mediaOutput->SetVolume(vol);
-
-    pthread_mutex_unlock(&mediaOutputLock);
 }
 
 static std::set<std::string> AUDIO_EXTS = {
@@ -245,6 +237,7 @@ MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::
     }
     std::string ext = toLowerCopy(mediaFilename.substr(found + 1));
     std::string vo = vOut;
+    mediaOutputStatus.output = "";
 #ifdef HAS_VLC
     if (IsExtensionAudio(ext)) {
         if (getFPPmode() == REMOTE_MODE) {
@@ -253,6 +246,7 @@ MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::
             return new SDLOutput(mediaFilename, &mediaOutputStatus, "--Disabled--");
         }
     } else if (IsExtensionVideo(ext) && IsHDMIOut(vo)) {
+        mediaOutputStatus.output = vo;
         return new VLCOutput(mediaFilename, &mediaOutputStatus, vo);
     } else if (IsExtensionVideo(ext))
 #endif
@@ -269,12 +263,12 @@ static std::set<std::string> alreadyWarned;
 int OpenMediaOutput(const char* filename) {
     LogDebug(VB_MEDIAOUT, "OpenMediaOutput(%s)\n", filename);
 
-    pthread_mutex_lock(&mediaOutputLock);
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
     if (mediaOutput) {
-        pthread_mutex_unlock(&mediaOutputLock);
+        lock.unlock();
         CloseMediaOutput();
     }
-    pthread_mutex_unlock(&mediaOutputLock);
+    lock.unlock();
 
     std::string tmpFile(filename);
     std::size_t found = tmpFile.find_last_of(".");
@@ -309,7 +303,7 @@ int OpenMediaOutput(const char* filename) {
         }
     }
 
-    pthread_mutex_lock(&mediaOutputLock);
+    lock.lock();
     std::string vOut = getSetting("VideoOutput");
     if (vOut == "") {
 #if !defined(PLATFORM_BBB)
@@ -321,7 +315,6 @@ int OpenMediaOutput(const char* filename) {
 
     mediaOutput = CreateMediaOutput(tmpFile, vOut);
     if (!mediaOutput) {
-        pthread_mutex_unlock(&mediaOutputLock);
         LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
         return 0;
     }
@@ -348,9 +341,6 @@ int OpenMediaOutput(const char* filename) {
     if (multiSync->isMultiSyncEnabled()) {
         multiSync->SendMediaOpenPacket(mediaOutput->m_mediaFilename);
     }
-
-    pthread_mutex_unlock(&mediaOutputLock);
-
     return 1;
 }
 
@@ -362,10 +352,14 @@ bool MatchesRunningMediaFilename(const char* filename) {
                 return true;
             }
         }
+        tmpFile = filename;
         if (HasVideoForMedia(tmpFile)) {
             if (mediaOutput->m_mediaFilename == tmpFile || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
                 return true;
             }
+            printf("Not Matches   '%s'   '%s'   '%s'\n", mediaOutput->m_mediaFilename.c_str(), filename, tmpFile.c_str());
+        } else {
+            printf("No video %s\n", filename, tmpFile.c_str());
         }
     }
     return false;
@@ -385,7 +379,7 @@ int StartMediaOutput(const char* filename) {
     if (!mediaOutput) {
         return 0;
     }
-    pthread_mutex_lock(&mediaOutputLock);
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
     if (multiSync->isMultiSyncEnabled())
         multiSync->SendMediaSyncStartPacket(mediaOutput->m_mediaFilename);
 
@@ -393,12 +387,8 @@ int StartMediaOutput(const char* filename) {
         LogErr(VB_MEDIAOUT, "Could not start media %s\n", mediaOutput->m_mediaFilename.c_str());
         delete mediaOutput;
         mediaOutput = 0;
-        pthread_mutex_unlock(&mediaOutputLock);
         return 0;
     }
-
-    pthread_mutex_unlock(&mediaOutputLock);
-
     std::map<std::string, std::string> keywords;
     keywords["MEDIA_NAME"] = filename;
     CommandManager::INSTANCE.TriggerPreset("MEDIA_STARTED", keywords);
@@ -410,16 +400,15 @@ void CloseMediaOutput() {
 
     mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
 
-    pthread_mutex_lock(&mediaOutputLock);
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
     if (!mediaOutput) {
-        pthread_mutex_unlock(&mediaOutputLock);
         return;
     }
 
     if (mediaOutput->IsPlaying()) {
-        pthread_mutex_unlock(&mediaOutputLock);
+        lock.unlock();
         mediaOutput->Stop();
-        pthread_mutex_lock(&mediaOutputLock);
+        lock.lock();
     }
 
     if (multiSync->isMultiSyncEnabled())
@@ -439,8 +428,6 @@ void CloseMediaOutput() {
     root["currentEntry"]["mediaFilename"] = "";
     MediaDetails::INSTANCE.Clear();
     PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
-
-    pthread_mutex_unlock(&mediaOutputLock);
 }
 
 void UpdateMasterMediaPosition(const char* filename, float seconds) {
@@ -450,26 +437,22 @@ void UpdateMasterMediaPosition(const char* filename, float seconds) {
 
     if (MatchesRunningMediaFilename(filename)) {
         masterMediaPosition = seconds;
-        pthread_mutex_lock(&mediaOutputLock);
+        std::unique_lock<std::mutex> lock(mediaOutputLock);
         if (!mediaOutput) {
-            pthread_mutex_unlock(&mediaOutputLock);
             return;
         }
         mediaOutput->AdjustSpeed(seconds);
-        pthread_mutex_unlock(&mediaOutputLock);
         return;
     } else {
         // with VLC, we can jump forward a bit and get close
         OpenMediaOutput(filename);
         StartMediaOutput(filename);
         masterMediaPosition = seconds;
-        pthread_mutex_lock(&mediaOutputLock);
+        std::unique_lock<std::mutex> lock(mediaOutputLock);
         if (!mediaOutput) {
-            pthread_mutex_unlock(&mediaOutputLock);
             return;
         }
         mediaOutput->AdjustSpeed(seconds);
-        pthread_mutex_unlock(&mediaOutputLock);
         return;
     }
 }
