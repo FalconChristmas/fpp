@@ -99,6 +99,18 @@ public:
 
 static std::string currentMediaFilename;
 
+static std::set<std::string> IGNORES = {
+    "parent window not available",
+    "window not available",
+    "Failed to get xlease",
+    "Failed to set atomic cap",
+    "buffer deadlock prevented",
+    "cannot estimate delay: Input/output error",
+    "cannot connect to session bus: Unable to autolaunch a dbus-daemon without a $DISPLAY for X11",
+    "kms window error: cannot open /dev/dri/card0",
+    "cannot open /dev/dri/card0"
+};
+
 static void logCallback(void* data, int level, const libvlc_log_t* ctx,
                         const char* fmt, va_list args) {
     switch (level) {
@@ -123,19 +135,8 @@ static void logCallback(void* data, int level, const libvlc_log_t* ctx,
             char buf[256];
             vsnprintf(buf, 255, fmt, args);
             std::string str = buf;
-            if (str == "buffer deadlock prevented") {
-                return;
-            }
-            if (str == "cannot estimate delay: Input/output error") {
-                return;
-            }
-            if (str == "cannot connect to session bus: Unable to autolaunch a dbus-daemon without a $DISPLAY for X11") {
-                return;
-            }
-            if (str == "kms window error: cannot open /dev/dri/card0") {
-                return;
-            }
-            if (str == "cannot open /dev/dri/card0") {
+            if (IGNORES.contains(str)) {
+                LogExcess(VB_MEDIAOUT, "%s\n", buf);
                 return;
             }
             LogWarn(VB_MEDIAOUT, "%s\n", buf);
