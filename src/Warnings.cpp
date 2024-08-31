@@ -131,6 +131,19 @@ void WarningHolder::NotifyListenersMain() {
     }
 }
 
+void WarningHolder::AddWarning(const std::string& w) {
+    AddWarningTimeout(-1, UNKNOWN_WARNING_ID, w);
+}
+void WarningHolder::AddWarningTimeout(const std::string& w, int seconds) {
+    AddWarningTimeout(seconds, UNKNOWN_WARNING_ID, w);
+}
+void WarningHolder::RemoveWarning(const std::string& w){
+    RemoveWarning(UNKNOWN_WARNING_ID, w);
+}
+void WarningHolder::AddWarning(int id, const std::string& w, const std::map<std::string, std::string>& data) {
+    AddWarningTimeout(-1, id, w, data);
+}
+
 void WarningHolder::AddWarningTimeout(int seconds, int id, const std::string& w, const std::map<std::string, std::string>& data, const std::string &plugin) {
     LogDebug(VB_GENERAL, "Adding Warning: %s\n", w.c_str());
     if (seconds != -1) {

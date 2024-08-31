@@ -44,19 +44,11 @@ public:
 
 class WarningHolder {
 public:
-    static void AddWarning(const std::string& w) {
-        AddWarningTimeout(-1, UNKNOWN_WARNING_ID, w);
-    }
-    static void AddWarningTimeout(const std::string& w, int seconds) {
-        AddWarningTimeout(seconds, UNKNOWN_WARNING_ID, w);
-    }
-    static void AddWarning(int id, const std::string& w, const std::map<std::string, std::string>& data = {}) {
-        AddWarningTimeout(-1, id, w, data);
-    }
-    static void RemoveWarning(const std::string& w){
-        RemoveWarning(UNKNOWN_WARNING_ID, w);
-    }
+    static void AddWarning(const std::string& w);
+    static void AddWarningTimeout(const std::string& w, int seconds);
+    static void RemoveWarning(const std::string& w);
 
+    static void AddWarning(int id, const std::string& w, const std::map<std::string, std::string>& data = {});
     static void AddWarningTimeout(int seconds, int id, const std::string& w, const std::map<std::string, std::string>& data = {}, const std::string &plugin = "");
     static void RemoveWarning(int id, const std::string& w, const std::string &plugin = "");
     static void RemoveAllWarnings();
