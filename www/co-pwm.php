@@ -88,32 +88,9 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
 
 <script type="text/javascript">
     var PWM_CAPE = <?= json_encode($pwmCape, JSON_PRETTY_PRINT); ?>;
-
-
-    function SetPWMTestPattern() {
-        var val = $("#PWMTestPatternType").val();
-        if (val != "0") {
-            var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["2000","Output Specific","PCA9685 PWM","' + val + '"]}';
-            $.post("api/command", data
-            ).done(function (data) {
-            }).fail(function () {
-            });
-        } else {
-            var data = '{"command":"Test Stop","multisyncCommand":false,"multisyncHosts":"","args":[]}';
-            $.post("api/command", data
-            ).done(function (data) {
-            }).fail(function () {
-            });
-        }
-    }
-
-    function servoMinMaxChanged(idx) {
-        var min = $("#pwmMin" + idx).val();
-        var max = $("#pwmMax" + idx).val();
-        $("#pwmServoSlider-" + idx).slider({
-            values: [min, max]
-        });
-    }
+    var lastPort = -1;
+    var lastValue = -1;
+    var lastValueMin = true;
 
     function pwmPortTypeChanged(idx) {
         var type = $("#PWM-PORT-TYPE-" + idx).val();
@@ -131,9 +108,9 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
             $("#PWM-SETTINGS-" + idx).html(html);
         } else if (type == "Servo") {
             html = "<div style=' white-space: nowrap; display:flex; overflow:auto; align-items:center;'>Range:&nbsp;";
-            html += "<input type='number' min='500' max='2500' id='pwmMin" + idx + "' value='1000' onChange='servoMinMaxChanged(" + idx + ");'/>&nbsp;"
+            html += "<input type='number' min='500' max='2500' id='pwmMin" + idx + "' value='1000' onChange='servoMinChanged(" + idx + ");'/>&nbsp;"
             html += "<div id='pwmServoSlider-" + idx + "' class='fppMinMaxSliderRange servo-range-slider' style='max-width: 100%;'></div>";
-            html += "&nbsp;<input type='number' min='500' max='2500' id='pwmMax" + idx + "' value='2000' onChange='servoMinMaxChanged(" + idx + ");'/>";
+            html += "&nbsp;<input type='number' min='500' max='2500' id='pwmMax" + idx + "' value='2000' onChange='servoMaxChanged(" + idx + ");'/>";
             html += "&nbsp;Reverse:&nbsp;<input type='checkbox' id='pwmReverse" + idx + "'></div>";
             html += "<span style=' white-space: nowrap; display:inline; overflow:auto; align-items:center;'>";
             html += "Zero Behavior:&nbsp;<select id='pwmZero" + idx + "'>";
@@ -163,8 +140,20 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
                     if (ui.values[0] == ui.values[1]) {
                         return false;
                     }
+                    lastPort = idx;
+                    if (ui.values[1] != $("#pwmMax" + idx).val()) {
+                        lastValueMin = false;
+                        lastValue = ui.values[1];
+                    }
+                    if (ui.values[0] != $("#pwmMin" + idx).val()) {
+                        lastValueMin = true;
+                        lastValue = ui.values[0];
+                    }
                     $("#pwmMax" + idx).val(ui.values[1]);
                     $("#pwmMin" + idx).val(ui.values[0]);
+                    if ($("#PWMTestPatternType").val() != "0") {
+                        SetPWMTestPattern();
+                    }
                 }
             });
         } else {
@@ -199,9 +188,7 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
             idx = idx + 1;
         });
     }
-    function savePWMOutputs() {
-        var postData = {};
-        postData.channelOutputs = [];
+    function generateJSONConfig() {
         var channelOutputs = {};
         channelOutputs['type'] = PWM_CAPE['driver'];
         channelOutputs['subType'] = PWM_CAPE['name'];
@@ -230,8 +217,11 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
             }
             channelOutputs['outputs'].push(output);
         }
-
-        postData.channelOutputs.push(channelOutputs);
+        return channelOutputs;
+    }
+    function savePWMOutputs() {
+        var postData = {};
+        postData.channelOutputs.push(generateJSONConfig());
         $.post("api/channel/output/co-pwm", JSON.stringify(postData)).done(function (data) {
             $.jGrowl("PWM/Servo Output Configuration Saved", { themeState: 'success' });
             SetRestartFlag(1);
@@ -247,6 +237,75 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
         });
     }
 
+    function SetPWMTestPattern() {
+        var val = $("#PWMTestPatternType").val();
+        if (val != "0") {
+            var config = generateJSONConfig();
+            if (lastValue != -1) {
+                config["manipulation"] = {};
+                config["manipulation"]["port"] = parseInt(lastPort) - 1; //0 based
+                config["manipulation"]["value"] = parseInt(lastValue);
+                config["manipulation"]["isMin"] = lastValueMin;
+            }
+            config = JSON.stringify(config);
+            var data = {};
+            data["command"] = "Test Start";
+            data["multisyncCommand"] = false;
+            data["multisyncHosts"] = "";
+            data["args"] = ["2000", "Output Specific", "PCA9685 PWM", val, config];
+            $.ajax({
+                type: "POST",
+                url: 'api/command',
+                contentType: 'application/json',
+                async: false,
+                //json object to sent to the authentication url
+                data: JSON.stringify(data),
+                success: function () {
+                }
+            });
+
+        } else {
+            var data = '{"command":"Test Stop","multisyncCommand":false,"multisyncHosts":"","args":[]}';
+            $.post("api/command", data
+            ).done(function (data) {
+            }).fail(function () {
+            });
+        }
+    }
+    function StopServoTesting() {
+        var val = $("#PWMTestPatternType").val();
+        if (val != "0") {
+            var data = '{"command":"Test Stop","multisyncCommand":false,"multisyncHosts":"","args":[]}';
+            $.post("api/command", data
+            ).done(function (data) {
+            }).fail(function () {
+            });
+        }
+    }
+    function servoMinMaxChanged(idx) {
+        var min = $("#pwmMin" + idx).val();
+        var max = $("#pwmMax" + idx).val();
+        $("#pwmServoSlider-" + idx).slider({
+            values: [min, max]
+        });
+        lastPort = idx;
+    }
+    function servoMaxChanged(idx) {
+        servoMinMaxChanged(idx);
+        lastValueMin = false;
+        lastValue = $("#pwmMax" + idx).val();
+        if ($("#PWMTestPatternType").val() != "0") {
+            SetPWMTestPattern();
+        }
+    }
+    function servoMinChanged(idx) {
+        servoMinMaxChanged(idx);
+        lastValueMin = true;
+        lastValue = $("#pwmMin" + idx).val();
+        if ($("#PWMTestPatternType").val() != "0") {
+            SetPWMTestPattern();
+        }
+    }
 
     $(document).ready(function () {
         <?
@@ -257,6 +316,7 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
         }
         ?>
         loadPWMOutputs();
+        window.addEventListener('beforeunload', StopServoTesting, false);
     });
 </script>
 
@@ -298,15 +358,15 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
                         </select>
                     </span>
                 </div>
-                <!--div class="col-md-auto form-inline">
+                <div class="col-md-auto form-inline">
                     <div id="PWMTestPatternDiv">
                         <b>Testing:</b>
                         <select id='PWMTestPatternType' onchange='SetPWMTestPattern();'>
                             <option value='0'>Off</option>
-                            <option value='1'>On</option>
+                            <option value='1'>Range Limits</option>
                         </select>
                     </div>
-                </div-->
+                </div>
             </div>
         </div>
         <div id='pixelOutputs' class="fppFThScrollContainer">

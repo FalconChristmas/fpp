@@ -307,7 +307,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> ChannelTester::re
             v["type"] = "range";
             v["default"] = "1";
             v["min"] = 1;
-            v["max"] = 2;
+            v["max"] = 99;
             result["args"].append(v);
         } else {
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Test Pattern " + effect + " not found", 400, "text/plain"));

@@ -239,7 +239,6 @@ int PCA9685Output::Init(Json::Value config) {
 
     uint32_t clock = 25000000;
     bool externalClock = false;
-    bool asUsec = false;
 
     if (config.isMember("deviceID")) {
         // config from "Other" tab
@@ -253,9 +252,6 @@ int PCA9685Output::Init(Json::Value config) {
             m_i2cDevice = "i2c-1";
         }
         m_frequency = config["frequency"].asInt();
-        if (config.isMember("asUsec")) {
-            asUsec = config["asUsec"].asInt();
-        }
         portConfigs = config["ports"];
     } else {
         std::string subType = config["subType"].asString();
@@ -272,7 +268,6 @@ int PCA9685Output::Init(Json::Value config) {
         }
         portConfigs = config["outputs"];
         m_frequency = decodeFrequency(config["frequency"].asString());
-        asUsec = true;
     }
 
     i2c = new I2CUtils(m_i2cDevice.c_str(), m_deviceID);
@@ -292,17 +287,64 @@ int PCA9685Output::Init(Json::Value config) {
     }
 
     m_actualFrequency = ofs / (fsi * 4096.0f);
-    uint32_t sc = m_startChannel;
 
     // printf("%0.3f   fsi:  %d     of: %0.2f\n", fs, fsi, m_actualFrequency);
     LogDebug(VB_CHANNELOUT, "PCA9685 using actual frequency of: %0.2f\n", m_actualFrequency);
+    restoreOriginalConfig();
+
+    // Initialize
+    int oldmode = i2c->readByteData(0x00);
+    int m0 = (oldmode & 0x7f) | 0x10;
+    // set sleep bit
+    i2c->writeByteData(0x00, m0);
+
+    i2c->writeByteData(0x01, 0x04); // ON STOP
+    // i2c->writeByteData(0x01, 0x0C); // ON ACK
+
+    // turn on the external clock
+    if (externalClock) {
+        oldmode |= 0x40;
+        m0 |= 0x40;
+        i2c->writeByteData(0x00, m0);
+    }
+
+    // set the pre-scaler
+    i2c->writeByteData(0xFE, fsi);
+
+    // auto increment bit
+    oldmode |= 0x20;
+    i2c->writeByteData(0x00, oldmode);
+
+    // clear sleep bit if set to restart oscillator
+    oldmode &= 0x6F;
+    i2c->writeByteData(0x00, oldmode);
+
+    // sleep for at least 500uS for the oscillator to stabilize
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    return ChannelOutput::Init(config);
+}
+
+void PCA9685Output::restoreOriginalConfig() {
+    Json::Value portConfigs = origConfig.isMember("deviceID") ? origConfig["ports"] : origConfig["outputs"];
+    loadPortConfig(portConfigs);
+}
+void PCA9685Output::loadPortConfig(const Json::Value& portConfigs) {
+    uint32_t sc = m_startChannel;
+    bool asUsec = true;
+    if (origConfig.isMember("deviceID")) {
+        if (origConfig.isMember("asUsec")) {
+            asUsec = origConfig["asUsec"].asInt();
+        }
+    }
     numPorts = portConfigs.size();
+
     for (int x = 0; x < numPorts; x++) {
         m_ports[x].description = portConfigs[x]["description"].asString();
         m_ports[x].m_min = portConfigs[x]["min"].asInt();
         m_ports[x].m_max = portConfigs[x]["max"].asInt();
         if (portConfigs[x].isMember("center")) {
-            m_ports[x].m_center = config["ports"][x]["center"].asInt();
+            m_ports[x].m_center = portConfigs[x]["center"].asInt();
         } else {
             m_ports[x].m_center = (m_ports[x].m_min + m_ports[x].m_max) / 2;
         }
@@ -406,38 +448,6 @@ int PCA9685Output::Init(Json::Value config) {
             sc += m_ports[x].is16Bit ? 2 : 1;
         }
     }
-
-    // Initialize
-    int oldmode = i2c->readByteData(0x00);
-    int m0 = (oldmode & 0x7f) | 0x10;
-    // set sleep bit
-    i2c->writeByteData(0x00, m0);
-
-    i2c->writeByteData(0x01, 0x04); // ON STOP
-    // i2c->writeByteData(0x01, 0x0C); // ON ACK
-
-    // turn on the external clock
-    if (externalClock) {
-        oldmode |= 0x40;
-        m0 |= 0x40;
-        i2c->writeByteData(0x00, m0);
-    }
-
-    // set the pre-scaler
-    i2c->writeByteData(0xFE, fsi);
-
-    // auto increment bit
-    oldmode |= 0x20;
-    i2c->writeByteData(0x00, oldmode);
-
-    // clear sleep bit if set to restart oscillator
-    oldmode &= 0x6F;
-    i2c->writeByteData(0x00, oldmode);
-
-    // sleep for at least 500uS for the oscillator to stabilize
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
-    return ChannelOutput::Init(config);
 }
 
 /*
@@ -489,7 +499,45 @@ void PCA9685Output::GetRequiredChannelRanges(const std::function<void(int, int)>
         addRange(m_ports[x].startChannel, m_ports[x].startChannel + (m_ports[x].is16Bit ? 1 : 0));
     }
 }
+static inline void writeChannelValue(unsigned char* channelData, uint32_t sc, bool is16bit, uint32_t value) {
+    if (is16bit) {
+        channelData[sc] = (value >> 8) & 0xFF;
+        channelData[sc + 1] = value & 0xFF;
+    } else {
+        channelData[sc] = value;
+    }
+}
+
 void PCA9685Output::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
+    if (!origConfig.isMember("deviceID")) {
+        if (testType != lastTestType) {
+            restoreOriginalConfig();
+        }
+        lastTestType = testType;
+        if (testType == 1) {
+            loadPortConfig(config["outputs"]);
+            int testingPort = config.isMember("manipulation") ? config["manipulation"]["port"].asInt() : -1;
+            uint32_t tvalue = config["manipulation"]["value"].asInt();
+            bool isMin = config["manipulation"]["isMin"].asBool();
+            for (int x = 0; x < numPorts; x++) {
+                if (m_ports[x].type == PCA9685Output::PWMType::SERVO) {
+                    uint32_t value = m_ports[x].is16Bit ? 32768 : 128;
+                    if (x == testingPort) {
+                        if (m_ports[x].m_reverse) {
+                            isMin = !isMin;
+                        }
+                        value = isMin ? 1 : (m_ports[x].is16Bit ? 65535 : 255);
+                    } else if (m_ports[x].m_zeroBehavior == PCA9685Output::ZeroType::MIN) {
+                        value = 0;
+                    } else if (m_ports[x].m_zeroBehavior == PCA9685Output::ZeroType::MAX) {
+                        value = m_ports[x].is16Bit ? 65535 : 255;
+                    }
+                    m_ports[x].m_dataType = PCA9685Output::DataType::SCALED;
+                    writeChannelValue(channelData, m_ports[x].startChannel, m_ports[x].is16Bit, value);
+                }
+            }
+        }
+    }
 }
 bool PCA9685Output::SupportsTesting() const {
     return !origConfig.isMember("deviceID");

@@ -60,6 +60,9 @@ public:
         LED
     };
 
+    void restoreOriginalConfig();
+    void loadPortConfig(const Json::Value& portConfig);
+
 private:
     I2CUtils* i2c;
     int m_deviceID;
@@ -98,4 +101,5 @@ private:
     std::atomic<uint64_t> lastFrameTime;
     std::array<uint16_t, 32> data;
     Json::Value origConfig;
+    int lastTestType = 0;
 };
