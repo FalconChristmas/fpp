@@ -29,12 +29,15 @@ function LoadProxyList()
 function PostProxies()
 {
     $proxies = $_POST;
-    WriteProxyFile($proxies);
-
-    //Trigger a JSON Configuration Backup
-    GenerateBackupViaAPI('Proxies were added.');
-
-    return json($proxies);
+    if (!empty($proxies)) {
+        WriteProxyFile($proxies);
+        //Trigger a JSON Configuration Backup
+        GenerateBackupViaAPI('Proxies were added.');
+    
+        return json($proxies);
+    } else {
+        http_response_code(400); // Bad Request
+    }
 }
 
 function WriteProxyFile($proxies)
