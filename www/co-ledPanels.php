@@ -1248,8 +1248,16 @@ function AutoLayoutPanels() {
 function TogglePanelTestPattern() {
     var val = $("#PanelTestPatternButton").val();
     if (val == "Test Pattern") {
+        var outputType = $('#LEDPanelsConnection').val();
+        if (outputType == "ColorLight5a75") {
+            outputType = "ColorLight Panels";
+        } else if (outputType == "RGBMatrix") {
+            outputType = "Pi Panels";
+        } else if (outputType == "BBBMatrix") {
+            outputType = "BBB Panels";
+        }
         $("#PanelTestPatternButton").val("Stop Pattern");
-        var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["1000","Output Specific","--ALL--","1"]}';
+        var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["1000","Output Specific","' + outputType + '","1"]}';
         $.post("api/command", data
 	    ).done(function(data) {
 	    }).fail(function() {

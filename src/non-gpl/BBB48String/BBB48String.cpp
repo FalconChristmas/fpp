@@ -559,7 +559,7 @@ void BBB48StringOutput::GetRequiredChannelRanges(const std::function<void(int, i
         }
     }
 }
-void BBB48StringOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
+void BBB48StringOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
     m_testCycle = cycleNum;
     m_testType = testType;
     m_testPercent = percentOfCycle;

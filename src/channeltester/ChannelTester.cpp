@@ -152,6 +152,9 @@ public:
             config["outputs"] = args[2];
             int v = std::stoi(args[3], nullptr, 10);
             config["type"] = v;
+            if (args.size() > 4) {
+                config["config"] = LoadJsonFromString(args[4]);
+            }
         }
         if (effect != "Output Specific") {
             if (args[2] == "" || args[2] == "*") {

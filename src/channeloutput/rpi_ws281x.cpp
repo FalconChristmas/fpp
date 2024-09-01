@@ -160,7 +160,7 @@ int RPIWS281xOutput::Init(Json::Value config) {
             const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
             if (i == 0) {
                 ledstring.channel[0].gpionum = pin.gpio;
-                ledstring.channel[0].count = (newString->m_outputChannels / 4) + 1; //one extra
+                ledstring.channel[0].count = (newString->m_outputChannels / 4) + 1; // one extra
                 offsets[i] = 0;
                 ledstringCount = 1;
             } else {
@@ -170,7 +170,7 @@ int RPIWS281xOutput::Init(Json::Value config) {
                 ledstringCount = 1;
             }
         } else {
-            //spi
+            // spi
             if (pinName == "spidev0.0") {
                 m_spi0 = new SPIUtils(0, 1000000);
                 offsets[i] = 2;
@@ -255,7 +255,7 @@ void RPIWS281xOutput::PrepData(unsigned char* channelData) {
         uint8_t* pd = tester
                           ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
                           : ps->prepareOutput(channelData);
-        //ws281x library and spi data has pre-allocated a fixed buffer we cannot exceed
+        // ws281x library and spi data has pre-allocated a fixed buffer we cannot exceed
         newLen = std::min(newLen, (uint32_t)ps->m_outputChannels);
         if (offsets[s] < 2) {
             memcpy(ledstring.channel[offsets[s]].leds, pd, ps->m_outputChannels);
@@ -314,7 +314,7 @@ void RPIWS281xOutput::SetupCtrlCHandler(void) {
     sigaction(SIGKILL, &sa, NULL);
 }
 
-void RPIWS281xOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
+void RPIWS281xOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
     m_testCycle = cycleNum;
     m_testType = testType;
     m_testPercent = percentOfCycle;

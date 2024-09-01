@@ -43,10 +43,10 @@ public:
     virtual void StoppingOutput() {}
 
     // For "OutputSpecific" test types, the output can overlay data based on the configuration
-    // it knows (per port, per universe, per panel, etc...).   TestType is specific to the 
-    // output as well and could be a cycle color, output pattern, etc.... 
-    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {}
-    virtual bool SupportsTesting() const { return  false; }
+    // it knows (per port, per universe, per panel, etc...).   TestType is specific to the
+    // output as well and could be a cycle color, output pattern, etc....
+    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {}
+    virtual bool SupportsTesting() const { return false; }
 
 protected:
     virtual void DumpConfig(void);

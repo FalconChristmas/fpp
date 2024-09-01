@@ -89,6 +89,24 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
 <script type="text/javascript">
     var PWM_CAPE = <?= json_encode($pwmCape, JSON_PRETTY_PRINT); ?>;
 
+
+    function SetPWMTestPattern() {
+        var val = $("#PWMTestPatternType").val();
+        if (val != "0") {
+            var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["2000","Output Specific","PCA9685 PWM","' + val + '"]}';
+            $.post("api/command", data
+            ).done(function (data) {
+            }).fail(function () {
+            });
+        } else {
+            var data = '{"command":"Test Stop","multisyncCommand":false,"multisyncHosts":"","args":[]}';
+            $.post("api/command", data
+            ).done(function (data) {
+            }).fail(function () {
+            });
+        }
+    }
+
     function servoMinMaxChanged(idx) {
         var min = $("#pwmMin" + idx).val();
         var max = $("#pwmMax" + idx).val();
@@ -114,7 +132,7 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
         } else if (type == "Servo") {
             html = "<div style=' white-space: nowrap; display:flex; overflow:auto; align-items:center;'>Range:&nbsp;";
             html += "<input type='number' min='500' max='2500' id='pwmMin" + idx + "' value='1000' onChange='servoMinMaxChanged(" + idx + ");'/>&nbsp;"
-            html += "<div id='pwmServoSlider-" + idx + "' class='fppMinMaxSliderRange servo-range-slider' style='max-width: 350px;'></div>";
+            html += "<div id='pwmServoSlider-" + idx + "' class='fppMinMaxSliderRange servo-range-slider' style='max-width: 100%;'></div>";
             html += "&nbsp;<input type='number' min='500' max='2500' id='pwmMax" + idx + "' value='2000' onChange='servoMinMaxChanged(" + idx + ");'/>";
             html += "&nbsp;Reverse:&nbsp;<input type='checkbox' id='pwmReverse" + idx + "'></div>";
             html += "<span style=' white-space: nowrap; display:inline; overflow:auto; align-items:center;'>";
@@ -182,7 +200,6 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
         });
     }
     function savePWMOutputs() {
-
         var postData = {};
         postData.channelOutputs = [];
         var channelOutputs = {};
@@ -266,7 +283,7 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
                         <div><input id='PWM_enable' type='checkbox'></div>
                     </div>
                 </div>
-                <div class="col-md-auto form-inline">
+                <div class="col-md-auto form-inline mr-auto">
                     <span
                         style=' white-space: nowrap; display:inline; overflow:auto; align-items:center;'>&nbsp;<b>Frequency:</b>&nbsp;<select
                             id='PWMFrequency'>
@@ -281,6 +298,15 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
                         </select>
                     </span>
                 </div>
+                <!--div class="col-md-auto form-inline">
+                    <div id="PWMTestPatternDiv">
+                        <b>Testing:</b>
+                        <select id='PWMTestPatternType' onchange='SetPWMTestPattern();'>
+                            <option value='0'>Off</option>
+                            <option value='1'>On</option>
+                        </select>
+                    </div>
+                </div-->
             </div>
         </div>
         <div id='pixelOutputs' class="fppFThScrollContainer">

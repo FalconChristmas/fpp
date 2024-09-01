@@ -157,7 +157,15 @@ function readCapes($cd, $capes)
     function SetPixelTestPattern() {
         var val = $("#PixelTestPatternType").val();
         if (val != "0") {
-            var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["2000","Output Specific","--ALL--","' + val + '"]}';
+            <? if ($settings['Platform'] == "BeagleBone Black") { ?>
+                var outputType = "BBB Pixel Strings";
+            <? } else { ?>
+                var outtype = $('#PixelStringSubType').val();
+                var driver = MapPixelStringType(outtype);
+                var outputType = (driver == 'DPIPixels') ? "DPI Pixels" : "RPI Pixel Strings";
+            <? } ?>
+
+            var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["2000","Output Specific","' + outputType + '","' + val + '"]}';
             $.post("api/command", data
             ).done(function (data) {
             }).fail(function () {

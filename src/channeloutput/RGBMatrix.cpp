@@ -193,13 +193,13 @@ int RGBMatrixOutput::Init(Json::Value config) {
     /* mortification77 - 2023-11-30: Add panelRowAddressType
 
         panelRowAddressType Definitions
-        
+
         0 = default
         1 = AB-addressed panels
         2 = direct row select
         3 = ABC-addressed panels
         4 = ABC Shift + DE direct (Default: 0).
-    
+
     */
 
     if (config.isMember("panelRowAddressType")) {
@@ -286,7 +286,7 @@ int RGBMatrixOutput::Close(void) {
     return ChannelOutput::Close();
 }
 
-void RGBMatrixOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
+void RGBMatrixOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         for (int i = 0; i < panelsOnOutput; i++) {

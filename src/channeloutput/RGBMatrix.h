@@ -44,8 +44,9 @@ public:
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) override;
-    virtual bool SupportsTesting() const override { return  true; }
+    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) override;
+    virtual bool SupportsTesting() const override { return true; }
+
 private:
     FrameCanvas* m_canvas;
     RGBMatrix* m_rgbmatrix;

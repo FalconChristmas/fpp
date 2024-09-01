@@ -29,6 +29,9 @@ int OutputTester::Init(Json::Value config) {
     if (s != "--ALL--" && s != "") {
         outputTypes.insert(s);
     }
+    if (config.isMember("config")) {
+        extraConfig = config["config"];
+    }
     return TestPatternBase::Init(config);
 }
 int OutputTester::SetupTest(void) {
@@ -44,9 +47,9 @@ int OutputTester::OverlayTestData(char* channelData) {
         int offset = now - startMS;
         float pct = offset;
         pct /= m_cycleMS;
-        OverlayOutputTestData(outputTypes, (unsigned char*)channelData, cycleCount, pct, testType);
+        OverlayOutputTestData(outputTypes, (unsigned char*)channelData, cycleCount, pct, testType, extraConfig);
     } else {
-        OverlayOutputTestData(outputTypes, (unsigned char*)channelData, 0, 0, 0);
+        OverlayOutputTestData(outputTypes, (unsigned char*)channelData, 0, 0, 0, extraConfig);
     }
     return TestPatternBase::OverlayTestData(channelData);
 }

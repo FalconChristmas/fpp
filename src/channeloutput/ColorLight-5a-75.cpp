@@ -277,12 +277,12 @@ int ColorLight5a75Output::Init(Json::Value config) {
     // Check if interface is up
     std::ifstream ifstate_src("/sys/class/net/" + m_ifName + "/operstate");
     std::string ifstate;
-    
+
     if (ifstate_src.is_open()) {
-        ifstate_src >> ifstate;  // pipe file's content into stream
+        ifstate_src >> ifstate; // pipe file's content into stream
         ifstate_src.close();
     }
-    
+
     if (ifstate != "up") {
         LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s does not have link %s\n", m_ifName.c_str(), strerror(errno));
         WarningHolder::AddWarning("ColorLight: Configured interface " + m_ifName + " does not have link");
@@ -491,7 +491,7 @@ void ColorLight5a75Output::GetRequiredChannelRanges(const std::function<void(int
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
-void ColorLight5a75Output::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
+void ColorLight5a75Output::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         for (int i = 0; i < panelsOnOutput; i++) {

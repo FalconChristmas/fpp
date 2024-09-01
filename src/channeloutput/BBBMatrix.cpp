@@ -1070,7 +1070,7 @@ void BBBMatrix::GetRequiredChannelRanges(const std::function<void(int, int)>& ad
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
-void BBBMatrix::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
+void BBBMatrix::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         for (int i = 0; i < panelsOnOutput; i++) {

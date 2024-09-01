@@ -233,6 +233,7 @@ unsigned short PCA9685Output::PCA9685Port::readValue(unsigned char* channelData,
  */
 int PCA9685Output::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "PCA9685Output::Init(JSON)\n");
+    origConfig = config;
 
     Json::Value portConfigs;
 
@@ -487,6 +488,11 @@ void PCA9685Output::GetRequiredChannelRanges(const std::function<void(int, int)>
     for (int x = 0; x < numPorts; x++) {
         addRange(m_ports[x].startChannel, m_ports[x].startChannel + (m_ports[x].is16Bit ? 1 : 0));
     }
+}
+void PCA9685Output::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
+}
+bool PCA9685Output::SupportsTesting() const {
+    return !origConfig.isMember("deviceID");
 }
 
 /*

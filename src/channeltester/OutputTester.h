@@ -35,4 +35,5 @@ private:
     int cycleCount = 0;
     uint64_t startMS = 0;
     std::set<std::string> outputTypes;
+    Json::Value extraConfig;
 };

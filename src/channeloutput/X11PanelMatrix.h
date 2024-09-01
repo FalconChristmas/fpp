@@ -25,6 +25,10 @@ public:
     X11PanelMatrixOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~X11PanelMatrixOutput();
 
+    virtual std::string GetOutputType() const {
+        return "X11PanelMatrix";
+    }
+
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 

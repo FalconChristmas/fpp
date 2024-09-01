@@ -431,7 +431,7 @@ void DPIPixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int
     }
 }
 
-void DPIPixelsOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
+void DPIPixelsOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
     m_testCycle = cycleNum;
     m_testType = testType;
     m_testPercent = percentOfCycle;

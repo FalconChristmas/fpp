@@ -19,12 +19,19 @@ public:
     PCA9685Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~PCA9685Output();
 
+    virtual std::string GetOutputType() const {
+        return "PCA9685 PWM";
+    }
+
+    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) override;
+    virtual bool SupportsTesting() const override;
+
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
     virtual void PrepData(unsigned char* channelData) override;
     virtual int SendData(unsigned char* channelData) override;
-    
+
     virtual void StartingOutput() override;
     virtual void StoppingOutput() override;
 
@@ -90,4 +97,5 @@ private:
 
     std::atomic<uint64_t> lastFrameTime;
     std::array<uint16_t, 32> data;
+    Json::Value origConfig;
 };
