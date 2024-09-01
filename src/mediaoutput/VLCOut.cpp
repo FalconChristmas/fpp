@@ -216,6 +216,8 @@ public:
 
             if (connected) {
                 if (LIBVLC_VERSION_MAJOR <= 3) {
+                    args.push_back("-V");
+                    args.push_back("drm_vout");
                     args.push_back("--drm-vout-display");
                     args.push_back(data->outputPort.c_str());
                     args.push_back("--drm-vout-no-modeset");

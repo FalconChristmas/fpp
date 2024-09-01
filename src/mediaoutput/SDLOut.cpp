@@ -188,6 +188,7 @@ public:
     unsigned int totalVideoLen;
     long long videoStartTime;
     PixelOverlayModel* videoOverlayModel = nullptr;
+    bool wasOverlayDisabled = false;
 
     bool doneRead;
     unsigned int curPos;
@@ -851,8 +852,8 @@ bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
 
             // printf("v:  %d  %d      %d        %d\n", msTimestamp, vf->timestamp, t2, sdlManager.data->videoFrameCount);
             data->videoOverlayModel->setData(vf->data);
-
             if (data->videoOverlayModel->getState() == PixelOverlayState::Disabled) {
+                data->wasOverlayDisabled = true;
                 data->videoOverlayModel->setState(PixelOverlayState::Enabled);
             }
         }
@@ -1252,7 +1253,9 @@ int SDLOutput::Stop(void) {
     if (data) {
         data->stopped = data->stopped + 1;
         if (data->video_stream_idx >= 0 && data->videoOverlayModel) {
-            data->videoOverlayModel->setState(PixelOverlayState::Disabled);
+            if (data->wasOverlayDisabled) {
+                data->videoOverlayModel->setState(PixelOverlayState::Disabled);
+            }
         }
     }
     m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
