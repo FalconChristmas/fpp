@@ -73,6 +73,8 @@ if (preg_match('/^https?:/', $_GET['os'])) {
     } else {
         echo ("Download aborted!\n");
         $applyUpdate = false;
+        $msg = curl_error($ch);
+        echo("Error Message: $msg");
     }
 
 }
