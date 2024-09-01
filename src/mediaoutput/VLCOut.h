@@ -35,8 +35,10 @@ public:
 
     void SetVolumeAdjustment(int volAdj);
 
-    //events from VLC
+    // events from VLC
     virtual void Starting() {}
+    virtual void Playing() {}
+    virtual void Stopping() {}
     virtual void Stopped() {}
 
 private:

@@ -147,11 +147,21 @@ static void logCallback(void* data, int level, const libvlc_log_t* ctx,
 
 static void startingEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
     VLCInternalData* d = (VLCInternalData*)p_data;
+    mediaOutputStatus.mediaLoading = true;
     d->vlcOutput->Starting();
+}
+static void playingEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
+    VLCInternalData* d = (VLCInternalData*)p_data;
+    mediaOutputStatus.mediaLoading = false;
+    d->vlcOutput->Playing();
 }
 static void stoppedEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
     VLCInternalData* d = (VLCInternalData*)p_data;
     d->vlcOutput->Stopped();
+}
+static void stoppingEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
+    VLCInternalData* d = (VLCInternalData*)p_data;
+    d->vlcOutput->Stopping();
 }
 
 class VLCManager {
@@ -270,8 +280,10 @@ public:
                 data->media = LIBVLC_MEDIA_NEWPATH(vlcInstance, data->fullMediaPath.c_str());
 
             data->vlcPlayer = LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(vlcInstance, data->media);
-            libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), STOPPINGENUM, stoppedEventCallBack, data);
+            libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), STOPPINGENUM, stoppingEventCallBack, data);
+            libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerStopped, stoppedEventCallBack, data);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
+            libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerPlaying, playingEventCallBack, data);
             data->length = libvlc_media_player_get_length(data->vlcPlayer);
 
             std::string cardType = getSetting("AudioCardType");

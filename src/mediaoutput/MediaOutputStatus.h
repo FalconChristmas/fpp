@@ -24,4 +24,5 @@ public:
     int secondsTotal;
     float mediaSeconds;
     std::string output;
+    bool mediaLoading = false;
 };

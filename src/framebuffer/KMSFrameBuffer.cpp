@@ -180,6 +180,10 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
         return;
 
     std::unique_lock<std::mutex> lock(mediaOutputLock);
+    if (mediaOutputStatus.mediaLoading) {
+        // we cannot do anything to the KMS connectors while VLC is getting setup
+        return;
+    }
     if (mediaOutputStatus.output != m_connector->fullname()) {
         // if there isn't media being output on this connector, we can display the page
         int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
