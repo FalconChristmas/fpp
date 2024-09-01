@@ -681,6 +681,8 @@ function GetDirSetting($dir)
         return GetSettingValue('mediaDirectory') . '/tmp';
     } else if ($dir == 'crashes') {
         return GetSettingValue('mediaDirectory') . '/crashes';
+    } else if ($dir == 'backups') {
+        return GetSettingValue('mediaDirectory') . '/backups';
     } else if ($dir == 'playlists') {
         return GetSettingValue('playlistDirectory');
     } else if ($dir == 'plugins') {
