@@ -49,6 +49,7 @@ h6 {
 	list-style-type: none;
 	padding-left: 0.5rem;
 }
+}
 
 .fppOuterContainer {
 	max-width: 1800px;
@@ -3604,7 +3605,28 @@ a.api-anchor {
 	filter: 'alpha(opacity=0)';
 }
 
+#navbarUpdateAvail {
+	display: none;
+}
+
+#divRunningEffects table thead th {
+	color: black;
+	background-color: lightgrey;
+	font: inherit;
+}
+
+/* Compatibility / Accessibility fixes - last review Jan 2025  */
+/* JQuery UI Overrides */
+.ui-helper-zfix {
+	-ms-filter: 'alpha(opacity=0)';
+	filter: 'alpha(opacity=0)';
+}
 
 #navbarUpdateAvail {
 	display: none;
 }
+
+#divLEDPanelMatrices a.nav-link.active {
+	color: blue;
+}
+
