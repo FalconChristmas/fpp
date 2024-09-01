@@ -50,7 +50,7 @@
     <script type="text/javascript" src="js/fpp-filemanager.js"></script>
 
     <script>
-        const pluginFileExtensions = [ <? echo implode(", ", array_map(fn($arg) => "'$arg'", $fileExtensions)); ?> ];
+        const pluginFileExtensions = [ <? echo implode(", ", array_map(fn($arg) => "'$arg'", $fileExtensions)); ?>];
         GetAllFiles();
     </script>
 
@@ -170,6 +170,13 @@
                                 data-bs-target="#tab-crashes" href="#tab-crashes" role="tab"
                                 aria-controls="tab-crashes">
                                 Crash Reports
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link " id="tab-backups-tab" data-bs-toggle="pill"
+                                data-bs-target="#tab-backups" href="#tab-backups" role="tab"
+                                aria-controls="tab-backups">
+                                Backups
                             </a>
                         </li>
                     </ul>
@@ -464,7 +471,7 @@
                         </div>
                         <?php
                         foreach ($tabDivs as $td) {
-                            include ($td);
+                            include($td);
                         }
                         ?>
                         <div class="tab-pane fade" id="tab-logs" role="tabpanel" aria-labelledby="tab-logs-tab">
@@ -571,6 +578,44 @@
                                             value="Download" />
                                         <input onclick="ButtonHandler('Crashes', 'delete');"
                                             class="disableButtons singleCrashesButton multiCrashesButton" type="button"
+                                            value="Delete" />
+                                    </div>
+                                    <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
+
+                                </div>
+                            </div>
+
+                        </div>
+                        <div class="tab-pane fade" id="tab-backups" role="tabpanel" aria-labelledby="tab-backups-tab">
+                            <div id="divBackups">
+                                <div class="backdrop">
+                                    <legend> Backup Files </legend>
+                                    <div id="divBackupsData" class="fileManagerDivData">
+                                        <table id="tblBackups" class="tablesorter">
+                                            <thead>
+                                                <tr">
+                                                    <th>File</th>
+                                                    <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
+                                                        data-metric-name-abbr="b|B">Size</th>
+                                                    <th>Date Modified</th>
+                                                    </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr class='unselectableRow'>
+                                                    <td colspan=8 align='center'>Loading Files...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div class='form-actions'>
+                                        <input onclick="ClearSelections('Backups');" class="buttons" type="button"
+                                            value="Clear" />
+                                        <input onclick="ButtonHandler('Backups', 'download');"
+                                            class="disableButtons singleBackupsButton multiBackupsButton" type="button"
+                                            value="Download" />
+                                        <input onclick="ButtonHandler('Backups', 'delete');"
+                                            class="disableButtons singleBackupsButton multiBackupsButton" type="button"
                                             value="Delete" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>

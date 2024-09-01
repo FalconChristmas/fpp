@@ -109,6 +109,7 @@ function GetAllFiles () {
 	GetFiles('Logs');
 	GetFiles('Uploads');
 	GetFiles('Crashes');
+	GetFiles('Backups');
 
 	pluginFileExtensions.forEach(ext => {
 		GetFiles(ext);
@@ -419,6 +420,10 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 		HandleMouseClick(event, $(this), 'Crashes');
 	});
 
+	$('#tblBackups').on('mousedown', 'tbody tr', function (event, ui) {
+		HandleMouseClick(event, $(this), 'Backups');
+	});
+
 	const pond = FilePond.create(document.querySelector('#filepondInput'), {
 		labelIdle: `<b style="font-size: 1.3em;">Drag & Drop or Select Files to upload</b><br><br><span class="btn btn-dark filepond--label-action" style="text-decoration:none;">Select Files</span><br>`,
 		server: 'api/file/upload',
@@ -474,6 +479,9 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 						break;
 					case 'tblCrashes':
 						$($t[0]).tablesorter(tablesorterOptions_Crashes);
+						break;
+					case 'tblBackups':
+						$($t[0]).tablesorter(tablesorterOptions_Backups);
 						break;
 					default:
 						var opts = eval('tablesorterOptions_' + $tableName.substring(3));
@@ -1312,6 +1320,17 @@ var tablesorterOptions_Override_Crashes = {
 	}
 };
 
+var tablesorterOptions_Override_Backups = {
+	theme: 'fpp',
+	headers: {
+		0: { sorter: 'text', sortInitialOrder: 'asc' },
+		1: { sorter: 'metric' },
+		2: { sorter: 'text' }
+	},
+	widgetOptions: {
+		cssStickyHeaders_attachTo: '#divBackupsData'
+	}
+};
 //create config options from common and table specific override settings as well as UI setting for filter on/off
 
 var tablesorterOptions_Sequences = $.extend(
@@ -1407,6 +1426,17 @@ var tablesorterOptions_Crashes = $.extend(
 	{},
 	tablesorterOptions_Common,
 	tablesorterOptions_Override_Crashes,
+	{
+		widgetOptions: {
+			filter_hideFilters: settings.fileManagerTableFilter == '1' ? false : true
+		}
+	}
+);
+var tablesorterOptions_Backups = $.extend(
+	true,
+	{},
+	tablesorterOptions_Common,
+	tablesorterOptions_Override_Backups,
 	{
 		widgetOptions: {
 			filter_hideFilters: settings.fileManagerTableFilter == '1' ? false : true
