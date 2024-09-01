@@ -1,5 +1,5 @@
 FPP on Debian has been tested on various SBC's and other devices running the
-"Bullseye" based Debian images.
+"Bookworm" based Debian images.  (It no longer works it with Bullseye).
 
 In general, using the "smallest" Debian image available is best.  If there is a "cli"
 or "minimal" image, they work best.  "server" images are usually OK.  Desktop images
