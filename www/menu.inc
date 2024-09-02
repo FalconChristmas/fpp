@@ -145,7 +145,7 @@ function list_plugin_entries($menu)
         <div class="capeVendor">
           <div class="capeVendorLogo">
             <a href="<? echo $landing; ?>" target="capeVendor">
-              <img src="<? echo $iurl; ?>" class="logo">
+              <img src="<? echo $iurl; ?>" alt="Cape Logo" class="logo">
             </a>
           </div>
         </div>
@@ -223,7 +223,7 @@ function list_plugin_entries($menu)
       <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
         <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
           <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-                        </textarea>
+                          </textarea>
         </div>
         <script>
           function RebuildFPPDDone() {
