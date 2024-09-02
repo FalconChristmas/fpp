@@ -12,11 +12,10 @@
 
 #include "fpp-pch.h"
 
-
 #include "MuxSensorSource.h"
 
-
-MuxSensorSource::MuxSensorSource(Json::Value& config) : SensorSource(config) {
+MuxSensorSource::MuxSensorSource(Json::Value& config) :
+    SensorSource(config) {
     std::string sourcename = config["source"].asString();
     source = Sensors::INSTANCE.getSensorSource(sourcename);
     channelsPerMux = config["channels"].asInt();
@@ -30,7 +29,6 @@ MuxSensorSource::MuxSensorSource(Json::Value& config) : SensorSource(config) {
     }
 }
 MuxSensorSource::~MuxSensorSource() {
-    
 }
 
 void MuxSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
@@ -39,9 +37,9 @@ void MuxSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
     updatingByCallback = false;
     if (!cb.empty()) {
         updatingByCallback = true;
-        for (auto &c : cb) {
+        for (auto& c : cb) {
             auto call = c.second;
-            callbacks[c.first] = [call, this] (int i) {
+            callbacks[c.first] = [call, this](int i) {
                 call(i);
                 if (updateCount > 0) {
                     getValues();
@@ -69,7 +67,7 @@ void MuxSensorSource::nextMux() {
 }
 void MuxSensorSource::setGroupPins() {
     int tmp = curMux;
-    for (auto &a : pins) {
+    for (auto& a : pins) {
         a->setValue(tmp & 0x1 ? 1 : 0);
         tmp >>= 1;
     }
@@ -88,21 +86,18 @@ void MuxSensorSource::lockToGroup(int i) {
     }
 }
 
-
 void MuxSensorSource::getValues() {
     int start = curMux * channelsPerMux;
     for (int x = 0; x < channelsPerMux; x++) {
         if (enabled[x + start]) {
             values[x + start] = source->getValue(x);
-            //printf("%d: %d    ", (x + start), values[x + start]);
         }
     }
-    //printf("\n");
 }
 
 void MuxSensorSource::update(bool forceInstant) {
     if (!updatingByCallback) {
-        source->update(forceInstant);
+        source->update(forceInstant || (updateCount == 0));
         getValues();
         updateCount = 1 + updateCount;
         if (updateCount == 4) {
