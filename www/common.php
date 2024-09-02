@@ -1487,6 +1487,21 @@ function human_playtime($total_duration)
 }
 
 /**
+ * Returns the supplied size in bytes ina human readable form
+ * @param $bytes
+ * @return string
+ */
+function humanFileSize($bytes)
+{
+    if ($bytes > 0) {
+        $base = floor(log($bytes) / log(1024));
+        $units = array("B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"); //units of measurement
+        return number_format(($bytes / pow(1024, floor($base))), 2) . "$units[$base]";
+    } else
+        return "0B";
+}
+
+/**
  * Returns current memory usage
  * @return float|int
  */
@@ -1606,9 +1621,9 @@ function file_cache($cache_name, $data_function, $cache_time = 90, $grace_time =
             flock($fd, LOCK_EX);
             ftruncate($fd, 0);
             fputs($fd, $data);
-            flock($fd, LOCK_UN); 
+            flock($fd, LOCK_UN);
             fclose($fd);
-            flock($fdLock, LOCK_UN); 
+            flock($fdLock, LOCK_UN);
             fclose($fdLock);
             unlink($file_path_lock);
             return $data;
@@ -1630,7 +1645,7 @@ function get_kernel_version()
     $cachefile_name = "kernel_version";
     $cache_age = 86400;
 
-    $kernel_version = file_cache($cachefile_name, function() {
+    $kernel_version = file_cache($cachefile_name, function () {
         return trim(exec("uname -r"));
     }, $cache_age);
     return $kernel_version;
@@ -1717,7 +1732,7 @@ function get_server_cpu_usage()
  */
 function get_server_uptime($uptime_value_only = false)
 {
-     global $settings;
+    global $settings;
 
     if (!$uptime_value_only || $settings["Platform"] == "MacOS") {
         $uptime = exec("uptime", $output, $return_val);
@@ -1734,15 +1749,15 @@ function get_server_uptime($uptime_value_only = false)
             }
         }
     } else {
-        $str   = @file_get_contents('/proc/uptime');
-        $num   = floatval($str);
-        $secs  = $num % 60;
-        $num   = (int)($num / 60);
-        $mins  = $num % 60;
-        $num   = (int)($num / 60);
+        $str = @file_get_contents('/proc/uptime');
+        $num = floatval($str);
+        $secs = $num % 60;
+        $num = (int) ($num / 60);
+        $mins = $num % 60;
+        $num = (int) ($num / 60);
         $hours = $num % 24;
-        $num   = (int)($num / 24);
-        $days  = $num;
+        $num = (int) ($num / 24);
+        $days = $num;
         $uptime = "";
         if ($days) {
             $uptime = "" . $days . " days ";
@@ -1762,7 +1777,7 @@ function get_fpp_head_version()
     $cachefile_name = "git_fpp_head_version";
     $cache_age = 90;
 
-    $fpp_head_version = file_cache($cachefile_name, function() {
+    $fpp_head_version = file_cache($cachefile_name, function () {
         $fpp_head_version = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ describe", $output, $return_val);
         if ($return_val != 0) {
             $fpp_head_version = "Unknown";
@@ -1784,7 +1799,7 @@ function get_git_branch()
     $cachefile_name = "git_branch";
     $cache_age = 90;
 
-    $git_branch = file_cache($cachefile_name, function() {
+    $git_branch = file_cache($cachefile_name, function () {
         $git_branch = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
         if ($return_val != 0) {
             $git_branch = "Unknown";
@@ -1808,7 +1823,7 @@ function get_local_git_version()
     $cachefile_name = "local_git_version";
     $cache_age = 20;
 
-    $git_version = file_cache($cachefile_name, function() {
+    $git_version = file_cache($cachefile_name, function () {
         $git_version = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ rev-parse --short=7 HEAD", $output, $return_val);
         if ($return_val != 0) {
             $git_version = "Unknown";
@@ -1841,7 +1856,7 @@ function get_remote_git_version()
         $git_remote_version = "Unknown";
 
         //Check the cache for git_<branch>, if null is returned no cache file exists or it's expired, so then off to github
-        $git_remote_version = file_cache($cachefile_name, function() {
+        $git_remote_version = file_cache($cachefile_name, function () {
             global $settings;
 
             $git_branch = getFPPBranch();
