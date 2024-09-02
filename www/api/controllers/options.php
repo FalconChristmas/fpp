@@ -250,6 +250,9 @@ function GetOptions_VideoOutput($playlist)
         if (str_contains($file, "HDMI")) {
             $file = substr($file, stripos($file, "HDMI"));
             $VideoOutputModels[$file] = $file;
+        } else if (str_contains($file, "DSI-")) {
+            $file = substr($file, stripos($file, "DSI-"));
+            $VideoOutputModels[$file] = $file;
         }
     }
 

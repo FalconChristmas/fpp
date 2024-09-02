@@ -215,7 +215,7 @@ static bool IsHDMIOut(std::string &vOut) {
     if (vOut == "--HDMI--" || vOut == "HDMI") {
         vOut = "HDMI-A-1";
     }
-    if (vOut.starts_with("HDMI-")) {
+    if (vOut.starts_with("HDMI-") || vOut.starts_with("DSI-")) {
         for (int x = 0; x < 4; x++) {
             std::string conn = "/sys/class/drm/card" + std::to_string(x) + "-" + vOut + "/status";
             if (FileExists(conn)) {
