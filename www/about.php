@@ -918,12 +918,6 @@ $freeSpace = disk_free_space($uploadDirectory);
                         }
                         ?>
 
-                        <div id='logViewer' title='Log Viewer' style="display: none">
-                            <pre>
-            <div id='logText'>
-            </div>
-          </pre>
-                        </div>
                     </div>
                 </div>
             </div>
