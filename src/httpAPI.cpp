@@ -350,6 +350,11 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PlayerResource::r
     } else if (url == "warnings") {
         result = Json::Value(Json::ValueType::arrayValue);
         for (auto& warn : WarningHolder::GetWarnings()) {
+            result.append(warn.message());
+        }
+    } else if (url == "warnings_full") {
+        result = Json::Value(Json::ValueType::arrayValue);
+        for (auto& warn : WarningHolder::GetWarnings()) {
             result.append(warn);
         }
     } else if (url == "e131stats") {
