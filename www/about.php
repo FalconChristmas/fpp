@@ -906,7 +906,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                 </table>
                             </div>
                             <div class="clear"></div>
-                            </fieldset>
+
                         </div>
                         <?
                         $eepromFile = "/home/fpp/media/tmp/eeprom.bin";
