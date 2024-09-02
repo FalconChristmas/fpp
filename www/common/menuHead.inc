@@ -67,7 +67,7 @@ if (isset($themeInfo["preFPPStyleSheet"])) {
 
 
 <!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
-< meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet"
         href="css/fpp-bootstrap/dist-new/fpp-bootstrap-5-3.css?ref=<?php echo filemtime('css/fpp-bootstrap/dist-new/fpp-bootstrap-5-3.css'); ?>">
     <link rel="stylesheet" href="css/fpp.css?ref=<?php echo filemtime('css/fpp.css'); ?>">
