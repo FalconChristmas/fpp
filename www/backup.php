@@ -3680,10 +3680,6 @@ foreach ($settings_restored as $area_restored => $success) {
                                         <div class="col-md-6 restore-config-start-panel">
                                             <div class="row">
                                                 <h2>Restore Configuration</h2>
-                                                <div class="callout callout-danger">
-                                                    <b class="text-danger">JSON Backups made from FPP v1.x are not
-                                                        compatible with FPP 3.x and higher.</b>
-                                                </div>
                                             </div>
                                             <div class="row">
                                                 <div class="col-md-4">Keep Existing Network Settings</div>
