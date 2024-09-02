@@ -104,7 +104,7 @@ function files_rename()
 // GET /api/files/:DirName
 function GetFilesHelper($dirName, $prefix = '')
 {
-    $files = array();
+    global $SUDO;
 
     if ($prefix != '') {
         $prefix .= '/';
@@ -113,60 +113,108 @@ function GetFilesHelper($dirName, $prefix = '')
     // if ?nameOnly=1 was passed, then just array of names
     if (isset($_GET['nameOnly']) && ($_GET['nameOnly'] == '1')) {
         $rc = array();
-        foreach (scandir($dirName) as $fileName) {
+        $filelist = array();
+        exec("$SUDO find $dirName -type f -follow -printf \"%P\n\"", $filelist);
+        foreach ($filelist as $fileName) {
             if ($fileName != '.' && $fileName != '..') {
-                if (is_dir($dirName . '/' . $fileName)) {
-                    $rc = array_merge($rc, GetFilesHelper($dirName . '/' . $fileName, $prefix . $fileName));
-                } else {
-                    if (!preg_match("//u", $fileName)) {
-                        $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
-                    }
-                    array_push($rc, $prefix . $fileName);
+                if (!preg_match("//u", $fileName)) {
+                    $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
                 }
+                array_push($rc, $prefix . $fileName);
             }
         }
+
         if (strtolower(params("DirName")) == "logs") {
             array_push($rc, "/var/log/messages");
             array_push($rc, "/var/log/syslog");
         }
         return $rc;
-    }
+    } else {
+        $files = array();
+        $subDirList = array();
+        exec("$SUDO find $dirName -type d -follow -printf \"%P|||%T@\n\"", $subDirList);
+        foreach ($subDirList as $dirDetails) {
 
-    foreach (scandir($dirName) as $fileName) {
-        if ($fileName != '.' && $fileName != '..') {
-            if (is_dir($dirName . '/' . $fileName)) {
-                $entries = GetFilesHelper($dirName . '/' . $fileName, $prefix . $fileName);
-                if (!count($entries)) {
-                    $current = array();
-                    $current["name"] = $prefix . $fileName;
-                    $current["mtime"] = date('m/d/y  h:i A', filemtime($dirName . '/' . $fileName));
-                    $current["sizeBytes"] = 0;
-                    $current["sizeHuman"] = 'Directory';
+            $Details = explode("|||", $dirDetails);
+            $fileName = $Details[0];
+            $mTime = $Details[1];
+            if ($fileName != "") {
+                $current = array();
+                $current["name"] = $prefix . $fileName;
+                $current["mtime"] = date('m/d/y  h:i A', $mTime);
+                $current["sizeBytes"] = 0;
+                $current["sizeHuman"] = 'Directory';
 
-                    $entries = array($current);
-                }
+                $entries = array($current);
+
                 $files = array_merge($files, $entries);
-            } else {
-                if (!preg_match("//u", $fileName)) {
-                    $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
-                }
-                GetFileInfo($files, $dirName, $fileName, $prefix);
             }
         }
-    }
 
-    if (strtolower(params("DirName")) == "logs") {
-        if (file_exists("/var/log/messages")) {
-            GetFileInfo($files, "", "/var/log/messages");
+        $filelist = array();
+        exec("$SUDO find $dirName -type f -follow -printf \"%P|||%s|||%T@\n\"", $filelist);
+
+        foreach ($filelist as $fileDetails) {
+            $Details = explode("|||", $fileDetails);
+            $fileName = $Details[0];
+            $mTime = $Details[2];
+            $Size = $Details[1];
+            if (!preg_match("//u", $fileName)) {
+                $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
+            }
+            $current = array();
+            $current["name"] = $prefix . $fileName;
+            $current["mtime"] = date('m/d/y  h:i A', $mTime);
+            $current["sizeBytes"] = $Size;
+            $current["sizeHuman"] = humanFileSize($Size);
+
+            if (strpos(strtolower($dirName), "music") !== false || strpos(strtolower($dirName), "video") !== false) {
+
+                //Check the cache first
+                $cache_duration = media_duration_cache($fileName, null, $Size);
+                //cache duration will be null if not in cache, then retrieve it
+                if ($cache_duration == null) {
+
+                    $resp = GetMetaDataFromFFProbe($fileName);
+
+                    //cache it
+                    if (isset($resp['format']['duration'])) {
+                        media_duration_cache($fileName, $resp['format']['duration'], $Size);
+                    }
+
+                } else {
+                    $resp['format']['duration'] = $cache_duration;
+                }
+
+                if (isset($resp['format']['duration'])) {
+                    $current["playtimeSeconds"] = human_playtime($resp['format']['duration']);
+                } else {
+                    $current["playtimeSeconds"] = "Unknown";
+                }
+
+            }
+
+
+            $entries = array($current);
+
+            $files = array_merge($files, $entries);
+
         }
 
-        if (file_exists("/var/log/syslog")) {
-            GetFileInfo($files, "", "/var/log/syslog");
+
+        if (strtolower(params("DirName")) == "logs") {
+            if (file_exists("/var/log/messages")) {
+                GetFileInfo($files, "", "/var/log/messages");
+            }
+
+            if (file_exists("/var/log/syslog")) {
+                GetFileInfo($files, "", "/var/log/syslog");
+            }
+
         }
 
+        return $files;
     }
-
-    return $files;
 }
 
 function GetFiles()
