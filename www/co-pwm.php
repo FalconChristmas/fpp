@@ -114,19 +114,19 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
             html += "&nbsp;Reverse:&nbsp;<input type='checkbox' id='pwmReverse" + idx + "'></div>";
             html += "<span style=' white-space: nowrap; display:inline; overflow:auto; align-items:center;'>";
             html += "Zero Behavior:&nbsp;<select id='pwmZero" + idx + "'>";
-            html += "<option value='Hold' selected>Hold</optoin>";
-            html += "<option value='Min'>Min</optoin>";
-            html += "<option value='Max'>Max</optoin>";
-            html += "<option value='Center'>Center</optoin>";
-            html += "<option value='Stop PWM'>Stop PWM</optoin>";
+            html += "<option value='Hold' selected>Hold</option>";
+            html += "<option value='Min'>Min</option>";
+            html += "<option value='Max'>Max</option>";
+            html += "<option value='Center'>Center</option>";
+            html += "<option value='Stop PWM'>Stop PWM</option>";
             html += "</select>";
             html += "</span>";
             html += "<span style=' white-space: nowrap; display:inline; overflow:auto; align-items:center;'>";
             html += " &nbsp;Data Type:&nbsp;<select id='pwmDataType" + idx + "'>";
-            html += "<option value='Scaled' selected>Scaled</optoin>";
-            html += "<option value='Absolute'>Absolute</optoin>";
-            html += "<option value='1/2 Absolute'>1/2 Absolute</optoin>";
-            html += "<option value='2x Absolute'>2x Absolute</optoin>";
+            html += "<option value='Scaled' selected>Scaled</option>";
+            html += "<option value='Absolute'>Absolute</option>";
+            html += "<option value='1/2 Absolute'>1/2 Absolute</option>";
+            html += "<option value='2x Absolute'>2x Absolute</option>";
             html += "</select>";
             html += "</span>";
 
@@ -347,14 +347,14 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
                     <span
                         style=' white-space: nowrap; display:inline; overflow:auto; align-items:center;'>&nbsp;<b>Frequency:</b>&nbsp;<select
                             id='PWMFrequency'>
-                            <option value='50hz'>50hz</optoin>
-                            <option value='80hz'>80hz</optoin>
-                            <option value='100hz'>100hz</optoin>
-                            <option value='120hz'>120hz</optoin>
-                            <option value='150hz'>150hz</optoin>
-                            <option value='200hz'>200hz</optoin>
-                            <option value='240hz'>240hz</optoin>
-                            <option value='250hz'>250hz</optoin>
+                            <option value='50hz'>50hz</option>
+                            <option value='80hz'>80hz</option>
+                            <option value='100hz'>100hz</option>
+                            <option value='120hz'>120hz</option>
+                            <option value='150hz'>150hz</option>
+                            <option value='200hz'>200hz</option>
+                            <option value='240hz'>240hz</option>
+                            <option value='250hz'>250hz</option>
                         </select>
                     </span>
                 </div>
