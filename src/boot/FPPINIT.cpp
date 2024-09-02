@@ -96,8 +96,8 @@ static void exec(const std::string& cmd) {
         printf(buffer.data());
     }
 }
-static void execbg(const std::string& cmd) {
-    system(cmd.c_str());
+static int execbg(const std::string& cmd) {
+    return system(cmd.c_str());
 }
 static std::string execAndReturn(const std::string& cmd) {
     std::array<char, 128> buffer;
@@ -215,21 +215,22 @@ static void checkHostName() {
 }
 
 static void runScripts(const std::string tp, bool userBefore = true) {
+    std::string pfx = "FPPDIR=/opt/fpp SRCDIR=/opt/fpp/src ";
+
     if (userBefore && FileExists(FPP_MEDIA_DIR + "/scripts/UserCallbackHook.sh")) {
-        exec("/bin/bash " + FPP_MEDIA_DIR + "/scripts/UserCallbackHook.sh " + tp);
+        execbg(pfx + FPP_MEDIA_DIR + "/scripts/UserCallbackHook.sh " + tp);
     }
     for (const auto& entry : std::filesystem::directory_iterator(FPP_MEDIA_DIR + "/plugins")) {
         if (entry.is_directory()) {
             std::string filename = entry.path().filename();
             std::string cmd = FPP_MEDIA_DIR + "/plugins/" + filename + "/scripts/" + tp + ".sh";
             if (FileExists(cmd)) {
-                printf("Running %s\n", cmd.c_str());
-                exec("/bin/bash " + cmd);
+                execbg(pfx + cmd);
             }
         }
     }
     if (!userBefore && FileExists(FPP_MEDIA_DIR + "/scripts/UserCallbackHook.sh")) {
-        exec("/bin/bash " + FPP_MEDIA_DIR + "/scripts/UserCallbackHook.sh " + tp);
+        execbg(pfx + FPP_MEDIA_DIR + "/scripts/UserCallbackHook.sh " + tp);
     }
 }
 
