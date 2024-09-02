@@ -205,8 +205,21 @@ $freeSpace = disk_free_space($uploadDirectory);
                     }
 
                     //insert files already downloaded if we haven't got them from the git api call
+                    var osUpdateFiles = <?php echo json_encode($osUpdateFiles); ?>;
+                    osUpdateFiles.forEach(element => {
+                        if ($('#OSSelect option').filter(function () { return (/${element}/i.test(this.text)); })) {
+                            //already exists in select options
+                            console.log(element);
+                        } else {
+                            //need to add local file into options
+                            $('#OSSelect').append($('<option>', {
+                                value: element,
+                                text: element
+                            }));
+                        }
 
 
+                    });
                     showHideOsSelect();
                 }); <?
             } ?>
