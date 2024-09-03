@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "Plugin.h"
+#include "Warnings.h"
 #include "common.h"
 #include "config.h"
 #include "log.h"
