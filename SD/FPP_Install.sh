@@ -47,8 +47,8 @@
 #       hardware which does not support Bookworm may have issues.
 #
 #############################################################################
-FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2024-08"
+FPPBRANCH=${FPPBRANCH:-"v8.0"}
+FPPIMAGEVER="2024-09"
 FPPCFGVER="89"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
