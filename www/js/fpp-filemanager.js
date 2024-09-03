@@ -95,6 +95,9 @@ function GetFiles (dir) {
 		},
 		complete: function () {
 			SetupTableSorter('tbl' + dir);
+			$('#fileCount_' + dir)[0].innerText = $('#tbl' + dir + ' tbody tr').not(
+				'.unselectableRow'
+			).length;
 		}
 	});
 }
