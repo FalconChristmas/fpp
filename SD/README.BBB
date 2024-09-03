@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# am335x-debian-12.5-minimal-armhf-2024-06-12-2gb.img.xz
-# from https://rcn-ee.net/rootfs/debian-armhf-12-bookworm-minimal-mainline/2024-06-12/
+# am335x-debian-12.6-minimal-armhf-2024-08-28-2gb.img.xz
+# from https://rcn-ee.net/rootfs/debian-armhf-12-bookworm-minimal-mainline/2024-08-28/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -205,8 +205,8 @@ rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-VERSION=8.0-beta2
-OSVERSION=2024-08
+VERSION=8.0
+OSVERSION=2024-09
 DEVICE=/dev/sdc
 dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 

@@ -3,8 +3,7 @@ Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
 Install the latest Raspbian Bullseye Lite image to the SD card.  The last
-version tested 2024-03-12-raspios-bookworm-armhf-lite.img.xz
-
+version tested 2024-07-04-raspios-bookworm-armhf-lite.img.xz
 Resize the root partition to 3.5GB using fdisk (substitute the proper device
 for your SD card).
 
@@ -125,8 +124,8 @@ the proper device name for your SD card in place of '/dev/sdg'):
        apt-get install zerofree squashfs-tools
 
     DEVICE=/dev/sdc
-    VERSION=8.0-beta2
-    OSVERSION=2024-08
+    VERSION=8.0
+    OSVERSION=2024-09
     BLOCKS=6800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
