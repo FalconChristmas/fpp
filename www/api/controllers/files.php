@@ -132,9 +132,8 @@ function GetFilesHelper($dirName, $prefix = '')
     } else {
         $files = array();
         $subDirList = array();
-        exec("$SUDO find $dirName -type d -follow -printf \"%P|||%T@\n\"", $subDirList);
+        exec("$SUDO find $dirName -type d -follow -printf \"%P|||%T@\n\" | sort", $subDirList);
         foreach ($subDirList as $dirDetails) {
-
             $Details = explode("|||", $dirDetails);
             $fileName = $Details[0];
             $mTime = $Details[1];
@@ -152,7 +151,7 @@ function GetFilesHelper($dirName, $prefix = '')
         }
 
         $filelist = array();
-        exec("$SUDO find $dirName -type f -follow -printf \"%P|||%s|||%T@\n\"", $filelist);
+        exec("$SUDO find $dirName -type f -follow -printf \"%P|||%s|||%T@\n\" | sort", $filelist);
 
         foreach ($filelist as $fileDetails) {
             $Details = explode("|||", $fileDetails);
@@ -165,7 +164,12 @@ function GetFilesHelper($dirName, $prefix = '')
             $current = array();
             $current["name"] = $prefix . $fileName;
             $current["mtime"] = date('m/d/y  h:i A', $mTime);
-            $current["sizeBytes"] = $Size;
+            $sizeInt = intval($Size);
+            if (PHP_INT_SIZE === 4 && $sizeInt < PHP_INT_MAX) {
+                $current["sizeBytes"] = $sizeInt;
+            } else {
+                $current["sizeBytes"] = $Size;
+            }
             $current["sizeHuman"] = humanFileSize($Size);
 
             if (strpos(strtolower($dirName), "music") !== false || strpos(strtolower($dirName), "video") !== false) {
