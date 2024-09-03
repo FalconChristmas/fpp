@@ -11,11 +11,10 @@
  * included LICENSE.LGPL file.
  */
 
-#include <array>
-#include <mutex>
 #include "Sensors.h"
 #include "../util/GPIOUtils.h"
-
+#include <array>
+#include <mutex>
 
 class MuxSensorSource : public SensorSource {
 public:
@@ -23,22 +22,23 @@ public:
     virtual ~MuxSensorSource();
 
     virtual void Init(std::map<int, std::function<bool(int)>>& callbacks) override;
-   
+
     virtual void update(bool forceInstant = false) override;
     virtual void enable(int id) override;
     virtual int32_t getValue(int id) override;
 
     virtual void lockToGroup(int i) override;
+
 private:
-    
     void setGroupPins();
     void nextMux();
     void getValues();
     std::vector<int32_t> values;
     std::vector<bool> enabled;
+    std::vector<bool> current;
 
     std::vector<const PinCapabilities*> pins;
-    SensorSource *source = nullptr;
+    SensorSource* source = nullptr;
     int channelsPerMux = 0;
     int muxCount = 0;
     bool updatingByCallback = false;

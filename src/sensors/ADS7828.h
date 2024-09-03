@@ -23,9 +23,10 @@ public:
     ADS7828Sensor(Json::Value& config);
     ~ADS7828Sensor();
 
-    void update(bool forceUpdate = false);
+    virtual void update(bool forceInstant = false) override {}
 
-    virtual int32_t getValue(int id) { return values[id]; };
+    virtual void enable(int id) override { enabled[id] = true; }
+    virtual int32_t getValue(int id) override;
 
 private:
     I2CUtils* i2c = nullptr;
@@ -35,12 +36,5 @@ private:
     int bits = 12;
     std::mutex updateMutex;
 
-    std::array<int32_t, 8> values;
-
-    class BufferedData {
-    public:
-        uint64_t timestamp;
-        int32_t value[8];
-    };
-    std::list<BufferedData> bufferValues;
+    std::array<bool, 8> enabled;
 };

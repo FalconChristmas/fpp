@@ -41,56 +41,31 @@ ADS7828Sensor::ADS7828Sensor(Json::Value& config) :
         bits = 12;
     }
     internalRefVoltage = config["internalRefVoltage"].asBool();
+    for (int x = 0; x < 8; x++) {
+        enabled[x] = false;
+    }
 }
 
 ADS7828Sensor::~ADS7828Sensor() {
     delete i2c;
 }
 
-void ADS7828Sensor::update(bool forceInstant) {
-    if (i2c->isOk()) {
+int32_t ADS7828Sensor::getValue(int ch) {
+    if (enabled[ch] && i2c->isOk()) {
         std::unique_lock<std::mutex> lock(updateMutex);
         uint8_t baseCmd = 0x80 | (internalRefVoltage ? 0xC : 0x4);
-
-        // we'll average all the values in the last 10ms
-        uint64_t tm = GetTimeMS() - 10;
-        if (forceInstant) {
-            bufferValues.clear();
+        uint8_t cmd = baseCmd | (((ch >> 1) | (ch & 0x01) << 2) << 4);
+        constexpr int samples = 4;
+        uint16_t b2[samples] = { 0, 0, 0, 0 };
+        int c = i2c->readI2CBlockData(cmd, (uint8_t*)b2, samples * 2 - 2);
+        while (c < (samples * 2)) {
+            c += i2c->readI2CBlockData(cmd, (uint8_t*)&b2[c / 2], samples * 2 - c);
         }
-        while (!bufferValues.empty() && bufferValues.front().timestamp < tm) {
-            bufferValues.pop_front();
+        uint32_t sum = 0;
+        for (int x = 0; x < samples; x++) {
+            sum += bswap_16(b2[x]);
         }
-        // make sure we have at least 3 values we can "average", but make sure we at
-        // least add the current value
-        bool first = true;
-        while (first || bufferValues.size() < 3) {
-            first = false;
-            BufferedData data;
-            data.timestamp = GetTimeMS();
-            for (int ch = 0; ch < 8; ch++) {
-                uint8_t cmd = baseCmd | (((ch >> 1) | (ch & 0x01) << 2) << 4);
-                if (bits > 8) {
-                    // ads7828 sends the data with the byte order flipped
-                    uint32_t d = i2c->readWordData(cmd);
-                    data.value[ch] = bswap_16(d);
-                } else {
-                    data.value[ch] = i2c->readByteData(cmd);
-                }
-            }
-            bufferValues.emplace_back(data);
-        }
-
-        std::array<uint32_t, 8> v = { 0, 0, 0, 0, 0, 0, 0, 0 };
-        int count = 0;
-        for (const auto& it : bufferValues) {
-            ++count;
-            for (int ch = 0; ch < 8; ch++) {
-                v[ch] += it.value[ch];
-            }
-        }
-        for (int ch = 0; ch < 8; ch++) {
-            values[ch] = v[ch] / count;
-        }
-        // printf("%d: %2X  %2X  %2X  %2X  %2X  %2X  %2X  %2X\n", count, values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7]);
+        return sum / samples;
     }
-}
+    return 0;
+};

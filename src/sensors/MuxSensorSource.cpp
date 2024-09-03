@@ -57,12 +57,22 @@ void MuxSensorSource::nextMux() {
     if (lockedToGroup) {
         return;
     }
+    int start = curMux * channelsPerMux;
+    for (int x = 0; x < channelsPerMux; x++) {
+        if (enabled[x + start] && !current[x + start]) {
+            getValues();
+        }
+    }
     if ((curMux + 1) >= muxCount) {
         curMux = 0;
     } else {
         curMux = 1 + curMux;
     }
     updateCount = 0;
+    start = curMux * channelsPerMux;
+    for (int x = 0; x < channelsPerMux; x++) {
+        current[x + start] = false;
+    }
     setGroupPins();
 }
 void MuxSensorSource::setGroupPins() {
@@ -91,6 +101,7 @@ void MuxSensorSource::getValues() {
     for (int x = 0; x < channelsPerMux; x++) {
         if (enabled[x + start]) {
             values[x + start] = source->getValue(x);
+            current[x + start] = true;
         }
     }
 }
@@ -98,10 +109,14 @@ void MuxSensorSource::getValues() {
 void MuxSensorSource::update(bool forceInstant) {
     if (!updatingByCallback) {
         source->update(forceInstant || (updateCount == 0));
-        getValues();
         updateCount = 1 + updateCount;
         if (updateCount == 4) {
             nextMux();
+        } else {
+            int start = curMux * channelsPerMux;
+            for (int x = 0; x < channelsPerMux; x++) {
+                current[x + start] = false;
+            }
         }
     }
 }
@@ -111,10 +126,18 @@ void MuxSensorSource::enable(int id) {
     if (id >= values.size()) {
         values.resize(id + 1);
         enabled.resize(id + 1);
+        current.resize(id + 1);
     }
     enabled[id] = true;
+    current[id] = false;
     values[id] = 0;
 }
 int32_t MuxSensorSource::getValue(int id) {
+    if (enabled[id] && !current[id]) {
+        int i = id / channelsPerMux;
+        if (i == curMux) {
+            getValues();
+        }
+    }
     return values[id];
 }
