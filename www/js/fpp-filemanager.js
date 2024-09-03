@@ -95,9 +95,7 @@ function GetFiles (dir) {
 		},
 		complete: function () {
 			SetupTableSorter('tbl' + dir);
-			$('#fileCount_' + dir)[0].innerText = $('#tbl' + dir + ' tbody tr').not(
-				'.unselectableRow'
-			).length;
+			UpdateFileCount(dir);
 		}
 	});
 }
@@ -143,6 +141,13 @@ function GetSequenceInfo (file) {
 			}
 		});
 	});
+}
+
+function UpdateFileCount ($dir) {
+	console.log($dir);
+	$('#fileCount_' + $dir)[0].innerText = $('#tbl' + $dir + ' tbody tr').not(
+		'.unselectableRow'
+	).length;
 }
 
 function FileManagerFilterToggled () {
