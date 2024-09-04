@@ -46,6 +46,12 @@ function WriteProxyFile($proxies)
     $mediaDirectory = $settings['mediaDirectory'];
 
     $newht = "RewriteEngine on\nRewriteBase /proxy/\n\n";
+
+    $newht = $newht . "RewriteCond %{HTTP:Upgrade}     \"websocket\" [NC]\n";
+    $newht = $newht . "RewriteCond %{HTTP:Connection}  \"Upgrade\" [NC]\n";
+    $newht = $newht . "RewriteRule ^(.*)/(.*)$ \"ws://$1/$2\" [P]\n";
+    $newht = $newht . "\n";
+
     foreach ($proxies as $item) {
         $host = $item['host'];
         $description = $item['description'];
