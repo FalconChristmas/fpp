@@ -4491,7 +4491,10 @@ function GetFPPStatus () {
 				response.warningInfo = [];
 			}
 			response.warnings.push('FPPD Daemon is not running');
-			response.warningInfo.push({'message': 'FPPD Daemon is not running', 'id':1});
+			response.warningInfo.push({
+				message: 'FPPD Daemon is not running',
+				id: 1
+			});
 
 			$.get('api/system/volume')
 				.done(function (data) {
@@ -4559,26 +4562,29 @@ function updateWarnings (jsonStatus) {
 		var txt =
 			'<b>Abnormal Conditions - May cause poor performance or other issues (Click link icon for help)</b><br/><ul style="list-style-type: none;">';
 
-            if (jsonStatus.hasOwnProperty('warningInfo')) {
-                currentWarnings = jsonStatus["warningInfo"];
-            } else {
-            $.ajax({
-                url: 'warnings_full.json',
-                async: false,
-                dataType: 'json',
-                cache: false,
-                success: function (response) {
-                    currentWarnings = response;
-                }
-            });
-        }
+		if (jsonStatus.hasOwnProperty('warningInfo')) {
+			currentWarnings = jsonStatus['warningInfo'];
+		} else {
+			$.ajax({
+				url: 'warnings_full.json',
+				async: false,
+				dataType: 'json',
+				cache: false,
+				success: function (response) {
+					currentWarnings = response;
+				}
+			});
+		}
 
 		for (var i = 0; i < currentWarnings.length; i++) {
 			var warningID = currentWarnings[i]['id'];
 			var warningMessage = currentWarnings[i]['message'];
 			if (warningID == 0) {
 				//handle old style warnings with no id with legacy behavior
-				txt += '<li><i class="fas fa-solid fa-circle fa-2xs"></i>  ' + currentWarnings[i]['message'] + '</li>';
+				txt +=
+					'<li><i class="fas fa-solid fa-circle fa-2xs"></i>  ' +
+					currentWarnings[i]['message'] +
+					'</li>';
 			} else {
 				//find extra warning info from definitions
 				for (var z = 0; z < warningDefinitions['Warnings'].length; z++) {
@@ -6561,6 +6567,7 @@ function DeleteFile (dir, row, file, silent = false) {
 		.done(function (data) {
 			if (data.status == 'OK') {
 				$(row).remove();
+				UpdateFileCount(dir);
 			} else {
 				if (!silent)
 					DialogError(

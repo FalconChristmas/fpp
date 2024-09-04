@@ -378,7 +378,7 @@
                         </div>
 
                         <div class="tab-pane fade" id="tab-images" role="tabpanel" aria-labelledby="tab-images-tab">
-                            <div id="divImage">
+                            <div id="divImages">
 
                                 <div class="backdrop">
                                     <div class="row justify-content-between fileDetailsHeader">
@@ -387,7 +387,8 @@
                                         </div>
                                         <div class="col-auto fileCountDetails">
                                             <div class="row">
-                                                <div class="col-auto fileCountlabelHeading">Items</div>
+                                                <div class="col-auto fileCountlabelHeading"><span class="">Items:<span>
+                                                </div>
                                                 <div class="col-auto fileCountlabelValue"><span id="fileCount_Images"
                                                         class='badge text-bg-secondary'>0</span></div>
                                             </div>

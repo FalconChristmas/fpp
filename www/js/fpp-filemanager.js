@@ -95,9 +95,7 @@ function GetFiles (dir) {
 		},
 		complete: function () {
 			SetupTableSorter('tbl' + dir);
-			$('#fileCount_' + dir)[0].innerText = $('#tbl' + dir + ' tbody tr').not(
-				'.unselectableRow'
-			).length;
+			UpdateFileCount(dir);
 		}
 	});
 }
@@ -143,6 +141,27 @@ function GetSequenceInfo (file) {
 			}
 		});
 	});
+}
+
+function UpdateFileCount ($dir) {
+	$('#fileCount_' + $dir)[0].innerText = $('#tbl' + $dir + ' tbody tr')
+		.not('.unselectableRow')
+		.not('.filtered').length;
+	if ($('#tbl' + $dir + ' tbody tr.filtered').length > 0) {
+		//is filtered
+		$('#div' + $dir + ' .fileCountlabelHeading')[0].innerHTML = innerHtml =
+			'<span class="filtered">Filtered items:<span>';
+		$('#fileCount_' + $dir)
+			.removeClass('text-bg-secondary')
+			.addClass('text-bg-success');
+	} else {
+		//not filtered
+		$('#div' + $dir + ' .fileCountlabelHeading')[0].innerHTML =
+			'<span class="">Items:<span>';
+		$('#fileCount_' + $dir)
+			.removeClass('text-bg-success')
+			.addClass('text-bg-secondary');
+	}
 }
 
 function FileManagerFilterToggled () {
@@ -1450,7 +1469,13 @@ var tablesorterOptions_Backups = $.extend(
 function SetupTableSorter (tableName) {
 	var fileType = tableName.substring(3);
 	if ($('#' + tableName).find('tbody').length > 0) {
-		$('#' + tableName).tablesorter(eval('tablesorterOptions_' + fileType));
+		$('#' + tableName)
+			.tablesorter(eval('tablesorterOptions_' + fileType))
+			.bind('filterEnd', function (event, config) {
+				if (event.type === 'filterEnd') {
+					UpdateFileCount(fileType);
+				}
+			});
 		$('#' + tableName)[0].config.widgetOptions.filter_hideFilters =
 			settings.fileManagerTableFilter == '1' ? false : true;
 		$('#' + tableName).trigger('applyWidgets');
