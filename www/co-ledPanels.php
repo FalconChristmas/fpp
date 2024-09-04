@@ -622,7 +622,7 @@ function PopulateEthernetInterfaces()
             echo " selected";
         }
         
-        $ifaceSpeed = (int)file_get_contents("/sys/class/net/$iface/speed");
+        $ifaceSpeed = (int)exec("$SUDO ethtool $iface | grep -i 'baset' | grep -Eo '[0-9]{1,4}' | sort | tail -1");
         echo ">" . $iface . " (" . $ifaceSpeed ."Mbps)</option>";
     }
 }
