@@ -445,9 +445,19 @@ std::string GetFileContents(const std::string& filename) {
         flock(fileno(fd), LOCK_SH);
         fseeko(fd, 0, SEEK_END);
         size_t sz = ftello(fd);
-        contents.resize(sz);
         fseeko(fd, 0, SEEK_SET);
-        fread(&contents[0], contents.size(), 1, fd);
+        if (sz == 0) {
+            char buf[4097];
+            size_t i = fread(buf, 1, 4096, fd);
+            while (i > 0) {
+                buf[i] = 0;
+                contents += buf;
+                i = fread(buf, 1, 4096, fd);
+            }
+        } else {
+            contents.resize(sz);
+            fread(&contents[0], contents.size(), 1, fd);
+        }
         flock(fileno(fd), LOCK_UN);
         fclose(fd);
         int x = contents.size() - 1;

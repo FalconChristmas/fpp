@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 
 #include <cmath>
+#include <unistd.h>
 
 #include "../Warnings.h"
 #include "../log.h"
@@ -80,6 +81,24 @@ int RGBMatrixOutput::Init(Json::Value config) {
 
     m_panelWidth = config["panelWidth"].asInt();
     m_panelHeight = config["panelHeight"].asInt();
+
+    std::string modules = GetFileContents("/proc/modules");
+    if (modules.contains("snd_bcm2835")) {
+        LogInfo(VB_CHANNELOUT, "snd_bcm2835 is loaded, attempting to unload.");
+        system("rmmod snd_bcm2835");
+        system("modprobe snd_dummy");
+    }
+    modules = GetFileContents("/proc/modules");
+    if (modules.contains("snd_bcm2835")) {
+        LogWarn(VB_CHANNELOUT, "snd_bcm2835 is stil loaded. Cannot proceed.");
+        std::string nvresults;
+        urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
+        std::string errStr = "RGBMatrix cannot run with snd_bcm2835 enabled.   Please reboot.";
+        WarningHolder::AddWarning(errStr);
+        errStr += "\n";
+        LogErr(VB_CHANNELOUT, errStr.c_str());
+        return false;
+    }
 
     if (!m_panelWidth)
         m_panelWidth = 32;

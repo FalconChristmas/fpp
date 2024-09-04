@@ -1115,8 +1115,8 @@ static void setupChannelOutputs() {
     bool hasDPI = false;
     bool hasRPIMatrix = false;
     Json::Value v;
-    if (FileExists("/home/fpp/media/config/channelOutputs.json")) {
-        if (LoadJsonFromString(GetFileContents("/home/fpp/media/config/channelOutputs.json"), v)) {
+    if (FileExists("/home/fpp/media/config/channeloutputs.json")) {
+        if (LoadJsonFromString(GetFileContents("/home/fpp/media/config/channeloutputs.json"), v)) {
             for (int x = 0; x < v["channelOutputs"].size(); x++) {
                 if (v["channelOutputs"][x]["subType"].asString() == "RGBMatrix" && v["channelOutputs"][x]["enabled"].asInt() == 1) {
                     hasRPIMatrix = true;
