@@ -1674,8 +1674,8 @@
 		},
 		"ntpServer": {
 			"name": "ntpServer",
-			"description": "NTP Server",
-			"tip": "NTP Server to use to sync time. Debian Pool will be used if not set.",
+			"description": "NTP Server (IP only)",
+			"tip": "NTP Server to use to sync time. falconplayer.pool.ntp.org will be used if not set.  Only IP addresses are supported here, not names.",
 			"type": "text",
 			"size": 30,
 			"maxlength": 64
