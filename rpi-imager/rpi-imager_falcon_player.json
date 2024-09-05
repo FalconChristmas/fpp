@@ -27,7 +27,10 @@
             "extract_sha256": "a3a3f640d9200e580fa48e56012dbc976953894a00fe00b20d696d2e8200b902",
             "image_download_size": 1122396707,
             "image_download_sha256": "f967746cde5d9b9ea519381d73ad5e0029dec16d72259ec0f34be58229ad0cf4",
-            "release_date": "2024-09-03"
+            "release_date": "2024-09-03",
+            "devices": [
+                "pi1-32bit"
+            ]
         },
         {
             "name": "FPP v7.5 Pi",
@@ -56,7 +59,10 @@
             "extract_sha256": "c7595dd83fa01584c03a2d08adcf4586a7ba4422c10e87882ec2f098709a5d51",
             "image_download_size": 923472051,
             "image_download_sha256": "cfd66aed2a232ef1b9bf92416477e584f8b724693d1201142d2835f49ee76c84",
-            "release_date": "2024-01-12"
+            "release_date": "2024-01-12",
+               "devices": [
+                "pi1-32bit"
+            ]
         }
         
     ]
