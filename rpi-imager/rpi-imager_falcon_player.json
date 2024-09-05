@@ -16,6 +16,22 @@
                 "pi5-32bit", "pi4-32bit", "pi3-32bit", "pi2-32bit", "pi1-32bit"
             ]
         },
+              {
+            "name": "FPP v7.5 Pi",
+            "description": "Falcon Player for all RPi models",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/7.5/FPP-v7.5-Pi.img.zip",
+            "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
+            "init_format": "none",
+            "website": "https://www.falconplayer.com/",
+            "extract_size": 3984588800,
+            "extract_sha256": "b8f51c3d3d598a840dffcc0a64e1dc3eee30841b0f21550b597c57945a02c921",
+            "image_download_size": 1103835401,
+            "image_download_sha256": "f884e2306562a632b199b725a04e8b535d1b7f94929756b3d10d06bbdf632028",
+            "release_date": "2024-01-12",
+            "devices": [
+                "pi4-32bit", "pi3-32bit", "pi2-32bit", "pi1-32bit"
+            ]
+        },
         {
             "name": "FPP v8.0 BBB",
             "description": "Falcon Player for all BeagleBone models",
@@ -30,22 +46,6 @@
             "release_date": "2024-09-03",
             "devices": [
                 "pi1-32bit"
-            ]
-        },
-        {
-            "name": "FPP v7.5 Pi",
-            "description": "Falcon Player for all RPi models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/7.5/FPP-v7.5-Pi.img.zip",
-            "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
-            "init_format": "none",
-            "website": "https://www.falconplayer.com/",
-            "extract_size": 3984588800,
-            "extract_sha256": "b8f51c3d3d598a840dffcc0a64e1dc3eee30841b0f21550b597c57945a02c921",
-            "image_download_size": 1103835401,
-            "image_download_sha256": "f884e2306562a632b199b725a04e8b535d1b7f94929756b3d10d06bbdf632028",
-            "release_date": "2024-01-12",
-            "devices": [
-                "pi4-32bit", "pi3-32bit", "pi2-32bit", "pi1-32bit"
             ]
         },
         {
