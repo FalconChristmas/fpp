@@ -17,8 +17,8 @@
 #include <pthread.h>
 #include <set>
 
-#include "settings.h"
 #include "SysSocket.h"
+#include "settings.h"
 
 #define FPP_CTRL_PORT 32320
 
@@ -284,8 +284,8 @@ public:
 
     void StoreHTTPResponse(std::string* ipp, uint8_t* data, int sz);
 
-    [[nodiscard]] std::vector<MultiSyncSystem> const& GetLocalSystems(){ return m_localSystems; }
-    [[nodiscard]] std::vector<MultiSyncSystem> const& GetRemoteSystems(){ return m_remoteSystems; }
+    [[nodiscard]] std::vector<MultiSyncSystem> const& GetLocalSystems() { return m_localSystems; }
+    [[nodiscard]] std::vector<MultiSyncSystem> const& GetRemoteSystems() { return m_remoteSystems; }
 
 private:
     bool isSupportedForMultisync(const char* address, const char* intface);
@@ -316,7 +316,7 @@ private:
 
     void ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stats);
     void ProcessCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* stats);
-    void ProcessPingPacket(ControlPkt* pkt, int len, const std::string& src, MultiSyncStats* stats);
+    void ProcessPingPacket(ControlPkt* pkt, int len, const std::string& src, MultiSyncStats* stats, const std::string& incomingIp = "");
     void ProcessPluginPacket(ControlPkt* pkt, int len, MultiSyncStats* stats);
     void ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* stats);
 

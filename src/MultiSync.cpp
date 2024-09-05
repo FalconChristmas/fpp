@@ -2233,9 +2233,12 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
                         sequence->SendBlankingData();
                     }
                     break;
-                case CTRL_PKT_PING:
-                    ProcessPingPacket(pkt, len, sourceIP, stats);
+                case CTRL_PKT_PING: {
+                    struct sockaddr_in* inAddr = (struct sockaddr_in*)(&rcvSrcAddr[msg]);
+                    std::string ip = inet_ntoa(inAddr->sin_addr);
+                    ProcessPingPacket(pkt, len, sourceIP, stats, ip);
                     break;
+                }
                 case CTRL_PKT_PLUGIN:
                     ProcessPluginPacket(pkt, len, stats);
                     break;
@@ -2512,7 +2515,7 @@ void MultiSync::ProcessCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* s
 /*
  *
  */
-void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& srcIp, MultiSyncStats* stats) {
+void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& srcIp, MultiSyncStats* stats, const std::string& incomingIp) {
     LogDebug(VB_SYNC, "ProcessPingPacket()\n");
 
     if (pkt->extraDataLen < 169) { // v1 packet length
@@ -2547,20 +2550,28 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
 
     FPPMode systemMode = (FPPMode)extraData[7];
 
-    char addrStr[16];
-    memset(addrStr, 0, sizeof(addrStr));
     bool isInstance = true;
-    if (extraData[8] == 0 && extraData[9] == 0 && extraData[10] == 0 && extraData[11] == 0 && discover) {
-        // No ip address in packet, this is a ping/discovery packet
-        // from something (xLights?) that is just trying to
-        // get a list of FPP instances, we won't record this
-        isInstance = false;
+    std::string address;
+    if (extraData[8] == 0 && extraData[9] == 0 && extraData[10] == 0 && extraData[11] == 0) {
+        if (discover) {
+            // No ip address in packet, this is a ping/discovery packet
+            // from something (xLights?) that is just trying to
+            // get a list of FPP instances, we won't record this
+            isInstance = false;
+            address = "0.0.0.0";
+        } else if (!incomingIp.empty()) {
+            address = incomingIp;
+        } else {
+            isInstance = false;
+            address = "0.0.0.0";
+        }
+    } else {
+        char addrStr[16];
+        memset(addrStr, 0, sizeof(addrStr));
+        snprintf(addrStr, 16, "%d.%d.%d.%d", extraData[8], extraData[9],
+                 extraData[10], extraData[11]);
+        address = addrStr;
     }
-
-    snprintf(addrStr, 16, "%d.%d.%d.%d", extraData[8], extraData[9],
-             extraData[10], extraData[11]);
-
-    std::string address = addrStr;
 
     char tmpStr[128];
     memset(tmpStr, 0, sizeof(tmpStr));
@@ -2606,7 +2617,7 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
             multiSync->Ping();
             rand = std::rand() % 1000;
             std::this_thread::sleep_for(std::chrono::microseconds(rand));
-            multiSync->PingSingleRemote(addrStr, 0);
+            multiSync->PingSingleRemote(address.c_str(), 0);
             if (address != srcIp) {
                 multiSync->PingSingleRemote(srcIp.c_str(), 0);
             }
