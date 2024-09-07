@@ -480,6 +480,13 @@ case "${OSVER}" in
             ACTUAL_PHPVER="8.2"
             PHPVER="8.2"
         fi
+
+        #########################################
+        # WARNING
+        # ---------------------------------------
+        # If you modify this file, be sure to update Docker/Dockerfile
+        #########################################
+
         PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
                       apache2 apache2-bin apache2-data apache2-utils libavahi-client-dev \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
@@ -517,9 +524,15 @@ case "${OSVER}" in
         if [ "${OSVER}" == "debian_12" ]; then
             PACKAGE_LIST="$PACKAGE_LIST python3-distutils"
         fi
+
+        
         if $skip_apt_install; then
+            echo "skipping apt install because skpt_apt_install == $skip_apt_install"
             PACKAGE_LIST=""
         else
+            echo "--------------------------"
+            echo "INSTALLING $PACKAGE_LIST"
+            echo "--------------------------"
             apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${PACKAGE_LIST}
         fi
         
