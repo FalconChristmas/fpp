@@ -288,10 +288,18 @@ $freeSpace = disk_free_space($uploadDirectory);
                 keepOptFPP = '&keepOptFPP=1';
             }
 
+            //set os name (url for download)
             if (os in osAssetMap) {
                 osName = osAssetMap[os].name;
                 os = osAssetMap[os].url;
             }
+
+            //override file location from git to local if already downloaded
+            if ($('#OSSelect option:selected').text().toLowerCase().indexOf('(download)') === -1) {
+                os = $('#OSSelect option:selected').text();
+                osName = $('#OSSelect option:selected').text();
+            }
+
             if (confirm('Upgrade the OS using ' + osName +
                 '?\nThis can take a long time. It is also strongly recommended to run FPP backup first.')) {
 
