@@ -301,7 +301,7 @@ $freeSpace = disk_free_space($uploadDirectory);
             }
 
             if (confirm('Upgrade the OS using ' + osName +
-                '?\nThis can take a long time. It is also strongly recommended to run FPP backup first.' + os)) {
+                '?\nThis can take a long time. It is also strongly recommended to run FPP backup first.')) {
 
                 var options = {
                     id: "upgradeOSPopupStatus",
