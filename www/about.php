@@ -209,7 +209,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                     osUpdateFiles.forEach(element => {
                         if ($('#OSSelect option').filter(function () { return (/${element}/i.test(this.text)); })) {
                             //already exists in select options
-                            console.log(element);
+                            //console.log(element);
                         } else {
                             //need to add local file into options
                             $('#OSSelect').append($('<option>', {
