@@ -1253,7 +1253,7 @@ function TogglePanelTestPattern() {
             outputType = "ColorLight Panels";
         } else if (outputType == "RGBMatrix") {
             outputType = "Pi Panels";
-        } else if (outputType == "BBBMatrix") {
+        } else if (outputType == "BBBMatrix" || outputType == "LEDscapeMatrix") {
             outputType = "BBB Panels";
         }
         $("#PanelTestPatternButton").val("Stop Pattern");
