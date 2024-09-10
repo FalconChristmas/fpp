@@ -199,13 +199,22 @@ int Playlist::Load(Json::Value& config) {
         LogDebug(VB_PLAYLIST, "Loading MainPlaylist:\n");
         const Json::Value playlist = config["mainPlaylist"];
 
-        if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount))
+        if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount)) {
             startPos = m_loadStartPos - origEntryCount;
-        else
+        } else if (m_loadStartPos == -2 && m_loadEndPos == 0) {
+            //random single item
+            int l = playlist.size();
+            if (l > 1) {
+                startPos = std::rand() % l;
+                maxEntries = 1;
+            }
+        } else {
             startPos = 0;
+        }
 
-        if (startPos < playlist.size())
+        if (startPos < playlist.size()) {
             LoadJSONIntoPlaylist(m_mainPlaylist, playlist, startPos, maxEntries);
+        }
 
         origEntryCount += playlist.size();
     }
@@ -1183,7 +1192,7 @@ int Playlist::Play(const char* filename, const int position, const int repeat, c
     if (p == -2) {
         // random
         int l = m_mainPlaylist.size();
-        if (l > 2) {
+        if (l > 1) {
             p = std::rand() % l;
             p = p + m_leadIn.size();
         }
