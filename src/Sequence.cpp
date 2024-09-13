@@ -235,12 +235,16 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
         }
     }
 
-    if (IsSequenceRunning())
+    if (IsSequenceRunning()) 
         CloseSequenceFile();
 
+    std::unique_lock<std::mutex> lock(frameCacheLock);
     if (m_seqFile) {
         delete m_seqFile;
         m_seqFile = nullptr;
+        commandPresets.clear();
+        effectsOn.clear();
+        effectsOff.clear();
     }
 
     m_seqStarting = 2;
@@ -249,8 +253,6 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     if (startFrame) {
         m_lastFrameRead = startFrame - 1;
     }
-
-    std::unique_lock<std::mutex> lock(frameCacheLock);
     clearCaches();
     lock.unlock();
 
@@ -336,7 +338,9 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     SetChannelOutputRefreshRate(m_seqRefreshRate);
 
     //start reading frames
+    lock.lock();
     m_seqFile = seqFile;
+    lock.unlock();
     m_seqStarting = 1; //beyond header, read loop can start reading frames
     frameLoadSignal.notify_all();
     m_seqPaused = 0;
@@ -769,8 +773,10 @@ void Sequence::CloseSequenceFile(void) {
 
     std::unique_lock<std::mutex> readLock(readFileLock);
     if (m_seqFile) {
+        std::unique_lock<std::mutex> fclock(frameCacheLock);
         delete m_seqFile;
         m_seqFile = nullptr;
+        fclock.unlock();
 
         std::map<std::string, std::string> keywords;
         keywords["SEQUENCE_NAME"] = m_seqFilename;
