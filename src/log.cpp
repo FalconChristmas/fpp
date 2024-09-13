@@ -353,5 +353,20 @@ void logVersionInfo(void) {
     LogErr(VB_ALL, "=========================================\n");
     LogErr(VB_ALL, "FPP %s\n", getFPPVersion());
     LogErr(VB_ALL, "Branch: %s\n", getFPPBranch());
+    int o = open("/proc/device-tree/model", O_RDONLY);
+    if (o > 0) {
+        char buf[256];
+        int i = read(o, buf, 255);
+        int c = i;
+        while (i > 0) {
+            i = read(o, buf, 255 - c);
+            c += i > 0 ? i : 0;
+        }
+        if (c > 0) {
+            buf[c] = 0;
+            LogErr(VB_ALL, "Model: %s\n", buf);
+        }
+        close(o);
+    }
     LogErr(VB_ALL, "=========================================\n");
 }
