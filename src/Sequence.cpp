@@ -711,10 +711,9 @@ void Sequence::SendSequenceData() {
     if (m_lastFrameData) {
         uint32_t frame = m_lastFrameData->frame;
         if (!commandPresets.empty()) {
-            std::map<std::string, std::string> keywords;
-            keywords["SEQUENCE_NAME"] = m_seqFilename;
             const auto& p = commandPresets.find(frame);
             if (p != commandPresets.end()) {
+                std::map<std::string, std::string> keywords({{"SEQUENCE_NAME", m_seqFilename}});
                 for (auto& cmd : p->second) {
                     CommandManager::INSTANCE.TriggerPreset(cmd, keywords);
                 }
