@@ -345,8 +345,8 @@ static void handleCrash(int s) {
             char zfName[256];
             snprintf(zfName, sizeof(zfName), "crashes/fpp-%s-%s-%s-%s.zip", sysType, getFPPVersion(), SystemUUID.c_str(), tbuffer);
 
-            char zName[1024];
-            snprintf(zName, sizeof(zfName), "zip -r %s /tmp/fppd_crash.log", zfName);
+            char zName[1224];
+            snprintf(zName, sizeof(zfName), "zip -r %s /tmp/fppd_crash.log fpp-info.json", zfName);
             if (crashLog > 1) {
                 strcat(zName, " settings");
                 if (crashLog > 2) {
