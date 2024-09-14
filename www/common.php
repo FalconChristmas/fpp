@@ -1404,7 +1404,7 @@ function get_sequence_file_info($mediaName)
  * If the the media duration exists in the cache then it's returned, else the returned value is null
  *
  * @param $media
- * @param null $duration_seconds
+ * @param $duration_seconds
  * @return null
  */
 function media_duration_cache($media, $duration_seconds = null, $filesize = null)
