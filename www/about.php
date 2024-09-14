@@ -69,7 +69,7 @@ $git_version = get_local_git_version();
 $git_branch = get_git_branch();
 
 //Remote Git branch version
-$git_remote_version = get_remote_git_version($git_branch);
+$git_remote_version = get_remote_git_version();
 
 //System uptime
 $uptime = get_server_uptime();
@@ -209,7 +209,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                     osUpdateFiles.forEach(element => {
                         if ($('#OSSelect option').filter(function () { return (/${element}/i.test(this.text)); })) {
                             //already exists in select options
-                            console.log(element);
+                            //console.log(element);
                         } else {
                             //need to add local file into options
                             $('#OSSelect').append($('<option>', {

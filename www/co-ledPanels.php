@@ -613,6 +613,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 <?
 function PopulateEthernetInterfaces()
 {
+    global $SUDO;
     $interfaces = network_list_interfaces_array();
     foreach ($interfaces as $iface) {
         $iface = preg_replace("/:$/", "", $iface);
