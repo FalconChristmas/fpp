@@ -69,7 +69,7 @@ $git_version = get_local_git_version();
 $git_branch = get_git_branch();
 
 //Remote Git branch version
-$git_remote_version = get_remote_git_version($git_branch);
+$git_remote_version = get_remote_git_version();
 
 //System uptime
 $uptime = get_server_uptime();

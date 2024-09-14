@@ -1836,7 +1836,7 @@ function get_local_git_version()
 }
 
 /**
- * Returns version of the remote Git branch for the supplied branch
+ * Returns version of the remote Git branch for the current branch
  * @return string
  */
 function get_remote_git_version()
