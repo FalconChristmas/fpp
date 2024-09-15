@@ -79,6 +79,20 @@ require_once "common.php";
                 html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
                     + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
                     + "Value: <input class='value' type=number value='" + output.value + "' min='0' max='255'/>";
+            } else if (type == "Fold") {
+                html += "Source Channel: <input class='source' type=text  size='7' maxlength='7' value='" + output.source + "'/>&nbsp;"
+                    + "Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "' />&nbsp;"
+                    + "Node: <select class='node'>";
+                html += "<option value='0' ";
+                if (output.node == 0) html += "selected";
+                html += ">By Channel</option>";
+                html += "<option value='1' ";
+                if (output.node == 1) html += "selected";
+                html += ">RGB Pixels</option>";
+                html += "<option value='2' ";
+                if (output.node == 2) html += "selected";
+                html += ">RGBW Pixels</option>";
+                html += "</select>";
             } else {
                 html += "unknown type " + type;
             }
@@ -262,6 +276,23 @@ require_once "common.php";
                         alert("Override Zero settings of row " + rowNumber + " is not valid.");
                         return;
                     }
+                } else if (type == "Fold") {
+                    var fold = {
+                        type: "Fold",
+                        active: $this.find("input.active").is(':checked') ? 1 : 0,
+                        description: $this.find("input.description").val(),
+                        source: parseInt($this.find("input.source").val()),
+                        count: parseInt($this.find("input.count").val()),
+                        node: parseInt($this.find("select.node").val())
+                    };
+                    if ((fold.source > 0) &&
+                        (fold.count > 0)) {
+                        processors.push(fold);
+                    } else {
+                        dataError = 1;
+                        alert("Fold '" + fold.count + "' channel(s) from '" + fold.source + "' is not valid.");
+                        return;
+                    }
                 }
                 rowNumber++;
 
@@ -349,6 +380,14 @@ require_once "common.php";
                     value: 255
                 };
                 config += HTMLForOutputProcessorConfig(b);
+            } else if (type == "Fold") {
+                var b = {
+                    type: "Fold",
+                    source: 1,
+                    count: 1,
+                    node: 0
+                };
+                config += HTMLForOutputProcessorConfig(b);
             }
 
 
@@ -377,6 +416,7 @@ require_once "common.php";
                 "<option value='Reorder Colors'>Reorder Colors</option>" +
                 "<option value='Three to Four'>Three to Four</option>" +
                 "<option value='Override Zero'>Override Zero</option>" +
+                "<option value='Fold'>Fold</option>" +
                 "</select></td>" +
                 "<td><input class='description' type='text' size='32' maxlength='64' value=''></td>" +
                 "<td> </td>" +
