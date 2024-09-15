@@ -20,6 +20,7 @@ OBJECTS_fpp_so += \
     channeloutput/processors/ColorOrderOutputProcessor.o \
     channeloutput/processors/ThreeToFourOutputProcessor.o \
 	channeloutput/processors/OverrideZeroOutputProcessor.o \
+    channeloutput/processors/FoldOutputProcessor.o \
 	channeloutput/stringtesters/PixelCountStringTester.o \
     channeloutput/stringtesters/PixelFadeStringTester.o \
 	channeloutput/stringtesters/PixelStringTester.o \
