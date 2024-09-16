@@ -259,7 +259,7 @@ PlaylistPauseCommand::PlaylistPauseCommand() :
 }
 std::unique_ptr<Command::Result> PlaylistPauseCommand::run(const std::vector<std::string>& args) {
     Player::INSTANCE.Pause();
-    return std::make_unique<Command::Result>("Playlist Inserted");
+    return std::make_unique<Command::Result>("Playlist Paused");
 }
 
 PlaylistResumeCommand::PlaylistResumeCommand() :
@@ -267,5 +267,5 @@ PlaylistResumeCommand::PlaylistResumeCommand() :
 }
 std::unique_ptr<Command::Result> PlaylistResumeCommand::run(const std::vector<std::string>& args) {
     Player::INSTANCE.Resume();
-    return std::make_unique<Command::Result>("Playlist Inserted");
+    return std::make_unique<Command::Result>("Playlist Restarted");
 }

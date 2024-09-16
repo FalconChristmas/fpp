@@ -60,6 +60,8 @@ public:
     libvlc_equalizer_t* equalizer = nullptr;
     std::string fullMediaPath;
 
+    int startPos = 0;
+
     uint64_t length = 0;
     uint64_t lastPos = 0;
     uint64_t lastPosTime = 0;
@@ -153,6 +155,15 @@ static void startingEventCallBack(const struct libvlc_event_t* p_event, void* p_
 static void playingEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
     VLCInternalData* d = (VLCInternalData*)p_data;
     mediaOutputStatus.mediaLoading = false;
+    d->vlcOutput->Playing();
+}
+
+static void seekableEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
+    VLCInternalData* d = (VLCInternalData*)p_data;
+    mediaOutputStatus.mediaLoading = false;
+    if (d->startPos) {
+        MEDIA_PLAYER_SET_TIME(d->vlcPlayer, d->startPos);
+    }
     d->vlcOutput->Playing();
 }
 static void stoppedEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
@@ -286,6 +297,7 @@ public:
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerStopped, stoppedEventCallBack, data);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerPlaying, playingEventCallBack, data);
+            libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerSeekableChanged, seekableEventCallBack, data);
             data->length = libvlc_media_player_get_length(data->vlcPlayer);
 
             std::string cardType = getSetting("AudioCardType");
@@ -300,9 +312,7 @@ public:
         if (data->vlcPlayer) {
             mediaOutputStatus.output = data->outputPort;
             libvlc_media_player_play(data->vlcPlayer);
-            if (startPos) {
-                MEDIA_PLAYER_SET_TIME(data->vlcPlayer, startPos);
-            }
+            data->startPos = startPos;
             data->length = libvlc_media_player_get_length(data->vlcPlayer);
             return 0;
         }
