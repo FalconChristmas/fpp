@@ -49,9 +49,11 @@ function SetNTPServer($value)
     if ($value != '') {
         // Remove existing server and pool lines, then add the new server line
         exec("sudo sed -i '/^server.*/d' $ntpConfigFile ; sudo sed -i '/^pool.*/d' $ntpConfigFile ; sudo sed -i '\$a\\server $value iburst' $ntpConfigFile");
+        exec("sudo sed -i -e 's/minsane 3/minsane 1/' $ntpConfigFile");
     } else {
         // Remove existing server and pool lines, then add the custom pool line
         exec("sudo sed -i '/^server.*/d' $ntpConfigFile ; sudo sed -i '/^pool.*/d' $ntpConfigFile ; sudo sed -i '\$a\\pool falconplayer.pool.ntp.org iburst minpoll 8 maxpoll 12 prefer' $ntpConfigFile");
+        exec("sudo sed -i -e 's/minsane 1/minsane 3/' $ntpConfigFile");
     }
 
     // Note: Assume NTP is always enabled now.
