@@ -204,7 +204,6 @@
             $.post("api/network/dns", postData
             ).done(function (data) {
                 LoadDNSConfig();
-                SetRebootFlag();
                 $.jGrowl(" DNS configuration saved", { themeState: 'success' });
             }).fail(function () {
                 DialogError("Save DNS Config", "Save Failed");
