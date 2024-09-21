@@ -1674,8 +1674,8 @@
 		},
 		"ntpServer": {
 			"name": "ntpServer",
-			"description": "NTP Server",
-			"tip": "NTP Server to use to sync time. Debian Pool will be used if not set.",
+			"description": "Override default NTP Server",
+			"tip": "NTP Server to use to sync time. falconplayer.pool.ntp.org will be used if not set.",
 			"type": "text",
 			"size": 30,
 			"maxlength": 64
