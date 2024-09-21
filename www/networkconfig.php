@@ -143,16 +143,20 @@
                         }
                     });
         
+                <? if ($settings['uiLevel'] < 3) { ?>
                     if ((gatewayAlreadySet || dhcpOperStateUp) && $('#eth_gateway').val()) {
                         $.jGrowl("A gateway is already set on another interface, or another interface is configured as DHCP. You cannot set multiple gateways.", { themeState: 'danger' });
                         return callback(false);
                     }
+                <? } ?>
         
+                <? if ($settings['uiLevel'] < 1) { ?>
                     // If no gateway is set anywhere and we're in static mode, ensure one is set
                     if (!gatewayAlreadySet && !$('#eth_gateway').val() && !dhcpOperStateUp) {
                         $.jGrowl("You must set a gateway when using static IPs.", { themeState: 'danger' });
                         return callback(false);
                     }
+                <? } ?>
         
                     // If all checks passed, validation succeeds
                     return callback(true);
