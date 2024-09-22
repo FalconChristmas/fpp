@@ -322,13 +322,15 @@ function network_set_interface()
         fprintf($f,
             "SSID=\"%s\"\n" .
             "PSK=\"%s\"\n" .
-            "HIDDEN=%s\n",
-            $data['SSID'], $data['PSK'], $data['HIDDEN']);
+            "HIDDEN=%s\n" .
+            "WPA3=%s\n",
+            $data['SSID'], $data['PSK'], $data['HIDDEN'],  $data['WPA3']);
         fprintf($f,
             "BACKUPSSID=\"%s\"\n" .
             "BACKUPPSK=\"%s\"\n" .
-            "BACKUPHIDDEN=%s\n",
-            $data['BACKUPSSID'], $data['BACKUPPSK'], $data['BACKUPHIDDEN']);
+            "BACKUPHIDDEN=%s\n" .
+            "BACKUPWPA3=%s\n",
+            $data['BACKUPSSID'], $data['BACKUPPSK'], $data['BACKUPHIDDEN'], $data['BACKUPWPA3']);
     }
     if (isset($data['DHCPSERVER'])) {
         fprintf($f, "DHCPSERVER=%d\n", $data['DHCPSERVER'] ? "1" : 0);

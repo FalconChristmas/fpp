@@ -337,9 +337,11 @@
                     data.SSID = $('#eth_ssid').val();
                     data.PSK = $('#eth_psk').val();
                     data.HIDDEN = $('#eth_hidden').is(':checked');
+                    data.WPA3 = $('#eth_wpa3').is(':checked');
                     data.BACKUPSSID = $('#backupeth_ssid').val();
                     data.BACKUPPSK = $('#backupeth_psk').val();
                     data.BACKUPHIDDEN = $('#backupeth_hidden').is(':checked');
+                    data.BACKUPWPA3 = $('#backupeth_wpa3').is(':checked');
                 }
     
                 data.Leases = {};
@@ -573,12 +575,22 @@
                 } else {
                     $('#eth_hidden').prop('checked', false);
                 }
+                if (data.WPA3 == "1") {
+                    $('#eth_wpa3').prop('checked', true);
+                } else {
+                    $('#eth_wpa3').prop('checked', false);
+                }
                 $('#backupeth_ssid').val(data.BACKUPSSID);
                 $('#backupeth_psk').val(data.BACKUPPSK);
                 if (data.BACKUPHIDDEN == "1") {
                     $('#backupeth_hidden').prop('checked', true);
                 } else {
                     $('#backupeth_hidden').prop('checked', false);
+                }
+                if (data.BACKUPWPA3 == "1") {
+                    $('#backupeth_wpa3').prop('checked', true);
+                } else {
+                    $('#backupeth_wpa3').prop('checked', false);
                 }
             }
             <? if ($settings['uiLevel'] >= 1) { ?>
@@ -834,7 +846,8 @@
                                         <div class="printSettingFieldCol col-md"><input list="eth_ssids" name="eth_ssid"
                                                 id="eth_ssid" size="32" maxlength="32"><datalist
                                                 id='eth_ssids'></datalist><input type="checkbox" name="eth_hidden"
-                                                id="eth_hidden" value="Hidden">Hidden</div>
+                                                id="eth_hidden" value="Hidden">Hidden&nbsp;<input type="checkbox" name="eth_wpa3"
+                                                id="eth_wpa3" value="WPA3">WPA3</div>
                                     </div>
                                     <div class="row" id="pskRow">
                                         <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
@@ -854,7 +867,8 @@
                                                     name="backupeth_ssid" id="backupeth_ssid" size="32"
                                                     maxlength="32"><datalist id='eth_ssids'></datalist><input
                                                     type="checkbox" name="backupeth_hidden" id="backupeth_hidden"
-                                                    value="Hidden">Hidden</div>
+                                                    value="Hidden">Hidden&nbsp;<input type="checkbox" name="backupeth_wpa3"
+                                                    id="backupeth_wpa3" value="BACKUPWPA3">WPA3</div>
                                         </div>
                                         <div class="row" id="backuppskRow">
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">

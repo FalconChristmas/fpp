@@ -535,17 +535,39 @@ static void setupNetwork() {
                     addressLines.append("Address=192.168.8.1/24\n");
                 } else if (!interfaceSettings["SSID"].empty()) {
                     std::string wpa = "ctrl_interface=/var/run/wpa_supplicant\nctrl_interface_group=0\nupdate_config=1\ncountry=";
-                    wpa.append(WifiRegulatoryDomain).append("\n\nnetwork={\n  ssid=\"").append(interfaceSettings["SSID"]);
+                    wpa.append(WifiRegulatoryDomain);
+                    if (!interfaceSettings["WPA3"].empty()) {
+                        wpa.append("\nsae_pwe=1\n");
+                    }
+                    wpa.append("\n\nnetwork={\n  ssid=\"").append(interfaceSettings["SSID"]);
                     if (!interfaceSettings["PSK"].empty()) {
                         wpa.append("\"\n  psk=\"").append(interfaceSettings["PSK"]);
                     }
-                    wpa.append("\"\n  key_mgmt=WPA-PSK\n  scan_ssid=1\n  priority=100\n}\n\n");
+                    wpa.append("\"\n  key_mgmt=");
+                    if (!interfaceSettings["WPA3"].empty()) {                        
+                        wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["PSK"]).append("\"");
+                    } else {
+                        wpa.append("WPA-PSK");
+                    }
+                    if (!interfaceSettings["HIDDEN"].empty()) {
+                        wpa.append("\n  scan_ssid=1");
+                    }
+                    wpa.append("\n  priority=100\n  ieee80211w=2\n}\n\n");
                     if (!interfaceSettings["BACKUPSSID"].empty() && interfaceSettings["BACKUPSSID"] != "\"\"") {
                         wpa.append("\nnetwork={\n  ssid=\"").append(interfaceSettings["BACKUPSSID"]);
                         if (!interfaceSettings["BACKUPPSK"].empty()) {
                             wpa.append("\"\n  psk=\"").append(interfaceSettings["BACKUPPSK"]);
                         }
-                        wpa.append("\"\n  key_mgmt=WPA-PSK\n  scan_ssid=1\n  priority=100\n}\n\n");
+                        wpa.append("\"\n  key_mgmt=");
+                        if (!interfaceSettings["BACKUPWPA3"].empty()) {                        
+                            wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["PSK"]).append("\"");
+                        } else {
+                            wpa.append("WPA-PSK");
+                        }
+                        if (!interfaceSettings["BACKUPHIDDEN"].empty()) {
+                            wpa.append("\n  scan_ssid=1");
+                        }
+                        wpa.append("\n  priority=90\n  ieee80211w=2\n}\n\n");
                     }
                     filesNeeded["/etc/wpa_supplicant/wpa_supplicant-" + interface + ".conf"] = wpa;
                     commandsToRun.emplace_back("systemctl enable \"wpa_supplicant@" + interface + ".service\" &");
@@ -1288,6 +1310,8 @@ int main(int argc, char* argv[]) {
         runScripts("postStop", false);
     } else if (action == "setupAudio") {
         setupAudio();
+    } else if (action == "setupNetwork") {
+        setupNetwork();
     }
     return 0;
 }
