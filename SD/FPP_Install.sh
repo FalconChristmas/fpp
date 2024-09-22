@@ -302,7 +302,10 @@ echo "------------------------------------------------------------------------"
 if [ -e "/etc/fpp" ]
 then
 	echo "FPP - Removing old /etc/fpp"
-	rm -rf /etc/fpp
+	rm -f /etc/fpp/config_version
+    rm -f /etc/fpp/platform
+    rm -f /etc/fpp/rfs_version
+    rm -f /etc/fpp/desktop
 fi
 
 #######################################
