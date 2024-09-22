@@ -255,7 +255,7 @@ std::unique_ptr<Command::Result> InsertRandomItemFromPlaylistCommand::run(const 
 }
 
 PlaylistPauseCommand::PlaylistPauseCommand() :
-    Command("Pause Playlist") {
+    Command("Pause Playlist", "If possible, pauses the currently running playlist.  This command can not be run from inside a playlist") {
 }
 std::unique_ptr<Command::Result> PlaylistPauseCommand::run(const std::vector<std::string>& args) {
     Player::INSTANCE.Pause();
