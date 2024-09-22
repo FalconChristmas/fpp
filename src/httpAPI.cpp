@@ -880,9 +880,14 @@ void PlayerResource::periodicWork() {
             s = s.substr(12);
             uint32_t res = std::stol(s, nullptr, 16);
             piPowerBad = res & 0x1;
-            if (piPowerBad && !piPowerWarningAdded) {
-                WarningHolder::AddWarning("Raspberry Pi Voltage Too Low");
-                piPowerWarningAdded = true;
+            if (piPowerBad) {
+                piPowerWarningCount++;
+                if (piPowerWarningCount > 5 && !piPowerWarningAdded) {
+                    WarningHolder::AddWarning("Raspberry Pi Voltage Too Low");
+                    piPowerWarningAdded = true;
+                }
+            } else {
+                piPowerWarningCount = 0;
             }
         }
         #endif

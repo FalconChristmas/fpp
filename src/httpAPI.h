@@ -54,6 +54,7 @@ private:
     void SetErrorResult(Json::Value& result, const int respCode, const std::string& msg);
 
     int piPowerFile = -1;
+    int piPowerWarningCount = 0;
     bool piPowerWarningAdded = false;
 };
 
