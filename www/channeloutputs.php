@@ -144,7 +144,10 @@
             $currentCapeInfo['provides'][] = "udp";
         }
     }
-
+    if (isset($settings['cape-info'])) {
+        // update provides with additional stuff computed above
+        $settings['cape-info']["provides"] = $currentCapeInfo["provides"];
+    }
     ?>
 
     <script language="Javascript">
@@ -347,12 +350,11 @@
                                 if (isset($currentCapeInfo["labels"]) && isset($currentCapeInfo["labels"]["strings"])) {
                                     $stringTabText = $currentCapeInfo["labels"]["strings"];
                                 } else if (
-                                    (isset($settings['cape-info'])) &&
-                                    ((in_array('all', $settings['cape-info']["provides"])) || (in_array('strings', $settings['cape-info']["provides"]))) &&
+                                    ((in_array('all', $currentCapeInfo["provides"])) || (in_array('strings', $currentCapeInfo["provides"]))) &&
                                     (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")
                                 ) {
                                     $stringTabText = $currentCapeInfo["name"];
-                                    if (in_array('all', $settings['cape-info']["provides"]) || in_array('panels', $settings['cape-info']["provides"])) {
+                                    if (in_array('all', $currentCapeInfo["provides"]) || in_array('panels', $currentCapeInfo["provides"])) {
                                         $stringTabText .= " Pixel Strings";
                                     }
                                 }
@@ -396,12 +398,11 @@
 
                         $ledTabText = "LED Panels";
                         if (
-                            (isset($settings['cape-info'])) &&
-                            ((in_array('all', $settings['cape-info']["provides"])) || (in_array('panels', $settings['cape-info']["provides"]))) &&
+                            ((in_array('all', $currentCapeInfo["provides"])) || (in_array('panels', $currentCapeInfo["provides"]))) &&
                             (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")
                         ) {
                             $ledTabText = $currentCapeInfo["name"];
-                            if (in_array('all', $settings['cape-info']["provides"]) || in_array('strings', $settings['cape-info']["provides"])) {
+                            if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
                                 $ledTabText .= " LED Panels";
                             }
 

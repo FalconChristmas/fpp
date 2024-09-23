@@ -21,7 +21,7 @@ function readCapes($cd, $capes)
 
             if ($string != "") {
                 $json = json_decode($string, true);
-                if ($json['numSerial'] != 0 && isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported") {
+                if (isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported" && $json['numSerial'] != 0) {
                     // unsupported
                     continue;
                 } else if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
@@ -2320,8 +2320,8 @@ function readCapes($cd, $capes)
         <?
         if (
             (isset($settings['cape-info'])) &&
-            ((in_array('all', $settings['cape-info']["provides"])) ||
-                (in_array('strings', $settings['cape-info']["provides"])))
+            ((in_array('all', $currentCapeInfo["provides"])) ||
+                (in_array('strings', $currentCapeInfo["provides"])))
         ) {
             ?>
             if (currentCapeName != "" && currentCapeName != "Unknown") {

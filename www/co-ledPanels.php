@@ -1299,8 +1299,8 @@ $(document).ready(function(){
 
 <?
 if ((isset($settings['cape-info'])) &&
-    ((in_array('all', $settings['cape-info']["provides"])) ||
-        (in_array('panels', $settings['cape-info']["provides"])))) {
+    ((in_array('all', $currentCapeInfo["provides"])) ||
+        (in_array('panels', $currentCapeInfo["provides"])))) {
     ?>
     if (currentCapeName != "" && currentCapeName != "Unknown") {
         $('.capeNamePanels').html(currentCapeName);
