@@ -1299,14 +1299,11 @@ $(document).ready(function(){
 
 <?
 if ((isset($settings['cape-info'])) &&
-    ((in_array('all', $currentCapeInfo["provides"])) ||
-        (in_array('panels', $currentCapeInfo["provides"])))) {
+    ((in_array('panels', $currentCapeInfo["provides"])))) {
     ?>
     if (currentCapeName != "" && currentCapeName != "Unknown") {
         $('.capeNamePanels').html(currentCapeName);
-        $('.capeTypeLabel').html("Cape Config");
     }
-
 <?
 }
 ?>

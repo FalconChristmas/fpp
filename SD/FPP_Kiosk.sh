@@ -34,5 +34,10 @@ chown fpp:fpp /home/fpp/.bashrc
 
 echo "kiosk" > /etc/fpp/kiosk
 
+mkdir -p /etc/chromium/policies/managed/
+cat > /etc/chromium/policies/managed/policy.json
+{"RestoreOnStartup": 4,"RestoreOnStartupURLs": ["http://localhost/"]}
+EOF
+
 setSetting Kiosk 1
 setSetting rebootFlag 1

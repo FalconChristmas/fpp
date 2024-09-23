@@ -1089,28 +1089,33 @@ void detectFalconHardware() {
     setRawSetting("FalconHardwareDetected", fnd ? "1" : "0");
 #endif
 }
-void setupKiosk() {
+
+void setupKiosk(bool force = false) {
     int km = getRawSettingInt("Kiosk", 0);
-    if (FileExists("/fpp_kiosk")) {
-        unlink("/fpp_kiosk");
-        km = true;
-    }
-    if (km) {
+    if (km || force) {
         std::string url = "http://localhost/";
         getRawSetting("KioskUrl", url);
         std::string value = "{\"RestoreOnStartup\": 4,\"RestoreOnStartupURLs\": [\"" + url + "\"]}";
         mkdir("/etc/chromium/", 0775);
         mkdir("/etc/chromium/policies", 0775);
         mkdir("/etc/chromium/policies/managed", 0775);
-        PutFileContents("/etc/chromium/policies/managed/policy.json", value);
-        
-        if (!FileExists("/etc/fpp/kiosk")) {
-            // need to re-install kiosk mode
-            exec("/opt/fpp/SD/FPP_Kiosk.sh");
-            if (FileExists("/etc/fpp/kiosk")) {
-                exec("/usr/sbin/reboot");
-            }
+        PutFileContents("/etc/chromium/policies/managed/policy.json", value);   
+    }
+}
+
+void installKiosk() {
+    int km = getRawSettingInt("Kiosk", 0);
+    if (FileExists("/fpp_kiosk")) {
+        unlink("/fpp_kiosk");
+        km = true;
+    }
+    if (km && !FileExists("/etc/fpp/kiosk")) {
+        // need to re-install kiosk mode
+        exec("/opt/fpp/SD/FPP_Kiosk.sh");
+        if (FileExists("/etc/fpp/kiosk")) {
+            exec("/usr/sbin/reboot");
         }
+        setupKiosk(true);
     }
 }
 
@@ -1271,10 +1276,11 @@ int main(int argc, char* argv[]) {
         }
         configureBBB();
         setupChannelOutputs();
+        setupKiosk();
         checkUnpartitionedSpace();
         printf("Setting file ownership\n");
         setFileOwnership();
-	PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
+	    PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
     } else if (action == "postNetwork") {
         handleBootDelay();
         // turn off blinking cursor
@@ -1287,7 +1293,7 @@ int main(int argc, char* argv[]) {
             detectNetworkModules();
         }
         detectFalconHardware();
-        setupKiosk();
+        installKiosk();
         setFileOwnership();
     } else if (action == "bootPre") {
         int restart = getRawSettingInt("restartFlag", 0);

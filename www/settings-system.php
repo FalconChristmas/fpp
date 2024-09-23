@@ -43,10 +43,12 @@ function UploadAuthorizedKeys() {
 }
 
 function KioskInstallDone() {
+    SetRebootFlag();
     EnableModalDialogCloseButton("enableKioskPopup");
     $('#enableKioskPopupCloseButton').prop("disabled", false);
 }
 function DisableKiosk() {
+    SetSetting("Kiosk", 0, 0, 1);
     DisplayProgressDialog("enableKioskPopup", "Kiosk Frontend");
     StreamURL('disableKiosk.php', 'enableKioskPopupText', 'KioskInstallDone');
 }
