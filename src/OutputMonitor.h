@@ -68,12 +68,19 @@ private:
 
     std::map<std::string, const PinCapabilities*> fusePins;
     std::vector<PortPinInfo*> portPins;
+    std::list<PortPinInfo*> eFuseRetries;
+    bool retryTimerRunning = false;
     std::mutex gpioLock;
     int numGroups = 1;
     int curGroup = -1;
+
+    int eFuseRetryCount = 0;
+    int eFuseRetryInterval = 100;
 
     std::function<void(int port, int index, const std::string& cmd)> srCallback;
 
     void addEFuseWarning(PortPinInfo* port, int rec = 0);
     void clearEFuseWarning(PortPinInfo* port, int rec = 0);
+    bool checkEFuseRetry(PortPinInfo* port);
+    void processRetries();
 };

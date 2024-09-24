@@ -130,6 +130,8 @@
 			"description": "Output Control",
 			"settings": [
 				"AutoEnableOutputs",
+				"eFuseRetryCount",
+				"eFuseRetryInterval",
 				"alwaysTransmit",
 				"E131BridgingInterval"
 			]
@@ -440,6 +442,36 @@
 			"default": "1",
 			"type": "checkbox"
 		},
+		"eFuseRetryCount": {
+			"name": "eFuseRetryCount",
+			"description": "eFuse Retry Count",
+			"tip": "For controllers that use eFuse, this will allow FPP to automatically reset the eFuse and retry.  Useful for intermittent trips, particularly at port startup.  Default is disabled (0).",
+			"level": 1,
+			"gatherStats": true,
+			"restart": 2,
+			"reboot": 0,
+			"type": "number",
+			"default": 0,
+			"min": 0,
+			"max": 20,
+			"step": 1
+		},
+		"eFuseRetryInterval": {
+			"name": "eFuseRetryInterval",
+			"description": "eFuse Retry Time Interval",
+			"tip": "For controllers that use eFuse, time between retries when the eFuse triggers.",
+			"level": 1,
+			"gatherStats": true,
+			"restart": 2,
+			"reboot": 0,
+			"type": "number",
+			"default": 100,
+			"suffix": "ms",
+			"min": 100,
+			"max": 5000,
+			"step": 100
+		},
+
 		"alwaysTransmit": {
 			"name": "alwaysTransmit",
 			"description": "Always transmit channel data",
