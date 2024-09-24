@@ -222,7 +222,7 @@ echo "---------------------------------------"
 echo "Cleaning up"
 echo ""
 rm -rf /tmp/rootfs/etc/ssh/*key*
-ln -sf /lib/systemd/system/regenerate_ssh_host_keys.service /tmp/rootfs/etc/systemd/system/multi-user.target.wants/regenerate_ssh_host_keys.service
+
 
 rm -rf /tmp/rootfs/var/lib/connman/eth*
 find /tmp/rootfs/var/log/  -type f -delete

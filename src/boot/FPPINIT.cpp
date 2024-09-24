@@ -137,7 +137,7 @@ static void checkSSHKeys() {
     }
     printf("      - Regenerating SSH keys\n");
     if (FileExists("/dev/hwrng")) {
-        // if the hwrng exists, use it to see the urandom generator
+        // if the hwrng exists, use it to seed the urandom generator
         // with some random data
         exec("dd if=/dev/hwrng of=/dev/urandom count=1 bs=4096 status=none");
     }
@@ -544,7 +544,7 @@ static void setupNetwork() {
                         wpa.append("\"\n  psk=\"").append(interfaceSettings["PSK"]);
                     }
                     wpa.append("\"\n  key_mgmt=");
-                    if (!interfaceSettings["WPA3"].empty()) {                        
+                    if (!interfaceSettings["WPA3"].empty()) {
                         wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["PSK"]).append("\"");
                     } else {
                         wpa.append("WPA-PSK");
@@ -559,7 +559,7 @@ static void setupNetwork() {
                             wpa.append("\"\n  psk=\"").append(interfaceSettings["BACKUPPSK"]);
                         }
                         wpa.append("\"\n  key_mgmt=");
-                        if (!interfaceSettings["BACKUPWPA3"].empty()) {                        
+                        if (!interfaceSettings["BACKUPWPA3"].empty()) {
                             wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["PSK"]).append("\"");
                         } else {
                             wpa.append("WPA-PSK");
@@ -926,7 +926,7 @@ static void setupAudio() {
     std::map<std::string, std::string> cards;
     std::map<std::string, bool> hdmiStatus;
     bool hasNonHDMI = false;
-    for (auto & l : lines) {
+    for (auto& l : lines) {
         if (l.starts_with("card ")) {
             std::string k = l.substr(0, 6);
             std::string v = l.substr(8);
@@ -1099,7 +1099,7 @@ void setupKiosk(bool force = false) {
         mkdir("/etc/chromium/", 0775);
         mkdir("/etc/chromium/policies", 0775);
         mkdir("/etc/chromium/policies/managed", 0775);
-        PutFileContents("/etc/chromium/policies/managed/policy.json", value);   
+        PutFileContents("/etc/chromium/policies/managed/policy.json", value);
     }
 }
 
@@ -1280,7 +1280,7 @@ int main(int argc, char* argv[]) {
         checkUnpartitionedSpace();
         printf("Setting file ownership\n");
         setFileOwnership();
-	    PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
+        PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
     } else if (action == "postNetwork") {
         handleBootDelay();
         // turn off blinking cursor
