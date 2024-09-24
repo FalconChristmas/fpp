@@ -118,11 +118,11 @@ public:
             multiplier = s["multiplier"].asDouble();
         }
         int bus = I2C_DEV;
-        if (!FileExists(path)) {
-            //path doesn't exist, need to enable
+        if (!CheckForFile(path)) {
+            // path doesn't exist, need to enable
             if (bus == 2 && !HasI2CDevice(bus)) {
-                //wasn't found on the default bus of the BBB, we can
-                //try the other i2c bus
+                // wasn't found on the default bus of the BBB, we can
+                // try the other i2c bus
                 bus = 1;
                 size_t start_pos = path.find("/i2c-2");
                 if (start_pos != std::string::npos) {
@@ -140,12 +140,12 @@ public:
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             count++;
         }
-        //after 0.5 seconds, still doesn't exist
+        // after 0.5 seconds, still doesn't exist
         if (CheckForFile(path)) {
             file = open(path.c_str(), O_RDONLY);
         } else if (HasI2CDevice(bus) && driver == "lm75") {
-            //Kernel 4.19 on Pi seems to not like the lm75 chips, we'll need to read the values directly
-            //switch to rawIO
+            // Kernel 4.19 on Pi seems to not like the lm75 chips, we'll need to read the values directly
+            // switch to rawIO
             int add = strtol(address.c_str(), nullptr, 16);
             i2cUtils = new I2CUtils(bus, add);
         }
@@ -193,7 +193,7 @@ public:
                 int t = (ret >> 8) & 0xFF;
                 t |= (ret << 8) & 0xFF00;
                 if (t & 0x8000) {
-                    //negative temperature
+                    // negative temperature
                     t |= 0xFFFF0000;
                 }
                 t = t >> 5;
@@ -295,8 +295,8 @@ public:
         if (file == -1 && errcount < 10) {
             char path[256];
             snprintf(path, sizeof(path), "/sys/bus/iio/devices/iio:device0/in_voltage%s_raw", address.c_str());
-            //need to use low level calls for reading from sysfs
-            //to avoid any buffering that ifstream does
+            // need to use low level calls for reading from sysfs
+            // to avoid any buffering that ifstream does
             if (FileExists(path)) {
                 file = open(path, O_RDONLY);
                 errcount = errcount + 1;
@@ -310,7 +310,7 @@ public:
             buffer[i] = 0;
             double d = atof(buffer);
 
-            d /= 4096; //12 bit a2d
+            d /= 4096; // 12 bit a2d
             d *= (max - min + 1);
             d += min;
             return d;
@@ -349,7 +349,7 @@ public:
             if (i > 0) {
                 buffer[i] = 0;
                 d = std::atof(buffer);
-                d /= 1000; //12 bit a2d
+                d /= 1000; // 12 bit a2d
             }
             return d;
         }
@@ -402,7 +402,7 @@ SensorSource* Sensors::getSensorSource(const std::string& name) {
         }
     }
     if (name == "iio") {
-        //default the iio name if requested
+        // default the iio name if requested
         Json::Value v;
         v["type"] = "iio";
         v["id"] = "iio";

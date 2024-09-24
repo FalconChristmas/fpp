@@ -1019,7 +1019,7 @@ private:
                             setFilePerms(target);
                         }
                     }
-                    if (result.isMember("i2cDevices")) {
+                    if (result.isMember("i2cDevices") && !readOnly) {
                         // if the cape has i2c devices on it that need to be registered, load them at this
                         // time so they will be available later
                         for (int x = 0; x < result["i2cDevices"].size(); x++) {
