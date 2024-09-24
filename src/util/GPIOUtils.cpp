@@ -103,7 +103,7 @@ bool GPIODCapabilities::supportsPullDown() const {
 }
 
 #ifdef HASGPIOD
-constexpr int MAX_GPIOD_CHIPS = 15;
+constexpr int MAX_GPIOD_CHIPS = 32;
 class GPIOChipHolder {
 public:
     static GPIOChipHolder INSTANCE;
@@ -117,8 +117,12 @@ int GPIODCapabilities::configPin(const std::string& mode,
 #ifdef HASGPIOD
     if (chip == nullptr) {
         if (!GPIOChipHolder::INSTANCE.chips[gpioIdx]) {
-            std::string n = std::to_string(gpioIdx);
-            GPIOChipHolder::INSTANCE.chips[gpioIdx].open(n, gpiod::chip::OPEN_BY_NUMBER);
+            if (gpioName.empty()) {
+                std::string n = std::to_string(gpioIdx);
+                GPIOChipHolder::INSTANCE.chips[gpioIdx].open(n, gpiod::chip::OPEN_BY_NUMBER);
+            } else {
+                GPIOChipHolder::INSTANCE.chips[gpioIdx].open(gpioName, gpiod::chip::OPEN_BY_NAME);
+            }
         }
         chip = &GPIOChipHolder::INSTANCE.chips[gpioIdx];
         line = chip->get_line(gpio);
@@ -199,9 +203,7 @@ void PinCapabilities::InitGPIO(const std::string& process, PinCapabilitiesProvid
                     found.insert(label);
                     for (int x = 0; x < a.num_lines(); x++) {
                         std::string n = label + "-" + std::to_string(x);
-                        GPIODCapabilities caps(n, pinCount + x);
-                        caps.setGPIO(chipCount, x);
-                        GPIOD_PINS.push_back(GPIODCapabilities(n, pinCount + x).setGPIO(chipCount, x));
+                        GPIOD_PINS.push_back(GPIODCapabilities(n, pinCount + x, name).setGPIO(chipCount, x));
                     }
                 }
                 pinCount += a.num_lines();

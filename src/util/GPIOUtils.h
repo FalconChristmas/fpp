@@ -119,8 +119,8 @@ public:
 
 class GPIODCapabilities : public PinCapabilitiesFluent<GPIODCapabilities> {
 public:
-    GPIODCapabilities(const std::string& n, uint32_t kg) :
-        PinCapabilitiesFluent(n, kg) {}
+    GPIODCapabilities(const std::string& n, uint32_t kg, const std::string& gn = "") :
+        PinCapabilitiesFluent(n, kg), gpioName(gn) {}
 
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true) const override;
@@ -140,6 +140,7 @@ public:
     virtual void releaseGPIOD() const override;
 
 #ifdef HASGPIOD
+    std::string gpioName;
     mutable gpiod::chip* chip = nullptr;
     mutable gpiod::line line;
     mutable int lastRequestType = 0;
