@@ -552,7 +552,7 @@ static void setupNetwork() {
                     if (!interfaceSettings["HIDDEN"].empty()) {
                         wpa.append("\n  scan_ssid=1");
                     }
-                    wpa.append("\n  priority=100\n  ieee80211w=2\n}\n\n");
+                    wpa.append("\n  priority=100\n  ieee80211w=1\n}\n\n");
                     if (!interfaceSettings["BACKUPSSID"].empty() && interfaceSettings["BACKUPSSID"] != "\"\"") {
                         wpa.append("\nnetwork={\n  ssid=\"").append(interfaceSettings["BACKUPSSID"]);
                         if (!interfaceSettings["BACKUPPSK"].empty()) {
@@ -567,7 +567,7 @@ static void setupNetwork() {
                         if (!interfaceSettings["BACKUPHIDDEN"].empty()) {
                             wpa.append("\n  scan_ssid=1");
                         }
-                        wpa.append("\n  priority=90\n  ieee80211w=2\n}\n\n");
+                        wpa.append("\n  priority=90\n  ieee80211w=1\n}\n\n");
                     }
                     filesNeeded["/etc/wpa_supplicant/wpa_supplicant-" + interface + ".conf"] = wpa;
                     commandsToRun.emplace_back("systemctl enable \"wpa_supplicant@" + interface + ".service\" &");
