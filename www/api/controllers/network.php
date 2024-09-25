@@ -143,10 +143,13 @@ function network_save_dns()
         return;
     }
 
-    fprintf($f,
+    fprintf(
+        $f,
         "DNS1=\"%s\"\n" .
         "DNS2=\"%s\"\n",
-        $data['DNS1'], $data['DNS2']);
+        $data['DNS1'],
+        $data['DNS2']
+    );
     fclose($f);
 
     //Trigger a JSON Configuration Backup
@@ -302,35 +305,51 @@ function network_set_interface()
     }
 
     if ($data['PROTO'] == "static") {
-        fprintf($f,
+        fprintf(
+            $f,
             "INTERFACE=\"%s\"\n" .
             "PROTO=\"static\"\n" .
             "ADDRESS=\"%s\"\n" .
             "NETMASK=\"%s\"\n" .
             "GATEWAY=\"%s\"\n",
-            $data['INTERFACE'], $data['ADDRESS'], $data['NETMASK'],
-            $data['GATEWAY']);
+            $data['INTERFACE'],
+            $data['ADDRESS'],
+            $data['NETMASK'],
+            $data['GATEWAY']
+        );
 
     } else if ($data['PROTO'] == "dhcp") {
-        fprintf($f,
+        fprintf(
+            $f,
             "INTERFACE=%s\n" .
             "PROTO=dhcp\n",
-            $data['INTERFACE']);
+            $data['INTERFACE']
+        );
     }
 
     if (substr($data['INTERFACE'], 0, 2) == "wl") {
-        fprintf($f,
+        fprintf(
+            $f,
             "SSID=\"%s\"\n" .
             "PSK=\"%s\"\n" .
             "HIDDEN=%s\n" .
             "WPA3=%s\n",
-            $data['SSID'], $data['PSK'], $data['HIDDEN'],  $data['WPA3']);
-        fprintf($f,
+            $data['SSID'],
+            $data['PSK'],
+            $data['HIDDEN'],
+            $data['WPA3']
+        );
+        fprintf(
+            $f,
             "BACKUPSSID=\"%s\"\n" .
             "BACKUPPSK=\"%s\"\n" .
             "BACKUPHIDDEN=%s\n" .
             "BACKUPWPA3=%s\n",
-            $data['BACKUPSSID'], $data['BACKUPPSK'], $data['BACKUPHIDDEN'], $data['BACKUPWPA3']);
+            $data['BACKUPSSID'],
+            $data['BACKUPPSK'],
+            $data['BACKUPHIDDEN'],
+            $data['BACKUPWPA3']
+        );
     }
     if (isset($data['DHCPSERVER'])) {
         fprintf($f, "DHCPSERVER=%d\n", $data['DHCPSERVER'] ? "1" : 0);
@@ -373,6 +392,6 @@ function network_apply_interface()
 
     $interface = params('interface');
 
-    exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface", $output);
+    exec($SUDO . " " . $settings['fppDir'] . "/src/fppinit setupNetwork $interface", $output);
     return json(array("status" => "OK", "output" => $output));
 }
