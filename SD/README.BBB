@@ -67,8 +67,8 @@ systemctl enable systemd-resolved
 
 #check
 cd /root
-export BASE_NEW_KERNEL_VERSION=6.6.44-fpp16
-export NEW_KERNEL_VERSION=6.6.44-fpp16_1
+export BASE_NEW_KERNEL_VERSION=6.11.0-fpp7
+export NEW_KERNEL_VERSION=6.11.0-fpp7_1
 wget -4 https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${NEW_KERNEL_VERSION}_armhf.deb
 # wget -4 https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-${NEW_KERNEL_VERSION}_armhf.deb
 dpkg -i *.deb
