@@ -11,6 +11,29 @@
  * included LICENSE.LGPL file.
  */
 
+#include <functional>
+#include <map>
 #include <string>
 
 int ping(std::string target, int timeoutms);
+
+class PingManager {
+public:
+    class PingInfo;
+
+    static PingManager INSTANCE;
+
+    PingManager();
+    ~PingManager();
+
+    void Initialize();
+    void Cleanup();
+
+    void ping(const std::string& target, int timeout, std::function<void(int)>&& callback);
+
+    void addPeriodicPing(const std::string& target, int timeout, int period, std::function<void(int)>&& callback);
+    void removePeriodicPing(const std::string& target);
+
+private:
+    PingInfo* info = nullptr;
+};

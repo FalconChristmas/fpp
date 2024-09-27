@@ -71,6 +71,7 @@
 #include "fppversion.h"
 #include "gpio.h"
 #include "httpAPI.h"
+#include "ping.h"
 #include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/channeloutputthread.h"
 #include "channeltester/ChannelTester.h"
@@ -728,6 +729,7 @@ int main(int argc, char* argv[]) {
 
     InitMediaOutput();
     PixelOverlayManager::INSTANCE.Initialize();
+    PingManager::INSTANCE.Initialize();
     InitializeChannelOutputs();
     PluginManager::INSTANCE.loadUserPlugins();
 
@@ -750,6 +752,7 @@ int main(int argc, char* argv[]) {
     CleanupMediaOutput();
     CloseEffects();
     CloseChannelOutputs();
+    PingManager::INSTANCE.Cleanup();
     OutputMonitor::INSTANCE.Cleanup();
     CommandManager::INSTANCE.Cleanup();
     MultiSync::INSTANCE.ShutdownSync();

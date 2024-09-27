@@ -114,7 +114,6 @@ public:
 
     virtual void DumpConfig(void) override;
 
-    void BackgroundThreadPing();
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
     void addOutput(UDPOutputData*);
@@ -146,12 +145,8 @@ private:
 
     int networkCallbackId;
 
-    bool PingControllers(bool failedOnly = false);
-    volatile bool runPingThread;
-    std::thread* pingThread;
-    std::mutex pingThreadMutex;
-    std::condition_variable pingThreadCondition;
-    CURLM* m_curlm;
+    void PingControllers(bool failedOnly);
+    std::atomic_int failedCount;
 
     class WorkItem {
     public:

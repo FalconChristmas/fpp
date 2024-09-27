@@ -19,6 +19,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <iostream>
+#include <poll.h>
 #include <unistd.h>
 
 #include "ping.h"
@@ -32,17 +33,16 @@
 
 using namespace std;
 
-uint16_t in_cksum(uint16_t* addr, unsigned len);
-
 #define DEFDATALEN (64 - ICMP_MINLEN) /* default data length */
 #define MAXIPLEN 60
 #define MAXICMPLEN 76
 #define MAXPACKET (65536 - 60 - ICMP_MINLEN) /* max packet size */
 
-static int pingSocket = -1;
-
-inline uint16_t in_cksum(uint16_t* addr, unsigned len) {
+inline void in_cksum(struct icmp* icp, unsigned len) {
+    icp->icmp_cksum = 0;
+    uint16_t* addr = (uint16_t*)icp;
     uint16_t answer = 0;
+
     /*
      * Our algorithm is simple, using a 32 bit accumulator (sum), we add
      * sequential 16 bit words to it, and at the end, fold back all the
@@ -64,153 +64,306 @@ inline uint16_t in_cksum(uint16_t* addr, unsigned len) {
     sum = (sum >> 16) + (sum & 0xffff); // add high 16 to low 16
     sum += (sum >> 16);                 // add carry
     answer = ~sum;                      // truncate to 16 bits
-    return answer;
+    icp->icmp_cksum = answer;
 }
 
-int ping(string target, int timeoutMs) {
-    int i, cc, packlen, datalen = DEFDATALEN;
-    struct hostent* hp;
-    struct sockaddr_in to, from;
-    //struct protoent    *proto;
-    struct ip* ip;
-    u_char packet[DEFDATALEN + MAXIPLEN + MAXICMPLEN];
+int ping(std::string target, int timeoutMs) {
+    volatile int ret = -2;
+    PingManager::INSTANCE.ping(target, timeoutMs, [&ret](int i) { ret = i; });
+    while (ret == -2 && timeoutMs > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        --timeoutMs;
+    }
+    return ret;
+}
+
+class PingTarget {
+public:
+    std::string hostname;
     u_char outpack[MAXPACKET];
-    char hnamebuf[MAXHOSTNAMELEN];
-
-    string hostname;
+    struct sockaddr_in to;
     struct icmp* icp;
-    int ret, fromlen, hlen;
-    fd_set rfds;
-    struct timeval tv;
-    int retval;
-    struct timeval start, end;
-    int /*start_t, */ end_t;
-    bool cont = true;
-    int icmpID = getpid() & 0xFFFF;
+    bool valid = true;
+    std::function<void(int)> callback;
+    long long startTime;
+    long long timeoutMS;
+    int period = 0;
 
-    memset(outpack, 0, sizeof(outpack));
-    memset(packet, 0, sizeof(packet));
-    memset(hnamebuf, 0, sizeof(hnamebuf));
-    memset(&to, 0, sizeof(to));
-    memset(&from, 0, sizeof(to));
-
-    to.sin_family = AF_INET;
-
-    // try to convert as dotted decimal address, else if that fails assume it's a hostname
-    to.sin_addr.s_addr = inet_addr(target.c_str());
-    if (to.sin_addr.s_addr != (u_int)-1)
+    PingTarget(const std::string& target, int timeout, std::function<void(int)> cb) :
+        callback(cb) {
+        startTime = GetTimeMS();
+        timeoutMS = timeout;
         hostname = target;
-    else {
-        hp = gethostbyname(target.c_str());
-        if (!hp) {
-            cerr << "unknown host " << target << endl;
-            return -1;
-        }
-        to.sin_family = hp->h_addrtype;
-        bcopy(hp->h_addr, (caddr_t)&to.sin_addr, hp->h_length);
-        strncpy(hnamebuf, hp->h_name, sizeof(hnamebuf) - 1);
-        hostname = hnamebuf;
-    }
-    packlen = datalen + MAXIPLEN + MAXICMPLEN;
+        memset(outpack, 0, sizeof(outpack));
+        memset(&to, 0, sizeof(to));
 
-    /*
-     if ( (proto = getprotobyname("icmp")) == NULL)
-     {
-     cerr << "unknown protocol icmp" << endl;
-     return -1;
-     }
-     */
-    if (pingSocket == -1) {
-        if (getuid()) {
-            pingSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
-        } else {
-            pingSocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-        }
-        if (pingSocket < 0) {
-            perror("socket"); /* probably not running as superuser */
-            return -1;
-        }
-    }
+        to.sin_family = AF_INET;
 
-    icp = (struct icmp*)outpack;
-    icp->icmp_type = ICMP_ECHO;
-    icp->icmp_code = 0;
-    icp->icmp_cksum = 0;
-
-    int ipad = to.sin_addr.s_addr;
-    ipad >>= 16;
-    ipad &= 0xFFFF;
-    icp->icmp_seq = ipad; /* seq and id must be reflected */
-    icp->icmp_id = icmpID;
-
-    cc = datalen + ICMP_MINLEN;
-    icp->icmp_cksum = in_cksum((unsigned short*)icp, cc);
-
-    gettimeofday(&start, NULL);
-
-    i = sendto(pingSocket, (char*)outpack, cc, 0, (struct sockaddr*)&to, (socklen_t)sizeof(struct sockaddr_in));
-    if (i < 0 || i != cc) {
-        if (i < 0)
-            perror("sendto error");
-        //cout << "wrote " << hostname << " " <<  cc << " chars, ret= " << i << endl;
-    }
-
-    // Watch stdin (fd 0) to see when it has input.
-    FD_ZERO(&rfds);
-    FD_SET(pingSocket, &rfds);
-    tv.tv_sec = 0;
-    tv.tv_usec = timeoutMs * 1000;
-
-    while (cont) {
-        retval = select(pingSocket + 1, &rfds, NULL, NULL, &tv);
-        if (retval == -1) {
-            perror("select()");
-            return -1;
-        } else if (retval) {
-            fromlen = sizeof(sockaddr_in);
-            if ((ret = recvfrom(pingSocket, (char*)packet, packlen, 0, (struct sockaddr*)&from, (socklen_t*)&fromlen)) < 0) {
-                perror("recvfrom error");
-                return -1;
+        // try to convert as dotted decimal address, else if that fails assume it's a hostname
+        to.sin_addr.s_addr = inet_addr(target.c_str());
+        if (to.sin_addr.s_addr != (u_int)-1)
+            hostname = target;
+        else {
+            struct hostent* hp;
+            hp = gethostbyname(target.c_str());
+            if (!hp) {
+                valid = false;
+                cb(-1);
+                return;
             }
+            to.sin_family = hp->h_addrtype;
+            bcopy(hp->h_addr, (caddr_t)&to.sin_addr, hp->h_length);
+        }
 
-            // Check the IP header
-            ip = (struct ip*)((char*)packet);
-            hlen = sizeof(struct ip);
-            if (ret < (hlen + ICMP_MINLEN)) {
-                //cerr << "packet too short (" << ret  << " bytes) from " << hostname << endl;;
-                return -1;
-            }
+        icp = (struct icmp*)outpack;
+        icp->icmp_type = ICMP_ECHO;
+        icp->icmp_code = 0;
+        icp->icmp_cksum = 0;
 
-            // Now the ICMP part
-            icp = (struct icmp*)(packet + hlen);
-            if (icp->icmp_type == ICMP_ECHOREPLY) {
-                //cout << "Recv: echo reply"<< endl;
-                if (icp->icmp_seq != ipad) {
-                    //cout << "received sequence # " << icp->icmp_seq << endl;
-                    continue;
-                }
-                if (icp->icmp_id != icmpID) {
-                    //cout << "received id " << icp->icmp_id << endl;
-                    continue;
-                }
-                cont = false;
+        int ipad = to.sin_addr.s_addr;
+        ipad >>= 16;
+        ipad &= 0xFFFF;
+        icp->icmp_seq = ipad; /* seq and id must be reflected */
+        icp->icmp_id = std::rand() & 0xFF;
+
+        int cc = DEFDATALEN + ICMP_MINLEN;
+        in_cksum(icp, cc);
+
+        icp = (struct icmp*)outpack;
+        icp->icmp_type = ICMP_ECHO;
+        icp->icmp_code = 0;
+        icp->icmp_cksum = 0;
+    }
+    void revalidate() {
+        if (!valid) {
+            struct hostent* hp;
+            hp = gethostbyname(hostname.c_str());
+            if (!hp) {
+                callback(-1);
             } else {
-                //cout << "Recv: not an echo reply" << endl;
-                continue;
+                valid = true;
             }
-
-            gettimeofday(&end, NULL);
-            end_t = 1000000 * (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec);
-
-            if (end_t < 1)
-                end_t = 1;
-
-            //cout << "Elapsed time = " << end_t << " usec" << endl;
-            return end_t;
-        } else {
-            //cout << "No data within 1/4 second.\n";
-            return 0;
         }
     }
-    return 0;
+};
+
+class PingManager::PingInfo {
+public:
+    PingInfo() {
+    }
+    ~PingInfo() {}
+
+    void Initialize() {
+        if (getuid()) {
+            pingSocket = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_ICMP);
+        } else {
+            pingSocket = socket(AF_INET, SOCK_RAW | SOCK_NONBLOCK, IPPROTO_ICMP);
+        }
+        isRunning = 1;
+
+        pingThread = new std::thread(&PingManager::PingInfo::runPingLoop, this);
+    }
+    void Cleanup() {
+        isRunning = 0;
+        PingTarget t("127.0.0.1", 100, [](int i) {});
+        sendPing(&t); // this will trigger a response which will speed up shutdown
+        if (pingThread->joinable()) {
+            pingThread->join();
+        }
+        delete pingThread;
+        pingThread = nullptr;
+        if (pingSocket >= 0) {
+            close(pingSocket);
+        }
+        isRunning = 0;
+        for (auto& t : targets) {
+            delete t;
+        }
+        targets.clear();
+    }
+
+    void addPeriodicPing(const std::string& target, int timeout, int period, std::function<void(int)> callback) {
+        std::unique_lock<std::mutex> lock(targetLock);
+        for (auto t : periodics) {
+            if (t->hostname == target && t->period) {
+                t->timeoutMS = timeout;
+                t->period = period;
+                targets.push_back(t);
+                lock.unlock();
+                sendPing(t);
+                return;
+            }
+        }
+        // didn't find it
+        PingTarget* t = new PingTarget(target, timeout, callback);
+        if (t->valid) {
+            t->callback = callback;
+            t->period = period;
+            targets.push_back(t);
+            periodics.push_back(t);
+            lock.unlock();
+            sendPing(t);
+        } else {
+            delete t;
+        }
+    }
+    void removePeriodicPing(const std::string& target) {
+        std::unique_lock<std::mutex> lock(targetLock);
+        for (auto t : periodics) {
+            if (t->hostname == target && t->period) {
+                targets.remove(t);
+                periodics.remove(t);
+                delete t;
+                return;
+            }
+        }
+    }
+    void runPingLoop() {
+        SetThreadName("FPP-PingThread");
+        u_char packet[DEFDATALEN + MAXIPLEN + MAXICMPLEN];
+        struct sockaddr_in from;
+        struct ip* ip;
+        struct icmp* icp;
+
+        memset(packet, 0, sizeof(packet));
+        memset(&from, 0, sizeof(from));
+
+        struct pollfd rfds[2];
+        rfds[0].fd = pingSocket;
+        rfds[0].events = POLLIN;
+
+        while (isRunning == 1) {
+            std::list<PingTarget*> toRemove;
+
+            int retval = poll(rfds, 1, 250);
+            long long curTime = GetTimeMS();
+            if (retval == -1) {
+                printf("select() -1\n");
+            } else if (retval) {
+                int fromlen = sizeof(sockaddr_in);
+                int ret = recvfrom(pingSocket, (char*)packet, sizeof(packet), 0, (struct sockaddr*)&from, (socklen_t*)&fromlen);
+                if (ret < 0) {
+                    continue;
+                }
+                // Check the IP header
+                ip = (struct ip*)((char*)packet);
+                int hlen = sizeof(struct ip);
+                if (ret >= (hlen + ICMP_MINLEN)) {
+                    // Now the ICMP part
+                    icp = (struct icmp*)(packet + hlen);
+                    if (icp->icmp_type == ICMP_ECHOREPLY) {
+                        std::list<PingTarget*> toCall;
+                        std::unique_lock<std::mutex> lock(targetLock);
+                        int ipadf = from.sin_addr.s_addr;
+                        for (auto t : targets) {
+                            int ipad = t->to.sin_addr.s_addr;
+                            if (t->icp->icmp_seq == icp->icmp_seq && ipad == ipadf && icp->icmp_id == t->icp->icmp_id) {
+                                toCall.push_back(t);
+                                toRemove.push_back(t);
+                            }
+                        }
+                        lock.unlock();
+                        for (auto t : toCall) {
+                            long long l = curTime - t->startTime;
+                            if (l == 0) {
+                                l = 1;
+                            }
+                            t->callback((int)l);
+                        }
+                    } else {
+                        // printf("Not echo\n");
+                    }
+                }
+            } else {
+                std::unique_lock<std::mutex> lock(targetLock);
+                for (auto t : targets) {
+                    long long tt = t->startTime;
+                    tt += t->timeoutMS;
+                    if (curTime > tt) {
+                        t->callback(0);
+                        toRemove.push_back(t);
+                    }
+                }
+                lock.unlock();
+            }
+            std::unique_lock<std::mutex> lock(targetLock);
+            for (auto t : toRemove) {
+                targets.remove(t);
+                if (t->period == 0) {
+                    delete t;
+                }
+            }
+            for (auto t : periodics) {
+                long long st = t->startTime;
+                st += t->period;
+                if (curTime > st) {
+                    if (!t->valid) {
+                        t->revalidate();
+                    }
+                    if (t->valid) {
+                        t->startTime = GetTimeMS();
+                        targets.push_back(t);
+                        sendPing(t);
+                    }
+                }
+            }
+            lock.unlock();
+        }
+        isRunning = -1;
+    }
+
+    void sendPing(PingTarget* target) {
+        int cc = DEFDATALEN + ICMP_MINLEN;
+        target->icp->icmp_seq++;
+        in_cksum(target->icp, cc);
+        sendto(pingSocket, (char*)target->outpack, cc, 0, (struct sockaddr*)&target->to, (socklen_t)sizeof(struct sockaddr_in));
+    }
+    void ping(const std::string& target, int timeout, std::function<void(int)> callback) {
+        PingTarget* t = new PingTarget(target, timeout, callback);
+        if (t->valid) {
+            t->callback = callback;
+            std::unique_lock<std::mutex> lock(targetLock);
+            targets.push_back(t);
+            lock.unlock();
+            sendPing(t);
+        } else {
+            delete t;
+        }
+    }
+
+    int pingSocket = -1;
+    volatile int isRunning = 0;
+    std::thread* pingThread;
+    std::list<PingTarget*> targets;
+    std::list<PingTarget*> periodics;
+    std::mutex targetLock;
+};
+
+PingManager PingManager::INSTANCE;
+
+PingManager::PingManager() {
+    info = new PingInfo();
+}
+
+PingManager::~PingManager() {
+    delete info;
+}
+
+void PingManager::Initialize() {
+    info->Initialize();
+}
+void PingManager::Cleanup() {
+    info->Cleanup();
+}
+
+void PingManager::addPeriodicPing(const std::string& target, int timeout, int period, std::function<void(int)>&& callback) {
+    info->addPeriodicPing(target, timeout, period, [callback](int i) { callback(i); });
+}
+
+void PingManager::removePeriodicPing(const std::string& target) {
+    info->removePeriodicPing(target);
+}
+
+void PingManager::ping(const std::string& target, int timeout, std::function<void(int)>&& callback) {
+    info->ping(target, timeout, callback);
 }
