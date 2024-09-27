@@ -9,6 +9,9 @@
  * This source file is covered under the LGPL v2.1 as described in the
  * included LICENSE.LGPL file.
  */
+// This #define must be before any #include's
+#define _FILE_OFFSET_BITS 64
+#define __STDC_FORMAT_MACROS
 
 #include "common_mini.h"
 
