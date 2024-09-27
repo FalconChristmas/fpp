@@ -44,6 +44,10 @@ ifeq '$(SRCDIR)' ''
 endif
 
 ifeq '$(CXXCOMPILER)' 'g++'
+	GITBRANCH := $(shell git -C $(SRCDIR) rev-parse --abbrev-ref HEAD)
+	ifeq ($(GITBRANCH), master)
+	OPTIMIZE_FLAGS=-g1
+	endif
     GCCVERSIONGTEQ12:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 12)
     # Common CFLAGS
 ifeq ($(DISTCC_HOSTS),)
@@ -52,7 +56,7 @@ ifeq ($(DISTCC_HOSTS),)
 else
 	CFLAGS+=-DNOPCH
 endif
-    OPTIMIZE_FLAGS=-O3 -Wno-psabi
+    OPTIMIZE_FLAGS+=-O3 -Wno-psabi
     debug: OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
 	ifeq '$(FPPDEBUG)' '1'
 	    OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
