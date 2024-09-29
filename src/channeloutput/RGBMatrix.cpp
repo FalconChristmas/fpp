@@ -68,9 +68,12 @@ RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
 RGBMatrixOutput::~RGBMatrixOutput() {
     LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::~RGBMatrixOutput()\n");
 
-    delete m_rgbmatrix;
-    delete m_matrix;
-    delete m_panelMatrix;
+    if (m_rgbmatrix)
+        delete m_rgbmatrix;
+    if (m_matrix)
+        delete m_matrix;
+    if (m_panelMatrix)
+        delete m_panelMatrix;
 }
 
 /*
@@ -78,6 +81,11 @@ RGBMatrixOutput::~RGBMatrixOutput() {
  */
 int RGBMatrixOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::Init(JSON)\n");
+
+    if (startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5")) {
+        LogErr(VB_CHANNELOUT, "RGBMatrix does work on Raspberry Pi 5\n");
+        return 0;
+    }
 
     m_panelWidth = config["panelWidth"].asInt();
     m_panelHeight = config["panelHeight"].asInt();

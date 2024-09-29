@@ -48,8 +48,8 @@ public:
     virtual bool SupportsTesting() const override { return true; }
 
 private:
-    FrameCanvas* m_canvas;
-    RGBMatrix* m_rgbmatrix;
+    FrameCanvas* m_canvas = nullptr;
+    RGBMatrix* m_rgbmatrix = nullptr;
     std::string m_layout;
     std::string m_colorOrder;
 
@@ -63,8 +63,8 @@ private:
     int m_longestChain;
     int m_invertedData;
 
-    Matrix* m_matrix;
-    PanelMatrix* m_panelMatrix;
+    Matrix* m_matrix = nullptr;
+    PanelMatrix* m_panelMatrix = nullptr;
 
     uint8_t m_gammaCurve[256];
 };
