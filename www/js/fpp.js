@@ -4575,6 +4575,18 @@ function updateWarnings (jsonStatus) {
 				}
 			});
 		}
+        var txt = '<b>Abnormal Conditions - May cause poor performance or other issues';
+        var hasID = false;
+        for (var i = 0; i < currentWarnings.length; i++) {
+			var warningID = currentWarnings[i]['id'];
+            if (warningID != 0) {
+                hasID = true;
+            }
+        }
+        if (hasID) {
+            txt += ' (Click link icon for help)';
+        }
+        txt += '</b><br/><ul style="list-style-type: none;">';
 
 		for (var i = 0; i < currentWarnings.length; i++) {
 			var warningID = currentWarnings[i]['id'];
