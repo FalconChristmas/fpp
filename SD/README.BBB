@@ -207,8 +207,8 @@ rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-VERSION=8.0
-OSVERSION=2024-09
+VERSION=8.1
+OSVERSION=2024-10
 DEVICE=/dev/sdc
 dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 
