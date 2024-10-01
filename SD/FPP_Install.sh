@@ -48,7 +48,7 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2024-09"
+FPPIMAGEVER="2024-10"
 FPPCFGVER="89"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
