@@ -180,7 +180,12 @@ bool HasAudioForMedia(std::string& mediaFilename) {
     std::string hostname = getSetting("HostName");
     if (hostname != "") {
         std::size_t found = mediaFilename.find_last_of(".");
-        std::string hostMediaPath = mediaFilename.substr(0, found) + "-" + hostname + mediaFilename.substr(found);
+        std::string hostMediaPath;
+        if (found != std::string::npos) {
+            hostMediaPath = mediaFilename.substr(0, found) + "-" + hostname + mediaFilename.substr(found);
+        } else {
+            hostMediaPath = mediaFilename + "-" + hostname;
+        }
         if (FileExists(hostMediaPath)) {
             mediaFilename = hostMediaPath;
             return true;
@@ -211,7 +216,7 @@ bool HasVideoForMedia(std::string& filename) {
     return fp != "";
 }
 
-static bool IsHDMIOut(std::string &vOut) {
+static bool IsHDMIOut(std::string& vOut) {
     if (vOut == "--HDMI--" || vOut == "HDMI") {
         vOut = "HDMI-A-1";
     }
@@ -223,7 +228,7 @@ static bool IsHDMIOut(std::string &vOut) {
                 return !contains(status, "disconnected");
             }
         }
-    } 
+    }
     return false;
 }
 
@@ -264,86 +269,91 @@ int OpenMediaOutput(const char* filename) {
     LogDebug(VB_MEDIAOUT, "OpenMediaOutput(%s)\n", filename);
 
     std::unique_lock<std::mutex> lock(mediaOutputLock);
-    if (mediaOutput) {
+
+    try {
+        if (mediaOutput) {
+            lock.unlock();
+            CloseMediaOutput();
+        }
         lock.unlock();
-        CloseMediaOutput();
-    }
-    lock.unlock();
 
-    std::string tmpFile(filename);
-    std::size_t found = tmpFile.find_last_of(".");
-    if (found == std::string::npos) {
-        LogDebug(VB_MEDIAOUT, "Unable to determine extension of media file %s\n",
-                 tmpFile.c_str());
-        return 0;
-    }
-    std::string ext = toLowerCopy(tmpFile.substr(found + 1));
-
-    if (getFPPmode() == REMOTE_MODE) {
-        std::string orgTmp = tmpFile;
-        tmpFile = GetVideoFilenameForMedia(tmpFile, ext);
-        if (tmpFile == "" && HasAudioForMedia(orgTmp)) {
-            tmpFile = orgTmp;
-        }
-
-        if (tmpFile == "") {
-            // For v1.0 MultiSync, we can't sync audio to audio, so check for
-            // a video file if the master is playing an audio file
-            // video doesn't exist, punt
-            tmpFile = filename;
-            if (alreadyWarned.find(tmpFile) == alreadyWarned.end()) {
-                alreadyWarned.emplace(tmpFile);
-                LogDebug(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename);
-            }
+        std::string tmpFile(filename);
+        std::size_t found = tmpFile.find_last_of(".");
+        if (found == std::string::npos) {
+            LogDebug(VB_MEDIAOUT, "Unable to determine extension of media file %s\n",
+                     tmpFile.c_str());
             return 0;
-        } else {
-            LogDebug(VB_MEDIAOUT,
-                     "Player is playing %s audio, remote will try %s\n",
-                     filename, tmpFile.c_str());
         }
-    }
+        std::string ext = toLowerCopy(tmpFile.substr(found + 1));
 
-    lock.lock();
-    std::string vOut = getSetting("VideoOutput");
-    if (vOut == "") {
+        if (getFPPmode() == REMOTE_MODE) {
+            std::string orgTmp = tmpFile;
+            tmpFile = GetVideoFilenameForMedia(tmpFile, ext);
+            if (tmpFile == "" && HasAudioForMedia(orgTmp)) {
+                tmpFile = orgTmp;
+            }
+
+            if (tmpFile == "") {
+                // For v1.0 MultiSync, we can't sync audio to audio, so check for
+                // a video file if the master is playing an audio file
+                // video doesn't exist, punt
+                tmpFile = filename;
+                if (alreadyWarned.find(tmpFile) == alreadyWarned.end()) {
+                    alreadyWarned.emplace(tmpFile);
+                    LogDebug(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename);
+                }
+                return 0;
+            } else {
+                LogDebug(VB_MEDIAOUT,
+                         "Player is playing %s audio, remote will try %s\n",
+                         filename, tmpFile.c_str());
+            }
+        }
+
+        lock.lock();
+        std::string vOut = getSetting("VideoOutput");
+        if (vOut == "") {
 #if !defined(PLATFORM_BBB)
-        vOut = "--HDMI--";
+            vOut = "--HDMI--";
 #else
-        vOut = "--Disabled--";
+            vOut = "--Disabled--";
 #endif
-    }
+        }
 
-    mediaOutput = CreateMediaOutput(tmpFile, vOut);
-    if (!mediaOutput) {
-        LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
+        mediaOutput = CreateMediaOutput(tmpFile, vOut);
+        if (!mediaOutput) {
+            LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
+            return 0;
+        }
+
+        Json::Value root;
+        root["currentEntry"]["type"] = "media";
+        root["currentEntry"]["mediaFilename"] = mediaOutput->m_mediaFilename;
+
+        if (getFPPmode() == REMOTE_MODE && firstOutCreate) {
+            firstOutCreate = false;
+            // need to "fake" a playlist start as some plugins will not initialize
+            // until a playlist is started, but remotes don't have playlists
+            root["name"] = "FPP Remote";
+            root["desc"] = "FPP Remote Mode";
+            root["loop"] = false;
+            root["repeat"] = false;
+            root["random"] = false;
+            root["size"] = 1;
+            PluginManager::INSTANCE.playlistCallback(root, "start", "Main", 0);
+        }
+        MediaDetails::INSTANCE.ParseMedia(mediaOutput->m_mediaFilename.c_str());
+        PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
+
+        if (multiSync->isMultiSyncEnabled()) {
+            multiSync->SendMediaOpenPacket(mediaOutput->m_mediaFilename);
+        }
+        return 1;
+    } catch (const std::system_error& e) {
+        LogErr(VB_MEDIAOUT, "System exception starting media for %s.  Code: %d   What: %s\n", filename, e.code().value(), e.what());
         return 0;
     }
-
-    Json::Value root;
-    root["currentEntry"]["type"] = "media";
-    root["currentEntry"]["mediaFilename"] = mediaOutput->m_mediaFilename;
-
-    if (getFPPmode() == REMOTE_MODE && firstOutCreate) {
-        firstOutCreate = false;
-        // need to "fake" a playlist start as some plugins will not initialize
-        // until a playlist is started, but remotes don't have playlists
-        root["name"] = "FPP Remote";
-        root["desc"] = "FPP Remote Mode";
-        root["loop"] = false;
-        root["repeat"] = false;
-        root["random"] = false;
-        root["size"] = 1;
-        PluginManager::INSTANCE.playlistCallback(root, "start", "Main", 0);
-    }
-    MediaDetails::INSTANCE.ParseMedia(mediaOutput->m_mediaFilename.c_str());
-    PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
-
-    if (multiSync->isMultiSyncEnabled()) {
-        multiSync->SendMediaOpenPacket(mediaOutput->m_mediaFilename);
-    }
-    return 1;
 }
-
 bool MatchesRunningMediaFilename(const char* filename) {
     if (mediaOutput) {
         std::string tmpFile = filename;
@@ -357,9 +367,6 @@ bool MatchesRunningMediaFilename(const char* filename) {
             if (mediaOutput->m_mediaFilename == tmpFile || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
                 return true;
             }
-            printf("Not Matches   '%s'   '%s'   '%s'\n", mediaOutput->m_mediaFilename.c_str(), filename, tmpFile.c_str());
-        } else {
-            printf("No video %s\n", filename, tmpFile.c_str());
         }
     }
     return false;
