@@ -139,8 +139,8 @@ public:
     virtual bool isGPIOD() const override { return true; }
     virtual void releaseGPIOD() const override;
 
-#ifdef HASGPIOD
     std::string gpioName;
+#ifdef HASGPIOD
     mutable gpiod::chip* chip = nullptr;
     mutable gpiod::line line;
     mutable int lastRequestType = 0;

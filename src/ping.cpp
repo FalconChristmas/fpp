@@ -154,10 +154,14 @@ public:
     ~PingInfo() {}
 
     void Initialize() {
+        int flags = 0;
+#ifndef PLATFORM_OSX
+        flags = SOCK_NONBLOCK;
+#endif
         if (getuid()) {
-            pingSocket = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_ICMP);
+            pingSocket = socket(AF_INET, SOCK_DGRAM | flags, IPPROTO_ICMP);
         } else {
-            pingSocket = socket(AF_INET, SOCK_RAW | SOCK_NONBLOCK, IPPROTO_ICMP);
+            pingSocket = socket(AF_INET, SOCK_RAW | flags, IPPROTO_ICMP);
         }
         isRunning = 1;
 
