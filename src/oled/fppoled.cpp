@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
     }
     bool capeDetectionDone = FileExists("/home/fpp/media/tmp/cape_detect_done");
     int count = 0;
-    while (!capeDetectionDone && count < 100) {
+    while (!capeDetectionDone && count < 200) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         ++count;
         capeDetectionDone = FileExists("/home/fpp/media/tmp/cape_detect_done");
