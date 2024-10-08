@@ -261,7 +261,8 @@
     function AutoFBDeviceLayoutChanged(item, updateChannelCount = false) {
         var width = $(item).parent().find('.width').val();
         var height = $(item).parent().find('.height').val();
-        var scaling = $(item).parent().find('.scaling').val();
+        //var scaling = $(item).parent().find('.scaling').val();
+        var scaling = 1;
         var channels = width * height * 3 / scaling / scaling;
 
         if (updateChannelCount)
