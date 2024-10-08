@@ -253,6 +253,9 @@ function GetOptions_VideoOutput($playlist)
         } else if (str_contains($file, "DSI-")) {
             $file = substr($file, stripos($file, "DSI-"));
             $VideoOutputModels[$file] = $file;
+        } else if (str_contains($file, "Composite-")) {
+            $file = substr($file, stripos($file, "Composite-"));
+            $VideoOutputModels[$file] = $file;
         }
     }
 
