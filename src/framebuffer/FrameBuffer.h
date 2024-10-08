@@ -130,7 +130,7 @@ protected:
     uint8_t* m_pageBuffers[3] = { nullptr, nullptr, nullptr };
     int m_pageSize = 0;
 
-    int m_pixelSize = 1;
+    int m_pixelSize = 0;
     int m_pixelsWide = 0;
     int m_pixelsHigh = 0;
 

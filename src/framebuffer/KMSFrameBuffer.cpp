@@ -69,41 +69,7 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
                 if (m_crtc == nullptr) {
                     return 0;
                 }
-                bool foundMode = false;
-                bool foundMultiMode = false;
-                kms::Videomode multiMode;
-
-                for (auto& m : m_connector->get_modes()) {
-                    if (m.hdisplay >= m_width && m.vdisplay >= m_height) {
-                        m_mode = m;
-                        foundMode = true;
-                    }
-                    if (m_width > 0 && m_height > 0 && ((m.hdisplay % m_width) == 0) && ((m.vdisplay % m_height) == 0)) {
-                        foundMultiMode = true;
-                        multiMode = m;
-                    }
-                }
-                if (!foundMode) {
-                    return 0;
-                }
-                if (foundMultiMode) {
-                    m_mode = multiMode;
-                }
-                LogDebug(VB_CHANNELOUT, "KMSFrameBuffer:   Connector: %s   Mode: %dx%d\n", conn->fullname().c_str(), m_mode.hdisplay, m_mode.vdisplay);
-                m_crtc->set_mode(m_connector, m_mode);
-
-                m_bpp = 24;
-                for (int x = 0; x < 2; x++) {
-                    try {
-                        m_fb[x] = new kms::DumbFramebuffer(*card.first, m_mode.hdisplay, m_mode.vdisplay, kms::PixelFormat::RGB888);
-                    } catch (...) {
-                        m_fb[x] = new kms::DumbFramebuffer(*card.first, m_mode.hdisplay, m_mode.vdisplay, kms::PixelFormat::XRGB8888);
-                        m_bpp = 32;
-                    }
-                    m_pageBuffers[x] = m_fb[x]->map(0);
-                }
-                m_plane = m_resourceManager->reserve_generic_plane(m_crtc, m_fb[0]->format());
-                m_pages = 2;
+                m_mode = m_connector->get_default_mode();
 
                 if (m_width == 0) {
                     m_width = m_mode.hdisplay;
@@ -111,6 +77,31 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
                 if (m_height == 0) {
                     m_height = m_mode.vdisplay;
                 }
+                if (m_pixelSize == 0) {
+                    // find a suitable pixel size to make it less "fuzzy" looking
+                    int mw = m_mode.hdisplay / m_width;
+                    int mh = m_mode.vdisplay / m_height;
+                    m_pixelSize = std::min(mw, mh);
+                    if (m_pixelSize < 1) {
+                        m_pixelSize = 1;
+                    }
+                    m_width *= m_pixelSize;
+                    m_height *= m_pixelSize;
+                }
+
+                m_bpp = 24;
+                for (int x = 0; x < 2; x++) {
+                    try {
+                        m_fb[x] = new kms::DumbFramebuffer(*card.first, m_width, m_height, kms::PixelFormat::RGB888);
+                    } catch (...) {
+                        m_fb[x] = new kms::DumbFramebuffer(*card.first, m_width, m_height, kms::PixelFormat::XRGB8888);
+                        m_bpp = 32;
+                    }
+                    m_pageBuffers[x] = m_fb[x]->map(0);
+                }
+                m_plane = m_resourceManager->reserve_generic_plane(m_crtc, m_fb[0]->format());
+                m_pages = 2;
+
                 m_cPage = 0;
                 m_pPage = 0;
                 m_rowStride = m_fb[0]->stride(0);

@@ -66,23 +66,14 @@ int FBMatrixOutput::Init(Json::Value config) {
     if (modelName == "") {
         int width = 0;
         int height = 0;
-        int scaling = 1;
         std::string device;
 
         if ((config.isMember("width")) &&
             (config.isMember("height")) &&
-            (config.isMember("scaling")) &&
             (config.isMember("device"))) {
             width = config["width"].asInt();
             height = config["height"].asInt();
             device = config["device"].asString();
-
-            if (config["scaling"].isNumeric()) {
-                scaling = config["scaling"].asInt();
-
-                if (scaling == 0)
-                    scaling = 1;
-            }
 
             replaceStart(device, "/dev/");
             modelName = "FB - ";
@@ -94,7 +85,6 @@ int FBMatrixOutput::Init(Json::Value config) {
                 val["Type"] = "FB";
                 val["Width"] = width;
                 val["Height"] = height;
-                val["PixelSize"] = scaling;
                 val["Device"] = device;
                 val["autoCreated"] = true;
 

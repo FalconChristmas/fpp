@@ -138,14 +138,22 @@ int FrameBuffer::FBInit(const Json::Value& config) {
     if (config.isMember("AutoSync"))
         m_autoSync = config["AutoSync"].asBool();
 
-    m_pixelsWide = m_width / m_pixelSize;
-    m_pixelsHigh = m_height / m_pixelSize;
+    if (m_pixelSize > 0) {
+        m_pixelsWide = m_width / m_pixelSize;
+        m_pixelsHigh = m_height / m_pixelSize;
 
-    // Adjust our Width/Height to be whole numbers
-    m_width = m_pixelSize * m_pixelsWide;
-    m_height = m_pixelSize * m_pixelsHigh;
+        // Adjust our Width/Height to be whole numbers
+        m_width = m_pixelSize * m_pixelsWide;
+        m_height = m_pixelSize * m_pixelsHigh;
+    } else {
+        m_pixelsWide = m_width;
+        m_pixelsHigh = m_height;
+    }
 
     int result = InitializeFrameBuffer();
+    if (m_pixelSize == 0) {
+        m_pixelSize = 1;
+    }
     if (!result)
         return 0;
 
@@ -231,7 +239,7 @@ void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
     const uint8_t* sB = buffer + 2;
     uint8_t* ob = m_outputBuffer;
 
-    if (draw && (m_pixelSize == 1)) {
+    if (draw && (m_pixelSize = 1)) {
         m_bufferLock.lock();
         ob = FB_CURRENT_PAGE_PTR;
     }
