@@ -60,13 +60,13 @@ static uint8_t* createChannelDataMemory(const std::string& dataName, uint32_t si
     int flags = MAP_SHARED;
     if (f == -1) {
         LogWarn(VB_CHANNELOUT, "Could not create shared memory block for %s:  %s\n", dataName.c_str(), strerror(errno));
-        //we couldn't create the shared memory block.  Most of the time,
-        //we are fine with non-shared memory and this at least prevents a crash
+        // we couldn't create the shared memory block.  Most of the time,
+        // we are fine with non-shared memory and this at least prevents a crash
         flags = MAP_ANON;
     } else {
         int rc = ftruncate(f, size);
         if (rc == -1) {
-            //if ftruncate fails, we need to completely reset
+            // if ftruncate fails, we need to completely reset
             close(f);
             shm_unlink(dataName.c_str());
             f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
@@ -79,7 +79,7 @@ static uint8_t* createChannelDataMemory(const std::string& dataName, uint32_t si
     }
     uint8_t* channelData = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, flags, f, 0);
     if (channelData == MAP_FAILED) {
-        //mmap is failing, but we need channelData so just do malloc
+        // mmap is failing, but we need channelData so just do malloc
         channelData = (uint8_t*)malloc(size);
     }
     if (f != -1) {
@@ -97,7 +97,7 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     type = config["Type"].asString();
     replaceAll(name, "/", "_");
     startChannel = config["StartChannel"].asInt();
-    startChannel--; //need to be 0 based
+    startChannel--; // need to be 0 based
     channelCount = config["ChannelCount"].asInt();
     int strings = config["StringCount"].asInt();
     int sps = config["StrandsPerString"].asInt();
@@ -161,7 +161,7 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
         for (int x = 0; x < width; x++) {
             int segment = x % sps;
             for (int y = 0; y < height; y++) {
-                //pos in the normal overlay buffer
+                // pos in the normal overlay buffer
                 int ppos = y * width + x;
                 // Relative Input Pixel 'R' channel
                 int inCh = (ppos * 3);
@@ -238,7 +238,7 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
         for (int y = 0; y < height; y++) {
             int segment = y % sps;
             for (int x = 0; x < width; x++) {
-                //pos in the normal overlay buffer
+                // pos in the normal overlay buffer
                 int ppos = y * width + x;
                 // Input Pixel 'R' channel
                 int inCh = (ppos * 3);
@@ -415,9 +415,9 @@ void PixelOverlayModel::doOverlay(uint8_t* channels) {
     int st = state.getState();
     uint8_t* dst = &channels[startChannel];
     if (st == 0 && !children.empty()) {
-        //this model is disable, but we have children that are
-        //enabled.  Thus, we need to apply their blending
-        //to the channel data.
+        // this model is disable, but we have children that are
+        // enabled.  Thus, we need to apply their blending
+        // to the channel data.
         flushChildren(dst);
         dirtyBuffer = false;
         return;
@@ -426,23 +426,23 @@ void PixelOverlayModel::doOverlay(uint8_t* channels) {
         (!IsEffectRunning()) &&
         (!sequence->IsSequenceRunning()) &&
         !PluginManager::INSTANCE.hasPlugins()) {
-        //there is nothing running that we would be overlaying so do a straight copy
+        // there is nothing running that we would be overlaying so do a straight copy
         st = 1;
     }
 
     uint8_t* src = channelData;
     switch (st) {
-    case 1: //Active - Opaque
+    case 1: // Active - Opaque
         memcpy(dst, src, channelCount);
         break;
-    case 2: //Active Transparent
+    case 2: // Active Transparent
         for (int j = 0; j < channelCount; j++, src++, dst++) {
             if (*src) {
                 *dst = *src;
             }
         }
         break;
-    case 3: //Active Transparent RGB {
+    case 3: // Active Transparent RGB {
         for (int j = 0; j < channelCount; j += 3, src += 3, dst += 3) {
             if (src[0] || src[1] || src[2]) {
                 dst[0] = src[0];
@@ -466,9 +466,6 @@ void PixelOverlayModel::setData(const uint8_t* data) {
 }
 
 void PixelOverlayModel::setData(const uint8_t* data, int xOffset, int yOffset, int w, int h, const PixelOverlayState& st) {
-    if (st.getState() == 0) {
-        return;
-    }
     if (((w + xOffset) > width) ||
         ((h + yOffset) > height) ||
         (xOffset < 0) ||
@@ -493,7 +490,7 @@ void PixelOverlayModel::setData(const uint8_t* data, int xOffset, int yOffset, i
     int c = (yOffset * width * 3) + (xOffset * 3);
     for (int yPos = 0; yPos < h; yPos++) {
         for (int xPos = 0; xPos < w; xPos++) {
-            if (cst == 1) {
+            if (cst == 1 || cst == 0) {
                 for (int i = 0; i < 3; i++, c++, s++) {
                     if (channelMap[c] != FPPD_OFF_CHANNEL) {
                         channelData[channelMap[c]] = data[s];

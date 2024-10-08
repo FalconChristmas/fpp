@@ -63,6 +63,7 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
         return;
 
     parent->setData(channelData, xOffset, yOffset, width, height, state);
+    parent->doOverlay(channels);
     dirtyBuffer = false;
 }
 
