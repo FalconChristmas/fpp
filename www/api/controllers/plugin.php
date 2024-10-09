@@ -226,7 +226,7 @@ function UpgradePlugin()
             $install_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
         }
         if (file_exists($install_script)) {
-            echo "Running install script " . $install_script;
+            echo "Running install script " . $install_script . "\n";
             system($SUDO . "  FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src " . $install_script, $return_val);
         }
         return "\nDone\n";
