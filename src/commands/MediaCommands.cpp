@@ -244,7 +244,7 @@ VLCPlayData::~VLCPlayData() {
 void VLCPlayData::Stopped() {
     VLCOutput::Stopped();
     VLCPlayData* dt = this;
-    uint64_t i = (int)this;
+    intptr_t i = (intptr_t)this;
     Timers::INSTANCE.addTimer(std::to_string(i), GetTimeMS() + 1, [dt]() {
         delete dt;
     });
