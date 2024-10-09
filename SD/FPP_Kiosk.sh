@@ -35,7 +35,7 @@ chown fpp:fpp /home/fpp/.bashrc
 echo "kiosk" > /etc/fpp/kiosk
 
 mkdir -p /etc/chromium/policies/managed/
-cat > /etc/chromium/policies/managed/policy.json
+cat > /etc/chromium/policies/managed/policy.json <<EOF
 {"RestoreOnStartup": 4,"RestoreOnStartupURLs": ["http://localhost/"]}
 EOF
 
