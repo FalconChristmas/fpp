@@ -14,8 +14,8 @@
 
 #include <curl/curl.h>
 #include <mutex>
-#include <thread>
 
+#include "../Timers.h"
 #include "../log.h"
 
 #include "MediaCommands.h"
@@ -216,7 +216,6 @@ public:
     virtual ~VLCPlayData();
     virtual void Stopped() override;
     std::string filename;
-    int loop = 0;
     int volumeAdjust = 0;
     MediaOutputStatus status;
 };
@@ -224,9 +223,8 @@ std::mutex runningMediaLock;
 std::map<std::string, VLCPlayData*> runningCommandMedia;
 
 VLCPlayData::VLCPlayData(const std::string& file, int l, int vol) :
-    VLCOutput(file, &status, "--hdmi--"),
+    VLCOutput(file, &status, "--hdmi--", l),
     filename(file),
-    loop(l),
     volumeAdjust(vol) {
     SetVolumeAdjustment(vol);
     runningMediaLock.lock();
@@ -244,17 +242,12 @@ VLCPlayData::~VLCPlayData() {
 }
 
 void VLCPlayData::Stopped() {
-    //cannot Stop/delete right now as the vlc player is locked, fork a thread
-    std::thread th([this] {
-        if (loop) {
-            loop--;
-            Restart();
-        } else {
-            Stop();
-            delete this;
-        }
+    VLCOutput::Stopped();
+    VLCPlayData* dt = this;
+    uint64_t i = (int)this;
+    Timers::INSTANCE.addTimer(std::to_string(i), GetTimeMS() + 1, [dt]() {
+        delete dt;
     });
-    th.detach();
 }
 
 PlayMediaCommand::PlayMediaCommand() :
@@ -272,7 +265,7 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     if (loop < 1) {
         loop = 1;
     }
-    VLCOutput* out = new VLCPlayData(args[0], loop - 1, volAdjust);
+    VLCOutput* out = new VLCPlayData(args[0], loop, volAdjust);
     out->Start();
 
     return std::make_unique<Command::Result>("Playing");
@@ -296,7 +289,6 @@ std::unique_ptr<Command::Result> StopMediaCommand::run(const std::vector<std::st
         media_ptr = nullptr;
     }
     if (media_ptr) {
-        media_ptr->loop = 0;
         media_ptr->Stop();
         rc = "Stopped";
     }
@@ -312,7 +304,6 @@ std::unique_ptr<Command::Result> StopAllMediaCommand::run(const std::vector<std:
     runningMediaLock.lock();
     for (const auto& item : runningCommandMedia) {
         LogDebug(VB_COMMAND, "Stopping: \"%s\"\n", item.first.c_str());
-        item.second->loop = 0;
         item.second->Stop();
     }
     runningMediaLock.unlock();

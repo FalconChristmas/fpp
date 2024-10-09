@@ -217,7 +217,7 @@ bool HasVideoForMedia(std::string& filename) {
 }
 
 static bool IsHDMIOut(std::string& vOut) {
-    if (vOut == "--HDMI--" || vOut == "HDMI") {
+    if (vOut == "--HDMI--" || vOut == "--hdmi--" || vOut == "HDMI") {
         vOut = "HDMI-A-1";
     }
     if (vOut.starts_with("HDMI-") || vOut.starts_with("DSI-") || vOut.starts_with("Composite-")) {
@@ -319,7 +319,6 @@ int OpenMediaOutput(const char* filename) {
             vOut = "--Disabled--";
 #endif
         }
-
         mediaOutput = CreateMediaOutput(tmpFile, vOut);
         if (!mediaOutput) {
             LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());

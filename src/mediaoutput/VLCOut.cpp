@@ -48,10 +48,13 @@
 
 class VLCInternalData {
 public:
-    VLCInternalData(const std::string& m, VLCOutput* out, const std::string& op) :
+    VLCInternalData(const std::string& m, VLCOutput* out, const std::string& op, int l) :
         fullMediaPath(m),
         vlcOutput(out),
-        outputPort(op) {
+        outputPort(op),
+        loops(l) {
+    }
+    ~VLCInternalData() {
     }
     VLCOutput* vlcOutput;
     std::string outputPort;
@@ -61,6 +64,7 @@ public:
     std::string fullMediaPath;
 
     int startPos = 0;
+    int loops;
 
     uint64_t length = 0;
     uint64_t lastPos = 0;
@@ -148,17 +152,20 @@ static void logCallback(void* data, int level, const libvlc_log_t* ctx,
 }
 
 static void startingEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
+    LogDebug(VB_MEDIAOUT, "VLCOutput - Starting(%X)\n", p_data);
     VLCInternalData* d = (VLCInternalData*)p_data;
     mediaOutputStatus.mediaLoading = true;
     d->vlcOutput->Starting();
 }
 static void playingEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
+    LogDebug(VB_MEDIAOUT, "VLCOutput - Playing(%X)\n", p_data);
     VLCInternalData* d = (VLCInternalData*)p_data;
     mediaOutputStatus.mediaLoading = false;
     d->vlcOutput->Playing();
 }
 
 static void seekableEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
+    LogDebug(VB_MEDIAOUT, "VLCOutput - Seekable(%X)\n", p_data);
     VLCInternalData* d = (VLCInternalData*)p_data;
     mediaOutputStatus.mediaLoading = false;
     if (d->startPos) {
@@ -167,10 +174,12 @@ static void seekableEventCallBack(const struct libvlc_event_t* p_event, void* p_
     d->vlcOutput->Playing();
 }
 static void stoppedEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
+    LogDebug(VB_MEDIAOUT, "VLCOutput - Stopped(%X)\n", p_data);
     VLCInternalData* d = (VLCInternalData*)p_data;
     d->vlcOutput->Stopped();
 }
 static void stoppingEventCallBack(const struct libvlc_event_t* p_event, void* p_data) {
+    LogDebug(VB_MEDIAOUT, "VLCOutput - Stopping(%X)\n", p_data);
     VLCInternalData* d = (VLCInternalData*)p_data;
     d->vlcOutput->Stopping();
 }
@@ -198,46 +207,50 @@ public:
 
             int hardwareDecoding = getSettingInt("HardwareDecoding", 1);
             std::vector<const char*> args;
-            args.push_back("--no-osd");
-            if (!hardwareDecoding) {
-                if (LIBVLC_VERSION_MAJOR > 3) {
-                    args.push_back("--no-hw-dec");
-                } else {
-                    args.push_back("--avcodec-hw");
-                    args.push_back("none");
-                }
-            } else if (LIBVLC_VERSION_MAJOR <= 3) {
-                args.push_back("--avcodec-hw");
-                args.push_back("any");
-            }
-
-            std::string cardPath = "/dev/dri/card0";
-            bool connected = true;
-            for (int x = 0; x < 4; x++) {
-                std::string conn = "/sys/class/drm/card" + std::to_string(x) + "-" + data->outputPort + "/status";
-                if (FileExists(conn)) {
-                    std::string status = GetFileContents(conn);
-                    if (status.contains("disconnected")) {
-                        connected = false;
+            if (data->outputPort != "--Disabled--") {
+                bool connected = true;
+                args.push_back("--no-osd");
+                if (!hardwareDecoding) {
+                    if (LIBVLC_VERSION_MAJOR > 3) {
+                        args.push_back("--no-hw-dec");
+                    } else {
+                        args.push_back("--avcodec-hw");
+                        args.push_back("none");
                     }
-                    cardPath = "/dev/dri/card" + std::to_string(x);
-                    x = 4;
+                } else if (LIBVLC_VERSION_MAJOR <= 3) {
+                    args.push_back("--avcodec-hw");
+                    args.push_back("any");
                 }
-            }
 
-            if (connected) {
-                if (LIBVLC_VERSION_MAJOR <= 3) {
-                    args.push_back("-V");
-                    args.push_back("drm_vout");
-                    args.push_back("--drm-vout-display");
-                    args.push_back(data->outputPort.c_str());
-                    args.push_back("--drm-vout-no-modeset");
+                std::string cardPath = "/dev/dri/card0";
+                for (int x = 0; x < 6; x++) {
+                    std::string conn = "/sys/class/drm/card" + std::to_string(x) + "-" + data->outputPort + "/status";
+                    if (FileExists(conn)) {
+                        std::string status = GetFileContents(conn);
+                        if (status.contains("disconnected")) {
+                            connected = false;
+                        }
+                        cardPath = "/dev/dri/card" + std::to_string(x);
+                        x = 4;
+                    }
+                }
+                if (connected) {
+                    if (LIBVLC_VERSION_MAJOR <= 3) {
+                        args.push_back("-V");
+                        args.push_back("drm_vout");
+                        args.push_back("--drm-vout-display");
+                        args.push_back(data->outputPort.c_str());
+                        args.push_back("--drm-vout-no-modeset");
+                    } else {
+                        // vlc4+
+                        args.push_back("--kms-device");
+                        args.push_back(cardPath.c_str());
+                        args.push_back("--kms-connector");
+                        args.push_back(data->outputPort.c_str());
+                    }
                 } else {
-                    // vlc4+
-                    args.push_back("--kms-device");
-                    args.push_back(cardPath.c_str());
-                    args.push_back("--kms-connector");
-                    args.push_back(data->outputPort.c_str());
+                    LogWarn(VB_MEDIAOUT, "%s is not connected, disabling video\n", data->outputPort.c_str());
+                    args.push_back("--no-video");
                 }
             } else {
                 args.push_back("--no-video");
@@ -292,6 +305,12 @@ public:
             else
                 data->media = LIBVLC_MEDIA_NEWPATH(vlcInstance, data->fullMediaPath.c_str());
 
+            if (data->loops > 1) {
+                std::string op = "input-repeat=";
+                op += std::to_string(data->loops - 1);
+                libvlc_media_add_option(data->media, op.c_str());
+            }
+
             data->vlcPlayer = LIBVLC_MEDIAPLAYER_NEW_FROM_MEDIA(vlcInstance, data->media);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), STOPPINGENUM, stoppingEventCallBack, data);
             libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerStopped, stoppedEventCallBack, data);
@@ -318,30 +337,12 @@ public:
         }
         return 1;
     }
-    int restart(VLCInternalData* data) {
-        if (data->vlcPlayer) {
-            mediaOutputStatus.output = data->outputPort;
-            libvlc_media_player_set_media(data->vlcPlayer, data->media);
-            libvlc_media_player_play(data->vlcPlayer);
-            MEDIA_PLAYER_SET_TIME(data->vlcPlayer, 0);
-        }
-        return 0;
-    }
 
     int stop(VLCInternalData* data) {
         if (data->vlcPlayer) {
             MEDIA_PLAYER_STOP(data->vlcPlayer);
             libvlc_media_player_release(data->vlcPlayer);
             data->vlcPlayer = nullptr;
-            /*
-             * Per https://mailman.videolan.org/pipermail/vlc-devel/2008-May/043240.html
-             *
-             * This isn't needed.  libvlc_media_player_release will do it.
-             * I *think* we need to wait for  libvlc_MediaPlayerStopped event
-             * Before freeing.    I don't have time to test this now
-             * But will soon.
-             */
-            // libvlc_media_release(data->media);
             data->media = nullptr;
 
             if (data->equalizer) {
@@ -361,9 +362,24 @@ static constexpr int RATE_AVERAGE_COUNT = 20;
 static std::list<float> lastRates;
 static float rateSum = 0.0f;
 
-VLCOutput::VLCOutput(const std::string& mediaFilename, MediaOutputStatus* status, const std::string& videoOut) {
+VLCOutput::VLCOutput(const std::string& mediaFilename, MediaOutputStatus* status, const std::string& vo, int loops) {
     LogExcess(VB_MEDIAOUT, "VLCOutput::VLCOutput(%s)\n", mediaFilename.c_str());
     data = nullptr;
+
+    std::string videoOut = vo;
+    if (vo == "--hdmi--" || vo == "--HDMI--") {
+        videoOut = getSetting("VideoOutput");
+    }
+    if (videoOut.empty()) {
+        videoOut = "HDMI-A-1";
+    }
+    std::size_t found = mediaFilename.find_last_of(".");
+    if (found != std::string::npos) {
+        std::string ext = toLowerCopy(mediaFilename.substr(found + 1));
+        if (!IsExtensionVideo(ext)) {
+            videoOut = "--Disabled--";
+        }
+    }
     m_allowSpeedAdjust = getSettingInt("remoteIgnoreSync") == 0;
     m_mediaOutputStatus = status;
     m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
@@ -375,11 +391,9 @@ VLCOutput::VLCOutput(const std::string& mediaFilename, MediaOutputStatus* status
     std::string fullMediaPath = mediaFilename;
     if (!FileExists(mediaFilename)) {
         fullMediaPath = FPP_DIR_MUSIC("/" + mediaFilename);
-        ;
     }
     if (!FileExists(fullMediaPath)) {
         fullMediaPath = FPP_DIR_VIDEO("/" + mediaFilename);
-        ;
     }
     if (startsWith(mediaFilename, "http://") || startsWith(mediaFilename, "https://")) {
         fullMediaPath = mediaFilename;
@@ -392,7 +406,7 @@ VLCOutput::VLCOutput(const std::string& mediaFilename, MediaOutputStatus* status
     }
     currentMediaFilename = mediaFilename;
     m_mediaFilename = mediaFilename;
-    data = new VLCInternalData(fullMediaPath, this, videoOut);
+    data = new VLCInternalData(fullMediaPath, this, videoOut, loops);
     vlcManager.load(data);
 }
 VLCOutput::~VLCOutput() {
@@ -506,24 +520,6 @@ int VLCOutput::Close(void) {
 int VLCOutput::IsPlaying(void) {
     LogExcess(VB_MEDIAOUT, "VLCOutput::IsPlaying() %0.3f\n", m_mediaOutputStatus->mediaSeconds);
     return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_PLAYING;
-}
-int VLCOutput::Restart() {
-    LogDebug(VB_MEDIAOUT, "VLCOutput::Restart(%X) %0.3f\n", data, m_mediaOutputStatus->mediaSeconds);
-    if (data) {
-        vlcManager.restart(data);
-
-        int seconds = data->length / 1000;
-        m_mediaOutputStatus->secondsTotal = seconds / 60;
-        m_mediaOutputStatus->minutesTotal = seconds % 60;
-
-        m_mediaOutputStatus->secondsRemaining = seconds;
-        m_mediaOutputStatus->subSecondsRemaining = 0;
-
-        m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
-        return 1;
-    }
-    m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
-    return 0;
 }
 
 int VLCOutput::AdjustSpeed(float masterMediaPosition) {

@@ -20,7 +20,7 @@ class VLCInternalData;
 
 class VLCOutput : public MediaOutputBase {
 public:
-    VLCOutput(const std::string& mediaFilename, MediaOutputStatus* status, const std::string& videoOut);
+    VLCOutput(const std::string& mediaFilename, MediaOutputStatus* status, const std::string& videoOut, int loops = 1);
     virtual ~VLCOutput();
 
     virtual int Start(int msTime = 0) override;
@@ -28,8 +28,6 @@ public:
     virtual int Process(void) override;
     virtual int Close(void) override;
     virtual int IsPlaying(void) override;
-
-    virtual int Restart();
 
     virtual int AdjustSpeed(float master) override;
 

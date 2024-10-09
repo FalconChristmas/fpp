@@ -39,7 +39,7 @@ Json::Value Command::getDescription() {
     Json::Value cmd;
     cmd["name"] = name;
     if (!description.empty()) {
-        cmd["description"] = description;        
+        cmd["description"] = description;
     }
     for (auto& ar : args) {
         Json::Value a;
@@ -95,13 +95,8 @@ void CommandManager::Init() {
     addCommand(new InsertRandomItemFromPlaylistCommand());
 #ifdef HAS_VLC
     addCommand(new PlayMediaCommand());
-    /* These too are currently disabled because stopping a Video
-     * can cause Siginal 6 in VLC Player
-     *
-     * ./include/vlc_atomic.h:64: vlc_atomic_rc_dec: Assertion `prev' failed.
-     */
-    // addCommand(new StopMediaCommand());
-    // addCommand(new StopAllMediaCommand());
+    addCommand(new StopMediaCommand());
+    addCommand(new StopAllMediaCommand());
 #endif
     addCommand(new PlaylistPauseCommand());
     addCommand(new PlaylistResumeCommand());
