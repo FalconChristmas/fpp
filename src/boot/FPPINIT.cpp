@@ -723,7 +723,7 @@ static void setupTimezone() {
         if (c != s) {
             printf("Resetting timezone from %s to %s\n", c.c_str(), s.c_str());
             exec("/usr/bin/timedatectl set-timezone " + s);
-            exec("/usr/sbin/dpkg-reconfigure -f noninteractive tzdata");
+            execbg("/usr/sbin/dpkg-reconfigure -f noninteractive tzdata &");
         }
     }
 }
@@ -1261,8 +1261,8 @@ int main(int argc, char* argv[]) {
         checkHostName();
         checkFSTAB();
         setupApache();
-        setupTimezone();
         DetectCape();
+        setupTimezone();
         int reboot = getRawSettingInt("rebootFlag", 0);
         if (reboot) {
             printf("FPP - Clearing reboot flags\n");
@@ -1292,6 +1292,7 @@ int main(int argc, char* argv[]) {
             maybeEnableTethering();
             detectNetworkModules();
         }
+        setupTimezone(); // this may not have worked in the init phase, try again
         detectFalconHardware();
         installKiosk();
         setFileOwnership();
