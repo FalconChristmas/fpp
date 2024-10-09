@@ -5,13 +5,12 @@ function SetTimeZone($timezone)
     if (file_exists("/.dockerenv")) {
         exec("sudo ln -s -f /usr/share/zoneinfo/$timezone /etc/localtime");
         exec("sudo bash -c \"echo $timezone > /etc/timezone\"");
-        exec("sudo dpkg-reconfigure -f noninteractive tzdata");
     } else if (file_exists('/usr/bin/timedatectl')) {
         exec("sudo timedatectl set-timezone $timezone");
     } else {
         exec("sudo bash -c \"echo $timezone > /etc/timezone\"");
-        exec("sudo dpkg-reconfigure -f noninteractive tzdata");
     }
+    exec("sudo dpkg-reconfigure -f noninteractive tzdata");
 }
 
 function SetHWClock()
