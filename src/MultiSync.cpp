@@ -777,18 +777,20 @@ void MultiSync::Discover() {
 
 void MultiSync::PerformHTTPDiscovery() {
     std::string subnetsStr = getSetting("MultiSyncHTTPSubnets");
-
-    Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"));
-    if (outputs.isMember("channelOutputs")) {
-        for (int co = 0; co < outputs["channelOutputs"].size(); co++) {
-            if (outputs["channelOutputs"][co].isMember("universes")) {
-                for (int i = 0; i < outputs["channelOutputs"][co]["universes"].size(); i++) {
-                    if (outputs["channelOutputs"][co]["universes"][i].isMember("address")) {
-                        std::string ip = outputs["channelOutputs"][co]["universes"][i]["address"].asString();
-                        if (subnetsStr != "") {
-                            subnetsStr += ",";
+    
+    if (FileExists(FPP_DIR_CONFIG("/co-universes.json"))) {
+        Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"));
+        if (outputs.isMember("channelOutputs")) {
+            for (int co = 0; co < outputs["channelOutputs"].size(); co++) {
+                if (outputs["channelOutputs"][co].isMember("universes")) {
+                    for (int i = 0; i < outputs["channelOutputs"][co]["universes"].size(); i++) {
+                        if (outputs["channelOutputs"][co]["universes"][i].isMember("address")) {
+                            std::string ip = outputs["channelOutputs"][co]["universes"][i]["address"].asString();
+                            if (subnetsStr != "") {
+                                subnetsStr += ",";
+                            }
+                            subnetsStr += ip;
                         }
-                        subnetsStr += ip;
                     }
                 }
             }
