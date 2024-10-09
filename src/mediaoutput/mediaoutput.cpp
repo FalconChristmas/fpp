@@ -300,13 +300,13 @@ int OpenMediaOutput(const std::string& filename) {
                 tmpFile = filename;
                 if (alreadyWarned.find(tmpFile) == alreadyWarned.end()) {
                     alreadyWarned.emplace(tmpFile);
-                    LogDebug(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename);
+                    LogDebug(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename.c_str());
                 }
                 return 0;
             } else {
                 LogDebug(VB_MEDIAOUT,
                          "Player is playing %s audio, remote will try %s\n",
-                         filename, tmpFile.c_str());
+                         filename.c_str(), tmpFile.c_str());
             }
         }
 
@@ -349,7 +349,7 @@ int OpenMediaOutput(const std::string& filename) {
         }
         return 1;
     } catch (const std::system_error& e) {
-        LogErr(VB_MEDIAOUT, "System exception starting media for %s.  Code: %d   What: %s\n", filename, e.code().value(), e.what());
+        LogErr(VB_MEDIAOUT, "System exception starting media for %s.  Code: %d   What: %s\n", filename.c_str(), e.code().value(), e.what());
         return 0;
     }
 }

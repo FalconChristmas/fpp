@@ -2392,7 +2392,7 @@ void MultiSync::OpenSyncedMedia(const std::string& filename) {
 
     if (mediaOutput) {
         LogDebug(VB_SYNC, "Start media %s received while playing media %s\n",
-                 filename, mediaOutput->m_mediaFilename.c_str());
+                 filename.c_str(), mediaOutput->m_mediaFilename.c_str());
 
         CloseMediaOutput();
     }
