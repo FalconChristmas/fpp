@@ -2224,11 +2224,15 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
                     ProcessCommandPacket(pkt, len, stats);
                     break;
                 case CTRL_PKT_SYNC:
-                    if (getFPPmode() == REMOTE_MODE)
+                    if (getFPPmode() == REMOTE_MODE) {
                         ProcessSyncPacket(pkt, len, stats);
+                    }
                     break;
                 case CTRL_PKT_BLANK:
                     if (getFPPmode() == REMOTE_MODE) {
+                        for (auto a : m_plugins) {
+                            a->ReceivedBlankingDataPacket();
+                        }
                         stats->pktBlank++;
                         sequence->SendBlankingData();
                     }
@@ -2252,25 +2256,33 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
     }
 }
 
-void MultiSync::OpenSyncedSequence(const char* filename) {
-    LogDebug(VB_SYNC, "OpenSyncedSequence(%s)\n", filename);
+void MultiSync::OpenSyncedSequence(const std::string& filename) {
+    LogDebug(VB_SYNC, "OpenSyncedSequence(%s)\n", filename.c_str());
 
+    for (auto a : m_plugins) {
+        a->ReceivedSeqOpenPacket(filename);
+    }
     ResetMasterPosition();
     sequence->OpenSequenceFile(filename);
 }
 
-void MultiSync::StartSyncedSequence(const char* filename) {
-    LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
+void MultiSync::StartSyncedSequence(const std::string& filename) {
+    LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename.c_str());
 
     ResetMasterPosition();
+    for (auto a : m_plugins) {
+        a->ReceivedSeqSyncStartPacket(filename);
+    }
     if (!sequence->IsSequenceRunning(filename) && !sequence->IsSequenceRunning("fallback.fseq")) {
         sequence->StartSequence(filename, 0);
     }
 }
 
-void MultiSync::StopSyncedSequence(const char* filename) {
-    LogDebug(VB_SYNC, "StopSyncedSequence(%s)\n", filename);
-
+void MultiSync::StopSyncedSequence(const std::string& filename) {
+    LogDebug(VB_SYNC, "StopSyncedSequence(%s)\n", filename.c_str());
+    for (auto a : m_plugins) {
+        a->ReceivedSeqSyncStopPacket(filename);
+    }
     sequence->CloseIfOpen(filename);
 }
 void MultiSync::SyncStopAll() {
@@ -2354,10 +2366,13 @@ void MultiSync::SyncPlaylistToMS(uint64_t ms, int pos, const std::string& pl, bo
 /*
  *
  */
-void MultiSync::SyncSyncedSequence(const char* filename, int frameNumber, float secondsElapsed) {
+void MultiSync::SyncSyncedSequence(const std::string& filename, int frameNumber, float secondsElapsed) {
     LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f)\n",
-              filename, frameNumber, secondsElapsed);
+              filename.c_str(), frameNumber, secondsElapsed);
 
+    for (auto a : m_plugins) {
+        a->ReceivedSeqSyncPacket(filename, frameNumber, secondsElapsed);
+    }
     if (!sequence->IsSequenceRunning(filename) && !sequence->IsSequenceRunning("fallback.fseq")) {
         sequence->StartSequence(filename, frameNumber);
     }
@@ -2372,8 +2387,8 @@ void MultiSync::SyncSyncedSequence(const char* filename, int frameNumber, float 
     }
 }
 
-void MultiSync::OpenSyncedMedia(const char* filename) {
-    LogDebug(VB_SYNC, "OpenSyncedMedia(%s)\n", filename);
+void MultiSync::OpenSyncedMedia(const std::string& filename) {
+    LogDebug(VB_SYNC, "OpenSyncedMedia(%s)\n", filename.c_str());
 
     if (mediaOutput) {
         LogDebug(VB_SYNC, "Start media %s received while playing media %s\n",
@@ -2381,21 +2396,29 @@ void MultiSync::OpenSyncedMedia(const char* filename) {
 
         CloseMediaOutput();
     }
+    for (auto a : m_plugins) {
+        a->ReceivedMediaOpenPacket(filename);
+    }
 
     OpenMediaOutput(filename);
 }
 
-void MultiSync::StartSyncedMedia(const char* filename) {
-    LogDebug(VB_SYNC, "StartSyncedMedia(%s)\n", filename);
-
+void MultiSync::StartSyncedMedia(const std::string& filename) {
+    LogDebug(VB_SYNC, "StartSyncedMedia(%s)\n", filename.c_str());
+    for (auto a : m_plugins) {
+        a->ReceivedMediaSyncStartPacket(filename);
+    }
     StartMediaOutput(filename);
 }
 
 /*
  *
  */
-void MultiSync::StopSyncedMedia(const char* filename) {
-    LogDebug(VB_SYNC, "StopSyncedMedia(%s)\n", filename);
+void MultiSync::StopSyncedMedia(const std::string& filename) {
+    LogDebug(VB_SYNC, "StopSyncedMedia(%s)\n", filename.c_str());
+    for (auto a : m_plugins) {
+        a->ReceivedMediaSyncStopPacket(filename);
+    }
 
     if (!mediaOutput) {
         return;
@@ -2410,9 +2433,12 @@ void MultiSync::StopSyncedMedia(const char* filename) {
 /*
  *
  */
-void MultiSync::SyncSyncedMedia(const char* filename, int frameNumber, float secondsElapsed) {
+void MultiSync::SyncSyncedMedia(const std::string& filename, int frameNumber, float secondsElapsed) {
     LogExcess(VB_SYNC, "SyncSyncedMedia('%s', %d, %.2f)\n",
-              filename, frameNumber, secondsElapsed);
+              filename.c_str(), frameNumber, secondsElapsed);
+    for (auto a : m_plugins) {
+        a->ReceivedMediaSyncPacket(filename, secondsElapsed);
+    }
 
     UpdateMasterMediaPosition(filename, secondsElapsed);
 }
@@ -2635,6 +2661,10 @@ void MultiSync::ProcessPluginPacket(ControlPkt* pkt, int plen, MultiSyncStats* s
     int nlen = strlen(pn) + 1;
     len -= nlen;
     uint8_t* data = (uint8_t*)&cpkt->command[nlen];
+
+    for (auto a : m_plugins) {
+        a->ReceivedPluginData(pn, data, len);
+    }
     PluginManager::INSTANCE.multiSyncData(pn, data, len);
 
     stats->pktPlugin++;
@@ -2671,7 +2701,9 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
     }
     if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
         stats->pktFPPCommand++;
-
+        for (auto a : m_plugins) {
+            a->ReceivedFPPCommandPacket(cmd, args);
+        }
         CommandManager::INSTANCE.run(cmd, args);
     }
 }

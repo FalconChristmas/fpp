@@ -194,6 +194,20 @@ public:
 
     virtual void SendPluginData(const std::string& name, const uint8_t* data, int len) {}
     virtual void SendFPPCommandPacket(const std::string& host, const std::string& cmd, const std::vector<std::string>& args) {}
+
+    virtual void ReceivedSeqOpenPacket(const std::string& filename) {}
+    virtual void ReceivedSeqSyncStartPacket(const std::string& filename) {}
+    virtual void ReceivedSeqSyncStopPacket(const std::string& filename) {}
+    virtual void ReceivedSeqSyncPacket(const std::string& filename, int frames, float seconds) {}
+
+    virtual void ReceivedMediaOpenPacket(const std::string& filename) {}
+    virtual void ReceivedMediaSyncStartPacket(const std::string& filename) {}
+    virtual void ReceivedMediaSyncStopPacket(const std::string& filename) {}
+    virtual void ReceivedMediaSyncPacket(const std::string& filename, float seconds) {}
+
+    virtual void ReceivedBlankingDataPacket(void) {}
+    virtual void ReceivedPluginData(const std::string& name, const uint8_t* data, int len) {}
+    virtual void ReceivedFPPCommandPacket(const std::string& cmd, const std::vector<std::string>& args) {}
 };
 
 class NetInterfaceInfo {
@@ -263,15 +277,15 @@ public:
     void addMultiSyncPlugin(MultiSyncPlugin* p);
     void removeMultiSyncPlugin(MultiSyncPlugin* p);
 
-    void OpenSyncedSequence(const char* filename);
-    void StartSyncedSequence(const char* filename);
-    void StopSyncedSequence(const char* filename);
-    void SyncSyncedSequence(const char* filename, int frameNumber, float secondsElapsed);
+    void OpenSyncedSequence(const std::string& filename);
+    void StartSyncedSequence(const std::string& filename);
+    void StopSyncedSequence(const std::string& filename);
+    void SyncSyncedSequence(const std::string& filename, int frameNumber, float secondsElapsed);
 
-    void OpenSyncedMedia(const char* filename);
-    void StartSyncedMedia(const char* filename);
-    void StopSyncedMedia(const char* filename);
-    void SyncSyncedMedia(const char* filename, int frameNumber, float secondsElapsed);
+    void OpenSyncedMedia(const std::string& filename);
+    void StartSyncedMedia(const std::string& filename);
+    void StopSyncedMedia(const std::string& filename);
+    void SyncSyncedMedia(const std::string& filename, int frameNumber, float secondsElapsed);
 
     void SyncPlaylistToMS(uint64_t ms, const std::string& pl = "", bool sendSyncPackets = false);
     void SyncPlaylistToMS(uint64_t ms, int pos, const std::string& pl = "", bool sendSyncPackets = false);

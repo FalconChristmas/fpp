@@ -265,8 +265,8 @@ static std::set<std::string> alreadyWarned;
 /*
  *
  */
-int OpenMediaOutput(const char* filename) {
-    LogDebug(VB_MEDIAOUT, "OpenMediaOutput(%s)\n", filename);
+int OpenMediaOutput(const std::string& filename) {
+    LogDebug(VB_MEDIAOUT, "OpenMediaOutput(%s)\n", filename.c_str());
 
     std::unique_lock<std::mutex> lock(mediaOutputLock);
 
@@ -353,17 +353,17 @@ int OpenMediaOutput(const char* filename) {
         return 0;
     }
 }
-bool MatchesRunningMediaFilename(const char* filename) {
+bool MatchesRunningMediaFilename(const std::string& filename) {
     if (mediaOutput) {
         std::string tmpFile = filename;
         if (HasAudioForMedia(tmpFile)) {
-            if (mediaOutput->m_mediaFilename == tmpFile || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
+            if (mediaOutput->m_mediaFilename == tmpFile || mediaOutput->m_mediaFilename == filename) {
                 return true;
             }
         }
         tmpFile = filename;
         if (HasVideoForMedia(tmpFile)) {
-            if (mediaOutput->m_mediaFilename == tmpFile || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
+            if (mediaOutput->m_mediaFilename == tmpFile || mediaOutput->m_mediaFilename == filename) {
                 return true;
             }
         }
@@ -371,7 +371,7 @@ bool MatchesRunningMediaFilename(const char* filename) {
     return false;
 }
 
-int StartMediaOutput(const char* filename) {
+int StartMediaOutput(const std::string& filename) {
     if (!MatchesRunningMediaFilename(filename)) {
         CloseMediaOutput();
     }
@@ -436,7 +436,7 @@ void CloseMediaOutput() {
     PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
 }
 
-void UpdateMasterMediaPosition(const char* filename, float seconds) {
+void UpdateMasterMediaPosition(const std::string& filename, float seconds) {
     if (getFPPmode() != REMOTE_MODE) {
         return;
     }

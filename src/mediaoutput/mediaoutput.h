@@ -23,10 +23,10 @@ extern MediaOutputStatus mediaOutputStatus;
 void InitMediaOutput(void);
 void CleanupMediaOutput(void);
 
-bool MatchesRunningMediaFilename(const char* filename);
-int OpenMediaOutput(const char* filename);
-int StartMediaOutput(const char* filename);
-void UpdateMasterMediaPosition(const char* filename, float seconds);
+bool MatchesRunningMediaFilename(const std::string& filename);
+int OpenMediaOutput(const std::string& filename);
+int StartMediaOutput(const std::string& filename);
+void UpdateMasterMediaPosition(const std::string& filename, float seconds);
 void CloseMediaOutput();
 
 MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::string& videoOut);
@@ -37,6 +37,6 @@ bool HasVideoForMedia(std::string& filename);
 bool IsExtensionVideo(const std::string& ext);
 bool IsExtensionAudio(const std::string& ext);
 
-//volume control
+// volume control
 void setVolume(int volume);
 int getVolume(void);
