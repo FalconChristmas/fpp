@@ -77,6 +77,11 @@ echo "Running rsync to update / (root) file system:"
 stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh ${SKIPFPP}
 echo
 
+# force copy a few files that rsync cannot properly replace
+cp -af usr/lib/arm-linux-gnueabihf/libzip.so.4.0 mnt/usr/lib/arm-linux-gnueabihf/libzip.so.4.0
+cp -af usr/lib/arm-linux-gnueabihf/libfribidi.so.0.4.0 mnt/usr/lib/arm-linux-gnueabihf/libfribidi.so.0.4.0
+cp -af usr/lib/arm-linux-gnueabihf/libbrotlicommon.so.1.0.9 mnt/usr/lib/arm-linux-gnueabihf/libbrotlicommon.so.1.0.9
+
 #restore the ssh keys
 echo "Restoring system ssh keys"
 cp -a tmp/ssh/* mnt/etc/ssh
