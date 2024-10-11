@@ -138,7 +138,7 @@ if (!isset($apiDir)) {
             }
 
             if (methods.includes('POST') || methods.includes('PUT')) {
-                testInputs += "<tr><td><b>POST/PUT Data:</b></td><td><input type='text' class='inputPostData' size=30 maxlength=256 /></td></tr>";
+                testInputs += "<tr><td><b>POST/PUT Data:</b></td><td><input type='text' class='inputPostData' size=30 maxlength=2560 /></td></tr>";
             }
 
             testInputs += '</tbody></table>';
