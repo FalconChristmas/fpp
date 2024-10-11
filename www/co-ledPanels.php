@@ -2,27 +2,6 @@
 <script>
 
     <?
-    function readPanelCapes($cd, $panelCapes)
-    {
-        if (is_dir($cd)) {
-            if ($dh = opendir($cd)) {
-                while (($file = readdir($dh)) !== false) {
-                    $string = "";
-                    if (substr($file, 0, 1) == '.') {
-                        $string = "";
-                    } else {
-                        $string = file_get_contents($cd . $file);
-                    }
-                    if ($string != "") {
-                        $panelCapes[] = $string;
-                    }
-                }
-                closedir($dh);
-            }
-        }
-        return $panelCapes;
-    }
-
     $panelCapes = array();
     $panelCapes = readPanelCapes($mediaDirectory . "/tmp/panels/", $panelCapes);
     $panelCapesHaveSel4 = false;
@@ -63,19 +42,48 @@
     
     echo $settings;
 
-
-    if (isset($settings['LEDPanelsLayout'])) {
-        for ($z = 0; $z <= count($settings['LEDPanelsLayout']); $z++) {
-            $cnf_parts = explode('_', $settings['LEDPanelsLayout']);
-            $panelMatrixID = $cnf_parts[0];
-            $parts = explode('x', $cnf_parts[1]);
+    if (isset(($settings["LEDPanelMatrices"]))) {
+        for ($z = 0; $z <= count($settings['LEDPanelMatrices']["panelMatrices"]); $z++) {
+            $panelMatrixID = $settings['LEDPanelMatrices']["panelMatrices"][$z]["panelMatrixID"];
+            $parts = explode('x', $settings['LEDPanelMatrices']["panelMatrices"][$z]["Configuration"]);
             if (count($parts) == 2) {
                 $LEDPanelCols[$panelMatrixID] = $parts[0];
                 $LEDPanelRows[$panelMatrixID] = $parts[1];
             }
-        }
     }
 
+    // if (isset($settings['LEDPanelsLayout'])) {
+    //     for ($z = 0; $z <= count($settings['LEDPanelsLayout']); $z++) {
+    //         $cnf_parts = explode('_', $settings['LEDPanelsLayout']);
+    //         $panelMatrixID = $cnf_parts[0];
+    //         $parts = explode('x', $cnf_parts[1]);
+    //         if (count($parts) == 2) {
+    //             $LEDPanelCols[$panelMatrixID] = $parts[0];
+    //             $LEDPanelRows[$panelMatrixID] = $parts[1];
+    //         }
+    //     }
+    // }
+
+    function readPanelCapes($cd, $panelCapes)
+    {
+        if (is_dir($cd)) {
+            if ($dh = opendir($cd)) {
+                while (($file = readdir($dh)) !== false) {
+                    $string = "";
+                    if (substr($file, 0, 1) == '.') {
+                        $string = "";
+                    } else {
+                        $string = file_get_contents($cd . $file);
+                    }
+                    if ($string != "") {
+                        $panelCapes[] = $string;
+                    }
+                }
+                closedir($dh);
+            }
+        }
+        return $panelCapes;
+    }
     function printLEDPanelLayoutSelect($panelMatrixID)
     {
         global $maxLEDPanels, $LEDPanelCols, $LEDPanelRows;
@@ -160,7 +168,7 @@
     }
 
     ?>
-    //END OF PHP BEGINNING OF JAVASCRIPT FUNCTIONS
+    //END OF PHP ---BEGINNING OF JAVASCRIPT FUNCTIONS
 
     var LEDPanelColorOrder = 'RGB';
     var LEDPanelOutputs = <? echo $LEDPanelOutputs; ?>;
