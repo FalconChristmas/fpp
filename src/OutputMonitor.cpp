@@ -101,7 +101,9 @@ public:
         CurrentMonitorBase(c) {
         sensor = Sensors::INSTANCE.getSensorSource(c["sensor"].asString());
         channel = c["channel"].asInt();
-        sensor->enable(channel);
+        if (sensor) {
+            sensor->enable(channel);
+        }
     }
     virtual float getRawValue() override {
         if (sensor) {
@@ -475,6 +477,9 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         std::string ep = pinConfig.get("enablePin", "").asString();
         if (ep != "") {
             pi->enablePin = AddOutputPin(name, ep);
+            if (!pi->enablePin) {
+                enabled = false;
+            }
             pi->highToEnable = (ep[0] != '!');
             if (!enabled) {
                 pi->receivers[0].enabled = false;
