@@ -99,8 +99,9 @@ function StartMonitoring() {
                 var key;
                 if (!port["bank"]) {
                     var idx = port["name"].substr(5);
-                    idx = Math.floor((idx - 1) / 8);
-                    key = "Ports " + (idx * 8 + 1) + "-" + (idx * 8 + 8);
+                    var mx = data.length < 8 ? data.length : 8;
+                    idx = Math.floor((idx - 1) / mx);
+                    key = "Ports " + (idx * mx + 1) + "-" + (idx * mx + mx);
                 } else {
                     key = port["bank"];
                 }
