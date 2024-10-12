@@ -135,7 +135,11 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
         $tmpSettings[$settingName] = $setting;
         $settingsStr = "";
         foreach ($tmpSettings as $key => $value) {
-            $settingsStr .= $key . " = \"" . $value . "\"\n";
+            if (json_validate(($value))) {
+                $settingsStr .= $key . " = " . $value . "\n";
+            } else {
+                $settingsStr .= $key . " = \"" . $value . "\"\n";
+            }
         }
         file_put_contents($filename, $settingsStr);
     }
@@ -160,7 +164,11 @@ function DeleteSettingFromFile($settingName, $plugin = "")
         unset($tmpSettings[$settingName]);
         $settingsStr = "";
         foreach ($tmpSettings as $key => $value) {
-            $settingsStr .= $key . " = \"" . $value . "\"\n";
+            if (json_validate(($value))) {
+                $settingsStr .= $key . " = " . $value . "\n";
+            } else {
+                $settingsStr .= $key . " = \"" . $value . "\"\n";
+            }
         }
         file_put_contents($filename, $settingsStr);
     }
