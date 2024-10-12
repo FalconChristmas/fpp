@@ -453,11 +453,15 @@ static std::string CreateHostAPDConfig(const std::string& interface) {
 
     return content;
 }
-static void setupNetwork() {
+static void unblockWifi() {
     if (FileExists("/usr/sbin/rfkill")) {
         exec("/usr/sbin/rfkill unblock wifi");
         exec("/usr/sbin/rfkill unblock all");
     }
+}
+
+static void setupNetwork() {
+    unblockWifi();
     auto dnsSettings = loadSettingsFile(FPP_MEDIA_DIR + "/config/dns");
     std::string dns = dnsSettings["DNS1"];
     if (dnsSettings["DNS2"] != "") {
@@ -655,6 +659,7 @@ static void setupNetwork() {
         }
         execbg("/usr/bin/systemctl reload-or-restart systemd-networkd.service &");
         if (hostapd) {
+            unblockWifi();
             execbg("/usr/bin/systemctl reload-or-restart hostapd.service &");
         } else {
             if (contains(execAndReturn("/usr/bin/systemctl is-enabled hostapd"), "enabled")) {
@@ -893,7 +898,9 @@ static void maybeEnableTethering() {
                        "PoolSize=100\n"
                        "EmitDNS=no\n\n");
         PutFileContents("/etc/systemd/network/10-" + tetherInterface + ".network", content);
+        unblockWifi();
         exec("/usr/bin/systemctl reload-or-restart systemd-networkd.service");
+        unblockWifi();
         exec("/usr/bin/systemctl reload-or-restart hostapd.service");
     }
 }
