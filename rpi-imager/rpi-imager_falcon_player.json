@@ -1,16 +1,16 @@
 {
     "os_list": [
         {
-            "name": "FPP v8.1 Pi",
+            "name": "FPP v8.2 Pi",
             "description": "Falcon Player for all RPi models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.1/FPP-v8.1-Pi.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.2g/FPP-v8.2-Pi.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 7130316800,
-            "extract_sha256": "6aaa54061743f754902f751a00a80ec370ff8039589170a81700d95ca2e592d0",
-            "image_download_size": 1445377537,
-            "image_download_sha256": "a7706b055d8a678abb8635923784eab3aa7bdad50663dc43d3105fd178c78b25",
+            "extract_sha256": "9bf66ce0709c7bcb839034f3b1bf5904e372e07fd83814def7f5f3ab3437726b",
+            "image_download_size": 1551269886,
+            "image_download_sha256": "b6463770fc41c1d4086728008c7b147df176f5446804b1e3dc4734d0473b7653",
             "release_date": "2024-10-01",
             "devices": [
                 "pi5-32bit", "pi4-32bit", "pi3-32bit", "pi2-32bit", "pi1-32bit"
@@ -33,16 +33,16 @@
             ]
         },
         {
-            "name": "FPP v8.1 BBB",
+            "name": "FPP v8.2 BBB",
             "description": "Falcon Player for all BeagleBone models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.1/FPP-v8.1-BBB.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.2/FPP-v8.2-BBB.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 3745513472,
             "extract_sha256": "927ea4158dafd287674cb57f2386be09d862ab78757799ed319b96ae1729ac8d",
-            "image_download_size": 1114019967,
-            "image_download_sha256": "1c87fbd3aabb36c693e193f271d72ff1eda68a41a5e5ccc39fd1e57416fd71e5",
+            "image_download_size": 1146013894,
+            "image_download_sha256": "5b712c6c066889a409072f9488c1b199c20dca657fbf1a32323957772584bf78",
             "release_date": "2024-10-01",
             "devices": [
                 "pi1-32bit"
@@ -56,7 +56,7 @@
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 3745513472,
-            "extract_sha256": "c7595dd83fa01584c03a2d08adcf4586a7ba4422c10e87882ec2f098709a5d51",
+            "extract_sha256": "d477efb982ba9ee802d6562fd85ff5f84329fb74458cbbbf2e77027f80160bc7",
             "image_download_size": 923472051,
             "image_download_sha256": "cfd66aed2a232ef1b9bf92416477e584f8b724693d1201142d2835f49ee76c84",
             "release_date": "2024-01-12",
