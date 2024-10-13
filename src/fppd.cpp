@@ -351,7 +351,8 @@ static void handleCrash(int s) {
             if (crashLog > 1) {
                 strcat(zName, " settings");
                 if (crashLog > 2) {
-                    strcat(zName, " config tmp logs/fppd.log logs/apache2-error.log playlists /etc/fppd");
+                    system("journalctl -b -u fppinit -u fppoled -u fpp_postnetwork > tmp/boot.log");
+                    strcat(zName, " config tmp logs/fppd.log logs/apache2-error.log playlists /etc/fpp");
                 }
             }
             system(zName);

@@ -198,7 +198,11 @@ Json::Value PlaylistEntrySequence::GetMqttStatus(void) {
 }
 
 void PlaylistEntrySequence::Pause() {
-    m_pausedFrame = sequence->m_seqMSElapsed / sequence->GetSeqStepTime();
+    if (sequence->GetSeqStepTime() == 0) {
+        m_pausedFrame = 0;
+    } else {
+        m_pausedFrame = sequence->m_seqMSElapsed / sequence->GetSeqStepTime();
+    }
     sequence->CloseSequenceFile();
     sequence->SendBlankingData();
     m_prepared = false;
