@@ -3,7 +3,7 @@
         {
             "name": "FPP v8.2 Pi",
             "description": "Falcon Player for all RPi models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.2g/FPP-v8.2-Pi.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.2/FPP-v8.2-Pi.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
