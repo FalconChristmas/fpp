@@ -118,29 +118,7 @@ function ReadSettingFromFile($settingName, $plugin = "")
     }
 }
 
-if (!function_exists('json_validate')) {
-    /**
-     * Validates a JSON string. This is standard in php >= 8.3
-     * 
-     * @param string $json The JSON string to validate.
-     * @param int $depth Maximum depth. Must be greater than zero.
-     * @param int $flags Bitmask of JSON decode options.
-     * @return bool Returns true if the string is a valid JSON, otherwise false.
-     */
-    function json_validate($json, $depth = 512, $flags = 0)
-    {
-        if (!is_string($json)) {
-            return false;
-        }
 
-        try {
-            json_decode($json, false, $depth, $flags | JSON_THROW_ON_ERROR);
-            return true;
-        } catch (\JsonException $e) {
-            return false;
-        }
-    }
-}
 function WriteSettingToFile($settingName, $setting, $plugin = "")
 {
     global $settingsFile;
@@ -159,6 +137,7 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
         $settingsStr = "";
         foreach ($tmpSettings as $key => $value) {
             if (json_validate(($value))) {
+                $value = preg_replace('/\s+/', '', $value);
                 $settingsStr .= $key . " = " . $value . "\n";
             } else {
                 $settingsStr .= $key . " = \"" . $value . "\"\n";
@@ -188,6 +167,7 @@ function DeleteSettingFromFile($settingName, $plugin = "")
         $settingsStr = "";
         foreach ($tmpSettings as $key => $value) {
             if (json_validate(($value))) {
+                $value = preg_replace('/\s+/', '', $value);
                 $settingsStr .= $key . " = " . $value . "\n";
             } else {
                 $settingsStr .= $key . " = \"" . $value . "\"\n";

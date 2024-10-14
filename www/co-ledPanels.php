@@ -18,8 +18,8 @@
     //set default values
     $LEDPanelOutputs = 24;
     $LEDPanelPanelsPerOutput = 24;
-    //$LEDPanelRows = 1;
-    //$LEDPanelCols = 1;
+    $LEDPanelCols = array();
+    $LEDPanelRows = array();
     $LEDPanelWidth = 32;
     $LEDPanelHeight = 16;
     $LEDPanelScan = 8;
@@ -40,29 +40,23 @@
     $maxLEDPanels = $LEDPanelOutputs * $LEDPanelPanelsPerOutput;
     $maxLEDPanels = 96; // Override to allow different panel configs using ColorLight cards
     
-    echo $settings;
-
+    // echo $settings;
+    
     if (isset(($settings["LEDPanelMatrices"]))) {
-        for ($z = 0; $z <= count($settings['LEDPanelMatrices']["panelMatrices"]); $z++) {
-            $panelMatrixID = $settings['LEDPanelMatrices']["panelMatrices"][$z]["panelMatrixID"];
-            $parts = explode('x', $settings['LEDPanelMatrices']["panelMatrices"][$z]["Configuration"]);
+        $matricesArray = json_decode($settings["LEDPanelMatrices"], true);
+        for ($z = 0; $z < count($matricesArray["panelMatrices"]); $z++) {
+            $panelMatrixID = $matricesArray["panelMatrices"][$z]["panelMatrixID"];
+            $parts = explode('x', $matricesArray["panelMatrices"][$z]["Configuration"]["LEDPanelsLayout"]);
             if (count($parts) == 2) {
                 $LEDPanelCols[$panelMatrixID] = $parts[0];
                 $LEDPanelRows[$panelMatrixID] = $parts[1];
             }
+        }
+    } else {
+        //set some defaults for the first panelMatrix
+        $LEDPanelCols[1] = 1;
+        $LEDPanelRows[1] = 1;
     }
-
-    // if (isset($settings['LEDPanelsLayout'])) {
-    //     for ($z = 0; $z <= count($settings['LEDPanelsLayout']); $z++) {
-    //         $cnf_parts = explode('_', $settings['LEDPanelsLayout']);
-    //         $panelMatrixID = $cnf_parts[0];
-    //         $parts = explode('x', $cnf_parts[1]);
-    //         if (count($parts) == 2) {
-    //             $LEDPanelCols[$panelMatrixID] = $parts[0];
-    //             $LEDPanelRows[$panelMatrixID] = $parts[1];
-    //         }
-    //     }
-    // }
 
     function readPanelCapes($cd, $panelCapes)
     {
@@ -87,6 +81,7 @@
     function printLEDPanelLayoutSelect($panelMatrixID)
     {
         global $maxLEDPanels, $LEDPanelCols, $LEDPanelRows;
+        echo "stuart";
 
         echo "W: <select class='LEDPanelsLayoutCols' onChange='LEDPanelsLayoutChanged()'>\n";
         for ($r = 1; $r <= $maxLEDPanels; $r++) {
@@ -122,7 +117,7 @@
         global $settings;
         //get currently visible panelMatrixID
         //echo "panelMatrixID = $('.panelMatrix-tab-content .tab-pane.active .divPanelMatrixID')[0].innerHTML;\n";
-        echo "<select class='LEDPanelInterleave' onchange=\"LEDPanelLayoutChanged($('.panelMatrix-tab-content .tab-pane.active .divPanelMatrixID')[0].innerHTML);\">";
+        echo "<select class='LEDPanelInterleave' onchange=\"LEDPanelLayoutChanged();\">";
 
         $values = array();
         if ($settings['BeaglePlatform']) {
@@ -183,7 +178,7 @@
 
     function UpdatePanelSize() {
         //get currently visible panelMatrixID
-        panelMatrixID = $('.panelMatrix-tab-content .tab-pane.active .divPanelMatrixID')[0].innerHTML;
+        panelMatrixID = GetCurrentActiveMatrixPanelID();
         var size = $(`#panelMatrix${panelMatrixID} .LEDPanelsSize`).val();
         var sizeparts = size.split("x");
         LEDPanelWidth = parseInt(sizeparts[0]);
@@ -194,7 +189,7 @@
 
     function LEDPanelOrientationClicked(id) {
         //get currently visible panelMatrixID
-        panelMatrixID = $('.panelMatrix-tab-content .tab-pane.active .divPanelMatrixID')[0].innerHTML;
+        panelMatrixID = GetCurrentActiveMatrixPanelID();
         var src = $(`#panelMatrix${panelMatrixID} .${id}`).attr('src');
 
         if (src == 'images/arrow_N.png')
@@ -268,7 +263,8 @@
         DrawLEDPanelTable(panelMatrixID);
     }
 
-    function LEDPanelLayoutChanged(panelMatrixID) {
+    function LEDPanelLayoutChanged() {
+        panelMatrixID = GetCurrentActiveMatrixPanelID();
         UpdateLegacyLEDPanelLayout(panelMatrixID);
 
         // update in-memory array
@@ -282,18 +278,26 @@
         }
     }
 
+    function FindIndexOfPanelMatricesArrayBasedOnPanelID(panelMatrixID) {
+        var index = settings["LEDPanelMatrices"]["panelMatrices"].findIndex(function (match) {
+            return match.panelMatrixID == panelMatrixID
+        });
+        return index;
+    }
 
     function LEDPanelsLayoutChanged() {
         //get currently visible panelMatrixID
-        panelMatrixID = $('.panelMatrix-tab-content .tab-pane.active .divPanelMatrixID')[0].innerHTML;
+        panelMatrixID = GetCurrentActiveMatrixPanelID();
+        MatrixArrayIndex = FindIndexOfPanelMatricesArrayBasedOnPanelID(panelMatrixID);
 
-        var value = panelMatrixID + "_" + $(`#panelMatrix${panelMatrixID} .LEDPanelsLayoutCols`).val() + "x" + $(`#panelMatrix${panelMatrixID} .LEDPanelsLayoutRows`).val();
+        var PanelLayoutValue = $(`#panelMatrix${panelMatrixID} .LEDPanelsLayoutCols`).val() + "x" + $(`#panelMatrix${panelMatrixID} .LEDPanelsLayoutRows`).val();
+
 
         $.put('api/settings/LEDPanelsLayout', value)
             .done(function () {
                 $.jGrowl('Panel Layout saved', { themeState: 'success' });
-                settings['LEDPanelsLayout'] = value;
-                LEDPanelLayoutChanged(panelMatrixID);
+                settings["LEDPanelMatrices"]["panelMatrices"][MatrixArrayIndex]["Configuration"]["LEDPanelsLayout"] = value;
+                LEDPanelLayoutChanged();
                 SetRestartFlag(2);
                 common_ViewPortChange();
             }).fail(function () {
@@ -374,6 +378,10 @@
     }
 
     function InitializeLEDPanelMatrix(panelMatrixID) {
+        if (typeof (channelOutputsLookup["LEDPanelMatrices"][panelMatrixID]) !== "object") {
+            return;
+        }
+
         if (("LEDPanelMatrix" in channelOutputsLookup["LEDPanelMatrices"][panelMatrixID]) &&
             (channelOutputsLookup["LEDPanelMatrices"][panelMatrixID].enabled == 1)) {
             $(`#panelMatrix${panelMatrixID} .LEDPanelsEnabled`).prop('checked', true);
@@ -492,7 +500,7 @@
         var advanced = 0;
 
         var matrixDivName = 'panelMatrix' + panelMatrixID;
-        var matrixDiv = document.querySelector(".tab-content div[id=\"" + matrixDivName + "\"]");
+        var matrixDiv = $(`.tab-content [id=${matrixDivName}]`);
 
         if ((matrixDiv.find(`#panelMatrix${panelMatrixID} .LEDPanelUIAdvancedLayout`).is(":checked")) &&
             (typeof channelOutputsLookup["LEDPanelMatrices"][panelMatrixID] !== 'undefined'))
@@ -1124,7 +1132,7 @@
 
     function ToggleAdvancedLayout() {
         //get currently visible panelMatrixID
-        panelMatrixID = $('.panelMatrix-tab-content .tab-pane.active .divPanelMatrixID')[0].innerHTML;
+        panelMatrixID = GetCurrentActiveMatrixPanelID();
 
         if ($(`#panelMatrix${panelMatrixID}  .LEDPanelUIAdvancedLayout`).is(":checked")) {
             if (typeof channelOutputsLookup["LEDPanelMatrices"][panelMatrixID] === 'undefined') {
@@ -1205,11 +1213,15 @@
         $(`#panelMatrix${panelMatrixID} .LEDPanelsSize`).val(singlePanelSize.toString());
     }
 
+    function GetCurrentActiveMatrixPanelID() {
+        return $("[id^=panelMatrix].tab-pane.active")[0].firstElementChild.innerText;
+    }
+
     function PanelSubtypeChanged(panelMatrixID) {
-        var select = document.getElementById("panelMatrix" + panelMatrixID).getElementsByClassName("printSettingFieldCola col-md-3 col-lg-3");
+        var select = document.getElementById("panelMatrix" + panelMatrixID).getElementsByClassName("printSettingFieldCol col-md-3 col-lg-3");
         var html = "";
 
-        html += "<select class='LEDPanelsSize' onchange='LEDPanelsSizeChanged(${panelMatrixID});'>"
+        html += "<select class='LEDPanelsSize' onchange='LEDPanelsSizeChanged(GetCurrentActiveMatrixPanelID());'>"
 
         <? if ($settings['BeaglePlatform']) { ?>
             html += "<option value='32x16x8'>32x16 1/8 Scan</option>"
@@ -1351,7 +1363,7 @@
         var value = $(`#panelMatrix${panelMatrixID} .LEDPanelsSize`).val();
         SetSetting("LEDPanelsSize", value, 1, 0, false, null, function () {
             settings['LEDPanelsSize'] = value;
-            LEDPanelLayoutChanged(panelMatrixID);
+            LEDPanelLayoutChanged();
         });
     }
 
@@ -1363,22 +1375,24 @@
     $(document).ready(function () {
 
         populatePanelMatrixTab(1);
-        populatePanelMatrixTab(2);
-        populatePanelMatrixTab(3);
+        // populatePanelMatrixTab(2);
+        //  populatePanelMatrixTab(3);
 
 
         InitializeLEDPanelMatrix(1);
-        InitializeLEDPanelMatrix(2);
+        //  InitializeLEDPanelMatrix(2);
         LEDPanelsConnectionChanged(1);
 
         SetupAdvancedUISelects();
+        panelMatrixID = GetCurrentActiveMatrixPanelID();
 
-        if ($('#LEDPanelUIAdvancedLayout').is(":checked")) {
+        if ($(`#panelMatrix${panelMatrixID} .LEDPanelUIAdvancedLayout`).is(":checked")) {
             InitializeCanvas(panelMatrixID, 0);
-            $('.ledPanelSimpleUI').hide();
-            $('.ledPanelCanvasUI').show();
+            //InitializeCanvas(1, 0);
+            $(`#panelMatrix${panelMatrixID} .ledPanelSimpleUI`).hide();
+            $(`#panelMatrix${panelMatrixID} .ledPanelCanvasUI`).show();
         } else {
-            $('.ledPanelCanvasUI').hide();
+            $(`#panelMatrix${panelMatrixID} .ledPanelCanvasUI`).hide();
         }
 
         <?
@@ -1539,7 +1553,7 @@
                                 class='ledPanelCanvasUI'><b>Matrix Size (WxH):</b></span>
                         </div>
                         <div class="printSettingFieldCol col-md-3 col-lg-3"><span
-                                class='ledPanelSimpleUI'><? printLEDPanelLayoutSelect(); ?> <input type='button'
+                                class='ledPanelSimpleUI'><? printLEDPanelLayoutSelect(1); ?> <input type='button'
                                     class='buttons' onClick='AutoLayoutPanels();' value='Auto Layout'></span>
                             <span class='ledPanelCanvasUI'><span class='matrixSize'></span></span>
                         </div>
@@ -1792,12 +1806,9 @@
                     </div>
                 </div>
             </div>
-
         </div>
-        <!-- END OF PANEL MATRIX TEMPLATE  -->
-
     </div>
-
+    <!-- END OF PANEL MATRIX TEMPLATE  -->
 
 
 
@@ -1831,3 +1842,4 @@
             </select>
         </div>
     </div>
+</div>

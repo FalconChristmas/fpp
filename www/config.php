@@ -1,5 +1,30 @@
 <?php
 
+//additional function
+if (!function_exists('json_validate')) {
+    /**
+     * Validates a JSON string. This is standard in php >= 8.3
+     * 
+     * @param string $json The JSON string to validate.
+     * @param int $depth Maximum depth. Must be greater than zero.
+     * @param int $flags Bitmask of JSON decode options.
+     * @return bool Returns true if the string is a valid JSON, otherwise false.
+     */
+    function json_validate($json, $depth = 512, $flags = 0)
+    {
+        if (!is_string($json)) {
+            return false;
+        }
+
+        try {
+            json_decode($json, false, $depth, $flags | JSON_THROW_ON_ERROR);
+            return true;
+        } catch (\JsonException $e) {
+            return false;
+        }
+    }
+}
+
 setlocale(LC_CTYPE, "en_US.UTF-8");
 
 $SUDO = "sudo";
@@ -417,7 +442,9 @@ if ($fd) {
         $key = trim($split[0]);
         $value = trim($split[1]);
 
-        $value = preg_replace("/\"/", "", $value);
+        if (!json_validate($value)) {
+            $value = preg_replace("/\"/", "", $value);
+        }
 
         if ($key != "") {
             // If we have a Directory setting that doesn't
@@ -724,6 +751,9 @@ if (file_exists($pluginDirectory)) {
     }
 }
 
+
+
+
 /////////////////////////////////////////////////////////////////////////////
 
 // $skipJSsettings is set in a few places
@@ -738,6 +768,29 @@ if (!isset($skipJSsettings)) {
         // Standard Common JS Variables
         MINYEAR = <? echo MINYEAR; ?>;
         MAXYEAR = <? echo MAXYEAR; ?>;
+        var settings = new Array();
+        <?
+        //remove the below debug
+        //print_r($settings);
+    
+        foreach ($settings as $key => $value) {
+            if (!is_array($value)) {
+                if (json_validate($value)) {
+                    printf("	settings['%s'] = %s;\n", $key, $value);
+                } else {
+                    if ($value[0] !== "\"") {
+                        printf("	settings['%s'] = \"%s\";\n", $key, $value);
+                    } else {
+                        printf("	settings['%s'] = %s;\n", $key, $value);
+                    }
+                }
+            } else {
+                $js_array = json_encode($value);
+                printf("    settings['%s'] = %s;\n", $key, $js_array);
+            }
+        }
+        ?>
+
         var FPP_FULL_VERSION = '<? echo getFPPVersion(); ?>';
         var FPP_VERSION = '<? echo getFPPVersionFloatStr(); ?>';
         var FPP_MAJOR_VERSION = <? echo getFPPMajorVersion(); ?>;
