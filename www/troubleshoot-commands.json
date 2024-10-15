@@ -31,6 +31,14 @@
                         "all"
                     ]
                 },
+                "AvailableAPs": {
+                    "title": "Wifi AP Scan",
+                    "description": "A scan of available wifi network near the fpp device",
+                    "cmd": "sudo bash /opt/fpp/scripts/wifi_scan.sh",
+                    "platforms": [
+                        "all"
+                    ]
+                },
                 "Routing": {
                     "title": "Routing",
                     "description": "",
