@@ -13,6 +13,9 @@ WIFI scanning failed.
 "
     exit
 fi
+
+connected_address=$(iwconfig wlan0 | sed -n 's/.*Access Point: \([0-9\:A-F]\{17\}\).*/\1/p')
+
 if [ -f /tmp/ssids ]; then
     rm /tmp/ssids
 fi
@@ -36,28 +39,32 @@ while [ "$i" -le "$n_results" ]; do
 
         oneaddress=$(grep " Address:" /tmp/onecell | awk '{print $5}')
         onessid=$(grep "ESSID:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("ESSID:", "");print}')
-	      #	onechannel=$(grep " Channel:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Channel:", "");print}')
-		    onefrequency=$(grep " Frequency:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Frequency:", "");print}')
+#               onechannel=$(grep " Channel:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Channel:", "");print}')
+        onefrequency=$(grep " Frequency:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Frequency:", "");print}')
         oneencryption=$(grep "Encryption key:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Encryption key:on", "(secure)");print}' | awk '{gsub("Encryption key:off", "(open)  ");print}')
         onepower=$(grep "Quality=" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Quality=", "");print}' | awk -F '/70' '{print $1}')
         onepower=$(awk -v v3=$onepower 'BEGIN{ print v3 * 10 / 7}')
         onepower=${onepower%.*}
         onepower="(Signal strength: $onepower%)"
+        if [ "$connected_address" == "$oneaddress" ]; then
+                currentcon=" - Connected"
+        else
+                currentcon=""
+        fi
         if [ -n "$oneaddress" ]; then                                                                                                            
-                echo "$onessid  $onefrequency $oneaddress $oneencryption $onepower" >> /tmp/ssids                                                              
+                echo "$onessid  $onefrequency $oneaddress $oneencryption $onepower $currentcon" >> /tmp/ssids                                                              
         else                                                                                                                                     
-                echo "$onessid  $onefrequency $oneencryption $onepower" >> /tmp/ssids                                                                          
+                echo "$onessid  $onefrequency $oneencryption $onepower $currentcon" >> /tmp/ssids                                                                          
         fi
         i=`expr $i + 1`
 done
 rm /tmp/onecell
 awk '{printf("%5d : %s\n", NR,$0)}' /tmp/ssids > /tmp/sec_ssids #add numbers at beginning of line
-
+grep ESSID /tmp/wifiscan | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{printf("%5d : %s\n", NR,$0)}' | awk '{gsub("ESSID:", "");print}' > /tmp/ssids #generate file with only numbers and names
 echo -n "Available WIFI Access Points:
 "
 cat /tmp/sec_ssids #show ssids list
 
-#cleanup temp files
 rm /tmp/ssids
 rm /tmp/sec_ssids
 rm /tmp/wifiscan
