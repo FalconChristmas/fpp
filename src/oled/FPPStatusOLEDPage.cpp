@@ -716,12 +716,19 @@ void FPPStatusOLEDPage::displayWiFiQR() {
 }
 
 bool FPPStatusOLEDPage::loadWiFiImage(const std::string& tp) {
+    std::string fn = "/home/fpp/media/tmp/wifi-" + tp + ".ascii";
     if (_wifiImageWidth) {
+        if (!FileExists(fn)) {
+            // file no longer exists, clear
+            _wifiImageWidth = 0;
+            _wifiImageHeight = 0;
+            _wifiImage.clear();
+            return false;
+        }
         return true;
     }
     _wifiImageWidth = 0;
     _wifiImageHeight = 0;
-    std::string fn = "/home/fpp/media/tmp/wifi-" + tp + ".ascii";
     int maxSz = 0;
     if (GetOLEDType() == OLEDPage::OLEDType::SMALL) {
         maxSz = 15;
