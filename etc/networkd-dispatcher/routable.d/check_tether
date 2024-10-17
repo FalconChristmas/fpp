@@ -1,41 +1,5 @@
 #!/bin/bash
 
 if [ "${ADDR}" != "192.168.8.1" ]; then
-
-FPPDIR=/opt/fpp
-BINDIR=/opt/fpp/scripts
-. ${BINDIR}/common
-. ${BINDIR}/functions
-
-TetherEnabled=$(getSetting EnableTethering)
-if [ "x${TetherEnabled}" == "x" ]; then
-    TetherEnabled=0
-fi
-if [ "${TetherEnabled}" == "0" ]; then
-    TetherInterface=$(getSetting TetherInterface)
-    if [ "x${TetherInterface}" == "x" ]; then
-        WLDEVICES=$(ls -d /sys/class/net/wl*)
-        for d in $WLDEVICES; do
-            DEV=$(basename $d)
-            HASLINKDEV=$(iwconfig $DEV | grep "ESSID:\"FPP\"")
-            if [ "x${HASLINKDEV}" != "x" ]; then
-                TetherInterface=$DEV
-            fi
-        done
-    fi
-    if [ "x${TetherInterface}" == "x" ]; then
-        TetherInterface="wlan0"
-    fi
-
-    if [ "${TetherInterface}" != "${IFACE}" ]; then
-        HostAPDEnabled=$(systemctl is-enabled hostapd)
-        if [ "${HostAPDEnabled}" != "disabled" ]; then
-            rm -f "/etc/systemd/network/10-${TetherInterface}.network"
-            networkctl down "${TetherInterface}"
-            systemctl stop hostapd.service
-            systemctl disable hostapd
-            systemctl reload-or-restart systemd-networkd.service
-	fi
-    fi
-fi
+    /opt/fpp/src/fppinit maybeRemoveTether $IFACE
 fi
