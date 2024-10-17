@@ -777,7 +777,7 @@ void cleanupChromiumFiles() {
     exec("/usr/bin/rm -rf /home/fpp/.config/chromium/Singleton* 2>/dev/null > /dev/null");
 }
 
-static bool waitForInterfacesUp(bool flite) {
+static bool waitForInterfacesUp(bool flite, int timeOut) {
     bool found = false;
     int count = 0;
     std::string announce;
@@ -815,7 +815,7 @@ static bool waitForInterfacesUp(bool flite) {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
             ++count;
         }
-    } while (!found && (count < 100));
+    } while (!found && (count < timeOut));
     if (!found) {
         printf("FPP - Could not get a valid IP address\n");
         return false;
@@ -1301,7 +1301,7 @@ int main(int argc, char* argv[]) {
         PutFileContents("/sys/class/graphics/fbcon/cursor_blink", "0");
         cleanupChromiumFiles();
         setupAudio();
-        waitForInterfacesUp(true); // call to flite requires audio, so do audio before this
+        waitForInterfacesUp(true, 100); // call to flite requires audio, so do audio before this
         if (!FileExists("/etc/fpp/desktop")) {
             maybeEnableTethering();
             detectNetworkModules();
@@ -1339,7 +1339,7 @@ int main(int argc, char* argv[]) {
         if (a.starts_with("active") && argc >= 3) {
             std::string iface = argv[2];
             if (iface.starts_with("wlan")) {
-                waitForInterfacesUp(false);
+                waitForInterfacesUp(false, 20);
                 maybeEnableTethering();
                 detectNetworkModules();
             }
@@ -1351,7 +1351,7 @@ int main(int argc, char* argv[]) {
         TrimWhiteSpace(a);
         if (a.starts_with("active") || e.starts_with("enabled")) {
             std::string iface = argv[2];
-            if (FindTetherWIFIAdapater() != iface && !iface.starts_with("usb") && !iface.starts_with("lo") && waitForInterfacesUp(false)) {
+            if (FindTetherWIFIAdapater() != iface && !iface.starts_with("usb") && !iface.starts_with("lo") && waitForInterfacesUp(false, 10)) {
                 exec("rm -f /etc/systemd/network/10-" + FindTetherWIFIAdapater() + ".network");
                 exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
                 exec("systemctl stop hostapd.service");
