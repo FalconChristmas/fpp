@@ -49,7 +49,7 @@
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="2024-10"
-FPPCFGVER="89"
+FPPCFGVER="90"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -1446,7 +1446,8 @@ if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
 fi
 cp /opt/fpp/etc/avahi/* /etc/avahi/services
 if $isimage; then
-    cp /opt/fpp/etc/networkd-dispatcher/routable.d/* /etc/networkd-dispatcher/routable.d
+    mkdir -p /etc/networkd-dispatcher/initialized.d
+    cp -a /opt/fpp/etc/networkd-dispatcher/* /etc/networkd-dispatcher
 fi
 
 systemctl disable mosquitto

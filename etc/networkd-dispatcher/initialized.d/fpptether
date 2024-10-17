@@ -1,3 +1,2 @@
 #!/bin/sh
-env >> /tmp/env.txt
 /opt/fpp/src/fppinit checkForTether $IFACE &
