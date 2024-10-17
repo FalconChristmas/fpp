@@ -449,6 +449,7 @@ static std::string CreateHostAPDConfig(const std::string& interface) {
         cmd = "/usr/bin/qrencode -t ASCII -m 3 -s 6 -l H -o \"";
         cmd.append(FPP_MEDIA_DIR).append("/tmp/wifi-H.ascii\" \"WIFI:T:WPA;S:");
         cmd.append(ssid).append(";P:").append(psk).append(";;\"");
+        exec(cmd);
     }
 
     return content;
@@ -776,7 +777,7 @@ void cleanupChromiumFiles() {
     exec("/usr/bin/rm -rf /home/fpp/.config/chromium/Singleton* 2>/dev/null > /dev/null");
 }
 
-static void waitForInterfacesUp() {
+static bool waitForInterfacesUp(bool flite) {
     bool found = false;
     int count = 0;
     std::string announce;
@@ -799,9 +800,9 @@ static void waitForInterfacesUp() {
                 tmpAddrPtr = &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr;
                 char addressBuffer[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
-                printf("FPP - Found %s IP Address %s\n", ifa->ifa_name, addressBuffer);
                 std::string addr = addressBuffer;
                 if (!contains(addr, "192.168.6.2") && !contains(addr, "192.168.7.2") && !contains(addr, "192.168.8.1")) {
+                    printf("FPP - Found %s IP Address %s\n", ifa->ifa_name, addressBuffer);
                     announce += ", " + std::string(addressBuffer);
                     found = true;
                 }
@@ -817,11 +818,13 @@ static void waitForInterfacesUp() {
     } while (!found && (count < 100));
     if (!found) {
         printf("FPP - Could not get a valid IP address\n");
+        return false;
     } else {
         printf("FPP - Waited for %d seconds for IP address\n", (count / 5));
-        if (!getRawSettingInt("disableIPAnnouncement", 0) && FileExists("/usr/bin/flite")) {
+        if (!getRawSettingInt("disableIPAnnouncement", 0) && FileExists("/usr/bin/flite") && flite) {
             execbg("/usr/bin/flite -voice awb -t \"" + announce + "\" &");
         }
+        return true;
     }
 }
 static void disableWLANPowerManagement() {
@@ -1253,7 +1256,11 @@ int main(int argc, char* argv[]) {
     } else {
         printf("Could not too output to log.  Directory might not be writable or maybe full.\n");
     }
-    printf("------------------------------\nRunning FPPINIT %s\n", action.c_str());
+    printf("------------------------------\nRunning FPPINIT %s", action.c_str());
+    for (int x = 2; x < argc; x++) {
+        printf(" %s", argv[x]);
+    }
+    printf("\n");
     if (action == "start") {
         if (!FileExists("/.dockerenv")) {
 #ifdef CAPEDETECT
@@ -1294,7 +1301,7 @@ int main(int argc, char* argv[]) {
         PutFileContents("/sys/class/graphics/fbcon/cursor_blink", "0");
         cleanupChromiumFiles();
         setupAudio();
-        waitForInterfacesUp(); // call to flite requires audio, so do audio before this
+        waitForInterfacesUp(true); // call to flite requires audio, so do audio before this
         if (!FileExists("/etc/fpp/desktop")) {
             maybeEnableTethering();
             detectNetworkModules();
@@ -1326,6 +1333,33 @@ int main(int argc, char* argv[]) {
         setupAudio();
     } else if (action == "setupNetwork") {
         setupNetwork();
+    } else if (action == "checkForTether") {
+        std::string a = execAndReturn("systemctl is-active fpp_postnetwork");
+        TrimWhiteSpace(a);
+        if (a.starts_with("active") && argc >= 3) {
+            std::string iface = argv[2];
+            if (iface.starts_with("wlan")) {
+                waitForInterfacesUp(false);
+                maybeEnableTethering();
+                detectNetworkModules();
+            }
+        }
+    } else if (action == "maybeRemoveTether") {
+        std::string e = execAndReturn("systemctl is-enabled hostapd");
+        std::string a = execAndReturn("systemctl is-active hostapd");
+        TrimWhiteSpace(e);
+        TrimWhiteSpace(a);
+        if (a.starts_with("active") || e.starts_with("enabled")) {
+            std::string iface = argv[2];
+            if (FindTetherWIFIAdapater() != iface && !iface.starts_with("usb") && !iface.starts_with("lo") && waitForInterfacesUp(false)) {
+                exec("rm -f /etc/systemd/network/10-" + FindTetherWIFIAdapater() + ".network");
+                exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
+                exec("systemctl stop hostapd.service");
+                exec("systemctl disable hostapd.service");
+                exec("systemctl reload-or-restart systemd-networkd.service");
+            }
+        }
     }
     return 0;
 }
+
