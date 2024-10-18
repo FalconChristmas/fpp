@@ -774,19 +774,29 @@ if (!isset($skipJSsettings)) {
         //print_r($settings);
     
         foreach ($settings as $key => $value) {
-            if (!is_array($value)) {
-                if (json_validate($value)) {
-                    printf("	settings['%s'] = %s;\n", $key, $value);
-                } else {
-                    if ($value[0] !== "\"") {
-                        printf("	settings['%s'] = \"%s\";\n", $key, $value);
+            if (isset($value) && !is_null($value)) {
+                if (!is_array($value)) {
+                    if (json_validate($value)) {
+                        printf("	settings['%s'] = %s;\n", $key, $value);
+                    } else if (gettype($value) == "string") {
+                        if ($value[0] !== "\"") {
+                            printf("	settings['%s'] = \"%s\";\n", $key, $value);
+                        } else {
+                            printf("	settings['%s'] = %s;\n", $key, $value);
+                        }
+                    } else if (gettype($value) == "boolean") {
+                        if ($value) {
+                            printf("	settings['%s'] = true;\n", $key, $value);
+                        } else {
+                            printf("	settings['%s'] = false;\n", $key, $value);
+                        }
                     } else {
                         printf("	settings['%s'] = %s;\n", $key, $value);
                     }
+                } else {
+                    $js_array = json_encode($value);
+                    printf("    settings['%s'] = %s;\n", $key, $js_array);
                 }
-            } else {
-                $js_array = json_encode($value);
-                printf("    settings['%s'] = %s;\n", $key, $js_array);
             }
         }
         ?>
