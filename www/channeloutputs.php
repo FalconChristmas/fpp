@@ -164,19 +164,21 @@
                 //channelOutputsLookup[channelOutputs.channelOutputs[i].type + "-Enabled"] = channelOutputs.channelOutputs[i].enabled;
                 if (channelOutputs.channelOutputs[i].type == "LEDPanelMatrix") {
                     if (!channelOutputsLookup.hasOwnProperty("LEDPanelMatrices")) { channelOutputsLookup["LEDPanelMatrices"] = []; }
-                    channelOutputsLookup["LEDPanelMatrices"][channelOutputs.channelOutputs[i].panelMatrixID] = channelOutputs.channelOutputs[i];
+                    if (typeof channelOutputs.channelOutputs[i].panelMatrixID !== 'undefined') {
+                        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID] = channelOutputs.channelOutputs[i];
 
-                    var p = 0;
-                    for (p = 0; p < channelOutputs.channelOutputs[i].panels.length; p++) {
-                        var r = channelOutputs.channelOutputs[i].panels[p].row;
-                        var c = channelOutputs.channelOutputs[i].panels[p].col;
+                        var p = 0;
+                        for (p = 0; p < channelOutputs.channelOutputs[i].panels.length; p++) {
+                            var r = channelOutputs.channelOutputs[i].panels[p].row;
+                            var c = channelOutputs.channelOutputs[i].panels[p].col;
 
-                        channelOutputsLookup["LEDPanelMatrices"][channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelOutputNumber_" + r + "_" + c]
-                            = channelOutputs.channelOutputs[i].panels[p];
-                        channelOutputsLookup["LEDPanelMatrices"][channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelPanelNumber_" + r + "_" + c]
-                            = channelOutputs.channelOutputs[i].panels[p];
-                        channelOutputsLookup["LEDPanelMatrices"][channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelColorOrder_" + r + "_" + c]
-                            = channelOutputs.channelOutputs[i].panels[p];
+                            channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelOutputNumber_" + r + "_" + c]
+                                = channelOutputs.channelOutputs[i].panels[p];
+                            channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelPanelNumber_" + r + "_" + c]
+                                = channelOutputs.channelOutputs[i].panels[p];
+                            channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelColorOrder_" + r + "_" + c]
+                                = channelOutputs.channelOutputs[i].panels[p];
+                        }
                     }
                 }
             }
@@ -190,17 +192,21 @@
             //loop round the displayed tabs and gather up their configs
             for ($i = 0; $i < $('.tab-content .divPanelMatrixID').length; $i++) {
                 var panelMatrixID = $('.tab-content .divPanelMatrixID')[$i].innerText;
-                var lpc = GetLEDPanelConfigFromUI(panelMatrixID);
-                config.channelOutputs.push(lpc);
+                if (parseInt(panelMatrixID) > 0) {
+                    var lpc = GetLEDPanelConfigFromUI(panelMatrixID);
+                    config.channelOutputs.push(lpc);
+                }
             }
             channelOutputs = config;
             UpdateChannelOutputLookup();
             var result = JSON.stringify(config);
+            result = result.replace("'", "");
             return result;
         }
 
         function SaveChannelOutputsJSON() {
             var configStr = GetChannelOutputConfig();
+            configStr = configStr.replace("'", "");
             $.post("api/configfile/channeloutputs.json",
                 configStr
             ).done(function (data) {
