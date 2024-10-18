@@ -669,6 +669,7 @@ static void setupNetwork() {
             if (!contains(execAndReturn("/usr/bin/systemctl is-active hostapd"), "inactive")) {
                 execbg("/usr/bin/systemctl stop hostapd.service &");
             }
+            exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
         }
     }
 
@@ -1234,6 +1235,7 @@ static void setupChannelOutputs() {
 }
 
 int main(int argc, char* argv[]) {
+    std::string networkSetupMut = FPP_MEDIA_DIR + "/tmp/networkSetup";
     std::string action = "start";
     if (argc > 1) {
         action = argv[1];
@@ -1332,34 +1334,44 @@ int main(int argc, char* argv[]) {
     } else if (action == "setupAudio") {
         setupAudio();
     } else if (action == "setupNetwork") {
+        PutFileContents(networkSetupMut, "1");
         setupNetwork();
+        waitForInterfacesUp(false, 70);
+        detectNetworkModules();
+	maybeEnableTethering();
+        unlink(networkSetupMut.c_str());
     } else if (action == "checkForTether") {
-        std::string a = execAndReturn("systemctl is-active fpp_postnetwork");
-        TrimWhiteSpace(a);
-        if (a.starts_with("active") && argc >= 3) {
-            std::string iface = argv[2];
-            if (iface.starts_with("wlan")) {
-                waitForInterfacesUp(false, 20);
-                maybeEnableTethering();
-                detectNetworkModules();
+        if (!FileExists(networkSetupMut)) {
+            std::string a = execAndReturn("systemctl is-active fpp_postnetwork");
+            TrimWhiteSpace(a);
+            if (a.starts_with("active") && argc >= 3) {
+                std::string iface = argv[2];
+                if (iface.starts_with("wlan")) {
+                    waitForInterfacesUp(false, 20);
+                    maybeEnableTethering();
+                    detectNetworkModules();
+                }
             }
         }
     } else if (action == "maybeRemoveTether") {
-        std::string e = execAndReturn("systemctl is-enabled hostapd");
-        std::string a = execAndReturn("systemctl is-active hostapd");
-        TrimWhiteSpace(e);
-        TrimWhiteSpace(a);
-        if (a.starts_with("active") || e.starts_with("enabled")) {
-            std::string iface = argv[2];
-            if (FindTetherWIFIAdapater() != iface && !iface.starts_with("usb") && !iface.starts_with("lo") && waitForInterfacesUp(false, 10)) {
-                exec("rm -f /etc/systemd/network/10-" + FindTetherWIFIAdapater() + ".network");
-                exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
-                exec("systemctl stop hostapd.service");
-                exec("systemctl disable hostapd.service");
-                exec("systemctl reload-or-restart systemd-networkd.service");
+        if (!FileExists(networkSetupMut)) {
+            std::string e = execAndReturn("systemctl is-enabled hostapd");
+            std::string a = execAndReturn("systemctl is-active hostapd");
+            TrimWhiteSpace(e);
+            TrimWhiteSpace(a);
+            if (a.starts_with("active") || e.starts_with("enabled")) {
+                std::string iface = argv[2];
+                if (FindTetherWIFIAdapater() != iface && !iface.starts_with("usb") && !iface.starts_with("lo") && waitForInterfacesUp(false, 10)) {
+                    exec("rm -f /etc/systemd/network/10-" + FindTetherWIFIAdapater() + ".network");
+                    exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
+                    exec("systemctl stop hostapd.service");
+                    exec("systemctl disable hostapd.service");
+                    exec("systemctl reload-or-restart systemd-networkd.service");
+                }
             }
         }
     }
+    printf("------------------------------\n");
     return 0;
 }
 

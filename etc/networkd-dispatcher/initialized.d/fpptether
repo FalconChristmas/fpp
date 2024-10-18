@@ -1,2 +1,4 @@
-#!/bin/sh
+#!/bin/bash
+if [ "$IP_ADDRS" == "" ]; then
 /opt/fpp/src/fppinit checkForTether $IFACE &
+fi
