@@ -57,5 +57,10 @@
             "program": "/opt/fpp/src/fppcapedetect",
             "cwd": "/opt/fpp/src"
         }
-    ]
+    ],
+    "xdebugSettings": {
+        "max_children": 128,
+        "max_data": -1,
+        "max_depth": 5
+    },
 }
