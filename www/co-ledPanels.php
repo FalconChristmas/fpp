@@ -1107,10 +1107,11 @@
             $(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsHigh`).val(matrixHeight);
         }
         if (resized)
-            SetCanvasSize(panelMatrixID);
+            SetCanvasSize();
     }
 
-    function SetCanvasSize(panelMatrixID) {
+    function SetCanvasSize() {
+        panelMatrixID = GetCurrentActiveMatrixPanelID();
         canvasWidth = parseInt($('#LEDPanelUIPixelsWide').val()) * uiScale;
         canvasHeight = parseInt($('#LEDPanelUIPixelsHigh').val()) * uiScale;
 
@@ -1137,7 +1138,7 @@
                 });
         }
 
-        SetCanvasSize(panelMatrixID);
+        SetCanvasSize();
 
         if (channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].type === "LEDPanelMatrix") {
             for (var i = 0; i < channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panels.length; i++) {
