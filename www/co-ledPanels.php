@@ -401,20 +401,20 @@
             return;
         }
 
-        if (("LEDPanelMatrix" in channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID]) &&
+        if ((Object.values(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID]).includes("LEDPanelMatrix")) &&
             (channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].enabled == 1)) {
             $(`#panelMatrix${panelMatrixID} .LEDPanelsEnabled`).prop('checked', true);
             $(`#panelMatrix${panelMatrixID} .tab-LEDPanels-LI`).show();
         }
 
-        if ("LEDPanelMatrix" in channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID]) {
+        if (Object.values(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID]).includes("LEDPanelMatrix")) {
             $(`#panelMatrix${panelMatrixID} .LEDPanelsStartChannel`).val(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].startChannel);
             $(`#panelMatrix${panelMatrixID} .LEDPanelsPixelCount`).html(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].channelCount / 3);
             $(`#panelMatrix${panelMatrixID} .LEDPanelsChannelCount`).html(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].channelCount);
             $(`#panelMatrix${panelMatrixID} .LEDPanelsColorOrder`).val(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].colorOrder);
             $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightness`).val(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].brightness);
             $(`#panelMatrix${panelMatrixID} .LEDPanelsGamma`).val(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].gamma);
-            $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).text(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].subType);
+            $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).val(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].subType);
             if (channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].interface != null) {
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).val(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].interface);
             }
@@ -494,7 +494,7 @@
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsWiringPinoutLabel`).hide();
                 }
                 if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"] !== 'undefined') {
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).text(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).innerText = KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"];
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionLabel`).hide();
                 }
@@ -542,9 +542,9 @@
         config.channelCount = parseInt(matrixDiv.find('.LEDPanelsChannelCount').html());
         config.colorOrder = matrixDiv.find('.LEDPanelsColorOrder').val();
         config.gamma = matrixDiv.find('.LEDPanelsGamma').val();
-        if ((matrixDiv.find('.LEDPanelsConnectionType').text() === "ColorLight5a75") || (matrixDiv.find('.LEDPanelsConnectionType').text() === "X11PanelMatrix")) {
-            config.subType = matrixDiv.find('.LEDPanelsConnectionType').text();
-            if (matrixDiv.find('.LEDPanelsConnectionType').text() != "X11PanelMatrix")
+        if ((matrixDiv.find('.LEDPanelsConnectionSelect')[0].value === "ColorLight5a75") || (matrixDiv.find('.LEDPanelsConnectionSelect')[0].value === "X11PanelMatrix")) {
+            config.subType = matrixDiv.find('.LEDPanelsConnectionSelect')[0].value;
+            if (matrixDiv.find('.LEDPanelsConnectionSelect')[0].value != "X11PanelMatrix")
                 config.interface = matrixDiv.find('.LEDPanelsInterface').val();
 
         }
@@ -669,10 +669,11 @@
     }
     ?>
 
-    function LEDPanelsConnectionChanged(panelMatrixID) {
+    function LEDPanelsConnectionChanged(panelMatrixID = GetCurrentActiveMatrixPanelID()) {
+
         WarnIfSlowNIC(panelMatrixID);
 
-        if (($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).text() === "ColorLight5a75") || ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).text() === "X11PanelMatrix")) {
+        if (($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "ColorLight5a75") || ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix")) {
             $(`#panelMatrix${panelMatrixID} .LEDPanelsGPIOSlowdownLabel`).hide();
             $(`#panelMatrix${panelMatrixID} .LEDPanelsGPIOSlowdown`).hide();
             $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightness`).hide();
@@ -682,7 +683,7 @@
             $(`#panelMatrix${panelMatrixID} .LEDPanelsWiringPinoutLabel`).hide();
             $(`#panelMatrix${panelMatrixID} .LEDPanelsWiringPinout`).hide();
 
-            if ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).text() === "X11PanelMatrix") {
+            if ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix") {
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionInterface`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).hide();
             } else {
@@ -775,7 +776,7 @@
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsWiringPinoutLabel`).hide();
             }
             if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"] !== 'undefined') {
-                $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).text(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).text(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionLabel`).hide();
             }
@@ -1112,8 +1113,8 @@
 
     function SetCanvasSize() {
         panelMatrixID = GetCurrentActiveMatrixPanelID();
-        canvasWidth = parseInt($('#LEDPanelUIPixelsWide').val()) * uiScale;
-        canvasHeight = parseInt($('#LEDPanelUIPixelsHigh').val()) * uiScale;
+        canvasWidth = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsWide`).val()) * uiScale;
+        canvasHeight = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsHigh`).val()) * uiScale;
 
         ledPanelCanvas[panelMatrixID].setWidth(canvasWidth);
         ledPanelCanvas[panelMatrixID].setHeight(canvasHeight);
@@ -1374,10 +1375,10 @@
 
     }
 
-    function WarnIfSlowNIC(panelMatrixID) {
+    function WarnIfSlowNIC(panelMatrixID = GetCurrentActiveMatrixPanelID()) {
         var NicSpeed = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).find(":selected").text().split('(')[1].split('M')[0]);
-        if (NicSpeed < 1000 && $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).text() == "ColorLight" && $(`#panelMatrix${panelMatrixID} .LEDPanelsEnabled`).is(":checked") == true) {
-            $(`#panelMatrix${panelMatrixID} .divLEDPanelWarnings`).html('<div class="alert alert-danger">Selected interface does not support 1000+ Mbps, which is the Colorlight minimum</div>');
+        if (NicSpeed < 1000 && $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).find(":selected").text() == "ColorLight" && $(`#panelMatrix${panelMatrixID} .LEDPanelsEnabled`).is(":checked") == true) {
+            $(`#panelMatrix${panelMatrixID} .divLEDPanelWarnings`).html(`<div class="alert alert-danger">Selected interface for Panel Matrix ${panelMatrixID} does not support 1000+ Mbps, which is the Colorlight minimum</div>`);
         } else {
             $(`#panelMatrix${panelMatrixID} .divLEDPanelWarnings`).html("");
         }
@@ -1443,8 +1444,6 @@
 
 </script>
 <div id="divLEDPanelMatrices">
-    <div id="divLEDPanelWarnings">
-    </div>
     <div class="row tableTabPageHeader">
         <div class="col-md">
             <h2><span class='capeNamePanels'>LED Panel Matrices</span> </h2>
@@ -1520,6 +1519,10 @@
 
     <div id='divLEDPanelsTemplate' style="background-color: aquamarine;display:none;">
         <div class="divPanelMatrixID" style="display:none;"></div>
+
+        <div class="divLEDPanelWarnings">
+        </div>
+
         <div class="tableOptionsForm">
             <div class="backdrop row">
                 <div class="col-md-auto">
@@ -1529,9 +1532,31 @@
                     </div>
                 </div>
                 <div class="col-md-auto form-inline">
-                    <div class='LEDPanelsConnectionLabel'><b>Connection Type:&nbsp;</b></div>
-                    <div>
-                        <div class='LEDPanelsConnectionType'>Connection Type goes here</div>
+                    <div class='LEDPanelsConnectionLabel'><b>Connection Type:&nbsp;</b>
+                        <div>
+                            <select class='LEDPanelsConnectionSelect' onChange='LEDPanelsConnectionChanged();'>
+                                <?
+                                if (
+                                    in_array('all', $currentCapeInfo["provides"])
+                                    || in_array('panels', $currentCapeInfo["provides"])
+                                ) {
+                                    if ($settings['Platform'] == "Raspberry Pi") {
+                                        ?>
+                                        <option value='RGBMatrix'>Hat/Cap/Cape</option>
+                                        <?
+                                    } else if ($settings['Platform'] == "BeagleBone Black") { ?>
+                                            <option value='LEDscapeMatrix'>Hat/Cap/Cape</option>
+                                    <? } ?>
+                                    <?
+                                } ?>
+                                <option value='ColorLight5a75'>ColorLight</option>
+                                <?
+                                if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux")) {
+                                    echo "<option value='X11PanelMatrix'>X11 Panel Matrix</option>\n";
+                                }
+                                ?>
+                            </select>
+                        </div>
                     </div>
                     <div class="LEDPanelsConnectionInterface col-md-auto form-inline">
                         <b>Interface:</b>
@@ -1819,11 +1844,11 @@
                                         <tr>
                                             <td><b>UI Layout Size:</b></td>
                                             <td>Pixels Wide:</td>
-                                            <td><? PrintSettingTextSaved("LEDPanelUIPixelsWide", 2, 0, 4, 4, "", "256", "SetCanvasSize"); ?>
+                                            <td><? PrintSettingTextSaved("LEDPanelUIPixelsWide", 2, 0, 4, 4, "", "256", "SetCanvasSize", "", "text", [], "class"); ?>
                                             </td>
                                             <td></td>
                                             <td>Pixels High:</td>
-                                            <td><? PrintSettingTextSaved("LEDPanelUIPixelsHigh", 2, 0, 4, 4, "", "128", "SetCanvasSize"); ?>
+                                            <td><? PrintSettingTextSaved("LEDPanelUIPixelsHigh", 2, 0, 4, 4, "", "128", "SetCanvasSize", "", "text", [], "class"); ?>
                                             </td>
                                         </tr>
                                     </table>
