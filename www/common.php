@@ -1016,7 +1016,7 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
     echo "\">\n";
 }
 
-function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "", $inputType = "text", $sData = array())
+function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "", $inputType = "text", $sData = [], $identType = "id")
 {
     global $settings;
     global $pluginSettings;
@@ -1111,7 +1111,19 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     </script>
 ";
 
-    echo "<input type='$inputType' id='$setting' class='mw-100' $maxTag='$maxlength' $sizeTag='$size' ";
+    echo "<input type='$inputType'";
+    if ($identType === "id") {
+        echo " id='$setting'";
+    }
+    echo " class='mw-100";
+    if ($identType === "class") {
+        echo " $setting'";
+    } else {
+        echo "' ";
+    }
+
+
+    echo " $maxTag='$maxlength' $sizeTag='$size' ";
 
     if (isset($sData['step']) && $sData['step'] != 1) {
         echo "step='" . $sData['step'] . "' ";
