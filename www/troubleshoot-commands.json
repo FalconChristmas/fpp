@@ -33,8 +33,8 @@
                 },
                 "AvailableAPs": {
                     "title": "Wifi AP Scan",
-                    "description": "A scan of available wifi network near the fpp device",
-                    "cmd": "sudo bash /opt/fpp/scripts/wifi_scan.sh",
+                    "description": "A scan of all available wifi network Access Points near the fpp device",
+                    "cmd": "sudo bash /opt/fpp/scripts/wifi_scan.sh 2>/dev/null",
                     "platforms": [
                         "all"
                     ]
