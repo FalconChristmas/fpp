@@ -5,13 +5,13 @@ iw dev | awk '$1=="Interface"{print $2}' > /tmp/wifi_devices
 
 cat /tmp/wifi_devices | while read wifi_device || [[ -n $wifi_device ]];
 do
-   
+
 iwlist $wifi_device scanning > /tmp/wifiscan #save scan results to a temp file
 scan_ok=$(grep "$wifi_device" /tmp/wifiscan) #check if the scanning was ok
 if [ -z "$scan_ok" ]; then #if scan was not ok, finish the script
     echo -n "
 WIFI scanning failed.
-    
+
 "
     continue
 fi
@@ -41,11 +41,17 @@ while [ "$i" -le "$n_results" ]; do
 
         oneaddress=$(grep " Address:" /tmp/onecell | awk '{print $5}')
         onessid=$(grep "ESSID:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("ESSID:", "");print}')
-#               onechannel=$(grep " Channel:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Channel:", "");print}')
-                onefrequency=$(grep " Frequency:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Frequency:", "");print}')
+#       onechannel=$(grep " Channel:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Channel:", "");print}')
+        onefrequency=$(grep " Frequency:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Frequency:", "");print}')
         oneencryption=$(grep "Encryption key:" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Encryption key:on", "(secure)");print}' | awk '{gsub("Encryption key:off", "(open)  ");print}')
-        onepower=$(grep "Quality=" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Quality=", "");print}' | awk -F '/70' '{print $1}')
+        onepower=$(grep "Quality=" /tmp/onecell | awk '{ sub(/^[ \t]+/, ""); print }' | awk '{gsub("Quality=", "");print}' | awk -F ' Signal' '{print $1}')
+        if [[ ${onepower} == *"/70"* ]] ; then
+        onepower=$(echo $onepower | awk -F '/70' '{print $1}')
         onepower=$(awk -v v3=$onepower 'BEGIN{ print v3 * 10 / 7}')
+        fi
+        if [[ ${onepower} == *"/100"* ]] ; then
+        onepower=$(echo $onepower | awk -F '/100' '{print $1}')
+        fi
         onepower=${onepower%.*}
         onepower="(Signal strength: $onepower%)"
                 if [ "$connected_address" == "$oneaddress" ]; then
@@ -53,10 +59,10 @@ while [ "$i" -le "$n_results" ]; do
                 else
                 currentcon=""
                 fi
-        if [ -n "$oneaddress" ]; then                                                                                                            
-                echo "$onessid  $onefrequency $oneaddress $oneencryption $onepower $currentcon" >> /tmp/ssids                                                              
-        else                                                                                                                                     
-                echo "$onessid  $onefrequency $oneencryption $onepower $currentcon" >> /tmp/ssids                                                                          
+        if [ -n "$oneaddress" ]; then
+                echo "$onessid  $onefrequency $oneaddress $oneencryption $onepower $currentcon" >> /tmp/ssids
+        else
+                echo "$onessid  $onefrequency $oneencryption $onepower $currentcon" >> /tmp/ssids
         fi
         i=`expr $i + 1`
 done
