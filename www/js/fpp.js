@@ -4117,7 +4117,7 @@ function validateIPaddress (id, allowHostnames = false) {
 	var ip = ipb.value;
 
 	var isIpRegex =
-		/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+		/^(?:(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$/;
 	// hostnames must begin with a letter, contain only letters/numbers/hyphens, and end with a letter
 	// or number
 	var isHostnameRegex =
@@ -4575,18 +4575,19 @@ function updateWarnings (jsonStatus) {
 				}
 			});
 		}
-        var txt = '<b>Abnormal Conditions - May cause poor performance or other issues';
-        var hasID = false;
-        for (var i = 0; i < currentWarnings.length; i++) {
+		var txt =
+			'<b>Abnormal Conditions - May cause poor performance or other issues';
+		var hasID = false;
+		for (var i = 0; i < currentWarnings.length; i++) {
 			var warningID = currentWarnings[i]['id'];
-            if (warningID != 0) {
-                hasID = true;
-            }
-        }
-        if (hasID) {
-            txt += ' (Click link icon for help)';
-        }
-        txt += '</b><br/><ul style="list-style-type: none;">';
+			if (warningID != 0) {
+				hasID = true;
+			}
+		}
+		if (hasID) {
+			txt += ' (Click link icon for help)';
+		}
+		txt += '</b><br/><ul style="list-style-type: none;">';
 
 		for (var i = 0; i < currentWarnings.length; i++) {
 			var warningID = currentWarnings[i]['id'];
