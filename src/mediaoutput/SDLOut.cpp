@@ -736,37 +736,43 @@ bool SDL::openAudio() {
         }
 
         std::string audioDeviceName;
+        std::string forceAudioId = getSetting("ForceAudioId");
+        
+        if (!forceAudioId.empty()) {
+            audioDeviceName = forceAudioId.c_str();                                                                                                                                                                                    
+        } else {
 #ifdef PLATFORM_OSX
-        std::string dev = getSetting("AudioOutput", "--System Default--");
-        if (dev != "--System Default--") {
-            int cnt = SDL_GetNumAudioDevices(0);
-            for (int x = 0; x < cnt; x++) {
-                std::string dn = SDL_GetAudioDeviceName(x, 0);
-                if (endsWith(dn, dev)) {
-                    audioDeviceName = SDL_GetAudioDeviceName(x, 0);
-                }
-            }
-        }
+            std::string dev = getSetting("AudioOutput", "--System Default--");
+            if (dev != "--System Default--") {
+                int cnt = SDL_GetNumAudioDevices(0);
+                for (int x = 0; x < cnt; x++) {
+                    std::string dn = SDL_GetAudioDeviceName(x, 0);                                                                                                                                                                     
+                    if (endsWith(dn, dev)) {
+                        audioDeviceName = SDL_GetAudioDeviceName(x, 0);                                                                                                                                                                
+                    }                                                                                                                                                                                                                  
+                }                                                                                                                                                                                                                      
+            }                                                                                                                                                                                                                          
 #else
-        std::string fn = "/sys/class/sound/card" + getSetting("AudioOutput", "0") + "/id";
-        std::string dev = "";
-        if (FileExists(fn)) {
-            dev = GetFileContents(fn);
-            TrimWhiteSpace(dev);
-            if (dev[dev.size() - 1] == '\n' || dev[dev.size() - 1] == '\r') {
-                dev = dev.substr(0, dev.size() - 2);
-            }
-        }
-        if (dev != "") {
-            int cnt = SDL_GetNumAudioDevices(0);
-            for (int x = 0; x < cnt; x++) {
-                std::string dn = SDL_GetAudioDeviceName(x, 0);
-                if (startsWith(dn, dev)) {
-                    audioDeviceName = dn;
-                }
-            }
-        }
+            std::string fn = "/sys/class/sound/card" + getSetting("AudioOutput", "0") + "/id";
+            std::string dev = "";
+            if (FileExists(fn)) {
+                dev = GetFileContents(fn);                                                                                                                                                                                             
+                TrimWhiteSpace(dev);                                                                                                                                                                                                   
+                if (dev[dev.size() - 1] == '\n' || dev[dev.size() - 1] == '\r') {
+                    dev = dev.substr(0, dev.size() - 2);                                                                                                                                                                               
+                }                                                                                                                                                                                                                      
+            }                                                                                                                                                                                                                          
+            if (dev != "") {
+                int cnt = SDL_GetNumAudioDevices(0);
+                for (int x = 0; x < cnt; x++) {
+                    std::string dn = SDL_GetAudioDeviceName(x, 0);                                                                                                                                                                     
+                    if (startsWith(dn, dev)) {
+                        audioDeviceName = dn;                                                                                                                                                                                          
+                    }                                                                                                                                                                                                                  
+                }                                                                                                                                                                                                                      
+            }                                                                                                                                                                                                                          
 #endif
+        }         
         LogDebug(VB_MEDIAOUT, "Using output device: %s\n", audioDeviceName.c_str());
         int clayout = getSettingInt("AudioLayout");
         _wanted_spec.channels = ChannelsForLayout(clayout);
