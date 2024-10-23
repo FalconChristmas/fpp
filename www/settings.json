@@ -2370,7 +2370,7 @@
                         "tip": "The audio card id is usualy set by the id file in the audio card folder. However, sometimes this id can be wrong. This lets you set it manually. This could help with the error Could not open audio device - ALSA: Couldnt open audio device: Invalid argument",
                         "size": 64,
                         "maxlength": 256,
-                        "level": 1,
+                        "level": 2,
                         "restart": 2
                 },
 		"TimeZone": {
