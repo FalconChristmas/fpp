@@ -674,7 +674,7 @@ static void setupNetwork() {
     }
 
     printf("FPP - Setting max IGMP memberships\n");
-    exec("/usr/sbin/sysctl net/ipv4/igmp_max_memberships=512 > /dev/null 2>&1");
+    exec("/usr/sbin/sysctl -w net/core/rmem_max=393216 net/core/wmem_max=393216 net/ipv4/igmp_max_memberships=512  > /dev/null 2>&1");
     if (ipForward) {
         exec("/usr/sbin/sysctl net.ipv4.ip_forward=1");
     } else {
@@ -1374,4 +1374,3 @@ int main(int argc, char* argv[]) {
     printf("------------------------------\n");
     return 0;
 }
-

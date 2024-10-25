@@ -125,6 +125,8 @@ int CreateArtNetSocket() {
 #endif
         int bufSize = 512 * 1024;
         setsockopt(artnetSock, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
+        bufSize = 512 * 1024;
+        setsockopt(artnetSock, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
 
         memset((char*)&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;

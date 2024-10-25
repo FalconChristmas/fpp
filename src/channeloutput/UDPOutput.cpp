@@ -443,37 +443,46 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
 
     int newSockKey = socketKey;
     int sendSocket = socketInfo->sockets[socketInfo->curSocket];
-    ++socketInfo->curSocket;
-    if (socketInfo->curSocket == socketInfo->sockets.size()) {
-        socketInfo->curSocket = 0;
-    }
-
     errno = 0;
     int oc = sendmmsg(sendSocket, msgs, msgCount, MSG_DONTWAIT);
     int outputCount = 0;
     if (oc > 0) {
         outputCount = oc;
     }
-
+    if (outputCount != msgCount) {
+        // in many cases, a simple thread yield will allow the network stack
+        // to flush some data and free up space, give that a chance first
+        std::this_thread::yield();
+        oc = sendmmsg(sendSocket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+        if (oc > 0) {
+            outputCount += oc;
+        }
+    }
     int errCount = 0;
     while (outputCount != msgCount) {
-        LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   Socket: %d   output count: %d/%d) with error: %d   %s\n",
-               socketKey, sendSocket,
-               outputCount, msgCount,
-               errno,
-               strerror(errno));
+        if (errno != 0) {
+            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   Socket: %d   output count: %d/%d) with error: %d   %s\n",
+                   socketKey, sendSocket,
+                   outputCount, msgCount,
+                   errno,
+                   strerror(errno));
+        }
 
-        int newSock = sendSocket;
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             if (socketKey != BROADCAST_MESSAGES_KEY) {
                 ++socketInfo->curSocket;
                 if (socketInfo->curSocket == socketInfo->sockets.size()) {
-                    socketInfo->curSocket = 0;
+                    if (socketInfo->sockets.size() < 5) {
+                        // this will trigger a create socket
+                        socketInfo->sockets.push_back(-1);
+                    } else {
+                        socketInfo->curSocket = 0;
+                    }
                 }
-                newSock = socketInfo->sockets[socketInfo->curSocket];
-                if (newSock == -1) {
+                sendSocket = socketInfo->sockets[socketInfo->curSocket];
+                if (sendSocket == -1) {
                     socketInfo->sockets[socketInfo->curSocket] = createSocket();
-                    newSock = socketInfo->sockets[socketInfo->curSocket];
+                    sendSocket = socketInfo->sockets[socketInfo->curSocket];
                 }
             } else {
                 return outputCount;
@@ -484,7 +493,7 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
             return outputCount;
         }
         errno = 0;
-        int oc = sendmmsg(newSock, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+        int oc = sendmmsg(sendSocket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
         if (oc > 0) {
             outputCount += oc;
         }
@@ -546,7 +555,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
         auto t1 = clock.now();
         for (auto& msgs : messages.messages) {
             if (!msgs.second.empty() && msgs.first < LATE_MULTICAST_MESSAGES_KEY) {
-                SendSocketInfo* socketInfo = findOrCreateSocket(msgs.first, 5);
+                SendSocketInfo* socketInfo = findOrCreateSocket(msgs.first);
 
                 std::unique_lock<std::mutex> lock(workMutex);
                 workQueue.push_back(WorkItem(msgs.first, socketInfo, msgs.second));
@@ -573,7 +582,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
             // now output the LATE/Broadcast packets (likely sync packets)
             for (auto& msgs : messages.messages) {
                 if (!msgs.second.empty()) {
-                    SendSocketInfo* socketInfo = findOrCreateSocket(msgs.first, 5);
+                    SendSocketInfo* socketInfo = findOrCreateSocket(msgs.first);
                     if (msgs.first >= LATE_MULTICAST_MESSAGES_KEY) {
                         t1 = clock.now();
                         int outputCount = SendMessages(msgs.first, socketInfo, msgs.second);
@@ -604,7 +613,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
     }
     for (auto& msgs : messages.messages) {
         if (!msgs.second.empty()) {
-            SendSocketInfo* socketInfo = findOrCreateSocket(msgs.first, 5);
+            SendSocketInfo* socketInfo = findOrCreateSocket(msgs.first);
             auto t1 = clock.now();
             int outputCount = SendMessages(msgs.first, socketInfo, msgs.second);
             auto t2 = clock.now();
@@ -740,13 +749,21 @@ int UDPOutput::createSocket(int port, bool broadCast) {
     address.sin_port = ntohs(port);
 
     errno = 0;
-    /* Disable loopback so I do not receive my own datagrams. */
+    // Disable loopback so I do not receive my own datagrams.
     char loopch = 0;
     if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&loopch, sizeof(loopch)) < 0) {
         LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_LOOP error\n");
         close(sendSocket);
         return -1;
     }
+    // make sure the send buffer is actually set to a reasonable size
+    int bufSize = 512 * 1024;
+    setsockopt(sendSocket, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
+    // these sockets are for sending only, don't need a large receive buffer so
+    // free some memory by setting to just a single page
+    bufSize = 4096;
+    setsockopt(sendSocket, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
+
     if (broadCast) {
         int broadcast = 1;
         if (setsockopt(sendSocket, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
