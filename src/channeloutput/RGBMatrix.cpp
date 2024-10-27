@@ -233,6 +233,32 @@ int RGBMatrixOutput::Init(Json::Value config) {
         options.row_address_type = config["panelRowAddressType"].asInt();
     }
 
+    /* mortification77 - 2023-11-30: Add panelType
+
+        panelType Definitions
+
+        NOTE: IF we are against inline "const char *", we can create constants.
+
+        0 = default
+        1 = FM6126A
+        2 = FM6127
+
+    */
+
+    if (config.isMember("panelType")) {
+        switch(config["panelType"].asInt())
+        {
+            case 1:
+                options.panel_type = "FM6126A";
+                break;
+            case 2:
+                options.panel_type = "FM6127";
+                break;
+            default:
+                break;
+        }
+    }
+
     m_rgbmatrix = RGBMatrix::CreateFromOptions(options, runtimeOptions);
     if (!m_rgbmatrix) {
         LogErr(VB_CHANNELOUT, "Unable to create RGBMatrix instance\n");
