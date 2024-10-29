@@ -893,6 +893,10 @@ EOF
             echo "FPP - Removing extraneous blacklisted modules"
             rm -f /etc/modprobe.d/blacklist-*8192cu.conf
             rm -f /etc/modprobe.d/blacklist-*8xxxu.conf
+            
+            # this causes a symlink from gpiochip4 -> gpiochip0 which then prevents a gpio expander that would be
+            # gpiochip4 from actually loading and getting a dev entry
+            rm -f /usr/lib/udev/rules.d/60-gpiochip4.rules
         fi
         
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
