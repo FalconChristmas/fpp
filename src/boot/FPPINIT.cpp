@@ -1041,7 +1041,11 @@ static void setupAudio() {
             asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.dmix");
         }
     }
+    int bufSize = getRawSettingInt("AudioBufferSize", 3072);
+    int perSize = getRawSettingInt("AudioPeriodSize", 1024);
     replaceAll(asoundrc, "CARDTYPE", cardType);
+    replaceAll(asoundrc, "BUFFERSIZE", std::to_string(bufSize));
+    replaceAll(asoundrc, "PERIODSIZE", std::to_string(perSize));
     for (int x = 0; x < 10; x++) {
         if (x != card) {
             replaceAll(asoundrc, "card " + std::to_string(x), "card " + std::to_string(card));
@@ -1338,7 +1342,7 @@ int main(int argc, char* argv[]) {
         setupNetwork();
         waitForInterfacesUp(false, 70);
         detectNetworkModules();
-	maybeEnableTethering();
+        maybeEnableTethering();
         unlink(networkSetupMut.c_str());
     } else if (action == "checkForTether") {
         if (!FileExists(networkSetupMut)) {
