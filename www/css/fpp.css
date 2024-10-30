@@ -1812,14 +1812,12 @@ body .sm-clean a .sub-arrow {
     padding-right: 5px;
     vertical-align: top;
     white-space: nowrap;
-    width: 15%;
 }
 
 .psiDetailsData {
     flex: 1;
     padding: 0px;
     vertical-align: top;
-    width: 74%;
 }
 
 .psiDetailsLF {
