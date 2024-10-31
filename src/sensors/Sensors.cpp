@@ -386,7 +386,13 @@ void Sensors::addSensorSources(Json::Value& config) {
         } else if (type == "iio") {
             sensorSources.push_back(new IIOSensorSource(v));
         } else if (type == "mux") {
-            sensorSources.push_back(new MuxSensorSource(v));
+            MuxSensorSource* m = new MuxSensorSource(v);
+            if (m->isOK()) {
+                sensorSources.push_back(m);
+            } else {
+                WarningHolder::AddWarning("Could not create MuxSensorSource: " + m->getID());
+                delete m;
+            }
         }
     }
 }
