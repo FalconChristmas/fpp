@@ -135,6 +135,7 @@ function GetFilesHelper($dirName, $prefix = '')
             array_push($rc, "/var/log/messages");
             array_push($rc, "/var/log/syslog");
         }
+        sort($rc);
         return $rc;
     } else {
         $files = array();
