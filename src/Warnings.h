@@ -16,6 +16,7 @@
 #include <map>
 #include <mutex>
 #include <set>
+#include <shared_mutex>
 #include <thread>
 
 #if __has_include(<jsoncpp/json/json.h>)
@@ -28,12 +29,12 @@ constexpr int UNKNOWN_WARNING_ID = 0;
 
 class FPPWarning : public Json::Value {
 public:
-    FPPWarning(int i, const std::string &m, const std::string &p);
+    FPPWarning(int i, const std::string& m, const std::string& p);
 
     std::string message() const;
     std::string plugin() const;
     int id() const;
-    
+
     int timeout;
 };
 
@@ -49,8 +50,8 @@ public:
     static void RemoveWarning(const std::string& w);
 
     static void AddWarning(int id, const std::string& w, const std::map<std::string, std::string>& data = {});
-    static void AddWarningTimeout(int seconds, int id, const std::string& w, const std::map<std::string, std::string>& data = {}, const std::string &plugin = "");
-    static void RemoveWarning(int id, const std::string& w, const std::string &plugin = "");
+    static void AddWarningTimeout(int seconds, int id, const std::string& w, const std::map<std::string, std::string>& data = {}, const std::string& plugin = "");
+    static void RemoveWarning(int id, const std::string& w, const std::string& plugin = "");
     static void RemoveAllWarnings();
 
     static void AddWarningListener(WarningListener* l);
@@ -62,17 +63,21 @@ public:
 
     static void WriteWarningsFile();
     static void ClearWarningsFile();
+
 private:
-    static std::recursive_mutex warningsLock;
+    static std::shared_mutex warningsLock;
+    static std::list<FPPWarning> warnings;
+    static uint64_t timeToRemove;
+
     static std::mutex notifyLock;
     static std::condition_variable notifyCV;
-    static std::list<FPPWarning> warnings;
     static std::thread* notifyThread;
+
     static std::set<WarningListener*> listenerList;
     static std::mutex listenerListLock;
     static volatile bool runNotifyThread;
 
     static void NotifyListenersMain(); // main for notify thread
     static void writeWarningsFile(const std::list<FPPWarning>& warnings);
-    static void UpdateWarningsAndNotify(bool notify); 
+    static void UpdateWarningsAndNotify(bool notify);
 };

@@ -29,17 +29,16 @@
 #include "settings.h"
 
 std::list<FPPWarning> WarningHolder::warnings;
-std::recursive_mutex WarningHolder::warningsLock;
+std::shared_mutex WarningHolder::warningsLock;
 std::mutex WarningHolder::listenerListLock;
 std::mutex WarningHolder::notifyLock; // Must always lock this before WarningLock
 std::condition_variable WarningHolder::notifyCV;
 std::thread* WarningHolder::notifyThread = nullptr;
 volatile bool WarningHolder::runNotifyThread = false;
 std::set<WarningListener*> WarningHolder::listenerList;
+uint64_t WarningHolder::timeToRemove = 0;
 
-
-
-FPPWarning::FPPWarning(int i, const std::string &m, const std::string &p) {
+FPPWarning::FPPWarning(int i, const std::string& m, const std::string& p) {
     (*this)["id"] = i;
     (*this)["message"] = m;
     if (!p.empty()) {
@@ -61,7 +60,6 @@ std::string FPPWarning::plugin() const {
 int FPPWarning::id() const {
     return (*this)["id"].asInt();
 }
-
 
 void WarningHolder::AddWarningListener(WarningListener* l) {
     LogDebug(VB_GENERAL, "About to add listner\n");
@@ -94,7 +92,7 @@ void WarningHolder::StopNotifyThread() {
     notifyThread->join();
 }
 void WarningHolder::WriteWarningsFile() {
-    std::unique_lock<std::recursive_mutex> lock(warningsLock);    
+    std::shared_lock<std::shared_mutex> lock(warningsLock);
     Json::Value result = Json::Value(Json::ValueType::arrayValue);
     Json::Value resultFull = Json::Value(Json::ValueType::arrayValue);
     for (auto& warn : warnings) {
@@ -112,22 +110,24 @@ void WarningHolder::ClearWarningsFile() {
 void WarningHolder::NotifyListenersMain() {
     SetThreadName("FPP-Warnings");
     std::unique_lock<std::mutex> lck(notifyLock);
-    std::unique_lock<std::recursive_mutex> lock(warningsLock);
     UpdateWarningsAndNotify(false);
     WriteWarningsFile();
-    lock.unlock();
     while (runNotifyThread) {
         notifyCV.wait(lck); // sleep here
         if (!runNotifyThread) {
             return;
         }
-        lock.lock();
         UpdateWarningsAndNotify(false);
         WriteWarningsFile();
+
+        std::shared_lock<std::shared_mutex> lock(warningsLock);
         std::list<FPPWarning> copy(warnings);
         lock.unlock();
+
         LogDebug(VB_GENERAL, "Warning has changed, notifying other threads of %d Warnings\n", copy.size());
+        std::unique_lock<std::mutex> llock(listenerListLock);
         std::for_each(listenerList.begin(), listenerList.end(), [&](WarningListener* l) { l->handleWarnings(copy); });
+        llock.unlock();
     }
 }
 
@@ -137,22 +137,21 @@ void WarningHolder::AddWarning(const std::string& w) {
 void WarningHolder::AddWarningTimeout(const std::string& w, int seconds) {
     AddWarningTimeout(seconds, UNKNOWN_WARNING_ID, w);
 }
-void WarningHolder::RemoveWarning(const std::string& w){
+void WarningHolder::RemoveWarning(const std::string& w) {
     RemoveWarning(UNKNOWN_WARNING_ID, w);
 }
 void WarningHolder::AddWarning(int id, const std::string& w, const std::map<std::string, std::string>& data) {
     AddWarningTimeout(-1, id, w, data);
 }
 
-void WarningHolder::AddWarningTimeout(int seconds, int id, const std::string& w, const std::map<std::string, std::string>& data, const std::string &plugin) {
+void WarningHolder::AddWarningTimeout(int seconds, int id, const std::string& w, const std::map<std::string, std::string>& data, const std::string& plugin) {
     LogDebug(VB_GENERAL, "Adding Warning: %s\n", w.c_str());
     if (seconds != -1) {
         auto nowtime = std::chrono::steady_clock::now();
         int s = std::chrono::duration_cast<std::chrono::seconds>(nowtime.time_since_epoch()).count();
         seconds += s;
     }
-    std::unique_lock<std::mutex> lck(notifyLock);
-    std::unique_lock<std::recursive_mutex> lock(warningsLock);
+    std::unique_lock<std::shared_mutex> lock(warningsLock);
     for (auto it = warnings.begin(); it != warnings.end(); ++it) {
         if (it->id() == id && it->message() == w) {
             return;
@@ -160,58 +159,80 @@ void WarningHolder::AddWarningTimeout(int seconds, int id, const std::string& w,
     }
     auto& ref = warnings.emplace_back(id, w, plugin);
     if (!data.empty()) {
-        for (auto &i : data) {
+        for (auto& i : data) {
             ref["data"][i.first] = i.second;
         }
     }
     ref.timeout = seconds;
+    if (seconds != -1) {
+        if (seconds < timeToRemove || timeToRemove == 0) {
+            timeToRemove = seconds;
+        }
+    }
+    lock.unlock();
+
     // Notify Listeners
+    std::unique_lock<std::mutex> lck(notifyLock);
     notifyCV.notify_all();
 }
-void WarningHolder::RemoveWarning(int id, const std::string& w, const std::string &plugin) {
+void WarningHolder::RemoveWarning(int id, const std::string& w, const std::string& plugin) {
     LogDebug(VB_GENERAL, "Removing Warning: %s\n", w.c_str());
-    std::unique_lock<std::mutex> lck(notifyLock);
-    std::unique_lock<std::recursive_mutex> lock(warningsLock);
+    std::unique_lock<std::shared_mutex> lock(warningsLock);
     for (auto it = warnings.begin(); it != warnings.end(); ++it) {
         if (it->id() == id && it->message() == w && it->plugin() == plugin) {
             warnings.erase(it);
+            lock.unlock();
             // Notify Listeners
+            std::unique_lock<std::mutex> lck(notifyLock);
             notifyCV.notify_all();
             return;
         }
     }
 }
 void WarningHolder::RemoveAllWarnings() {
-    std::unique_lock<std::mutex> lck(notifyLock);
-    std::unique_lock<std::recursive_mutex> lock(warningsLock);
+    std::unique_lock<std::shared_mutex> lock(warningsLock);
     warnings.clear();
+    timeToRemove = 0;
+    lock.unlock();
+
     // Notify Listeners
+    std::unique_lock<std::mutex> lck(notifyLock);
     notifyCV.notify_all();
 }
 
 std::list<FPPWarning> WarningHolder::GetWarnings() {
-    std::unique_lock<std::recursive_mutex> lock(warningsLock);
     UpdateWarningsAndNotify(true);
+    std::shared_lock<std::shared_mutex> lock(warningsLock);
     std::list<FPPWarning> copy(warnings);
     lock.unlock();
+
     return copy;
 }
 void WarningHolder::UpdateWarningsAndNotify(bool notify) {
-    bool madeChange = false;
-    auto nowtime = std::chrono::steady_clock::now();
-    int now = std::chrono::duration_cast<std::chrono::seconds>(nowtime.time_since_epoch()).count();
-    std::unique_lock<std::recursive_mutex> lock(warningsLock);
-    for (auto it = warnings.begin(); it != warnings.end();) {
-        if (it->timeout > 0 && it->timeout < now) {
-            it = warnings.erase(it);
-            madeChange = true;
-        } else {
-            ++it;
+    if (timeToRemove > 0) {
+        bool madeChange = false;
+        auto nowtime = std::chrono::steady_clock::now();
+        int now = std::chrono::duration_cast<std::chrono::seconds>(nowtime.time_since_epoch()).count();
+        if (now > timeToRemove) {
+            std::unique_lock<std::shared_mutex> lock(warningsLock);
+            int nt = 0;
+            for (auto it = warnings.begin(); it != warnings.end();) {
+                if (it->timeout > 0 && it->timeout < now) {
+                    it = warnings.erase(it);
+                    madeChange = true;
+                } else {
+                    if (it->timeout > 0 && (nt == 0 || it->timeout < nt)) {
+                        nt = it->timeout;
+                    }
+                    ++it;
+                }
+            }
+            timeToRemove = nt;
         }
-    }
-    if (notify && madeChange) {
-        // Notify Listeners
-        std::unique_lock<std::mutex> lck(notifyLock);
-        notifyCV.notify_all();
+        if (notify && madeChange) {
+            // Notify Listeners
+            std::unique_lock<std::mutex> lck(notifyLock);
+            notifyCV.notify_all();
+        }
     }
 }
