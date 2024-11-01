@@ -454,6 +454,10 @@
                 var RowAddressType = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelRowAddressType;
                 $(`#panelMatrix${panelMatrixID} .LEDPanelRowAddressType`).val(RowAddressType);
             }
+            if (channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelType != null) {
+                var PanelType = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelType;
+                $(`#panelMatrix${panelMatrixID} .LEDPanelType`).val(PanelType);
+            }
             if (channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelInterleave != null) {
                 var interleave = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelInterleave;
                 $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).val(interleave);
@@ -594,6 +598,10 @@
         if (matrixDiv.find('.LEDPanelRowAddressType').val() != "0") {
             config.panelRowAddressType = parseInt(matrixDiv.find('.LEDPanelRowAddressType').val());
         }
+        if (matrixDiv.find('.LEDPanelType').val() != "0") {
+            config.panelType = parseInt(matrixDiv.find('.LEDPanelType').val());
+        }
+
         if (matrixDiv.find('.LEDPanelInterleave').val() != "0") {
             config.panelInterleave = matrixDiv.find('.LEDPanelInterleave').val();
         }
@@ -706,6 +714,8 @@
             if ($settings['BeaglePlatform']) { ?>
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressTypeLabel`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelRowAddressType`).hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelTypeLabel`).hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelType`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsInterleaveLabel`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).hide();
@@ -765,6 +775,8 @@
                 if ($settings['Platform'] == "Raspberry Pi") { ?>
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressTypeLabel`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelRowAddressType`).show();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelTypeLabel`).show();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelType`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsInterleaveLabel`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputCPUPWMLabel`).show();
@@ -1516,6 +1528,8 @@
             <li>If not using all outputs, use all the outputs from 1 up to what is needed. Data is always sent on
                 outputs up to the highest configured, even if no panels are attached.</li>
             <? if ($settings['Platform'] == "Raspberry Pi") { ?>
+            <li>If <b>only one single panel works</b> and everything else is correctly configured, try one of the
+                special "LED Panel Type" options!</li>
             <li>The FPP developers strongly encourage using either a BeagleBone based panel driver (Octoscroller,
                 PocketScroller) or using a ColorLight controller. The Raspberry Pi panel code performs poorly compared
                 to the other options and supports a much more limited set of options.</li>
@@ -1769,6 +1783,23 @@
                             <option value='2'>Direct Row Select</option>
                             <option value='3'>ABC-Addressed Panels</option>
                             <option value='4'>ABC Shift + DE Direct</option>
+                        </select>
+                    </div>
+                <? } else { ?>
+                    <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
+                    <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
+                <? } ?>
+            </div>
+
+            <div class="row">
+                <? if ($settings['Platform'] == "Raspberry Pi") { ?>
+                    <div class="printSettingLabelCol col-md-2 col-lg-2"><span class='LEDPanelTypeLabel'><b>LED Panel
+                                Type:</b></span></div>
+                    <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <select class='LEDPanelType'>
+                            <option value='0' selected>Standard</option>
+                            <option value='1'>FM6126A</option>
+                            <option value='2'>FM6127</option>
                         </select>
                     </div>
                 <? } else { ?>

@@ -218,7 +218,7 @@ int RGBMatrixOutput::Init(Json::Value config) {
             options.multiplexing = 0;
         }
     }
-    /* mortification77 - 2023-11-30: Add panelRowAddressType
+    /* mortification77
 
         panelRowAddressType Definitions
 
@@ -232,6 +232,21 @@ int RGBMatrixOutput::Init(Json::Value config) {
 
     if (config.isMember("panelRowAddressType")) {
         options.row_address_type = config["panelRowAddressType"].asInt();
+    }
+
+
+    if (config.isMember("panelType")) {
+        switch(config["panelType"].asInt())
+        {
+            case 1:
+                options.panel_type = "FM6126A";
+                break;
+            case 2:
+                options.panel_type = "FM6127";
+                break;
+            default:
+                break;
+        }
     }
 
     m_rgbmatrix = RGBMatrix::CreateFromOptions(options, runtimeOptions);
