@@ -6260,7 +6260,7 @@ function SetVolume (value) {
 		$.post({ url: 'api/system/volume', data: JSON.stringify(obj) })
 			.done(function (data) {
 				// Unblock volume UI updates
-				settings['volume'] = string(value);
+				settings['volume'] = String(value);
 				VolumeChangeInProgress = false;
 				VolumeChangeAPIInProgress = false;
 			})
