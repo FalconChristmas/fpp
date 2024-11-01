@@ -200,7 +200,7 @@
             channelOutputs = config;
             UpdateChannelOutputLookup();
             var result = JSON.stringify(config);
-            result = result.replace("'", "");
+            //result = result.replace("'", "");
             return result;
         }
 
@@ -249,8 +249,8 @@
 
         // If led panels are enabled, make sure the page is displayed even if the cape is a string cape (could be a colorlight output)
         if ($channelOutputs != null && $channelOutputs['channelOutputs'] != null && $channelOutputs['channelOutputs'][0] != null) {
-            foreach ($channelOutputsi['channelOutputs'] as $i)
-                if ($channelOutputs['channelOutputs'][$i]['type'] == "LEDPanelMatrix" && $channelOutputs['channelOutputs'][$i]['enabled'] == 1) {
+            foreach ($channelOutputs['channelOutputs'] as $i)
+                if ($i['type'] == "LEDPanelMatrix" && $i['enabled'] == 1) {
                     $currentCapeInfo["provides"][] = 'panels';
                 }
         }
