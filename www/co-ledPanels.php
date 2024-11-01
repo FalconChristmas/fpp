@@ -149,6 +149,16 @@
             $values["ZStripeUneven"] = "8";
             $values["P10-128x4-Z"] = "9";
             $values["QiangLiQ8"] = "10";
+            $values["InversedZStripe"] = "11";
+            $values["P10Outdoor1R1G1-1"] = "12";
+            $values["P10Outdoor1R1G1-2"] = "13";
+            $values["P10Outdoor1R1G1-3"] = "14";
+            $values["P10CoremanMapper"] = "15";
+            $values["P8Outdoor1R1G1"] = "16";
+            $values["FlippedStripe"] = "17";
+            $values["P10Outdoor32x16HalfScan"] = "18";
+            $values["P10Outdoor32x16QuarterScanMapper"] = "19";
+            $values["P3Outdoor64x64MultiplexMapper"] = "20";
         }
         foreach ($values as $key => $value) {
             echo "<option value='$value'";
