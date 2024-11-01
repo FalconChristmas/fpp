@@ -157,64 +157,42 @@
 
         }
 
+        //Define Volume change event steps for Player Mode
+        function VolumeControlChange(value) {
+            VolumeChangeInProgress = true;
+            SetSpeakerIndicator(value);
+            $('#volume').html(value);
+            SetVolume(value);
+        }
+
+        //Define Volume change event steps for Remote Mode
+        function RemoteVolumeControlChange(value) {
+            VolumeChangeInProgress = true;
+            SetSpeakerIndicator(value);
+            $('#remoteVolume').html(value);
+            SetVolume(value);
+        }
+
         function PageSetup() {
 
             //Volume Controls
             //Store frequently elements in variables
             var slider = $('#slider');
             var rslider = $('#remoteVolumeSlider');
-            //Define Volume change event steps for Player Mode
-            function VolumeControlChange() {
-                var value = slider.val();
-                SetSpeakerIndicator(value);
-                $('#volume').html(value);
-                SetVolume(value);
-            }
-            //Define Volume change event steps for Player Mode
-            function RemoteVolumeControlChange() {
-                var value = rslider.val();
-                SetSpeakerIndicator(value);
-                $('#remoteVolume').html(value);
-                SetVolume(value);
-            }
-            //Initialize the Player Mode Slider
-            //triggered on move of slider
-            slider.on('mousemove', function (e) {
-                VolumeChangeInProgress = true;
-                //console.log("sliding slider with mouse");
-                VolumeControlChange();
-            });
-            //triggered on move of slider
-            slider.on('touchmove', function (e) {
-                VolumeChangeInProgress = true;
-                //console.log("sliding slider with touch");
-                VolumeControlChange();
-            });
+
             //Triggered after the user slides a handle, if the value has changed
             slider.on('change', function (e) {
                 VolumeChangeInProgress = true;
                 //console.log("slider value changed");
-                VolumeControlChange();
+                VolumeControlChange(this.value);
             });
 
             //Initialize the Remote Mode Slider
-            //triggered on move of slider
-            rslider.on('mousemove', function (e) {
-                VolumeChangeInProgress = true;
-                //console.log("sliding slider with mouse");
-                RemoteVolumeControlChange();
-            });
-            //triggered on move of slider
-            rslider.on('touchmove', function (e) {
-                VolumeChangeInProgress = true;
-                //console.log("sliding slider with touch");
-                RemoteVolumeControlChange();
-            });
             //Triggered after the user slides a handle, if the value has changed
             rslider.on('change', function (e) {
                 VolumeChangeInProgress = true;
                 //console.log("slider value changed");
-                RemoteVolumeControlChange();
+                RemoteVolumeControlChange(this.value);
             });
 
             SetupBanner();
@@ -330,7 +308,8 @@
             if (isset($settings["UnpartitionedSpace"]) && $settings["UnpartitionedSpace"] > 0):
                 ?>
                 <div id='spaceFlag' class="alert alert-danger" role="alert">
-                    SD card has unused space. Go to <a href="settings.php#settings-storage">Storage Settings</a> to expand the
+                    SD card has unused space. Go to <a href="settings.php#settings-storage">Storage Settings</a> to expand
+                    the
                     file system or create a new storage partition.
                 </div>
             <?php endif; ?>
@@ -456,7 +435,8 @@
                                 <button class='volumeButton buttons' onClick="DecrementVolume();">
                                     <i class='fas fa-fw fa-volume-down'></i>
                                 </button>
-                                <input type="range" min="0" max="100" class="slider" id="remoteVolumeSlider">
+                                <input type="range" min="0" max="100" class="slider" id="remoteVolumeSlider"
+                                    oninput="RemoteVolumeControlChange(this.value)">
                                 <button class='volumeButton buttons' onClick="IncrementVolume();">
                                     <i class='fas fa-fw fa-volume-up'></i>
                                 </button>
@@ -645,8 +625,8 @@
                                                             onClick="DecrementVolume();">
                                                             <i class='fas fa-fw fa-volume-down'></i>
                                                         </button>
-                                                        <input type="range" min="0" max="100" class="slider"
-                                                            id="slider">
+                                                        <input type="range" min="0" max="100" class="slider" id="slider"
+                                                            oninput="VolumeControlChange(this.value)">
                                                         <button class='volumeButton buttons'
                                                             onClick="IncrementVolume();">
                                                             <i class='fas fa-fw fa-volume-up'></i>
