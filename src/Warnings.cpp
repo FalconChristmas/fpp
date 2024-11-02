@@ -13,10 +13,12 @@
 #include "fpp-pch.h"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <list>
 #include <map>
 #include <mutex>
+#include <semaphore>
 #include <set>
 #include <stdio.h>
 #include <string>
@@ -31,12 +33,15 @@
 std::list<FPPWarning> WarningHolder::warnings;
 std::shared_mutex WarningHolder::warningsLock;
 std::mutex WarningHolder::listenerListLock;
-std::mutex WarningHolder::notifyLock; // Must always lock this before WarningLock
-std::condition_variable WarningHolder::notifyCV;
-std::thread* WarningHolder::notifyThread = nullptr;
-volatile bool WarningHolder::runNotifyThread = false;
 std::set<WarningListener*> WarningHolder::listenerList;
 uint64_t WarningHolder::timeToRemove = 0;
+
+namespace
+{
+std::atomic_bool runNotifyThread{ false };
+std::thread notifyThread;
+std::binary_semaphore sema{ 0 };
+}
 
 FPPWarning::FPPWarning(int i, const std::string& m, const std::string& p) {
     (*this)["id"] = i;
@@ -62,10 +67,10 @@ int FPPWarning::id() const {
 }
 
 void WarningHolder::AddWarningListener(WarningListener* l) {
-    LogDebug(VB_GENERAL, "About to add listner\n");
+    LogDebug(VB_GENERAL, "About to add listener\n");
     std::unique_lock<std::mutex> lock(listenerListLock);
     listenerList.insert(l);
-    LogDebug(VB_GENERAL, "Adding Listner Done\n");
+    LogDebug(VB_GENERAL, "Adding Listener Done\n");
 }
 
 void WarningHolder::RemoveWarningListener(WarningListener* l) {
@@ -73,7 +78,7 @@ void WarningHolder::RemoveWarningListener(WarningListener* l) {
     std::set<WarningListener*>::const_iterator it = listenerList.find(l);
     if (it != listenerList.end()) {
         listenerList.erase(it);
-        LogDebug(VB_GENERAL, "Removing Warning Listner Complete\n");
+        LogDebug(VB_GENERAL, "Removing Warning Listener Complete\n");
     } else {
         LogWarn(VB_GENERAL, "Requested to remove Listener, but it wasn't found\n");
     }
@@ -81,15 +86,13 @@ void WarningHolder::RemoveWarningListener(WarningListener* l) {
 
 void WarningHolder::StartNotifyThread() {
     runNotifyThread = true;
-    notifyThread = new std::thread(WarningHolder::NotifyListenersMain);
+    notifyThread = std::thread(WarningHolder::NotifyListenersMain);
 }
 
 void WarningHolder::StopNotifyThread() {
     runNotifyThread = false;
-    std::unique_lock<std::mutex> lck(notifyLock);
-    notifyCV.notify_all();
-    lck.unlock();
-    notifyThread->join();
+    sema.release();
+    notifyThread.join();
 }
 void WarningHolder::WriteWarningsFile() {
     std::shared_lock<std::shared_mutex> lock(warningsLock);
@@ -109,11 +112,10 @@ void WarningHolder::ClearWarningsFile() {
 
 void WarningHolder::NotifyListenersMain() {
     SetThreadName("FPP-Warnings");
-    std::unique_lock<std::mutex> lck(notifyLock);
     UpdateWarningsAndNotify(false);
     WriteWarningsFile();
     while (runNotifyThread) {
-        notifyCV.wait(lck); // sleep here
+        sema.acquire();
         if (!runNotifyThread) {
             return;
         }
@@ -172,8 +174,7 @@ void WarningHolder::AddWarningTimeout(int seconds, int id, const std::string& w,
     lock.unlock();
 
     // Notify Listeners
-    std::unique_lock<std::mutex> lck(notifyLock);
-    notifyCV.notify_all();
+    sema.release();
 }
 void WarningHolder::RemoveWarning(int id, const std::string& w, const std::string& plugin) {
     LogDebug(VB_GENERAL, "Removing Warning: %s\n", w.c_str());
@@ -183,8 +184,7 @@ void WarningHolder::RemoveWarning(int id, const std::string& w, const std::strin
             warnings.erase(it);
             lock.unlock();
             // Notify Listeners
-            std::unique_lock<std::mutex> lck(notifyLock);
-            notifyCV.notify_all();
+            sema.release();
             return;
         }
     }
@@ -196,8 +196,7 @@ void WarningHolder::RemoveAllWarnings() {
     lock.unlock();
 
     // Notify Listeners
-    std::unique_lock<std::mutex> lck(notifyLock);
-    notifyCV.notify_all();
+    sema.release();
 }
 
 std::list<FPPWarning> WarningHolder::GetWarnings() {
@@ -231,8 +230,7 @@ void WarningHolder::UpdateWarningsAndNotify(bool notify) {
         }
         if (notify && madeChange) {
             // Notify Listeners
-            std::unique_lock<std::mutex> lck(notifyLock);
-            notifyCV.notify_all();
+            sema.release();
         }
     }
 }

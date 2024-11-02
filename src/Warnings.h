@@ -11,7 +11,6 @@
  * included LICENSE.LGPL file.
  */
 
-#include <condition_variable>
 #include <list>
 #include <map>
 #include <mutex>
@@ -69,13 +68,8 @@ private:
     static std::list<FPPWarning> warnings;
     static uint64_t timeToRemove;
 
-    static std::mutex notifyLock;
-    static std::condition_variable notifyCV;
-    static std::thread* notifyThread;
-
     static std::set<WarningListener*> listenerList;
     static std::mutex listenerListLock;
-    static volatile bool runNotifyThread;
 
     static void NotifyListenersMain(); // main for notify thread
     static void writeWarningsFile(const std::list<FPPWarning>& warnings);
