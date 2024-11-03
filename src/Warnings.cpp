@@ -14,14 +14,11 @@
 
 #include <algorithm>
 #include <atomic>
-#include <chrono>
-#include <list>
-#include <map>
 #include <mutex>
 #include <semaphore>
 #include <set>
+#include <shared_mutex>
 #include <stdio.h>
-#include <string>
 #include <thread>
 #include <utility>
 
@@ -30,18 +27,21 @@
 #include "log.h"
 #include "settings.h"
 
-std::list<FPPWarning> WarningHolder::warnings;
-std::shared_mutex WarningHolder::warningsLock;
-std::mutex WarningHolder::listenerListLock;
-std::set<WarningListener*> WarningHolder::listenerList;
-uint64_t WarningHolder::timeToRemove = 0;
+using namespace std::chrono;
 
 namespace
 {
-std::atomic_bool runNotifyThread{ false };
-std::thread notifyThread;
-std::binary_semaphore sema{ 0 };
+    std::list<FPPWarning> warnings;
+    std::shared_mutex warningsLock;
+    std::mutex listenerListLock;
+    std::set<WarningListener*> listenerList;
+    steady_clock::time_point wakeUpTime = steady_clock::time_point::max();
+    std::atomic_bool runNotifyThread{ false };
+    std::thread notifyThread;
+    std::binary_semaphore sema{ 0 };
 }
+
+static void PruneWarnings();
 
 FPPWarning::FPPWarning(int i, const std::string& m, const std::string& p) {
     (*this)["id"] = i;
@@ -49,7 +49,7 @@ FPPWarning::FPPWarning(int i, const std::string& m, const std::string& p) {
     if (!p.empty()) {
         (*this)["plugin"] = p;
     }
-    timeout = -1;
+    timeout = steady_clock::time_point::max();
 }
 
 std::string FPPWarning::message() const {
@@ -75,9 +75,7 @@ void WarningHolder::AddWarningListener(WarningListener* l) {
 
 void WarningHolder::RemoveWarningListener(WarningListener* l) {
     std::unique_lock<std::mutex> lock(listenerListLock);
-    std::set<WarningListener*>::const_iterator it = listenerList.find(l);
-    if (it != listenerList.end()) {
-        listenerList.erase(it);
+    if (listenerList.erase(l)) {
         LogDebug(VB_GENERAL, "Removing Warning Listener Complete\n");
     } else {
         LogWarn(VB_GENERAL, "Requested to remove Listener, but it wasn't found\n");
@@ -86,7 +84,7 @@ void WarningHolder::RemoveWarningListener(WarningListener* l) {
 
 void WarningHolder::StartNotifyThread() {
     runNotifyThread = true;
-    notifyThread = std::thread(WarningHolder::NotifyListenersMain);
+    notifyThread = std::thread(WarningHolder::WarningsThreadMain);
 }
 
 void WarningHolder::StopNotifyThread() {
@@ -110,26 +108,24 @@ void WarningHolder::ClearWarningsFile() {
     remove(getFPPDDir("/www/warnings_full.json").c_str());
 }
 
-void WarningHolder::NotifyListenersMain() {
+void WarningHolder::WarningsThreadMain() {
     SetThreadName("FPP-Warnings");
-    UpdateWarningsAndNotify(false);
+    PruneWarnings();
     WriteWarningsFile();
     while (runNotifyThread) {
-        sema.acquire();
+        sema.try_acquire_until(wakeUpTime);
         if (!runNotifyThread) {
-            return;
+            break;
         }
-        UpdateWarningsAndNotify(false);
+        PruneWarnings();
         WriteWarningsFile();
 
-        std::shared_lock<std::shared_mutex> lock(warningsLock);
-        std::list<FPPWarning> copy(warnings);
-        lock.unlock();
+        auto copy = GetWarnings();
 
-        LogDebug(VB_GENERAL, "Warning has changed, notifying other threads of %d Warnings\n", copy.size());
-        std::unique_lock<std::mutex> llock(listenerListLock);
+        LogDebug(VB_GENERAL, "Warnings may have changed; notifying other threads of %zu Warnings\n", copy.size());
+
+        std::unique_lock lock(listenerListLock);
         std::for_each(listenerList.begin(), listenerList.end(), [&](WarningListener* l) { l->handleWarnings(copy); });
-        llock.unlock();
     }
 }
 
@@ -146,30 +142,32 @@ void WarningHolder::AddWarning(int id, const std::string& w, const std::map<std:
     AddWarningTimeout(-1, id, w, data);
 }
 
-void WarningHolder::AddWarningTimeout(int seconds, int id, const std::string& w, const std::map<std::string, std::string>& data, const std::string& plugin) {
+void WarningHolder::AddWarningTimeout(int sec, int id, const std::string& w, const std::map<std::string, std::string>& data, const std::string& plugin) {
     LogDebug(VB_GENERAL, "Adding Warning: %s\n", w.c_str());
-    if (seconds != -1) {
-        auto nowtime = std::chrono::steady_clock::now();
-        int s = std::chrono::duration_cast<std::chrono::seconds>(nowtime.time_since_epoch()).count();
-        seconds += s;
+    steady_clock::time_point timeoutTime = steady_clock::time_point::max();
+    if (sec != -1) {
+        timeoutTime = steady_clock::now() + seconds(sec);
     }
     std::unique_lock<std::shared_mutex> lock(warningsLock);
     for (auto it = warnings.begin(); it != warnings.end(); ++it) {
         if (it->id() == id && it->message() == w) {
+            // Timeout is allowed to move later, but not earlier
+            if (timeoutTime > it->timeout)
+                it->timeout = timeoutTime;
             return;
         }
     }
+
     auto& ref = warnings.emplace_back(id, w, plugin);
     if (!data.empty()) {
         for (auto& i : data) {
             ref["data"][i.first] = i.second;
         }
     }
-    ref.timeout = seconds;
-    if (seconds != -1) {
-        if (seconds < timeToRemove || timeToRemove == 0) {
-            timeToRemove = seconds;
-        }
+
+    ref.timeout = timeoutTime;
+    if (timeoutTime < wakeUpTime) {
+        wakeUpTime = timeoutTime;
     }
     lock.unlock();
 
@@ -192,7 +190,7 @@ void WarningHolder::RemoveWarning(int id, const std::string& w, const std::strin
 void WarningHolder::RemoveAllWarnings() {
     std::unique_lock<std::shared_mutex> lock(warningsLock);
     warnings.clear();
-    timeToRemove = 0;
+    wakeUpTime = steady_clock::time_point::max();
     lock.unlock();
 
     // Notify Listeners
@@ -200,37 +198,26 @@ void WarningHolder::RemoveAllWarnings() {
 }
 
 std::list<FPPWarning> WarningHolder::GetWarnings() {
-    UpdateWarningsAndNotify(true);
     std::shared_lock<std::shared_mutex> lock(warningsLock);
-    std::list<FPPWarning> copy(warnings);
-    lock.unlock();
-
-    return copy;
+    return warnings;
 }
-void WarningHolder::UpdateWarningsAndNotify(bool notify) {
-    if (timeToRemove > 0) {
-        bool madeChange = false;
-        auto nowtime = std::chrono::steady_clock::now();
-        int now = std::chrono::duration_cast<std::chrono::seconds>(nowtime.time_since_epoch()).count();
-        if (now > timeToRemove) {
-            std::unique_lock<std::shared_mutex> lock(warningsLock);
-            int nt = 0;
-            for (auto it = warnings.begin(); it != warnings.end();) {
-                if (it->timeout > 0 && it->timeout < now) {
-                    it = warnings.erase(it);
-                    madeChange = true;
-                } else {
-                    if (it->timeout > 0 && (nt == 0 || it->timeout < nt)) {
-                        nt = it->timeout;
-                    }
-                    ++it;
-                }
+
+void PruneWarnings() {
+    // warnings are not stored in a heap or sorted, so we must walk over the warnings to find expired
+    std::unique_lock lock(warningsLock);
+    wakeUpTime = steady_clock::time_point::max();
+    if (!warnings.empty()) {
+        auto now = steady_clock::now();
+        for (auto it = warnings.begin(); it != warnings.end(); /* in loop */) {
+            if (it->timeout <= now) {
+                // warning has expired
+                it = warnings.erase(it);
+                continue;
+            } else if (it->timeout < wakeUpTime) {
+                // our next warning
+                wakeUpTime = it->timeout;
             }
-            timeToRemove = nt;
-        }
-        if (notify && madeChange) {
-            // Notify Listeners
-            sema.release();
+            ++it;
         }
     }
 }

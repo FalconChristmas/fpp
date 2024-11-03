@@ -11,12 +11,10 @@
  * included LICENSE.LGPL file.
  */
 
+#include <chrono>
 #include <list>
 #include <map>
-#include <mutex>
-#include <set>
-#include <shared_mutex>
-#include <thread>
+#include <string>
 
 #if __has_include(<jsoncpp/json/json.h>)
 #include <jsoncpp/json/json.h>
@@ -34,7 +32,7 @@ public:
     std::string plugin() const;
     int id() const;
 
-    int timeout;
+    std::chrono::steady_clock::time_point timeout;
 };
 
 class WarningListener {
@@ -64,14 +62,5 @@ public:
     static void ClearWarningsFile();
 
 private:
-    static std::shared_mutex warningsLock;
-    static std::list<FPPWarning> warnings;
-    static uint64_t timeToRemove;
-
-    static std::set<WarningListener*> listenerList;
-    static std::mutex listenerListLock;
-
-    static void NotifyListenersMain(); // main for notify thread
-    static void writeWarningsFile(const std::list<FPPWarning>& warnings);
-    static void UpdateWarningsAndNotify(bool notify);
+    static void WarningsThreadMain(); // main for notify thread
 };
