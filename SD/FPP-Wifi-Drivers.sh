@@ -53,8 +53,6 @@ rm -rf rtl8192eu-linux-driver
 
 git clone https://github.com/lwfinger/rtl8723au
 cd rtl8723au
-sed -i 's/I386_PC = y/I386_PC = n/' Makefile
-sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
 sed -i 's/KSRC *:= /KSRC ?= /' Makefile
 sed -i 's/CROSS_COMPILE *:=/CROSS_COMPILE ?=/' Makefile
