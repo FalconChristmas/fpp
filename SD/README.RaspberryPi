@@ -99,9 +99,10 @@ apt-get install linux-headers-${KV}+rpt-rpi-v7l linux-headers-${KV}+rpt-rpi-v7 l
 cd ~
 wget -O ./FPP-Wifi-Drivers.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP-Wifi-Drivers.sh
 chmod +x ./FPP-Wifi-Drivers.sh
+./FPP-Wifi-Drivers.sh
 
 apt-get remove --purge linux-headers-${KV}+rpt-rpi-v7l linux-headers-${KV}+rpt-rpi-v7 linux-headers-${KV}+rpt-rpi-v6 linux-headers-${KV}+rpt-common-rpi linux-kbuild-${KV}+rpt
-
+rm ./FPP-Wifi-Drivers.sh
 
 
 
