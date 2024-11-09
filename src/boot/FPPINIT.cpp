@@ -161,6 +161,7 @@ static void handleBootPartition() {
     if (DirectoryExists(bootDir + "/fpp")) {
         if (!FileExists(bootDir + "/fpp/copy_done")) {
             std::string cmd = "/usr/bin/cp -a " + bootDir + "/fpp/* " + FPP_MEDIA_DIR;
+            exec(cmd);
             PutFileContents(bootDir + "/fpp/copy_done", "1");
         }
     }
