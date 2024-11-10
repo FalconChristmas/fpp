@@ -202,7 +202,7 @@ int Playlist::Load(Json::Value& config) {
         if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount)) {
             startPos = m_loadStartPos - origEntryCount;
         } else if (m_loadStartPos == -2 && m_loadEndPos == 0) {
-            //random single item
+            // random single item
             int l = playlist.size();
             if (l > 1) {
                 startPos = std::rand() % l;
@@ -1504,7 +1504,7 @@ void Playlist::GetFilenamesForPos(int pos, std::string& seq, std::string& med) {
 int Playlist::FindPosForMS(uint64_t& t, bool itemDefinedOnly) {
     if (itemDefinedOnly) {
         PlaylistEntryBase* bestOption = nullptr;
-        uint64_t diff = 0xFFFFFFFFFFL;        
+        uint64_t diff = 0xFFFFFFFFFFL;
         for (auto& a : m_leadIn) {
             if (a->GetTimeCode() < t) {
                 uint64_t d2 = t - a->GetTimeCode();
@@ -1569,6 +1569,8 @@ uint64_t Playlist::GetCurrentPosInMS() {
     return GetCurrentPosInMS(pos, posms, false);
 }
 uint64_t Playlist::GetCurrentPosInMS(int& position, uint64_t& posms, bool itemDefinedOnly) {
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+
     position = -1;
     posms = 0;
     if (m_currentState == "idle" || m_currentSection == nullptr) {
@@ -1577,7 +1579,7 @@ uint64_t Playlist::GetCurrentPosInMS(int& position, uint64_t& posms, bool itemDe
     position = m_currentSection->at(m_sectionPosition)->GetPositionInPlaylist();
     posms = m_currentSection->at(m_sectionPosition)->GetElapsedMS();
     if (itemDefinedOnly) {
-        int pos =  m_currentSection->at(m_sectionPosition)->GetTimeCode();
+        int pos = m_currentSection->at(m_sectionPosition)->GetTimeCode();
         if (pos >= 0) {
             return pos + posms;
         } else {
