@@ -14,7 +14,9 @@
 
 #include "BBBUtils.h"
 #include <sys/mman.h>
+#include <dirent.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "../common.h"
@@ -53,7 +55,8 @@ static std::vector<BBBPinCapabilities> BBB_PINS;
 // #define HZ 1000000.0f
 #define HZ 10000.0f
 
-static uint32_t bbGPIOMap[] = { 0, 1, 2, 3 };
+// static uint32_t bbGPIOMap[] = { 3, 0, 1, 2 };
+static uint32_t bbGPIOMap[] = { 0, 0, 0, 0 };
 static const char* bbbPWMDeviceName = "/sys/class/pwm/pwmchip";
 static FILE* bbbPWMDutyFiles[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 
@@ -76,33 +79,66 @@ static void setupBBBMemoryMap() {
         return;
     }
 
+    std::map<std::string, int> labelMapping;
     // newer kernels will number the chips differently so we'll use the
-    // labels to figure out the mapping to the gpio0-3 that we use
+    // memory locations to figure out the mapping to the gpio0-3 that we use
+    const std::string dirName("/sys/class/gpio");
+    DIR* dir = opendir(dirName.c_str());
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        std::string fn = entry->d_name;
+        if (fn.starts_with("gpiochip")) {
+            std::string fn2 = dirName + "/" + fn;
+            char buf[PATH_MAX + 1];
+            realpath(fn2.c_str(), buf);
+
+            std::string lab = GetFileContents(fn2 + "/label");
+            TrimWhiteSpace(lab);
+            std::string target = buf;
+            if (target.contains("44e07000.gpio")) {
+                labelMapping[lab] = 0;
+            } else if (target.contains("4804c000.gpio")) {
+                labelMapping[lab] = 1;
+            } else if (target.contains("481ac000.gpio")) {
+                labelMapping[lab] = 2;
+            } else if (target.contains("481ae000.gpio")) {
+                labelMapping[lab] = 3;
+            }
+        }
+    }
+    closedir(dir);
+
     int curChip = 0;
     for (auto& a : gpiod::make_chip_iter()) {
         // std::string cname = a.name();
-        // std::string clabel = a.label();
-        auto line = a.get_line(0);
-        if (line.name() == "NC") {
+        std::string clabel = a.label();
+        if (labelMapping.contains(clabel)) {
+            bbGPIOMap[labelMapping[clabel]] = curChip;
+        } else {
+            // if mapping by base fails, try using specific line labels
+            auto line = a.get_line(0);
+            if (line.name() == "NC") {
+                line.release();
+                line = a.get_line(13);
+            }
+            std::string name = line.name();
+            if (name == "[mdio_data]" || name == "P1.28 [I2C2_SCL]") {
+                bbGPIOMap[0] = curChip;
+            } else if (name == "P8_25 [mmc1_dat0]" || name == "P2.33") {
+                bbGPIOMap[1] = curChip;
+            } else if (name == "P9_15B" || name == "[SYSBOOT 7]" || name == "P2.20") {
+                bbGPIOMap[2] = curChip;
+            } else if (name == "[mii col]" || name == "P1.03 [USB1]") {
+                bbGPIOMap[3] = curChip;
+            }
             line.release();
-            line = a.get_line(13);
         }
-        std::string name = line.name();
-        if (name == "[mdio_data]" || name == "P1.28 [I2C2_SCL]") {
-            bbGPIOMap[0] = curChip;
-        } else if (name == "P8_25 [mmc1_dat0]" || name == "P2.33") {
-            bbGPIOMap[1] = curChip;
-        } else if (name == "P9_15B" || name == "[SYSBOOT 7]" || name == "P2.20") {
-            bbGPIOMap[2] = curChip;
-        } else if (name == "[mii col]" || name == "P1.03 [USB1]") {
-            bbGPIOMap[3] = curChip;
-        }
-        line.release();
         ++curChip;
         if (curChip == 4) {
             break;
         }
     }
+    // printf("Mapping %d %d %d %d\n", bbGPIOMap[0], bbGPIOMap[1], bbGPIOMap[2], bbGPIOMap[3]);
     registersMemMapped = 1;
 }
 
