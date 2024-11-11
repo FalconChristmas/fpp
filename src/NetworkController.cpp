@@ -290,9 +290,9 @@ bool NetworkController::DetectAlphaPixController(const std::string& ip, const st
 
     RegExCache re("AlphaPix (\\d+|Flex|Evolution)");
     RegExCache re2("(\\d+) Port Ethernet to SPI Controller");
-    std::smatch m;
+    std::smatch m, m2;
 
-    if ((!std::regex_search(html, *re.regex)) && (!std::regex_search(html, *re2.regex)))
+    if ((!std::regex_search(html, m, *re.regex)) && (!std::regex_search(html, m2, *re2.regex)))
         return false;
 
     LogExcess(VB_SYNC, "%s is potentially a AlphaPix controller, checking further\n", ip.c_str());
