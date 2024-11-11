@@ -33,6 +33,9 @@ MuxSensorSource::~MuxSensorSource() {
 
 void MuxSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
     std::map<int, std::function<bool(int)>> cb;
+    if (!source) {
+        return;
+    }
     source->Init(cb);
     updatingByCallback = false;
     if (!cb.empty()) {
@@ -107,6 +110,9 @@ void MuxSensorSource::getValues() {
 }
 
 void MuxSensorSource::update(bool forceInstant) {
+    if (!source) {
+        return;
+    }
     if (!updatingByCallback) {
         source->update(forceInstant || (updateCount == 0));
         updateCount = 1 + updateCount;
@@ -121,6 +127,10 @@ void MuxSensorSource::update(bool forceInstant) {
     }
 }
 void MuxSensorSource::enable(int id) {
+    if (!source) {
+        return;
+    }
+
     int i = id % channelsPerMux;
     source->enable(i);
     if (id >= values.size()) {

@@ -161,6 +161,7 @@ static void handleBootPartition() {
     if (DirectoryExists(bootDir + "/fpp")) {
         if (!FileExists(bootDir + "/fpp/copy_done")) {
             std::string cmd = "/usr/bin/cp -a " + bootDir + "/fpp/* " + FPP_MEDIA_DIR;
+            exec(cmd);
             PutFileContents(bootDir + "/fpp/copy_done", "1");
         }
     }
@@ -927,6 +928,21 @@ static void detectNetworkModules() {
         // PutFileContents("/home/fpp/media/config/fpp-network-modules.conf", content);
     }
 }
+static void checkPi5Wifi() {
+#ifdef PLATFORM_PI
+    if (startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5")) {
+        // Pi5 does not have external wifi adapters, make sure we have them disabled
+        if (FileExists("/etc/modprobe.d/blacklist-native-wifi.conf")) {
+            unlink("/etc/modprobe.d/blacklist-native-wifi.conf");
+        }
+        std::string v;
+        getRawSetting("wifiDrivers", v);
+        if (v != "Kernel") {
+            setRawSetting("wifiDrivers", "Kernel");
+        }
+    }
+#endif
+}
 
 static void setupAudio() {
     if (!FileExists("/root/.libao")) {
@@ -1041,7 +1057,11 @@ static void setupAudio() {
             asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.dmix");
         }
     }
+    int bufSize = getRawSettingInt("AudioBufferSize", 3072);
+    int perSize = getRawSettingInt("AudioPeriodSize", 1024);
     replaceAll(asoundrc, "CARDTYPE", cardType);
+    replaceAll(asoundrc, "BUFFERSIZE", std::to_string(bufSize));
+    replaceAll(asoundrc, "PERIODSIZE", std::to_string(perSize));
     for (int x = 0; x < 10; x++) {
         if (x != card) {
             replaceAll(asoundrc, "card " + std::to_string(x), "card " + std::to_string(card));
@@ -1274,6 +1294,7 @@ int main(int argc, char* argv[]) {
         printf("FPP - Directories created\n");
         checkSSHKeys();
         handleBootPartition();
+        checkPi5Wifi();
         checkHostName();
         checkFSTAB();
         setupApache();
@@ -1338,7 +1359,7 @@ int main(int argc, char* argv[]) {
         setupNetwork();
         waitForInterfacesUp(false, 70);
         detectNetworkModules();
-	maybeEnableTethering();
+        maybeEnableTethering();
         unlink(networkSetupMut.c_str());
     } else if (action == "checkForTether") {
         if (!FileExists(networkSetupMut)) {

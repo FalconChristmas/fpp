@@ -2,16 +2,8 @@
 	"settingGroups": {
 		"BBBLeds": {
 			"description": "BeagleBone LEDs",
-			"platforms": [
-				"BeagleBone Black"
-			],
-			"settings": [
-				"BBBLeds0",
-				"BBBLeds1",
-				"BBBLeds2",
-				"BBBLeds3",
-				"BBBLedPWR"
-			]
+			"platforms": ["BeagleBone Black"],
+			"settings": ["BBBLeds0", "BBBLeds1", "BBBLeds2", "BBBLeds3", "BBBLedPWR"]
 		},
 		"email": {
 			"description": "Outbound Email Configuration",
@@ -27,16 +19,11 @@
 		},
 		"host": {
 			"description": "Host Settings",
-			"settings": [
-				"HostName",
-				"HostDescription"
-			]
+			"settings": ["HostName", "HostDescription"]
 		},
 		"hostDesktop": {
 			"description": "Host Settings",
-			"settings": [
-				"HostDescription"
-			]
+			"settings": ["HostDescription"]
 		},
 		"log-levels": {
 			"description": "Log Levels",
@@ -61,10 +48,7 @@
 		},
 		"geolocation": {
 			"description": "Geographic Location",
-			"settings": [
-				"Latitude",
-				"Longitude"
-			]
+			"settings": ["Latitude", "Longitude"]
 		},
 		"generalAudioVideo": {
 			"description": "General Audio/Video",
@@ -73,9 +57,12 @@
 				"AudioMixerDevice",
 				"AudioFormat",
 				"AudioLayout",
+				"AudioBufferSize",
+				"AudioPeriodSize",
 				"VideoOutput",
 				"HardwareDecoding",
 				"VLCOptions",
+				"ForceAudioId",
 				"mediaOffset",
 				"remoteIgnoreSync",
 				"disableIPAnnouncement",
@@ -112,10 +99,7 @@
 		},
 		"input": {
 			"description": "Input Control",
-			"settings": [
-				"DisableFakeNetworkBridges",
-				"bridgeDataPriority"
-			]
+			"settings": ["DisableFakeNetworkBridges", "bridgeDataPriority"]
 		},
 		"mqtt": {
 			"description": "MQTT",
@@ -167,18 +151,11 @@
 		},
 		"services": {
 			"description": "OS Services",
-			"settings": [
-				"Service_rsync",
-				"Service_smbd_nmbd",
-				"Service_vsftpd"
-			]
+			"settings": ["Service_rsync", "Service_smbd_nmbd", "Service_vsftpd"]
 		},
 		"kiosk": {
 			"description": "Kiosk Mode",
-			"settings": [
-				"KioskUrl",
-				"KioskTimeout"
-			]
+			"settings": ["KioskUrl", "KioskTimeout"]
 		},
 		"system": {
 			"description": "System Settings",
@@ -212,13 +189,7 @@
 		},
 		"time": {
 			"description": "Time Config",
-			"settings": [
-				"ClockDate",
-				"ClockTime",
-				"piRTC",
-				"ntpServer",
-				"TimeZone"
-			]
+			"settings": ["ClockDate", "ClockTime", "piRTC", "ntpServer", "TimeZone"]
 		},
 		"ui": {
 			"description": "User Interface",
@@ -249,16 +220,11 @@
 		},
 		"wifiDomainGroup": {
 			"description": "WIFI Domain",
-			"settings": [
-				"WifiRegulatoryDomain"
-			]
+			"settings": ["WifiRegulatoryDomain"]
 		},
 		"wifiDriversGroup": {
 			"description": "WIFI Drivers/Domain",
-			"settings": [
-				"wifiDrivers",
-				"WifiRegulatoryDomain"
-			]
+			"settings": ["wifiDrivers", "WifiRegulatoryDomain"]
 		},
 		"advNetworkSettingsGroup": {
 			"description": "Advanced Interface Settings",
@@ -306,10 +272,7 @@
 			"onChange": "dhcpServerEnabledCallback",
 			"type": "checkbox",
 			"children": {
-				"1": [
-					"dhcpOffset",
-					"dhcpPoolSize"
-				]
+				"1": ["dhcpOffset", "dhcpPoolSize"]
 			}
 		},
 		"dhcpOffset": {
@@ -576,6 +539,50 @@
 				"Left/Right/Front Center/Side Left/Side Right/Back Left/Back Right/LFE (7.1)": 15
 			}
 		},
+		"AudioBufferSize": {
+			"name": "AudioBufferSize",
+			"description": "Audio Buffer Size",
+			"tip": "The size of the buffer used to prepare audio to send to the sound card.  Larger values increase latency, but may reduce audio static/glitches",
+			"gatherStats": true,
+			"level": 1,
+			"restart": 0,
+			"reboot": 1,
+			"default": 3072,
+			"type": "select",
+			"options": {
+				"2048": 2048,
+				"3072": 3072,
+				"4096": 4096,
+				"5120": 5120,
+				"6144": 6144,
+				"7168": 7168,
+				"8192": 8192
+			}
+		},
+		"AudioPeriodSize": {
+			"name": "AudioPeriodSize",
+			"description": "Audio Period Size",
+			"tip": "The size of the DMA transfer from the audio buffer to the hardware.  Should be an even fraction of the Audio Buffer Size",
+			"gatherStats": true,
+			"level": 1,
+			"restart": 0,
+			"reboot": 1,
+			"default": 1024,
+			"type": "select",
+			"options": {
+				"1024": 1024,
+				"1536": 1536,
+				"2048": 2048,
+				"2560": 2560,
+				"3072": 3072,
+				"3584": 3584,
+				"4096": 4096,
+				"5120": 5120,
+				"6144": 6144,
+				"7168": 7168,
+				"8192": 8192
+			}
+		},
 		"AudioMixerDevice": {
 			"name": "AudioMixerDevice",
 			"description": "Audio Output Mixer Device",
@@ -585,9 +592,7 @@
 			"default": "PCM",
 			"type": "select",
 			"optionsURL": "api/settings/AudioMixerDevice/options",
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
 		"AudioOutput": {
 			"name": "AudioOutput",
@@ -598,9 +603,7 @@
 			"reboot": 1,
 			"default": "0",
 			"type": "select",
-			"reloadOther": [
-				"AudioMixerDevice"
-			],
+			"reloadOther": ["AudioMixerDevice"],
 			"optionsURL": "api/settings/AudioOutput/options"
 		},
 		"backgroundColor": {
@@ -633,9 +636,7 @@
 			"description": "Power",
 			"tip": "Controls whether the power indicator LED on the BeagleBone is enabled or disabled",
 			"default": "1",
-			"platforms": [
-				"BeagleBone Black"
-			],
+			"platforms": ["BeagleBone Black"],
 			"type": "select",
 			"options": {
 				"Disabled": "0",
@@ -647,9 +648,7 @@
 			"description": "USR0",
 			"tip": "Controls the function of the USR0 LED indicator on the BeagleBone",
 			"default": "heartbeat",
-			"platforms": [
-				"BeagleBone Black"
-			],
+			"platforms": ["BeagleBone Black"],
 			"type": "select",
 			"options": {
 				"Disabled": "none",
@@ -664,9 +663,7 @@
 			"description": "USR1",
 			"tip": "Controls the function of the USR1 LED indicator on the BeagleBone",
 			"default": "mmc0",
-			"platforms": [
-				"BeagleBone Black"
-			],
+			"platforms": ["BeagleBone Black"],
 			"type": "select",
 			"options": {
 				"Disabled": "none",
@@ -681,9 +678,7 @@
 			"description": "USR2",
 			"tip": "Controls the function of the USR2 LED indicator on the BeagleBone",
 			"default": "cpu",
-			"platforms": [
-				"BeagleBone Black"
-			],
+			"platforms": ["BeagleBone Black"],
 			"type": "select",
 			"options": {
 				"Disabled": "none",
@@ -698,9 +693,7 @@
 			"description": "USR3",
 			"tip": "Controls the function of the USR3 LED indicator on the BeagleBone",
 			"default": "mmc1",
-			"platforms": [
-				"BeagleBone Black"
-			],
+			"platforms": ["BeagleBone Black"],
 			"type": "select",
 			"options": {
 				"Disabled": "none",
@@ -725,9 +718,7 @@
 			"tip": "This instructs FPP to allow local sequences to override remote sequences for when you have an interactive show that may affect the props on this controller.",
 			"restart": 2,
 			"type": "checkbox",
-			"fppModes": [
-				"remote"
-			]
+			"fppModes": ["remote"]
 		},
 		"bridgeDataPriority": {
 			"name": "bridgeDataPriority",
@@ -775,9 +766,7 @@
 				"5 min": 300,
 				"Auto": -1
 			},
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
 		"ClockDate": {
 			"name": "ClockDate",
@@ -838,9 +827,7 @@
 			"gatherStats": true,
 			"tip": "During boot, the current IP addresses will be announced over the audio output.  This setting allows disabling this announcement for production use when FPP is connected to a FM transmitter or speakers.",
 			"type": "checkbox",
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
 		"disableAudioVolumeSlider": {
 			"name": "disableAudioVolumeSlider",
@@ -849,9 +836,7 @@
 			"tip": "This setting will remove the Audio Volume Slider on the Status Page to prevent accidental unwanted volume changes.",
 			"default": "0",
 			"type": "checkbox",
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
 		"disableUIWarnings": {
 			"name": "disableUIWarnings",
@@ -1036,19 +1021,14 @@
 			"gatherStats": true,
 			"type": "checkbox",
 			"default": 0,
-			"platforms": [
-				"Raspberry Pi"
-			]
+			"platforms": ["Raspberry Pi"]
 		},
 		"FetchVendorLogos": {
 			"name": "FetchVendorLogos",
 			"description": "Fetch cape logos from vendors",
 			"gatherStats": true,
 			"tip": "Some capes/hats fetch the vendor logo from their website when using the FPP UI.  This discloses your IP address to the vendor.",
-			"platforms": [
-				"BeagleBone Black",
-				"Raspberry Pi"
-			],
+			"platforms": ["BeagleBone Black", "Raspberry Pi"],
 			"type": "checkbox",
 			"default": 1
 		},
@@ -1058,9 +1038,7 @@
 			"gatherStats": true,
 			"tip": "Force the Raspberry Pi to use the HDMI output as the default display.  This is sometimes required if the HDMI display is not detected properly or is not powered when the Pi is booted.  Turning this setting on will prevent using the Composite output on the Pi until the setting is disabled.",
 			"reboot": 1,
-			"platforms": [
-				"Raspberry Pi"
-			],
+			"platforms": ["Raspberry Pi"],
 			"type": "checkbox"
 		},
 		"GPIOFan": {
@@ -1069,13 +1047,9 @@
 			"gatherStats": true,
 			"tip": "Allow the Raspberry Pi to control the speed of cooling fans by using the GPIO 14 PWM.",
 			"reboot": 1,
-			"platforms": [
-				"Raspberry Pi"
-			],
+			"platforms": ["Raspberry Pi"],
 			"children": {
-				"1": [
-					"GPIOFanTemperature"
-				]
+				"1": ["GPIOFanTemperature"]
 			},
 			"type": "checkbox"
 		},
@@ -1085,9 +1059,7 @@
 			"gatherStats": true,
 			"tip": "Temperature above which the cooling fan will turn on.",
 			"reboot": 1,
-			"platforms": [
-				"Raspberry Pi"
-			],
+			"platforms": ["Raspberry Pi"],
 			"type": "number",
 			"default": 70,
 			"min": 30,
@@ -1102,9 +1074,7 @@
 			"tip": "Enables the HDMI port on the BeagleBone.  WARNING: when enabled, many of the GPIO pins are disabled which will prevent most Capes from functioning.",
 			"reboot": 1,
 			"level": 1,
-			"platforms": [
-				"BeagleBone Black"
-			],
+			"platforms": ["BeagleBone Black"],
 			"variants": {
 				"BeagleBone Black": [
 					"BeagleBone Black",
@@ -1113,9 +1083,7 @@
 				]
 			},
 			"children": {
-				"1": [
-					"ForceHDMIResolution"
-				]
+				"1": ["ForceHDMIResolution"]
 			},
 			"type": "checkbox"
 		},
@@ -1125,10 +1093,7 @@
 			"gatherStats": true,
 			"tip": "Force the HDMI output to the given resolution.  The default is whatever settings the monitor reports at bootup time.",
 			"reboot": 1,
-			"platforms": [
-				"Raspberry Pi",
-				"BeagleBone Black"
-			],
+			"platforms": ["Raspberry Pi", "BeagleBone Black"],
 			"variants": {
 				"BeagleBone Black": [
 					"BeagleBone Black",
@@ -1145,14 +1110,9 @@
 			"description": "Force Port 2 HDMI Resolution",
 			"tip": "Force the Raspberry Pi 4/5's second HDMI to the given resolution.  The default is whatever settings the monitor reports at bootup time.",
 			"reboot": 1,
-			"platforms": [
-				"Raspberry Pi"
-			],
+			"platforms": ["Raspberry Pi"],
 			"variants": {
-				"Raspberry Pi": [
-					"Pi 4",
-					"Pi 5"
-				]
+				"Raspberry Pi": ["Pi 4", "Pi 5"]
 			},
 			"type": "select",
 			"optionsURL": "hdmi_table.json.php"
@@ -1184,9 +1144,7 @@
 			"maxlength": 30,
 			"regex": "^\\([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])$",
 			"regexDesc": "Host names must contain only letters, numbers and hyphens",
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
 		"Latitude": {
 			"name": "Latitude",
@@ -1204,10 +1162,7 @@
 			"tip": "Status Display type.  There are several OLED/LCD displays which can be attached to the i2c bus on the Pi and BeagleBone.  This setting is used to configure the size and type of display installed.",
 			"gatherStats": true,
 			"reboot": 1,
-			"checkFile": [
-				"/dev/i2c-1",
-				"/dev/i2c-2"
-			],
+			"checkFile": ["/dev/i2c-1", "/dev/i2c-2"],
 			"type": "select",
 			"options": {
 				"Disabled": 0,
@@ -1522,9 +1477,7 @@
 			"tip": "The Media Offset value allows adjusting the synchronization of the media and sequences being played.  The value is specified in milliseconds.  A positive value moves the media ahead, a negative value moves the media back.  Changing this value requires a FPPD restart.  WARNING - This offset applies to all media files played.  If your media files require different offsets per file then you will have to edit the audio files or sequences to bring them into sync.",
 			"level": 1,
 			"restart": 2,
-			"fppModes": [
-				"player"
-			],
+			"fppModes": ["player"],
 			"default": 0,
 			"type": "number",
 			"min": -9999,
@@ -1655,9 +1608,7 @@
 			"maxlength": 100,
 			"type": "text",
 			"children": {
-				"*": [
-					"MQTTPassword"
-				]
+				"*": ["MQTTPassword"]
 			}
 		},
 		"MultiSyncEnabled": {
@@ -1668,9 +1619,7 @@
 			"restart": 2,
 			"type": "checkbox",
 			"reloadUI": 1,
-			"fppModes": [
-				"player"
-			]
+			"fppModes": ["player"]
 		},
 		"MultiSyncExternalIPAddress": {
 			"name": "MultiSyncExternalIPAddress",
@@ -1679,9 +1628,7 @@
 			"gatherStats": true,
 			"restart": 2,
 			"type": "text",
-			"platforms": [
-				"Docker"
-			]
+			"platforms": ["Docker"]
 		},
 		"MultiSyncBroadcast": {
 			"name": "MultiSyncBroadcast",
@@ -1690,9 +1637,7 @@
 			"tip": "Use a network broadcast to send MultiSync messages to all remotes.",
 			"type": "checkbox",
 			"restart": 2,
-			"fppModes": [
-				"player"
-			],
+			"fppModes": ["player"],
 			"settingValues": {
 				"MultiSyncEnabled": 1
 			}
@@ -1794,9 +1739,7 @@
 			"type": "checkbox",
 			"restart": 2,
 			"default": 1,
-			"fppModes": [
-				"player"
-			],
+			"fppModes": ["player"],
 			"settingValues": {
 				"MultiSyncEnabled": 1
 			}
@@ -1822,9 +1765,7 @@
 			"tip": "An extra delay (in ms) between the Player sending the 'Open' command and actually starting the sequence.  This can be used to allow the remotes to have extra time to open the sequence, process videos, etc...   This requires master and remote to both be running FPP 3.2 or newer.  For complex MP4 files on remotes, a value of around 650-800 is likely needed for the remote video to be loaded and buffers filled prior to first frame being displayed.",
 			"level": 1,
 			"restart": 2,
-			"fppModes": [
-				"player"
-			],
+			"fppModes": ["player"],
 			"settingValues": {
 				"MultiSyncEnabled": 1
 			},
@@ -1856,10 +1797,7 @@
 			},
 			"onChange": "ConfirmOSPasswordEnable",
 			"children": {
-				"1": [
-					"osPassword",
-					"osPasswordVerify"
-				]
+				"1": ["osPassword", "osPasswordVerify"]
 			}
 		},
 		"osPasswordVerify": {
@@ -1900,10 +1838,7 @@
 			},
 			"onChange": "ConfirmPasswordEnable",
 			"children": {
-				"1": [
-					"password",
-					"passwordVerify"
-				]
+				"1": ["password", "passwordVerify"]
 			}
 		},
 		"passwordVerify": {
@@ -1940,9 +1875,7 @@
 			"tip": "When enabled, videos/music played on the remote will be started and stopped when the main player sends the start/stop events, but no attempt will be made to keep the media in sync with the player during playback.  The media will run smoother, but may get out of sync with the main player.",
 			"level": 1,
 			"restart": 2,
-			"fppModes": [
-				"remote"
-			],
+			"fppModes": ["remote"],
 			"type": "checkbox"
 		},
 		"remoteOffset": {
@@ -1952,9 +1885,7 @@
 			"tip": "The Remote Offset value allows adjusting the synchronization of a FPP Remote.  The value is specified in milliseconds.  A positive value moves the remote ahead, a negative value moves the remote back.  Changing this value requires a FPPD restart on the remote.  WARNING - This offset applies to both sequence and media files.  If your media files require different offsets per file then you will need to edit the media files to bring them into sync.",
 			"level": 1,
 			"restart": 2,
-			"fppModes": [
-				"remote"
-			],
+			"fppModes": ["remote"],
 			"default": 0,
 			"type": "number",
 			"min": -9999,
@@ -1994,13 +1925,9 @@
 			"tip": "Enable screensaver to blank the Raspberry Pi display after startup.  This is useful when you have a projector attached to the HDMI/composite output and do not want the boot screen text console to display on the projector when no video is playing.",
 			"type": "checkbox",
 			"reboot": 1,
-			"platforms": [
-				"Raspberry Pi"
-			],
+			"platforms": ["Raspberry Pi"],
 			"children": {
-				"1": [
-					"screensaverTimeout"
-				]
+				"1": ["screensaverTimeout"]
 			}
 		},
 		"screensaverTimeout": {
@@ -2008,9 +1935,7 @@
 			"description": "Inactivity timeout for screen blanking",
 			"tip": "If 'Blank screen on startup' is enabled, the screen will be blanked after this many minutes of inactivity.",
 			"reboot": 1,
-			"platforms": [
-				"Raspberry Pi"
-			],
+			"platforms": ["Raspberry Pi"],
 			"level": 3,
 			"default": 1,
 			"type": "number",
@@ -2029,9 +1954,7 @@
 			"maxlength": 256,
 			"level": 1,
 			"reboot": 1,
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
 		"KioskTimeout": {
 			"name": "KioskTimeout",
@@ -2044,9 +1967,7 @@
 			"step": 15,
 			"level": 1,
 			"reboot": 1,
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
 		"Service_rsync": {
 			"name": "Service_rsync",
@@ -2055,9 +1976,7 @@
 			"tip": "The rsync daemon is used to receive synced files from other FPP systems.  You must enable rsync on the <b>destination</b> FPP system if you are using the MultiSync page to copy sequences, media, OS, and other files between FPP instances.",
 			"type": "checkbox",
 			"default": "0",
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
 		"Service_smbd_nmbd": {
 			"name": "Service_smbd_nmbd",
@@ -2067,9 +1986,7 @@
 			"level": 1,
 			"type": "checkbox",
 			"default": "0",
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
 		"Service_vsftpd": {
 			"name": "Service_vsftpd",
@@ -2079,9 +1996,7 @@
 			"level": 1,
 			"type": "checkbox",
 			"default": "0",
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
 		"ShareCrashData": {
 			"name": "ShareCrashData",
@@ -2102,10 +2017,7 @@
 			"description": "Send cape serial numbers to vendors",
 			"gatherStats": true,
 			"tip": "Some capes/hats send an identifying serial number to the vendor each time you load the FPP UI.  The vendor can use this information to personally identify you.",
-			"platforms": [
-				"BeagleBone Black",
-				"Raspberry Pi"
-			],
+			"platforms": ["BeagleBone Black", "Raspberry Pi"],
 			"type": "checkbox",
 			"default": 1
 		},
@@ -2113,13 +2025,8 @@
 			"Name": "InstalledCape",
 			"description": "Installed Cape/Hat",
 			"tip": "Select any cape/hat installed onto this FPP device so the UI can be setup appropriately.",
-			"platforms": [
-				"BeagleBone Black",
-				"Raspberry Pi"
-			],
-			"checkFile": [
-				"!/home/fpp/media/tmp/cape-info.json"
-			],
+			"platforms": ["BeagleBone Black", "Raspberry Pi"],
+			"checkFile": ["!/home/fpp/media/tmp/cape-info.json"],
 			"restart": 1,
 			"type": "select",
 			"optionsURL": "api/cape/options"
@@ -2302,14 +2209,8 @@
 			"restart": 0,
 			"reloadUI": 1,
 			"default": 0,
-			"fppModes": [
-				"ALL"
-			],
-			"platforms": [
-				"Raspberry Pi",
-				"Linux",
-				"ALL"
-			],
+			"fppModes": ["ALL"],
+			"platforms": ["Raspberry Pi", "Linux", "ALL"],
 			"type": "select",
 			"options": {
 				"Basic": 0,
@@ -2333,9 +2234,7 @@
 			"tip": "The Default Video Output device to be used when playing a video.  On all FPP systems, video played in a playlist can be displayed on a Pixel Overlay model.  On the Raspberry Pi, video can also be played on the HDMI/Composite video outputs.",
 			"type": "select",
 			"optionsURL": "api/settings/VideoOutput/options",
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
 		"HardwareDecoding": {
 			"name": "HardwareDecoding",
@@ -2357,10 +2256,19 @@
 			"maxlength": 256,
 			"level": 1,
 			"restart": 2,
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		},
+		"ForceAudioId": {
+                        "name": "ForceAudioId",
+                        "description": "Force Audio Card ID",
+                        "type": "text",
+                        "gatherStats": true,
+                        "tip": "The audio card id is usualy set by the id file in the audio card folder. However, sometimes this id can be wrong. This lets you set it manually. This could help with the error Could not open audio device - ALSA: Couldnt open audio device: Invalid argument",
+                        "size": 64,
+                        "maxlength": 256,
+                        "level": 2,
+                        "restart": 2
+                },
 		"TimeZone": {
 			"name": "TimeZone",
 			"description": "Time Zone",
@@ -2370,9 +2278,7 @@
 			"default": "Europe/London",
 			"type": "select",
 			"optionsURL": "api/settings/TimeZone/options",
-			"platforms": [
-				"!MacOS"
-			]
+			"platforms": ["!MacOS"]
 		}
 	}
 }

@@ -200,43 +200,45 @@ static uint8_t readByte(uint8_t* data, int& pos) {
 }
 
 void FalconV5Support::processListenerData() {
-    uint32_t len = pru->pruData->length;
-    // if (len) {
-    //     printDataBuf(len, pru->data);
-    // }
-    if (len > 4096 * 3) {
-        len = 4096 * 3;
-    }
-    if (len) {
-        uint8_t buf[4096 * 3];
-        memcpy(buf, pru->data, len);
-        for (auto& l : listeners) {
-            uint8_t data[4096 * 3];
-            uint8_t packet[1024];
-            maskBit(len, l->offset, buf, data);
-            int pidx = 0;
-            int pos = 0;
-            while (pos < len) {
-                packet[pidx++] = readByte(data, pos);
-            }
-            if (pidx > 1) {
-                // printDataBuf(len, data);
-                // printDataBuf(pidx, packet);
-                Json::Value json;
-                if (pidx != 0 && decodeFalconV5Packet(packet, json)) {
-                    int port = json["port"].asInt();
-                    // printf("Port:  %d   Index: %d\n", port, json["index"].asInt());
-                    //  printf("%s\n", SaveJsonToString(json, "  ").c_str());
-                    for (auto& rc : receiverChains) {
-                        if (rc->getPixelStrings()[0]->m_portNumber == port) {
-                            rc->handleQueryResponse(json);
+    if (pru) {
+        uint32_t len = pru->pruData->length;
+        // if (len) {
+        //     printDataBuf(len, pru->data);
+        // }
+        if (len > 4096 * 3) {
+            len = 4096 * 3;
+        }
+        if (len) {
+            uint8_t buf[4096 * 3];
+            memcpy(buf, pru->data, len);
+            for (auto& l : listeners) {
+                uint8_t data[4096 * 3];
+                uint8_t packet[1024];
+                maskBit(len, l->offset, buf, data);
+                int pidx = 0;
+                int pos = 0;
+                while (pos < len) {
+                    packet[pidx++] = readByte(data, pos);
+                }
+                if (pidx > 1) {
+                    // printDataBuf(len, data);
+                    // printDataBuf(pidx, packet);
+                    Json::Value json;
+                    if (pidx != 0 && decodeFalconV5Packet(packet, json)) {
+                        int port = json["port"].asInt();
+                        // printf("Port:  %d   Index: %d\n", port, json["index"].asInt());
+                        //  printf("%s\n", SaveJsonToString(json, "  ").c_str());
+                        for (auto& rc : receiverChains) {
+                            if (rc->getPixelStrings()[0]->m_portNumber == port) {
+                                rc->handleQueryResponse(json);
+                            }
                         }
                     }
                 }
             }
         }
+        pru->pruData->length = 0;
     }
-    pru->pruData->length = 0;
 }
 
 void FalconV5Support::setCurrentMux(int i) {

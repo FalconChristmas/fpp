@@ -49,11 +49,11 @@
 #include <map>
 #include <netdb.h>
 #include <pwd.h>
+#include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
-#include <sstream>
 #include <unistd.h>
 #include <utility>
 #include <vector>
@@ -478,7 +478,9 @@ bool PutFileContents(const std::string& filename, const std::string& str) {
     FILE* fd = fopen(filename.c_str(), "w");
     if (fd != nullptr) {
         flock(fileno(fd), LOCK_EX);
-        fwrite(&str[0], str.size(), 1, fd);
+        if (!str.empty()) {
+            fwrite(&str[0], str.size(), 1, fd);
+        }
         flock(fileno(fd), LOCK_UN);
         fclose(fd);
         SetFilePerms(filename);

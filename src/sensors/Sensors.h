@@ -31,6 +31,8 @@ public:
     virtual const std::string& getID() const { return _id; }
     virtual void lockToGroup(int i){};
 
+    virtual bool isOK() const { return true; }
+
 protected:
     std::string _id;
 };

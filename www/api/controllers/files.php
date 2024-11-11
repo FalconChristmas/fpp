@@ -110,11 +110,18 @@ function GetFilesHelper($dirName, $prefix = '')
         $prefix .= '/';
     }
 
+    $doSudo = $SUDO;
+    $user = get_current_user();
+    if ($user == "fpp" || $user == "root") {
+        //don't need sudo to do the find so skip it to avoid the pam auth logs
+        $doSudo = "";
+    }
+
     // if ?nameOnly=1 was passed, then just array of names
     if (isset($_GET['nameOnly']) && ($_GET['nameOnly'] == '1')) {
         $rc = array();
         $filelist = array();
-        exec("$SUDO find $dirName -type f -follow -printf \"%P\n\"", $filelist);
+        exec("$doSudo find $dirName -type f -follow -printf \"%P\n\"", $filelist);
         foreach ($filelist as $fileName) {
             if ($fileName != '.' && $fileName != '..') {
                 if (!preg_match("//u", $fileName)) {
@@ -128,11 +135,12 @@ function GetFilesHelper($dirName, $prefix = '')
             array_push($rc, "/var/log/messages");
             array_push($rc, "/var/log/syslog");
         }
+        sort($rc);
         return $rc;
     } else {
         $files = array();
         $subDirList = array();
-        exec("$SUDO find $dirName -type d -follow -printf \"%P|||%T@\n\" | sort", $subDirList);
+        exec("$doSudo find $dirName -type d -follow -printf \"%P|||%T@\n\" | sort", $subDirList);
         foreach ($subDirList as $dirDetails) {
             $Details = explode("|||", $dirDetails);
             $fileName = $Details[0];
@@ -151,7 +159,7 @@ function GetFilesHelper($dirName, $prefix = '')
         }
 
         $filelist = array();
-        exec("$SUDO find $dirName -type f -follow -printf \"%P|||%s|||%T@\n\" | sort", $filelist);
+        exec("$doSudo find $dirName -type f -follow -printf \"%P|||%s|||%T@\n\" | sort", $filelist);
 
         foreach ($filelist as $fileDetails) {
             $Details = explode("|||", $fileDetails);

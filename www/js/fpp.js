@@ -27,6 +27,7 @@ var lastStatusJSON = null;
 var statusChangeFuncs = [];
 var zebraPinSubContentTop = 0;
 var VolumeChangeInProgress = false;
+var VolumeChangeAPIInProgress = false;
 var currentWarnings = [];
 var warningDefinitions = [];
 
@@ -6254,16 +6255,21 @@ function PopulatePlaylistDetailsEntries (playselected, playList) {
 
 function SetVolume (value) {
 	var obj = { volume: value };
-	$.post({ url: 'api/system/volume', data: JSON.stringify(obj) })
-		.done(function (data) {
-			// Unblock volume UI updates
-			VolumeChangeInProgress = false;
-			//console.log('api volume update completed');
-		})
-		.fail(function () {
-			DialogError('ERROR', 'Failed to set volume to ' + value);
-			VolumeChangeInProgress = false;
-		});
+	if (VolumeChangeAPIInProgress == false) {
+		VolumeChangeAPIInProgress = true;
+		$.post({ url: 'api/system/volume', data: JSON.stringify(obj) })
+			.done(function (data) {
+				// Unblock volume UI updates
+				settings['volume'] = String(value);
+				VolumeChangeInProgress = false;
+				VolumeChangeAPIInProgress = false;
+			})
+			.fail(function () {
+				DialogError('ERROR', 'Failed to set volume to ' + value);
+				VolumeChangeInProgress = false;
+				VolumeChangeAPIInProgress = false;
+			});
+	}
 }
 
 respondToVisibility = function (element, callback) {

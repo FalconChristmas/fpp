@@ -41,12 +41,14 @@ NetworkController::NetworkController(const std::string& ipStr) :
 
 NetworkController* NetworkController::DetectControllerViaHTML(const std::string& ip,
                                                               const std::string& html) {
-    NetworkController* nc = new NetworkController(ip);
+    if (html.empty()) {
+        return nullptr;
+    }
 
+    NetworkController* nc = new NetworkController(ip);
     if (nc->DetectFPP(ip, html)) {
         return nc;
     }
-
     if (nc->DetectFalconController(ip, html)) {
         return nc;
     }
@@ -95,7 +97,7 @@ bool NetworkController::DetectFPP(const std::string& ip, const std::string& html
         typeStr = v["Variant"].asString();
         typeId = MultiSync::ModelStringToType(typeStr);
         if (typeId == kSysTypeFPP) {
-            //Pi's tend to have a just the model in the Variant, we'll try mapping those
+            // Pi's tend to have a just the model in the Variant, we'll try mapping those
             typeId = MultiSync::ModelStringToType("Raspberry " + typeStr);
             if (typeId != kSysTypeFPP) {
                 typeStr = "Raspberry " + typeStr;
@@ -128,9 +130,9 @@ bool NetworkController::DetectFalconController(const std::string& ip,
     LogExcess(VB_SYNC, "Checking if %s is a Falcon controller\n", ip.c_str());
 
     RegExCache re("\"css/falcon.css\"|\"/f16v2.js\"|\"js/cntrlr_(\\d+).js\"");
-    std::cmatch m;
+    std::smatch m;
 
-    if (!std::regex_search(html.c_str(), m, *re.regex))
+    if (!std::regex_search(html, m, *re.regex))
         return false;
 
     LogExcess(VB_SYNC, "%s is potentially a Falcon controller, checking further\n", ip.c_str());
@@ -146,7 +148,7 @@ bool NetworkController::DetectFalconController(const std::string& ip,
         if (fStart != std::string::npos) {
             typeId = (systemType)(atoi(getSimpleXMLTag(resp, "p").c_str()));
 
-            if (typeId >= 0x80) { //v4 is just 0x80
+            if (typeId >= 0x80) { // v4 is just 0x80
                 if (typeId == 0x82) {
                     typeId = kSysTypeFalconF16v5;
                 } else if (getSimpleXMLTag(resp, "np") == "16") {
@@ -210,9 +212,9 @@ bool NetworkController::DetectSanDevicesController(const std::string& ip,
                                                    const std::string& html) {
     LogExcess(VB_SYNC, "Checking if %s is a SanDevices controller\n", ip.c_str());
     RegExCache re("Controller Model (E[0-9]+)");
-    std::cmatch m;
+    std::smatch m;
 
-    if (!std::regex_search(html.c_str(), m, *re.regex))
+    if (!std::regex_search(html, m, *re.regex))
         return false;
 
     LogExcess(VB_SYNC, "%s is potentially a SanDevices controller, checking further\n", ip.c_str());
@@ -226,8 +228,8 @@ bool NetworkController::DetectSanDevicesController(const std::string& ip,
     RegExCache v4re("Firmware Version:</th></td><td></td><td>([0-9]+.[0-9]+)</td>");
     RegExCache v5re("Firmware Version:</th></td><td>\\s?([0-9]+.[0-9]+)(-W\\d+)?</td>");
 
-    if ((std::regex_search(html.c_str(), m, *v4re.regex)) ||
-        (std::regex_search(html.c_str(), m, *v5re.regex))) {
+    if ((std::regex_search(html, m, *v4re.regex)) ||
+        (std::regex_search(html, m, *v5re.regex))) {
         version = m[1];
 
         if (version != "") {
@@ -288,9 +290,9 @@ bool NetworkController::DetectAlphaPixController(const std::string& ip, const st
 
     RegExCache re("AlphaPix (\\d+|Flex|Evolution)");
     RegExCache re2("(\\d+) Port Ethernet to SPI Controller");
-    std::cmatch m;
+    std::smatch m, m2;
 
-    if ((!std::regex_search(html.c_str(), m, *re.regex)) && (!std::regex_search(html.c_str(), m, *re2.regex)))
+    if ((!std::regex_search(html, m, *re.regex)) && (!std::regex_search(html, m2, *re2.regex)))
         return false;
 
     LogExcess(VB_SYNC, "%s is potentially a AlphaPix controller, checking further\n", ip.c_str());
@@ -303,7 +305,7 @@ bool NetworkController::DetectAlphaPixController(const std::string& ip, const st
 
     RegExCache vre("Currently Installed Firmware Version:  ([0-9]+.[0-9]+)");
 
-    if (std::regex_search(html.c_str(), m, *vre.regex)) {
+    if (std::regex_search(html, m, *vre.regex)) {
         version = m[1];
 
         if (version != "") {
@@ -345,9 +347,9 @@ bool NetworkController::DetectDIYLEDExpressController(const std::string& ip,
     LogExcess(VB_SYNC, "Checking if %s is a DIYLEDExpress controller\n", ip.c_str());
 
     RegExCache re("DIYLEDExpress E1.31 Bridge Configuration Page");
-    std::cmatch m;
+    std::smatch m;
 
-    if (!std::regex_search(html.c_str(), m, *re.regex))
+    if (!std::regex_search(html, *re.regex))
         return false;
 
     LogExcess(VB_SYNC, "%s is potentially a DIYLEDExpress controller, checking further\n", ip.c_str());
@@ -358,10 +360,10 @@ bool NetworkController::DetectDIYLEDExpressController(const std::string& ip,
     typeStr = "E1.31 Bridge";
     systemMode = BRIDGE_MODE;
 
-    //Firmware Rev: 4.02
+    // Firmware Rev: 4.02
     RegExCache vre("Firmware Rev: ([0-9]+.[0-9]+)");
 
-    if (std::regex_search(html.c_str(), m, *vre.regex)) {
+    if (std::regex_search(html, m, *vre.regex)) {
         version = m[1];
 
         if (version != "") {
