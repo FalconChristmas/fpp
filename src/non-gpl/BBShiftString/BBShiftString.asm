@@ -48,7 +48,8 @@
 #define ENABLE_PIN 0
 #else
 #define CLOCK_PIN 7
-#define LATCH_MASK 6
+#define LATCH_PIN 6
+#define ENABLE_PIN 0
 #endif
 
 #define FALCONV5_PERIOD  1130
