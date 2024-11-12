@@ -17,13 +17,13 @@ echo "Installing plugin $1"
 cd ${PLUGINDIR} && $SUDO git clone --single-branch --branch $3 $2 $1
 rc=$?
 if [ $rc -ne 0 ]; then
-    echo "======================================================================================"
+    echo "======================================================================================="
 	echo "Failed to fetch $1 using $2 -- aborting"
     echo ""
     echo "The most common reason plugin installs fail is the lack of functioning Internet Access"
     echo ""
-    echo "You can troubleshoot this by going to the Help menu and selecting 'System Heath Check" 
-    echo "======================================================================================"
+    echo "You can troubleshoot this by going to the 'Help' menu and selecting 'System Heath Check'" 
+    echo "======================================================================================="
 	exit 1
 fi
 
