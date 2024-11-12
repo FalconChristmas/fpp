@@ -283,10 +283,16 @@ int ColorLight5a75Output::Init(Json::Value config) {
         ifstate_src.close();
     }
 
+    m_colorlightDisable = true;
+    m_colorlightDisable = getSettingInt("ColorlightLinkDownDisable") == 1;
+
     if (ifstate != "up") {
         LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s does not have link %s\n", m_ifName.c_str(), strerror(errno));
         WarningHolder::AddWarning("ColorLight: Configured interface " + m_ifName + " does not have link");
-        return 0;
+
+        if (m_colorlightDisable) {
+           return 0;
+        }
     }
 
     // Check interface is 1000Mbps capable and display error if not
@@ -300,7 +306,9 @@ int ColorLight5a75Output::Init(Json::Value config) {
     if (ifspeed < 1000) {
         LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s is not 1000Mbps Capable: %s\n", m_ifName.c_str(), strerror(errno));
         WarningHolder::AddWarning("ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
-        return 0;
+        if (m_colorlightDisable) {
+           return 0;
+        }
     }
 
     // Open our raw socket

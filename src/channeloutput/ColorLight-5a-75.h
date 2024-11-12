@@ -82,6 +82,7 @@ private:
     PanelMatrix* m_panelMatrix;
     uint8_t m_gammaCurve[256];
     int m_flippedLayout;
+    bool m_colorlightDisable;
 
     std::vector<struct mmsghdr> m_msgs;
     std::vector<struct iovec> m_iovecs;
