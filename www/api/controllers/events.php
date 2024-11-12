@@ -60,7 +60,7 @@ function event_trigger()
     global $settings;
 
     $event = params('eventId');
-    $curl = curl_init('http://localhost:32322/commands/Trigger Event/' . $event);
+    $curl = curl_init('http://localhost:32322/commands/Trigger%20Event/' . $event);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
