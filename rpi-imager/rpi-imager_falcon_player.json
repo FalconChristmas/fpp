@@ -33,17 +33,17 @@
             ]
         },
         {
-            "name": "FPP v8.3 BBB",
+            "name": "FPP v8.3.1 BBB",
             "description": "Falcon Player for all BeagleBone models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.3/FPP-v8.3-BBB.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.3/FPP-v8.3.1-BBB.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 3745513472,
-            "extract_sha256": "7abceb4fa8f71ba6adb61d3762264f549468cc1d41eead50eddbf35cfcc2d913",
-            "image_download_size": 1125188118,
-            "image_download_sha256": "824458769ecae8daa739c77506eda38d9c603c239b1503e35b31bec10d7ce579",
-            "release_date": "2024-11-07",
+            "extract_sha256": "1e6477bb145eeaf9ac6ffe7c1eca9133ac507d0f07883acf762a9d0559d4840e",
+            "image_download_size": 1181304854,
+            "image_download_sha256": "10b8da78c1bebda36f420112ea8734d7f95ed6a5c97d1742bfb6c84f1b18999e",
+            "release_date": "2024-11-12",
             "devices": [
                 "pi1-32bit"
             ]
