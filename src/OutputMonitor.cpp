@@ -483,10 +483,12 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
             pi->highToEnable = (ep[0] != '!');
             if (!enabled) {
                 pi->receivers[0].enabled = false;
-                if (pi->highToEnable) {
-                    pullHighOutputPins.pop_back();
-                } else {
-                    pullLowOutputPins.pop_back();
+                if (pi->enablePin) {
+                    if (pi->highToEnable) {
+                        pullHighOutputPins.pop_back();
+                    } else {
+                        pullLowOutputPins.pop_back();
+                    }
                 }
             }
             hasInfo = true;
@@ -666,8 +668,8 @@ const PinCapabilities* OutputMonitor::AddOutputPin(const std::string& name, cons
         WarningHolder::AddWarning("Could not find pin " + pin + " to enable output " + name);
         return nullptr;
     }
-    op.push_back(pc);
     std::unique_lock<std::mutex> lock(gpioLock);
+    op.push_back(pc);
     pc->configPin("gpio", true);
     pc->setValue(!highToEnable);
     return pc;
