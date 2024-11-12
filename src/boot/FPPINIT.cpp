@@ -982,10 +982,10 @@ static void setupAudio() {
     }
     int card = getRawSettingInt("AudioOutput", 0);
     std::string cstr = "card " + std::to_string(card);
-    std::string hdmistr = "vc4hdmi" + std::to_string(card);
     bool found = false;
     int count = 0;
-    if (cards[cstr].starts_with("vc4hdmi") && !hdmiStatus[hdmistr]) {
+
+    if (cards[cstr].starts_with("vc4hdmi") && !hdmiStatus[cards[cstr]]) {
         // nothing connected to the HDMI port so it's definitely not going to work
         // flip to the dummy output
         if (!cards.empty() && !cards["card 0"].starts_with("vc4hdmi")) {
