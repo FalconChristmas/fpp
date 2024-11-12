@@ -75,7 +75,7 @@ function script_run()
     global $settings;
 
     $script = params('scriptName');
-    $curl = curl_init('http://localhost:32322/command/Run Script/' . $script);
+    $curl = curl_init('http://localhost:32322/command/Run%20Script/' . $script);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
