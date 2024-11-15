@@ -52,6 +52,10 @@ echo "Saving hostname"
 mkdir tmp/etc
 cp -a mnt/etc/hostname tmp/etc
 
+echo "Saving machine-id"
+cp -a mnt/etc/machine-id tmp/etc
+
+
 #remove some files that rsync won't copy over as they have the same timestamp and size, but are actually different
 #possibly due to ACL's or xtended attributes
 echo "Force cleaning files which do not sync properly"
@@ -91,6 +95,12 @@ echo "Restoring hostname"
 cp -af tmp/etc/hostname mnt/etc/hostname
 rm -f  tmp/etc/hostname
 echo 
+
+echo "Restoring machine-id"
+cp -af tmp/etc/machine-id mnt/etc/machine-id
+rm -f  tmp/etc/machine-id
+echo
+
 
 #create a file in root to mark it as requiring kiosk mode to be installed, will be checked on reboot
 if [ -f tmp/kiosk ]; then

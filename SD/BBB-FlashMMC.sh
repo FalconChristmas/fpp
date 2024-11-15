@@ -229,6 +229,7 @@ find /tmp/rootfs/var/log/  -type f -delete
 rm -rf /tmp/rootfs/home/fpp/media/logs/*
 rm -f /tmp/rootfs/root/.bash_history
 rm -f /tmp/rootfs/root/.wget-hsts
+echo "uninitialized" > /tmp/rootfs/etc/machine-id
 
 if [ "$CLEARFPP" == "y" ]; then
     rm -f /tmp/rootfs/home/fpp/.bash_history

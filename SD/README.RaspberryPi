@@ -158,6 +158,7 @@ the proper device name for your SD card in place of '/dev/sdg'):
     rm -f /mnt/var/log/*
     rm -f /mnt/etc/ssh/*key*
     rm -f /mnt/root/.bash_history
+    echo "uninitialized" > /mnt/etc/machine-id
     umount /mnt
     zerofree -v "${DEVICE}2"
 	time dd if=${DEVICE} of=FPP-v${VERSION}-Pi.img bs=1M count=${BLOCKS}
