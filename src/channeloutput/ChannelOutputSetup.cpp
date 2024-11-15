@@ -310,30 +310,39 @@ int InitializeChannelOutputs(void) {
                     type = OUTPUT_REMAPS[type];
                 }
 
-                FPPPlugins::ChannelOutputPlugin* p = dynamic_cast<FPPPlugins::ChannelOutputPlugin*>(PluginManager::INSTANCE.findPlugin(libnamePfx + type, "fpp-co-" + libnamePfx + type));
-                if (p) {
-                    ChannelOutput* co = p->createChannelOutput(start, count);
-                    channelOutput.output = co;
-                }
-                if (channelOutput.output) {
-                    if (channelOutput.output->Init(outputs[c])) {
-                        channelOutput.output->GetRequiredChannelRanges([type](int m1, int m2) {
-                            LogInfo(VB_CHANNELOUT, "%s:  Determined range needed %d - %d\n",
-                                    type.c_str(), m1, m2);
-                            addRange(m1, m2);
-                        });
-                        channelOutputs.push_back(channelOutput);
-                    } else {
-                        WarningHolder::AddWarning("Could not initialize output type " + type + ". Check logs for details.");
-                        delete channelOutput.output;
+                try {
+                    FPPPlugins::ChannelOutputPlugin* p = dynamic_cast<FPPPlugins::ChannelOutputPlugin*>(PluginManager::INSTANCE.findPlugin(libnamePfx + type, "fpp-co-" + libnamePfx + type));
+                    if (p) {
+                        ChannelOutput* co = p->createChannelOutput(start, count);
+                        channelOutput.output = co;
                     }
-                } else {
-                    LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
-                    WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
-                    continue;
-                }
+                    if (channelOutput.output) {
+                        if (channelOutput.output->Init(outputs[c])) {
+                            channelOutput.output->GetRequiredChannelRanges([type](int m1, int m2) {
+                                LogInfo(VB_CHANNELOUT, "%s:  Determined range needed %d - %d\n",
+                                        type.c_str(), m1, m2);
+                                addRange(m1, m2);
+                            });
+                            channelOutputs.push_back(channelOutput);
+                        } else {
+                            WarningHolder::AddWarning("Could not initialize output type " + type + ". Check logs for details.");
+                            delete channelOutput.output;
+                            channelOutput.output = nullptr;
+                        }
+                    } else {
+                        LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
+                        WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
+                        continue;
+                    }
 
-                LogDebug(VB_CHANNELOUT, "Configured %s Channel Output\n", type.c_str());
+                    LogDebug(VB_CHANNELOUT, "Configured %s Channel Output\n", type.c_str());
+                } catch (const std::exception& ex) {
+                    WarningHolder::AddWarning("Could not initialize output type " + type + ". (" + ex.what() + ")");
+                    if (channelOutput.output) {
+                        delete channelOutput.output;
+                        channelOutput.output = nullptr;
+                    }
+                }
             }
         }
     }
