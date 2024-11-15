@@ -18,6 +18,7 @@
 #include <thread>
 
 #include "GPIOUtils.h"
+#include "../Warnings.h"
 #include "commands/Commands.h"
 
 // No platform information on how to control pins
@@ -145,7 +146,11 @@ int GPIODCapabilities::configPin(const std::string& mode,
         if (line.is_requested()) {
             line.release();
         }
-        line.request(req, 1);
+        try {
+            line.request(req, 1);
+        } catch (const std::exception& ex) {
+            WarningHolder::AddWarning("Could not configure pin " + name + " as " + mode + " (" + ex.what() + ")");
+        }
         lastRequestType = req.request_type;
     }
 #endif

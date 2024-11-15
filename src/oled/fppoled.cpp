@@ -28,6 +28,14 @@
 #endif
 #include <thread>
 
+class WarningHolder {
+    static void AddWarning(const std::string& w);
+};
+
+void WarningHolder::AddWarning(const std::string& w) {
+    printf("Warning: %s\n", w.c_str());
+}
+
 static FPPOLEDUtils* oled = nullptr;
 void sigInteruptHandler(int sig) {
     oled->cleanup();
