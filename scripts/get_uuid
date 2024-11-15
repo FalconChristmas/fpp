@@ -51,6 +51,11 @@ if [ -f "/proc/device-tree/serial-number" ]; then
     exit 0
 fi
 
+if [ -f "/etc/machine-id" ]; then
+    UUID=$(tr -d '\0' </etc/machine-id)
+    echo "M4-$UUID"
+    exit 0
+fi
 
 #
 # If all else fails, Genereate one
