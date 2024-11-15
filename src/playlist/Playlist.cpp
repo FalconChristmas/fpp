@@ -1022,16 +1022,17 @@ void Playlist::ProcessMedia(void) {
  *
  */
 void Playlist::SetIdle(bool exit) {
-    if (m_name != "") {
-        std::map<std::string, std::string> keywords;
-        keywords["PLAYLIST_NAME"] = m_name;
-        CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPED", keywords);
-    }
-
     m_status = FPP_STATUS_IDLE;
     m_currentState = "idle";
 
+    std::map<std::string, std::string> keywords;
+    if (m_name != "") {
+        keywords["PLAYLIST_NAME"] = m_name;
+    }
     Cleanup();
+    if (!keywords.empty()) {
+        CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPED", keywords);
+    }
 
     PluginManager::INSTANCE.playlistCallback(GetInfo(), "stop", m_currentSectionStr, m_sectionPosition);
 
