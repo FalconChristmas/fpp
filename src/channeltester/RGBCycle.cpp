@@ -64,7 +64,7 @@ int TestPatternRGBCycle::SetupTest(void) {
     }
 
     // Make sure we have a valid set of triplets
-    while (m_colorPattern.size() % 3) {
+    while (m_colorPattern.size() < 3 || m_colorPattern.size() % 3) {
         m_colorPattern.push_back(0);
     }
 
