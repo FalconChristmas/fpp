@@ -161,11 +161,7 @@ int BBBSerialOutput::Init(Json::Value config) {
     string pru_program = "/tmp/FalconSerial.out";
 
     const char* mode = BBB_PRU ? "gpio" : "pruout";
-    if (BBB_PRU) {
-        args.push_back("-DRUNNING_ON_PRU1");
-    } else {
-        args.push_back("-DRUNNING_ON_PRU0");
-    }
+    args.push_back("-DRUNNING_ON_PRU" + std::to_string(BBB_PRU));
 
     std::string verPostf = "";
     std::string device = config["device"].asString();

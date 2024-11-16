@@ -29,6 +29,10 @@
 //TODO need to confirm these
 #define MIN_SPI_SPEED_HZ 1500
 #define MAX_SPI_SPEED_HZ 48000000
+#elif PLATFORM_BB64
+//TODO need to confirm these
+#define MIN_SPI_SPEED_HZ 32000
+#define MAX_SPI_SPEED_HZ 125000000
 #elif PLATFORM_ARMBIAN
 #define MIN_SPI_SPEED_HZ 50000
 #define MAX_SPI_SPEED_HZ 2500000

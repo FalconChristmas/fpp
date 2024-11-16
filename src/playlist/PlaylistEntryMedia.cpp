@@ -336,11 +336,11 @@ int PlaylistEntryMedia::OpenMediaOutput(void) {
         vOut = getSetting("VideoOutput");
     }
     if (vOut == "") {
-#if !defined(PLATFORM_BBB)
-        vOut = "--HDMI--";
-#else
-        vOut = "--Disabled--";
-#endif
+        if (FileExists("/sys/class/drm/card0-HDMI-A-1/status") || FileExists("/sys/class/drm/card1-HDMI-A-1/status")) {
+            vOut = "--HDMI--";
+        } else {
+            vOut = "--Disabled--";
+        }
     }
 
     m_mediaOutput = CreateMediaOutput(tmpFile, vOut);

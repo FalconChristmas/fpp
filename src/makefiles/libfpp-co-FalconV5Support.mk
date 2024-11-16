@@ -7,8 +7,14 @@ LIBS_fpp_FalconV5Support_so += -L. -lfpp -ljsoncpp -lFalconV5 -Wl,-rpath=$(SRCDI
 TARGETS += libFalconV5.$(SHLIB_EXT) libfpp-FalconV5Support.$(SHLIB_EXT) non-gpl/FalconV5Support/FalconV5PRUListener_pru0.out
 OBJECTS_ALL+=$(OBJECTS_fpp_FalconV5Support_so)
 
-libFalconV5.$(SHLIB_EXT): non-gpl/FalconV5Support/libFalconV5.$(SHLIB_EXT).zst
-	zstd -fd non-gpl/FalconV5Support/libFalconV5.$(SHLIB_EXT).zst -o libFalconV5.$(SHLIB_EXT)
+ifeq '$(ARMV)' 'aarch64'
+ZEXT=.aarch64
+else
+ZEXT=
+endif
+
+libFalconV5.$(SHLIB_EXT): non-gpl/FalconV5Support/libFalconV5.$(SHLIB_EXT)$(ZEXT).zst
+	zstd -fd non-gpl/FalconV5Support/libFalconV5.$(SHLIB_EXT)$(ZEXT).zst -o libFalconV5.$(SHLIB_EXT)
 
 libfpp-FalconV5Support.$(SHLIB_EXT): $(OBJECTS_fpp_FalconV5Support_so) libfpp.$(SHLIB_EXT) libFalconV5.$(SHLIB_EXT)
 	$(CCACHE) $(CC) -shared $(CFLAGS_$@) $(OBJECTS_fpp_FalconV5Support_so) $(LIBS_fpp_FalconV5Support_so) $(LDFLAGS) $(LDFLAGS_fpp_FalconV5Support_so) -o $@

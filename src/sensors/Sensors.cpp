@@ -29,7 +29,7 @@
 
 #include "Sensors.h"
 
-#ifdef PLATFORM_BBB
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
 #define I2C_DEV 2
 #else
 #define I2C_DEV 1

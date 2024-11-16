@@ -1,9 +1,6 @@
 # BeagleBone Black
 ifeq '$(ARCH)' 'BeagleBone Black'
 
-CFLAGS += \
-	-DPLATFORM_BBB
-
 LIBS_GPIO_ADDITIONS=
 OBJECTS_GPIO_ADDITIONS+=util/BBBUtils.o
 LIBS_GPIO_ADDITIONS+=-lgpiod -lgpiodcxx
@@ -18,7 +15,14 @@ BUILD_FPPINIT=1
 LDFLAGS=-lrt -lpthread
 SHLIB_EXT=so
 
-# Beagles are ALL armv7a processors with neon
-CFLAGS+=-march=armv7-a+neon -mfloat-abi=hard -mfpu=neon
+ARMV := $(shell uname -m 2> /dev/null)
+$(shell echo "Building FPP on '$(ARMV)' architecture" 1>&2)
+
+ifeq '$(ARMV)' 'aarch64'
+CFLAGS+=-DPLATFORM_BB64
+else
+# All 32bit Beagles are armv7a processors with neon
+CFLAGS+=-DPLATFORM_BBB -march=armv7-a+neon -mfloat-abi=hard -mfpu=neon
+endif
 
 endif

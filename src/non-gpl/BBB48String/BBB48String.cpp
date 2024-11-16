@@ -224,7 +224,7 @@ void BBB48StringOutput::createOutputLengths(FrameData& d, const std::string& pfx
     }
 
     if (sizes.empty()) {
-        args.push_back("-DFIRST_CHECK=NO_PIXELS_CHECK");
+        args.emplace_back("-DFIRST_CHECK=NO_PIXELS_CHECK");
     } else {
         int sz = sizes.begin()->first;
         std::string v = "-DFIRST_CHECK=CHECK_" + pfx;

@@ -251,7 +251,7 @@ int InitializeChannelOutputs(void) {
         "/co-other.json",
         "/co-pixelStrings.json",
         "/co-pwm.json",
-#ifdef PLATFORM_BBB
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
         "/co-bbbStrings.json",
 #endif
         "/channeloutputs.json",

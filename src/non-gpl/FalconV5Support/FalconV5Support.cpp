@@ -22,12 +22,10 @@
 #include "channeloutput/serialutil.h"
 #include "util/GPIOUtils.h"
 
-#ifdef PLATFORM_BBB
 #include "util/BBBPruUtils.h"
 #include "util/BBBUtils.h"
 #include <sys/wait.h>
 #include <arm_neon.h>
-#endif
 
 extern "C" {
 bool encodeFalconV5Packet(const Json::Value& description, uint8_t* packet);
@@ -38,13 +36,11 @@ class FalconV5Listener {
 public:
     FalconV5Listener(const Json::Value& config) {
         pin = config["pin"].asString();
-#ifdef PLATFORM_BBB
         const PinCapabilities& p = PinCapabilities::getPinByName(pin);
         p.configPin("pruin");
 
         const BBBPinCapabilities* pc = (const BBBPinCapabilities*)p.ptr();
         offset = pc->pruPin;
-#endif
     }
     ~FalconV5Listener() {
         const PinCapabilities& p = PinCapabilities::getPinByName(pin);

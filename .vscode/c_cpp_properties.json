@@ -10,6 +10,7 @@
             ],
             "defines": [
                 "PLATFORM_BBB",
+                "PLATFORM_BB64",
                 "PLATFORM_PI"
             ],
             "compilerPath": "/usr/bin/g++",

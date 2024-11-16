@@ -87,7 +87,7 @@
 
 #include "fppd.h"
 
-#if defined(PLATFORM_BBB)
+#if defined(PLATFORM_BBB) ||  defined(PLATFORM_BB64) 
 #include "util/BBBUtils.h"
 #define PLAT_GPIO_CLASS BBBPinProvider
 #elif defined(PLATFORM_PI)
@@ -332,6 +332,8 @@ static void handleCrash(int s) {
             char sysType[] = "Armbian";
 #elif defined(PLATFORM_BBB)
             char sysType[] = "BBB";
+#elif defined(PLATFORM_BB64)
+            char sysType[] = "BB64";
 #elif defined(PLATFORM_PI)
             char sysType[] = "Pi";
 #elif defined(PLATFORM_OSX)

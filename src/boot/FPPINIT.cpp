@@ -327,18 +327,21 @@ void configureBBB() {
     }
 
     // Beagle LEDS
-    std::string led;
-    if (getRawSetting("BBBLedPWR", led) && !led.empty()) {
-        if (led == "0") {
-            led = "0x00";
+    std::string pled;
+    if (getRawSetting("BBBLedPWR", pled) && !pled.empty()) {
+        if (pled == "0") {
+            pled = "0x00";
         } else {
-            led = "0x38";
+            pled = "0x38";
         }
         exec("/usr/sbin/i2cset -f -y 0 0x24 0x0b 0x6e");
-        exec("/usr/sbin/i2cset -f -y 0 0x24 0x13 " + led);
+        exec("/usr/sbin/i2cset -f -y 0 0x24 0x13 " + pled);
         exec("/usr/sbin/i2cset -f -y 0 0x24 0x0b 0x6e");
-        exec("/usr/sbin/i2cset -f -y 0 0x24 0x13 " + led);
+        exec("/usr/sbin/i2cset -f -y 0 0x24 0x13 " + pled);
     }
+#endif
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
+    std::string led;
     if (getRawSetting("BBBLeds0", led) && !led.empty()) {
         PutFileContents("/sys/class/leds/beaglebone:green:usr0/trigger", led);
     }

@@ -52,7 +52,7 @@
 #include <openssl/decoder.h>
 #endif
 
-#ifdef PLATFORM_BBB
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
 #define I2C_DEV 2
 #elif defined(PLATFORM_PI)
 #define I2C_DEV 1
@@ -272,6 +272,9 @@ static uint8_t* get_file_contents(const std::string& path, int& len) {
 #ifdef PLATFORM_PI
 static const std::string PLATFORM_DIR = "pi";
 const std::string& getPlatformCapeDir() { return PLATFORM_DIR; }
+#elif defined(PLATFORM_BB64)
+static const std::string PLATFORM_DIR = "bb64";
+const std::string& getPlatformCapeDir() { return PLATFORM_DIR; }
 #elif defined(PLATFORM_BBB)
 static const std::string PLATFORM_DIR_BBB = "bbb";
 static const std::string PLATFORM_DIR_PB = "pb";
@@ -359,6 +362,9 @@ static void processBootConfig(Json::Value& bootConfig) {
     const std::string fileName = FPP_BOOT_DIR "/config.txt";
 #elif defined(PLATFORM_BBB)
     const std::string fileName = FPP_BOOT_DIR "/uEnv.txt";
+#elif defined(PLATFORM_BB64)
+    // TODO - booting is VERY different on BB64
+    const std::string fileName;
 #elif defined(PLATFORM_ARMBIAN)
     const std::string fileName = FPP_BOOT_DIR "/armbianEnv.txt";
 #else
@@ -1119,7 +1125,7 @@ private:
     std::string mapV5Config(const std::string& orig) {
         std::string stringsConfigFile = "";
         std::string platformDir = "/opt/fpp/capes/" + getPlatformCapeDir();
-#if defined(PLATFORM_BBB)
+ #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
         stringsConfigFile = "/home/fpp/media/config/co-bbbStrings.json";
 #elif defined(PLATFORM_PI)
         stringsConfigFile = "/home/fpp/media/config/co-pixelStrings.json";

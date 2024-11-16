@@ -45,7 +45,7 @@ static int getSettingInt() {
 }
 
 static int getBus() {
-#ifdef PLATFORM_BBB
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
     return 2;
 #elif defined(PLATFORM_PI)
     return 1;
@@ -174,6 +174,13 @@ static std::string getRTCDev() {
             rtc = "/dev/rtc1";
         }
     }
+#elif defined(PLATFORM_BB64)
+    if (FileExists("/sys/class/rtc/rtc1/name")) {
+        std::string drv = GetFileContents("/sys/class/rtc/rtc1/name");
+        if (!contains(drv, "rtc-ti-k3")) {
+            rtc = "/dev/rtc1";
+        }
+    }
 #elif defined(PLATFORM_PI)
     if (FileExists("/sys/class/rtc/rtc0/name")) {
         std::string drv = GetFileContents("/sys/class/rtc/rtc0/name");
@@ -209,7 +216,7 @@ int main(int argc, char* argv[]) {
             if (contains(ret, "Remote I/O error")) {
                 removeI2CDevice(dev, getBus());
             } else {
-#ifdef PLATFORM_BBB
+#if defined(PLATFORM_BBB) || defined(PLATFORMBB64)
                 // set the built in rtc to the same time as read from the RTC
                 if (rtc != "/dev/rtc0") {
                     hwclock("-w", rtc.c_str());
