@@ -1498,7 +1498,7 @@
             "fppd": true,
             "methods": {
                 "PUT": {
-                    "desc": "Sets the state of the overlay model",
+                    "desc": "Sets the state of the overlay model. (0 = off, 1 = override, 2 = overlay)",
                     "input": {
                         "State": 1
                     },
@@ -1547,7 +1547,7 @@
             "fppd": true,
             "methods": {
                 "PUT": {
-                    "desc": "Displays text on the overlay model",
+                    "desc": "Displays text on the overlay model. Message: the text to display, Postion: Center, L2R, R2L, B2T, T2B. PixelsPerSecond: speed to move text across screen",
                     "input": {
                         "Message": "Hello",
                         "Position": "L2R",
