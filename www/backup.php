@@ -190,7 +190,7 @@ $known_json_config_files = array('channelInputs', 'universe_inputs', 'dmx_inputs
 $known_ini_config_files = array('settings', 'system_settings', 'network', 'wired', 'wifi');
 
 //Remove BBB Strings from the system areas if we're on a Pi or any other platform that isn't a BBB
-if ($settings['Platform'] != "BeagleBone Black") {
+if (!$settings['BeaglePlatform']) {
     unset($system_config_areas['channelOutputs']['file']['bbb_strings']);
 }
 

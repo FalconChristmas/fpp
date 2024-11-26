@@ -368,6 +368,9 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model) {
         }
         return kSysTypeFPPBeagleBoneGreen;
     }
+    if (contains(model, "PocketBeagle2") || contains(model, "BeaglePlay")) {
+        return kSysTypeFPPPocketBeagle2;
+    }
     if (contains(model, "PocketBeagle")) {
         return kSysTypeFPPPocketBeagle;
     }
@@ -646,6 +649,8 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local) {
         return "BeagleBone Green Wireless";
     case kSysTypeFPPPocketBeagle:
         return "PocketBeagle";
+    case kSysTypeFPPPocketBeagle2:
+        return "PocketBeagle2";
     case kSysTypeFPPSanCloudBeagleBoneEnhanced:
         return "SanCloud BeagleBone Enhanced";
 
@@ -777,7 +782,7 @@ void MultiSync::Discover() {
 
 void MultiSync::PerformHTTPDiscovery() {
     std::string subnetsStr = getSetting("MultiSyncHTTPSubnets");
-    
+
     if (FileExists(FPP_DIR_CONFIG("/co-universes.json"))) {
         Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"));
         if (outputs.isMember("channelOutputs")) {

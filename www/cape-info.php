@@ -274,6 +274,10 @@ if (isset($settings["cape-info"])) {
                             if (!plat.includes(settings["Variant"])) {
                                 valid = false;
                             }
+                        } else if (settings["Platform"] == "BeagleBone 64") {
+                            if (!plat.includes(settings["Variant"])) {
+                                valid = false;
+                            }
                         } else {
                             if (!plat.includes(settings["Platform"])
                                 && !plat.includes(settings["Variant"])) {
@@ -749,12 +753,11 @@ if (isset($settings["cape-info"])) {
                                             <h2>About <?= $capeHardwareType ?> </h2>
                                             <div class="container-fluid">
                                                 <div class="row">
-                                                    <div
-                                                        class='<? if (isset($currentCapeInfo['vendor'])) {
-                                                            echo "aboutLeft col-md";
-                                                        } else {
-                                                            echo "aboutAll";
-                                                        } ?> '>
+                                                    <div class='<? if (isset($currentCapeInfo['vendor'])) {
+                                                        echo "aboutLeft col-md";
+                                                    } else {
+                                                        echo "aboutAll";
+                                                    } ?> '>
                                                         <table class='tblAbout'>
                                                             <tr>
                                                                 <td><b>Name:</b></td>
@@ -951,7 +954,7 @@ if (isset($settings["cape-info"])) {
                                                                     echo "class='internetOnly' style='display: none;'";
                                                                 }
                                                                 ?>>
-                                            <tr>
+                                                        <tr>
                                                                         <td><b>Order Number:</b></td>
                                                                         <td><input id='orderNumber' type='password' size=12
                                                                                 maxlength=10 value=''>
@@ -1041,7 +1044,8 @@ if (isset($settings["cape-info"])) {
                                                                     </tr>
                                                                 </table>
                                                                 Clicking the download button will prompt you to save a file called
-                                                                'cape-signing-<?= $settings['HostName'] ?>.bin'. Some browsers may be
+                                                                'cape-signing-<?= $settings['HostName'] ?>.bin'. Some browsers may
+                                                                be
                                                                 setup to automatically save downloaded files. If you are not
                                                                 prompted to save the file, check your Download directory for the
                                                                 file.

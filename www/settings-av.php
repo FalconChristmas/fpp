@@ -4,16 +4,15 @@ require_once('common.php');
 
 /////////////////////////////////////////////////////////////////////////////
 // Set a sane audio device if not set already
-if ((!isset($settings['AudioOutput'])) ||
-    ($settings['AudioOutput'] == '')) {
-    
+if (
+    (!isset($settings['AudioOutput'])) ||
+    ($settings['AudioOutput'] == '')
+) {
+
     exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
-    if ( $return_val )
-    {
+    if ($return_val) {
         error_log("Error getting currently selected alsa card used!");
-    }
-    else
-    {
+    } else {
         if (isset($output[0]))
             $settings['AudioOutput'] = $output[0];
         else
@@ -25,11 +24,9 @@ if ((!isset($settings['AudioOutput'])) ||
 /////////////////////////////////////////////////////////////////////////////
 // Set a sane audio mixer device if not set already
 if (!isset($settings['AudioMixerDevice'])) {
-    if ($settings['Platform'] == "BeagleBone Black")
-    {
+    if ($settings['BeaglePlatform']) {
         $settings['AudioMixerDevice'] = exec($SUDO . " amixer -c " . $settings['AudioOutput'] . " scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
-        if ( $return_val )
-        {
+        if ($return_val) {
             $settings['AudioMixerDevice'] = "PCM";
         }
     } else {
@@ -48,4 +45,3 @@ if (!isset($settings['AudioMixerDevice'])) {
 <?
 PrintSettingGroup('generalAudioVideo');
 ?>
-

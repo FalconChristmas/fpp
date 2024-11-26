@@ -1,6 +1,6 @@
 <?
 //stop settings javascript output in results
-$skipJSsettings =1;
+$skipJSsettings = 1;
 // This file runs each command when called via the specified key
 // and returns the raw results
 
@@ -12,7 +12,7 @@ putenv("PATH=/bin:/usr/bin:/sbin:/usr/sbin");
 $rtcDevice = "/dev/rtc0";
 $i2cDevice = "1";
 
-if ($settings['Platform'] == "BeagleBone Black") {
+if ($settings['BeaglePlatform']) {
     if (file_exists("/sys/class/rtc/rtc0/name")) {
         $rtcname = file_get_contents("/sys/class/rtc/rtc0/name");
         if (strpos($rtcname, "omap_rtc") !== false) {
@@ -41,11 +41,10 @@ if (isset($_GET['key'])) {
         $command = $commands[$key];
 
         ////////// Substitute PHP variables denoted by [[ variable name (without $) ]] in command string to allow accessing normal settings variables and any specials declared above
-        preg_match_all('/\[\[(.*?)\]\]/', $command, $matches);  
-        
-        foreach ($matches[1] as $value)
-        {
-            $command = str_replace('[['.$value.']]', ${$value}, $command);
+        preg_match_all('/\[\[(.*?)\]\]/', $command, $matches);
+
+        foreach ($matches[1] as $value) {
+            $command = str_replace('[[' . $value . ']]', ${$value}, $command);
         }
         ////////
 

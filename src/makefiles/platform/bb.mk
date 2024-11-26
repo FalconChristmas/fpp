@@ -1,5 +1,14 @@
 # BeagleBone Black
 ifeq '$(ARCH)' 'BeagleBone Black'
+ISBEAGLEBONE=1
+endif
+
+ifeq '$(ARCH)' 'BeagleBone 64'
+ISBEAGLEBONE=1
+endif
+
+
+ifeq ($(ISBEAGLEBONE), 1)
 
 LIBS_GPIO_ADDITIONS=
 OBJECTS_GPIO_ADDITIONS+=util/BBBUtils.o

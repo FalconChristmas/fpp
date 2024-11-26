@@ -1,5 +1,5 @@
-# BeagleBone Black
-ifeq '$(ARCH)' 'BeagleBone Black'
+# BeagleBone
+ifeq ($(ISBEAGLEBONE), 1)
 
 OBJECTS_fpp_FalconV5Support_so += non-gpl/FalconV5Support/FalconV5Support.o
 LIBS_fpp_FalconV5Support_so += -L. -lfpp -ljsoncpp -lFalconV5 -Wl,-rpath=$(SRCDIR):.

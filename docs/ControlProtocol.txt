@@ -107,6 +107,8 @@ buf[9] = App/Hardware Type
            - 0x11 - Pi ZeroW
            - 0x12 - Pi 3 A+
            - 0x13 - Pi 4
+           - 0x14 - Pi 5
+           - 0x15 - Pi Zero 2W
            - 0x40 - BeagleBone Black Rev B
            - 0x41 - BeagleBone Black Rev C
            - 0x42 - BeagleBone Black Wireless
@@ -114,6 +116,7 @@ buf[9] = App/Hardware Type
            - 0x44 - BeagleBone Green Wireless
            - 0x45 - PocketBeagle
            - 0x46 - SanCloud Beaglebone Enhanced
+           - 0x47 - PocketBeagle2/BeaglePlay
          - 0x60 - Armbian
          - 0x70 - MacOS
          - 0x80-0x8F = Falcon Hardware

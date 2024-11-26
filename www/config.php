@@ -221,7 +221,7 @@ $settings["IsDesktop"] = false;
 if (file_exists("/etc/fpp/desktop")) {
     $settings["IsDesktop"] = true;
 }
-
+$settings['BeaglePlatform'] = false;
 if ($settings['Platform'] == "Raspberry Pi") {
     $settings['OSImagePrefix'] = "Pi";
     $settings['LogoLink'] = "http://raspberrypi.org/";
@@ -274,11 +274,26 @@ if ($settings['Platform'] == "Raspberry Pi") {
         $settings['Variant'] = "UNKNOWN";
         $settings['Logo'] = "Raspberry_Pi_Logo.png";
     }
+} else if ($settings['Platform'] == "BeagleBone 64") {
+    $settings['OSImagePrefix'] = "BB64";
+    $settings['LogoLink'] = "http://beagleboard.org/";
+    $settings['BBB_Tethering'] = "1";
+    $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
+    $settings['BeaglePlatform'] = true;
+    if (preg_match('/PocketBeagle2/', $settings['SubPlatform'])) {
+        $settings['Variant'] = "PocketBeagle2";
+        $settings['Logo'] = "beagle_pocket.png";
+    } else {
+        // for now, eventually support others?
+        $settings['Variant'] = "PocketBeagle2";
+        $settings['Logo'] = "beagle_pocket.png";
+    }
 } else if ($settings['Platform'] == "BeagleBone Black") {
     $settings['OSImagePrefix'] = "BBB";
     $settings['LogoLink'] = "http://beagleboard.org/";
     $settings['BBB_Tethering'] = "1";
     $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
+    $settings['BeaglePlatform'] = true;
     if (preg_match('/PocketBeagle/', $settings['SubPlatform'])) {
         $settings['Variant'] = "PocketBeagle";
         $settings['Logo'] = "beagle_pocket.png";

@@ -3,7 +3,7 @@
 
 <head>
     <?php
-    require_once ('config.php');
+    require_once('config.php');
 
     writeFPPVersionJavascriptFunctions();
 
@@ -305,6 +305,8 @@
                                 html += "Pi";
                             } else if (platforms[p] == 'BeagleBone Black') {
                                 html += "BBB";
+                            } else if (platforms[p] == 'BeagleBone 64') {
+                                html += "BB64";
                             } else {
                                 html += platforms[p];
                             }

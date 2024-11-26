@@ -1925,6 +1925,8 @@
                                 let platform = rec["advancedView"]["Platform"];
                                 if (platform == "BeagleBone Black") {
                                     osType = "BBB";
+                                } else if (platform == "BeagleBone 64") {
+                                    osType = "BB64";
                                 } else if (platform == "Raspberry Pi") {
                                     osType = "PI";
                                 }

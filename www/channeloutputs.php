@@ -84,7 +84,7 @@
         }
 
         <?
-        if ($settings['Platform'] == "BeagleBone Black") {
+        if ($settings['BeaglePlatform']) {
             //  BBB only supports ws2811 at this point
             ?>
             #PixelString tr>th:nth-of-type(2),
@@ -99,8 +99,7 @@
             // don't support virtual strings
             ?>
             #PixelString tr>th:nth-of-type(3),
-            div[aria-labelledby="PixelString"] .floatThead-table tr>th:nth-of-type(3)
-            #PixelString tr>td:nth-of-type(3) {
+            div[aria-labelledby="PixelString"] .floatThead-table tr>th:nth-of-type(3) #PixelString tr>td:nth-of-type(3) {
                 display: none;
             }
 
@@ -342,7 +341,7 @@
                         <?
 
                         if (
-                            $settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
+                            $settings['BeaglePlatform'] || $settings['Platform'] == "Raspberry Pi" ||
                             ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))
                         ) {
                             $stringTabText = "Pixel Strings";
@@ -385,7 +384,7 @@
                             $pwmTabText = "PWM";
                             if (isset($currentCapeInfo["labels"]) && isset($currentCapeInfo["labels"]["pwm"])) {
                                 $pwmTabText = $currentCapeInfo["labels"]["pwm"];
-                            } 
+                            }
                             ?>
                             <li class="nav-item">
                                 <a class="nav-link" id="tab-pwm-tab" type="button" tabType='PWM' data-bs-toggle="pill"
@@ -444,7 +443,7 @@
                         <?
 
                         if (
-                            $settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
+                            $settings['BeaglePlatform'] || $settings['Platform'] == "Raspberry Pi" ||
                             ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))
                         ) {
                             ?>

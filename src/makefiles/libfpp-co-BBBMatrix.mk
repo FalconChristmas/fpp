@@ -1,5 +1,5 @@
-# BeagleBone Black
-ifeq '$(ARCH)' 'BeagleBone Black'
+# BeagleBone
+ifeq ($(ISBEAGLEBONE), 1)
 
 # The subtype for the BBB matrices is "LEDscapeMatrix" as
 # it was based off of the LEDscape code a long long time ago.  That

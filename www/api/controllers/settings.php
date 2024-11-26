@@ -51,24 +51,30 @@ function PutSetting()
         SendCommand("LogLevel,$setting,$value,");
     } else if ($setting == "HostName") {
         $value = preg_replace("/[^-a-zA-Z0-9]/", "", $value);
-        exec($SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
+        exec(
+            $SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
             $SUDO . " sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
             $SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts ; " .
             $SUDO . " hostname $value ; " .
             $SUDO . " /etc/init.d/avahi-daemon restart ;" .
             $SUDO . " systemctl restart avahi-daemon.service",
-            $output, $return_val);
+            $output,
+            $return_val
+        );
         sleep(1); // Give Avahi time to restart before we return
     } else if ($setting == "EnableRouting") {
         if ($value != "1") {
             $value = "0";
         }
-        exec($SUDO . " sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf; " .
+        exec(
+            $SUDO . " sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf; " .
             $SUDO . " sed -i '\$anet.ipv4.ip_forward = $value' /etc/sysctl.conf ; " .
             $SUDO . " sysctl --system",
-            $output, $return_val);
+            $output,
+            $return_val
+        );
     } else if ($setting == "storageDevice") {
-        if ($settings['Platform'] == "BeagleBone Black") {
+        if ($settings['BeaglePlatform']) {
             exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
             $rootDevice = $output[0];
             unset($output);

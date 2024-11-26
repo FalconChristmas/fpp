@@ -1108,6 +1108,7 @@
 			"tip": "Some capes/hats fetch the vendor logo from their website when using the FPP UI.  This discloses your IP address to the vendor.",
 			"platforms": [
 				"BeagleBone Black",
+				"BeagleBone 64",
 				"Raspberry Pi"
 			],
 			"type": "checkbox",
@@ -1563,6 +1564,7 @@
 				"Default": "",
 				"Raspberry Pi": "Raspberry Pi",
 				"BeagleBone Black": "BeagleBone Black",
+				"BeagleBone 64": "BeagleBone 64",
 				"CHIP": "CHIP",
 				"Armbian": "Armbian",
 				"Debian": "Debian",
@@ -2165,6 +2167,7 @@
 			"tip": "Some capes/hats send an identifying serial number to the vendor each time you load the FPP UI.  The vendor can use this information to personally identify you.",
 			"platforms": [
 				"BeagleBone Black",
+				"BeagleBone 64",
 				"Raspberry Pi"
 			],
 			"type": "checkbox",
@@ -2176,6 +2179,7 @@
 			"tip": "Select any cape/hat installed onto this FPP device so the UI can be setup appropriately.",
 			"platforms": [
 				"BeagleBone Black",
+				"BeagleBone 64",
 				"Raspberry Pi"
 			],
 			"checkFile": [

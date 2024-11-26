@@ -113,7 +113,7 @@
                 $.get("api/network/interface", function (interfaces) {
                     var gatewayAlreadySet = false;
                     var dhcpOperStateUp = false;
-        
+
                     interfaces.forEach(function (ifaceData) {
                         // Ensure the config and INTERFACE properties are defined
                         if (ifaceData.config && ifaceData.config.INTERFACE) {
@@ -129,7 +129,7 @@
                             if (ifaceData.config.INTERFACE.startsWith('wl') && !ifaceData.config.SSID) {
                                 return;
                             }
-        
+
                             if (ifaceData.config.INTERFACE !== $('#selInterfaces').val() &&
                                 ifaceData.config.PROTO === "static" &&
                                 ifaceData.config.GATEWAY) {
@@ -142,30 +142,30 @@
                             }
                         }
                     });
-        
-                <? if ($settings['uiLevel'] < 3) { ?>
-                    if ((gatewayAlreadySet || dhcpOperStateUp) && $('#eth_gateway').val()) {
-                        $.jGrowl("A gateway is already set on another interface, or another interface is configured as DHCP. You cannot set multiple gateways.", { themeState: 'danger' });
-                        return callback(false);
-                    }
-                <? } ?>
-        
-                <? if ($settings['uiLevel'] < 1) { ?>
-                    // If no gateway is set anywhere and we're in static mode, ensure one is set
-                    if (!gatewayAlreadySet && !$('#eth_gateway').val() && !dhcpOperStateUp) {
-                        $.jGrowl("You must set a gateway when using static IPs.", { themeState: 'danger' });
-                        return callback(false);
-                    }
-                <? } ?>
-        
+
+                    <? if ($settings['uiLevel'] < 3) { ?>
+                        if ((gatewayAlreadySet || dhcpOperStateUp) && $('#eth_gateway').val()) {
+                            $.jGrowl("A gateway is already set on another interface, or another interface is configured as DHCP. You cannot set multiple gateways.", { themeState: 'danger' });
+                            return callback(false);
+                        }
+                    <? } ?>
+
+                    <? if ($settings['uiLevel'] < 1) { ?>
+                        // If no gateway is set anywhere and we're in static mode, ensure one is set
+                        if (!gatewayAlreadySet && !$('#eth_gateway').val() && !dhcpOperStateUp) {
+                            $.jGrowl("You must set a gateway when using static IPs.", { themeState: 'danger' });
+                            return callback(false);
+                        }
+                    <? } ?>
+
                     // If all checks passed, validation succeeds
                     return callback(true);
-        
+
                 }).fail(function () {
                     $.jGrowl("Failed to validate network interfaces.", { themeState: 'danger' });
                     return callback(false);
                 });
-        
+
             } else {
                 // If not in static mode, validation passes
                 return callback(true);
@@ -236,8 +236,7 @@
             return self.indexOf(value) === index;
         }
 
-        function escapeHtml(unsafe)
-        {
+        function escapeHtml(unsafe) {
             return unsafe
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
@@ -263,7 +262,7 @@
                 ssids.sort();
                 html = [];
                 ssids.forEach(function (n) {
-                    if(typeof(n) != "undefined") {
+                    if (typeof (n) != "undefined") {
                         html.push("<option value='");
                         html.push(escapeHtml(n));
                         html.push("'>");
@@ -307,12 +306,12 @@
         }
 
         function SaveNetworkConfig() {
-            validateNetworkFields(function(isValid) {
+            validateNetworkFields(function (isValid) {
                 if (!isValid) {
                     DialogError("Invalid Network Config", "Save Failed");
                     return;
                 }
-    
+
                 var iface = $('#selInterfaces').val();
                 var url;
                 var data = {};
@@ -332,7 +331,7 @@
                     data.DHCPPOOLSIZE = $('#dhcpPoolSize').val();
                     data.IPFORWARDING = $('#ipForwarding').val();
                 <? } ?>
-    
+
                 if (iface.substr(0, 2) == "wl") {
                     data.SSID = $('#eth_ssid').val();
                     data.PSK = $('#eth_psk').val();
@@ -343,7 +342,7 @@
                     data.BACKUPHIDDEN = $('#backupeth_hidden').is(':checked');
                     data.BACKUPWPA3 = $('#backupeth_wpa3').is(':checked');
                 }
-    
+
                 data.Leases = {};
                 $('#staticLeasesTable > tbody > tr').each(function () {
                     var checkBox = $(this).find('#static_enabled');
@@ -353,16 +352,16 @@
                         data.Leases[ip] = mac;
                     }
                 })
-    
+
                 var postData = JSON.stringify(data);
-    
+
                 $.post("api/network/interface/" + iface, postData
                 ).done(function (rc) {
                     if (rc.status == "OK") {
                         LoadNetworkConfig();
                         $.jGrowl(iface + " network interface configuration saved", { themeState: 'success' });
                         $('#btnConfigNetwork').show();
-    
+
                         if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
                             DialogError("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.<br><br<span style='color: red;'>If you do not do this, your FPP will have no Internet Access</span>");
                             return;
@@ -373,7 +372,7 @@
                 }).fail(function () {
                     DialogError("Save Network Config", "Save Failed");
                 });
-    
+
                 SaveDNSConfig();
             });
         }
@@ -804,38 +803,38 @@
                                     </div>
                                 </div>
                             </div>
-                        <h2>DNS Settings</h2>
-                        <div class="warning-text" id="dns_warning"></div>
+                            <h2>DNS Settings</h2>
+                            <div class="warning-text" id="dns_warning"></div>
 
-                        <div class="container-fluid settingsTable settingsGroupTable">
-                            <div class="row" id="dnsServerRow">
-                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                    <div class="description">DNS Server Mode</div>
+                            <div class="container-fluid settingsTable settingsGroupTable">
+                                <div class="row" id="dnsServerRow">
+                                    <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                        <div class="description">DNS Server Mode</div>
+                                    </div>
+                                    <div class="printSettingFieldCol col-md"><label><input type="radio" id="dns_manual"
+                                                value="manual">
+                                            Manual</label>
+                                        <label><input type="radio" id="dns_dhcp" value="dhcp" checked>
+                                            DHCP</label>
+                                    </div>
                                 </div>
-                                <div class="printSettingFieldCol col-md"><label><input type="radio" id="dns_manual"
-                                            value="manual">
-                                        Manual</label>
-                                    <label><input type="radio" id="dns_dhcp" value="dhcp" checked>
-                                        DHCP</label>
+                                <div class="row" id="dns1Row">
+                                    <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                        <div class="description">DNS Server 1</div>
+                                    </div>
+                                    <div class="printSettingFieldCol col-md"><input type="text" name="dns1"
+                                            id="dns1"><input type="button" class="buttons"
+                                            onClick='PingIP($("#dns1").val(), 3);' value='Ping'></div>
+                                </div>
+                                <div class="row" id="dns2Row">
+                                    <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                        <div class="description">DNS Server 2</div>
+                                    </div>
+                                    <div class="printSettingFieldCol col-md"><input type="text" name="dns2"
+                                            id="dns2"><input type="button" class="buttons"
+                                            onClick='PingIP($("#dns2").val(), 3);' value='Ping'></div>
                                 </div>
                             </div>
-                            <div class="row" id="dns1Row">
-                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                    <div class="description">DNS Server 1</div>
-                                </div>
-                                <div class="printSettingFieldCol col-md"><input type="text" name="dns1" id="dns1"><input
-                                        type="button" class="buttons" onClick='PingIP($("#dns1").val(), 3);'
-                                        value='Ping'></div>
-                            </div>
-                            <div class="row" id="dns2Row">
-                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                    <div class="description">DNS Server 2</div>
-                                </div>
-                                <div class="printSettingFieldCol col-md"><input type="text" name="dns2" id="dns2"><input
-                                        type="button" class="buttons" onClick='PingIP($("#dns2").val(), 3);'
-                                        value='Ping'></div>
-                            </div>
-                        </div>
                             <div id="WirelessSettings">
                                 <h2>Wireless Settings</h2>
                                 <div class="container-fluid settingsTable settingsGroupTable">
@@ -846,8 +845,8 @@
                                         <div class="printSettingFieldCol col-md"><input list="eth_ssids" name="eth_ssid"
                                                 id="eth_ssid" size="32" maxlength="32"><datalist
                                                 id='eth_ssids'></datalist><input type="checkbox" name="eth_hidden"
-                                                id="eth_hidden" value="Hidden">Hidden&nbsp;<input type="checkbox" name="eth_wpa3"
-                                                id="eth_wpa3" value="WPA3">WPA3</div>
+                                                id="eth_hidden" value="Hidden">Hidden&nbsp;<input type="checkbox"
+                                                name="eth_wpa3" id="eth_wpa3" value="WPA3">WPA3</div>
                                     </div>
                                     <div class="row" id="pskRow">
                                         <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">

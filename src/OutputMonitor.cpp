@@ -732,38 +732,42 @@ void OutputMonitor::GetCurrentPortStatusJson(Json::Value& result) {
 }
 
 void OutputMonitor::addEFuseWarning(PortPinInfo* pi, int rec) {
-    std::string name = pi->name;
-    if (pi->isSmartReceiver) {
-        name += std::string(1, 'A' + rec);
-    }
-    std::string warn = "eFUSE Triggered for " + name;
-
-    if (!pi->receivers[rec].warning.starts_with(warn)) {
-        if (sequence->IsSequenceRunning()) {
-            std::string seq = sequence->m_seqFilename;
-            int sTime = sequence->m_seqMSElapsed / 1000;
-            warn += " (" + seq + "/" + std::to_string(sTime / 60) + ":" + std::to_string(sTime % 60) + ")";
+    if (pi && rec < 6) {
+        std::string name = pi->name;
+        if (pi->isSmartReceiver) {
+            name += std::string(1, 'A' + rec);
         }
+        std::string warn = "eFUSE Triggered for " + name;
 
-        LogWarn(VB_CHANNELOUT, warn + "\n");
-        // Output SHOULD be on, but the fuse triggered.  That's a warning.
-        WarningHolder::AddWarning(warn);
-        pi->receivers[rec].warning = warn;
+        if (!pi->receivers[rec].warning.starts_with(warn)) {
+            if (sequence->IsSequenceRunning()) {
+                std::string seq = sequence->m_seqFilename;
+                int sTime = sequence->m_seqMSElapsed / 1000;
+                warn += " (" + seq + "/" + std::to_string(sTime / 60) + ":" + std::to_string(sTime % 60) + ")";
+            }
 
-        std::map<std::string, std::string> keywords;
-        keywords["PORT"] = name;
-        CommandManager::INSTANCE.TriggerPreset("EFUSE_TRIGGERED", keywords);
+            LogWarn(VB_CHANNELOUT, warn + "\n");
+            // Output SHOULD be on, but the fuse triggered.  That's a warning.
+            WarningHolder::AddWarning(warn);
+            pi->receivers[rec].warning = warn;
+
+            std::map<std::string, std::string> keywords;
+            keywords["PORT"] = name;
+            CommandManager::INSTANCE.TriggerPreset("EFUSE_TRIGGERED", keywords);
+        }
     }
 }
 void OutputMonitor::clearEFuseWarning(PortPinInfo* port, int rec) {
-    if (!port->receivers[rec].warning.empty()) {
-        WarningHolder::RemoveWarning(port->receivers[rec].warning);
-        port->receivers[rec].warning.clear();
+    if (port && rec < 6) {
+        if (!port->receivers[rec].warning.empty()) {
+            WarningHolder::RemoveWarning(port->receivers[rec].warning);
+            port->receivers[rec].warning.clear();
+        }
+        port->receivers[rec].retryCount = 0;
     }
-    port->receivers[rec].retryCount = 0;
 }
 bool OutputMonitor::checkEFuseRetry(PortPinInfo* port) {
-    if (port->receivers[0].retryCount < eFuseRetryCount) {
+    if (port && port->receivers[0].retryCount < eFuseRetryCount) {
         LogDebug(VB_CHANNELOUT, "eFuse triggered for %s.  Attempting reset retry #%d\n", port->name.c_str(), port->receivers[0].retryCount + 1);
         if (std::find(eFuseRetries.begin(), eFuseRetries.end(), port) == eFuseRetries.end()) {
             eFuseRetries.push_back(port);

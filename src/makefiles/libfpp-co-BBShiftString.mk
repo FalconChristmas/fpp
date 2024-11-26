@@ -1,5 +1,5 @@
-# BeagleBone Black
-ifeq '$(ARCH)' 'BeagleBone Black'
+# BeagleBone
+ifeq ($(ISBEAGLEBONE), 1)
 
 OBJECTS_fpp_co_BBShiftString_so += non-gpl/BBShiftString/BBShiftString.o
 LIBS_fpp_co_BBShiftString_so += -L. -lfpp -ljsoncpp -lfpp_capeutils -lfpp-FalconV5Support -Wl,-rpath=$(SRCDIR):.
