@@ -101,6 +101,9 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     channelCount = config["ChannelCount"].asInt();
     int strings = config["StringCount"].asInt();
     int sps = config["StrandsPerString"].asInt();
+    if (sps == 0) {
+        sps = 1;
+    }
 
     std::string orientation = config["Orientation"].asString();
     std::string startCorner = config["StartCorner"].asString();
