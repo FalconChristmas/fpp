@@ -36,9 +36,9 @@ public:
     PlaylistStatus getPlaylistStatus();
 
     // New methods
-    Json::Value LoadJSON(const char* filename);
+    Json::Value LoadJSON(const std::string& filename);
     int Load(Json::Value& config);
-    int Load(const char* filename);
+    int Load(const std::string& filename);
     PlaylistEntryBase* LoadPlaylistEntry(Json::Value entry);
     int LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart, const Json::Value& entries, int startPos, int& maxEntries);
 
@@ -56,7 +56,7 @@ public:
     void ProcessMedia(void);
     int Cleanup(void);
 
-    int Play(const char* filename, const int position = -1, const int repeat = -1, const int scheduleEntry = -1, const int endPosition = -1);
+    int Play(const std::string& filename, const int position = -1, const int repeat = -1, const int scheduleEntry = -1, const int endPosition = -1);
 
     void InsertPlaylistAsNext(const std::string& filename, const int startPosition = -1, const int endPos = -1);
     void InsertPlaylistImmediate(const std::string& filename, const int startPosition = -1, const int endPos = -1);
@@ -92,7 +92,7 @@ public:
     uint64_t GetCurrentPosInMS();
     uint64_t GetCurrentPosInMS(int& pos, uint64_t& posms, bool itemDefinedOnly = false);
     uint64_t GetPosStartInMS(int pos);
-    int FindPosForMS(uint64_t& ms, bool itemDefinedOnly = false); //ms will be updated with how far into Pos it would be
+    int FindPosForMS(uint64_t& ms, bool itemDefinedOnly = false); // ms will be updated with how far into Pos it would be
     void GetFilenamesForPos(int pos, std::string& seq, std::string& med);
 
     int MQTTHandler(std::string topic, std::string msg);

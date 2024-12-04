@@ -122,7 +122,7 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart
             if (m_subPlaylistDepth < 5) {
                 std::string filename = FPP_DIR_PLAYLIST("/" + entries[c]["name"].asString() + ".json");
 
-                Json::Value subPlaylist = LoadJSON(filename.c_str());
+                Json::Value subPlaylist = LoadJSON(filename);
                 int tmpMax = 999999;
 
                 if (subPlaylist.isMember("leadIn"))
@@ -264,12 +264,12 @@ int Playlist::Load(Json::Value& config) {
 /*
  *
  */
-Json::Value Playlist::LoadJSON(const char* filename) {
-    LogDebug(VB_PLAYLIST, "Playlist::LoadJSON(%s)\n", filename);
+Json::Value Playlist::LoadJSON(const std::string& filename) {
+    LogDebug(VB_PLAYLIST, "Playlist::LoadJSON(%s)\n", filename.c_str());
 
     Json::Value root;
 
-    if (!strlen(filename)) {
+    if (filename.empty()) {
         LogErr(VB_PLAYLIST, "Playlist::LoadJSON() called with empty filename\n");
         return root;
     }
@@ -284,7 +284,7 @@ Json::Value Playlist::LoadJSON(const char* filename) {
 
     if (m_filename == filename) {
         struct stat attr;
-        stat(filename, &attr);
+        stat(filename.c_str(), &attr);
 
         LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime(&attr.st_mtime));
 
@@ -336,10 +336,10 @@ std::string sanitizeMediaName(std::string mediaName) {
 /*
  *
  */
-int Playlist::Load(const char* filename) {
-    LogDebug(VB_PLAYLIST, "Playlist::Load(%s)\n", filename);
+int Playlist::Load(const std::string& filename) {
+    LogDebug(VB_PLAYLIST, "Playlist::Load(%s)\n", filename.c_str());
 
-    if (!strlen(filename)) {
+    if (filename.empty()) {
         LogErr(VB_PLAYLIST, "Playlist::Load() called with empty filename\n");
         return 0;
     }
@@ -434,7 +434,7 @@ int Playlist::Load(const char* filename) {
 
             } else {
                 m_filename = FPP_DIR_PLAYLIST("/" + filename + ".json");
-                root = LoadJSON(m_filename.c_str());
+                root = LoadJSON(m_filename);
             }
         }
         return Load(root);
@@ -508,7 +508,7 @@ int Playlist::ReloadPlaylist(void) {
     int loopCount = m_loopCount;
     long long startTime = m_startTime;
 
-    Json::Value root = LoadJSON(m_filename.c_str());
+    Json::Value root = LoadJSON(m_filename);
 
     if (!Load(root))
         return 0;
@@ -1116,12 +1116,12 @@ void Playlist::InsertPlaylistImmediate(const std::string& filename, const int po
     }
 }
 
-int Playlist::Play(const char* filename, const int position, const int repeat, const int scheduleEntry, const int endPosition) {
-    if (!strlen(filename))
+int Playlist::Play(const std::string& filename, const int position, const int repeat, const int scheduleEntry, const int endPosition) {
+    if (filename.empty())
         return 0;
 
     LogDebug(VB_PLAYLIST, "Playlist::Play('%s', %d, %d, %d, %d)\n",
-             filename, position, repeat, scheduleEntry, endPosition);
+             filename.c_str(), position, repeat, scheduleEntry, endPosition);
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
