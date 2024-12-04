@@ -231,7 +231,7 @@ Json::Value PlaylistEntryDynamic::GetConfig(void) {
     return result;
 }
 PlaylistEntryBase* PlaylistEntryDynamic::GetCurrentEntry() {
-    if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry])) {
+    if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry]) && (m_currentEntry < m_playlistEntries.size())) {
         return m_playlistEntries[m_currentEntry];
     }
     return nullptr;
