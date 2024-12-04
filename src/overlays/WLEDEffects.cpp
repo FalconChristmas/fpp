@@ -380,7 +380,11 @@ public:
 
             int mapping = 0;
             bool hasC3 = false;
-            for (int x = 0; x < argMap.size(); x++) {
+            int count = args.size();
+            if (count > argMap.size()) {
+                count = argMap.size();
+            }
+            for (int x = 0; x < count; x++) {
                 switch (argMap[x]) {
                 case ArgMapping::Mapping:
                     mapping = std::find(BUFFERMAPS->begin(), BUFFERMAPS->end(), args[x]) - BUFFERMAPS->begin();

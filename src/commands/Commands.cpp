@@ -390,7 +390,9 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
                 }
             }
         } else {
-            Json::Value val = LoadJsonFromString(std::string(req.get_content()));
+            std::string command(req.get_content());
+            LogDebug(VB_COMMAND, "Received command: \"%s\"\n", command.c_str());
+            Json::Value val = LoadJsonFromString(command);
             std::unique_ptr<Command::Result> r = run(val);
             int count = 0;
             while (!r->isDone() && count < 1000) {
