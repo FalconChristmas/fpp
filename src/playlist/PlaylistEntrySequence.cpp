@@ -136,8 +136,10 @@ uint64_t PlaylistEntrySequence::GetLengthInMS() {
         std::string n = FPP_DIR_SEQUENCE("/" + m_sequenceName);
         if (FileExists(n)) {
             FSEQFile* fs = FSEQFile::openFSEQFile(n);
-            m_duration = fs->getTotalTimeMS();
-            delete fs;
+            if (fs) {
+                m_duration = fs->getTotalTimeMS();
+                delete fs;
+            }
         }
     }
     return m_duration;
