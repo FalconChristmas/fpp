@@ -1097,7 +1097,7 @@ int Playlist::Cleanup(void) {
 void Playlist::InsertPlaylistAsNext(const std::string& filename, const int position, int endPosition) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (m_status == FPP_STATUS_IDLE) {
-        Play(filename.c_str(), position, 0, m_scheduleEntry, endPosition);
+        Play(filename, position, 0, m_scheduleEntry, endPosition);
     } else {
         m_insertedPlaylist = filename;
         m_insertedPlaylistPosition = position;
@@ -1107,7 +1107,7 @@ void Playlist::InsertPlaylistAsNext(const std::string& filename, const int posit
 void Playlist::InsertPlaylistImmediate(const std::string& filename, const int position, int endPosition) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (m_status == FPP_STATUS_IDLE) {
-        Play(filename.c_str(), position, 0, m_scheduleEntry, endPosition);
+        Play(filename, position, 0, m_scheduleEntry, endPosition);
     } else {
         Pause();
         m_insertedPlaylist = filename;
@@ -1897,7 +1897,7 @@ int Playlist::MQTTHandler(std::string topic, std::string msg) {
     } else if (topic == "name/set") {
         LogInfo(VB_CONTROL, "playlist/%s is deprecated and will be removed in a future release\n",
                 topic.c_str());
-        Play(msg.c_str(), m_sectionPosition, m_repeat);
+        Play(msg, m_sectionPosition, m_repeat);
 
     } else if (topic == "repeat/set") {
         LogInfo(VB_PLAYLIST, "playlist/%s is deprecated and will be removed in a future release\n",
