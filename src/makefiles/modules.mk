@@ -23,7 +23,9 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 ../external/rpi-rgb-led-matrix/lib/librgbmatrix.a: ../external/rpi-rgb-led-matrix/.git  $(PCH_FILE)
 	@echo "Building rpi-rgb-led-matrix library"
 	@if [ -e ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so ]; then rm ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so; fi
+	@sed -i -e "s/-march=native//" ../external/rpi-rgb-led-matrix/lib/Makefile
 	@CC="ccache gcc" CXX="ccache g++" $(MAKE) -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a
+	@cd  ../external/rpi-rgb-led-matrix/lib/ && git checkout -- Makefile
 
 #############################################################################
 # libws2811 on the Pi
