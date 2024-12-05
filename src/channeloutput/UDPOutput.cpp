@@ -232,7 +232,8 @@ UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount) :
     doneWorkCount(0),
     numWorkThreads(0),
     runWorkThreads(true),
-    useThreadedOutput(true) {
+    useThreadedOutput(true),
+    blockingOutput(false) {
     INSTANCE = this;
 }
 UDPOutput::~UDPOutput() {
@@ -284,9 +285,10 @@ int UDPOutput::Init(Json::Value config) {
             break;
         }
     }
-
     if (config.isMember("threaded")) {
-        useThreadedOutput = config["threaded"].asInt() ? true : false;
+        int style = config["threaded"].asInt();
+        useThreadedOutput = style == 1 || style == 3;
+        blockingOutput = style == 0 || style == 1;
     }
     if (config.isMember("interface")) {
         outInterface = config["interface"].asString();
@@ -432,7 +434,6 @@ void UDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& ad
 void UDPOutput::addOutput(UDPOutputData* out) {
     outputs.push_back(out);
 }
-
 int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, std::vector<struct mmsghdr>& sendmsgs) {
     errno = 0;
     struct mmsghdr* msgs = &sendmsgs[0];
@@ -444,30 +445,43 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
     int newSockKey = socketKey;
     int sendSocket = socketInfo->sockets[socketInfo->curSocket];
     errno = 0;
-    int oc = sendmmsg(sendSocket, msgs, msgCount, MSG_DONTWAIT);
+    // uint64_t st = GetTimeMicros();
+
     int outputCount = 0;
-    if (oc > 0) {
-        outputCount = oc;
-    }
-    if (outputCount != msgCount) {
-        // in many cases, a simple thread yield will allow the network stack
-        // to flush some data and free up space, give that a chance first
-        std::this_thread::yield();
-        oc = sendmmsg(sendSocket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+    if (blockingOutput) {
+        for (int x = 0; x < msgCount; x++) {
+            ssize_t s = sendmsg(sendSocket, &msgs[x].msg_hdr, 0);
+            if (s != -1) {
+                ++outputCount;
+            } else {
+                // didn't send, we'll yield and re-send
+                --x;
+                std::this_thread::yield();
+            }
+        }
+    } else {
+        int oc = sendmmsg(sendSocket, msgs, msgCount, MSG_DONTWAIT);
         if (oc > 0) {
             outputCount += oc;
         }
+        if (outputCount != msgCount) {
+            // in many cases, a simple thread yield will allow the network stack
+            // to flush some data and free up space, give that a chance first
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            oc = sendmmsg(sendSocket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+            while (oc > 0) {
+                outputCount += oc;
+                std::this_thread::sleep_for(std::chrono::microseconds(100));
+                oc = sendmmsg(sendSocket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+            }
+        }
     }
+    // uint64_t ed = GetTimeMicros();
+    // uint64_t tm = ed - st;
+    // printf("MSG: %d/%d    %d     \n", outputCount, msgCount, (int)tm);
+
     int errCount = 0;
     while (outputCount != msgCount) {
-        if (errno != 0) {
-            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   Socket: %d   output count: %d/%d) with error: %d   %s\n",
-                   socketKey, sendSocket,
-                   outputCount, msgCount,
-                   errno,
-                   strerror(errno));
-        }
-
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             if (socketKey != BROADCAST_MESSAGES_KEY) {
                 ++socketInfo->curSocket;
@@ -490,12 +504,19 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
         }
         ++errCount;
         if (errCount >= 10) {
+            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   Socket: %d   output count: %d/%d) with error: %d   %s\n",
+                   socketKey, sendSocket,
+                   outputCount, msgCount,
+                   errno,
+                   strerror(errno));
             return outputCount;
         }
         errno = 0;
         int oc = sendmmsg(sendSocket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
-        if (oc > 0) {
+        while (oc > 0) {
             outputCount += oc;
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            oc = sendmmsg(sendSocket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
         }
     }
     return outputCount;
@@ -703,6 +724,9 @@ void UDPOutput::PingControllers(bool failedOnly) {
 }
 void UDPOutput::DumpConfig() {
     ChannelOutput::DumpConfig();
+    LogDebug(VB_CHANNELOUT, "    Interface        : %s\n", outInterface.c_str());
+    LogDebug(VB_CHANNELOUT, "    Threaded         : %d\n", useThreadedOutput);
+    LogDebug(VB_CHANNELOUT, "    Blocking         : %d\n", blockingOutput);
     for (auto u : outputs) {
         u->DumpConfig();
     }
@@ -756,8 +780,8 @@ int UDPOutput::createSocket(int port, bool broadCast) {
         close(sendSocket);
         return -1;
     }
-    // make sure the send buffer is actually set to a reasonable size
-    int bufSize = 512 * 1024;
+    // make sure the send buffer is actually set to a reasonable size for non-blocking mode
+    int bufSize = 1024 * blockingOutput ? 4 : 512;
     setsockopt(sendSocket, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
     // these sockets are for sending only, don't need a large receive buffer so
     // free some memory by setting to just a single page

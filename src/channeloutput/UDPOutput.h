@@ -166,4 +166,5 @@ private:
     std::atomic_int numWorkThreads;
     volatile bool runWorkThreads;
     bool useThreadedOutput;
+    bool blockingOutput;
 };

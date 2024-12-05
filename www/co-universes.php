@@ -162,9 +162,14 @@ if (file_exists(__DIR__ . "/fppdefines.php")) {
 
 						</div>
 						<div class="col-md-auto form-inline" <? if ($uiLevel < 1) { ?> style="display:none;" <? } ?>>
-							<div><i class="fas fa-fw fa-graduation-cap ui-level-1"></i><b> Multi-Threaded:</b></div>
+							<div><i class="fas fa-fw fa-graduation-cap ui-level-1"></i><b> Sending:</b></div>
 							<div>
-								<input id="E131ThreadedOutput" type="checkbox" checked>
+								<select id="E131ThreadedOutput">
+									<option value="0">Single-Threaded Blocking</option>
+									<option value="1" selected>Multi-Threaded Blocking</option>
+									<option value="2">Single-Threaded Non-Blocking</option>
+									<option value="3">Multi-Threaded Non-Blocking</option>
+								</select>
 							</div>
 						</div>
 						<div class="col-md-auto form-inline">

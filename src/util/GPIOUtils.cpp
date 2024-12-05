@@ -91,7 +91,11 @@ static const std::set<std::string> PLATFORM_IGNORES{
     "gpio-brcmstb@107d508520",
     "gpio-brcmstb@107d517c00",
     "gpio-brcmstb@107d517c20",
-    "pinctrl-rp1" // Pi5's external GPIO chip
+    "pinctrl-rp1",   // Pi5's external GPIO chip
+    "tps65219-gpio", // AM62x
+    "4201000.gpio",
+    "600000.gpio",
+    "601000.gpio"
 };
 // No platform information on how to control pins
 static std::string PROCESS_NAME = "FPPD";

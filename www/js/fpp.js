@@ -3454,7 +3454,7 @@ function populateUniverseData (data, reload, input) {
 			$('#selE131interfaces').val(channelData.interface).prop('selected', true);
 		}
 		if (channelData.hasOwnProperty('threaded')) {
-			$('#E131ThreadedOutput').prop('checked', channelData.threaded);
+			$('#E131ThreadedOutput').val(channelData.threaded).prop('selected', true);
 		}
 	}
 	UniverseCount = channelData.universes.length;
@@ -3972,9 +3972,9 @@ function postUniverseJSON (input) {
 	if (!input) {
 		// output only properties
 		output.interface = document.getElementById('selE131interfaces').value;
-		output.threaded = document.getElementById('E131ThreadedOutput').checked
-			? 1
-			: 0;
+		output.threaded = parseInt(
+			document.getElementById('E131ThreadedOutput').value
+		);
 	} else {
 		// input only properties
 		output.timeout = parseInt(document.getElementById('bridgeTimeoutMS').value);
