@@ -247,11 +247,11 @@ int MultiSync::Init(void) {
             RemoveInterface(name);
         } else if (i == NetworkMonitor::NetEventType::NEW_ADDR && up) {
             bool changed = FillInInterfaces();
+            setupMulticastReceive(true);
             if (changed) {
                 FillLocalSystemInfo();
                 Ping(0, false);
             }
-            setupMulticastReceive();
         }
     };
     NetworkMonitor::INSTANCE.registerCallback(f);
@@ -1094,6 +1094,7 @@ void MultiSync::Ping(int discover, bool broadcast) {
         LogErr(VB_SYNC, "ERROR: Tried to send ping packet but control socket is not open.\n");
         return;
     }
+    setupMulticastReceive(discover ? true : false);
 
     // update the range for local systems so it's accurate
     const std::vector<std::pair<uint32_t, uint32_t>>& ranges = GetOutputRanges(true);
@@ -2059,7 +2060,7 @@ int MultiSync::OpenReceiveSocket(void) {
         rcvMsgs[i].msg_hdr.msg_controllen = 0x100;
     }
 
-    setupMulticastReceive();
+    setupMulticastReceive(false);
     return 1;
 }
 bool MultiSync::isSupportedForMultisync(const char* address, const char* intface) {
@@ -2073,7 +2074,7 @@ bool MultiSync::isSupportedForMultisync(const char* address, const char* intface
     return true;
 }
 
-void MultiSync::setupMulticastReceive() {
+void MultiSync::setupMulticastReceive(bool cycle) {
     LogDebug(VB_SYNC, "setupMulticastReceive()\n");
     // loop through all the interfaces and subscribe to the group
     std::unique_lock<std::mutex> lock(m_socketLock);
@@ -2084,9 +2085,12 @@ void MultiSync::setupMulticastReceive() {
         mreq.imr_multiaddr.s_addr = inet_addr(MULTISYNC_MULTICAST_ADDRESS);
         mreq.imr_interface.s_addr = a.second.address;
         int rc = 0;
+        if (cycle) {
+            setsockopt(m_receiveSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
+        }
         if ((rc = setsockopt(m_receiveSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq))) < 0) {
             if (m_broadcastSock < 0) {
-                // first time through, log as warning, otherise error is likely due t already being subscribed
+                // first time through, log as warning, otherwise error is likely due to already being subscribed
                 LogWarn(VB_SYNC, "   Could not setup Multicast Group for interface %s    rc: %d\n", a.second.interfaceName.c_str(), rc);
             } else {
                 LogDebug(VB_SYNC, "   Could not setup Multicast Group for interface %s    rc: %d\n", a.second.interfaceName.c_str(), rc);

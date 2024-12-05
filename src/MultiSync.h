@@ -305,7 +305,7 @@ public:
 private:
     bool isSupportedForMultisync(const char* address, const char* intface);
 
-    void setupMulticastReceive();
+    void setupMulticastReceive(bool cycle);
     void PingSingleRemote(MultiSyncSystem& sys, int discover = 0);
     void PingSingleRemoteViaHTTP(const std::string& address);
     int CreatePingPacket(MultiSyncSystem& sys, char* outBuf, int discover);

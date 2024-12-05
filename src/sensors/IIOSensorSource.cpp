@@ -71,6 +71,10 @@ IIOSensorSource::~IIOSensorSource() {
         delete[] readBuffer;
     }
 }
+bool IIOSensorSource::isOK() const {
+    return FileExists("/dev/iio:device0");
+}
+
 void IIOSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
     if (usingBuffers) {
         if (iioDevFile >= 0) {

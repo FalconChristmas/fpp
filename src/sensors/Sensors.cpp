@@ -381,18 +381,19 @@ void Sensors::addSensorSources(Json::Value& config) {
     for (int x = 0; x < config.size(); x++) {
         Json::Value v = config[x];
         std::string type = v["type"].asString();
+        SensorSource* ss = nullptr;
         if (type == "ads7828" || type == "ads7830") {
-            sensorSources.push_back(new ADS7828Sensor(v));
+            ss = new ADS7828Sensor(v);
         } else if (type == "iio") {
-            sensorSources.push_back(new IIOSensorSource(v));
+            ss = new IIOSensorSource(v);
         } else if (type == "mux") {
-            MuxSensorSource* m = new MuxSensorSource(v);
-            if (m->isOK()) {
-                sensorSources.push_back(m);
-            } else {
-                WarningHolder::AddWarning("Could not create MuxSensorSource: " + m->getID());
-                delete m;
-            }
+            ss = new MuxSensorSource(v);
+        }
+        if (ss && ss->isOK()) {
+            sensorSources.push_back(ss);
+        } else if (ss) {
+            WarningHolder::AddWarning("Could not create SensorSource: " + ss->getID());
+            delete ss;
         }
     }
 }
@@ -413,7 +414,13 @@ SensorSource* Sensors::getSensorSource(const std::string& name) {
         v["type"] = "iio";
         v["id"] = "iio";
         SensorSource* ss = new IIOSensorSource(v);
-        sensorSources.push_back(ss);
+        if (ss->isOK()) {
+            sensorSources.push_back(ss);
+        } else {
+            WarningHolder::AddWarning("Could not create SensorSource: " + ss->getID());
+            delete ss;
+            ss = nullptr;
+        }
         return ss;
     }
     return nullptr;

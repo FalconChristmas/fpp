@@ -6,7 +6,7 @@
 #include "SSD1306_OLED.h"
 
 extern I2C_DeviceT I2C_DEV_2;
-#if defined(PLATFORM_BBB)
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
 #include "util/BBBUtils.h"
 #define I2C_DEV_PATH I2C_DEV2_PATH
 #elif defined(PLATFORM_PI)
@@ -45,8 +45,8 @@ bool SSD1306DisplayDriver::initialize(int& i2cBus) {
     }
     if (ledType && display_Init_seq()) {
 #ifdef PLATFORM_BBB
-        //was not able to configure the led on I2C2, lets see if
-        //it's available on I2C1
+        // was not able to configure the led on I2C2, lets see if
+        // it's available on I2C1
         Close_device(I2C_DEV_2.fd_i2c);
         if (getBeagleBoneType() == BeagleBoneType::PocketBeagle) {
             PinCapabilities::getPinByName("P2-09").configPin("i2c");

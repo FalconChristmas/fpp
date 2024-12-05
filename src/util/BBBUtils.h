@@ -30,7 +30,8 @@ BeagleBoneType getBeagleBoneType();
 
 class BBBPinCapabilities : public GPIODCapabilities {
 public:
-    BBBPinCapabilities(const std::string& n, uint32_t k, uint32_t offset);
+    BBBPinCapabilities(const std::string& n, uint32_t k);
+    BBBPinCapabilities(const std::string& n, uint32_t g, uint32_t offset);
 
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true) const override;

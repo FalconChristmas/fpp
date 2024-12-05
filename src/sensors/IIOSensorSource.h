@@ -27,6 +27,8 @@ public:
     virtual void enable(int id) override;
     virtual int32_t getValue(int id) override;
 
+    virtual bool isOK() const;
+
 private:
     void update(bool forceInstant, bool fromSelect);
     std::vector<int32_t> values;

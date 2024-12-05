@@ -16,7 +16,7 @@
 #include "common.h"
 #include "settings.h"
 
-#if defined(PLATFORM_BBB)
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
 #include "util/BBBUtils.h"
 #define PLAT_GPIO_CLASS BBBPinProvider
 #elif defined(PLATFORM_PI)

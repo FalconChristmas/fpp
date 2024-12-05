@@ -2090,7 +2090,7 @@ function readCapes($cd, $capes)
         }
     }
 
-    <? if ($settings['Platform'] == "BeagleBone Black") { ?>
+    <? if ($settings['BeaglePlatform']) { ?>
         var PIXEL_STRING_FILE_NAME = "co-bbbStrings";
     <? } else { ?>
         var PIXEL_STRING_FILE_NAME = "co-pixelStrings";

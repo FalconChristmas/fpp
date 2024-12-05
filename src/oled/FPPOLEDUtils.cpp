@@ -200,7 +200,6 @@ FPPOLEDUtils::InputAction* FPPOLEDUtils::configureGPIOPin(const std::string& pin
         gpiodChips[pin.gpioIdx] = gpiod_chip_open_by_number(pin.gpioIdx);
     }
     action->gpiodLine = gpiod_chip_get_line(gpiodChips[pin.gpioIdx], pin.gpio);
-
     struct gpiod_line_request_config lineConfig;
     lineConfig.consumer = "FPPOLED";
     lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
@@ -340,7 +339,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                     lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
                     lineConfig.flags = 0;
                     if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
-                        printf("Could not config line as input\n");
+                        printf("Could not config line as input.  idx: %d    pin: %d\n", pin.gpioIdx, pin.gpio);
                     }
                     gpiod_line_release(action->gpiodLine);
                     if (edge == "falling") {
