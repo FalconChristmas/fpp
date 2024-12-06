@@ -449,13 +449,18 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
 
     int outputCount = 0;
     if (blockingOutput) {
+        int errorCount = 0;
         for (int x = 0; x < msgCount; x++) {
             ssize_t s = sendmsg(sendSocket, &msgs[x].msg_hdr, 0);
             if (s != -1) {
+                errorCount = 0;
                 ++outputCount;
+            } else if (errorCount) {
+                return outputCount;
             } else {
-                // didn't send, we'll yield and re-send
+                // didn't send, we'll yield once and re-send
                 --x;
+                ++errorCount;
                 std::this_thread::yield();
             }
         }
@@ -548,8 +553,8 @@ void UDPOutput::BackgroundOutputWork() {
                 i.socketInfo->errCount++;
 
                 // failed to send all messages or it took more than 100ms to send them
-                LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
-                       i.id,
+                LogErr(VB_CHANNELOUT, "%s() failed for UDP output (key: %X   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
+                       blockingOutput ? "sendmsg" : "sendmmsg", i.id,
                        outputCount, i.msgs.size(), diff, i.socketInfo->errCount,
                        errno,
                        strerror(errno));
@@ -787,6 +792,13 @@ int UDPOutput::createSocket(int port, bool broadCast) {
     // free some memory by setting to just a single page
     bufSize = 4096;
     setsockopt(sendSocket, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
+
+    if (blockingOutput) {
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 1000; // 1ms timeout
+        setsockopt(sendSocket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof timeout);
+    }
 
     if (broadCast) {
         int broadcast = 1;
