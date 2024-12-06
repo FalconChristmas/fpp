@@ -5,17 +5,26 @@ $endTimes = array();
 $depth = 0;
 
 $colors = array(
-    array(GetSettingValue('tableColorPair1A', '00FFFF'),
-        GetSettingValue('tableColorPair1B', 'ADD8E6')),
-    array(GetSettingValue('tableColorPair2A', '008000'),
-        GetSettingValue('tableColorPair2B', '808000')),
-    array(GetSettingValue('tableColorPair3A', '808080'),
-        GetSettingValue('tableColorPair3B', 'C0C0C0')),
-    array(GetSettingValue('tableColorPair4A', 'A52A2A'),
-        GetSettingValue('tableColorPair4B', 'FFFF00')),
+    array(
+        GetSettingValue('tableColorPair1A', '00FFFF'),
+        GetSettingValue('tableColorPair1B', 'ADD8E6')
+    ),
+    array(
+        GetSettingValue('tableColorPair2A', '008000'),
+        GetSettingValue('tableColorPair2B', '808000')
+    ),
+    array(
+        GetSettingValue('tableColorPair3A', '808080'),
+        GetSettingValue('tableColorPair3B', 'C0C0C0')
+    ),
+    array(
+        GetSettingValue('tableColorPair4A', 'A52A2A'),
+        GetSettingValue('tableColorPair4B', 'FFFF00')
+    ),
 );
 $colorIndexes = array(0, 0, 0, 0);
 $depthsInUse = array();
+$priorities = array();
 $maxDepth = 0;
 
 $json = file_get_contents('http://localhost:32322/fppd/schedule');
@@ -27,18 +36,24 @@ function checkIfHoliday($item, $wrap = false)
     global $settings;
 
     $holiday = '';
-    if (($data['schedule']['entries'][$item['id']]['startDateInt'] == $item['startDateInt']) &&
-        (!preg_match('/^[0-9]/', $data['schedule']['entries'][$item['id']]['startDate']))) {
+    if (
+        ($data['schedule']['entries'][$item['id']]['startDateInt'] == $item['startDateInt']) &&
+        (!preg_match('/^[0-9]/', $data['schedule']['entries'][$item['id']]['startDate']))
+    ) {
         $holiday = $data['schedule']['entries'][$item['id']]['startDate'];
     }
-    if (($data['schedule']['entries'][$item['id']]['endDateInt'] == $item['endDateInt']) &&
-        (!preg_match('/^[0-9]/', $data['schedule']['entries'][$item['id']]['endDate']))) {
+    if (
+        ($data['schedule']['entries'][$item['id']]['endDateInt'] == $item['endDateInt']) &&
+        (!preg_match('/^[0-9]/', $data['schedule']['entries'][$item['id']]['endDate']))
+    ) {
         $holiday = $data['schedule']['entries'][$item['id']]['endDate'];
     }
 
-    if (($holiday != '') &&
+    if (
+        ($holiday != '') &&
         (isset($settings['locale'])) &&
-        (isset($settings['locale']['holidays']))) {
+        (isset($settings['locale']['holidays']))
+    ) {
         for ($h = 0; $h < count($settings['locale']['holidays']); $h++) {
             if ($holiday == $settings['locale']['holidays'][$h]['shortName']) {
                 if ($wrap) {
@@ -109,7 +124,7 @@ function getItemInfo($item)
         $info .= 'None';
     }
     $info .= '<br>';
-
+    $info .= '<b>Priority:</b> ' . $item['priority'] . '<br>';
     return $info;
 }
 
@@ -122,6 +137,7 @@ function showPlaylistEnds($currTime = 0)
     global $maxDepth;
     global $data;
     global $depthsInUse;
+    global $priorities;
 
     $deleteEnds = array();
 
@@ -137,26 +153,35 @@ function showPlaylistEnds($currTime = 0)
                     }
                 }
 
-                printf("<td width='20px' class='borderLeft borderBottom'>&nbsp;</td>");
+                printf("<td width='20px' class='borderLeft'>&nbsp;</td>");
 
                 for ($j = $endItem["previewDepth"]; $j < $maxDepth; $j++) {
                     if (isset($depthsInUse[$j + 1])) {
-                        printf("<td width='20px' class='borderBottom' style='color: #%s; font-weight: bold; text-align: center;'>|</td>",
-                            $colors[$j + 1][$colorIndexes[$j + 1]]);
+                        printf(
+                            "<td width='20px' style='color: #%s; font-weight: bold; text-align: center;'>|</td>",
+                            $colors[$j + 1][$colorIndexes[$j + 1]]
+                        );
                     } else {
-                        printf("<td width='20px' class='borderBottom'>&nbsp;</td>");
+                        printf("<td width='20px'>&nbsp;</td>");
                     }
 
                 }
-
-                printf("<td>%s%s</td><th>&nbsp;-&nbsp;</th><td>End Playing</td><th>&nbsp;-&nbsp;</th><td>%s (%s Stop)</td><td></td></tr>\n<tr>",
+                $style = "";
+                if ($depthsInUse[$endItem["previewDepth"]] == 2) {
+                    $style = " style='color: red;'";
+                }
+                printf(
+                    "<td>%s%s</td><td>&nbsp;-&nbsp;</td><td%s>End Playing</td><td>&nbsp;-&nbsp;</td><td%s>%s (%s Stop)</td><td></td></tr>\n<tr>",
                     $endItem["endTimeStr"],
                     checkIfHoliday($endItem, true),
+                    $style,
+                    $style,
                     $endItem["args"][0],
                     $data["schedule"]["entries"][$endItem["id"]]["stopTypeStr"]
                 );
 
                 unset($depthsInUse[$endItem["previewDepth"]]);
+                unset($priorities[$endItem["previewDepth"]]);
             }
 
             array_push($deleteEnds, $eTime);
@@ -231,12 +256,13 @@ echo "<th>Time</th><th></th><th>Action</th><th></th><th>Args</th><th>Sch Info</t
 echo "</thead><tbody>";
 
 foreach ($data["schedule"]["items"] as $item) {
-    showPlaylistEnds($item["startTime"]);
 
+    showPlaylistEnds($item["startTime"]);
     $depth = 0;
     while (isset($depthsInUse[$depth])) {
         $depth++;
     }
+
 
     $colorIndex = $colorIndexes[$depth];
     $colorIndex++;
@@ -255,7 +281,6 @@ foreach ($data["schedule"]["items"] as $item) {
     if ($item["command"] == "Start Playlist") {
         $item["colorIndex"] = $colorIndex;
         $item["previewDepth"] = $depth;
-        $depthsInUse[$depth] = 1;
 
         if (isset($endTimes[$item["endTime"]])) {
             array_unshift($endTimes[$item["endTime"]], $item);
@@ -265,38 +290,58 @@ foreach ($data["schedule"]["items"] as $item) {
         }
 
         ksort($endTimes);
-        printf("<td width='20px' class='borderTop borderLeft'>&nbsp;</td>");
-
-        for ($j = $depth; $j < $maxDepth; $j++) {
-            printf("<td width='20px' class='borderTop'>&nbsp;</td>");
+        $priorities[$depth] = $item['priority'];
+        $style = "";
+        if ($depth == 0 || $item['priority'] < $priorities[$depth - 1]) {
+            $depthsInUse[$depth] = 1;
+        } else {
+            $depthsInUse[$depth] = 2;
+            $style = " style='color: red;'";
         }
-
-        printf("<td>%s%s</td><th>&nbsp;-&nbsp;</th><td>Start Playing</td><th>&nbsp;-&nbsp;</th><td>%s (%s w/ %s Stop)</td>",
-            $item["startTimeStr"],
-            checkIfHoliday($item, true),
-            $item["args"][0],
-            $data["schedule"]["entries"][$item["id"]]["repeat"] == 1 ? "Repeating" : "Non-Repeating",
-            $data["schedule"]["entries"][$item["id"]]["stopTypeStr"]
-        );
+        printf("<td width='20px' class='borderLeft'>&nbsp;</td>");
+        for ($j = $depth; $j < $maxDepth; $j++) {
+            printf("<td width='20px'>&nbsp;</td>");
+        }
+        if ($depth == 0 || $item['priority'] < $priorities[$depth - 1]) {
+            printf(
+                "<td>%s%s</td><td>&nbsp;-&nbsp;</td><td>Start Playing</td><td>&nbsp;-&nbsp;</td><td>%s (%s w/ %s Stop)</td>",
+                $item["startTimeStr"],
+                checkIfHoliday($item, true),
+                $item["args"][0],
+                $data["schedule"]["entries"][$item["id"]]["repeat"] == 1 ? "Repeating" : "Non-Repeating",
+                $data["schedule"]["entries"][$item["id"]]["stopTypeStr"]
+            );
+        } else {
+            printf(
+                "<td>%s%s</td><td>&nbsp;-&nbsp;</td><td style='color: red;'>Skip Start Playing</td><td>&nbsp;-&nbsp;</td><td style='color: red;'>%s - Lower Priority</td>",
+                $item["startTimeStr"],
+                checkIfHoliday($item, true),
+                $item["args"][0]
+            );
+        }
     } else {
-        printf("<td width='20px' class='borderTop borderLeft borderBottom'>&nbsp;</td>");
+        printf("<td width='20px' class='borderLeft'>&nbsp;</td>");
 
         for ($j = $depth; $j < $maxDepth; $j++) {
-//            printf("<td width='20px' class='borderTop borderBottom'>&nbsp;</td>");
+            //            printf("<td width='20px'>&nbsp;</td>");
             if (isset($depthsInUse[$j + 1])) {
-                printf("<td width='20px' class='borderTop borderBottom' style='color: #%s; font-weight: bold; text-align: center;'>|</td>",
-                    $colors[$j + 1][$colorIndexes[$j + 1]]);
+                printf(
+                    "<td width='20px' style='color: #%s; font-weight: bold; text-align: center;'>|</td>",
+                    $colors[$j + 1][$colorIndexes[$j + 1]]
+                );
             } else {
-                printf("<td width='20px' class='borderTop borderBottom'>&nbsp;</td>");
+                printf("<td width='20px'>&nbsp;</td>");
             }
 
         }
 
-        printf("<td>%s%s</td><th>&nbsp;-&nbsp;</th><td>%s</td><th>&nbsp;-&nbsp;</th><td>%s</td>",
+        printf(
+            "<td>%s%s</td><td>&nbsp;-&nbsp;</th><td>%s</td><td>&nbsp;-&nbsp;</th><td>%s</td>",
             $item["startTimeStr"],
             checkIfHoliday($item, true),
             $item["command"],
-            join(' | ', $item["args"]));
+            join(' | ', $item["args"])
+        );
     }
 
     echo "<td><span data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title=\"" . getItemInfo($item) . "\"><img src='images/redesign/help-icon.svg' class='icon-help'></span></td>";
@@ -305,9 +350,9 @@ foreach ($data["schedule"]["items"] as $item) {
 }
 showPlaylistEnds();
 ?>
-    </tbody>
+</tbody>
 </table>
 <script>
-SetupToolTips();
+    SetupToolTips();
 
 </script>
