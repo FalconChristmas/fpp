@@ -1,17 +1,17 @@
 {
     "os_list": [
         {
-            "name": "FPP v8.4 Pi",
+            "name": "FPP v8.4.1 Pi",
             "description": "Falcon Player for all RPi models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.4/FPP-v8.4-Pi.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.4/FPP-v8.4.1-Pi.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 7130316800,
-            "extract_sha256": "31ea8d367cc80273813c9c7f73e513ab29af2379cdddd17c9335ea8dda0766fe",
-            "image_download_size": 1462383089,
-            "image_download_sha256": "6cb38fa5bf9c0629497f687ff269ea5991b85556aa167e61cb3b6e8acaefd454",
-            "release_date": "2024-11-07",
+            "extract_sha256": "40b33810818f4f75422755a0e1d88fcbccea6130ec5f9386cf1b5ae78a9acc74",
+            "image_download_size": 1463175948,
+            "image_download_sha256": "c70edeb50412c8ca1b3d67891616fc2212595aab9ee907b990ed5d91d12ea96c",
+            "release_date": "2024-12-07",
             "devices": [
                 "pi5-32bit", "pi4-32bit", "pi3-32bit", "pi2-32bit", "pi1-32bit"
             ]
@@ -33,17 +33,17 @@
             ]
         },
         {
-            "name": "FPP v8.4 BBB",
+            "name": "FPP v8.4.1 BBB",
             "description": "Falcon Player for all BeagleBone models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.4/FPP-v8.4-BBB.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.4/FPP-v8.4.1-BBB.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 3745513472,
-            "extract_sha256": "06c08c9a41ceab7d48fd043f819e9c81ceb787d72eea65922b4b1ab93d64f970",
-            "image_download_size": 1183769579,
-            "image_download_sha256": "279b5a4ccd2be113972393d08fc6615fb1ff71a62a50d9d7decc44c743cb1f6c",
-            "release_date": "2024-11-12",
+            "extract_sha256": "3ae39e473ef73d1c3697935dac745ee377ef8d0aeefbb05ce9fa2018abb941f5",
+            "image_download_size": 1183786130,
+            "image_download_sha256": "404b28cb409dfd4825a499a34e11f105c4462f5dd443a81b48801fe6b5b170ad",
+            "release_date": "2024-12-07",
             "devices": [
                 "pi1-32bit"
             ]
