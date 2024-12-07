@@ -67,6 +67,7 @@ namespace FPPPlugins
         virtual void eventCallback(const char* id, const char* impetus) {}
         virtual void mediaCallback(const Json::Value& playlist, const MediaDetails& mediaDetails) {}
         virtual void playlistCallback(const Json::Value& playlist, const std::string& action, const std::string& section, int item) {}
+        virtual void playlistInserted(const std::string& playlist, const int position, int endPosition, bool immediate) {}
     };
 
     class ChannelDataPlugin {
