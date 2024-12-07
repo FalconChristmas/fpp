@@ -1099,6 +1099,7 @@ int Playlist::Cleanup(void) {
 
 void Playlist::InsertPlaylistAsNext(const std::string& filename, const int position, int endPosition) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    PluginManager::INSTANCE.playlistInserted(filename, position, endPosition, false);
     if (m_status == FPP_STATUS_IDLE) {
         Play(filename, position, 0, m_scheduleEntry, endPosition);
     } else {
@@ -1109,6 +1110,7 @@ void Playlist::InsertPlaylistAsNext(const std::string& filename, const int posit
 }
 void Playlist::InsertPlaylistImmediate(const std::string& filename, const int position, int endPosition) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    PluginManager::INSTANCE.playlistInserted(filename, position, endPosition, true);
     if (m_status == FPP_STATUS_IDLE) {
         Play(filename, position, 0, m_scheduleEntry, endPosition);
     } else {

@@ -470,7 +470,7 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
                 }
                 delete spl;
                 mLoadedUserPlugins.emplace(name);
-                auto *p = loadSHLIBPlugin(shlibName); 
+                auto* p = loadSHLIBPlugin(shlibName);
                 if (p == nullptr) {
                     WarningHolder::AddWarning(5, "Could not load plugin " + name);
                 }
@@ -488,7 +488,7 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName)
         if (!FileExists(shlibName) && !FileExists(getFPPDDir("/" + shlibName))) {
             LogErr(VB_PLUGIN, "Failed to find shlib %s\n", shlibName.c_str());
         }
-        char *er = dlerror();
+        char* er = dlerror();
         LogErr(VB_PLUGIN, "Failed to load shlib: %s\n", er);
         return nullptr;
     }
@@ -572,6 +572,11 @@ void PluginManager::multiSyncData(const std::string& pn, uint8_t* data, int len)
 void PluginManager::playlistCallback(const Json::Value& playlist, const std::string& action, const std::string& section, int item) {
     for (auto a : mPlaylistPlugins) {
         a->playlistCallback(playlist, action, section, item);
+    }
+}
+void PluginManager::playlistInserted(const std::string& playlist, const int position, int endPosition, bool immediate) {
+    for (auto a : mPlaylistPlugins) {
+        a->playlistInserted(playlist, position, endPosition, immediate);
     }
 }
 
