@@ -78,8 +78,13 @@ CC-BY-ND Components (see LICENSE.CC-BY-ND)
     - src/non-gpl/capeutils/CapeUtils.cpp
     - src/non-gpl/BBB48String/BBB48Strings.h
     - src/non-gpl/BBB48String/BBB48Strings.cpp
+    - src/non-gpl/BBB48String/*.asm
+    - src/non-gpl/BBShiftString/BBShiftString.h
+    - src/non-gpl/BBShiftString/BBShiftString.cpp
+    - src/non-gpl/BBShiftString/*.asm
     - src/non-gpl/DPIPixels/DPIPixels.h
     - src/non-gpl/DPIPixels/DPIPixels.cpp
+    - src/non-gpl/FalconV5Support/*
 
     The Falcon Player developers, Dan Kulp and Chris Pinkham, retain
     sole Copyright to all files under the non-gpl directory structure

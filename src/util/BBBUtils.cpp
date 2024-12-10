@@ -211,6 +211,17 @@ int BBBPinCapabilities::configPin(const std::string& m,
         pinName[2] = '_';
     }
 
+    if (FileExists("/usr/bin/pinctrl")) {
+        char buf[256];
+        std::string pm = m;
+        if (m == "gpio" && directionOut) {
+            pm = "gpio_out";
+        }
+        snprintf(buf, 256, "/usr/bin/pinctrl -s %s %s", pinName, m.c_str());
+        printf("%s\n", buf);
+        system(buf);
+    }
+
     snprintf(dir_name, sizeof(dir_name),
              "/sys/devices/platform/ocp/ocp:%s_pinmux/state",
              pinName);
@@ -490,7 +501,7 @@ void BBBPinProvider::Init() {
             BBB_PINS.emplace_back("P2-05", 3, 24);
             BBB_PINS.emplace_back("P2-05b", 1, 5);
             BBB_PINS.emplace_back("P2-06", 2, 47);
-            BBB_PINS.emplace_back("P2-07", 3, 25);
+            BBB_PINS.emplace_back("P2-07", 3, 25).setUART("ttyS5-tx", 1);
             BBB_PINS.emplace_back("P2-07b", 1, 6);
             BBB_PINS.emplace_back("P2-08", 2, 48);
             BBB_PINS.emplace_back("P2-09", 3, 22);
