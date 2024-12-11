@@ -4,6 +4,7 @@
 .buildpath
 *.gch
 *.gch.sum
+*.dtb
 build/
 SD/*.xz
 lib/librgbmatrix.so
