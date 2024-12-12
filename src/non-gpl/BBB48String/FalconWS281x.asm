@@ -50,8 +50,6 @@
 #define T0_TIME   200
 #define T1_TIME   675
 #define LOW_TIME  1150
-//if LOW_TIME needs to be more than 1250, you need to do:
-// #define SLOW_WAITNS
 #endif
 
 // writing to GPIO's isn't exact so may have some jitter
@@ -294,6 +292,7 @@ SETUP_GPIO0_REGS .macro
 
 
 DISABLE_GPIO_PIN_INTERRUPTS .macro ledMask, gpio
+#ifdef AM33XX
     MOV r10, ledMask
     MOV r11, ledMask
     LDI32 r12, gpio
@@ -305,6 +304,7 @@ DISABLE_GPIO_PIN_INTERRUPTS .macro ledMask, gpio
     LDI r10, 0
     ADD r12, r12, r13         // set clock to highest speed
     SBBO &r10, r12, 0x30, 4    //0x30 is the GPIO_CTRL register
+#endif    
     .endm
 DISABLE_PIN_INTERRUPTS .macro
     DISABLE_GPIO_PIN_INTERRUPTS gpio0_led_mask, GPIO0
@@ -346,7 +346,7 @@ READ_DATA .macro NUMOUTSTOREAD
         LDI     r8, 8142 //8k - 50
         QBLT DATALOADED?, r8, sram_offset
             //reached the end of what we have in our sram, flip to other SRAM
-            LDI r8, 7628
+            LDI r8, 7624
             SUB sram_offset, sram_offset, r8
             SET bit_flags, bit_flags, 1
             QBA DATALOADED?
@@ -361,7 +361,7 @@ USERAM2?:
         LDI     r8, 8142 //8k - 50
         QBLT    DATALOADED?, r8, sram_offset
             //reached the end of what we have in other sram, flip to sharedram
-            LDI r8, (7628 + 512)
+            LDI r8, (7624 + 512)
             SUB sram_offset, sram_offset, r8
             SET bit_flags, bit_flags, 2
         QBA     DATALOADED?
@@ -381,9 +381,15 @@ DATALOADED?:
     .endm
 
 WAIT_AND_CHECK_TIMEOUT .macro TIMEOUT, ALLOW, reg1, reg2, timeoutLabel
-    // need to subtract 2 clock cycles (10ns) for the MOVE/QBGT atfer the WAITNS
-    WAITNS    (TIMEOUT - 10), reg1, reg2
-    LDI  reg1, ((TIMEOUT+ALLOW)/5)
+    // need to subtract 2 clock cycles for the MOVE/QBGT atfer the WAITNS
+    WAITNS    (TIMEOUT - NSPERCLK*2), reg1, reg2
+    LDI  reg1, ((TIMEOUT+ALLOW)/NSPERCLK)
+    QBGT timeoutLabel, reg1, reg2
+    .endm
+LONGWAIT_AND_CHECK_TIMEOUT .macro TIMEOUT, ALLOW, reg1, reg2, timeoutLabel
+    // need to subtract 2 clock cycles for the MOVE/QBGT atfer the WAITNS
+    LONGWAITNS    (TIMEOUT - NSPERCLK*4), reg1, reg2
+    LDI  reg1, ((TIMEOUT+ALLOW)/NSPERCLK)
     QBGT timeoutLabel, reg1, reg2
     .endm
 
@@ -399,6 +405,7 @@ WAIT_AND_CHECK_TIMEOUT .macro TIMEOUT, ALLOW, reg1, reg2, timeoutLabel
     .global    ||main||
 
 ||main||:
+#ifdef AM33XX
 	// Enable OCP master port
 	// clear the STANDBY_INIT bit in the SYSCFG register,
 	// otherwise the PRU will not be able to write outside the
@@ -406,6 +413,7 @@ WAIT_AND_CHECK_TIMEOUT .macro TIMEOUT, ALLOW, reg1, reg2, timeoutLabel
 	LBCO	&r0, C4, 4, 4
 	CLR	    r0, r0, 4
 	SBCO	&r0, C4, 4, 4
+#endif
 
 	// Configure the programmable pointer register for PRU by setting
 	// c28_pointer[15:0] field to 0x0120.  This will make C28 point to
@@ -483,7 +491,7 @@ WAIT_AND_CHECK_TIMEOUT .macro TIMEOUT, ALLOW, reg1, reg2, timeoutLabel
     SETOUTPUT46MASK
     SETOUTPUT47MASK
     SETOUTPUT48MASK
-
+ 
     // save the led masks to the scratch pad as we'll modify these during output
     XOUT SCRATCH_PAD, &gpio0_led_mask, 16
 
@@ -517,7 +525,6 @@ _LOOP:
         SBBO &gpio0_led_mask, gpio0_address, GPIO_CLRDATAOUT, 4
         SBBO &gpio0_led_mask, gpio0_address, GPIO_CLRDATAOUT, 4
     #endif
-
 
     RESET_PRU_CLOCK r8, r9
 
@@ -588,11 +595,11 @@ BIT_LOOP:
         ADD r8, r8, 12
         SBCO &stats_time, CONST_PRUDRAM, r8, 2
 
-    NOTMORE:
+NOTMORE:
 #endif
 
             //wait for the full cycle to complete
-            WAIT_AND_CHECK_TIMEOUT  LOW_TIME_PASS1, BETWEEN_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE
+            LONGWAIT_AND_CHECK_TIMEOUT  LOW_TIME_PASS1, BETWEEN_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE
 
             //start the clock
             RESET_PRU_CLOCK r8, r9
@@ -732,7 +739,7 @@ BIT_LOOP_PASS2:
             DO_OUTPUT_GPIO0
 
             //wait for the full cycle to complete
-            WAIT_AND_CHECK_TIMEOUT    LOW_TIME_GPIO0, BETWEEN_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE_PASS2
+            LONGWAIT_AND_CHECK_TIMEOUT    LOW_TIME_GPIO0, BETWEEN_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE_PASS2
 
             //start the clock
             RESET_PRU_CLOCK r8, r9

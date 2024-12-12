@@ -1,3 +1,4 @@
+#ifdef AM33XX
     .global    ||pru_remoteproc_ResourceTable||
     .sect    ".resource_table:retain", RW
     .retain
@@ -9,3 +10,4 @@
     .bits    0,32
     .bits    0,32
     .bits    0,32
+#endif

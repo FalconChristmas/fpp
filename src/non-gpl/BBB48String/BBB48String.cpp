@@ -20,7 +20,7 @@
 
 #define BBB_PRU 1
 
-//  #define PRINT_STATS
+// #define PRINT_STATS
 
 // FPP includes
 #include "../../Sequence.h"
@@ -260,6 +260,7 @@ int BBB48StringOutput::Init(Json::Value config) {
             return 0;
         }
     }
+
     m_licensedOutputs = CapeUtils::INSTANCE.getLicensedOutputs();
     config["base"] = root;
 
@@ -411,7 +412,7 @@ int BBB48StringOutput::Init(Json::Value config) {
         if (idx >= 0) {
             const PinCapabilities& pin = PinCapabilities::getPinByName(root["outputs"][idx]["pin"].asString());
             outputFile << "#define o" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.mappedGPIOIdx()) << "\n";
-            outputFile << "#define o" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
+            outputFile << "#define o" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.mappedGPIO()) << "\n\n";
         } else {
             split1args.push_back("-DNOOUT" + std::to_string(x + 1));
         }
@@ -432,7 +433,7 @@ int BBB48StringOutput::Init(Json::Value config) {
             if (idx >= 0) {
                 const PinCapabilities& pin = PinCapabilities::getPinByName(root["outputs"][idx]["pin"].asString());
                 outputFile << "#define o" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.mappedGPIOIdx()) << "\n";
-                outputFile << "#define o" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
+                outputFile << "#define o" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.mappedGPIO()) << "\n\n";
             } else {
                 split0args.push_back("-DNOOUT" + std::to_string(x + 1));
             }
@@ -639,7 +640,8 @@ void BBB48StringOutput::PrepData(unsigned char* channelData) {
     m_testCycle = -1;
 }
 
-void BBB48StringOutput::sendData(FrameData& d, uintptr_t* dptr) {
+
+void BBB48StringOutput::sendData(FrameData& d, uint32_t* dptr) {
     bool doSwap = false;
     if (d.copyToPru && (m_curFrame == 1 || memcmp(d.lastData, d.curData, std::min(d.frameSize, (uint32_t)24 * 1024)))) {
         // don't copy to PRU memory unless really needed to avoid bus contention
@@ -652,28 +654,29 @@ void BBB48StringOutput::sendData(FrameData& d, uintptr_t* dptr) {
         }
 
         // first 7.5K to main PRU ram
-        memcpy(m_pru->data_ram + 512, d.curData, mx);
-        fullsize -= 7628;
+        m_pru->memcpyToPRU(m_pru->data_ram + 512, d.curData, mx);
+        fullsize -= 7624;
         if (fullsize > 0) {
             int outsize = fullsize;
             if (outsize > (8 * 1024 - 512)) {
                 outsize = 8 * 1024 - 512;
             }
             // second 7.5K to other PRU ram
-            memcpy(m_pru->other_data_ram + 512, d.curData + 7628, outsize);
-            fullsize -= 7628;
+            m_pru->memcpyToPRU(m_pru->other_data_ram + 512, d.curData + 7624, outsize);
+            fullsize -= 7624;
         }
         if (fullsize > 0) {
             int outsize = fullsize;
             if (outsize > (12 * 1024)) {
                 outsize = 12 * 1024;
             }
-            memcpy(m_pru->shared_ram, d.curData + 7628 + 7628, outsize);
+            m_pru->memcpyToPRU(m_pru->shared_ram, d.curData + 7624 + 7624, outsize);
         }
     }
 
     // Map
-    *dptr = (m_pru->ddr_addr + (d.curData - m_pru->ddr));
+    size_t offset = d.curData - m_pru->ddr;
+    *dptr = (m_pru->ddr_addr + offset);
     std::swap(d.lastData, d.curData);
 }
 

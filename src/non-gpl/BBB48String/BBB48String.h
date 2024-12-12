@@ -25,7 +25,7 @@
 // that the pru program expects to see
 typedef struct {
     // in the DDR shared with the PRU
-    uintptr_t address_dma;
+    uint32_t address_dma;
 
     // write data length to start, 0xFFFF to abort
     volatile uint32_t command;
@@ -88,6 +88,6 @@ private:
     float m_testPercent = 0.0f;
 
     void prepData(FrameData& d, unsigned char* channelData);
-    void sendData(FrameData& d, uintptr_t* dptr);
+    void sendData(FrameData& d, uint32_t* dptr);
     void createOutputLengths(FrameData& d, const std::string& pfx, std::vector<std::string>& args);
 };

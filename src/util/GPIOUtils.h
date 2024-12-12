@@ -79,6 +79,7 @@ public:
     // the gpio's are layed out memory.  Allow subclasses to remap
     // the indexes
     virtual int mappedGPIOIdx() const { return gpioIdx; }
+    virtual int mappedGPIO() const { return gpio; }
 
     static const PinCapabilities& getPinByName(const std::string& n);
     static const PinCapabilities& getPinByGPIO(int i);
