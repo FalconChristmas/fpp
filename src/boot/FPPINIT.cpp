@@ -964,6 +964,9 @@ static void checkPi5Wifi() {
     }
 #endif
 }
+void removeDummyInterface() {
+    exec("ip link delete dummy0 > /dev/null 2>&1");
+}
 
 static void setupAudio() {
     if (!FileExists("/root/.libao")) {
@@ -1368,6 +1371,7 @@ int main(int argc, char* argv[]) {
         setupTimezone(); // this may not have worked in the init phase, try again
         detectFalconHardware();
         setFileOwnership();
+        removeDummyInterface();
     } else if (action == "bootPre") {
         int restart = getRawSettingInt("restartFlag", 0);
         if (restart) {

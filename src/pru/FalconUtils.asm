@@ -1,6 +1,8 @@
 #ifndef __falcon_utils__
 #define __falcon_utils__
 
+#include "FalconPRUDefs.hp"
+
 #define PRU0_CONTROL_REG    0x00022000
 #define PRU1_CONTROL_REG    0x00024000
 
@@ -20,10 +22,11 @@ RESET_PRU_CLOCK .macro reg1, reg2
     LBBO   &reg1, reg2, 0, 4
     CLR    reg1, reg1, 3
     SBBO   &reg1, reg2, 0, 4
+    LDI32  reg1, 0
+    SBBO   &reg1, reg2, 0xC, 4
+    LBBO   &reg1, reg2, 0, 4
     SET    reg1, reg1, 3
     SBBO   &reg1, reg2, 0, 4
-    LDI    reg1, 0
-    SBBO   &reg1, reg2, 0xC, 4
     .endm
 
 /* if size = 8, then the reg beyond the passed in will contain the stall count */
@@ -36,19 +39,19 @@ GET_PRU_CLOCK .macro  reg, treg, size
    Based on the clock.   User RESET_PRU_CLOCK to set to 0 first. */
 WAITNS .macro   ns, treg1, treg2
     .newblock
-#ifdef SLOW_WAITNS
+    LDI32 treg1, PRU_CONTROL_REG
+waitloop?:
+    LBBO &treg2, treg1, 0xC, 4 // read the cycle counter
+    QBGT waitloop?, treg2, NS2CLK(ns)
+    .endm
+
+LONGWAITNS .macro   ns, treg1, treg2
+    .newblock
 waitloop?:
     LDI32 treg1, PRU_CONTROL_REG
     LBBO &treg2, treg1, 0xC, 4 // read the cycle counter
-    LDI treg1, (ns)/5
+    LDI32 treg1, NS2CLK(ns)
     QBGT waitloop?, treg2, treg1
-#else
-    LDI32 treg1, PRU_CONTROL_REG
-waitloop?:
-    LBBO &treg2, treg1, 0xC, 4 // read the cycle counter
-    //MOV treg1, (ns)/5
-    QBGT waitloop?, treg2, (ns)/5
-#endif
     .endm
 
 
@@ -59,7 +62,7 @@ WAITNS_LOOP .macro  ns, treg1, treg2
     .newblock
     LDI32 treg1, PRU_CONTROL_REG
     LBBO &treg2, treg1, 0xC, 4
-    MAX treg1, treg2, (ns - 10)/5  // MAX and SUB are 10ns
+    MAX treg1, treg2, NS2CLK(ns)-2  // MAX and SUB are 2 cycles
     SUB treg1, treg1, treg2
     LOOP endloop?, treg1
         NOP
@@ -69,7 +72,7 @@ endloop?:
 /* Busy sleep for the given number of ns */
 SLEEPNS .macro  ns, treg, extra
        .newblock
-       LDI treg, (ns/10) - 1 - extra
+       LDI treg, NS2CLK(ns / 2) - 1 - extra
 sleeploop?:
        SUB treg, treg, 1
        QBNE sleeploop?, treg, 0

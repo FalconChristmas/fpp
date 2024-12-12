@@ -30,6 +30,9 @@ public:
     int run(const std::string& program);
     void stop();
 
+    void clearPRUMem(uint8_t *ptr, size_t sz);
+    void memcpyToPRU(uint8_t *dst, uint8_t*src, size_t sz);
+
     unsigned pru_num;
 
     uint8_t* data_ram;    // PRU data ram in ARM space
@@ -42,6 +45,6 @@ public:
     size_t other_data_ram_size; // size in bytes of the PRU's data RAM
 
     uint8_t* ddr;       // PRU DMA address (in ARM space)
-    uintptr_t ddr_addr; // PRU DMA address (in PRU space)
+    uint32_t ddr_addr; // PRU DMA address (in PRU space)
     size_t ddr_size;    // Size in bytes of the shared space
 };

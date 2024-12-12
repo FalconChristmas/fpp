@@ -35,6 +35,8 @@ BeagleBoneType getBeagleBoneType() {
                 BBB_TYPE = PocketBeagle;
             } else if (strcmp(buf, "BeagleBoard.org PocketBeagle2") == 0) {
                 BBB_TYPE = PocketBeagle;
+            } else if (strcmp(buf, "BeagleBoard.org BeaglePlay") == 0) {
+                BBB_TYPE = BeaglePlay;
             } else if (strcmp(&buf[10], "BeagleBone Black Wireless") == 0) {
                 BBB_TYPE = BlackWireless;
             } else if (strcmp(&buf[10], "BeagleBone Green Wireless") == 0) {
@@ -174,6 +176,50 @@ BBBPinCapabilities::BBBPinCapabilities(const std::string& n, uint32_t g, uint32_
     gpio = o;
 }
 
+#ifdef PLATFORM_BB64
+int BBBPinCapabilities::mappedGPIOIdx() const {
+    int mp = 0;
+    for (int x = 0; x < 4; x++) {
+        if (bbGPIOMap[x] == gpioIdx) {
+            mp = x;
+        }
+    }
+    if (mp == 1) {
+        //MCU Domain
+        return 0;
+    }
+    if (mp == 3) {
+        //gpio1, all pins are in the first 32
+        return 3;
+    }
+    // gpio0, map 32-63 to 1 and 64-95 to 2
+    if (gpio < 64) {
+        return 1;
+    }
+    return 2;
+}
+int BBBPinCapabilities::mappedGPIO() const {
+    int mp = 0;
+    for (int x = 0; x < 4; x++) {
+        if (bbGPIOMap[x] == gpioIdx) {
+            mp = x;
+        }
+    }
+    if (mp == 1) {
+        //MCU Domain
+        return gpio;
+    }
+    if (mp == 3) {
+        //gpio1, all pins are in the first 32
+        return gpio;
+    }
+    // gpio0, map 32-63 to 1 and 64-95 to 2
+    if (gpio < 64) {
+        return gpio - 32;
+    }
+    return gpio - 64;
+}
+#else
 int BBBPinCapabilities::mappedGPIOIdx() const {
     for (int x = 0; x < 4; x++) {
         if (bbGPIOMap[x] == gpioIdx) {
@@ -182,6 +228,10 @@ int BBBPinCapabilities::mappedGPIOIdx() const {
     }
     return gpioIdx;
 }
+int BBBPinCapabilities::mappedGPIO() const {
+    return gpio;
+}
+#endif
 
 Json::Value BBBPinCapabilities::toJSON() const {
     Json::Value ret = PinCapabilities::toJSON();
@@ -458,11 +508,17 @@ void BBBPinProvider::Init() {
         }
 #endif
 #ifdef PLATFORM_BB64
-        if (getBeagleBoneType() == PocketBeagle) {
-            BBB_PINS.emplace_back("P1-02", 2, 87);
-            BBB_PINS.emplace_back("P1-02b", 3, 10);
-            BBB_PINS.emplace_back("P1-04", 2, 88);
-            BBB_PINS.emplace_back("P1-04b", 3, 12);
+        BeagleBoneType tp = getBeagleBoneType();
+        if (tp == PocketBeagle || tp == BeaglePlay) {
+            if (tp == PocketBeagle) {
+                BBB_PINS.emplace_back("P1-02", 2, 87);
+                BBB_PINS.emplace_back("P1-02b", 3, 10);
+                BBB_PINS.emplace_back("P1-04", 2, 88);
+                BBB_PINS.emplace_back("P1-04b", 3, 12);
+            } else {
+                BBB_PINS.emplace_back("P1-02", 3, 10);
+                BBB_PINS.emplace_back("P1-04", 3, 12);
+            }
             BBB_PINS.emplace_back("P1-06", 2, 78);
             BBB_PINS.emplace_back("P1-06b", 3, 13);
             BBB_PINS.emplace_back("P1-08", 3, 14);
@@ -492,11 +548,16 @@ void BBBPinProvider::Init() {
             BBB_PINS.emplace_back("P1-36", 2, 55);
             BBB_PINS.emplace_back("P1-36b", 3, 28);
 
-            BBB_PINS.emplace_back("P2-01", 2, 86);
-            BBB_PINS.emplace_back("P2-01b", 3, 11);
+            if (tp == PocketBeagle) {
+                BBB_PINS.emplace_back("P2-01", 2, 86);
+                BBB_PINS.emplace_back("P2-01b", 3, 11);
+                BBB_PINS.emplace_back("P2-03", 2, 85);
+                BBB_PINS.emplace_back("P2-03b", 3, 9);
+            } else {
+                BBB_PINS.emplace_back("P2-01", 3, 11);
+                BBB_PINS.emplace_back("P2-03", 3, 9);
+            }
             BBB_PINS.emplace_back("P2-02", 2, 45);
-            BBB_PINS.emplace_back("P2-03", 2, 85);
-            BBB_PINS.emplace_back("P2-03b", 3, 9);
             BBB_PINS.emplace_back("P2-04", 2, 46);
             BBB_PINS.emplace_back("P2-05", 3, 24);
             BBB_PINS.emplace_back("P2-05b", 1, 5);

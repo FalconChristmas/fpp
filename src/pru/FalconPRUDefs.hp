@@ -2,7 +2,11 @@
 #define _FalconPRUDefs_HP_
 
 
+#ifndef AM62X 
 #define AM33XX
+#endif
+
+
 
 // ***************************************
 // *      Global Macro definitions       *
@@ -49,6 +53,57 @@
 // Address for the Constant table Programmable Pointer Register 1(CTPPR_1)
 #define CTPPR_1         0x2202C
 
+#define NS2CLK(ns) ((ns) / 5)
+
+#elif defined(AM62X)
+
+// Refer to this mapping in the file - \prussdrv\include\pruss_intc_mapping.h
+#define PRU0_PRU1_INTERRUPT     17
+#define PRU1_PRU0_INTERRUPT     18
+#define PRU0_ARM_INTERRUPT      19
+#define PRU1_ARM_INTERRUPT      20
+#define ARM_PRU0_INTERRUPT      21
+#define ARM_PRU1_INTERRUPT      22
+
+#define CONST_PRUDRAM   C24
+#define CONST_OTHERPRUDRAM   C25
+#define CONST_SHAREDRAM C28
+#define CONST_L3RAM     C30
+#define CONST_DDR       C31
+
+
+/* Mappings of the GPIO devices */
+/* for AM26x, point directly to the "OUT" reg */
+#define GPIO0 0x04201014
+#define GPIO1 0x0060003C
+#define GPIO2 0x00600064
+#define GPIO3 0x00601014
+
+
+#define GPIO_DATAOUT    0
+#define GPIO_SETDATAOUT 4
+#define GPIO_CLRDATAOUT 8
+#define GPIO_DATAIN     12
+
+
+
+// Address for the Constant table Programmable Pointer Register 0(CTPPR_0)
+#define CTBIR_0         0x22020
+// Address for the Constant table Programmable Pointer Register 0(CTPPR_0)
+#define CTBIR_1         0x22024
+
+// Address for the Constant table Programmable Pointer Register 0(CTPPR_0)
+#define CTPPR_0         0x22028
+// Address for the Constant table Programmable Pointer Register 1(CTPPR_1)
+#define CTPPR_1         0x2202C
+
+
+// There is currently a bug in the am62x device trees that are causing
+// the PRU to run at 250Mhz instead of 333Mhz.  When that is fixed,
+// change this to 3
+#define NSPERCLK  4
+#define NS2CLK(ns) ((ns) / 4)
+
 #else
 
 // Refer to this mapping in the file - \prussdrv\include\pruss_intc_mapping.h
@@ -70,6 +125,11 @@
 // Address for the Constant table Programmable Pointer Register 1(CTPPR_1)      
 #define CTPPR_1         0x702C
 
+#define NSPERCLK  5
+#define NS2CLK(ns) (ns / 5)
+
 #endif
+
+
 
 #endif 

@@ -23,6 +23,7 @@ enum BeagleBoneType {
     GreenWireless,
     PocketBeagle,
     SanCloudEnhanced,
+    BeaglePlay,
     Unknown,
 };
 
@@ -41,6 +42,7 @@ public:
     virtual int getPWMRegisterAddress() const override;
 
     virtual int mappedGPIOIdx() const override;
+    virtual int mappedGPIO() const override;
 
     virtual bool supportPWM() const override;
     virtual Json::Value toJSON() const override;
