@@ -61,6 +61,7 @@ static std::vector<BBBPinCapabilities> BBB_PINS;
 
 // static uint32_t bbGPIOMap[] = { 3, 0, 1, 2 };
 static uint32_t bbGPIOMap[] = { 0, 0, 0, 0 };
+static uint32_t bbGPIOStart[] = { 0, 0, 0, 0 };
 static const char* bbbPWMDeviceName = "/sys/class/pwm/pwmchip";
 static FILE* bbbPWMDutyFiles[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 
@@ -83,7 +84,7 @@ static void setupBBBMemoryMap() {
         return;
     }
 
-    std::map<std::string, int> labelMapping;
+    std::map<std::string, std::pair<int, int>> labelMapping;
     // newer kernels will number the chips differently so we'll use the
     // memory locations to figure out the mapping to the gpio0-3 that we use
     const std::string dirName("/sys/class/gpio");
@@ -99,25 +100,26 @@ static void setupBBBMemoryMap() {
             std::string lab = GetFileContents(fn2 + "/label");
             TrimWhiteSpace(lab);
             std::string target = buf;
+            int start = std::atoi(fn.substr(8).c_str());
 #ifdef PLATFORM_BB64
             if (lab.contains("tps65219-gpio")) {
-                labelMapping[lab] = 0;
+                labelMapping[lab] = { 0, start };
             } else if (lab.contains("4201000.gpio")) {
-                labelMapping[lab] = 1;
+                labelMapping[lab] = { 1, start };
             } else if (lab.contains("600000.gpio")) {
-                labelMapping[lab] = 2;
+                labelMapping[lab] = { 2, start };
             } else if (lab.contains("601000.gpio")) {
-                labelMapping[lab] = 3;
+                labelMapping[lab] = { 3, start };
             }
 #else
             if (target.contains("44e07000.gpio")) {
-                labelMapping[lab] = 0;
+                labelMapping[lab] = { 0, start };
             } else if (target.contains("4804c000.gpio")) {
-                labelMapping[lab] = 1;
+                labelMapping[lab] = { 1, start };
             } else if (target.contains("481ac000.gpio")) {
-                labelMapping[lab] = 2;
+                labelMapping[lab] = { 2, start };
             } else if (target.contains("481ae000.gpio")) {
-                labelMapping[lab] = 3;
+                labelMapping[lab] = { 3, start };
             }
 #endif
         }
@@ -130,7 +132,8 @@ static void setupBBBMemoryMap() {
         std::string clabel = a.label();
         TrimWhiteSpace(clabel);
         if (labelMapping.contains(clabel)) {
-            bbGPIOMap[labelMapping[clabel]] = curChip;
+            bbGPIOMap[labelMapping[clabel].first] = curChip;
+            bbGPIOStart[labelMapping[clabel].first] = labelMapping[clabel].second;
         } else {
 #ifdef PLATFORM_BBB
             // if mapping by base fails, try using specific line labels
@@ -174,6 +177,7 @@ BBBPinCapabilities::BBBPinCapabilities(const std::string& n, uint32_t g, uint32_
     setupBBBMemoryMap();
     gpioIdx = bbGPIOMap[g];
     gpio = o;
+    kernelGpio = bbGPIOStart[g] + o;
 }
 
 #ifdef PLATFORM_BB64
@@ -185,11 +189,11 @@ int BBBPinCapabilities::mappedGPIOIdx() const {
         }
     }
     if (mp == 1) {
-        //MCU Domain
+        // MCU Domain
         return 0;
     }
     if (mp == 3) {
-        //gpio1, all pins are in the first 32
+        // gpio1, all pins are in the first 32
         return 3;
     }
     // gpio0, map 32-63 to 1 and 64-95 to 2
@@ -206,11 +210,11 @@ int BBBPinCapabilities::mappedGPIO() const {
         }
     }
     if (mp == 1) {
-        //MCU Domain
+        // MCU Domain
         return gpio;
     }
     if (mp == 3) {
-        //gpio1, all pins are in the first 32
+        // gpio1, all pins are in the first 32
         return gpio;
     }
     // gpio0, map 32-63 to 1 and 64-95 to 2
