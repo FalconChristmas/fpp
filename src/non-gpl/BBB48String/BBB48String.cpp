@@ -667,8 +667,8 @@ void BBB48StringOutput::sendData(FrameData& d, uint32_t* dptr) {
         }
         if (fullsize > 0) {
             int outsize = fullsize;
-            if (outsize > (12 * 1024)) {
-                outsize = 12 * 1024;
+            if (outsize > m_pru->shared_ram_size) {
+                outsize = m_pru->shared_ram_size;
             }
             m_pru->memcpyToPRU(m_pru->shared_ram, d.curData + 7624 + 7624, outsize);
         }
