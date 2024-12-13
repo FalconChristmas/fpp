@@ -3,7 +3,9 @@
 
 
 #ifndef AM62X 
+#ifndef AM33XX
 #define AM33XX
+#endif
 #endif
 
 
@@ -53,6 +55,7 @@
 // Address for the Constant table Programmable Pointer Register 1(CTPPR_1)
 #define CTPPR_1         0x2202C
 
+#define NSPERCLK  5
 #define NS2CLK(ns) ((ns) / 5)
 
 #elif defined(AM62X)
