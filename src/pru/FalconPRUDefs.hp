@@ -58,6 +58,9 @@
 #define NSPERCLK  5
 #define NS2CLK(ns) ((ns) / 5)
 
+#define SHM_SIZE (12 * 1024)
+
+
 #elif defined(AM62X)
 
 // Refer to this mapping in the file - \prussdrv\include\pruss_intc_mapping.h
@@ -101,11 +104,10 @@
 #define CTPPR_1         0x2202C
 
 
-// There is currently a bug in the am62x device trees that are causing
-// the PRU to run at 250Mhz instead of 333Mhz.  When that is fixed,
-// change this to 3
-#define NSPERCLK  4
-#define NS2CLK(ns) ((ns) / 4)
+#define NSPERCLK  3
+#define NS2CLK(ns) ((ns) / 3)
+
+#define SHM_SIZE (32 * 1024)
 
 #else
 

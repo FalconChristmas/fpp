@@ -369,7 +369,7 @@ USESHAREDRAM?:
         LDI32   r9, 0x00010000
         LBBO    &r10, r9, sram_offset, NUMOUTSTOREAD
         ADD     sram_offset, sram_offset, OUTPUTS
-        LDI     r8, 12188
+        LDI     r8, (SHM_SIZE-100)
         QBLT DATALOADED?, r8, sram_offset
             //reached the end of what we have in other sram, flip to DDR
             SET  bit_flags, bit_flags, 3
