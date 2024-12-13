@@ -294,6 +294,12 @@ int InitializeChannelOutputs(void) {
 
                 // internally we start channel counts at zero
                 start -= 1;
+                if (start < 0 && count > 0) {
+                    // we have a negative channel number, but actually are supposed to be outputting data
+                    // Skip this output as that's not valid
+                    WarningHolder::AddWarning("Could not initialize output type " + type + ". Invalid start channel.");
+                    continue;
+                }
 
                 FPPChannelOutputInstance channelOutput;
 
