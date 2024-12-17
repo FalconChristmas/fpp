@@ -27,7 +27,7 @@ public:
     virtual void enable(int id) override;
     virtual int32_t getValue(int id) override;
 
-    virtual bool isOK() const;
+    virtual bool isOK() const override;
 
 private:
     void update(bool forceInstant, bool fromSelect);
