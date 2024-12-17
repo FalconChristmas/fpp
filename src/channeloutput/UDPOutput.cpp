@@ -786,7 +786,7 @@ int UDPOutput::createSocket(int port, bool broadCast) {
         return -1;
     }
     // make sure the send buffer is actually set to a reasonable size for non-blocking mode
-    int bufSize = 1024 * blockingOutput ? 4 : 512;
+    int bufSize = 1024 * (blockingOutput ? 4 : 512);
     setsockopt(sendSocket, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
     // these sockets are for sending only, don't need a large receive buffer so
     // free some memory by setting to just a single page

@@ -278,7 +278,7 @@ Json::Value Playlist::LoadJSON(const std::string& filename) {
         std::string warn = "Could not load playlist ";
         warn += filename;
         WarningHolder::AddWarningTimeout(warn, 30);
-        LogErr(VB_PLAYLIST, "Error loading %s\n", filename);
+        LogErr(VB_PLAYLIST, "Error loading %s\n", filename.c_str());
         return root;
     }
 
@@ -1170,7 +1170,7 @@ int Playlist::Play(const std::string& filename, const int position, const int re
 
     if ((tmpEndPos >= 0) && (tmpEndPos < tmpStartPos)) {
         LogWarn(VB_PLAYLIST, "Playlist::Play() called with end position less than start position: Play('%s', %d, %d, %d, %d)\n",
-                filename, position, repeat, scheduleEntry, endPosition);
+                filename.c_str(), position, repeat, scheduleEntry, endPosition);
         tmpEndPos = -1;
     }
 
