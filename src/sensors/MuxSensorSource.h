@@ -29,7 +29,7 @@ public:
 
     virtual void lockToGroup(int i) override;
 
-    virtual bool isOK() const { return source != nullptr; }
+    virtual bool isOK() const override { return source != nullptr; }
 
 private:
     void setGroupPins();
