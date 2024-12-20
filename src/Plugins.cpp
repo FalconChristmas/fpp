@@ -283,7 +283,7 @@ public:
             for (auto a : sargs) {
                 LogErr(VB_PLUGIN, "  %s\n", a);
             }
-            exit(EXIT_FAILURE);
+            _exit(EXIT_FAILURE);
         } else {
             LogExcess(VB_PLUGIN, "Command parent process, resuming work.\n");
             waitpid(pid, nullptr, 0);
@@ -436,7 +436,7 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
         execl(eventScript.c_str(), "eventScript", filename.c_str(), "--list", NULL);
 
         LogErr(VB_PLUGIN, "We failed to exec our callbacks query!  %s  %s %s --list\n", eventScript.c_str(), "eventScript", filename.c_str());
-        exit(EXIT_FAILURE);
+        _exit(EXIT_FAILURE);
     } else {
         close(output_pipe[1]);
 
@@ -646,7 +646,7 @@ void MediaCallback::run(const Json::Value& playlist, const MediaDetails& mediaDe
         execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "media", "--data", pluginData.c_str(), NULL);
 
         LogErr(VB_PLUGIN, "We failed to exec our media callback!\n");
-        exit(EXIT_FAILURE);
+        _exit(EXIT_FAILURE);
     } else {
         LogExcess(VB_PLUGIN, "Media parent process, resuming work.\n");
         wait(NULL);
@@ -676,7 +676,7 @@ void PlaylistCallback::run(const Json::Value& playlist, const std::string& actio
         execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "playlist", "--data", pluginData.c_str(), NULL);
 
         LogErr(VB_PLUGIN, "We failed to exec our playlist callback!\n");
-        exit(EXIT_FAILURE);
+        _exit(EXIT_FAILURE);
     } else {
         LogExcess(VB_PLUGIN, "Playlist parent process, resuming work.\n");
         wait(NULL);
@@ -697,7 +697,7 @@ void LifecycleCallback::run(const std::string& lifecycle) {
         execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "lifecycle", lifecycle.c_str(), NULL);
 
         LogErr(VB_PLUGIN, "We failed to exec our lifecycle callback!\n");
-        exit(EXIT_FAILURE);
+        _exit(EXIT_FAILURE);
     } else {
         LogExcess(VB_PLUGIN, "Lifecycle parent process, resuming work.\n");
         wait(NULL);
