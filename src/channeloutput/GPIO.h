@@ -34,4 +34,5 @@ private:
     const PinCapabilities* m_GPIOPin;
     int m_invertOutput;
     int m_pwm;
+    std::string lastWarning;
 };

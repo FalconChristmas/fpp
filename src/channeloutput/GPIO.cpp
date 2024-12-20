@@ -14,7 +14,6 @@
 
 #include "../log.h"
 
-
 #include "GPIO.h"
 
 #include "Plugin.h"
@@ -107,16 +106,26 @@ int GPIOOutput::Close(void) {
 int GPIOOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "GPIOOutput::SendData(%p)\n", channelData);
 
-    if (m_pwm) {
-        if (m_invertOutput)
-            m_GPIOPin->setPWMValue(100 * (int)(255 - channelData[0]));
-        else
-            m_GPIOPin->setPWMValue(100 * (int)(channelData[0]));
-    } else {
-        if (m_invertOutput)
-            m_GPIOPin->setValue(!channelData[0]);
-        else
-            m_GPIOPin->setValue(channelData[0]);
+    std::string warning;
+    try {
+        if (m_pwm) {
+            if (m_invertOutput)
+                m_GPIOPin->setPWMValue(100 * (int)(255 - channelData[0]));
+            else
+                m_GPIOPin->setPWMValue(100 * (int)(channelData[0]));
+        } else {
+            if (m_invertOutput)
+                m_GPIOPin->setValue(!channelData[0]);
+            else
+                m_GPIOPin->setValue(channelData[0]);
+        }
+    } catch (const std::exception& e) {
+        warning = std::string("Exception in GPIO output: ") + std::string(e.what());
+    } catch (...) {
+        warning = std::string("Exception in GPIO output");
+    }
+    if (!warning.empty() && warning != lastWarning) {
+        WarningHolder::AddWarning(warning);
     }
 
     return m_channelCount;
