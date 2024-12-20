@@ -1372,9 +1372,11 @@ void Playlist::NextItem(void) {
             // nowhere to go, stop playlist
             somewhereToGo = false;
         }
+    } else {
+        return;
     }
 
-    if (m_sectionPosition < m_currentSection->size() && m_currentSection->at(m_sectionPosition)->IsPlaying())
+    if (m_currentSection && m_sectionPosition < m_currentSection->size() && m_currentSection->at(m_sectionPosition)->IsPlaying())
         m_currentSection->at(m_sectionPosition)->Stop();
 
     if (somewhereToGo) {
