@@ -49,7 +49,6 @@
 
 static std::list<Playlist*> PL_CLEANUPS;
 Playlist* playlist = NULL;
-
 /*
  *
  */
@@ -660,7 +659,7 @@ int Playlist::StopNow(int forceStop) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     m_status = FPP_STATUS_STOPPING_NOW;
 
-    if (m_currentSection && m_currentSection->at(m_sectionPosition)->IsPlaying())
+    if (m_currentSection && m_sectionPosition < m_currentSection->size() && m_currentSection->at(m_sectionPosition)->IsPlaying())
         m_currentSection->at(m_sectionPosition)->Stop();
 
     m_forceStop = forceStop;
@@ -783,6 +782,9 @@ int Playlist::Process(void) {
         }
     }
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (m_currentSectionStr == "New") {
+        return 0;
+    }
 
     if (m_currentSection == nullptr || m_sectionPosition >= m_currentSection->size()) {
         LogErr(VB_PLAYLIST, "Section position %d is outside of section %s\n",
@@ -1063,6 +1065,18 @@ void Playlist::SetIdle(bool exit) {
  *
  */
 int Playlist::Cleanup(void) {
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+
+    m_name = "";
+    m_desc = "";
+    m_currentSectionStr = "New";
+    m_currentSection = nullptr;
+    m_startPosition = 0;
+    m_sectionPosition = 0;
+    m_repeat = 0;
+    m_loopCount = 0;
+    m_startTime = 0;
+
     while (m_leadIn.size()) {
         PlaylistEntryBase* entry = m_leadIn.back();
         m_leadIn.pop_back();
@@ -1080,17 +1094,6 @@ int Playlist::Cleanup(void) {
         m_leadOut.pop_back();
         delete entry;
     }
-
-    m_name = "";
-    m_desc = "";
-    m_startPosition = 0;
-    m_sectionPosition = 0;
-    m_repeat = 0;
-    m_loopCount = 0;
-    m_startTime = 0;
-    m_currentSectionStr = "New";
-    m_currentSection = nullptr;
-
     return 1;
 }
 
