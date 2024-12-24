@@ -2574,8 +2574,8 @@ caption {
 }
 
 th {
-  text-align: inherit;
   text-align: -webkit-match-parent;
+  text-align: inherit;
 }
 
 thead,
