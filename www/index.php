@@ -624,13 +624,13 @@
                                                         ?>
                                                     <div class="col-10 volumeControls">
                                                         <button class='volumeButton buttons'
-                                                            onClick="DecrementVolume();">
+                                                            onClick="DecrementVolume();" aria-label="DecrementVolume">
                                                             <i class='fas fa-fw fa-volume-down'></i>
                                                         </button>
                                                         <input type="range" min="0" max="100" class="slider" id="slider"
                                                             oninput="VolumeControlChange(this.value)">
                                                         <button class='volumeButton buttons'
-                                                            onClick="IncrementVolume();">
+                                                            onClick="IncrementVolume();" aria-label="IncrementVolume">
                                                             <i class='fas fa-fw fa-volume-up'></i>
                                                         </button>
                                                         <span id='speaker'></span> <!-- Volume -->
