@@ -432,12 +432,14 @@
                         <? if ($settings['disableAudioVolumeSlider'] != '1') {
                             ?>
                             <div class="volumeControls">
-                                <button class='volumeButton buttons' onClick="DecrementVolume();">
+                                <button class='volumeButton buttons' onClick="DecrementVolume();"
+                                    aria-label="DecrementVolume">
                                     <i class='fas fa-fw fa-volume-down'></i>
                                 </button>
                                 <input type="range" min="0" max="100" class="slider" id="remoteVolumeSlider"
                                     oninput="RemoteVolumeControlChange(this.value)">
-                                <button class='volumeButton buttons' onClick="IncrementVolume();">
+                                <button class='volumeButton buttons' onClick="IncrementVolume();"
+                                    aria-label="IncrementVolume">
                                     <i class='fas fa-fw fa-volume-up'></i>
                                 </button>
                                 <span id='speaker_d_flex'></span> <!-- Volume -->
