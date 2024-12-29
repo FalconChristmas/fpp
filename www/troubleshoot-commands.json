@@ -409,6 +409,14 @@
                     "platforms": [
                         "all"
                     ]
+                },
+                "DMESGDLogs": {
+                    "title": "dmesg",
+                    "description": "",
+                    "cmd": "dmesg -T",
+                    "platforms": [
+                        "all"
+                    ]
                 }
             }
         },
@@ -488,7 +496,7 @@
                 "RPIINFO": {
                     "title": "RPI Info",
                     "description": "Raspberry Pi inbuilt info tool",
-                    "cmd": "/bin/raspinfo; rm -f raspinfo.txt",
+                    "cmd": "/bin/raspinfo | sed '/dmesg/q'; rm -f raspinfo.txt",
                     "platforms": [
                         "Raspberry Pi"
                     ]
