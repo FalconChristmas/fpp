@@ -243,7 +243,7 @@ function list_plugin_entries($menu)
             <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
                     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-                                                                                                                                                                                                                                                                                                                  </textarea>
+                                                                                                                                                                                                                                                                                                                              </textarea>
                 </div>
                 <script>
                     function RebuildFPPDDone() {
@@ -407,9 +407,10 @@ function list_plugin_entries($menu)
                                 <a class="<?= $externalLinkClass ?>" href="https://falconchristmas.com/forum"
                                     target="_blank"><i class="fas fa-comments"></i> Forums <i
                                         class="fas fa-external-link-alt external-link"></i></a>
-                                <!--
-          <a class="<?= $externalLinkClass ?>" href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank"><i class="fas fa-external-link-square-alt"></i> Wiki/Help <i class="fas fa-external-link-alt external-link"></i></a>
-          -->
+                                <a class="<?= $externalLinkClass ?>"
+                                    href="https://github.com/FalconChristmas/fpp/issues" target="_blank"><i
+                                        class="fas fa-bug"></i> Issue Tracker <i
+                                        class="fas fa-external-link-alt external-link"></i></a>
                                 <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Help
                                     Index</a>
                                 <a class="dropdown-item" href="apihelp.php"><i class="fas fa-plug"></i> REST API
