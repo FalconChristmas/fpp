@@ -292,7 +292,7 @@ void PlaylistEntryImage::PrepImage(void) {
             // Resize to slightly larger since trying to get exact can
             // leave us off by one pixel.  Going slightly larger will let
             // us crop to exact size later.
-            image.resize(Geometry(m_width + 2, m_height + 2, 0, 0));
+            image.resize(Geometry(m_width + 4, m_height + 4, 0, 0));
 
             cols = image.columns();
             rows = image.rows();
