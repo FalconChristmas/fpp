@@ -351,6 +351,9 @@ function list_plugin_entries($menu)
                                     Browser</a>
                                 <a class="dropdown-item" href="plugins.php"><i class="fas fa-puzzle-piece"></i> Plugin
                                     Manager</a>
+                                <? if ($uiLevel >= 2) { ?>
+                                <a class="dropdown-item" href="packages.php"><i class="fas fa-box"></i> Packages </a>
+                                <? } ?>
                                 <?php list_plugin_entries("content"); ?>
                             </div>
                         </li>
