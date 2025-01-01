@@ -255,7 +255,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
                 int pixels = 50;
                 int chanCount = 0;
                 for (auto& a : m_strings[x]->m_virtualStrings) {
-                    if (pixels <= a.pixelCount) {
+                    if (pixels < a.pixelCount) {
                         a.pixelCount = pixels;
                     }
                     pixels -= a.pixelCount;

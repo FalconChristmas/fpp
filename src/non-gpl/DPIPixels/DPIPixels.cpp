@@ -197,7 +197,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
             int pixels = 50;
             int chanCount = 0;
             for (auto& a : newString->m_virtualStrings) {
-                if (pixels <= a.pixelCount) {
+                if (pixels < a.pixelCount) {
                     a.pixelCount = pixels;
                     if (outputList != "") {
                         outputList += ", ";
