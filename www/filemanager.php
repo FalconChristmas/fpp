@@ -183,9 +183,6 @@
 
 
 
-                    <div id="tablefilterChk">
-                        <?php PrintSetting('fileManagerTableFilter', 'FileManagerFilterToggled'); ?>
-                    </div>
                     <script>
                         //set filter state
                         $('#fileManagerTableFilter').prop('checked', (settings.fileManagerTableFilter == "1" ? true : false));
@@ -751,6 +748,9 @@
                         <div id='fileponduploader' class='fileponduploader ui-tabs-panel'>
                             <input type="file" class="filepond" id="filepondInput" multiple>
                         </div>
+                    </div>
+                    <div id="tablefilterChk">
+                        <?php PrintSetting('fileManagerTableFilter', 'FileManagerFilterToggled'); ?>
                     </div>
                 </div>
                 <div id="overlay">
