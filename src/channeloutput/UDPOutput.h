@@ -147,6 +147,7 @@ private:
 
     void PingControllers(bool failedOnly);
     std::atomic_int failedCount;
+    std::string HexToIP(unsigned int hex);
 
     class WorkItem {
     public:
