@@ -11,10 +11,6 @@ function GetSequences()
     foreach (glob($dir . "/*.fseq") as $filename) {
         array_push($sequences, basename($filename, ".fseq"));
     }
-    $dir = $settings['effectDirectory'];
-    foreach (glob($dir . "/*.eseq") as $filename) {
-        array_push($sequences, basename($filename, ".eseq"));
-    }
 
     return json($sequences);
 }
