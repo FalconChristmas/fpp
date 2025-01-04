@@ -438,9 +438,10 @@ function GetOSPackageInfo() {
 
     // Fetch package information using apt-cache show
     $output = shell_exec("apt-cache show " . escapeshellarg($packageName) . " 2>&1");
-
-    if (!$output) {
-        return ['error' => "Package '$packageName' not found or no information available."];
+    if (!$output || strpos($output, 'E:') === 0) {
+        // Return error if apt-cache output is empty or contains an error
+        error_log("Package '$packageName' not found or invalid: $output");
+        return json_encode(['error' => "Package '$packageName' not found or no information available."]);
     }
 
     // Check installation status using dpkg-query

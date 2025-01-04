@@ -1,10 +1,11 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
     <?php
-    if (isset($_REQUEST['action'])) {
-        $skipJSsettings = 1;
-    }
     require_once('config.php');
     require_once('common.php');
-    DisableOutputBuffering();
+    include('common/menuHead.inc');
 
     $userPackagesFile = $settings['configDirectory'] . '/userpackages.json';
     $userPackages = [];
@@ -15,56 +16,6 @@
         }
     }
 
-    // Handle backend actions
-    $action = $_POST['action'] ?? $_GET['action'] ?? null;
-    $packageName = $_POST['package'] ?? $_GET['package'] ?? null;
-
-    if ($action) {
-        if ($action === 'install' && !empty($packageName)) {
-            $packageName = escapeshellarg($packageName);
-            header('Content-Type: text/plain');
-
-            $process = popen("sudo apt-get install -y $packageName 2>&1", 'r');
-            if (is_resource($process)) {
-                while (!feof($process)) {
-                    echo fread($process, 1024);
-                    flush();
-                }
-                pclose($process);
-            }
-
-            // Add package to user-installed packages if not already added
-            if (!in_array(trim($packageName, "'"), $userPackages)) {
-                $userPackages[] = trim($packageName, "'");
-                file_put_contents($userPackagesFile, json_encode($userPackages, JSON_PRETTY_PRINT));
-            }
-
-            exit;
-        }
-
-        if ($action === 'uninstall' && !empty($packageName)) {
-            $packageName = escapeshellarg($packageName);
-            header('Content-Type: text/plain');
-
-            $process = popen("sudo apt-get remove -y $packageName 2>&1", 'r');
-            if (is_resource($process)) {
-                while (!feof($process)) {
-                    echo fread($process, 1024);
-                    flush();
-                }
-                pclose($process);
-            }
-
-            // Remove package from user-installed packages
-            $userPackages = array_filter($userPackages, function($pkg) use ($packageName) {
-                return $pkg !== trim($packageName, "'");
-            });
-            file_put_contents($userPackagesFile, json_encode($userPackages, JSON_PRETTY_PRINT));
-
-            exit;
-        }
-    }
-    include 'common/menuHead.inc';
     writeFPPVersionJavascriptFunctions();
     ?>
     <style>
@@ -106,47 +57,13 @@
                         alert('Error: Unable to retrieve package list.');
                         return;
                     }
-                    console.log('Raw Data Received:', data);
                     systemPackages = data;
-                    console.log('Parsed Packages:', systemPackages);
                     InitializeAutocomplete();
                     HideLoadingIndicator();
                 },
                 error: function () {
                     alert('Error, failed to get system packages list.');
                     HideLoadingIndicator();
-                }
-            });
-        }
-
-        function GetPackageInfo(packageName) {
-            selectedPackageName = packageName;
-            $.ajax({
-                url: `/api/system/packages/info/${encodeURIComponent(packageName)}`,
-                type: 'GET',
-                dataType: 'json',
-                success: function (data) {
-                    if (data.error) {
-                        alert(`Error: ${data.error}`);
-                        return;
-                    }
-                    const description = data.Description || 'No description available.';
-                    const dependencies = data.Depends
-                        ? data.Depends.replace(/\([^)]*\)/g, '').trim()
-                        : 'No dependencies.';
-                    const installed = data.Installed === "Yes" ? "(Already Installed)" : "";
-                    $('#packageInfo').html(`
-                        <strong>Selected Package:</strong> ${packageName} ${installed}<br>
-                        ${data.Installed !== "Yes" ?`
-                        <strong>Description:</strong> ${description}<br>
-                        <strong>Will also install these packages:</strong> ${dependencies}<br>
-                        <div class="buttons btn-lg btn-rounded btn-outline-success mt-2" onClick='InstallPackage();'>
-                            <i class="fas fa-download"></i> Install Package
-                        </div>` : ""}
-                    `);
-                },
-                error: function () {
-                    alert('Error, failed to fetch package information.');
                 }
             });
         }
@@ -167,15 +84,103 @@
             });
         }
 
-        function InstallPackage() {
-            if (!selectedPackageName) {
-                alert('Please select a package and retrieve its info before installing.');
+        function UpdateUserPackagesList() {
+            if (!userInstalledPackages.length) {
+                $('#userPackagesList').html('<p>No user-installed packages found.</p>');
                 return;
             }
 
-            const url = `packages.php?action=install&package=${encodeURIComponent(selectedPackageName)}`;
+            let userPackagesListHTML = '';
+            let pendingRequests = userInstalledPackages.length;
+
+            userInstalledPackages.forEach(pkg => {
+                $.ajax({
+                    url: `/api/system/packages/info/${encodeURIComponent(pkg)}`,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function (data) {
+                        const isInstalled = data.Installed === 'Yes';
+                        userPackagesListHTML += `<li>${pkg}
+                            ${isInstalled ? `
+                                <button class='btn btn-sm btn-outline-danger' onClick='UninstallPackage("${pkg}")'>
+                                    Uninstall
+                                </button>`
+                            : `
+                                <button class='btn btn-sm btn-outline-warning' onClick='InstallPackage("${pkg}")'>
+                                    Reinstall Required
+                                </button>
+                                <button class='btn btn-sm btn-outline-danger ms-2' onClick='UninstallPackage("${pkg}")'>
+                                    Remove
+                                </button>`}
+                        </li>`;
+                    },
+                    error: function () {
+                        console.error(`Error checking installation status for package: ${pkg}`);
+                        userPackagesListHTML += `<li>${pkg} 
+                            <button class='btn btn-sm btn-outline-warning' onClick='InstallPackage("${pkg}")'>
+                                Reinstall Required
+                            </button>
+                        </li>`;
+                    },
+                    complete: function () {
+                        pendingRequests--;
+                        if (pendingRequests === 0) {
+                            $('#userPackagesList').html(userPackagesListHTML);
+                        }
+                    }
+                });
+            });
+        }
+
+        function GetPackageInfo(packageName) {
+            if (!packageName.trim()) {
+                alert("Please enter a valid package name.");
+                return;
+            }
+
+            selectedPackageName = packageName.trim();
+            $.ajax({
+                url: `/api/system/packages/info/${encodeURIComponent(selectedPackageName)}`,
+                type: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    if (data.error) {
+                        $('#packageInfo').html(`<strong>Error:</strong> ${data.error}`);
+                        return;
+                    }
+
+                    const description = data.Description || 'No description available.';
+                    const dependencies = data.Depends
+                        ? data.Depends.replace(/\([^)]*\)/g, '').trim()
+                        : 'No dependencies.';
+                    const installed = data.Installed === "Yes" ? "(Already Installed)" : "";
+
+                    $('#packageInfo').html(`
+                        <strong>Selected Package:</strong> ${selectedPackageName} ${installed}<br>
+                        ${data.Installed !== "Yes"
+                            ? `<strong>Description:</strong> ${description}<br>
+                               <strong>Will also install these packages:</strong> ${dependencies}<br>
+                               <div class="buttons btn-lg btn-rounded btn-outline-success mt-2" onClick="InstallPackage('${selectedPackageName}');">
+                                   <i class="fas fa-download"></i> Install Package
+                               </div>`
+                            : ""}
+                    `);
+                },
+                error: function () {
+                    alert('Error, failed to fetch package information.');
+                }
+            });
+        }
+
+        function InstallPackage(packageName) {
+            if (!packageName) {
+                alert('Invalid package name.');
+                return;
+            }
+
+            const url = `packagesHelper.php?action=install&package=${encodeURIComponent(packageName)}`;
             $('#packageProgressPopupCloseButton').text('Please Wait').prop("disabled", true);
-            DisplayProgressDialog("packageProgressPopup", `Installing Package: ${selectedPackageName}`);
+            DisplayProgressDialog("packageProgressPopup", `Installing Package: ${packageName}`);
             StreamURL(
                 url,
                 'packageProgressPopupText',
@@ -185,7 +190,7 @@
         }
 
         function UninstallPackage(packageName) {
-            const url = `packages.php?action=uninstall&package=${encodeURIComponent(packageName)}`;
+            const url = `packagesHelper.php?action=uninstall&package=${encodeURIComponent(packageName)}`;
             $('#packageProgressPopupCloseButton').text('Please Wait').prop("disabled", true);
             DisplayProgressDialog("packageProgressPopup", `Uninstalling Package: ${packageName}`);
             StreamURL(
@@ -208,16 +213,7 @@
 
         $(document).ready(function () {
             GetSystemPackages();
-
-            const userPackagesList = userInstalledPackages.map(pkg => `<li>${pkg} <button class='btn btn-sm btn-outline-danger' onClick='UninstallPackage("${pkg}");'>Uninstall</button></li>`).join('');
-            $('#userPackagesList').html(userPackagesList || '<p>No user-installed packages found.</p>');
-
-            $('#packageInput').on('input', function () {
-                const packageName = $(this).val().trim();
-                if (packageName) {
-                    $('#packageStatus').text('');
-                }
-            });
+            UpdateUserPackagesList();
         });
     </script>
     <title>Package Manager</title>
@@ -233,9 +229,9 @@
             <div class="pageContent">
                 <div id="packages" class="settings">
 
- 
+
                     <h2>Please Note:</h2>
-                    Installing additional packages can break your FPP installation requiring complete reinstallation of FPP.  Continue at your own risk. 
+                    Installing additional packages can break your FPP installation requiring complete reinstallation of FPP.  Continue at your own risk.
                     <p>
                     <h2>Installed User Packages</h2>
                     <ul id="userPackagesList"></ul>
@@ -244,7 +240,7 @@
                         <p>Loading package list, please wait...</p>
                     </div>
 
-                    <div id="packageInputContainer" style="display: none;">
+                    <div id="packageInputContainer">
                         <div class="row">
                             <div class="col">
                                 <input type="text" id="packageInput" class="form-control form-control-lg form-control-rounded has-shadow" placeholder="Enter package name" />
