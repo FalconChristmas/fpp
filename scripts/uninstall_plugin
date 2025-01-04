@@ -10,7 +10,7 @@ then
 	exit 1
 fi
 
-logOutput
+teeOutput
 
 if [ -x "${PLUGINDIR}/$1/scripts/fpp_uninstall.sh" ]
 then

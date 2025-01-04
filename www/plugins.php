@@ -111,24 +111,9 @@
         }
 
         function UninstallPlugin(plugin) {
-            var url = 'api/plugin/' + plugin;
-            $('html,body').css('cursor', 'wait');
-            $.ajax({
-                url: url,
-                type: 'DELETE',
-                dataType: 'json',
-                success: function (data) {
-                    $('html,body').css('cursor', 'auto');
-                    if (data.Status == 'OK')
-                        location.reload(true);
-                    else
-                        alert('ERROR: ' + data.Message);
-                },
-                error: function () {
-                    $('html,body').css('cursor', 'auto');
-                    alert('Error, API call to uninstall plugin failed');
-                }
-            });
+            var url = 'api/plugin/' + plugin + '?stream=true'; // Assuming your API supports streaming for uninstall
+            DisplayProgressDialog("pluginsProgressPopup", "Uninstall Plugin");
+            StreamURL(url, 'pluginsProgressPopupText', 'PluginProgressDialogDone', 'PluginProgressDialogDone', 'DELETE');
         }
 
         function ShowUninstallPluginPopup(plugin, pluginName) {
