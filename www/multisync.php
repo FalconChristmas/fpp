@@ -7,9 +7,9 @@
     require_once "common.php";
     include 'common/menuHead.inc';
     ?>
-    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
-    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
-    <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.min.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.min.js"></script>
     <script type="text/javascript" src="js/xlsx.full.min.js" async></script>
     <script type="text/javascript" src="js/FileSaver.min.js" async></script>
 

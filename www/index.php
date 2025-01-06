@@ -9,9 +9,9 @@
     include 'playlistEntryTypes.php';
     include 'common/menuHead.inc';
     ?>
-    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
-    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
-    <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.min.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.min.js"></script>
 
     <link rel="stylesheet" href="jquery/jquery.tablesorter/css/theme.blue.css">
 
