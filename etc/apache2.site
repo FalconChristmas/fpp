@@ -128,7 +128,7 @@ ServerTokens Prod
     # 2.2.x+
 
     AddType image/svg+xml                               svgz svg
-    AddType image/x-icon                                cur
+    AddType image/x-icon                                cur ico
 
     # 2.4.x+
 
