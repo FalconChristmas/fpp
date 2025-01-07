@@ -1,4 +1,10 @@
+# Prevent Apache from sending in the `Server` response header its
+# exact version number, the description of the generic OS-type or
+# information about its compiled-in modules.
+#
+# https://httpd.apache.org/docs/current/mod/core.html#servertokens
 ServerTokens Prod
+
 <VirtualHost *:80>
 	ServerAdmin webmaster@localhost
 
@@ -68,23 +74,6 @@ ServerTokens Prod
 </IfModule>
 </IfModule>
 
-<IfModule mod_headers.c>
-    Header always set X-Content-Type-Options nosniff
-	Header always set Content-Security-Policy-Report-Only "img-src 'self' data:"
-	Header unset Expires
-    Header unset Host
-    Header unset P3P
-    Header unset Pragma
-    Header unset Public-Key-Pins
-    Header unset Public-Key-Pins-Report-Only
-    Header unset Via
-    Header unset X-AspNet-Version
-    Header unset X-AspNetMvc-version
-    Header unset X-Frame-Options
-    Header unset X-Powered-By
-    Header unset X-Runtime
-    Header unset X-Version
-</IfModule>
 
 # MIME types SETTINGS
 # Serve resources with the proper media types (f.k.a. MIME types).
@@ -202,6 +191,37 @@ AddDefaultCharset utf-8
                      .xml
 </IfModule>
 
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+	header always set X-XSS-Protection "1; mode=block"
+	Header always set Content-Security-Policy "img-src 'self' data: blob:"
+	Header unset Expires
+    Header unset Host
+    Header unset P3P
+    Header unset Pragma
+    Header unset Public-Key-Pins
+    Header unset Public-Key-Pins-Report-Only
+    Header unset Via
+    Header unset X-AspNet-Version
+    Header unset X-AspNetMvc-version
+    Header unset X-Frame-Options
+    Header unset X-Powered-By
+    Header unset X-Runtime
+    Header unset X-Version
+
+# remove unneeded headers
+	<FilesMatch "\.(appcache|atom|bbaw|bmp|crx|css|cur|eot|f4[abpv]|flv|geojson|gif|htc|ic[os]|jpe?g|m?js|json(ld)?|m4[av]|manifest|map|markdown|md|mp4|oex|og[agv]|opus|otf|pdf|png|rdf|rss|safariextz|svgz?|swf|topojson|tt[cf]|txt|vcard|vcf|vtt|webapp|web[mp]|webmanifest|woff2?|xloc|xpi)$">
+        Header unset X-UA-Compatible
+        Header unset X-XSS-Protection
+    </FilesMatch>
+
+    <FilesMatch "\.(appcache|atom|bbaw|bmp|crx|css|cur|eot|f4[abpv]|flv|geojson|gif|htc|ic[os]|jpe?g|json(ld)?|m4[av]|manifest|map|markdown|md|mp4|oex|og[agv]|opus|otf|png|rdf|rss|safariextz|swf|topojson|tt[cf]|txt|vcard|vcf|vtt|webapp|web[mp]|webmanifest|woff2?|xloc|xpi)$">
+        Header unset Content-Security-Policy
+        Header unset X-Content-Security-Policy
+        Header unset X-WebKit-CSP
+    </FilesMatch>
+
+</IfModule>
 
 # CACHE CONTROL SETTINGS
 <IfModule mod_expires.c>
@@ -259,6 +279,11 @@ AddDefaultCharset utf-8
 
         ExpiresByType text/html                      "access plus 0 seconds"
 
+	# Images
+
+		ExpiresByType image/png                      "access plus 1 year"
+		ExpiresByType image/svg+xml				     "access plus 1 year"
+
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -276,7 +301,7 @@ AddDefaultCharset utf-8
 
         # 2) Remove the value for all resources that shouldn't be have it.
 
-        <FilesMatch "\.(appcache|cur|geojson|ico|json(ld)?|x?html?|topojson|xml)$">
+        <FilesMatch "\.(appcache|cur|geojson|json(ld)?|x?html?|topojson|xml)$">
             Header edit Cache-Control immutable ""
         </FilesMatch>
 
