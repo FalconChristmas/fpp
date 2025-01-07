@@ -243,7 +243,7 @@ function list_plugin_entries($menu)
             <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
                     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-                                                                                                                                                                                                                                                                                                                  </textarea>
+                                                                                                                                                                                                                                                                                                                      </textarea>
                 </div>
                 <script>
                     function RebuildFPPDDone() {
@@ -402,13 +402,14 @@ function list_plugin_entries($menu)
                                 }
                                 ?>
                                 <a class="<?= $externalLinkClass ?> link-to-fpp-manual"
-                                    href="https://added-by-javascript.net" target="_blank"><i class="fas fa-book"></i>
+                                    href="https://added-by-javascript.net" target="_blank" rel="noopener noreferrer"><i
+                                        class="fas fa-book"></i>
                                     FPP Manual <i class="fas fa-external-link-alt external-link"></i></a>
                                 <a class="<?= $externalLinkClass ?>" href="https://falconchristmas.com/forum"
-                                    target="_blank"><i class="fas fa-comments"></i> Forums <i
+                                    target="_blank" rel="noopener noreferrer"><i class="fas fa-comments"></i> Forums <i
                                         class="fas fa-external-link-alt external-link"></i></a>
                                 <!--
-          <a class="<?= $externalLinkClass ?>" href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank"><i class="fas fa-external-link-square-alt"></i> Wiki/Help <i class="fas fa-external-link-alt external-link"></i></a>
+          <a class="<?= $externalLinkClass ?>" href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank" rel="noopener noreferrer"><i class="fas fa-external-link-square-alt"></i> Wiki/Help <i class="fas fa-external-link-alt external-link"></i></a>
           -->
                                 <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Help
                                     Index</a>
@@ -418,8 +419,8 @@ function list_plugin_entries($menu)
                                     Commands Help</a>
                                 <a class="dropdown-item" href="credits.php"><i class="fas fa-stream"></i> Credits</a>
                                 <a class="<?= $externalLinkClass ?>"
-                                    href="https://www.paypal.com/donate/?hosted_button_id=ASF9XYZ2V2F5G"
-                                    target='_blank'><i class="fas fa-solid fa-gift"></i> Donate to FPP <i
+                                    href="https://www.paypal.com/donate/?hosted_button_id=ASF9XYZ2V2F5G" target='_blank'
+                                    rel="noopener noreferrer"><i class="fas fa-solid fa-gift"></i> Donate to FPP <i
                                         class="fas fa-external-link-alt external-link"></i></a>
                                 <hr class="dropdown-divider">
                                 <a class="dropdown-item" href="healthCheck.php"><i class="fas fa-thermometer-half"></i>
@@ -434,8 +435,8 @@ function list_plugin_entries($menu)
                                     $baseLink = $_SERVER['HTTP_X_FORWARDED_HOST'] . '/proxy/' . $_SERVER['SERVER_ADDR'];
                                 }
                                 ?>
-                                <a class="<?= $externalLinkClass ?>" href="http://<?= $baseLink ?>:4200"
-                                    target="_blank"><i class="fas fa-terminal"></i> SSH Shell</a>
+                                <a class="<?= $externalLinkClass ?>" href="http://<?= $baseLink ?>:4200" target="_blank"
+                                    rel="noopener noreferrer"><i class="fas fa-terminal"></i> SSH Shell</a>
                                 <?php list_plugin_entries("help"); ?>
                             </div>
                         </li>
