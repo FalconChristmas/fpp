@@ -104,7 +104,7 @@ function list_plugin_entries($menu)
         <div class="platformLogoDiv" style="position:relative;">
             <?
             if ($settings['LogoLink'] != "") {
-                echo "<a href='" . $settings['LogoLink'] . "' target='_blank' class='platformLogoLink'>";
+                echo "<a href='" . $settings['LogoLink'] . "' target='_blank' rel='noopener noreferrer' class='platformLogoLink'>";
             }
             if ($settings['Logo'] != "") {
                 echo "<img style='z-index: -100;' src='images/" . $settings['Logo'] . "' class='logo' id='platformLogo' alt='" . $settings['Variant'] . " Logo'>";
@@ -243,7 +243,7 @@ function list_plugin_entries($menu)
             <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
                     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-                                                                                                                                                                                                                                                                                                                      </textarea>
+                                                                                                                                                                                                                                                                                                                          </textarea>
                 </div>
                 <script>
                     function RebuildFPPDDone() {
