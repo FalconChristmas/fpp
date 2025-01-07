@@ -3,15 +3,16 @@
 
 <head>
     <?php
+    include 'common/htmlMeta.inc';
     require_once 'config.php';
     require_once 'common.php';
 
     include 'playlistEntryTypes.php';
     include 'common/menuHead.inc';
     ?>
-    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
-    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
-    <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.min.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.min.js"></script>
 
     <link rel="stylesheet" href="jquery/jquery.tablesorter/css/theme.blue.css">
 
@@ -432,12 +433,14 @@
                         <? if ($settings['disableAudioVolumeSlider'] != '1') {
                             ?>
                             <div class="volumeControls">
-                                <button class='volumeButton buttons' onClick="DecrementVolume();">
+                                <button class='volumeButton buttons' onClick="DecrementVolume();"
+                                    aria-label="DecrementVolume">
                                     <i class='fas fa-fw fa-volume-down'></i>
                                 </button>
                                 <input type="range" min="0" max="100" class="slider" id="remoteVolumeSlider"
                                     oninput="RemoteVolumeControlChange(this.value)">
-                                <button class='volumeButton buttons' onClick="IncrementVolume();">
+                                <button class='volumeButton buttons' onClick="IncrementVolume();"
+                                    aria-label="IncrementVolume">
                                     <i class='fas fa-fw fa-volume-up'></i>
                                 </button>
                                 <span id='speaker_d_flex'></span> <!-- Volume -->
@@ -622,13 +625,13 @@
                                                         ?>
                                                     <div class="col-10 volumeControls">
                                                         <button class='volumeButton buttons'
-                                                            onClick="DecrementVolume();">
+                                                            onClick="DecrementVolume();" aria-label="DecrementVolume">
                                                             <i class='fas fa-fw fa-volume-down'></i>
                                                         </button>
                                                         <input type="range" min="0" max="100" class="slider" id="slider"
                                                             oninput="VolumeControlChange(this.value)">
                                                         <button class='volumeButton buttons'
-                                                            onClick="IncrementVolume();">
+                                                            onClick="IncrementVolume();" aria-label="IncrementVolume">
                                                             <i class='fas fa-fw fa-volume-up'></i>
                                                         </button>
                                                         <span id='speaker'></span> <!-- Volume -->

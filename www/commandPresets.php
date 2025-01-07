@@ -3,7 +3,7 @@
 
 <head>
     <?php
-
+    include 'common/htmlMeta.inc';
     include 'config.php';
     include 'common/menuHead.inc';
     include 'common.php';

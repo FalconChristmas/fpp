@@ -165,5 +165,15 @@
 		"/**/node_modules/**",
 		"/.vscode/**",
 		"/**/bootstrap-scss-src/**"
-	]
+	],
+	"MinifyAll.PrefixOfNewMinifiedFiles": ".min",
+	"MinifyAll.terserMinifyOptions": {
+		"mangle": true,
+		"compress": {
+			"drop_console": true,
+			"dead_code": false,
+			"keep_fnames": false,
+			"keep_classnames": false
+		}
+	}
 }

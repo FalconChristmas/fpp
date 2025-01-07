@@ -4,6 +4,7 @@ header("Access-Control-Allow-Origin: *");
 <!DOCTYPE html>
 <html lang="en">
 <?php
+include 'common/htmlMeta.inc';
 require_once 'common.php';
 require_once 'config.php';
 
@@ -954,7 +955,7 @@ if (isset($settings["cape-info"])) {
                                                                     echo "class='internetOnly' style='display: none;'";
                                                                 }
                                                                 ?>>
-                                                        <tr>
+                                                                    <tr>
                                                                         <td><b>Order Number:</b></td>
                                                                         <td><input id='orderNumber' type='password' size=12
                                                                                 maxlength=10 value=''>

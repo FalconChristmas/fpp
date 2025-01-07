@@ -2305,6 +2305,8 @@ body {
   text-align: var(--bs-body-text-align);
   background-color: var(--bs-body-bg);
   -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+       text-size-adjust: 100%;
   -webkit-tap-highlight-color: rgba(23, 23, 32, 0);
 }
 
@@ -2529,8 +2531,9 @@ caption {
 }
 
 th {
-  text-align: inherit;
   text-align: -webkit-match-parent;
+  text-align: match-parent;
+  text-align: inherit;
 }
 
 thead,
@@ -2592,6 +2595,8 @@ button,
 [type=reset],
 [type=submit] {
   -webkit-appearance: button;
+  -moz-appearance: button;
+       appearance: button;
 }
 button:not(:disabled),
 [type=button]:not(:disabled),
@@ -2649,6 +2654,8 @@ legend + * {
 
 [type=search] {
   -webkit-appearance: textfield;
+  -moz-appearance: textfield;
+       appearance: textfield;
   outline-offset: -2px;
 }
 
@@ -2671,6 +2678,8 @@ legend + * {
 ::file-selector-button {
   font: inherit;
   -webkit-appearance: button;
+  -moz-appearance: button;
+       appearance: button;
 }
 
 output {

@@ -2,8 +2,10 @@
 <html lang="en">
 
 <head>
-    <?php require_once 'common.php'; ?>
-    <?php include 'common/menuHead.inc'; ?>
+    <?php
+    include 'common/htmlMeta.inc';
+    require_once 'common.php';
+    include 'common/menuHead.inc'; ?>
 
     <title><? echo $pageTitle; ?></title>
 

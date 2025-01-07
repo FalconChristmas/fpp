@@ -9,7 +9,9 @@ $fpp_version = "v" . getFPPVersion();
 ?>
 
 <head>
-  <?php include 'common/menuHead.inc'; ?>
+  <?php
+  include 'common/htmlMeta.inc';
+  include 'common/menuHead.inc'; ?>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <title>Credits</title>
 

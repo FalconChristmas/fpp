@@ -104,7 +104,7 @@ function list_plugin_entries($menu)
         <div class="platformLogoDiv" style="position:relative;">
             <?
             if ($settings['LogoLink'] != "") {
-                echo "<a href='" . $settings['LogoLink'] . "' target='_blank' class='platformLogoLink'>";
+                echo "<a href='" . $settings['LogoLink'] . "' target='_blank' rel='noopener noreferrer' class='platformLogoLink'>";
             }
             if ($settings['Logo'] != "") {
                 echo "<img style='z-index: -100;' src='images/" . $settings['Logo'] . "' class='logo' id='platformLogo' alt='" . $settings['Variant'] . " Logo'>";
@@ -175,7 +175,8 @@ function list_plugin_entries($menu)
 
     </div>
     <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img
-                src='images/1x1.png' width='5' height='5' style="vertical-align: top;" alt=''></a></div>
+                src='images/1x1.png' width='5' height='5' style="vertical-align: top;" alt=''></a>
+    </div>
     <div class='helpLinkDiv largeonly'><a href='javascript:void();' onClick='DisplayHelp();'
             class='nonULLink'>&nbsp;Press
             F1 for help&nbsp;&nbsp;</a></div>
@@ -243,7 +244,7 @@ function list_plugin_entries($menu)
             <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
                     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-                                                                                                                                                                                                                                                                                                                              </textarea>
+
                 </div>
                 <script>
                     function RebuildFPPDDone() {
@@ -405,13 +406,14 @@ function list_plugin_entries($menu)
                                 }
                                 ?>
                                 <a class="<?= $externalLinkClass ?> link-to-fpp-manual"
-                                    href="https://added-by-javascript.net" target="_blank"><i class="fas fa-book"></i>
+                                    href="https://added-by-javascript.net" target="_blank" rel="noopener noreferrer"><i
+                                        class="fas fa-book"></i>
                                     FPP Manual <i class="fas fa-external-link-alt external-link"></i></a>
                                 <a class="<?= $externalLinkClass ?>" href="https://falconchristmas.com/forum"
-                                    target="_blank"><i class="fas fa-comments"></i> Forums <i
+                                    target="_blank" rel="noopener noreferrer"><i class="fas fa-comments"></i> Forums <i
                                         class="fas fa-external-link-alt external-link"></i></a>
                                 <a class="<?= $externalLinkClass ?>"
-                                    href="https://github.com/FalconChristmas/fpp/issues" target="_blank"><i
+                                    href="https://github.com/FalconChristmas/fpp/issues" target="_blank" rel="noopener noreferrer"><i
                                         class="fas fa-bug"></i> Issue Tracker <i
                                         class="fas fa-external-link-alt external-link"></i></a>
                                 <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Help
@@ -422,8 +424,8 @@ function list_plugin_entries($menu)
                                     Commands Help</a>
                                 <a class="dropdown-item" href="credits.php"><i class="fas fa-stream"></i> Credits</a>
                                 <a class="<?= $externalLinkClass ?>"
-                                    href="https://www.paypal.com/donate/?hosted_button_id=ASF9XYZ2V2F5G"
-                                    target='_blank'><i class="fas fa-solid fa-gift"></i> Donate to FPP <i
+                                    href="https://www.paypal.com/donate/?hosted_button_id=ASF9XYZ2V2F5G" target='_blank'
+                                    rel="noopener noreferrer"><i class="fas fa-solid fa-gift"></i> Donate to FPP <i
                                         class="fas fa-external-link-alt external-link"></i></a>
                                 <hr class="dropdown-divider">
                                 <a class="dropdown-item" href="healthCheck.php"><i class="fas fa-thermometer-half"></i>
@@ -438,8 +440,8 @@ function list_plugin_entries($menu)
                                     $baseLink = $_SERVER['HTTP_X_FORWARDED_HOST'] . '/proxy/' . $_SERVER['SERVER_ADDR'];
                                 }
                                 ?>
-                                <a class="<?= $externalLinkClass ?>" href="http://<?= $baseLink ?>:4200"
-                                    target="_blank"><i class="fas fa-terminal"></i> SSH Shell</a>
+                                <a class="<?= $externalLinkClass ?>" href="http://<?= $baseLink ?>:4200" target="_blank"
+                                    rel="noopener noreferrer"><i class="fas fa-terminal"></i> SSH Shell</a>
                                 <?php list_plugin_entries("help"); ?>
                             </div>
                         </li>

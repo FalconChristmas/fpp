@@ -1687,8 +1687,8 @@ body .sm-clean a .sub-arrow {
         z-index: 1029;
         overflow-x: hidden;
         background-color: #ffffff;
-        animation: fadeIn ease 1s;
         -webkit-animation: fadeIn ease 1s;
+        animation: fadeIn ease 1s;
     }
 
 }
