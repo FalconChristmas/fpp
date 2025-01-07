@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-<?php
-
-require_once 'common.php';
-require_once 'config.php';
-?>
 
 <head>
-    <?php include 'common/menuHead.inc'; ?>
+    <?php
+    include 'common/htmlMeta.inc';
+    require_once 'common.php';
+    require_once 'config.php';
+    include 'common/menuHead.inc'; ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title><? echo $pageTitle; ?></title>
     <style>
@@ -163,7 +162,7 @@ require_once 'config.php';
                                 }
                             });
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <?
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <?
                         }
                     } ?>}<?
         }

@@ -3,6 +3,7 @@
 
 <head>
     <?
+    include 'common/htmlMeta.inc';
     require_once 'config.php';
     require_once 'common.php';
     include 'common/menuHead.inc';
@@ -113,13 +114,13 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                 </a>
                             </li>
                             <? if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2)) { ?>
-                                                    <li class="nav-item">
-                                                        <a class="nav-link" id="settings-time-tab" data-bs-toggle="tab"
-                                                            data-bs-target="#settings-time" href="#settings-time" data-option="Time" role="tab"
-                                                            aria-controls="settings-time" aria-selected="true">
-                                                            Time
-                                                        </a>
-                                                    </li>
+                                                        <li class="nav-item">
+                                                            <a class="nav-link" id="settings-time-tab" data-bs-toggle="tab"
+                                                                data-bs-target="#settings-time" href="#settings-time" data-option="Time" role="tab"
+                                                                aria-controls="settings-time" aria-selected="true">
+                                                                Time
+                                                            </a>
+                                                        </li>
                             <? } ?>
                             <li class="nav-item">
                                 <a class="nav-link" id="settings-ui-tab" data-bs-toggle="tab"
@@ -129,13 +130,13 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                 </a>
                             </li>
                             <? if ($settings["Platform"] != "MacOS") { ?>
-                                                    <li class="nav-item">
-                                                        <a class="nav-link" id="settings-email-tab" data-bs-toggle="tab"
-                                                            data-bs-target="#settings-email" href="#settings-email" data-option="Email"
-                                                            role="tab" aria-controls="settings-email" aria-selected="true">
-                                                            Email
-                                                        </a>
-                                                    </li>
+                                                        <li class="nav-item">
+                                                            <a class="nav-link" id="settings-email-tab" data-bs-toggle="tab"
+                                                                data-bs-target="#settings-email" href="#settings-email" data-option="Email"
+                                                                role="tab" aria-controls="settings-email" aria-selected="true">
+                                                                Email
+                                                            </a>
+                                                        </li>
                             <? } ?>
                             <li class="nav-item">
                                 <a class="nav-link" id="settings-mqtt-tab" data-bs-toggle="tab"
@@ -152,13 +153,13 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                 </a>
                             </li>
                             <? if ($uiLevel >= 1 || $tabId == "Output") { ?>
-                                                    <li class="nav-item">
-                                                        <a class="nav-link" id="settings-output-tab" data-bs-toggle="tab"
-                                                            data-bs-target="#settings-output" href="#settings-output" data-option="Output"
-                                                            role="tab" aria-controls="settings-output" aria-selected="true">
-                                                            Input/Output
-                                                        </a>
-                                                    </li>
+                                                        <li class="nav-item">
+                                                            <a class="nav-link" id="settings-output-tab" data-bs-toggle="tab"
+                                                                data-bs-target="#settings-output" href="#settings-output" data-option="Output"
+                                                                role="tab" aria-controls="settings-output" aria-selected="true">
+                                                                Input/Output
+                                                            </a>
+                                                        </li>
                             <? } ?>
                             <li class="nav-item">
                                 <a class="nav-link" id="settings-logs-tab" data-bs-toggle="tab"
@@ -168,13 +169,13 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                 </a>
                             </li>
                             <? if ($uiLevel >= $storageUILevel || $tabId == "Storage") { ?>
-                                                    <li class="nav-item">
-                                                        <a class="nav-link" id="settings-storage-tab" data-bs-toggle="tab"
-                                                            data-bs-target="#settings-storage" href="#settings-storage" data-option="Storage"
-                                                            role="tab" aria-controls="settings-storage" aria-selected="true">
-                                                            Storage
-                                                        </a>
-                                                    </li>
+                                                        <li class="nav-item">
+                                                            <a class="nav-link" id="settings-storage-tab" data-bs-toggle="tab"
+                                                                data-bs-target="#settings-storage" href="#settings-storage" data-option="Storage"
+                                                                role="tab" aria-controls="settings-storage" aria-selected="true">
+                                                                Storage
+                                                            </a>
+                                                        </li>
                             <? } ?>
                             <li class="nav-item">
                                 <a class="nav-link" id="settings-system-tab" data-bs-toggle="tab"
@@ -184,14 +185,14 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                 </a>
                             </li>
                             <? if ($uiLevel >= 3 || $tabId == "Developer") { ?>
-                                                    <li class="nav-item">
-                                                        <a class="nav-link" id="settings-developer-tab" data-bs-toggle="tab"
-                                                            data-bs-target="#settings-developer" href="#settings-developer"
-                                                            data-option="Developer" role="tab" aria-controls="settings-developer"
-                                                            aria-selected="true">
-                                                            Developer
-                                                        </a>
-                                                    </li>
+                                                        <li class="nav-item">
+                                                            <a class="nav-link" id="settings-developer-tab" data-bs-toggle="tab"
+                                                                data-bs-target="#settings-developer" href="#settings-developer"
+                                                                data-option="Developer" role="tab" aria-controls="settings-developer"
+                                                                aria-selected="true">
+                                                                Developer
+                                                            </a>
+                                                        </li>
                             <? } ?>
                         </ul>
                         <div id="settingsManagerTabsContent" class="tab-content">
@@ -202,21 +203,21 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
 
                         <br>
                         <? if ($uiLevel >= 1) { ?>
-                                                <div class="backdrop">
-                                                    <div class="row">
-                                                        <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i> - Advanced
-                                                            Level Setting</div>
-                                                        <? if ($uiLevel >= 2) { ?>
-                                                                                <div class="col-auto"><i class='fas fa-fw fa-flask ui-level-2'></i> - Experimental Level
-                                                                                    Setting</div>
-                                                        <? } ?>
-                                                        <? if ($uiLevel >= 3) { ?>
-                                                                                <div class="col-auto"><i class='fas fa-fw fa-code ui-level-3'></i> - Developer Level
-                                                                                    Setting</div>
-                                                        <? } ?>
-                                                    </div>
+                                                    <div class="backdrop">
+                                                        <div class="row">
+                                                            <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i> - Advanced
+                                                                Level Setting</div>
+                                                            <? if ($uiLevel >= 2) { ?>
+                                                                                        <div class="col-auto"><i class='fas fa-fw fa-flask ui-level-2'></i> - Experimental Level
+                                                                                            Setting</div>
+                                                            <? } ?>
+                                                            <? if ($uiLevel >= 3) { ?>
+                                                                                        <div class="col-auto"><i class='fas fa-fw fa-code ui-level-3'></i> - Developer Level
+                                                                                            Setting</div>
+                                                            <? } ?>
+                                                        </div>
 
-                                                </div>
+                                                    </div>
                         <? } ?>
 
                     </div>

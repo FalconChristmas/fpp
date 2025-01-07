@@ -3,14 +3,14 @@
 
 <head>
     <?php
+    include 'common/htmlMeta.inc';
     require_once 'config.php';
     require_once 'common.php';
 
     //ini_set('display_errors', 'On');
     error_reporting(E_ALL);
 
-    ?>
-    <?php include 'common/menuHead.inc'; ?>
+    include 'common/menuHead.inc'; ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>
         <? echo $pageTitle; ?>

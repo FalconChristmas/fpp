@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <?php
+include 'common/htmlMeta.inc';
 require_once 'config.php';
 require_once 'common.php';
 
@@ -10,7 +11,7 @@ error_reporting(E_ALL);
 
 $fpp_version = "v" . getFPPVersion();
 
-$limit=200;
+$limit = 200;
 if (isset($_GET['limit']))
     $limit = intval($_GET['limit']);
 
@@ -64,79 +65,84 @@ unset($output);
 ?>
 
 <head>
-<?php include 'common/menuHead.inc';?>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title>FPP - ChangeLog</title>
-<script>
-function CloseUpgradeDialog() {
-    $('#upgradePopup').fppDialog('close');
-    location.reload();
-}
+    <?php include 'common/menuHead.inc'; ?>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>FPP - ChangeLog</title>
+    <script>
+        function CloseUpgradeDialog() {
+            $('#upgradePopup').fppDialog('close');
+            location.reload();
+        }
 
-function UpgradeDone() {
-    $('#closeDialogButton').show();
-}
+        function UpgradeDone() {
+            $('#closeDialogButton').show();
+        }
 
-function DisplayVersionOptions(version)
-{
-	$('#dialog-confirm').fppDialog({
-		resizeable: false,
-		width: 400,
-		modal: true,
-		buttons: {
-			"View Change" : {class:'btn-success',click:function() {
-				$(this).fppDialog("close");
-                let url = "https://github.com/FalconChristmas/fpp/commit/" + version
-                window.open(url, '_blank').focus();
-				}},
-			"Revert to this Change" : {click:function() {
-				$(this).fppDialog("close");
-                GitCheckoutVersion(version)
-				}}
-			}
-		});
-}
+        function DisplayVersionOptions(version) {
+            $('#dialog-confirm').fppDialog({
+                resizeable: false,
+                width: 400,
+                modal: true,
+                buttons: {
+                    "View Change": {
+                        class: 'btn-success', click: function () {
+                            $(this).fppDialog("close");
+                            let url = "https://github.com/FalconChristmas/fpp/commit/" + version
+                            window.open(url, '_blank').focus();
+                        }
+                    },
+                    "Revert to this Change": {
+                        click: function () {
+                            $(this).fppDialog("close");
+                            GitCheckoutVersion(version)
+                        }
+                    }
+                }
+            });
+        }
 
-function GitCheckoutVersion(version) {
-    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Switching to version: " + version, dialogClass: 'no-close' });
-    $('#upgradePopup').fppDialog( "moveToTop" );
-    $('#upgradeText').html('');
+        function GitCheckoutVersion(version) {
+            $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Switching to version: " + version, dialogClass: 'no-close' });
+            $('#upgradePopup').fppDialog("moveToTop");
+            $('#upgradeText').html('');
 
-    StreamURL('gitCheckoutVersion.php?wrapped=1&version=' + version, 'upgradeText', 'UpgradeDone');
+            StreamURL('gitCheckoutVersion.php?wrapped=1&version=' + version, 'upgradeText', 'UpgradeDone');
 
-}
-</script>
+        }
+    </script>
 </head>
 
 <body>
-<div id="bodyWrapper">
-  <?php
-$activeParentMenuItem = 'help';
-include 'menu.inc';?>
-  <div class="mainContainer container">
-  <h1 class="title">ChangeLog</h1>
-  <div class="pageContent">
-<?
-if ($uiLevel >= 1) {
-    echo "<b>Click a SHA1 hash to jump to that previous version of code</b><br>";
-}
-?>
-      <pre><?
-if ($uiLevel >= 1) {
-    echo "    <a href='#' onClick='DisplayVersionOptions(\"HEAD\"); return false;'>HEAD</a>     - (Pull in changes and switch to latest version in this branch)\n";
-}
-?><?echo $git_log; ?></pre>
+    <div id="bodyWrapper">
+        <?php
+        $activeParentMenuItem = 'help';
+        include 'menu.inc'; ?>
+        <div class="mainContainer container">
+            <h1 class="title">ChangeLog</h1>
+            <div class="pageContent">
+                <?
+                if ($uiLevel >= 1) {
+                    echo "<b>Click a SHA1 hash to jump to that previous version of code</b><br>";
+                }
+                ?>
+                <pre><?
+                if ($uiLevel >= 1) {
+                    echo "    <a href='#' onClick='DisplayVersionOptions(\"HEAD\"); return false;'>HEAD</a>     - (Pull in changes and switch to latest version in this branch)\n";
+                }
+                ?><? echo $git_log; ?></pre>
+            </div>
+        </div>
+        <?php include 'common/footer.inc'; ?>
     </div>
-  </div>
-  <?php include 'common/footer.inc';?>
-</div>
-<div id="dialog-confirm" style="display: none">
-    What action would you like to take?
-</div>
-<div id='upgradePopup' title='Switch Version' style="display: none">
-    <textarea style='width: 99%; height: 94%;' disabled id='upgradeText'>
+    <div id="dialog-confirm" style="display: none">
+        What action would you like to take?
+    </div>
+    <div id='upgradePopup' title='Switch Version' style="display: none">
+        <textarea style='width: 99%; height: 94%;' disabled id='upgradeText'>
     </textarea>
-    <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseUpgradeDialog();' style='display: none;'>
-</div>
+        <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseUpgradeDialog();'
+            style='display: none;'>
+    </div>
 </body>
+
 </html>

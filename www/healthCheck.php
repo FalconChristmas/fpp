@@ -3,8 +3,9 @@
 
 <head>
     <?php
-    require_once ('config.php');
-    require_once ('common.php');
+    include 'common/htmlMeta.inc';
+    require_once('config.php');
+    require_once('common.php');
     include 'common/menuHead.inc';
     ?>
     <script>

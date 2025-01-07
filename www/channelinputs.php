@@ -3,6 +3,7 @@
 
 <head>
     <?php
+    include 'common/htmlMeta.inc';
     require_once "common.php";
     require_once 'universeentry.php';
     if (file_exists(__DIR__ . "/fppdefines.php")) {

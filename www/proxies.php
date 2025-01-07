@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-<?php
-require_once 'config.php';
-include 'common/menuHead.inc';
-require_once "common.php";
-?>
 
 <head>
+    <?php
+    include 'common/htmlMeta.inc';
+    require_once 'config.php';
+    include 'common/menuHead.inc';
+    require_once "common.php";
+    ?>
     <script type="text/javascript" src="js/validate.min.js"></script>
 
     <script language="Javascript">

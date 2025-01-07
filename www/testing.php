@@ -84,7 +84,8 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 ?>
 
 <head>
-	<?php include 'common/menuHead.inc'; ?>
+	<?php include 'common/htmlMeta.inc';
+	include 'common/menuHead.inc'; ?>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 	<link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
 	<link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
@@ -810,7 +811,8 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 												<div><b>Model Name:</b></div>
 												<div>
 													<select onChange='UpdateStartEndFromModel();' id='modelName'>
-														<option value='1,<?= $testEndChannel ?>'>-- All Local Channels --
+														<option value='1,<?= $testEndChannel ?>'>-- All Local Channels
+															--
 														</option>
 														<option value='1,<?= FPPD_MAX_CHANNELS ?>'>-- All Channels --
 														</option>
@@ -834,10 +836,10 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 												<div class="col-6 form-group">
 													<label for="testModeEndChannel">End Channel:</label>
 													<input class="form-control" type='number' min='1'
-														max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?= $testEndChannel ?>'
-														id='testModeEndChannel' onChange='SetTestMode();'
-														onkeypress='this.onchange();' onpaste='this.onchange();'
-														oninput='this.onchange();'>
+														max='<? echo FPPD_MAX_CHANNELS; ?>'
+														value='<?= $testEndChannel ?>' id='testModeEndChannel'
+														onChange='SetTestMode();' onkeypress='this.onchange();'
+														onpaste='this.onchange();' oninput='this.onchange();'>
 												</div>
 											</div>
 

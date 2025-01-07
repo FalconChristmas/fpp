@@ -71,10 +71,10 @@ function list_plugin_entries($menu)
     <div class="headerLeft">
         <div class="headerLeftCol fppBrand">
             <a href="index.php">
-                <img src='http://localhost/<?= $themeInfo["HEADER_LOGO1"] ?>' class="logo"
+                <img src='<?= $themeInfo["HEADER_LOGO1"] ?>' class="logo"
                     title="Host: <? echo $settings['HostName']; ?>">
                 <? if (isset($themeInfo["HEADER_LOGO2"]) && $themeInfo["HEADER_LOGO2"] != "") {
-                    echo "<img src='http://localhost/" . $themeInfo["HEADER_LOGO2"] . "' class='fpp-logo'  title='Host: " . $settings["HostName"] . "' >";
+                    echo "<img src='" . $themeInfo["HEADER_LOGO2"] . "' class='fpp-logo'  title='Host: " . $settings["HostName"] . "' >";
                 }
                 ?>
             </a>
@@ -104,10 +104,10 @@ function list_plugin_entries($menu)
         <div class="platformLogoDiv" style="position:relative;">
             <?
             if ($settings['LogoLink'] != "") {
-                echo "<a href='http://localhost/" . $settings['LogoLink'] . "' target='_blank' rel='noopener noreferrer' class='platformLogoLink'>";
+                echo "<a href='" . $settings['LogoLink'] . "' target='_blank' rel='noopener noreferrer' class='platformLogoLink'>";
             }
             if ($settings['Logo'] != "") {
-                echo "<img style='z-index: -100;' src='http://localhost/images/" . $settings['Logo'] . "' class='logo' id='platformLogo' alt='" . $settings['Variant'] . " Logo'>";
+                echo "<img style='z-index: -100;' src='images/" . $settings['Logo'] . "' class='logo' id='platformLogo' alt='" . $settings['Variant'] . " Logo'>";
             }
             if ($settings['LogoLink'] != "") {
                 echo "</a>";
@@ -175,7 +175,7 @@ function list_plugin_entries($menu)
 
     </div>
     <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img
-                src='http://localhost/images/1x1.png' width='5' height='5' style="vertical-align: top;" alt=''></a>
+                src='images/1x1.png' width='5' height='5' style="vertical-align: top;" alt=''></a>
     </div>
     <div class='helpLinkDiv largeonly'><a href='javascript:void();' onClick='DisplayHelp();'
             class='nonULLink'>&nbsp;Press
@@ -244,7 +244,7 @@ function list_plugin_entries($menu)
             <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
                     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-                                                                                                                                                                                                                                                                                                                                              </textarea>
+                                                                                                                                                                                                                                                                                                                                                      </textarea>
                 </div>
                 <script>
                     function RebuildFPPDDone() {

@@ -29,89 +29,99 @@ if (!isset($_GET['nopage'])):
 
     ?>
 
-	<!DOCTYPE html>
-	<html lang="en">
-	<head>
-	<?php include 'common/menuHead.inc';?>
-	<title><?echo $pageTitle; ?></title>
-	<script type="text/javascript">
-function bindSettingsVisibilityListener() {
-    var visProp = getHiddenProp();
-    if (visProp) {
-      var evtname = visProp.replace(/[H|h]idden/,'') + 'visibilitychange';
-      document.addEventListener(evtname, handleSettingsVisibilityChange);
-    }
-}
+    <!DOCTYPE html>
+    <html lang="en">
 
-function handleSettingsVisibilityChange() {
-    if (isHidden() && statusTimeout != null) {
-        clearTimeout(statusTimeout);
-        statusTimeout = null;
-    }
-}    
-var hiddenChildren = {};
-function UpdateChildSettingsVisibility() {
-    hiddenChildren = {};
-    $('.parentSetting').each(function() {
-        var fn = 'Update' + $(this).attr('id') + 'Children';
-        window[fn](2); // Hide if necessary
-    });
-    $('.parentSetting').each(function() {
-        var fn = 'Update' + $(this).attr('id') + 'Children';
-        window[fn](1); // Show if not hidden
-    });
-}
-$(document).ready(function() {
-    UpdateChildSettingsVisibility();
-    bindSettingsVisibilityListener();
-});
+    <head>
+        <?php
+        include 'common/htmlMeta.inc';
+        include 'common/menuHead.inc'; ?>
+        <title><? echo $pageTitle; ?></title>
+        <script type="text/javascript">
+            function bindSettingsVisibilityListener() {
+                var visProp = getHiddenProp();
+                if (visProp) {
+                    var evtname = visProp.replace(/[H|h]idden/, '') + 'visibilitychange';
+                    document.addEventListener(evtname, handleSettingsVisibilityChange);
+                }
+            }
 
-	var pluginSettings = new Array();
+            function handleSettingsVisibilityChange() {
+                if (isHidden() && statusTimeout != null) {
+                    clearTimeout(statusTimeout);
+                    statusTimeout = null;
+                }
+            }
+            var hiddenChildren = {};
+            function UpdateChildSettingsVisibility() {
+                hiddenChildren = {};
+                $('.parentSetting').each(function () {
+                    var fn = 'Update' + $(this).attr('id') + 'Children';
+                    window[fn](2); // Hide if necessary
+                });
+                $('.parentSetting').each(function () {
+                    var fn = 'Update' + $(this).attr('id') + 'Children';
+                    window[fn](1); // Show if not hidden
+                });
+            }
+            $(document).ready(function () {
+                UpdateChildSettingsVisibility();
+                bindSettingsVisibilityListener();
+            });
 
-		<?
-    foreach ($pluginSettings as $key => $value) {
-        printf("	pluginSettings['%s'] = \"%s\";\n", $key, $value);
-    }
-    ?>
-										</script>
+            var pluginSettings = new Array();
 
-										<?
+            <?
+            foreach ($pluginSettings as $key => $value) {
+                printf("	pluginSettings['%s'] = \"%s\";\n", $key, $value);
+            }
+            ?>
+        </script>
 
-    $jsDir = $pluginDirectory . "/" . $pluginName . "/js/";
-    if (file_exists($jsDir)) {
-        if ($handle = opendir($jsDir)) {
-            while (($file = readdir($handle)) !== false) {
-                if (!in_array($file, array('.', '..')) && !is_dir($jsDir . $file)) {
-                    printf("<script type='text/javascript' src='plugin.php?plugin=%s&file=js/%s&nopage=1'></script>\n",
-                        $pluginName, $file);
+        <?
+
+        $jsDir = $pluginDirectory . "/" . $pluginName . "/js/";
+        if (file_exists($jsDir)) {
+            if ($handle = opendir($jsDir)) {
+                while (($file = readdir($handle)) !== false) {
+                    if (!in_array($file, array('.', '..')) && !is_dir($jsDir . $file)) {
+                        printf(
+                            "<script type='text/javascript' src='plugin.php?plugin=%s&file=js/%s&nopage=1'></script>\n",
+                            $pluginName,
+                            $file
+                        );
+                    }
                 }
             }
         }
-    }
 
-    $cssDir = $pluginDirectory . "/" . $pluginName . "/css/";
-    if (file_exists($cssDir)) {
-        if ($handle = opendir($cssDir)) {
-            while (($file = readdir($handle)) !== false) {
-                if (!in_array($file, array('.', '..')) && !is_dir($cssDir . $file)) {
-                    printf("<link rel='stylesheet' type='text/css' href='/plugin.php?plugin=%s&file=css/%s&nopage=1'>\n",
-                        $pluginName, $file);
+        $cssDir = $pluginDirectory . "/" . $pluginName . "/css/";
+        if (file_exists($cssDir)) {
+            if ($handle = opendir($cssDir)) {
+                while (($file = readdir($handle)) !== false) {
+                    if (!in_array($file, array('.', '..')) && !is_dir($cssDir . $file)) {
+                        printf(
+                            "<link rel='stylesheet' type='text/css' href='/plugin.php?plugin=%s&file=css/%s&nopage=1'>\n",
+                            $pluginName,
+                            $file
+                        );
+                    }
                 }
             }
         }
-    }
 
-    ?>
-	</head>
-	<body>
-	<div id="bodyWrapper">
-	<?php include 'menu.inc';?>
-	<div class="mainContainer">
-	<h1 class="title"><?echo $pluginInfo['name']; ?></h1>
-	<div class="pageContent">
+        ?>
+    </head>
+
+    <body>
+        <div id="bodyWrapper">
+            <?php include 'menu.inc'; ?>
+            <div class="mainContainer">
+                <h1 class="title"><? echo $pluginInfo['name']; ?></h1>
+                <div class="pageContent">
 
 
-	<?php
+                    <?php
 else:
     $skipJSsettings = 1;
     require_once "config.php";
@@ -144,22 +154,30 @@ if (!isset($_GET['plugin'])) {
         $file_extension = strtolower(substr(strrchr($filename, "."), 1));
 
         switch ($file_extension) {
-            case "gif":$ctype = "image/gif;";
+            case "gif":
+                $ctype = "image/gif;";
                 break;
-            case "png":$ctype = "image/png;";
+            case "png":
+                $ctype = "image/png;";
                 break;
-            case "svg":$ctype = "image/svg;";
+            case "svg":
+                $ctype = "image/svg;";
                 break;
             case "jpeg":
-            case "jpg":$ctype = "image/jpg;";
+            case "jpg":
+                $ctype = "image/jpg;";
                 break;
-            case "js":$ctype = "text/javascript;";
+            case "js":
+                $ctype = "text/javascript;";
                 break;
-            case "json":$ctype = "application/json;";
+            case "json":
+                $ctype = "application/json;";
                 break;
-            case "css":$ctype = "text/css;";
+            case "css":
+                $ctype = "text/css;";
                 break;
-            default:$ctype = "text/plain;";
+            default:
+                $ctype = "text/plain;";
                 break;
         }
 
@@ -185,10 +203,11 @@ if (!isset($_GET['plugin'])) {
 }
 
 if (!isset($_GET['nopage'])): ?>
-</div>
-</div>
-<?php	include 'common/footer.inc';?>
-</div>
-</body>
-</html>
-<?php endif;?>
+                </div>
+            </div>
+            <?php include 'common/footer.inc'; ?>
+        </div>
+    </body>
+
+    </html>
+<?php endif; ?>

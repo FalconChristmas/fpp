@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <?php
+include 'common/htmlMeta.inc';
 require_once 'common.php';
 require_once 'config.php';
 
