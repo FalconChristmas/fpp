@@ -509,8 +509,8 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
         }
         ++errCount;
         if (errCount >= 10) {
-            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   Socket: %d   output count: %d/%d) with error: %d   %s\n",
-                   socketKey, sendSocket,
+            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (IP: %s   Socket: %d   output count: %d/%d) with error: %d   %s\n",
+                   HexToIP(socketKey).c_str(), sendSocket,
                    outputCount, msgCount,
                    errno,
                    strerror(errno));
@@ -553,8 +553,8 @@ void UDPOutput::BackgroundOutputWork() {
                 i.socketInfo->errCount++;
 
                 // failed to send all messages or it took more than 100ms to send them
-                LogErr(VB_CHANNELOUT, "%s() failed for UDP output (key: %X   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
-                       blockingOutput ? "sendmsg" : "sendmmsg", i.id,
+                LogErr(VB_CHANNELOUT, "%s() failed for UDP output (IP: %s   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
+                       blockingOutput ? "sendmsg" : "sendmmsg", HexToIP(i.id).c_str(),
                        outputCount, i.msgs.size(), diff, i.socketInfo->errCount,
                        errno,
                        strerror(errno));
@@ -618,8 +618,8 @@ int UDPOutput::SendData(unsigned char* channelData) {
                             socketInfo->errCount++;
 
                             // failed to send all messages or it took more than 100ms to send them
-                            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
-                                   msgs.first,
+                            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (IP: %s   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
+                                   HexToIP(msgs.first).c_str(),
                                    outputCount, msgs.second.size(), diff, socketInfo->errCount,
                                    errno,
                                    strerror(errno));
@@ -648,8 +648,8 @@ int UDPOutput::SendData(unsigned char* channelData) {
                 socketInfo->errCount++;
 
                 // failed to send all messages or it took more than 100ms to send them
-                LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
-                       msgs.first,
+                LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (IP: %s   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
+                       HexToIP(msgs.first).c_str(),
                        outputCount, msgs.second.size(), diff, socketInfo->errCount,
                        errno,
                        strerror(errno));
@@ -859,4 +859,17 @@ void UDPOutput::StoppingOutput() {
             a->StoppingOutput();
         }
     }
+}
+
+std::string UDPOutput::HexToIP(unsigned int hex) {
+    // Extract each byte in LSB order
+    uint8_t octet1 = hex & 0xFF;         // Least significant byte
+    uint8_t octet2 = (hex >> 8) & 0xFF;
+    uint8_t octet3 = (hex >> 16) & 0xFF;
+    uint8_t octet4 = (hex >> 24) & 0xFF; // Most significant byte
+
+    return std::to_string(octet1) + "." +
+           std::to_string(octet2) + "." +
+           std::to_string(octet3) + "." +
+           std::to_string(octet4);
 }

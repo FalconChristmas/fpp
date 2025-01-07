@@ -337,7 +337,7 @@
             "fppd": false,
             "methods": {
                 "GET": {
-                    "desc": "Returns the current configuration of the specified output in JSON format",
+                    "desc": "Returns the current configuration of the specified output in JSON format from /home/fpp/config. Common values of :file would be \"universeOutputs\", \"universeInputs\", \"co-other\", \"dmxInputs\", \"PixelnetDMX\", \"co-pwm\", \"PixelnetDMX\", \"co-bbbStrings\"",
                     "output": "JSON output varies based on file."
                 },
                 "POST": {

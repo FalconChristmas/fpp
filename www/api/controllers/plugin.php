@@ -134,8 +134,9 @@ function GetPluginInfo()
 // DELETE /api/plugin/:RepoName
 function UninstallPlugin()
 {
-	global $settings, $fppDir, $SUDO;
+	global $settings, $fppDir, $SUDO, $_REQUEST;
 	$result = Array();
+    $stream = $_REQUEST['stream'];
 
 	$plugin = params('RepoName');
 
@@ -152,11 +153,19 @@ function UninstallPlugin()
 				exec("rm " . $settings['pluginDirectory'] . "/" . $data['linkName'], $output, $return_val);
 		}
 
-		exec("export SUDO=\"" . $SUDO . "\"; export PLUGINDIR=\"" . $settings['pluginDirectory'] ."\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
-		unset($output);
+        if (isset($stream) && $stream != "false") {
+            DisableOutputBuffering();
+            system("$fppDir/scripts/uninstall_plugin $plugin", $return_val);
+        } else {
+		    exec("export SUDO=\"" . $SUDO . "\"; export PLUGINDIR=\"" . $settings['pluginDirectory'] ."\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
+		    unset($output);
+        }
 
 		if ($return_val == 0)
 		{
+            if (isset($stream) && $stream != "false") {
+                return "\nDone\n";
+            }
 			$result['Status'] = 'OK';
 			$result['Message'] = '';
 		}

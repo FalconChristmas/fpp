@@ -178,6 +178,8 @@ dispatch_get('/system/volume', 'SystemGetAudio');
 dispatch_post('/system/volume', 'SystemSetAudio');
 dispatch_post('/system/proxies', 'PostProxies');
 dispatch_get('/system/proxies', 'GetProxies');
+dispatch_get('/system/packages', 'GetOSpackages');
+dispatch_get('/system/packages/info/:packageName', 'GetOSpackageInfo');
 
 dispatch_get('/testmode', 'testMode_Get');
 dispatch_post('/testmode', 'testMode_Set');

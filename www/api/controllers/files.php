@@ -385,7 +385,8 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         $filename = substr($filename, 8);
     }
 
-    if (!file_exists($dir . '/' . $filename)) {
+    if (!file_exists($dir . '/' . $filename) || !is_file($dir . '/' . $filename)) {
+        http_response_code(404);
         echo "File $dir/$filename does not exist.";
         return;
     }
