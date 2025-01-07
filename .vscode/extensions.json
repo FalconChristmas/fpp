@@ -12,6 +12,7 @@
         "numso.prettier-standard-vscode",
         "devsense.phptools-vscode",
         "xdebug.php-debug",
-        "glenn2223.live-sass"
+        "glenn2223.live-sass",
+        "josee9988.minifyall"
     ]
 }
