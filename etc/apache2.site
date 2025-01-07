@@ -1,5 +1,5 @@
-<VirtualHost *:80>
 ServerTokens Prod
+<VirtualHost *:80>
 	ServerAdmin webmaster@localhost
 
 	DocumentRoot /opt/fpp/www
@@ -70,6 +70,7 @@ ServerTokens Prod
 
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options nosniff
+	Header always set Content-Security-Policy-Report-Only "img-src 'self' data:"
 	Header unset Expires
     Header unset Host
     Header unset P3P
@@ -83,4 +84,202 @@ ServerTokens Prod
     Header unset X-Powered-By
     Header unset X-Runtime
     Header unset X-Version
+</IfModule>
+
+# MIME types SETTINGS
+# Serve resources with the proper media types (f.k.a. MIME types).
+# https://www.iana.org/assignments/media-types/media-types.xhtml
+
+<IfModule mod_mime.c>
+
+  # Data interchange
+
+    # 2.2.x+
+
+    AddType text/xml                                    xml
+
+    # 2.2.x - 2.4.x
+
+    AddType application/json                            json
+    AddType application/rss+xml                         rss
+
+    # 2.4.x+
+
+    AddType application/json                            map
+
+  # JavaScript
+
+    # 2.2.x+
+
+    # See: https://html.spec.whatwg.org/multipage/scripting.html#scriptingLanguages.
+    AddType text/javascript                             js mjs
+
+
+  # Manifest files
+
+    # 2.2.x+
+
+    AddType application/manifest+json                   webmanifest
+    AddType text/cache-manifest                         appcache
+
+
+  # Media files
+
+    # 2.2.x - 2.4.x
+
+    AddType audio/mp4                                   f4a f4b m4a
+    AddType audio/ogg                                   oga ogg spx
+    AddType video/mp4                                   mp4 mp4v mpg4
+    AddType video/ogg                                   ogv
+    AddType video/webm                                  webm
+    AddType video/x-flv                                 flv
+	AddType image/png									png
+
+
+    # 2.2.x+
+
+    AddType image/svg+xml                               svgz svg
+    AddType image/x-icon                                cur
+
+    # 2.4.x+
+
+    AddType image/webp                                  webp
+
+
+  # Web fonts
+
+    # 2.2.x - 2.4.x
+
+    AddType application/vnd.ms-fontobject               eot
+
+    # 2.2.x+
+
+    AddType font/woff                                   woff
+    AddType font/woff2                                  woff2
+    AddType font/ttf                                    ttf
+    AddType font/collection                             ttc
+    AddType font/otf                                    otf
+
+
+  # Other
+
+    # 2.2.x+
+
+    AddType text/vtt                                    vtt
+
+</IfModule>
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# Serve all resources labeled as `text/html` or `text/plain`
+# with the media type `charset` parameter set to `utf-8`.
+#
+# https://httpd.apache.org/docs/current/mod/core.html#adddefaultcharset
+
+AddDefaultCharset utf-8
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# Serve the following file types with the media type `charset`
+# parameter set to `utf-8`.
+#
+# https://httpd.apache.org/docs/current/mod/mod_mime.html#addcharset
+
+<IfModule mod_mime.c>
+    AddCharset utf-8 .appcache \
+                     .atom \
+                     .css \
+                     .js \
+                     .json \
+                     .manifest \
+                     .map \
+                     .mjs \
+                     .rdf \
+                     .rss \
+					 .svg \
+                     .vtt \
+                     .webmanifest \
+                     .xml
+</IfModule>
+
+
+# CACHE CONTROL SETTINGS
+<IfModule mod_expires.c>
+
+  # Automatically add the `Cache-Control` header (as well as the
+  # equivalent `Expires` header).
+
+    ExpiresActive on
+
+  # By default, inform user agents to cache all resources for 1 year.
+
+    ExpiresDefault                                   "access plus 1 year"
+
+
+  # Overwrite the previous for file types whose content usually changes
+  # very often, and thus, should not be cached for such a long period,
+  # or at all.
+
+    # AppCache manifest files
+
+        ExpiresByType text/cache-manifest            "access plus 0 seconds"
+
+
+    # /favicon.ico (cannot be renamed!)
+
+        # [!] If you have access to the main Apache configuration
+        #     file, you can match the root favicon exactly using the
+        #     `<Location>` directive. The same cannot be done inside
+        #     of a `.htaccess` file where only the `<Files>` directive
+        #     can be used, reason why the best that can be done is match
+        #     all files named `favicon.ico` (but that should work fine
+        #     if filename/path-based revving is used)
+        #
+        # See also: https://httpd.apache.org/docs/current/sections.html#file-and-web.
+
+        <Files "favicon.ico">
+            ExpiresByType image/x-icon               "access plus 1 hour"
+        </Files>
+
+
+    # Data interchange
+
+        ExpiresByType application/atom+xml           "access plus 1 hour"
+        ExpiresByType application/rdf+xml            "access plus 1 hour"
+        ExpiresByType application/rss+xml            "access plus 1 hour"
+
+        ExpiresByType application/json               "access plus 0 seconds"
+        ExpiresByType application/ld+json            "access plus 0 seconds"
+        ExpiresByType application/schema+json        "access plus 0 seconds"
+        ExpiresByType application/vnd.geo+json       "access plus 0 seconds"
+        ExpiresByType text/xml                       "access plus 0 seconds"
+
+
+    # HTML
+
+        ExpiresByType text/html                      "access plus 0 seconds"
+
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    # Where needed add `immutable` value to the `Cache-Control` header
+
+    <IfModule mod_headers.c>
+
+        # Because `mod_headers` cannot match based on the content-type,
+        # the following workaround needs to be done.
+
+        # 1) Add the `immutable` value to the `Cache-Control` header
+        #    to all resources.
+
+        Header merge Cache-Control immutable
+
+        # 2) Remove the value for all resources that shouldn't be have it.
+
+        <FilesMatch "\.(appcache|cur|geojson|ico|json(ld)?|x?html?|topojson|xml)$">
+            Header edit Cache-Control immutable ""
+        </FilesMatch>
+
+    </IfModule>
+
 </IfModule>
