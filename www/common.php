@@ -2173,7 +2173,7 @@ function PrintToolTip($setting)
     ) {
         $tip = htmlentities($settingInfos[$setting]['tip']);
         echo "<span id='" . $setting . "_tip' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='" . $tip . "'>";
-        echo "<img id='$setting" . "_img' src='images/redesign/help-icon.svg' class='icon-help' alt='$setting" . "help icon'>";
+        echo "<img id='$setting" . "_img' src='http://localhost/images/redesign/help-icon.svg' class='icon-help' alt='$setting" . "help icon'>";
         echo "</span>";
     }
 }
