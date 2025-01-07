@@ -129,6 +129,7 @@ sed -i -e "s+#LoadModule proxy+LoadModule proxy+g" $HTTPCONF
 sed -i -e "s+LoadModule proxy_balanc+#LoadModule proxy_balanc+g" $HTTPCONF
 sed -i -e "s+LoadModule proxy_http2_+#LoadModule proxy_http2_+g" $HTTPCONF
 sed -i -e "s+#LoadModule rewrite+LoadModule rewrite+g" $HTTPCONF
+sed -i -e "s+#LoadModule expires+LoadModule expires+g" $HTTPCONF
 sed -i -e "s+#LoadModule watchdog+LoadModule watchdog+g" $HTTPCONF
 sed -i -e "s+#LoadModule mpm_event+LoadModule mpm_event+g" $HTTPCONF
 sed -i -e "s+LoadModule mpm_prefork+#LoadModule mpm_prefork+g" $HTTPCONF

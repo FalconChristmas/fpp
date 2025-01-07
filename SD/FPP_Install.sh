@@ -1310,6 +1310,7 @@ a2enmod mpm_event
 a2enmod http2
 a2enmod cgi
 a2enmod rewrite
+a2ermod expires
 a2enmod proxy
 a2enmod proxy_http
 a2enmod proxy_http2
