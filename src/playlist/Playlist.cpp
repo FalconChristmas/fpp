@@ -703,7 +703,9 @@ void Playlist::Pause() {
     LogDebug(VB_PLAYLIST, "Playlist::Pause called on %s\n", m_filename.c_str());
     if (IsPlaying()) {
         std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
-        if (m_currentSection->at(m_sectionPosition)->IsPlaying()) {
+        if (m_currentSection
+            && m_sectionPosition < m_currentSection->size()
+            && m_currentSection->at(m_sectionPosition)->IsPlaying()) {
             m_currentSection->at(m_sectionPosition)->Pause();
             if (m_currentSection->at(m_sectionPosition)->IsPaused()) {
                 m_status = FPP_STATUS_PLAYLIST_PAUSED;
