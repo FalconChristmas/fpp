@@ -8,5 +8,5 @@ BINDIR=$(cd $(dirname $0) && pwd)
 a2enmod expires
 #copy across new apache conf
 cat /opt/fpp/etc/apache2.site >/etc/apache2/sites-enabled/000-default.conf
-#restart apache
-sudo service apache2 restart
+# Set the reboot flag so the config/cmdline changes will be picked up
+    setSetting rebootFlag 1
