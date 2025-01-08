@@ -7,6 +7,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 #copy across new apache conf for mod_status
 cat /opt/fpp/etc/apache2.status > /etc/apache2/mods-enabled/status.conf
-#restart apache
-sudo service apache2 restart
+
+# Set the reboot flag so the config/cmdline changes will be picked up
+    setSetting rebootFlag 1
 
