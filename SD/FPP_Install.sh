@@ -1301,7 +1301,9 @@ sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=${FPPUSER}/" /etc/apache2/envv
 sed -i -e "s#APACHE_LOG_DIR=.*#APACHE_LOG_DIR=${FPPHOME}/media/logs#" /etc/apache2/envvars
 sed -i -e "s/Listen 8080.*/Listen 80/" /etc/apache2/ports.conf
 
+#Copy FPP Defined Apache configs
 cat /opt/fpp/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
+cat /opt/fpp/etc/apache2.status > /etc/apache2/mods-enabled/status.conf
 
 # Enable Apache modules
 a2dismod php${ACTUAL_PHPVER}

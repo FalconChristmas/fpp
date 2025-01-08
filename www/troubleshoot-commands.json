@@ -526,6 +526,31 @@
                     ]
                 }
             }
+        },
+        "Webserver": {
+            "grpDisplayTitle": "Webserver",
+            "grpDescription": "Information on the local web server",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "Server-Status": {
+                    "title": "Apache Server Status",
+                    "description": "Results from Apache mod_status extension",
+                    "cmd": "curl -s http://localhost/server-status",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PHPInfo": {
+                    "title": "PHP Info",
+                    "description": "Results from php_info() function",
+                    "cmd": "curl -s http://localhost/localonly/cleanedphpinfo.php",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
         }
     }
 }
