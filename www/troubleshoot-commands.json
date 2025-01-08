@@ -526,6 +526,23 @@
                     ]
                 }
             }
+        },
+        "Webserver": {
+            "grpDisplayTitle": "Webserver",
+            "grpDescription": "Information on the local web server",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "Server-Status": {
+                    "title": "Apache Server Status",
+                    "description": "Results from Apache mod_status extension",
+                    "cmd": "curl http://localhost/server-status",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
         }
     }
 }
