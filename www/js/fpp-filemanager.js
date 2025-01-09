@@ -149,7 +149,7 @@ function UpdateFileCount ($dir) {
 		.not('.filtered').length;
 	if ($('#tbl' + $dir + ' tbody tr.filtered').length > 0) {
 		//is filtered
-		$('#div' + $dir + ' .fileCountlabelHeading')[0].innerHTML = innerHtml =
+		$('#div' + $dir + ' .fileCountlabelHeading')[0].innerHTML =
 			'<span class="filtered">Filtered items:<span>';
 		$('#fileCount_' + $dir)
 			.removeClass('text-bg-secondary')
