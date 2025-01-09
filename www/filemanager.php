@@ -194,7 +194,7 @@
                         <div class="tab-pane fade show active" id="tab-sequence" role="tabpanel"
                             aria-labelledby="tab-sequence-tab">
 
-                            <div id="divSeq">
+                            <div id="divSequences">
                                 <div class="backdrop">
                                     <div class="row justify-content-between fileDetailsHeader">
                                         <div class="col-auto">
@@ -318,7 +318,7 @@
                         </div>
 
                         <div class="tab-pane fade" id="tab-video" role="tabpanel" aria-labelledby="tab-video-tab">
-                            <div id="divVideo">
+                            <div id="divVideos">
 
                                 <div class="backdrop">
                                     <div class="row justify-content-between fileDetailsHeader">
