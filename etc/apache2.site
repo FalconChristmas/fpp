@@ -194,7 +194,7 @@ AddDefaultCharset utf-8
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
 	header always set X-XSS-Protection "1; mode=block"
-	Header always set Content-Security-Policy "img-src 'self' data: blob:"
+	Header always set Content-Security-Policy "img-src 'self' https://www.paypal.com https://www.paypalobjects.com data: blob:"
 	Header unset Expires
     Header unset Host
     Header unset P3P

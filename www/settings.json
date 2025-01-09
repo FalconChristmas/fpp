@@ -926,7 +926,10 @@
 			"default": "0",
 			"type": "checkbox",
 			"checkedValue": "1",
-			"uncheckedValue": "0"
+			"uncheckedValue": "0",
+			"exposedAsJSToPages": [
+				"all"
+			]
 		},
 		"DisableScheduler": {
 			"name": "DisableScheduler",
@@ -935,7 +938,10 @@
 			"tip": "The Disable Scheduler setting allows disabling all scheduling rather than having to go to each schedule entry and deactivate.",
 			"type": "checkbox",
 			"level": 1,
-			"restart": 1
+			"restart": 1,
+			"exposedAsJSToPages": [
+				"all"
+			]
 		},
 		"E131BridgingInterval": {
 			"name": "E131BridgingInterval",
@@ -1056,7 +1062,10 @@
 				"150 pixels": 150,
 				"175 pixels": 175,
 				"200 pixels": 200
-			}
+			},
+			"exposedAsJSToPages": [
+				"filemanager"
+			]
 		},
 		"fileManagerTableFilter": {
 			"name": "fileManagerTableFilter",
@@ -1065,7 +1074,10 @@
 			"default": "1",
 			"type": "checkbox",
 			"checkedValue": "1",
-			"uncheckedValue": "0"
+			"uncheckedValue": "0",
+			"exposedAsJSToPages": [
+				"filemanager"
+			]
 		},
 		"FPP_UUID": {
 			"name": "FPP_UUID",
@@ -1088,7 +1100,10 @@
 			"options": {
 				"Player": "player",
 				"Remote": "remote"
-			}
+			},
+			"exposedAsJSToPages": [
+				"all"
+			]
 		},
 		"FPDEnabled": {
 			"name": "FPDEnabled",
@@ -1298,7 +1313,10 @@
 			"restart": 2,
 			"default": "Global",
 			"type": "select",
-			"optionsURL": "api/settings/Locale/options"
+			"optionsURL": "api/settings/Locale/options",
+			"exposedAsJSToPages": [
+				"all"
+			]
 		},
 		"LogLevel_General": {
 			"name": "LogLevel_General",
@@ -1985,7 +2003,10 @@
 			"gatherStats": true,
 			"restart": 0,
 			"default": 0,
-			"type": "checkbox"
+			"type": "checkbox",
+			"exposedAsJSToPages": [
+				"index"
+			]
 		},
 		"piRTC": {
 			"name": "piRTC",
@@ -2048,7 +2069,10 @@
 			"tip": "Allow scheduling down to the second instead of scheduling on minute boundaries.  Enabling this setting will show the seconds value in the Scheduler UI for the Start and End times on schedule entries.",
 			"type": "checkbox",
 			"level": 1,
-			"restart": 1
+			"restart": 1,
+			"exposedAsJSToPages": [
+				"scheduler"
+			]
 		},
 		"screensaver": {
 			"name": "screensaver",
@@ -2230,7 +2254,10 @@
 				"Enabled": "Enabled",
 				"Disabled": "Disabled",
 				"Banner": "Banner"
-			}
+			},
+			"exposedAsJSToPages": [
+				"all"
+			]
 		},
 		"tableColorPair1A": {
 			"name": "tableColorPair1A",
@@ -2314,7 +2341,10 @@
 			"options": {
 				"Celsius": 0,
 				"Fahrenheit": 1
-			}
+			},
+			"exposedAsJSToPages": [
+				"all"
+			]
 		},
 		"TetherInterface": {
 			"name": "TetherInterface",
@@ -2356,7 +2386,10 @@
 				"HH:MM (23:40)": "%H:%M",
 				"HH:MM AM/PM (11:40 PM)": "%I:%M %p"
 			},
-			"note": "Any addition of a new format in the options array here will need corresponding additions in js/fpp.js to the Convert24H*UIFormat functions"
+			"note": "Any addition of a new format in the options array here will need corresponding additions in js/fpp.js to the Convert24H*UIFormat functions",
+			"exposedAsJSToPages": [
+				"all"
+			]
 		},
 		"uiLevel": {
 			"name": "uiLevel",
