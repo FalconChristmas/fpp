@@ -112,7 +112,7 @@ constexpr size_t DDR_SIZE = 0x00400000;
 
 constexpr std::string FIRMWARE_PREFIX = "am62x";
 
-constexpr bool FAKE_PRU = false;
+static bool FAKE_PRU = !FileExists("/sys/class/remoteproc/remoteproc0/state");
 #endif
 
 static void initPrus() {
@@ -140,7 +140,7 @@ static void initPrus() {
     if (!FileExists("/sys/class/remoteproc/remoteproc0/state")) {
         system("modprobe pru_rproc");
     }
-    if (ddr_mem_loc == nullptr && ddr_addr) {
+    if (ddr_mem_loc == nullptr && !FAKE_PRU) {
         ddr_phy_mem_loc = ddr_addr;
         ddr_filelen = ddr_sizeb;
         ddr_mem_loc = (uint8_t*)mmap(0,
@@ -149,7 +149,7 @@ static void initPrus() {
                                      MAP_SHARED,
                                      mem_fd,
                                      ddr_addr);
-    } else if (ddr_addr == 0) {
+    } else if (ddr_addr == 0 || FAKE_PRU) {
         // just malloc some memory so we don't crash
         ddr_phy_mem_loc = ddr_addr;
         ddr_filelen = ddr_sizeb;

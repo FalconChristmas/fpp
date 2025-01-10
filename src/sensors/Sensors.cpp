@@ -286,6 +286,20 @@ public:
         if (s.isMember("min")) {
             min = s["min"].asDouble();
         }
+        if (s.isMember("vScale")) {
+            vScale = s["vScale"].asFloat();
+        } else {
+#ifdef PLATFORM_BB64
+            std::string vs = GetFileContents("/sys/bus/iio/devices/iio:device0/in_voltage_scale");
+            vScale = std::atof(vs.c_str());
+            // original reference is 1.8V which for 12bit would be 0.439453125.
+            // If the cape doesn't specify a reference scale, we'll adjust and assume
+            // the params are based on 1.8 ref, but we're reading to 3.3V
+            vScale = vScale / 0.439453125;
+#else
+            vScale = 1.0f;
+#endif
+        }
     }
     virtual ~AINSensor() {
         close(file);
@@ -309,6 +323,7 @@ public:
             int i = read(file, buffer, 20);
             buffer[i] = 0;
             double d = atof(buffer);
+            d *= vScale;
 
             d /= 4096; // 12 bit a2d
             d *= (max - min + 1);
@@ -324,6 +339,7 @@ public:
     std::string driver;
     double min = 0.0;
     double max = 100.0;
+    double vScale = 1.0;
 
     volatile int file;
     volatile int errcount;
