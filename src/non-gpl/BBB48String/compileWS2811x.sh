@@ -8,7 +8,7 @@ cd /tmp
 
 ARMV=$(uname -m)
 
-if [ "$ARMV" == "aarch64" ]; then
+if [ "$ARMV" = "aarch64" ]; then
     #for now, we only support PRUSS, need a better way to figure out the types, core speeds, etc...
     CPPFLAG="-DAM62X"
     ENTRY="AM62x_PRU1.cmd"
