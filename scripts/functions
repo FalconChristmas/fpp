@@ -505,6 +505,8 @@ populateCCACHE() {
         PLAT=Pi
     elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
         PLAT=BBB
+    elif [ "${FPPPLATFORM}" = "BeagleBone 64" ]; then
+        PLAT=BB64
     else
         echo "populateCache stopping, Unknown platform - ${FPPPLATFORM}"
         MAJVER=0
@@ -584,13 +586,20 @@ function ComputeMakeParallelism() {
                 # will be very slow as we constantly swap in/out
                 CPUS=1
             elif [[ ${MEMORY} -lt 512000 ]]; then
-                SWAPTOTAL=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
-                # Limited memory, if we have some swap, we'll go ahead with -j 2
-                # otherwise we'll need to stick with -j 1 or we run out of memory
-                if [[ ${SWAPTOTAL} -gt 49000 ]]; then
-                    CPUS=2
-                else
+                ARMV=$(uname -m)
+                if [ "$ARMV" = "aarch64" ]; then
+                    # 64bit compiles take more memory so if we are less than 512M, 
+                    # we need to stick with a single core or it will swap
                     CPUS=1
+                else
+                    SWAPTOTAL=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
+                    # Limited memory, if we have some swap, we'll go ahead with -j 2
+                    # otherwise we'll need to stick with -j 1 or we run out of memory
+                    if [[ ${SWAPTOTAL} -gt 49000 ]]; then
+                        CPUS=2
+                    else
+                        CPUS=1
+                    fi
                 fi
             fi
         fi
