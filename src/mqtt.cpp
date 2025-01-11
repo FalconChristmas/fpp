@@ -460,3 +460,12 @@ bool MosquittoClient::CacheCheckMessage(std::string& topic, std::string& message
 
     return false;
 }
+
+void MosquittoClient::dumpMessageCache(Json::Value& result) {
+    // NOTE: This assumes that result is an Array
+    std::unique_lock<std::mutex> lock(messageCacheLock);
+
+    for (const auto& pair : messageCache) {
+        result[pair.first] = pair.second;
+    }
+}

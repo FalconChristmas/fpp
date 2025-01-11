@@ -15,8 +15,8 @@
 #ifdef PLATFORM_OSX
 #include <sys/sysctl.h>
 #else
+#include <sys/ioctl.h>
 #include <sys/sysinfo.h>
-#include <sys/ioctl.h>	
 #endif
 
 #include <cstdlib>
@@ -307,18 +307,17 @@ void LogResponse(const http_request& req, int responseCode, const std::string& c
     }
 }
 
-
 PlayerResource::PlayerResource() {
-#ifdef PLATFORM_PI    
-    #define DEVICE_FILE_NAME "/dev/vcio"
-    #define MAJOR_NUM 100
-    #define IOCTL_MBOX_PROPERTY _IOWR(MAJOR_NUM, 0, char *)
-    #define MAX_STRING 1024
-    #define GET_GENCMD_RESULT 0x00030080
+#ifdef PLATFORM_PI
+#define DEVICE_FILE_NAME "/dev/vcio"
+#define MAJOR_NUM 100
+#define IOCTL_MBOX_PROPERTY _IOWR(MAJOR_NUM, 0, char*)
+#define MAX_STRING 1024
+#define GET_GENCMD_RESULT 0x00030080
     piPowerFile = open(DEVICE_FILE_NAME, 0);
 #else
-    piPowerFile = -1;    
-#endif    
+    piPowerFile = -1;
+#endif
 }
 PlayerResource::~PlayerResource() {
     if (piPowerFile > 0) {
@@ -403,6 +402,15 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PlayerResource::r
         SetOKResult(result, "");
     } else if (url == "sequence") {
         LogDebug(VB_HTTP, "API - Getting list of running sequences\n");
+    } else if (url == "mqtt/cache") {
+        LogDebug(VB_HTTP, "API - Getting MQTT Cached data\n");
+        if (mqtt) {
+            mqtt->dumpMessageCache(result);
+        } else {
+            result["Status"] = "ERROR";
+            result["respCode"] = 400;
+            result["Message"] = "Mqtt not Initialized";
+        }
     } else {
         LogErr(VB_HTTP, "API - Error unknown GET request: %s\n", url.c_str());
 
@@ -858,24 +866,24 @@ void PlayerResource::PostSchedule(const Json::Value data, Json::Value& result) {
 
 void PlayerResource::periodicWork() {
     if (piPowerFile > 0) {
-        #ifdef PLATFORM_PI    
+#ifdef PLATFORM_PI
         int i = 0;
-        int32_t p[(MAX_STRING>>2) + 7];
-        p[i++] = 0; // size
+        int32_t p[(MAX_STRING >> 2) + 7];
+        p[i++] = 0;          // size
         p[i++] = 0x00000000; // process request
 
         p[i++] = GET_GENCMD_RESULT; // (the tag id)
-        p[i++] = MAX_STRING;// buffer_len
-        p[i++] = 0; // request_len (set to response length)
-        p[i++] = 0; // error repsonse
+        p[i++] = MAX_STRING;        // buffer_len
+        p[i++] = 0;                 // request_len (set to response length)
+        p[i++] = 0;                 // error repsonse
 
-        memcpy(p+i, "get_throttled", strlen("get_throttled") + 1);
+        memcpy(p + i, "get_throttled", strlen("get_throttled") + 1);
         i += MAX_STRING >> 2;
-        p[i++] = 0x00000000; // end tag
-        p[0] = i*sizeof *p; // actual size
+        p[i++] = 0x00000000;  // end tag
+        p[0] = i * sizeof *p; // actual size
 
         int ret_val = ioctl(piPowerFile, IOCTL_MBOX_PROPERTY, p);
-        std::string s = (char *)&p[6];
+        std::string s = (char*)&p[6];
         if (s.starts_with("throttled=0x")) {
             s = s.substr(12);
             uint32_t res = std::stol(s, nullptr, 16);
@@ -890,7 +898,7 @@ void PlayerResource::periodicWork() {
                 piPowerWarningCount = 0;
             }
         }
-        #endif
+#endif
     }
 }
 
