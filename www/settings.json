@@ -1064,7 +1064,8 @@
 				"200 pixels": 200
 			},
 			"exposedAsJSToPages": [
-				"filemanager"
+				"filemanager",
+				"all"
 			]
 		},
 		"fileManagerTableFilter": {
@@ -2029,7 +2030,7 @@
 			"default": 0,
 			"type": "checkbox",
 			"exposedAsJSToPages": [
-				"index"
+				"index, all"
 			]
 		},
 		"piRTC": {

@@ -731,7 +731,7 @@ if (file_exists($pluginDirectory)) {
 // so we'll make sure it's in a comment so that discovery will work
 if (!isset($skipJSsettings)) {
     ?>
-    <!-- Falcon Player - FPP -->
+    <!--Falcon Player - FPP-->
     <script type="text/javascript">
         // Standard Common JS Variables
         MINYEAR = <? echo MINYEAR; ?>;

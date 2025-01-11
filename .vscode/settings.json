@@ -137,6 +137,7 @@
 		"charconv": "cpp",
 		"execution": "cpp",
 		"menu.inc": "php",
+		"htmlMeta.inc": "php",
 		"footer.inc": "php",
 		"menuHead.inc": "php",
 		"shared_mutex": "cpp"
