@@ -734,21 +734,23 @@ function DeleteFile()
     $status = "File not found";
     $dirName = params("DirName");
     $dir = MapDirectoryKey($dirName);
-    $fileName = findFile($dir, params(0));
+    $fileName = params(0);
 
-    $fullPath = "$dir/$fileName";
+    // Avoid too much saniziation so that we can delete files with unicode in them
+    $allowedDir = realpath($dir); // Allowed base directory
+    $constructedPath = "$dir/$fileName";
+    $fullPath = realpath($constructedPath); // Full resolved path of the target file
 
-    if (preg_match('/\/\.\.\//', $fileName)) {
-        $status = 'Cannot access parent directory';
-    } else if ($dir == "") {
-        $status = "Invalid Directory";
+    if (!$allowedDir || !$fullPath || strpos($fullPath, $allowedDir) !== 0) {
+        $status = "Invalid path: directory traversal detected or file outside allowed directory";
     } else if (!file_exists($fullPath)) {
         $status = "File Not Found";
     } else {
         if (unlink($fullPath)) {
             $status = "OK";
         } else {
-            $status = "Unable to delete file";
+            $errorDetails = error_get_last();
+            $status = "Unable to delete file: " . ($errorDetails['message'] ?? 'Unknown');
         }
     }
 
