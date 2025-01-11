@@ -17,8 +17,8 @@
 #include <pthread.h>
 #include <string>
 
-#include "Warnings.h"
 #include "Events.h"
+#include "Warnings.h"
 
 #include "mosquitto.h"
 
@@ -29,19 +29,16 @@ public:
 
     int Init(const std::string& username, const std::string& password, const std::string& ca_file);
 
-    virtual bool Publish(const std::string &topic, const std::string &data) override;
+    virtual bool Publish(const std::string& topic, const std::string& data) override;
     virtual bool Publish(const std::string& subTopic, const int valueconst) override;
     virtual void RegisterCallback(const std::string& topic) override;
     virtual void RemoveCallback(const std::string& topic) override;
-
 
     virtual void PrepareForShutdown() override;
 
     int PublishRaw(const std::string& topic, const std::string& msg, const bool retain = false, const int qos = 1);
     int Publish(const std::string& subTopic, const std::string& msg, const bool retain, const int qos = 1);
     int Publish(const std::string& subTopic, const int valueconst, bool retain, const int qos = 1);
-
-
 
     void LogCallback(void* userdata, int level, const char* str);
     void MessageCallback(void* obj, const struct mosquitto_message* message);
@@ -54,6 +51,7 @@ public:
 
     void CacheSetMessage(std::string& topic, std::string& message);
     bool CacheCheckMessage(std::string& topic, std::string& message);
+    void dumpMessageCache(Json::Value& result);
 
     std::string GetBaseTopic() { return m_baseTopic; }
 

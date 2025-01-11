@@ -628,7 +628,20 @@
                 }
             }
         },
-        {
+	{
+	   "endpoint": "fppd/mqtt/cache",
+	   "fppd": true,
+	   "methods": {
+	      "GET": {
+	         "desc": "Returns a JSON map of the cached MQTT topic and values that were captured from the 'Subscribe Topic' setting. Note: value is always stored internally as a string.",
+			"output": {
+			   "/christmas/tag1": "true",
+			   "/christmas/tag2": "12345"
+			}
+		    }
+		}
+	}, 
+	{
             "endpoint": "fppd/multiSyncStats",
             "fppd": true,
             "methods": {
