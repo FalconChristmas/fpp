@@ -1751,6 +1751,9 @@
 			"reloadUI": 1,
 			"fppModes": [
 				"player"
+			],
+			"exposedAsJSToPages": [
+				"multisync"
 			]
 		},
 		"MultiSyncExternalIPAddress": {
@@ -1835,28 +1838,40 @@
 			"restart": 2,
 			"size": 64,
 			"maxlength": 128,
-			"type": "text"
+			"type": "text",
+			"exposedAsJSToPages": [
+				"multisync"
+			]
 		},
 		"MultiSyncHide10": {
 			"name": "MultiSyncHide10",
 			"gatherStats": true,
 			"description": "Hide 10.x.x.x/8 Subnets in systems list",
 			"tip": "Hide subnets in private 10.0.0.0/8 IP space.",
-			"type": "checkbox"
+			"type": "checkbox",
+			"exposedAsJSToPages": [
+				"multisync"
+			]
 		},
 		"MultiSyncHide172": {
 			"name": "MultiSyncHide172",
 			"gatherStats": true,
 			"description": "Hide 172.16.x.x/12 Subnets in systems list",
 			"tip": "Hide subnets in private 172.16.0.0/12 IP space.",
-			"type": "checkbox"
+			"type": "checkbox",
+			"exposedAsJSToPages": [
+				"multisync"
+			]
 		},
 		"MultiSyncHide192": {
 			"name": "MultiSyncHide192",
 			"gatherStats": true,
 			"description": "Hide 192.168.x.x/16 Subnets in systems list",
 			"tip": "Hide subnets in private 192.168.0.0/16 IP space.",
-			"type": "checkbox"
+			"type": "checkbox",
+			"exposedAsJSToPages": [
+				"multisync"
+			]
 		},
 		"MultiSyncHTTPSubnets": {
 			"name": "MultiSyncHTTPSubnets",
@@ -1941,7 +1956,10 @@
 					"osPassword",
 					"osPasswordVerify"
 				]
-			}
+			},
+			"exposedAsJSToPages": [
+				"initialSetup"
+			]
 		},
 		"osPasswordVerify": {
 			"name": "osPasswordVerify",
@@ -1967,7 +1985,10 @@
 			"type": "password",
 			"size": 32,
 			"maxlength": 32,
-			"onChange": "CheckPassword"
+			"onChange": "CheckPassword",
+			"exposedAsJSToPages": [
+				"initialSetup"
+			]
 		},
 		"passwordEnable": {
 			"name": "passwordEnable",
@@ -1985,7 +2006,10 @@
 					"password",
 					"passwordVerify"
 				]
-			}
+			},
+			"exposedAsJSToPages": [
+				"initialSetup"
+			]
 		},
 		"passwordVerify": {
 			"name": "passwordVerify",
@@ -2414,7 +2438,10 @@
 				"Advanced": 1,
 				"Experimental": 2,
 				"Developer": 3
-			}
+			},
+			"exposedAsJSToPages": [
+				"all"
+			]
 		},
 		"verbosePlaylistItemDetails": {
 			"name": "verbosePlaylistItemDetails",
