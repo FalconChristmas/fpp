@@ -302,7 +302,7 @@
 			"name": "dhcpServer",
 			"description": "DHCP Server",
 			"tip": "Enable DHCP Server on selected interface.",
-			"gatherStats": false,
+			"gatherStats": true,
 			"level": 1,
 			"restart": 0,
 			"reboot": 1,
@@ -319,7 +319,7 @@
 		"dhcpOffset": {
 			"name": "dhcpOffset",
 			"description": "DHCP Pool Offset",
-			"gatherStats": false,
+			"gatherStats": true,
 			"tip": "Offset for first entry in DHCP Pool.",
 			"level": 1,
 			"reboot": 1,
@@ -333,7 +333,7 @@
 		"dhcpPoolSize": {
 			"name": "dhcpPoolSize",
 			"description": "DHCP Pool Size",
-			"gatherStats": false,
+			"gatherStats": true,
 			"tip": "Number of IP addresses in DHCP Pool.",
 			"level": 1,
 			"reboot": 1,
@@ -348,7 +348,7 @@
 			"name": "ipForwarding",
 			"description": "IP Forwarding",
 			"tip": "Enable forwarding of IP packets through this interface.  Optionally support IP Masquerading/NAT",
-			"gatherStats": false,
+			"gatherStats": true,
 			"level": 1,
 			"restart": 0,
 			"reboot": 1,
@@ -658,6 +658,7 @@
 			"reboot": 0,
 			"restart": 0,
 			"reloadUI": 1,
+			"gatherStats": true,
 			"default": "",
 			"type": "select",
 			"options": {
@@ -681,6 +682,7 @@
 			"description": "Power",
 			"tip": "Controls whether the power indicator LED on the BeagleBone is enabled or disabled",
 			"default": "1",
+			"gatherStats": true,
 			"platforms": [
 				"BeagleBone Black"
 			],
@@ -1045,6 +1047,7 @@
 			"description": "File Manager Thumbnail Size",
 			"tip": "The max height and width of the thumbnail preview for image files in the FPP File Manager UI.  The UI will preserve the aspect ratio to fit the image within this height and width.",
 			"default": 75,
+			"gatherStats": true,
 			"type": "select",
 			"options": {
 				"Disabled": 0,
@@ -2030,6 +2033,7 @@
 			"description": "Scheduler max timeframe to schedule out",
 			"tip": "This setting allows adjusting the approximate timeframe into the future that the scheduler will look when calculating the next scheduled items.  The default is 4 weeks but may be slightly longer based on the current weekday.",
 			"type": "select",
+			"gatherStats": true,
 			"level": 1,
 			"restart": 2,
 			"options": {
@@ -2308,6 +2312,7 @@
 			"name": "temperatureInF",
 			"description": "Temperature display units",
 			"tip": "Display temperatures in Fahrenheit or Celsius",
+			"gatherStats": true,
 			"reloadUI": 1,
 			"default": 0,
 			"type": "select",
