@@ -1,6 +1,7 @@
 ## Falcon Player Configuration File Formats
 
 The global setting file for FPP is located at
+
 ```
 /home/fpp/media/setting
 ```
@@ -10,20 +11,25 @@ file is used to store the one-off non-repetitive configuration settings. The
 configuration for E1.31/DDP Outputs, Playlists, Schedules, are stored in separate config
 files.
 
-Field Definitions: 
+Field Definitions:
 key = value
 
 Sample Data:
+
 ```
 HostName = "FPP"
 fppMode = "player"
 volume = "64"
-
 ```
+
+Setting deifnitions are held in www/settings.json this file documents the structure of the settings definitions:
+
+[Setting Definitions Explained](/Settings_configurations.md)
 
 ## Schedule Configuration File
 
 The Schedule settings are stored in a JSON located at:
+
 ```
 /home/fpp/media/setting/schedule.json
 ```
@@ -32,31 +38,31 @@ The schedule JSON file contains a JSON array of the schedule entries.
 
 #### Field definitions:
 
-    enabled         - 0 or 1 whether the shedule entry is inactive or active
-    playlist        - The name of the playlist to play on this schedule
-    day             - 0-6 - schedule runs on a single day of the week
-                      7   - run the schedule every day
-                      8   - run weekdays (Mon-Fri)
-                      9   - run weekends (Sat-Sun)
-                      10  - run Monday, Wednesday, Friday
-                      11  - run Tuesday, Thursday
-                      12  - run Sunday through Thursday
-                      13  - run Friday and Saturday
-                      14  - run Odd Number Days
-                      15  - run Even Number Days
-    startTime       - Schedule Start Time
-    startTimeOffset - Start Time Offset, Used mostly with Dawn/Dusk Timing
-    endTime         - Schedule End Time
-    endTimeOffset   - Schedule End Offset, Used mostly with Dawn/Dusk Timing
-    repeat          - 0 or 1 to repeat playlist during the scheduled time slot
-    startDate       - Schedule Start Date
-    endDate         - Schedule End Date
-    stopType        - 0 - Graceful, Play until End of Sequence
-                      1 - Hard Start, Stop immediately. 
-                      2 - Graceful Loop, Play through All Playlist Sequences, then stop. 
-
+enabled         - 0 or 1 whether the shedule entry is inactive or active
+playlist        - The name of the playlist to play on this schedule
+day             - 0-6 - schedule runs on a single day of the week
+7   - run the schedule every day
+8   - run weekdays (Mon-Fri)
+9   - run weekends (Sat-Sun)
+10  - run Monday, Wednesday, Friday
+11  - run Tuesday, Thursday
+12  - run Sunday through Thursday
+13  - run Friday and Saturday
+14  - run Odd Number Days
+15  - run Even Number Days
+startTime       - Schedule Start Time
+startTimeOffset - Start Time Offset, Used mostly with Dawn/Dusk Timing
+endTime         - Schedule End Time
+endTimeOffset   - Schedule End Offset, Used mostly with Dawn/Dusk Timing
+repeat          - 0 or 1 to repeat playlist during the scheduled time slot
+startDate       - Schedule Start Date
+endDate         - Schedule End Date
+stopType        - 0 - Graceful, Play until End of Sequence
+1 - Hard Start, Stop immediately.
+2 - Graceful Loop, Play through All Playlist Sequences, then stop.
 
 #### Sample Data:
+
 ```json
 [
     {
@@ -79,6 +85,7 @@ The schedule JSON file contains a JSON array of the schedule entries.
 ## Playlist Configuration Files
 
 Each Playlist is stored in an individual JSON file located at:
+
 ```
 /home/fpp/media/playlists/%Name_OF_Playlist%.json
 ```
@@ -86,6 +93,7 @@ Each Playlist is stored in an individual JSON file located at:
 The Playlist JSON files contains overall JSON parameters and then a JSON array of the Playlist entries.
 
 #### Sample Data:
+
 ```json
 {
     "name": "All Sequences",
@@ -114,6 +122,7 @@ The Playlist JSON files contains overall JSON parameters and then a JSON array o
 ## E1.31/ArtNet/DDP/KiNet Channel Outputs Configuration File
 
 Ethernet based Channel Outputs Configurations are stored in a JSON file located at:
+
 ```
 /home/fpp/media/config/co-universes.json
 ```
@@ -131,8 +140,8 @@ The 'enabled' parameter enables all the Ethernet based Channel Outputs.
 - 6 - KINET V1
 - 7 - KINET V2
 
-
 #### Sample Data:
+
 ```json
 {
 	"channelOutputs": [
@@ -173,6 +182,7 @@ The 'enabled' parameter enables all the Ethernet based Channel Outputs.
 ## Pixel Outputs Configuration File
 
 WS28XX Pixel Outputs Configurations are stored in a JSON file located at:
+
 ```
 /home/fpp/media/config/co-pixelStrings.json
 /home/fpp/media/config/co-bbbStrings.json
@@ -182,6 +192,7 @@ The 'co-pixelStrings.json' file contains the pixel outputs if using a Raspberry 
 'co-bbbStrings.json' file contains the pixel outputs if using a Beaglebone or PocketBeagle.
 
 #### Sample 'co-bbbStrings.json' File Data:
+
 ```json
 {
 	"channelOutputs": [
@@ -311,6 +322,7 @@ The 'co-pixelStrings.json' file contains the pixel outputs if using a Raspberry 
 ## Model Overlays Configuration File
 
 The Model Overlays Configuration File is a JSON file located at:
+
 ```
 /home/fpp/media/config/model-overlays.json
 ```
@@ -320,6 +332,7 @@ The model entries data is used by Display Testing and Effects Overlays.
 This file is generated by xLights, if the Upload Models checkbox is enabled in FPP Connect.
 
 #### Sample Data:
+
 ```json
 {
    "models" : [
@@ -378,5 +391,4 @@ This file is generated by xLights, if the Upload Models checkbox is enabled in F
    ]
 }
 ```
-
 
