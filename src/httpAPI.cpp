@@ -409,7 +409,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PlayerResource::r
         } else {
             result["Status"] = "ERROR";
             result["respCode"] = 400;
-            result["Message"] = "Mqtt Not Initialized";
+            result["Message"] = "Mqtt not Initialized";
         }
     } else {
         LogErr(VB_HTTP, "API - Error unknown GET request: %s\n", url.c_str());
