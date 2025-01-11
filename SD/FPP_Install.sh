@@ -1068,6 +1068,7 @@ if getent group spi > /dev/null; then
 fi
 adduser ${FPPUSER} video
 adduser ${FPPUSER} audio
+adduser ${FPPUSER} dialout
 # FIXME, use ${FPPUSER} here instead of hardcoding
 sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
 
