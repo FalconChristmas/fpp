@@ -3617,3 +3617,11 @@ a.api-anchor {
     display: block;
     text-align: left;
 }
+
+/* Compatibility / Accessibility fixes - last review Jan 2025  */
+/* JQuery UI Overrides */
+.ui-helper-zfix {
+    -ms-filter: "alpha(opacity=0)";
+    filter: "alpha(opacity=0)";
+}
+

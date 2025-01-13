@@ -244,7 +244,7 @@ function list_plugin_entries($menu)
             <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
                     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-
+    </textarea>
                 </div>
                 <script>
                     function RebuildFPPDDone() {
@@ -353,7 +353,7 @@ function list_plugin_entries($menu)
                                 <a class="dropdown-item" href="plugins.php"><i class="fas fa-puzzle-piece"></i> Plugin
                                     Manager</a>
                                 <? if ($uiLevel >= 2) { ?>
-                                <a class="dropdown-item" href="packages.php"><i class="fas fa-box"></i> Packages </a>
+                                    <a class="dropdown-item" href="packages.php"><i class="fas fa-box"></i> Packages </a>
                                 <? } ?>
                                 <?php list_plugin_entries("content"); ?>
                             </div>
@@ -413,8 +413,8 @@ function list_plugin_entries($menu)
                                     target="_blank" rel="noopener noreferrer"><i class="fas fa-comments"></i> Forums <i
                                         class="fas fa-external-link-alt external-link"></i></a>
                                 <a class="<?= $externalLinkClass ?>"
-                                    href="https://github.com/FalconChristmas/fpp/issues" target="_blank" rel="noopener noreferrer"><i
-                                        class="fas fa-bug"></i> Issue Tracker <i
+                                    href="https://github.com/FalconChristmas/fpp/issues" target="_blank"
+                                    rel="noopener noreferrer"><i class="fas fa-bug"></i> Issue Tracker <i
                                         class="fas fa-external-link-alt external-link"></i></a>
                                 <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Help
                                     Index</a>
