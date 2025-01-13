@@ -438,7 +438,7 @@
                                     <i class='fas fa-fw fa-volume-down'></i>
                                 </button>
                                 <input type="range" min="0" max="100" class="slider" id="remoteVolumeSlider"
-                                    oninput="RemoteVolumeControlChange(this.value)">
+                                    title="remoteVolumeSlider" oninput="RemoteVolumeControlChange(this.value)">
                                 <button class='volumeButton buttons' onClick="IncrementVolume();"
                                     aria-label="IncrementVolume">
                                     <i class='fas fa-fw fa-volume-up'></i>
@@ -514,7 +514,7 @@
                                 </div>
                                 <div class="row playlistSelectRow">
                                     <div class="col-auto playlistSelectCol">
-                                        <select id="playlistSelect" name="playlistSelect"
+                                        <select id="playlistSelect" title="playlistSelect" name="playlistSelect"
                                             class="form-control form-control-lg form-control-rounded has-shadow"
                                             size="1" onClick="PopulatePlaylistDetailsEntries(true,'');"
                                             onChange="PopulatePlaylistDetailsEntries(true,'');">
