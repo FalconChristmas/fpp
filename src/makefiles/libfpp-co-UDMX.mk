@@ -1,4 +1,4 @@
-OBJECTS_fpp_co_UDMX_so += channeloutput/uDMX.o
+OBJECTS_fpp_co_UDMX_so += channeloutput/UDMX.o
 LIBS_fpp_co_UDMX_so += -L. -lfpp -ljsoncpp -lusb-1.0
 
 TARGETS += libfpp-co-UDMX.$(SHLIB_EXT)
