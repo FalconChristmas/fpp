@@ -1427,6 +1427,7 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone 64" ]; then
     make -j ${CPUS}
     make install
     make clean
+    cp /boot/firmware/extlinux/extlinux.conf /boot/firmware/extlinux/extlinux.conf.orig
     cp extlinux/extlinux.conf /boot/firmware/extlinux/extlinux.conf
     cd ~
         
