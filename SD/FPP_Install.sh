@@ -48,8 +48,8 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2024-11"
-FPPCFGVER="91"
+FPPIMAGEVER="2025-01"
+FPPCFGVER="93"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -390,12 +390,10 @@ case "${OSVER}" in
 	debian_12 | ubuntu_24.* | linuxmint_21)
 
         #remove a bunch of packages that aren't neeeded, free's up space
-        PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy triggerhappy pocketsphinx-en-us python3-smbus guile-2.2-libs \
-            python3-werkzeug python3-click python3-colorama python3-decorator python3-dev python3-distro \
-            python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
-            gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv iwd"
+        PACKAGE_REMOVE="nginx nginx-full nginx-common  triggerhappy pocketsphinx-en-us guile-2.2-libs \
+            gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv"
         if [ "$FPPPLATFORM" == "BeagleBone 64" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
-            PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer mender-client bb-code-server nginx nginx-common"
+            PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer mender-client bb-code-server"
         fi
         if $desktop; then
             #don't remove anything from a desktop
@@ -1313,7 +1311,7 @@ a2enmod mpm_event
 a2enmod http2
 a2enmod cgi
 a2enmod rewrite
-a2ermod expires
+a2enmod expires
 a2enmod proxy
 a2enmod proxy_http
 a2enmod proxy_http2
@@ -1420,6 +1418,23 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/rep*
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/sun*
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/vmw*
+fi
+if [ "x${FPPPLATFORM}" = "xBeagleBone 64" ]; then
+    #######################################
+    ## With just 512M of ram, reserving hugepages makes little sense
+    systemctl disable dev-hugepages.mount
+    ## BB64 pretty much requires "real" swap so we won't use the zramswap
+    systemctl disable zramswap
+    
+    cd /opt/fpp/capes/drivers/bb64
+    make -j ${CPUS}
+    make install
+    make clean
+    cp extlinux/extlinux.conf /boot/firmware/extlinux/extlinux.conf
+    cd ~
+        
+    #Set colored prompt
+    sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
 fi
 
 if $isimage; then
