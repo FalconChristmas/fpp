@@ -1,0 +1,8 @@
+/dts-v1/;
+/plugin/;
+
+&{/chosen} {
+        overlays {
+                fpp-cape-overlay = "DEFAULT_CAPE_OVERLAY";
+        };
+};
