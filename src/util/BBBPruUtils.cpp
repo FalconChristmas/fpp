@@ -137,9 +137,6 @@ static void initPrus() {
     uint32_t ddr_addr = DDR_ADDR;
     size_t ddr_sizeb = DDR_SIZE;
 
-    if (!FileExists("/sys/class/remoteproc/remoteproc0/state")) {
-        system("modprobe pru_rproc");
-    }
     if (ddr_mem_loc == nullptr && !FAKE_PRU) {
         ddr_phy_mem_loc = ddr_addr;
         ddr_filelen = ddr_sizeb;
@@ -258,23 +255,23 @@ int BBBPru::run(const std::string& program) {
 }
 
 #ifdef PLATFORM_BBB
-void BBBPru::clearPRUMem(uint8_t *ptr, size_t sz) {
+void BBBPru::clearPRUMem(uint8_t* ptr, size_t sz) {
     memset(ptr, 0, sz);
 }
-void BBBPru::memcpyToPRU(uint8_t *dst, uint8_t*src, size_t sz) {
+void BBBPru::memcpyToPRU(uint8_t* dst, uint8_t* src, size_t sz) {
     memcpy(dst, src, sz);
 }
 #elif defined(PLATFORM_BB64)
-// The optimized memset and memcpy on Arm64 will segfault 
-// when doing certain sized operations to un-cacheable 
+// The optimized memset and memcpy on Arm64 will segfault
+// when doing certain sized operations to un-cacheable
 // ram segments.  Need to use ldnp/stnp instructions
-void memcpy_ldnp(volatile unsigned char *dst, volatile unsigned char *src, int sztotal)
-{
-    int sz = sztotal - sztotal & 64;;
+void memcpy_ldnp(volatile unsigned char* dst, volatile unsigned char* src, int sztotal) {
+    int sz = sztotal - sztotal & 64;
+
     for (int x = sz; x < sztotal; x++) {
         dst[x] = src[x];
     }
-    asm volatile (
+    asm volatile(
         "NEONCopyPLD: \n"
         "sub %[dst], %[dst], #64 \n"
         "1: \n"
@@ -286,26 +283,28 @@ void memcpy_ldnp(volatile unsigned char *dst, volatile unsigned char *src, int s
         "stnp q0, q1, [%[dst]] \n"
         "stnp q2, q3, [%[dst], #32] \n"
         "b.gt 1b \n"
-        : [dst]"+r"(dst), [src]"+r"(src), [sz]"+r"(sz) : : "q0", "q1", "q2", "q3", "cc", "memory");
+        : [dst] "+r"(dst), [src] "+r"(src), [sz] "+r"(sz) : : "q0", "q1", "q2", "q3", "cc", "memory");
 }
 
-void BBBPru::clearPRUMem(uint8_t *ptr, size_t sz) {
+void BBBPru::clearPRUMem(uint8_t* ptr, size_t sz) {
     __uint128_t z = 0;
     int c = sz / sizeof(z);
-    __uint128_t *p = (__uint128_t*)ptr;
+    __uint128_t* p = (__uint128_t*)ptr;
     for (int x = 0; x < c; ++x) {
         *p = z;
         p++;
     }
-    for (int x =  c * sizeof(z); x < sz; ++x) {
+    for (int x = c * sizeof(z); x < sz; ++x) {
         ptr[x] = 0;
     }
 }
-void BBBPru::memcpyToPRU(uint8_t *dst, uint8_t*src, size_t sz) {
+void BBBPru::memcpyToPRU(uint8_t* dst, uint8_t* src, size_t sz) {
     memcpy_ldnp(dst, src, sz);
 }
 #endif
 
 void BBBPru::stop() {
-    prus[pru_num].disable();
+    if (!FAKE_PRU) {
+        prus[pru_num].disable();
+    }
 }
