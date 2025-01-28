@@ -3,8 +3,8 @@
 cd /opt
 git clone https://code.videolan.org/videolan/vlc.git
 cd vlc
-# this is latest master as of 08/20/2024
-git checkout qfeb88734eb114cfb4057235d7672a74a5793901b
+# this is latest master as of 01/28/2025
+git checkout 94f273566e2d12987f37bd9e0a601b49be86ad17
 
 # make sure symlink to libGL exists.  On Beagles and docker, it won't unless
 # a BUNCH of dev packages are installed which we'd like to avoid
