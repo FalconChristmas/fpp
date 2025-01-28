@@ -2,25 +2,16 @@
 /plugin/;
 
 /* Reserve 4M DDR memory for the pixel buffers */
-/ {
-
-
-    // identification
-    part-number = "FPP-RESERVED-MEMORY";
-    version = "00A0";
-
-	fragment@0 {
-		target-path = "/";
-		__overlay__ {
-			reserved-memory {
-				#address-cells = <2>;
-				#size-cells = <2>;
-
-				fpp_reserved: fpp_reserved@8f000000 {
-					reg = <0x00 0x8f000000 0x00 0x00400000>;
-				};      
-			};   
-		};
-	};
+&{/chosen} {
+        overlays {
+                fpp-reserved-memory = "FPP_RESERVED_MEMORY";
+        };
 };
 
+&reserved_memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		fpp_reserved: fpp_reserved@8f000000 {
+			reg = <0x00 0x8f000000 0x00 0x00400000>;
+		};
+};
