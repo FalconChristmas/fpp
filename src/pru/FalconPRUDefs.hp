@@ -103,9 +103,10 @@
 // Address for the Constant table Programmable Pointer Register 1(CTPPR_1)
 #define CTPPR_1         0x2202C
 
-
-#define NSPERCLK  3
-#define NS2CLK(ns) ((ns) / 3)
+// For now, we run the AM62x PRU's at 250Mhz because DDR latency is too 
+// high when running at 333Mhz.   Issue is known at TI, no solution yet.
+#define NSPERCLK  4
+#define NS2CLK(ns) ((ns) / 4)
 
 #define SHM_SIZE (32 * 1024)
 
