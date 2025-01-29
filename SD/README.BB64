@@ -1,0 +1,39 @@
+# FPP BB64 Image creation notes (work in progress)
+#
+# FPP images are currently based on the following Debian pocketbeagle2 images:
+# https://rcn-ee.net/rootfs/debian-arm64-12-bookworm-minimal-v6.12-ti/2025-01-23/
+
+# First, mount the rootfs on a Linux machine.   We need to disable the growfs on
+# first boot:
+cd /media/${USER}/rootfs
+sudo rm ./etc/systemd/system/multi-user.target.wants/grow_partition.service
+sudo rm ./var/lib/systemd/deb-systemd-helper-enabled/grow_partition.service.dsh-also
+sudo wget -4 -O ./etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+sudo rm ./etc/systemd/network/eth0* /etc/systemd/network/mlan* /etc/systemd/network/wlan*
+cd /media/${USER}/BOOT
+sudo nano systconf.txt
+    user_name=fpp
+    user_passowrd=falcon
+cd /media/${USER}/
+sudo umount BOOT
+sudo umount rootfs
+
+
+# Insert into PB2 and power up
+sudo bash
+apt-get update
+apt-get upgrade
+
+# Free up some space by removing stuff we know won't be needed
+apt-get remove --purge bb-node-red-installer bb-code-server ti-zephyr-firmware bb-u-boot-beagleboneai64 bb-u-boot-beagleplay bb-u-boot-beagleplay-mainline
+rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1-* /opt/source/dtb-6.6-*  /opt/source/spi*
+
+
+cd /root
+wget -4 -O ./FPP_Install.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+chmod 700 ./FPP_Install.sh
+./FPP_Install.sh --img
+
+
+    
+
