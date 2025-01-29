@@ -954,26 +954,21 @@
                         <br>
                         <div class="callout callout-warning">
                             <h4>Warning:</h4> Turning on tethering may make FPP unavailable. The WIFI adapter will be
-                            used for
-                            tethering and will thus not be usable for normal network operations. The WIFI tether IP
-                            address will be
-                            192.168.8.1 for Hostapd tethering, but unpredictable for ConnMan (although likely
-                            192.168.0.1).
+                            used for tethering and will thus not be usable for normal network operations. The WIFI
+                            tether IP
+                            address will be 192.168.8.1.
                             </p>
 
                             <p>
-                                <? if ($settings['Platform'] == "BeagleBone Black") { ?>
+                                <? if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "BeagleBone 64") { ?>
                                     On BeagleBones, USB tethering is available. The IP address for USB tethering would be
-                                    192.168.6.2
-                                    (OSX/Linux) or 192.168.7.2 (Windows).
+                                    192.168.6.2 (OSX/Linux) or 192.168.7.2 (Windows).
                                 <? } ?>
                                 <? if ($settings['Platform'] == "Raspberry Pi") { ?>
                                     On the Pi Zero and Pi Zero W devices, USB tethering is available if using an appropriate
                                     USB cable plugged into the USB port, not the power-only port. Don't plug anything into
                                     the power port for this. The IP address for USB tethering would be 192.168.7.2.
                                 <? } ?>
-
-
 
                         </div>
                         <p>
