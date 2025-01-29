@@ -3,7 +3,8 @@
 		"BBBLeds": {
 			"description": "BeagleBone LEDs",
 			"platforms": [
-				"BeagleBone Black"
+				"BeagleBone Black",
+				"BeagleBone 64"
 			],
 			"settings": [
 				"BBBLeds0",
@@ -698,16 +699,11 @@
 			"tip": "Controls the function of the USR0 LED indicator on the BeagleBone",
 			"default": "heartbeat",
 			"platforms": [
-				"BeagleBone Black"
+				"BeagleBone Black",
+				"BeagleBone 64"
 			],
 			"type": "select",
-			"options": {
-				"Disabled": "none",
-				"Heartbeat": "heartbeat",
-				"SD Card Activity": "mmc0",
-				"eMMC Activity": "mmc1",
-				"CPU Activity": "cpu"
-			}
+			"optionsURL": "api/settings/BBBLeds/options"
 		},
 		"BBBLeds1": {
 			"name": "BBBLeds1",
@@ -715,16 +711,11 @@
 			"tip": "Controls the function of the USR1 LED indicator on the BeagleBone",
 			"default": "mmc0",
 			"platforms": [
-				"BeagleBone Black"
+				"BeagleBone Black",
+				"BeagleBone 64"
 			],
 			"type": "select",
-			"options": {
-				"Disabled": "none",
-				"Heartbeat": "heartbeat",
-				"SD Card Activity": "mmc0",
-				"eMMC Activity": "mmc1",
-				"CPU Activity": "cpu"
-			}
+			"optionsURL": "api/settings/BBBLeds/options"
 		},
 		"BBBLeds2": {
 			"name": "BBBLeds2",
@@ -732,16 +723,11 @@
 			"tip": "Controls the function of the USR2 LED indicator on the BeagleBone",
 			"default": "cpu",
 			"platforms": [
-				"BeagleBone Black"
+				"BeagleBone Black",
+				"BeagleBone 64"
 			],
 			"type": "select",
-			"options": {
-				"Disabled": "none",
-				"Heartbeat": "heartbeat",
-				"SD Card Activity": "mmc0",
-				"eMMC Activity": "mmc1",
-				"CPU Activity": "cpu"
-			}
+			"optionsURL": "api/settings/BBBLeds/options"
 		},
 		"BBBLeds3": {
 			"name": "BBBLeds3",
@@ -749,16 +735,11 @@
 			"tip": "Controls the function of the USR3 LED indicator on the BeagleBone",
 			"default": "mmc1",
 			"platforms": [
-				"BeagleBone Black"
+				"BeagleBone Black",
+				"BeagleBone 64"
 			],
 			"type": "select",
-			"options": {
-				"Disabled": "none",
-				"Heartbeat": "heartbeat",
-				"SD Card Activity": "mmc0",
-				"eMMC Activity": "mmc1",
-				"CPU Activity": "cpu"
-			}
+			"optionsURL": "api/settings/BBBLeds/options"
 		},
 		"blankBetweenSequences": {
 			"name": "blankBetweenSequences",
