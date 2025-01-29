@@ -71,8 +71,8 @@ jobs:
           platforms: linux/${{ matrix.architecture }}
           tags: ${{ env.IMAGE_REPOSITORY }}/fpp:${{ steps.extract_branch.outputs.branch }},${{ env.IMAGE_REPOSITORY }}/fpp:latest
           push: true
-          cache-from: type=registry,ref=${{ env.IMAGE_REPOSITORY }}/fpp:master
-          cache-to: type=inline
+          cache-from: type=gha,scope=fpp-build-${{ matrix.architecture }}
+          cache-to: type=gha,scope=fpp-build-${{ matrix.architecture }},mode=max
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
