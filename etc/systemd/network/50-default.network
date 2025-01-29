@@ -10,3 +10,4 @@ LinkLocalAddressing=fallback
 
 [DHCPv4]
 ClientIdentifier=mac
+UseDomains=true

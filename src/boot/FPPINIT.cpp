@@ -630,7 +630,7 @@ static void setupNetwork() {
             }
             content.append("\n");
             if (interfaceSettings["PROTO"] == "dhcp") {
-                content.append("[DHCPv4]\nClientIdentifier=mac\n");
+                content.append("[DHCPv4]\nClientIdentifier=mac\nUseDomains=true\n");
             } else if (ROUTEMETRIC != 0) {
                 content.append("[DHCPv4]\n");
             }
