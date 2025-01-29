@@ -1,6 +1,5 @@
 #!/bin/bash
 
-<<<<<<< HEAD
 cd /opt
 git clone https://code.videolan.org/videolan/vlc.git
 cd vlc
@@ -15,6 +14,7 @@ if [ -f ${LIBDIR}/libGL.so.1 ]; then
         ln -s ${LIBDIR}/libGL.so.1 ${LIBDIR}/libGL.so
     fi
 fi
+ARMV=$(uname -m)
 case "${ARMV}" in
     "aarch64" | "arm64" | "arm" | "armv7l" )
         # On Arm, we'll install the vlc from the repository so we'll get whatever acceleration
