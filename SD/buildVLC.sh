@@ -1,8 +1,6 @@
 #!/bin/bash
 
 ARMV=$(uname -m)
-if [ "$ARMV" = "aarch64" ]; then
-fi
 case "${ARMV}" in
     "aarch64" | "arm64" | "arm" | "armv7l" )
         # On Arm, we'll install the vlc from the repository so we'll get whatever acceleration
