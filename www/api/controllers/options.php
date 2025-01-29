@@ -279,6 +279,24 @@ function GetOptions_VideoOutput($playlist)
     return json($VideoOutputModels);
 }
 
+
+function GetOptions_BBBLeds()
+{
+    global $settings;
+    $options = array();
+    $options["Disabled"] = "none";
+    $options["Heartbeat"] = "heartbeat";
+    $options["CPU Activity"] = "cpu";
+    if ($settings["Platform"] == "BeagleBone 64") {
+        $options["SD Card Activity"] = "mmc1";
+        $options["eMMC Activity"] = "mmc0";
+    } else {
+        $options["SD Card Activity"] = "mmc0";
+        $options["eMMC Activity"] = "mmc1";
+    }
+    return json($options);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/options/:SettingName
 function GetOptions()
@@ -298,6 +316,8 @@ function GetOptions()
             return GetOptions_AudioInputDevice(true);
         case 'FrameBuffer':
             return GetOptions_FrameBuffer();
+        case 'BBBLeds':
+            return GetOptions_BBBLeds();
         case 'Locale':
             return GetOptions_Locale();
         case 'RTC':

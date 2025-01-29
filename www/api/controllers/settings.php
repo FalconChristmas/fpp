@@ -41,7 +41,7 @@ function GetSetting()
 
 function PutSetting()
 {
-    global $SUDO;
+    global $SUDO, $settings;
     $value = file_get_contents('php://input');
     $setting = params('SettingName');
 
@@ -135,7 +135,7 @@ function PutSetting()
             WriteSettingToFile("TetherPSK", $psk);
         }
     } else if ($setting == "BBBLeds0" || $setting == "BBBLeds1" || $setting == "BBBLeds2" || $setting == "BBBLeds3" || $setting == "BBBLedPWR") {
-        SetBBBLeds();
+        exec($SUDO . " " . $settings['fppDir'] . "/src/fppinit configureBBB", $output);
     } else if ($setting == "scheduling") {
         SendCommand("EnableScheduling,$value,");
     } else {

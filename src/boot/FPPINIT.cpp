@@ -304,6 +304,16 @@ void handleBootActions() {
     }
 }
 
+inline const std::string& mapBBBLedValue(const std::string& v) {
+#ifdef PLATFORM_BB64
+    if (v == "cpu") {
+        static const std::string activity = "activity";
+        return activity;
+    }
+#endif
+    return v;
+}
+
 void configureBBB() {
 #ifdef PLATFORM_BBB
     if (FileExists("/dev/mmcblk1")) {
@@ -343,16 +353,24 @@ void configureBBB() {
 #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
     std::string led;
     if (getRawSetting("BBBLeds0", led) && !led.empty()) {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr0/trigger", led);
+        PutFileContents("/sys/class/leds/beaglebone:green:usr0/trigger", mapBBBLedValue(led));
+    } else {
+        PutFileContents("/sys/class/leds/beaglebone:green:usr0/trigger", "heartbeat");
     }
     if (getRawSetting("BBBLeds1", led) && !led.empty()) {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr1/trigger", led);
+        PutFileContents("/sys/class/leds/beaglebone:green:usr1/trigger", mapBBBLedValue(led));
+    } else {
+        PutFileContents("/sys/class/leds/beaglebone:green:usr1/trigger", "mmc0");
     }
     if (getRawSetting("BBBLeds2", led) && !led.empty()) {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr2/trigger", led);
+        PutFileContents("/sys/class/leds/beaglebone:green:usr2/trigger", mapBBBLedValue(led));
+    } else {
+        PutFileContents("/sys/class/leds/beaglebone:green:usr3/trigger", mapBBBLedValue("cpu"));
     }
     if (getRawSetting("BBBLeds3", led) && !led.empty()) {
         PutFileContents("/sys/class/leds/beaglebone:green:usr3/trigger", led);
+    } else {
+        PutFileContents("/sys/class/leds/beaglebone:green:usr3/trigger", "mmc1");
     }
 #endif
 }
@@ -1357,6 +1375,8 @@ int main(int argc, char* argv[]) {
         runScripts("postStop", false);
     } else if (action == "setupAudio") {
         setupAudio();
+    } else if (action == "configureBBB") {
+        configureBBB();
     } else if (action == "setupNetwork") {
         PutFileContents(networkSetupMut, "1");
         setupNetwork();
