@@ -51,6 +51,19 @@ public:
             FILE* rp = fopen(filename.c_str(), "w");
             fprintf(rp, "stop");
             fclose(rp);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::string f = GetFileContents(filename);
+            TrimWhiteSpace(f);
+            int cnt = 0;
+            while (f != "offline" && cnt < 500) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                f = GetFileContents(filename);
+                TrimWhiteSpace(f);
+                cnt++;
+            }
+            if (f != "offline") {
+                LogWarn(VB_CHANNELOUT, "BBBPru::Pru::disable() - could not stop PRU core %d   State: %s\n", pru_num, f.c_str());
+            }
         }
     }
     void enable() {
@@ -64,6 +77,19 @@ public:
             FILE* rp = fopen(filename.c_str(), "w");
             fprintf(rp, "start");
             fclose(rp);
+            cnt = 0;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::string f = GetFileContents(filename);
+            TrimWhiteSpace(f);
+            while (f != "running" && cnt < 500) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                f = GetFileContents(filename);
+                TrimWhiteSpace(f);
+                cnt++;
+            }
+            if (f != "running") {
+                LogWarn(VB_CHANNELOUT, "BBBPru::Pru::enable() - could not start PRU core %d    State: %s\n", pru_num, f.c_str());
+            }
         } else {
             LogWarn(VB_CHANNELOUT, "BBBPru::Pru::enable() - could not start PRU core %d\n", pru_num);
         }
