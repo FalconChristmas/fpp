@@ -30,6 +30,16 @@ Ball& Ball::query() {
     }
     return *this;
 }
+uint32_t Ball::queryRawMode() {
+    if (offset) {
+        uint8_t* d = DOMAINS[domain];
+        d += offset;
+        uint32_t* v = (uint32_t*)d;
+        return *v;
+    }
+    return 0xFFFFFFFF;
+}
+
 std::string Ball::queryMode() {
     if (offset) {
         uint8_t* d = DOMAINS[domain];
@@ -40,6 +50,17 @@ std::string Ball::queryMode() {
                 return m.first;
             }
         }
+        for (auto& m : modesetCommands) {
+            // allow returning reset if it is the only mode
+            if (!m.second.empty() && m.second.back() == *v) {
+                return m.first;
+            }
+        }
+        /*
+        for (auto& m : modesetCommands) {
+            printf("   %s:  %X (%d)", m.first.c_str(), m.second.back(), m.second.size());
+        }
+        */
     }
     return "";
 }
