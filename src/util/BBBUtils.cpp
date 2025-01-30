@@ -272,7 +272,7 @@ int BBBPinCapabilities::configPin(const std::string& m,
             pm = "gpio_out";
         }
         snprintf(buf, 256, "/usr/bin/pinctrl -s %s %s", pinName, m.c_str());
-        printf("%s\n", buf);
+        // printf("%s\n", buf);
         system(buf);
     }
 
