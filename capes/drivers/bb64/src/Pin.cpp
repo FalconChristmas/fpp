@@ -81,3 +81,13 @@ Pin& Pin::modesFromBall(const std::string& b) {
     }
     return *this;
 }
+Pin& Pin::modesFromBallNoConflicts(const std::string& b) {
+    std::string bn = b.empty() ? balls.front() : b;
+    auto& ball = Ball::findBall(bn);
+    for (auto& m : ball.modesetCommands) {
+        if (m.first != "reset" && modes.find(m.first) == modes.end()) {
+            addMode(m.first, bn, m.first);
+        }
+    }
+    return *this;
+}

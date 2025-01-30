@@ -80,7 +80,7 @@ void InitPocketBeagle2() {
     Pin::addPin("P2_28").addBall("AB24").modesFromBall();
     Pin::addPin("P2_29").addBall("M22").addBall("A14").modesFromBall("M22");
     Pin::addPin("P2_30").addBall("AA24").modesFromBall();
-    Pin::addPin("P2_31").addBall("AA18").addBall("A13").modesFromBall("AA18");
+    Pin::addPin("P2_31").addBall("AA18").addBall("A13").modesFromBall("A13").modesFromBallNoConflicts("AA18");
     Pin::addPin("P2_32").addBall("AB25").modesFromBall();
     Pin::addPin("P2_33").addBall("AA25").modesFromBall().addMode("uart", "AA25", "uart5_tx");
     Pin::addPin("P2_34").addBall("AA21").modesFromBall();
