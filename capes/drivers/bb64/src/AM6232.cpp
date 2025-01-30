@@ -75,8 +75,8 @@ void InitAM6232Balls() {
     addBall("N20", MAIN_DOMAIN, 0x094, true, 4);
     addBall("M21", MAIN_DOMAIN, 0x0A8);
     addBall("L21", MAIN_DOMAIN, 0x0AC);
-    addBall("K22", MAIN_DOMAIN, 0x0B0, true, 4).addMode("uart4_rx", { PIN_INPUT | 3 });
-    addBall("K24", MAIN_DOMAIN, 0x0B4, true).addMode("uart4_tx", { PIN_OUTPUT | 3 });
+    addBall("K22", MAIN_DOMAIN, 0x0B0, true, 4).addMode("uart4_rx", { PIN_INPUT | 3 }).addMode("i2c", { PIN_INPUT_PULLUP | 1 });
+    addBall("K24", MAIN_DOMAIN, 0x0B4, true).addMode("uart4_tx", { PIN_OUTPUT | 3 }).addMode("i2c", { PIN_INPUT_PULLUP | 1 });
     addBall("U23", MAIN_DOMAIN, 0x098);
     addBall("V25", MAIN_DOMAIN, 0x09C);
     addBall("B16", MAIN_DOMAIN, 0x1E0);
@@ -121,8 +121,8 @@ void InitAM6232Balls() {
     addBall("C13", MAIN_DOMAIN, 0x1B8, true);
     addBall("B13", MAIN_DOMAIN, 0x1C0, true);
     addBall("B14", MAIN_DOMAIN, 0x1C4, true);
-    addBall("A15", MAIN_DOMAIN, 0x1D0, true).addMode("uart2_rx", { PIN_INPUT | 3 });
-    addBall("B15", MAIN_DOMAIN, 0x1D4, true).addMode("uart3_tx", { PIN_OUTPUT | 3 });
+    addBall("A15", MAIN_DOMAIN, 0x1D0, true).addMode("uart2_rx", { PIN_INPUT | 3 }).addMode("i2c", { PIN_INPUT_PULLUP | 2 });
+    addBall("B15", MAIN_DOMAIN, 0x1D4, true).addMode("uart3_tx", { PIN_OUTPUT | 3 }).addMode("i2c", { PIN_INPUT_PULLUP | 2 });
     addBall("D14", MAIN_DOMAIN, 0x1C8, true).addMode("uart0_rx", { PIN_INPUT | 0 });
     addBall("E14", MAIN_DOMAIN, 0x1CC, true).addMode("uart0_tx", { PIN_OUTPUT | 0 });
     addBall("F18", MAIN_DOMAIN, 0x258, true);

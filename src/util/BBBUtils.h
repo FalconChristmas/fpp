@@ -47,7 +47,7 @@ public:
     virtual bool supportPWM() const override;
     virtual Json::Value toJSON() const override;
 
-    BBBPinCapabilities& setPRU(int p, int pin, uint8_t inm, uint8_t outm) {
+    BBBPinCapabilities& setPRU(int p, int pin) {
         pru = p;
         pruPin = pin;
         return *this;
@@ -58,16 +58,16 @@ public:
         gpio = pin;
         return *this;
     }
-    BBBPinCapabilities& setPwm(int p, int sub, int8_t mode) {
+    BBBPinCapabilities& setPwm(int p, int sub) {
         pwm = p;
         subPwm = sub;
         return *this;
     }
-    BBBPinCapabilities& setI2C(int i2c, int8_t mode) {
+    BBBPinCapabilities& setI2C(int i2c) {
         i2cBus = i2c;
         return *this;
     }
-    BBBPinCapabilities& setUART(const std::string& u, int mode) {
+    BBBPinCapabilities& setUART(const std::string& u) {
         uart = u;
         return *this;
     }

@@ -25,6 +25,7 @@ public:
     }
 
     std::string queryMode();
+    uint32_t queryRawMode();
     Ball& query();
     Ball& setMode(const std::string& m);
 

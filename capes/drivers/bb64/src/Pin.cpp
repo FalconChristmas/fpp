@@ -30,12 +30,23 @@ const Pin& Pin::listModes() const {
             break;
         }
     }
-
+    bool found = false;
     for (const auto& md : modes) {
         if (md.first == qm) {
             printf("[%s] ", md.first.c_str());
+            found = true;
         } else {
             printf("%s ", md.first.c_str());
+        }
+    }
+    if (!found) {
+        if (qm == "") {
+            for (auto& b : balls) {
+                uint32_t bm = Ball::findBall(b).queryRawMode();
+                printf("     Cur Mode: %X", bm);
+            }
+        } else {
+            printf("[%s] ", qm.c_str());
         }
     }
     printf("\n");
