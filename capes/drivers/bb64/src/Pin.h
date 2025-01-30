@@ -22,6 +22,7 @@ public:
         return *this;
     }
     Pin& modesFromBall(const std::string& b = "");
+    Pin& modesFromBallNoConflicts(const std::string& b = "");
 
     const Pin& query() const;
     const Pin& listModes() const;
