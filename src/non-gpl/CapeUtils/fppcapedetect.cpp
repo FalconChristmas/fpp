@@ -57,8 +57,17 @@ int remove_recursive(const char* const path, bool removeThis = true) {
 int main(int argc, char* argv[]) {
     remove_recursive("/home/fpp/media/tmp/", false);
     try {
-        CapeUtils::INSTANCE.initCape(false);
-        if (argc > 1 && strcmp(argv[1], "-no-set-permissions") != 0) {
+        bool readonly = false;
+        bool noperms = false;
+        for (int i = 1; i < argc; i++) {
+            if (!strcmp(argv[i], "-ro")) {
+                readonly = true;
+            } else if (!strcmp(argv[i], "-no-set-permissions")) {
+                noperms = true;
+            }
+        }
+        CapeUtils::INSTANCE.initCape(readonly);
+        if (!noperms) {
             struct passwd* pwd = getpwnam("fpp");
             if (pwd) {
                 for (const auto& entry : std::filesystem::directory_iterator("/home/fpp/media/tmp/")) {
