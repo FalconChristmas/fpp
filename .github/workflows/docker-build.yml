@@ -24,10 +24,10 @@ jobs:
     # steps to perform in job
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        run: sudo apt-get update && sudo apt-get install qemu-user-static -y
         
       # setup Docker buld action
       - name: Set up Docker Buildx
