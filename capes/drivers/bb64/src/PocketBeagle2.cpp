@@ -19,15 +19,12 @@ void InitPocketBeagle2() {
         }
     }
 
-    if (!isBeaglePlay) {
-        Pin::addPin("P1_02").addBall("E18").addBall("AA19").modesFromBall("E18");
-    } else {
-        Pin::addPin("P1_02").addBall("E18").modesFromBall("E18");
-    }
     Pin::addPin("P1_03").addBall("F18").modesFromBall();
     if (!isBeaglePlay) {
-        Pin::addPin("P1_04").addBall("Y18").addBall("D20").modesFromBall("Y18");
+        Pin::addPin("P1_02").addBall("E18").addBall("AA19").modesFromBall("E18");
+        Pin::addPin("P1_04").addBall("D20").addBall("Y18").modesFromBall("D20");
     } else {
+        Pin::addPin("P1_02").addBall("E18").modesFromBall("E18");
         Pin::addPin("P1_04").addBall("D20").modesFromBall("D20");
     }
     Pin::addPin("P1_06").addBall("E19").addBall("AD18").modesFromBall("E19").addMode("uart", "E19", "uart1_rx");
