@@ -665,7 +665,7 @@
                 newRow += "></td>" +
                     "<td class='type' style='vertical-align:top'>" + typeFriendlyName + "<input class='type' type='hidden' name='type' value='" + type + "'></td>" +
                     "<td style='vertical-align:top'><input class='start' type=number min=1 max=" + FPPD_MAX_CHANNELS + " value='" + output.startChannel + "'" + startDisabled + "></td>" +
-                    "<td style='vertical-align:top'><input class='count' type=number min=1 max=" + maxChannel + " value='" + numChannel + "'" + countDisabled + ">" + output.channelCount + "</td>" +
+                    "<td style='vertical-align:top'><input class='count' type=number min=1 max=" + maxChannel + " value='" + numChannel + "'" + countDisabled + "></td>" +
                     "<td style='vertical-align:top' class='config'>";
 
                 if ((type == "DMX-Pro") ||
