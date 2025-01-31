@@ -20,7 +20,7 @@
 #include "../common.h"
 #include "../log.h"
 
-#include "serialutil.h"
+#include "SerialChannelOutput.h"
 
 #include "LOR.h"
 
@@ -30,21 +30,18 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-class LOROutputData {
+class LOROutputData : public SerialChannelOutput {
 public:
     LOROutputData() :
-        fd(-1),
+        SerialChannelOutput(),
         speed(19200),
         controllerOffset(0),
         lastHeartbeat(0) {
-        filename[0] = 0;
         memset(lastValue, 0, LOR_MAX_CHANNELS);
         memset(intensityData, 0, LOR_INTENSITY_SIZE);
         memset(heartbeatData, 0, LOR_HEARTBEAT_SIZE);
     }
     ~LOROutputData() {}
-    char filename[1024];
-    int fd;
     int speed;
     int controllerOffset;
     int maxIntensity;
@@ -105,17 +102,14 @@ static void LOR_SetupIntensityMap(LOROutputData* privData) {
 
 int LOROutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "LOROutput::Close()\n");
-
-    SerialClose(data->fd);
-    data->fd = -1;
+    data->closeSerialPort();
     return ChannelOutput::Close();
 }
 
 void LOROutput::DumpConfig(void) {
     ChannelOutput::DumpConfig();
     if (data) {
-        LogDebug(VB_CHANNELOUT, "    filename     : %s\n", data->filename);
-        LogDebug(VB_CHANNELOUT, "    fd           : %d\n", data->fd);
+        data->dumpSerialConfig();
         LogDebug(VB_CHANNELOUT, "    port speed   : %d\n", data->speed);
         LogDebug(VB_CHANNELOUT, "    maxIntensity : %d\n", data->maxIntensity);
         LogDebug(VB_CHANNELOUT, "    lastHeartbeat: %d\n", data->lastHeartbeat);
@@ -126,11 +120,6 @@ int LOROutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "LOROutput::Init()\n");
     data = new LOROutputData();
 
-    std::string deviceName = "UNKNOWN";
-    if (config.isMember("device")) {
-        deviceName = config["device"].asString();
-        LogDebug(VB_CHANNELOUT, "Using %s for LOR output\n", deviceName.c_str());
-    }
     if (config.isMember("speed")) {
         data->speed = config["speed"].asInt();
     }
@@ -141,21 +130,7 @@ int LOROutput::Init(Json::Value config) {
             data->controllerOffset -= 1;
         }
     }
-
-    if (deviceName == "UNKNOWN") {
-        LogErr(VB_CHANNELOUT, "Missing Device Name\n");
-        WarningHolder::AddWarning("LOR: Missing Device Name");
-        return 0;
-    }
-
-    strcpy(data->filename, "/dev/");
-    strcat(data->filename, deviceName.c_str());
-
-    data->fd = SerialOpen(data->filename, data->speed, "8N1");
-    if (data->fd < 0) {
-        LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
-               errno, data->filename, strerror(errno));
-        WarningHolder::AddWarning("LOR: Error opening device: " + deviceName);
+    if (!data->setupSerialPort(config, data->speed, "8N1")) {
         return 0;
     }
 
@@ -188,8 +163,8 @@ static void LOR_SendHeartbeat(LOROutputData* privData) {
     if (privData->lastHeartbeat > (now - 300000))
         return;
 
-    if (privData->fd > 0) {
-        write(privData->fd, privData->heartbeatData, LOR_HEARTBEAT_SIZE);
+    if (privData->getFD() >= 0) {
+        write(privData->getFD(), privData->heartbeatData, LOR_HEARTBEAT_SIZE);
         privData->lastHeartbeat = now;
     }
 }
@@ -215,7 +190,7 @@ int LOROutput::SendData(unsigned char* channelData) {
             data->intensityData[3] = data->intensityMap[channelData[i]];
             data->intensityData[4] = 0x80 | (i % 16);
 
-            write(data->fd, data->intensityData, LOR_INTENSITY_SIZE);
+            write(data->getFD(), data->intensityData, LOR_INTENSITY_SIZE);
 
             data->lastValue[i] = channelData[i];
         }

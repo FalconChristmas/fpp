@@ -14,8 +14,9 @@
 #include <string>
 
 #include "ChannelOutput.h"
+#include "SerialChannelOutput.h"
 
-class USBRelayOutput : public ChannelOutput {
+class USBRelayOutput : public ChannelOutput, public SerialChannelOutput {
 public:
     USBRelayOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~USBRelayOutput();
@@ -36,8 +37,6 @@ private:
         RELAY_DVC_ICSTATION
     };
 
-    std::string m_deviceName;
-    int m_fd;
     RelayType m_subType;
     int m_relayCount;
 };

@@ -140,7 +140,10 @@
 		"htmlMeta.inc": "php",
 		"footer.inc": "php",
 		"menuHead.inc": "php",
-		"shared_mutex": "cpp"
+		"shared_mutex": "cpp",
+		"forward_list": "cpp",
+		"print": "cpp",
+		"queue": "cpp"
 	},
 	"editor.formatOnSave": true,
 	"cmake.configureOnOpen": false,

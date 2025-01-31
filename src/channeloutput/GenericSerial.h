@@ -13,11 +13,12 @@
 
 #include <string>
 
+#include "SerialChannelOutput.h"
 #include "ThreadedChannelOutput.h"
 
 #define GENERICSERIAL_MAX_CHANNELS 2048
 
-class GenericSerialOutput : public ThreadedChannelOutput {
+class GenericSerialOutput : public ThreadedChannelOutput, SerialChannelOutput {
 public:
     GenericSerialOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~GenericSerialOutput();
@@ -31,8 +32,6 @@ public:
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
 private:
-    std::string m_deviceName;
-    int m_fd;
     int m_speed;
     int m_headerSize;
     std::string m_header;

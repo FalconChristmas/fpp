@@ -20,9 +20,8 @@
 #include "../common.h"
 #include "../log.h"
 
-#include "serialutil.h"
-
 #include "LOREnhanced.h"
+#include "SerialChannelOutput.h"
 
 #define LORE_MAX_PIXELS_PER_UNIT 170
 #define LORE_MAX_CHANNELS_PER_UNIT LORE_MAX_PIXELS_PER_UNIT * 3
@@ -48,17 +47,15 @@ public:
     unsigned char outputBuff[LORE_UNIT_MAX_PACKET];
 };
 
-class LOREnhancedOutputData {
+class LOREnhancedOutputData : public SerialChannelOutput {
 public:
     LOREnhancedOutputData() :
-        fd(-1),
+        SerialChannelOutput(),
         speed(500000),
         lastHeartbeat(0) {
-        filename[0] = 0;
     }
     ~LOREnhancedOutputData() {}
-    char filename[1024];
-    int fd;
+
     int speed;
     unsigned char intensityMap[256];
     long long lastHeartbeat;
@@ -111,17 +108,14 @@ static void LOREnhanced_SetupIntensityMap(LOREnhancedOutputData* privData) {
 
 int LOREnhancedOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "LOREnhancedOutput::Close()\n");
-
-    SerialClose(data->fd);
-    data->fd = -1;
+    data->closeSerialPort();
     return ChannelOutput::Close();
 }
 
 void LOREnhancedOutput::DumpConfig(void) {
     ChannelOutput::DumpConfig();
     if (data) {
-        LogDebug(VB_CHANNELOUT, "    filename     : %s\n", data->filename);
-        LogDebug(VB_CHANNELOUT, "    fd           : %d\n", data->fd);
+        data->dumpSerialConfig();
         LogDebug(VB_CHANNELOUT, "    port speed   : %d\n", data->speed);
         LogDebug(VB_CHANNELOUT, "    lastHeartbeat: %d\n", data->lastHeartbeat);
     }
@@ -137,11 +131,6 @@ int LOREnhancedOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "LOREnhancedOutput::Init()\n");
     data = new LOREnhancedOutputData();
 
-    std::string deviceName = "UNKNOWN";
-    if (config.isMember("device")) {
-        deviceName = config["device"].asString();
-        LogDebug(VB_CHANNELOUT, "Using %s for LOR output\n", deviceName.c_str());
-    }
     if (config.isMember("speed")) {
         data->speed = config["speed"].asInt();
     }
@@ -165,21 +154,7 @@ int LOREnhancedOutput::Init(Json::Value config) {
             data->units.push_back(newUnit);
         }
     }
-
-    if (deviceName == "UNKNOWN") {
-        LogErr(VB_CHANNELOUT, "Missing Device Name\n");
-        WarningHolder::AddWarning("LOREnhanced: Missing Device Name");
-        return 0;
-    }
-
-    strcpy(data->filename, "/dev/");
-    strcat(data->filename, deviceName.c_str());
-
-    data->fd = SerialOpen(data->filename, data->speed, "8N1");
-    if (data->fd < 0) {
-        LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
-               errno, data->filename, strerror(errno));
-        WarningHolder::AddWarning("LOREnhanced: Error opening device: " + deviceName);
+    if (!data->setupSerialPort(config, data->speed, "8N1")) {
         return 0;
     }
 
@@ -201,8 +176,8 @@ static void LOR_SendHeartbeat(LOREnhancedOutputData* privData) {
     if (privData->lastHeartbeat > (now - 300000))
         return;
 
-    if (privData->fd > 0) {
-        write(privData->fd, privData->heartbeatData, LOR_HEARTBEAT_SIZE);
+    if (privData->getFD() >= 0) {
+        write(privData->getFD(), privData->heartbeatData, LOR_HEARTBEAT_SIZE);
         privData->lastHeartbeat = now;
     }
 }
@@ -288,7 +263,7 @@ void LOREnhancedOutput::SendUnitData(unsigned char* channelData, LOREnhancedOutp
         }
     }
 
-    write(data->fd, unit->outputBuff, bufAt + 1);
+    write(data->getFD(), unit->outputBuff, bufAt + 1);
 }
 
 int LOREnhancedOutput::SendData(unsigned char* channelData) {

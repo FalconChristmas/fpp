@@ -43,14 +43,7 @@ FPPPlugins::Plugin* createPlugin() {
  *
  */
 GenericSerialOutput::GenericSerialOutput(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutput(startChannel, channelCount),
-    m_deviceName("UNKNOWN"),
-    m_fd(-1),
-    m_speed(9600),
-    m_headerSize(0),
-    m_footerSize(0),
-    m_packetSize(0),
-    m_data(NULL) {
+    ThreadedChannelOutput(startChannel, channelCount), SerialChannelOutput(), m_speed(9600), m_headerSize(0), m_footerSize(0), m_packetSize(0), m_data(NULL) {
     LogDebug(VB_CHANNELOUT, "GenericSerialOutput::GenericSerialOutput(%u, %u)\n",
              startChannel, channelCount);
 
@@ -67,11 +60,6 @@ GenericSerialOutput::~GenericSerialOutput() {
 int GenericSerialOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "GenericSerialOutput::Init()\n");
 
-    if (config.isMember("device")) {
-        m_deviceName = config["device"].asString();
-        LogDebug(VB_CHANNELOUT, "Using %s for Generic Serial output\n",
-                 m_deviceName.c_str());
-    }
     if (config.isMember("speed")) {
         m_speed = config["speed"].asInt();
     }
@@ -98,13 +86,7 @@ int GenericSerialOutput::Init(Json::Value config) {
         memcpy(m_data + m_headerSize + m_channelCount,
                m_footer.c_str(), m_footerSize);
 
-    m_deviceName.insert(0, "/dev/");
-
-    m_fd = SerialOpen(m_deviceName.c_str(), m_speed, "8N1");
-
-    if (m_fd < 0) {
-        LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
-               errno, m_deviceName.c_str(), strerror(errno));
+    if (!setupSerialPort(config, m_speed, "8N1")) {
         return 0;
     }
 
@@ -120,11 +102,8 @@ void GenericSerialOutput::GetRequiredChannelRanges(const std::function<void(int,
  */
 int GenericSerialOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "GenericSerialOutput::Close()\n");
-
-    SerialClose(m_fd);
-
+    closeSerialPort();
     delete[] m_data;
-
     return ThreadedChannelOutput::Close();
 }
 
@@ -149,9 +128,7 @@ int GenericSerialOutput::RawSendData(unsigned char* channelData) {
  */
 void GenericSerialOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "GenericSerialOutput::DumpConfig()\n");
-
-    LogDebug(VB_CHANNELOUT, "    Device Name: %s\n", m_deviceName.c_str());
-    LogDebug(VB_CHANNELOUT, "    fd         : %d\n", m_fd);
+    dumpSerialConfig();
     LogDebug(VB_CHANNELOUT, "    Port Speed : %d\n", m_speed);
     LogDebug(VB_CHANNELOUT, "    Header Size: %d\n", m_headerSize);
     LogDebug(VB_CHANNELOUT, "    Header     : '%s'\n", m_header.c_str());

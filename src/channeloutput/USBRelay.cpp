@@ -44,11 +44,7 @@ FPPPlugins::Plugin* createPlugin() {
  */
 USBRelayOutput::USBRelayOutput(unsigned int startChannel,
                                unsigned int channelCount) :
-    ChannelOutput(startChannel, channelCount),
-    m_deviceName(""),
-    m_fd(-1),
-    m_subType(RELAY_DVC_UNKNOWN),
-    m_relayCount(0) {
+    ChannelOutput(startChannel, channelCount), SerialChannelOutput(), m_subType(RELAY_DVC_UNKNOWN), m_relayCount(0) {
     LogDebug(VB_CHANNELOUT, "USBRelayOutput::USBRelayOutput(%u, %u)\n",
              startChannel, channelCount);
 }
@@ -77,25 +73,14 @@ int USBRelayOutput::Init(Json::Value config) {
     else if (subType == "ICStation")
         m_subType = RELAY_DVC_ICSTATION;
 
-    m_deviceName = config["device"].asString();
     m_relayCount = config["channelCount"].asInt();
 
-    if ((m_deviceName == "") ||
-        (m_subType == RELAY_DVC_UNKNOWN)) {
-        LogErr(VB_CHANNELOUT, "Invalid Config, missing device or invalid type\n");
+    if (m_subType == RELAY_DVC_UNKNOWN) {
+        LogErr(VB_CHANNELOUT, "Invalid Config: invalid type\n");
         return 0;
     }
-
-    m_deviceName.insert(0, "/dev/");
-
-    LogInfo(VB_CHANNELOUT, "Opening %s for USB Relay output\n",
-            m_deviceName.c_str());
-
-    m_fd = SerialOpen(m_deviceName.c_str(), 9600, "8N1");
-
-    if (m_fd < 0) {
-        LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
-               errno, m_deviceName.c_str(), strerror(errno));
+    if (!setupSerialPort(config, 9600, "8N1")) {
+        return 0;
     }
 
     if (m_subType == RELAY_DVC_ICSTATION) {
@@ -143,10 +128,7 @@ int USBRelayOutput::Init(Json::Value config) {
  */
 int USBRelayOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "USBRelayOutput::Close()\n");
-
-    SerialClose(m_fd);
-    m_fd = -1;
-
+    closeSerialPort();
     return ChannelOutput::Close();
 }
 
@@ -183,9 +165,6 @@ int USBRelayOutput::SendData(unsigned char* channelData) {
  */
 void USBRelayOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "USBRelayOutput::DumpConfig()\n");
-
-    LogDebug(VB_CHANNELOUT, "    Device Filename   : %s\n", m_deviceName.c_str());
-    LogDebug(VB_CHANNELOUT, "    fd                : %d\n", m_fd);
-
+    dumpSerialConfig();
     ChannelOutput::DumpConfig();
 }

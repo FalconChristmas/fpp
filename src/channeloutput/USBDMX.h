@@ -13,9 +13,10 @@
 
 #include <string>
 
+#include "SerialChannelOutput.h"
 #include "ThreadedChannelOutput.h"
 
-class USBDMXOutput : public ThreadedChannelOutput {
+class USBDMXOutput : public ThreadedChannelOutput, public SerialChannelOutput {
 public:
     USBDMXOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~USBDMXOutput();
@@ -40,8 +41,6 @@ private:
 
     DongleType m_dongleType;
 
-    std::string m_deviceName;
-    int m_fd;
     char m_outputData[513 + 6];
     int m_dataOffset;
     int m_dataLen;

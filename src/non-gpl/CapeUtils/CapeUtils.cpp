@@ -644,6 +644,9 @@ public:
     const std::string& getKeyId() const {
         return fkeyId;
     }
+    const Json::Value& getCapeInfo() const {
+        return capeInfo;
+    }
 
 private:
     void loadFiles() {
@@ -1075,6 +1078,7 @@ private:
                 put_file_contents(outputPath + "/tmp/cape-info.json", (const uint8_t*)resultStr.c_str(), resultStr.size());
                 setFilePerms(outputPath + "/tmp/cape-info.json");
             }
+            capeInfo = result;
         } else {
             printf("Did not find cape-info.json\n");
         }
@@ -1292,6 +1296,7 @@ private:
     bool corruptEEPROM = false;
 
     std::map<std::string, std::vector<uint8_t>> fileMap;
+    Json::Value capeInfo;
 };
 
 CapeUtils CapeUtils::INSTANCE;
@@ -1319,6 +1324,12 @@ bool CapeUtils::hasFile(const std::string& path) {
 }
 std::vector<uint8_t> CapeUtils::getFile(const std::string& path) {
     return initCapeInfo(true)->getFile(path);
+}
+const Json::Value& CapeUtils::getCapeInfo() {
+    static Json::Value val;
+    initCapeInfo(true);
+    val = capeInfo->getCapeInfo();
+    return val;
 }
 
 int CapeUtils::getLicensedOutputs() {

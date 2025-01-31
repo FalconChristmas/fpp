@@ -1,6 +1,5 @@
 #pragma once
 
-
 #ifdef PLATFORM_OSX
 
 #define SHLIB_EXT ".dylib"
@@ -17,7 +16,8 @@ extern int MacOSGetVolume();
 
 #define SHLIB_EXT ".so"
 
+#if defined(PLATFORM_RPI) || defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
+#define HAS_CAPEUTILS
 #endif
 
-
-
+#endif

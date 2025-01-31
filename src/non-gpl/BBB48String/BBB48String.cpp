@@ -466,11 +466,6 @@ int BBB48StringOutput::Init(Json::Value config) {
     offset = ((m_gpio0Data.frameSize / 4096) + 2) * 4096;
     m_gpio0Data.lastData = m_gpio0Data.curData + offset;
 
-    for (int x = 0; x < MAX_WS2811_TIMINGS; x++) {
-        m_pruData->timings[x] = 0;
-        if (m_pru0Data)
-            m_pru0Data->timings[x] = 0;
-    }
     PixelString::AutoCreateOverlayModels(m_strings);
     return retVal;
 }
@@ -639,7 +634,6 @@ void BBB48StringOutput::PrepData(unsigned char* channelData) {
     prepData(m_gpio0Data, channelData);
     m_testCycle = -1;
 }
-
 
 void BBB48StringOutput::sendData(FrameData& d, uint32_t* dptr) {
     bool doSwap = false;

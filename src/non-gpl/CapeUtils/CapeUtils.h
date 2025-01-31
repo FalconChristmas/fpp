@@ -35,6 +35,7 @@ public:
 
     CapeStatus initCape(bool readOnly = true);
 
+    const Json::Value& getCapeInfo();
     bool hasFile(const std::string& path);
     std::vector<uint8_t> getFile(const std::string& path);
 
