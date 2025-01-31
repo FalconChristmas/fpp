@@ -288,6 +288,8 @@ void BBBPru::memcpyToPRU(uint8_t* dst, uint8_t* src, size_t sz) {
     memcpy(dst, src, sz);
 }
 #elif defined(PLATFORM_BB64)
+#pragma GCC push_options
+#pragma GCC optimize("O0")
 // The optimized memset and memcpy on Arm64 will segfault
 // when doing certain sized operations to un-cacheable
 // ram segments.  Need to use ldnp/stnp instructions
@@ -327,6 +329,7 @@ void BBBPru::clearPRUMem(uint8_t* ptr, size_t sz) {
 void BBBPru::memcpyToPRU(uint8_t* dst, uint8_t* src, size_t sz) {
     memcpy_ldnp(dst, src, sz);
 }
+#pragma GCC pop_options
 #endif
 
 void BBBPru::stop() {

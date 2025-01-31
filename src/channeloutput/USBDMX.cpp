@@ -44,10 +44,7 @@ FPPPlugins::Plugin* createPlugin() {
 /////////////////////////////////////////////////////////////////////////////
 
 USBDMXOutput::USBDMXOutput(unsigned int startChannel, unsigned int channelCount) :
-    ThreadedChannelOutput(startChannel, channelCount),
-    m_dongleType(DMX_DVC_UNKNOWN),
-    m_deviceName("UNKNOWN"),
-    m_fd(-1) {
+    ThreadedChannelOutput(startChannel, channelCount), SerialChannelOutput(), m_dongleType(DMX_DVC_UNKNOWN) {
     LogDebug(VB_CHANNELOUT, "USBDMXOutput::USBDMXOutput(%u, %u)\n",
              startChannel, channelCount);
 
@@ -71,9 +68,6 @@ void USBDMXOutput::GetRequiredChannelRanges(const std::function<void(int, int)>&
 
 int USBDMXOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "USBDMXOutput::Init()\n");
-    if (config.isMember("device")) {
-        m_deviceName = config["device"].asString();
-    }
     if (config.isMember("type")) {
         std::string type = config["type"].asString();
         if (type == "DMX-Open") {
@@ -84,25 +78,17 @@ int USBDMXOutput::Init(Json::Value config) {
             m_dongleType = DMX_DVC_PRO;
         }
     }
-
-    if ((m_deviceName == "UNKNOWN") ||
-        (m_dongleType == DMX_DVC_UNKNOWN)) {
-        LogErr(VB_CHANNELOUT, "Invalid Config.  Unknown device or type.\n");
-        WarningHolder::AddWarning("USBDMX: Invalid Config.  Unknown device or type.");
-        return 0;
-    }
-    m_deviceName = "/dev/" + m_deviceName;
-
     if (m_dongleType == DMX_DVC_OPEN) {
-        m_fd = SerialOpen(m_deviceName.c_str(), 250000, "8N2");
+        if (!setupSerialPort(config, 250000, "8N2")) {
+            return 0;
+        }
     } else if (m_dongleType == DMX_DVC_PRO) {
-        m_fd = SerialOpen(m_deviceName.c_str(), 115200, "8N1");
-    }
-
-    if (m_fd < 0) {
-        LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
-               errno, m_deviceName.c_str(), strerror(errno));
-        WarningHolder::AddWarning("USBDMX: Error opening device: " + m_deviceName);
+        if (!setupSerialPort(config, 115200, "8N1")) {
+            return 0;
+        }
+    } else {
+        LogErr(VB_CHANNELOUT, "Invalid Config.  Unknown dongle type.\n");
+        WarningHolder::AddWarning("USBDMX: Invalid Config.  Unknown dongle type.");
         return 0;
     }
 
@@ -130,9 +116,7 @@ int USBDMXOutput::Init(Json::Value config) {
 
 int USBDMXOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "USBDMXOutput::Close()\n");
-
-    SerialClose(m_fd);
-
+    closeSerialPort();
     return ThreadedChannelOutput::Close();
 }
 
@@ -152,12 +136,9 @@ void USBDMXOutput::WaitTimedOut() {
 
 void USBDMXOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "USBDMXOutput::DumpConfig()\n");
-
     LogDebug(VB_CHANNELOUT, "    Dongle Type: %s\n",
              m_dongleType == DMX_DVC_PRO ? "Pro" : m_dongleType == DMX_DVC_OPEN ? "Open"
                                                                                 : "UNKNOWN");
-    LogDebug(VB_CHANNELOUT, "    Device Name: %s\n", m_deviceName.c_str());
-    LogDebug(VB_CHANNELOUT, "    fd         : %d\n", m_fd);
-
+    dumpSerialConfig();
     ThreadedChannelOutput::DumpConfig();
 }

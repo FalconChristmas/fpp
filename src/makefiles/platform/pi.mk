@@ -25,4 +25,7 @@ SHLIB_EXT=so
 LIBS_GPIO_EXE_ADDITIONS+=$(LIBS_GPIO_ADDITIONS) -lfpp-pi-gpio
 DEPENDENCIES_GPIO_ADDITIONS+=libfpp-pi-gpio.$(SHLIB_EXT)
 
+LIBS_fpp_so_EXTRA += -L. -lfpp_capeutils
+DEPS_fpp_so += libfpp_capeutils.$(SHLIB_EXT)
+
 endif

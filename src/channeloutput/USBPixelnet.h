@@ -13,9 +13,9 @@
 
 #include <string>
 
+#include "SerialChannelOutput.h"
 #include "ThreadedChannelOutput.h"
-
-class USBPixelnetOutput : public ThreadedChannelOutput {
+class USBPixelnetOutput : public ThreadedChannelOutput, public SerialChannelOutput {
 public:
     USBPixelnetOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~USBPixelnetOutput();
@@ -36,11 +36,9 @@ private:
         PIXELNET_DVC_OPEN
     };
 
-    std::string m_deviceName;
     unsigned char m_rawData[4104]; // Sized to a multiple of 8 bytes
     int m_outputPacketSize;        // Header size + 4096 data bytes
     unsigned char* m_outputData;
     unsigned char* m_pixelnetData;
-    int m_fd;
     DongleType m_dongleType;
 };

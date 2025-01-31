@@ -118,9 +118,14 @@
                 }
             });
         });
-        var SerialDevices = [];
+        var SerialDevices = new Array();
         <?
         $dmxStyle = "hidden";
+        if (isset($settings['cape-info']['tty-labels'])) {
+            foreach ($settings['cape-info']['tty-labels'] as $label => $device) {
+                echo "SerialDevices['$label'] = '$label';\n";
+            }
+        }
         foreach (scandir("/dev/") as $fileName) {
             if (
                 (preg_match("/^ttySC?[0-9]+/", $fileName)) ||
@@ -129,7 +134,8 @@
                 (preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
                 (preg_match("/^ttyUSB[0-9]+/", $fileName))
             ) {
-                echo "SerialDevices.push('$fileName');\n";
+                echo "SerialDevices['$fileName'] = '$fileName';\n";
+                //echo "SerialDevices.push('$fileName');\n";
                 $dmxStyle = "";
             }
         }
@@ -170,14 +176,16 @@
         function LoadDMX() {
             $.get('api/channel/output/dmxInputs')
                 .done(function (data) {
-                    data.channelInputs.forEach(function (dmx) {
-                        var row = $('#' + dmx.device);
-                        if (row.length) {
-                            row.find('input[type="checkbox"]').prop('checked', dmx.enabled);
-                            row.find('input[type="number"]').eq(0).val(dmx.startAddress);
-                            row.find('input[type="number"]').eq(1).val(dmx.channelCount);
-                        }
-                    });
+                    if (data.hasOwnProperty("channelInputs")) {
+                        data.channelInputs.forEach(function (dmx) {
+                            var row = $('#' + dmx.device);
+                            if (row.length) {
+                                row.find('input[type="checkbox"]').prop('checked', dmx.enabled);
+                                row.find('input[type="number"]').eq(0).val(dmx.startAddress);
+                                row.find('input[type="number"]').eq(1).val(dmx.channelCount);
+                            }
+                        });
+                    }
                 });
         }
         /////////////////////////////////////////////////////////////////////////////
@@ -366,7 +374,7 @@
                                             </thead>
                                             <tbody id='tblUniversesBody'>
                                                 <script>
-                                                    SerialDevices.forEach(function (device) {
+                                                    Object.keys(SerialDevices).forEach(function (device) {
                                                         var row = "<tr id='" + device + "'>";
                                                         row += "<td><input type='checkbox'></td>";
                                                         row += "<td>" + device + "</td>";

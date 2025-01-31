@@ -34,4 +34,6 @@ else
 CFLAGS+=-DPLATFORM_BBB -march=armv7-a+neon -mfloat-abi=hard -mfpu=neon
 endif
 
+LIBS_fpp_so_EXTRA += -L. -lfpp_capeutils
+DEPS_fpp_so += libfpp_capeutils.$(SHLIB_EXT)
 endif

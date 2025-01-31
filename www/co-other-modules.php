@@ -286,6 +286,11 @@
 
     var SerialDevices = new Array();
     <?
+    if (isset($settings['cape-info']['tty-labels'])) {
+        foreach ($settings['cape-info']['tty-labels'] as $label => $device) {
+            echo "SerialDevices['$label'] = '$label';\n";
+        }
+    }
     foreach (scandir("/dev/") as $fileName) {
         if (
             (preg_match("/^ttySC?[0-9]+/", $fileName)) ||

@@ -18,16 +18,14 @@
 #include "../Warnings.h"
 #include "../log.h"
 
-#include "serialutil.h"
-
+#include "SerialChannelOutput.h"
 #include "USBRenard.h"
 
 /////////////////////////////////////////////////////////////////////////////
 
-class USBRenardOutputData {
+class USBRenardOutputData : public SerialChannelOutput {
 public:
     USBRenardOutputData() :
-        fd(-1),
         maxChannels(0),
         speed(0),
         outputData(nullptr) {
@@ -37,9 +35,7 @@ public:
             delete[] outputData;
         }
     }
-    char filename[1024];
     char* outputData;
-    int fd;
     int maxChannels;
     int speed;
     char parm[4];
@@ -121,12 +117,7 @@ int USBRenardOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "USBRenard_Open()\n");
 
     data = new USBRenardOutputData();
-    std::string deviceName = "UNKNOWN";
     strcpy(data->parm, "8N1");
-    if (config.isMember("device")) {
-        deviceName = config["device"].asString();
-        LogDebug(VB_CHANNELOUT, "Using %s for Renard output\n", deviceName.c_str());
-    }
     if (config.isMember("renardspeed")) {
         data->speed = config["renardspeed"].asInt();
         LogDebug(VB_CHANNELOUT, "Sending Renard at %d speed\n", data->speed);
@@ -139,25 +130,7 @@ int USBRenardOutput::Init(Json::Value config) {
             strcpy(data->parm, parm.c_str());
         }
     }
-
-    if (deviceName == "UNKNOWN") {
-        LogErr(VB_CHANNELOUT, "Invalid Config: %s\n", deviceName.c_str());
-        return 0;
-    }
-
-    strcpy(data->filename, "/dev/");
-    strcat(data->filename, deviceName.c_str());
-
-    LogInfo(VB_CHANNELOUT, "Opening %s for Renard output\n",
-            data->filename);
-
-    data->fd = SerialOpen(data->filename, data->speed, data->parm);
-
-    if (data->fd < 0) {
-        LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
-               errno, data->filename, strerror(errno));
-
-        WarningHolder::AddWarning("USBRenard: Error opening device: " + deviceName);
+    if (!data->setupSerialPort(config, data->speed, data->parm)) {
         return 0;
     }
 
@@ -176,8 +149,7 @@ int USBRenardOutput::Init(Json::Value config) {
 int USBRenardOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "USBRenard_Close()\n");
     if (data) {
-        SerialClose(data->fd);
-        data->fd = -1;
+        data->closeSerialPort();
     }
     return ChannelOutput::Close();
 }
@@ -214,19 +186,19 @@ int USBRenardOutput::SendData(unsigned char* channelData) {
     }
 
     // Send start of packet byte
-    write(data->fd, "\x7E\x80", 2);
+    write(data->getFD(), "\x7E\x80", 2);
     dptr = data->outputData;
 
     // Assume clocks are accurate to 1%, so insert a pad byte every 100 bytes.
     for (i = 0; i * PAD_DISTANCE < m_channelCount; i++) {
         // Send our pad byte
-        write(data->fd, "\x7D", 1);
+        write(data->getFD(), "\x7D", 1);
 
         // Send Renard Data (Only send the channels we're given, not max)
         if ((i + 1) * PAD_DISTANCE > m_channelCount)
-            write(data->fd, dptr, (m_channelCount - (i * PAD_DISTANCE)));
+            write(data->getFD(), dptr, (m_channelCount - (i * PAD_DISTANCE)));
         else
-            write(data->fd, dptr, PAD_DISTANCE);
+            write(data->getFD(), dptr, PAD_DISTANCE);
 
         dptr += PAD_DISTANCE;
     }
@@ -237,9 +209,7 @@ void USBRenardOutput::DumpConfig(void) {
     ChannelOutput::DumpConfig();
     if (!data)
         return;
-
-    LogDebug(VB_CHANNELOUT, "    filename   : %s\n", data->filename);
-    LogDebug(VB_CHANNELOUT, "    fd         : %d\n", data->fd);
+    data->dumpSerialConfig();
     LogDebug(VB_CHANNELOUT, "    maxChannels: %i\n", data->maxChannels);
     LogDebug(VB_CHANNELOUT, "    speed      : %d\n", data->speed);
     LogDebug(VB_CHANNELOUT, "    serial Parm: %s\n", data->parm);

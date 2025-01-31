@@ -45,10 +45,8 @@ FPPPlugins::Plugin* createPlugin() {
 USBPixelnetOutput::USBPixelnetOutput(unsigned int startChannel,
                                      unsigned int channelCount) :
     ThreadedChannelOutput(startChannel, channelCount),
-    m_deviceName(""),
     m_outputData(NULL),
     m_pixelnetData(NULL),
-    m_fd(-1),
     m_dongleType(PIXELNET_DVC_UNKNOWN) {
     LogDebug(VB_CHANNELOUT, "USBPixelnetOutput::USBPixelnetOutput(%u, %u)\n",
              startChannel, channelCount);
@@ -64,9 +62,6 @@ USBPixelnetOutput::~USBPixelnetOutput() {
 }
 int USBPixelnetOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "USBPixelnetOutput::Init()\n");
-    if (config.isMember("device")) {
-        m_deviceName = config["device"].asString();
-    }
     if (config.isMember("type")) {
         std::string type = config["type"].asString();
         if (type == "Pixelnet-Lynx") {
@@ -78,25 +73,14 @@ int USBPixelnetOutput::Init(Json::Value config) {
         }
     }
 
-    if ((m_deviceName == "") ||
-        (m_dongleType == PIXELNET_DVC_UNKNOWN)) {
-        LogErr(VB_CHANNELOUT, "Invalid Config.  Unknown device or type.\n");
-        return 0;
-    }
-    m_deviceName = "/dev/" + m_deviceName;
-
-    LogInfo(VB_CHANNELOUT, "Opening %s for Pixelnet output\n",
-            m_deviceName.c_str());
-
-    if (m_dongleType == PIXELNET_DVC_LYNX)
-        m_fd = SerialOpen(m_deviceName.c_str(), 115200, "8N1");
-    else if (m_dongleType == PIXELNET_DVC_OPEN)
-        m_fd = SerialOpen(m_deviceName.c_str(), 1000000, "8N2");
-
-    if (m_fd < 0) {
-        LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
-               errno, m_deviceName.c_str(), strerror(errno));
-        WarningHolder::AddWarning("USBPixelNet: Error opening device: " + m_deviceName);
+    if (m_dongleType == PIXELNET_DVC_LYNX) {
+        if (!setupSerialPort(config, 115200, "8N1")) {
+            return 0;
+        }
+    } else if (m_dongleType == PIXELNET_DVC_OPEN) {
+        if (!setupSerialPort(config, 1000000, "8N2")) {
+            return 0;
+        }
     }
 
     if (m_dongleType == PIXELNET_DVC_LYNX) {
@@ -132,10 +116,7 @@ void USBPixelnetOutput::GetRequiredChannelRanges(const std::function<void(int, i
  */
 int USBPixelnetOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "USBPixelnetOutput::Close()\n");
-
-    SerialClose(m_fd);
-    m_fd = -1;
-
+    closeSerialPort();
     return ThreadedChannelOutput::Close();
 }
 
@@ -166,10 +147,7 @@ int USBPixelnetOutput::RawSendData(unsigned char* channelData) {
  */
 void USBPixelnetOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "USBPixelnetOutput::DumpConfig()\n");
-
-    LogDebug(VB_CHANNELOUT, "    Device Filename   : %s\n", m_deviceName.c_str());
-    LogDebug(VB_CHANNELOUT, "    fd                : %d\n", m_fd);
+    dumpSerialConfig();
     LogDebug(VB_CHANNELOUT, "    Output Packet Size: %d\n", m_outputPacketSize);
-
     ThreadedChannelOutput::DumpConfig();
 }
