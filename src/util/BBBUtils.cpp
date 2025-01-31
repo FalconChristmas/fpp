@@ -531,7 +531,7 @@ void BBBPinProvider::Init() {
             BBB_PINS.emplace_back("P1-28", 2, 43).setUART("ttyS4-rx").setI2C(2);
             BBB_PINS.emplace_back("P1-29", 2, 62);
             BBB_PINS.emplace_back("P1-30", 3, 21).setUART("ttyS0-tx");
-            BBB_PINS.emplace_back("P1-31", 2, 49);
+            BBB_PINS.emplace_back("P1-31", 2, 59);
             BBB_PINS.emplace_back("P1-32", 3, 20).setUART("ttyS4-rx");
             BBB_PINS.emplace_back("P1-33", 2, 56);
             BBB_PINS.emplace_back("P1-33b", 3, 29);
