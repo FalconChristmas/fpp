@@ -357,7 +357,7 @@ static void disableOutputs(Json::Value& disables) {
         }
     }
 }
-static void processBootConfig(Json::Value& bootConfig) {
+static bool processBootConfig(Json::Value& bootConfig) {
 #if defined(PLATFORM_PI)
     const std::string fileName = FPP_BOOT_DIR "/config.txt";
 #elif defined(PLATFORM_BBB)
@@ -373,13 +373,12 @@ static void processBootConfig(Json::Value& bootConfig) {
 #endif
 
     if (fileName.empty())
-        return;
+        return false;
 
     int len = 0;
     uint8_t* data = get_file_contents(fileName, len);
     if (len == 0) {
-        remove("/.fppcapereboot");
-        return;
+        return false;
     }
     std::string current = (char*)data;
     std::string orig = current;
@@ -406,21 +405,20 @@ static void processBootConfig(Json::Value& bootConfig) {
             }
         }
     }
-    if (current != orig) {
-        put_file_contents(fileName, (const uint8_t*)current.c_str(), current.size());
+    free(data);
+    return current != orig;
+}
+static void handleReboot(bool r) {
+    if (r) {
+        const uint8_t data[2] = { 32, 0 };
+        put_file_contents("/.fppcapereboot", data, 1);
         sync();
-        if (!file_exists("/.fppcapereboot")) {
-            const uint8_t data[2] = { 32, 0 };
-            put_file_contents("/.fppcapereboot", data, 1);
-            sync();
-            setuid(0);
-            reboot(RB_AUTOBOOT);
-            exit(0);
-        }
+        setuid(0);
+        reboot(RB_AUTOBOOT);
+        exit(0);
     } else {
         remove("/.fppcapereboot");
     }
-    free(data);
 }
 static void copyFile(const std::string& src, const std::string& target) {
     int s, t;
@@ -486,6 +484,29 @@ bool setFilePerms(const std::string& filename) {
     chmod(filename.c_str(), mode);
     setOwnerGroup(filename);
     return true;
+}
+
+static bool handleCapeOverlay() {
+#if defined(PLATFORM_BB64)
+    static std::string src = "/home/fpp/media/tmp/fpp-cape-overlay.dtb";
+    if (file_exists("/home/fpp/media/tmp/fpp-cape-overlay.dtb")) {
+        std::string target = "/boot/firmware/overlays/fpp-cape-overlay.dtb";
+
+        int slen = 0;
+        int tlen = 0;
+        uint8_t* sd = get_file_contents(src, slen);
+        uint8_t* td = get_file_contents(target, tlen);
+        if (slen != tlen || memcmp(sd, td, slen) != 0) {
+            copyFile(src, target);
+            free(sd);
+            free(td);
+            return true;
+        }
+        free(sd);
+        free(td);
+    }
+#endif
+    return false;
 }
 
 #ifdef PLATFORM_BBB
@@ -996,19 +1017,11 @@ private:
                         }
                     }
 
+                    bool reboot = false;
                     if (result.isMember("bootConfig")) {
                         // if the cape requires changes/update to config.txt (Pi) or uEnv.txt (BBB)
                         // we need to process them and see if we have to apply the changes and reboot or not
                         processBootConfig(result["bootConfig"]);
-                    }
-
-                    if (result.isMember("modules")) {
-                        // if the cape requires kernel modules, load them at this
-                        // time so they will be available later
-                        for (int x = 0; x < result["modules"].size(); x++) {
-                            std::string v = "/sbin/modprobe " + result["modules"][x].asString() + " 2> /dev/null  > /dev/null";
-                            exec(v.c_str());
-                        }
                     }
                     if (result.isMember("copyFiles")) {
                         // if the cape requires certain files copied into place (asoundrc for example)
@@ -1025,6 +1038,17 @@ private:
                             setFilePerms(target);
                         }
                     }
+                    reboot = handleCapeOverlay();
+                    handleReboot(reboot);
+                    if (result.isMember("modules")) {
+                        // if the cape requires kernel modules, load them at this
+                        // time so they will be available later
+                        for (int x = 0; x < result["modules"].size(); x++) {
+                            std::string v = "/sbin/modprobe " + result["modules"][x].asString() + " 2> /dev/null  > /dev/null";
+                            exec(v.c_str());
+                        }
+                    }
+
                     if (result.isMember("i2cDevices") && !readOnly) {
                         // if the cape has i2c devices on it that need to be registered, load them at this
                         // time so they will be available later
@@ -1125,7 +1149,7 @@ private:
     std::string mapV5Config(const std::string& orig) {
         std::string stringsConfigFile = "";
         std::string platformDir = "/opt/fpp/capes/" + getPlatformCapeDir();
- #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
         stringsConfigFile = "/home/fpp/media/config/co-bbbStrings.json";
 #elif defined(PLATFORM_PI)
         stringsConfigFile = "/home/fpp/media/config/co-pixelStrings.json";
