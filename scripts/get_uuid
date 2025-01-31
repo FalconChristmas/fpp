@@ -28,6 +28,21 @@ if [ "$UUID" != "" ] && [ "$UUID" != "0" ]; then
     exit 0
 fi
 
+if [ -f "/proc/device-tree/serial-number" ]; then
+    UUID=$(tr -d '\0' </proc/device-tree/serial-number)
+    echo "M3-$UUID"
+    exit 0
+fi
+
+if [ -f "/sys/bus/i2c/devices/0-0050/eeprom" ]; then 
+    sn=$(dd if=/sys/bus/i2c/devices/0-0050/eeprom count=16 skip=40 bs=1 2>/dev/null || true)
+    if [[ "$sn" =~ ^[0-9]*PB2[0-9A-F]*$ ]]; then
+        echo "M5-$sn"
+        exit 0
+    fi
+fi
+
+
 #
 # Try dmidecode
 #
@@ -45,11 +60,6 @@ if [[ -f /sbin/dmidecode  || -f /usr/sbin/dmidecode ]]; then
     fi
 fi
 
-if [ -f "/proc/device-tree/serial-number" ]; then
-    UUID=$(tr -d '\0' </proc/device-tree/serial-number)
-    echo "M3-$UUID"
-    exit 0
-fi
 
 if [ -f "/etc/machine-id" ]; then
     UUID=$(tr -d '\0' </etc/machine-id)
