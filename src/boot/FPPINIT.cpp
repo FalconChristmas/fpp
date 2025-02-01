@@ -1112,13 +1112,13 @@ static void setupAudio() {
         break;
     }
     PutFileContents("/root/.asoundrc", asoundrc);
-    std::string mixers = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " scontrols | head -1 | cut -f2 -d\"'\"");
+    std::string mixers = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " scontrols | cut -f2 -d\"'\"");
     if (mixers.empty()) {
         // for some sound cards, the mixer devices won't show up
         // until something is played.  Play one second of silence
         exec("/usr/bin/aplay -d 1 /opt/fpp/media/silence_5sec.wav >> /dev/null 2>&1  &");
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        mixers = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " scontrols | head -1 | cut -f2 -d\"'\"");
+        mixers = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " scontrols | cut -f2 -d\"'\"");
     }
     TrimWhiteSpace(mixers);
     std::string mixer;
