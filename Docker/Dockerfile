@@ -1,3 +1,12 @@
+#
+# Docker is not a supported platform for using FPP.  It is intended to be used by developers/experts only.
+#
+# End-users should use FPP on supported platforms such as Pi or Beaglebone.
+#
+# Only a subset of FPP features work under docker, it is provided as-is and no support is provided
+#
+# Please do not log github issues related to docker.
+#
 FROM debian:bookworm
 
 # if we get a bunch of these installed up front in one shot (assume a desktop so plenty of memory to do all at once)
