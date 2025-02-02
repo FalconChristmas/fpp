@@ -10,6 +10,9 @@ FPP aims to be controller agnostic, it can talk E1.31,
 DDP, DMX, Pixelnet, and Renard to hardware from multiple hardware vendors. Using various capes, FPP
 can also be a controller on P5 and P10 Matrixes, or strings of ws2811 pixels.
 
+FPP is intended to be used on Raspberry Pi and Beagle based SBC (single board computers).  These are the only platforms 'supported'.
+Docker, Orange Pi and other SBCs, PC hardware, Ubuntu installs etc are not 'supported'.
+
 Useful Links:
 
 - [Documentation in Github](./docs/README.md)
