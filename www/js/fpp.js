@@ -8199,6 +8199,15 @@ function RefreshHeaderBar () {
 			if (e.ifname.startsWith('usb')) {
 				return 0;
 			}
+			if (e.ifname.startsWith('veth')) {
+				return 0;
+			}
+			if (e.ifname.startsWith('br')) {
+				return 0;
+			}
+			if (e.ifname.startsWith('docker')) {
+				return 0;
+			}
 			if (e.ifname.startsWith('can.')) {
 				return 0;
 			}
