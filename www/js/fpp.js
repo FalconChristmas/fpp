@@ -6982,7 +6982,7 @@ function CommandSelectChanged (
 		line += "style='display:none'";
 	}
 	line +=
-		"><td>Multicast:</td><td><input type='checkbox' id='" +
+		"><td>Multisync:</td><td><input type='checkbox' id='" +
 		tblCommand +
 		"_multisync' class='arg_multisync' onChange='OnMultisyncChanged(this, \"" +
 		tblCommand +
@@ -7962,14 +7962,14 @@ function FillInCommandTemplate (row, data) {
 				'<br>';
 
 			if (data.hasOwnProperty('multisyncCommand')) {
-				tip += '<b>Multicast: </b>';
+				tip += '<b>Multisync: </b>';
 				if (data.multisyncCommand) tip += 'Yes';
 				else tip += 'No';
 
 				tip += '<br>';
 
 				if (data.hasOwnProperty('multisyncHosts')) {
-					tip += '<b>Multicast Hosts: </b>' + data.multisyncHosts + '<br>';
+					tip += '<b>Multisync Hosts: </b>' + data.multisyncHosts + '<br>';
 				}
 			}
 			var args = commandListByName[data.command]['args'];

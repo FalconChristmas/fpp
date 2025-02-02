@@ -303,7 +303,7 @@
 			},
 			"multisyncCommand": {
 				"name": "multisyncCommand",
-				"description": "Multicast",
+				"description": "Multisync",
 				"type": "bool",
 				"optional": true,
 				"hidden": true
