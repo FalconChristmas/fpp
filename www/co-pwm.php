@@ -221,6 +221,7 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
     }
     function savePWMOutputs() {
         var postData = {};
+        postData["channelOutputs"] = new Array();
         postData.channelOutputs.push(generateJSONConfig());
         $.post("api/channel/output/co-pwm", JSON.stringify(postData)).done(function (data) {
             $.jGrowl("PWM/Servo Output Configuration Saved", { themeState: 'success' });
@@ -233,7 +234,9 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
 
     function loadPWMOutputs() {
         $.getJSON("api/channel/output/co-pwm", function (data) {
-            populatePWMOutputs(data.channelOutputs[0])
+            if (typeof data.channelOutputs !== 'undefined') {
+                populatePWMOutputs(data.channelOutputs[0])
+            }
         });
     }
 
