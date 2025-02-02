@@ -212,6 +212,7 @@ function GetOptions_RTC()
     $rtcOptions['pcf85363 (Kulp)'] = '5';
     $rtcOptions['mcp7941x (PiFace)'] = '3';
     $rtcOptions['pcf2127 (RasClock)'] = '1';
+    $rtcOptions['pcf8563'] = '6';
 
     return json($rtcOptions);
 }

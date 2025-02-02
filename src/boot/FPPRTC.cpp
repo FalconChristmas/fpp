@@ -152,6 +152,14 @@ static bool setupRTC(std::string& devAd, bool newDev) {
             addI2CDevice("pcf85363 0x51", bus);
         }
         break;
+    case 6:
+        printf("FPP - Configuring RTC, Setting to pcf8563/%d\n", bus);
+        modprobe("rtc-pcf8563");
+        devAd = "0x51";
+        if (newDev) {
+            addI2CDevice("pcf8563 0x51", bus);
+        }
+        break;
     default:
         printf("FPP - Configuring RTC, None Selected");
         return false;
@@ -175,9 +183,10 @@ static std::string getRTCDev() {
         }
     }
 #elif defined(PLATFORM_BB64)
-    if (FileExists("/sys/class/rtc/rtc1/name")) {
-        std::string drv = GetFileContents("/sys/class/rtc/rtc1/name");
-        if (!contains(drv, "rtc-ti-k3")) {
+    if (FileExists("/sys/class/rtc/rtc0/name")) {
+        std::string drv = GetFileContents("/sys/class/rtc/rtc0/name");
+        if (contains(drv, "rtc-ti-k3")) {
+            // onboard non-battery-backed RTC, we'll be configuring rtc1
             rtc = "/dev/rtc1";
         }
     }
