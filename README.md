@@ -11,6 +11,7 @@ DDP, DMX, Pixelnet, and Renard to hardware from multiple hardware vendors. Using
 can also be a controller on P5 and P10 Matrixes, or strings of ws2811 pixels.
 
 FPP is intended to be used on Raspberry Pi and Beagle based SBC (single board computers).  These are the only platforms 'supported'.
+
 Docker, other SBCs eg Orange Pi, PC hardware, virtual machines, Debian, Ubuntu installs etc are not 'supported'.
 
 Useful Links:
