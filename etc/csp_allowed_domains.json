@@ -1,0 +1,13 @@
+{
+  "default-src": [],
+  "img-src": [
+    "https://a.espncdn.com"
+  ],
+  "script-src": [
+    "https://raw.githubusercontent.com/FalconChristmas/fpp-data",
+    "https://raw.githubusercontent.co"
+  ],
+  "style-src": [],
+  "connect-src": [],
+  "object-src": []
+}
