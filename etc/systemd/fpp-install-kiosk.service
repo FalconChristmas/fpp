@@ -1,0 +1,12 @@
+[Unit]
+Description=FPP Install Kiosk
+Documentation=https://falconchristmas.com/forum/
+After=fpp_postnetwork.service
+Requires=fpp_postnetwork.service
+
+[Service]
+ExecStart=/opt/fpp/src/fppinit installKiosk
+Type=oneshot
+
+[Install]
+WantedBy=multi-user.target

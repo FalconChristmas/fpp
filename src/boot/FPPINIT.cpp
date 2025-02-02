@@ -1154,7 +1154,21 @@ void setupKiosk(bool force = false) {
         PutFileContents("/etc/chromium/policies/managed/policy.json", value);
     }
 }
+void checkInstallKiosk() {
+    int km = getRawSettingInt("Kiosk", 0);
+    if (FileExists("/fpp_kiosk")) {
+        km = true;
+    }
 
+    if (km && !FileExists("/etc/fpp/kiosk")) {
+        std::string s = execAndReturn("/usr/bin/systemctl is-enabled fpp-install-kiosk");
+        TrimWhiteSpace(s);
+        if (s == "disabled") {
+            exec("/usr/bin/systemctl enable fpp-install-kiosk");
+            exec("/usr/sbin/reboot");
+        }
+    }
+}
 void installKiosk() {
     int km = getRawSettingInt("Kiosk", 0);
     if (FileExists("/fpp_kiosk")) {
@@ -1339,6 +1353,7 @@ int main(int argc, char* argv[]) {
         printf("Setting file ownership\n");
         setFileOwnership();
         PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
+        checkInstallKiosk();
     } else if (action == "postNetwork") {
         handleBootDelay();
         // turn off blinking cursor
@@ -1352,7 +1367,6 @@ int main(int argc, char* argv[]) {
         }
         setupTimezone(); // this may not have worked in the init phase, try again
         detectFalconHardware();
-        installKiosk();
         setFileOwnership();
     } else if (action == "bootPre") {
         int restart = getRawSettingInt("restartFlag", 0);
@@ -1377,6 +1391,8 @@ int main(int argc, char* argv[]) {
         setupAudio();
     } else if (action == "configureBBB") {
         configureBBB();
+    } else if (action == "installKiosk") {
+        installKiosk();
     } else if (action == "setupNetwork") {
         PutFileContents(networkSetupMut, "1");
         setupNetwork();

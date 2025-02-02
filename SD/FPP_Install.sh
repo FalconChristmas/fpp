@@ -1428,10 +1428,6 @@ fi
 #######################################
 echo "FPP - Configuring FPP startup"
 cp /opt/fpp/etc/systemd/*.service /lib/systemd/system/
-if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
-    # Beagles don't have hdmi/video out so no need to wait for getty before starting up
-    sed -i -e "s/getty.target//g" /lib/systemd/system/fppd.service
-fi
 cp /opt/fpp/etc/avahi/* /etc/avahi/services
 if $isimage; then
     mkdir -p /etc/networkd-dispatcher/initialized.d
@@ -1445,6 +1441,7 @@ systemctl enable fpprtc.service
 systemctl enable fppoled.service
 systemctl enable fppd.service
 systemctl enable fpp_postnetwork.service
+systemctl enable fpp-install-kiosk.service
 
 if $isimage; then
     cp /opt/fpp/etc/update-RTC /etc/cron.daily
