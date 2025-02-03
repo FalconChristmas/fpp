@@ -1,3 +1,3 @@
 <IfModule mod_headers.c>
-    Header set Content-Security-Policy "default-src 'self' http://www.w3.org ; script-src 'self' 'unsafe-inline' https://raw.githubusercontent.com/FalconChristmas/fpp-data https://raw.githubusercontent.co; style-src 'self' 'unsafe-inline' ; object-src 'none' ; connect-src 'self' https://raw.githubusercontent.com ; img-src 'self' http://www.w3.org https://www.paypal.com https://www.paypalobjects.com https://a.espncdn.com"
+    Header set Content-Security-Policy "default-src 'self' http://www.w3.org ; script-src 'self' 'unsafe-inline' https://api.falconplayer.com ; style-src 'self' 'unsafe-inline' ; object-src 'none'  ; connect-src 'self' https://raw.githubusercontent.com https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com; img-src 'self' blob: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com https://a.espncdn.com"
 </IfModule>
