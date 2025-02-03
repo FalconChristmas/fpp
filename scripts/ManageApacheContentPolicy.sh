@@ -16,10 +16,10 @@ JSON_FILE=$FPPDIR"/etc/csp_allowed_domains.json"
 declare -A DEFAULT_VALUES
 DEFAULT_VALUES=( 
     ["default-src"]="'self' http://www.w3.org"
-    ["connect-src"]="'self' https://raw.githubusercontent.com"
-    ["object-src"]="'none'"
-    ["img-src"]="'self' http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
-    ["script-src"]="'self' 'unsafe-inline'"
+    ["connect-src"]="'self' https://raw.githubusercontent.com https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com"
+    ["object-src"]="'none' "
+    ["img-src"]="'self' blob: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
+    ["script-src"]="'self' 'unsafe-inline' https://api.falconplayer.com"
     ["style-src"]="'self' 'unsafe-inline'"
 )
 
@@ -118,11 +118,16 @@ case "$1" in
     show)
         echo_current_settings
         ;;
+    regenerate)
+        generate_csp
+        ;;
     *)
         echo "Usage: $0 {add|remove} key domain"
-        echo "Possible Keys are: 'default-src','img-src','script-src','style-src'"
+        echo "Possible Keys are: 'default-src','connect-src', 'img-src','script-src','style-src','object-src'"
         echo "To view current config:"
         echo "Usage: $0 {show}"
+        echo "To regenerate current config without making changes:"
+        echo "Usage: $0 {regenerate}"
         exit 1
         ;;
 esac
