@@ -18,7 +18,7 @@ DEFAULT_VALUES=(
     ["default-src"]="'self' http://www.w3.org"
     ["connect-src"]="'self' https://raw.githubusercontent.com https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com"
     ["object-src"]="'none' "
-    ["img-src"]="'self' blob: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
+    ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
     ["script-src"]="'self' 'unsafe-inline' https://api.falconplayer.com"
     ["style-src"]="'self' 'unsafe-inline'"
 )
