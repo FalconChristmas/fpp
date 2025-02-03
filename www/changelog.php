@@ -138,7 +138,7 @@ unset($output);
         What action would you like to take?
     </div>
     <div id='upgradePopup' title='Switch Version' style="display: none">
-        <textarea style='width: 99%; height: 94%;' disabled id='upgradeText'>
+        <textarea style='width: 99%; height: 94%;' disabled id='upgradeText' title="Upgrade Text">
     </textarea>
         <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseUpgradeDialog();'
             style='display: none;'>
