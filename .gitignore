@@ -61,4 +61,5 @@ src/fppd.xcodeproj/project.xcworkspace/xcshareddata
 *-workspace
 .DS_Store
 capes/drivers/bb64/pinctrl
+etc/apache2.csp
 
