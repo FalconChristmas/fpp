@@ -13,6 +13,9 @@ For pluggins to be able to trust particular domains they need to add them to the
 in the pluggins fpp_install.sh file:
 
 ```
+# Include common scripts functions and variables
+. ${FPPDIR}/scripts/common
+
 # Add required Apache CSP (Content-Security-Policy allowed domains
 ${FPPDIR}/scripts/ManageApacheContentPolicy.sh add connect-src https://domaintotrust.co.uk
 ${FPPDIR}/scripts/ManageApacheContentPolicy.sh add img-src https://anotherdomain.com
