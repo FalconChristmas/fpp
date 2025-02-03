@@ -724,7 +724,7 @@ private:
             if (!file_exists(EEPROM)) {
                 printf("Couldn't get eeprom\n");
             }
-            printf("Copyng eeprom %s -> %s\n", EEPROM.c_str(), "/home/fpp/media/tmp/eeprom.bin");
+            printf("Copying eeprom %s -> %s\n", EEPROM.c_str(), "/home/fpp/media/tmp/eeprom.bin");
             removeIfExist("/home/fpp/media/tmp/eeprom.bin");
             copyFile(EEPROM, "/home/fpp/media/tmp/eeprom.bin");
             struct passwd* pwd = getpwnam("fpp");
