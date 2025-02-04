@@ -198,6 +198,23 @@ setSetting() {
     fi
 }
 
+gracefullyReloadApacheConf() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        sudo apachectl graceful
+    elif [[ -f /etc/debian_version ]]; then
+        # Debian/Ubuntu
+        sudo systemctl reload apache2
+    elif [[ -f /etc/redhat-release ]]; then
+        # RHEL/CentOS/Fedora
+        sudo systemctl reload httpd
+    else
+        echo "Unsupported OS"
+        return 1
+    fi
+    echo "Apache configuration reloaded successfully."
+}
+
 ###################################################################
 # Handle calling a function directly
 #

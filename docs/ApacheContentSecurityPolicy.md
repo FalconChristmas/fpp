@@ -20,8 +20,7 @@ in the pluggins fpp_install.sh file:
 ${FPPDIR}/scripts/ManageApacheContentPolicy.sh add connect-src https://domaintotrust.co.uk
 ${FPPDIR}/scripts/ManageApacheContentPolicy.sh add img-src https://anotherdomain.com
 
-# Need to force reboot for CSP change to take affect
-setSetting rebootFlag 1
+# No need to restart or reboot as the apache config is gracefully reloaded in the background
 ```
 
 Possible Keys are: 'default-src', 'connect-src', 'img-src', 'script-src', 'style-src', 'object-src'
@@ -34,3 +33,4 @@ Possible Keys are: 'default-src', 'connect-src', 'img-src', 'script-src', 'style
 4. script-src - defines domains which are allowed to provide script content
 5. style-src - defines domains which are allowed to provide style content
 6. object-src - defines domains which are allowed to provide object content
+

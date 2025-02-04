@@ -25,7 +25,7 @@ DEFAULT_VALUES=(
     ["style-src"]="'self' 'unsafe-inline'"
 )
 
-#Generate local CSP JSON override file in NOT exists
+# Generate local CSP JSON override file if NOT exists
 if [ ! -f $JSON_FILE ]; then
     cp $JSON_STRUCT $JSON_FILE
 fi
@@ -67,9 +67,31 @@ remove_domain() {
     fi
 }
 
+# Function to detect Cape Domains from cape config
+detectCapeDomains() {
+    if [ ! -f /home/fpp/media/tmp/cape-info.json ]; then
+        return
+    fi
+
+    cape_json_data=$(cat /home/fpp/media/tmp/cape-info.json)
+
+    # Extract base URLs
+    header_cape_image_url=$(echo "$cape_json_data" | jq -r '.header_cape_image // empty' | sed 's|\(https\?://[^/]*\).*|\1|')
+    vendor_image_url=$(echo "$cape_json_data" | jq -r '.vendor.image // empty' | sed 's|\(https\?://[^/]*\).*|\1|')
+    vendor_url=$(echo "$cape_json_data" | jq -r '.vendor.url // empty' | sed 's|\(https\?://[^/]*\).*|\1|')
+    vendor_landing_page_url=$(echo "$cape_json_data" | jq -r '.vendor.landingPage // empty' | sed 's|\(https\?://[^/]*\).*|\1|')
+
+    # Combine URLs and remove duplicates
+    urls=("$header_cape_image_url" "$vendor_image_url" "$vendor_url" "$vendor_landing_page_url")
+    distinct_urls=($(printf "%s\n" "${urls[@]}" | sort -u))
+
+    # Output the distinct URLs
+    echo "${distinct_urls[@]}"
+}
+
 # Function to generate the CSP header
 generate_csp() {
-  # Initialize an associative array to store the combined values
+    # Initialize an associative array to store the combined values
     declare -A combined_values
 
     # Include default values
@@ -88,6 +110,18 @@ generate_csp() {
             combined_values[$key]="$value"
         fi
     done < <(jq -r 'to_entries | map("\(.key) \(.value | join(" "))") | .[]' $JSON_FILE)
+
+    # Detect cape domains and add them to default-src
+    cape_domains=$(detectCapeDomains)
+    if [ -n "$cape_domains" ]; then
+        combined_values["img-src"]="${combined_values["img-src"]} $cape_domains"
+        combined_values["connect-src"]="${combined_values["connect-src"]} $cape_domains"
+    fi
+
+    # Remove duplicate values for each key
+    for key in "${!combined_values[@]}"; do
+        combined_values[$key]=$(echo "${combined_values[$key]}" | tr ' ' '\n' | sort -u | tr '\n' ' ')
+    done
 
     # Construct the CSP_HEADER from combined values
     CSP_HEADER=""
@@ -117,16 +151,19 @@ case "$1" in
     add)
         add_domain "$2" "$3"
         generate_csp
+        gracefullyReloadApacheConf
         ;;
     remove)
         remove_domain "$2" "$3"
         generate_csp
+        gracefullyReloadApacheConf
         ;;
     show)
         echo_current_settings
         ;;
     regenerate)
         generate_csp
+        gracefullyReloadApacheConf
         ;;
     *)
         echo "Usage: $0 {add|remove} key domain"
