@@ -9,8 +9,10 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/functions
 
 #############################################################################
-# Path to your JSON file
-JSON_FILE=$FPPDIR"/etc/csp_allowed_domains.json"
+# Path to your JSON default structure file
+JSON_STRUCT=$FPPDIR"/etc/csp_allowed_default_struct.json"
+# Path to your local CSP JSON override file
+JSON_FILE=$MEDIADIR"/config/csp_allowed_domains.json"
 
 # Default key values hard-coded to include in all configs
 declare -A DEFAULT_VALUES
@@ -18,10 +20,15 @@ DEFAULT_VALUES=(
     ["default-src"]="'self' http://www.w3.org"
     ["connect-src"]="'self' https://raw.githubusercontent.com https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com"
     ["object-src"]="'none' "
-    ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
+    ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com"
     ["script-src"]="'self' 'unsafe-inline' https://api.falconplayer.com"
     ["style-src"]="'self' 'unsafe-inline'"
 )
+
+#Generate local CSP JSON override file in NOT exists
+if [ ! -f $JSON_FILE ]; then
+    cp $JSON_STRUCT $JSON_FILE
+fi
 
 # Function to check if a key exists in the JSON file
 key_exists() {
