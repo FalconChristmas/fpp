@@ -117,16 +117,19 @@ case "$1" in
     add)
         add_domain "$2" "$3"
         generate_csp
+        gracefullyReloadApacheConf
         ;;
     remove)
         remove_domain "$2" "$3"
         generate_csp
+        gracefullyReloadApacheConf
         ;;
     show)
         echo_current_settings
         ;;
     regenerate)
         generate_csp
+        gracefullyReloadApacheConf
         ;;
     *)
         echo "Usage: $0 {add|remove} key domain"
