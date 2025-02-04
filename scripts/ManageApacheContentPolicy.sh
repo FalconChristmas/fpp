@@ -69,11 +69,11 @@ remove_domain() {
 
 # Function to detect Cape Domains from cape config
 detectCapeDomains() {
-    if [ ! -f /home/fpp/media/tmp/cape-info.json ]; then
+    if [ ! -f $MEDIADIR/tmp/cape-info.json ]; then
         return
     fi
 
-    cape_json_data=$(cat /home/fpp/media/tmp/cape-info.json)
+    cape_json_data=$(cat $MEDIADIR/tmp/cape-info.json)
 
     # Extract base URLs
     header_cape_image_url=$(echo "$cape_json_data" | jq -r '.header_cape_image // empty' | sed 's|\(https\?://[^/]*\).*|\1|')
