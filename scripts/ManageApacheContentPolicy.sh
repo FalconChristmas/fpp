@@ -10,7 +10,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 #############################################################################
 # Path to your JSON default structure file
-JSON_STRUCT=$FPPDIR"/etc/csp_allowed_domains.json"
+JSON_STRUCT=$FPPDIR"/etc/csp_allowed_default_struct.json"
 # Path to your local CSP JSON override file
 JSON_FILE=$MEDIADIR"/config/csp_allowed_domains.json"
 

@@ -1,0 +1,8 @@
+{
+  "default-src": [],
+  "img-src": [],
+  "script-src": [],
+  "style-src": [],
+  "connect-src": [],
+  "object-src": []
+}
