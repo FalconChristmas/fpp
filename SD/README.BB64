@@ -3,6 +3,13 @@
 # FPP images are currently based on the following Debian pocketbeagle2 images:
 # https://rcn-ee.net/rootfs/debian-arm64-12-bookworm-minimal-v6.12-ti/2025-01-23/
 
+# Clear the SD card
+sudo dd if=/dev/zero of=/dev/rdisk4 bs=1m count=8000
+
+# Need to resize the root to be at least 5G
+# Using gparted on Linux/gui is easiest option.
+
+
 # First, mount the rootfs on a Linux machine.   We need to disable the growfs on
 # first boot:
 cd /media/${USER}/rootfs

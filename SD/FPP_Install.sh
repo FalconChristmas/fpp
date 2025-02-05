@@ -47,9 +47,9 @@
 #       hardware which does not support Bookworm may have issues.
 #
 #############################################################################
-FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2025-01"
-FPPCFGVER="93"
+FPPBRANCH=${FPPBRANCH:-"v8.5-bb64"}
+FPPIMAGEVER="2025-02"
+FPPCFGVER="91"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -518,6 +518,9 @@ case "${OSVER}" in
         if [ "${OSVER}" == "debian_12" ]; then
             PACKAGE_LIST="$PACKAGE_LIST python3-distutils"
         fi
+        if [ "$FPPPLATFORM" == "BeagleBone 64" ]; then
+            PACKAGE_LIST="$PACKAGE_LIST cpufrequtils"
+        fi
 
         
         if $skip_apt_install; then
@@ -720,6 +723,7 @@ case "${FPPPLATFORM}" in
     'BeagleBone 64')
         systemctl disable keyboard-setup
         systemctl disable unattended-upgrades
+        systemctl disable mender-client
         systemctl disable resize_filesystem
         ;;
 
@@ -1344,6 +1348,8 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone 64" ]; then
     sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
     # remove the udev rules that create the SoftAp interface on the bbbw and bbggw
     rm -f /etc/udev/rules.d/*SoftAp*
+    
+    echo 'GOVERNOR="performance"' > /etc/default/cpufrequtils
     
 fi
 if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
