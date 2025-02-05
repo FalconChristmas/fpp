@@ -28,11 +28,11 @@ class InterleaveHandler;
 // that the pru program expects to see
 typedef struct {
     // in the DDR shared with the PRU
-    volatile uintptr_t address_dma;
+    volatile uint32_t address_dma;
 
     // write 1 to start, 0xFF to abort. will be cleared when started
-    volatile unsigned command;
-    volatile unsigned response;
+    volatile uint32_t command;
+    volatile uint32_t response;
 
     volatile uint16_t pwmBrightness[8];
     uint32_t stats[3 * MAX_STATS]; // 3 values per collection
@@ -64,7 +64,7 @@ public:
 private:
     void calcBrightnessFlags(std::vector<std::string>& sargs);
     void printStats();
-    bool configureControlPin(const std::string& ctype, Json::Value& root, std::ofstream& outputFile);
+    bool configureControlPin(const std::string& ctype, Json::Value& root, std::ofstream& outputFile, int pru, int& controlGPIO);
     void configurePanelPins(int x, Json::Value& root, std::ofstream& outputFile, int* minPort);
     void configurePanelPin(int x, const std::string& color, int row, Json::Value& root, std::ofstream& outputFile, int* minPort);
 

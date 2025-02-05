@@ -36,7 +36,7 @@ static Ball& addBall(const std::string& n, uint32_t d, uint32_t o, bool addGPIO 
         b.addMode("gpio", { PIN_INPUT | 7 }).addMode("gpio_pu", { PIN_INPUT_PULLUP | 7 }).addMode("gpio_pd", { PIN_INPUT_PULLDOWN | 7 }).addMode("gpio_out", { PIN_OUTPUT | 7 });
     }
     if (pru0Base < 0xFF) {
-        b.addMode("pruout", { PIN_OUTPUT | pru1Base }).addMode("pruin", { PIN_INPUT | (pru1Base + 1) }).addMode("pru0out", { PIN_OUTPUT | pru1Base }).addMode("pru0in", { PIN_INPUT | (pru1Base + 1) });
+        b.addMode("pruout", { PIN_OUTPUT | pru0Base }).addMode("pruin", { PIN_INPUT | (pru0Base + 1) }).addMode("pru0out", { PIN_OUTPUT | pru0Base }).addMode("pru0in", { PIN_INPUT | (pru0Base + 1) });
     }
     if (pru1Base < 0xFF) {
         if (pru0Base >= 0xFF) {

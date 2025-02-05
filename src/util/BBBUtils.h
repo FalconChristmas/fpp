@@ -48,11 +48,9 @@ public:
     virtual Json::Value toJSON() const override;
 
     BBBPinCapabilities& setPRU(int p, int pin) {
-        pru = p;
-        pruPin = pin;
+        _pruPin[p] = pin;
         return *this;
     }
-
     BBBPinCapabilities& setGPIO(int chip, int pin) {
         gpioIdx = chip;
         gpio = pin;
@@ -71,11 +69,12 @@ public:
         uart = u;
         return *this;
     }
-
-    int8_t pruPin;
+    uint8_t pruPin(int i) const {
+        return _pruPin[i];
+    }
 
 private:
-    int8_t pru;
+    int8_t _pruPin[2];
 };
 class BBBPinProvider : public PinCapabilitiesProvider {
     void Init();
