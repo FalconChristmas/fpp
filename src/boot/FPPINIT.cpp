@@ -352,25 +352,26 @@ void configureBBB() {
 #endif
 #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
     std::string led;
+    int offset = FileExists("/sys/class/leds/beaglebone:green:usr0/trigger") ? 0 : 1;
     if (getRawSetting("BBBLeds0", led) && !led.empty()) {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr0/trigger", mapBBBLedValue(led));
+        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(offset) + "/trigger", mapBBBLedValue(led));
     } else {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr0/trigger", "heartbeat");
+        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(offset) + "/trigger", "heartbeat");
     }
     if (getRawSetting("BBBLeds1", led) && !led.empty()) {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr1/trigger", mapBBBLedValue(led));
+        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(1 + offset) + "/trigger", mapBBBLedValue(led));
     } else {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr1/trigger", "mmc0");
+        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(1 + offset) + "/trigger", "mmc0");
     }
     if (getRawSetting("BBBLeds2", led) && !led.empty()) {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr2/trigger", mapBBBLedValue(led));
+        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(2 + offset) + "/trigger", mapBBBLedValue(led));
     } else {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr3/trigger", mapBBBLedValue("cpu"));
+        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(2 + offset) + "/trigger", mapBBBLedValue("cpu"));
     }
     if (getRawSetting("BBBLeds3", led) && !led.empty()) {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr3/trigger", led);
+        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(3 + offset) + "/trigger", led);
     } else {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr3/trigger", "mmc1");
+        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(3 + offset) + "/trigger", "mmc1");
     }
 #endif
 }
