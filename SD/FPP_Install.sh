@@ -732,7 +732,7 @@ case "${FPPPLATFORM}" in
 
 	'Raspberry Pi')
 		echo "FPP - Updating firmware for Raspberry Pi install"
-        sudo apt-get dist-upgrade -y
+        apt-get dist-upgrade -y
 
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
@@ -1140,11 +1140,11 @@ sed -i -e "s/weekly/daily/" /etc/logrotate.d/rsyslog
 
 #######################################
 # Disable duplicate logging to save on disk space 
-sudo sed -i '/auth,authpriv\.\*/s/^/# /' /etc/rsyslog.conf
-sudo sed -i '/cron\.\*/s/^/# /' /etc/rsyslog.conf
-sudo sed -i '/kern\.\*/s/^/# /' /etc/rsyslog.conf
-sudo sed -i '/mail\.\*/s/^/# /' /etc/rsyslog.conf
-sudo sed -i '/user\.\*/s/^/# /' /etc/rsyslog.conf
+sed -i '/auth,authpriv\.\*/s/^/# /' /etc/rsyslog.conf
+sed -i '/cron\.\*/s/^/# /' /etc/rsyslog.conf
+sed -i '/kern\.\*/s/^/# /' /etc/rsyslog.conf
+sed -i '/mail\.\*/s/^/# /' /etc/rsyslog.conf
+sed -i '/user\.\*/s/^/# /' /etc/rsyslog.conf
 
 #######################################
 # Configure ccache
