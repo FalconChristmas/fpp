@@ -468,7 +468,7 @@ BBBMatrix::~BBBMatrix() {
         delete m_panelMatrix;
 }
 
-bool BBBMatrix::configureControlPin(const std::string& ctype, Json::Value& root, std::ofstream& outputFile) {
+bool BBBMatrix::configureControlPin(const std::string& ctype, Json::Value& root, std::ofstream& outputFile, int pru, int& controlGPIO) {
     std::string type = root["controls"][ctype]["type"].asString();
     if (type != "none") {
         std::string pinName = root["controls"][ctype]["pin"].asString();
@@ -477,17 +477,19 @@ bool BBBMatrix::configureControlPin(const std::string& ctype, Json::Value& root,
             outputFile << "#define oe_pwm_address " << std::to_string(pin.getPWMRegisterAddress()) << "\n";
             outputFile << "#define oe_pwm_output " << std::to_string(pin.subPwm) << "\n";
             int max = 300 * 255;
-            // FIXME - adjust max for brightess
+            // FIXME - adjust max for brightness
             pin.setupPWM(max);
             pin.setPWMValue(0);
             return true;
         } else {
-            pin.configPin(type);
             if (type == "pruout") {
+                pin.configPin("pru" + std::to_string(pru) + "out");
                 const BBBPinCapabilities* bp = static_cast<const BBBPinCapabilities*>(&pin);
-                outputFile << "#define pru_" << ctype << " " << std::to_string(bp->pruPin) << "\n";
+                outputFile << "#define pru_" << ctype << " " << std::to_string(bp->pruPin(pru)) << "\n";
             } else {
-                outputFile << "#define gpio_" << ctype << " " << std::to_string(pin.gpio) << "\n";
+                pin.configPin(type);
+                outputFile << "#define gpio_" << ctype << " " << std::to_string(pin.mappedGPIO()) << "\n";
+                controlGPIO = pin.mappedGPIOIdx();
             }
         }
         m_usedPins.push_back(pinName);
@@ -501,19 +503,19 @@ void BBBMatrix::configurePanelPin(int x, const std::string& color, int row, Json
     pin.configPin();
     m_usedPins.push_back(pinName);
     int gpioIdx = pin.mappedGPIOIdx();
-    minPort[gpioIdx] = std::min(minPort[gpioIdx], (int)pin.gpio);
+    minPort[gpioIdx] = std::min(minPort[gpioIdx], (int)pin.mappedGPIO());
     outputFile << "#define " << color << std::to_string(x + 1) << std::to_string(row) << "_gpio " << std::to_string(pin.mappedGPIOIdx()) << "\n";
-    outputFile << "#define " << color << std::to_string(x + 1) << std::to_string(row) << "_pin  " << std::to_string(pin.gpio) << "\n";
+    outputFile << "#define " << color << std::to_string(x + 1) << std::to_string(row) << "_pin  " << std::to_string(pin.mappedGPIO()) << "\n";
 
     if (color == "r") {
         m_pinInfo[x].row[row - 1].r_gpio = pin.mappedGPIOIdx();
-        m_pinInfo[x].row[row - 1].r_pin = 1UL << pin.gpio;
+        m_pinInfo[x].row[row - 1].r_pin = 1UL << pin.mappedGPIO();
     } else if (color == "g") {
         m_pinInfo[x].row[row - 1].g_gpio = pin.mappedGPIOIdx();
-        m_pinInfo[x].row[row - 1].g_pin = 1UL << pin.gpio;
+        m_pinInfo[x].row[row - 1].g_pin = 1UL << pin.mappedGPIO();
     } else {
         m_pinInfo[x].row[row - 1].b_gpio = pin.mappedGPIOIdx();
-        m_pinInfo[x].row[row - 1].b_pin = 1UL << pin.gpio;
+        m_pinInfo[x].row[row - 1].b_pin = 1UL << pin.mappedGPIO();
     }
 }
 
@@ -747,23 +749,23 @@ int BBBMatrix::Init(Json::Value config) {
             m_dataOffset *= 1024; // dataOffset is in KB
         }
 
-        configureControlPin("latch", root, outputFile);
+        int controlGpio = root["controls"]["gpio"].asInt();
+        configureControlPin("latch", root, outputFile, pru, controlGpio);
         outputFile << "\n";
-        isPWM = configureControlPin("oe", root, outputFile);
+        isPWM = configureControlPin("oe", root, outputFile, pru, controlGpio);
         outputFile << "\n";
-        configureControlPin("clock", root, outputFile);
+        configureControlPin("clock", root, outputFile, pru, controlGpio);
         outputFile << "\n";
-        configureControlPin("sel0", root, outputFile);
-        configureControlPin("sel1", root, outputFile);
-        configureControlPin("sel2", root, outputFile);
-        configureControlPin("sel3", root, outputFile);
+        configureControlPin("sel0", root, outputFile, pru, controlGpio);
+        configureControlPin("sel1", root, outputFile, pru, controlGpio);
+        configureControlPin("sel2", root, outputFile, pru, controlGpio);
+        configureControlPin("sel3", root, outputFile, pru, controlGpio);
         if (m_panelScan == 32) {
             // 1:32 scan panels need the "E" line
-            configureControlPin("sel4", root, outputFile);
+            configureControlPin("sel4", root, outputFile, pru, controlGpio);
             compileArgs.push_back("-DE_SCAN_LINE");
         }
         outputFile << "\n";
-        int controlGpio = root["controls"]["gpio"].asInt();
         outputFile << "#define CONTROLS_GPIO_BASE GPIO" << std::to_string(controlGpio) << "\n";
         outputFile << "#define gpio_controls_led_mask gpio" << std::to_string(controlGpio) << "_led_mask\n";
         outputFile << "\n";
@@ -834,6 +836,7 @@ int BBBMatrix::Init(Json::Value config) {
     }
 
     calcBrightnessFlags(compileArgs);
+    // m_printStats = true;
     if (m_printStats) {
         snprintf(buf, sizeof(buf), "-DENABLESTATS=1", m_outputs);
         compileArgs.push_back("-DENABLESTATS=1");
@@ -852,24 +855,16 @@ int BBBMatrix::Init(Json::Value config) {
 
     if (!m_singlePRU) {
         m_pruCopy = new BBBPru(pru ? 0 : 1);
-        memset(m_pruCopy->data_ram, 0, 24);
+        m_pruCopy->clearPRUMem(m_pruCopy->data_ram, 24);
     }
 
     m_pru = new BBBPru(pru);
     m_pruData = (BBBPruMatrixData*)m_pru->data_ram;
+    m_pruCopy->clearPRUMem(m_pru->data_ram, sizeof(BBBPruMatrixData));
     m_pruData->address_dma = m_pru->ddr_addr + m_dataOffset;
     m_pruData->command = 0;
     m_pruData->response = 0;
 
-    for (int x = 0; x < 8; x++) {
-        m_pruData->pwmBrightness[x] = 0;
-    }
-
-    for (int x = 0; x < MAX_STATS; x++) {
-        m_pruData->stats[x * 3] = 0;
-        m_pruData->stats[x * 3 + 1] = 0;
-        m_pruData->stats[x * 3 + 1] = 0;
-    }
     if (!m_singlePRU) {
         m_pruCopy->run("/tmp/FalconMatrixPRUCpy.out");
     }
@@ -1016,6 +1011,7 @@ int BBBMatrix::Init(Json::Value config) {
     for (int x = 0; x < m_numFrames; x++) {
         memset(m_frames[x], 0x0, m_fullFrameLen);
     }
+    msync(m_frames[0], m_pru->ddr_size, MS_SYNC | MS_INVALIDATE);
     SendData(nullptr);
     return ChannelOutput::Init(config);
 }
@@ -1194,7 +1190,7 @@ int BBBMatrix::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBBMatrix::SendData(%p)\n", channelData);
 
     // long long startTime = GetTime();
-    uint8_t* addr = (uint8_t*)m_pru->ddr_addr + m_dataOffset;
+    uint32_t addr = (m_pru->ddr_addr + m_dataOffset);
     addr += (m_frames[m_curFrame] - m_frames[0]);
     uint8_t* ptr = m_frames[m_curFrame];
     if (m_numFrames < 3) {
@@ -1204,14 +1200,15 @@ int BBBMatrix::SendData(unsigned char* channelData) {
     }
     // long long cpyTime = GetTime();
     if (m_curFrame == 0) {
-        m_curFrame = m_numFrames - 1;
+        // m_curFrame = m_numFrames - 1;
+        m_curFrame = 1;
     } else {
         m_curFrame--;
     }
 
     // make sure memory is flushed before command is set to 1
     msync(ptr, m_fullFrameLen, MS_SYNC | MS_INVALIDATE);
-    m_pruData->address_dma = (uintptr_t)addr;
+    m_pruData->address_dma = addr;
 
     __asm__ __volatile__("" ::
                              : "memory");

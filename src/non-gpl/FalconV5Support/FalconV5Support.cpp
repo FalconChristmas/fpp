@@ -37,10 +37,10 @@ public:
     FalconV5Listener(const Json::Value& config) {
         pin = config["pin"].asString();
         const PinCapabilities& p = PinCapabilities::getPinByName(pin);
-        p.configPin("pruin");
+        p.configPin("pru0in");
 
         const BBBPinCapabilities* pc = (const BBBPinCapabilities*)p.ptr();
-        offset = pc->pruPin;
+        offset = pc->pruPin(0);
     }
     ~FalconV5Listener() {
         const PinCapabilities& p = PinCapabilities::getPinByName(pin);

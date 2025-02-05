@@ -291,8 +291,8 @@ SETUP_GPIO0_REGS .macro
     .endm
 
 
-DISABLE_GPIO_PIN_INTERRUPTS .macro ledMask, gpio
 #ifdef AM33XX
+DISABLE_GPIO_PIN_INTERRUPTS .macro ledMask, gpio
     MOV r10, ledMask
     MOV r11, ledMask
     LDI32 r12, gpio
@@ -304,7 +304,6 @@ DISABLE_GPIO_PIN_INTERRUPTS .macro ledMask, gpio
     LDI r10, 0
     ADD r12, r12, r13         // set clock to highest speed
     SBBO &r10, r12, 0x30, 4    //0x30 is the GPIO_CTRL register
-#endif    
     .endm
 DISABLE_PIN_INTERRUPTS .macro
     DISABLE_GPIO_PIN_INTERRUPTS gpio0_led_mask, GPIO0
@@ -312,7 +311,10 @@ DISABLE_PIN_INTERRUPTS .macro
     DISABLE_GPIO_PIN_INTERRUPTS gpio2_led_mask, GPIO2
     DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
     SETUP_GPIO0_REGS
+#else    
+DISABLE_PIN_INTERRUPTS .macro
     .endm
+#endif    
 
 CLEAR_IF_NOT_EQUAL .macro  val, gpioAdd, equ
     .newblock

@@ -1,4 +1,4 @@
-	.include ResourceTable.asm
+	#include "ResourceTable.asm"
 
 ;*****************************************************************************
 ;  Define storage registers
@@ -36,13 +36,15 @@ CTPPR_1         .set    0x2202C
     .global    ||main||
 
 ||main||:
+#ifdef AM33XX    
     ;Enable OCP master port
     ; clear the STANDBY_INIT bit in the SYSCFG register,
     ; otherwise the PRU will not be able to write outside the
-    ; PRU memory space and to the BeagleBone's pins.
+    ; PRU memory space and to the BeagleBone pins.
     LBCO    &r0, C4, 4, 4
     CLR     r0, r0, 4
     SBCO    &r0, C4, 4, 4
+#endif    
 
     ; Configure the programmable pointer register for PRU0 by setting
     ; c28_pointer[15:0] field to 0x0120.  This will make C28 point to

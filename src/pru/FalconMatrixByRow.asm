@@ -10,8 +10,8 @@ NEW_ROW_LOOP:
     LDI bright, BITS
 
 ROW_LOOP:
-		; Reset the latch pin; will be toggled at the end of the row
-		LATCH_LO
+	; Reset the latch pin; will be toggled at the end of the row
+	LATCH_LO
         CHECK_FOR_DISPLAY_OFF
 
         LDI pixelCount, ROW_LEN
