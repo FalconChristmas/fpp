@@ -396,6 +396,9 @@ export DEBIAN_FRONTEND=noninteractive
 case "${OSVER}" in
 	debian_12 | ubuntu_24.* | linuxmint_21)
 
+        # Stop unattended-upgrades as it can hold a lock on the apt repository
+        systemctl stop unattended-upgrades
+
         #remove a bunch of packages that aren't neeeded, free's up space
         PACKAGE_REMOVE="nginx nginx-full nginx-common  triggerhappy pocketsphinx-en-us guile-2.2-libs \
             gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv"
@@ -436,7 +439,6 @@ case "${OSVER}" in
             sleep 5
         fi
         
-
 		echo "FPP - Removing anything left that wasn't explicity removed"
 		apt-get -y --purge autoremove
 
@@ -732,6 +734,7 @@ case "${FPPPLATFORM}" in
         systemctl disable unattended-upgrades
         systemctl disable mender-client
         systemctl disable resize_filesystem
+        echo "vm.swappiness = 1" >> /etc/sysctl.conf
         ;;
 
 	'Raspberry Pi')
