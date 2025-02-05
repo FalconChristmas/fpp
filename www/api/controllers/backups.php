@@ -308,7 +308,7 @@ function GetAvailableJSONBackups(){
 	$dir_jsonbackups = GetDirSetting('JsonBackups');
 
 	//Grabs only the array keys which contain the JSON filenames
-	$json_config_backup_filenames = (read_directory_files($dir_jsonbackups, true, true, 'asc'));
+	$json_config_backup_filenames = (read_directory_files($dir_jsonbackups, false, true, 'asc'));
 	//Process the backup files to extra some info about them
 	$json_config_backup_filenames = process_jsonbackup_file_data_helper($json_config_backup_filenames, $dir_jsonbackups);
 
@@ -317,11 +317,11 @@ function GetAvailableJSONBackups(){
 		$dir_jsonbackupsalternate = GetDirSetting('JsonBackupsAlternate');
 
 		//$settings['jsonConfigBackupUSBLocation'] is the selected alternative drive to stop backups to
-		$json_config_backup_filenames_on_alternative = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'read_directory_files', array($dir_jsonbackupsalternate, true, true, 'asc'));
+		$json_config_backup_filenames_on_alternative = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'read_directory_files', array($dir_jsonbackupsalternate, false, true, 'asc'));
 		//Process the backup files to extra some info about them
 		$json_config_backup_filenames_on_alternative = process_jsonbackup_file_data_helper($json_config_backup_filenames_on_alternative, $dir_jsonbackupsalternate);
 	}
-	//Merge the results together, if t he same backup name exists in the alternative backup location it will overwrite the record from the local cnfig directory
+	//Merge the results together, if the same backup name exists in the alternative backup location it will overwrite the record from the local cnfig directory
 	$json_config_backup_filenames_clean = array_merge($json_config_backup_filenames, $json_config_backup_filenames_on_alternative);
 
 	//Once merged - do another sort on the entries but sort on the backup_time_unix value
@@ -356,7 +356,8 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 		//cleanup the filename so it can be used as as a ID
 		$backup_filename_clean = trim(str_replace('.json', '', $backup_filename));
 
-		$decoded_backup_data = json_decode($backup_data[0], true);
+		//Read the backup file so we can extract some metadata
+		$decoded_backup_data = json_decode(file_get_contents($backup_filepath . '/' . $backup_filename), true);
 		if (array_key_exists('backup_comment', $decoded_backup_data)) {
 			$backup_data_comment = $decoded_backup_data['backup_comment'];
 		}
@@ -380,6 +381,8 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 			'backup_time' => $backup_date_time,
 			'backup_time_unix' => $backup_date_time_unix
 		);
+
+		unset($decoded_backup_data);
 	}
 
 	return $json_config_backup_filenames_clean;
