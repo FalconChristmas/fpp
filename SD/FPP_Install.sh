@@ -175,7 +175,7 @@ then
 	OSVER="debian_${VERSION_ID}"
     isimage=true
     desktop=false
-elif [ -e "/sys/class/leds/beaglebone:green:usr0" ]
+elif [ -e "/sys/class/leds/beaglebone:green:usr1" ]
 then
     ARCH=$(uname -m)
 if [ "$ARCH" == "aarch64" ]; then
