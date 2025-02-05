@@ -2233,7 +2233,6 @@ function pruneOrRemoveAgedBackupFiles()
 
         if ((stripos(strtolower($backup_filename), "-backup_") !== false) && (stripos(strtolower($backup_filename), ".json") !== false)) {
             //
-            $backup_comment = $backups_by_trigger_source_meta_data['backup_comment'];
             if (array_key_exists('backup_trigger_source', $backups_by_trigger_source_meta_data) && $backups_by_trigger_source_meta_data['backup_trigger_source'] !== null) {
                 //Get the trigger source name & add it and the backup meta data to a temp array, this will group like sources together
                 //then we'll limit those lists to enforce our backup limit
