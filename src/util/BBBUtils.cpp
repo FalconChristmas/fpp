@@ -87,45 +87,61 @@ static void setupBBBMemoryMap() {
     std::map<std::string, std::pair<int, int>> labelMapping;
     // newer kernels will number the chips differently so we'll use the
     // memory locations to figure out the mapping to the gpio0-3 that we use
-    const std::string dirName("/sys/class/gpio");
-    DIR* dir = opendir(dirName.c_str());
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-        std::string fn = entry->d_name;
-        if (fn.starts_with("gpiochip")) {
-            std::string fn2 = dirName + "/" + fn;
-            char buf[PATH_MAX + 1];
-            realpath(fn2.c_str(), buf);
-
-            std::string lab = GetFileContents(fn2 + "/label");
-            TrimWhiteSpace(lab);
-            std::string target = buf;
-            int start = std::atoi(fn.substr(8).c_str());
-#ifdef PLATFORM_BB64
-            if (lab.contains("tps65219-gpio")) {
-                labelMapping[lab] = { 0, start };
-            } else if (lab.contains("4201000.gpio")) {
-                labelMapping[lab] = { 1, start };
-            } else if (lab.contains("600000.gpio")) {
-                labelMapping[lab] = { 2, start };
-            } else if (lab.contains("601000.gpio")) {
-                labelMapping[lab] = { 3, start };
-            }
-#else
-            if (target.contains("44e07000.gpio")) {
-                labelMapping[lab] = { 0, start };
-            } else if (target.contains("4804c000.gpio")) {
-                labelMapping[lab] = { 1, start };
-            } else if (target.contains("481ac000.gpio")) {
-                labelMapping[lab] = { 2, start };
-            } else if (target.contains("481ae000.gpio")) {
-                labelMapping[lab] = { 3, start };
-            }
-#endif
+    int x = 0;
+    for (auto&& chip : gpiod::make_chip_iter()) {
+        std::string lab = chip.label();
+        if (lab.contains("tps65219-gpio")) {
+            labelMapping[lab] = { 0, x };
+        } else if (lab.contains("4201000.gpio")) {
+            labelMapping[lab] = { 1, x };
+        } else if (lab.contains("600000.gpio")) {
+            labelMapping[lab] = { 2, x };
+        } else if (lab.contains("601000.gpio")) {
+            labelMapping[lab] = { 3, x };
         }
+        x++;
     }
-    closedir(dir);
 
+    const std::string dirName("/sys/class/gpio");
+    if (DirectoryExists(dirName)) {
+        DIR* dir = opendir(dirName.c_str());
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != NULL) {
+            std::string fn = entry->d_name;
+            if (fn.starts_with("gpiochip")) {
+                std::string fn2 = dirName + "/" + fn;
+                char buf[PATH_MAX + 1];
+                realpath(fn2.c_str(), buf);
+                
+                std::string lab = GetFileContents(fn2 + "/label");
+                TrimWhiteSpace(lab);
+                std::string target = buf;
+                int start = std::atoi(fn.substr(8).c_str());
+#ifdef PLATFORM_BB64
+                if (lab.contains("tps65219-gpio")) {
+                    labelMapping[lab] = { 0, start };
+                } else if (lab.contains("4201000.gpio")) {
+                    labelMapping[lab] = { 1, start };
+                } else if (lab.contains("600000.gpio")) {
+                    labelMapping[lab] = { 2, start };
+                } else if (lab.contains("601000.gpio")) {
+                    labelMapping[lab] = { 3, start };
+                }
+#else
+                if (target.contains("44e07000.gpio")) {
+                    labelMapping[lab] = { 0, start };
+                } else if (target.contains("4804c000.gpio")) {
+                    labelMapping[lab] = { 1, start };
+                } else if (target.contains("481ac000.gpio")) {
+                    labelMapping[lab] = { 2, start };
+                } else if (target.contains("481ae000.gpio")) {
+                    labelMapping[lab] = { 3, start };
+                }
+#endif
+            }
+        }
+        closedir(dir);
+    }
     int curChip = 0;
     for (auto& a : gpiod::make_chip_iter()) {
         // std::string cname = a.name();
