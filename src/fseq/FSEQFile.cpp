@@ -1828,6 +1828,16 @@ void V2FSEQFile::dumpInfo(bool indent) {
     //}
 }
 
+bool isWithinRange(const std::vector<std::pair<uint32_t, uint32_t>>& ranges, uint32_t start_channel, uint32_t channel_count) {
+    for (auto& a : ranges) {
+        if ((start_channel >= a.first && start_channel < (a.first + a.second) )
+            && ((start_channel + channel_count - 1) < (a.first + a.second))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>>& ranges, uint32_t startFrame) {
     if (m_sparseRanges.empty()) {
         m_rangesToRead.clear();
@@ -1862,6 +1872,11 @@ void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>>& r
         // and read everything
         m_dataBlockSize = m_seqChannelCount;
         m_rangesToRead = m_sparseRanges;
+    }
+    for (auto const& [st, cnt] : ranges) {
+        if (!isWithinRange(m_rangesToRead, st, cnt)) {
+            LogErr(VB_SEQUENCE, "Requested ouput range outside read ranges. Requested %d channels starting at %d\n", cnt, st);
+        }
     }
     m_handler->prepareRead(startFrame);
 }
