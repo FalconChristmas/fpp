@@ -138,14 +138,14 @@ If you are installing to create a SD image zip, do the following:
 Put the SD card back in a Linux system and run the following (substitute
 the proper device name for your SD card in place of '/dev/sdg'):
 
-	NOTE: The 3800 on the "BLOCK=" line below must be at least the new size of the
+	NOTE: The 6800 on the "BLOCK=" line below must be at least the new size of the
 	      second partition created at the top of this document using fdisk.
     NOTE: the linux system needs to have zerofree and squashfs-tools installed
        apt-get install zerofree squashfs-tools
 
-    DEVICE=/dev/sdd
-    VERSION=8.1
-    OSVERSION=2024-10
+    DEVICE=/dev/sdc
+    VERSION=8.5
+    OSVERSION=2025-02
     BLOCKS=6800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
@@ -174,7 +174,7 @@ mount ${DEVICE}2 /mnt
 mount ${DEVICE}1 /mnt/boot/firmware
 mksquashfs /mnt Pi-${VERSION}_${OSVERSION}.fppos -b 512K -comp xz
 cd /mnt/root
-tar -czf ~/ccache-Pi-2024.x-v${VERSION}.tar.gz .ccache
+tar -czf ~/ccache-Pi-2025.x-v${VERSION}.tar.gz .ccache
 cd ~
 umount /mnt/boot/firmware
 umount /mnt
