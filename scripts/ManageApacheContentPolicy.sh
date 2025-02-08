@@ -9,8 +9,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/functions
 
 #############################################################################
-# Path to your JSON default structure file
-JSON_STRUCT=$FPPDIR"/etc/csp_allowed_default_struct.json"
+
 # Path to your local CSP JSON override file
 JSON_FILE=$MEDIADIR"/config/csp_allowed_domains.json"
 
@@ -25,9 +24,20 @@ DEFAULT_VALUES=(
     ["style-src"]="'self' 'unsafe-inline'"
 )
 
+# local JSON template content
+    json_struct_content='{
+      "default-src": [],
+      "img-src": [],
+      "script-src": [],
+      "style-src": [],
+      "connect-src": [],
+      "object-src": []
+    }'
+
 # Generate local CSP JSON override file if NOT exists
 if [ ! -f $JSON_FILE ]; then
-    cp $JSON_STRUCT $JSON_FILE
+    # Write JSON template content to file
+    echo "$json_struct_content" > $JSON_FILE
 fi
 
 # Function to check if a key exists in the JSON file
