@@ -488,8 +488,8 @@ bool setFilePerms(const std::string& filename) {
 
 static bool handleCapeOverlay() {
 #if defined(PLATFORM_BB64)
-    static std::string src = "/home/fpp/media/tmp/fpp-cape-overlay.dtb";
-    if (file_exists("/home/fpp/media/tmp/fpp-cape-overlay.dtb")) {
+    static std::string src = "/home/fpp/media/tmp/fpp-cape-overlay-bb64.dtb";
+    if (file_exists(src)) {
         std::string target = "/boot/firmware/overlays/fpp-cape-overlay.dtb";
 
         int slen = 0;
