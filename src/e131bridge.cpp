@@ -732,6 +732,9 @@ void ResetBytesReceived() {
     ddpPacketsReceived = 0;
     ddpErrors = 0;
     e131Errors = 0;
+    unknownUniverse.bytesReceived = 0;
+    unknownUniverse.packetsReceived = 0;
+    e131SyncPackets = 0;
 }
 
 Json::Value GetE131UniverseBytesReceived() {
