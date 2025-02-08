@@ -19,6 +19,9 @@
 #include <sys/sysinfo.h>
 #endif
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <cstdlib>
 #include <ctime>
 #include <cxxabi.h>
@@ -265,7 +268,15 @@ APIServer::~APIServer() {
  *
  */
 void APIServer::Init(void) {
-    m_params = create_webserver(FPP_HTTP_PORT).max_threads(10).use_dual_stack();
+
+    // Create a socket for the webserver to bind to, so we only allow access via 127.0.0.1
+    struct sockaddr_in bind_addr;
+    memset(&bind_addr, 0, sizeof(bind_addr));
+    bind_addr.sin_family = AF_INET;
+    bind_addr.sin_port = htons(FPP_HTTP_PORT); 
+    inet_pton(AF_INET, FPP_BIND_ADDRESS, &bind_addr.sin_addr);
+
+    m_params = create_webserver(FPP_HTTP_PORT).max_threads(10).bind_address(reinterpret_cast<struct sockaddr*>(&bind_addr));;
 
     m_ws = new webserver(m_params);
 

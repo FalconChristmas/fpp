@@ -15,6 +15,7 @@
 #include <httpserver.hpp>
 
 #define FPP_HTTP_PORT 32322
+#define FPP_BIND_ADDRESS "127.0.0.1"
 
 #define FPPD_API_VERSION "v1"
 
