@@ -10,6 +10,13 @@
 # version of FPP, the system can then be switched to a new version number
 # or git branch for release.
 #
+# FPP installs created by this script are not supported.  Please do not log
+# bugs against these installs.  FPP is only supported when using FPP OS images
+# installed on Pi/Beagles.
+#
+# Make sure your system is connected to the internet via a wired connection
+# before running this script
+#
 #############################################################################
 # To use this script, download the latest copy from github and run it as
 # root on the system where you want to install FPP:
