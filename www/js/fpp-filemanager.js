@@ -1237,7 +1237,7 @@ var tablesorterOptions_Override_Sequences = {
 	headers: {
 		0: { sorter: 'text', sortInitialOrder: 'asc' },
 		1: { sorter: 'metric' },
-		2: { sorter: 'text' }
+		2: { sorter: 'sugar' }
 	},
 	widgetOptions: {
 		cssStickyHeaders_attachTo: '#divSeqData'
@@ -1249,7 +1249,7 @@ var tablesorterOptions_Override_Music = {
 	headers: {
 		0: { sorter: 'text', sortInitialOrder: 'asc' },
 		1: { sorter: 'text' },
-		2: { sorter: 'text' }
+		2: { sorter: 'sugar' }
 	},
 	widgetOptions: {
 		cssStickyHeaders_attachTo: '#divMusicData'
@@ -1261,7 +1261,7 @@ var tablesorterOptions_Override_Videos = {
 	headers: {
 		0: { sorter: 'text', sortInitialOrder: 'asc' },
 		1: { sorter: 'text' },
-		2: { sorter: 'text' }
+		2: { sorter: 'sugar' }
 	},
 	widgetOptions: {
 		cssStickyHeaders_attachTo: '#divVideoData'
@@ -1273,7 +1273,7 @@ var tablesorterOptions_Override_Images = {
 	headers: {
 		0: { sorter: 'text', sortInitialOrder: 'asc' },
 		1: { sorter: 'metric' },
-		2: { sorter: 'text' },
+		2: { sorter: 'sugar' },
 		3: { sorter: false }
 	},
 	widgetOptions: {
@@ -1287,7 +1287,7 @@ var tablesorterOptions_Override_Effects = {
 	headers: {
 		0: { sorter: 'text', sortInitialOrder: 'asc' },
 		1: { sorter: 'text' },
-		2: { sorter: 'text' }
+		2: { sorter: 'sugar' }
 	},
 	widgetOptions: {
 		cssStickyHeaders_attachTo: '#divEffectsData'
@@ -1299,7 +1299,7 @@ var tablesorterOptions_Override_Scripts = {
 	headers: {
 		0: { sorter: 'text', sortInitialOrder: 'asc' },
 		1: { sorter: 'metric' },
-		2: { sorter: 'text' }
+		2: { sorter: 'sugar' }
 	},
 	widgetOptions: {
 		cssStickyHeaders_attachTo: '#divScriptsData'
@@ -1311,7 +1311,7 @@ var tablesorterOptions_Override_Logs = {
 	headers: {
 		0: { sorter: 'text', sortInitialOrder: 'asc' },
 		1: { sorter: 'metric' },
-		2: { sorter: 'text' }
+		2: { sorter: 'sugar' }
 	},
 	widgetOptions: {
 		cssStickyHeaders_attachTo: '#divLogsData'
@@ -1323,7 +1323,7 @@ var tablesorterOptions_Override_Uploads = {
 	headers: {
 		0: { sorter: 'text', sortInitialOrder: 'asc' },
 		1: { sorter: 'metric' },
-		2: { sorter: 'text' }
+		2: { sorter: 'sugar' }
 	},
 	widgetOptions: {
 		cssStickyHeaders_attachTo: '#divUploadsData'
@@ -1335,7 +1335,7 @@ var tablesorterOptions_Override_Crashes = {
 	headers: {
 		0: { sorter: 'text', sortInitialOrder: 'asc' },
 		1: { sorter: 'metric' },
-		2: { sorter: 'text' }
+		2: { sorter: 'sugar' }
 	},
 	widgetOptions: {
 		cssStickyHeaders_attachTo: '#divCrashesData'
@@ -1347,7 +1347,7 @@ var tablesorterOptions_Override_Backups = {
 	headers: {
 		0: { sorter: 'text', sortInitialOrder: 'asc' },
 		1: { sorter: 'metric' },
-		2: { sorter: 'text' }
+		2: { sorter: 'sugar' }
 	},
 	widgetOptions: {
 		cssStickyHeaders_attachTo: '#divBackupsData'

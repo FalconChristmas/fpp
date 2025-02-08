@@ -45,7 +45,10 @@
 
     <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.min.js"></script>
     <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.min.js"></script>
+    <script type="text/javascript" src="js/sugar/sugar.min.js"></script>
     <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-metric.min.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-date.min.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-date-two-digit-year.min.js"></script>
     <script type="text/javascript" src="jquery/jquery.tablesorter/widgets/widget-cssStickyHeaders.min.js"></script>
     <script type="text/javascript" src="jquery/jquery.tablesorter/extras/jquery.metadata.min.js"></script>
     <script type="text/javascript" src="js/fpp-filemanager.js"></script>
@@ -216,7 +219,7 @@
                                                     <th>File</th>
                                                     <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
                                                         data-metric-name-abbr="b|B">Size</th>
-                                                    <th>Date Modified</th>
+                                                    <th class="sorter-sugar">Date Modified</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -279,7 +282,7 @@
                                                 <tr>
                                                     <th>File</th>
                                                     <th>Duration</th>
-                                                    <th>Date Modified</th>
+                                                    <th class="sorter-sugar">Date Modified</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -341,7 +344,7 @@
                                                 <tr>
                                                     <th class="tablesorter-header filenameColumn">File</th>
                                                     <th class="tablesorter-header">Duration</th>
-                                                    <th class="tablesorter-header">Date Modified</th>
+                                                    <th class="sorter-sugar"">Date Modified</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -350,24 +353,26 @@
                                     </div>
 
                                     <div class='form-actions'>
-                                        <input onclick="ClearSelections('Videos');" class="buttons" type="button"
-                                            value="Clear" />
-                                        <input onclick="ButtonHandler('Videos', 'playInBrowser');"
-                                            class="disableButtons singleVideosButton" type="button" value="View" />
-                                        <input onclick="ButtonHandler('Videos', 'videoInfo');"
-                                            class="disableButtons singleVideosButton" type="button"
-                                            value="Video Info" />
-                                        <input onclick="ButtonHandler('Videos', 'addToPlaylist');"
-                                            class="disableButtons singleMusicButton multiMusicButton" type="button"
-                                            value="Add To Playlist" />
-                                        <input onclick="ButtonHandler('Videos', 'download');"
-                                            class="disableButtons singleVideosButton multiVideosButton" type="button"
-                                            value="Download" />
-                                        <input onclick="ButtonHandler('Videos', 'rename');"
-                                            class="disableButtons singleVideosButton" type="button" value="Rename" />
-                                        <input onclick="ButtonHandler('Videos', 'delete');"
-                                            class="disableButtons singleVideosButton multiVideosButton" type="button"
-                                            value="Delete" />
+                                        <input onclick=" ClearSelections('Videos');" class="buttons" type="button"
+                                                        value="Clear" />
+                                                    <input onclick="ButtonHandler('Videos', 'playInBrowser');"
+                                                        class="disableButtons singleVideosButton" type="button"
+                                                        value="View" />
+                                                    <input onclick="ButtonHandler('Videos', 'videoInfo');"
+                                                        class="disableButtons singleVideosButton" type="button"
+                                                        value="Video Info" />
+                                                    <input onclick="ButtonHandler('Videos', 'addToPlaylist');"
+                                                        class="disableButtons singleMusicButton multiMusicButton"
+                                                        type="button" value="Add To Playlist" />
+                                                    <input onclick="ButtonHandler('Videos', 'download');"
+                                                        class="disableButtons singleVideosButton multiVideosButton"
+                                                        type="button" value="Download" />
+                                                    <input onclick="ButtonHandler('Videos', 'rename');"
+                                                        class="disableButtons singleVideosButton" type="button"
+                                                        value="Rename" />
+                                                    <input onclick="ButtonHandler('Videos', 'delete');"
+                                                        class="disableButtons singleVideosButton multiVideosButton"
+                                                        type="button" value="Delete" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
                                 </div>
@@ -401,7 +406,7 @@
                                                     <th>File</th>
                                                     <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
                                                         data-metric-name-abbr="b|B">Size</th>
-                                                    <th>Date Modified</th>
+                                                    <th class="sorter-sugar">Date Modified</th>
                                                     <th class="filter-false">Thumbnail</th>
                                                 </tr>
                                             </thead>
@@ -455,7 +460,7 @@
                                                     <th>File</th>
                                                     <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
                                                         data-metric-name-abbr="b|B">Size</th>
-                                                    <th>Date Modified</th>
+                                                    <th class="sorter-sugar">Date Modified</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -508,7 +513,7 @@
                                                     <th>File</th>
                                                     <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
                                                         data-metric-name-abbr="b|B">Size</th>
-                                                    <th>Date Modified</th>
+                                                    <th class="sorter-sugar">Date Modified</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -571,7 +576,7 @@
                                                     <th>File</th>
                                                     <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
                                                         data-metric-name-abbr="b|B">Size</th>
-                                                    <th>Date Modified</th>
+                                                    <th class="sorter-sugar">Date Modified</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -623,7 +628,7 @@
                                                     <th>File</th>
                                                     <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
                                                         data-metric-name-abbr="b|B">Size</th>
-                                                    <th>Date Modified</th>
+                                                    <th class="sorter-sugar">Date Modified</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -672,7 +677,7 @@
                                                     <th>File</th>
                                                     <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
                                                         data-metric-name-abbr="b|B">Size</th>
-                                                    <th>Date Modified</th>
+                                                    <th class="sorter-sugar">Date Modified</th>
                                                     </tr>
                                             </thead>
                                             <tbody>
@@ -719,7 +724,8 @@
                                                     <th>File</th>
                                                     <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
                                                         data-metric-name-abbr="b|B">Size</th>
-                                                    <th>Date Modified</th>
+                                                    <th class="sorter-sugar">Date
+                                                        Modified</th>
                                                     </tr>
                                             </thead>
                                             <tbody>
