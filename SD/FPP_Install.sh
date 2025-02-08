@@ -401,7 +401,7 @@ case "${OSVER}" in
 
         #remove a bunch of packages that aren't neeeded, free's up space
         PACKAGE_REMOVE="nginx nginx-full nginx-common  triggerhappy pocketsphinx-en-us guile-2.2-libs \
-            gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv"
+            gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv iwd"
         if [ "$FPPPLATFORM" == "BeagleBone 64" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer mender-client bb-code-server"
         fi
@@ -734,7 +734,34 @@ case "${FPPPLATFORM}" in
         systemctl disable unattended-upgrades
         systemctl disable mender-client
         systemctl disable resize_filesystem
+        systemctl disable console-setup
+        systemctl disable samba-ad-dc
         echo "vm.swappiness = 1" >> /etc/sysctl.conf
+
+        echo "FPP - Adding required modules to modules-load to speed up boot"
+        echo "snd_pcm" >> /etc/modules-load.d/modules.conf
+        echo "snd_timer" >> /etc/modules-load.d/modules.conf
+        echo "cdc_mbim" >> /etc/modules-load.d/modules.conf
+        echo "snd" >> /etc/modules-load.d/modules.conf
+        echo "cdc_wdm" >> /etc/modules-load.d/modules.conf
+        echo "cdc_ncm" >> /etc/modules-load.d/modules.conf
+        echo "cdc_ether" >> /etc/modules-load.d/modules.conf
+        echo "soundcore" >> /etc/modules-load.d/modules.conf
+        echo "usbnet" >> /etc/modules-load.d/modules.conf
+        echo "irq_pruss_intc" >> /etc/modules-load.d/modules.conf
+        echo "pru_rproc" >> /etc/modules-load.d/modules.conf
+        echo "crct10dif_ce" >> /etc/modules-load.d/modules.conf
+        echo "cfg80211" >> /etc/modules-load.d/modules.conf
+        echo "cpufreq_dt" >> /etc/modules-load.d/modules.conf
+        echo "rti_wdt" >> /etc/modules-load.d/modules.conf
+        echo "at24" >> /etc/modules-load.d/modules.conf
+        echo "ad7291" >> /etc/modules-load.d/modules.conf
+        echo "pruss" >> /etc/modules-load.d/modules.conf
+        echo "omap_mailbox" >> /etc/modules-load.d/modules.conf
+        echo "loop" >> /etc/modules-load.d/modules.conf
+        echo "efi_pstore" >> /etc/modules-load.d/modules.conf
+        echo "dm_mod" >> /etc/modules-load.d/modules.conf
+        echo "ip_tables" >> /etc/modules-load.d/modules.conf
         ;;
 
 	'Raspberry Pi')
