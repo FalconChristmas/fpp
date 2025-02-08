@@ -132,6 +132,8 @@ session_write_close();
 
 if ($applyUpdate && ($return_code == 0)) {
     sleep(3);
+
+    # Force reboot the system
     system("echo b > /proc/sysrq-trigger");
 }
 
