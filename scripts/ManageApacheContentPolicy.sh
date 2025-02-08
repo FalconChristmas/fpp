@@ -9,8 +9,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/functions
 
 #############################################################################
-# Path to your JSON default structure file
-JSON_STRUCT=$FPPDIR"/etc/csp_allowed_default_struct.json"
+
 # Path to your local CSP JSON override file
 JSON_FILE=$MEDIADIR"/config/csp_allowed_domains.json"
 
@@ -21,13 +20,24 @@ DEFAULT_VALUES=(
     ["connect-src"]="'self' https://raw.githubusercontent.com https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com"
     ["object-src"]="'none' "
     ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com"
-    ["script-src"]="'self' 'unsafe-inline' https://api.falconplayer.com"
+    ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval' https://api.falconplayer.com"
     ["style-src"]="'self' 'unsafe-inline'"
 )
 
+# local JSON template content
+    json_struct_content='{
+      "default-src": [],
+      "img-src": [],
+      "script-src": [],
+      "style-src": [],
+      "connect-src": [],
+      "object-src": []
+    }'
+
 # Generate local CSP JSON override file if NOT exists
 if [ ! -f $JSON_FILE ]; then
-    cp $JSON_STRUCT $JSON_FILE
+    # Write JSON template content to file
+    echo "$json_struct_content" > $JSON_FILE
 fi
 
 # Function to check if a key exists in the JSON file
@@ -69,11 +79,11 @@ remove_domain() {
 
 # Function to detect Cape Domains from cape config
 detectCapeDomains() {
-    if [ ! -f /home/fpp/media/tmp/cape-info.json ]; then
+    if [ ! -f $MEDIADIR/tmp/cape-info.json ]; then
         return
     fi
 
-    cape_json_data=$(cat /home/fpp/media/tmp/cape-info.json)
+    cape_json_data=$(cat $MEDIADIR/tmp/cape-info.json)
 
     # Extract base URLs
     header_cape_image_url=$(echo "$cape_json_data" | jq -r '.header_cape_image // empty' | sed 's|\(https\?://[^/]*\).*|\1|')
