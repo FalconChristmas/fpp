@@ -197,7 +197,7 @@ int BBBSerialOutput::Init(Json::Value config) {
         outputFile << "#define ser" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
 
         const BBBPinCapabilities* bp = static_cast<const BBBPinCapabilities*>(&pin);
-        outputFile << "#define ser" << std::to_string(x + 1) << "_pru30  " << std::to_string(bp->pruPin) << "\n\n";
+        outputFile << "#define ser" << std::to_string(x + 1) << "_pru30  " << std::to_string(bp->pruPin(BBB_PRU)) << "\n\n";
     }
     outputFile.close();
 

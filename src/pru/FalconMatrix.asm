@@ -50,9 +50,18 @@
 #define last_pixel_data_3 r29
 
 
+#ifdef GPIO_CLR_FIRST
 #define gpio_base       tmp_reg1    // must be one less than out_clr
 #define out_clr         tmp_reg2    // must be one less than out_set
 #define out_set         tmp_reg3
+#define out_clrset      out_clr
+#define 
+#else
+#define gpio_base       tmp_reg1    // must be one less than out_set
+#define out_set         tmp_reg2    // must be one less than out_clr
+#define out_clr         tmp_reg3
+#define out_clrset      out_set
+#endif
 
 
 #define GPIO(R) CAT3(gpio,R,_set)
@@ -88,7 +97,7 @@ OUTPUT_GPIO .macro data, mask, gpio, last
     QBEQ CLEARALL?, data, 0
         AND out_set, data, mask
         XOR out_clr, out_set, mask
-        SBBO &out_clr, gpio_base, GPIO_CLRDATAOUT, 8
+        SBBO &out_clrset, gpio_base, GPIO_SETCLRDATAOUT, 8
         QBA DONEOUTPUTGPIO?
 SETALL?:
         SBBO &data, gpio_base, GPIO_SETDATAOUT, 4
@@ -109,7 +118,7 @@ OUTPUT_GPIO_FORCE_CLEAR .macro data, mask, gpio, last
         QBEQ CLEARNONDATA?, data, last
         AND out_set, data, mask
         XOR out_clr, out_set, mask
-        SBBO &out_clr, gpio_base, GPIO_CLRDATAOUT, 8
+        SBBO &out_clrset, gpio_base, GPIO_SETCLRDATAOUT, 8
         QBA DONEOUTPUTGPIO?
 CLEARALL?:
         SBBO &mask, gpio_base, GPIO_CLRDATAOUT, 4
@@ -141,6 +150,7 @@ OUTPUT_GPIOS .macro  d0, d1, d2, d3
 #define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
 #define CONFIGURE_PIN(a) SET GPIO_MASK(a##_gpio), GPIO_MASK(a##_gpio), a##_pin
 
+#ifdef AM33XX
 DISABLE_GPIO_PIN_INTERRUPTS .macro ledMask, gpio
     MOV tmp_reg1, ledMask
     MOV tmp_reg2, ledMask
@@ -177,6 +187,11 @@ DISABLE_PIN_INTERRUPTS .macro
     #endif
     DISABLE_GPIO_PIN_INTERRUPTS tmp_reg4, CONTROLS_GPIO_BASE
     .endm
+#else    
+DISABLE_PIN_INTERRUPTS .macro
+    .endm
+#endif            
+
 
 GET_ON_DELAY_TIMES .macro brightlevel
 #ifdef USING_PWM
@@ -281,6 +296,7 @@ DONETIMES:
     .global    ||main||
 
 ||main||:
+#ifdef AM33XX    
     ; Enable OCP master port
     ; clear the STANDBY_INIT bit in the SYSCFG register,
     ; otherwise the PRU will not be able to write outside the
@@ -288,6 +304,7 @@ DONETIMES:
     LBCO	&r0, C4, 4, 4
     CLR		r0, r0, 4
     SBCO	&r0, C4, 4, 4
+#endif
 
     ; Configure the programmable pointer register for PRU0 by setting
     ; c28_pointer[15:0] field to 0x0120.  This will make C28 point to
@@ -312,7 +329,6 @@ DONETIMES:
     LDI gpio1_led_mask, 0
     LDI gpio2_led_mask, 0
     LDI gpio3_led_mask, 0
-
 
 #ifndef NO_OUTPUT_1
     CONFIGURE_PIN(r11)

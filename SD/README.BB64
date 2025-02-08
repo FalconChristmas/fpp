@@ -3,15 +3,22 @@
 # FPP images are currently based on the following Debian pocketbeagle2 images:
 # https://rcn-ee.net/rootfs/debian-arm64-12-bookworm-minimal-v6.12-ti/2025-01-23/
 
+# Clear the SD card
+sudo dd if=/dev/zero of=/dev/rdisk4 bs=1m count=8000
+
+# Need to resize the root to be at least 5G
+# Using gparted on Linux/gui is easiest option.
+
+
 # First, mount the rootfs on a Linux machine.   We need to disable the growfs on
 # first boot:
 cd /media/${USER}/rootfs
 sudo rm ./etc/systemd/system/multi-user.target.wants/grow_partition.service
 sudo rm ./var/lib/systemd/deb-systemd-helper-enabled/grow_partition.service.dsh-also
 sudo wget -4 -O ./etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
-sudo rm ./etc/systemd/network/eth0* /etc/systemd/network/mlan* /etc/systemd/network/wlan*
+sudo rm ./etc/systemd/network/eth0* ./etc/systemd/network/mlan* ./etc/systemd/network/wlan*
 cd /media/${USER}/BOOT
-sudo nano systconf.txt
+sudo nano sysconf.txt
     user_name=fpp
     user_passowrd=falcon
 cd /media/${USER}/
@@ -34,6 +41,47 @@ wget -4 -O ./FPP_Install.sh  http://raw.githubusercontent.com/FalconChristmas/fp
 chmod 700 ./FPP_Install.sh
 ./FPP_Install.sh --img
 
+# Reboot and make sure everything looks ok
 
-    
+# Before shutting down, run:
+systemctl enable grow_partition.service
+journalctl --flush --rotate --vacuum-time=1s
+
+
+    DEVICE=/dev/sdc
+    VERSION=8.5
+    OSVERSION=2025-02
+    BLOCKS=6800
+    mount "${DEVICE}3" /mnt
+    rm -f /mnt/home/fpp/.bash_history
+    rm -f /mnt/home/fpp/media/settings
+    rm -rf /mnt/home/fpp/media/config/backups/*
+    rm -f /mnt/home/fpp/media/config/*
+    rm -f /mnt/home/fpp/media/logs/*
+    rm -rf /mnt/home/fpp/media/tmp/*
+    rm -rf /mnt/home/fpp/media/crashes/*
+    rm -f /mnt/var/log/*
+    rm -f /mnt/etc/ssh/*key*
+    rm -f /mnt/root/.bash_history
+    echo "uninitialized" > /mnt/etc/machine-id
+    umount /mnt
+    zerofree -v "${DEVICE}3"
+    dd if=${DEVICE} of=FPP-v${VERSION}-BB64.img bs=1M count=${BLOCKS}
+    zip -9 FPP-v$VERSION-BB64.img.zip FPP-v${VERSION}-BB64.img
+
+This will create a file called FPP-${VERSION}-Pi.img.zip that can be distributed
+for testing/release.
+
+
+# To create the squashfs image needed for OS updates
+# On a separate Linux box:  (this will take a LOOOONG time)
+mount ${DEVICE}3 /mnt
+mount ${DEVICE}1 /mnt/boot/firmware
+mksquashfs /mnt BB64-${VERSION}_${OSVERSION}.fppos -b 512K -comp xz
+cd /mnt/root
+tar -czf ~/ccache-BB64-2025.x-v${VERSION}.tar.gz .ccache
+cd ~
+umount /mnt/boot/firmware
+umount /mnt
+
 

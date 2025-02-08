@@ -1434,6 +1434,11 @@
             getFalconControllerStatus(fv3ips, fv4ips, true);
         }
 
+        function MultiSyncEnableToggled() {
+            SetRestartFlag();
+        }
+
+
         function autoRefreshToggled() {
             if ($('#MultiSyncRefreshStatus').is(":checked")) {
                 RefreshStats();
@@ -2107,7 +2112,7 @@
                         </div>
                     </div>
                     <div class='container-fluid settingsTable settingsGroupTable'>
-                        <? PrintSetting('MultiSyncEnabled'); ?>
+                        <? PrintSetting('MultiSyncEnabled', 'MultiSyncEnableToggled'); ?>
                         <? PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled'); ?>
                     </div>
 

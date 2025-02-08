@@ -57,8 +57,20 @@ int main(int argc, char* argv[]) {
     } else {
         OLEDPage::displayBootingNotice();
     }
-    bool capeDetectionDone = FileExists("/home/fpp/media/tmp/cape_detect_done");
     int count = 0;
+    if (argc > 1) {
+        if (strcmp(argv[1], "clear") == 0) {
+            unlink("/home/fpp/media/tmp/cape_detect_done");
+            while (FileExists("/home/fpp/media/tmp/cape_detect_done") && count < 100) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                unlink("/home/fpp/media/tmp/cape_detect_done");
+                count++;
+            }
+            return 0;
+        }
+    }
+    count = 0;
+    bool capeDetectionDone = FileExists("/home/fpp/media/tmp/cape_detect_done");
     while (!capeDetectionDone && count < 200) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         ++count;

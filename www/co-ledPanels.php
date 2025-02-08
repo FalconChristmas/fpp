@@ -46,7 +46,7 @@ $LEDPanelScan = 8;
 $LEDPanelAddressing = 0;
 $LEDPanelGamma = 2.2;
 
-if ($settings['Platform'] == "BeagleBone Black") {
+if ($settings['BeaglePlatform']) {
     $LEDPanelPanelsPerOutput = 16;
     if (strpos($settings['SubPlatform'], 'Green Wireless') !== false) {
         $LEDPanelOutputs = 5;
@@ -106,7 +106,7 @@ function printLEDPanelInterleaveSelect($platform)
     echo "<select id='LEDPanelInterleave' onchange='LEDPanelLayoutChanged();'>";
 
     $values = array();
-    if ($platform == "BeagleBone Black") {
+    if ($settings['BeaglePlatform']) {
         $values["Off"] = "0";
         $values["4 Pixels"] = "4";
         $values["8 Pixels"] = "8";
@@ -374,7 +374,7 @@ function InitializeLEDPanels()
             $('#LEDPanelsInterface').val(channelOutputsLookup["LEDPanelMatrix"].interface);
         }
 <?
-if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black") {
+if ($settings['Platform'] == "Raspberry Pi" || $settings['BeaglePlatform']) {
     ?>
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
 <?
@@ -404,7 +404,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
             $('#LEDPanelInterleave').val(interleave);
         }
 
-<?if ($settings['Platform'] == "BeagleBone Black") {?>
+<?if ($settings['BeaglePlatform']) {?>
         if (channelOutputsLookup["LEDPanelMatrix"].panelOutputBlankRow != null) {
             outputBlank = channelOutputsLookup["LEDPanelMatrix"].panelOutputBlankRow;
         }
@@ -440,7 +440,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
     }
 
     <?
-if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black") {
+if ($settings['Platform'] == "Raspberry Pi" || $settings['BeaglePlatform']) {
     ?>
 
     if (typeof KNOWN_PANEL_CAPE  !== 'undefined') {
@@ -479,7 +479,7 @@ function GetLEDPanelConfig()
 
 	config.type = "LEDPanelMatrix";
 <?
-if ($settings['Platform'] == "BeagleBone Black") {
+if ($settings['BeaglePlatform']) {
     echo "config.subType = 'LEDscapeMatrix';\n";
 } else {
     echo "config.subType = 'RGBMatrix';\n";
@@ -502,7 +502,7 @@ if ($settings['Platform'] == "BeagleBone Black") {
 
 	}
 <?
-if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black") {
+if ($settings['Platform'] == "Raspberry Pi" || $settings['BeaglePlatform']) {
     ?>
 	config.wiringPinout = $('#LEDPanelsWiringPinout').val();
     config.brightness = parseInt($('#LEDPanelsBrightness').val());
@@ -523,7 +523,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
     config.panelWidth = LEDPanelWidth;
 	config.panelHeight = LEDPanelHeight;
     config.panelScan = LEDPanelScan;
-    <?if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black") {?>
+    <?if ($settings['Platform'] == "Raspberry Pi" || $settings['BeaglePlatform']) {?>
         config.panelOutputOrder = $('#LEDPanelsOutputByRow').is(':checked');
         config.panelOutputBlankRow = $('#LEDPanelsOutputBlankRow').is(':checked');
     <?}?>
@@ -652,7 +652,7 @@ function LEDPanelsConnectionChanged()
         }
 
 <?
-if ($settings['Platform'] == "BeagleBone Black") {
+if ($settings['BeaglePlatform']) {
     echo "        $('#LEDPanelsRowAddressTypeLabel').hide();\n";
     echo "        $('#LEDPanelRowAddressType').hide();\n";
     echo "        $('#LEDPanelsInterleaveLabel').hide();\n";
@@ -684,7 +684,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
         $('#LEDPanelsWiringPinout').show();
 
 <?
-if ($settings['Platform'] == "BeagleBone Black") {
+if ($settings['BeaglePlatform']) {
     echo "        $('#LEDPanelsInterleaveLabel').show();\n";
     echo "        $('#LEDPanelInterleave').show();\n";
     echo "        $('#LEDPanelsOutputByRowLabel').show();\n";
@@ -745,7 +745,7 @@ if ($settings['Platform'] == "BeagleBone Black") {
 	DrawLEDPanelTable();
 }
 
-<?if ($settings['Platform'] == "BeagleBone Black") {
+<?if ($settings['BeaglePlatform']) {
     echo "function outputByRowClicked() {\n";
     echo "        var checked = $('#LEDPanelsOutputByRow').is(':checked')\n";
     echo "        if (checked != false) {\n";
@@ -1184,7 +1184,7 @@ function PanelSubtypeChanged() {
 
     html += "<select id='LEDPanelsSize' onchange='LEDPanelsSizeChanged();'>"
 
-    <?if ($settings['Platform'] == "BeagleBone Black") {?>
+    <?if ($settings['BeaglePlatform']) {?>
     html += "<option value='32x16x8'>32x16 1/8 Scan</option>"
     html += "<option value='32x16x4'>32x16 1/4 Scan</option>"
     html += "<option value='32x16x4x1'>32x16 1/4 Scan ABCD</option>"
@@ -1344,7 +1344,7 @@ if (in_array('all', $currentCapeInfo["provides"])
         ?>
                             <option value='RGBMatrix'>Hat/Cap/Cape</option>
 <?
-    } else if ($settings['Platform'] == "BeagleBone Black") {?>
+    } else if ($settings['BeaglePlatform']) {?>
                             <option value='LEDscapeMatrix'>Hat/Cap/Cape</option>
 <?}?>
 <?
@@ -1374,8 +1374,8 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
                                     <option value='regular-pi1'>Standard Pi1</option>
                                     <option value='classic'>Classic</option>
                                     <option value='classic-pi1'>Classic Pi1</option>
-                                <?} else if ($settings['Platform'] == "BeagleBone Black") {
-    if (strpos($settings['SubPlatform'], 'Green Wireless') !== false) {?>
+                                <?} else if ($settings['BeaglePlatform']) {
+                                    if (strpos($settings['SubPlatform'], 'Green Wireless') !== false) {?>
                                           <option value='v2'>v2.x</option>
                                 <?} else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {?>
                                           <option value='PocketScroller1x'>PocketScroller</option>
@@ -1471,7 +1471,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
                         </select>
                     </div>
 
-    <?} else if ($settings['Platform'] == "BeagleBone Black") {?>
+    <?} else if ($settings['BeaglePlatform']) {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsOutputByRowLabel'><b>Output By Row:</b></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"><input id='LEDPanelsOutputByRow' type='checkbox' onclick='outputByRowClicked()'></div>
     <?} else {?>
@@ -1488,7 +1488,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
             <?if ($settings['Platform'] == "Raspberry Pi") {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsOutputCPUPWMLabel'><b>Use CPU PWM:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"><input id='LEDPanelsOutputCPUPWM' type='checkbox'></div>
-            <?} else if ($settings['Platform'] == "BeagleBone Black") {?>
+            <?} else if ($settings['BeaglePlatform']) {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsOutputBlankRowLabel'><b>Blank between rows:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"><input id='LEDPanelsOutputBlankRow' type='checkbox'></div>
             <?} else {?>
@@ -1500,7 +1500,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsColorDepthLabel'><b>Color Depth:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3">
                         <select id='LEDPanelsColorDepth'>
-                            <?if ($settings['Platform'] == "BeagleBone Black") {?>
+                            <?if ($settings['BeaglePlatform']) {?>
                                     <option value='12'>12 Bit</option>
                             <?}?>
                                     <option value='11'>11 Bit</option>

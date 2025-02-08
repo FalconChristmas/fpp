@@ -172,6 +172,7 @@ static void initPrus() {
                                      MAP_SHARED,
                                      mem_fd,
                                      ddr_addr);
+        madvise(ddr_mem_loc, ddr_filelen, MADV_HUGEPAGE);
     } else if (ddr_addr == 0 || FAKE_PRU) {
         // just malloc some memory so we don't crash
         ddr_phy_mem_loc = ddr_addr;
@@ -262,7 +263,6 @@ int BBBPru::run(const std::string& program) {
     } else {
         CopyFileContents(program, "/lib/firmware/" + FIRMWARE_PREFIX + "-pru" + std::to_string(pru_num) + "-fw");
     }
-
     clearPRUMem(data_ram, data_ram_size);
     if (shared_ram) {
         clearPRUMem(shared_ram, shared_ram_size);
@@ -270,7 +270,6 @@ int BBBPru::run(const std::string& program) {
     if (other_data_ram) {
         clearPRUMem(other_data_ram, other_data_ram_size);
     }
-
     /*
     printf("DL:  %p\n", data_ram);
     printf("OL:  %p\n", other_data_ram);
