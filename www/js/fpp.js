@@ -8641,3 +8641,26 @@ function scrollToTop () {
 	document.documentElement.scrollTop = 0;
 	document.scrollingElement.scrollTop = 0;
 }
+
+/**
+ * Uses the fppstats server to check if a new version is avaiable.
+ */
+function checkForFppUpdate () {
+	$.get('https://fppstats.falconchristmas.com/api/fpp_commits')
+		.done(function (data) {
+			console.log(FPP_BRANCH, FPP_LOCAL_COMMIT);
+			console.log(data);
+			let remote_found = false;
+			let remote_commit = '';
+			data.branches.forEach(branch => {
+				if (branch.name === FPP_BRANCH) {
+					remote_found = true;
+					remote_commit = branch.commit.sha;
+				}
+			});
+			console.log(remote_found, remote_commit);
+		})
+		.fail(function () {
+			console.log('Failed to check for updates. Assuming no internet acces');
+		});
+}

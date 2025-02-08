@@ -12,6 +12,10 @@ if (!isset($activeParentMenuItem)) {
     $activeParentMenuItem = "";
 }
 ?>
+<script type="text/javascript">
+    var FPP_LOCAL_COMMIT = "<? echo get_local_git_version(); ?>";
+    var FPP_BRANCH = "<? echo $git_branch ?>";
+</script>
 
 <?php require_once(dirname(__FILE__) . "/config.php"); ?>
 <?php
@@ -244,7 +248,7 @@ function list_plugin_entries($menu)
             <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
                     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-    </textarea>
+                                                    </textarea>
                 </div>
                 <script>
                     function RebuildFPPDDone() {
