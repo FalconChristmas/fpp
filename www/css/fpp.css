@@ -3625,3 +3625,6 @@ a.api-anchor {
     filter: "alpha(opacity=0)";
 }
 
+#navbarUpdateAvail {
+    display: none;
+}

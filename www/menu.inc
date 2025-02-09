@@ -248,7 +248,7 @@ function list_plugin_entries($menu)
             <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
                     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-                                                    </textarea>
+                                                                                                                                                                            </textarea>
                 </div>
                 <script>
                     function RebuildFPPDDone() {
@@ -291,6 +291,12 @@ function list_plugin_entries($menu)
                 </div>
                 <div class="collapse navbar-collapse" id="navbarNavDropdown">
                     <ul id="fppMenuList" class="navbar-nav">
+                        <li class="nav-item" id="navbarUpdateAvail">
+                            <a class="nav-link" href="about.php" role="button">
+                                <i class="fa-solid fa-download" id="navbarUpdateAvailIcon"></i>
+                            </a>
+                        </li>
+
                         <li class="nav-item dropdown <? echo $activeParentMenuItem == 'status' ? 'active' : ''; ?>">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkStatus" role="button"
                                 data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -455,3 +461,6 @@ function list_plugin_entries($menu)
 
 
         </div>
+        <script type="text/javascript">
+            setTimeout(checkForFppUpdate, 500); // Just so other things have time to load.
+        </script>
