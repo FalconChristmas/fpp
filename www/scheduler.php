@@ -17,7 +17,11 @@ error_reporting(E_ALL);
     $commandsJSON = file_get_contents('http://localhost:32322/commands');
     $data = json_decode($commandsJSON, true);
     foreach ($data as $cmd) {
-        $commandOptions .= "<option value='" . $cmd['name'] . "'>" . $cmd['name'] . "</option>";
+        // Disallow Start Playlist FPP command to be scheduled.  Instead schedule a playlist
+        // It only half works, and provides less functionality than scheduling a playlist directly on the same screen.
+        if ($cmd['name'] !== 'Start Playlist') { 
+            $commandOptions .= "<option value='" . $cmd['name'] . "'>" . $cmd['name'] . "</option>";
+        }
     }
     ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
