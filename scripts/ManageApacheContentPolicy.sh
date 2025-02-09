@@ -99,11 +99,11 @@ detectCapeDomains() {
     echo "${distinct_urls[@]}"
 }
 
-# Function to detect all /24 subnets related to the interfaces the device is using
+# Function to detect all IPv4 /24 subnets related to the interfaces the device is using
 detect_systems_subnets() {
-  ip_addresses=$(hostname -I)
+  ip_addresses=$(hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
   for ip in $ip_addresses; do
-    subnet=$(echo $ip | awk -F. '{print "http://" $1 "." $2 "." $3 ".*"}')
+    subnet=$(echo $ip | awk -F. '{print "'http://" $1 "." $2 "." $3 ".*'"}')
     echo $subnet
   done
 }
@@ -117,6 +117,16 @@ detect_systems_domainname() {
   else
     echo "http://*.$domain_name"
   fi
+}
+
+#function to extract multisync IPs from settings
+# Function to extract IPv4 addresses from a file
+extract_multisync_ips() {
+  file_path="$MEDIADIR/settings"
+  multisync_ips=$(grep -E "MultiSyncRemotes|MultiSyncExtraRemotes" "$file_path" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | sort -u)
+  for ip in $multisync_ips; do
+    echo "http://$ip"
+  done
 }
 
 # Function to generate the CSP header
@@ -148,17 +158,23 @@ generate_csp() {
         combined_values["connect-src"]="${combined_values["connect-src"]} $cape_domains"
     fi
 
-    # Detect IP subnets to trust and add them to connect-src
-    subnets=$(detect_systems_subnets)
-    if [ -n "$subnets" ]; then
-        combined_values["connect-src"]="${combined_values["connect-src"]} $subnets"
+    # Detect MultiSync Hosts to trust
+    multisync_ips=$(extract_multisync_ips)
+    if [ -n "$multisync_ips" ]; then
+        combined_values["connect-src"]="${combined_values["connect-src"]} $multisync_ips"
     fi
 
+    # Detect IP subnets to trust and add them to connect-src
+   #subnets=$(detect_systems_subnets)
+    #if [ -n "$subnets" ]; then
+    #    combined_values["connect-src"]="${combined_values["connect-src"]} $subnets"
+    #fi
+
     # Detect domain of local device
-    local_domain=$(detect_systems_domainname)
-    if [ -n "$local_domain" ]; then
-        combined_values["connect-src"]="${combined_values["connect-src"]} $local_domain"
-    fi
+    #local_domain=$(detect_systems_domainname)
+    #if [ -n "$local_domain" ]; then
+    #    combined_values["connect-src"]="${combined_values["connect-src"]} $local_domain"
+    #fi
 
     # Remove duplicate values for each key
     for key in "${!combined_values[@]}"; do
