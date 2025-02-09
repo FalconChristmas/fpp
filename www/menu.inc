@@ -89,7 +89,7 @@ function list_plugin_entries($menu)
     <div class="headerCenter">
         <div class="headerCenterRow headerHost">
             <?
-            echo ("<span class=\"headerHostName headerBox\" id=\"header_host\"><a href='index.php' class='nonULLink'>" . $settings['HostName'] . "</a></span>");
+               echo ("<span class=\"headerHostName headerBox\" id=\"header_host\" data-bs-placement=\"bottom\" data-bs-title=\"" . $settings['HostDescription'] . "\" data-bs-toggle=\"tooltip\"><a href='index.php' class='nonULLink'>" . $settings['HostName'] . "</a></span>");
 
             $currentHeaderSensor = "1";
             if (isset($settings['currentHeaderSensor'])) {
