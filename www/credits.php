@@ -2,6 +2,7 @@
 <html lang="en">
 <?php
 require_once 'config.php';
+require_once 'common.php';
 
 error_reporting(E_ALL);
 $fpp_version = "v" . getFPPVersion();
