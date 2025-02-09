@@ -3,15 +3,25 @@
 
 <head>
   <?php
-  require_once 'config.php';
-  require_once 'common.php';
+  require_once('config.php');
+  include 'common/htmlMeta.inc';
+
   if (file_exists(__DIR__ . "/fppdefines.php")) {
     include_once __DIR__ . '/fppdefines.php';
   } else {
     include_once __DIR__ . '/fppdefines_unknown.php';
   }
+
+  require_once "common.php";
   include 'common/menuHead.inc';
   ?>
+
+  <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.min.js"></script>
+  <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.min.js"></script>
+  <script type="text/javascript" src="jquery/jquery.tablesorter/widgets/widget-cssStickyHeaders.min.js"></script>
+  <script type="text/javascript" src="jquery/jquery.tablesorter/extras/jquery.metadata.min.js"></script>
+
+
   <script>
     var EffectSelectedName = "";
     var EffectSelectedType = "";
@@ -98,7 +108,24 @@
       });
     }
 
+    function pageSpecific_PageLoad_DOM_Setup() {
+      var $table = $('#tblEffectLibrary');
+
+      $table.tablesorter({
+        widthFixed: false,
+        theme: 'fpp',
+        widgets: ['zebra', 'filter', 'staticRow', 'saveSort'],
+        headers: {
+          0: { sorter: 'text', sortInitialOrder: 'asc' },
+          1: { sorter: 'text' },
+          2: { sorter: false, filter: false }
+        }
+      });
+
+    }
+
   </script>
+
 
   <title><? echo $pageTitle; ?></title>
 </head>
@@ -149,10 +176,11 @@
             <div id="divEffectLibrary">
               <div class='fppTableWrapper'>
                 <div class='fppTableContents'>
-                  <table id="tblEffectLibrary" width="100%" cellpadding=1 cellspacing=0 class="fppActionTable">
+                  <table id="tblEffectLibrary" class="tablesorter" width="100%" cellpadding=1 cellspacing=0
+                    class="fppActionTable">
                     <thead>
                       <tr>
-                        <th>Effects Library</th>
+                        <th>Effect Name</th>
                         <th>Type</th>
                         <th width='15%'></th>
                       </tr>
