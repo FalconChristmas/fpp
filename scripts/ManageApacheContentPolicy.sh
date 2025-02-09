@@ -99,9 +99,9 @@ detectCapeDomains() {
     echo "${distinct_urls[@]}"
 }
 
-# Function to detect all /24 subnets related to the interfaces the device is using
+# Function to detect all IPv4 /24 subnets related to the interfaces the device is using
 detect_systems_subnets() {
-  ip_addresses=$(hostname -I)
+  ip_addresses=$(hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
   for ip in $ip_addresses; do
     subnet=$(echo $ip | awk -F. '{print "http://" $1 "." $2 "." $3 ".*"}')
     echo $subnet
