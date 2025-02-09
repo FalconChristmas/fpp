@@ -1,0 +1,28 @@
+# Track which scripts are called by other things to make it clear which ones
+# can't necessarily be removed
+#
+# Script: Reffered to by
+#
+# Used
+copy_settings_to_storage.sh: /opt/fpp/www/copystorage.php
+detect_cape: /opt/fpp/www/api/controllers/cape.php
+eventScript: /opt/fpp/www/runEventScript.php
+fpp_build: /opt/fpp/www/rebuildfpp.php
+fppd_restart: /opt/fpp/www/manualUpdate.php
+fppd_start: git_branch, git_checkout_version, fppd_restart
+fppd_stop: git_branch, git_checkout_version, fppd_restart
+format_storage: /opt/fpp/www/formatstorage.php
+handle_boot_actions: FPPINIT.cpp
+healthCheck: /opt/fpp/www/healthCheckHelper.php
+installScript: /opt/fpp/www/api/controllers/scripts.php
+restoreScript: /opt/fpp/www/backup.php
+wifi_scan.sh: /opt/fpp/www/troubleshoot-commands.json
+upgrade_FPP: /opt/fpp/www/upgradefpp.php
+upgrade_config: git_branch, git_pull, upgrade_FPP, /opt/fpp/www/about.php
+upgradeCapeFirmware: /opt/fpp/www/upgradeCapeFirmware.php
+
+# Should keep
+generateEEPROM
+
+# Needs investigation
+get_uuid: /opt/fpp/www/common.php

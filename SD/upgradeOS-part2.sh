@@ -107,6 +107,9 @@ if [ -f tmp/kiosk ]; then
     touch mnt/fpp_kiosk
 fi
 
+# create a file in root to detect that we just did an FPPOS Upgrade
+touch mnt/fppos_upgraded
+
 if [ -f mnt/etc/ssh/ssh_host_dsa_key -a -f mnt/etc/ssh/ssh_host_dsa_key.pub -a -f mnt/etc/ssh/ssh_host_ecdsa_key -a -f mnt/etc/ssh/ssh_host_ecdsa_key.pub -a -f mnt/etc/ssh/ssh_host_ed25519_key -a -f mnt/etc/ssh/ssh_host_ed25519_key.pub -a -f mnt/etc/ssh/ssh_host_rsa_key -a -f mnt/etc/ssh/ssh_host_rsa_key.pub ]
 then
     echo "Found all SSH key files, disabling first-boot SSH key regeneration"

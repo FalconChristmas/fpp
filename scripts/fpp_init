@@ -1,6 +1,0 @@
-#!/bin/bash
-##############################################################################
-# This script is no longer used, but may be called from /lib/system/systemd/fppinit
-# on older FPP images 
-echo "Starting fpp_init"
-/opt/fpp/src/fppinit

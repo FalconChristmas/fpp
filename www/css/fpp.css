@@ -3581,3 +3581,9 @@ a.api-anchor {
 	-ms-filter: 'alpha(opacity=0)';
 	filter: 'alpha(opacity=0)';
 }
+
+
+#navbarUpdateAvail {
+    display: none;
+}
+

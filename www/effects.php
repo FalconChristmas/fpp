@@ -5,11 +5,13 @@
   <?php
   require_once('config.php');
   include 'common/htmlMeta.inc';
+
   if (file_exists(__DIR__ . "/fppdefines.php")) {
     include_once __DIR__ . '/fppdefines.php';
   } else {
     include_once __DIR__ . '/fppdefines_unknown.php';
   }
+
   require_once "common.php";
   include 'common/menuHead.inc';
   ?>
@@ -18,6 +20,7 @@
   <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.min.js"></script>
   <script type="text/javascript" src="jquery/jquery.tablesorter/widgets/widget-cssStickyHeaders.min.js"></script>
   <script type="text/javascript" src="jquery/jquery.tablesorter/extras/jquery.metadata.min.js"></script>
+
 
   <script>
     var EffectSelectedName = "";
@@ -122,6 +125,7 @@
     }
 
   </script>
+
 
   <title><? echo $pageTitle; ?></title>
 </head>
