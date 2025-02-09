@@ -8641,3 +8641,49 @@ function scrollToTop () {
 	document.documentElement.scrollTop = 0;
 	document.scrollingElement.scrollTop = 0;
 }
+
+/**
+ * Uses the fppstats server to check if a new version is avaiable.
+ */
+function checkForFppUpdate () {
+	$.get('https://fppstats.falconchristmas.com/api/fpp_commits')
+		.done(function (data) {
+			console.log(FPP_BRANCH, FPP_LOCAL_COMMIT);
+			console.log(data);
+			let remote_found = false;
+			let remote_commit = '';
+			let latest_non_master = '';
+			let latest_non_master_epoch = 0;
+			data.branches.forEach(branch => {
+				if (branch.name === FPP_BRANCH) {
+					remote_found = true;
+					remote_commit = branch.commit.sha;
+				}
+				if (branch.name != 'master') {
+					if (branch.commit.date_epoch > latest_non_master_epoch) {
+						latest_non_master = branch.name;
+						latest_non_master_epoch = branch.commit.date_epoch;
+					}
+				}
+			});
+
+			let msg = '';
+			// If not currently on master and a new branch with higher commit date
+			// avaiable, then new release available.
+			//
+			// TODO: Need to change link
+			if (FPP_BRANCH != 'master' && FPP_BRANCH != 'latest_non_master_epoch') {
+				msg = 'Release: ' + latest_non_master + ' available ';
+				// If update avaiable in current branch
+			} else if (remote_commit != FPP_LOCAL_COMMIT) {
+				msg = 'Branch update available';
+			}
+			if (msg != '') {
+				$('#navbarUpdateAvailIcon').attr('title', msg);
+				$('#navbarUpdateAvail').show();
+			}
+		})
+		.fail(function () {
+			console.log('Failed to check for updates. Assuming no internet acces');
+		});
+}
