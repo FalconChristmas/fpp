@@ -99,6 +99,26 @@ detectCapeDomains() {
     echo "${distinct_urls[@]}"
 }
 
+# Function to detect all /24 subnets related to the interfaces the device is using
+detect_systems_subnets() {
+  ip_addresses=$(hostname -I)
+  for ip in $ip_addresses; do
+    subnet=$(echo $ip | awk -F. '{print "http://" $1 "." $2 "." $3 ".*"}')
+    echo $subnet
+  done
+}
+
+# Function to detect the domain name of the device 
+detect_systems_domainname() {
+  domain_name=$(hostname -d)
+  if [ -z "$domain_name" ]; then
+    #no domain name set
+    return
+  else
+    echo "http://*.$domain_name"
+  fi
+}
+
 # Function to generate the CSP header
 generate_csp() {
     # Initialize an associative array to store the combined values
@@ -126,6 +146,18 @@ generate_csp() {
     if [ -n "$cape_domains" ]; then
         combined_values["img-src"]="${combined_values["img-src"]} $cape_domains"
         combined_values["connect-src"]="${combined_values["connect-src"]} $cape_domains"
+    fi
+
+    # Detect IP subnets to trust and add them to connect-src
+    subnets=$(detect_systems_subnets)
+    if [ -n "$subnets" ]; then
+        combined_values["connect-src"]="${combined_values["connect-src"]} $subnets"
+    fi
+
+    # Detect domain of local device
+    local_domain=$(detect_systems_domainname)
+    if [ -n "$local_domain" ]; then
+        combined_values["connect-src"]="${combined_values["connect-src"]} $local_domain"
     fi
 
     # Remove duplicate values for each key
