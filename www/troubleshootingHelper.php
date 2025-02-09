@@ -60,7 +60,7 @@ if (isset($_GET['key'])) {
 }
 
 if (!$found) {
-    echo ("Unknwon Command");
+    echo ("Unknown Command");
 }
 
 ?>

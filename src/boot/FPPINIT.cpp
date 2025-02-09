@@ -23,20 +23,21 @@
 #include <unistd.h>
 
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "common_mini.h"
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 
-#ifdef PLATFORM_PI
 #if __has_include(<jsoncpp/json/json.h>)
 #include <jsoncpp/json/json.h>
 #elif __has_include(<json/json.h>)
 #include <json/json.h>
-#endif
 #endif
 
 static const std::string FPP_MEDIA_DIR = "/home/fpp/media";
@@ -1189,6 +1190,60 @@ void installKiosk() {
     }
 }
 
+void installPackagesFromJson(const std::string& filePath) {
+    std::ifstream file(filePath, std::ifstream::binary);
+    if (!file) {
+        printf("Error: Could not open %s\n", filePath.c_str());
+        return;
+    }
+
+    Json::Value root;
+    Json::CharReaderBuilder reader;
+    std::string errs;
+
+    if (!Json::parseFromStream(reader, file, &root, &errs)) {
+        printf("Error: Failed to parse JSON - %s\n", errs.c_str());
+        return;
+    }
+
+    if (!root.isArray()) {
+        printf("Error: JSON is not an array\n");
+        return;
+    }
+
+    for (const auto& item : root) {
+        if (item.isString()) {
+            printf("Installing: %s\n", item.asString().c_str());
+            pid_t pid = fork();
+            if (pid == -1) {
+                printf("Error: Failed to fork process\n");
+                return;
+            } else if (pid == 0) {
+                execlp("apt-get", "apt-get", "install", "-y", item.asString().c_str(), nullptr);
+                // If execlp fails
+                printf("Error: Failed to execute apt-get for %s\n", item.asString().c_str());
+                return;
+            } else {
+                int status;
+                waitpid(pid, &status, 0);
+                if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+                    printf("Warning: Package installation failed for %s\n", item.asString().c_str());
+                }
+            }
+        }
+    }
+}
+
+
+void checkInstallPackages() {
+    if (FileExists("/fppos_upgraded")) {
+        unlink("/fppos_upgraded");
+        printf("Installing User Packages\n");
+        installPackagesFromJson("/home/fpp/media/config/userpackages.json");
+    }
+
+}
+
 #ifdef PLATFORM_PI
 static bool LoadJsonFromString(const std::string& str, Json::Value& root) {
     Json::CharReaderBuilder builder;
@@ -1373,6 +1428,7 @@ int main(int argc, char* argv[]) {
         detectFalconHardware();
         setFileOwnership();
         removeDummyInterface();
+        checkInstallPackages();
     } else if (action == "bootPre") {
         int restart = getRawSettingInt("restartFlag", 0);
         if (restart) {
@@ -1411,7 +1467,7 @@ int main(int argc, char* argv[]) {
             TrimWhiteSpace(a);
             if (a.starts_with("active") && argc >= 3) {
                 std::string iface = argv[2];
-                if (iface.starts_with("wlan")) {
+               if (iface.starts_with("wlan")) {
                     waitForInterfacesUp(false, 20);
                     maybeEnableTethering();
                     detectNetworkModules();

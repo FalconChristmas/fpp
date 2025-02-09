@@ -38,6 +38,8 @@ if ($action) {
             file_put_contents($userPackagesFile, json_encode($userPackages, JSON_PRETTY_PRINT));
         }
 
+        echo "Completed"
+
         exit;
     }
 
@@ -45,7 +47,7 @@ if ($action) {
         $packageName = escapeshellarg($packageName);
         header('Content-Type: text/plain');
 
-        $process = popen("sudo apt-get remove -y $packageName 2>&1", 'r');
+        $process = popen("sudo apt-get remove -y $packageName;sudo apt-get autoremove -y 2>&1", 'r');
         if (is_resource($process)) {
             while (!feof($process)) {
                 echo fread($process, 1024);
@@ -60,6 +62,8 @@ if ($action) {
             return $pkg !== $packageName;
         });
         file_put_contents($userPackagesFile, json_encode(array_values($userPackages), JSON_PRETTY_PRINT));
+        
+        echo "Completed"
 
         exit;
     }
