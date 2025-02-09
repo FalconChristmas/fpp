@@ -1467,7 +1467,7 @@ int main(int argc, char* argv[]) {
             TrimWhiteSpace(a);
             if (a.starts_with("active") && argc >= 3) {
                 std::string iface = argv[2];
-               if (iface.starts_with("wlan")) {
+                if (iface.starts_with("wlan")) {
                     waitForInterfacesUp(false, 20);
                     maybeEnableTethering();
                     detectNetworkModules();
