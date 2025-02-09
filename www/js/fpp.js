@@ -8646,7 +8646,11 @@ function scrollToTop () {
  * Uses the fppstats server to check if a new version is avaiable.
  */
 function checkForFppUpdate () {
-	$.get('https://fppstats.falconchristmas.com/api/fpp_commits')
+	const epochTimeMilliseconds = Date.now();
+	$.get(
+		'https://fppstats.falconchristmas.com/api/fpp_commits?v=' +
+			epochTimeMilliseconds
+	)
 		.done(function (data) {
 			let remote_found = false;
 			let remote_commit = '';
@@ -8673,7 +8677,7 @@ function checkForFppUpdate () {
 			if (FPP_BRANCH != 'master' && FPP_BRANCH != 'latest_non_master_epoch') {
 				msg = 'Release: ' + latest_non_master + ' available ';
 				// If update avaiable in current branch
-			} else if (remote_commit != FPP_LOCAL_COMMIT) {
+			} else if (!remote_commit.startsWith(FPP_LOCAL_COMMIT)) {
 				msg = 'Branch update available';
 			}
 			if (msg != '') {
