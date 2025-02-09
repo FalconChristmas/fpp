@@ -8648,8 +8648,6 @@ function scrollToTop () {
 function checkForFppUpdate () {
 	$.get('https://fppstats.falconchristmas.com/api/fpp_commits')
 		.done(function (data) {
-			console.log(FPP_BRANCH, FPP_LOCAL_COMMIT);
-			console.log(data);
 			let remote_found = false;
 			let remote_commit = '';
 			let latest_non_master = '';
