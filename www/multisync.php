@@ -2038,7 +2038,22 @@
             });
         }
 
+        async function triggerCSPBashScript() {
+            try {
+                const response = await fetch('CSP_regeneration_script.php');
+                const data = await response.text();
+                //console.log(data);
+                // Continue with the next JavaScript command
+                console.log('CSP Regenerated.');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
         function performMultiAction() {
+            //regenerate the CSP file to pick up all MultiSync IPs
+            triggerCSPBashScript();
+
             var action = $('#multiAction').val();
 
             switch (action) {
