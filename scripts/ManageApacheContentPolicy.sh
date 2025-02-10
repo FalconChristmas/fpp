@@ -119,7 +119,16 @@ detect_systems_domainname() {
   fi
 }
 
-#function to extract multisync IPs from settings
+#function to retrieve IPs from fppd discovered multisync devices
+extract_fppd_mutlisync_ips() {
+  fppd_json_data=$(curl -s "http://localost/api/fppd/multiSyncSystems")
+  fppd_multisync_ips=$(echo "$fppd_json_data" | jq -r '.systems[].address' | sort -u)
+  for ip in $fppd_multisync_ips; do
+    echo "http://$ip"
+  done
+}
+
+#function to extract multisync IPs from settings file
 # Function to extract IPv4 addresses from a file
 extract_multisync_ips() {
   file_path="$MEDIADIR/settings"
@@ -158,7 +167,13 @@ generate_csp() {
         combined_values["connect-src"]="${combined_values["connect-src"]} $cape_domains"
     fi
 
-    # Detect MultiSync Hosts to trust
+    # Detect FPPD Discovered MultiSync Hosts to trust
+    fppd_mutlisync_ips=$(extract_fppd_mutlisync_ips)
+    if [ -n "$fppd_mutlisync_ips" ]; then
+        combined_values["connect-src"]="${combined_values["connect-src"]} $fppd_mutlisync_ips"
+    fi
+
+    # Detect MultiSync (Hard coded) Hosts to trust
     multisync_ips=$(extract_multisync_ips)
     if [ -n "$multisync_ips" ]; then
         combined_values["connect-src"]="${combined_values["connect-src"]} $multisync_ips"
