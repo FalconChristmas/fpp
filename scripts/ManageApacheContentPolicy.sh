@@ -122,20 +122,9 @@ detect_systems_domainname() {
 #function to retrieve IPs from fppd discovered multisync devices
 extract_fppd_multisync_ips() {
   fppd_json_data=$(curl -s "http://localhost/api/fppd/multiSyncSystems")
-  systems=$(echo "$fppd_json_data" | jq -c '.systems[]')
-
-  for system in $systems; do
-    ip=$(echo "$system" | jq -r '.address')
-    type=$(echo "$system" | jq -r '.type')
-    
-    case $type in
-      "ESPixelStick-ESP8266")
-        echo "ws://$ip"
-        ;;
-      *)
-        echo "http://$ip"
-        ;;
-    esac
+  fppd_multisync_ips=$(echo "$fppd_json_data" | jq -r '.systems[].address' | sort -u)
+  for ip in $fppd_multisync_ips; do
+    echo "http://$ip"
   done
 }
 
@@ -179,9 +168,9 @@ generate_csp() {
     fi
 
     # Detect FPPD Discovered MultiSync Hosts to trust
-    fppd_mutlisync_ips=$(extract_fppd_mutlisync_ips)
-    if [ -n "$fppd_mutlisync_ips" ]; then
-        combined_values["connect-src"]="${combined_values["connect-src"]} $fppd_mutlisync_ips"
+    fppd_multisync_ips=$(extract_fppd_multisync_ips)
+    if [ -n "$fppd_multisync_ips" ]; then
+        combined_values["connect-src"]="${combined_values["connect-src"]} $fppd_multisync_ips"
     fi
 
     # Detect MultiSync (Hard coded) Hosts to trust
