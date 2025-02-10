@@ -511,7 +511,7 @@ void FPPOLEDUtils::run() {
             }
 
             if (actionCount) {
-                poll(&fdset[0], actionCount, needsPolling ? 100 : 1000);
+                poll(&fdset[0], actionCount, needsPolling ? 100 : 5000);
             } else {
                 usleep(100000);
             }
