@@ -937,7 +937,8 @@ static void detectNetworkModules() {
         std::string modName = "/sys/class/net/" + filename + "/device/driver/module";
         if (FileExists(modName)) {
             char buf[256];
-            readlink(modName.c_str(), buf, sizeof(buf));
+            size_t l = readlink(modName.c_str(), buf, sizeof(buf));
+            buf[l] = 0;
             std::string mod = buf;
             mod = mod.substr(mod.rfind("/") + 1);
             content += mod;
@@ -1430,6 +1431,8 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
+    } else if (action == "detectNetworkModules") {
+        detectNetworkModules();
     }
     printf("------------------------------\n");
     return 0;
