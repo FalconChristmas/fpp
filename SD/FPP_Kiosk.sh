@@ -17,6 +17,8 @@ cat > /etc/xdg/openbox/autostart <<EOF
 EOF
 
 echo "Enabling AutoLogin"
+# Ensure the directory exists
+mkdir -p /etc/systemd/system/getty@tty1.service.d
 cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
 [Service]
 ExecStart=
