@@ -120,11 +120,22 @@ detect_systems_domainname() {
 }
 
 #function to retrieve IPs from fppd discovered multisync devices
-extract_fppd_mutlisync_ips() {
+extract_fppd_multisync_ips() {
   fppd_json_data=$(curl -s "http://localhost/api/fppd/multiSyncSystems")
-  fppd_multisync_ips=$(echo "$fppd_json_data" | jq -r '.systems[].address' | sort -u)
-  for ip in $fppd_multisync_ips; do
-    echo "http://$ip"
+  systems=$(echo "$fppd_json_data" | jq -c '.systems[]')
+
+  for system in $systems; do
+    ip=$(echo "$system" | jq -r '.address')
+    type=$(echo "$system" | jq -r '.type')
+    
+    case $type in
+      "ESPixelStick-ESP8266")
+        echo "ws://$ip"
+        ;;
+      *)
+        echo "http://$ip"
+        ;;
+    esac
   done
 }
 
