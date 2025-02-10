@@ -1364,6 +1364,7 @@ int main(int argc, char* argv[]) {
         PutFileContents("/sys/class/graphics/fbcon/cursor_blink", "0");
         cleanupChromiumFiles();
         setupAudio();
+        removeDummyInterface();
         waitForInterfacesUp(true, 100); // call to flite requires audio, so do audio before this
         if (!FileExists("/etc/fpp/desktop")) {
             maybeEnableTethering();
@@ -1372,7 +1373,6 @@ int main(int argc, char* argv[]) {
         setupTimezone(); // this may not have worked in the init phase, try again
         detectFalconHardware();
         setFileOwnership();
-        removeDummyInterface();
     } else if (action == "bootPre") {
         int restart = getRawSettingInt("restartFlag", 0);
         if (restart) {
