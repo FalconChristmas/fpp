@@ -121,7 +121,7 @@ detect_systems_domainname() {
 
 #function to retrieve IPs from fppd discovered multisync devices
 extract_fppd_mutlisync_ips() {
-  fppd_json_data=$(curl -s "http://localost/api/fppd/multiSyncSystems")
+  fppd_json_data=$(curl -s "http://localhost/api/fppd/multiSyncSystems")
   fppd_multisync_ips=$(echo "$fppd_json_data" | jq -r '.systems[].address' | sort -u)
   for ip in $fppd_multisync_ips; do
     echo "http://$ip"
