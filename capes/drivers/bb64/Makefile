@@ -14,6 +14,9 @@ fpp-reserve-memory.dtb: fpp-reserve-memory.dts
 fpp-cape-overlay.dtb: fpp-cape-overlay.dts
 	dtc -O dtb -o fpp-cape-overlay.dtb fpp-cape-overlay.dts
 
+install_cape_overlay:
+	dtc -O dtb -o /boot/firmware/overlays/fpp-cape-overlay.dtb /opt/fpp/capes/drivers/bb64/fpp-cape-overlay.dts
+
 install: pinctrl fpp-reserve-memory.dtb fpp-cape-overlay.dtb
 	cp -f pinctrl /usr/bin
 	chmod +s /usr/bin/pinctrl
@@ -22,4 +25,3 @@ install: pinctrl fpp-reserve-memory.dtb fpp-cape-overlay.dtb
 
 clean:
 	rm -f pinctrl src/*.o *.dtb
-
