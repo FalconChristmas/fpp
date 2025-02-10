@@ -509,7 +509,8 @@ static bool handleCapeOverlay(const std::string& outputPath) {
         char* c = (char*)get_file_contents(overlay, len);
         if (strcmp(c, "DEFAULT_CAPE_OVERLAY") != 0) {
             // not the default cape overlay, need to flip back to default
-            exec("make -f /opt/fpp/capes/drivers/bb64/Makefile install_cape_overlay");
+            std::string r = exec("make -f /opt/fpp/capes/drivers/bb64/Makefile install_cape_overlay");
+            printf("%s\n", r.c_str());
             free(c);
             return true;
         }
@@ -768,6 +769,7 @@ private:
         if (!file_exists(EEPROM)) {
             printf("Could not detect any cape\n");
             EEPROM = "";
+            handleReboot(handleCapeOverlay("/home/fpp/media/"));
             return;
         }
         printf("Using %s\n", EEPROM.c_str());
