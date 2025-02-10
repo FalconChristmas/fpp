@@ -320,7 +320,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
     if (file_exists("/.dockerenv")) {
         $settings['SubPlatform'] = "Docker";
     } else {
-        $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
+        if (file_exists("/proc/device-tree/model")) {
+            $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
+        }
     }
     $settings['Variant'] = $settings['SubPlatform'];
     if (preg_match('/Orange/', $settings['SubPlatform'])) {
