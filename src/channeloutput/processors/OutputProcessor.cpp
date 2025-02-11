@@ -81,25 +81,30 @@ void OutputProcessors::loadFromJSON(const Json::Value& config, bool clear) {
     }
 }
 OutputProcessor* OutputProcessors::create(const Json::Value& config) {
-    std::string type = config["type"].asString();
-    if (type == "Remap") {
-        return new RemapOutputProcessor(config);
-    } else if (type == "Brightness") {
-        return new BrightnessOutputProcessor(config);
-    } else if (type == "Hold Value") {
-        return new HoldValueOutputProcessor(config);
-    } else if (type == "Set Value") {
-        return new SetValueOutputProcessor(config);
-    } else if (type == "Reorder Colors") {
-        return new ColorOrderOutputProcessor(config);
-    } else if (type == "Three to Four") {
-        return new ThreeToFourOutputProcessor(config);
-    } else if (type == "Override Zero") {
-        return new OverrideZeroOutputProcessor(config);
-    } else if (type == "Fold") {
-        return new FoldOutputProcessor(config);
+    int active = config["active"].asInt();
+    if (active == 1) {
+        std::string type = config["type"].asString();
+        if (type == "Remap") {
+            return new RemapOutputProcessor(config);
+        } else if (type == "Brightness") {
+            return new BrightnessOutputProcessor(config);
+        } else if (type == "Hold Value") {
+            return new HoldValueOutputProcessor(config);
+        } else if (type == "Set Value") {
+            return new SetValueOutputProcessor(config);
+        } else if (type == "Reorder Colors") {
+            return new ColorOrderOutputProcessor(config);
+        } else if (type == "Three to Four") {
+            return new ThreeToFourOutputProcessor(config);
+        } else if (type == "Override Zero") {
+            return new OverrideZeroOutputProcessor(config);
+        } else if (type == "Fold") {
+            return new FoldOutputProcessor(config);
+        } else {
+            LogErr(VB_CHANNELOUT, "Unknown OutputProcessor type: %s\n", type.c_str());
+        }
     } else {
-        LogErr(VB_CHANNELOUT, "Unknown OutputProcessor type: %s\n", type.c_str());
+        LogDebug(VB_CHANNELOUT, "Skipping disabled OutputProcessor\n");
     }
     return nullptr;
 }
