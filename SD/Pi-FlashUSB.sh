@@ -54,13 +54,9 @@ elif [ "$DEVICE" = "nvme0n1" ]; then
     echo -e "[all]\nBOOT_ORDER=${BOOT_ORDER}" > /tmp/boot.conf
     
     # Apply the configuration using the rpi-eeprom-config tool
-    sudo rpi-eeprom-config --config /tmp/boot.conf --out /tmp/new-eeprom.bin
+    sudo rpi-eeprom-config --apply /tmp/boot.conf 
     
-    # Flash the EEPROM with the new configuration
-    sudo rpi-eeprom-update -d -f /tmp/new-eeprom.bin
-    
-    # Clean up
-    rm /tmp/boot.conf /tmp/new-eeprom.bin
+    rm /tmp/boot.conf 
     
     echo "BOOT_ORDER set to ${BOOT_ORDER}."
 
