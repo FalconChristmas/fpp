@@ -7,22 +7,32 @@
 copy_settings_to_storage.sh: /opt/fpp/www/copystorage.php
 detect_cape: /opt/fpp/www/api/controllers/cape.php
 eventScript: /opt/fpp/www/runEventScript.php
+format_storage: /opt/fpp/www/formatstorage.php
 fpp_build: /opt/fpp/www/rebuildfpp.php
 fppd_restart: /opt/fpp/www/manualUpdate.php
 fppd_start: git_branch, git_checkout_version, fppd_restart
 fppd_stop: git_branch, git_checkout_version, fppd_restart
-format_storage: /opt/fpp/www/formatstorage.php
+get_uuid: /opt/fpp/www/common.php, function getSystemUUID(), api/controllers/stats.php
+git_branch: /opt/fpp/www/changebranch.php
+git_checkout_version: /opt/fpp/www/gitCheckoutVersion.php
+git_fetch: /opt/fpp/www/api/controllers/git.php
+git_origin_log: /opt/fpp/www/api/controllers/git.php
+git_pull: /opt/fpp/www/manualUpdate.php
+git_reset: /opt/fpp/www/api/controllers/git.php
+get_status: /opt/fpp/www/api/controllers/git.php
 handle_boot_actions: FPPINIT.cpp
 healthCheck: /opt/fpp/www/healthCheckHelper.php
+install_plugin: /opt/fpp/www/api/controllers/plugin.php
 installScript: /opt/fpp/www/api/controllers/scripts.php
+installSSHKeys /opt/fpp/www/api/controllers/configfile.php
+ManageApacheContentPolicy.sh: /opt/fpp/www/CSP_regeneration_script.php
 restoreScript: /opt/fpp/www/backup.php
 wifi_scan.sh: /opt/fpp/www/troubleshoot-commands.json
-upgrade_FPP: /opt/fpp/www/upgradefpp.php
-upgrade_config: git_branch, git_pull, upgrade_FPP, /opt/fpp/www/about.php
+uninstall_plugin: /opt/fpp/www/api/controllers/plugin.php
 upgradeCapeFirmware: /opt/fpp/www/upgradeCapeFirmware.php
+upgrade_config: git_branch, git_pull, upgrade_FPP, /opt/fpp/www/about.php
+upgrade_FPP: /opt/fpp/www/upgradefpp.php
+wifiscan: /opt/fpp/www/troubleshoot-commands.json
 
 # Should keep
 generateEEPROM
-
-# Needs investigation
-get_uuid: /opt/fpp/www/common.php
