@@ -27,6 +27,7 @@ installScript: /opt/fpp/www/api/controllers/scripts.php
 installSSHKeys /opt/fpp/www/api/controllers/configfile.php
 ManageApacheContentPolicy.sh: /opt/fpp/www/CSP_regeneration_script.php
 restoreScript: /opt/fpp/www/backup.php
+start_kiosk.sh: /opt/fpp/SD/FPP_Kiosk.sh
 wifi_scan.sh: /opt/fpp/www/troubleshoot-commands.json
 uninstall_plugin: /opt/fpp/www/api/controllers/plugin.php
 upgradeCapeFirmware: /opt/fpp/www/upgradeCapeFirmware.php
