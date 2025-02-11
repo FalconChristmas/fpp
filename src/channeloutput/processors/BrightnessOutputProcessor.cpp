@@ -11,9 +11,17 @@
  */
 
 #include "fpp-pch.h"
+#include "../../overlays/PixelOverlay.h"
+#include "../../overlays/PixelOverlayModel.h"
 
 #include <math.h>
 #include <stdio.h>
+
+#if __has_include(<jsoncpp/json/json.h>)
+#include <jsoncpp/json/json.h>
+#elif __has_include(<json/json.h>)
+#include <json/json.h>
+#endif
 
 #include "../../log.h"
 
@@ -26,9 +34,35 @@ BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value& config) 
     count = config["count"].asInt();
     brightness = config["brightness"].asInt();
     gamma = config["gamma"].asFloat();
-    LogInfo(VB_CHANNELOUT, "Brightness:   %d-%d => Brightness:%d   Gamma: %f\n",
+
+    if (config.isMember("model")) {
+        model = config["model"].asString();
+        if (model != "&lt;Use Start Channel&gt;") {
+            auto m_model = PixelOverlayManager::INSTANCE.getModel(model);
+            if (!m_model) {
+                LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", model.c_str());
+            } else {
+                int m_channel = m_model->getChannelCount();
+                LogDebug(VB_CHANNELOUT, "Before Model applied Brightness:   %d-%d => Brightness:%d   Gamma: %f   Model: %s model\n",
+                   start, start + count - 1,
+                   brightness, gamma, model.c_str(),m_channel);
+                int offset = start;
+                start = m_model->getStartChannel() + start + 1;
+                if (count > m_channel) {
+                   count = m_channel - offset;
+                   LogWarn(VB_CHANNELOUT, "Output processor tried to go past end channel of model.  Restricting to %d channels\n", count);
+               } else if (count < m_channel) {
+                   LogInfo(VB_CHANNELOUT, "Output processor tried to use less channels (%d) than overlay model has (%d).  This may be intentional\n",count, m_channel);
+               }
+            }
+        }
+    } else {
+        model = "";
+    }
+
+    LogInfo(VB_CHANNELOUT, "Brightness:   %d-%d => Brightness:%d   Gamma: %f   Model: %s\n",
             start, start + count - 1,
-            brightness, gamma);
+            brightness, gamma, model.c_str());
 
     float bf = brightness;
     float maxB = bf * 2.55f;

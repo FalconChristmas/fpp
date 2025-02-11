@@ -31,5 +31,6 @@ protected:
     int count;
     int brightness;
     float gamma;
+    std::string model;
     unsigned char table[256];
 };

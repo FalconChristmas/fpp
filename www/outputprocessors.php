@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+<?php
+require_once "common.php";
+?>
 
 <head>
-    <?php
-    include 'common/htmlMeta.inc';
-    require_once "common.php";
-    include 'common/menuHead.inc'; ?>
-
+    <?php include 'common/menuHead.inc'; ?>
     <script language="Javascript">
 
         function outputOption(val, def) {
@@ -19,7 +18,7 @@
             return html;
         }
 
-        function HTMLForOutputProcessorConfig(output) {
+        function HTMLForOutputProcessorConfig(output, models) {
             var html = "";
             var type = output.type;
 
@@ -43,6 +42,15 @@
                 html += ">RGBW Pixels</option>";
                 html += "</select>";
             } else if (type == "Brightness") {
+                html += "Model: <select class='model'>";
+                models.forEach(function(model) {
+                    html += "<option value='" + model + "'";
+                    if (output.model === model) {
+                        html += " selected";
+                    }
+                    html += ">" + model + "</option>";
+                });
+                html += "</select>&nbsp;";
                 html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
                     + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
                     + "Brightness: <input class='brightness' type=number value='" + output.brightness + "' min='0' max='100'/>"
@@ -100,7 +108,7 @@
             return html;
         }
 
-        function PopulateOutputProcessorTable(data) {
+        function PopulateOutputProcessorTable(data, models) {
             $('#outputProcessors tbody').html("");
 
             for (var i = 0; i < data.outputProcessors.length; i++) {
@@ -119,16 +127,16 @@
                     + "<td>" + type + "</td>"
                     + "<td><input class='description' type='text' size='32' maxlength='64' value='" + output.description + "'></td><td>";
 
-                html += HTMLForOutputProcessorConfig(output);
+                html += HTMLForOutputProcessorConfig(output, models);
                 html += "</td></tr>";
 
                 $('#outputProcessors tbody').append(html);
             }
         }
 
-        function GetOutputProcessors() {
+        function GetOutputProcessors(models) {
             $.getJSON("api/channel/output/processors", function (data) {
-                PopulateOutputProcessorTable(data);
+                PopulateOutputProcessorTable(data, models);
             }).fail(function () {
                 DialogError("Error", "Failed to load Output Processors");
             });
@@ -178,6 +186,7 @@
                         type: "Brightness",
                         active: $this.find("input.active").is(':checked') ? 1 : 0,
                         description: $this.find("input.description").val(),
+                        model: $this.find("select.model").val(),
                         start: parseInt($this.find("input.start").val()),
                         count: parseInt($this.find("input.count").val()),
                         brightness: parseInt($this.find("input.brightness").val()),
@@ -188,7 +197,7 @@
                         processors.push(b);
                     } else {
                         dataError = 1;
-                        alert("Brightness settings of row " + rowNumber + " is not valid.");
+                        alert("Settings of row " + rowNumber + " is not valid.");
                         return;
                     }
                 } else if (type == "Set Value") {
@@ -205,7 +214,7 @@
                         processors.push(b);
                     } else {
                         dataError = 1;
-                        alert("Set Value settings of row " + rowNumber + " is not valid.");
+                        alert("Settings of row " + rowNumber + " is not valid.");
                         return;
                     }
                 } else if (type == "Hold Value") {
@@ -221,7 +230,7 @@
                         processors.push(b);
                     } else {
                         dataError = 1;
-                        alert("Hold Value settings of row " + rowNumber + " is not valid.");
+                        alert("Settings of row " + rowNumber + " is not valid.");
                         return;
                     }
                 } else if (type == "Reorder Colors") {
@@ -238,7 +247,7 @@
                         processors.push(b);
                     } else {
                         dataError = 1;
-                        alert("Color Order settings of row " + rowNumber + " is not valid.");
+                        alert("Settings of row " + rowNumber + " is not valid.");
                         return;
                     }
                 } else if (type == "Three to Four") {
@@ -256,7 +265,7 @@
                         processors.push(b);
                     } else {
                         dataError = 1;
-                        alert("Three to Four settings of row " + rowNumber + " is not valid.");
+                        alert("Settings of row " + rowNumber + " is not valid.");
                         return;
                     }
 
@@ -274,7 +283,7 @@
                         processors.push(b);
                     } else {
                         dataError = 1;
-                        alert("Override Zero settings of row " + rowNumber + " is not valid.");
+                        alert("Settings of row " + rowNumber + " is not valid.");
                         return;
                     }
                 } else if (type == "Fold") {
@@ -310,9 +319,9 @@
             }
             ).done(function (data) {
                 $.jGrowl("Output Processors Table saved", { themeState: 'success' });
-                PopulateOutputProcessorTable(data);
                 SetRestartFlag(2);
                 common_ViewPortChange();
+                PopulateOutputProcessorTable(data,models);
             }).fail(function () {
                 DialogError("Save Output Processors Table", "Save Failed");
             });
@@ -330,7 +339,7 @@
                     loops: 1,
                     reverse: 0
                 };
-                config += HTMLForOutputProcessorConfig(b);
+                config += HTMLForOutputProcessorConfig(b, models);
             } else if (type == "Brightness") {
                 var b = {
                     type: "Brightness",
@@ -339,7 +348,7 @@
                     brightness: 100,
                     gamma: 1.0
                 };
-                config += HTMLForOutputProcessorConfig(b);
+                config += HTMLForOutputProcessorConfig(b, models);
             } else if (type == "Set Value") {
                 var b = {
                     type: "Set Value",
@@ -347,14 +356,14 @@
                     count: 1,
                     value: 255
                 };
-                config += HTMLForOutputProcessorConfig(b);
+                config += HTMLForOutputProcessorConfig(b, models);
             } else if (type == "Hold Value") {
                 var b = {
                     type: "Hold Value",
                     start: 1,
                     count: 1,
                 };
-                config += HTMLForOutputProcessorConfig(b);
+                config += HTMLForOutputProcessorConfig(b, models);
             } else if (type == "Reorder Colors") {
                 var b = {
                     type: "Reorder Colors",
@@ -362,7 +371,7 @@
                     count: 1,
                     colorOrder: 132
                 };
-                config += HTMLForOutputProcessorConfig(b);
+                config += HTMLForOutputProcessorConfig(b, models);
             } else if (type == "Three to Four") {
                 var b = {
                     type: "Three to Four",
@@ -371,7 +380,7 @@
                     colorOrder: 1234,
                     algorithm: 1
                 };
-                config += HTMLForOutputProcessorConfig(b);
+                config += HTMLForOutputProcessorConfig(b, models);
             }
             else if (type == "Override Zero") {
                 var b = {
@@ -380,7 +389,7 @@
                     count: 1,
                     value: 255
                 };
-                config += HTMLForOutputProcessorConfig(b);
+                config += HTMLForOutputProcessorConfig(b, models);
             } else if (type == "Fold") {
                 var b = {
                     type: "Fold",
@@ -388,7 +397,7 @@
                     count: 1,
                     node: 0
                 };
-                config += HTMLForOutputProcessorConfig(b);
+                config += HTMLForOutputProcessorConfig(b, models);
             }
 
 
@@ -450,8 +459,20 @@
         }
 
         $(document).ready(function () {
+           $.ajax({
+        url: "api/models?simple=true",
+        method: "GET",
+        dataType: "json",
+        success: function(models) {
+            models.unshift("&lt;Use Start Channel&gt;");
             SetupSelectableTableRow(tableInfo);
-            GetOutputProcessors();
+            GetOutputProcessors(models);
+        },
+        error: function() {
+            console.error("Error fetching models");
+        }
+        });
+
 
             if (window.innerWidth > 600) {
                 $('#outputProcessorsBody').sortable({
