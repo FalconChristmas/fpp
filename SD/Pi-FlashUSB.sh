@@ -51,7 +51,7 @@ elif [ "$DEVICE" = "nvme0n1" ]; then
     BOOT_ORDER=0xf61
 
     # Create a temporary configuration file
-    echo -e "[all]\nBOOT_ORDER=${BOOT_ORDER}" > /tmp/boot.conf
+    echo "[all]\nBOOT_ORDER=${BOOT_ORDER}" > /tmp/boot.conf
     
     # Apply the configuration using the rpi-eeprom-config tool
     sudo rpi-eeprom-config --apply /tmp/boot.conf 
