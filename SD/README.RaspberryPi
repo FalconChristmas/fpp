@@ -91,7 +91,7 @@ Reboot again to pick up the latest kernel that may have been installed with the 
 
 
 # build/install the wifi drivers
-KV=6.6.51
+KV=6.6.74
 apt-get install git bc
 # apt-get install linux-image-${KV}+rpt-rpi-v6 linux-image-${KV}+rpt-rpi-v7 linux-image-${KV}+rpt-rpi-v7l linux-image-${KV}+rpt-rpi-v8
 apt-get install linux-headers-${KV}+rpt-rpi-v7l linux-headers-${KV}+rpt-rpi-v7 linux-headers-${KV}+rpt-rpi-v6 linux-headers-${KV}+rpt-common-rpi linux-kbuild-${KV}+rpt
@@ -144,7 +144,11 @@ the proper device name for your SD card in place of '/dev/sdg'):
        apt-get install zerofree squashfs-tools
 
     DEVICE=/dev/sdc
+<<<<<<< Updated upstream
     VERSION=8.5
+=======
+    VERSION=8.5.1
+>>>>>>> Stashed changes
     OSVERSION=2025-02
     BLOCKS=6800
     mount "${DEVICE}2" /mnt
@@ -161,8 +165,8 @@ the proper device name for your SD card in place of '/dev/sdg'):
     echo "uninitialized" > /mnt/etc/machine-id
     umount /mnt
     zerofree -v "${DEVICE}2"
-	time dd if=${DEVICE} of=FPP-v${VERSION}-Pi.img bs=1M count=${BLOCKS}
-	time zip -9 FPP-v$VERSION-Pi.img.zip FPP-v${VERSION}-Pi.img
+	dd if=${DEVICE} of=FPP-v${VERSION}-Pi.img bs=1M count=${BLOCKS}
+	zip -9 FPP-v$VERSION-Pi.img.zip FPP-v${VERSION}-Pi.img
 
 This will create a file called FPP-${VERSION}-Pi.img.zip that can be distributed
 for testing/release.

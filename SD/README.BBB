@@ -206,7 +206,11 @@ rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
+<<<<<<< Updated upstream
 VERSION=8.5
+=======
+VERSION=8.5.1
+>>>>>>> Stashed changes
 OSVERSION=2025-02
 DEVICE=/dev/sdc
 dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
@@ -216,7 +220,7 @@ dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 # On a separate Linux box:  (this will take a LOOOONG time)
 # mksquashfs is multithreaded so its recommended to use a multicore
 # box for this and not an actual BBB
-apt-get install squashfs-tools
+# apt-get install squashfs-tools
 mount ${DEVICE}1 /mnt
 mksquashfs /mnt BBB-${VERSION}_${OSVERSION}.fppos -b 512K -comp xz
 cd /mnt/root
