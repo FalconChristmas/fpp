@@ -60,6 +60,7 @@ journalctl --flush --rotate --vacuum-time=1s
     rm -f /mnt/home/fpp/media/logs/*
     rm -rf /mnt/home/fpp/media/tmp/*
     rm -rf /mnt/home/fpp/media/crashes/*
+    rm -rf /mnt/home/fpp/media/upload/*
     rm -f /mnt/var/log/*
     rm -f /mnt/etc/ssh/*key*
     rm -f /mnt/root/.bash_history
@@ -69,7 +70,7 @@ journalctl --flush --rotate --vacuum-time=1s
     dd if=${DEVICE} of=FPP-v${VERSION}-BB64.img bs=1M count=${BLOCKS}
     zip -9 FPP-v$VERSION-BB64.img.zip FPP-v${VERSION}-BB64.img
 
-This will create a file called FPP-${VERSION}-Pi.img.zip that can be distributed
+This will create a file called FPP-${VERSION}-BB64.img.zip that can be distributed
 for testing/release.
 
 
