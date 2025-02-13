@@ -52,7 +52,7 @@ LDI32or16 .macro a, b
 READ_TO_FLUSH .macro
     //read the base line to make sure all SET/CLR are
     //flushed and out
-    LBBO &out_clr, gpio_base_cache, GPIO_DATAOUT, 4
+    LBBO &out_clr, gpio_base_cache, GPIO_DATAIN, 4
     .endm
 
 CLOCK_HI .macro

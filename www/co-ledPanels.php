@@ -101,8 +101,9 @@ function printLEDPanelGammaSelect($platform, $gamma)
     echo "<input type='number' min='0.1' max='5.0' step='0.1' value='$gamma' id='LEDPanelsGamma'>";
 }
 
-function printLEDPanelInterleaveSelect($platform)
+function printLEDPanelInterleaveSelect()
 {
+    global $settings;
     echo "<select id='LEDPanelInterleave' onchange='LEDPanelLayoutChanged();'>";
 
     $values = array();
@@ -1483,7 +1484,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
         <div class="row">
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsInterleaveLabel'><b>Panel Interleave:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3">
-                        <?printLEDPanelInterleaveSelect($settings['Platform']);?>
+                        <?printLEDPanelInterleaveSelect();?>
                     </div>
             <?if ($settings['Platform'] == "Raspberry Pi") {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsOutputCPUPWMLabel'><b>Use CPU PWM:</b></span></div>

@@ -741,9 +741,14 @@ int BBBMatrix::Init(Json::Value config) {
 
         pru = root["pru"].asInt();
 
+#ifdef PLATFORM_BB64
+        // PRU -> PRU data transfer not working yet
+        m_singlePRU = true;
+#else
         if (root.isMember("singlePRU")) {
             m_singlePRU = root["singlePRU"].asBool();
         }
+#endif
         if (root.isMember("dataOffset")) {
             m_dataOffset = root["dataOffset"].asInt();
             m_dataOffset *= 1024; // dataOffset is in KB
@@ -1200,14 +1205,14 @@ int BBBMatrix::SendData(unsigned char* channelData) {
     }
     // long long cpyTime = GetTime();
     if (m_curFrame == 0) {
-        // m_curFrame = m_numFrames - 1;
-        m_curFrame = 1;
+        m_curFrame = m_numFrames - 1;
     } else {
         m_curFrame--;
     }
 
     // make sure memory is flushed before command is set to 1
     msync(ptr, m_fullFrameLen, MS_SYNC | MS_INVALIDATE);
+    __builtin___clear_cache(ptr, ptr + m_fullFrameLen);
     m_pruData->address_dma = addr;
 
     __asm__ __volatile__("" ::
