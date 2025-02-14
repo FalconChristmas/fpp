@@ -1,6 +1,12 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/soc/ti,sci_pm_domain.h>
+#include "k3-pinctrl.h"
+
 /* Reserve 4M DDR memory for the pixel buffers */
 &{/chosen} {
         overlays {
@@ -9,11 +15,11 @@
 };
 
 &reserved_memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		fpp_reserved: fpp_reserved@8f000000 {
-			reg = <0x00 0x8f000000 0x00 0x00400000>;
-		};
+	#address-cells = <2>;
+	#size-cells = <2>;
+	fpp_reserved: fpp_reserved@8f000000 {
+		reg = <0x00 0x8f000000 0x00 0x00400000>;
+	};
 };
 
 &main_uart1 {
@@ -30,4 +36,44 @@
 };
 &main_uart5 {
 	status = "ok";
+};
+
+
+&main_pmx0 {
+    mcasp2_pins: mcasp2-pins {
+        pinctrl-single,pins = <
+            AM62X_IOPAD(0x01D4, PIN_INPUT, 8) /* (B15) MCASP2_ACLKX */
+            AM62X_IOPAD(0x01D0, PIN_INPUT, 8) /* (A15) MCASP2_AFSX */
+            AM62X_IOPAD(0x01D8, PIN_OUTPUT, 8) /* (C15) MCASP2_AXR0 */
+        >;
+    };
+};
+&mcasp2 {
+    status = "disabled";
+    pinctrl-names = "default";
+    pinctrl-0 = <&mcasp2_pins>;
+
+    #sound-dai-cells = <0>;
+    op-mode = <0>;  /* MCASP_IIS_MODE */
+    tdm-slots = <2>;
+    num-serializer = <2>;
+    serial-dir = <1 0>; /* 0: INACTIVE, 1: TX, 2: RX */
+};
+
+&{/} {
+	codec_audio: sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,cpu {
+			sound-dai = <&mcasp2>;
+			bitclock-master;
+			bitclock-inversion;
+			frame-master;
+			system-clock-direction-out;
+		};
+		simple-audio-card,codec {
+			clocks = <&audio_refclk1>;
+		};
+	};
 };
