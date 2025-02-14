@@ -1711,15 +1711,16 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
         //Create a copy of the areas array to manipulate
         $tmp_config_areas = $system_config_areas;
 
-        //Generate backup for selected area
+		//remove email as its in the general settings file and not a separate section (no actual file to backup)
+		unset($tmp_config_areas['settings']['file']['email']);
+
+		//Generate backup for selected area
         //AREA - ALL
         if (strtolower($area) == "all") {
             //combine all backup areas into a single file
 
             //remove the 'all' key and do some processing of areas array
             unset($tmp_config_areas['all']);
-            //remove email as its in the general settings file and not a separate section
-            unset($tmp_config_areas['settings']['file']['email']);
 
             //loop over the areas and process them
             foreach ($tmp_config_areas as $config_key => $config_data) {
