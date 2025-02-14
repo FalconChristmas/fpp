@@ -746,7 +746,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         //otherwise existing (valid) config may be overwritten
                         if ($uploadData_IsProtected == false && $emailpass != "") {
                             WriteSettingToFile('emailpass', $emailpass);
-                            //Update the email config in the global settings array,  so can call the fuction that sets up and  writes out exim4 config
+                            //Update the email config in the global settings array,  so can call the function that sets up and  writes out exim4 config
                             $settings['emailserver'] = $restore_data['emailserver'];
                             if (array_key_exists('emailport', $restore_data)) {
                                 $settings['emailport'] = $restore_data['emailport'];
@@ -759,7 +759,6 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                             $settings['emailfromtext'] = $restore_data['emailfromtext'];
                             $settings['emailtoemail'] = $restore_data['emailtoemail'];
                             ApplyEmailConfig();
-                            $save_result = true;
                         }
                         $save_result = true;
                     }
@@ -781,12 +780,25 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         }
 
                         if (!empty($data)) {
+                            //
                             $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
-                            //Timezone isn't stored in a seperate file anymore, it's now a setting
-                            WriteSettingToFile('TimeZone', $data);
-                            //Update the timezone on the system
-                            SetTimezone($data);
-                            $save_result = true;
+                            //Apply timezone settings via API
+							$url = 'http://localhost/api/settings/TimeZone';
+							//options for the request
+							$options = array(
+								'http' => array(
+									'header' => "Content-type: text/plain",
+									'method' => 'PUT',
+									'content' => $data,
+								),
+							);
+							$context = stream_context_create($options);
+
+							if (file_get_contents($url, false, $context) !== false) {
+								$save_result = true;
+							} else {
+								$save_result = true;
+							}
                         }
                     }
                 }
