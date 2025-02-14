@@ -1153,6 +1153,12 @@ void setupKiosk(bool force = false) {
     if (km || force) {
         std::string url = "http://localhost/";
         getRawSetting("KioskUrl", url);
+
+        // FPP UI doesn't delete the setting, it makes it ""
+        if (url == "\"\"") {
+            url = "http://localhost/";
+        }
+
         std::string value = "{\"RestoreOnStartup\": 4,\"RestoreOnStartupURLs\": [\"" + url + "\"]}";
         mkdir("/etc/chromium/", 0775);
         mkdir("/etc/chromium/policies", 0775);
