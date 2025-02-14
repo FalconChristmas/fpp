@@ -729,6 +729,23 @@ function ZipDirectory($zip, $name, $directory)
     }
 }
 
+function removeDir(string $dir): void
+{
+    $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
+    $files = new RecursiveIteratorIterator(
+        $it,
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+    foreach ($files as $file) {
+        if ($file->isDir()) {
+            rmdir($file->getPathname());
+        } else {
+            unlink($file->getPathname());
+        }
+    }
+    rmdir($dir);
+}
+
 function DeleteFile()
 {
     $status = "File not found";
@@ -745,6 +762,9 @@ function DeleteFile()
         $status = "Invalid path: directory traversal detected or file outside allowed directory";
     } else if (!file_exists($fullPath)) {
         $status = "File Not Found";
+    } else if (is_dir($fullPath)) {
+        removeDir($fullPath);
+        $status = "OK";
     } else {
         if (unlink($fullPath)) {
             $status = "OK";

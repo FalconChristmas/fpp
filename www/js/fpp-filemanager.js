@@ -55,7 +55,7 @@ function GetFiles (dir) {
 							'\');" /></td></tr>';
 					} else {
 						tableRow =
-							"<tr class='fileDetails unselectableRow' id='fileDetail_" +
+							"<tr class='fileDetails fileIsDirectory' id='fileDetail_" +
 							i +
 							"'><td class ='filenameColumn fileName'>" +
 							f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
@@ -63,11 +63,17 @@ function GetFiles (dir) {
 							detail +
 							"</td><td class ='fileTime'>" +
 							f.mtime +
-							'</td><td>Empty Subdir</td></tr>';
+							'</td><td>Subdir</td></tr>';
 					}
 				} else {
+					var extraClass = 'fileDetails';
+					if (f.sizeBytes == 0) {
+						extraClass += ' fileIsDirectory';
+					}
 					tableRow =
-						"<tr class='fileDetails' id='fileDetail_" +
+						"<tr class='" +
+						extraClass +
+						"' id='fileDetail_" +
 						i +
 						"'><td class ='filenameColumn fileName'>" +
 						f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
@@ -393,6 +399,7 @@ function HandleMouseClick (event, row, table) {
 	HandleTableRowMouseClick(event, row);
 
 	var selectedCount = $('#tbl' + table + ' tr.selectedEntry').length;
+	var dirCount = $('#tbl' + table + ' tr.selectedEntry.fileIsDirectory').length;
 
 	DisableButtonClass('single' + table + 'Button');
 	DisableButtonClass('multi' + table + 'Button');
@@ -401,6 +408,10 @@ function HandleMouseClick (event, row, table) {
 		EnableButtonClass('multi' + table + 'Button');
 	} else if (selectedCount > 0) {
 		EnableButtonClass('single' + table + 'Button');
+	}
+
+	if (dirCount > 0) {
+		DisableButtonClass('noDirButton');
 	}
 }
 

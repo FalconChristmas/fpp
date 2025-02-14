@@ -232,22 +232,24 @@
                                             value="Clear" />
                                         <?php if (isset($settings['fppMode']) && ($settings['fppMode'] == 'player')) { ?>
                                             <input onclick="ButtonHandler('Sequences', 'play');"
-                                                class="disableButtons singleSequencesButton" type="button" value="Play" />
+                                                class="disableButtons noDirButton singleSequencesButton" type="button"
+                                                value="Play" />
                                             <input onclick="ButtonHandler('Sequences', 'playHere');"
-                                                class="disableButtons singleSequencesButton" type="button"
+                                                class="disableButtons noDirButton singleSequencesButton" type="button"
                                                 value="Play Here" />
                                         <?php } ?>
                                         <input onclick="ButtonHandler('Sequences', 'sequenceInfo');"
-                                            class="disableButtons singleSequencesButton" type="button"
+                                            class="disableButtons noDirButton singleSequencesButton" type="button"
                                             value="Sequence Info" />
                                         <input onclick="ButtonHandler('Sequences', 'addToPlaylist');"
-                                            class="disableButtons singleSequencesButton multiSequencesButton"
+                                            class="disableButtons noDirButton singleSequencesButton multiSequencesButton"
                                             type="button" value="Add To Playlist" />
                                         <input onclick="ButtonHandler('Sequences', 'download');"
-                                            class="disableButtons singleSequencesButton multiSequencesButton"
+                                            class="disableButtons noDirButton singleSequencesButton multiSequencesButton"
                                             type="button" value="Download" />
                                         <input onclick="ButtonHandler('Sequences', 'rename');"
-                                            class="disableButtons singleSequencesButton" type="button" value="Rename" />
+                                            class="disableButtons noDirButton singleSequencesButton" type="button"
+                                            value="Rename" />
                                         <input onclick="ButtonHandler('Sequences', 'delete');"
                                             class="disableButtons singleSequencesButton multiSequencesButton"
                                             type="button" value="Delete" />
@@ -294,20 +296,21 @@
                                         <input onclick="ClearSelections('Music');" class="buttons" type="button"
                                             value="Clear" />
                                         <input onclick="ButtonHandler('Music', 'playInBrowser');"
-                                            id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton"
-                                            type="button" value="Listen" />
+                                            id="btnPlayMusicInBrowser"
+                                            class="disableButtons noDirButton singleMusicButton" type="button"
+                                            value="Listen" />
                                         <? if (file_exists("/bin/mp3gain") || file_exists("/usr/bin/mp3gain") || file_exists("/opt/homebrew/bin/mp3gain") || file_exists("/usr/local/bin/mp3gain")) { ?>
                                             <input onclick="ButtonHandler('Music', 'mp3gain');" id="btnPlayMusicInBrowser"
-                                                class="disableButtons singleMusicButton multiMusicButton" type="button"
-                                                value="MP3Gain" />
+                                                class="disableButtons noDirButton singleMusicButton multiMusicButton"
+                                                type="button" value="MP3Gain" />
                                         <? } ?>
 
                                         <input onclick="ButtonHandler('Music', 'addToPlaylist');"
-                                            class="disableButtons singleMusicButton multiMusicButton" type="button"
-                                            value="Add To Playlist" />
+                                            class="disableButtons noDirButton singleMusicButton multiMusicButton"
+                                            type="button" value="Add To Playlist" />
                                         <input onclick="ButtonHandler('Music', 'download');" id="btnDownloadMusic"
-                                            class="disableButtons singleMusicButton multiMusicButton" type="button"
-                                            value="Download" />
+                                            class="disableButtons noDirButton singleMusicButton multiMusicButton"
+                                            type="button" value="Download" />
                                         <input onclick="ButtonHandler('Music', 'rename');" id="btnRenameMusic"
                                             class="disableButtons singleMusicButton" type="button" value="Rename" />
                                         <input onclick="ButtonHandler('Music', 'delete');" id="btnDeleteMusic"
@@ -356,16 +359,16 @@
                                         <input onclick=" ClearSelections('Videos');" class="buttons" type="button"
                                                         value="Clear" />
                                                     <input onclick="ButtonHandler('Videos', 'playInBrowser');"
-                                                        class="disableButtons singleVideosButton" type="button"
-                                                        value="View" />
+                                                        class="disableButtons noDirButton singleVideosButton"
+                                                        type="button" value="View" />
                                                     <input onclick="ButtonHandler('Videos', 'videoInfo');"
-                                                        class="disableButtons singleVideosButton" type="button"
-                                                        value="Video Info" />
+                                                        class="disableButtons noDirButton singleVideosButton"
+                                                        type="button" value="Video Info" />
                                                     <input onclick="ButtonHandler('Videos', 'addToPlaylist');"
-                                                        class="disableButtons singleMusicButton multiMusicButton"
+                                                        class="disableButtons noDirButton singleMusicButton multiMusicButton"
                                                         type="button" value="Add To Playlist" />
                                                     <input onclick="ButtonHandler('Videos', 'download');"
-                                                        class="disableButtons singleVideosButton multiVideosButton"
+                                                        class="disableButtons noDirButton singleVideosButton multiVideosButton"
                                                         type="button" value="Download" />
                                                     <input onclick="ButtonHandler('Videos', 'rename');"
                                                         class="disableButtons singleVideosButton" type="button"
@@ -419,10 +422,11 @@
                                         <input onclick="ClearSelections('Images');" class="buttons" type="button"
                                             value="Clear" />
                                         <input onclick="ButtonHandler('Images', 'viewImage');"
-                                            class="disableButtons singleImagesButton" type="button" value="View" />
+                                            class="disableButtons noDirButton singleImagesButton" type="button"
+                                            value="View" />
                                         <input onclick="ButtonHandler('Images', 'download');"
-                                            class="disableButtons singleImagesButton multiImagesButton" type="button"
-                                            value="Download" />
+                                            class="disableButtons noDirButton singleImagesButton multiImagesButton"
+                                            type="button" value="Download" />
                                         <input onclick="ButtonHandler('Images', 'rename');"
                                             class="disableButtons singleImagesButton" type="button" value="Rename" />
                                         <input onclick="ButtonHandler('Images', 'delete');"
@@ -472,11 +476,11 @@
                                         <input onclick="ClearSelections('Effects');" class="buttons" type="button"
                                             value="Clear" />
                                         <input onclick="ButtonHandler('Effects', 'sequenceInfo');"
-                                            class="disableButtons singleEffectsButton" type="button"
+                                            class="disableButtons noDirButton singleEffectsButton" type="button"
                                             value="Sequence Info" />
                                         <input onclick="ButtonHandler('Effects', 'download');"
-                                            class="disableButtons singleEffectsButton multiEffectsButton" type="button"
-                                            value="Download" />
+                                            class="disableButtons noDirButton singleEffectsButton multiEffectsButton"
+                                            type="button" value="Download" />
                                         <input onclick="ButtonHandler('Effects', 'rename');"
                                             class="disableButtons singleEffectsButton" type="button" value="Rename" />
                                         <input onclick="ButtonHandler('Effects', 'delete');"
@@ -525,19 +529,23 @@
                                         <input onclick="ClearSelections('Scripts');" class="buttons" type="button"
                                             value="Clear" />
                                         <input onclick="ButtonHandler('Scripts', 'viewFile');"
-                                            class="disableButtons singleScriptsButton" type="button" value="View" />
+                                            class="disableButtons noDirButton singleScriptsButton" type="button"
+                                            value="View" />
                                         <input onclick="ButtonHandler('Scripts', 'runScript');"
-                                            class="disableButtons singleScriptsButton" type="button" value="Run" />
+                                            class="disableButtons noDirButton singleScriptsButton" type="button"
+                                            value="Run" />
                                         <input onclick="ButtonHandler('Scripts', 'editScript');"
-                                            class="disableButtons singleScriptsButton" type="button" value="Edit" />
+                                            class="disableButtons noDirButton singleScriptsButton" type="button"
+                                            value="Edit" />
                                         <input onclick="ButtonHandler('Scripts', 'addToPlaylist');"
-                                            class="disableButtons singleScriptsButton multiScriptsButton" type="button"
-                                            value="Add To Playlist" />
+                                            class="disableButtons noDirButton singleScriptsButton multiScriptsButton"
+                                            type="button" value="Add To Playlist" />
                                         <input onclick="ButtonHandler('Scripts', 'download');"
-                                            class="disableButtons singleScriptsButton multiScriptsButton" type="button"
-                                            value="Download" />
+                                            class="disableButtons noDirButton singleScriptsButton multiScriptsButton"
+                                            type="button" value="Download" />
                                         <input onclick="ButtonHandler('Scripts', 'copyFile');"
-                                            class="disableButtons singleScriptsButton" type="button" value="Copy" />
+                                            class="disableButtons noDirButton singleScriptsButton" type="button"
+                                            value="Copy" />
                                         <input onclick="ButtonHandler('Scripts', 'rename');"
                                             class="disableButtons singleScriptsButton" type="button" value="Rename" />
                                         <input onclick="ButtonHandler('Scripts', 'delete');"
@@ -590,12 +598,14 @@
                                         <input onclick="DownloadZip('Logs');" class="buttons" type="button"
                                             value="Zip" />
                                         <input onclick="ButtonHandler('Logs', 'viewFile');"
-                                            class="disableButtons singleLogsButton" type="button" value="View" />
+                                            class="disableButtons noDirButton singleLogsButton" type="button"
+                                            value="View" />
                                         <input onclick="ButtonHandler('Logs', 'tailFile');"
-                                            class="disableButtons singleLogsButton" type="button" value="Tail" />
+                                            class="disableButtons noDirButton singleLogsButton" type="button"
+                                            value="Tail" />
                                         <input onclick="ButtonHandler('Logs', 'download');"
-                                            class="disableButtons singleLogsButton multiLogsButton" type="button"
-                                            value="Download" />
+                                            class="disableButtons noDirButton singleLogsButton multiLogsButton"
+                                            type="button" value="Download" />
                                         <input onclick="ButtonHandler('Logs', 'delete');"
                                             class="disableButtons singleLogsButton multiLogsButton" type="button"
                                             value="Delete" />
@@ -640,10 +650,11 @@
                                         <input onclick="ClearSelections('Uploads');" class="buttons" type="button"
                                             value="Clear" />
                                         <input onclick="ButtonHandler('Uploads', 'download');"
-                                            class="disableButtons singleUploadsButton multiUploadsButton" type="button"
-                                            value="Download" />
+                                            class="disableButtons noDirButton singleUploadsButton multiUploadsButton"
+                                            type="button" value="Download" />
                                         <input onclick="ButtonHandler('Uploads', 'copyFile');"
-                                            class="disableButtons singleUploadsButton" type="button" value="Copy" />
+                                            class="disableButtons noDirButton singleUploadsButton" type="button"
+                                            value="Copy" />
                                         <input onclick="ButtonHandler('Uploads', 'rename');"
                                             class="disableButtons singleUploadsButton" type="button" value="Rename" />
                                         <input onclick="ButtonHandler('Uploads', 'delete');"
@@ -689,8 +700,8 @@
                                         <input onclick="ClearSelections('Crashes');" class="buttons" type="button"
                                             value="Clear" />
                                         <input onclick="ButtonHandler('Crashes', 'download');"
-                                            class="disableButtons singleCrashesButton multiCrashesButton" type="button"
-                                            value="Download" />
+                                            class="disableButtons noDirButton singleCrashesButton multiCrashesButton"
+                                            type="button" value="Download" />
                                         <input onclick="ButtonHandler('Crashes', 'delete');"
                                             class="disableButtons singleCrashesButton multiCrashesButton" type="button"
                                             value="Delete" />
@@ -740,8 +751,8 @@
                                         <input onclick="ClearSelections('Backups');" class="buttons" type="button"
                                             value="Clear" />
                                         <input onclick="ButtonHandler('Backups', 'download');"
-                                            class="disableButtons singleBackupsButton multiBackupsButton" type="button"
-                                            value="Download" />
+                                            class="disableButtons noDirButton singleBackupsButton multiBackupsButton"
+                                            type="button" value="Download" />
                                         <input onclick="ButtonHandler('Backups', 'delete');"
                                             class="disableButtons singleBackupsButton multiBackupsButton" type="button"
                                             value="Delete" />
