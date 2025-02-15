@@ -6,7 +6,7 @@ then
     FPPBOOTDIR=/boot/firmware
 fi
 
-echo "Checking for updated eeprom to allow booting from USB"
+echo "Checking for updated eeprom to allow booting from USB/NVMe"
 echo ""
 rpi-eeprom-update -a
 

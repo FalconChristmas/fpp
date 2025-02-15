@@ -67,7 +67,7 @@ require_once('common.php');
                                 checkForStorageCopy();
                             },
                             failure: function (data) {
-                                DialogError("Formate Storage", "Error formatting storage.");
+                                DialogError("Format Storage", "Error formatting storage.");
                             }
                         });
                     } else {
@@ -86,14 +86,14 @@ require_once('common.php');
             EnableModalDialogCloseButton("flashEMMCProgress");
         }
         function flashEMMC() {
-            DisplayConfirmationDialog("flashEMMC", "Flash to eMMC", $("#dialog-confirm-emmc"), function () {
-                DisplayProgressDialog("flashEMMCProgress", "Flash to eMMC");
+            DisplayConfirmationDialog("flashEMMC", "Copy FPP to eMMC", $("#dialog-confirm-emmc"), function () {
+                DisplayProgressDialog("flashEMMCProgress", "Copy FPP to eMMC");
                 StreamURL("flashbbbemmc.php", 'flashEMMCProgressText', 'flashEMMCDone', 'flashEMMCDone');
             });
         }
         function flashEMMCBtrfs() {
-            DisplayConfirmationDialog("flashEMMC", "Flash to eMMC", $("#dialog-confirm-emmc"), function () {
-                DisplayProgressDialog("flashEMMCProgress", "Flash to eMMC");
+            DisplayConfirmationDialog("flashEMMC", "Copy FPP to eMMC", $("#dialog-confirm-emmc"), function () {
+                DisplayProgressDialog("flashEMMCProgress", "Copy FPP to eMMC");
                 StreamURL("flashbbbemmc-btrfs.php", 'flashEMMCProgressText', 'flashEMMCDone', 'flashEMMCDone');
             });
         }
@@ -105,14 +105,14 @@ require_once('common.php');
         EnableModalDialogCloseButton("flashUSBProgress");
     }
     function flashUSB(device) {
-        DisplayConfirmationDialog("flashUSB", "Flash to NVMe/USB/SD", $("#dialog-confirm-usb"), function () {
-            DisplayProgressDialog("flashUSBProgress", "Flash to NVMe/USB/SD");
+        DisplayConfirmationDialog("flashUSB", "Create new FPP on NVMe/USB/SD", $("#dialog-confirm-usb"), function () {
+            DisplayProgressDialog("flashUSBProgress", "Create new FPP on NVMe/USB/SD");
             StreamURL("flash-pi-usb.php?cone=false&dev=" + device, 'flashUSBProgressText', 'flashUSBDone', 'flashUSBDone');
         });
     }
     function cloneUSB(device) {
-        DisplayConfirmationDialog("flashUSB", "Clone to NVMe/USB/SD", $("#dialog-confirm-usb"), function () {
-            DisplayProgressDialog("flashUSBProgress", "Clone to NVMe/USB/SD");
+        DisplayConfirmationDialog("flashUSB", "Copy existing FPP to NVMe/USB/SD", $("#dialog-confirm-usb"), function () {
+            DisplayProgressDialog("flashUSBProgress", "Copy existing FPP to NVMe/USB/SD");
             StreamURL("flash-pi-usb.php?clone=true&dev=" + device, 'flashUSBProgressText', 'flashUSBDone', 'flashUSBDone');
         });
     }
@@ -277,13 +277,13 @@ if ($addflashbutton) {
         <h3>eMMC Actions:</h3>
 
         <div class="row">
-            <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC'
+            <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Copy to eMMC'
                     onClick='flashEMMC();'></div>
             <div class="col-auto">&nbsp;This will copy FPP to the internal eMMC.</div>
         </div>
         <? if ($uiLevel >= 1) { ?>
             <div class="row mt-2">
-                <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC (BTRFS)'
+                <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Copy to eMMC (BTRFS)'
                         onClick='flashEMMCBtrfs();'></div>
                 <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i>&nbsp;This will copy FPP to the internal
                     eMMC, but use BTRFS for the root filesystem.<br>BTRFS uses compression to save a lot of space on the eMMC, but
@@ -296,37 +296,36 @@ if ($addflashbutton) {
         <? if (($rootDevice == 'mmcblk0p2') && file_exists("/dev/sda")) { ?>
                 <h3>USB Actions:</h3>
                 <div class="row">
-                    <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to USB'
+                    <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Create new FPP on USB'
                             onClick='flashUSB("sda");'></div>
-                    <div class="col-auto">&nbsp;This will clone FPP to the USB device. See note below for more information.</div>
+                    <div class="col-auto">&nbsp;This will create a new FPP on the USB device.</div>
                 </div>
                 <div class="row">
-                    <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Clone to USB'
+                    <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Copy existing FPP to USB'
                             onClick='cloneUSB("sda");'></div>
-                    <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the USB device. See note below
-                        for more information.</div>
+                    <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the USB device.</div>
                 </div>
         <? } else if (($rootDevice == 'mmcblk0p2') && file_exists("/dev/nvme0n1")) { ?>
                     <h3>NVMe Actions:</h3>
                     <div class="row">
-                        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to NVMe'
+                        <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Create new FPP on NVMe'
                                 onClick='flashUSB("nvme0n1");'></div>
-                        <div class="col-auto">&nbsp;This will clone FPP to the NVMe device.</div>
+                        <div class="col-auto">&nbsp;This will create a new FPP on the NVMe device.</div>
                     </div>
                     <div class="row">
-                        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Clone to NVMe'
+                        <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Copy existing FPP to NVMe'
                                 onClick='cloneUSB("nvme0n1");'></div>
                         <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the NVMe device.</div>
                     </div>
         <? } else { ?>
                     <h3>SD Card Actions:</h3>
                     <div class="row">
-                        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Flash to SD'
+                        <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Create new FPP on SD card'
                                 onClick='flashUSB("mmcblk0");'></div>
-                        <div class="col-auto">&nbsp;This will flash FPP to the SD Card.</div>
+                        <div class="col-auto">&nbsp;This will create a new FPP on the SD Card.</div>
                     </div>
                     <div class="row">
-                        <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Clone to SD'
+                        <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Copy existing FPP to SD card'
                                 onClick='cloneUSB("mmcblk0");'></div>
                         <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the SD Card.</div>
                     </div>
