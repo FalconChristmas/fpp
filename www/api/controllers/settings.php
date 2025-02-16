@@ -101,7 +101,7 @@ function PutSetting()
                         $fsckOrder = "2";
                     } else {
                         # exFAT probably
-                        $options = "defaults,noatime,nodiratime,exec,nofail";
+                        $options = "defaults,noatime,nodiratime,exec,nofail,uid=500,gid=500";
                         $fsckOrder = "2";
                     }
                 } else {

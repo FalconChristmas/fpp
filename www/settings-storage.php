@@ -53,6 +53,7 @@ require_once('common.php');
                 inputs: [
                     { header: "Don't Format", type: "radio", name: "formatType", checked: "", value: "none" },
                     { header: "ext4 (Most stable)", type: "radio", name: "formatType", value: "ext4" },
+                    { header: "exFAT (Compatible with Windows/OSX, experimental, not recommended)", type: "radio", name: "formatType", value: "exFAT" },
                     { header: "FAT (Compatible with Windows/OSX, unsupported, slow, not recommended)", type: "radio", name: "formatType", value: "FAT" }
                 ],
                 buttons: [{ value: "OK" }],
