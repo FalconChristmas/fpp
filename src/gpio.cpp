@@ -77,12 +77,14 @@ int ExtGPIO(int gpio, char* mode, int value) {
     return retval;
 }
 
+GPIOManager GPIOManager::INSTANCE;
+
 class FPPGPIOCommand : public Command {
 public:
     FPPGPIOCommand() :
         Command("GPIO") {
         args.push_back(CommandArg("pin", "string", "Pin").setContentListUrl("api/gpio?list=true"));
-        args.push_back(CommandArg("on", "bool", "On"));
+        args.push_back(CommandArg("on", "string", "Action").setContentList({"On", "Off", "Opposite"}));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
         if (args.size() != 2) {
@@ -93,14 +95,27 @@ public:
         const PinCapabilities& p = PinCapabilities::getPinByName(n);
         if (p.ptr()) {
             p.configPin();
-            p.setValue(v == "true" || v == "1");
+            if (v == "On" || v == "on" || v == "true" || v == "True" || v == "1") {
+                p.setValue(true);
+                GPIOManager::INSTANCE.fppCommandLastValue[n] = true;
+            }
+            else if (v == "Off" || v == "off" || v == "false" || v == "False" || v == "0") {
+                p.setValue(false);
+                GPIOManager::INSTANCE.fppCommandLastValue[n] = false;
+            }
+            else if (v == "Opposite" || v == "opposite") {
+                GPIOManager::INSTANCE.fppCommandLastValue[n] = !GPIOManager::INSTANCE.fppCommandLastValue[n];
+                p.setValue(GPIOManager::INSTANCE.fppCommandLastValue[n]);
+            }
+            else {
+                return std::make_unique<Command::ErrorResult>("Invalid Action" + v);
+            }
             return std::make_unique<Command::Result>("OK");
         }
         return std::make_unique<Command::ErrorResult>("No Pin Named " + n);
     }
 };
 
-GPIOManager GPIOManager::INSTANCE;
 
 GPIOManager::GPIOManager() :
     checkDebounces(false) {

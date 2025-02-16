@@ -33,6 +33,8 @@ class GPIOManager : public httpserver::http_resource {
 public:
     static GPIOManager INSTANCE;
 
+    std::map<std::string, bool> fppCommandLastValue;
+
     virtual HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request& req) override;
 
     void Initialize(std::map<int, std::function<bool(int)>>& callbacks);
