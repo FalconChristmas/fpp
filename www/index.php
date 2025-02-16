@@ -230,9 +230,10 @@
 
         function SetupHostnameBanner() {
             let showHostnameBanner = false;
-            console.log(settings.hasOwnProperty('hostnameConfirmed'));
-            if (!(settings.hasOwnProperty('hostnameConfirmed') && $settings["HostName"] == "FPP")) {
-                showHostnameBanner = true;
+            if (settings.hasOwnProperty('HostName') && settings.HostName == "FPP") {
+                if (!settings.hasOwnProperty('hostnameConfirmed')) {
+                    showHostnameBanner = true;
+                }
             }
 
             if (showHostnameBanner) {

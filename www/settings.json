@@ -1256,6 +1256,9 @@
 			"regexDesc": "Host names must contain only letters, numbers and hyphens",
 			"platforms": [
 				"!MacOS"
+			],
+			"exposedAsJSToPages": [
+				"index"
 			]
 		},
 		"Latitude": {
