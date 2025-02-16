@@ -196,6 +196,7 @@
                 RemoteVolumeControlChange(this.value);
             });
 
+            SetupHostnameBanner();
             SetupBanner();
         };
 
@@ -220,6 +221,34 @@
                     "btn-outline-light' onClick='EnabledStats();'>Enable Stats</button></div>"
                 ).show();
             }
+        }
+
+        function HostnameConfirmed() {
+            SetSetting("hostnameConfirmed", "True", 2);
+            $("#bannerHostnameRow").hide();
+        }
+
+        function SetupHostnameBanner() {
+            let showHostnameBanner = false;
+            console.log(settings.hasOwnProperty('hostnameConfirmed'));
+            if (!(settings.hasOwnProperty('hostnameConfirmed') && $settings["HostName"] == "FPP")) {
+                showHostnameBanner = true;
+            }
+
+            if (showHostnameBanner) {
+                $("#bannerHostnameRow").html(
+                    "Your hostname is set to FPP, if you have multiple FPP devices " +
+                    "each one should have a different hostname. " +
+                    "Please visit the " +
+                    "<a href=\"networkconfig.php#tab-host-dns\">Host Settings Page</a> " +
+                    " to change your hostname." +
+                    "<div style='margin-top:1em'><button class='buttons wideButton " +
+                    "btn-outline-light' onClick='HostnameConfirmed();'>Dismiss Warning</button></div>"
+                ).show();
+            } else {
+                $("#bannerHostnameRow").hide();
+            }
+
         }
 
         function SetSpeakerIndicator(value) {
@@ -380,6 +409,7 @@
                     <div id="warningsDiv"></div>
                 </div>
             </div>
+            <div id="bannerHostnameRow" class="alert alert-info"></div>
             <div id="bannerRow" class="alert alert-info">Banner Messages go here.</div>
             <div id="programControl" class="settings">
 

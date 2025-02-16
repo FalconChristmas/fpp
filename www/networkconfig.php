@@ -938,9 +938,12 @@
                     </div>
                     <div class="tab-pane fade" id="tab-host-dns" role="tabpanel" aria-labelledby="tab-host-dns-tab">
 
-
+                        <h2>Host Settings</h2>
+                        <b>Changing the hostname from FPP will cause http://fpp.local/ to change and you will need to use the new hostname eg http://&lthostname&gt.local/</b>
+                        <br>
+                        <br>
                         <?
-                        PrintSettingGroup('host');
+                        PrintSettingGroup('host','','','','','',false);
                         ?>
 
 

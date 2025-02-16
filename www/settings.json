@@ -100,14 +100,22 @@
 			"description": "Initial Setup",
 			"settings": [
 				"fppMode",
-				"HostName",
-				"HostDescription",
-				"emailAddress",
-				"statsPublish",
+				"InstalledCape"
+			]
+		},
+		"initialSetup-privacy": {
+			"description": "Privacy Setup",
+			"settings": [
 				"ShareCrashData",
+				"emailAddress",
 				"FetchVendorLogos",
 				"SendVendorSerial",
-				"InstalledCape",
+				"statsPublish"
+			]
+		},
+		"initialSetup-location": {
+			"description": "Location Setup",
+			"settings": [
 				"Locale",
 				"TimeZone",
 				"Latitude",
@@ -1927,13 +1935,13 @@
 		},
 		"osPasswordEnable": {
 			"name": "osPasswordEnable",
-			"description": "Set OS password",
+			"description": "OS password",
 			"tip": "Changing the OS password is not normally needed unless your FPP instance is connected to a public network.  The default password is 'falcon', but you may select 'Custom' to allow choosing a custom password.  The OS password can always be changed via the FPP UI even if you do not remember the OS password.",
 			"gatherStats": true,
 			"type": "select",
 			"options": {
-				"Default (falcon)": "0",
-				"Custom": "1"
+				"falcon (Default)": "0",
+				"Enter a Password": "1"
 			},
 			"onChange": "ConfirmOSPasswordEnable",
 			"children": {
@@ -1977,13 +1985,13 @@
 		},
 		"passwordEnable": {
 			"name": "passwordEnable",
-			"description": "Enable UI password",
+			"description": "UI password",
 			"tip": "Enabling UI Password is not normally needed unless you are connected to a public network. If you set a UI password, you will need to make sure that you remember this password so you and other applications, like xLights, will be able to access the UI when needed. Select 'Disabled' to disable password protection. Select 'Enabled' to allow choosing a UI password",
 			"gatherStats": true,
 			"type": "select",
 			"options": {
-				"Disabled": "0",
-				"Enabled": "1"
+				"No Password (Default)": "0",
+				"Enter a Password": "1"
 			},
 			"onChange": "ConfirmPasswordEnable",
 			"children": {

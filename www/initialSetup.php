@@ -141,17 +141,24 @@
                         ?>
                         <b>System Settings</b><br>
                         <?
-
+                        PrintSettingGroup('initialSetup', '', '', 1, '', '', false);
+                        ?>
+                        <b>Privacy Settings</b><br>
+                        <?
                         $extraData = "<div class='form-actions'>" .
-                            "<input type='button' class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'> ";
+                            "<input type='button' class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'> </div>";
+                        PrintSettingGroup('initialSetup-privacy', $extraData, '', '', '', '', false);
+                        ?>
+                        <b>Location Settings</b><br>
+                        <?
+                        $extraData = "<div class='form-actions'>";
                         if ($settings["Platform"] != "MacOS") {
                             $extraData .= "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'> ";
                         }
                         $extraData .= "<input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> " .
                             "<input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'> " .
                             "</div>";
-
-                        PrintSettingGroup('initialSetup', $extraData, '', 1, '', '', false);
+                        PrintSettingGroup('initialSetup-location', '', $extraData, '', '', '', false);
                         ?>
 
                     </div>
