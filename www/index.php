@@ -241,7 +241,7 @@
                     "each one should have a different Host Name. " +
                     "Please visit the " +
                     "<a href=\"networkconfig.php#tab-host-dns\">Host Settings Page</a> " +
-                    " to change your hostname." +
+                    " to change your Host Name." +
                     "<div style='margin-top:1em'><button class='buttons wideButton " +
                     "btn-outline-light' onClick='HostnameConfirmed();'>Dismiss Warning</button></div>"
                 ).show();
