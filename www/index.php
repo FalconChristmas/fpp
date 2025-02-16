@@ -237,8 +237,8 @@
 
             if (showHostnameBanner) {
                 $("#bannerHostnameRow").html(
-                    "Your hostname is set to FPP, if you have multiple FPP devices " +
-                    "each one should have a different hostname. " +
+                    "Your Host Name is set to FPP, if you have multiple FPP devices " +
+                    "each one should have a different Host Name. " +
                     "Please visit the " +
                     "<a href=\"networkconfig.php#tab-host-dns\">Host Settings Page</a> " +
                     " to change your hostname." +
