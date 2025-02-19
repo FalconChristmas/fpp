@@ -201,18 +201,35 @@ setSetting() {
 gracefullyReloadApacheConf() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS
-        sudo apachectl graceful
+        if sudo apachectl -t >/dev/null 2>&1; then
+            sudo apachectl graceful
+            echo "Apache configuration reloaded successfully."
+        else
+            echo "Apache is not running."
+            return 1
+        fi
     elif [[ -f /etc/debian_version ]]; then
         # Debian/Ubuntu
-        sudo systemctl reload apache2
+        if systemctl is-active --quiet apache2; then
+            sudo systemctl reload apache2
+            echo "Apache configuration reloaded successfully."
+        else
+            echo "Apache is not running."
+            return 1
+        fi
     elif [[ -f /etc/redhat-release ]]; then
         # RHEL/CentOS/Fedora
-        sudo systemctl reload httpd
+        if systemctl is-active --quiet httpd; then
+            sudo systemctl reload httpd
+            echo "Apache configuration reloaded successfully."
+        else
+            echo "Apache is not running."
+            return 1
+        fi
     else
         echo "Unsupported OS"
         return 1
     fi
-    echo "Apache configuration reloaded successfully."
 }
 
 ###################################################################
