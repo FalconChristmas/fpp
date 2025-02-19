@@ -192,7 +192,7 @@ AddDefaultCharset utf-8
 </IfModule>
 
   # Pull in the Apache2 ContentPolicy
-  Include /opt/fpp/etc/apache2.csp
+  IncludeOptional /opt/fpp/etc/apache2.csp
 
 <IfModule mod_headers.c>
   # Set other security settings
