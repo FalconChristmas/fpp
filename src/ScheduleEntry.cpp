@@ -187,15 +187,6 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday) {
         day = holiday["day"].asInt();
     }
 
-    if (year == 0) {
-        if ((month < (now.tm_mon + 1)) ||
-            ((month == (now.tm_mon + 1)) && (day < now.tm_mday))) {
-            year = now.tm_year + 1900 + 1;
-        } else {
-            year = now.tm_year + 1900;
-        }
-    }
-
     char str[11];
     snprintf(str, 11, "%04d-%02d-%02d", year, month, day);
 

@@ -35,15 +35,19 @@ function checkIfHoliday($item, $wrap = false)
     global $data;
     global $settings;
 
+    $schEntry = $data['schedule']['entries'][$item['id']];
     $holiday = '';
     if (
-        ($data['schedule']['entries'][$item['id']]['startDateInt'] == $item['startDateInt']) &&
+        (($schEntry['startDateInt'] < 10000 && $schEntry['startDateInt'] == ($item['startDateInt'] % 10000)) ||
+         ($schEntry['startDateInt'] == $item['startDateInt'])) &&
         (!preg_match('/^[0-9]/', $data['schedule']['entries'][$item['id']]['startDate']))
     ) {
         $holiday = $data['schedule']['entries'][$item['id']]['startDate'];
     }
+
     if (
-        ($data['schedule']['entries'][$item['id']]['endDateInt'] == $item['endDateInt']) &&
+        (($schEntry['endDateInt'] < 10000 && $schEntry['endDateInt'] == ($item['endDateInt'] % 10000)) ||
+         ($schEntry['endDateInt'] == $item['endDateInt'])) &&
         (!preg_match('/^[0-9]/', $data['schedule']['entries'][$item['id']]['endDate']))
     ) {
         $holiday = $data['schedule']['entries'][$item['id']]['endDate'];
