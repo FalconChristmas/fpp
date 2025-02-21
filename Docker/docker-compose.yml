@@ -39,6 +39,15 @@ services:
     image: falconchristmas/fpp:latest
     restart: always
 
+    # If you have an issue starting the container on older versions of docker, you may need to bypass or update
+    # seccomp.  Either set seccomp to unconfined or download/create a seccomp.json file with the defaultAction
+    # set to SCMP_ACT_TRACE.  Uncomment the security_opt line and one of the seccomp lines below.  This issue
+    # may be indicated by a lot of "make: /bin/sh: Operation not permitted" lines in the docker logs.
+    #security_opt:
+    #  - seccomp:unconfined
+    #  - seccomp:your_seccomp_file.json
+
+
     # FPP will report this hostname via MultiSync
     hostname: fpp-docker
 

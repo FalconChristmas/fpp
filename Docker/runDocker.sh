@@ -1,8 +1,10 @@
 #!/bin/bash
-if [ ! -f /opt/fpp/src/fpp ]; then
+if [ ! -f /opt/fpp/src/fppinit ]; then
     cd /opt/fpp/src
-    make -j 4
+    CPUS=$(/opt/fpp/scripts/functions ComputeMakeParallelism)
+    make -j ${CPUS}
 fi
+
 /opt/fpp/src/fppinit start
 /opt/fpp/scripts/fppd_start
 

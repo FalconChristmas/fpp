@@ -4,11 +4,12 @@ OBJECTS_fppinit += \
 
 TARGETS += fppinit
 OBJECTS_ALL+=$(OBJECTS_fppinit)
+LIBS_fppinit = -ljsoncpp
 
 ifeq '$(BUILD_FPPCAPEDETECT)' '1'
 CXXFLAGS_boot/FPPINIT.o+=-DCAPEDETECT=1
-LIBS_fppinit = \
-	-L. -ljsoncpp -lcrypto -Wl,-rpath=$(SRCDIR):.
+LIBS_fppinit += \
+	-L. -lcrypto -Wl,-rpath=$(SRCDIR):.
 FPPINIT_DEPS=libfpp_capeutils.so
 endif
 
