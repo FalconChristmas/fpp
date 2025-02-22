@@ -458,21 +458,25 @@ require_once "common.php";
             }
         }
 
-        $(document).ready(function () {
-           $.ajax({
-        url: "api/models?simple=true",
-        method: "GET",
-        dataType: "json",
-        success: function(models) {
-            models.unshift("&lt;Use Start Channel&gt;");
-            SetupSelectableTableRow(tableInfo);
-            GetOutputProcessors(models);
-        },
-        error: function() {
-            console.error("Error fetching models");
-        }
-        });
+        var models = [];
 
+        $(document).ready(function () {
+            $.ajax({
+                url: "api/models?simple=true",
+                method: "GET",
+                dataType: "json",
+                success: function(data) {
+                    data.unshift("&lt;Use Start Channel&gt;"); 
+                    models = data; 
+                    SetupSelectableTableRow(tableInfo);
+                    GetOutputProcessors(models);
+                },
+                error: function() {
+                    models.unshift("&lt;Use Start Channel&gt;");
+                    SetupSelectableTableRow(tableInfo);
+                    GetOutputProcessors(models);
+                }
+            });
 
             if (window.innerWidth > 600) {
                 $('#outputProcessorsBody').sortable({
