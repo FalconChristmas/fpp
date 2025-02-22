@@ -30,4 +30,5 @@ protected:
     int start;
     int count;
     unsigned char value;
+    std::string model;
 };

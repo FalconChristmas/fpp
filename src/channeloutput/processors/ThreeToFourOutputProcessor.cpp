@@ -24,9 +24,11 @@ ThreeToFourOutputProcessor::ThreeToFourOutputProcessor(const Json::Value& config
 
     order = config["colorOrder"].asInt();
     algorithm = config["algorithm"].asInt();
+    ProcessModelConfig(config, model, start, count);
 
-    //channel numbers need to be 0 based
-    --start;
+    LogInfo(VB_CHANNELOUT, "ThreeToFour:   %d-%d, Model: %s\n",
+                        start + 1, start + count,
+                        model.c_str());
 }
 
 ThreeToFourOutputProcessor::~ThreeToFourOutputProcessor() {

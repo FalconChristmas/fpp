@@ -21,11 +21,10 @@ HoldValueOutputProcessor::HoldValueOutputProcessor(const Json::Value& config) {
     active = config["active"].asInt() ? true : false;
     start = config["start"].asInt();
     count = config["count"].asInt();
-    LogInfo(VB_CHANNELOUT, "Hold Channel Values:   %d-%d\n",
-            start, start + count - 1);
+    ProcessModelConfig(config, model, start, count);
 
-    // channel numbers need to be 0 based
-    --start;
+    LogInfo(VB_CHANNELOUT, "Hold Channel Values:   %d-%d, Model: %S\n",
+            start + 1, start + count, model.c_str());
 
     lastValues = new unsigned char[count];
 }

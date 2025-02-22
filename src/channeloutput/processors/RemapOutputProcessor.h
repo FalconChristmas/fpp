@@ -37,4 +37,5 @@ protected:
     int count;
     int loops;
     int reverse;
+    std::string model;
 };

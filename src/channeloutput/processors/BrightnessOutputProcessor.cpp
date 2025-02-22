@@ -26,6 +26,7 @@
 #include "../../log.h"
 
 #include "BrightnessOutputProcessor.h"
+#include "OutputProcessor.h"
 
 BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value& config) {
     description = config["desription"].asString();
@@ -35,33 +36,10 @@ BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value& config) 
     brightness = config["brightness"].asInt();
     gamma = config["gamma"].asFloat();
 
-    if (config.isMember("model")) {
-        model = config["model"].asString();
-        if (model != "&lt;Use Start Channel&gt;") {
-            auto m_model = PixelOverlayManager::INSTANCE.getModel(model);
-            if (!m_model) {
-                LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", model.c_str());
-            } else {
-                int m_channel = m_model->getChannelCount();
-                LogDebug(VB_CHANNELOUT, "Before Model applied Brightness:   %d-%d => Brightness:%d   Gamma: %f   Model: %s model\n",
-                   start, start + count - 1,
-                   brightness, gamma, model.c_str(),m_channel);
-                int offset = start;
-                start = m_model->getStartChannel() + start + 1;
-                if (count > m_channel) {
-                   count = m_channel - offset;
-                   LogWarn(VB_CHANNELOUT, "Output processor tried to go past end channel of model.  Restricting to %d channels\n", count);
-               } else if (count < m_channel) {
-                   LogInfo(VB_CHANNELOUT, "Output processor tried to use less channels (%d) than overlay model has (%d).  This may be intentional\n",count, m_channel);
-               }
-            }
-        }
-    } else {
-        model = "";
-    }
+    ProcessModelConfig(config, model, start, count);
 
     LogInfo(VB_CHANNELOUT, "Brightness:   %d-%d => Brightness:%d   Gamma: %f   Model: %s\n",
-            start, start + count - 1,
+            start + 1, start + count,
             brightness, gamma, model.c_str());
 
     float bf = brightness;
@@ -77,9 +55,6 @@ BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value& config) 
         }
         table[x] = round(f);
     }
-
-    // channel numbers need to be 0 based
-    --start;
 }
 
 BrightnessOutputProcessor::~BrightnessOutputProcessor() {

@@ -22,12 +22,11 @@ ColorOrderOutputProcessor::ColorOrderOutputProcessor(const Json::Value& config) 
     start = config["start"].asInt();
     count = config["count"].asInt();
     order = config["colorOrder"].asInt();
-    LogInfo(VB_CHANNELOUT, "Color Order:   %d-%d => %d\n",
-            start, start + (count * 3) - 1,
-            order);
+    ProcessModelConfig(config, model, start, count);
 
-    //channel numbers need to be 0 based
-    --start;
+    LogInfo(VB_CHANNELOUT, "Color Order:   %d-%d => %d, Model: %s\n",
+            start + 1, start + (count * 3),
+            order, model.c_str());
 }
 
 ColorOrderOutputProcessor::~ColorOrderOutputProcessor() {

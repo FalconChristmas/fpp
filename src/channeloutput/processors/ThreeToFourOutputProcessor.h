@@ -31,4 +31,5 @@ protected:
     int count;
     int order;
     int algorithm;
+    std::string model;
 };

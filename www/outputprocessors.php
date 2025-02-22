@@ -21,9 +21,20 @@ require_once "common.php";
         function HTMLForOutputProcessorConfig(output, models) {
             var html = "";
             var type = output.type;
+            if (type != "Fold") {
+                html += "Model: <select class='model'>";
+                models.forEach(function(model) {
+                    html += "<option value='" + model + "'";
+                    if (output.model === model) {
+                        html += " selected";
+                    }
+                    html += ">" + model + "</option>";
+                });
+                html += "</select>&nbsp;";
+            }
 
             if (type == "Remap") {
-                html += "Source Channel: <input class='source' type=text  size='7' maxlength='7' value='" + output.source + "'/>&nbsp;"
+                html += "Start Channel: <input class='source' type=text  size='7' maxlength='7' value='" + output.source + "'/>&nbsp;"
                     + "Destination: <input class='destination' type=text size='7' maxlength='7' value='" + output.destination + "'/>&nbsp;"
                     + "Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "' />&nbsp;"
                     + "Loops: <input class='loops' type=text size='7' maxlength='7' value='" + output.loops + "'/>&nbsp;"
@@ -42,15 +53,6 @@ require_once "common.php";
                 html += ">RGBW Pixels</option>";
                 html += "</select>";
             } else if (type == "Brightness") {
-                html += "Model: <select class='model'>";
-                models.forEach(function(model) {
-                    html += "<option value='" + model + "'";
-                    if (output.model === model) {
-                        html += " selected";
-                    }
-                    html += ">" + model + "</option>";
-                });
-                html += "</select>&nbsp;";
                 html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
                     + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
                     + "Brightness: <input class='brightness' type=number value='" + output.brightness + "' min='0' max='100'/>"
@@ -89,7 +91,7 @@ require_once "common.php";
                     + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
                     + "Value: <input class='value' type=number value='" + output.value + "' min='0' max='255'/>";
             } else if (type == "Fold") {
-                html += "Source Channel: <input class='source' type=text  size='7' maxlength='7' value='" + output.source + "'/>&nbsp;"
+                html += "Start Channel: <input class='source' type=text  size='7' maxlength='7' value='" + output.source + "'/>&nbsp;"
                     + "Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "' />&nbsp;"
                     + "Node: <select class='node'>";
                 html += "<option value='0' ";
@@ -165,6 +167,7 @@ require_once "common.php";
                         type: "Remap",
                         active: $this.find("input.active").is(':checked') ? 1 : 0,
                         description: $this.find("input.description").val(),
+                        model: $this.find("select.model").val(),
                         source: parseInt($this.find("input.source").val()),
                         destination: parseInt($this.find("input.destination").val()),
                         count: parseInt($this.find("input.count").val()),
@@ -205,6 +208,7 @@ require_once "common.php";
                         type: "Set Value",
                         active: $this.find("input.active").is(':checked') ? 1 : 0,
                         description: $this.find("input.description").val(),
+                        model: $this.find("select.model").val(),
                         start: parseInt($this.find("input.start").val()),
                         count: parseInt($this.find("input.count").val()),
                         value: parseInt($this.find("input.value").val())
@@ -222,6 +226,7 @@ require_once "common.php";
                         type: "Hold Value",
                         active: $this.find("input.active").is(':checked') ? 1 : 0,
                         description: $this.find("input.description").val(),
+                        model: $this.find("select.model").val(),
                         start: parseInt($this.find("input.start").val()),
                         count: parseInt($this.find("input.count").val()),
                     };
@@ -238,6 +243,7 @@ require_once "common.php";
                         type: "Reorder Colors",
                         active: $this.find("input.active").is(':checked') ? 1 : 0,
                         description: $this.find("input.description").val(),
+                        model: $this.find("select.model").val(),
                         start: parseInt($this.find("input.start").val()),
                         count: parseInt($this.find("input.count").val()),
                         colorOrder: parseInt($this.find("select.colorOrder").val())
@@ -255,6 +261,7 @@ require_once "common.php";
                         type: "Three to Four",
                         active: $this.find("input.active").is(':checked') ? 1 : 0,
                         description: $this.find("input.description").val(),
+                        model: $this.find("select.model").val(),
                         start: parseInt($this.find("input.start").val()),
                         count: parseInt($this.find("input.count").val()),
                         colorOrder: parseInt($this.find("select.colorOrder").val()),
@@ -274,6 +281,7 @@ require_once "common.php";
                         type: "Override Zero",
                         active: $this.find("input.active").is(':checked') ? 1 : 0,
                         description: $this.find("input.description").val(),
+                        model: $this.find("select.model").val(),
                         start: parseInt($this.find("input.start").val()),
                         count: parseInt($this.find("input.count").val()),
                         value: parseInt($this.find("input.value").val())
@@ -291,6 +299,7 @@ require_once "common.php";
                         type: "Fold",
                         active: $this.find("input.active").is(':checked') ? 1 : 0,
                         description: $this.find("input.description").val(),
+                        model: $this.find("select.model").val(),
                         source: parseInt($this.find("input.source").val()),
                         count: parseInt($this.find("input.count").val()),
                         node: parseInt($this.find("select.node").val())
@@ -522,6 +531,13 @@ require_once "common.php";
                     <div class="row tablePageHeader">
                         <div class="col-md">
                             <h2>Output Processors</h2>
+                        When applying an output process to a Model:
+                        <br>
+                        - Start channel is an offset from the Model start channel. Eg Start Channel 1 means use the first channel of the model.
+                        <br>
+                        - Count or Nodes can be set to use the x channels/nodes from the model, rather than all of the channels/nodes in a model.
+                        <br>
+                        <br>
                         </div>
                         <div class="col-md-auto ms-lg-auto">
                             <div class="form-actions">

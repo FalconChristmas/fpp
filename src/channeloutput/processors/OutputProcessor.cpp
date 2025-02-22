@@ -24,6 +24,8 @@
 #include "RemapOutputProcessor.h"
 #include "SetValueOutputProcessor.h"
 #include "ThreeToFourOutputProcessor.h"
+#include "../../overlays/PixelOverlay.h"
+#include "../../overlays/PixelOverlayModel.h"
 
 OutputProcessors::OutputProcessors() {
 }
@@ -131,4 +133,35 @@ OutputProcessor::OutputProcessor() :
 }
 
 OutputProcessor::~OutputProcessor() {
+}
+
+void ProcessModelConfig(const Json::Value& config, std::string& model, int& start, int& count) {
+    if (config.isMember("model")) {
+        model = config["model"].asString();
+        if (model != "<Use Start Channel>") {
+            auto m_model = PixelOverlayManager::INSTANCE.getModel(model);
+            if (!m_model) {
+                LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", model.c_str());
+            } else {
+                int m_channel = m_model->getChannelCount();
+                LogDebug(VB_CHANNELOUT, "Before Model applied:   %d-%d => Model: %s model\n",
+                         start, start + count - 1,
+                         model.c_str(), m_channel);
+
+                int offset = start;
+                start = m_model->getStartChannel() + start - 1;
+
+                if (count > m_channel) {
+                    count = m_channel - offset;
+                    LogWarn(VB_CHANNELOUT, "Output processor for Model: %s tried to go past end channel of model.  Restricting to %d channels\n", model.c_str(), count);
+                } else if (count < m_channel) {
+                    LogInfo(VB_CHANNELOUT, "Output processor for Model: %s is using less channels (%d) than overlay model has (%d).  This may be intentional\n",
+                            model.c_str(), count, m_channel);
+                }
+            }
+        }
+    } else {
+        model = "";
+        --start;
+    }
 }

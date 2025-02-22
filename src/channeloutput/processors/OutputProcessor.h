@@ -72,3 +72,5 @@ protected:
     mutable std::mutex processorsLock;
     std::list<OutputProcessor*> processors;
 };
+
+void ProcessModelConfig(const Json::Value& config, std::string& model, int& start, int& count);

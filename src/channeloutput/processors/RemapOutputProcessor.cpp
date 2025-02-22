@@ -15,6 +15,7 @@
 #include "../../log.h"
 
 #include "RemapOutputProcessor.h"
+#include "OutputProcessor.h"
 
 RemapOutputProcessor::RemapOutputProcessor(const Json::Value& config) {
     description = config["desription"].asString();
@@ -24,13 +25,15 @@ RemapOutputProcessor::RemapOutputProcessor(const Json::Value& config) {
     count = config["count"].asInt();
     loops = config["loops"].asInt();
     reverse = config["reverse"].asInt();
+
+    ProcessModelConfig(config, model, sourceChannel, count);
+
     LogInfo(VB_CHANNELOUT, "Remapped Channels:   %d-%d => %d-%d (%d total channels copied in %d loop(s))\n",
-            sourceChannel, sourceChannel + count - 1,
+            sourceChannel + 1, sourceChannel + count,
             destChannel, destChannel + (count * loops) - 1, (count * loops), loops);
 
     // channel numbers need to be 0 based
     --destChannel;
-    --sourceChannel;
 }
 
 RemapOutputProcessor::RemapOutputProcessor(int src, int dst, int c, int l, int r) {

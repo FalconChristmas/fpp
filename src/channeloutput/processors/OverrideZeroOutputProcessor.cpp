@@ -22,11 +22,9 @@ OverrideZeroOutputProcessor::OverrideZeroOutputProcessor(const Json::Value& conf
     start = config["start"].asInt();
     count = config["count"].asInt();
     value = config["value"].asInt();
-    LogInfo(VB_CHANNELOUT, "Override Zero Channel Range:   %d-%d Value: %d\n",
-            start, start + count - 1, value);
-
-    //channel numbers need to be 0 based
-    --start;
+    ProcessModelConfig(config, model, start, count);
+    LogInfo(VB_CHANNELOUT, "Override Zero Channel Range:   %d-%d Value: %d, Model: %s\n",
+            start + 1, start + count, value, model.c_str());
 }
 
 OverrideZeroOutputProcessor::~OverrideZeroOutputProcessor() {

@@ -30,4 +30,5 @@ protected:
     int start;
     int count;
     unsigned char* lastValues;
+    std::string model;
 };
