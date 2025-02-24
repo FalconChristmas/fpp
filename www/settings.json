@@ -1903,6 +1903,7 @@
 			"name": "ntpServer",
 			"description": "Override default NTP Server",
 			"tip": "NTP Server to use to sync time. falconplayer.pool.ntp.org will be used if not set.",
+			"level": 1,
 			"type": "text",
 			"size": 30,
 			"maxlength": 64
