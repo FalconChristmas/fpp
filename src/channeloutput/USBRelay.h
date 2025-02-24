@@ -1,42 +1,31 @@
-#pragma once
-/*
- * This file is part of the Falcon Player (FPP) and is Copyright (C)
- * 2013-2022 by the Falcon Player Developers.
- *
- * The Falcon Player (FPP) is free software, and is covered under
- * multiple Open Source licenses.  Please see the included 'LICENSES'
- * file for descriptions of what files are covered by each license.
- *
- * This source file is covered under the GPL v2 as described in the
- * included LICENSE.GPL file.
- */
-
-#include <string>
+#ifndef _USBRELAY_H
+#define _USBRELAY_H
 
 #include "ChannelOutput.h"
-#include "SerialChannelOutput.h"
+// Remove #include "SerialChannelOutput.h" since serialutil.h handles serial ops
 
-class USBRelayOutput : public ChannelOutput, public SerialChannelOutput {
+typedef enum {
+    RELAY_DVC_UNKNOWN = 0,
+    RELAY_DVC_BIT,
+    RELAY_DVC_ICSTATION,
+    RELAY_DVC_LCUS1
+} RelayDeviceSubType;
+
+class USBRelayOutput : public ChannelOutput {
 public:
     USBRelayOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~USBRelayOutput();
 
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
-
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
     virtual int SendData(unsigned char* channelData) override;
-
     virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
-
 private:
-    enum RelayType {
-        RELAY_DVC_UNKNOWN,
-        RELAY_DVC_BIT,
-        RELAY_DVC_ICSTATION
-    };
-
-    RelayType m_subType;
+    RelayDeviceSubType m_subType;
     int m_relayCount;
+    int m_fd;  // Add file descriptor for serial port, since SerialChannelOutput isn’t providing it
 };
+
+#endif
