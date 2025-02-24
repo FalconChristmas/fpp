@@ -419,23 +419,7 @@ function list_plugin_entries($menu)
                                     $externalLinkClass = "hiddenExternalLink";
                                 }
                                 ?>
-                                <a class="<?= $externalLinkClass ?> link-to-fpp-manual"
-                                    href="https://added-by-javascript.net" target="_blank" rel="noopener noreferrer"><i
-                                        class="fas fa-book"></i>
-                                    FPP Manual <i class="fas fa-external-link-alt external-link"></i></a>
-                                <a class="<?= $externalLinkClass ?>" href="https://falconchristmas.com/forum"
-                                    target="_blank" rel="noopener noreferrer"><i class="fas fa-comments"></i> Forums <i
-                                        class="fas fa-external-link-alt external-link"></i></a>
-                                <a class="<?= $externalLinkClass ?>"
-                                    href="https://github.com/FalconChristmas/fpp/issues" target="_blank"
-                                    rel="noopener noreferrer"><i class="fas fa-bug"></i> Issue Tracker <i
-                                        class="fas fa-external-link-alt external-link"></i></a>
-                                <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Help
-                                    Index</a>
-                                <a class="dropdown-item" href="apihelp.php"><i class="fas fa-plug"></i> REST API
-                                    Help</a>
-                                <a class="dropdown-item" href="commandhelp.php"><i class="fas fa-cubes"></i> FPP
-                                    Commands Help</a>
+                                <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Get Help</a>
                                 <a class="dropdown-item" href="credits.php"><i class="fas fa-stream"></i> Credits</a>
                                 <a class="<?= $externalLinkClass ?>"
                                     href="https://www.paypal.com/donate/?hosted_button_id=ASF9XYZ2V2F5G" target='_blank'
