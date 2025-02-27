@@ -38,7 +38,7 @@
  }
  }
  
- ///////////////////////////////////////////////////////////////////////////
+ /////////////////////////////////////////////////////////////////////////////
  
  /*
   *
@@ -92,8 +92,8 @@
          m_subType = RELAY_DVC_BIT;
      else if (subType == "ICStation")
          m_subType = RELAY_DVC_ICSTATION;
-     else if (subType == "LCUS1")
-         m_subType = RELAY_DVC_LCUS1;
+     else if (subType == "CH340")
+         m_subType = RELAY_DVC_CH340;
      else {
          LogErr(VB_CHANNELOUT, "Invalid Config: unknown subtype '%s'\n", subType.c_str());
          return 0;
@@ -102,8 +102,8 @@
      m_relayCount = config["channelCount"].asInt();
      LogDebug(VB_CHANNELOUT, "Channel count from config: %d\n", m_relayCount);
  
-     if (m_subType == RELAY_DVC_LCUS1 && m_relayCount != 1) {
-         LogWarn(VB_CHANNELOUT, "LCUS-1 supports only 1 relay; forcing channelCount to 1\n");
+     if (m_subType == RELAY_DVC_CH340 && m_relayCount != 1) {
+         LogWarn(VB_CHANNELOUT, "CH340 supports only 1 relay; forcing channelCount to 1\n");
          m_relayCount = 1;
      }
  
@@ -148,8 +148,8 @@
  
          if (foundICS)
              write(m_fd, &c_open, 1);
-     } else if (m_subType == RELAY_DVC_LCUS1) {
-         LogInfo(VB_CHANNELOUT, "Initialized LCUS-1 USB Relay\n");
+     } else if (m_subType == RELAY_DVC_CH340) {
+         LogInfo(VB_CHANNELOUT, "Initialized CH340 USB Relay\n");
      }
  
      int baseInitResult = ChannelOutput::Init(config);
@@ -194,14 +194,15 @@
          // Write out any unwritten bits
          if (shiftBits)
              write(m_fd, &out, 1);
-     } else if (m_subType == RELAY_DVC_LCUS1) {
-         unsigned char cmd[4];
-         cmd[0] = 0xA0;               // Start byte
-         cmd[1] = 1;                  // Relay number (fixed at 1 for LCUS-1)
-         cmd[2] = channelData[0] ? 0x01 : 0x00;  // On (0x01) or Off (0x00)
-         cmd[3] = cmd[0] + cmd[1] + cmd[2];      // Checksum
-         write(m_fd, cmd, 4);
-     } else if (m_subType == RELAY_DVC_ICSTATION) {
+     } else if (m_subType == RELAY_DVC_CH340) {
+        unsigned char cmd[4];
+        for (int relay = 1; relay <= m_relayCount; relay++) {
+            cmd[0] = 0xA0;               // Start byte
+            cmd[1] = relay;              // Relay number (supports multiple relays)
+            cmd[2] = channelData[relay - 1] ? 0x01 : 0x00;  // On (0x01) or Off (0x00)
+            cmd[3] = cmd[0] + cmd[1] + cmd[2];              // Checksum
+            write(m_fd, cmd, 4);
+    } else if (m_subType == RELAY_DVC_ICSTATION) {
          // ICStation doesn’t seem to use SendData for relay control in this code; handled in Init
      }
  

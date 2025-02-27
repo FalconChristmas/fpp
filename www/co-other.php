@@ -166,7 +166,7 @@
 
     function USBRelaySubTypeSelect(currentValue) {
         var result = "";
-        var options = "Bit,ICStation,LCUS1".split(","); // Added LCUS1
+        var options = "Bit,ICStation,CH340".split(","); // Added CH340
 
         result += " Type:&nbsp;<select class='subType'>";
 
@@ -187,7 +187,7 @@
 
     function USBRelayCountSelect(currentValue) {
         var result = "";
-        var options = "1,2,4,8".split(","); // Added 1 for LCUS1 compatibility
+        var options = "1,2,4,8".split(",");
 
         result += " Count:&nbsp;<select class='relayCount' onChange='USBRelayLayoutChanged(this);'>";
 
@@ -248,12 +248,6 @@
             return "";
 
         result.relayCount = parseInt(value);
-
-        // Override relayCount to 1 if LCUS1 is selected
-        if (result.subType == "LCUS1" && result.relayCount != 1) {
-            result.relayCount = 1;
-            $cell.find("select.relayCount").val("1"); // Update UI to reflect this
-        }
 
         return result;
     }

@@ -8,7 +8,7 @@ typedef enum {
     RELAY_DVC_UNKNOWN = 0,
     RELAY_DVC_BIT,
     RELAY_DVC_ICSTATION,
-    RELAY_DVC_LCUS1
+    RELAY_DVC_CH340
 } RelayDeviceSubType;
 
 class USBRelayOutput : public ChannelOutput {
