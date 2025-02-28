@@ -3405,8 +3405,10 @@ function IPOutputTypeChanged (item, input) {
 			var monitor = $(item).parent().parent().find('input.txtMonitor');
 			if (type == 0 || type == 2) {
 				monitor.prop('disabled', true);
+				$('#sourceInterfaceDiv').show();
 			} else {
 				monitor.prop('disabled', false);
+				//$('#sourceInterfaceDiv').hide();
 			}
 
 			var universe = $(item).parent().parent().find('input.txtUniverse');
@@ -3458,6 +3460,7 @@ function populateUniverseData (data, reload, input) {
 		}
 	}
 	UniverseCount = channelData.universes.length;
+	var hasMCBC = false;
 	for (var i = 0; i < channelData.universes.length; i++) {
 		var universe = channelData.universes[i];
 		var active = universe.active;
@@ -3506,6 +3509,7 @@ function populateUniverseData (data, reload, input) {
 		}
 		if (type == 0 || type == 2) {
 			monitorDisabled = ' disabled';
+			hasMCBC = true;
 		}
 		var minNum = 1;
 		if (type == 2 || type == 3) {
@@ -3670,6 +3674,11 @@ function populateUniverseData (data, reload, input) {
 	$('#tblUniversesBody').html(bodyHTML);
 
 	$('#txtUniverseCount').val(UniverseCount);
+	if (hasMCBC) {
+		$('#sourceInterfaceDiv').show();
+	} else {
+		$('#sourceInterfaceDiv').hide();
+	}
 
 	SetUniverseInputNames(); // in co-universes.php
 }

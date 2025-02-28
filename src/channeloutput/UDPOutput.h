@@ -118,7 +118,7 @@ public:
 
     void addOutput(UDPOutputData*);
 
-    int createSocket(int port = 0, bool broadCast = false);
+    int createSocket(int port = 0, bool broadCast = false, bool multiCast = false);
 
     static UDPOutput* INSTANCE;
 

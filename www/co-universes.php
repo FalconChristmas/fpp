@@ -156,7 +156,7 @@ if (file_exists(__DIR__ . "/fppdefines.php")) {
 
 							</div>
 						</div>
-						<div class="col-md-auto form-inline">
+						<div class="col-md-auto form-inline" style="display:none;" id="sourceInterfaceDiv">
 							<div><b>Source Interface:</b></div>
 							<div><select id="selE131interfaces"><? PopulateInterfaces(); ?></select></div>
 
