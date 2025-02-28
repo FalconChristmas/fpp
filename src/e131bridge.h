@@ -20,9 +20,9 @@ void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks);
 void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks);
 void Bridge_Shutdown(void);
 
-int CreateArtNetSocket();
+int CreateArtNetSocket(uint32_t addr = 0);
 bool Bridge_ReceiveArtNetData();
-void AddArtNetOpcodeHandler(int opCode, std::function<bool(uint8_t *data, long long packetTime)> handler);
+void AddArtNetOpcodeHandler(int opCode, std::function<bool(uint8_t* data, long long packetTime)> handler);
 void RemoveArtNetOpcodeHandler(int opCode);
 
 void ResetBytesReceived();

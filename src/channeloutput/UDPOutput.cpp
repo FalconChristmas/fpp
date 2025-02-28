@@ -38,6 +38,7 @@
 #include "E131.h"
 #include "KiNet.h"
 #include "Twinkly.h"
+#include "../e131bridge.h"
 
 #include "Plugin.h"
 
@@ -252,6 +253,7 @@ UDPOutput::~UDPOutput() {
 
 int UDPOutput::Init(Json::Value config) {
     enabled = config["enabled"].asInt();
+    bool hasArtNet = false;
     for (int i = 0; i < config["universes"].size(); i++) {
         Json::Value s = config["universes"][i];
         int type = s["type"].asInt();
@@ -265,6 +267,7 @@ int UDPOutput::Init(Json::Value config) {
         case 3:
             // ArtNet types
             outputs.push_back(new ArtNetOutputData(s));
+            hasArtNet = true;
             break;
         case 4:
         case 5:
@@ -393,6 +396,11 @@ int UDPOutput::Init(Json::Value config) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         CurlManager::INSTANCE.processCurls();
         ++sleepCount;
+    }
+    if (hasArtNet) {
+        // we have artnet packets so we'll need to get the special artnet socket created,
+        // but we want to make sure it's on the given interface
+        CreateArtNetSocket(localAddress.sin_addr.s_addr);
     }
     return ChannelOutput::Init(config);
 }
@@ -755,7 +763,8 @@ SendSocketInfo* UDPOutput::findOrCreateSocket(unsigned int socketKey, int sc) {
 
     if (info->sockets.empty()) {
         for (int x = info->sockets.size(); x < sc; x++) {
-            int s = createSocket();
+            int s = createSocket(0, socketKey == BROADCAST_MESSAGES_KEY,
+                                 socketKey == MULTICAST_MESSAGES_KEY || socketKey == LATE_MULTICAST_MESSAGES_KEY);
             info->sockets.push_back(s);
         }
     }
@@ -765,7 +774,7 @@ SendSocketInfo* UDPOutput::findOrCreateSocket(unsigned int socketKey, int sc) {
     return info;
 }
 
-int UDPOutput::createSocket(int port, bool broadCast) {
+int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
     int sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (sendSocket < 0) {
@@ -807,20 +816,22 @@ int UDPOutput::createSocket(int port, bool broadCast) {
             exit(1);
         }
 #ifndef PLATFORM_OSX
-    } else {
+    } else if (multiCast) {
         if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_IF, (char*)&address, sizeof(address)) < 0) {
             LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_IF error\n");
         }
 #endif
     }
-    if (bind(sendSocket, (struct sockaddr*)&address, sizeof(struct sockaddr_in)) == -1) {
-        LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
-    }
+    if (broadCast || multiCast) {
+        if (bind(sendSocket, (struct sockaddr*)&address, sizeof(struct sockaddr_in)) == -1) {
+            LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
+        }
 #ifndef PLATFORM_OSX
-    if (connect(sendSocket, (struct sockaddr*)&address, sizeof(address)) < 0) {
-        LogErr(VB_CHANNELOUT, "Error connecting IP_MULTICAST_LOOP socket\n");
-    }
+        if (connect(sendSocket, (struct sockaddr*)&address, sizeof(address)) < 0) {
+            LogErr(VB_CHANNELOUT, "Error connecting IP_MULTICAST_LOOP socket\n");
+        }
 #endif
+    }
     return sendSocket;
 }
 
@@ -863,7 +874,7 @@ void UDPOutput::StoppingOutput() {
 
 std::string UDPOutput::HexToIP(unsigned int hex) {
     // Extract each byte in LSB order
-    uint8_t octet1 = hex & 0xFF;         // Least significant byte
+    uint8_t octet1 = hex & 0xFF; // Least significant byte
     uint8_t octet2 = (hex >> 8) & 0xFF;
     uint8_t octet3 = (hex >> 16) & 0xFF;
     uint8_t octet4 = (hex >> 24) & 0xFF; // Most significant byte

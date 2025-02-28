@@ -108,7 +108,7 @@ int Bridge_GetIndexFromUniverseNumber(int universe);
 void InputUniversesPrint();
 inline void SetBridgeData(uint8_t* data, int startChannel, int len, long long packetTime);
 
-int CreateArtNetSocket() {
+int CreateArtNetSocket(uint32_t sourceAddr) {
     if (artnetSock < 0) {
         artnetSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
         if (artnetSock < 0) {
@@ -116,7 +116,7 @@ int CreateArtNetSocket() {
             exit(1);
         }
         int enable = 1;
-        // need to be able to send broadcase for ArtPollReply
+        // need to be able to send broadcast for ArtPollReply
         setsockopt(artnetSock, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
         enable = 1;
 #ifdef PLATFORM_OSX
@@ -131,7 +131,7 @@ int CreateArtNetSocket() {
 
         memset((char*)&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_addr.s_addr = sourceAddr == 0 ? htonl(INADDR_ANY) : (in_addr_t)sourceAddr;
         addr.sin_port = htons(0x1936); // artnet port
         addrlen = sizeof(addr);
         // Bind the socket to address/port
