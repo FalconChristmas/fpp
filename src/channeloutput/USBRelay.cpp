@@ -10,191 +10,158 @@
  * included LICENSE.GPL file.
  */
 
- #include "fpp-pch.h"
+#include <fcntl.h>
+#include <string.h>
+#include <termios.h>
+#include <unistd.h>
 
- #include <unistd.h>
- 
- #include "../Warnings.h"
- #include "../log.h"
- 
- #include "USBRelay.h"
- #include "serialutil.h"
- 
- #include "Plugin.h"
- class USBRelayPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
- public:
-     USBRelayPlugin() : FPPPlugins::Plugin("USBRelay") {}
-     virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
-         return new USBRelayOutput(startChannel, channelCount);
-     }
- };
- 
- extern "C" {
- FPPPlugins::Plugin* createPlugin() {
-     return new USBRelayPlugin();
- }
- }
- 
- /////////////////////////////////////////////////////////////////////////////
- 
- /*
-  *
-  */
- USBRelayOutput::USBRelayOutput(unsigned int startChannel,
-                                unsigned int channelCount) :
-     ChannelOutput(startChannel, channelCount),
-     m_deviceName(""),
-     m_fd(-1),
-     m_subType(RELAY_DVC_UNKNOWN),
-     m_relayCount(0) {
-     LogDebug(VB_CHANNELOUT, "USBRelayOutput::USBRelayOutput(%u, %u)\n",
-              startChannel, channelCount);
- }
- 
- /*
-  *
-  */
- USBRelayOutput::~USBRelayOutput() {
-     LogDebug(VB_CHANNELOUT, "USBRelayOutput::~USBRelayOutput()\n");
- }
- 
- /*
-  *
-  */
- void USBRelayOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
-     addRange(m_startChannel, m_startChannel + m_relayCount - 1);
- }
- 
- /*
-  *
-  */
- int USBRelayOutput::Init(Json::Value config) {
-     LogDebug(VB_CHANNELOUT, "USBRelayOutput::Init(JSON)\n");
- 
-     std::string subType = config["subType"].asString();
- 
-     if (subType == "Bit")
-         m_subType = RELAY_DVC_BIT;
-     else if (subType == "ICStation")
-         m_subType = RELAY_DVC_ICSTATION;
-     else if (subType == "CH340")
-         m_subType = RELAY_DVC_CH340;
- 
-     m_deviceName = config["device"].asString();
-     m_relayCount = config["channelCount"].asInt();
- 
-     if ((m_deviceName == "") || (m_subType == RELAY_DVC_UNKNOWN)) {
-         LogErr(VB_CHANNELOUT, "Invalid Config, missing device or invalid type\n");
-         return 0;
-     }
- 
-     m_deviceName.insert(0, "/dev/");
- 
-     LogInfo(VB_CHANNELOUT, "Opening %s for USB Relay output\n",
-             m_deviceName.c_str());
- 
-     m_fd = SerialOpen(m_deviceName.c_str(), 9600, "8N1");
- 
-     if (m_fd < 0) {
-         LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
-                errno, m_deviceName.c_str(), strerror(errno));
-         return 0;
-     }
- 
-     if (m_subType == RELAY_DVC_ICSTATION) {
-         unsigned char c_init = 0x50;
-         unsigned char c_reply = 0x00;
-         unsigned char c_open = 0x51;
- 
-         sleep(1);
-         write(m_fd, &c_init, 1);
-         usleep(500000);
- 
-         bool foundICS = false;
-         int res = read(m_fd, &c_reply, 1);
-         if (res == 0) {
-             LogWarn(VB_CHANNELOUT, "Did not receive a response byte from ICstation relay\n");
-         } else if (c_reply == 0xAB) {
-             LogInfo(VB_CHANNELOUT, "Found a 4-channel ICStation relay module\n");
-             m_relayCount = 4;
-             foundICS = true;
-         } else if (c_reply == 0xAC) {
-             LogInfo(VB_CHANNELOUT, "Found a 8-channel ICStation relay module\n");
-             m_relayCount = 8;
-             foundICS = true;
-         } else if (c_reply == 0xAD) {
-             LogInfo(VB_CHANNELOUT, "Found a 2-channel ICStation relay module\n");
-             m_relayCount = 2;
-             foundICS = true;
-         } else {
-             LogWarn(VB_CHANNELOUT, "Warning: ICStation USB Relay response of 0x%02x doesn't match "
-                                    "known values.  Unable to detect number of relays.\n",
-                     c_reply);
-         }
- 
-         if (foundICS)
-             write(m_fd, &c_open, 1);
-     } else if (m_subType == RELAY_DVC_CH340) {
-         LogInfo(VB_CHANNELOUT, "Initializing CH340 USB Relay with %d channels\n", m_relayCount);
-     }
- 
-     return ChannelOutput::Init(config);
- }
- 
- /*
-  *
-  */
- int USBRelayOutput::Close(void) {
-     LogDebug(VB_CHANNELOUT, "USBRelayOutput::Close()\n");
-     SerialClose(m_fd);
-     m_fd = -1;
-     return ChannelOutput::Close();
- }
- 
- /*
-  *
-  */
- int USBRelayOutput::SendData(unsigned char* channelData) {
-     LogExcess(VB_CHANNELOUT, "USBRelayOutput::RawSendData(%p)\n", channelData);
- 
-     if (m_subType == RELAY_DVC_CH340) {
-         // CH340-specific logic: Send a 4-byte command for each relay to control its state
-         unsigned char cmd[4] = {0xA0, 0, 0, 0}; // Initialize the command array: byte 0 is the start flag (0xA0)
-         for (int i = 0; i < m_relayCount; i++) { // Loop over each relay channel (1 to m_relayCount)
-             cmd[1] = i + 1;                      // Byte 1: Relay number (1-based: 1 to 8 for an 8-channel relay)
-             cmd[2] = channelData[i] ? 1 : 0;     // Byte 2: Relay state (1 for ON, 0 for OFF), based on channelData[i]
-             cmd[3] = cmd[0] + cmd[1] + cmd[2];   // Byte 3: Checksum, sum of bytes 0, 1, and 2
-             write(m_fd, cmd, 4);                 // Write the 4-byte command to the serial device (m_fd) to control the relay
-         }
-     } else {
-         // Non-CH340 (Bit or ICStation) logic: Send data as a bitstream, 8 bits per byte
-         char out = 0x00;
-         int shiftBits = 0;
- 
-         for (int i = 0; i < m_relayCount; i++) {
-             if ((i > 0) && ((i % 8) == 0)) {
-                 write(m_fd, &out, 1);
-                 out = 0x00;
-                 shiftBits = 0;
-             }
- 
-             out |= (channelData[i] ? 1 : 0) << shiftBits;
-             shiftBits++;
-         }
- 
-         if (shiftBits)
-             write(m_fd, &out, 1);
-     }
- 
-     return m_relayCount;
- }
- 
- /*
-  *
-  */
- void USBRelayOutput::DumpConfig(void) {
-     LogDebug(VB_CHANNELOUT, "USBRelayOutput::DumpConfig()\n");
-     LogDebug(VB_CHANNELOUT, "    Device Filename   : %s\n", m_deviceName.c_str());
-     LogDebug(VB_CHANNELOUT, "    fd                : %d\n", m_fd);
-     ChannelOutput::DumpConfig();
- }
+#include "USBRelay.h"
+#include "log.h"
+#include "serialutil.h"
+
+USBRelayOutput::USBRelayOutput(unsigned int startChannel, unsigned int channelCount) :
+    ChannelOutput(startChannel, channelCount),
+    SerialChannelOutput(),
+    m_deviceName(""),
+    m_fd(-1),
+    m_subType(RELAY_DVC_UNKNOWN),
+    m_relayCount(0) {
+    LogDebug(VB_CHANNELOUT, "USBRelayOutput::USBRelayOutput(%u, %u)\n",
+             startChannel, channelCount);
+}
+
+USBRelayOutput::~USBRelayOutput() {
+    // Empty destructor
+}
+
+int USBRelayOutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "USBRelayOutput::Init(JSON)\n");
+
+    std::string subType = config["subType"].asString();
+
+    if (subType == "Bit")
+        m_subType = RELAY_DVC_BIT;
+    else if (subType == "ICStation")
+        m_subType = RELAY_DVC_ICSTATION;
+    else if (subType == "CH340")
+        m_subType = RELAY_DVC_CH340;
+
+    m_deviceName = config["device"].asString();
+    m_relayCount = config["channelCount"].asInt();
+
+    if ((m_deviceName == "") || (m_subType == RELAY_DVC_UNKNOWN)) {
+        LogErr(VB_CHANNELOUT, "Invalid Config, missing device or invalid type\n");
+        return 0;
+    }
+
+    if (!setupSerialPort(config, 9600, "8N1")) {
+        LogErr(VB_CHANNELOUT, "Failed to setup serial port for %s\n", m_deviceName.c_str());
+        return 0;
+    }
+
+    if (m_subType == RELAY_DVC_BIT) {
+        LogInfo(VB_CHANNELOUT, "Initializing Bit USB Relay with %d channels\n", m_relayCount);
+    } else if (m_subType == RELAY_DVC_ICSTATION) {
+        unsigned char c_init = 0x50;
+        unsigned char c_reply = 0x00;
+        unsigned char c_open = 0x51;
+
+        sleep(2); // Increased initial sleep for reliability
+        write(m_fd, &c_init, 1);
+
+        int delay = 1000000; // Start with 1 second
+        int max_attempts = 3;
+        bool foundICS = false;
+        for (int attempt = 0; attempt < max_attempts && !foundICS; attempt++) {
+            usleep(delay);
+            int res = read(m_fd, &c_reply, 1);
+            if (res == 0) {
+                LogDebug(VB_CHANNELOUT, "Did not receive a response byte from ICstation relay after %dms\n", delay / 1000);
+                delay += 500000; // Increase by 500ms each attempt
+                continue;
+            }
+            if (c_reply == 0xAB) {
+                LogInfo(VB_CHANNELOUT, "Found a 4-channel ICStation relay module\n");
+                m_relayCount = 4;
+                foundICS = true;
+            } else if (c_reply == 0xAC) {
+                LogInfo(VB_CHANNELOUT, "Found a 8-channel ICStation relay module\n");
+                m_relayCount = 8;
+                foundICS = true;
+            } else if (c_reply == 0xAD) {
+                LogInfo(VB_CHANNELOUT, "Found a 2-channel ICStation relay module\n");
+                m_relayCount = 2;
+                foundICS = true;
+            } else {
+                LogWarn(VB_CHANNELOUT, "Warning: ICStation USB Relay response of 0x%02x doesn't match known values.  Unable to detect number of relays.\n", c_reply);
+            }
+        }
+        if (!foundICS) {
+            LogWarn(VB_CHANNELOUT, "ICStation relay did not respond after %d attempts, using UI-configured channel count %d. Check hardware, USB connection, or increase timing delay.\n", max_attempts, m_relayCount);
+        }
+
+        write(m_fd, &c_open, 1);
+    } else if (m_subType == RELAY_DVC_CH340) {
+        LogInfo(VB_CHANNELOUT, "Initializing CH340 USB Relay with %d channels\n", m_relayCount);
+    }
+
+    return ChannelOutput::Init(config);
+}
+
+int USBRelayOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "USBRelayOutput::Close()\n");
+
+    closeSerialPort();
+
+    return ChannelOutput::Close();
+}
+
+void USBRelayOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
+    addRange(m_startChannel, m_startChannel + m_relayCount - 1);
+}
+
+void USBRelayOutput::PrepData(unsigned char* channelData) {
+    // No preparation needed for USB Relay
+}
+
+int USBRelayOutput::SendData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "USBRelayOutput::SendData(%p)\n", channelData);
+
+    if (m_subType == RELAY_DVC_BIT) {
+        unsigned char c = 0;
+
+        for (int i = 0; i < m_relayCount; i++) {
+            if (channelData[m_startChannel + i])
+                c |= (1 << i);
+        }
+
+        write(m_fd, &c, 1);
+    } else if (m_subType == RELAY_DVC_ICSTATION) {
+        unsigned char c = 0;
+
+        for (int i = 0; i < m_relayCount; i++) {
+            if (channelData[m_startChannel + i])
+                c |= (1 << i);
+        }
+
+        write(m_fd, &c, 1);
+    } else if (m_subType == RELAY_DVC_CH340) {
+        unsigned char cmd[4] = {0xA0, 0, 0, 0};
+        for (int i = 0; i < m_relayCount; i++) {
+            cmd[1] = i + 1;
+            cmd[2] = channelData[m_startChannel + i] ? 1 : 0;
+            cmd[3] = cmd[0] + cmd[1] + cmd[2];
+            write(m_fd, cmd, 4);
+        }
+    }
+
+    return m_relayCount;
+}
+
+void USBRelayOutput::DumpConfig(void) {
+    LogDebug(VB_CHANNELOUT, "USBRelayOutput::DumpConfig()\n");
+
+    dumpSerialConfig();
+
+    ChannelOutput::DumpConfig();
+}
