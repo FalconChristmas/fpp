@@ -11,8 +11,6 @@
  * included LICENSE.GPL file.
  */
 
-#include <string>
-
 #include "ChannelOutput.h"
 #include "SerialChannelOutput.h"
 
@@ -23,20 +21,21 @@ public:
 
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
-
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
+    virtual void PrepData(unsigned char* channelData) override;
     virtual int SendData(unsigned char* channelData) override;
-
     virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
-
 private:
-    enum RelayType {
+    enum RelayDeviceType {
         RELAY_DVC_UNKNOWN,
         RELAY_DVC_BIT,
-        RELAY_DVC_ICSTATION
+        RELAY_DVC_ICSTATION,
+        RELAY_DVC_CH340
     };
 
-    RelayType m_subType;
+    std::string m_deviceName;
+    int m_fd;
+    RelayDeviceType m_subType;
     int m_relayCount;
 };
