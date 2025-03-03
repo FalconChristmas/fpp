@@ -202,8 +202,15 @@ HC_PingGateway() {
 HC_Internet() {
     PrintItemHead "Internet Access"
 
-    curl http://192.0.43.10 --max-time 2 > /dev/null 2>&1 #this checks the iana example.com
-    if [ $? -eq 0 ]
+    curl http://50.116.60.82 --max-time 2 > /dev/null 2>&1 #this checks fppstats.falconchristmas.com
+    rc=$?
+    # If first check fails, then use backup.
+    if [ $rc -ne 0 ]; then
+        curl http://216.40.34.37 --max-time 2 > /dev/null 2>&1 #this checks kulp.com
+        rc=$?
+    fi
+
+    if [ $rc -eq 0 ]
     then
         STATUS=1
         STATUSSTR="Internet connectivity confirmed."
