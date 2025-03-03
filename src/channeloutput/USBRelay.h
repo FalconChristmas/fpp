@@ -11,31 +11,43 @@
  * included LICENSE.GPL file.
  */
 
-#include "ChannelOutput.h"
-#include "SerialChannelOutput.h"
+#include <string>
 
-class USBRelayOutput : public ChannelOutput, public SerialChannelOutput {
+#include "ChannelOutput.h"
+
+#ifdef HAS_CAPEUTILS
+#include "SerialChannelOutput.h"
+#endif
+
+class USBRelayOutput : public ChannelOutput
+#ifdef HAS_CAPEUTILS
+    , public SerialChannelOutput
+#endif
+{
 public:
     USBRelayOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~USBRelayOutput();
 
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
-    virtual void PrepData(unsigned char* channelData) override;
+
     virtual int SendData(unsigned char* channelData) override;
+
     virtual void DumpConfig(void) override;
 
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
+
 private:
-    enum RelayDeviceType {
+    enum RelayType {
         RELAY_DVC_UNKNOWN,
         RELAY_DVC_BIT,
         RELAY_DVC_ICSTATION,
         RELAY_DVC_CH340
     };
 
+    RelayType m_subType;
+    int m_relayCount;
+
     std::string m_deviceName;
     int m_fd;
-    RelayDeviceType m_subType;
-    int m_relayCount;
 };
