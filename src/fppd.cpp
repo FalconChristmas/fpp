@@ -87,7 +87,7 @@
 
 #include "fppd.h"
 
-#if defined(PLATFORM_BBB) ||  defined(PLATFORM_BB64) 
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
 #include "util/BBBUtils.h"
 #define PLAT_GPIO_CLASS BBBPinProvider
 #elif defined(PLATFORM_PI)
@@ -255,7 +255,6 @@ static bool dumpstack_gdb(void) {
     return false;
 }
 
-static std::string SystemUUID;
 static void handleCrash(int s) {
     static volatile bool inCrashHandler = false;
     if (inCrashHandler) {
@@ -265,6 +264,7 @@ static void handleCrash(int s) {
     inCrashHandler = true;
     int crashLog = getSettingInt("ShareCrashData", 3);
     LogErr(VB_ALL, "Crash handler called:  %d\n", s);
+
     if (!sequence->m_seqFilename.empty()) {
         LogErr(VB_ALL, "   while playing  %s  at  %d ms\n", sequence->m_seqFilename.c_str(), sequence->m_seqMSElapsed);
     }
@@ -346,6 +346,7 @@ static void handleCrash(int s) {
             char sysType[] = "Unknown";
 #endif
             char zfName[256];
+            std::string SystemUUID = getSetting("SystemUUID", "unknown");
             snprintf(zfName, sizeof(zfName), "crashes/fpp-%s-%s-%s-%s.zip", sysType, getFPPVersion(), SystemUUID.c_str(), tbuffer);
 
             char zName[1224];
@@ -626,11 +627,6 @@ int main(int argc, char* argv[]) {
     setupExceptionHandlers();
     FPPLogger::INSTANCE.Init();
     LoadSettings(argv[0]);
-
-    // save the UUID so crash reports can add that to the filename
-    // to make it easier to collect crashes from a single system
-    // for analysis
-    SystemUUID = getSetting("SystemUUID", "unknown");
 
     curl_global_init(CURL_GLOBAL_ALL);
 
