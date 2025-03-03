@@ -151,12 +151,14 @@ int GetInterfaceAddress(const char* interface, char* addr, char* mask, char* gw)
 
     /* I want IP address attached to E131interface */
     strncpy(ifr.ifr_name, (const char*)interface, IFNAMSIZ - 1);
-
+    int retVal = 0;
     if (addr) {
-        if (ioctl(fd, SIOCGIFADDR, &ifr))
+        if (ioctl(fd, SIOCGIFADDR, &ifr)) {
             strcpy(addr, "127.0.0.1");
-        else
+            retVal = 1;
+        } else {
             strcpy(addr, inet_ntoa(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
+        }
     }
 
     if (mask) {
@@ -200,7 +202,7 @@ int GetInterfaceAddress(const char* interface, char* addr, char* mask, char* gw)
 
     close(fd);
 
-    return 0;
+    return retVal;
 }
 
 /*

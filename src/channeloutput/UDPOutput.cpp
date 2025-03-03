@@ -836,21 +836,29 @@ int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
 }
 
 bool UDPOutput::InitNetwork() {
+    memset(&localAddress, 0, sizeof(struct sockaddr_in));
+    localAddress.sin_family = AF_INET;
+    localAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
+
     if (!messages.sendSockets.empty()) {
         return true;
     }
 
     char E131LocalAddress[16];
-    GetInterfaceAddress(outInterface.c_str(), E131LocalAddress, NULL, NULL);
+    int rv = GetInterfaceAddress(outInterface.c_str(), E131LocalAddress, NULL, NULL);
     LogDebug(VB_CHANNELOUT, "UDPLocalAddress = %s\n", E131LocalAddress);
+    localAddress.sin_addr.s_addr = inet_addr(E131LocalAddress);
+
+    if (rv) {
+        LogErr(VB_CHANNELOUT, "Invalid interface %s\n", outInterface.c_str());
+        WarningHolder::AddWarning("Invalid interface for UDP broadcast/multicast: " + outInterface);
+        return -1;
+    }
 
     if (strlen(E131LocalAddress) > 3 && E131LocalAddress[0] == '1' && E131LocalAddress[1] == '2' && E131LocalAddress[2] == '7') {
         // the entire 127.* subnet is localhost
         return -1;
     }
-    memset(&localAddress, 0, sizeof(struct sockaddr_in));
-    localAddress.sin_family = AF_INET;
-    localAddress.sin_addr.s_addr = inet_addr(E131LocalAddress);
 
     int broadcastSocket = createSocket(0, true);
     messages.ForceSocket(BROADCAST_MESSAGES_KEY, broadcastSocket);
