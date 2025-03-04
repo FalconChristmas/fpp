@@ -361,9 +361,11 @@ function list_plugin_entries($menu)
                                 <? if (($settings['fppMode'] == 'player') || ($uiLevel >= 1)) { ?>
                                     <a class="dropdown-item" href="scheduler.php"><i class="fas fa-clock"></i> Scheduler</a>
                                 <? } ?>
+                                <? if ($uiLevel >= 1) { ?>
                                 <a class="dropdown-item" href="scriptbrowser.php"><i class="fas fa-scroll"></i> Script
                                     Repository
                                     Browser</a>
+                                <? } ?>
                                 <a class="dropdown-item" href="plugins.php"><i class="fas fa-puzzle-piece"></i> Plugin
                                     Manager</a>
                                 <? if ($uiLevel >= 2) { ?>
@@ -385,9 +387,11 @@ function list_plugin_entries($menu)
                                         style="color:red;"></i> Channel Inputs</a>
                                 <a class="dropdown-item" href="channeloutputs.php"><i class="fas fa-project-diagram"
                                         style="color:green;"></i> Channel Outputs</a>
+                                <? if ($uiLevel >= 1) { ?>
                                 <a class="dropdown-item" href="outputprocessors.php"><i class="fas fa-microchip"></i>
                                     Output
                                     Processors</a>
+                                <? } ?>
                                 <a class="dropdown-item" href="pixeloverlaymodels.php"><i class="fas fa-cubes"></i>
                                     Pixel Overlay
                                     Models</a>
