@@ -456,6 +456,70 @@ static void copyFile(const std::string& src, const std::string& target) {
         write(t, buf, l);
     }
 }
+// similar to copy file, but do in 512 increments and check if the last 64 bytes are 0xFF
+// to see if we can detect the end of the actual data and stop at that point as reading
+// more data then needed is slow on the i2c bus
+static void copyEEPROM(const std::string& src, const std::string& target) {
+    int s, t;
+    s = open(src.c_str(), O_RDONLY);
+    if (s == -1) {
+        printf("Failed to open src %s - %s\n", src.c_str(), strerror(errno));
+        return;
+    }
+
+    size_t fsep = target.find_last_of("/");
+    if (fsep != std::string::npos)
+        mkdir(target.substr(0, fsep).c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH); // ensure target folder exists
+                                                                                                //         if (mkdir(path, mode) != 0 && errno != EEXIST)
+                                                                                                //     else if (!S_ISDIR(st.st_mode)) errno = ENOTDIR;
+
+    t = open(target.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+    if (t == -1) {
+        printf("Failed to open target %s - %s\n", target.c_str(), strerror(errno));
+        close(s);
+        return;
+    }
+    constexpr int BUFSIZE = 256;
+    uint8_t buf[BUFSIZE + 1];
+    while (true) {
+        int l = read(s, buf, BUFSIZE);
+        while (l > 0 && l < BUFSIZE) {
+            int r = read(s, &buf[l], BUFSIZE - l);
+            if (r == -1) {
+                printf("Error copying file %s - %s\n", src.c_str(), strerror(errno));
+                close(s);
+                close(t);
+                return;
+            }
+            l += r;
+        }
+        if (l == -1) {
+            printf("Error copying file %s - %s\n", src.c_str(), strerror(errno));
+            close(s);
+            close(t);
+            return;
+        } else if (l == 0) {
+            close(s);
+            close(t);
+            return;
+        }
+        write(t, buf, l);
+        if (l > 64) {
+            bool allFF = true;
+            for (int x = 0; x < 64; x++) {
+                if (buf[l - x - 1] != 0xFF) {
+                    allFF = false;
+                    break;
+                }
+            }
+            if (allFF) {
+                close(s);
+                close(t);
+                return;
+            }
+        }
+    }
+}
 static size_t fileSize(const std::string& target) {
     struct stat stat_buf;
     int rc = stat(target.c_str(), &stat_buf);
@@ -737,7 +801,7 @@ private:
             }
             printf("Copyng eeprom %s -> %s\n", EEPROM.c_str(), "/home/fpp/media/tmp/eeprom.bin");
             removeIfExist("/home/fpp/media/tmp/eeprom.bin");
-            copyFile(EEPROM, "/home/fpp/media/tmp/eeprom.bin");
+            copyEEPROM(EEPROM, "/home/fpp/media/tmp/eeprom.bin");
             struct passwd* pwd = getpwnam("fpp");
             if (pwd) {
                 chown("/home/fpp/media/tmp/eeprom.bin", pwd->pw_uid, pwd->pw_gid);
