@@ -14,15 +14,15 @@ $( document ).ready(function() {
 
 <?
 PrintSettingGroup('ui');
-PrintSettingGroup('uiColors');
 ?>
 
 
-            <b>UI Password</b><br>
+            <h2>UI Password</h2>
 
 <?
 PrintSetting('passwordEnable');
 ?>
+<br>
             <div class='row passwordEnableChild' style='display: none;'>
                 <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
                     <div class='description'><i class="fas fa-fw fa-nbsp ui-level-0"></i>Username
@@ -33,4 +33,5 @@ PrintSetting('passwordEnable');
 <?
 PrintSetting('password');
 PrintSetting('passwordVerify');
+PrintSettingGroup('uiColors');
 ?>

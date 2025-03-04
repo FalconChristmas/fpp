@@ -240,7 +240,10 @@
 				"piRTC",
 				"ntpServer",
 				"TimeZone",
-				"Locale"
+				"Locale",
+				"DateFormat",
+				"TimeFormat",
+				"temperatureInF"
 			]
 		},
 		"ui": {
@@ -249,9 +252,6 @@
 				"uiLevel",
 				"showAllOptions",
 				"disableUIWarnings",
-				"DateFormat",
-				"TimeFormat",
-				"temperatureInF",
 				"fileManagerThumbnailSize",
 				"fileManagerTableFilter"
 			]
