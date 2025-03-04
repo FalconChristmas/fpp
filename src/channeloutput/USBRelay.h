@@ -14,9 +14,16 @@
 #include <string>
 
 #include "ChannelOutput.h"
-#include "SerialChannelOutput.h"
 
-class USBRelayOutput : public ChannelOutput, public SerialChannelOutput {
+#ifdef HAS_CAPEUTILS
+#include "SerialChannelOutput.h"
+#endif
+
+class USBRelayOutput : public ChannelOutput
+#ifdef HAS_CAPEUTILS
+    , public SerialChannelOutput
+#endif
+{
 public:
     USBRelayOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~USBRelayOutput();
@@ -34,9 +41,13 @@ private:
     enum RelayType {
         RELAY_DVC_UNKNOWN,
         RELAY_DVC_BIT,
-        RELAY_DVC_ICSTATION
+        RELAY_DVC_ICSTATION,
+        RELAY_DVC_CH340
     };
 
     RelayType m_subType;
     int m_relayCount;
+
+    std::string m_deviceName;
+    int m_fd;
 };
