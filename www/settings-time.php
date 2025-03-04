@@ -8,6 +8,8 @@ require_once('common.php');
         $extraData = "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'>";
         $prependData = "<div class='row'><div class='col-md-4 col-lg-3 col-xxxl-2 align-top'><div class='description'><i class='fas fa-fw ui-level-0'></i>&nbsp;Current System Time</div></div><div id='currentTime' class='col-md labelValue disabled'></div></div>";
         PrintSettingGroup('time', $extraData, $prependData);
+        $extraData = "<div class='form-actions'><input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'></div>";
+        PrintSettingGroup('geolocation', $extraData);
         ?>
 </div>
 

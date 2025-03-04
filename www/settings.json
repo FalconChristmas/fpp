@@ -67,8 +67,8 @@
 				"Longitude"
 			]
 		},
-		"generalAudioVideo": {
-			"description": "General Audio/Video",
+		"generalAudio": {
+			"description": "Audio",
 			"settings": [
 				"AudioOutput",
 				"AudioMixerDevice",
@@ -76,24 +76,45 @@
 				"AudioLayout",
 				"AudioBufferSize",
 				"AudioPeriodSize",
-				"VideoOutput",
-				"HardwareDecoding",
-				"VLCOptions",
 				"ForceAudioId",
-				"mediaOffset",
-				"remoteIgnoreSync",
 				"disableIPAnnouncement",
 				"disableAudioVolumeSlider"
 			]
 		},
-		"generalPlayback": {
-			"description": "General Playback",
+		"generalVideo": {
+			"description": "Video",
 			"settings": [
-				"blankBetweenSequences",
+				"VideoOutput",
+				"ForceHDMI",
+				"EnableBBBHDMI",
+				"ForceHDMIResolution",
+				"ForceHDMIResolutionPort2",
+				"HardwareDecoding",
+				"VLCOptions",
+				"ForceAudioId",
+				"mediaOffset",
+				"remoteIgnoreSync"
+			]
+		},
+		"generalPlayback": {
+			"description": "Playback",
+			"settings": [
+				"MultiSyncEnabled",
 				"pauseBackgroundEffects",
+				"blankBetweenSequences",
+				"screensaver",
+				"screensaverTimeout",
 				"openStartDelay",
 				"remoteOffset",
 				"localOverride"
+			]
+		},
+		"generalScheduler": {
+			"description": "Scheduler",
+			"settings": [
+				"DisableScheduler",
+				"ScheduleDistance",
+				"ScheduleSeconds"
 			]
 		},
 		"initialSetup": {
@@ -196,18 +217,6 @@
 		"system": {
 			"description": "System Settings",
 			"settings": [
-				"fppMode",
-				"MultiSyncEnabled",
-				"DisableScheduler",
-				"ScheduleDistance",
-				"ScheduleSeconds",
-				"Locale",
-				"screensaver",
-				"screensaverTimeout",
-				"ForceHDMI",
-				"EnableBBBHDMI",
-				"ForceHDMIResolution",
-				"ForceHDMIResolutionPort2",
 				"GPIOFan",
 				"GPIOFanTemperature",
 				"LEDDisplayType",
@@ -230,7 +239,8 @@
 				"ClockTime",
 				"piRTC",
 				"ntpServer",
-				"TimeZone"
+				"TimeZone",
+				"Locale"
 			]
 		},
 		"ui": {
@@ -1041,6 +1051,7 @@
 			"name": "fileManagerThumbnailSize",
 			"description": "File Manager Thumbnail Size",
 			"tip": "The max height and width of the thumbnail preview for image files in the FPP File Manager UI.  The UI will preserve the aspect ratio to fit the image within this height and width.",
+			"level": 1,
 			"default": 75,
 			"gatherStats": true,
 			"type": "select",
@@ -1064,6 +1075,7 @@
 			"name": "fileManagerTableFilter",
 			"description": "File Manager Enable Filter",
 			"tip": "This setting allows filtering to be turned on in FileManager.",
+			"level": 1,
 			"default": "1",
 			"type": "checkbox",
 			"checkedValue": "1",
@@ -1138,6 +1150,7 @@
 			"description": "GPIO 14 Fan Control",
 			"gatherStats": true,
 			"tip": "Allow the Raspberry Pi to control the speed of cooling fans by using the GPIO 14 PWM.",
+			"level": 1,
 			"reboot": 1,
 			"platforms": [
 				"Raspberry Pi"
@@ -1154,6 +1167,7 @@
 			"description": "    Fan On Temperature",
 			"gatherStats": true,
 			"tip": "Temperature above which the cooling fan will turn on.",
+			"level": 1,
 			"reboot": 1,
 			"platforms": [
 				"Raspberry Pi"

@@ -158,9 +158,6 @@ if (file_exists("/.dockerenv") || $settings["IsDesktop"]) {
 PrintSettingGroup('system');
 PrintSettingGroup('BBBLeds');
 
-$extraData = "<div class='form-actions'><input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'></div>";
-PrintSettingGroup('geolocation', $extraData);
-
 if ($showOSSecurity) {
     ?>
     <b>OS Password</b><br>

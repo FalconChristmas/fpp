@@ -130,6 +130,7 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                 </a>
                             </li>
                             <? if ($settings["Platform"] != "MacOS") { ?>
+                                <? if ($uiLevel >= 1 || $tabId == "Email") { ?>
                                                         <li class="nav-item">
                                                             <a class="nav-link" id="settings-email-tab" data-bs-toggle="tab"
                                                                 data-bs-target="#settings-email" href="#settings-email" data-option="Email"
@@ -137,7 +138,9 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                                                 Email
                                                             </a>
                                                         </li>
+                                <? } ?>
                             <? } ?>
+                            <? if ($uiLevel >= 1 || $tabId == "MQTT") { ?>
                             <li class="nav-item">
                                 <a class="nav-link" id="settings-mqtt-tab" data-bs-toggle="tab"
                                     data-bs-target="#settings-mqtt" href="#settings-mqtt" data-option="MQTT" role="tab"
@@ -145,6 +148,7 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                     MQTT
                                 </a>
                             </li>
+                            <? } ?>
                             <li class="nav-item">
                                 <a class="nav-link" id="settings-privacy-tab" data-bs-toggle="tab"
                                     data-bs-target="#settings-privacy" href="#settings-privacy" data-option="Privacy"

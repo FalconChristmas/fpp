@@ -43,5 +43,6 @@ if (!isset($settings['AudioMixerDevice'])) {
 
 
 <?
-PrintSettingGroup('generalAudioVideo');
+PrintSettingGroup('generalAudio');
+PrintSettingGroup('generalVideo');
 ?>
