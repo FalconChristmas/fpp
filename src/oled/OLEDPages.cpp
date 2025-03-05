@@ -1,6 +1,7 @@
 #include "fpp-pch.h"
 
 #include "OLEDPages.h"
+#include "../common.h"
 
 static std::unique_ptr<DisplayDriver> displayDriver{ nullptr };
 
@@ -9,6 +10,10 @@ bool OLEDPage::oledFlipped = false;
 OLEDPage* OLEDPage::currentPage = nullptr;
 bool OLEDPage::oledForcedOff = false;
 bool OLEDPage::has4DirectionControls = false;
+
+int OLEDPage::_capeImageWidth = 0;
+int OLEDPage::_capeImageHeight = 0;
+std::vector<uint8_t> OLEDPage::_capeImage;
 
 static int DISPLAY_I2CBUS = 0;
 
@@ -58,10 +63,13 @@ void OLEDPage::SetOLEDType(OLEDType tp) {
     oledType = tp;
 }
 
-void OLEDPage::displayBootingNotice() {
+void OLEDPage::displayBootingNotice(const std::string& msg) {
     if (displayDriver) {
+        std::string m = msg.empty() ? "FPP Booting..." : msg;
+        readCapeImage();
         displayDriver->clearDisplay();
-        displayDriver->printString(0, 0, "FPP Booting...", true);
+        displayDriver->printString(0, 0, m, true);
+        drawBitmap(0, 20, &_capeImage[0], _capeImageWidth, _capeImageHeight);
         displayDriver->flushDisplay();
     }
 }
@@ -154,6 +162,108 @@ void OLEDPage::SetCurrentPage(OLEDPage* p) {
     currentPage = p;
     if (currentPage) {
         currentPage->displaying();
+    }
+}
+
+// trim from start (in place)
+static inline void ltrim(std::string& s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
+                return !std::isspace(ch);
+            }));
+}
+// trim from end (in place)
+static inline void rtrim(std::string& s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
+                return !std::isspace(ch);
+            }).base(),
+            s.end());
+}
+// trim from both ends (in place)
+static inline void trim(std::string& s) {
+    ltrim(s);
+    rtrim(s);
+}
+static std::vector<std::string> splitAndTrim(const std::string& s, char seperator) {
+    std::vector<std::string> output;
+    std::string::size_type prev_pos = 0, pos = 0;
+    while ((pos = s.find(seperator, pos)) != std::string::npos) {
+        std::string substring(s.substr(prev_pos, pos - prev_pos));
+        trim(substring);
+        if (substring != "") {
+            output.push_back(substring);
+        }
+        prev_pos = ++pos;
+    }
+    std::string substring = s.substr(prev_pos, pos - prev_pos);
+    trim(substring);
+    if (substring != "") {
+        output.push_back(substring); // Last word
+    }
+    return output;
+}
+static const unsigned char reverselookup[16] = {
+    0x0,
+    0x8,
+    0x4,
+    0xc,
+    0x2,
+    0xa,
+    0x6,
+    0xe,
+    0x1,
+    0x9,
+    0x5,
+    0xd,
+    0x3,
+    0xb,
+    0x7,
+    0xf,
+};
+
+static inline uint8_t reverse(uint8_t n) {
+    // Reverse the top and bottom nibble then swap them.
+    return (reverselookup[n & 0b1111] << 4) | reverselookup[n >> 4];
+}
+
+void OLEDPage::readCapeImage() {
+    _capeImageWidth = 0;
+    _capeImageHeight = 0;
+    if (FileExists("/home/fpp/media/tmp/cape-image.xbm")) {
+        std::ifstream file("/home/fpp/media/tmp/cape-image.xbm");
+        if (file.is_open()) {
+            std::string line;
+            bool readingBytes = false;
+            while (std::getline(file, line)) {
+                trim(line);
+                if (!readingBytes) {
+                    if (line.find("_width") != std::string::npos) {
+                        std::vector<std::string> v = splitAndTrim(line, ' ');
+                        _capeImageWidth = std::atoi(v[2].c_str());
+                    } else if (line.find("_height") != std::string::npos) {
+                        std::vector<std::string> v = splitAndTrim(line, ' ');
+                        _capeImageHeight = std::atoi(v[2].c_str());
+                    } else if (line.find("{") != std::string::npos) {
+                        readingBytes = true;
+                        line = line.substr(line.find("{") + 1);
+                    }
+                }
+                if (readingBytes) {
+                    std::vector<std::string> v = splitAndTrim(line, ',');
+                    for (auto& s : v) {
+                        if (s.find("}") != std::string::npos) {
+                            readingBytes = false;
+                            break;
+                        }
+                        int i = std::stoi(s, 0, 16);
+                        uint8_t t8 = (uint8_t)i;
+                        t8 = ~t8;
+                        t8 = reverse(t8);
+                        _capeImage.push_back((uint8_t)t8);
+                    }
+                }
+            }
+            file.close();
+        }
     }
 }
 

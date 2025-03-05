@@ -96,7 +96,7 @@ FPPStatusOLEDPage::FPPStatusOLEDPage() :
     // have to use a socket for ioctl
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
-    readImage();
+    readCapeImage();
     mainMenu = new FPPMainMenu(this);
 }
 FPPStatusOLEDPage::~FPPStatusOLEDPage() {
@@ -368,7 +368,7 @@ int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid,
             printString(0, startY, "FPPD is not running..");
             startY += 8;
         }
-        if (_imageWidth && oledType != OLEDType::TEXT_ONLY) {
+        if (_capeImageWidth && oledType != OLEDType::TEXT_ONLY) {
             int y = startY;
             if (oledType != OLEDType::TWO_COLOR) {
                 --y;
@@ -377,7 +377,7 @@ int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid,
                 y += 4;
             }
 
-            drawBitmap(0, y, &_image[0], _imageWidth, _imageHeight);
+            drawBitmap(0, y, &_capeImage[0], _capeImageWidth, _capeImageHeight);
         }
     }
     return startY;
@@ -588,107 +588,6 @@ void FPPStatusOLEDPage::cycleTest() {
     }
     _currentTest = TESTS[idx];
     runTest(_currentTest, _multisyncTest);
-}
-
-// trim from start (in place)
-static inline void ltrim(std::string& s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
-                return !std::isspace(ch);
-            }));
-}
-// trim from end (in place)
-static inline void rtrim(std::string& s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
-                return !std::isspace(ch);
-            }).base(),
-            s.end());
-}
-// trim from both ends (in place)
-static inline void trim(std::string& s) {
-    ltrim(s);
-    rtrim(s);
-}
-static std::vector<std::string> splitAndTrim(const std::string& s, char seperator) {
-    std::vector<std::string> output;
-    std::string::size_type prev_pos = 0, pos = 0;
-    while ((pos = s.find(seperator, pos)) != std::string::npos) {
-        std::string substring(s.substr(prev_pos, pos - prev_pos));
-        trim(substring);
-        if (substring != "") {
-            output.push_back(substring);
-        }
-        prev_pos = ++pos;
-    }
-    std::string substring = s.substr(prev_pos, pos - prev_pos);
-    trim(substring);
-    if (substring != "") {
-        output.push_back(substring); // Last word
-    }
-    return output;
-}
-static unsigned char reverselookup[16] = {
-    0x0,
-    0x8,
-    0x4,
-    0xc,
-    0x2,
-    0xa,
-    0x6,
-    0xe,
-    0x1,
-    0x9,
-    0x5,
-    0xd,
-    0x3,
-    0xb,
-    0x7,
-    0xf,
-};
-
-static inline uint8_t reverse(uint8_t n) {
-    // Reverse the top and bottom nibble then swap them.
-    return (reverselookup[n & 0b1111] << 4) | reverselookup[n >> 4];
-}
-void FPPStatusOLEDPage::readImage() {
-    _imageWidth = 0;
-    _imageHeight = 0;
-    if (FileExists("/home/fpp/media/tmp/cape-image.xbm")) {
-        std::ifstream file("/home/fpp/media/tmp/cape-image.xbm");
-        if (file.is_open()) {
-            std::string line;
-            bool readingBytes = false;
-            while (std::getline(file, line)) {
-                trim(line);
-                if (!readingBytes) {
-                    if (line.find("_width") != std::string::npos) {
-                        std::vector<std::string> v = splitAndTrim(line, ' ');
-                        _imageWidth = std::atoi(v[2].c_str());
-                    } else if (line.find("_height") != std::string::npos) {
-                        std::vector<std::string> v = splitAndTrim(line, ' ');
-                        _imageHeight = std::atoi(v[2].c_str());
-                    } else if (line.find("{") != std::string::npos) {
-                        readingBytes = true;
-                        line = line.substr(line.find("{") + 1);
-                    }
-                }
-                if (readingBytes) {
-                    std::vector<std::string> v = splitAndTrim(line, ',');
-                    for (auto& s : v) {
-                        if (s.find("}") != std::string::npos) {
-                            readingBytes = false;
-                            break;
-                        }
-                        int i = std::stoi(s, 0, 16);
-                        uint8_t t8 = (uint8_t)i;
-                        t8 = ~t8;
-                        t8 = reverse(t8);
-                        _image.push_back((uint8_t)t8);
-                    }
-                }
-            }
-            file.close();
-        }
-    }
 }
 
 void FPPStatusOLEDPage::displayWiFiQR() {

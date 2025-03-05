@@ -62,14 +62,20 @@ public:
     static void displayOff();
 
     static int getMinimumRefresh();
-    static void displayBootingNotice();
+    static void displayBootingNotice(const std::string& msg = "");
 
 protected:
+    static void readCapeImage();
+
     static OLEDType oledType;
     static bool oledFlipped;
     static OLEDPage* currentPage;
     static bool oledForcedOff;
     static bool has4DirectionControls;
+
+    static int _capeImageWidth;
+    static int _capeImageHeight;
+    static std::vector<uint8_t> _capeImage;
 
     bool autoDeleteOnHide;
 };

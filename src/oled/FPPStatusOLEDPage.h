@@ -25,7 +25,6 @@ public:
     int getLinesPage1(std::vector<std::string>& lines,
                       Json::Value& result,
                       bool allowBlank);
-    void readImage();
 
     void fillInNetworks();
     int getSignalStrength(char* iwname);
@@ -43,10 +42,11 @@ public:
 
     bool isMultiSyncTest() const { return _multisyncTest; }
     void setMultiSyncTest(bool b) { _multisyncTest = b; }
+
 private:
     bool getCurrentStatus(Json::Value& result);
     bool checkIfStatusChanged(Json::Value& result);
-    bool loadWiFiImage(const std::string &tp = "L");
+    bool loadWiFiImage(const std::string& tp = "L");
     void displayWiFiQR();
     std::vector<std::string> _lastStatusLines;
 
@@ -60,15 +60,10 @@ private:
     int _curPage;
     bool _doFullStatus;
 
-    int _imageWidth;
-    int _imageHeight;
-    std::vector<uint8_t> _image;
-
     int _wifiImageWidth = 0;
-    int _wifiImageHeight = 0; 
+    int _wifiImageHeight = 0;
     std::vector<uint8_t> _wifiImage;
     int wifiTimer = 0;
-
 
     CURL* curl;
     std::string buffer;
