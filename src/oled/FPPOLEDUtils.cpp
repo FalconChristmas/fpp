@@ -97,31 +97,6 @@ public:
 
     struct gpiod_line* gpiodLine = nullptr;
 };
-class GPIOQueryPinAction : public FPPOLEDUtils::InputAction {
-public:
-    GPIOQueryPinAction(const PinCapabilities* p) :
-        FPPOLEDUtils::InputAction(),
-        pin(p) {
-        lastValue = pin->getValue();
-    }
-    virtual ~GPIOQueryPinAction() {
-    }
-    virtual const std::string& checkAction(int i, long long ntimeus) override {
-        int val = pin->getValue();
-        if (val != lastValue) {
-            printf("Val %d     LastVal: %d\n", val, lastValue);
-            for (auto& a : actions) {
-                if (a->checkAction(val, ntimeus)) {
-                    return a->action;
-                }
-            }
-            lastValue = val;
-        }
-        return EMPTY_STRING;
-    }
-    int lastValue = 0;
-    const PinCapabilities* pin = nullptr;
-};
 
 bool FPPOLEDUtils::InputAction::Action::checkAction(int i, long long ntimeus) {
     if (i <= actionValueMax && i >= actionValueMin && (ntimeus > nextActionTime)) {
@@ -138,32 +113,6 @@ const std::string& FPPOLEDUtils::InputAction::checkAction(int i, long long ntime
         }
     }
     return EMPTY_STRING;
-}
-bool FPPOLEDUtils::checkStatusAbility() {
-#ifdef PLATFORM_BBB
-    char buf[128] = { 0 };
-    FILE* fd = fopen("/sys/firmware/devicetree/base/model", "r");
-    if (fd) {
-        fgets(buf, 127, fd);
-        fclose(fd);
-    }
-    std::string model = buf;
-    if (model == "TI AM335x PocketBeagle") {
-        return true;
-    }
-    std::string file = "/home/fpp/media/tmp/cape-info.json";
-    if (FileExists(file)) {
-        Json::Value root;
-        if (LoadJsonFromFile(file, root)) {
-            if (root["id"].asString() == "Unsupported") {
-                return false;
-            }
-        }
-    }
-    return false;
-#else
-    return true;
-#endif
 }
 
 bool FPPOLEDUtils::setupControlPin(const std::string& file) {
@@ -348,8 +297,14 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                         lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
                     }
                     lineConfig.flags = 0;
+                    bool edgeOK = true;
                     if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
-                        printf("Could not config line edge\n");
+                        printf("Could not config line edge, switch to polling\n");
+                        edgeOK = false;
+                        lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
+                        if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
+                            printf("Could not config line as input\n");
+                        }
                     }
                     action->file = gpiod_line_event_get_fd(action->gpiodLine);
 
@@ -387,6 +342,10 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                         } else {
                             printf("Could not find gpio chip for %s\n", label.c_str());
                         }
+                    } else if (!edgeOK || action->file == -1) {
+                        printf("Configuring pin %s as input of type %s   (mode: %s, gpio: %d)\n", action->pin.c_str(), type.c_str(), action->mode.c_str(), pin.kernelGpio);
+                        action->actions.push_back(new GPIODExtenderAction(type, actionValue, actionValue, 100000, action->gpiodLine));
+                        needsPolling = true;
                     } else {
                         printf("Configuring pin %s as input of type %s   (mode: %s, gpio: %d)\n", action->pin.c_str(), type.c_str(), action->mode.c_str(), pin.kernelGpio);
                         action->actions.push_back(new FPPOLEDUtils::InputAction::Action(type, actionValue, actionValue, 100000));
@@ -439,6 +398,7 @@ void FPPOLEDUtils::run() {
     setupControlPin("/home/fpp/media/tmp/cape-info.json");
     bool needsPolling = parseInputActionFromGPIO("/home/fpp/media/config/gpio.json");
     needsPolling |= parseInputActions("/home/fpp/media/tmp/cape-inputs.json");
+
     std::vector<struct pollfd> fdset(actions.size());
 
     if (actions.size() == 0 && _ledType == 0) {
@@ -449,9 +409,6 @@ void FPPOLEDUtils::run() {
     OLEDPage::SetHas4DirectionControls((inputFlags & 0x0F) == 0x0F);
 
     statusPage = new FPPStatusOLEDPage();
-    if (!checkStatusAbility()) {
-        // statusPage->disableFullStatus();
-    }
     OLEDPage::SetCurrentPage(statusPage);
 
     long long lastUpdateTime = 0;
@@ -518,6 +475,7 @@ void FPPOLEDUtils::run() {
             ntime = GetTime();
             for (int x = 0; x < actions.size(); x++) {
                 std::string action;
+                // printf("%x:   %s      f: %d    pi: %d\n", x, actions[x]->pin.c_str(), actions[x]->file, actions[x]->pollIndex);
                 if (actions[x]->mode == "ain") {
                     lseek(actions[x]->file, 0, SEEK_SET);
                     int len = read(actions[x]->file, vbuffer, 255);
