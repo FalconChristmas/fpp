@@ -15,7 +15,7 @@ for your particular device.
 
 Note: Certain parts of installing FPP (ex: building VLC) will utilize all cores of
 the SBC to near 100% for an extended period of time.   If the CPU does not have
-heat syncs/fans, it may shutdown in the middle of installing due to thermal limits.
+heat sinks/fans, it may shutdown in the middle of installing due to thermal limits.
 If this happens, you need to restart from a fresh image.  We'd suggest adding
 heat syncs or fans to keep thermals under control, but lowering the CPU frequency
 can also be a big help.   Before running FPP_Install.sh, run a command like:
