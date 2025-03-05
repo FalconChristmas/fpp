@@ -410,12 +410,18 @@ static bool processBootConfig(Json::Value& bootConfig) {
 }
 static void handleReboot(bool r) {
     if (r) {
-        const uint8_t data[2] = { 32, 0 };
-        put_file_contents("/.fppcapereboot", data, 1);
-        sync();
-        setuid(0);
-        reboot(RB_AUTOBOOT);
-        exit(0);
+        if (file_exists("/.fppcapereboot")) {
+            const std::string msg = "Reboot Cycle Detected with FPP Cape Detect";
+            put_file_contents("/home/fpp/media/tmp/reboot", (const uint8_t*)msg.c_str(), msg.length());
+            printf("%s\n", msg.c_str());
+        } else {
+            const uint8_t data[2] = { 32, 0 };
+            put_file_contents("/.fppcapereboot", data, 1);
+            sync();
+            setuid(0);
+            reboot(RB_AUTOBOOT);
+            exit(0);
+        }
     } else {
         remove("/.fppcapereboot");
     }
@@ -434,7 +440,7 @@ static void copyFile(const std::string& src, const std::string& target) {
                                                                                                 //         if (mkdir(path, mode) != 0 && errno != EEXIST)
                                                                                                 //     else if (!S_ISDIR(st.st_mode)) errno = ENOTDIR;
 
-    t = open(target.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+    t = open(target.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
     if (t == -1) {
         printf("Failed to open target %s - %s\n", target.c_str(), strerror(errno));
         close(s);
@@ -561,6 +567,7 @@ static bool handleCapeOverlay(const std::string& outputPath) {
         uint8_t* sd = get_file_contents(src, slen);
         uint8_t* td = get_file_contents(target, tlen);
         if (slen != tlen || memcmp(sd, td, slen) != 0) {
+            // unlink(target.c_str());
             copyFile(src, target);
             free(sd);
             free(td);
