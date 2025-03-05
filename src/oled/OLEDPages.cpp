@@ -226,10 +226,9 @@ static inline uint8_t reverse(uint8_t n) {
 }
 
 void OLEDPage::readCapeImage() {
-    _capeImageWidth = 0;
-    _capeImageHeight = 0;
-    if (FileExists("/home/fpp/media/tmp/cape-image.xbm")) {
-        std::ifstream file("/home/fpp/media/tmp/cape-image.xbm");
+    if (FileExists("/home/fpp/media/tmp/cape-image.xbm") || FileExists("/tmp/cape-image.xbm")) {
+        std::string fn = FileExists("/home/fpp/media/tmp/cape-image.xbm") ? "/home/fpp/media/tmp/cape-image.xbm" : "/tmp/cape-image.xbm";
+        std::ifstream file(fn);
         if (file.is_open()) {
             std::string line;
             bool readingBytes = false;

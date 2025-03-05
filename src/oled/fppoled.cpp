@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
     int count = 0;
     if (argc > 1) {
         if (lt != 0) {
-            OLEDPage::displayBootingNotice("FPP - File System Init");
+            OLEDPage::displayBootingNotice("FPP - File Systems");
         }
         if (strcmp(argv[1], "clear") == 0) {
             unlink("/home/fpp/media/tmp/cape_detect_done");
@@ -66,6 +66,9 @@ int main(int argc, char* argv[]) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 unlink("/home/fpp/media/tmp/cape_detect_done");
                 count++;
+            }
+            if (FileExists("/home/fpp/media/tmp/cape-image.xbm")) {
+                CopyFileContents("/home/fpp/media/tmp/cape-image.xbm", "/tmp/cape-image.xbm");
             }
             return 0;
         }

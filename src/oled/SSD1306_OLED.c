@@ -702,6 +702,18 @@ int display_Init_seq()
  ****************************************************************/
 int transfer()
 {
+    /* Debugging code */
+    /*
+    int ww = (_width * _height) / 8;
+    for (int y = 0; y < ww; y++) {
+        printf("0x%02X, ", screen[y]);
+        if (y % 32 == 31) {
+            printf("\n");
+        }
+    }
+    printf("\n\n");
+    */
+
     short loop_1 = 0, loop_2 = 0;
     short index = 0x00;
     int max = _height * _width / 8;
