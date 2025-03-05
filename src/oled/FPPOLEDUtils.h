@@ -75,7 +75,6 @@ private:
     InputAction* configureGPIOPin(const std::string& pin,
                                   const std::string& mode,
                                   const std::string& edge);
-    bool checkStatusAbility();
 
     void setInputFlag(const std::string& action);
     int inputFlags = 0;

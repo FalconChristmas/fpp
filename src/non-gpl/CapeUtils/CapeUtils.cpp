@@ -567,7 +567,6 @@ static bool handleCapeOverlay(const std::string& outputPath) {
         uint8_t* sd = get_file_contents(src, slen);
         uint8_t* td = get_file_contents(target, tlen);
         if (slen != tlen || memcmp(sd, td, slen) != 0) {
-            // unlink(target.c_str());
             copyFile(src, target);
             free(sd);
             free(td);
