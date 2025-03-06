@@ -1,22 +1,10 @@
 <?php include 'co-other-modules.php'; ?>
 <script>
 
-    /*
-        // The individual tabs on channeloutputs cannot use these functions
-        // as they are already defined in  channeloutputs.php and thus would 
-        // break other tabs.
-        function pageSpecific_PageLoad_DOM_Setup() {
-            GetChannelOutputs();
-        }
-        function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
-            SetupSelectableTableRow(otherTableInfo);
-        }
-    */
     $(document).ready(function () {
         GetChannelOutputs();
         SetupSelectableTableRow(otherTableInfo);
     });
-
 
     /////////////////////////////////////////////////////////////////////////////
     // nRF Support functions
@@ -87,7 +75,6 @@
 
     /////////////////////////////////////////////////////////////////////////////
     // Generic Serial
-
     var GenericSerialSpeeds = new Array();
     GenericSerialSpeeds["9600"] = "9600";
     GenericSerialSpeeds["19200"] = "19200";
@@ -124,7 +111,6 @@
     function GenericSerialConfig(config) {
         var result = "";
 
-
         result += USBDeviceConfig(config);
         result += GenericSerialSpeedSelect(config.speed);
         result += " Header: <input type='text' size=10 maxlength=20 class='serialheader' value='" + config.header + "'>";
@@ -149,8 +135,6 @@
         $cell = $(cell);
         var device = $cell.find("select.device").val();
 
-
-
         if (device == "")
             return "";
 
@@ -163,7 +147,6 @@
         result.description = desc;
 
         var header = $cell.find("input.serialheader").val();
-
         var footer = $cell.find("input.serialfooter").val();
 
         result.device = device;
@@ -178,13 +161,12 @@
     // USB Relay output
     function USBRelayLayoutChanged(item) {
         var channels = parseInt($(item).val());
-
         $(item).parent().parent().find("input.count").val(channels);
     }
 
     function USBRelaySubTypeSelect(currentValue) {
         var result = "";
-        var options = "Bit,ICStation".split(",");
+        var options = "Bit,ICStation,CH340".split(",");
 
         result += " Type:&nbsp;<select class='subType'>";
 
@@ -205,7 +187,7 @@
 
     function USBRelayCountSelect(currentValue) {
         var result = "";
-        var options = "2,4,8".split(",");
+        var options = "1,2,4,8".split(",");
 
         result += " Count:&nbsp;<select class='relayCount' onChange='USBRelayLayoutChanged(this);'>";
 
@@ -270,7 +252,6 @@
         return result;
     }
 
-
     /////////////////////////////////////////////////////////////////////////////
     function NewHTTPVirtualDisplayConfig() {
         var config = {};
@@ -320,7 +301,6 @@
 
     /////////////////////////////////////////////////////////////////////////////
     // MAX7219Matrix (MAX7219 w/ 8x8 LED Panels)
-
     function MAX7219MatrixChanged(item) {
         var panels = parseInt($(item).parent().parent().find("input.panels").val());
         var cpp = parseInt($(item).parent().parent().find("select.channelsPerPixel").val());
@@ -374,7 +354,6 @@
 
     /////////////////////////////////////////////////////////////////////////////
     // Renard Serial Outputs
-
     var RenardSpeeds = new Array();
     RenardSpeeds["19200"] = "19200";
     RenardSpeeds["38400"] = "38400";
@@ -485,7 +464,6 @@
 
     /////////////////////////////////////////////////////////////////////////////
     // LOR Serial Outputs
-
     var LORSpeeds = new Array();
     LORSpeeds["9600"] = "9600";
     LORSpeeds["19200"] = "19200";
@@ -565,7 +543,6 @@
 
         return LOROutputConfig(config);
     }
-
 
     /////////////////////////////////////////////////////////////////////////////
     // nRF/Komby
@@ -699,7 +676,6 @@
 
                 if (output_module != undefined)
                     output_module.RowAdded($('#tblOtherOutputs > tbody > tr').last());
-
             }
         }
     }
@@ -774,7 +750,6 @@
                 (type == "Pixelnet-Lynx") ||
                 (type == "Pixelnet-Open")) {
                 config = GetUSBOutputConfig(config, $this.find("td:nth-child(6)"));
-
                 if (config == "") {
                     dataError = 1;
                     DialogError("Save Channel Outputs", "Invalid Output Config");
@@ -845,15 +820,13 @@
                 config = output_module.GetOutputConfig(config, $this.find("td:nth-child(6)"));
                 if (config == "") {
                     dataError = 1;
-                    DialogError("Save Channel Outputs", "Invalid" + output_module.typeFriendlyName + "Config");
+                    DialogError("Save Channel Outputs", "Invalid " + output_module.typeFriendlyName + " Config");
                     return;
                 }
                 maxChannels = output_module.maxChannels;
             }
 
-
             outputs.push(config);
-
             rowNumber++;
         });
 
@@ -940,7 +913,6 @@
             $row.remove();
         }
 
-
         ///////new way
         let output_module = output_modules.find(obj => obj.typeName == type);
         if (output_module != undefined) {
@@ -964,7 +936,6 @@
         if ($('select#outputType').length > 0) {
             DialogError("Configure One Output At a Time", "Please configure the newly added output row before adding another");
         } else {
-
             var currentRows = $("#tblOtherOutputs > tbody > tr").length;
 
             var newRow =
@@ -972,7 +943,6 @@
                 "<td style='vertical-align:top'><input class='act' type=checkbox></td>" +
                 "<td style='vertical-align:top' class='type'><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
                 "<option value=''>Select a type</option>";
-
 
             if (Object.keys(SerialDevices).length > 0) {
                 newRow += "<option value='DMX-Pro'>DMX-Pro</option>" +
@@ -1007,7 +977,7 @@
             ///////new method
             output_modules.forEach(function addOption(output_module) {
                 $('#outputType').append(new Option(output_module.typeFriendlyName, output_module.typeName));
-            })
+            });
 
             // Sort options but keep 'Select a type' at the top
             $('#outputType').html($('#outputType').find('option').sort(function (a, b) {
@@ -1022,7 +992,6 @@
 
             //Default to 'Select a Type' as default selected option
             $('#outputType').find('option')[0].selected = true;
-
         }
     }
 
@@ -1051,26 +1020,22 @@
         }
     }
 
-
 </script>
 
 <div id='divOther'>
     <div class="row tableTabPageHeader">
-
         <div class="col-md">
             <h2> Other Outputs </h2>
         </div>
         <div class="col-md-auto ms-lg-auto">
             <input name="command" type="hidden" value="saveOtherOutputs">
             <div class="form-actions">
-
                 <input id="btnDeleteOther" class="disableButtons" type="button" value="Delete"
                     data-btn-enabled-class="btn-outline-danger" onClick="DeleteOtherOutput();">
                 <button id="btnAddOther" class="buttons btn-outline-success" type="button" value="Add"
                     onClick="AddOtherOutput();"><i class="fas fa-plus"></i> Add</button>
                 <input id="btnSaveOther" class="buttons btn-success ms-1" type="button" value="Save"
                     onClick='SaveOtherChannelOutputs();'>
-
             </div>
         </div>
     </div>
@@ -1078,8 +1043,6 @@
     <div id='divOtherData'>
         <div style="overflow: hidden; padding: 5px;">
             <form id="frmOtherOutputs">
-
-
                 <div class='fppTableWrapper'>
                     <div class='fppTableContents fppFThScrollContainer' role="region" aria-labelledby="tblOtherOutputs"
                         tabindex="0">
@@ -1102,5 +1065,4 @@
             </form>
         </div>
     </div>
-
 </div>

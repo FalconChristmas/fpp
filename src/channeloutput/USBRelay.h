@@ -34,7 +34,8 @@ private:
     enum RelayType {
         RELAY_DVC_UNKNOWN,
         RELAY_DVC_BIT,
-        RELAY_DVC_ICSTATION
+        RELAY_DVC_ICSTATION,
+        RELAY_DVC_CH340
     };
 
     RelayType m_subType;
