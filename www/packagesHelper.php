@@ -9,7 +9,7 @@ $userPackages = [];
 if (file_exists($userPackagesFile)) {
     $userPackages = json_decode(file_get_contents($userPackagesFile), true);
     if (!is_array($userPackages)) {
-        $userPackages = array_values((array)$userPackages); // Convert objects to array of values if needed
+        $userPackages = array_values((array) $userPackages); // Convert objects to array of values if needed
     }
 }
 
@@ -38,7 +38,7 @@ if ($action) {
             file_put_contents($userPackagesFile, json_encode($userPackages, JSON_PRETTY_PRINT));
         }
 
-        echo "Completed"
+        echo "Completed";
 
         exit;
     }
@@ -62,8 +62,8 @@ if ($action) {
             return $pkg !== $packageName;
         });
         file_put_contents($userPackagesFile, json_encode(array_values($userPackages), JSON_PRETTY_PRINT));
-        
-        echo "Completed"
+
+        echo "Completed";
 
         exit;
     }
