@@ -201,9 +201,20 @@ HC_PingGateway() {
 
 HC_Internet() {
     PrintItemHead "Internet Access"
+    # If one of these IP addresses are pingable then we have internet connectivity.
+    ips=("1.1.1.1" "8.8.8.8" "9.9.9.9")
+    # Initialize return code
+    rc=1
 
-    curl http://192.0.43.10 --max-time 2 > /dev/null 2>&1 #this checks the iana example.com
-    if [ $? -eq 0 ]
+    # Loop through the IPs and try to ping
+    for ip in "${ips[@]}"; do
+        if ping -c 1 -q -W 2 "$ip" > /dev/null 2>&1; then
+            rc=0
+            break
+        fi
+    done
+
+    if [ $rc -eq 0 ]
     then
         STATUS=1
         STATUSSTR="Internet connectivity confirmed."
