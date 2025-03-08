@@ -20,7 +20,9 @@
 #include "common_mini.h"
 
 static bool isPi5() {
-    static bool pi5 = startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5");
+    std::string model = GetFileContents("/proc/device-tree/model");
+    static bool pi5 = startsWith(model, "Raspberry Pi 5") || 
+                        startsWith(model, "Raspberry Pi Compute Module 5");
     return pi5;
 }
 
