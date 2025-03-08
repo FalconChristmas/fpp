@@ -352,7 +352,7 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model) {
         return kSysTypeFPPRaspberryPi3APlus;
     if (startsWith(model, "Raspberry Pi 4") || startsWith(model, "Raspberry Pi Compute Module 4"))
         return kSysTypeFPPRaspberryPi4;
-    if (startsWith(model, "Raspberry Pi 5"))
+    if (startsWith(model, "Raspberry Pi 5") || startsWith(model, "Raspberry Pi Compute Module 5"))
         return kSysTypeFPPRaspberryPi5;
     if (startsWith(model, "SanCloud BeagleBone Enhanced"))
         return kSysTypeFPPSanCloudBeagleBoneEnhanced;
