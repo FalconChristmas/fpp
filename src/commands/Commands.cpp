@@ -11,43 +11,31 @@
  */
 
 #include "fpp-pch.h"
-
 #include <thread>
-
 #include "../common.h"
 #include "../log.h"
-
 #include "../Events.h"
-
 #include "EventCommands.h"
 #include "MediaCommands.h"
 #include "MultiSync.h"
 #include "PlaylistCommands.h"
 
 CommandManager CommandManager::INSTANCE;
-Command::Command(const std::string& n) :
-    name(n),
-    description("") {
-}
-Command::Command(const std::string& n, const std::string& descript) :
-    name(n),
-    description(descript) {
-}
+
+Command::Command(const std::string& n) : name(n), description("") {}
+Command::Command(const std::string& n, const std::string& descript) : name(n), description(descript) {}
 Command::~Command() {}
 
 Json::Value Command::getDescription() {
     Json::Value cmd;
     cmd["name"] = name;
-    if (!description.empty()) {
-        cmd["description"] = description;
-    }
+    if (!description.empty()) cmd["description"] = description;
     for (auto& ar : args) {
         Json::Value a;
         a["name"] = ar.name;
         a["type"] = ar.type;
         a["description"] = ar.description;
         a["optional"] = ar.optional;
-
         if (ar.min != ar.max) {
             a["min"] = ar.min;
             a["max"] = ar.max;
@@ -56,31 +44,103 @@ Json::Value Command::getDescription() {
             a["contentListUrl"] = ar.contentListUrl;
             a["allowBlanks"] = ar.allowBlanks;
         } else if (!ar.contentList.empty()) {
-            for (auto& x : ar.contentList) {
-                a["contents"].append(x);
-            }
+            for (auto& x : ar.contentList) a["contents"].append(x);
         }
-        if (ar.defaultValue != "") {
-            a["default"] = ar.defaultValue;
-        }
+        if (ar.defaultValue != "") a["default"] = ar.defaultValue;
         if (ar.adjustable) {
             a["adjustable"] = true;
-            if (!ar.adjustableGetValueURL.empty()) {
-                a["adjustableGetValueURL"] = ar.adjustableGetValueURL;
-            }
+            if (!ar.adjustableGetValueURL.empty()) a["adjustableGetValueURL"] = ar.adjustableGetValueURL;
         }
-
         cmd["args"].append(a);
     }
     return cmd;
 }
 
-CommandManager::CommandManager() {
-}
+CommandManager::CommandManager() {}
+CommandManager::~CommandManager() { Cleanup(); }
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <string.h>
+
+class USBRelayOnOffCommand : public Command {
+public:
+    USBRelayOnOffCommand() : Command("USB Relay On/Off", "Turns a USB relay channel ON or OFF") {
+        args.emplace_back("Device", "string", "USB Relay device", false);
+        args.back().defaultValue = "/dev/ttyUSB0";
+        DIR* dir = opendir("/dev/serial/by-id/");
+        if (dir) {
+            struct dirent* entry;
+            while ((entry = readdir(dir)) != nullptr) {
+                if (strstr(entry->d_name, "usb-")) {
+                    std::string dev = "/dev/serial/by-id/";
+                    dev += entry->d_name;
+                    std::next(args.begin(), 0)->contentList.push_back(dev);
+                }
+            }
+            closedir(dir);
+        }
+        args.emplace_back("Channel", "int", "Relay channel (1-8)", false);
+        args.back().min = 1;
+        args.back().max = 8;
+        args.back().defaultValue = "1";
+        args.emplace_back("State", "string", "Relay state", false);
+        args.back().defaultValue = "ON";
+        args.back().contentList = {"ON", "OFF"};
+        args.emplace_back("Protocol", "string", "Relay protocol", false);
+        args.back().defaultValue = "CH340";
+        args.back().contentList = {"CH340", "ICstation"};
+    }
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
+        if (args.size() < 4) return std::make_unique<Command::ErrorResult>("Device, Channel, State, and Protocol required");
+        std::string device = args[0];
+        int channel = std::stoi(args[1]);
+        std::string state = args[2];
+        std::string protocol = args[3];
+        LogDebug(VB_COMMAND, "Opening device: %s, Channel: %d, State: %s, Protocol: %s\n", 
+                 device.c_str(), channel, state.c_str(), protocol.c_str());
+
+        int fd = open(device.c_str(), O_WRONLY | O_NOCTTY);
+        if (fd < 0) {
+            LogErr(VB_COMMAND, "Failed to open %s\n", device.c_str());
+            return std::make_unique<Command::ErrorResult>("Failed to open device " + device);
+        }
+
+        unsigned char cmd[4];
+        ssize_t len;
+        if (protocol == "CH340") {
+            cmd[0] = 0xA0;              // Start byte
+            cmd[1] = (unsigned char)channel; // Channel
+            cmd[2] = (state == "ON") ? 0x01 : 0x00; // ON=1, OFF=0
+            cmd[3] = cmd[0] + cmd[1] + cmd[2]; // Checksum
+            len = 4;
+        } else if (protocol == "ICstation") {
+            cmd[0] = 0x51;              // Start byte
+            cmd[1] = 0xFF;              // All OFF (1=OFF)
+            if (state == "ON") cmd[1] &= ~(1 << (channel - 1)); // Bit to 0 for ON
+            len = 2;
+        } else {
+            close(fd);
+            return std::make_unique<Command::ErrorResult>("Unknown protocol: " + protocol);
+        }
+
+        ssize_t written = write(fd, cmd, len);
+        close(fd);
+
+        if (written == len) {
+            LogDebug(VB_COMMAND, "Wrote to relay: %s, channel %d, state %s\n", 
+                     device.c_str(), channel, state.c_str());
+            return std::make_unique<Command::Result>("Relay channel " + args[1] + " turned " + state);
+        }
+        LogErr(VB_COMMAND, "Write failed, wrote %zd bytes\n", written);
+        return std::make_unique<Command::ErrorResult>("Failed to set relay channel " + args[1] + " to " + state);
+    }
+};
 
 void CommandManager::Init() {
     LoadPresets();
-
     addCommand(new StopPlaylistCommand());
     addCommand(new StopGracefullyPlaylistCommand());
     addCommand(new RestartPlaylistCommand());
@@ -119,7 +179,6 @@ void CommandManager::Init() {
     addCommand(new AllLightsOffCommand());
     addCommand(new SwitchToPlayerModeCommand());
     addCommand(new SwitchToRemoteModeCommand());
-
     addCommand(new TriggerRemotePresetCommand());
     addCommand(new TriggerRemotePresetSlotCommand());
     addCommand(new StartRemoteEffectCommand());
@@ -127,87 +186,68 @@ void CommandManager::Init() {
     addCommand(new RunRemoteScriptEvent());
     addCommand(new StartRemoteFSEQEffectCommand());
     addCommand(new StartRemotePlaylistCommand());
+    addCommand(new USBRelayOnOffCommand()); // Fixed here
 
-    std::function<void(const std::string&, const std::string&)> f =
-        [](const std::string& topic, const std::string& payload) {
-            if (topic.size() <= 13) {
-                Json::Value val;
-                bool success = LoadJsonFromString(payload, val);
-                if (success && val.isObject()) {
-                    CommandManager::INSTANCE.run(val);
-                } else {
-                    LogWarn(VB_COMMAND, "Invalid JSON Payload: %s\n", payload.c_str());
-                }
+    std::function<void(const std::string&, const std::string&)> f = [](const std::string& topic, const std::string& payload) {
+        if (topic.size() <= 13) {
+            Json::Value val;
+            bool success = LoadJsonFromString(payload, val);
+            if (success && val.isObject()) {
+                CommandManager::INSTANCE.run(val);
             } else {
-                std::vector<std::string> args;
-                std::string command;
-
-                std::string ntopic = topic.substr(13); // remove /set/command/
-                args = splitWithQuotes(ntopic, '/');
-                command = args[0];
-                args.erase(args.begin());
-                bool foundp = false;
-                for (int x = 0; x < args.size(); x++) {
-                    if (args[x] == "{Payload}") {
-                        args[x] = payload;
-                        foundp = true;
-                    }
-                }
-                if (!payload.empty() && !foundp) {
-                    args.push_back(payload);
-                }
-                if (args.size() == 0 && payload != "") {
-                    Json::Value val = LoadJsonFromString(payload);
-                    if (val.isObject()) {
-                        CommandManager::INSTANCE.run(command, val);
-                    } else {
-                        LogWarn(VB_COMMAND, "Invalid JSON Payload for topic %s: %s\n", topic.c_str(), payload.c_str());
-                    }
-                } else {
-                    CommandManager::INSTANCE.run(command, args);
+                LogWarn(VB_COMMAND, "Invalid JSON Payload: %s\n", payload.c_str());
+            }
+        } else {
+            std::vector<std::string> args;
+            std::string command;
+            std::string ntopic = topic.substr(13);
+            args = splitWithQuotes(ntopic, '/');
+            command = args[0];
+            args.erase(args.begin());
+            bool foundp = false;
+            for (int x = 0; x < args.size(); x++) {
+                if (args[x] == "{Payload}") {
+                    args[x] = payload;
+                    foundp = true;
                 }
             }
-        };
+            if (!payload.empty() && !foundp) args.push_back(payload);
+            if (args.size() == 0 && payload != "") {
+                Json::Value val = LoadJsonFromString(payload);
+                if (val.isObject()) CommandManager::INSTANCE.run(command, val);
+                else LogWarn(VB_COMMAND, "Invalid JSON Payload for topic %s: %s\n", topic.c_str(), payload.c_str());
+            } else {
+                CommandManager::INSTANCE.run(command, args);
+            }
+        }
+    };
     Events::AddCallback("/set/command", f);
     Events::AddCallback("/set/command/#", f);
 }
-CommandManager::~CommandManager() {
-    Cleanup();
-}
 
+// Rest of the file unchanged
 void CommandManager::Cleanup() {
     while (!commands.empty()) {
         Command* cmd = commands.begin()->second;
         commands.erase(commands.begin());
-
-        if (cmd->name != "GPIO") { // No idea why deleteing the GPIO command causes a crash on exit
-            delete cmd;
-        }
+        if (cmd->name != "GPIO") delete cmd;
     }
     commands.clear();
 }
 
-void CommandManager::addCommand(Command* cmd) {
-    commands[cmd->name] = cmd;
-}
+void CommandManager::addCommand(Command* cmd) { commands[cmd->name] = cmd; }
 void CommandManager::removeCommand(Command* cmd) {
     auto a = commands.find(cmd->name);
-    if (a != commands.end()) {
-        commands.erase(a);
-    }
+    if (a != commands.end()) commands.erase(a);
 }
 void CommandManager::removeCommand(const std::string& cmdName) {
     auto a = commands.find(cmdName);
-    if (a != commands.end()) {
-        commands.erase(a);
-    }
+    if (a != commands.end()) commands.erase(a);
 }
 Json::Value CommandManager::getDescriptions() {
     Json::Value ret;
     for (auto& a : commands) {
-        if (!a.second->hidden()) {
-            ret.append(a.second->getDescription());
-        }
+        if (!a.second->hidden()) ret.append(a.second->getDescription());
     }
     return ret;
 }
@@ -227,36 +267,25 @@ std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::str
         command.replace(startPos, 1, "%20");
         startPos += 3;
     }
-
     std::string url = "http://" + remote + ":32322/command/" + command;
-
     Json::Value j;
-    for (auto& a : args) {
-        j.append(a);
-    }
+    for (auto& a : args) j.append(a);
     std::vector<std::string> uargs;
     uargs.push_back(url);
     uargs.push_back("POST");
-
     std::string config = SaveJsonToString(j);
-
     uargs.push_back(config);
     return run("URL", uargs);
 }
-
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const Json::Value& argsArray) {
     auto f = commands.find(command);
     if (f != commands.end()) {
         std::vector<std::string> args;
-        for (int x = 0; x < argsArray.size(); x++) {
-            args.push_back(argsArray[x].asString());
-        }
+        for (int x = 0; x < argsArray.size(); x++) args.push_back(argsArray[x].asString());
         if (WillLog(LOG_DEBUG, VB_COMMAND)) {
             std::string argString;
             for (auto& a : args) {
-                if (!argString.empty()) {
-                    argString += ",";
-                }
+                if (!argString.empty()) argString += ",";
                 argString += a;
             }
             LogDebug(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), argString.c_str());
@@ -273,20 +302,16 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
         if (multisync) {
             std::string hosts = cmd.isMember("multisyncHosts") ? cmd["multisyncHosts"].asString() : "";
             std::vector<std::string> args;
-            for (int x = 0; x < cmd["args"].size(); x++) {
-                args.push_back(cmd["args"][x].asString());
-            }
+            for (int x = 0; x < cmd["args"].size(); x++) args.push_back(cmd["args"][x].asString());
             MultiSync::INSTANCE.SendFPPCommandPacket(hosts, command, args);
             return std::make_unique<Command::Result>("Command Sent");
         }
     }
     return run(command, cmd["args"]);
 }
-
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::render_GET(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
-
     if (p1 == "commands") {
         if (plen > 1) {
             std::string command = req.get_path_pieces()[1];
@@ -304,10 +329,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
     } else if (p1 == "commandPresets") {
         std::string commandsFile = FPP_DIR_CONFIG("/commandPresets.json");
         Json::Value allCommands;
-        if (FileExists(commandsFile)) {
-            // Load new config file
-            allCommands = LoadJsonFromFile(commandsFile);
-        }
+        if (FileExists(commandsFile)) allCommands = LoadJsonFromFile(commandsFile);
         if (plen > 1) {
             if (allCommands.isMember("commands")) {
                 std::string p2 = req.get_path_pieces()[1];
@@ -322,9 +344,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
             if (std::string(req.get_arg("names")) == "true") {
                 Json::Value names;
                 if (allCommands.isMember("commands")) {
-                    for (int x = 0; x < allCommands["commands"].size(); x++) {
-                        names.append(allCommands["commands"][x]["name"].asString());
-                    }
+                    for (int x = 0; x < allCommands["commands"].size(); x++) names.append(allCommands["commands"][x]["name"].asString());
                 }
                 std::string resultStr = SaveJsonToString(names, "  ");
                 return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
@@ -335,9 +355,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
     } else if (p1 == "command" && plen > 1) {
         std::string command = req.get_path_pieces()[1];
         std::vector<std::string> args;
-        for (int x = 2; x < plen; x++) {
-            args.push_back(req.get_path_pieces()[x]);
-        }
+        for (int x = 2; x < plen; x++) args.push_back(req.get_path_pieces()[x]);
         auto f = commands.find(command);
         if (f != commands.end()) {
             LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
@@ -348,9 +366,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
                 count++;
             }
             if (r->isDone()) {
-                if (r->isError()) {
-                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 500, "text/plain"));
-                }
+                if (r->isError()) return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 500, "text/plain"));
                 return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 200, "text/plain"));
             } else {
                 return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Timeout running command", 500, "text/plain"));
@@ -360,7 +376,6 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
     }
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
-
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::render_POST(const httpserver::http_request& req) {
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "command") {
@@ -368,9 +383,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
             std::string command = req.get_path_pieces()[1];
             Json::Value val = LoadJsonFromString(std::string(req.get_content()));
             std::vector<std::string> args;
-            for (int x = 0; x < val.size(); x++) {
-                args.push_back(val[x].asString());
-            }
+            for (int x = 0; x < val.size(); x++) args.push_back(val[x].asString());
             auto f = commands.find(command);
             if (f != commands.end()) {
                 LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
@@ -381,9 +394,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
                     count++;
                 }
                 if (r->isDone()) {
-                    if (r->isError()) {
-                        return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 500, r->contentType()));
-                    }
+                    if (r->isError()) return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 500, r->contentType()));
                     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 200, r->contentType()));
                 } else {
                     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Timeout running command", 500, "text/plain"));
@@ -400,9 +411,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
                 count++;
             }
             if (r->isDone()) {
-                if (r->isError()) {
-                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 500, r->contentType()));
-                }
+                if (r->isError()) return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 500, r->contentType()));
                 return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 200, r->contentType()));
             } else {
                 return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Timeout running command", 500, "text/plain"));
@@ -412,20 +421,11 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
     }
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
-
 Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std::string, std::string>& keywords) {
-    if (!cmd.isMember("args"))
-        return cmd;
-
-    for (int i = 0; i < cmd["args"].size(); i++) {
-        std::string arg = cmd["args"][i].asString();
-
-        cmd["args"][i] = ReplaceKeywords(cmd["args"][i].asString(), keywords);
-    }
-
+    if (!cmd.isMember("args")) return cmd;
+    for (int i = 0; i < cmd["args"].size(); i++) cmd["args"][i] = ReplaceKeywords(cmd["args"][i].asString(), keywords);
     return cmd;
 }
-
 int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& keywords) {
     for (auto const& name : presets.getMemberNames()) {
         for (int i = 0; i < presets[name].size(); i++) {
@@ -435,75 +435,52 @@ int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& 
             }
         }
     }
-
     return 1;
 }
-
 int CommandManager::TriggerPreset(int slot) {
     std::map<std::string, std::string> keywords;
-
     return TriggerPreset(slot, keywords);
 }
-
 int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::string>& keywords) {
-    if (!presets.isMember(name))
-        return 0;
-
+    if (!presets.isMember(name)) return 0;
     for (int i = 0; i < presets[name].size(); i++) {
         Json::Value cmd = ReplaceCommandKeywords(presets[name][i], keywords);
         run(cmd);
     }
-
     return 1;
 }
-
 int CommandManager::TriggerPreset(std::string name) {
     std::map<std::string, std::string> keywords;
-
     return TriggerPreset(name, keywords);
 }
-
 void CommandManager::LoadPresets() {
     LogDebug(VB_COMMAND, "Loading Command Presets\n");
-
     char id[6];
     memset(id, 0, sizeof(id));
-
     std::string commandsFile = FPP_DIR_CONFIG("/commandPresets.json");
-
     Json::Value allCommands;
-
-    if (FileExists(commandsFile)) {
-        // Load new config file
-        allCommands = LoadJsonFromFile(commandsFile);
-    } else {
-        // Convert any old events to new format
+    if (FileExists(commandsFile)) allCommands = LoadJsonFromFile(commandsFile);
+    else {
         Json::Value commands(Json::arrayValue);
-
         for (int major = 1; major <= 25; major++) {
             for (int minor = 1; minor <= 25; minor++) {
                 snprintf(id, sizeof(id), "%02d_%02d", major, minor);
                 std::string filename = FPP_DIR_MEDIA(std::string("/events/") + id + ".fevt");
-
                 if (FileExists(filename)) {
                     LogDebug(VB_COMMAND, "Converting old %s event to a Command Preset\n", id);
-
                     Json::Value event;
                     if (LoadJsonFromFile(filename, event)) {
                         event.removeMember("majorId");
                         event.removeMember("minorId");
                         event["presetSlot"] = 0;
-
                         commands.append(event);
                     }
                 }
             }
         }
-
         allCommands["commands"] = commands;
         SaveJsonToFile(allCommands, commandsFile, "\t");
     }
-
     if (allCommands.isMember("commands")) {
         for (int i = 0; i < allCommands["commands"].size(); i++) {
             if (presets.isMember(allCommands["commands"][i]["name"].asString())) {
