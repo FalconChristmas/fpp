@@ -11,7 +11,14 @@
  */
 
 #include "fpp-pch.h"
+
 #include <thread>
+#include <chrono>
+#include <fcntl.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <string.h>
+
 #include "../common.h"
 #include "../log.h"
 #include "../Events.h"
@@ -20,8 +27,10 @@
 #include "MultiSync.h"
 #include "PlaylistCommands.h"
 
+// Command Manager Singleton
 CommandManager CommandManager::INSTANCE;
 
+// Base Command Class Implementation
 Command::Command(const std::string& n) : name(n), description("") {}
 Command::Command(const std::string& n, const std::string& descript) : name(n), description(descript) {}
 Command::~Command() {}
@@ -56,17 +65,14 @@ Json::Value Command::getDescription() {
     return cmd;
 }
 
+// Command Manager Implementation
 CommandManager::CommandManager() {}
 CommandManager::~CommandManager() { Cleanup(); }
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <string.h>
-
+// USB Relay On/Off Command Class
 class USBRelayOnOffCommand : public Command {
 public:
-    USBRelayOnOffCommand() : Command("USB Relay On/Off", "Turns a USB relay channel ON or OFF") {
+    USBRelayOnOffCommand() : Command("USB Relay On/Off", "Turns a USB relay channel ON or OFF, optionally for a specified duration") {
         args.emplace_back("Device", "string", "USB Relay device", false);
         args.back().defaultValue = "/dev/ttyUSB0";
         DIR* dir = opendir("/dev/serial/by-id/");
@@ -91,16 +97,116 @@ public:
         args.emplace_back("Protocol", "string", "Relay protocol", false);
         args.back().defaultValue = "CH340";
         args.back().contentList = {"CH340", "ICstation"};
+        args.emplace_back("Duration", "int", "Duration in minutes to keep relay ON (0 for no auto-off)", true);
+        args.back().min = 0;
+        args.back().max = 999; // Reasonable UI bound
+        args.back().defaultValue = "0";
     }
 
+private:
+    // Static members to track timers and relay states
+    static std::map<std::string, bool> activeTimers; // Key: "device:channel", Value: cancel flag
+    static std::map<std::string, unsigned char> relayStates; // Key: device, Value: bitmask (1=ON, 0=OFF)
+
+    // Initialize ICStation device
+    void initializeICStation(const std::string& device) {
+        int fd = open(device.c_str(), O_RDWR | O_NOCTTY);
+        if (fd < 0) {
+            LogErr(VB_COMMAND, "Failed to open %s for initialization\n", device.c_str());
+            return;
+        }
+        unsigned char c_init = 0x50;
+        unsigned char c_reply = 0x00;
+        unsigned char c_open = 0x51;
+
+        // Initial delay to mimic USBRelay.cpp's sleep(1)
+        sleep(1);
+        write(fd, &c_init, 1);
+        usleep(500000); // Wait for response
+        read(fd, &c_reply, 1);
+        write(fd, &c_open, 1);
+        // Additional wake-up: Send initial state to ensure relay is ready
+        unsigned char wakeCmd = 0x00; // All OFF to wake it up
+        write(fd, &wakeCmd, 1);
+        usleep(100000); // 100ms delay to ensure relay processes wake-up
+        close(fd);
+
+        relayStates[device] = 0x00; // All OFF (0 = OFF, matching USBRelay.cpp)
+        LogDebug(VB_COMMAND, "Initialized ICStation device %s with handshake and wake-up\n", device.c_str());
+    }
+
+    // Update and return bitmask for ICStation
+    unsigned char getRelayBitmask(const std::string& device, int channel, bool turnOn) {
+        if (relayStates.find(device) == relayStates.end()) {
+            relayStates[device] = 0x00; // All OFF
+        }
+        unsigned char bitmask = relayStates[device];
+        if (turnOn) {
+            bitmask |= (1 << (channel - 1)); // Set bit to 1 for ON
+        } else {
+            bitmask &= ~(1 << (channel - 1)); // Clear bit to 0 for OFF
+        }
+        relayStates[device] = bitmask;
+        return bitmask;
+    }
+
+    // Auto-off thread
+    void turnOffAfterDelay(const std::string& device, int channel, const std::string& protocol, int durationMinutes) {
+        std::string key = device + ":" + std::to_string(channel);
+        std::this_thread::sleep_for(std::chrono::minutes(durationMinutes));
+        
+        if (activeTimers[key]) {
+            int fd = open(device.c_str(), O_WRONLY | O_NOCTTY);
+            if (fd < 0) {
+                LogErr(VB_COMMAND, "Failed to open %s for auto-off\n", device.c_str());
+                return;
+            }
+            unsigned char cmd[4];
+            ssize_t len;
+            if (protocol == "CH340") {
+                cmd[0] = 0xA0;
+                cmd[1] = (unsigned char)channel;
+                cmd[2] = 0x00; // OFF
+                cmd[3] = cmd[0] + cmd[1] + cmd[2];
+                len = 4;
+            } else if (protocol == "ICstation") {
+                cmd[0] = getRelayBitmask(device, channel, false);
+                len = 1;
+            } else {
+                close(fd);
+                return;
+            }
+            ssize_t written = write(fd, cmd, len);
+            close(fd);
+            if (written == len) {
+                LogDebug(VB_COMMAND, "Auto-turned off relay: %s, channel %d\n", device.c_str(), channel);
+            } else {
+                LogErr(VB_COMMAND, "Failed to auto-turn off relay, wrote %zd bytes\n", written);
+            }
+        }
+        activeTimers.erase(key);
+    }
+
+public:
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
         if (args.size() < 4) return std::make_unique<Command::ErrorResult>("Device, Channel, State, and Protocol required");
+        
         std::string device = args[0];
         int channel = std::stoi(args[1]);
+        if (channel < 1 || channel > 8) return std::make_unique<Command::ErrorResult>("Channel must be 1-8");
         std::string state = args[2];
         std::string protocol = args[3];
-        LogDebug(VB_COMMAND, "Opening device: %s, Channel: %d, State: %s, Protocol: %s\n", 
-                 device.c_str(), channel, state.c_str(), protocol.c_str());
+        int duration = (args.size() > 4) ? std::stoi(args[4]) : 0;
+        if (duration < 0) return std::make_unique<Command::ErrorResult>("Duration cannot be negative");
+        std::string key = device + ":" + args[1];
+
+        LogDebug(VB_COMMAND, "Opening device: %s, Channel: %d, State: %s, Protocol: %s, Duration: %d minutes\n", 
+                 device.c_str(), channel, state.c_str(), protocol.c_str(), duration);
+
+        // Ensure ICStation is initialized before first command
+        if (protocol == "ICstation" && relayStates.find(device) == relayStates.end()) {
+            initializeICStation(device);
+        }
 
         int fd = open(device.c_str(), O_WRONLY | O_NOCTTY);
         if (fd < 0) {
@@ -111,16 +217,14 @@ public:
         unsigned char cmd[4];
         ssize_t len;
         if (protocol == "CH340") {
-            cmd[0] = 0xA0;              // Start byte
-            cmd[1] = (unsigned char)channel; // Channel
-            cmd[2] = (state == "ON") ? 0x01 : 0x00; // ON=1, OFF=0
-            cmd[3] = cmd[0] + cmd[1] + cmd[2]; // Checksum
+            cmd[0] = 0xA0;
+            cmd[1] = (unsigned char)channel;
+            cmd[2] = (state == "ON") ? 0x01 : 0x00;
+            cmd[3] = cmd[0] + cmd[1] + cmd[2];
             len = 4;
         } else if (protocol == "ICstation") {
-            cmd[0] = 0x51;              // Start byte
-            cmd[1] = 0xFF;              // All OFF (1=OFF)
-            if (state == "ON") cmd[1] &= ~(1 << (channel - 1)); // Bit to 0 for ON
-            len = 2;
+            cmd[0] = getRelayBitmask(device, channel, state == "ON");
+            len = 1;
         } else {
             close(fd);
             return std::make_unique<Command::ErrorResult>("Unknown protocol: " + protocol);
@@ -129,16 +233,31 @@ public:
         ssize_t written = write(fd, cmd, len);
         close(fd);
 
-        if (written == len) {
-            LogDebug(VB_COMMAND, "Wrote to relay: %s, channel %d, state %s\n", 
-                     device.c_str(), channel, state.c_str());
-            return std::make_unique<Command::Result>("Relay channel " + args[1] + " turned " + state);
+        if (written != len) {
+            LogErr(VB_COMMAND, "Write failed, wrote %zd bytes\n", written);
+            return std::make_unique<Command::ErrorResult>("Failed to set relay channel " + args[1] + " to " + state);
         }
-        LogErr(VB_COMMAND, "Write failed, wrote %zd bytes\n", written);
-        return std::make_unique<Command::ErrorResult>("Failed to set relay channel " + args[1] + " to " + state);
+
+        LogDebug(VB_COMMAND, "Wrote to relay: %s, channel %d, state %s\n", 
+                 device.c_str(), channel, state.c_str());
+
+        if (state == "ON" && duration > 0) {
+            activeTimers[key] = true;
+            std::thread([this, device, channel, protocol, duration]() { turnOffAfterDelay(device, channel, protocol, duration); }).detach();
+            return std::make_unique<Command::Result>("Relay channel " + args[1] + " turned ON for " + args[4] + " minutes");
+        } else if (state == "OFF") {
+            activeTimers[key] = false; // Cancel timer
+        }
+
+        return std::make_unique<Command::Result>("Relay channel " + args[1] + " turned " + state);
     }
 };
 
+// Static Member Definitions
+std::map<std::string, bool> USBRelayOnOffCommand::activeTimers;
+std::map<std::string, unsigned char> USBRelayOnOffCommand::relayStates;
+
+// Command Manager Methods
 void CommandManager::Init() {
     LoadPresets();
     addCommand(new StopPlaylistCommand());
@@ -186,7 +305,7 @@ void CommandManager::Init() {
     addCommand(new RunRemoteScriptEvent());
     addCommand(new StartRemoteFSEQEffectCommand());
     addCommand(new StartRemotePlaylistCommand());
-    addCommand(new USBRelayOnOffCommand()); // Fixed here
+    addCommand(new USBRelayOnOffCommand());
 
     std::function<void(const std::string&, const std::string&)> f = [](const std::string& topic, const std::string& payload) {
         if (topic.size() <= 13) {
@@ -225,7 +344,6 @@ void CommandManager::Init() {
     Events::AddCallback("/set/command/#", f);
 }
 
-// Rest of the file unchanged
 void CommandManager::Cleanup() {
     while (!commands.empty()) {
         Command* cmd = commands.begin()->second;
@@ -244,6 +362,7 @@ void CommandManager::removeCommand(const std::string& cmdName) {
     auto a = commands.find(cmdName);
     if (a != commands.end()) commands.erase(a);
 }
+
 Json::Value CommandManager::getDescriptions() {
     Json::Value ret;
     for (auto& a : commands) {
@@ -251,6 +370,7 @@ Json::Value CommandManager::getDescriptions() {
     }
     return ret;
 }
+
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const std::vector<std::string>& args) {
     auto f = commands.find(command);
     if (f != commands.end()) {
@@ -260,6 +380,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
+
 std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::string& remote, const std::string& cmd, const std::vector<std::string>& args) {
     size_t startPos = 0;
     std::string command = cmd;
@@ -277,6 +398,7 @@ std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::str
     uargs.push_back(config);
     return run("URL", uargs);
 }
+
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const Json::Value& argsArray) {
     auto f = commands.find(command);
     if (f != commands.end()) {
@@ -295,6 +417,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
+
 std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
     std::string command = cmd["command"].asString();
     if (cmd.isMember("multisyncCommand")) {
@@ -309,6 +432,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
     }
     return run(command, cmd["args"]);
 }
+
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::render_GET(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
@@ -376,6 +500,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
     }
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
+
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::render_POST(const httpserver::http_request& req) {
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "command") {
@@ -421,11 +546,13 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
     }
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
+
 Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std::string, std::string>& keywords) {
     if (!cmd.isMember("args")) return cmd;
     for (int i = 0; i < cmd["args"].size(); i++) cmd["args"][i] = ReplaceKeywords(cmd["args"][i].asString(), keywords);
     return cmd;
 }
+
 int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& keywords) {
     for (auto const& name : presets.getMemberNames()) {
         for (int i = 0; i < presets[name].size(); i++) {
@@ -437,10 +564,12 @@ int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& 
     }
     return 1;
 }
+
 int CommandManager::TriggerPreset(int slot) {
     std::map<std::string, std::string> keywords;
     return TriggerPreset(slot, keywords);
 }
+
 int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::string>& keywords) {
     if (!presets.isMember(name)) return 0;
     for (int i = 0; i < presets[name].size(); i++) {
@@ -449,10 +578,12 @@ int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::s
     }
     return 1;
 }
+
 int CommandManager::TriggerPreset(std::string name) {
     std::map<std::string, std::string> keywords;
     return TriggerPreset(name, keywords);
 }
+
 void CommandManager::LoadPresets() {
     LogDebug(VB_COMMAND, "Loading Command Presets\n");
     char id[6];
