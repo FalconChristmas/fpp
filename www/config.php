@@ -1,29 +1,6 @@
 <?php
 
-//additional function
-if (!function_exists('json_validate')) {
-    /**
-     * Validates a JSON string. This is standard in php >= 8.3
-     * 
-     * @param string $json The JSON string to validate.
-     * @param int $depth Maximum depth. Must be greater than zero.
-     * @param int $flags Bitmask of JSON decode options.
-     * @return bool Returns true if the string is a valid JSON, otherwise false.
-     */
-    function json_validate($json, $depth = 512, $flags = 0)
-    {
-        if (!is_string($json)) {
-            return false;
-        }
-
-        try {
-            json_decode($json, false, $depth, $flags | JSON_THROW_ON_ERROR);
-            return true;
-        } catch (\JsonException $e) {
-            return false;
-        }
-    }
-}
+require_once "common.php";
 
 setlocale(LC_CTYPE, "en_US.UTF-8");
 
@@ -62,7 +39,9 @@ if (file_exists(__DIR__ . "/fppversion.php")) {
 // Allow overrides that we'll ignore from the git repository to make it
 // easier to develop on machines configured differently than our current
 // Pi image.
-@include '.config.php';
+if (file_exists('.config.php')) {
+    @include '.config.php';
+}
 
 // Settings array so we can stop making individual variables for each new setting
 $settings = array();
@@ -442,7 +421,7 @@ if ($fd) {
         $key = trim($split[0]);
         $value = trim($split[1]);
 
-        if (!json_validate($value)) {
+        if (!json_object_validate($value)) {
             $value = preg_replace("/\"/", "", $value);
         }
 
@@ -593,7 +572,7 @@ $settings['emailtoemail'] = $emailtoemail;
 $settings['outputProcessorsFile'] = $outputProcessorsFile;
 
 /*
- * Load setting info and default values from settings.json
+ * Load setting info and default values from www/settings.json
  */
 LoadSettingInfos();
 
@@ -751,9 +730,6 @@ if (file_exists($pluginDirectory)) {
     }
 }
 
-
-
-
 /////////////////////////////////////////////////////////////////////////////
 
 // $skipJSsettings is set in a few places
@@ -768,39 +744,6 @@ if (!isset($skipJSsettings)) {
         // Standard Common JS Variables
         MINYEAR = <? echo MINYEAR; ?>;
         MAXYEAR = <? echo MAXYEAR; ?>;
-        var settings = new Array();
-        <?
-        //remove the below debug
-        //print_r($settings);
-    
-        foreach ($settings as $key => $value) {
-            if (isset($value) && !is_null($value)) {
-                if (!is_array($value)) {
-                    if (json_validate($value)) {
-                        printf("	settings['%s'] = %s;\n", $key, $value);
-                    } else if (gettype($value) == "string") {
-                        if ($value[0] !== "\"") {
-                            printf("	settings['%s'] = \"%s\";\n", $key, $value);
-                        } else {
-                            printf("	settings['%s'] = %s;\n", $key, $value);
-                        }
-                    } else if (gettype($value) == "boolean") {
-                        if ($value) {
-                            printf("	settings['%s'] = true;\n", $key, $value);
-                        } else {
-                            printf("	settings['%s'] = false;\n", $key, $value);
-                        }
-                    } else {
-                        printf("	settings['%s'] = %s;\n", $key, $value);
-                    }
-                } else {
-                    $js_array = json_encode($value);
-                    printf("    settings['%s'] = %s;\n", $key, $js_array);
-                }
-            }
-        }
-        ?>
-
         var FPP_FULL_VERSION = '<? echo getFPPVersion(); ?>';
         var FPP_VERSION = '<? echo getFPPVersionFloatStr(); ?>';
         var FPP_MAJOR_VERSION = <? echo getFPPMajorVersion(); ?>;
@@ -833,7 +776,7 @@ if (!isset($skipJSsettings)) {
 
             //Print Out settings which haven't been defined at all in www/settings.json
             if (!isset($settingInfos[$key])) {
-                //Print out settings that need to be exposed to the browser in JS settings array - this is temporary until all settings properly define in json file
+                //Print out settings that need to be exposed to the browser in JS settings array - this is temporary until all settings properly defined in json file
                 if (!is_array($value)) {
                     printf("	settings['%s'] = \"%s\"; // Needs proper defintion in JSON\n", $key, $value);
                 } else {

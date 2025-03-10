@@ -118,8 +118,47 @@ function ReadSettingFromFile($settingName, $plugin = "")
     }
 }
 
+function remove_outer_quotes($string)
+{
+    // Check if the string starts and ends with double quotes
+    if (substr($string, 0, 1) === '"' && substr($string, -1) === '"') {
+        // Remove the starting and ending double quotes
+        $string = substr($string, 1, -1);
+    }
+    return $string;
+}
 
-function WriteSettingToFile($settingName, $setting, $plugin = "")
+function custom_parse_ini_file($filename)
+{
+    //Custom parse ini file created to work around the limitations of the standard function which doesn't handle embedded " characters well
+    $lines = file($filename);
+    $settings = [];
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+
+        // Ignore comments and empty lines
+        if ($line === '' || $line[0] === ';') {
+            continue;
+        }
+
+        // Split key and value
+        list($key, $value) = explode('=', $line, 2);
+        $key = trim($key);
+        $value = trim($value);
+
+        // Remove leading and trailing quotes
+        if (substr($value, 0, 1) === '"' && substr($value, -1) === '"') {
+            $value = substr($value, 1, -1);
+        }
+
+        $settings[$key] = $value;
+    }
+
+    return $settings;
+}
+
+function WriteSettingToFile($settingName, $new_setting_value, $plugin = "")
 {
     global $settingsFile;
     global $settings;
@@ -131,19 +170,19 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
 
     $fd = @fopen($filename, "c+");
     flock($fd, LOCK_EX);
-    $tmpSettings = parse_ini_file($filename);
-    if (!isset($tmpSettings[$settingName]) || $tmpSettings[$settingName] != $setting) {
-        $tmpSettings[$settingName] = $setting;
-        $settingsStr = "";
+    $tmpSettings = custom_parse_ini_file($filename);
+    if (!isset($tmpSettings[$settingName]) || $tmpSettings[$settingName] != $new_setting_value) {
+        $tmpSettings[$settingName] = $new_setting_value;
+        $RevisedSettingsStr = "";
         foreach ($tmpSettings as $key => $value) {
-            if (json_validate(($value))) {
-                $value = preg_replace('/\s+/', '', $value);
-                $settingsStr .= $key . " = " . $value . "\n";
+            if (json_object_validate(($value))) {
+                $value = remove_outer_quotes($value);
+                $RevisedSettingsStr .= $key . " = " . $value . "\n";
             } else {
-                $settingsStr .= $key . " = \"" . $value . "\"\n";
+                $RevisedSettingsStr .= $key . " = \"" . $value . "\"\n";
             }
         }
-        file_put_contents($filename, $settingsStr);
+        file_put_contents($filename, $RevisedSettingsStr);
     }
     flock($fd, LOCK_UN);
     fclose($fd);
@@ -1886,7 +1925,7 @@ function get_remote_git_version()
         $git_remote_version = "Unknown";
 
         //Check the cache for git_<branch>, if null is returned no cache file exists or it's expired, so then off to github
-        $git_remote_version = file_cache($cachefile_name, function () {
+        $git_remote_version = file_cache($cachefile_name, function () use ($origin) {
             global $settings;
 
             $git_branch = getFPPBranch();
@@ -2874,6 +2913,45 @@ function CheckIfDeviceIsUsable($deviceName)
     }
 
     return "";
+}
+
+//additional function
+if (!function_exists('json_validate')) {
+    /**
+     * Validates a JSON string. This is standard in php >= 8.3
+     * 
+     * @param string $json The JSON string to validate.
+     * @param int $depth Maximum depth. Must be greater than zero.
+     * @param int $flags Bitmask of JSON decode options.
+     * @return bool Returns true if the string is a valid JSON, otherwise false.
+     */
+    function json_validate($json, $depth = 512, $flags = 0)
+    {
+        if (!is_string($json)) {
+            return false;
+        }
+
+        try {
+            json_decode($json, false, $depth, $flags | JSON_THROW_ON_ERROR);
+            return true;
+        } catch (\JsonException $e) {
+            return false;
+        }
+    }
+}
+
+function json_object_validate($json, $depth = 512, $flags = 0)
+{
+    if (!is_string($json)) {
+        return false;
+    }
+
+    try {
+        $decoded = json_decode($json, false, $depth, $flags | JSON_THROW_ON_ERROR);
+        return is_object($decoded);
+    } catch (\JsonException $e) {
+        return false;
+    }
 }
 
 ?>

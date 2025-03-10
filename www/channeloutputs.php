@@ -15,8 +15,8 @@
     include 'common/menuHead.inc';
 
     //$settings['Platform'] = "Raspberry Pi"; // Uncomment for testing
-//$settings['Platform'] = "BeagleBone Black"; // Uncomment for testing
-//$settings['SubPlatform'] = "BeagleBone Black"; // Uncomment for testing
+    //$settings['Platform'] = "BeagleBone Black"; // Uncomment for testing
+    //$settings['SubPlatform'] = "BeagleBone Black"; // Uncomment for testing
     ?>
     <script>
         var currentCapeName = '';
@@ -167,6 +167,15 @@
                     if (typeof channelOutputs.channelOutputs[i].panelMatrixID !== 'undefined') {
                         channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID] = channelOutputs.channelOutputs[i];
 
+                        if (!channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID].hasOwnProperty("LEDPanelUIFrontView")) {
+                            channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelUIFrontView"] = false;
+                        }
+
+                        if (typeof SetDefaultsInChannelOutputsLookup === 'function') {
+                            SetDefaultsInChannelOutputsLookup();
+                        }
+
+
                         var p = 0;
                         for (p = 0; p < channelOutputs.channelOutputs[i].panels.length; p++) {
                             var r = channelOutputs.channelOutputs[i].panels[p].row;
@@ -276,6 +285,7 @@
                 channelOutputs.channelOutputs = [];
 
             UpdateChannelOutputLookup();
+            SetDefaultsInChannelOutputsLookup();
 
         }
 

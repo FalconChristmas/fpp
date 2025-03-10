@@ -176,7 +176,7 @@ function UpdateJSONValueSetting()
 
     $orig_json_value = ReadSettingFromFile($settingName);
 
-    if (json_validate($orig_json_value) && json_validate($new_json_sub_value)) {
+    if (json_object_validate($orig_json_value) && json_object_validate($new_json_sub_value)) {
 
         $OriginArrayData = json_decode($orig_json_value, true);
 
