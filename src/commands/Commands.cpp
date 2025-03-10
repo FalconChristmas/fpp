@@ -205,6 +205,7 @@ private:
         return bitmask;
     }
 
+    // Auto-off thread
     void turnOffAfterDelay(const std::string& device, int channel, const std::string& protocol, int durationMinutes) {
         std::string key = device + ":" + std::to_string(channel);
         // Diagnostic: Log thread start
@@ -217,7 +218,7 @@ private:
                 LogErr(VB_COMMAND, "Failed to open %s for auto-off\n", device.c_str());
                 return;
             }
-            unsigned char cmd[4];
+            unsigned char cmd[4] = {0}; // Initialize to zero
             ssize_t len;
             if (protocol == "CH340") {
                 cmd[0] = 0xA0;
@@ -302,7 +303,7 @@ public:
             return std::make_unique<Command::ErrorResult>("Failed to open device " + device);
         }
 
-        unsigned char cmd[4];
+        unsigned char cmd[4] = {0}; // Initialize to zero
         ssize_t len;
         if (protocol == "CH340") {
             cmd[0] = 0xA0;
@@ -334,6 +335,12 @@ public:
                  fullDevice.c_str(), channel, state.c_str());
 
         if (state == "ON" && duration > 0) {
+            // Check if a timer is already active for this device/channel
+            if (activeTimers.find(key) != activeTimers.end() && activeTimers[key]) {
+                LogDebug(VB_COMMAND, "Timer already active for %s, channel %d, ignoring new timer request\n", 
+                         fullDevice.c_str(), channel);
+                return std::make_unique<Command::Result>("Relay channel " + args[1] + " already ON with active timer");
+            }
             activeTimers[key] = true;
             // Diagnostic: Confirm timer thread is spawned
             LogDebug(VB_COMMAND, "Spawning timer thread for %s, channel %d, duration %d minutes\n", 
@@ -463,7 +470,7 @@ void CommandManager::Cleanup() {
         Command* cmd = commands.begin()->second;
         commands.erase(commands.begin());
 
-        if (cmd->name != "GPIO") { // No idea why deleteing the GPIO command causes a crash on exit
+        if (cmd->name != "GPIO") { // No idea why deleting the GPIO command causes a crash on exit
             delete cmd;
         }
     }
