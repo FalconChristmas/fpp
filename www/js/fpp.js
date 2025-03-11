@@ -6666,27 +6666,35 @@ function SetupSelectableTableRow (info) {
 }
 
 function DialogOK (title, message) {
-	DoModalDialog({
-		id: 'dialogOKPopup',
-		title: title,
-		body: message,
-		class: 'modal-sm',
-		keyboard: true,
-		backdrop: true,
-		buttons: {
-			Close: {
-				click: function () {
-					CloseModalDialog('dialogOKPopup');
-				},
-				class: 'btn-success'
-			}
-		}
-	});
+    DoModalDialog({
+        id: 'dialogOKPopup',
+        title: title,
+        body: message,
+        class: 'modal-sm',
+        keyboard: true,
+        backdrop: true,
+        buttons: {
+            Close: {
+                click: function () {
+                    CloseModalDialog('dialogOKPopup');
+                },
+                class: 'btn-success'
+            }
+        },
+        open: function() {
+            $('#dialogOKPopup').css('z-index', 1060);
+            $('.modal-backdrop').last().css('z-index', 1059);
+        },
+        close: function() {
+            $('.modal-backdrop').remove(); // Remove lingering backdrop
+            $('body').removeClass('modal-open').css('padding-right', ''); // Reset body state
+        }
+    });
 }
 
 // Simple wrapper for now, but we may highlight this somehow later
 function DialogError (title, message) {
-	DialogOK(title, message);
+    DialogOK(title, message);
 }
 
 // page visibility prefixing
