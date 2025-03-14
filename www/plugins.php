@@ -277,9 +277,9 @@
                         (data.versions[i].maxFPPVersion > 0)) {
                         html += ' v' + data.versions[i].minFPPVersion + ' - v' + data.versions[i].maxFPPVersion;
                     } else if (data.versions[i].minFPPVersion > 0) {
-                        html += ' &gt; v' + data.versions[i].minFPPVersion;
+                        html += ' > v' + data.versions[i].minFPPVersion;
                     } else if (data.versions[i].maxFPPVersion > 0) {
-                        html += ' &lt; v' + data.versions[i].maxFPPVersion;
+                        html += ' < v' + data.versions[i].maxFPPVersion;
                     }
 
                     if (data.versions[i].hasOwnProperty('platforms')) {
@@ -413,6 +413,7 @@
                         LoadPlugin(data, true);
                         $('#pluginInput').val('');
                         FilterPlugins();
+                        $('#row-' + data.repoName)[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
                     },
                     error: function (d) {
                         $('html,body').css('cursor', 'auto');
