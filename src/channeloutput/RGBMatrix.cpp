@@ -81,8 +81,9 @@ RGBMatrixOutput::~RGBMatrixOutput() {
  */
 int RGBMatrixOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::Init(JSON)\n");
-
-    if (startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5")) {
+    std::string model = GetFileContents("/proc/device-tree/model");
+    if (startsWith(model, "Raspberry Pi 5") || 
+            startsWith(model, "Raspberry Pi Compute Module 5")) {
         LogErr(VB_CHANNELOUT, "RGBMatrix does work on Raspberry Pi 5\n");
         return 0;
     }
