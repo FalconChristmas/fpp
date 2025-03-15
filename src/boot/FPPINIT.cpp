@@ -954,7 +954,7 @@ static void detectNetworkModules() {
 }
 static void checkPi5Wifi() {
 #ifdef PLATFORM_PI
-    if (startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5")) {
+    if (startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5") || startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi Compute Module 5") ) {
         // Pi5 does not have external wifi adapters, make sure we have them disabled
         if (FileExists("/etc/modprobe.d/blacklist-native-wifi.conf")) {
             unlink("/etc/modprobe.d/blacklist-native-wifi.conf");
