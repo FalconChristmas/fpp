@@ -134,7 +134,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
         return 0;
     }
 
-    if (licensedOutputs == 0 && startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5")) {
+    if (licensedOutputs == 0 && (startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5") || startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi Compute Module 5"))) {
         // Pi 5 doesn't have onboard sound but also doesn't work with RPIWS281x.  We'll allow a standard
         // PiHat with two strings to work with DPI on the Pi5.  More than two strings will require a license
         licensedOutputs = 2;
