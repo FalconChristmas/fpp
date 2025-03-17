@@ -42,6 +42,9 @@
 #define RUNNING_ON_PRU1
 #endif
 
+#ifdef AM33XX
+#define CONTROL_BYTE r30.b1
+#define DATA_BYTE r30.b0
 #ifdef RUNNING_ON_PRU1
 #define CLOCK_PIN 2
 #define LATCH_PIN 3
@@ -50,6 +53,13 @@
 #define CLOCK_PIN 7
 #define LATCH_PIN 6
 #define ENABLE_PIN 0
+#endif
+#else
+#define CONTROL_BYTE r30.b2
+#define DATA_BYTE r30.b1
+#define CLOCK_PIN 3
+#define LATCH_PIN 0
+#define ENABLE_PIN 2
 #endif
 
 #define FALCONV5_PERIOD  1130
@@ -92,23 +102,23 @@
 #define DATABLOCKSIZE 64
 
 TOGGLE_CLOCK .macro
-    SET r30.b1, r30.b1, CLOCK_PIN
+    SET CONTROL_BYTE, CONTROL_BYTE, CLOCK_PIN
     NOP
-    CLR r30.b1, r30.b1, CLOCK_PIN
+    CLR CONTROL_BYTE, CONTROL_BYTE, CLOCK_PIN
     //NOP
     .endm
 
 TOGGLE_LATCH .macro
-    SET r30.b1, r30.b1, LATCH_PIN
+    SET CONTROL_BYTE, CONTROL_BYTE, LATCH_PIN
     NOP
-    CLR r30.b1, r30.b1, LATCH_PIN
+    CLR CONTROL_BYTE, CONTROL_BYTE, LATCH_PIN
     NOP
     .endm
 
 OUTPUT_REG_INDIRECT .macro 
     .newblock
     LOOP ENDLOOP?, 8
-    MVIB r30.b0, *r1.b0++
+    MVIB DATA_BYTE, *r1.b0++
     TOGGLE_CLOCK
 ENDLOOP?:
     .endm
@@ -188,7 +198,7 @@ DO_FALCONV5_LISTNER?:
     TOGGLE_LATCH
     SLEEPNS	20000, r8, 0
 
-    CLR r30.b1, r30.b1, ENABLE_PIN
+    CLR CONTROL_BYTE, CONTROL_BYTE, ENABLE_PIN
     LDI r8, 1
     LDI r9, 0
     XOUT 10, &r8, 8
@@ -203,7 +213,7 @@ NO_DATA_FOUND:
     LDI r8, 0
     XOUT 10, &r8, 4
     SLEEPNS	10000, r8, 0
-    SET r30.b1, r30.b1, ENABLE_PIN
+    SET CONTROL_BYTE, CONTROL_BYTE, ENABLE_PIN
 
 DONE_FALCONV5?:
     .endm
@@ -218,6 +228,7 @@ DONE_FALCONV5?:
     .sect    ".text:main"
     .global    ||main||
 ||main||:
+#ifdef AM33XX
 	// Enable OCP master port
 	// clear the STANDBY_INIT bit in the SYSCFG register,
 	// otherwise the PRU will not be able to write outside the
@@ -225,6 +236,7 @@ DONE_FALCONV5?:
 	LBCO	&r0, C4, 4, 4
 	CLR	    r0, r0, 4
 	SBCO	&r0, C4, 4, 4
+#endif    
 
 	// Configure the programmable pointer register for PRU by setting
 	// c28_pointer[15:0] field to 0x0120.  This will make C28 point to
@@ -270,7 +282,7 @@ _LOOP:
     JMP EXIT
 
 CONT_DATA:
-    SET r30.b1, r30.b1, ENABLE_PIN
+    SET CONTROL_BYTE, CONTROL_BYTE, ENABLE_PIN
 
     // reset command to 0 so ARM side will send more data
     LDI     r1, 0
