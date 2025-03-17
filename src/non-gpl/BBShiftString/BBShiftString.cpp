@@ -49,6 +49,16 @@ FPPPlugins::Plugin* createPlugin() {
 }
 }
 
+#ifdef PLATFORM_BBB
+static const std::vector<std::string> PRU0_PINS = { "P9-31", "P9-29", "P9-30", "P9-28", "P9-92", "P9-27", "P9-91", "P9-25", "P8-12", "P8-11" };
+static const std::vector<std::string> PRU1_PINS = { "P8-39", "P8-40", "P8-41", "P8-42", "P8-43", "P8-44", "P8-45", "P8-46", "P8-28", "P8-30" };
+static const std::string PRU1_ENABLE_PIN = "P8-27";
+#else
+static const std::vector<std::string> PRU0_PINS = {};
+static const std::vector<std::string> PRU1_PINS = { "P1-20", "P2-02", "P2-04", "P2-06", "P2-08", "P2-17", "P2-18", "P2-20", "P2-24", "P2-33" };
+static const std::string PRU1_ENABLE_PIN = "P2-22";
+#endif
+
 BBShiftStringOutput::BBShiftStringOutput(unsigned int startChannel, unsigned int channelCount) :
     ChannelOutput(startChannel, channelCount) {
     LogDebug(VB_CHANNELOUT, "BBShiftStringOutput::BBShiftStringOutput(%u, %u)\n",
@@ -316,7 +326,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
     if (supportsV5Listeners) {
         // if the cape supports v5 listeners, the enable pin needs to be
         // configured or data won't be sent on port1 of each receiver
-        PinCapabilities::getPinByName("P8-27").configPin("pruout");
+        PinCapabilities::getPinByName(PRU1_ENABLE_PIN).configPin("pru1out");
     }
     if (hasV5SR) {
         setupFalconV5Support(root, m_pru1.lastData + offset);
@@ -329,17 +339,9 @@ int BBShiftStringOutput::Init(Json::Value config) {
 int BBShiftStringOutput::StartPRU() {
     m_curFrame = 0;
     if (m_pru1.maxStringLen) {
-        PinCapabilities::getPinByName("P8-39").configPin("pruout");
-        PinCapabilities::getPinByName("P8-40").configPin("pruout");
-        PinCapabilities::getPinByName("P8-41").configPin("pruout");
-        PinCapabilities::getPinByName("P8-42").configPin("pruout");
-        PinCapabilities::getPinByName("P8-43").configPin("pruout");
-        PinCapabilities::getPinByName("P8-44").configPin("pruout");
-        PinCapabilities::getPinByName("P8-45").configPin("pruout");
-        PinCapabilities::getPinByName("P8-46").configPin("pruout");
-        PinCapabilities::getPinByName("P8-28").configPin("pruout");
-        PinCapabilities::getPinByName("P8-30").configPin("pruout");
-
+        for (auto& a : PRU1_PINS) {
+            PinCapabilities::getPinByName(a).configPin("pru1out");
+        }
         m_pru1.pru = new BBBPru(1, true, true);
         m_pru1.pruData = (BBShiftStringData*)m_pru1.pru->data_ram;
 
@@ -349,17 +351,9 @@ int BBShiftStringOutput::StartPRU() {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     if (m_pru0.maxStringLen) {
-        PinCapabilities::getPinByName("P9-31").configPin("pruout");
-        PinCapabilities::getPinByName("P9-29").configPin("pruout");
-        PinCapabilities::getPinByName("P9-30").configPin("pruout");
-        PinCapabilities::getPinByName("P9-28").configPin("pruout");
-        PinCapabilities::getPinByName("P9-92").configPin("pruout");
-        PinCapabilities::getPinByName("P9-27").configPin("pruout");
-        PinCapabilities::getPinByName("P9-91").configPin("pruout");
-        PinCapabilities::getPinByName("P9-25").configPin("pruout");
-        PinCapabilities::getPinByName("P8-12").configPin("pruout");
-        PinCapabilities::getPinByName("P8-11").configPin("pruout");
-
+        for (auto& a : PRU0_PINS) {
+            PinCapabilities::getPinByName(a).configPin("pru0out");
+        }
         m_pru0.pru = new BBBPru(0, true, true);
         m_pru0.pruData = (BBShiftStringData*)m_pru0.pru->data_ram;
         m_pru0.pru->run("/tmp/BBShiftString_pru0.out");
@@ -413,32 +407,16 @@ int BBShiftStringOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "BBShiftStringOutput::Close()\n");
     StopPRU();
 
-    if (m_pru0.maxStringLen) {
-        PinCapabilities::getPinByName("P8-39").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-40").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-41").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-42").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-43").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-44").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-45").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-46").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-28").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-30").configPin("gpio", false);
-
-        PinCapabilities::getPinByName("P8-27").configPin("gpio", false);
+    if (m_pru1.maxStringLen) {
+        for (auto& a : PRU1_PINS) {
+            PinCapabilities::getPinByName(a).configPin("gpio", false);
+        }
+        PinCapabilities::getPinByName(PRU1_ENABLE_PIN).configPin("gpio", false);
     }
-
     if (m_pru0.maxStringLen) {
-        PinCapabilities::getPinByName("P9-31").configPin("gpio", false);
-        PinCapabilities::getPinByName("P9-29").configPin("gpio", false);
-        PinCapabilities::getPinByName("P9-30").configPin("gpio", false);
-        PinCapabilities::getPinByName("P9-28").configPin("gpio", false);
-        PinCapabilities::getPinByName("P9-92").configPin("gpio", false);
-        PinCapabilities::getPinByName("P9-27").configPin("gpio", false);
-        PinCapabilities::getPinByName("P9-91").configPin("gpio", false);
-        PinCapabilities::getPinByName("P9-25").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-12").configPin("gpio", false);
-        PinCapabilities::getPinByName("P8-11").configPin("gpio", false);
+        for (auto& a : PRU0_PINS) {
+            PinCapabilities::getPinByName(a).configPin("gpio", false);
+        }
     }
 
     return ChannelOutput::Close();

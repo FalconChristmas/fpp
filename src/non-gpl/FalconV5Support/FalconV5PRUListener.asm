@@ -45,6 +45,7 @@
     .sect    ".text:main"
     .global    ||main||
 ||main||:
+#ifdef AM33XX
 	// Enable OCP master port
 	// clear the STANDBY_INIT bit in the SYSCFG register,
 	// otherwise the PRU will not be able to write outside the
@@ -52,6 +53,7 @@
 	LBCO	&r0, C4, 4, 4
 	CLR	    r0, r0, 4
 	SBCO	&r0, C4, 4, 4
+#endif    
 
     // Make sure the command and length cleared at start
 	LDI 	r1, 0x0
