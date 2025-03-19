@@ -1470,3 +1470,17 @@ bool CapeUtils::getPWMConfig(const std::string& type, Json::Value& val) {
     }
     return false;
 }
+
+bool CapeUtils::getPanelConfig(const std::string& type, Json::Value& val) {
+    Json::Value result;
+    Json::CharReaderBuilder factory;
+    std::string errors;
+
+    std::string fn = "/tmp/panels/" + type + ".json";
+    if (hasFile(fn)) {
+        const std::vector<uint8_t>& f = getFile(fn);
+        std::istringstream istream(std::string((const char*)&f[0], f.size()));
+        return Json::parseFromStream(factory, istream, &val, &errors);
+    }
+    return false;
+}

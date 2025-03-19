@@ -43,6 +43,7 @@ public:
     std::string getKeyId();
 
     bool getStringConfig(const std::string& type, Json::Value& val);
+    bool getPanelConfig(const std::string& type, Json::Value& val);
     bool getPWMConfig(const std::string& type, Json::Value& val);
 
 private:
