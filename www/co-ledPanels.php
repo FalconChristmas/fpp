@@ -26,11 +26,19 @@ function readPanelCapes($cd, $panelCapes)
 $panelCapes = array();
 $panelCapes = readPanelCapes($mediaDirectory . "/tmp/panels/", $panelCapes);
 $panelCapesHaveSel4 = false;
+$panelCapesDriver = "";
+$panelCapesName = "";
 if (count($panelCapes) == 1) {
     echo "var KNOWN_PANEL_CAPE = " . $panelCapes[0] . ";";
     $panelCapes[0] = json_decode($panelCapes[0], true);
     if (isset($panelCapes[0]["controls"]["sel4"])) {
         $panelCapesHaveSel4 = true;
+    }
+    if (isset($panelCapes[0]["driver"])) {
+        $panelCapesDriver = $panelCapes[0]["driver"];
+    }
+    if (isset($panelCapes[0]["name"])) {
+        $panelCapesName = $panelCapes[0]["name"];
     }
 } else {
     echo "// NO KNOWN_PANEL_CAPE";
@@ -480,11 +488,16 @@ function GetLEDPanelConfig()
 
 	config.type = "LEDPanelMatrix";
 <?
-if ($settings['BeaglePlatform']) {
-    echo "config.subType = 'LEDscapeMatrix';\n";
-} else {
-    echo "config.subType = 'RGBMatrix';\n";
-}
+    if ($panelCapesDriver != "") {
+        echo "config.subType = '" . $panelCapesDriver . "';\n";
+    } else if ($settings['BeaglePlatform']) {
+        echo "config.subType = 'LEDscapeMatrix';\n";
+    } else {
+        echo "config.subType = 'RGBMatrix';\n";
+    }
+    if ($panelCapesName != "") {
+        echo "config.configName = '" . $panelCapesName . "';\n";
+    }
 ?>
 
 	UpdatePanelSize();
@@ -1251,6 +1264,11 @@ function TogglePanelTestPattern() {
     var val = $("#PanelTestPatternButton").val();
     if (val == "Test Pattern") {
         var outputType = $('#LEDPanelsConnection').val();
+<?       
+        if ($panelCapesDriver == "BBShiftPanel") {
+            echo "outputType = 'BB64 Panels';";
+        } else {
+?>
         if (outputType == "ColorLight5a75") {
             outputType = "ColorLight Panels";
         } else if (outputType == "RGBMatrix") {
@@ -1258,6 +1276,9 @@ function TogglePanelTestPattern() {
         } else if (outputType == "BBBMatrix" || outputType == "LEDscapeMatrix") {
             outputType = "BBB Panels";
         }
+<?
+    }
+?>
         $("#PanelTestPatternButton").val("Stop Pattern");
         var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["1000","Output Specific","' + outputType + '","1"]}';
         $.post("api/command", data
