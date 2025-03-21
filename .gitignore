@@ -28,6 +28,7 @@ src/libfpp*.dylib
 src/fsequtils.zip
 src/libjson*.dylib
 src/non-gpl/FalconV5Support/FalconV5PRUListener_pru0.out
+src/non-gpl/BBShiftPanel/BBShiftPanel.out
 cscope.out
 tags
 pixelnetDMX
