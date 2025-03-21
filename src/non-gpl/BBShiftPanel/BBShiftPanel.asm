@@ -151,6 +151,22 @@ SETADDRESS .macro
     MOV r30.b1, tmpReg1.b1    
     .endm
 
+DEBUGTOGGLE .macro pin
+    CLR r30, r30, pin
+    NOP
+    NOP
+    SET r30, r30, pin
+    NOP
+    NOP
+    CLR r30, r30, pin
+    NOP
+    NOP
+    SET r30, r30, pin
+    NOP
+    NOP
+    CLR r30, r30, pin
+    .endm
+
 
 #define XFERBUS
 #ifdef XFERBUS
@@ -169,78 +185,81 @@ NODATA?:
 
 
 STARTXFRBUS .macro bus
-    LDI32   xferR1, 4
+    LDI32   xferR1, 7
     MOV     xferR2, data_addr
     LDI32   xferR3, 0
     XOUT    bus, &xferR1, 12
     .endm
 
 
-
 PRELOAD_DATA .macro
     WAITFORXFRBUS 0x60
-    WAITFORXFRBUS 0x61
-    STARTXFRBUS 0x60
-    ADD     data_addr, data_addr, 32
-    STARTXFRBUS 0x61
-    SUB     data_addr, data_addr, 32
-    .endm
-
-LOAD_DATA_PART1 .macro
-    .newblock
-    WAITFORXFRBUS 0x60
-    LBBO    &outputData, data_addr, 0, 64
-    ADD     data_addr, data_addr, 64
-    STARTXFRBUS 0x60
-    LDI     dataOutReg, 8
+    STARTXFRBUS 0x60    
     .endm
 
 
-LOAD_DATA_PART2 .macro
+WAITFORDATA_READY .macro
+WAITFORDATA1?:
+    XIN     0x60, &xferR1, 4
+    QBBC    WAITFORDATA1?, xferR1, 2
+WAITFORDATA2?:
+    XIN     0x60, &xferR1, 4
+    QBBS    WAITFORDATA2?, xferR1, 3
+    NOP     // spec says we need an extra NOP after this flag is set
+    .endm
+
+LOAD_DATA .macro
     .newblock
+
+    QBEQ  READPART1?, flags, 0
+    QBEQ  READPART2?, flags, 1
+    QBEQ  READPART3?, flags, 2
+
+    XIN     10, &r2, 48
+    LDI     flags, 0
+    JMP     ENDREAD?
+READPART1?:
+    WAITFORDATA_READY
+    XIN     0x60, &r2, 64
+    LDI     flags, 1
+    JMP     ENDREAD?
+READPART2?:
     LDI     xshiftReg, 18
     XOUT    10, &r14, 16
     LDI     xshiftReg, 0
-WAITFORDATA?:
-    XIN     0x60, &xferR1, 4
-    QBBC    WAITFORDATA?, xferR1, 2
-
-    XIN     0x60, &r2, 32
-
-    //ZERO    &r2, 64
-
+    WAITFORDATA_READY
+    XIN     0x60, &r2, 64
     LDI     xshiftReg, 4
     XOUT    10, &r2, 32
+    LDI     xshiftReg, 22
+    XOUT    11, &r10, 32
     LDI     xshiftReg, 0
-
     XIN     10, &r2, 48
-
-    ADD     data_addr, data_addr, 32
-    LDI     dataOutReg, 8
+    LDI     flags, 2
+    JMP     ENDREAD?
+READPART3?:
+    WAITFORDATA_READY
+    XIN     0x60, &r2, 64
+    LDI     xshiftReg, 8
+    XOUT    11, &r2, 16
+    LDI     xshiftReg, 26
+    XOUT    10, &r6, 48
+    LDI     xshiftReg, 0
+    XIN     11, &r2, 48
+    LDI     flags, 3    
+ENDREAD?:
+    LDI     dataOutReg, 8    
     .endm
-
-
-/*
-    LDI xshiftReg, 0
-    WAITFORXFRBUSREADDONE 0x60
-    XIN 0x60, &r2, 32
-    LDI xshiftReg, 8
-    XOUT 10, &r2, 32
-    LDI xshiftReg, 0
-    XIN 10, &r2, 48
-    CLR flags, flags, 0
-    */
 
 #else
 
-LOAD_DATA_PART1 .macro
+LOAD_DATA .macro
     .newblock
     LBBO    &outputData, data_addr, 0, 48
     ADD     data_addr, data_addr, 48
     LDI     dataOutReg, 8
     .endm
 
-#define LOAD_DATA_PART2 LOAD_DATA_PART1
 #define PRELOAD_DATA
 #endif
 
@@ -311,6 +330,7 @@ _LOOP:
 	QBNE	DOOUTPUT, numPixels, tmpReg1
     JMP     EXIT
 
+
 DOOUTPUT
     PRELOAD_DATA
 
@@ -326,8 +346,8 @@ STRIDE_START:
     MOV curPixel, numPixels
 
     // if it's a very short amount of time to be on, we need to do
-    // it here as the LOAD_NEXT_DATA may be longer
-    QBLT OUTPUTPIXELS, curBright, 200
+    // it here as the LOAD_DATA may be longer
+    QBLT OUTPUTPIXELS, curBright, 100
 WAIT_FOR_TIMER1:
         GET_PRU_CLOCK tmpReg1, tmpReg2, 4
         QBGT WAIT_FOR_TIMER1, tmpReg1, curBright
@@ -335,7 +355,7 @@ WAIT_FOR_TIMER1:
 
 OUTPUTPIXELS:
     // output 8 pixels
-    LOAD_DATA_PART1
+    LOAD_DATA
     CHECK_FOR_DISPLAY_OFF
     LOOP ENDLOOPPIXEL, 4
         OUTPUT_PIXEL
@@ -344,19 +364,8 @@ ENDLOOPPIXEL:
     LOOP ENDLOOPPIXEL2, 4
         OUTPUT_PIXEL
 ENDLOOPPIXEL2:
-    // output 8 pixels
-    CHECK_FOR_DISPLAY_OFF
-    LOAD_DATA_PART2
-    CHECK_FOR_DISPLAY_OFF
-    LOOP ENDLOOPPIXEL3, 4
-        OUTPUT_PIXEL
-ENDLOOPPIXEL3:
-    CHECK_FOR_DISPLAY_OFF
-    LOOP ENDLOOPPIXEL4, 4
-        OUTPUT_PIXEL
-ENDLOOPPIXEL4:
 
-    SUB curPixel, curPixel, 16
+    SUB curPixel, curPixel, 8
     CHECK_FOR_DISPLAY_OFF
     QBNE OUTPUTPIXELS, curPixel, 0
 

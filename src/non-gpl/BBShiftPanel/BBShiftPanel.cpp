@@ -51,35 +51,16 @@ FPPPlugins::Plugin* createPlugin() {
 }
 
 static std::map<int, std::vector<int>> BIT_ORDERS = {
-    { 6, { 5, 4, 3, 2, 1, 0 } },
-    //{ 6, { 5, 2, 1, 4, 3, 0 } },
+    //{ 6, { 5, 4, 3, 2, 1, 0 } },
+    { 6, { 5, 2, 1, 4, 3, 0 } },
     { 7, { 6, 2, 1, 4, 5, 3, 0 } },
-    //{ 8, { 7, 3, 5, 1, 2, 6, 4, 0 } },
-    { 8, { 7, 6, 5, 4, 3, 2, 1, 0 } },
+    { 8, { 7, 3, 5, 1, 2, 6, 4, 0 } },
+    //{ 8, { 7, 6, 5, 4, 3, 2, 1, 0 } },
     { 9, { 8, 3, 5, 1, 7, 2, 6, 4, 0 } },
     { 10, { 9, 4, 1, 6, 3, 8, 2, 7, 5, 0 } },
     { 11, { 10, 4, 7, 2, 3, 1, 6, 9, 8, 5, 0 } },
-    { 12, { 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 } }
-    //{ 12, { 11, 5, 8, 2, 4, 1, 7, 10, 3, 9, 6, 0 } }
-};
-
-static std::map<int, uint32_t> BRIGHTNESS_VALUES = {
-    { 64, 0x0E80 },
-    { 128, 0x1D00 },
-    { 192, 0x2B80 },
-    { 256, 0x3A00 },
-    { 320, 0x4800 },
-    { 384, 0x5700 },
-    { 448, 0x6500 },
-    { 512, 0x7400 },
-    { 576, 0x8280 },
-    { 640, 0x9100 },
-    { 704, 0x9F80 },
-    { 768, 0xAE00 },
-    { 832, 0xBC80 },
-    { 896, 0xCB00 },
-    { 960, 0xD980 },
-    { 1024, 0xF000 }
+    //{ 12, { 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 } }
+    { 12, { 11, 5, 8, 2, 4, 1, 7, 10, 3, 9, 6, 0 } }
 };
 
 class InterleaveHandler {
@@ -641,9 +622,16 @@ int BBShiftPanelOutput::SendData(unsigned char* channelData) {
     return m_channelCount;
 }
 void BBShiftPanelOutput::setupBrightnessValues() {
+    uint32_t maxBright = 0x8000;
+    if (rowLen > 384) {
+        maxBright = 0xD000;
+    } else if (rowLen > 256) {
+        maxBright = 0xB000;
+    }
+
     uint32_t* cur = &pruData->brightness[0];
     for (int d = 0; d < m_colorDepth; d++) {
-        uint32_t bright = m_brightness * 0xB000 / 10;
+        uint32_t bright = m_brightness * maxBright / 10;
         uint32_t div = m_colorDepth - BIT_ORDERS[m_colorDepth][d] - 1;
         bright >>= div;
         // printf("Brightness[%d] = %06x\n", d, bright);
