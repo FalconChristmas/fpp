@@ -273,6 +273,11 @@ BBShiftPanelOutput::BBShiftPanelOutput(unsigned int startChannel, unsigned int c
 BBShiftPanelOutput::~BBShiftPanelOutput() {
     LogDebug(VB_CHANNELOUT, "BBShiftPanelOutput::~BBShiftPanelOutput()\n");
 
+    bgThreadsRunning = false;
+    bgTaskCondVar.notify_all();
+    while (bgThreadCount > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
     if (channelOffsets)
         delete[] channelOffsets;
     if (currentChannelData)
@@ -475,6 +480,12 @@ int BBShiftPanelOutput::Init(Json::Value config) {
                                                           "H", m_invertedData ? "BL" : "TL",
                                                           m_height, 1);
     }
+
+    bgThreadsRunning = true;
+    for (int i = 0; i < std::thread::hardware_concurrency(); i++) {
+        std::thread th(&BBShiftPanelOutput::runBackgroundTasks, this);
+        th.detach();
+    }
     return ChannelOutput::Init(config);
 }
 
@@ -482,7 +493,6 @@ int BBShiftPanelOutput::StartPRU() {
     pru = new BBBPru(1, true, true);
     pruData = (BBShiftPanelData*)pru->data_ram;
     pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.out");
-    outputBuffers[0] = pru->ddr;
 
     uint32_t strideLen = rowLen * 6;
     uint32_t numStride = numRows * m_colorDepth;
@@ -491,9 +501,19 @@ int BBShiftPanelOutput::StartPRU() {
     // round up to a page boundary
     uint32_t frameSize = oframeSize + 8192;
     frameSize &= 0xFFFFFF000;
-    outputBuffers[1] = outputBuffers[0] + frameSize;
-    outputBuffers[2] = outputBuffers[1] + frameSize;
-
+    uintptr_t addr = (uintptr_t)pru->ddr;
+    uintptr_t maxaddr = addr + pru->ddr_size;
+    outputBuffers[0] = pru->ddr;
+    addr += frameSize;
+    int n = 1;
+    for (int x = 1; x < NUM_OUTPUT_BUFFERS; x++) {
+        addr += frameSize;
+        if (addr < maxaddr) {
+            outputBuffers[x] = outputBuffers[x - 1] + frameSize;
+            n++;
+        }
+    }
+    printf("Buffers: %d\n", n);
     for (int x = 0; x < NUM_OUTPUT_BUFFERS; x++) {
         pru->clearPRUMem(outputBuffers[x], frameSize);
     }
@@ -529,52 +549,81 @@ int BBShiftPanelOutput::Close(void) {
         const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
         pin.configPin("default", false);
     }
+    bgThreadsRunning = false;
+    bgTaskCondVar.notify_all();
     return ChannelOutput::Close();
 }
-static void MapPixelsByDepth(uint16_t* data, int len, int bits, std::array<uint8_t*, 12>& results) {
-    /*
-    uint16_t *d = data;
-    for (int x = 0; x < len; x += 8) {
-        for (int y = 0; y < 8; y++) {
-            uint16_t d2 = *d;
-            uint16_t mask = 0x1;
-            uint8_t bit = 0x1 << y;
-            for (int pos = 0; pos < bits; pos++) {
-                if (d2 & mask) {
-                    results[pos][x] |= bit;
-                }
-                mask <<= 1;
+
+void BBShiftPanelOutput::runBackgroundTasks() {
+    ++bgThreadCount;
+    while (bgThreadsRunning) {
+        std::function<void()> task;
+        {
+            std::unique_lock<std::mutex> lock(bgTaskMutex);
+            bgTaskCondVar.wait_for(lock, std::chrono::milliseconds(100), [&]() { return !bgTasks.empty(); });
+            if (!bgTasks.empty()) {
+                task = bgTasks.front();
+                bgTasks.pop();
             }
-            ++d;
+        }
+        if (task) {
+            task();
         }
     }
-    */
-    // Use ISPC generated code for the above.  It's about 9x faster
-    ispc::MapPixelsByDepth16(data, len, bits,
-                             (uint16_t*)&results[0][0], (uint16_t*)&results[1][0], (uint16_t*)&results[2][0], (uint16_t*)&results[3][0],
-                             (uint16_t*)&results[4][0], (uint16_t*)&results[5][0], (uint16_t*)&results[6][0], (uint16_t*)&results[7][0],
-                             (uint16_t*)&results[8][0], (uint16_t*)&results[9][0], (uint16_t*)&results[10][0], (uint16_t*)&results[11][0]);
+    --bgThreadCount;
+}
+
+void BBShiftPanelOutput::processTasks(std::atomic<int>& counter) {
+    std::unique_lock<std::mutex> lock(bgTaskMutex);
+    while (counter > 0) {
+        std::function<void()> task;
+        if (!bgTasks.empty()) {
+            task = bgTasks.front();
+            bgTasks.pop();
+        }
+        lock.unlock();
+        if (task) {
+            task();
+        } else {
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+        }
+        lock.lock();
+    }
 }
 
 void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBShiftPanelOutput::PrepData(%p)\n", channelData);
     m_matrix->OverlaySubMatrices(channelData);
     channelData += m_startChannel;
-    for (int x = 0; x < m_channelCount; x++) {
-        currentChannelData[channelOffsets[x]] = gammaCurve[channelData[x]];
+
+    std::unique_lock<std::mutex> lock(bgTaskMutex);
+    int start = 0;
+    int end = 32 * 1024;
+    if (end > m_channelCount) {
+        end = m_channelCount;
     }
-    /*
-    for (int x = 0; x < rowLen * 6; x++) {
-        printf("%03x ", currentChannelData[x]);
-        if ((x % 8) == 7) {
-            printf("  ");
-        }
-        if ((x % 48) == 47) {
-            printf("\n");
+    std::atomic<int> counter(0);
+    while (start < m_channelCount) {
+        ++counter;
+        bgTasks.push([this, channelData, start, end, &counter]() {
+            int x = start;
+            while (x < end) {
+                currentChannelData[channelOffsets[x]] = gammaCurve[channelData[x]];
+                x++;
+            }
+            --counter;
+        });
+        start = end;
+        end += 32 * 1024;
+        // make sure we don't go past the end of the channel data
+        if (end > m_channelCount) {
+            end = m_channelCount;
         }
     }
-    printf("\n");
-    */
+    lock.unlock();
+    bgTaskCondVar.notify_all();
+    processTasks(counter);
+
     std::array<uint8_t*, 12> results;
     uint32_t strideLen = rowLen * 6;
     uint8_t* buf = outputBuffers[currOutputBuffer];
@@ -583,19 +632,44 @@ void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
         results[BIT_ORDERS[m_colorDepth][x]] = buf;
         buf += blockLen;
     }
-    MapPixelsByDepth(currentChannelData, rowLen * numRows * 6 * 8, m_colorDepth, results);
+
     /*
-    for (int x = 0; x < rowLen * 6; x++) {
-        printf("%02x ", outputBuffers[currOutputBuffer][x]);
-        if ((x % 6) == 5) {
-            printf("  ");
+        int len = rowLen * numRows * 6 * 8
+        uint16_t *d = data;
+        for (int x = 0; x < len; x += 8) {
+            for (int y = 0; y < 8; y++) {
+                uint16_t d2 = *d;
+                uint16_t mask = 0x1;
+                uint8_t bit = 0x1 << y;
+                for (int pos = 0; pos < bits; pos++) {
+                    if (d2 & mask) {
+                        results[pos][x] |= bit;
+                    }
+                    mask <<= 1;
+                }
+                ++d;
+            }
         }
-        if ((x % 48) == 47) {
-            printf("\n");
-        }
-    }
-    printf("\n");
     */
+    // Use ISPC generated code for the above.  It's about 9x faster
+    lock.lock();
+    for (int curRow = 0; curRow < numRows; curRow++) {
+        // Map the pixels for this row
+        ++counter;
+        bgTasks.push([this, curRow, &results, &counter]() {
+            uint32_t start = curRow * rowLen * 6 * 8;
+            uint32_t end = start + (rowLen * 6 * 8);
+            ispc::MapPixelsByDepth16(currentChannelData, start, end, m_colorDepth,
+                                     (uint16_t*)&results[0][0], (uint16_t*)&results[1][0], (uint16_t*)&results[2][0], (uint16_t*)&results[3][0],
+                                     (uint16_t*)&results[4][0], (uint16_t*)&results[5][0], (uint16_t*)&results[6][0], (uint16_t*)&results[7][0],
+                                     (uint16_t*)&results[8][0], (uint16_t*)&results[9][0], (uint16_t*)&results[10][0], (uint16_t*)&results[11][0]);
+
+            --counter;
+        });
+    }
+    lock.unlock();
+    bgTaskCondVar.notify_all();
+    processTasks(counter);
 }
 
 int BBShiftPanelOutput::SendData(unsigned char* channelData) {
@@ -619,6 +693,9 @@ int BBShiftPanelOutput::SendData(unsigned char* channelData) {
     __asm__ __volatile__("" ::
                              : "memory");
     currOutputBuffer = (currOutputBuffer + 1) % NUM_OUTPUT_BUFFERS;
+    while (outputBuffers[currOutputBuffer] == nullptr) {
+        currOutputBuffer = (currOutputBuffer + 1) % NUM_OUTPUT_BUFFERS;
+    }
     return m_channelCount;
 }
 void BBShiftPanelOutput::setupBrightnessValues() {

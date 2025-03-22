@@ -12,6 +12,7 @@
  * personal use, but modified copies MAY NOT be redistributed in any form.
  */
 
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -99,11 +100,19 @@ private:
     uint32_t* channelOffsets = nullptr;
     uint16_t* currentChannelData = nullptr;
 
-    // Three output buffers allows for double buffering and a third for the PRU to read from while the next frame is being built
+    // Four output buffers allows for double buffering and extras for the PRU to read from while the next frame is being built
     // With 4MB of memory reserved for transfer to PRU, 12 P5 panels per output with 12bit color depth (total 3.5MB)
-    constexpr static int NUM_OUTPUT_BUFFERS = 3;
-    std::array<uint8_t*, NUM_OUTPUT_BUFFERS> outputBuffers = { nullptr, nullptr, nullptr };
+    constexpr static int NUM_OUTPUT_BUFFERS = 4;
+    std::array<uint8_t*, NUM_OUTPUT_BUFFERS> outputBuffers = { nullptr, nullptr, nullptr, nullptr };
     uint8_t currOutputBuffer = 0;
     uint32_t numRows = 0;
     uint32_t rowLen = 0;
+
+    std::queue<std::function<void()>> bgTasks;
+    volatile bool bgThreadsRunning = false;
+    std::mutex bgTaskMutex;
+    std::condition_variable bgTaskCondVar;
+    std::atomic<int> bgThreadCount;
+    void runBackgroundTasks();
+    void processTasks(std::atomic<int>& counter);
 };

@@ -18,12 +18,12 @@
 #define OPERAIONNAME MapPixelsByDepth8
 #endif
 
-export void OPERAIONNAME(const uniform uint16 data[], uniform uint32 len, uniform uint32 bits,
+export void OPERAIONNAME(const uniform uint16 data[], uniform uint32 start, uniform uint32 end, uniform uint32 bits,
         uniform RESTYPE res0[], uniform RESTYPE res1[], uniform RESTYPE res2[], uniform RESTYPE res3[],
         uniform RESTYPE res4[], uniform RESTYPE res5[], uniform RESTYPE res6[], uniform RESTYPE res7[],
         uniform RESTYPE res8[], uniform RESTYPE res9[], uniform RESTYPE res10[], uniform RESTYPE res11[]) {
 
-    for (uniform int x = 0; x < len; x += programCount) {
+    for (uniform int x = start; x < end; x += programCount) {
         uniform uint outIdx = x / programCount;
         uint16 d = data[x + programIndex];
         uint16 b1 = d & 0x01;
