@@ -2393,6 +2393,13 @@ function readCapes($cd, $capes)
 
                             $files = scandir($virtualEEPROMDir);
                             foreach ($files as $file) {
+                                // Most of the eeproms don't work on pi 5
+                                if (str_contains($settings["SubPlatform"], "Raspberry Pi 5") || str_contains($settings["SubPlatform"], "Raspberry Pi Compute Module 5")) {
+                                    if (!preg_match('/DPIPixels/', $file)) {
+                                        continue; // Ignore everything except DPIPixels
+                                    }
+                                }
+                                  
                                 if (preg_match('/-eeprom.bin$/', $file)) {
                                     $base = preg_replace('/-eeprom.bin/', '', $file);
 
