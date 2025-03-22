@@ -1692,7 +1692,7 @@ function readCapes($cd, $capes)
                 return intval($settings['cape-info']['signed']['licensePorts']);
             }
         }
-        if (str_contains($settings["SubPlatform"], "Raspberry Pi 5")) {
+        if (str_contains($settings["SubPlatform"], "Raspberry Pi 5") || str_contains($settings["SubPlatform"], "Raspberry Pi Compute Module 5")) {
             return 2;
         }
         return 0;

@@ -243,12 +243,17 @@ if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2' || $rootDevice == '
             $addflashbutton = true;
         }
     }
-    if (((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false)) && (file_exists("/dev/sda") || file_exists("/dev/nvme0n1"))) {
+
+if (strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false ||
+    strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false ||
+    strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") !== false) {
+
+    if (file_exists("/dev/sda") || file_exists("/dev/nvme0n1") ||
+        ($rootDevice == 'sda2' && file_exists("/dev/mmcblk0"))) {
         $addflashbutton = true;
     }
-} else if (((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false)) && $rootDevice == 'sda2' && (file_exists("/dev/mmcblk0"))) {
-    $addflashbutton = true;
 }
+
 if ($addnewfsbutton) {
     ?>
     <br>
@@ -339,8 +344,9 @@ if ($settings['Platform'] != "Docker") { ?>
     <br><br>
     <b>Storage Device:</b> &nbsp;<? PrintStorageDeviceSelect($settings['Platform']); ?>
 
-    <? if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") === false) && (strpos($settings['SubPlatform'], "Raspberry Pi 5") === false)) { ?>
-
+    <?if (strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false ||
+    strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false ||
+    strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") !== false) {?>
 
         <div class="callout callout-warning">
             Changing the storage device to USB devices is strongly discouraged. There are all kinds of

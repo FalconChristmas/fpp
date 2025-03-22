@@ -24,7 +24,7 @@ require_once "common.php";
 "1920x1080@24",
 "1920x1080@30"
 <?
-if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false)) {
+if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") !== false)) {
     ?>
     ,
     "1920x1080@60",
