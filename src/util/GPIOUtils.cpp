@@ -35,11 +35,6 @@ Json::Value PinCapabilities::toJSON() const {
         ret["gpio"] = kernelGpio;
         ret["gpioChip"] = gpioIdx;
         ret["gpioLine"] = gpio;
-        if (label != "") {
-            ret["label"] = label;
-        } else {
-            ret["label"] = name;
-        }
         if (pwm != -1) {
             ret["pwm"] = pwm;
             ret["subPwm"] = subPwm;
@@ -218,7 +213,10 @@ void PinCapabilities::InitGPIO(const std::string& process, PinCapabilitiesProvid
                     for (int x = 0; x < a.num_lines(); x++) {
                         std::string n = label + "-" + std::to_string(x);
                         std::string plabel = a.get_line(x).name();
-                        GPIOD_PINS.push_back(GPIODCapabilities(n, pinCount + x, name).setGPIO(chipCount, x).setLabel(plabel));
+                        if (plabel.empty()) {
+                            plabel = n;
+                        }
+                        GPIOD_PINS.push_back(GPIODCapabilities(plabel, pinCount + x, name).setGPIO(chipCount, x));
                     }
                 }
                 pinCount += a.num_lines();
@@ -238,11 +236,6 @@ std::vector<std::string> PinCapabilities::getPinNames() {
 }
 
 const PinCapabilities& PinCapabilities::getPinByName(const std::string& n) {
-    for (auto& a : GPIOD_PINS) {
-        if (n == a.label) {
-            return a;
-        }
-    }
     for (auto& a : GPIOD_PINS) {
         if (n == a.name) {
             return a;
