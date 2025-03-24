@@ -32,8 +32,8 @@ constexpr int NUM_CONFIG_PACKETS = 96 + FIRST_LOOPING_CONFIG_PACKET;
 // that the pru program expects to see
 typedef struct {
     // in the DDR shared with the PRU
-    uintptr_t address_dma;
-    uintptr_t address_dma_packet;
+    uint32_t address_dma;
+    uint32_t address_dma_packet;
 
     // write data length to start, 0xFFFF to abort. will be cleared when started
     volatile uint32_t command;

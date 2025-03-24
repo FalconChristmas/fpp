@@ -206,7 +206,7 @@ function GetOptions_RTC()
     global $settings;
     $rtcOptions = array();
 
-    $rtcOptions['None'] = 'N';
+    $rtcOptions['None/Built In'] = 'N';
     $rtcOptions['DS1305 / DS1307 / DS3231 (PiCap)'] = '2';
     $rtcOptions['pcf8523 (Kulp / Adafruit PiRTC)'] = '4';
     $rtcOptions['pcf85363 (Kulp)'] = '5';

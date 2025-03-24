@@ -445,6 +445,13 @@ function ShouldPrintSetting($s)
             }
         }
     }
+    if (!isset($settings['showAllOptions']) || $settings['showAllOptions'] == 0) {
+        if (isset($settings["cape-info"]["hide"]["settings"])) {
+            if (in_array($s['name'], $settings["cape-info"]["hide"]["settings"])) {
+                return false;
+            }
+        }
+    }
     return true;
 }
 
