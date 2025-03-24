@@ -163,9 +163,24 @@ include 'menu.inc';?>
         <?
 $count = 0;
 $pCount = 0;
+
+$includeFilters = array(
+);
+$excludeFilters =  array(
+);
+if (!isset($settings["showAllOptions"]) || $settings["showAllOptions"] == 0) {
+    if (isset($settings['cape-info']['show']) && isset($settings['cape-info']['show']['gpio'])) {
+        $includeFilters = $settings['cape-info']['show']['gpio'];
+    }
+    if (isset($settings['cape-info']['hide']) && isset($settings['cape-info']['hide']['gpio'])) {
+        $excludeFilters = $settings['cape-info']['hide']['gpio'];
+    }
+}
+
 foreach ($gpiojson as $gpio) {
     $pinName = $gpio['pin'];
     $gpioNum = $gpio['gpio'];
+    $gpioLabel = $gpio['label'];
     $pinNameClean = preg_replace('/[-\.]/', "_", $pinName);
     $style = " evenRow";
     if ($count % 2 == 0) {
@@ -176,11 +191,26 @@ foreach ($gpiojson as $gpio) {
     if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {
         $pCount++;
     }
-
+    $hideStyle = "";
+    if (count($includeFilters) > 0) {
+        $hideStyle = "style='display:none;'";
+        foreach ($includeFilters as $value) {
+            if (preg_match("/" . $value . "/", $gpioLabel) == 1) {
+              $hideStyle = "";
+            }
+        }
+    }
+    if (count($excludeFilters) > 0) {
+        foreach ($excludeFilters as $value) {
+            if (preg_match("/" . $value . "/", $gpioLabel) == 1) {
+                $hideStyle = "style='display:none;'";
+            }
+        }
+    }
     ?>
-            <tr class='fppTableRow <?=$style?>' id='row_<?=$pinNameClean?>'>
+            <tr class='fppTableRow <?=$style?>' <?=$hideStyle?> id='row_<?=$pinNameClean?>'>
                 <td><input type="checkbox" id="gpio_<?=$pinNameClean?>_enabled"></td>
-                <td><?=$pinName?></td>
+                <td><?=$gpioLabel?></td>
             <td><?=$gpioNum?>&nbsp;-&nbsp;<?=$gpio['gpioChip']?>/<?=$gpio['gpioLine']?></td>
         <?
     if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {

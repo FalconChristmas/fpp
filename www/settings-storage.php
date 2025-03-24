@@ -339,8 +339,11 @@ if ($settings['Platform'] != "Docker") { ?>
     <br><br>
     <b>Storage Device:</b> &nbsp;<? PrintStorageDeviceSelect($settings['Platform']); ?>
 
-    <? if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") === false) && (strpos($settings['SubPlatform'], "Raspberry Pi 5") === false)) { ?>
-
+    <? if (
+        strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false ||
+        strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false ||
+        strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") !== false
+    ) { ?>
 
         <div class="callout callout-warning">
             Changing the storage device to USB devices is strongly discouraged. There are all kinds of
