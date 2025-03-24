@@ -180,7 +180,6 @@ if (!isset($settings["showAllOptions"]) || $settings["showAllOptions"] == 0) {
 foreach ($gpiojson as $gpio) {
     $pinName = $gpio['pin'];
     $gpioNum = $gpio['gpio'];
-    $gpioLabel = $gpio['label'];
     $pinNameClean = preg_replace('/[-\.]/', "_", $pinName);
     $style = " evenRow";
     if ($count % 2 == 0) {
@@ -195,14 +194,14 @@ foreach ($gpiojson as $gpio) {
     if (count($includeFilters) > 0) {
         $hideStyle = "style='display:none;'";
         foreach ($includeFilters as $value) {
-            if (preg_match("/" . $value . "/", $gpioLabel) == 1) {
+            if (preg_match("/" . $value . "/", $pinName) == 1) {
               $hideStyle = "";
             }
         }
     }
     if (count($excludeFilters) > 0) {
         foreach ($excludeFilters as $value) {
-            if (preg_match("/" . $value . "/", $gpioLabel) == 1) {
+            if (preg_match("/" . $value . "/", $pinName) == 1) {
                 $hideStyle = "style='display:none;'";
             }
         }
@@ -210,7 +209,7 @@ foreach ($gpiojson as $gpio) {
     ?>
             <tr class='fppTableRow <?=$style?>' <?=$hideStyle?> id='row_<?=$pinNameClean?>'>
                 <td><input type="checkbox" id="gpio_<?=$pinNameClean?>_enabled"></td>
-                <td><?=$gpioLabel?></td>
+                <td><?=$pinName?></td>
             <td><?=$gpioNum?>&nbsp;-&nbsp;<?=$gpio['gpioChip']?>/<?=$gpio['gpioLine']?></td>
         <?
     if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {

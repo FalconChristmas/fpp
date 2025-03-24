@@ -38,7 +38,6 @@ public:
     virtual ~PinCapabilities() {}
 
     std::string name;
-    std::string label;
     uint32_t kernelGpio;
 
     // on some platforms, the kernelGpio number may be split into multiple gpio address locations
@@ -115,11 +114,6 @@ public:
     }
     T& setUART(const std::string& u) {
         uart = u;
-        return *(static_cast<T*>(this));
-    }
-
-    T& setLabel(const std::string& l) {
-        label = l;
         return *(static_cast<T*>(this));
     }
 };
