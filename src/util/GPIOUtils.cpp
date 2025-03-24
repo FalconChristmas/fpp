@@ -239,6 +239,11 @@ std::vector<std::string> PinCapabilities::getPinNames() {
 
 const PinCapabilities& PinCapabilities::getPinByName(const std::string& n) {
     for (auto& a : GPIOD_PINS) {
+        if (n == a.label) {
+            return a;
+        }
+    }
+    for (auto& a : GPIOD_PINS) {
         if (n == a.name) {
             return a;
         }
