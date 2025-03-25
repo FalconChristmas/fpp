@@ -130,11 +130,11 @@ constexpr size_t DDR_SIZE = 0x00400000;
 constexpr std::string FIRMWARE_PREFIX = "am335x";
 constexpr bool FAKE_PRU = false;
 
-static uintptr_t PRUSS_SRAM_BASE = 0x00000000;
+static uint8_t* PRUSS_SRAM_BASE = 0x00000000;
 constexpr uint32_t PRUSS_SRAM_GLOBAL = 0x00000000;
 constexpr size_t PRUSS_SRAM_SIZE = 0;
 
-static uintptr_t PRUSS_M4RAM_BASE = 0x00000000;
+static uint8_t* PRUSS_M4RAM_BASE = 0x00000000;
 constexpr uint32_t PRUSS_M4RAM_GLOBAL = 0x00000000;
 constexpr size_t PRUSS_M4RAM_SIZE = 0;
 
