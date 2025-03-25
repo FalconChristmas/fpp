@@ -105,6 +105,7 @@
 #define data_flags  r28.w2
 #define cur_data	r29.w0
 
+#define DATABLOCKSIZE 64
 
 #ifdef AM33XX
 PRELOAD_DATA .macro dataAddress
@@ -164,10 +165,6 @@ LOAD_NEXT_DATABLOCK .macro dataAddress
 
 #endif
 
-
-
-
-#define DATABLOCKSIZE 64
 
 TOGGLE_CLOCK .macro
     SET CONTROL_BYTE, CONTROL_BYTE, CLOCK_PIN

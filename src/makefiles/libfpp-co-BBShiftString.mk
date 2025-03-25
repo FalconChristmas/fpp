@@ -32,13 +32,13 @@ else
 
 non-gpl/BBShiftString/BBShiftString_pru1.out: non-gpl/BBShiftString/BBShiftString.asm
 	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM33XX -DRUNNING_ON_PRU1 "/opt/fpp/src/non-gpl/BBShiftString/BBShiftString.asm" > "/tmp/BBShiftString.asm"
-	clpru -v3 -c --obj_directory /tmp -DAM33XX -DRUNNING_ON_PRU1 /tmp/BBShiftString.asm"
+	clpru -v3 -c --obj_directory /tmp -DAM33XX -DRUNNING_ON_PRU1 "/tmp/BBShiftString.asm"
 	clpru -v3 -z --entry_point main pru/AM335x_PRU.cmd -o "non-gpl/BBShiftString/BBShiftString_pru1.out" "/tmp/BBShiftString.obj"
 	@rm "/tmp/BBShiftString.asm" "/tmp/BBShiftString.obj"
 
 non-gpl/BBShiftString/BBShiftString_pru0.out: non-gpl/BBShiftString/BBShiftString.asm
 	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM33XX -DRUNNING_ON_PRU0 "/opt/fpp/src/non-gpl/BBShiftString/BBShiftString.asm" > "/tmp/BBShiftString.asm"
-	clpru -v3 -c --obj_directory /tmp -DAM33XX -DRUNNING_ON_PRU0 /tmp/BBShiftString.asm"
+	clpru -v3 -c --obj_directory /tmp -DAM33XX -DRUNNING_ON_PRU0 "/tmp/BBShiftString.asm"
 	clpru -v3 -z --entry_point main pru/AM335x_PRU.cmd -o "non-gpl/BBShiftString/BBShiftString_pru0.out" "/tmp/BBShiftString.obj"
 	@rm "/tmp/BBShiftString.asm" "/tmp/BBShiftString.obj"
 endif
