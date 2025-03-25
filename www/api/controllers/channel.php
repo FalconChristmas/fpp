@@ -59,8 +59,8 @@ function channel_put_pixelnetDMX()
         return json(array("status" => $status));
     }
 
-	//Trigger a JSON Configuration Backup
-	GenerateBackupViaAPI('PixelnetDMX Output was modified.');
+    //Trigger a JSON Configuration Backup
+    GenerateBackupViaAPI('PixelnetDMX Output was modified.');
 
     return json(array("status" => "OK"));
 }
@@ -139,8 +139,8 @@ function channel_save_output_processors()
 
     file_put_contents($settings['outputProcessorsFile'], $data);
 
-	//Trigger a JSON Configuration Backup
-	GenerateBackupViaAPI('Channel Output Processor was modified.');
+    //Trigger a JSON Configuration Backup
+    GenerateBackupViaAPI('Channel Output Processor was modified.');
 
     return channel_get_output_processors();
 }
@@ -159,6 +159,8 @@ function channel_get_output()
     } else if (file_exists($settings[$file])) {
         $rc = json_decode(file_get_contents($settings[$file]), true);
         $rc["status"] = "OK";
+    } else {
+        http_response_code(404);
     }
 
     return json($rc);
@@ -220,8 +222,8 @@ function channel_save_output()
         $data = prettyPrintJSON(stripslashes($data));
         file_put_contents($settings[$file], $data);
 
-		//Trigger a JSON Configuration Backup
-		GenerateBackupViaAPI('Channel output ' . $file . ' was modified.');
+        //Trigger a JSON Configuration Backup
+        GenerateBackupViaAPI('Channel output ' . $file . ' was modified.');
 
         return channel_get_output();
     } else {
