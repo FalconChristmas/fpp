@@ -327,10 +327,15 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 
 		//Read the backup file so we can extract some metadata
 		$decoded_backup_data = json_decode(file_get_contents($backup_filepath . '/' . $backup_filename), true);
-		if (array_key_exists('backup_comment', $decoded_backup_data)) {
+		if (is_null($decoded_backup_data)) {
+			$decode_error_result = array('Status' => 'Error', 'Message' => 'Unable to decode JSON backup file (' . $backup_filepath . '/' . $backup_filename, 'IsReadable' => is_readable($backup_filepath . '/' . $backup_filename), 'FileContent' => file_get_contents($backup_filepath . '/' . $backup_filename));
+			error_log('process_jsonbackup_file_data_helper: ( ' . json_encode($decode_error_result) . ' )');
+		}
+
+		if (is_array($decoded_backup_data) && array_key_exists('backup_comment', $decoded_backup_data)) {
 			$backup_data_comment = $decoded_backup_data['backup_comment'];
 		}
-		if (array_key_exists('backup_trigger_source', $decoded_backup_data)) {
+		if (is_array($decoded_backup_data) && array_key_exists('backup_trigger_source', $decoded_backup_data)) {
 			$backup_data_trigger_source = $decoded_backup_data['backup_trigger_source'];
 		}
 
