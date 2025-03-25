@@ -77,44 +77,13 @@ function GetAvailableBackupsOnDevice()
 	$deviceName = params('DeviceName');
 	$dirs = array();
 
-//	// unmount just in case
-//	exec($SUDO . ' umount /mnt/tmp');
-//
-//	$unusable = CheckIfDeviceIsUsable($deviceName);
-//	if ($unusable != '') {
-//		array_push($dirs, $unusable);
-//		return json($dirs);
-//	}
-//
-//	exec($SUDO . ' mkdir -p /mnt/tmp');
-//
-//	$fsType = exec($SUDO . ' file -sL /dev/' . $deviceName, $output);
-//
-//	$mountCmd = '';
-//	// Same mount options used in scripts/copy_settings_to_storage.sh
-//	if (preg_match('/BTRFS/', $fsType)) {
-//		$mountCmd = "mount -t btrfs -o noatime,nodiratime,compress=zstd,nofail /dev/$deviceName /mnt/tmp";
-//	} else if ((preg_match('/FAT/', $fsType)) ||
-//		(preg_match('/DOS/', $fsType))) {
-//		$mountCmd = "mount -t auto -o noatime,nodiratime,exec,nofail,uid=500,gid=500 /dev/$deviceName /mnt/tmp";
-//	} else {
-//		// Default to ext4
-//		$mountCmd = "mount -t ext4 -o noatime,nodiratime,nofail /dev/$deviceName /mnt/tmp";
-//	}
-//
-//	exec($SUDO . ' ' . $mountCmd);
-//
-//	$dirs = GetAvailableBackupsFromDir('/mnt/tmp/');
-//
-//	exec($SUDO . ' umount /mnt/tmp');
-
 	$dirs = DriveMountHelper($deviceName, 'GetAvailableBackupsFromDir', array('/mnt/tmp/'));
 
 	return json($dirs);
 }
 
 /**
- * Handles mounting the specified device and performing
+ * Handles mounting the specified device and performing a task via the callback function (if specified)
  *
  * @param $deviceName string The device to be mounted
  * @param $usercallback_function string The function we should call once mounting is completed so we can do something in the directory
@@ -319,7 +288,7 @@ function GetAvailableJSONBackups(){
 		//$settings['jsonConfigBackupUSBLocation'] is the selected alternative drive to stop backups to
 		$json_config_backup_filenames_on_alternative = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'read_directory_files', array($dir_jsonbackupsalternate, false, true, 'asc'));
 		//Process the backup files to extra some info about them
-		$json_config_backup_filenames_on_alternative = process_jsonbackup_file_data_helper($json_config_backup_filenames_on_alternative, $dir_jsonbackupsalternate);
+		$json_config_backup_filenames_on_alternative =  DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'process_jsonbackup_file_data_helper', array($json_config_backup_filenames_on_alternative, $dir_jsonbackupsalternate));
 	}
 	//Merge the results together, if the same backup name exists in the alternative backup location it will overwrite the record from the local cnfig directory
 	$json_config_backup_filenames_clean = array_merge($json_config_backup_filenames, $json_config_backup_filenames_on_alternative);
@@ -358,10 +327,15 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 
 		//Read the backup file so we can extract some metadata
 		$decoded_backup_data = json_decode(file_get_contents($backup_filepath . '/' . $backup_filename), true);
-		if (array_key_exists('backup_comment', $decoded_backup_data)) {
+		if (is_null($decoded_backup_data)) {
+			$decode_error_result = array('Status' => 'Error', 'Message' => 'Unable to decode JSON backup file (' . $backup_filepath . '/' . $backup_filename, 'IsReadable' => is_readable($backup_filepath . '/' . $backup_filename), 'FileContent' => file_get_contents($backup_filepath . '/' . $backup_filename));
+			error_log('process_jsonbackup_file_data_helper: ( ' . json_encode($decode_error_result) . ' )');
+		}
+
+		if (is_array($decoded_backup_data) && array_key_exists('backup_comment', $decoded_backup_data)) {
 			$backup_data_comment = $decoded_backup_data['backup_comment'];
 		}
-		if (array_key_exists('backup_trigger_source', $decoded_backup_data)) {
+		if (is_array($decoded_backup_data) && array_key_exists('backup_trigger_source', $decoded_backup_data)) {
 			$backup_data_trigger_source = $decoded_backup_data['backup_trigger_source'];
 		}
 
