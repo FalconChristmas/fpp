@@ -25,6 +25,19 @@ IIOSensorSource::IIOSensorSource(Json::Value& config) :
     SensorSource(config) {
     if (config.isMember("devId")) {
         iioDevNumber = config["devId"].asInt();
+    } else {
+        int i2cBus = config["i2cBus"].asInt();
+        int i2cDev = config["i2cDev"].asInt();
+        uint8_t buf[8];
+        snprintf((char*)buf, 8, "%04x", i2cDev);
+        std::string d = (char*)buf;
+        std::string basePath = "/sys/class/i2c-dev/i2c-" + std::to_string(i2cBus) + "/device/" + std::to_string(i2cBus) + "-" + d + "/iio:device";
+        for (int x = 0; x < 16; x++) {
+            if (FileExists(basePath + std::to_string(x))) {
+                iioDevNumber = x;
+                break;
+            }
+        }
     }
     if (config.isMember("useBuffers")) {
         usingBuffers = config["useBuffers"].asBool();
