@@ -112,7 +112,7 @@ static void setupBBBMemoryMap() {
                 std::string fn2 = dirName + "/" + fn;
                 char buf[PATH_MAX + 1];
                 realpath(fn2.c_str(), buf);
-                
+
                 std::string lab = GetFileContents(fn2 + "/label");
                 TrimWhiteSpace(lab);
                 std::string target = buf;
@@ -291,20 +291,6 @@ int BBBPinCapabilities::configPin(const std::string& m,
         pinName[2] = '_';
     }
 
-    if (FileExists("/usr/bin/pinctrl")) {
-        char buf[256];
-        std::string pm = m;
-        if (m == "default") {
-            pm = "gpio";
-        }
-        if (m == "gpio" && directionOut) {
-            pm = "gpio_out";
-        }
-        snprintf(buf, 256, "/usr/bin/pinctrl -s %s %s", pinName, pm.c_str());
-        // printf("%s\n", buf);
-        system(buf);
-    }
-
 #ifdef PLATFORM_BBB
     // On the AM335x beagles, each pin is only attached to one PRU
     if (mode == "pru0out" || mode == "pru1out") {
@@ -313,7 +299,6 @@ int BBBPinCapabilities::configPin(const std::string& m,
     if (mode == "pru0in" || mode == "pru1in") {
         mode = "pruin";
     }
-#endif
 
     snprintf(dir_name, sizeof(dir_name),
              "/sys/devices/platform/ocp/ocp:%s_pinmux/state",
@@ -323,6 +308,7 @@ int BBBPinCapabilities::configPin(const std::string& m,
         fprintf(dir, "%s\n", mode.c_str());
         fclose(dir);
     }
+#endif
 
     if (mode == "i2c") {
         // GPIODCapabilities::configPin("gpio", false);
@@ -338,6 +324,21 @@ int BBBPinCapabilities::configPin(const std::string& m,
         // gpio
         GPIODCapabilities::configPin(m, directionOut);
     }
+
+    if (FileExists("/usr/bin/pinctrl") && pinName[0] == 'P' && pinName[2] == '_') {
+        char buf[256];
+        std::string pm = m;
+        if (m == "default") {
+            pm = "gpio";
+        }
+        if (m == "gpio" && directionOut) {
+            pm = "gpio_out";
+        }
+        snprintf(buf, 256, "/usr/bin/pinctrl -s %s %s", pinName, pm.c_str());
+        // printf("%s\n", buf);
+        system(buf);
+    }
+
     if (i2cBus >= 0 && enableI2C) {
         enableOledScreen(i2cBus, true);
     }

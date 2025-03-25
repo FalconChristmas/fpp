@@ -56,7 +56,7 @@
 #endif
 #else
 #define CONTROL_BYTE r30.b2
-#define DATA_BYTE r30.b1
+#define DATA_BYTE r30.b0
 #define CLOCK_PIN 3
 #define LATCH_PIN 0
 #define ENABLE_PIN 2
@@ -69,6 +69,29 @@
 #include "FalconPRUDefs.hp"
 
 /** Register map */
+
+//16 registers for channel data
+// r2 - r17
+#define pixelData       r2
+#define pixelDataOffset 8
+
+#define xferR1          r18
+#define xferR2          r19
+#define xferR3          r20
+
+#define tmpReg1         r19   // can co-exist with XFxferR2/xferR3
+#define tmpReg2         r20
+
+//r21-r24 contains the output masks, r21/22 are high, r23/24 are low
+// read two extra bytes for the "next"
+#define BYTES_FOR_MASKS 18
+#define OUTPUT_MASKS r21
+#define OUTPUT_MASKS_OFFSET  84
+#define MASK_OVERFLOW r25.w0
+
+#define next_check  r25.w0
+#define curCommand  r25.w2
+
 #define data_addr	r26
 #define fv5_data_addr r27
 #define commandReg  r28
@@ -82,21 +105,66 @@
 #define data_flags  r28.w2
 #define cur_data	r29.w0
 
-#define curCommand  r2.w0
-#define next_check  r2.w2
+
+#ifdef AM33XX
+PRELOAD_DATA .macro dataAddress
+    .endm
+
+LOAD_NEXT_DATABLOCK .macro dataAddress
+    LBBO    &pixelData, dataAddress, 0, DATABLOCKSIZE
+    ADD     dataAddress, dataAddress, DATABLOCKSIZE
+    .endm
 
 
-//r4-r7 contains the output masks, r4/5 are high, r6/7 are low
-// read two extra bytes for the "next"
-#define BYTES_FOR_MASKS 18
-#define MASK_OVERFLOW r8.w0
-#define OUTPUT_MASKS r4
-//16 registers for channel data
-// r10 - r25
-//If we move to 16bits per shift, we'll need to 
-//use XOUT to scratch pads for the additional 
-//data or load 4 bits at a time instaed of 8
-#define pixelData    r10
+#else
+
+
+WAITFORXFRBUS .macro bus
+    .newblock
+WAITXFRLOOP?:
+    XIN     bus, &xferR1, 4
+    // check to see if it's "busy" due to data waiting to be read, if so, clear it
+    QBBC    NODATA?, xferR1, 2     
+        XIN bus, &r2, 32
+        XIN bus, &xferR1, 4
+NODATA?:
+    QBBS    WAITXFRLOOP?, xferR1, 0
+    .endm
+
+
+STARTXFRBUS .macro bus, dataAddress
+    LDI32   xferR1, 7
+    MOV     xferR2, dataAddress
+    LDI32   xferR3, 0
+    XOUT    bus, &xferR1, 12
+    .endm
+
+
+WAITFORDATA_READY .macro bus
+WAITFORDATA1?:
+    XIN     bus, &xferR1, 4
+    QBBC    WAITFORDATA1?, xferR1, 2
+WAITFORDATA2?:
+    XIN     bus, &xferR1, 4
+    QBBS    WAITFORDATA2?, xferR1, 3
+    NOP     // spec says we need an extra NOP after this flag is set
+    .endm    
+
+PRELOAD_DATA .macro dataAddress
+    WAITFORXFRBUS 0x60
+    STARTXFRBUS 0x60, dataAddress
+    .endm
+
+LOAD_NEXT_DATABLOCK .macro dataAddress
+    WAITFORDATA_READY 0x60
+    XIN     0x60, &r2, 64
+    ADD     dataAddress, dataAddress, 64
+    .endm
+
+
+#endif
+
+
 
 
 #define DATABLOCKSIZE 64
@@ -126,7 +194,7 @@ ENDLOOP?:
 OUTPUT_HIGH .macro
     .newblock
     MOV r1.b1, r1.b0
-    LDI r1.b0, 16   //16 is r4.b0
+    LDI r1.b0, OUTPUT_MASKS_OFFSET
     OUTPUT_REG_INDIRECT
     MOV r1.b0, r1.b1
     .endm
@@ -134,7 +202,7 @@ OUTPUT_HIGH .macro
 OUTPUT_LOW .macro
     .newblock
     MOV r1.b1, r1.b0
-    LDI r1.b0, 24   //24 is r6.b0
+    LDI r1.b0, OUTPUT_MASKS_OFFSET + 8
     OUTPUT_REG_INDIRECT
     MOV r1.b0, r1.b1
     .endm
@@ -147,23 +215,23 @@ OUTPUT_FALCONV5_PACKET .macro
 START_FALCONV5?:
     OUTPUT_LOW
     TOGGLE_LATCH
-	SLEEPNS	15300, r8, 0
+	SLEEPNS	15300, tmpReg1, 0
 
     OUTPUT_HIGH
     TOGGLE_LATCH
-	SLEEPNS	53500, r8, 0
+	SLEEPNS	53500, tmpReg1, 0
 
 FALCONV5_SETUP_LOOP?:
-    LBBO    &r10, fv5_data_addr, 0, DATABLOCKSIZE
-    ADD     fv5_data_addr, fv5_data_addr, DATABLOCKSIZE
+    PRELOAD_DATA  fv5_data_addr
+    LOAD_NEXT_DATABLOCK fv5_data_addr
     LDI  data_len, 56
 FALCONV5_LOOP?:
     // start bit
     OUTPUT_LOW
-    WAITNS_LOOP FALCONV5_PERIOD, r8, r9
-    RESET_PRU_CLOCK r8, r9
+    WAITNS_LOOP FALCONV5_PERIOD, tmpReg1, tmpReg2
+    RESET_PRU_CLOCK tmpReg1, tmpReg2
     TOGGLE_LATCH
-    LDI r1.b0, 40
+    LDI r1.b0, pixelDataOffset
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
     JAL r1.w2, OUTPUT_FULL_BIT_FV5 
@@ -173,12 +241,11 @@ FALCONV5_LOOP?:
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
     OUTPUT_HIGH //stop bit
-    WAITNS_LOOP  FALCONV5_PERIOD, r8, r9
-    RESET_PRU_CLOCK r8, r9
+    WAITNS_LOOP  FALCONV5_PERIOD, tmpReg1, tmpReg2
+    RESET_PRU_CLOCK tmpReg1, tmpReg2
     TOGGLE_LATCH
     QBEQ DONE_FALCONV5_LOOP?, data_len, 0
-        LBBO    &r10, fv5_data_addr, 0, DATABLOCKSIZE
-        ADD     fv5_data_addr, fv5_data_addr, DATABLOCKSIZE
+        LOAD_NEXT_DATABLOCK fv5_data_addr
         SUB     data_len, data_len, 1
         JMP FALCONV5_LOOP?
 DONE_FALCONV5_LOOP?:
@@ -186,33 +253,33 @@ DONE_FALCONV5_LOOP?:
     CLR data_flags, data_flags, 2
     OUTPUT_HIGH
     TOGGLE_LATCH
-    SLEEPNS 70000, r8, 0
+    SLEEPNS 70000, tmpReg1, 0
     JMP FALCONV5_SETUP_LOOP?
 
 DO_FALCONV5_LISTNER?:
     QBBC  DONE_FALCONV5?, data_flags, 3
     OUTPUT_LOW
     TOGGLE_LATCH
-    SLEEPNS	15500, r8, 0
+    SLEEPNS	15500, tmpReg1, 0
     OUTPUT_HIGH
     TOGGLE_LATCH
-    SLEEPNS	20000, r8, 0
+    SLEEPNS	20000, tmpReg1, 0
 
     CLR CONTROL_BYTE, CONTROL_BYTE, ENABLE_PIN
-    LDI r8, 1
-    LDI r9, 0
-    XOUT 10, &r8, 8
-    SLEEPNS	500000, r8, 0
-    XIN 10, &r9, 4
-    QBEQ NO_DATA_FOUND, r9, 0
-    SLEEPNS	500000, r8, 0
-    SLEEPNS	500000, r8, 0
-    SLEEPNS	500000, r8, 0
-    SLEEPNS	100000, r8, 0
+    LDI tmpReg1, 1
+    LDI tmpReg2, 0
+    XOUT 10, &tmpReg1, 8
+    SLEEPNS	500000, tmpReg1, 0
+    XIN 10, &tmpReg2, 4
+    QBEQ NO_DATA_FOUND, tmpReg2, 0
+    SLEEPNS	500000, tmpReg1, 0
+    SLEEPNS	500000, tmpReg1, 0
+    SLEEPNS	500000, tmpReg1, 0
+    SLEEPNS	100000, tmpReg1, 0
 NO_DATA_FOUND:
-    LDI r8, 0
-    XOUT 10, &r8, 4
-    SLEEPNS	10000, r8, 0
+    LDI tmpReg1, 0
+    XOUT 10, &tmpReg1, 4
+    SLEEPNS	10000, tmpReg1, 0
     SET CONTROL_BYTE, CONTROL_BYTE, ENABLE_PIN
 
 DONE_FALCONV5?:
@@ -267,7 +334,7 @@ DONE_FALCONV5?:
 	// start position.
 _LOOP:
     //make sure the clock starts
-    RESET_PRU_CLOCK r8, r9
+    RESET_PRU_CLOCK tmpReg1, tmpReg2
 
 	// Load the pointer to the buffer from PRU DRAM into data_addr, packet addr and the
 	// start command into commandReg
@@ -277,11 +344,12 @@ _LOOP:
 	QBEQ	_LOOP, commandReg, 0
 
 	// Command of 0xFFFF is the signal to exit
-    LDI     r8, 0xFFFF
-	QBNE	CONT_DATA, commandReg, r8
+    LDI     tmpReg1, 0xFFFF
+	QBNE	CONT_DATA, commandReg, tmpReg1
     JMP EXIT
 
 CONT_DATA:
+    PRELOAD_DATA  data_addr
     SET CONTROL_BYTE, CONTROL_BYTE, ENABLE_PIN
 
     // reset command to 0 so ARM side will send more data
@@ -289,7 +357,7 @@ CONT_DATA:
     SBCO    &r1, CONST_PRUDRAM, 8, 4
 
     // Reset the output masks
-    LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, 24, BYTES_FOR_MASKS
+    LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, 32, BYTES_FOR_MASKS
     // reset the command table
     MOV next_check, MASK_OVERFLOW
     QBBC NO_CUSTOM_CHECKS, data_flags, 0
@@ -299,12 +367,11 @@ NO_CUSTOM_CHECKS:
 	LDI	cur_data, 1
 
     //start the clock
-    RESET_PRU_CLOCK r8, r9
+    RESET_PRU_CLOCK tmpReg1, tmpReg2
 
 WORD_LOOP:
-    LBBO    &r10, data_addr, 0, DATABLOCKSIZE
-    ADD     data_addr, data_addr, DATABLOCKSIZE
-    LDI r1.b0, 40
+    LOAD_NEXT_DATABLOCK data_addr
+    LDI r1.b0, pixelDataOffset
     JAL r1.w2, OUTPUT_FULL_BIT
     JAL r1.w2, OUTPUT_FULL_BIT
     JAL r1.w2, OUTPUT_FULL_BIT
@@ -333,7 +400,7 @@ WORD_LOOP_DONE:
 
     // Delay at least 300 usec; this is the required reset
 	// time for the LED strip to update with the new pixels.
-	SLEEPNS	300000, r8, 0
+	SLEEPNS	300000, tmpReg1, 0
 
 	// Go back to waiting for the next frame buffer
 	JMP	_LOOP
@@ -352,21 +419,21 @@ EXIT:
 OUTPUT_FULL_BIT:
     OUTPUT_HIGH
     //wait for the full cycle to complete
-    WAITNS_LOOP  LOW_TIME, r8, r9
+    WAITNS_LOOP  LOW_TIME, tmpReg1, tmpReg2
     //start the clock
-    RESET_PRU_CLOCK r8, r9
+    RESET_PRU_CLOCK tmpReg1, tmpReg2
     TOGGLE_LATCH
     OUTPUT_REG_INDIRECT
-    WAITNS_LOOP  T0_TIME, r8, r9
+    WAITNS_LOOP  T0_TIME, tmpReg1, tmpReg2
     TOGGLE_LATCH
     OUTPUT_LOW
-    WAITNS_LOOP  T1_TIME, r8, r9
+    WAITNS_LOOP  T1_TIME, tmpReg1, tmpReg2
     TOGGLE_LATCH
     JMP r1.w2
 
 OUTPUT_FULL_BIT_FV5:
     OUTPUT_REG_INDIRECT
-    WAITNS_LOOP  FALCONV5_PERIOD, r8, r9
+    WAITNS_LOOP  FALCONV5_PERIOD, tmpReg1, tmpReg2
     TOGGLE_LATCH
-    RESET_PRU_CLOCK r8, r9
+    RESET_PRU_CLOCK tmpReg1, tmpReg2
     JMP r1.w2

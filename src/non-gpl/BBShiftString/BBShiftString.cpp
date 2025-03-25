@@ -13,6 +13,8 @@
 
 #include "fpp-pch.h"
 
+#include <sys/mman.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <sys/wait.h>
@@ -147,21 +149,29 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
         }
         bmask <<= 1;
     }
-    d.pruData->commandTable[0] = r45[0].r[0];
-    d.pruData->commandTable[1] = r45[0].r[1];
-    d.pruData->commandTable[2] = r45[1].r[0];
-    d.pruData->commandTable[3] = r45[1].r[1];
-    d.pruData->commandTable[4] = r45[2].r[0];
-    d.pruData->commandTable[5] = r45[2].r[1];
-    d.pruData->commandTable[6] = r45[3].r[0];
-    d.pruData->commandTable[7] = r45[3].r[1];
 
-    int curCommandTable = 8;
+    // need to use pru->memcpyToPRU so we'll use a temporary here
+    // and it also needs to be 64 byte aligned
+    uint8_t* buffer = (uint8_t*)malloc(4096 * 2);
+    uintptr_t ptr = (uintptr_t)buffer;
+    ptr += 64 - (ptr % 64);
+    uint16_t* commandTable = (uint16_t*)ptr;
+
+    int curCommandTable = 0;
+    commandTable[curCommandTable++] = r45[0].r[0];
+    commandTable[curCommandTable++] = r45[0].r[1];
+    commandTable[curCommandTable++] = r45[1].r[0];
+    commandTable[curCommandTable++] = r45[1].r[1];
+    commandTable[curCommandTable++] = r45[2].r[0];
+    commandTable[curCommandTable++] = r45[2].r[1];
+    commandTable[curCommandTable++] = r45[3].r[0];
+    commandTable[curCommandTable++] = r45[3].r[1];
+
     auto i = sizes.begin();
     while (i != sizes.end()) {
         uint16_t min = i->first & 0xFFFF;
         if (min <= d.maxStringLen) {
-            d.pruData->commandTable[curCommandTable++] = min;
+            commandTable[curCommandTable++] = min;
             for (auto& t : i->second) {
                 auto [y, x, cmd, inverted] = t;
 
@@ -182,18 +192,22 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
                     }
                 }
             }
-            d.pruData->commandTable[curCommandTable++] = r45[0].r[0];
-            d.pruData->commandTable[curCommandTable++] = r45[0].r[1];
-            d.pruData->commandTable[curCommandTable++] = r45[1].r[0];
-            d.pruData->commandTable[curCommandTable++] = r45[1].r[1];
-            d.pruData->commandTable[curCommandTable++] = r45[2].r[0];
-            d.pruData->commandTable[curCommandTable++] = r45[2].r[1];
-            d.pruData->commandTable[curCommandTable++] = r45[3].r[0];
-            d.pruData->commandTable[curCommandTable++] = r45[3].r[1];
+            commandTable[curCommandTable++] = r45[0].r[0];
+            commandTable[curCommandTable++] = r45[0].r[1];
+            commandTable[curCommandTable++] = r45[1].r[0];
+            commandTable[curCommandTable++] = r45[1].r[1];
+            commandTable[curCommandTable++] = r45[2].r[0];
+            commandTable[curCommandTable++] = r45[2].r[1];
+            commandTable[curCommandTable++] = r45[3].r[0];
+            commandTable[curCommandTable++] = r45[3].r[1];
         }
         i++;
     }
-    d.pruData->commandTable[curCommandTable++] = 0xFFFF;
+    commandTable[curCommandTable++] = 0xFFFF;
+    // round up to nearest 64 byte boundary
+    int len = (curCommandTable) * 2;
+    len += 64 - (len % 64);
+    d.pru->memcpyToPRU((uint8_t*)&d.pruData->commandTable[0], (uint8_t*)&commandTable[0], len);
 }
 
 /*
@@ -340,7 +354,7 @@ int BBShiftStringOutput::StartPRU() {
     m_curFrame = 0;
     if (m_pru1.maxStringLen) {
         for (auto& a : PRU1_PINS) {
-            PinCapabilities::getPinByName(a).configPin("pru1out");
+            PinCapabilities::getPinByName(a).configPin("pru1out", true);
         }
         m_pru1.pru = new BBBPru(1, true, true);
         m_pru1.pruData = (BBShiftStringData*)m_pru1.pru->data_ram;
@@ -352,7 +366,7 @@ int BBShiftStringOutput::StartPRU() {
     }
     if (m_pru0.maxStringLen) {
         for (auto& a : PRU0_PINS) {
-            PinCapabilities::getPinByName(a).configPin("pru0out");
+            PinCapabilities::getPinByName(a).configPin("pru0out", true);
         }
         m_pru0.pru = new BBBPru(0, true, true);
         m_pru0.pruData = (BBShiftStringData*)m_pru0.pru->data_ram;
@@ -612,7 +626,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
     }
     d.outputStringLen = newMax;
     bitFlipData(out, d.formattedData, newMax);
-    memcpy(d.curData, d.formattedData, d.frameSize);
+    // memcpy(d.curData, d.formattedData, d.frameSize);
 }
 
 void BBShiftStringOutput::PrepData(unsigned char* channelData) {
@@ -668,6 +682,11 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
 
 void BBShiftStringOutput::sendData(FrameData& d) {
     if (d.outputStringLen) {
+        memcpy(d.curData, d.formattedData, d.frameSize);
+        // make sure memory is flushed
+        msync(d.curData, d.frameSize, MS_SYNC | MS_INVALIDATE);
+        __builtin___clear_cache(d.curData, d.curData + d.frameSize);
+
         d.pruData->address_dma = (d.pru->ddr_addr + (d.curData - d.pru->ddr));
         if (d.v5_config_packets[d.curV5ConfigPacket]) {
             d.pruData->address_dma_packet = (d.pru->ddr_addr + (d.v5_config_packets[d.curV5ConfigPacket]->data - d.pru->ddr));

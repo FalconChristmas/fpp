@@ -89,7 +89,7 @@ FPPStatusOLEDPage::FPPStatusOLEDPage() :
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:32322/fppd/status");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 50);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 100);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writer);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
 
@@ -292,7 +292,8 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
 bool FPPStatusOLEDPage::getCurrentStatus(Json::Value& result) {
     buffer.clear();
     bool gotStatus = false;
-    if (curl_easy_perform(curl) == CURLE_OK) {
+    auto rc = curl_easy_perform(curl);
+    if (rc == CURLE_OK) {
         if (LoadJsonFromString(buffer, result)) {
             std::string status = result["status_name"].asString();
             return true;
@@ -300,7 +301,7 @@ bool FPPStatusOLEDPage::getCurrentStatus(Json::Value& result) {
             printf("Invalid json\n");
         }
     } else if (debug) {
-        printf("Curl returned bad status\n");
+        printf("Curl returned bad status:  %d\n", rc);
     }
     return false;
 }
