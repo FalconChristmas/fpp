@@ -87,35 +87,6 @@ BBShiftStringOutput::~BBShiftStringOutput() {
     }
 }
 
-static void compilePRUCode(const char* program, const std::string& pru, const std::vector<std::string>& sargs, const std::vector<std::string>& args1) {
-    std::string log;
-
-    char* args[sargs.size() + 4 + args1.size()];
-    int idx = 0;
-    args[idx++] = (char*)"/bin/bash";
-    args[idx++] = (char*)program;
-    args[idx++] = (char*)pru.c_str();
-    log = args[1];
-    log += " " + pru;
-    for (int x = 0; x < sargs.size(); x++) {
-        args[idx++] = (char*)sargs[x].c_str();
-        log += " " + sargs[x];
-    }
-    for (int x = 0; x < args1.size(); x++) {
-        args[idx++] = (char*)args1[x].c_str();
-        log += " " + args1[x];
-    }
-    args[idx] = NULL;
-    LogDebug(VB_CHANNELOUT, "BBShiftStringOutput::compilePRUCode() args: %s\n", log.c_str());
-
-    pid_t compilePid = fork();
-    if (compilePid == 0) {
-        execvp("/bin/bash", args);
-    } else {
-        wait(NULL);
-    }
-}
-
 void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& pfx) {
     union {
         uint16_t r[2];
@@ -252,12 +223,6 @@ int BBShiftStringOutput::Init(Json::Value config) {
         return 1;
     }
 
-    std::vector<std::string> args;
-    std::vector<std::string> split0args;
-    std::vector<std::string> split1args;
-    split0args.push_back("-DRUNNING_ON_PRU0");
-    split1args.push_back("-DRUNNING_ON_PRU1");
-
     m_licensedOutputs = CapeUtils::INSTANCE.getLicensedOutputs();
 
     config["base"] = root;
@@ -307,12 +272,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
         // pru1 controls the reading mux pins so it has to output more pixels than pru0 so it knows pru0 is done
         m_pru1.maxStringLen = m_pru0.maxStringLen + 1;
     }
-    if (m_pru0.maxStringLen) {
-        compilePRUCode("/opt/fpp/src/non-gpl/BBShiftString/compileBBShiftString.sh", "0", args, split0args);
-    }
-    if (m_pru1.maxStringLen) {
-        compilePRUCode("/opt/fpp/src/non-gpl/BBShiftString/compileBBShiftString.sh", "1", args, split1args);
-    }
+
     if (!StartPRU()) {
         return 0;
     }
@@ -359,7 +319,7 @@ int BBShiftStringOutput::StartPRU() {
         m_pru1.pru = new BBBPru(1, true, true);
         m_pru1.pruData = (BBShiftStringData*)m_pru1.pru->data_ram;
 
-        m_pru1.pru->run("/tmp/BBShiftString_pru1.out");
+        m_pru1.pru->run("/opt/fpp/src/non-gpl/BBShiftString/BBShiftString_pru1.out");
 
         createOutputLengths(m_pru1, "pru1");
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -370,7 +330,7 @@ int BBShiftStringOutput::StartPRU() {
         }
         m_pru0.pru = new BBBPru(0, true, true);
         m_pru0.pruData = (BBShiftStringData*)m_pru0.pru->data_ram;
-        m_pru0.pru->run("/tmp/BBShiftString_pru0.out");
+        m_pru1.pru->run("/opt/fpp/src/non-gpl/BBShiftString/BBShiftString_pru0.out");
         createOutputLengths(m_pru0, "pru0");
     }
     return 1;
