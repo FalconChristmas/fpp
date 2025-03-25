@@ -63,7 +63,8 @@ WAITNS_LOOP .macro  ns, treg1, treg2
     .newblock
     LDI32 treg1, PRU_CONTROL_REG
     LBBO &treg2, treg1, 0xC, 4
-    MAX treg1, treg2, NS2CLK(ns)-2  // MAX and SUB are 2 cycles
+    LDI treg1,  NS2CLK(ns) - 3 // MAX and SUB and LDI are 3 cycles
+    MAX treg1, treg2, treg1  
     SUB treg1, treg1, treg2
     LOOP endloop?, treg1
         NOP

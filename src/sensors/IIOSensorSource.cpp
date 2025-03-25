@@ -59,6 +59,7 @@ IIOSensorSource::IIOSensorSource(Json::Value& config) :
         vScale = 1.0f;
 #endif
     }
+    readIterations = config.get("readIterations", 3).asInt();
 
     // usingBuffers = false;
     std::string base = "/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/in_voltage";
@@ -101,7 +102,7 @@ IIOSensorSource::~IIOSensorSource() {
     }
 }
 bool IIOSensorSource::isOK() const {
-    return FileExists("/dev/iio:device0");
+    return FileExists("/dev/iio:device" + std::to_string(iioDevNumber));
 }
 
 void IIOSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
@@ -198,13 +199,13 @@ void IIOSensorSource::update(bool forceInstant, bool fromSelect) {
         for (int x = 0; x < channelMapping.size(); x++) {
             if (channelMapping[x] >= 0) {
                 float s = 0;
-                for (int m = 0; m < 3; m++) {
+                for (int m = 0; m < readIterations; m++) {
                     lseek(channelMapping[x], 0, SEEK_SET);
                     int r = read(channelMapping[x], buf, 23);
                     buf[r] = 0;
                     s += std::atoi(buf);
                 }
-                s /= 3.0;
+                s /= ((float)readIterations);
                 s *= vScale;
                 values[x] = std::round(s);
             }

@@ -45,6 +45,14 @@ public:
     uintptr_t sharedRamPhyLoc = 0;
     int sharedRamSize = 0;
 
+    uint8_t* sram = nullptr;
+    uint32_t sram_addr = 0;
+    size_t sram_size = 0;
+
+    uint8_t* m4ram = nullptr;
+    uint32_t m4ram_addr = 0;
+    size_t m4ram_size = 0;
+
     void disable() {
         std::string filename = "/sys/class/remoteproc/remoteproc" + std::to_string(pru_num) + "/state";
         if (FileExists(filename)) {
@@ -122,6 +130,14 @@ constexpr size_t DDR_SIZE = 0x00400000;
 constexpr std::string FIRMWARE_PREFIX = "am335x";
 constexpr bool FAKE_PRU = false;
 
+constexpr uintptr_t PRUSS_SRAM_BASE = 0x00000000;
+constexpr uint32_t PRUSS_SRAM_GLOBAL = 0x00000000;
+constexpr size_t PRUSS_SRAM_SIZE = 0;
+
+constexpr uintptr_t PRUSS_M4RAM_BASE = 0x00000000;
+constexpr uint32_t PRUSS_M4RAM_GLOBAL = 0x00000000;
+constexpr size_t PRUSS_M4RAM_SIZE = 0;
+
 #elif defined(PLATFORM_BB64)
 constexpr uintptr_t PRUSS_MMAP_BASE = 0x30040000;
 constexpr size_t PRUSS_MMAP_SIZE = 0x80000;
@@ -135,6 +151,17 @@ constexpr size_t PRUSS_SHAREDRAM_SIZE = 32 * 1024; // 32K
 
 constexpr uint32_t DDR_ADDR = 0x8f000000;
 constexpr size_t DDR_SIZE = 0x00400000;
+
+// LDI32    r8,  0x70000000   //  OCSRAM
+// LDI32    r8,  0x0005040000  // M4 DRAM
+
+static uint8_t* PRUSS_SRAM_BASE = nullptr;
+constexpr uint32_t PRUSS_SRAM_GLOBAL = 0x70000000;
+constexpr size_t PRUSS_SRAM_SIZE = 64 * 1024; // 64K
+
+static uint8_t* PRUSS_M4RAM_BASE = nullptr;
+constexpr uint32_t PRUSS_M4RAM_GLOBAL = 0x05040000;
+constexpr size_t PRUSS_M4RAM_SIZE = 256 * 1024; // 256K;
 
 constexpr std::string FIRMWARE_PREFIX = "am62x";
 
@@ -151,6 +178,22 @@ static void initPrus() {
                                               MAP_SHARED,
                                               mem_fd,
                                               PRUSS_MMAP_BASE);
+        if (PRUSS_SRAM_SIZE > 0) {
+            PRUSS_SRAM_BASE = (uint8_t*)mmap(0,
+                                             PRUSS_SRAM_SIZE,
+                                             PROT_WRITE | PROT_READ,
+                                             MAP_SHARED,
+                                             mem_fd,
+                                             PRUSS_SRAM_GLOBAL);
+        }
+        if (PRUSS_M4RAM_SIZE > 0) {
+            PRUSS_M4RAM_BASE = (uint8_t*)mmap(0,
+                                              PRUSS_M4RAM_SIZE,
+                                              PROT_WRITE | PROT_READ,
+                                              MAP_SHARED,
+                                              mem_fd,
+                                              PRUSS_M4RAM_GLOBAL);
+        }
     } else {
         base_memory_location = (uint8_t*)mmap(0,
                                               PRUSS_MMAP_SIZE,
@@ -201,6 +244,16 @@ static void initPrus() {
     prus[1].sharedRamSize = PRUSS_SHAREDRAM_SIZE;
     prus[1].sharedRamPhyLoc = PRUSS_SHAREDRAM_BASE;
 
+    for (int x = 0; x < 2; x++) {
+        prus[x].sram = PRUSS_SRAM_BASE;
+        prus[x].sram_addr = PRUSS_SRAM_GLOBAL;
+        prus[x].sram_size = PRUSS_SRAM_SIZE;
+
+        prus[x].m4ram = PRUSS_M4RAM_BASE;
+        prus[x].m4ram_addr = PRUSS_M4RAM_GLOBAL;
+        prus[x].m4ram_size = PRUSS_M4RAM_SIZE;
+    }
+
     if (ddr_sizeb) {
         memset(ddr_mem_loc, 0, ddr_sizeb);
     }
@@ -237,6 +290,14 @@ BBBPru::BBBPru(int pru, bool mapShared, bool mapOther) :
         this->other_data_ram_size = 0;
         this->other_data_ram = 0;
     }
+
+    this->sram = prus[pru].sram;
+    this->sram_addr = prus[pru].sram_addr;
+    this->sram_size = prus[pru].sram_size;
+
+    this->m4ram = prus[pru].m4ram;
+    this->m4ram_addr = prus[pru].m4ram_addr;
+    this->m4ram_size = prus[pru].m4ram_size;
 }
 
 BBBPru::~BBBPru() {
@@ -249,6 +310,14 @@ BBBPru::~BBBPru() {
         if (base_memory_location) {
             munmap(base_memory_location, PRUSS_MMAP_SIZE);
             base_memory_location = nullptr;
+        }
+        if (PRUSS_SRAM_BASE) {
+            munmap(PRUSS_SRAM_BASE, PRUSS_SRAM_SIZE);
+            PRUSS_SRAM_BASE = nullptr;
+        }
+        if (PRUSS_M4RAM_BASE) {
+            munmap(PRUSS_M4RAM_BASE, PRUSS_M4RAM_SIZE);
+            PRUSS_M4RAM_BASE = nullptr;
         }
     }
 }

@@ -42,4 +42,6 @@ private:
     uint16_t* readBuffer = nullptr;
     size_t readBufferSize = 0;
     float vScale = 0;
+
+    int readIterations = 3;
 };
