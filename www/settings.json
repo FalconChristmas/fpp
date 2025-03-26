@@ -122,7 +122,6 @@
 			"settings": [
 				"fppMode",
 				"HostName",
-				"HostDescription",
 				"InstalledCape"
 			]
 		},
