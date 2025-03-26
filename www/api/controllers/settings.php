@@ -54,14 +54,11 @@ function PutSetting()
         exec(
             $SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
             $SUDO . " sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
-            $SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts ; " .
-            $SUDO . " hostname $value ; " .
-            $SUDO . " /etc/init.d/avahi-daemon restart ;" .
-            $SUDO . " systemctl restart avahi-daemon.service",
+            $SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts " .
+            $SUDO . " hostname $value ; ",
             $output,
             $return_val
         );
-        sleep(1); // Give Avahi time to restart before we return
     } else if ($setting == "EnableRouting") {
         if ($value != "1") {
             $value = "0";
