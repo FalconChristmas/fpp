@@ -121,6 +121,8 @@
 			"description": "Initial Setup",
 			"settings": [
 				"fppMode",
+				"HostName",
+				"HostDescription",
 				"InstalledCape"
 			]
 		},
