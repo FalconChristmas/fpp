@@ -311,7 +311,14 @@ int BBShiftPanelOutput::Init(Json::Value config) {
         const BBBPinCapabilities* pin = (const BBBPinCapabilities*)(PinCapabilities::getPinByName(pinName).ptr());
         outputMap[i] = pin->pruPin(1);
     }
-
+    // singlePRU = true;
+    if (root.isMember("singlePRU")) {
+        singlePRU = root["singlePRU"].asBool();
+    }
+    if (!singlePRU) {
+        const PinCapabilities& pin = PinCapabilities::getPinByName("P1-36");
+        pin.configPin("pru0out", true);
+    }
     m_panelWidth = config["panelWidth"].asInt();
     m_panelHeight = config["panelHeight"].asInt();
     if (!m_panelWidth) {
@@ -492,7 +499,13 @@ int BBShiftPanelOutput::Init(Json::Value config) {
 int BBShiftPanelOutput::StartPRU() {
     pru = new BBBPru(1, true, true);
     pruData = (BBShiftPanelData*)pru->data_ram;
-    pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.out");
+    if (singlePRU) {
+        pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_single.out");
+    } else {
+        pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.out");
+        pwmPru = new BBBPru(0);
+        pwmPru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_pwm.out");
+    }
 
     uint32_t strideLen = rowLen * 6;
     uint32_t numStride = numRows * m_colorDepth;
@@ -513,7 +526,6 @@ int BBShiftPanelOutput::StartPRU() {
             n++;
         }
     }
-    printf("Buffers: %d\n", n);
     for (int x = 0; x < NUM_OUTPUT_BUFFERS; x++) {
         pru->clearPRUMem(outputBuffers[x], frameSize);
     }
@@ -539,6 +551,12 @@ void BBShiftPanelOutput::StopPRU(bool wait) {
         pru->stop();
         delete pru;
         pru = nullptr;
+
+        if (pwmPru) {
+            pwmPru->stop();
+            delete pwmPru;
+            pwmPru = nullptr;
+        }
     }
 }
 

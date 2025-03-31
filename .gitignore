@@ -10,6 +10,7 @@
 *.gch.sum
 *.o
 *.pyc
+*.out
 .*.swp
 *-workspace
 SD/*.xz
@@ -35,10 +36,6 @@ src/libFalconV5.so
 src/libfpp*.dylib
 src/fsequtils.zip
 src/libjson*.dylib
-src/non-gpl/FalconV5Support/FalconV5PRUListener_pru0.out
-src/non-gpl/BBShiftPanel/BBShiftPanel.out
-src/non-gpl/BBShiftString/BBShiftString_pru0.out
-src/non-gpl/BBShiftString/BBShiftString_pru1.out
 cscope.out
 docs/samples/eeproms/*.bin
 etc/apache2.csp
