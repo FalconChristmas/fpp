@@ -67,6 +67,7 @@ private:
     void setupBrightnessValues();
 
     BBBPru* pru = nullptr;
+    BBBPru* pwmPru = nullptr;
     BBShiftPanelData* pruData = nullptr;
 
     Matrix* m_matrix = nullptr;
@@ -107,6 +108,8 @@ private:
     uint8_t currOutputBuffer = 0;
     uint32_t numRows = 0;
     uint32_t rowLen = 0;
+
+    bool singlePRU = false;
 
     std::queue<std::function<void()>> bgTasks;
     volatile bool bgThreadsRunning = false;

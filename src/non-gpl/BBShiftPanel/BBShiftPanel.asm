@@ -64,6 +64,7 @@
 
 #define DATA_BYTE   r30.b0
 
+#ifdef SINGLEPRU
 DISPLAY_OFF .macro
     SET r30, r30, OE_PIN
     .endm
@@ -80,7 +81,36 @@ CHECK_FOR_DISPLAY_OFF .macro
     DISPLAY_OFF
     LDI curBright, 0
 END?:
-    .endm    
+    .endm
+
+WAIT_FOR_DISLAY_OFF .macro
+    .newblock
+    QBEQ DISPLAY_ALREADY_OFF?, curBright, 0
+WAIT_FOR_TIMER?:
+        GET_PRU_CLOCK tmpReg1, tmpReg2, 4
+        QBGT WAIT_FOR_TIMER?, tmpReg1, curBright
+    DISPLAY_OFF
+DISPLAY_ALREADY_OFF?:
+    .endm
+#else 
+
+DISPLAY_OFF .macro
+    .endm
+
+DISPLAY_ON .macro
+    XOUT  12, &curBright, 4
+    .endm
+
+CHECK_FOR_DISPLAY_OFF .macro
+    .endm
+
+WAIT_FOR_DISLAY_OFF .macro
+    .newblock
+BRIGHTLOADLOOP?:
+    XIN 12, &curBright, 4
+    QBNE BRIGHTLOADLOOP?, curBright, 0
+    .endm
+#endif
 
 TOGGLE_OSHIFT .macro
     NOP
@@ -345,6 +375,7 @@ STRIDE_START:
     LDI dataOutReg, 8
     MOV curPixel, numPixels
 
+#ifdef SINGLEPRU
     // if it's a very short amount of time to be on, we need to do
     // it here as the LOAD_DATA may be longer
     QBLT OUTPUTPIXELS, curBright, 100
@@ -352,6 +383,7 @@ WAIT_FOR_TIMER1:
         GET_PRU_CLOCK tmpReg1, tmpReg2, 4
         QBGT WAIT_FOR_TIMER1, tmpReg1, curBright
     DISPLAY_OFF
+#endif
 
 OUTPUTPIXELS:
     // output 8 pixels
@@ -369,14 +401,7 @@ ENDLOOPPIXEL2:
     CHECK_FOR_DISPLAY_OFF
     QBNE OUTPUTPIXELS, curPixel, 0
 
-
-
-    QBEQ DISPLAY_ALREADY_OFF, curBright, 0
-WAIT_FOR_TIMER:
-        GET_PRU_CLOCK tmpReg1, tmpReg2, 4
-        QBGT WAIT_FOR_TIMER, tmpReg1, curBright
-    DISPLAY_OFF
-DISPLAY_ALREADY_OFF:
+    WAIT_FOR_DISLAY_OFF
 
     LSL tmpReg1, curStride, 2
     ADD tmpReg1, tmpReg1, 8
@@ -389,20 +414,17 @@ DISPLAY_ALREADY_OFF:
     ADD curStride, curStride, 1
     QBNE STRIDE_START, numStrides, curStride
 
-
-    // wait for the display to be able to be shut off
-    QBEQ DISPLAY_ALREADY_OFF2, curBright, 0
-WAIT_FOR_TIMER2:
-        GET_PRU_CLOCK tmpReg1, tmpReg2, 4
-        QBGT WAIT_FOR_TIMER2, tmpReg1, curBright
-    DISPLAY_OFF
-DISPLAY_ALREADY_OFF2:
-
+    WAIT_FOR_DISLAY_OFF
 
 	// Go back to waiting for the next frame buffer
 	JMP	_LOOP
 
 EXIT:
+#ifndef SINGLEPRU
+    LDI32 curBright, 0xFFFFFFF
+    XOUT  12, &curBright, 4
+#endif
+
 	// Write a 0 into the fields so that they know we're done
 	LDI32 r2, 0
 	LDI32 r3, 0
