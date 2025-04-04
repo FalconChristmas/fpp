@@ -62,6 +62,14 @@
 #define ENABLE_PIN 2
 #endif
 
+ENABLE_SEND .macro
+    SET CONTROL_BYTE, CONTROL_BYTE, ENABLE_PIN
+    .endm
+
+DISABLE_SEND .macro
+    CLR CONTROL_BYTE, CONTROL_BYTE, ENABLE_PIN
+    .endm
+
 #define FALCONV5_PERIOD  1130
 
 
@@ -73,7 +81,7 @@
 //16 registers for channel data
 // r2 - r17
 #define pixelData       r2
-#define pixelDataOffset 8
+#define pixelDataOffset &r2
 
 #define xferR1          r18
 #define xferR2          r19
@@ -116,6 +124,8 @@ LOAD_NEXT_DATABLOCK .macro dataAddress
     ADD     dataAddress, dataAddress, DATABLOCKSIZE
     .endm
 
+UNPRELOAD_DATA .macro dataAddress
+    .endm
 
 #else
 
@@ -162,7 +172,14 @@ LOAD_NEXT_DATABLOCK .macro dataAddress
     ADD     dataAddress, dataAddress, 64
     .endm
 
-
+UNPRELOAD_DATA .macro dataAddress
+    WAITFORDATA_READY 0x60
+    LDI32   xferR1, 6
+    MOV     xferR2, dataAddress
+    LDI32   xferR3, 0
+    XOUT    0x60, &xferR1, 12
+    XIN     0x60, &r2, 64
+    .endm
 #endif
 
 
@@ -250,6 +267,7 @@ DONE_FALCONV5_LOOP?:
     CLR data_flags, data_flags, 2
     OUTPUT_HIGH
     TOGGLE_LATCH
+    UNPRELOAD_DATA fv5_data_addr
     SLEEPNS 70000, tmpReg1, 0
     JMP FALCONV5_SETUP_LOOP?
 
@@ -262,7 +280,7 @@ DO_FALCONV5_LISTNER?:
     TOGGLE_LATCH
     SLEEPNS	20000, tmpReg1, 0
 
-    CLR CONTROL_BYTE, CONTROL_BYTE, ENABLE_PIN
+    DISABLE_SEND
     LDI tmpReg1, 1
     LDI tmpReg2, 0
     XOUT 10, &tmpReg1, 8
@@ -277,7 +295,7 @@ NO_DATA_FOUND:
     LDI tmpReg1, 0
     XOUT 10, &tmpReg1, 4
     SLEEPNS	10000, tmpReg1, 0
-    SET CONTROL_BYTE, CONTROL_BYTE, ENABLE_PIN
+    ENABLE_SEND
 
 DONE_FALCONV5?:
     .endm
@@ -347,7 +365,7 @@ _LOOP:
 
 CONT_DATA:
     PRELOAD_DATA  data_addr
-    SET CONTROL_BYTE, CONTROL_BYTE, ENABLE_PIN
+    ENABLE_SEND
 
     // reset command to 0 so ARM side will send more data
     LDI     r1, 0
@@ -387,6 +405,10 @@ NO_COMMAND_NEEDED:
     JMP WORD_LOOP
 
 WORD_LOOP_DONE:
+    UNPRELOAD_DATA data_addr
+    NOP 
+    NOP 
+
     OUTPUT_FALCONV5_PACKET
     NOP
     NOP
