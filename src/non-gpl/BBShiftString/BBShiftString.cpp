@@ -179,6 +179,7 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
     int len = (curCommandTable) * 2;
     len += 64 - (len % 64);
     d.pru->memcpyToPRU((uint8_t*)&d.pruData->commandTable[0], (uint8_t*)&commandTable[0], len);
+    free(buffer);
 }
 
 /*

@@ -39,7 +39,7 @@ typedef struct {
     volatile uint32_t command;
     volatile uint32_t response;
 
-    uint32_t buffer[4]; // need a bit of a buffer to get it aligned on a 32byte boundary
+    uint32_t buffer[2]; // need a bit of a buffer
     uint16_t commandTable[3578];
 } __attribute__((__packed__)) BBShiftStringData;
 
