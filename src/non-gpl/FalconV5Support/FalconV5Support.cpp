@@ -61,22 +61,6 @@ typedef struct {
 class PRUControl {
 public:
     PRUControl() {
-        /*
-        char* args[10];
-        int idx = 0;
-        args[idx++] = (char*)"/bin/bash";
-        args[idx++] = (char*)"/opt/fpp/src/non-gpl/FalconV5Support/compileListener.sh";
-        args[idx++] = (char*)"0";
-        args[idx] = NULL;
-
-        pid_t compilePid = fork();
-        if (compilePid == 0) {
-            execvp("/bin/bash", args);
-        } else {
-            wait(NULL);
-        }
-        const std::string filename = "/tmp/FalconV5Support_pru0.out";
-        */
         const std::string filename = "/opt/fpp/src/non-gpl/FalconV5Support/FalconV5PRUListener_pru0.out";
 
         pru = new BBBPru(0, true, false);
@@ -223,8 +207,8 @@ void FalconV5Support::processListenerData() {
                     Json::Value json;
                     if (pidx != 0 && decodeFalconV5Packet(packet, json)) {
                         int port = json["port"].asInt();
-                        printf("Port:  %d   Index: %d\n", port, json["index"].asInt());
-                        printf("%s\n", SaveJsonToString(json, "  ").c_str());
+                        // printf("Port:  %d   Index: %d\n", port, json["index"].asInt());
+                        // printf("%s\n", SaveJsonToString(json, "  ").c_str());
                         for (auto& rc : receiverChains) {
                             if (rc->getPixelStrings()[0]->m_portNumber == port) {
                                 rc->handleQueryResponse(json);
