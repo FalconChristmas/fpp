@@ -217,13 +217,14 @@ void FalconV5Support::processListenerData() {
                     packet[pidx++] = readByte(data, pos);
                 }
                 if (pidx > 1) {
+                    // printf("L: %d\n", l->offset);
                     // printDataBuf(len, data);
                     // printDataBuf(pidx, packet);
                     Json::Value json;
                     if (pidx != 0 && decodeFalconV5Packet(packet, json)) {
                         int port = json["port"].asInt();
-                        // printf("Port:  %d   Index: %d\n", port, json["index"].asInt());
-                        //  printf("%s\n", SaveJsonToString(json, "  ").c_str());
+                        printf("Port:  %d   Index: %d\n", port, json["index"].asInt());
+                        printf("%s\n", SaveJsonToString(json, "  ").c_str());
                         for (auto& rc : receiverChains) {
                             if (rc->getPixelStrings()[0]->m_portNumber == port) {
                                 rc->handleQueryResponse(json);

@@ -80,21 +80,21 @@ DISABLE_SEND .macro
 
 //16 registers for channel data
 // r2 - r17
-#define pixelData       r2
-#define pixelDataOffset &r2
+#define pixelData    r2
 
 #define xferR1          r18
 #define xferR2          r19
 #define xferR3          r20
 
-#define tmpReg1         r19   // can co-exist with XFxferR2/xferR3
+#define tmpReg1         r19   // can co-exist with xferR2/xferR3
 #define tmpReg2         r20
 
 //r21-r24 contains the output masks, r21/22 are high, r23/24 are low
 // read two extra bytes for the "next"
 #define BYTES_FOR_MASKS 18
 #define OUTPUT_MASKS r21
-#define OUTPUT_MASKS_OFFSET  84
+#define OUTPUT_HI_MASKS r21
+#define OUTPUT_LOW_MASKS r23
 #define MASK_OVERFLOW r25.w0
 
 #define next_check  r25.w0
@@ -208,7 +208,7 @@ ENDLOOP?:
 OUTPUT_HIGH .macro
     .newblock
     MOV r1.b1, r1.b0
-    LDI r1.b0, OUTPUT_MASKS_OFFSET
+    LDI r1.b0, &OUTPUT_HI_MASKS
     OUTPUT_REG_INDIRECT
     MOV r1.b0, r1.b1
     .endm
@@ -216,7 +216,7 @@ OUTPUT_HIGH .macro
 OUTPUT_LOW .macro
     .newblock
     MOV r1.b1, r1.b0
-    LDI r1.b0, OUTPUT_MASKS_OFFSET + 8
+    LDI r1.b0, &OUTPUT_LOW_MASKS
     OUTPUT_REG_INDIRECT
     MOV r1.b0, r1.b1
     .endm
@@ -245,7 +245,7 @@ FALCONV5_LOOP?:
     WAITNS_LOOP FALCONV5_PERIOD, tmpReg1, tmpReg2
     RESET_PRU_CLOCK tmpReg1, tmpReg2
     TOGGLE_LATCH
-    LDI r1.b0, pixelDataOffset
+    LDI r1.b0, &pixelData
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
     JAL r1.w2, OUTPUT_FULL_BIT_FV5 
@@ -372,7 +372,7 @@ CONT_DATA:
     SBCO    &r1, CONST_PRUDRAM, 8, 4
 
     // Reset the output masks
-    LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, 32, BYTES_FOR_MASKS
+    LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, 24, BYTES_FOR_MASKS
     // reset the command table
     MOV next_check, MASK_OVERFLOW
     QBBC NO_CUSTOM_CHECKS, data_flags, 0
@@ -386,7 +386,7 @@ NO_CUSTOM_CHECKS:
 
 WORD_LOOP:
     LOAD_NEXT_DATABLOCK data_addr
-    LDI r1.b0, pixelDataOffset
+    LDI r1.b0, &pixelData
     JAL r1.w2, OUTPUT_FULL_BIT
     JAL r1.w2, OUTPUT_FULL_BIT
     JAL r1.w2, OUTPUT_FULL_BIT

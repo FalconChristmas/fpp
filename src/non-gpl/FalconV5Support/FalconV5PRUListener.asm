@@ -27,14 +27,16 @@
 
 /** Register map */
 
-#define commandReg      r2
-#define lengthReg       r3
-#define smemLocReg      r4
-#define treg1           r6
-#define treg2           r7
-#define enableReg       r8
-#define hasDataReg      r9
-#define data_reg        r10
+#define data_reg        r2
+
+#define enableReg       r19   // must match tmpReg1 in BBShiftString.asm
+#define hasDataReg      r20
+#define commandReg      r21
+#define lengthReg       r22
+#define smemLocReg      r23
+#define treg1           r24
+#define treg2           r25
+
 
 #define BYTES_PER_STORE 12
 
@@ -80,14 +82,14 @@ IDLE_LOOP:
     SBCO    &lengthReg, CONST_PRUDRAM, 4, 4
 
     // grab the current values and loop until something changes
-    MOV     r10.b0, r31.b0
+    MOV     data_reg.b0, r31.b0
 WAIT_FOR_DATA:
     XIN     10, &enableReg, 8
     QBNE    IDLE_LOOP, enableReg, 1
-    QBEQ    WAIT_FOR_DATA, r10.b0, r31.b0
-    MOV     r10.b1, r31.b0;
+    QBEQ    WAIT_FOR_DATA, data_reg.b0, r31.b0
+    MOV     data_reg.b1, r31.b0;
     RESET_PRU_CLOCK treg1, treg2
-    LDI     r1.b0, 42
+    LDI     r1.b0, &data_reg
 
     // we now have some data, let the other PRU know
     LDI     hasDataReg, 1
@@ -97,7 +99,7 @@ BIT_LOOP:
     WAITNS_LOOP  FALCONV5_PERIOD, treg1, treg2
     RESET_PRU_CLOCK treg1, treg2
     MVIB    *r1.b0++, r31.b0
-    QBNE    BIT_LOOP, r1.b0, 40 + BYTES_PER_STORE
+    QBNE    BIT_LOOP, r1.b0, 8 + BYTES_PER_STORE
 
     //got the number of bytes needed, store it
     LDI     treg1,  12000
@@ -112,7 +114,7 @@ DONE_DATA_STORE
     QBNE    IDLE_LOOP, enableReg, 1
 
     //reset counter
-    LDI     r1.b0, 40
+    LDI     r1.b0, &data_reg
     //next set of bit
     JMP     BIT_LOOP
 
