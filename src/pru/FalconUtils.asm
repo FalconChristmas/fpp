@@ -23,11 +23,10 @@ RESET_PRU_CLOCK .macro reg1, reg2
     LBBO   &reg1, reg2, 0, 4
     CLR    reg1, reg1, 3
     SBBO   &reg1, reg2, 0, 4
-    LDI32  reg1, 0
-    SBBO   &reg1, reg2, 0xC, 4
-    LBBO   &reg1, reg2, 0, 4
     SET    reg1, reg1, 3
     SBBO   &reg1, reg2, 0, 4
+    LDI    reg1, 0
+    SBBO   &reg1, reg2, 0xC, 4
     .endm
 
 /* if size = 8, then the reg beyond the passed in will contain the stall count */
