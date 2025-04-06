@@ -277,7 +277,8 @@ bool BBBPinCapabilities::supportPWM() const {
 }
 
 int BBBPinCapabilities::configPin(const std::string& m,
-                                  bool directionOut) const {
+                                  bool directionOut,
+                                  const std::string& desc) const {
     std::string mode = m;
     bool enableI2C = mode == "i2c";
     if (i2cBus >= 0 && !enableI2C) {
@@ -311,18 +312,22 @@ int BBBPinCapabilities::configPin(const std::string& m,
 #endif
 
     if (mode == "i2c") {
-        // GPIODCapabilities::configPin("gpio", false);
+        // GPIODCapabilities::configPin("gpio", false, desc);
     } else if (mode == "pwm") {
-        // GPIODCapabilities::configPin("gpio", false);
+        // GPIODCapabilities::configPin("gpio", false, desc);
     } else if (mode == "pruout" || mode == "pru0out" || mode == "pru1out") {
-        GPIODCapabilities::configPin("gpio", false);
+        GPIODCapabilities::configPin("gpio", false, desc);
     } else if (mode == "pruin" || mode == "pru0in" || mode == "pru1in") {
-        // GPIODCapabilities::configPin("gpio", false);
+#ifdef PLATFORM_BB64
+        GPIODCapabilities::configPin("gpio", false, desc);
+#endif
     } else if (mode == "uart") {
-        // GPIODCapabilities::configPin("gpio", false);
+#ifdef PLATFORM_BB64
+        GPIODCapabilities::configPin("gpio", false, desc);
+#endif
     } else {
         // gpio
-        GPIODCapabilities::configPin(m, directionOut);
+        GPIODCapabilities::configPin(m, directionOut, desc);
     }
 
     if (FileExists("/usr/bin/pinctrl") && pinName[0] == 'P' && pinName[2] == '_') {
@@ -350,7 +355,7 @@ bool BBBPinCapabilities::setupPWM(int maxValue) const {
         // set pin
         setupBBBMemoryMap();
 
-        configPin("pwm");
+        configPin("pwm", true, "PWM");
         int chipNum = getBBBPWMChipNum(pwm);
         char dir_name[128];
         snprintf(dir_name, sizeof(dir_name), "%s%d/export", bbbPWMDeviceName, chipNum);

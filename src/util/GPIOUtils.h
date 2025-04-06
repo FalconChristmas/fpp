@@ -55,7 +55,8 @@ public:
     virtual Json::Value toJSON() const;
 
     virtual int configPin(const std::string& mode = "gpio",
-                          bool directionOut = true) const = 0;
+                          bool directionOut = true,
+                          const std::string& desc = "") const = 0;
     virtual bool supportsPullUp() const { return true; }
     virtual bool supportsPullDown() const { return true; }
     virtual bool supportsGpiod() const { return true; }
@@ -124,7 +125,8 @@ public:
         PinCapabilitiesFluent(n, kg), gpioName(gn) {}
 
     virtual int configPin(const std::string& mode = "gpio",
-                          bool directionOut = true) const override;
+                          bool directionOut = true,
+                          const std::string& desc = "") const override;
     virtual bool getValue() const override;
     virtual void setValue(bool i) const override;
 
@@ -168,7 +170,8 @@ public:
         PinCapabilitiesFluent(n, kg) {}
 
     virtual int configPin(const std::string& mode = "gpio",
-                          bool directionOut = true) const override { return 0; }
+                          bool directionOut = true,
+                          const std::string& desc = "") const override { return 0; }
 
     virtual bool getValue() const override { return false; }
     virtual void setValue(bool i) const override {}

@@ -84,7 +84,7 @@ speed_t SerialGetBaudRate(int baud) {
  *
  * Example: SerialOpen("/dev/ttyUSB0", 115200, "N81");
  */
-int SerialOpen(const char* device, int baud, const char* mode, bool output) {
+int SerialOpen(const char* device, int baud, const char* mode, bool output, bool configurePin, const char* desc) {
     // some devices may multiplex pins and need to
     // specifically configure the output pin as a uart instead of gpio
     char buf[256];
@@ -93,7 +93,9 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output) {
     } else {
         snprintf(buf, sizeof(buf), "%s-rx", &device[5]); // "ttyS1-rx" or "ttyUSB0-rx"
     }
-    PinCapabilities::getPinByUART(buf).configPin("uart");
+    if (configurePin) {
+        PinCapabilities::getPinByUART(buf).configPin("uart", output, desc);
+    }
 
     int fd = 0;
     struct termios tty;
@@ -213,7 +215,9 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output) {
 
     return fd;
 }
-
+int SerialOpen(const char* device, int baud, const char* mode, bool output) {
+    return SerialOpen(device, baud, mode, output, true, "");
+}
 int SerialClose(int fd) {
     if (fd < 0)
         return -1;

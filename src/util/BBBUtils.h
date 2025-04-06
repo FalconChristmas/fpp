@@ -35,7 +35,8 @@ public:
     BBBPinCapabilities(const std::string& n, uint32_t g, uint32_t offset);
 
     virtual int configPin(const std::string& mode = "gpio",
-                          bool directionOut = true) const override;
+                          bool directionOut = true,
+                          const std::string& desc = "") const override;
 
     virtual bool setupPWM(int maxValueNS = 25500) const override;
     virtual void setPWMValue(int valueNS) const override;

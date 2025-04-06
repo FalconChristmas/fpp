@@ -24,7 +24,7 @@ MuxSensorSource::MuxSensorSource(Json::Value& config) :
         pins.push_back(PinCapabilities::getPinByName(config["muxPins"][x].asString()).ptr());
     }
     for (auto p : pins) {
-        p->configPin("gpio");
+        p->configPin("gpio", true, sourcename + "-Mux");
         p->setValue(0);
     }
 }

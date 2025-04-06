@@ -94,7 +94,8 @@ MCP23x17PinCapabilities::MCP23x17PinCapabilities(const std::string& n, uint32_t 
 }
 
 int MCP23x17PinCapabilities::configPin(const std::string& mode,
-                                       bool directionOut) const {
+                                       bool directionOut,
+                                       const std::string& desc) const {
     if (mode == "pwm" || mode == "uart") {
         return 0;
     }

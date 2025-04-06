@@ -21,8 +21,8 @@
 
 static bool isPi5() {
     std::string model = GetFileContents("/proc/device-tree/model");
-    static bool pi5 = startsWith(model, "Raspberry Pi 5") || 
-                        startsWith(model, "Raspberry Pi Compute Module 5");
+    static bool pi5 = startsWith(model, "Raspberry Pi 5") ||
+                      startsWith(model, "Raspberry Pi Compute Module 5");
     return pi5;
 }
 
@@ -31,7 +31,8 @@ PiGPIOPinCapabilities::PiGPIOPinCapabilities(const std::string& n, uint32_t kg) 
 }
 
 int PiGPIOPinCapabilities::configPin(const std::string& mode,
-                                     bool directionOut) const {
+                                     bool directionOut,
+                                     const std::string& desc) const {
     if (mode == "pwm" && pwm != -1) {
         bcm2835_gpio_fsel(kernelGpio, BCM2835_GPIO_FSEL_ALT5); // ALT5 is the PWM
         return 0;
@@ -104,7 +105,8 @@ public:
     }
 
     virtual int configPin(const std::string& mode = "gpio",
-                          bool directionOut = true) const override {
+                          bool directionOut = true,
+                          const std::string& desc = "") const override {
         // see https://datasheets.raspberrypi.com/rp1/rp1-peripherals.pdf
         if (mode == "pwm" && pwm != -1) {
             // alt3 is pwm
@@ -125,13 +127,13 @@ public:
         if (mode == "pwm" || mode == "uart") {
             return 0;
         }
-        return GPIODCapabilities::configPin(mode, directionOut);
+        return GPIODCapabilities::configPin(mode, directionOut, desc);
     }
 
     virtual bool supportPWM() const override { return pwm != -1; }
     virtual bool setupPWM(int maxValue = 25500) const override {
         if (pwm != -1) {
-            configPin("pwm");
+            configPin("pwm", true, "PWM");
             char dir_name[128];
             FILE* dir = fopen("/sys/class/pwm/pwmchip0/export", "w");
             fprintf(dir, "%d", subPwm);

@@ -118,7 +118,8 @@ public:
 GPIOChipHolder GPIOChipHolder::INSTANCE;
 #endif
 int GPIODCapabilities::configPin(const std::string& mode,
-                                 bool directionOut) const {
+                                 bool directionOut,
+                                 const std::string& desc) const {
 #ifdef HASGPIOD
     if (chip == nullptr) {
         if (!GPIOChipHolder::INSTANCE.chips[gpioIdx]) {
@@ -134,6 +135,9 @@ int GPIODCapabilities::configPin(const std::string& mode,
     }
     gpiod::line_request req;
     req.consumer = PROCESS_NAME;
+    if (!desc.empty()) {
+        req.consumer += "-" + desc;
+    }
     if (directionOut) {
         req.request_type = gpiod::line_request::DIRECTION_OUTPUT;
     } else {

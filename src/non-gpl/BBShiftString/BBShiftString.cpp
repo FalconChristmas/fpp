@@ -301,7 +301,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
     if (supportsV5Listeners) {
         // if the cape supports v5 listeners, the enable pin needs to be
         // configured or data won't be sent on port1 of each receiver
-        PinCapabilities::getPinByName(PRU1_ENABLE_PIN).configPin("pru1out");
+        PinCapabilities::getPinByName(PRU1_ENABLE_PIN).configPin("pru1out", true, "BBShiftString-Enable");
     }
     if (hasV5SR) {
         setupFalconV5Support(root, m_pru1.lastData + offset);
@@ -315,7 +315,7 @@ int BBShiftStringOutput::StartPRU() {
     m_curFrame = 0;
     if (m_pru1.maxStringLen) {
         for (auto& a : PRU1_PINS) {
-            PinCapabilities::getPinByName(a).configPin("pru1out", true);
+            PinCapabilities::getPinByName(a).configPin("pru1out", true, "BBShiftString");
         }
         m_pru1.pru = new BBBPru(1, true, true);
         m_pru1.pruData = (BBShiftStringData*)m_pru1.pru->data_ram;
@@ -327,7 +327,7 @@ int BBShiftStringOutput::StartPRU() {
     }
     if (m_pru0.maxStringLen) {
         for (auto& a : PRU0_PINS) {
-            PinCapabilities::getPinByName(a).configPin("pru0out", true);
+            PinCapabilities::getPinByName(a).configPin("pru0out", true, "BBShiftString");
         }
         m_pru0.pru = new BBBPru(0, true, true);
         m_pru0.pruData = (BBShiftStringData*)m_pru0.pru->data_ram;

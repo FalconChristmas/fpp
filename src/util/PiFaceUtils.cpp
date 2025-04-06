@@ -16,10 +16,10 @@
 #include "PiFaceUtils.h"
 #include "SPIUtils.h"
 
-//PiFace is just a strangely configured MCP23x17
-// the first 8 pins on the MCP23x17 are outputs
-// the second 8 pins are inputs
-// It's only exposed as 8 GPIO's
+// PiFace is just a strangely configured MCP23x17
+//  the first 8 pins on the MCP23x17 are outputs
+//  the second 8 pins are inputs
+//  It's only exposed as 8 GPIO's
 
 PiFacePinCapabilities::PiFacePinCapabilities(const std::string& n, uint32_t kg,
                                              const PinCapabilities& read,
@@ -30,12 +30,13 @@ PiFacePinCapabilities::PiFacePinCapabilities(const std::string& n, uint32_t kg,
 }
 
 int PiFacePinCapabilities::configPin(const std::string& mode,
-                                     bool directionOut) const {
+                                     bool directionOut,
+                                     const std::string& desc) const {
     if (mode == "pwm" || mode == "uart") {
         return 0;
     }
     if (!directionOut) {
-        readPin.configPin(mode, false);
+        readPin.configPin(mode, false, desc);
     }
     return 0;
 }
@@ -52,16 +53,16 @@ static std::vector<PiFacePinCapabilities> PIFACE_PINS;
 static std::vector<PiFacePinCapabilities> PIFACE_PINS_HIDDEN;
 
 void PiFacePinCapabilities::Init() {
-    //the old wiringPi put the MCP23x17 pins 16 above the PiFace pins
+    // the old wiringPi put the MCP23x17 pins 16 above the PiFace pins
     MCP23x17PinCapabilities::Init(216);
     if (MCP23x17PinCapabilities::getPinByGPIO(216).ptr()) {
-        //MCP23x17 detected, add our pins
+        // MCP23x17 detected, add our pins
         for (int x = 0; x < 8; x++) {
             const PinCapabilities& write = MCP23x17PinCapabilities::getPinByGPIO(216 + x);
             const PinCapabilities& read = MCP23x17PinCapabilities::getPinByGPIO(216 + 8 + x);
 
-            write.configPin("gpio", true);
-            read.configPin("gpio_pu", false);
+            write.configPin("gpio", true, "PiFace");
+            read.configPin("gpio_pu", false, "PiFace");
 
             std::string name = "PiFace-" + std::to_string(x + 1);
             PIFACE_PINS.push_back(PiFacePinCapabilities(name, 200 + x, read, write));
