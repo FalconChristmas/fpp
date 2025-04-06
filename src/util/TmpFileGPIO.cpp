@@ -26,7 +26,8 @@ TmpFilePinCapabilities::TmpFilePinCapabilities(const std::string& n, uint32_t kg
 }
 
 int TmpFilePinCapabilities::configPin(const std::string& mode,
-                                      bool directionOut) const {
+                                      bool directionOut,
+                                      const std::string& desc) const {
     unlink(filename.c_str());
     return 0;
 }

@@ -41,6 +41,13 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
         WarningHolder::AddWarning("SerialChannelOutput: Invalid Config.  Unknown device.");
         return false;
     }
+    std::string desc = "";
+    if (config.isMember("subType")) {
+        desc = config["subType"].asString();
+    } else if (config.isMember("type")) {
+        desc = config["type"].asString();
+    }
+
     const PinCapabilities* pin = nullptr;
 #ifdef HAS_CAPEUTILS
     Json::Value v = CapeUtils::INSTANCE.getCapeInfo();
@@ -48,7 +55,7 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
         Json::Value ttyLabels = v["tty-labels"];
         if (ttyLabels.isMember(m_deviceName)) {
             std::string pinName = ttyLabels[m_deviceName].asString();
-            const PinCapabilities* pin = PinCapabilities::getPinByName(pinName).ptr();
+            pin = PinCapabilities::getPinByName(pinName).ptr();
             if (pin) {
                 std::string nd = pin->uart.substr(0, pin->uart.find("-"));
                 LogDebug(VB_CHANNELOUT, "SerialChannelOutput::setupSerialPort:  Using cape mapping from %s to %s\n", m_deviceName.c_str(), nd.c_str());
@@ -60,11 +67,16 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
     if (pin == nullptr) {
         pin = PinCapabilities::getPinByName(m_deviceName + "-tx").ptr();
     }
+    if (desc.empty()) {
+        desc = m_deviceName;
+    } else {
+        desc = desc + "-" + m_deviceName;
+    }
     if (pin) {
-        pin->configPin("uart");
+        pin->configPin("uart", true, desc);
     }
     m_deviceName = "/dev/" + m_deviceName;
-    m_fd = SerialOpen(m_deviceName.c_str(), baud, mode);
+    m_fd = SerialOpen(m_deviceName.c_str(), baud, mode, true, pin == nullptr, desc.c_str());
     return true;
 }
 

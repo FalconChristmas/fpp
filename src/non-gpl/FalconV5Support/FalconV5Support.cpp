@@ -37,7 +37,7 @@ public:
     FalconV5Listener(const Json::Value& config) {
         pin = config["pin"].asString();
         const PinCapabilities& p = PinCapabilities::getPinByName(pin);
-        p.configPin("pru0in");
+        p.configPin("pru0in", false, "FalconV5 Listener");
 
         const BBBPinCapabilities* pc = (const BBBPinCapabilities*)p.ptr();
         offset = pc->pruPin(0);
@@ -113,7 +113,7 @@ void FalconV5Support::addListeners(const Json::Value& config) {
     for (int x = 0; x < config["muxPins"].size(); x++) {
         std::string p = config["muxPins"][x].asString();
         muxPins.push_back(PinCapabilities::getPinByName(p).ptr());
-        muxPins.back()->configPin("gpio", true);
+        muxPins.back()->configPin("gpio", true, "FalconV5 Mux Pin");
         muxPins.back()->setValue(0);
     }
 }
