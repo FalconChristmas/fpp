@@ -80,6 +80,9 @@ public:
     void operator=(Sensor const& x) = delete;
 
     virtual double getValue() = 0;
+    virtual SensorSource* getSensorSource() {
+        return nullptr;
+    }
 
     void report(Json::Value& s) {
         std::unique_lock<std::mutex> lock(sensorLock);
@@ -250,6 +253,9 @@ public:
         }
     }
     virtual ~SensorSourceSensor() {
+    }
+    virtual SensorSource* getSensorSource() override {
+        return source;
     }
     virtual double getValue() override {
         if (source) {
@@ -522,9 +528,20 @@ void Sensors::addSensors(Json::Value& config) {
 
 void Sensors::reportSensors(Json::Value& root) {
     if (!sensors.empty()) {
-        updateSensorSources();
+        std::set<SensorSource*> sensorSources;
         Json::Value& s = root["sensors"];
         for (auto a : sensors) {
+            SensorSource* ss = a->getSensorSource();
+            if (ss) {
+                // only trigger updates on the sensor sources that
+                // actually report via the normal reporting and not
+                // all the sensor sources that may be used for
+                // current monitoring or other things
+                if (!sensorSources.contains(ss)) {
+                    ss->update(false);
+                    sensorSources.emplace(ss);
+                }
+            }
             a->report(s);
         }
     }
