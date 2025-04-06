@@ -190,7 +190,7 @@ void FalconV5Support::processListenerData() {
         }
         if (len) {
             uint8_t buf[4096 * 3];
-            memcpy(buf, pru->data, len);
+            pru->pru->memcpyToPRU(buf, pru->data, (len + 8) & 0xFFFFFFFC);
             for (auto& l : listeners) {
                 uint8_t data[4096 * 3];
                 uint8_t packet[1024];

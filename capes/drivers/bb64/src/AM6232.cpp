@@ -127,7 +127,7 @@ void InitAM6232Balls() {
     addBall("E14", MAIN_DOMAIN, 0x1CC, true).addMode("uart0_tx", { PIN_OUTPUT | 0 });
     addBall("F18", MAIN_DOMAIN, 0x258, true);
     addBall("Y20", MAIN_DOMAIN, 0x0FC, true, 5, 2);
-    addBall("AB24", MAIN_DOMAIN, 0x0F8, true, 0, 2);
+    addBall("AB24", MAIN_DOMAIN, 0x0F8, true, 5, 2);
     addBall("AC24", MAIN_DOMAIN, 0x104, true, 5, 2);
     addBall("AC25", MAIN_DOMAIN, 0x100, true, 5, 2);
     addBall("U22", MAIN_DOMAIN, 0x0B8, true, 5, 2).addMode("uart2_rx", { PIN_INPUT | 4 });

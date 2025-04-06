@@ -114,6 +114,7 @@ DISABLE_SEND .macro
 #define cur_data	r29.w0
 
 #define DATABLOCKSIZE 64
+#define COMMANDTABLE_OFFSET 32
 
 #ifdef AM33XX
 PRELOAD_DATA .macro dataAddress
@@ -233,10 +234,10 @@ START_FALCONV5?:
 
     OUTPUT_HIGH
     TOGGLE_LATCH
+    PRELOAD_DATA  fv5_data_addr
 	SLEEPNS	53500, tmpReg1, 0
 
 FALCONV5_SETUP_LOOP?:
-    PRELOAD_DATA  fv5_data_addr
     LOAD_NEXT_DATABLOCK fv5_data_addr
     LDI  data_len, 56
 FALCONV5_LOOP?:
@@ -267,20 +268,22 @@ DONE_FALCONV5_LOOP?:
     CLR data_flags, data_flags, 2
     OUTPUT_HIGH
     TOGGLE_LATCH
-    UNPRELOAD_DATA fv5_data_addr
     SLEEPNS 70000, tmpReg1, 0
     JMP FALCONV5_SETUP_LOOP?
 
 DO_FALCONV5_LISTNER?:
+    UNPRELOAD_DATA data_addr
     QBBC  DONE_FALCONV5?, data_flags, 3
     OUTPUT_LOW
     TOGGLE_LATCH
     SLEEPNS	15500, tmpReg1, 0
     OUTPUT_HIGH
     TOGGLE_LATCH
-    SLEEPNS	20000, tmpReg1, 0
+    SLEEPNS	19500, tmpReg1, 0
 
     DISABLE_SEND
+    SLEEPNS	 500, tmpReg1, 0
+
     LDI tmpReg1, 1
     LDI tmpReg2, 0
     XOUT 10, &tmpReg1, 8
@@ -372,13 +375,13 @@ CONT_DATA:
     SBCO    &r1, CONST_PRUDRAM, 8, 4
 
     // Reset the output masks
-    LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, 24, BYTES_FOR_MASKS
+    LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, COMMANDTABLE_OFFSET, BYTES_FOR_MASKS
     // reset the command table
     MOV next_check, MASK_OVERFLOW
     QBBC NO_CUSTOM_CHECKS, data_flags, 0
         MOV next_check, data_len
 NO_CUSTOM_CHECKS:
-    LDI curCommand, 24 + BYTES_FOR_MASKS
+    LDI curCommand, COMMANDTABLE_OFFSET + BYTES_FOR_MASKS
 	LDI	cur_data, 1
 
     //start the clock
