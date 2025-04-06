@@ -58,6 +58,7 @@ private:
     int _testSpeed;
     bool _multisyncTest = false;
     int _curPage;
+    int _topLine;
     bool _doFullStatus;
 
     int _wifiImageWidth = 0;

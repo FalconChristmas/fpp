@@ -89,7 +89,8 @@ FPPStatusOLEDPage::FPPStatusOLEDPage() :
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:32322/fppd/status");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 100);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 50);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 250);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writer);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
 
@@ -225,6 +226,7 @@ int FPPStatusOLEDPage::getLinesPage0(std::vector<std::string>& lines,
 int FPPStatusOLEDPage::getLinesPage1(std::vector<std::string>& lines,
                                      Json::Value& result,
                                      bool allowBlank) {
+    std::vector<std::string> topLines;
     for (int x = 0; x < result["sensors"].size(); x++) {
         std::string line;
         if (result["sensors"][x]["valueType"].asString() == "Temperature") {
@@ -240,7 +242,17 @@ int FPPStatusOLEDPage::getLinesPage1(std::vector<std::string>& lines,
         } else {
             line = result["sensors"][x]["label"].asString() + " " + result["sensors"][x]["formatted"].asString();
         }
-        lines.push_back(line);
+        if (topLines.size() < _topLine) {
+            topLines.push_back(line);
+        } else {
+            lines.push_back(line);
+        }
+    }
+    if (lines.empty()) {
+        _topLine = 0;
+    }
+    for (auto& l : topLines) {
+        lines.push_back(l);
     }
     if (lines.empty()) {
         return getLinesPage0(lines, result, allowBlank);
@@ -566,7 +578,8 @@ void FPPStatusOLEDPage::runTest(const std::string& test, bool ms) {
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost/api/command");
 
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 50);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 50);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 250);
     curl_easy_setopt(curl, CURLOPT_POST, 1);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, -1L);
@@ -692,6 +705,7 @@ bool FPPStatusOLEDPage::doAction(const std::string& action) {
         _testSpeed = 500;
         cycleTest();
         _curPage = 0;
+        _topLine = 0;
     } else if (action == "Up" && _currentTest != "") {
         _testSpeed *= 2;
         runTest(_currentTest, _multisyncTest);
@@ -701,9 +715,14 @@ bool FPPStatusOLEDPage::doAction(const std::string& action) {
             _testSpeed = 100;
         }
         runTest(_currentTest, _multisyncTest);
+    } else if (action == "Down" && _hasSensors && _curPage == 1) {
+        _topLine++;
+    } else if (action == "Up" && _hasSensors && _curPage == 1 && _topLine > 0) {
+        _topLine--;
     } else if (action == "Enter" && !oledForcedOff) {
         if (_hasSensors) {
             _curPage++;
+            _topLine = 0;
             if (_curPage == MAX_PAGE) {
                 _curPage = 0;
                 SetCurrentPage(mainMenu);
