@@ -19,8 +19,12 @@
 #define RUNNING_ON_PRU0
 #endif
 
+#ifdef AM33XX
 // 145 allows roughly 5x super sampling
 #define FALCONV5_PERIOD  145
+#else
+#define FALCONV5_PERIOD  166
+#endif
 
 #include "FalconUtils.asm"
 #include "FalconPRUDefs.hp"
@@ -38,7 +42,7 @@
 #define treg2           r25
 
 
-#define BYTES_PER_STORE 12
+#define BYTES_PER_STORE 32
 
 
 ;*****************************************************************************
