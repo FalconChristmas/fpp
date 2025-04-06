@@ -24,6 +24,7 @@
 
 #include "ADS7828.h"
 #include "IIOSensorSource.h"
+#include "MultiSensorSource.h"
 #include "MuxSensorSource.h"
 #include "util/I2CUtils.h"
 
@@ -404,6 +405,8 @@ void Sensors::addSensorSources(Json::Value& config) {
             ss = new IIOSensorSource(v);
         } else if (type == "mux") {
             ss = new MuxSensorSource(v);
+        } else if (type == "multi") {
+            ss = new MultiSensorSource(v);
         }
         if (ss && ss->isOK()) {
             sensorSources.push_back(ss);

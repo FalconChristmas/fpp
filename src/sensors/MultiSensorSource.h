@@ -16,10 +16,10 @@
 #include <array>
 #include <mutex>
 
-class MuxSensorSource : public SensorSource {
+class MultiSensorSource : public SensorSource {
 public:
-    MuxSensorSource(Json::Value& config);
-    virtual ~MuxSensorSource();
+    MultiSensorSource(Json::Value& config);
+    virtual ~MultiSensorSource();
 
     virtual void Init(std::map<int, std::function<bool(int)>>& callbacks) override;
 
@@ -29,25 +29,9 @@ public:
 
     virtual void lockToGroup(int i) override;
 
-    virtual bool isOK() const override { return source != nullptr; }
+    virtual bool isOK() const override { return !sources.empty(); }
 
 private:
-    void setGroupPins();
-    void nextMux();
-    void getValues();
-    std::vector<int32_t> values;
-    std::vector<bool> enabled;
-    std::vector<bool> current;
-
-    std::vector<const PinCapabilities*> pins;
-    SensorSource* source = nullptr;
-    int channelsPerMux = 0;
-    int muxCount = 0;
-    bool updatingByCallback = false;
-    int muxSwitchDelay = 0;
-    int muxSwitchReadCount = 0;
-
-    volatile int curMux = 0;
-    volatile int updateCount = 0;
-    volatile bool lockedToGroup = false;
+    std::vector<SensorSource*> sources;
+    std::vector<int32_t> channels;
 };
