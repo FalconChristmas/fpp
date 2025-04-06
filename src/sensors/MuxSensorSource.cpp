@@ -27,6 +27,12 @@ MuxSensorSource::MuxSensorSource(Json::Value& config) :
         p->configPin("gpio", true, sourcename + "-Mux");
         p->setValue(0);
     }
+    if (config.isMember("muxSwitchDelay")) {
+        muxSwitchDelay = config["muxSwitchDelay"].asInt();
+    }
+    if (config.isMember("muxSwitchReadCount")) {
+        muxSwitchReadCount = config["muxSwitchReadCount"].asInt();
+    }
 }
 MuxSensorSource::~MuxSensorSource() {
 }
@@ -85,6 +91,12 @@ void MuxSensorSource::setGroupPins() {
     for (auto& a : pins) {
         a->setValue(tmp & 0x1 ? 1 : 0);
         tmp >>= 1;
+    }
+    if (muxSwitchDelay > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(muxSwitchDelay));
+    }
+    for (int x = 0; x < muxSwitchReadCount; x++) {
+        source->update(true);
     }
 }
 void MuxSensorSource::lockToGroup(int i) {
