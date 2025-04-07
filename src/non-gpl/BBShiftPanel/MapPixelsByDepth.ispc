@@ -24,7 +24,7 @@ export void OPERAIONNAME(const uniform uint16 data[], uniform uint32 start, unif
         uniform RESTYPE res8[], uniform RESTYPE res9[], uniform RESTYPE res10[], uniform RESTYPE res11[]) {
 
     for (uniform int x = start; x < end; x += programCount) {
-        uniform uint outIdx = x / programCount;
+        uniform uint outIdx = ((x - start) / programCount);
         uint16 d = data[x + programIndex];
         uint16 b1 = d & 0x01;
         b1 <<= programIndex;

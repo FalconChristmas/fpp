@@ -548,9 +548,11 @@ if ($settings['Platform'] == "Raspberry Pi") {
     if (LEDPanelAddressing) {
         config.panelAddressing = LEDPanelAddressing;
     }
+<? if (! $settings['BeaglePlatform']) { ?>
     if ($('#LEDPanelRowAddressType').val() != "0") {
         config.panelRowAddressType = parseInt($('#LEDPanelRowAddressType').val());
     }
+<? } ?>    
     if ($('#LEDPanelInterleave').val() != "0") {
         config.panelInterleave = $('#LEDPanelInterleave').val();
     }
@@ -1208,6 +1210,7 @@ function PanelSubtypeChanged() {
     html += "<option value='64x32x16'>64x32 1/16 Scan</option>"
     <?if ($panelCapesHaveSel4) {?>
     html += "<option value='64x64x32'>64x64 1/32 Scan</option>"
+    html += "<option value='128x64x32'>128x64 1/32 Scan</option>"
     <?}?>
     html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
     html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
@@ -1399,6 +1402,9 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
                                 <?} else if ($settings['BeaglePlatform']) {
                                     if (strpos($settings['SubPlatform'], 'Green Wireless') !== false) {?>
                                           <option value='v2'>v2.x</option>
+                                <?} else if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) {?>
+                                          <option value='PocketScroller1x'>PocketScroller</option>
+                                          <option value='PocketScroller3x'>PocketScroller v3</option>
                                 <?} else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {?>
                                           <option value='PocketScroller1x'>PocketScroller</option>
                                 <?} else {?>
