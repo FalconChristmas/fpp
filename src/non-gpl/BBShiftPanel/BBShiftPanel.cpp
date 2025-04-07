@@ -528,7 +528,9 @@ int BBShiftPanelOutput::StartPRU() {
         }
     }
     for (int x = 0; x < NUM_OUTPUT_BUFFERS; x++) {
-        pru->clearPRUMem(outputBuffers[x], frameSize);
+        if (outputBuffers[x]) {
+            memset(outputBuffers[x], 0, frameSize);
+        }
     }
     return 1;
 }
