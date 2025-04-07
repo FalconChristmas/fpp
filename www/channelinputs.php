@@ -301,8 +301,8 @@
                                             </div>
                                             <div class="col-md-auto form-inline">
                                                 <div><b>Timeout:</b></div>
-                                                <div><input id="bridgeTimeoutMS" type="number" min="0" max="9999"
-                                                        size="4" maxlength="4">
+                                                <div><input id="bridgeTimeoutMS" type="number" min="10" max="9999"
+                                                        size="4" maxlength="4" value="1000">
                                                     <img id="timeout_img"
                                                         title="Timeout for input channel data (in MS).  If no new data is received for this time, the input data is cleared."
                                                         src="images/redesign/help-icon.svg" width=22 height=22>

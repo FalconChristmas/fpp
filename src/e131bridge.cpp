@@ -183,7 +183,12 @@ bool LoadInputUniversesFromFile(void) {
             continue;
 
         if (outputs[c].isMember("timeout")) {
-            expireOffSet = outputs[c]["timeout"].asInt();
+            if (!outputs[c]["timeout"].isNull()) {
+                expireOffSet = outputs[c]["timeout"].asInt();
+                if (expireOffSet < 10) {
+                    expireOffSet = 10;
+                }
+            }
         }
 
         Json::Value univs = outputs[c]["universes"];
