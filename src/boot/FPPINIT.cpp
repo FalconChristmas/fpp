@@ -522,6 +522,7 @@ static void setupNetwork() {
     for (const auto& entry : std::filesystem::directory_iterator(FPP_MEDIA_DIR + "/config")) {
         std::string dev = entry.path().filename();
         if (startsWith(dev, "interface.")) {
+            bool validConfig = true;
             auto interfaceSettings = loadSettingsFile(FPP_MEDIA_DIR + "/config/" + dev);
             std::string interface = dev.substr(10);
 
@@ -600,6 +601,8 @@ static void setupNetwork() {
                     filesNeeded["/etc/wpa_supplicant/wpa_supplicant-" + interface + ".conf"] = wpa;
                     commandsToRun.emplace_back("systemctl enable \"wpa_supplicant@" + interface + ".service\" &");
                     commandsToRun.emplace_back("systemctl reload-or-restart \"wpa_supplicant@" + interface + ".service\" &");
+                } else {
+                    validConfig = false;
                 }
             }
             if (DHCPSERVER) {
@@ -659,7 +662,9 @@ static void setupNetwork() {
                     PutFileContents(FPP_MEDIA_DIR + "/config/proxies", c2);
                 }
             }
-            filesNeeded["/etc/systemd/network/10-" + interface + ".network"] = content;
+            if (validConfig) {
+                filesNeeded["/etc/systemd/network/10-" + interface + ".network"] = content;
+            }
         }
     }
     bool changed = false;
@@ -953,7 +958,7 @@ static void detectNetworkModules() {
 }
 static void checkPi5Wifi() {
 #ifdef PLATFORM_PI
-    if (startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5")) {
+    if (startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5") || startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi Compute Module 5")) {
         // Pi5 does not have external wifi adapters, make sure we have them disabled
         if (FileExists("/etc/modprobe.d/blacklist-native-wifi.conf")) {
             unlink("/etc/modprobe.d/blacklist-native-wifi.conf");
