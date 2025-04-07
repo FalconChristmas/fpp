@@ -311,11 +311,12 @@ int BBShiftPanelOutput::Init(Json::Value config) {
         const BBBPinCapabilities* pin = (const BBBPinCapabilities*)(PinCapabilities::getPinByName(pinName).ptr());
         outputMap[i] = pin->pruPin(1);
     }
-    // singlePRU = true;
     if (root.isMember("singlePRU")) {
         singlePRU = root["singlePRU"].asBool();
     }
+    // singlePRU = true;
     if (!singlePRU) {
+        // if not using a single PRU, then we need to change the OE pin to the other PRU
         const PinCapabilities& pin = PinCapabilities::getPinByName("P1-36");
         pin.configPin("pru0out", true);
     }
@@ -328,7 +329,7 @@ int BBShiftPanelOutput::Init(Json::Value config) {
         m_panelHeight = 16;
     }
 
-    int addressingType = config["panelAddressing"].asInt();
+    m_addressingMode = config["panelAddressing"].asInt();
 
     m_invertedData = config["invertedData"].asInt();
     m_colorOrder = ColorOrderFromString(config["colorOrder"].asString());
@@ -642,13 +643,24 @@ void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
     bgTaskCondVar.notify_all();
     processTasks(counter);
 
-    std::array<uint8_t*, 12> results;
+    std::array<std::array<uint16_t*, 12>, 32> results;
+
     uint32_t strideLen = rowLen * 6;
     uint8_t* buf = outputBuffers[currOutputBuffer];
-    uint32_t blockLen = strideLen * numRows;
-    for (int x = 0; x < m_colorDepth; x++) {
-        results[BIT_ORDERS[m_colorDepth][x]] = buf;
-        buf += blockLen;
+    if (m_outputByRow) {
+        for (int r = 0; r < numRows; r++) {
+            for (int d = 0; d < m_colorDepth; d++) {
+                results[r][m_colorDepth - d - 1] = (uint16_t*)buf;
+                buf += strideLen;
+            }
+        }
+    } else {
+        for (int d = 0; d < m_colorDepth; d++) {
+            for (int r = 0; r < numRows; r++) {
+                results[r][BIT_ORDERS[m_colorDepth][d]] = (uint16_t*)buf;
+                buf += strideLen;
+            }
+        }
     }
 
     /*
@@ -674,13 +686,16 @@ void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
     for (int curRow = 0; curRow < numRows; curRow++) {
         // Map the pixels for this row
         ++counter;
-        bgTasks.push([this, curRow, &results, &counter]() {
+        bgTasks.push([this, curRow, strideLen, &results, &counter]() {
             uint32_t start = curRow * rowLen * 6 * 8;
             uint32_t end = start + (rowLen * 6 * 8);
             ispc::MapPixelsByDepth16(currentChannelData, start, end, m_colorDepth,
-                                     (uint16_t*)&results[0][0], (uint16_t*)&results[1][0], (uint16_t*)&results[2][0], (uint16_t*)&results[3][0],
-                                     (uint16_t*)&results[4][0], (uint16_t*)&results[5][0], (uint16_t*)&results[6][0], (uint16_t*)&results[7][0],
-                                     (uint16_t*)&results[8][0], (uint16_t*)&results[9][0], (uint16_t*)&results[10][0], (uint16_t*)&results[11][0]);
+                                     results[curRow][0], results[curRow][1],
+                                     results[curRow][2], results[curRow][3],
+                                     results[curRow][4], results[curRow][5],
+                                     results[curRow][6], results[curRow][7],
+                                     results[curRow][8], results[curRow][9],
+                                     results[curRow][10], results[curRow][11]);
 
             --counter;
         });
@@ -716,6 +731,21 @@ int BBShiftPanelOutput::SendData(unsigned char* channelData) {
     }
     return m_channelCount;
 }
+inline int mapRow(int row, int mode) {
+    if (mode == 1) {
+        switch (row) {
+        case 0:
+            return 0x0E;
+        case 1:
+            return 0x0D;
+        case 2:
+            return 0x0B;
+        case 3:
+            return 0x07;
+        }
+    }
+    return row;
+}
 void BBShiftPanelOutput::setupBrightnessValues() {
     uint32_t maxBright = 0x8000;
     if (rowLen > 384) {
@@ -725,14 +755,37 @@ void BBShiftPanelOutput::setupBrightnessValues() {
     }
 
     uint32_t* cur = &pruData->brightness[0];
-    for (int d = 0; d < m_colorDepth; d++) {
-        uint32_t bright = m_brightness * maxBright / 10;
-        uint32_t div = m_colorDepth - BIT_ORDERS[m_colorDepth][d] - 1;
-        bright >>= div;
-        // printf("Brightness[%d] = %06x\n", d, bright);
+
+    if (m_outputByRow) {
         for (int r = 0; r < numRows; r++) {
-            *cur = bright + ((r << 24) & 0x7F000000);
-            cur++;
+            int mappedRow = mapRow(r, m_addressingMode);
+            for (int d = 0; d < m_colorDepth; d++) {
+                uint32_t bright = m_brightness * maxBright / 10;
+                uint32_t extra = 0;
+                uint32_t div = d;
+                bright >>= div;
+                cur[0] = bright;
+                cur[1] = extra + ((mappedRow << 24) & 0x7F000000);
+                if (m_outputBlankData && (d == m_colorDepth - 1)) {
+                    cur[1] |= 0x80000000;
+                }
+                // printf("Brightness[%d %d] = %08x  %08x\n", r, d, cur[0], cur[1]);
+                cur += 2;
+            }
+        }
+    } else {
+        for (int d = 0; d < m_colorDepth; d++) {
+            uint32_t bright = m_brightness * maxBright / 10;
+            uint32_t div = m_colorDepth - BIT_ORDERS[m_colorDepth][d] - 1;
+            bright >>= div;
+            uint32_t extra = 0;
+            for (int r = 0; r < numRows; r++) {
+                int mappedRow = mapRow(r, m_addressingMode);
+                cur[0] = bright;
+                cur[1] = extra + ((mappedRow << 24) & 0x7F000000);
+                // printf("Brightness[%d %d] = %08x  %08x\n", r, d, cur[0], cur[1]);
+                cur += 2;
+            }
         }
     }
 }

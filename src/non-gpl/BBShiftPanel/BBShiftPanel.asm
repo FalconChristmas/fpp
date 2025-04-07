@@ -40,8 +40,6 @@
 #define SEL3_PIN    14
 #define SEL4_PIN    15
 
-#define SEL_MASK (0 | (1<<SEL0_PIN) | (1<<SEL1_PIN) | (1<<SEL2_PIN) | (1<<SEL3_PIN) | (1<<SEL4_PIN))
-
 /** Register map */
 #define xshiftReg   r0.b0
 #define dataOutReg  r1.b0
@@ -54,13 +52,14 @@
 #define curPixel    r24.w0
 #define curStride   r24.w2
 #define curBright   r25
-#define curAddress  r25.b3
-#define data_addr	r26
-#define numPixels   r27.w0
-#define numStrides  r27.w2
+#define curAddress  r26.b3
+#define data_addr	r27
+#define numPixels   r28.w0
+#define numStrides  r28.w2
 
-#define tmpReg1     r28
-#define tmpReg2     r29
+// these can co-exist with xferR2/R3
+#define tmpReg1     r19
+#define tmpReg2     r20
 
 #define DATA_BYTE   r30.b0
 
@@ -70,6 +69,7 @@ DISPLAY_OFF .macro
     .endm
 
 DISPLAY_ON .macro
+    RESET_PRU_CLOCK tmpReg1, tmpReg2
     CLR r30, r30, OE_PIN
     .endm
 
@@ -98,6 +98,11 @@ DISPLAY_OFF .macro
     .endm
 
 DISPLAY_ON .macro
+    .newblock
+    // need to wait a bit between latch and ON
+    LOOP NOPLOOP?, 16
+        NOP 
+NOPLOOP?:
     XOUT  12, &curBright, 4
     .endm
 
@@ -113,28 +118,21 @@ BRIGHTLOADLOOP?:
 #endif
 
 TOGGLE_OSHIFT .macro
-    NOP
     SET r30, r30, OSHIFT_PIN
-    NOP
     CLR r30, r30, OSHIFT_PIN
     .endm
 
 TOGGLE_OLATCH .macro
-    NOP
     SET r30, r30, OLATCH_PIN
-    NOP
     CLR r30, r30, OLATCH_PIN
     .endm    
 
 TOGGLE_CLOCK .macro
     NOP
-    NOP
     CLR r30, r30, CLOCK_PIN
     NOP
     NOP
     SET r30, r30, CLOCK_PIN
-    NOP
-    NOP
     NOP
     .endm
 
@@ -142,7 +140,6 @@ TOGGLE_LATCH .macro
     NOP
     NOP
     SET r30, r30, LATCH_PIN
-    NOP
     NOP
     NOP
     NOP
@@ -174,10 +171,12 @@ OUTPUT_PIXEL .macro
 SETADDRESS .macro
     // optimize a bit:
     // when setting address, we know the display has to be off 
-    // and the latch/clocks are all low 
+    // and the latch is low, clock is high
     MOV tmpReg1.b1, curAddress
     LSL tmpReg1.b1, tmpReg1.b1, SEL0_PIN - 8
     SET tmpReg1.b1, tmpReg1.b1, OE_PIN - 8
+    SET tmpReg1.b1, tmpReg1.b1, CLOCK_PIN - 8
+    CLR tmpReg1.b1, tmpReg1.b1, OSHIFT_PIN - 8
     MOV r30.b1, tmpReg1.b1    
     .endm
 
@@ -238,6 +237,15 @@ WAITFORDATA2?:
     NOP     // spec says we need an extra NOP after this flag is set
     .endm
 
+UNPRELOAD_DATA .macro
+    WAITFORDATA_READY
+    LDI32   xferR1, 6
+    MOV     xferR2, data_addr
+    LDI32   xferR3, 0
+    XOUT    0x60, &xferR1, 12
+    XIN     0x60, &r2, 64
+    .endm
+
 LOAD_DATA .macro
     .newblock
 
@@ -278,7 +286,7 @@ READPART3?:
     XIN     11, &r2, 48
     LDI     flags, 3    
 ENDREAD?:
-    LDI     dataOutReg, 8    
+    LDI     dataOutReg, &outputData
     .endm
 
 #else
@@ -287,12 +295,27 @@ LOAD_DATA .macro
     .newblock
     LBBO    &outputData, data_addr, 0, 48
     ADD     data_addr, data_addr, 48
-    LDI     dataOutReg, 8
+    LDI     dataOutReg, &outputData
     .endm
 
 #define PRELOAD_DATA
+#define UNPRELOAD_DATA
 #endif
 
+
+CLEARBITS .macro
+    .newblock
+    CLR r30, r30, OCLR_PIN
+    TOGGLE_OLATCH
+    SET r30, r30, OCLR_PIN
+    LOOP ENDLOOP?, numPixels
+        TOGGLE_CLOCK
+        NOP
+        NOP
+        CHECK_FOR_DISPLAY_OFF
+ENDLOOP?:
+
+    .endm
 
 ;*****************************************************************************
 ;                                  Main Loop
@@ -368,11 +391,14 @@ DOOUTPUT
     //LDI     tmpReg1, 0
     //SBCO    &tmpReg1, CONST_PRUDRAM, 4, 4
 
+    //LDI     numStrides, 9
+
+
     LDI     flags, 0
     LDI     curStride, 0
     LDI     curBright, 0
 STRIDE_START:
-    LDI dataOutReg, 8
+    LDI dataOutReg, &outputData
     MOV curPixel, numPixels
 
 #ifdef SINGLEPRU
@@ -403,18 +429,36 @@ ENDLOOPPIXEL2:
 
     WAIT_FOR_DISLAY_OFF
 
-    LSL tmpReg1, curStride, 2
+    LSL tmpReg1, curStride, 3
     ADD tmpReg1, tmpReg1, 8
-	LBCO &curBright, CONST_PRUDRAM, tmpReg1, 4
+	LBCO &curBright, CONST_PRUDRAM, tmpReg1, 8
+    QBBC DOSETADDRESS, curAddress, 7
+        SET flags, flags, 7
+        CLR curAddress, curAddress, 7
+DOSETADDRESS:
     SETADDRESS
     LDI curAddress, 0
     TOGGLE_LATCH
-    RESET_PRU_CLOCK tmpReg1, tmpReg2
     DISPLAY_ON
+
+    QBBC NEXTSTRIDECHECK, flags, 7
+#ifdef SINGLEPRU
+        WAIT_FOR_DISLAY_OFF
+        CLEARBITS
+#else
+        CLEARBITS
+        WAIT_FOR_DISLAY_OFF
+#endif
+        TOGGLE_LATCH
+        LDI curBright, 10
+        DISPLAY_ON
+        CLR flags, flags, 7
+NEXTSTRIDECHECK:
     ADD curStride, curStride, 1
     QBNE STRIDE_START, numStrides, curStride
 
     WAIT_FOR_DISLAY_OFF
+    UNPRELOAD_DATA
 
 	// Go back to waiting for the next frame buffer
 	JMP	_LOOP

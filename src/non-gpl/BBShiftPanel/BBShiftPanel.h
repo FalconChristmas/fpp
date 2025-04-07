@@ -32,8 +32,10 @@ typedef struct {
     volatile uint16_t pixelsPerStride;
     volatile uint16_t numStrides;
 
-    // Top 8 bits are the address, bottom 24 are the number of clock ticks for the brightness level
-    uint32_t brightness[12 * 32]; // 12bits*32 rows
+    // 2 uint32_t for each stride
+    // first uint32_t is the brightness, number of clock ticks for on
+    // second uint32_t - bit 32 is flag to output black after this row,  bits 25-31 is the address, lower 24 is extra "off" time
+    uint32_t brightness[12 * 32 * 2]; // 12bits*32 rows * 2
 
 } __attribute__((__packed__)) BBShiftPanelData;
 
@@ -75,6 +77,7 @@ private:
 
     int m_panelWidth = 0;
     int m_panelHeight = 0;
+    int m_addressingMode = 0;
     int m_longestChain = 0;
     int m_invertedData = 0;
     int m_brightness = 10;

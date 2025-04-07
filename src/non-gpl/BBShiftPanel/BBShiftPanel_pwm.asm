@@ -26,6 +26,7 @@
 #define OE_PIN      0
 
 #define curBright   r25
+#define extraWait   r26
 
 #define tmpReg1     r28
 #define tmpReg2     r29
@@ -62,7 +63,8 @@ DISPLAY_ON .macro
 
     // Make sure the brightness is clear at start
 	LDI 	curBright, 0x0
-	XOUT 	12, &curBright, 4
+	LDI		extraWait, 0x0
+	XOUT 	12, &curBright, 8
   
 	// Wait for the start condition from the main program to indicate
 	// that we have a rendered frame ready to clock out.  This also
@@ -72,11 +74,11 @@ _LOOP:
     // make sure the display is off
     DISPLAY_OFF
 
-	XIN 	12, &curBright, 4
+	XIN 	12, &curBright, 8
 	// Wait for a non-zero brightness
 	QBEQ	_LOOP, curBright, 0
 
-	// Command of 0xFFFF is the signal to exit
+	// Command of 0xFFFFFFFF is the signal to exit
     LDI32     tmpReg1, 0xFFFFFFFF
 	QBNE	DOOUTPUT, curBright, tmpReg1
     JMP     EXIT
@@ -90,6 +92,13 @@ ONLOOP:
     QBLT    ONLOOP, curBright, 1
 
     DISPLAY_OFF
+
+OFFLOOP:
+	QBGT	NOTIFY, extraWait.w0, 3
+	SUB		extraWait.w0, extraWait.w0, 3
+	JMP		OFFLOOP
+
+NOTIFY:
     LDI curBright, 0
 	XOUT 12, &curBright, 4
 
