@@ -146,6 +146,12 @@ function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
             $serialNumber = "";
         }
     }
+    if ($settings['Variant'] == "PocketBeagle2" && $serialNumber == "") {
+        $serialNumber = exec("dd if=/sys/bus/i2c/devices/0-0050/eeprom count=16 skip=40 bs=1 2>/dev/null", $output, $return_val);
+        if ($return_val != 0) {
+            $serialNumber = "";
+        }
+    }
 
     $data = array();
     $data['key'] = $key;
@@ -250,20 +256,28 @@ function SignEEPROM($key = '', $order = '')
         return $data;
     }
 
-    $options = array(
-        'http' => array(
-            'method' => 'POST',
-            'header' => 'Content-Type: application/json',
-            'content' => json_encode($data),
-        ),
-    );
+    $curl = curl_init($url);
+    curl_setopt($curl, CURLOPT_HEADER, 0);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($curl, CURLOPT_TIMEOUT, 30);
+    curl_setopt($curl, CURLOPT_USERAGENT, getFPPVersion());
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+    curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+    curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
 
-    $context = stream_context_create($options);
-    $replyStr = file_get_contents($url, false, $context);
+    $replyStr = curl_exec($curl);
+    $rc = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    curl_close($curl);
+
+    if ($rc != 200) {
+        $replyStr = false;
+    }
+
 
     if ($replyStr === false) {
         $result['Status'] = 'ERROR';
-        $result['Message'] = "Could not contact signing website https://$APIhost";
+        $result['Message'] = "Could not contact signing website https://$APIhost.  RC: " . $rc);
         return json($result);
     }
 
@@ -343,20 +357,27 @@ function RedeemVoucher()
         return json($result);
     }
 
-    $options = array(
-        'http' => array(
-            'method' => 'POST',
-            'header' => 'Content-Type: application/json',
-            'content' => $postJSON,
-        ),
-    );
+    $curl = curl_init($url);
+    curl_setopt($curl, CURLOPT_HEADER, 0);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($curl, CURLOPT_TIMEOUT, 30);
+    curl_setopt($curl, CURLOPT_USERAGENT, getFPPVersion());
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+    curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+    curl_setopt($curl, CURLOPT_POSTFIELDS, $postJSON);
 
-    $context = stream_context_create($options);
-    $replyStr = file_get_contents($url, false, $context);
+    $replyStr = curl_exec($curl);
+    $rc = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    curl_close($curl);
+
+    if ($rc != 200) {
+        $replyStr = false;
+    }
 
     if ($replyStr === false) {
         $result['Status'] = 'ERROR';
-        $result['Message'] = "Could not contact signing website https://$APIhost";
+        $result['Message'] = "Could not contact signing website https://$APIhost.  RC: " .$rc;
         return json($result);
     }
 
