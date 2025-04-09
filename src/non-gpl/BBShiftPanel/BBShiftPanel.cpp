@@ -301,7 +301,8 @@ int BBShiftPanelOutput::Init(Json::Value config) {
 
     Json::Value root;
     std::string subType = config["configName"].asString();
-    if (!CapeUtils::INSTANCE.getPanelConfig(subType, root) || CapeUtils::INSTANCE.getLicensedOutputs() < 1) {
+    int outputs = CapeUtils::INSTANCE.getLicensedOutputs();
+    if (!CapeUtils::INSTANCE.getPanelConfig(subType, root)) {
         LogErr(VB_CHANNELOUT, "Could not read panel pin configuration for %s\n", subType.c_str());
         return 0;
     }
@@ -345,26 +346,27 @@ int BBShiftPanelOutput::Init(Json::Value config) {
     };
     for (int i = 0; i < config["panels"].size(); i++) {
         Json::Value p = config["panels"][i];
-        char orientation = 'N';
-        const char* o = p["orientation"].asString().c_str();
+        if (p["outputNumber"].asInt() <= outputs) {
+            char orientation = 'N';
+            const char* o = p["orientation"].asString().c_str();
 
-        if (o && *o) {
-            orientation = o[0];
-        }
+            if (o && *o) {
+                orientation = o[0];
+            }
 
-        if (p["colorOrder"].asString() == "") {
-            p["colorOrder"] = ColorOrderToString(m_colorOrder);
-        }
+            if (p["colorOrder"].asString() == "") {
+                p["colorOrder"] = ColorOrderToString(m_colorOrder);
+            }
 
-        m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
-                                p["panelNumber"].asInt(),
-                                orientation,
-                                p["xOffset"].asInt(), p["yOffset"].asInt(),
-                                ColorOrderFromString(p["colorOrder"].asString()));
-
-        usesOutput[p["outputNumber"].asInt()] = true;
-        if (p["panelNumber"].asInt() > m_longestChain) {
-            m_longestChain = p["panelNumber"].asInt();
+            m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
+                                    p["panelNumber"].asInt(),
+                                    orientation,
+                                    p["xOffset"].asInt(), p["yOffset"].asInt(),
+                                    ColorOrderFromString(p["colorOrder"].asString()));
+            usesOutput[p["outputNumber"].asInt()] = true;
+            if (p["panelNumber"].asInt() > m_longestChain) {
+                m_longestChain = p["panelNumber"].asInt();
+            }
         }
     }
     m_longestChain++;
