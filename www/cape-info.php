@@ -31,6 +31,7 @@ curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
 curl_setopt($curl, CURLOPT_TIMEOUT, 5);
 curl_setopt($curl, CURLOPT_USERAGENT, getFPPVersion());
 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
 $request_content = curl_exec($curl);
 $rc = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
 curl_close($curl);
