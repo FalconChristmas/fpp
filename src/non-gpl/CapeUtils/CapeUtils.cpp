@@ -1415,11 +1415,11 @@ const Json::Value& CapeUtils::getCapeInfo() {
 }
 
 int CapeUtils::getLicensedOutputs() {
-    return capeInfo->getLicensedOutputs();
+    return initCapeInfo(true)->getLicensedOutputs();
 }
 
 std::string CapeUtils::getKeyId() {
-    return capeInfo->getKeyId();
+    return initCapeInfo(true)->getKeyId();
 }
 
 bool CapeUtils::getStringConfig(const std::string& type, Json::Value& val) {
