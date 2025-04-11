@@ -93,7 +93,8 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
     } else {
         snprintf(buf, sizeof(buf), "%s-rx", &device[5]); // "ttyS1-rx" or "ttyUSB0-rx"
     }
-    if (configurePin) {
+    if (configurePin && strncmp(device, "/dev/ttyUSB", 11) != 0) {
+        // don't attempt to configure USB uarts  as they wouldn't have a pin
         PinCapabilities::getPinByUART(buf).configPin("uart", output, desc);
     }
 
