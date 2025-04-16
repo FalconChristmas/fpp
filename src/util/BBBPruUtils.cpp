@@ -53,8 +53,29 @@ public:
     uint32_t m4ram_addr = 0;
     size_t m4ram_size = 0;
 
+    std::string getRemoteProcStateFile() {
+#ifdef PLATFORM_BBB
+        return "/sys/class/remoteproc/remoteproc" + std::to_string(pru_num) + "/state";
+#elif defined(PLATFORM_BB64)
+        std::string base;
+        if (pru_num == 0) {
+            base = "/sys/devices/platform/bus@f0000/30040000.pruss/30074000.pru/remoteproc/remoteproc";
+        } else if (pru_num == 1) {
+            base = "/sys/devices/platform/bus@f0000/30040000.pruss/30078000.pru/remoteproc/remoteproc";
+        } else {
+            // M4 core, not PRU, but startable via remoteproc
+            base = "/sys/devices/platform/bus@f0000/bus@f0000:bus@4000000/5000000.m4fss/remoteproc/remoteproc";
+        }
+        for (int x = 0; x < 10; x++) {
+            if (FileExists(base + std::to_string(x) + "/state")) {
+                return base + std::to_string(x) + "/state";
+            }
+        }
+        return "/sys/class/remoteproc/remoteproc" + std::to_string(pru_num) + "/state";
+#endif
+    }
     void disable() {
-        std::string filename = "/sys/class/remoteproc/remoteproc" + std::to_string(pru_num) + "/state";
+        std::string filename = getRemoteProcStateFile();
         if (FileExists(filename)) {
             FILE* rp = fopen(filename.c_str(), "w");
             fprintf(rp, "stop");
@@ -75,7 +96,7 @@ public:
         }
     }
     void enable() {
-        std::string filename = "/sys/class/remoteproc/remoteproc" + std::to_string(pru_num) + "/state";
+        std::string filename = getRemoteProcStateFile();
         int cnt = 0;
         while (!FileExists(filename) && cnt < 10000) {
             cnt++;
