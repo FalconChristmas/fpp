@@ -49,17 +49,17 @@
             ]
         },
         {
-            "name": "FPP v8.5 Alpha5 BB64/PocketBeagle2",
+            "name": "FPP v8.5.1 BB64/PocketBeagle2",
             "description": "Falcon Player for PocketBeagle2",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.5/FPP-v8.5-alpha5-BB64.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/8.5/FPP-v8.5.1-BB64.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 7130316800,
-            "extract_sha256": "b5d8f4e815c0a80515cf456ab1c16554dd5a2b8ed1ce07491600ac078838a2cd",
-            "image_download_size": 1318623622,
-            "image_download_sha256": "06854390230b5097bde88dfe7a9241f6e3ca21275aa6a0812de4b65fa774ca00",
-            "release_date": "2025-02-18",
+            "extract_sha256": "9962334e3938f6c2e5bae6cd3722218b31bbe96126f892040dc9ea40a0556807",
+            "image_download_size": 1647272888,
+            "image_download_sha256": "4c7c80dc27e91c7e7801acae505bf09224d458887b9efacca4870ea871bf5bc2",
+            "release_date": "2025-04-16",
             "devices": [
                 "pi1-32bit"
             ]
