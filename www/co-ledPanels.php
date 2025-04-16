@@ -245,10 +245,15 @@ function UpdateLegacyLEDPanelLayout()
 	LEDPanelRows = parseInt($('#LEDPanelsLayoutRows').val());
 
 	UpdatePanelSize();
+
     if ((LEDPanelScan * 2) == LEDPanelHeight) {
         $('#LEDPanelInterleave').attr("disabled", "disabled");
+        $('#LEDPanelInterleave').hide();
+        $('#LEDPanelInterleaveLabel').hide();
     } else {
         $('#LEDPanelInterleave').removeAttr("disabled");
+        $('#LEDPanelInterleave').show();
+        $('#LEDPanelInterleaveLabel').show();
     }
 
     var pixelCount = LEDPanelCols * LEDPanelRows * LEDPanelWidth * LEDPanelHeight;
@@ -548,11 +553,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
     if (LEDPanelAddressing) {
         config.panelAddressing = LEDPanelAddressing;
     }
-<? if (! $settings['BeaglePlatform']) { ?>
     if ($('#LEDPanelRowAddressType').val() != "0") {
         config.panelRowAddressType = parseInt($('#LEDPanelRowAddressType').val());
     }
-<? } ?>    
     if ($('#LEDPanelInterleave').val() != "0") {
         config.panelInterleave = $('#LEDPanelInterleave').val();
     }
@@ -671,7 +674,7 @@ function LEDPanelsConnectionChanged()
 if ($settings['BeaglePlatform']) {
     echo "        $('#LEDPanelsRowAddressTypeLabel').hide();\n";
     echo "        $('#LEDPanelRowAddressType').hide();\n";
-    echo "        $('#LEDPanelsInterleaveLabel').hide();\n";
+    echo "        $('#LEDPanelInterleaveLabel').hide();\n";
     echo "        $('#LEDPanelInterleave').hide();\n";
     echo "        $('#LEDPanelsOutputByRowLabel').hide();\n";
     echo "        $('#LEDPanelsOutputByRow').hide();\n";
@@ -679,7 +682,7 @@ if ($settings['BeaglePlatform']) {
     echo "        $('#LEDPanelsOutputBlankRow').hide();\n";
 }
 if ($settings['Platform'] == "Raspberry Pi") {
-    echo "        $('#LEDPanelsInterleaveLabel').hide();\n";
+    echo "        $('#LEDPanelInterleaveLabel').hide();\n";
     echo "        $('#LEDPanelInterleave').hide();\n";
     echo "        $('#LEDPanelsOutputCPUPWMLabel').hide();\n";
     echo "        $('#LEDPanelsOutputCPUPWM').hide();\n";
@@ -701,7 +704,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 
 <?
 if ($settings['BeaglePlatform']) {
-    echo "        $('#LEDPanelsInterleaveLabel').show();\n";
+    echo "        $('#LEDPanelInterleaveLabel').show();\n";
     echo "        $('#LEDPanelInterleave').show();\n";
     echo "        $('#LEDPanelsOutputByRowLabel').show();\n";
     echo "        $('#LEDPanelsOutputByRow').show();\n";
@@ -729,7 +732,7 @@ if ($settings['BeaglePlatform']) {
     if ($settings['Platform'] == "Raspberry Pi") {
         echo "        $('#LEDPanelsRowAddressTypeLabel').show();\n";
         echo "        $('#LEDPanelRowAddressType').show();\n";
-        echo "        $('#LEDPanelsInterleaveLabel').show();\n";
+        echo "        $('#LEDPanelInterleaveLabel').show();\n";
         echo "        $('#LEDPanelInterleave').show();\n";
         echo "        $('#LEDPanelsOutputCPUPWMLabel').show();\n";
         echo "        $('#LEDPanelsOutputCPUPWM').show();\n";
@@ -741,6 +744,7 @@ if ($settings['BeaglePlatform']) {
 <?
 }
 ?>
+        UpdateLegacyLEDPanelLayout();
 	}
 
     if (typeof KNOWN_PANEL_CAPE  !== 'undefined') {
@@ -1203,17 +1207,21 @@ function PanelSubtypeChanged() {
     <?if ($settings['BeaglePlatform']) {?>
     html += "<option value='32x16x8'>32x16 1/8 Scan</option>"
     html += "<option value='32x16x4'>32x16 1/4 Scan</option>"
-    html += "<option value='32x16x4x1'>32x16 1/4 Scan ABCD</option>"
-    html += "<option value='32x16x2'>32x16 1/2 Scan A</option>"
-    html += "<option value='32x16x2x1'>32x16 1/2 Scan AB</option>"
+    <? if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) {?>
+        html += "<option value='32x16x2'>32x16 1/2 Scan</option>"
+    <? } else { ?>
+        html += "<option value='32x16x4x1'>32x16 1/4 Scan ABCD</option>"
+        html += "<option value='32x16x2'>32x16 1/2 Scan A</option>"
+        html += "<option value='32x16x2x1'>32x16 1/2 Scan AB</option>"
+    <? } ?>
     html += "<option value='32x32x16'>32x32 1/16 Scan</option>"
+    html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
     html += "<option value='64x32x16'>64x32 1/16 Scan</option>"
+    html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
     <?if ($panelCapesHaveSel4) {?>
     html += "<option value='64x64x32'>64x64 1/32 Scan</option>"
     html += "<option value='128x64x32'>128x64 1/32 Scan</option>"
     <?}?>
-    html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
-    html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
     html += "<option value='40x20x5'>40x20 1/5 Scan</option>"
     html += "<option value='80x40x10'>80x40 1/10 Scan</option>"
     <?if ($panelCapesHaveSel4) {?>
@@ -1508,11 +1516,22 @@ if ($settings['Platform'] == "Raspberry Pi") {
     <?}?>
 
                 </div>
-        <div class="row">
-                    <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsInterleaveLabel'><b>Panel Interleave:</b></span></div>
+                <div class="row">
+                    <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsColorDepthLabel'><b>Color Depth:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3">
-                        <?printLEDPanelInterleaveSelect();?>
+                        <select id='LEDPanelsColorDepth'>
+                    <?if ($settings['BeaglePlatform']) {?>
+                            <option value='12'>12 Bit</option>
+                    <?}?>
+                            <option value='11'>11 Bit</option>
+                            <option value='10'>10 Bit</option>
+                            <option value='9'>9 Bit</option>
+                            <option value='8' selected>8 Bit</option>
+                            <option value='7'>7 Bit</option>
+                            <option value='6'>6 Bit</option>
+                        </select>
                     </div>
+
             <?if ($settings['Platform'] == "Raspberry Pi") {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsOutputCPUPWMLabel'><b>Use CPU PWM:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"><input id='LEDPanelsOutputCPUPWM' type='checkbox'></div>
@@ -1525,26 +1544,14 @@ if ($settings['Platform'] == "Raspberry Pi") {
             <?}?>
                 </div>
                 <div class="row">
-                    <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsColorDepthLabel'><b>Color Depth:</b></span></div>
+                    <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelInterleaveLabel'><b>Panel Interleave:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3">
-                        <select id='LEDPanelsColorDepth'>
-                            <?if ($settings['BeaglePlatform']) {?>
-                                    <option value='12'>12 Bit</option>
-                            <?}?>
-                                    <option value='11'>11 Bit</option>
-                                    <option value='10'>10 Bit</option>
-                                    <option value='9'>9 Bit</option>
-									<option value='8' selected>8 Bit</option>
-									<option value='7'>7 Bit</option>
-									<option value='6'>6 Bit</option>
-								</select>
-                    </div>
+                        <?printLEDPanelInterleaveSelect();?>
+                    </div>                    
                     <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
                 </div>
-            </div>
-        </div>
-        <div class="row">
+            <div class="row">
             <?if ($settings['Platform'] == "Raspberry Pi") {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsRowAddressTypeLabel'><b>Panel Row Address Type:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3">
@@ -1556,10 +1563,22 @@ if ($settings['Platform'] == "Raspberry Pi") {
                             <option value='4'>ABC Shift + DE Direct</option>
                         </select>
                     </div>
+            <?} else if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) {?>
+                    <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
+                    <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <select id='LEDPanelRowAddressType'>
+                            <option value='0' selected>Standard</option>
+                            <option value='1'>Direct Row Select</option>
+                            <!-- option value='5'>FM6353C</option>
+                            <option value='6'>FM6363C</option -->
+                        </select>
+                    </div>
             <?} else {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
             <?}?>
+                </div>
+            </div>
         </div>
   </div>
 

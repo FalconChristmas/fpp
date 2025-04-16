@@ -28,15 +28,32 @@ typedef struct {
     // in the DDR shared with the PRU
     uint32_t address_dma;
 
-    // write data length to start, 0xFFFF to abort. will be cleared when started
-    volatile uint16_t pixelsPerStride;
-    volatile uint16_t numStrides;
+    union {
+        struct {
+            volatile uint16_t command;
+            volatile uint16_t result;
+        } __attribute__((__packed__));
+        struct {
+            // Standard shift register based panels where the data is shifted out row by row and the PWM
+            // is handled by the PRU code via the OE pin
+            // write data length to start, 0xFFFF to abort. will be cleared when started
+            uint16_t pixelsPerStride;
+            uint16_t numStrides;
 
-    // 2 uint32_t for each stride
-    // first uint32_t is the brightness, number of clock ticks for on
-    // second uint32_t - bit 32 is flag to output black after this row,  bits 25-31 is the address, lower 24 is extra "off" time
-    uint32_t brightness[12 * 32 * 2]; // 12bits*32 rows * 2
+            // 2 uint32_t for each stride
+            // first uint32_t is the brightness, number of clock ticks for on
+            // second uint32_t - bit 32 is flag to output black after this row,  bits 25-31 is the address, lower 24 is extra "off" time
+            uint32_t brightness[12 * 32 * 2]; // 12bits*32 rows * 2
+        } __attribute__((__packed__));
+        struct {
+            // Panels that handle the PWM themselves, all data is shifted out and the panel displays it automatically
+            uint16_t length;
+            uint8_t numRows;
+            uint8_t panelWidth;
 
+            uint16_t registers[8];
+        } __attribute__((__packed__));
+    };
 } __attribute__((__packed__)) BBShiftPanelData;
 
 class BBShiftPanelOutput : public ChannelOutput {
@@ -64,9 +81,13 @@ private:
     void StopPRU(bool wait = true);
     int StartPRU();
 
+    bool isPWMPanel();
+
     void setupGamma(float gamma);
     void setupChannelOffsets();
+
     void setupBrightnessValues();
+    void setupPWMRegisters();
 
     BBBPru* pru = nullptr;
     BBBPru* pwmPru = nullptr;
