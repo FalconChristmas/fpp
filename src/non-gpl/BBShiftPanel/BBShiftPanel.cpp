@@ -50,6 +50,11 @@ FPPPlugins::Plugin* createPlugin() {
 }
 }
 
+constexpr int ADDRESSING_MODE_STANDARD = 0;
+constexpr int ADDRESSING_MODE_DIRECT = 1;
+constexpr int ADDRESSING_MODE_FM6353C = 5;
+constexpr int ADDRESSING_MODE_FM6363C = 6;
+
 static std::map<int, std::vector<int>> BIT_ORDERS = {
     //{ 6, { 5, 4, 3, 2, 1, 0 } },
     { 6, { 5, 2, 1, 4, 3, 0 } },
@@ -291,6 +296,14 @@ BBShiftPanelOutput::~BBShiftPanelOutput() {
         delete m_panelMatrix;
 }
 
+bool BBShiftPanelOutput::isPWMPanel() {
+    if (m_addressingMode == ADDRESSING_MODE_FM6353C ||
+        m_addressingMode == ADDRESSING_MODE_FM6363C) {
+        return true;
+    }
+    return false;
+}
+
 int BBShiftPanelOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "BBShiftPanelOutput::Init(JSON)\n");
 
@@ -470,7 +483,11 @@ int BBShiftPanelOutput::Init(Json::Value config) {
     if (StartPRU() == 0) {
         return 0;
     }
-    setupBrightnessValues();
+    if (isPWMPanel()) {
+        setupPWMRegisters();
+    } else {
+        setupBrightnessValues();
+    }
 
     if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::string dd = "LED Panels";
@@ -500,17 +517,18 @@ int BBShiftPanelOutput::Init(Json::Value config) {
 int BBShiftPanelOutput::StartPRU() {
     pru = new BBBPru(1, true, true);
     pruData = (BBShiftPanelData*)pru->data_ram;
-    if (singlePRU) {
-        pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_single.out");
+    if (isPWMPanel()) {
     } else {
-        pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.out");
-        pwmPru = new BBBPru(0);
-        pwmPru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_pwm.out");
+        if (singlePRU) {
+            pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_single.out");
+        } else {
+            pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.out");
+            pwmPru = new BBBPru(0);
+            pwmPru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_oe.out");
+        }
     }
-
     uint32_t strideLen = rowLen * 6;
     uint32_t numStride = numRows * m_colorDepth;
-    pruData->numStrides = numStride;
     uint32_t oframeSize = numStride * strideLen;
     // round up to a page boundary
     uint32_t frameSize = oframeSize + 8192;
@@ -530,20 +548,24 @@ int BBShiftPanelOutput::StartPRU() {
     for (int x = 0; x < NUM_OUTPUT_BUFFERS; x++) {
         pru->clearPRUMem(outputBuffers[x], frameSize);
     }
+    if (isPWMPanel()) {
+    } else {
+        pruData->numStrides = numStride;
+    }
     return 1;
 }
 void BBShiftPanelOutput::StopPRU(bool wait) {
     // Send the stop command
     if (pru) {
-        pruData->numStrides = 0xFFFF;
-        pruData->pixelsPerStride = 0xFFFF;
+        pruData->command = 0xFFFF;
+        pruData->result = 0xFFFF;
     }
     __asm__ __volatile__("" ::
                              : "memory");
 
     if (pru) {
         int cnt = 0;
-        while (wait && cnt < 25 && pruData->pixelsPerStride == 0xFFFF) {
+        while (wait && cnt < 25 && pruData->result == 0xFFFF) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             cnt++;
             __asm__ __volatile__("" ::
@@ -720,8 +742,12 @@ int BBShiftPanelOutput::SendData(unsigned char* channelData) {
     __builtin___clear_cache(outputBuffers[currOutputBuffer], outputBuffers[currOutputBuffer] + frameSize);
 
     pruData->address_dma = addr;
-    pruData->numStrides = numStride;
-    pruData->pixelsPerStride = rowLen;
+    if (isPWMPanel()) {
+        pruData->command = 0x01;
+    } else {
+        pruData->numStrides = numStride;
+        pruData->pixelsPerStride = rowLen;
+    }
 
     __asm__ __volatile__("" ::
                              : "memory");
@@ -745,6 +771,35 @@ inline int mapRow(int row, int mode) {
         }
     }
     return row;
+}
+
+void BBShiftPanelOutput::setupPWMRegisters() {
+    // 6353
+    /*	const uint16_t conf_reg4 = 0x1f70;     // hi byte - number of scans - 1
+        const uint16_t conf_reg6 = 0x6707;
+        const uint16_t conf_reg8 = 0x40f7;
+        const uint16_t conf_reg10 = 0x0040;
+        const uint16_t conf_reg2 = 0x0008;   */
+    // 6363
+    /*  const uint16_t conf_reg4 = 0x0fb0;
+        const uint16_t conf_reg6 = 0xe79d;       // hi byte should be e7
+        const uint16_t conf_reg8 = 0x60b6;       // can be as 6353
+        const uint16_t conf_reg10 = 0x5a70;
+        const uint16_t conf_reg2 = 0x7e08;   */
+    static uint16_t conf_6353[] = { 0x0008, 0x1f70, 0x6707, 0x40f7, 0x0040, 0x0000 };
+    static uint16_t conf_6363[] = { 0x7e08, 0x0fb0, 0xe79d, 0x60b6, 0x5a70, 0x0000 };
+
+    uint16_t reg[6];
+
+    uint16_t scan = ((m_panelScan * 4) != m_panelHeight) ? (((m_panelScan * 2) != m_panelHeight) ? 1 : 2) : 3;
+    if (m_addressingMode == ADDRESSING_MODE_FM6353C) {
+        memcpy(reg, conf_6353, sizeof(conf_6353));
+        conf_6353[1] = ((scan - 1) << 8) | (conf_6353[1] & 0xFF);
+    } else if (m_addressingMode == ADDRESSING_MODE_FM6363C) {
+        memcpy(reg, conf_6363, sizeof(conf_6363));
+        conf_6363[1] = ((scan - 1) << 8) | (conf_6363[1] & 0xFF);
+    }
+    pru->memcpyToPRU((uint8_t*)pruData->registers, (uint8_t*)reg, sizeof(reg));
 }
 void BBShiftPanelOutput::setupBrightnessValues() {
     uint32_t maxBright = 0x8000;
