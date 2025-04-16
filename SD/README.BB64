@@ -32,7 +32,8 @@ apt-get update
 apt-get upgrade
 
 # Free up some space by removing stuff we know won't be needed
-apt-get remove --purge bb-node-red-installer bb-code-server ti-zephyr-firmware bb-u-boot-beagleboneai64 bb-u-boot-beagleplay bb-u-boot-beagleplay-mainline
+apt-get remove --autoremove --purge bb-node-red-installer bb-code-server ti-zephyr-firmware bb-u-boot-beagleboneai64 bb-u-boot-beagleplay bb-u-boot-beagleplay-mainline libstd-rust-dev rustc
+apt-get remove --autoremove firmware-nvidia-graphics firmware-intel-graphics
 rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1-* /opt/source/dtb-6.6-*  /opt/source/spi*
 
 #update to the latest 6.14 kernel to get the latest wifi drivers and other fixes
