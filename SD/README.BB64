@@ -35,6 +35,13 @@ apt-get upgrade
 apt-get remove --purge bb-node-red-installer bb-code-server ti-zephyr-firmware bb-u-boot-beagleboneai64 bb-u-boot-beagleplay bb-u-boot-beagleplay-mainline
 rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1-* /opt/source/dtb-6.6-*  /opt/source/spi*
 
+#update to the latest 6.14 kernel to get the latest wifi drivers and other fixes
+apt-get remove bbb.io-kernel-6.12-ti-k3-am62 linux-image-$(uname -r)
+apt-get install bbb.io-kernel-6.14-k3
+
+reboot
+
+
 
 cd /root
 wget -4 -O ./FPP_Install.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
