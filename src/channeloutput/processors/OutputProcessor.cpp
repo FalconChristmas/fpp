@@ -23,6 +23,7 @@
 #include "OverrideZeroOutputProcessor.h"
 #include "RemapOutputProcessor.h"
 #include "SetValueOutputProcessor.h"
+#include "ClampValueOutputProcessor.h"
 #include "ThreeToFourOutputProcessor.h"
 #include "../../overlays/PixelOverlay.h"
 #include "../../overlays/PixelOverlayModel.h"
@@ -94,6 +95,8 @@ OutputProcessor* OutputProcessors::create(const Json::Value& config) {
             return new HoldValueOutputProcessor(config);
         } else if (type == "Set Value") {
             return new SetValueOutputProcessor(config);
+        } else if (type == "Clamp Value") {
+            return new ClampValueOutputProcessor(config);
         } else if (type == "Reorder Colors") {
             return new ColorOrderOutputProcessor(config);
         } else if (type == "Three to Four") {

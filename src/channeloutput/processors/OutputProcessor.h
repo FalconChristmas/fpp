@@ -32,7 +32,8 @@ public:
         HOLDVALUE,
         THREETOFOUR,
         OVERRIDEZERO,
-        FOLD
+        FOLD,
+        CLAMPVALUE
     };
 
     virtual OutputProcessorType getType() const { return UNKNOWN; }
