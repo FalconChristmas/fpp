@@ -29,7 +29,7 @@
 #include "OutputProcessor.h"
 
 BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value& config) {
-    description = config["desription"].asString();
+    description = config["description"].asString();
     active = config["active"].asInt() ? true : false;
     start = config["start"].asInt();
     count = config["count"].asInt();

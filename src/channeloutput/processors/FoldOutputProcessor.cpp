@@ -17,7 +17,7 @@
 #include "FoldOutputProcessor.h"
 
 FoldOutputProcessor::FoldOutputProcessor(const Json::Value& config) {
-    description = config["desription"].asString();
+    description = config["description"].asString();
     active = config["active"].asInt() ? true : false;
     sourceChannel = config["source"].asInt() - 1;
     count = config["count"].asInt();

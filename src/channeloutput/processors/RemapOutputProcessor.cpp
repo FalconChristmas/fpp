@@ -18,7 +18,7 @@
 #include "OutputProcessor.h"
 
 RemapOutputProcessor::RemapOutputProcessor(const Json::Value& config) {
-    description = config["desription"].asString();
+    description = config["description"].asString();
     active = config["active"].asInt() ? true : false;
     sourceChannel = config["source"].asInt();
     destChannel = config["destination"].asInt();
