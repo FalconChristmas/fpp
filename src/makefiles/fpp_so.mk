@@ -18,6 +18,7 @@ OBJECTS_fpp_so += \
     channeloutput/processors/HoldValueOutputProcessor.o \
     channeloutput/processors/SetValueOutputProcessor.o \
     channeloutput/processors/ClampValueOutputProcessor.o \
+    channeloutput/processors/ScaleValueOutputProcessor.o \
     channeloutput/processors/BrightnessOutputProcessor.o \
     channeloutput/processors/ColorOrderOutputProcessor.o \
     channeloutput/processors/ThreeToFourOutputProcessor.o \

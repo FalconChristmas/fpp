@@ -33,7 +33,8 @@ public:
         THREETOFOUR,
         OVERRIDEZERO,
         FOLD,
-        CLAMPVALUE
+        CLAMPVALUE,
+        SCALE
     };
 
     virtual OutputProcessorType getType() const { return UNKNOWN; }

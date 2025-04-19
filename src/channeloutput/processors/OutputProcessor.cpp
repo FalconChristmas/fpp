@@ -25,6 +25,7 @@
 #include "SetValueOutputProcessor.h"
 #include "ClampValueOutputProcessor.h"
 #include "ThreeToFourOutputProcessor.h"
+#include "ScaleValueOutputProcessor.h"
 #include "../../overlays/PixelOverlay.h"
 #include "../../overlays/PixelOverlayModel.h"
 
@@ -97,6 +98,8 @@ OutputProcessor* OutputProcessors::create(const Json::Value& config) {
             return new SetValueOutputProcessor(config);
         } else if (type == "Clamp Value") {
             return new ClampValueOutputProcessor(config);
+        } else if (type == "Scale Value") {
+            return new ScaleValueOutputProcessor(config);
         } else if (type == "Reorder Colors") {
             return new ColorOrderOutputProcessor(config);
         } else if (type == "Three to Four") {
@@ -162,6 +165,9 @@ void ProcessModelConfig(const Json::Value& config, std::string& model, int& star
                             model.c_str(), count, m_channel);
                 }
             }
+        } else {
+           model = "";
+           --start;
         }
     } else {
         model = "";

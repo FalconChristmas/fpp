@@ -24,7 +24,7 @@ ClampValueOutputProcessor::ClampValueOutputProcessor(const Json::Value& config) 
     value = config["value"].asInt();
     ProcessModelConfig(config, model, start, count);
     LogInfo(VB_CHANNELOUT, "Clamp Channel Value:   %d-%d => %d, Model: %s\n",
-            start, start + (count -1),
+            start + 1, start + count,
             value, model.c_str());
 }
 
@@ -34,7 +34,7 @@ ClampValueOutputProcessor::~ClampValueOutputProcessor() {
 void ClampValueOutputProcessor::ProcessData(unsigned char* channelData) const {
     const int maxVal = value;
     for (int x = 0; x < count; x++) {
-        unsigned char& val = channelData[start+x-1];
+        unsigned char& val = channelData[start+x];
         if (val > maxVal) {
           val = static_cast<unsigned char>(maxVal);
           LogExcess(VB_CHANNELOUT, "Clamping Channel Value from %d to %d\n",

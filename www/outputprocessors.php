@@ -65,6 +65,10 @@ require_once "common.php";
                 html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
                     + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
                     + "Max Value: <input class='value' type=number value='" + output.value + "' min='0' max='255'/>";
+            } else if (type == "Scale Value") {
+                html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
+                    + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
+                    + "Scale Factor: <input class='scale' type=number value='" + output.scale + "' min='0' max='10' step='0.000001'/>"
             } else if (type == "Hold Value") {
                 html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
                     + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>";
@@ -243,6 +247,24 @@ require_once "common.php";
                         alert("Settings of row " + rowNumber + " is not valid.");
                         return;
                     }
+                } else if (type == "Scale Value") {
+                    var b = {
+                        type: "Scale Value",
+                        active: $this.find("input.active").is(':checked') ? 1 : 0,
+                        description: $this.find("input.description").val(),
+                        model: $this.find("select.model").val(),
+                        start: parseInt($this.find("input.start").val()),
+                        count: parseInt($this.find("input.count").val()),
+                        scale: parseFloat($this.find("input.scale").val()),
+                    };
+                    if ((b.start > 0) &&
+                        (b.count > 0)) {
+                        processors.push(b);
+                    } else {
+                        dataError = 1;
+                        alert("Settings of row " + rowNumber + " is not valid.");
+                        return;
+                    }
                 } else if (type == "Hold Value") {
                     var b = {
                         type: "Hold Value",
@@ -396,6 +418,14 @@ require_once "common.php";
                     value: 255
                 };
                 config += HTMLForOutputProcessorConfig(b, models);
+            } else if (type == "Scale Value") {
+                var b = {
+                    type: "Scale Value",
+                    start: 1,
+                    count: 1,
+                    scale: 1
+                };
+                config += HTMLForOutputProcessorConfig(b, models);
             } else if (type == "Hold Value") {
                 var b = {
                     type: "Hold Value",
@@ -463,6 +493,7 @@ require_once "common.php";
                 "<option value='Hold Value'>Hold Value</option>" +
                 "<option value='Set Value'>Set Value</option>" +
                 "<option value='Clamp Value'>Clamp Value</option>" +
+                "<option value='Scale Value'>Scale Value</option>" +
                 "<option value='Reorder Colors'>Reorder Colors</option>" +
                 "<option value='Three to Four'>Three to Four</option>" +
                 "<option value='Override Zero'>Override Zero</option>" +
