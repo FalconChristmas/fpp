@@ -443,12 +443,18 @@
 
             result += "<table>";
             for (var x = 0; x < 16; x++) {
+                var type = "Servo"; // default
+                if (config.ports && config.ports[x] && config.ports[x].type) {
+                    type = config.ports[x].type;
+                }
                 var min = 1000;
                 var max = 2000;
                 var center = 1500;
                 var dataType = 0;
                 var zeroBehavior = 0;
                 var description = "";
+                var brightness = 100;
+                var gamma = 1;
 
                 if (config.ports != undefined && config.ports[x] != undefined) {
                     min = config.ports[x].min;
@@ -462,20 +468,42 @@
                     if (config.ports[x].description != undefined) {
                         description = config.ports[x].description;
                     }
+                    if (config.ports[x].brightness != undefined) {
+                        brightness = config.ports[x].brightness;
+                    }
+                    if (config.ports[x].gamma != undefined) {
+                        gamma = config.ports[x].gamma;
+                    }
                     dataType = config.ports[x].dataType;
                 }
 
                 result += "<tr style='outline: thin solid;'><td style='vertical-align:top'>Port " + x + ": </td><td>";
+                result += "&nbsp;Type:<select class='type" + x + "'>";
+                result += "<option value='LED'" + (type === "LED" ? " selected" : "") + ">LED</option>";
+                result += "<option value='Servo'" + (type === "Servo" ? " selected" : "") + ">Servo</option>";
+                result += "</select>";
+
                 result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+                result += "<br><br>LED Only:<br>";
+                result += "Brightness: ";
+                result += "<select class='brightness" + x + "'>";
+                for (i = 100; i >= 5; i -= 5) {
+                    let selected = (i == brightness) ? " selected" : "";
+                    result += "<option value='" + i + "'" + selected + ">" + i + "%</option>";
+                }
+                result += "</select>";
+                result += " Gamma: <input type='number' class='gamma" + x + "' size='3' value='" + gamma + "' min='0.1' max='5.0' step='0.01'>";
+                result += "</div>";
+                result += "<br><br>Servo Only:<br>";
                 result += "&nbsp;Min&nbsp;Value:<input class='min" + x + "' type='number' min='0' max='4095' style='width: 6em' value='" + min + "'/>";
                 result += "&nbsp;Center&nbsp;Value:<input class='center" + x + "' type='number' min='0' max='4095' style='width: 6em' value='" + center + "'/>";
                 result += "&nbsp;Max&nbsp;Value:<input class='max" + x + "' type='number' min='0' max='4095' style='width: 6em' value='" + max + "'/><br>";
                 result += CreateSelect(datatypes, dataType, "Data Type", "Select Data Type", "dataType" + x) + "&nbsp;";
                 result += CreateSelect(zeroBehaviorTypes, zeroBehavior, "Zero Behavior", "Select Zero Behavior", "zeroBehavior" + x);
-                result += "</td></tr>"
+                result += "</td></tr>";
             }
             result += "</table>";
-
+            
             return result;
         }
         GetOutputConfig(result, cell) {
@@ -493,8 +521,10 @@
                 result.ports[x].max = parseInt(cell.find("input.max" + x).val());
                 result.ports[x].center = parseInt(cell.find("input.center" + x).val());
                 result.ports[x].description = cell.find("input.description" + x).val();
+                result.ports[x].type = cell.find("select.type" + x).val();
+                result.ports[x].brightness = parseInt(cell.find("select.brightness" + x).val());
+                result.ports[x].gamma = parseFloat(cell.find("input.gamma" + x).val());
             }
-
 
             return result;
         }
