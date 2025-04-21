@@ -3252,7 +3252,7 @@ function SetUniverseCount (input) {
 			universe.id = 1;
 			universe.startChannel = 1;
 			universe.channelCount = 512;
-			universe.type = 0;
+			universe.type = 1;
 			universe.address = '';
 			universe.priority = 0;
 			universe.monitor = 1;
