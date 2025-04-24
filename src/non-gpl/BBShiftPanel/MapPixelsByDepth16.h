@@ -40,7 +40,8 @@ namespace ispc { /* namespace */
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
-    extern void MapPixelsByDepth16(const uint16_t * data, uint32_t start, uint32_t end, uint32_t bits, uint16_t * res0, uint16_t * res1, uint16_t * res2, uint16_t * res3, uint16_t * res4, uint16_t * res5, uint16_t * res6, uint16_t * res7, uint16_t * res8, uint16_t * res9, uint16_t * res10, uint16_t * res11);
+    extern void MapPixelsByDepth16(const uint16_t * data, uint32_t start, uint32_t end, uint32_t bits, uint16_t * res0, uint16_t * res1, uint16_t * res2, uint16_t * res3, uint16_t * res4, uint16_t * res5, uint16_t * res6, uint16_t * res7, uint16_t * res8, uint16_t * res9, uint16_t * res10, uint16_t * res11, uint16_t * res12, uint16_t * res13, uint16_t * res14, uint16_t * res15);
+    extern void MapPixelsForPWM(const uint16_t * data, uint32_t start, uint32_t end, uint16_t * out);
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus

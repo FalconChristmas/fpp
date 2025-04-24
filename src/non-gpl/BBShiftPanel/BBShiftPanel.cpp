@@ -52,7 +52,6 @@ FPPPlugins::Plugin* createPlugin() {
 
 constexpr int ADDRESSING_MODE_STANDARD = 0;
 constexpr int ADDRESSING_MODE_DIRECT = 1;
-constexpr int ADDRESSING_MODE_FM6353C = 5;
 constexpr int ADDRESSING_MODE_FM6363C = 6;
 
 static std::map<int, std::vector<int>> BIT_ORDERS = {
@@ -267,6 +266,10 @@ static const std::vector<std::string> PRU_PINS = { "P1-20", "P1-29", "P1-31", "P
                                                    "P2-28", "P2-30", "P2-32", "P2-33",
                                                    "P2-34", "P2-35" };
 
+static const std::vector<std::string> PRU0_PWM_PINS = {
+    "P1-31", "P2-28", "P2-30", "P2-32", "P2-34", "P1-36"
+};
+
 constexpr int NUM_OUTPUTS = 8;
 
 BBShiftPanelOutput::BBShiftPanelOutput(unsigned int startChannel, unsigned int channelCount) :
@@ -297,8 +300,7 @@ BBShiftPanelOutput::~BBShiftPanelOutput() {
 }
 
 bool BBShiftPanelOutput::isPWMPanel() {
-    if (m_addressingMode == ADDRESSING_MODE_FM6353C ||
-        m_addressingMode == ADDRESSING_MODE_FM6363C) {
+    if (m_addressingMode == ADDRESSING_MODE_FM6363C) {
         return true;
     }
     return false;
@@ -343,7 +345,14 @@ int BBShiftPanelOutput::Init(Json::Value config) {
         m_panelHeight = 16;
     }
 
-    m_addressingMode = config["panelAddressing"].asInt();
+    m_addressingMode = config["panelRowAddressType"].asInt();
+
+    if (isPWMPanel()) {
+        for (auto& pinName : PRU0_PWM_PINS) {
+            const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+            pin.configPin("pru0out", true);
+        }
+    }
 
     m_invertedData = config["invertedData"].asInt();
     m_colorOrder = ColorOrderFromString(config["colorOrder"].asString());
@@ -398,6 +407,7 @@ int BBShiftPanelOutput::Init(Json::Value config) {
     if (config.isMember("panelColorDepth")) {
         m_colorDepth = config["panelColorDepth"].asInt();
     }
+
     if (config.isMember("panelOutputOrder")) {
         m_outputByRow = config["panelOutputOrder"].asBool();
     }
@@ -410,6 +420,10 @@ int BBShiftPanelOutput::Init(Json::Value config) {
     }
     if (m_colorDepth > 12 || m_colorDepth < 6) {
         m_colorDepth = 8;
+    }
+
+    if (isPWMPanel()) {
+        m_colorDepth = 16;
     }
 
     float gamma = 2.2;
@@ -520,6 +534,9 @@ int BBShiftPanelOutput::StartPRU() {
     pru = new BBBPru(1, true, true);
     pruData = (BBShiftPanelData*)pru->data_ram;
     if (isPWMPanel()) {
+        pwmPru = new BBBPru(0);
+        pwmPru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_gclk.out");
+        pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_pwm.out");
     } else {
         if (singlePRU) {
             pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_single.out");
@@ -669,7 +686,74 @@ void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
     bgTaskCondVar.notify_all();
     processTasks(counter);
 
-    std::array<std::array<uint16_t*, 12>, 32> results;
+    if (isPWMPanel()) {
+        PrepDataPWM();
+    } else {
+        PrepDataShift();
+    }
+}
+
+void BBShiftPanelOutput::PrepDataPWM() {
+    /*
+    std::array<uint16_t*, 16> results;
+    uint8_t* buf = outputBuffers[currOutputBuffer];
+
+    for (int r = 0; r < numRows; r++) {
+        for (int x = 0; x < rowLen; x++) {
+            for (int b = 0; b < 12; b++) {
+                *buf = 0x00;
+                buf++;
+                *buf = 0x00;
+                buf++;
+                *buf = (r == 9 && x >= 120) ? 0xC0 : 0x00;
+                buf++;
+
+                *buf = 0xC0;
+                buf++;
+                *buf = (r == 9 && x >= 120) ? 0xC0 : 0x00;
+                buf++;
+                *buf = (r == 8 && x < 40) ? 0xC0 : 0x00;
+                buf++;
+            }
+            for (int b = 0; b < 4; b++) {
+                *buf = 0xC0;
+                buf++;
+                *buf = 0x00;
+                buf++;
+                *buf = 0x00;
+                buf++;
+
+                *buf = 0xC0;
+                buf++;
+                *buf = 0x00;
+                buf++;
+                *buf = 0x00;
+                buf++;
+            }
+        }
+    }
+    memset(outputBuffers[currOutputBuffer], 0, (numRows - 1) * 6 * 16 * rowLen);
+    */
+
+    // buf = outputBuffers[currOutputBuffer];
+    // buf += total / 2;
+    // memset(buf, 0, total / 2);
+
+    // ispc::MapPixelsForPWM(currentChannelData, 0, rowLen * numRows * 2, (uint16_t*)buf);
+
+    /*
+     for (int x = 0; x < 96 * 4; x++) {
+         printf("0x%02X ", buf[x]);
+         if ((x + 1) % 48 == 0) {
+             printf("\n");
+         }
+     }
+     printf("\n");
+     */
+}
+
+void BBShiftPanelOutput::PrepDataShift() {
+    std::array<std::array<uint16_t*, 16>, 32> results;
 
     uint32_t strideLen = rowLen * 6;
     uint8_t* buf = outputBuffers[currOutputBuffer];
@@ -708,7 +792,8 @@ void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
         }
     */
     // Use ISPC generated code for the above.  It's about 9x faster
-    lock.lock();
+    std::unique_lock<std::mutex> lock(bgTaskMutex);
+    std::atomic<int> counter(0);
     for (int curRow = 0; curRow < numRows; curRow++) {
         // Map the pixels for this row
         ++counter;
@@ -721,8 +806,9 @@ void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
                                      results[curRow][4], results[curRow][5],
                                      results[curRow][6], results[curRow][7],
                                      results[curRow][8], results[curRow][9],
-                                     results[curRow][10], results[curRow][11]);
-
+                                     results[curRow][10], results[curRow][11],
+                                     results[curRow][12], results[curRow][13],
+                                     results[curRow][14], results[curRow][15]);
             --counter;
         });
     }
@@ -746,11 +832,12 @@ int BBShiftPanelOutput::SendData(unsigned char* channelData) {
     __builtin___clear_cache(outputBuffers[currOutputBuffer], outputBuffers[currOutputBuffer] + frameSize);
 
     pruData->address_dma = addr;
-    if (isPWMPanel()) {
-        pruData->command = 0x01;
-    } else {
+    if (!isPWMPanel()) {
         pruData->numStrides = numStride;
         pruData->pixelsPerStride = rowLen;
+    } else {
+        pruData->numBlocks = rowLen / 16;
+        pruData->numRows = numRows;
     }
 
     __asm__ __volatile__("" ::
@@ -777,33 +864,60 @@ inline int mapRow(int row, int mode) {
     return row;
 }
 
-void BBShiftPanelOutput::setupPWMRegisters() {
-    // 6353
-    /*	const uint16_t conf_reg4 = 0x1f70;     // hi byte - number of scans - 1
-        const uint16_t conf_reg6 = 0x6707;
-        const uint16_t conf_reg8 = 0x40f7;
-        const uint16_t conf_reg10 = 0x0040;
-        const uint16_t conf_reg2 = 0x0008;   */
-    // 6363
-    /*  const uint16_t conf_reg4 = 0x0fb0;
-        const uint16_t conf_reg6 = 0xe79d;       // hi byte should be e7
-        const uint16_t conf_reg8 = 0x60b6;       // can be as 6353
-        const uint16_t conf_reg10 = 0x5a70;
-        const uint16_t conf_reg2 = 0x7e08;   */
-    static uint16_t conf_6353[] = { 0x0008, 0x1f70, 0x6707, 0x40f7, 0x0040, 0x0000 };
-    static uint16_t conf_6363[] = { 0x7e08, 0x0fb0, 0xe79d, 0x60b6, 0x5a70, 0x0000 };
-
-    uint16_t reg[6];
-
-    uint16_t scan = ((m_panelScan * 4) != m_panelHeight) ? (((m_panelScan * 2) != m_panelHeight) ? 1 : 2) : 3;
-    if (m_addressingMode == ADDRESSING_MODE_FM6353C) {
-        memcpy(reg, conf_6353, sizeof(conf_6353));
-        conf_6353[1] = ((scan - 1) << 8) | (conf_6353[1] & 0xFF);
-    } else if (m_addressingMode == ADDRESSING_MODE_FM6363C) {
-        memcpy(reg, conf_6363, sizeof(conf_6363));
-        conf_6363[1] = ((scan - 1) << 8) | (conf_6363[1] & 0xFF);
+static int outputRegData(int curidx, uint8_t* odata, uint16_t r, uint16_t g, uint16_t b) {
+    for (int x = 0; x < 16; x++) {
+        odata[curidx] = r & 0x8000 ? 0xFF : 0x00;
+        curidx++;
+        odata[curidx] = g & 0x8000 ? 0xFF : 0x00;
+        curidx++;
+        odata[curidx] = b & 0x8000 ? 0xFF : 0x00;
+        curidx++;
+        odata[curidx] = r & 0x8000 ? 0xFF : 0x00;
+        r <<= 1;
+        curidx++;
+        odata[curidx] = g & 0x8000 ? 0xFF : 0x00;
+        g <<= 1;
+        curidx++;
+        odata[curidx] = b & 0x8000 ? 0xFF : 0x00;
+        b <<= 1;
+        curidx++;
     }
-    pru->memcpyToPRU((uint8_t*)pruData->registers, (uint8_t*)reg, sizeof(reg));
+    return curidx;
+}
+
+void BBShiftPanelOutput::setupPWMRegisters() {
+    /*
+    // FM6363 from colorlight + logic analyzer
+    // Confirmed via "advanced" tab in LEDVision
+    Reg 1: 0x0970:    b0000100101110000
+    Reg 2: 0xFF9B  R: b1111111110011011
+           0xF39B  G: b1111001110011011
+           0xDF9B  B: b1101111110011011
+    Reg 3: 0x4007     b0100000000000111
+    Reg 4: 0x0040     b0000000001000000
+    Reg 5: 0x0000     b0000000000000000
+    */
+    static uint16_t conf_6363[] = {
+        // R/G/B triplets
+        0x0970, 0x0970, 0x0970,
+        0xFF9B, 0xF39B, 0xDF9B,
+        0x4007, 0x4007, 0x4007,
+        0x0040, 0x0040, 0x0040,
+        0x0000, 0x0000, 0x0000
+    };
+
+    // create the "data" array of for all 8 outputs of r/g/b triplets for the registers
+    uint8_t odata[96 * 5];
+    int curidx = outputRegData(0, odata, conf_6363[0], conf_6363[1], conf_6363[2]);
+    curidx = outputRegData(curidx, odata, conf_6363[3], conf_6363[4], conf_6363[5]);
+    curidx = outputRegData(curidx, odata, conf_6363[6], conf_6363[7], conf_6363[8]);
+    curidx = outputRegData(curidx, odata, conf_6363[9], conf_6363[10], conf_6363[11]);
+    curidx = outputRegData(curidx, odata, conf_6363[12], conf_6363[13], conf_6363[14]);
+
+    pru->memcpyToPRU((uint8_t*)&pruData->registers[0], (uint8_t*)&odata[0], curidx);
+
+    pruData->numBlocks = rowLen / 16;
+    pruData->numRows = numRows;
 }
 void BBShiftPanelOutput::setupBrightnessValues() {
     uint32_t maxBright = 0x8000;
@@ -978,6 +1092,18 @@ void BBShiftPanelOutput::setupGamma(float gamma) {
         }
         float max = 255.0f;
         switch (m_colorDepth) {
+        case 16:
+            max = 65535.0f;
+            break;
+        case 15:
+            max = 32767.0f;
+            break;
+        case 14:
+            max = 16383.0f;
+            break;
+        case 13:
+            max = 8191.0f;
+            break;
         case 12:
             max = 4095.0f;
             break;
@@ -1036,5 +1162,7 @@ void BBShiftPanelOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Inverted Data  : %d\n", m_invertedData);
     LogDebug(VB_CHANNELOUT, "    Output Rows    : %d\n", numRows);
     LogDebug(VB_CHANNELOUT, "    Output Length  : %d\n", rowLen);
+    LogDebug(VB_CHANNELOUT, "    Addressing Mode: %d %s\n", m_addressingMode, isPWMPanel() ? "PWM" : "Shift");
+
     ChannelOutput::DumpConfig();
 }

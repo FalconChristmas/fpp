@@ -39,7 +39,11 @@
 
 /** Register map */
 #define xshiftReg   r0.b0
+#define curReg      r0.b1
+#define numReg      r0.b2
+#define flags		r0.b3
 #define dataOutReg  r1.b0
+#define curBlock    r1.b1
 #define outputData  r2
 #define xferR1      r18
 #define xferR2      r19
@@ -51,12 +55,10 @@
 #define tmpReg2     r20
 
 #define data_addr   r21
-#define dlen        r22.w0
-#define panelWidth  r22.b2
-#define numRows     r22.b3
+#define numBlocks   r22.b0
+#define numRows     r22.w2
 
 #define curAddress  r23
-#define flags		r0.b3
 
 #define DATA_BYTE   r30.b0
 
@@ -71,14 +73,38 @@ TOGGLE_OLATCH .macro
     CLR r30, r30, OLATCH_PIN
     .endm    
 
-TOGGLE_CLOCK .macro
-    NOP
-    CLR r30, r30, DCLK_PIN
-    NOP
+SET_CLOCK .macro
     NOP
     SET r30, r30, DCLK_PIN
+    .endm
+
+CLEAR_CLOCK .macro
+    NOP
+    CLR r30, r30, DCLK_PIN
+    .endm
+
+CLEAR_CLOCK_LE .macro
+    CLR r30, r30, LE_PIN
+    CLR r30, r30, DCLK_PIN
+    .endm
+
+TOGGLE_CLOCK .macro
+    SET_CLOCK
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    CLEAR_CLOCK
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
     NOP
     .endm
+
 
 TOGGLE_LE .macro
     NOP
@@ -95,27 +121,14 @@ TOGGLE_LE .macro
 CLEAR_DATA_PINS .macro
 	// clear the RGB data lines
 	CLR r30, r30, OCLR_PIN
-	TOGGLE_OSHIFT
+	//TOGGLE_OSHIFT
 	TOGGLE_OLATCH
 	SET r30, r30, OCLR_PIN
 	.endm
 
 
-LE_FOR_CLOCKS .macro clocks
-	.newblock
-	CLEAR_DATA_PINS
-	// Turn on the LE pin
-	SET r30, r30, LE_PIN
-	LOOP  DONELE?, clocks
-		TOGGLE_CLOCK
-DONELE?:
-    CLR r30, r30, LE_PIN
-	.endm	
-
-
 VSYNC .macro
 	.newblock
-	SET r30, r30, DCLK_PIN
 	LE_FOR_CLOCKS   3
 	.endm
 
@@ -128,6 +141,7 @@ OUTPUT_PIXEL .macro
     TOGGLE_OSHIFT
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_OSHIFT
+    CLEAR_CLOCK
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_OSHIFT
     MVIB DATA_BYTE, *r1.b0++
@@ -135,8 +149,110 @@ OUTPUT_PIXEL .macro
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_OSHIFT
     TOGGLE_OLATCH
+    SET_CLOCK
+    .endm
 
-    TOGGLE_CLOCK
+// output a full rgb/rgb2 for a pixel
+OUTPUT_PIXEL_LE .macro 
+    .newblock
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    CLEAR_CLOCK
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    TOGGLE_OLATCH
+    SET r30, r30, LE_PIN
+    SET_CLOCK
+    .endm 
+
+// output a full rgb/rgb2 for a pixel
+OUTPUT_PIXEL_CLRLE .macro 
+    .newblock
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    CLEAR_CLOCK_LE
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    TOGGLE_OLATCH
+    SET_CLOCK
+    .endm       
+
+OUTPUT_EMPTY_PIXEL .macro 
+    .newblock
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    CLEAR_CLOCK
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    TOGGLE_OLATCH
+    SET_CLOCK
+    .endm
+
+
+
+LE_FOR_CLOCKS_NO_CLR .macro clocks
+	.newblock
+	SET r30, r30, LE_PIN
+    OUTPUT_EMPTY_PIXEL
+	// Turn on the LE pin
+	LOOP  DONELE?, (clocks - 1)
+        OUTPUT_EMPTY_PIXEL
+DONELE?:
+	.endm
+
+LE_FOR_CLOCKS .macro clocks
+	.newblock
+	LE_FOR_CLOCKS_NO_CLR clocks 
+    NOP
+    NOP
+    NOP
+    NOP
+    CLR r30, r30, LE_PIN
+    CLR r30, r30, DCLK_PIN
+	.endm	
+	
+LOW_FOR_CLOCKS .macro clocks
+    .newblock
+    CLR r30, r30, LE_PIN
+    OUTPUT_EMPTY_PIXEL
+	LOOP  DONELE?, (clocks - 1)
+        OUTPUT_EMPTY_PIXEL
+DONELE?:
+    .endm
+
+LOW_FOR_MANY_CLOCKS .macro clocks
+    .newblock
+    CLR r30, r30, LE_PIN
+    LDI tmpReg1, clocks
+MANYLOOP?:
+    OUTPUT_EMPTY_PIXEL
+    SUB tmpReg1, tmpReg1, 1
+    QBNE   MANYLOOP?, tmpReg1, 0
+DONELE?:
     .endm
 
 
@@ -150,76 +266,222 @@ SETADDRESS .macro
     .endm
  
 
-OUTPUT_BIT_TO_ALL .macro data, bit
-	.newblock
-	QBBS SETBIT?, data, bit
-	LDI 	dataOutReg, 0
-	JMP		DATAREADY?
-SETBIT?:
-	LDI		dataOutReg, 0xFF	
-DATAREADY?
-    TOGGLE_OSHIFT
-    TOGGLE_OSHIFT
-    TOGGLE_OSHIFT
-    TOGGLE_OSHIFT
-    TOGGLE_OSHIFT
-    TOGGLE_OSHIFT
-	TOGGLE_OLATCH
-    TOGGLE_CLOCK
-	.endm
+DO_FULL_REGISTER .macro offset
+    .newblock
+    LDI     r1.b0, &r2
+    LOOP DONEHALFREG?, 8
+        OUTPUT_PIXEL
+DONEHALFREG?
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    LDI     r1.b0, &r2
+    LOOP DONEPIXELFULLREG?, 8
+        OUTPUT_PIXEL
+DONEPIXELFULLREG?:        
+    .endm
+
+DO_REG1_LAST .macro offset
+    .newblock
+    LDI     r1.b0, &r2
+    LOOP DONEHALFREG?, 8
+        OUTPUT_PIXEL
+DONEHALFREG?
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    LDI     r1.b0, &r2
+    LOOP DONEPRELATCH?, 4
+        OUTPUT_PIXEL
+DONEPRELATCH?:
+    SET  r30, r30, LE_PIN                
+    LOOP DONEPOSTLATCH?, 4
+        OUTPUT_PIXEL
+DONEPOSTLATCH?        
+    .endm
+
+
+DO_REG2_LAST .macro offset
+    .newblock
+    LDI     r1.b0, &r2
+    LOOP DONEHALFREG?, 8
+        OUTPUT_PIXEL
+DONEHALFREG?
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    LDI     r1.b0, &r2
+    LOOP DONEPRELATCH?, 2
+        OUTPUT_PIXEL
+DONEPRELATCH?:
+    SET  r30, r30, LE_PIN                
+    LOOP DONEPOSTLATCH?, 6
+        OUTPUT_PIXEL
+DONEPOSTLATCH?        
+    .endm
+
+
+DO_REG3_LAST .macro offset
+    .newblock
+    LDI     r1.b0, &r2
+    LOOP DONEHALFREG?, 8
+        OUTPUT_PIXEL
+DONEHALFREG?
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    LDI     r1.b0, &r2
+    SET  r30, r30, LE_PIN                
+    LOOP DONEPOSTLATCH?, 8
+        OUTPUT_PIXEL
+DONEPOSTLATCH?        
+    .endm
+
+DO_REG4_LAST .macro offset
+    .newblock
+    LDI     r1.b0, &r2
+    LOOP DOPRELATCH?, 6
+        OUTPUT_PIXEL
+DOPRELATCH?
+    SET  r30, r30, LE_PIN                
+    OUTPUT_PIXEL
+    OUTPUT_PIXEL
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    LDI     r1.b0, &r2
+    LOOP DONEPOSTLATCH?, 8
+        OUTPUT_PIXEL
+DONEPOSTLATCH?        
+    .endm
+
+DO_REG5_LAST .macro offset
+    .newblock
+    LDI     r1.b0, &r2
+    LOOP DONEHALFREG?, 8
+        OUTPUT_PIXEL
+DONEHALFREG?
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    LDI     r1.b0, &r2
+    LOOP DONEPRELATCH?, 6
+        OUTPUT_PIXEL
+DONEPRELATCH?:
+    SET  r30, r30, LE_PIN                
+    LOOP DONEPOSTLATCH?, 2
+        OUTPUT_PIXEL
+DONEPOSTLATCH?          
+    .endm
+
+
 
 INIT_FM63 .macro
 	.newblock
-	LE_FOR_CLOCKS 14
-	LE_FOR_CLOCKS 12
-	VSYNC
-	LBCO	&r2, CONST_PRUDRAM, 8, 20
-	SLEEPNS	1000, tmpReg1, 0
-	LE_FOR_CLOCKS 14
-	LOOP DONEREG1?, 16
-		OUTPUT_BIT_TO_ALL r2.w0, 15
-		LSL	r2.w0, r2.w0, 1
-DONEREG1?:
-	TOGGLE_LE
-	CLEAR_DATA_PINS
+    //Disable GCLK and wait a bit to make sure it stops
+    LDI r19, 0
+    XOUT  12, &r19, 4
 
-	SLEEPNS	1000, tmpReg1, 0
-	LE_FOR_CLOCKS 14
-	LOOP DONEREG2?, 16
-		OUTPUT_BIT_TO_ALL r2.w2, 15
-		LSL	r2.w2, r2.w2, 1
-DONEREG2?:
-	TOGGLE_LE
-	CLEAR_DATA_PINS
+    LOW_FOR_CLOCKS 4
 
 
-	SLEEPNS	1000, tmpReg1, 0
-	LE_FOR_CLOCKS 14
-	LOOP DONEREG3?, 16
-		OUTPUT_BIT_TO_ALL r3.w0, 15
-		LSL	r3.w0, r3.w0, 1
-DONEREG3?:
-	TOGGLE_LE
-	CLEAR_DATA_PINS
+	LE_FOR_CLOCKS_NO_CLR 3
+    LOW_FOR_CLOCKS 38
 
-	SLEEPNS	1000, tmpReg1, 0
-	LE_FOR_CLOCKS 14
-	LOOP DONEREG4?, 16
-		OUTPUT_BIT_TO_ALL r3.w2, 15
-		LSL	r3.w2, r3.w2, 1
-DONEREG4?:
-	TOGGLE_LE
-	CLEAR_DATA_PINS
+    // Signal the GCLK to do 4 ticks
+    LDI   r19, 1
+    XOUT  12, &r19, 4
+    LOW_FOR_CLOCKS 2
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 7
+	LE_FOR_CLOCKS_NO_CLR 12
+    LOW_FOR_CLOCKS 8
 
-	SLEEPNS	1000, tmpReg1, 0
-	LE_FOR_CLOCKS 14
-	LOOP DONEREG5?, 16
-		OUTPUT_BIT_TO_ALL r3.w2, 15
-		LSL	r3.w2, r3.w2, 1
-DONEREG5?:
-	TOGGLE_LE
-	CLEAR_DATA_PINS	
+    MOV     curReg, numBlocks
 
+    // Do register #1
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 4
+REG1_LOOP:
+	LBCO	&r2, CONST_PRUDRAM, 16, 48    
+    QBEQ    REG1_LAST, curReg,  1
+    DO_FULL_REGISTER    16
+    SUB     curReg, curReg, 1
+    JMP     REG1_LOOP
+REG1_LAST:
+    DO_REG1_LAST        16
+    CLEAR_DATA_PINS
+    MOV     curReg, numReg    
+    LOW_FOR_CLOCKS 8
+
+
+    // Do register #2
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 4
+REG2_LOOP:
+	LBCO	&r2, CONST_PRUDRAM, 112, 48    
+    QBEQ    REG2_LAST, curReg,  1
+    DO_FULL_REGISTER    112
+    SUB     curReg, curReg, 1
+    JMP     REG2_LOOP
+REG2_LAST:
+    DO_REG2_LAST        112
+    CLEAR_DATA_PINS
+    MOV     curReg, numReg    
+    LOW_FOR_CLOCKS 8
+
+
+    // Do register #3
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 4
+REG3_LOOP:
+    LDI     tmpReg1, 208
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
+    QBEQ    REG3_LAST, curReg,  1
+    DO_FULL_REGISTER    208
+    SUB     curReg, curReg, 1
+    JMP     REG3_LOOP
+REG3_LAST:
+    DO_REG3_LAST        208
+    CLEAR_DATA_PINS
+    MOV     curReg, numReg    
+    LOW_FOR_CLOCKS 8
+
+
+    // Do register #4
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 4
+REG4_LOOP:
+    LDI     tmpReg1, 304
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
+    QBEQ    REG4_LAST, curReg,  1
+    DO_FULL_REGISTER    304
+    SUB     curReg, curReg, 1
+    JMP     REG4_LOOP
+REG4_LAST:
+    DO_REG4_LAST        304
+    CLEAR_DATA_PINS
+    MOV     curReg, numReg    
+    LOW_FOR_CLOCKS 8
+
+
+    // Do register #5
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 4
+REG5_LOOP:
+    LDI     tmpReg1, 400
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
+    QBEQ    REG5_LAST, curReg,  1
+    DO_FULL_REGISTER    400
+    SUB     curReg, curReg, 1
+    JMP     REG5_LOOP
+REG5_LAST:
+    DO_REG5_LAST        400
+
+    CLEAR_DATA_PINS
+    MOV     curReg, numReg    
+    LOW_FOR_CLOCKS 6
+
+    CLR r30, r30, LE_PIN
+    CLEAR_CLOCK
+
+    //Enable GCLK
+    MOV   r19, numRows
+    XOUT  12, &r19, 4
 	.endm
 
 
@@ -364,23 +626,97 @@ ENDREAD?:
 	// handles the exit case if an invalid value is written to the start
 	// start position.
 _LOOP:
+    LDI     r30, 0
 	// Load the pointer to the buffer from PRU DRAM into data_addr and the
 	// start command into commandReg
+
+	SET 	r30, r30, DCLK_PIN
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	CLR 	r30, r30, DCLK_PIN
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
 	LBCO	&data_addr, CONST_PRUDRAM, 0, 8
 
 	// Wait for a non-zero command
-	QBEQ	_LOOP, dlen, 0
+	QBEQ	_LOOP, numBlocks, 0
 
 	// Command of 0xFFFF is the signal to exit
-    LDI     tmpReg1, 0xFFFF
-	QBNE	DOOUTPUT, dlen, tmpReg1
+    LDI     tmpReg1, 0xFF
+	QBNE	DOOUTPUT, numBlocks, tmpReg1
     JMP     EXIT
 
 DOOUTPUT:
+    LDI tmpReg1, 0
+    LDI tmpReg2, 0
+	SBCO	&tmpReg1, CONST_PRUDRAM, 0, 8
+
+    PRELOAD_DATA
 	INIT_FM63
+
+DOROWOUTPUT:
+    QBEQ  DONEDATAOUT, numRows, 0
+    LDI   curReg, 16
+
+DOREGISTEROUTPUT:
+    QBEQ  DONEREGISTEROUT, curReg, 0
+    MOV   curBlock, numBlocks
+DOROWOUT:
+    QBEQ  LASTINROW, curBlock, 1
+        LOAD_DATA
+        LOOP ENDLOOPPIXELFIRST8, 8
+            OUTPUT_PIXEL_CLRLE
+ENDLOOPPIXELFIRST8:            
+        LOAD_DATA
+        LOOP ENDLOOPPIXEL, 8
+            OUTPUT_PIXEL_CLRLE
+ENDLOOPPIXEL:            
+        SUB   curBlock, curBlock, 1
+        JMP   DOROWOUT
+LASTINROW:        
+    LOAD_DATA
+    LOOP ENDLOOPPIXEL2, 8
+        OUTPUT_PIXEL_CLRLE
+ENDLOOPPIXEL2:        
+    LOAD_DATA
+    LOOP ENDLOOPPIXEL3, 7
+        OUTPUT_PIXEL_CLRLE
+ENDLOOPPIXEL3:
+    OUTPUT_PIXEL_LE
+    SUB curReg, curReg, 1
+    JMP DOREGISTEROUTPUT
+DONEREGISTEROUT:    
+    SUB     numRows, numRows, 1
+    JMP     DOROWOUTPUT
+DONEDATAOUT:
+    UNPRELOAD_DATA
+    LOW_FOR_MANY_CLOCKS   (16 * 180 * 2)
+
+
+
+
 	JMP _LOOP
 
 EXIT:
+    LDI     tmpReg1, 0xFF
+    XOUT    12, &tmpReg1, 4
+
 	// Send notification to Host for program completion
 	LDI R31.b0, PRU_ARM_INTERRUPT+16
 	HALT
+

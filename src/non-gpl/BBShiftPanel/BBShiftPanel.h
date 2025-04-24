@@ -47,13 +47,13 @@ typedef struct {
         } __attribute__((__packed__));
         struct {
             // Panels that handle the PWM themselves, all data is shifted out and the panel displays it automatically
-            uint16_t length;
-            uint8_t numRows;
-            uint8_t panelWidth;
-
-            uint16_t registers[8];
+            uint8_t numBlocks;
+            uint8_t bufferByte;
+            uint16_t numRows;
+            uint16_t buffer[4]; // buffer to get registers aligned on boundary
+            uint16_t registers[32];
         } __attribute__((__packed__));
-    };
+    } __attribute__((__packed__));
 } __attribute__((__packed__)) BBShiftPanelData;
 
 class BBShiftPanelOutput : public ChannelOutput {
@@ -78,6 +78,9 @@ public:
     virtual bool SupportsTesting() const { return true; }
 
 private:
+    void PrepDataShift();
+    void PrepDataPWM();
+
     void StopPRU(bool wait = true);
     int StartPRU();
 
