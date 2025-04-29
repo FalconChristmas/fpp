@@ -55,10 +55,10 @@
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
-            "extract_size": 7130316800,
-            "extract_sha256": "9962334e3938f6c2e5bae6cd3722218b31bbe96126f892040dc9ea40a0556807",
-            "image_download_size": 1647272888,
-            "image_download_sha256": "4c7c80dc27e91c7e7801acae505bf09224d458887b9efacca4870ea871bf5bc2",
+            "extract_size": 8283750400,
+            "extract_sha256": "aabe23d00bf5ee22016e9896df750f2967ceb9b00bd0e9d24278ec06e7d95183",
+            "image_download_size": 1446242677,
+            "image_download_sha256": "c7a7fead645a481031e7728f24b09ef2b54999a629cf5b051ed8e1b0e8ea98db",
             "release_date": "2025-04-16",
             "devices": [
                 "pi1-32bit"
