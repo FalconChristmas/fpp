@@ -52,7 +52,13 @@ FPPPlugins::Plugin* createPlugin() {
 
 constexpr int ADDRESSING_MODE_STANDARD = 0;
 constexpr int ADDRESSING_MODE_DIRECT = 1;
-constexpr int ADDRESSING_MODE_FM6363C = 6;
+constexpr int ADDRESSING_MODE_FM6363C = 51;
+
+constexpr int PWM_COMMAND_SYNC = 0x0001;
+constexpr int PWM_COMMAND_REGISTERS = 0x0002;
+constexpr int PWM_COMMAND_STARTGCLK = 0x0004;
+constexpr int PWM_COMMAND_DATA = 0x0008;
+constexpr int PWM_COMMAND_HALT = 0xFFFF;
 
 static std::map<int, std::vector<int>> BIT_ORDERS = {
     //{ 6, { 5, 4, 3, 2, 1, 0 } },
@@ -578,15 +584,15 @@ int BBShiftPanelOutput::StartPRU() {
 void BBShiftPanelOutput::StopPRU(bool wait) {
     // Send the stop command
     if (pru) {
-        pruData->command = 0xFFFF;
-        pruData->result = 0xFFFF;
+        pruData->command = PWM_COMMAND_HALT;
+        pruData->result = PWM_COMMAND_HALT;
     }
     __asm__ __volatile__("" ::
                              : "memory");
 
     if (pru) {
         int cnt = 0;
-        while (wait && cnt < 25 && pruData->result == 0xFFFF) {
+        while (wait && cnt < 25 && pruData->result == PWM_COMMAND_HALT) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             cnt++;
             __asm__ __volatile__("" ::
@@ -694,62 +700,51 @@ void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
 }
 
 void BBShiftPanelOutput::PrepDataPWM() {
-    /*
-    std::array<uint16_t*, 16> results;
     uint8_t* buf = outputBuffers[currOutputBuffer];
+    ispc::MapPixelsForPWM(currentChannelData, 0, rowLen * numRows, (uint16_t*)buf);
 
-    for (int r = 0; r < numRows; r++) {
-        for (int x = 0; x < rowLen; x++) {
-            for (int b = 0; b < 12; b++) {
-                *buf = 0x00;
-                buf++;
-                *buf = 0x00;
-                buf++;
-                *buf = (r == 9 && x >= 120) ? 0xC0 : 0x00;
-                buf++;
-
-                *buf = 0xC0;
-                buf++;
-                *buf = (r == 9 && x >= 120) ? 0xC0 : 0x00;
-                buf++;
-                *buf = (r == 8 && x < 40) ? 0xC0 : 0x00;
-                buf++;
-            }
-            for (int b = 0; b < 4; b++) {
-                *buf = 0xC0;
-                buf++;
-                *buf = 0x00;
-                buf++;
-                *buf = 0x00;
-                buf++;
-
-                *buf = 0xC0;
-                buf++;
-                *buf = 0x00;
-                buf++;
-                *buf = 0x00;
-                buf++;
-            }
-        }
+    /*
+    for (int x = 0; x < 48; x++) {
+        printf("%04x  ", currentChannelData[x]);
     }
-    memset(outputBuffers[currOutputBuffer], 0, (numRows - 1) * 6 * 16 * rowLen);
+    printf("\n");
+    for (int x = 0; x < 96; x += 6) {
+        printf("%02x %02x %02x %02x %02x %02x\n", buf[x], buf[x + 1], buf[x + 2], buf[x + 3], buf[x + 4], buf[x + 5]);
+    }
+    printf("\n");
+    for (int x = 48; x < 96; x++) {
+        printf("%04x  ", currentChannelData[x]);
+    }
+    printf("\n");
+    for (int x = 96; x < (96 * 2); x += 6) {
+        printf("%02x %02x %02x %02x %02x %02x\n", buf[x], buf[x + 1], buf[x + 2], buf[x + 3], buf[x + 4], buf[x + 5]);
+    }
+    printf("\n");
     */
 
-    // buf = outputBuffers[currOutputBuffer];
-    // buf += total / 2;
-    // memset(buf, 0, total / 2);
+    int frameSize = rowLen * 48 * numRows * 2;
+    // make sure memory is flushed before command is set
+    msync(buf, frameSize, MS_SYNC | MS_INVALIDATE);
+    __builtin___clear_cache(buf, buf + frameSize);
+    while (pruData->command) {
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+        __asm__ __volatile__("" ::
+                                 : "memory");
+    }
 
-    // ispc::MapPixelsForPWM(currentChannelData, 0, rowLen * numRows * 2, (uint16_t*)buf);
+    uint32_t dataOffset = (buf - outputBuffers[0]);
+    uint32_t addr = (pru->ddr_addr + dataOffset);
 
-    /*
-     for (int x = 0; x < 96 * 4; x++) {
-         printf("0x%02X ", buf[x]);
-         if ((x + 1) % 48 == 0) {
-             printf("\n");
-         }
-     }
-     printf("\n");
-     */
+    // make sure memory is flushed before command is set to 1
+    msync(outputBuffers[currOutputBuffer], frameSize, MS_SYNC | MS_INVALIDATE);
+    __builtin___clear_cache(outputBuffers[currOutputBuffer], outputBuffers[currOutputBuffer] + frameSize);
+
+    // Send the command to start shifting out the data
+    pruData->address_dma = addr;
+    pruData->numBlocks = rowLen / 16;
+    pruData->numRows = numRows;
+    pruData->cmd = PWM_COMMAND_DATA;
+    __asm__ __volatile__("" ::: "memory");
 }
 
 void BBShiftPanelOutput::PrepDataShift() {
@@ -819,25 +814,32 @@ void BBShiftPanelOutput::PrepDataShift() {
 
 int BBShiftPanelOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBShiftPanelOutput::SendData(%p)\n", channelData);
-    // long long startTime = GetTime();
-    uint32_t dataOffset = (outputBuffers[currOutputBuffer] - outputBuffers[0]);
-    uint32_t addr = (pru->ddr_addr + dataOffset);
 
-    uint32_t strideLen = rowLen * 6;
-    uint32_t numStride = numRows * m_colorDepth;
-    uint32_t frameSize = numStride * strideLen;
-
-    // make sure memory is flushed before command is set to 1
-    msync(outputBuffers[currOutputBuffer], frameSize, MS_SYNC | MS_INVALIDATE);
-    __builtin___clear_cache(outputBuffers[currOutputBuffer], outputBuffers[currOutputBuffer] + frameSize);
-
-    pruData->address_dma = addr;
     if (!isPWMPanel()) {
+        uint32_t dataOffset = (outputBuffers[currOutputBuffer] - outputBuffers[0]);
+        uint32_t addr = (pru->ddr_addr + dataOffset);
+        uint32_t strideLen = rowLen * 6;
+        uint32_t numStride = numRows * m_colorDepth;
+        uint32_t frameSize = numStride * strideLen;
+
+        // make sure memory is flushed before command is set to 1
+        msync(outputBuffers[currOutputBuffer], frameSize, MS_SYNC | MS_INVALIDATE);
+        __builtin___clear_cache(outputBuffers[currOutputBuffer], outputBuffers[currOutputBuffer] + frameSize);
+
+        pruData->address_dma = addr;
         pruData->numStrides = numStride;
         pruData->pixelsPerStride = rowLen;
     } else {
+        while (pruData->command) {
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            __asm__ __volatile__("" ::
+                                     : "memory");
+        }
+
+        // Send the command to setup the registers
         pruData->numBlocks = rowLen / 16;
         pruData->numRows = numRows;
+        pruData->cmd = PWM_COMMAND_REGISTERS | PWM_COMMAND_SYNC | PWM_COMMAND_STARTGCLK;
     }
 
     __asm__ __volatile__("" ::
@@ -865,6 +867,7 @@ inline int mapRow(int row, int mode) {
 }
 
 static int outputRegData(int curidx, uint8_t* odata, uint16_t r, uint16_t g, uint16_t b) {
+    // int sidx = curidx;
     for (int x = 0; x < 16; x++) {
         odata[curidx] = r & 0x8000 ? 0xFF : 0x00;
         curidx++;
@@ -873,15 +876,26 @@ static int outputRegData(int curidx, uint8_t* odata, uint16_t r, uint16_t g, uin
         odata[curidx] = b & 0x8000 ? 0xFF : 0x00;
         curidx++;
         odata[curidx] = r & 0x8000 ? 0xFF : 0x00;
-        r <<= 1;
         curidx++;
         odata[curidx] = g & 0x8000 ? 0xFF : 0x00;
-        g <<= 1;
         curidx++;
         odata[curidx] = b & 0x8000 ? 0xFF : 0x00;
-        b <<= 1;
         curidx++;
+        r <<= 1;
+        g <<= 1;
+        b <<= 1;
     }
+    /*
+    if (sidx == 0) {
+        printf("%04X %04X %04X\n", r, g, b);
+        for (int x = 0; x < 16; x++) {
+            printf(" %02x %02x %02x %02x %02x %02x\n",
+                   odata[sidx], odata[sidx + 1], odata[sidx + 2],
+                   odata[sidx + 3], odata[sidx + 4], odata[sidx + 5]);
+            sidx += 6;
+        }
+    }
+    */
     return curidx;
 }
 
@@ -890,17 +904,20 @@ void BBShiftPanelOutput::setupPWMRegisters() {
     // FM6363 from colorlight + logic analyzer
     // Confirmed via "advanced" tab in LEDVision
     Reg 1: 0x0970:    b0000100101110000
-    Reg 2: 0xFF9B  R: b1111111110011011
+    Reg 2: 0xFF9B  R: b1111111110011011  (default values)
            0xF39B  G: b1111001110011011
            0xDF9B  B: b1101111110011011
+    Reg 2: 0xFE01  R: b1111110000000001 (with current stripped off)
+           0xF201  G: b1111000000000001
+           0xDE01  B: b1101110000000001
     Reg 3: 0x4007     b0100000000000111
     Reg 4: 0x0040     b0000000001000000
     Reg 5: 0x0000     b0000000000000000
     */
     static uint16_t conf_6363[] = {
         // R/G/B triplets
-        0x0970, 0x0970, 0x0970,
-        0xFF9B, 0xF39B, 0xDF9B,
+        0x0070, 0x0070, 0x0070,
+        0xFC01, 0xF001, 0xDC01,
         0x4007, 0x4007, 0x4007,
         0x0040, 0x0040, 0x0040,
         0x0000, 0x0000, 0x0000
@@ -908,17 +925,54 @@ void BBShiftPanelOutput::setupPWMRegisters() {
 
     // create the "data" array of for all 8 outputs of r/g/b triplets for the registers
     uint8_t odata[96 * 5];
-    int curidx = outputRegData(0, odata, conf_6363[0], conf_6363[1], conf_6363[2]);
-    curidx = outputRegData(curidx, odata, conf_6363[3], conf_6363[4], conf_6363[5]);
+
+    // register 1 contains the number of scan lines (rows)
+    uint16_t rn = ((numRows - 1) << 8) & 0x3F00;
+    int curidx = outputRegData(0, odata, conf_6363[0] | rn, conf_6363[1] | rn, conf_6363[2] | rn);
+
+    // register 2 contains adjustments for current
+
+    uint16_t b = 205; // stick with default brightness for now
+    if (m_brightness >= 5) {
+        b = (m_brightness - 5) * 10;
+        b *= (205 - 64) * 2;
+        b /= 100;
+        b += 64;
+        b <<= 1;
+        b &= 0x1FE;
+        b |= 0x200;
+    } else {
+        b = (m_brightness - 1) * 10;
+        b *= 100;
+        b /= 40;
+        b *= (255 - 64);
+        b /= 100;
+        b += 64;
+        b <<= 1;
+        b &= 0x1FE;
+    }
+
+    curidx = outputRegData(curidx, odata, conf_6363[3] | b, conf_6363[4] | b, conf_6363[5] | b);
     curidx = outputRegData(curidx, odata, conf_6363[6], conf_6363[7], conf_6363[8]);
     curidx = outputRegData(curidx, odata, conf_6363[9], conf_6363[10], conf_6363[11]);
     curidx = outputRegData(curidx, odata, conf_6363[12], conf_6363[13], conf_6363[14]);
 
-    pru->memcpyToPRU((uint8_t*)&pruData->registers[0], (uint8_t*)&odata[0], curidx);
+    pru->memcpyToPRU(&pruData->registers[0], &odata[0], curidx);
 
+    while (pruData->command) {
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+        __asm__ __volatile__("" ::
+                                 : "memory");
+    }
+
+    // Send the command to setup the registers
+    pwmPru->data_ram[0] = 11 - m_brightness;
     pruData->numBlocks = rowLen / 16;
     pruData->numRows = numRows;
+    pruData->cmd = PWM_COMMAND_REGISTERS;
+    __asm__ __volatile__("" ::: "memory");
 }
+
 void BBShiftPanelOutput::setupBrightnessValues() {
     uint32_t maxBright = 0x8000;
     if (rowLen > 384) {
@@ -1041,6 +1095,15 @@ void BBShiftPanelOutput::setupChannelOffsets() {
                     int xOut = x;
                     handler->mapCol(y, xOut);
                     xOut += xOff;
+
+                    if (isPWMPanel()) {
+                        // For PWM panels, the first of each group of 16 pixels is out first,
+                        // then the second of each group of 16, etc...
+                        int xo2 = xOut % 16;
+                        int xo3 = xOut / 16;
+
+                        xOut = xo2 * (rowLen / 16) + xo3;
+                    }
                     channelOffsets[r1] = yOut * totalRowLen + xOut * 48 + outputIdx;
                     channelOffsets[g1] = yOut * totalRowLen + xOut * 48 + outputIdx + 8;
                     channelOffsets[b1] = yOut * totalRowLen + xOut * 48 + outputIdx + 16;
@@ -1083,15 +1146,23 @@ void BBShiftPanelOutput::setupGamma(float gamma) {
     if (gamma < 0.01 || gamma > 50.0) {
         gamma = 2.2;
     }
+
+    int colorDepth = m_colorDepth;
+    if (isPWMPanel()) {
+        // we are outputting 16 bit data as that's what the
+        // PWM registers require, but only the bottom 12 bits are used
+        colorDepth = 12;
+    }
+
     for (int x = 0; x < 256; x++) {
         int v = x;
-        if (m_colorDepth == 6 && (v == 3 || v == 2)) {
+        if (colorDepth == 6 && (v == 3 || v == 2)) {
             v = 4;
-        } else if (m_colorDepth == 7 && v == 1) {
+        } else if (colorDepth == 7 && v == 1) {
             v = 2;
         }
         float max = 255.0f;
-        switch (m_colorDepth) {
+        switch (colorDepth) {
         case 16:
             max = 65535.0f;
             break;
@@ -1131,6 +1202,11 @@ void BBShiftPanelOutput::setupGamma(float gamma) {
             gammaCurve[x] = 1;
         }
     }
+    /*
+    for (int x = 0; x < 256; x++) {
+        printf("%d: %04x\n", x, gammaCurve[x]);
+    }
+    */
 }
 
 void BBShiftPanelOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {

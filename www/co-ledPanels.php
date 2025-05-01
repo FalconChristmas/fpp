@@ -239,6 +239,29 @@ function GetLEDPanelColorOrder(key, selectedItem)
 	return html;
 }
 
+function RowAddressTypeChanged() {
+
+    <? if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) {?>
+    var value = parseInt($('#LEDPanelRowAddressType').val());
+    if (value >= 50) {
+        $('#LEDPanelsColorDepth').hide();
+        $('#LEDPanelsColorDepthLabel').hide();
+
+        $('#LEDPanelsOutputByRow').hide();
+        $('#LEDPanelsOutputByRow').prop('checked', false);
+        $('#LEDPanelsOutputByRowLabel').hide();
+
+    } else {
+        $('#LEDPanelsColorDepth').show();
+        $('#LEDPanelsColorDepthLabel').show();
+
+        $('#LEDPanelsOutputByRow').show();
+        $('#LEDPanelsOutputByRowLabel').show();
+    }
+    outputByRowClicked();
+    <? } ?>
+}
+
 function UpdateLegacyLEDPanelLayout()
 {
 	LEDPanelCols = parseInt($('#LEDPanelsLayoutCols').val());
@@ -476,6 +499,7 @@ if ($settings['Platform'] == "Raspberry Pi" || $settings['BeaglePlatform']) {
 
     PanelSubtypeChanged();
     UpdateLegacyLEDPanelLayout();
+    RowAddressTypeChanged();
 }
 
 function GetLEDPanelConfig()
@@ -762,6 +786,7 @@ if ($settings['BeaglePlatform']) {
     }
 
     PanelSubtypeChanged();
+    RowAddressTypeChanged();
 	DrawLEDPanelTable();
 }
 
@@ -1218,8 +1243,10 @@ function PanelSubtypeChanged() {
     html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
     html += "<option value='64x32x16'>64x32 1/16 Scan</option>"
     html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
+    html += "<option value='64x64x16'>64x64 1/16 Scan</option>"
     <?if ($panelCapesHaveSel4) {?>
     html += "<option value='64x64x32'>64x64 1/32 Scan</option>"
+    html += "<option value='128x64x16'>128x64 1/16 Scan</option>"
     html += "<option value='128x64x32'>128x64 1/32 Scan</option>"
     <?}?>
     html += "<option value='40x20x5'>40x20 1/5 Scan</option>"
@@ -1566,11 +1593,11 @@ if ($settings['Platform'] == "Raspberry Pi") {
             <?} else if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) {?>
                     <div class="printSettingLabelCol col-md-2 col-lg-2"><span id='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
                     <div class="printSettingFieldCol col-md-3 col-lg-3">
-                        <select id='LEDPanelRowAddressType'>
+                        <select id='LEDPanelRowAddressType' onchange="RowAddressTypeChanged();">
                             <option value='0' selected>Standard</option>
-                            <option value='1'>Direct Row Select</option>
-                            <!-- option value='5'>FM6353C</option>
-                            <option value='6'>FM6363C</option -->
+                            <option value='50'>Direct Row Select</option>
+                            <!-- option value='5'>FM6353C</optio-->
+                            <option value='51'>FM6363C</option>
                         </select>
                     </div>
             <?} else {?>

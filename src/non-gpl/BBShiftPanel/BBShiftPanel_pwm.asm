@@ -55,10 +55,11 @@
 #define tmpReg2     r20
 
 #define data_addr   r21
-#define numBlocks   r22.b0
-#define numRows     r22.w2
+#define command     r22.w0
+#define numBlocks   r22.b2
+#define numRows     r22.b3
 
-#define curAddress  r23
+#define curRow      r23.b0
 
 #define DATA_BYTE   r30.b0
 
@@ -88,23 +89,6 @@ CLEAR_CLOCK_LE .macro
     CLR r30, r30, DCLK_PIN
     .endm
 
-TOGGLE_CLOCK .macro
-    SET_CLOCK
-    NOP
-    NOP
-    NOP
-    NOP
-    NOP
-    NOP
-    CLEAR_CLOCK
-    NOP
-    NOP
-    NOP
-    NOP
-    NOP
-    NOP
-    .endm
-
 
 TOGGLE_LE .macro
     NOP
@@ -126,11 +110,6 @@ CLEAR_DATA_PINS .macro
 	SET r30, r30, OCLR_PIN
 	.endm
 
-
-VSYNC .macro
-	.newblock
-	LE_FOR_CLOCKS   3
-	.endm
 
 // output a full rgb/rgb2 for a pixel
 OUTPUT_PIXEL .macro 
@@ -191,7 +170,7 @@ OUTPUT_PIXEL_CLRLE .macro
     TOGGLE_OSHIFT
     TOGGLE_OLATCH
     SET_CLOCK
-    .endm       
+    .endm
 
 OUTPUT_EMPTY_PIXEL .macro 
     .newblock
@@ -212,59 +191,61 @@ OUTPUT_EMPTY_PIXEL .macro
     SET_CLOCK
     .endm
 
+OUTPUT_EMPTY_PIXEL_SETLE .macro 
+    .newblock
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    CLEAR_CLOCK
+    SET r30, r30, LE_PIN
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    TOGGLE_OLATCH
+    SET_CLOCK
+    .endm
 
 
 LE_FOR_CLOCKS_NO_CLR .macro clocks
 	.newblock
-	SET r30, r30, LE_PIN
-    OUTPUT_EMPTY_PIXEL
+    CLR     r30, r30, OCLR_PIN
+    OUTPUT_EMPTY_PIXEL_SETLE
 	// Turn on the LE pin
 	LOOP  DONELE?, (clocks - 1)
         OUTPUT_EMPTY_PIXEL
 DONELE?:
+    SET     r30, r30, OCLR_PIN
 	.endm
 
 LE_FOR_CLOCKS .macro clocks
 	.newblock
+    CLR     r30, r30, OCLR_PIN
 	LE_FOR_CLOCKS_NO_CLR clocks 
     NOP
     NOP
     NOP
-    NOP
+    SET     r30, r30, OCLR_PIN
     CLR r30, r30, LE_PIN
     CLR r30, r30, DCLK_PIN
 	.endm	
 	
 LOW_FOR_CLOCKS .macro clocks
     .newblock
-    CLR r30, r30, LE_PIN
-    OUTPUT_EMPTY_PIXEL
-	LOOP  DONELE?, (clocks - 1)
-        OUTPUT_EMPTY_PIXEL
+    CLR     r30, r30, OCLR_PIN
+	LOOP  DONELE?, clocks
+        OUTPUT_PIXEL_CLRLE
 DONELE?:
-    .endm
-
-LOW_FOR_MANY_CLOCKS .macro clocks
-    .newblock
-    CLR r30, r30, LE_PIN
-    LDI tmpReg1, clocks
-MANYLOOP?:
-    OUTPUT_EMPTY_PIXEL
-    SUB tmpReg1, tmpReg1, 1
-    QBNE   MANYLOOP?, tmpReg1, 0
-DONELE?:
+    SET     r30, r30, OCLR_PIN
     .endm
 
 
-SETADDRESS .macro
-    // optimize a bit:
-    // when setting address, we know the display has to be off 
-    // and the latch is low, clock is high
-    MOV tmpReg1.b1, curAddress
-    LSL tmpReg1.b1, tmpReg1.b1, SEL0_PIN - 8
-    MOV r30.b1, tmpReg1.b1    
-    .endm
- 
+
 
 DO_FULL_REGISTER .macro offset
     .newblock
@@ -370,119 +351,7 @@ DONEPOSTLATCH?
 
 
 
-INIT_FM63 .macro
-	.newblock
-    //Disable GCLK and wait a bit to make sure it stops
-    LDI r19, 0
-    XOUT  12, &r19, 4
 
-    LOW_FOR_CLOCKS 4
-
-
-	LE_FOR_CLOCKS_NO_CLR 3
-    LOW_FOR_CLOCKS 38
-
-    // Signal the GCLK to do 4 ticks
-    LDI   r19, 1
-    XOUT  12, &r19, 4
-    LOW_FOR_CLOCKS 2
-	LE_FOR_CLOCKS_NO_CLR 14
-    LOW_FOR_CLOCKS 7
-	LE_FOR_CLOCKS_NO_CLR 12
-    LOW_FOR_CLOCKS 8
-
-    MOV     curReg, numBlocks
-
-    // Do register #1
-	LE_FOR_CLOCKS_NO_CLR 14
-    LOW_FOR_CLOCKS 4
-REG1_LOOP:
-	LBCO	&r2, CONST_PRUDRAM, 16, 48    
-    QBEQ    REG1_LAST, curReg,  1
-    DO_FULL_REGISTER    16
-    SUB     curReg, curReg, 1
-    JMP     REG1_LOOP
-REG1_LAST:
-    DO_REG1_LAST        16
-    CLEAR_DATA_PINS
-    MOV     curReg, numReg    
-    LOW_FOR_CLOCKS 8
-
-
-    // Do register #2
-	LE_FOR_CLOCKS_NO_CLR 14
-    LOW_FOR_CLOCKS 4
-REG2_LOOP:
-	LBCO	&r2, CONST_PRUDRAM, 112, 48    
-    QBEQ    REG2_LAST, curReg,  1
-    DO_FULL_REGISTER    112
-    SUB     curReg, curReg, 1
-    JMP     REG2_LOOP
-REG2_LAST:
-    DO_REG2_LAST        112
-    CLEAR_DATA_PINS
-    MOV     curReg, numReg    
-    LOW_FOR_CLOCKS 8
-
-
-    // Do register #3
-	LE_FOR_CLOCKS_NO_CLR 14
-    LOW_FOR_CLOCKS 4
-REG3_LOOP:
-    LDI     tmpReg1, 208
-	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
-    QBEQ    REG3_LAST, curReg,  1
-    DO_FULL_REGISTER    208
-    SUB     curReg, curReg, 1
-    JMP     REG3_LOOP
-REG3_LAST:
-    DO_REG3_LAST        208
-    CLEAR_DATA_PINS
-    MOV     curReg, numReg    
-    LOW_FOR_CLOCKS 8
-
-
-    // Do register #4
-	LE_FOR_CLOCKS_NO_CLR 14
-    LOW_FOR_CLOCKS 4
-REG4_LOOP:
-    LDI     tmpReg1, 304
-	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
-    QBEQ    REG4_LAST, curReg,  1
-    DO_FULL_REGISTER    304
-    SUB     curReg, curReg, 1
-    JMP     REG4_LOOP
-REG4_LAST:
-    DO_REG4_LAST        304
-    CLEAR_DATA_PINS
-    MOV     curReg, numReg    
-    LOW_FOR_CLOCKS 8
-
-
-    // Do register #5
-	LE_FOR_CLOCKS_NO_CLR 14
-    LOW_FOR_CLOCKS 4
-REG5_LOOP:
-    LDI     tmpReg1, 400
-	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
-    QBEQ    REG5_LAST, curReg,  1
-    DO_FULL_REGISTER    400
-    SUB     curReg, curReg, 1
-    JMP     REG5_LOOP
-REG5_LAST:
-    DO_REG5_LAST        400
-
-    CLEAR_DATA_PINS
-    MOV     curReg, numReg    
-    LOW_FOR_CLOCKS 6
-
-    CLR r30, r30, LE_PIN
-    CLEAR_CLOCK
-
-    //Enable GCLK
-    MOV   r19, numRows
-    XOUT  12, &r19, 4
-	.endm
 
 
 WAITFORXFRBUS .macro bus
@@ -575,6 +444,24 @@ ENDREAD?:
     .endm
 
 
+
+
+
+
+
+STOP_GCLK .macro
+    .newblock
+    //Disable GCLK and wait for it to stop
+    LDI r19, 0
+    XOUT  12, &r19, 4
+WAITFORSTOPPED?:
+    OUTPUT_EMPTY_PIXEL
+    XIN   12, &r20, 4
+    QBNE  WAITFORSTOPPED?, r20, 0
+    .endm
+
+
+
 ;*****************************************************************************
 ;                                  Main Loop
 ;*****************************************************************************
@@ -614,8 +501,6 @@ ENDREAD?:
     CLR     r30, r30, GCLK_PIN
     CLR     r30, r30, LE_PIN
     CLR     r30, r30, DCLK_PIN
-    LDI     curAddress, 0
-    SETADDRESS 
 
     // Make sure variables and such are clear
     LDI     flags, 0
@@ -626,10 +511,11 @@ ENDREAD?:
 	// handles the exit case if an invalid value is written to the start
 	// start position.
 _LOOP:
-    LDI     r30, 0
-	// Load the pointer to the buffer from PRU DRAM into data_addr and the
-	// start command into commandReg
-
+    NOP
+	NOP
+	NOP
+	NOP
+	NOP
 	SET 	r30, r30, DCLK_PIN
 	NOP
 	NOP
@@ -651,26 +537,60 @@ _LOOP:
 	NOP
 	NOP
 	NOP
+	// Load the pointer to the buffer from PRU DRAM into data_addr and the
+	// start command into commandReg
 	LBCO	&data_addr, CONST_PRUDRAM, 0, 8
 
 	// Wait for a non-zero command
-	QBEQ	_LOOP, numBlocks, 0
+	QBEQ	_LOOP, command, 0
 
 	// Command of 0xFFFF is the signal to exit
-    LDI     tmpReg1, 0xFF
-	QBNE	DOOUTPUT, numBlocks, tmpReg1
-    JMP     EXIT
+    LDI     tmpReg1, 0xFFFF
+	QBNE	NOEXIT, command, tmpReg1
+        JMP EXIT
+NOEXIT:
+    //Clear the command so the ARM side can queue up the next command
+    LDI     tmpReg1, 0
+    SBCO    &tmpReg1, CONST_PRUDRAM, 4, 2
 
-DOOUTPUT:
-    LDI tmpReg1, 0
-    LDI tmpReg2, 0
-	SBCO	&tmpReg1, CONST_PRUDRAM, 0, 8
-
+    // Start pre-load of data
     PRELOAD_DATA
-	INIT_FM63
 
+    QBBC    SKIPSYNC, command, 0
+    STOP_GCLK
+    LOW_FOR_CLOCKS 2
+	LE_FOR_CLOCKS_NO_CLR 3
+    LOW_FOR_CLOCKS 36
+
+SKIPSYNC:
+    QBBC    SKIPREGISTERS, command, 1
+    STOP_GCLK
+    JMP OUTPUT_REGISTERS
+
+SKIPREGISTERS:
+    QBBC    SKIPSTARTGCLK, command, 2
+    LOW_FOR_CLOCKS 4
+    MOV     tmpReg1, numRows
+    XOUT    12, &tmpReg1, 4
+    LOW_FOR_CLOCKS 4
+
+SKIPSTARTGCLK:
+    QBBC    SKIPDATA, command, 3
+    JMP  OUTPUT_DATA
+
+SKIPDATA:
+
+    UNPRELOAD_DATA
+    JMP  _LOOP
+
+
+
+
+
+OUTPUT_DATA:
+    MOV   curRow, numRows
 DOROWOUTPUT:
-    QBEQ  DONEDATAOUT, numRows, 0
+    QBEQ  DONEDATAOUT, curRow, 0
     LDI   curReg, 16
 
 DOREGISTEROUTPUT:
@@ -701,16 +621,132 @@ ENDLOOPPIXEL3:
     SUB curReg, curReg, 1
     JMP DOREGISTEROUTPUT
 DONEREGISTEROUT:    
-    SUB     numRows, numRows, 1
+    SUB     curRow, curRow, 1
     JMP     DOROWOUTPUT
 DONEDATAOUT:
-    UNPRELOAD_DATA
-    LOW_FOR_MANY_CLOCKS   (16 * 180 * 2)
+    OUTPUT_PIXEL_CLRLE
+    OUTPUT_PIXEL_CLRLE
+    OUTPUT_PIXEL_CLRLE
+    OUTPUT_PIXEL_CLRLE
+    OUTPUT_PIXEL_CLRLE
+    OUTPUT_PIXEL_CLRLE
+    OUTPUT_PIXEL_CLRLE
+    JMP SKIPDATA
+
+
+
+OUTPUT_REGISTERS:
+    .newblock
+    // Signal the GCLK to do 4 ticks
+    LOW_FOR_CLOCKS 2
+    LDI   r19, 1
+    XOUT  12, &r19, 4
+    LOW_FOR_CLOCKS 1
+
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 7
+	LE_FOR_CLOCKS_NO_CLR 12
+    LOW_FOR_CLOCKS 6
+
+    //-----------
+    // Do register #1
+    MOV     curReg, numBlocks
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 4
+REG1_LOOP:
+	LBCO	&r2, CONST_PRUDRAM, 16, 48    
+    QBEQ    REG1_LAST, curReg,  1
+    DO_FULL_REGISTER    16
+    SUB     curReg, curReg, 1
+    JMP     REG1_LOOP
+REG1_LAST:
+    DO_REG1_LAST        16
+    CLEAR_DATA_PINS
+    LOW_FOR_CLOCKS 6
+    //-----------
+
+
+    //-----------
+    // Do register #2
+    MOV     curReg, numBlocks
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 4
+REG2_LOOP:
+	LBCO	&r2, CONST_PRUDRAM, 112, 48    
+    QBEQ    REG2_LAST, curReg,  1
+    DO_FULL_REGISTER    112
+    SUB     curReg, curReg, 1
+    JMP     REG2_LOOP
+REG2_LAST:
+    DO_REG2_LAST        112
+    CLEAR_DATA_PINS
+    LOW_FOR_CLOCKS 6
+    //-----------
+
+
+    //-----------
+    // Do register #3
+    MOV     curReg, numBlocks
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 4
+REG3_LOOP:
+    LDI     tmpReg1, 208
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
+    QBEQ    REG3_LAST, curReg,  1
+    DO_FULL_REGISTER    208
+    SUB     curReg, curReg, 1
+    JMP     REG3_LOOP
+REG3_LAST:
+    DO_REG3_LAST        208
+    CLEAR_DATA_PINS
+    LOW_FOR_CLOCKS 6
+    //-----------
+
+
+    //-----------
+    // Do register #4
+    MOV     curReg, numBlocks
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 4
+REG4_LOOP:
+    LDI     tmpReg1, 304
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
+    QBEQ    REG4_LAST, curReg,  1
+    DO_FULL_REGISTER    304
+    SUB     curReg, curReg, 1
+    JMP     REG4_LOOP
+REG4_LAST:
+    DO_REG4_LAST        304
+    CLEAR_DATA_PINS
+    LOW_FOR_CLOCKS 6
+    //-----------
+
+
+    //-----------
+    // Do register #5
+    MOV     curReg, numBlocks
+	LE_FOR_CLOCKS_NO_CLR 14
+    LOW_FOR_CLOCKS 4
+REG5_LOOP:
+    LDI     tmpReg1, 400
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
+    QBEQ    REG5_LAST, curReg,  1
+    DO_FULL_REGISTER    400
+    SUB     curReg, curReg, 1
+    JMP     REG5_LOOP
+REG5_LAST:
+    DO_REG5_LAST        400
+    CLEAR_DATA_PINS
+    LOW_FOR_CLOCKS 6
+
+    JMP SKIPREGISTERS
 
 
 
 
-	JMP _LOOP
+
+
+
 
 EXIT:
     LDI     tmpReg1, 0xFF
@@ -719,4 +755,6 @@ EXIT:
 	// Send notification to Host for program completion
 	LDI R31.b0, PRU_ARM_INTERRUPT+16
 	HALT
+
+
 

@@ -47,11 +47,11 @@ typedef struct {
         } __attribute__((__packed__));
         struct {
             // Panels that handle the PWM themselves, all data is shifted out and the panel displays it automatically
+            uint16_t cmd;
             uint8_t numBlocks;
-            uint8_t bufferByte;
-            uint16_t numRows;
-            uint16_t buffer[4]; // buffer to get registers aligned on boundary
-            uint16_t registers[32];
+            uint8_t numRows;
+            uint16_t buffer[4];            // buffer to get registers aligned on boundary
+            uint8_t registers[5 * 6 * 16]; // 5 registers for each of r/g/b/r2/b2/g2, 16 bits each
         } __attribute__((__packed__));
     } __attribute__((__packed__));
 } __attribute__((__packed__)) BBShiftPanelData;

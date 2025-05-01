@@ -38,37 +38,56 @@
 #define SEL3_PIN	5
 #define SEL4_PIN	6
 
+#define brightness  r18.b0
+#define curBright	r18.b1
+#define enable   	r19
+#define	isRunning	r20
+#define CLICKSTODO	r21
 
-#define enable   r19
-#define e2		 r20
-#define CLICKSTODO	 r21
 
+#define   CLK_HI	 (1 << GCLK_PIN)
+#define   CLK_LO	 0
+#define   SEL1_ONLY  (1 << SEL1_PIN)
+#define   SEL1_2     ((1 << SEL2_PIN) | (1 << SEL1_PIN))
+#define   SEL0_1_2   ((1 << SEL2_PIN) | (1 << SEL1_PIN) | (1 << SEL0_PIN))
+#define   SEL0_1     ((1 << SEL1_PIN) | (1 << SEL0_PIN))
 
 ONE_PULSE .macro
 	.newblock
-	SET 	r30, r30, GCLK_PIN
+	LDI 	r30, CLK_HI
+	NOP
+	NOP
+	//NOP
+	//NOP
+	//NOP
+	//NOP
+	//NOP
+	//NOP
+	//NOP
+	//NOP
+	NOP
+	NOP
+	LDI 	r30, CLK_LO
 	NOP
 	NOP
 	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	CLR 	r30, r30, GCLK_PIN
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
+	//NOP
+	//NOP
+	//NOP
 	NOP
 	.endm
 
+
+DOBRIGHTLOOP .macro
+	.newblock
+	MOV   curBright, brightness
+STARTBRIGHT?:
+	QBEQ	DONEBRIGHT?, curBright, 0
+		SUB curBright, curBright, 1
+		SLEEPNS	900, r10, 0
+		JMP STARTBRIGHT?
+DONEBRIGHT?:
+	.endm
 
 ;*****************************************************************************
 ;                                  Main Loop
@@ -98,39 +117,48 @@ ONE_PULSE .macro
 
 	// The main pwm program will set this to 1 to enable the GCLK signal
 _RESETLOOP
+	LDI		isRunning, 0
+	XOUT	12, &isRunning, 4
 	LDI		CLICKSTODO, 78
 _LOOP:
 	XIN 	12, &enable, 4
 	// Wait for a non-zero value
-	QBEQ	_LOOP, enable.b0, 0
+	QBEQ	_RESETLOOP, enable.b0, 0
 
 	// Command of 0xFF is the signal to exit
 	QBEQ	EXIT, enable.b0, 0xFF
+
+	LDI		isRunning, 1
+	XOUT	12, &isRunning, 4
+	LBCO	&brightness, CONST_PRUDRAM, 0, 1
+
 	QBEQ	FOUR_PULSES, enable.b0, 1
 
 	LDI		r29, 0
-	SLEEPNS	100, r10, 0
-	SET		r30, r30, SEL2_PIN
 	LOOP  DONELOOPS, enable.b0
-NOWAITATSTART:
-		SLEEPNS	72, r10, 0
-		SET		r30, r30, SEL1_PIN
-		SLEEPNS	48, r10, 0
-		SET		r30, r30, SEL0_PIN
-		SLEEPNS	140, r10, 0
-		CLR		r30, r30, SEL2_PIN
-		SLEEPNS	100, r10, 0
+		DOBRIGHTLOOP
+		LDI		r30, SEL1_ONLY
+		DOBRIGHTLOOP
+		QBNE 	NOSEL2, r29, 0
+		LDI		r30, SEL1_2
+		SLEEPNS	135, r10, 0
+		LDI		r30, SEL0_1_2		
+		SLEEPNS	135, r10, 0
+NOSEL2:
+		LDI		r30, SEL0_1
+		DOBRIGHTLOOP
 		LDI		r30, 0
+		DOBRIGHTLOOP		
 		MOV     r2, CLICKSTODO
 		LDI		CLICKSTODO, 74
-		SLEEPNS	112, r10, 0
 DOPULSES:			
 		ONE_PULSE
 		SUB		r2, r2, 1
+		QBNE	DOPULSES, r2, 0
+		LDI		r29, 1
+DONELOOPS:
 		XIN 	12, &enable, 4
 		QBEQ	_RESETLOOP, enable.b0, 0
-		QBNE	DOPULSES, r2, 0
-DONELOOPS:
     JMP _LOOP
 
 EXIT:
@@ -143,7 +171,16 @@ FOUR_PULSES:
 	LDI enable.b0, 0
 	XOUT	12,  &enable, 4
 	ONE_PULSE
+	NOP
+	NOP
+	NOP
 	ONE_PULSE
+	NOP
+	NOP
+	NOP
 	ONE_PULSE
+	NOP
+	NOP
+	NOP
 	ONE_PULSE
-	JMP _LOOP
+	JMP _RESETLOOP
