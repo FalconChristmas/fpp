@@ -701,7 +701,23 @@ void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
 
 void BBShiftPanelOutput::PrepDataPWM() {
     uint8_t* buf = outputBuffers[currOutputBuffer];
-    ispc::MapPixelsForPWM(currentChannelData, 0, rowLen * numRows, (uint16_t*)buf);
+
+    std::unique_lock<std::mutex> lock(bgTaskMutex);
+    std::atomic<int> counter(0);
+    for (int curRow = 0; curRow < numRows; curRow++) {
+        // Map the pixels for this row
+        ++counter;
+        bgTasks.push([this, curRow, buf, &counter]() {
+            uint32_t start = curRow * rowLen;
+            uint32_t end = start + rowLen;
+
+            ispc::MapPixelsForPWM(currentChannelData, start, end, (uint16_t*)buf);
+            --counter;
+        });
+    }
+    lock.unlock();
+    bgTaskCondVar.notify_all();
+    processTasks(counter);
 
     /*
     for (int x = 0; x < 48; x++) {
@@ -935,7 +951,11 @@ void BBShiftPanelOutput::setupPWMRegisters() {
     uint16_t b = 205; // stick with default brightness for now
     if (m_brightness >= 5) {
         b = (m_brightness - 5) * 10;
-        b *= (205 - 64) * 2;
+        if (m_brightness > 8) {
+            b *= (245 - 64) * 2;
+        } else {
+            b *= (205 - 64) * 2;
+        }
         b /= 100;
         b += 64;
         b <<= 1;
@@ -966,7 +986,7 @@ void BBShiftPanelOutput::setupPWMRegisters() {
     }
 
     // Send the command to setup the registers
-    pwmPru->data_ram[0] = 11 - m_brightness;
+    pwmPru->data_ram[0] = m_brightness > 8 ? 3 : 11 - m_brightness;
     pruData->numBlocks = rowLen / 16;
     pruData->numRows = numRows;
     pruData->cmd = PWM_COMMAND_REGISTERS;
