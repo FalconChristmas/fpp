@@ -600,8 +600,13 @@ static void setupNetwork() {
                         wpa.append("\n  priority=90\n  ieee80211w=1\n}\n\n");
                     }
                     filesNeeded["/etc/wpa_supplicant/wpa_supplicant-" + interface + ".conf"] = wpa;
-                    commandsToRun.emplace_back("systemctl enable \"wpa_supplicant@" + interface + ".service\" &");
-                    commandsToRun.emplace_back("systemctl reload-or-restart \"wpa_supplicant@" + interface + ".service\" &");
+                    if (!contains(execAndReturn("/usr/bin/systemctl is-active wpa_supplicant@" + interface), "inactive")) {
+                        commandsToRun.emplace_back("systemctl reload-or-restart \"wpa_supplicant@" + interface + ".service\" &");
+                    }
+                    if (!contains(execAndReturn("/usr/bin/systemctl is-enabled wpa_supplicant@" + interface), "enabled")) {
+                        commandsToRun.emplace_back("systemctl enable \"wpa_supplicant@" + interface + ".service\" &");
+                        commandsToRun.emplace_back("systemctl daemon-reload");
+                    }
                 } else {
                     validConfig = false;
                 }
@@ -1424,6 +1429,7 @@ int main(int argc, char* argv[]) {
         PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
         checkInstallKiosk();
     } else if (action == "postNetwork") {
+        removeDummyInterface();
         handleBootDelay();
         // turn off blinking cursor
         PutFileContents("/sys/class/graphics/fbcon/cursor_blink", "0");
