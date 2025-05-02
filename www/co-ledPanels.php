@@ -1595,9 +1595,14 @@ if ($settings['Platform'] == "Raspberry Pi") {
                     <div class="printSettingFieldCol col-md-3 col-lg-3">
                         <select id='LEDPanelRowAddressType' onchange="RowAddressTypeChanged();">
                             <option value='0' selected>Standard</option>
-                            <option value='50'>Direct Row Select</option>
-                            <!-- option value='5'>FM6353C</optio-->
-                            <option value='51'>FM6363C</option>
+                            <option value='1'>Direct Row Select</option>
+
+                            <? 
+                            if ($panelCapesDriver == "BBShiftPanel") { 
+                                //echo "<option value='50'>FM6353C</option>";
+                                echo "<option value='51'>FM6363C</option>";
+                            }
+                            ?>
                         </select>
                     </div>
             <?} else {?>
