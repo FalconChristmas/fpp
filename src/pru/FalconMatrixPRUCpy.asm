@@ -1,31 +1,24 @@
-	#include "ResourceTable.asm"
+#include "ResourceTable.asm"
+
+
+#ifndef RUNNING_ON_PRU0
+#ifndef RUNNING_ON_PRU1
+#define RUNNING_ON_PRU1
+#endif
+#endif
+
+#include "FalconPRUDefs.hp"
+#include "FalconUtils.asm"
 
 ;*****************************************************************************
 ;  Define storage registers
 ;*****************************************************************************
 
-data_addr             .set    r1
-endVal                .set    r7
-lastData              .set    r17
-pixel_data            .set    r18     ; and the next 8 registers
+#define data_addr     r1
+#define endVal        r7
+#define lastData      r17
+#define pixel_data    r18
 
-
-; RUNNING_ON_PRU        .set    1
-
-  .if RUNNING_ON_PRU
-PRU_MEMORY_OFFSET     .set    0x2000
-PRU_CONTROL_REG       .set    0x00024000
-PRU_ARM_INTERRUPT     .set    20
-  .else
-PRU_MEMORY_OFFSET     .set    0x0000
-PRU_CONTROL_REG       .set    0x00022000
-PRU_ARM_INTERRUPT     .set    19
-  .endif
-
-; Address for the Constant table Programmable Pointer Register 0(CTPPR_0)
-CTPPR_0         .set    0x22028
-; Address for the Constant table Programmable Pointer Register 1(CTPPR_1)
-CTPPR_1         .set    0x2202C
 
 
 ;*****************************************************************************
@@ -44,7 +37,7 @@ CTPPR_1         .set    0x2202C
     LBCO    &r0, C4, 4, 4
     CLR     r0, r0, 4
     SBCO    &r0, C4, 4, 4
-#endif    
+#endif
 
     ; Configure the programmable pointer register for PRU0 by setting
     ; c28_pointer[15:0] field to 0x0120.  This will make C28 point to

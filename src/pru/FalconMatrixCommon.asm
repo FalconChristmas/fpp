@@ -56,16 +56,27 @@ READ_TO_FLUSH .macro
     .endm
 
 CLOCK_HI .macro
+#ifdef gpio_clock
     LDI32or16 out_set, 1 << gpio_clock
     SBBO &out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
+#ifndef AM33XX    
+    READ_TO_FLUSH
+#endif    
+#else
+    SET r30, r30, pru_clock
+#endif      
     .endm
 
 CLOCK_LO .macro
+#ifdef gpio_clock
     // we normally can lower the clock line at the same time as outputing the
     // gpio data if we're outputting data on this GPIO
 #ifdef NO_CONTROLS_WITH_DATA
     LDI32or16 out_clr, 1 << gpio_clock
     SBBO &out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+#endif
+#else
+    CLR r30, r30, pru_clock
 #endif
     .endm
 
