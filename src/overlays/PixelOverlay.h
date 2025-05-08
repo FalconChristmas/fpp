@@ -57,7 +57,9 @@ public:
 
     Json::Value getModelsAsJson();
 
-    const std::list<std::string> &getModelNames() const { return modelNames; };
+    Json::Value getActiveOverlayEffects();
+
+    const std::list<std::string>& getModelNames() const { return modelNames; };
 
 private:
     PixelOverlayManager();

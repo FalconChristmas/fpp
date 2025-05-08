@@ -128,6 +128,12 @@ public:
             static std::string NAME = "Color Fade";
             return NAME;
         }
+        virtual void toJson(Json::Value& v) const override {
+            v["name"] = name();
+            v["color"] = color;
+            v["fadeIn"] = fadeIn;
+            v["fadeOut"] = fadeOut;
+        };
 
         void fill(uint32_t c) {
             model->fill((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF);
@@ -245,6 +251,29 @@ public:
             static std::string NAME = "Bars";
             return NAME;
         }
+        virtual void toJson(Json::Value& v) const override {
+            v["name"] = name();
+            switch (direction) {
+            case DirectionEnum::UP:
+                v["direction"] = "Up";
+                break;
+            case DirectionEnum::DOWN:
+                v["direction"] = "Down";
+                break;
+            case DirectionEnum::LEFT:
+                v["direction"] = "Left";
+                break;
+            case DirectionEnum::RIGHT:
+                v["direction"] = "Right";
+                break;
+            }
+            v["duration"] = duration;
+            v["iterations"] = iterations;
+            v["colors"] = Json::Value(Json::arrayValue);
+            for (auto& c : colors) {
+                v["colors"].append(c);
+            }
+        };
 
         void mapCoords(int m, int l, int w, int h, int& x, int& y) {
             switch (direction) {
@@ -364,6 +393,13 @@ public:
         if (imageData) {
             free(imageData);
         }
+    }
+    const std::string& name() const override {
+        static std::string NAME = "Image";
+        return NAME;
+    }
+    virtual void toJson(Json::Value& v) const override {
+        v["name"] = name();
     }
     void copyImageData(int xoff, int yoff) {
         if (imageData) {

@@ -412,6 +412,9 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
             if (std::string(req.get_arg("simple")) == "true") {
                 simple = true;
             }
+            if (std::string(req.get_arg("all")) == "true") {
+                result.append("--All Models--");
+            }
             for (auto& mn : modelNames) {
                 if (simple) {
                     result.append(mn);
@@ -517,6 +520,8 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
                     result = e->getDescription();
                 }
             }
+        } else if (p2 == "running") {
+            result = getActiveOverlayEffects();
         }
         std::string resultStr = SaveJsonToString(result, "");
         return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
@@ -910,7 +915,7 @@ class ApplyEffectOverlayCommand : public OverlayCommand {
 public:
     ApplyEffectOverlayCommand(PixelOverlayManager* m) :
         OverlayCommand("Overlay Model Effect", m) {
-        args.push_back(CommandArg("Models", "multistring", "Models").setContentListUrl("api/models?simple=true", false));
+        args.push_back(CommandArg("Models", "multistring", "Models").setContentListUrl("api/models?simple=true&all=true", false));
         args.push_back(CommandArg("AutoEnable", "string", "Auto Enable/Disable").setContentList({ "False", "Enabled", "Transparent", "Transparent RGB" }).setDefaultValue("Enabled"));
         args.push_back(CommandArg("Effect", "subcommand", "Effect").setContentListUrl("api/overlays/effects/", false));
     }
@@ -921,7 +926,15 @@ public:
         }
         std::unique_lock<std::mutex> lock(getLock());
         std::list<PixelOverlayModel*> models;
+
         for (auto& ms : split(args[0], ',')) {
+            if (ms == "--All Models--") {
+                for (auto& mn : manager->getModelNames()) {
+                    auto m = manager->getModel(mn);
+                    models.push_back(m);
+                }
+                break;
+            }
             auto m = manager->getModel(ms);
             if (m) {
                 models.push_back(m);
@@ -968,6 +981,22 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
     val["autoCreated"] = true;
 
     addModel(val);
+}
+Json::Value PixelOverlayManager::getActiveOverlayEffects() {
+    Json::Value ret = Json::arrayValue;
+
+    std::unique_lock<std::mutex> lock(activeModelsLock);
+    for (auto& m : activeModels) {
+        std::unique_lock<std::recursive_mutex> l(m->getRunningEffectMutex());
+        RunningEffect* eff = m->getRunningEffect();
+        if (eff) {
+            Json::Value model;
+            m->toJson(model);
+            eff->toJson(model["effect"]);
+            ret.append(model);
+        }
+    }
+    return ret;
 }
 
 void PixelOverlayManager::doOverlayModelEffects() {

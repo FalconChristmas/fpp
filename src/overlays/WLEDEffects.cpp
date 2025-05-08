@@ -41,7 +41,9 @@ public:
     const std::string& name() const override {
         return effectName;
     }
-
+    virtual void toJson(Json::Value& v) const override {
+        v["name"] = name();
+    };
     virtual int32_t doIteration() = 0;
 
     virtual int32_t update() override {
@@ -123,6 +125,15 @@ public:
             intensity = parseInt(args[2]);
             color1 = adjustColor(parseColor(args[3]), brightness);
             color2 = adjustColor(parseColor(args[4]), brightness);
+        }
+
+        virtual void toJson(Json::Value& v) const override {
+            v["name"] = name();
+            v["brightness"] = brightness;
+            v["speed"] = speed;
+            v["intensity"] = intensity;
+            v["color1"] = color1;
+            v["color2"] = color2;
         }
         virtual int32_t doIteration() {
             if (isColor2) {
@@ -374,8 +385,8 @@ public:
 
     class RawWLEDEffectInternal : public WLEDRunningEffect {
     public:
-        RawWLEDEffectInternal(PixelOverlayModel* m, const std::string& n, const std::string& ad, const std::vector<std::string>& args, int mode, const std::vector<ArgMapping> argMap) :
-            WLEDRunningEffect(m, n, ad) {
+        RawWLEDEffectInternal(PixelOverlayModel* m, const std::string& n, const std::string& ad, const std::vector<std::string>& args, int mode, const std::vector<ArgMapping> am) :
+            WLEDRunningEffect(m, n, ad), argMap(am) {
             RawWLEDEffect::fillVectors();
 
             int mapping = 0;
@@ -458,6 +469,59 @@ public:
         virtual ~RawWLEDEffectInternal() {
             delete wled;
         }
+
+        virtual void toJson(Json::Value& v) const override {
+            v["name"] = name();
+
+            for (int x = 0; x < argMap.size(); x++) {
+                switch (argMap[x]) {
+                case ArgMapping::Mapping:
+                    break;
+                case ArgMapping::Brightness:
+                    v["brightness"] = brightness;
+                    break;
+                case ArgMapping::Speed:
+                    v["speed"] = speed;
+                    break;
+                case ArgMapping::Intensity:
+                    v["intensity"] = intensity;
+                    break;
+                case ArgMapping::Custom1:
+                    v["custom1"] = custom1;
+                    break;
+                case ArgMapping::Custom2:
+                    v["custom2"] = custom2;
+                    break;
+                case ArgMapping::Custom3:
+                    v["custom3"] = custom3;
+                    break;
+                case ArgMapping::Check1:
+                    v["check1"] = check1;
+                    break;
+                case ArgMapping::Check2:
+                    v["check2"] = check2;
+                    break;
+                case ArgMapping::Check3:
+                    v["check3"] = check3;
+                    break;
+                case ArgMapping::Palette:
+                    v["palette"] = palette;
+                    break;
+                case ArgMapping::Color1:
+                    v["color1"] = color1;
+                    break;
+                case ArgMapping::Color2:
+                    v["color2"] = color2;
+                    break;
+                case ArgMapping::Color3:
+                    v["color3"] = color3;
+                    break;
+                case ArgMapping::Text:
+                    v["text"] = text;
+                    break;
+                }
+            }
+        }
         virtual int32_t doIteration() {
             WS2812FXExt::pushCurrent(wled);
             wled->service();
@@ -486,6 +550,7 @@ public:
         std::string text;
 
         WS2812FXExt* wled;
+        const std::vector<ArgMapping> argMap;
     };
 
     int mode;

@@ -17,12 +17,12 @@
 #include "../Sequence.h"
 #include "../Timers.h"
 #include "../common.h"
-#include "../settings.h"
 #include "../effects.h"
 #include "../log.h"
 #include "../overlays/PixelOverlay.h"
 #include "../overlays/PixelOverlayModel.h"
 #include "../scripts.h"
+#include "../settings.h"
 
 #include "EventCommands.h"
 
@@ -59,7 +59,7 @@ std::unique_ptr<Command::Result> TriggerPresetInFutureCommand::run(const std::ve
 }
 
 TriggerRemotePresetCommand::TriggerRemotePresetCommand() :
-    Command("Remote Trigger Command Preset","<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Trigger Command Preset' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
+    Command("Remote Trigger Command Preset", "<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Trigger Command Preset' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
     args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
     args.push_back(CommandArg("name", "string", "Preset Name"));
 }
@@ -90,7 +90,7 @@ std::unique_ptr<Command::Result> TriggerPresetSlotCommand::run(const std::vector
 }
 
 TriggerRemotePresetSlotCommand::TriggerRemotePresetSlotCommand() :
-    Command("Remote Trigger Command Preset Slot","<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Trigger Command Preset Slot' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
+    Command("Remote Trigger Command Preset Slot", "<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Trigger Command Preset Slot' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
     args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
     args.push_back(CommandArg("slot", "int", "Preset Slot").setRange(1, 255));
 }
@@ -180,7 +180,7 @@ StartEffectCommand::StartEffectCommand() :
     args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
     args.push_back(CommandArg("bg", "bool", "Background"));
     args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
-    args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", ""));
+    args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", true));
 }
 std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
@@ -295,7 +295,7 @@ std::unique_ptr<Command::Result> StopFSEQAsEffectCommand::run(const std::vector<
 }
 
 StartRemoteEffectCommand::StartRemoteEffectCommand() :
-    Command("Remote Effect Start","<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Effect Start' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
+    Command("Remote Effect Start", "<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Effect Start' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
     args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
     args.push_back(CommandArg("effect", "string", "Effect Name"));
     args.push_back(CommandArg("startChannel", "int", "Start Channel"));
@@ -314,7 +314,7 @@ std::unique_ptr<Command::Result> StartRemoteEffectCommand::run(const std::vector
 }
 
 StartRemoteFSEQEffectCommand::StartRemoteFSEQEffectCommand() :
-    Command("Remote FSEQ Effect Start","<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'FSEQ Effect Start' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
+    Command("Remote FSEQ Effect Start", "<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'FSEQ Effect Start' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
     args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
     args.push_back(CommandArg("fseq", "string", "FSEQ Name"));
     args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
@@ -332,7 +332,7 @@ std::unique_ptr<Command::Result> StartRemoteFSEQEffectCommand::run(const std::ve
 }
 
 StopRemoteEffectCommand::StopRemoteEffectCommand() :
-    Command("Remote Effect Stop","<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Effect Stop' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
+    Command("Remote Effect Stop", "<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Effect Stop' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
     args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
     args.push_back(CommandArg("effect", "string", "Effect Name"));
 }
@@ -348,7 +348,7 @@ std::unique_ptr<Command::Result> StopRemoteEffectCommand::run(const std::vector<
 }
 
 StartRemotePlaylistCommand::StartRemotePlaylistCommand() :
-    Command("Remote Playlist Start","<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Start Playlist' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
+    Command("Remote Playlist Start", "<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Start Playlist' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
     args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
     args.push_back(CommandArg("playlist", "string", "Playlist Name"));
     args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
@@ -366,7 +366,7 @@ std::unique_ptr<Command::Result> StartRemotePlaylistCommand::run(const std::vect
 }
 
 RunRemoteScriptEvent::RunRemoteScriptEvent() :
-    Command("Remote Run Script","<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Run Script' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
+    Command("Remote Run Script", "<b>This command is deprecated and will be removed in FPP 10</b><br><br>Please use 'Run Script' command with the Multisync checkbox <br> to select which remote to send it to<br><br>") {
     args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
     args.push_back(CommandArg("script", "string", "Script Name"));
     args.push_back(CommandArg("args", "string", "Script Arguments").setAdjustable());
@@ -410,4 +410,3 @@ std::unique_ptr<Command::Result> SwitchToRemoteModeCommand::run(const std::vecto
     ShutdownFPPD(true);
     return std::make_unique<Command::Result>("Switch To Remote Mode");
 }
-
