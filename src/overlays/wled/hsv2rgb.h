@@ -60,15 +60,7 @@
 FASTLED_NAMESPACE_BEGIN
 
 
-/// Convert an HSV value to RGB using a visually balanced rainbow. 
-/// This "rainbow" yields better yellow and orange than a straight
-/// mathematical "spectrum".
-///
-/// ![FastLED 'Rainbow' Hue Chart](https://raw.githubusercontent.com/FastLED/FastLED/gh-pages/images/HSV-rainbow-with-desc.jpg)
-///
-/// @param hsv CHSV struct to convert to RGB. Max hue supported is HUE_MAX_RAINBOW
-/// @param rgb CRGB struct to store the result of the conversion (will be modified)
-void hsv2rgb_rainbow( const struct CHSV& hsv, struct CRGB& rgb);
+
 
 /// @copybrief hsv2rgb_rainbow(const struct CHSV&, struct CRGB&)
 /// @see hsv2rgb_rainbow(const struct CHSV&, struct CRGB&)
@@ -93,6 +85,13 @@ void hsv2rgb_rainbow( const struct CHSV* phsv, struct CRGB * prgb, int numLeds);
 /// @param hsv CHSV struct to convert to RGB. Max hue supported is HUE_MAX_SPECTRUM
 /// @param rgb CRGB struct to store the result of the conversion (will be modified)
 void hsv2rgb_spectrum( const struct CHSV& hsv, struct CRGB& rgb);
+
+/// Inline version of hsv2rgb_spectrum which returns a CRGB object.
+inline CRGB hsv2rgb_spectrum( const struct CHSV& hsv) {
+    CRGB rgb;
+    hsv2rgb_spectrum(hsv, rgb);
+    return rgb;
+}
 
 /// @copybrief hsv2rgb_spectrum(const struct CHSV&, struct CRGB&)
 /// @see hsv2rgb_spectrum(const struct CHSV&, struct CRGB&)

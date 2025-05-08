@@ -12,10 +12,9 @@ src/oled/SSD1306_OLED.*
     - MIT license, Copyright (c) 2017 DeeplyEmbedded
 
 src/overlays/wled/*
-    - WLED code in general is covered by the MIT license, but some files may
-      have a separate license noted in their header.  A copy of the WLED MIT
-      license is included in the wled subdirectory.
-      https://github.com/Aircoookie/WLED
+    - FastLED code is covered by the MIT license
+    - WLED code is covered by the EUPL License
+    - See the LICENSE.* files in src/overlays/wled  for more details
 
 src/SunRise.*
     - Proprietary Open Source license by Stephen R. Schmitt and Cyrus Rahman.

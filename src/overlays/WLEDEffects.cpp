@@ -18,7 +18,7 @@
 #include "PixelOverlayModel.h"
 #include "WLEDEffects.h"
 
-#include "wled/FX.h"
+#include "wled/wled.h"
 
 WLEDEffect::WLEDEffect(const std::string& name) :
     PixelOverlayEffect(name) {
@@ -496,7 +496,7 @@ std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {
     std::list<PixelOverlayEffect*> v;
     v.push_back(new BlinkEffect());
 
-    WS2812FX* inst = WS2812FX::getInstance();
+    WS2812FX* inst = WS2812FXExt::getInstance();
     if (inst == nullptr) {
         inst = new WS2812FXExt();
     }
@@ -528,9 +528,5 @@ void WLEDEffect::cleanupWLEDEffects() {
     BUFFERMAPS = nullptr;
     delete PALETTES;
     PALETTES = nullptr;
-    WS2812FXExt* inst = (WS2812FXExt*)WS2812FX::getInstance();
-    WS2812FX::clearInstance();
-    if (inst != nullptr) {
-        delete inst;
-    }
+    WS2812FXExt::clearInstance();
 }

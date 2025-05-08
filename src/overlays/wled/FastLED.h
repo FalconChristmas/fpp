@@ -11,29 +11,51 @@
  * included LICENSE.LGPL file.
  */
 
+#include <algorithm>
+#include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include <algorithm>
+#include <string>
 
 #define FASTLED_NAMESPACE_BEGIN
 #define FASTLED_NAMESPACE_END
 #define FASTLED_USING_NAMESPACE
 #define FL_ALIGN_PROGMEM
 #define FL_PROGMEM
-#define FL_PGM_READ_BYTE_NEAR(x)  (*((const  uint8_t*)(x)))
-#define FL_PGM_READ_WORD_NEAR(x)  (*((const uint16_t*)(x)))
+#define FL_PGM_READ_BYTE_NEAR(x) (*((const uint8_t*)(x)))
+#define FL_PGM_READ_WORD_NEAR(x) (*((const uint16_t*)(x)))
 #define FL_PGM_READ_DWORD_NEAR(x) (*((const uint32_t*)(x)))
 
+#define WLED_DISABLE_FPP
 
-#include "pixeltypes.h"
-#include "lib8tion.h"
+#define DEBUG_PRINT(A)
+#define DEBUG_PRINTLN(A)
+#define DEBUG_PRINTF(x...)
+#define DEBUG_PRINTF_P(x...)
+
+typedef unsigned char byte;
+typedef std::string String;
+
+#define __INC_LED_SYSDEFS_H
+
+class Print {
+public:
+    Print() {};
+
+    void print(const char* str) {
+        printf("%s\n", str);
+    }
+};
+
+#include "colorpalettes.h"
 #include "colorutils.h"
+#include "crgb.h"
+#include "lib8tion.h"
+#include "pixeltypes.h"
 
 class FakeFL {
 public:
     void clear() {};
 };
 extern FakeFL FastLED;
-

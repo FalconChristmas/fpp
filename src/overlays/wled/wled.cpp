@@ -21,12 +21,12 @@
 #include <math.h>
 #include <time.h>
 
-#include "FX.h"
-#include "fcn_declare.h"
 #include "wled.h"
 
 #include "kiss_fftr.h"
 #include "../../mediaoutput/SDLOut.h"
+
+uint8_t blendingStyle = 0; // effect blending/transitionig style
 
 uint16_t rand16seed = 0;
 time_t localTime = time(nullptr);
@@ -35,11 +35,28 @@ bool stateChanged = false;
 byte lastRandomIndex = 0;
 char* ledmapNames[WLED_MAX_LEDMAPS] = { nullptr };
 uint16_t ledMaps = 0xFFFF;
+std::vector<BusConfig> busConfigs;
+uint8_t errorFlag = 0;
+
+uint8_t briS = (128);      // default brightness
+uint8_t bri = (briS);      // global brightness (set)
+uint8_t briOld = (0);      // global brightness while in transition loop (previous iteration)
+uint8_t briT = (0);        // global brightness during transition
+uint8_t briLast = (128);   // brightness before turned off. Used for toggle function
+uint8_t whiteLast = (128); // white channel before turned off. Used for toggle function in ir.cpp
+
+bool useHarmonicRandomPalette = true;
+bool useGlobalLedBuffer = false;
+uint8_t realtimeMode = 0;
+bool realtimeRespectLedMaps = true;
+
+char settingsPIN[5] = ""; // PIN for settings pages
+bool correctPIN = 0;
+unsigned long lastEditTime = 0;
 
 FakeFL FastLED;
-BusManager busses;
+Bus BusManager::bus;
 WLEDFileSystem WLED_FS;
-Usermods usermods;
 
 int hour(time_t t) {
     struct tm tm;
@@ -72,22 +89,23 @@ int year(time_t t) {
     return tm.tm_year;
 }
 static const char* monthShortNames_P[] = { "Err", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+static const char* monthNames_P[] = { "Err", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+const char* monthStr(uint8_t m) {
+    return monthNames_P[m];
+}
 const char* monthShortStr(uint8_t m) {
     return monthShortNames_P[m];
 }
 
-uint16_t crc16(const unsigned char* data_p, size_t length) {
-    uint8_t x;
-    uint16_t crc = 0xFFFF;
-    if (!length)
-        return 0x1D0F;
-    while (length--) {
-        x = crc >> 8 ^ *data_p++;
-        x ^= x >> 4;
-        crc = (crc << 8) ^ ((uint16_t)(x << 12)) ^ ((uint16_t)(x << 5)) ^ ((uint16_t)x);
-    }
-    return crc;
+static const char* datStrShort_P[] = { "Err", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+static const char* datStr_P[] = { "Err", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+const char* dayStr(uint8_t day) {
+    return datStr_P[day];
 }
+const char* dayShortStr(uint8_t day) {
+    return datStrShort_P[day];
+}
+
 uint16_t XY(uint8_t x, uint8_t y) {
     return x;
 }
@@ -110,9 +128,6 @@ static float fftAddAvg(int from, int to, float* samples) {
     if (from == to)
         return samples[from];               // small optimization
     return fftAddAvgRMS(from, to, samples); // use SMS
-}
-static float mapf(float x, float in_min, float in_max, float out_min, float out_max) {
-    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 /*
@@ -137,8 +152,8 @@ static um_data_t* processSamples(std::array<float, NUM_SAMPLES>& samples, int sa
     static kiss_fft_cpx fft_out[NUM_SAMPLES];
     static kiss_fftr_cfg cfg = kiss_fftr_alloc(NUM_SAMPLES, false, 0, 0);
 
-    //GenerateSinWave(samples, sampleRate);
-    //HammingWindow(samples);
+    // GenerateSinWave(samples, sampleRate);
+    // HammingWindow(samples);
 
     // compute fast fourier transform
     kiss_fftr(cfg, (kiss_fft_scalar*)&samples[0], fft_out);
@@ -150,7 +165,7 @@ static um_data_t* processSamples(std::array<float, NUM_SAMPLES>& samples, int sa
     static float volumeSmth;
     static uint16_t volumeRaw;
     static float my_magnitude;
-    //arrays
+    // arrays
     static um_data_t* um_data = nullptr;
     if (!um_data) {
         // initialize um_data pointer structure
@@ -205,7 +220,7 @@ static um_data_t* processSamples(std::array<float, NUM_SAMPLES>& samples, int sa
     float maxFreq = (maxBin * binHzRange) + (binHzRange / 2);
     int maxIdx = maxBin;
 
-    //printf("Max: %0.5f Hz   idx: %d\n", maxFreq, maxIdx);
+    // printf("Max: %0.5f Hz   idx: %d\n", maxFreq, maxIdx);
     int maxV = 0;
     float maxRV = 0;
     for (int x = 0; x < 16; x++) {
@@ -216,13 +231,13 @@ static um_data_t* processSamples(std::array<float, NUM_SAMPLES>& samples, int sa
         if (v2 < 0) {
             v2 = 0;
         }
-        //printf("%d:   %0.2f  %0.2f    %d\n", x, res[x], (float)log10(res[x]), v2);
+        // printf("%d:   %0.2f  %0.2f    %d\n", x, res[x], (float)log10(res[x]), v2);
         maxV = std::max(maxV, v2);
         maxRV = std::max(maxRV, res[x]);
         fftResult[x] = v2;
     }
-    //printf("\n");
-    //volumeSmth = max * 127.0;
+    // printf("\n");
+    // volumeSmth = max * 127.0;
 
     FFT_MajorPeak = maxFreq;
     my_magnitude = maxRV;
@@ -238,118 +253,6 @@ static um_data_t* processSamples(std::array<float, NUM_SAMPLES>& samples, int sa
     return um_data;
 }
 
-// Currently 4 types defined, to be fine tuned and new types added
-typedef enum UM_SoundSimulations {
-    UMS_BeatSin = 10,
-    UMS_WeWillRockYou = 0,
-    UMS_10_3,
-    UMS_14_3
-} um_soundSimulations_t;
-um_data_t* simulateSound(uint8_t simulationId) {
-    std::array<float, NUM_SAMPLES> samples;
-    int sampleRate = 0;
-    if (SDLOutput::GetAudioSamples(&samples[0], NUM_SAMPLES, sampleRate)) {
-        return processSamples(samples, sampleRate);
-    }
-
-    static uint8_t samplePeak;
-    static float FFT_MajorPeak;
-    static uint8_t maxVol;
-    static uint8_t binNum;
-
-    static float volumeSmth;
-    static uint16_t volumeRaw;
-    static float my_magnitude;
-
-    //arrays
-    uint8_t* fftResult;
-
-    static um_data_t* um_data = nullptr;
-
-    if (!um_data) {
-        //claim storage for arrays
-        fftResult = (uint8_t*)malloc(sizeof(uint8_t) * 16);
-
-        // initialize um_data pointer structure
-        // NOTE!!!
-        // This may change as AudioReactive usermod may change
-        um_data = new um_data_t;
-        um_data->u_size = 8;
-        um_data->u_type = new um_types_t[um_data->u_size];
-        um_data->u_data = new void*[um_data->u_size];
-        um_data->u_data[0] = &volumeSmth;
-        um_data->u_data[1] = &volumeRaw;
-        um_data->u_data[2] = fftResult;
-        um_data->u_data[3] = &samplePeak;
-        um_data->u_data[4] = &FFT_MajorPeak;
-        um_data->u_data[5] = &my_magnitude;
-        um_data->u_data[6] = &maxVol;
-        um_data->u_data[7] = &binNum;
-    } else {
-        // get arrays from um_data
-        fftResult = (uint8_t*)um_data->u_data[2];
-    }
-
-    uint32_t ms = millis();
-
-    switch (simulationId) {
-    default:
-    case UMS_BeatSin:
-        for (int i = 0; i < 16; i++)
-            fftResult[i] = beatsin8(120 / (i + 1), 0, 255);
-        // fftResult[i] = (beatsin8(120, 0, 255) + (256/16 * i)) % 256;
-        volumeSmth = fftResult[8];
-        break;
-    case UMS_WeWillRockYou:
-        if (ms % 2000 < 200) {
-            volumeSmth = random8(255);
-            for (int i = 0; i < 5; i++)
-                fftResult[i] = random8(255);
-        } else if (ms % 2000 < 400) {
-            volumeSmth = 0;
-            for (int i = 0; i < 16; i++)
-                fftResult[i] = 0;
-        } else if (ms % 2000 < 600) {
-            volumeSmth = random8(255);
-            for (int i = 5; i < 11; i++)
-                fftResult[i] = random8(255);
-        } else if (ms % 2000 < 800) {
-            volumeSmth = 0;
-            for (int i = 0; i < 16; i++)
-                fftResult[i] = 0;
-        } else if (ms % 2000 < 1000) {
-            volumeSmth = random8(255);
-            for (int i = 11; i < 16; i++)
-                fftResult[i] = random8(255);
-        } else {
-            volumeSmth = 0;
-            for (int i = 0; i < 16; i++)
-                fftResult[i] = 0;
-        }
-        break;
-    case UMS_10_3:
-        for (int i = 0; i < 16; i++)
-            fftResult[i] = inoise8(beatsin8(90 / (i + 1), 0, 200) * 15 + (ms >> 10), ms >> 3);
-        volumeSmth = fftResult[8];
-        break;
-    case UMS_14_3:
-        for (int i = 0; i < 16; i++)
-            fftResult[i] = inoise8(beatsin8(120 / (i + 1), 10, 30) * 10 + (ms >> 14), ms >> 3);
-        volumeSmth = fftResult[8];
-        break;
-    }
-
-    samplePeak = random8() > 250;
-    FFT_MajorPeak = volumeSmth;
-    maxVol = 10; // this gets feedback fro UI
-    binNum = 8;  // this gets feedback fro UI
-    volumeRaw = volumeSmth;
-    my_magnitude = 10000.0 / 8.0f; //no idea if 10000 is a good value for FFT_Magnitude ???
-    if (volumeSmth < 1)
-        my_magnitude = 0.001f; // noise gate closed - mute
-
-    return um_data;
-}
 CRGB getCRGBForBand(int x, uint8_t* fftResult, int pal) {
     CRGB value;
     CHSV hsv;
@@ -367,33 +270,6 @@ CRGB getCRGBForBand(int x, uint8_t* fftResult, int pal) {
         hsv2rgb_rainbow(hsv, value);                                       // convert to R,G,B
     }
     return value;
-}
-int16_t extractModeDefaults(uint8_t mode, const char* segVar) {
-    if (mode < strip().getModeCount()) {
-        char lineBuffer[128] = "";
-        strncpy(lineBuffer, strip().getModeData(mode), 127);
-        lineBuffer[127] = '\0'; // terminate string
-        if (lineBuffer[0] != 0) {
-            char* startPtr = strrchr(lineBuffer, ';'); // last ";" in FX data
-            if (!startPtr)
-                return -1;
-
-            char* stopPtr = strstr(startPtr, segVar);
-            if (!stopPtr)
-                return -1;
-
-            stopPtr += strlen(segVar) + 1; // skip "="
-            return atoi(stopPtr);
-        }
-    }
-    return -1;
-}
-
-void WS2812FX::loadCustomPalettes() {
-}
-
-bool WS2812FX::deserializeMap(uint8_t n) {
-    return false;
 }
 
 WS2812FXExt::WS2812FXExt() :
@@ -423,9 +299,7 @@ WS2812FXExt::WS2812FXExt(PixelOverlayModel* m, int map, int b,
         p.width = m->getHeight();
         p.height = m->getWidth();
     }
-    milliampsPerLed = 0; //need to turn off the power calculation
-    _segments[0].transitional = false;
-    setMode(0, mode);
+    _segments[0].setMode(mode);
     _segments[0].speed = s;
     _segments[0].intensity = i;
     _segments[0].palette = pal;
@@ -441,9 +315,9 @@ WS2812FXExt::WS2812FXExt(PixelOverlayModel* m, int map, int b,
     }
     _segments[0].refreshLightCapabilities();
 
-    setColor(0, c1);
-    setColor(1, c2);
-    setColor(2, c3);
+    _segments[0].setColor(0, c1);
+    _segments[0].setColor(1, c2);
+    _segments[0].setColor(2, c3);
 
     panel.push_back(p);
     pushCurrent(this);
@@ -452,14 +326,22 @@ WS2812FXExt::WS2812FXExt(PixelOverlayModel* m, int map, int b,
 }
 
 thread_local WS2812FXExt* currentStrip = nullptr;
-WS2812FXExt& strip() {
+WS2812FXExt* WS2812FXExt::getInstance() {
     WS2812FXExt* cs = currentStrip;
     if (cs == nullptr) {
         cs = new WS2812FXExt();
         currentStrip = cs;
     }
-    return *cs;
+    return cs;
 }
+void WS2812FXExt::clearInstance() {
+    while (currentStrip) {
+        WS2812FXExt* e = currentStrip;
+        currentStrip = currentStrip->parent;
+        delete e;
+    }
+}
+
 void WS2812FXExt::pushCurrent(WS2812FXExt* e) {
     if (e) {
         e->parent = currentStrip;
@@ -474,13 +356,13 @@ void WS2812FXExt::popCurrent() {
     }
 }
 
-int Bus::getLength() {
+int Bus::getLength() const {
     if (currentStrip->model) {
         return currentStrip->model->getWidth() * currentStrip->model->getHeight();
     }
     return 1;
 }
-uint32_t Bus::getPixelColor(int i) {
+uint32_t Bus::getPixelColor(int i) const {
     int x, y;
     int w = currentStrip->model->getWidth();
     int h = currentStrip->model->getHeight();
@@ -531,4 +413,8 @@ void Bus::setPixelColor(int i, uint32_t c) {
     g = g * brightness / 128;
     b = b * brightness / 128;
     currentStrip->model->setOverlayPixelValue(x, y, min(r, 255), min(g, 255), min(b, 255));
+}
+
+bool UsermodManager::getUMData(um_data_t** um_data, uint8_t mod_id) {
+    return false;
 }

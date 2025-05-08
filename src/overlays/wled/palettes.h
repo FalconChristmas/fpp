@@ -1,9 +1,10 @@
 /*
  * Color palettes for FastLED effects (65-73).
+ * 4 bytes per color: index, red, green, blue
  */
 
 // From ColorWavesWithPalettes by Mark Kriegsman: https://gist.github.com/kriegsman/8281905786e8b2632aeb
-// Unfortunaltely, these are stored in RAM!
+// Unfortunately, these are stored in RAM!
 
 // Gradient palette "ib_jul01_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/ing/xmas/tn/ib_jul01.png.index.html
@@ -844,12 +845,21 @@ const byte candy2_gp[] PROGMEM = {
   211,  39, 33, 34,
   255,   1,  1,  1};
 
- //WLEDMM netmindz ar palette
-// Start off as just RGB, but replace in runtime with colors relating to the music
-const byte audio_responsive_gp[] PROGMEM = {
-   0, 255, 0, 0,
-   125, 0, 255, 0,
-   255, 0, 0, 255
+const byte trafficlight_gp[] PROGMEM = {
+  0, 0, 0, 0,       //black
+  85, 0, 255, 0,    //green
+  170, 255, 255, 0, //yellow
+  255, 255, 0, 0};  //red
+
+// array of fastled palettes (palette 6 - 12)
+const TProgmemRGBPalette16 *const fastledPalettes[] PROGMEM = {
+  &PartyColors_p,               //06-00 Party
+  &CloudColors_p,               //07-01 Cloud
+  &LavaColors_p,                //08-02 Lava
+  &OceanColors_p,               //09-03 Ocean
+  &ForestColors_p,              //10-04 Forest
+  &RainbowColors_p,             //11-05 Rainbow
+  &RainbowStripeColors_p        //12-06 Rainbow Bands
 };
 
 // Single array of defined cpt-city color palettes.
@@ -915,9 +925,7 @@ const byte* const gGradientPalettes[] PROGMEM = {
   red_shift_gp,                 //68-55 Red Shift
   red_tide_gp,                  //69-56 Red Tide
   candy2_gp,                    //70-57 Candy2
-  // Palette contents not actually used as built on the fly, just here to create menu option
-  audio_responsive_gp,          //71-58 AudioResponsive  WLEDMM netmindz ar palette - placeholder1
-  audio_responsive_gp,          //72-59 AudioResponsive  WLEDMM netmindz ar palette - placeholder2
+  trafficlight_gp               //71-58 Traffic Light
 };
 
 #endif

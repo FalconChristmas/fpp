@@ -1,13 +1,10 @@
-#ifndef __INC_COLORPALETTES_H
-/// Include guard
-#define __INC_COLORPALETTES_H
 
 /// Disables pragma messages and warnings
 #define FASTLED_INTERNAL
 
+#include "colorpalettes.h"
 #include "FastLED.h"
 #include "colorutils.h"
-#include "colorpalettes.h"
 
 FASTLED_USING_NAMESPACE
 
@@ -21,7 +18,7 @@ FASTLED_USING_NAMESPACE
 /// @{
 
 /// @defgroup PredefinedPalettes Predefined Color Palettes
-/// Stock color palettes, only included when used. 
+/// Stock color palettes, only included when used.
 /// These palettes are all declared as `PROGMEM`, meaning
 /// that they won't take up SRAM on AVR chips until used.
 /// Furthermore, the compiler won't even include these
@@ -30,8 +27,7 @@ FASTLED_USING_NAMESPACE
 /// @{
 
 /// Cloudy color palette
-extern const TProgmemRGBPalette16 CloudColors_p FL_PROGMEM =
-{
+extern const TProgmemRGBPalette16 CloudColors_p FL_PROGMEM = {
     CRGB::Blue,
     CRGB::DarkBlue,
     CRGB::DarkBlue,
@@ -54,13 +50,13 @@ extern const TProgmemRGBPalette16 CloudColors_p FL_PROGMEM =
 };
 
 /// Lava color palette
-extern const TProgmemRGBPalette16 LavaColors_p FL_PROGMEM =
-{
+extern const TProgmemRGBPalette16 LavaColors_p FL_PROGMEM = {
     CRGB::Black,
     CRGB::Maroon,
     CRGB::Black,
     CRGB::Maroon,
 
+    CRGB::DarkRed,
     CRGB::DarkRed,
     CRGB::Maroon,
     CRGB::DarkRed,
@@ -76,10 +72,8 @@ extern const TProgmemRGBPalette16 LavaColors_p FL_PROGMEM =
     CRGB::DarkRed
 };
 
-
 /// Ocean colors, blues and whites
-extern const TProgmemRGBPalette16 OceanColors_p FL_PROGMEM =
-{
+extern const TProgmemRGBPalette16 OceanColors_p FL_PROGMEM = {
     CRGB::MidnightBlue,
     CRGB::DarkBlue,
     CRGB::MidnightBlue,
@@ -102,8 +96,7 @@ extern const TProgmemRGBPalette16 OceanColors_p FL_PROGMEM =
 };
 
 /// Forest colors, greens
-extern const TProgmemRGBPalette16 ForestColors_p FL_PROGMEM =
-{
+extern const TProgmemRGBPalette16 ForestColors_p FL_PROGMEM = {
     CRGB::DarkGreen,
     CRGB::DarkGreen,
     CRGB::DarkOliveGreen,
@@ -126,8 +119,7 @@ extern const TProgmemRGBPalette16 ForestColors_p FL_PROGMEM =
 };
 
 /// HSV Rainbow
-extern const TProgmemRGBPalette16 RainbowColors_p FL_PROGMEM =
-{
+extern const TProgmemRGBPalette16 RainbowColors_p FL_PROGMEM = {
     0xFF0000, 0xD52A00, 0xAB5500, 0xAB7F00,
     0xABAB00, 0x56D500, 0x00FF00, 0x00D52A,
     0x00AB55, 0x0056AA, 0x0000FF, 0x2A00D5,
@@ -138,20 +130,18 @@ extern const TProgmemRGBPalette16 RainbowColors_p FL_PROGMEM =
 #define RainbowStripesColors_p RainbowStripeColors_p
 
 /// HSV Rainbow colors with alternatating stripes of black
-extern const TProgmemRGBPalette16 RainbowStripeColors_p FL_PROGMEM =
-{
+extern const TProgmemRGBPalette16 RainbowStripeColors_p FL_PROGMEM = {
     0xFF0000, 0x000000, 0xAB5500, 0x000000,
     0xABAB00, 0x000000, 0x00FF00, 0x000000,
     0x00AB55, 0x000000, 0x0000FF, 0x000000,
     0x5500AB, 0x000000, 0xAB0055, 0x000000
 };
 
-/// HSV color ramp: blue, purple, pink, red, orange, yellow (and back). 
+/// HSV color ramp: blue, purple, pink, red, orange, yellow (and back).
 /// Basically, everything but the greens, which tend to make
 /// people's skin look unhealthy.  This palette is good for
 /// lighting at a club or party, where it'll be shining on people.
-extern const TProgmemRGBPalette16 PartyColors_p FL_PROGMEM =
-{
+extern const TProgmemRGBPalette16 PartyColors_p FL_PROGMEM = {
     0x5500AB, 0x84007C, 0xB5004B, 0xE5001B,
     0xE81700, 0xB84700, 0xAB7700, 0xABAB00,
     0xAB5500, 0xDD2200, 0xF2000E, 0xC2003E,
@@ -159,35 +149,32 @@ extern const TProgmemRGBPalette16 PartyColors_p FL_PROGMEM =
 };
 
 /// Approximate "black body radiation" palette, akin to
-/// the FastLED HeatColor() function. 
+/// the FastLED HeatColor() function.
 /// It's recommended that you use values 0-240 rather than
 /// the usual 0-255, as the last 15 colors will be
 /// "wrapping around" from the hot end to the cold end,
 /// which looks wrong.
-extern const TProgmemRGBPalette16 HeatColors_p FL_PROGMEM =
-{
+extern const TProgmemRGBPalette16 HeatColors_p FL_PROGMEM = {
     0x000000,
     0x330000, 0x660000, 0x990000, 0xCC0000, 0xFF0000,
     0xFF3300, 0xFF6600, 0xFF9900, 0xFFCC00, 0xFFFF00,
     0xFFFF33, 0xFFFF66, 0xFFFF99, 0xFFFFCC, 0xFFFFFF
 };
 
-
 /// Rainbow gradient.  Provided for situations where you're going
 /// to use a number of other gradient palettes, AND you want a
 /// "standard" FastLED rainbow as well.
-DEFINE_GRADIENT_PALETTE( Rainbow_gp ) {
-      0,  255,    0,    0, // Red
-     32,  171,   85,    0, // Orange
-     64,  171,  171,    0, // Yellow
-     96,    0,  255,    0, // Green
-    128,    0,  171,   85, // Aqua
-    160,    0,    0,  255, // Blue
-    192,   85,    0,  171, // Purple
-    224,  171,    0,   85, // Pink
-    255,  255,    0,    0};// and back to Red
+DEFINE_GRADIENT_PALETTE(Rainbow_gp){
+    0, 255, 0, 0,    // Red
+    32, 171, 85, 0,  // Orange
+    64, 171, 171, 0, // Yellow
+    96, 0, 255, 0,   // Green
+    128, 0, 171, 85, // Aqua
+    160, 0, 0, 255,  // Blue
+    192, 85, 0, 171, // Purple
+    224, 171, 0, 85, // Pink
+    255, 255, 0, 0
+}; // and back to Red
 
 /// @}
 /// @}
-
-#endif

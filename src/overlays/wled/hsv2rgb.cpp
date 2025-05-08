@@ -45,12 +45,12 @@ void hsv2rgb_raw_C (const struct CHSV & hsv, struct CRGB & rgb)
     // the output more visually linear.
 
     // Apply dimming curves
-    uint8_t value = APPLY_DIMMING( hsv.val);
+    uint8_t value = APPLY_DIMMING( hsv.val);  // cppcheck-suppress selfAssignment
     uint8_t saturation = hsv.sat;
 
     // The brightness floor is minimum number that all of
     // R, G, and B will be set to.
-    uint8_t invsat = APPLY_DIMMING( 255 - saturation);
+    uint8_t invsat = APPLY_DIMMING( 255 - saturation);  // cppcheck-suppress selfAssignment
     uint8_t brightness_floor = (value * invsat) / 256;
 
     // The color amplitude is the maximum amount of R, G, and B
@@ -137,10 +137,10 @@ void hsv2rgb_raw_avr(const struct CHSV & hsv, struct CRGB & rgb)
 
     // Saturation more useful the other way around
     saturation = 255 - saturation;
-    uint8_t invsat = APPLY_DIMMING( saturation );
+    uint8_t invsat = APPLY_DIMMING( saturation );  // cppcheck-suppress selfAssignment
 
     // Apply dimming curves
-    value = APPLY_DIMMING( value );
+    value = APPLY_DIMMING( value );  // cppcheck-suppress selfAssignment
 
     // The brightness floor is minimum number that all of
     // R, G, and B will be set to, which is value * invsat
@@ -422,8 +422,11 @@ void hsv2rgb_rainbow( const CHSV& hsv, CRGB& rgb)
             //nscale8x3_video( r, g, b, sat);
 #if (FASTLED_SCALE8_FIXED==1)
             r = scale8_LEAVING_R1_DIRTY( r, satscale);
+            asm volatile("");  // Fixes jumping red pixel: https://github.com/FastLED/FastLED/pull/943
             g = scale8_LEAVING_R1_DIRTY( g, satscale);
+            asm volatile("");
             b = scale8_LEAVING_R1_DIRTY( b, satscale);
+            asm volatile("");
             cleanup_R1();
 #else
             if( r ) r = scale8( r, satscale) + 1;
@@ -447,8 +450,11 @@ void hsv2rgb_rainbow( const CHSV& hsv, CRGB& rgb)
             // nscale8x3_video( r, g, b, val);
 #if (FASTLED_SCALE8_FIXED==1)
             r = scale8_LEAVING_R1_DIRTY( r, val);
+            asm volatile("");  // Fixes jumping red pixel: https://github.com/FastLED/FastLED/pull/943
             g = scale8_LEAVING_R1_DIRTY( g, val);
+            asm volatile("");
             b = scale8_LEAVING_R1_DIRTY( b, val);
+            asm volatile("");
             cleanup_R1();
 #else
             if( r ) r = scale8( r, val) + 1;

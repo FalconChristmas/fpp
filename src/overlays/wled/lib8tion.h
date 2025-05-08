@@ -2,20 +2,20 @@
 #define __INC_LIB8TION_H
 
 #include "FastLED.h"
+#include "lib8tion/types.h"
 
+#ifndef __INC_LED_SYSDEFS_H
+#error WTH?  led_sysdefs needs to be included first
+#endif
 
 /// @file lib8tion.h
 /// Fast, efficient 8-bit math functions specifically
 /// designed for high-performance LED programming. 
 
-
-
 #include <stdint.h>
+#include "lib8tion/lib8static.h"
+#include "lib8tion/qfx.h"
 
-/// Define a LIB8TION member function as static inline with an "unused" attribute
-#define LIB8STATIC __attribute__ ((unused)) static inline
-/// Define a LIB8TION member function as always static inline
-#define LIB8STATIC_ALWAYS_INLINE __attribute__ ((always_inline)) static inline
 
 #if !defined(__AVR__)
 #include <string.h>
@@ -372,78 +372,6 @@
 /// @{
 
 
-///////////////////////////////////////////////////////////////////////
-///
-/// @defgroup FractionalTypes Fixed-Point Fractional Types. 
-/// Types for storing fractional data. 
-///
-/// * ::sfract7 should be interpreted as signed 128ths.
-/// * ::fract8 should be interpreted as unsigned 256ths.
-/// * ::sfract15 should be interpreted as signed 32768ths.
-/// * ::fract16 should be interpreted as unsigned 65536ths.
-///
-/// Example: if a fract8 has the value "64", that should be interpreted
-///          as 64/256ths, or one-quarter.
-///
-/// accumXY types should be interpreted as X bits of integer,
-///         and Y bits of fraction.  
-/// E.g., ::accum88 has 8 bits of int, 8 bits of fraction
-///
-/// @{
-
-/// ANSI: unsigned short _Fract. 
-/// Range is 0 to 0.99609375 in steps of 0.00390625.  
-/// Should be interpreted as unsigned 256ths.
-typedef uint8_t   fract8;
-
-/// ANSI: signed short _Fract. 
-/// Range is -0.9921875 to 0.9921875 in steps of 0.0078125.  
-/// Should be interpreted as signed 128ths.
-typedef int8_t    sfract7;
-
-/// ANSI: unsigned _Fract.
-/// Range is 0 to 0.99998474121 in steps of 0.00001525878.  
-/// Should be interpreted as unsigned 65536ths.
-typedef uint16_t  fract16;
-
-/// ANSI: signed _Fract.
-/// Range is -0.99996948242 to 0.99996948242 in steps of 0.00003051757.  
-/// Should be interpreted as signed 32768ths.
-typedef int16_t   sfract15;
-
-
-typedef uint16_t  accum88;    ///< ANSI: unsigned short _Accum. 8 bits int, 8 bits fraction
-typedef int16_t   saccum78;   ///< ANSI: signed   short _Accum. 7 bits int, 8 bits fraction
-typedef uint32_t  accum1616;  ///< ANSI: signed         _Accum. 16 bits int, 16 bits fraction
-typedef int32_t   saccum1516; ///< ANSI: signed         _Accum. 15 bits int, 16 bits fraction
-typedef uint16_t  accum124;   ///< no direct ANSI counterpart. 12 bits int, 4 bits fraction
-typedef int32_t   saccum114;  ///< no direct ANSI counterpart. 1 bit int, 14 bits fraction
-
-
-/// typedef for IEEE754 "binary32" float type internals
-/// @see https://en.wikipedia.org/wiki/IEEE_754
-typedef union {
-    uint32_t i;  ///< raw value, as an integer
-    float    f;  ///< raw value, as a float
-    struct {
-        uint32_t mantissa: 23;  ///< 23-bit mantissa
-        uint32_t exponent:  8;  ///< 8-bit exponent
-        uint32_t signbit:   1;  ///< sign bit
-    };
-    struct {
-        uint32_t mant7 :  7;  ///< @todo Doc: what is this for?
-        uint32_t mant16: 16;  ///< @todo Doc: what is this for?
-        uint32_t exp_  :  8;  ///< @todo Doc: what is this for?
-        uint32_t sb_   :  1;  ///< @todo Doc: what is this for?
-    };
-    struct {
-        uint32_t mant_lo8 : 8;  ///< @todo Doc: what is this for?
-        uint32_t mant_hi16_exp_lo1 : 16;  ///< @todo Doc: what is this for?
-        uint32_t sb_exphi7 : 8;  ///< @todo Doc: what is this for?
-    };
-} IEEE754binary32_t;
-
-/// @} FractionalTypes
 
 
 #include "lib8tion/math8.h"
@@ -456,7 +384,7 @@ typedef union {
 
 
 
-
+FASTLED_NAMESPACE_BEGIN
 
 
 ///////////////////////////////////////////////////////////////////////
@@ -882,57 +810,6 @@ LIB8STATIC uint8_t squarewave8( uint8_t in, uint8_t pulsewidth=128)
 
 /// @} WaveformGenerators
 
-
-
-/// @addtogroup FractionalTypes
-/// @{
-
-/// Template class for representing fractional ints.
-/// @tparam T underlying type for data storage
-/// @tparam F number of fractional bits
-/// @tparam I number of integer bits
-template<class T, int F, int I> class q {
-    T i:I;  ///< Integer value of number
-    T f:F;  ///< Fractional value of number
-public:
-    /// Constructor, storing a float as a fractional int
-    q(float fx) { i = fx; f = (fx-i) * (1<<F); }
-    /// Constructor, storing a fractional int directly
-    q(uint8_t _i, uint8_t _f) {i=_i; f=_f; }
-
-    /// Multiply the fractional int by a value
-    uint32_t operator*(uint32_t v) { return (v*i) + ((v*f)>>F); }
-    /// @copydoc operator*(uint32_t)
-    uint16_t operator*(uint16_t v) { return (v*i) + ((v*f)>>F); }
-    /// @copydoc operator*(uint32_t)
-    int32_t operator*(int32_t v) { return (v*i) + ((v*f)>>F); }
-    /// @copydoc operator*(uint32_t)
-    int16_t operator*(int16_t v) { return (v*i) + ((v*f)>>F); }
-#if defined(FASTLED_ARM) | defined(FASTLED_RISCV) | defined(FASTLED_APOLLO3)
-    /// @copydoc operator*(uint32_t)
-    int operator*(int v) { return (v*i) + ((v*f)>>F); }
-#endif
-};
-
-template<class T, int F, int I> static uint32_t operator*(uint32_t v, q<T,F,I> & q) { return q * v; }
-template<class T, int F, int I> static uint16_t operator*(uint16_t v, q<T,F,I> & q) { return q * v; }
-template<class T, int F, int I> static int32_t operator*(int32_t v, q<T,F,I> & q) { return q * v; }
-template<class T, int F, int I> static int16_t operator*(int16_t v, q<T,F,I> & q) { return q * v; }
-#if defined(FASTLED_ARM) | defined(FASTLED_RISCV) | defined(FASTLED_APOLLO3)
-template<class T, int F, int I> static int operator*(int v, q<T,F,I> & q) { return q * v; }
-#endif
-
-/// A 4.4 integer (4 bits integer, 4 bits fraction)
-typedef q<uint8_t, 4,4> q44;
-/// A 6.2 integer (6 bits integer, 2 bits fraction)
-typedef q<uint8_t, 6,2> q62;
-/// A 8.8 integer (8 bits integer, 8 bits fraction)
-typedef q<uint16_t, 8,8> q88;
-/// A 12.4 integer (12 bits integer, 4 bits fraction)
-typedef q<uint16_t, 12,4> q124;
-
-/// @}
-
 /// @} lib8tion (excluding the timekeeping functions from the nested group)
 
 
@@ -1304,7 +1181,72 @@ INSTANTIATE_EVERY_N_TIME_PERIODS(CEveryNHours,uint8_t,hours8);
 
 /// Alias for CEveryNMillis
 #define CEveryNMilliseconds CEveryNMillis
+
+/// Create the CEveryNMillisDynamic class for dynamic millisecond intervals
+class CEveryNMillisDynamic {
+public:
+    uint32_t mPrevTrigger;
+    uint32_t mPeriod;
+
+    CEveryNMillisDynamic(uint32_t period) : mPeriod(period) { reset(); };
+    uint32_t getTime() { return GET_MILLIS(); };
+    uint32_t getPeriod() const { return mPeriod; };
+    uint32_t getElapsed() { return getTime() - mPrevTrigger; }
+    uint32_t getRemaining() { return getPeriod() - getElapsed(); }
+    uint32_t getLastTriggerTime() { return mPrevTrigger; }
+    bool ready() {
+        bool isReady = (getElapsed() >= getPeriod());
+        if( isReady ) { reset(); }
+        return isReady;
+    }
+    void reset() { mPrevTrigger = getTime(); };
+    void trigger() { mPrevTrigger = getTime() - getPeriod(); };
+    void setPeriod(uint32_t period) { mPeriod = period; }
+
+    operator bool() { return ready(); }
+};
 /// @} CEveryNTime Base Classes
+
+
+
+// ————————————————————————————————————————————————
+// Random‐interval version of EVERY_N_MILLISECONDS:
+// on each trigger, pick the next period randomly in [MIN..MAX].
+// ————————————————————————————————————————————————
+class CEveryNMillisRandom {
+public:
+    uint32_t mPrevTrigger;
+    uint32_t mPeriod;
+    uint32_t mMinPeriod;
+    uint32_t mMaxPeriod;
+
+    CEveryNMillisRandom(uint32_t minPeriod, uint32_t maxPeriod)
+      : mMinPeriod(minPeriod), mMaxPeriod(maxPeriod)
+    {
+        computeNext();
+        reset();
+    }
+
+    void computeNext() {
+        // random16(x) returns [0..x-1], so this yields MIN..MAX
+        uint32_t range = mMaxPeriod - mMinPeriod + 1;
+        mPeriod = mMinPeriod + random16(range);
+    }
+
+    uint32_t getTime() const { return GET_MILLIS(); }
+
+    bool ready() {
+        uint32_t now = getTime();
+        if (now - mPrevTrigger >= mPeriod) {
+            mPrevTrigger = now;
+            computeNext();
+            return true;
+        }
+        return false;
+    }
+
+    void reset() { mPrevTrigger = getTime(); }
+};
 
 #else
 
@@ -1418,6 +1360,24 @@ typedef CEveryNTimePeriods<uint8_t,hours8> CEveryNHours;
 /// Alias for ::EVERY_N_MILLIS_I
 #define EVERY_N_MILLISECONDS_I(NAME,N) EVERY_N_MILLIS_I(NAME,N)
 
+/// Checks whether to execute a block of code every N milliseconds, where N is determined dynamically
+#define EVERY_N_MILLISECONDS_DYNAMIC(PERIOD_FUNC) EVERY_N_MILLISECONDS_DYNAMIC_I(CONCAT_MACRO(__dynamic_millis_timer, __COUNTER__ ), (PERIOD_FUNC))
+
+/// Checks whether to execute a block of code every N milliseconds, where N is determined dynamically, using a custom instance name
+#define EVERY_N_MILLISECONDS_DYNAMIC_I(NAME, PERIOD_FUNC) \
+    static CEveryNMillisDynamic NAME(1); \
+    NAME.setPeriod(PERIOD_FUNC); \
+    if( NAME )
+
+
+#define EVERY_N_MILLISECONDS_RANDOM(MIN, MAX)                                 \
+    EVERY_N_MILLISECONDS_RANDOM_I(                                           \
+        CONCAT_MACRO(_permRand, __COUNTER__), MIN, MAX)
+
+#define EVERY_N_MILLISECONDS_RANDOM_I(NAME, MIN, MAX)                        \
+    static CEveryNMillisRandom NAME(MIN, MAX);                               \
+    if (NAME.ready())
+
 /// @} Every_N
 /// @} Timekeeping
 
@@ -1431,5 +1391,6 @@ typedef CEveryNTimePeriods<uint8_t,hours8> CEveryNHours;
 #define USE_GET_MILLISECOND_TIMER
 #endif
 
+FASTLED_NAMESPACE_END
 
 #endif
