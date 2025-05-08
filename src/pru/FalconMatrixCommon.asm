@@ -60,7 +60,13 @@ CLOCK_HI .macro
     LDI32or16 out_set, 1 << gpio_clock
     SBBO &out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
 #ifndef AM33XX    
+    // On the AM62x, we need to flush the clock line
+    // and lower it immediately or we can get some 
+    // write combining and the pulses may be too
+    // short to register
     READ_TO_FLUSH
+    LDI32or16 out_clr, 1 << gpio_clock
+    SBBO &out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
 #endif    
 #else
     SET r30, r30, pru_clock
@@ -69,11 +75,13 @@ CLOCK_HI .macro
 
 CLOCK_LO .macro
 #ifdef gpio_clock
+#ifdef AM33XX
     // we normally can lower the clock line at the same time as outputing the
     // gpio data if we're outputting data on this GPIO
 #ifdef NO_CONTROLS_WITH_DATA
     LDI32or16 out_clr, 1 << gpio_clock
     SBBO &out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+#endif
 #endif
 #else
     CLR r30, r30, pru_clock
@@ -160,7 +168,7 @@ OUTPUT_ROW_ADDRESS .macro
     LDI32 out_clr, GPIO_SEL_MASK
     AND out_set, out_set, out_clr // ensure no extra bits
     XOR out_clr, out_set, out_clr // complement the bits into clr
-    SBBO &out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 8 // set both
+    SBBO &out_clrset, gpio_base_cache, GPIO_SETCLRDATAOUT, 8 // set both
 #else
 #ifdef ADDRESSING_AB
     MOV out_clr, row
