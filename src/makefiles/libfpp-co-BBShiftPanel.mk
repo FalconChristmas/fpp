@@ -17,10 +17,10 @@ libfpp-co-matrix-BBShiftPanel.$(SHLIB_EXT): $(OBJECTS_fpp_co_BBShiftPanel_so) li
 	$(CCACHE) $(CC) -shared $(CFLAGS_$@) $(OBJECTS_fpp_co_BBShiftPanel_so) $(LIBS_fpp_co_BBShiftPanel_so) $(LDFLAGS) $(LDFLAGS_fpp_co_BBShiftPanel_so) -o $@
 
 non-gpl/BBShiftPanel/BBShiftPanel.out: non-gpl/BBShiftPanel/BBShiftPanel.asm
-	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X "/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.asm" > "/tmp/BBShiftPanel.asm"
-	clpru -v3 -o -DAM62X --endian=little --hardware_mac=on --obj_directory /tmp "/tmp/BBShiftPanel.asm"
-	clpru -v3 -DAM62X -z /opt/fpp/src/pru/AM62x_PRU0.cmd -o "non-gpl/BBShiftPanel/BBShiftPanel.out" "/tmp/BBShiftPanel.obj" -i/usr/share/ti/cgt-pru/lib -i/usr/share/ti/cgt-pru/include --library=libc.a
-	@rm "/tmp/BBShiftPanel.asm" "/tmp/BBShiftPanel.obj"
+	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X "/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.asm" > "/tmp/BBShiftPanel_single.asm"
+	clpru -v3 -o -DAM62X --endian=little --hardware_mac=on --obj_directory /tmp "/tmp/BBShiftPanel_single.asm"
+	clpru -v3 -DAM62X -z /opt/fpp/src/pru/AM62x_PRU0.cmd -o "non-gpl/BBShiftPanel/BBShiftPanel_single.out" "/tmp/BBShiftPanel_single.obj" -i/usr/share/ti/cgt-pru/lib -i/usr/share/ti/cgt-pru/include --library=libc.a
+	@rm "/tmp/BBShiftPanel_single.asm" "/tmp/BBShiftPanel_single.obj"
 
 non-gpl/BBShiftPanel/BBShiftPanel_single.out: non-gpl/BBShiftPanel/BBShiftPanel.asm
 	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X -DSINGLEPRU "/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.asm" > "/tmp/BBShiftPanel.asm"

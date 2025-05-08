@@ -17,30 +17,30 @@ libfpp-co-BBShiftString.$(SHLIB_EXT): $(OBJECTS_fpp_co_BBShiftString_so) libfpp.
 
 ifeq '$(ARMV)' 'aarch64'
 non-gpl/BBShiftString/BBShiftString_pru1.out: non-gpl/BBShiftString/BBShiftString.asm
-	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X -DRUNNING_ON_PRU1 "/opt/fpp/src/non-gpl/BBShiftString/BBShiftString.asm" > "/tmp/BBShiftString.asm"
-	clpru -v3 -o -DAM62X -DRUNNING_ON_PRU1 --endian=little --hardware_mac=on --obj_directory /tmp "/tmp/BBShiftString.asm"
-	clpru -v3 -DAM62X -z /opt/fpp/src/pru/AM62x_PRU0.cmd -o "non-gpl/BBShiftString/BBShiftString_pru1.out" "/tmp/BBShiftString.obj" -i/usr/share/ti/cgt-pru/lib -i/usr/share/ti/cgt-pru/include --library=libc.a
-	@rm "/tmp/BBShiftString.asm" "/tmp/BBShiftString.obj"
+	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X -DRUNNING_ON_PRU1 "/opt/fpp/src/non-gpl/BBShiftString/BBShiftString.asm" > "/tmp/BBShiftString_pru1.asm"
+	clpru -v3 -o -DAM62X -DRUNNING_ON_PRU1 --endian=little --hardware_mac=on --obj_directory /tmp "/tmp/BBShiftString_pru1.asm"
+	clpru -v3 -DAM62X -z /opt/fpp/src/pru/AM62x_PRU0.cmd -o "non-gpl/BBShiftString/BBShiftString_pru1.out" "/tmp/BBShiftString_pru1.obj" -i/usr/share/ti/cgt-pru/lib -i/usr/share/ti/cgt-pru/include --library=libc.a
+	@rm "/tmp/BBShiftString_pru1.asm" "/tmp/BBShiftString_pru1.obj"
 
 non-gpl/BBShiftString/BBShiftString_pru0.out: non-gpl/BBShiftString/BBShiftString.asm
-	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X -DRUNNING_ON_PRU0 "/opt/fpp/src/non-gpl/BBShiftString/BBShiftString.asm" > "/tmp/BBShiftString.asm"
-	clpru -v3 -o -DAM62X -DRUNNING_ON_PRU0 --endian=little --hardware_mac=on --obj_directory /tmp "/tmp/BBShiftString.asm"
-	clpru -v3 -DAM62X -z /opt/fpp/src/pru/AM62x_PRU0.cmd -o "non-gpl/BBShiftString/BBShiftString_pru0.out" "/tmp/BBShiftString.obj" -i/usr/share/ti/cgt-pru/lib -i/usr/share/ti/cgt-pru/include --library=libc.a
-	@rm "/tmp/BBShiftString.asm" "/tmp/BBShiftString.obj"
+	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X -DRUNNING_ON_PRU0 "/opt/fpp/src/non-gpl/BBShiftString/BBShiftString.asm" > "/tmp/BBShiftString_pru0.asm"
+	clpru -v3 -o -DAM62X -DRUNNING_ON_PRU0 --endian=little --hardware_mac=on --obj_directory /tmp "/tmp/BBShiftString_pru0.asm"
+	clpru -v3 -DAM62X -z /opt/fpp/src/pru/AM62x_PRU0.cmd -o "non-gpl/BBShiftString/BBShiftString_pru0.out" "/tmp/BBShiftString_pru0.obj" -i/usr/share/ti/cgt-pru/lib -i/usr/share/ti/cgt-pru/include --library=libc.a
+	@rm "/tmp/BBShiftString_pru0.asm" "/tmp/BBShiftString_pru0.obj"
 
 else
 
 non-gpl/BBShiftString/BBShiftString_pru1.out: non-gpl/BBShiftString/BBShiftString.asm
-	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM33XX -DRUNNING_ON_PRU1 "/opt/fpp/src/non-gpl/BBShiftString/BBShiftString.asm" > "/tmp/BBShiftString.asm"
-	clpru -v3 -c --obj_directory /tmp -DAM33XX -DRUNNING_ON_PRU1 "/tmp/BBShiftString.asm"
-	clpru -v3 -z --entry_point main pru/AM335x_PRU.cmd -o "non-gpl/BBShiftString/BBShiftString_pru1.out" "/tmp/BBShiftString.obj"
-	@rm "/tmp/BBShiftString.asm" "/tmp/BBShiftString.obj"
+	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM33XX -DRUNNING_ON_PRU1 "/opt/fpp/src/non-gpl/BBShiftString/BBShiftString.asm" > "/tmp/BBShiftString_pru1.asm"
+	clpru -v3 -c --obj_directory /tmp -DAM33XX -DRUNNING_ON_PRU1 "/tmp/BBShiftString_pru1.asm"
+	clpru -v3 -z --entry_point main pru/AM335x_PRU.cmd -o "non-gpl/BBShiftString/BBShiftString_pru1.out" "/tmp/BBShiftString_pru1.obj"
+	@rm "/tmp/BBShiftString_pru1.asm" "/tmp/BBShiftString_pru1.obj"
 
 non-gpl/BBShiftString/BBShiftString_pru0.out: non-gpl/BBShiftString/BBShiftString.asm
-	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM33XX -DRUNNING_ON_PRU0 "/opt/fpp/src/non-gpl/BBShiftString/BBShiftString.asm" > "/tmp/BBShiftString.asm"
-	clpru -v3 -c --obj_directory /tmp -DAM33XX -DRUNNING_ON_PRU0 "/tmp/BBShiftString.asm"
-	clpru -v3 -z --entry_point main pru/AM335x_PRU.cmd -o "non-gpl/BBShiftString/BBShiftString_pru0.out" "/tmp/BBShiftString.obj"
-	@rm "/tmp/BBShiftString.asm" "/tmp/BBShiftString.obj"
+	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM33XX -DRUNNING_ON_PRU0 "/opt/fpp/src/non-gpl/BBShiftString/BBShiftString.asm" > "/tmp/BBShiftString_pru0.asm"
+	clpru -v3 -c --obj_directory /tmp -DAM33XX -DRUNNING_ON_PRU0 "/tmp/BBShiftString_pru0.asm"
+	clpru -v3 -z --entry_point main pru/AM335x_PRU.cmd -o "non-gpl/BBShiftString/BBShiftString_pru0.out" "/tmp/BBShiftString_pru0.obj"
+	@rm "/tmp/BBShiftString_pru0.asm" "/tmp/BBShiftString_pru0.obj"
 endif
 
 
