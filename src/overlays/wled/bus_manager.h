@@ -8,6 +8,7 @@ public:
         return 0;
     }
     uint8_t type = TYPE_DIGITAL_MIN;
+    uint8_t count = 1;
 };
 class Bus {
 public:
@@ -59,6 +60,7 @@ namespace BusManager
     inline uint32_t getPixelColor(int i) { return bus.getPixelColor(i); }
     inline void setPixelColor(int i, uint32_t c) { bus.setPixelColor(i, c); }
     constexpr int add(...) { return -1; }
+    constexpr uint32_t memUsage() { return 0; }
 };
 
 constexpr uint32_t WLED_NUM_PINS = 40;

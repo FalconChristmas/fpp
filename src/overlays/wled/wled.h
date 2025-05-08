@@ -18,6 +18,12 @@
 #include <string.h>
 #include <string>
 
+#define MAX_LEDS     1024 * 64
+#define MAX_LEDS_PER_BUS MAX_LEDS
+#define MAX_LED_MEMORY (MAX_LEDS * 3)
+
+#define ABL_MILLIAMPS_DEFAULT 0
+
 #define WLED_DISABLE_ALEXA
 #define WLED_DISABLE_MQTT
 #define WLED_DISABLE_ESPNOW
