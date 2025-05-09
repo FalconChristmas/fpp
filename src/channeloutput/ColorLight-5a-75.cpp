@@ -1,6 +1,6 @@
 /*
  * This file is part of the Falcon Player (FPP) and is Copyright (C)
- * 2013-2022 by the Falcon Player Developers.
+ * 2013-2025 by the Falcon Player Developers.
  *
  * The Falcon Player (FPP) is free software, and is covered under
  * multiple Open Source licenses.  Please see the included 'LICENSES'
@@ -11,48 +11,150 @@
  */
 
 /*
- *   Packet Format: (info based on mplayer ColorLight 5a-75 video output patch)
+ * Packet Format:
  *
- *   0x0101 Packet: (send first)
- *   	- Data Length:     98
- *   	- Destination MAC: 11:22:33:44:55:66
- *   	- Source MAC:      22:22:33:44:55:66
- *   	- Ether Type:      0x0101 (have also seen 0x0100, 0x0104, 0x0107.
- *   	- Data[0-end]:     0x00
+ * All sent packets have the same source and destination MAC addresses:
+ * 	- Destination MAC: 11:22:33:44:55:66
+ * 	- Source MAC:      22:22:33:44:55:66 (doesn't seem necessary to harcoded this)
  *
- *   0x0AFF Packet: (send second, but not at all in some captures)
- *   	- Data Length:     63
- *   	- Destination MAC: 11:22:33:44:55:66
- *   	- Source MAC:      22:22:33:44:55:66
- *   	- Ether Type:      0x0AFF
- *   	- Data[0]:         0xFF
- *   	- Data[1]:         0xFF
- *   	- Data[2]:         0xFF
- *   	- Data[3-end]:     0x00
+ * Received packets are broadcast with a source MAC of 22:22:33:44:55:66, dest of FF:FF:FF:FF:FF:FF
  *
- *   Row data packets: (send one packet for each row of display)
- *      - Data Length:     (Row_Width * 3) + 7
- *   	- Destination MAC: 11:22:33:44:55:66
- *   	- Source MAC:      22:22:33:44:55:66
- *   	- Ether Type:      0x5500 + MSB of Row Number
- *   	                     0x5500 for rows 0-255
- *   	                     0x5501 for rows 256-511
- *   	- Data[0]:         Row Number LSB
- *   	- Data[1]:         MSB of pixel offset for this packet
- *   	- Data[2]:         LSB of pixel offset for this packet
- *   	- Data[3]:         MSB of pixel count in packet
- *   	- Data[4]:         LSB of pixel count in packet
- *   	- Data[5]:         0x08 - ?? unsure what this is
- *   	- Data[6]:         0x80 - ?? unsure what this is
- *   	- Data[7-end]:     RGB order pixel data
+ * Packet Type is a single byte.  First byte of data is stored with the packet
+ * type in the 'ether_type' field in the ethernet header.  Data Byte count
+ * includes first byte of data stored in the ether_type field.
  *
- *   Sample data packets seen in captures:
- *           0  1  2  3  4  5  6
- *     55 00 00 00 00 01 F1 00 00 (first 497 pixels on a 512 wide display)
- *     55 00 00 01 F1 00 0F 00 00 (last 15 pixels on a 512 wide display)
- *     55 00 00 00 00 01 20 08 88 (288 pixel wide display)
- *     55 00 00 00 00 00 80 08 88 (128 pixel wide display)
+ * Packet types:
+ * - 0x01 - Display/Sync Frame (sent twice for v13+ FW) (CL_SYNC_PACKET_TYPE)
+ *          Older FW accepts this twice from LEDVision but is timing sensitive.
+ *          FPP only sends once for older firmware.
+ *      - Data Bytes:      99 (CL_SYNC_PACKET_SIZE - 13)
+ *      - Data[0]:         0x00 - Sent from S2 Sender
+ *                         0x07 - Sent from PC/Netcard
+ *   	- Data[22]:        0xff - Brightness
+ *      - Data[23]:        0x00 - Value in 0x01 packet from S2 Sender
+ *   	                   0x05 - Value in 0x01 packet from PC/Netcard
+ *   	- Data[25]:        0xff - Also brightness related
+ *   	- Data[26]:        0xff - Also brightness related
+ *   	- Data[27]:        0xff - Also brightness related
  *
+ *   0x02 - Write receiver layout (dual 32x16 receivers, #0 @ 0,0, #1 @ 32,0
+ *      - Data[0]:         0x00 - Receiver #
+ *      - Data[1]:         0x00 - Receiver #
+ *      - Data[2]:         0x00 - Receiver #
+ *
+ *      Receiver #0 (of 64, #0-63)
+ *      - Data[3]:         0x00 - Receiver #
+ *      - Data[4]:         0x00 - Receiver #
+ *      - Data[5]:         0x00 - Receiver #
+ *      - Data[6]:         0x00 - Receiver #
+ *      - Data[7]:         0x00 - Receiver #  receiver width MSB
+ *      - Data[8]:         0x20 - Receiver #  receiver width LSB
+ *      - Data[9]:         0x00 - Receiver #  receiver height MSB
+ *      - Data[10]:        0x10 - Receiver #  receiver height LSB
+ *      - Data[11]:        0x00 - Receiver #
+ *      - Data[12]:        0x00 - Receiver #
+ *      - Data[13]:        0x00 - Receiver #  next receiver xOffset MSB
+ *      - Data[14]:        0x20 - Receiver #  next receiver xOffset LSB
+ *      - Data[15]:        0x00 - Receiver #  next receiver yOffset MSB
+ *      - Data[16]:        0x00 - Receiver #  next receiver yOffset LSB
+ *      - Data[17]:        0x00 - Receiver #  total display width MSB
+ *      - Data[18]:        0x40 - Receiver #  total display width LSB
+ *      - Data[19]:        0x00 - Receiver #  total display height MSB
+ *      - Data[20]:        0x10 - Receiver #  total display height LSB
+ *      - Data[21]:        0x00 - Receiver #
+ *      - Data[22]:        0x00 - Receiver #
+ *
+ *      Receiver #1-63)
+ *      - repeating 20 bytes of data in same format as receiver #0
+ *
+ *   0x07 - Discover (CL_DISC_PACKET_TYPE)
+ *      - Data Bytes:      271 (CL_DISC_PACKET_SIZE - 13)
+ *      - Data[3]:         0x00 - first receiver
+ *                         0x01 - second receiver, etc.
+ *
+ *   0x08 - Discover Reply (from receiver to sender) (CL_RESP_PACKET_TYPE)
+ *      - Data Bytes:      1057 (CL_RESP_PACKET_SIZE - 13)
+ *      - Data[0]:         0x05 - 5A card
+ *      - Data[2]:         Firmware Version MSB
+ *      - Data[3]:         Firmware Version LSB
+ *      - Data[38]:        Received Packet Count? MSB
+ *      - Data[39]:        Received Packet Count?
+ *      - Data[40]:        Received Packet Count?
+ *      - Data[41]:        Received Packet Count? LSB
+ *      - Data[46]:        Uptime in ms MSB
+ *      - Data[47]:        Uptime in ms
+ *      - Data[48]:        Uptime in ms
+ *      - Data[49]:        Uptime in ms LSB
+ *      - Data[85]:        Receiver Card # (0x00, 0x01, etc.)
+ *
+ *      These don't seem totally correct, offsetting a receiver card doesn't result in values that
+ *      match the cabinet width/height fields, so there seems to be some other math going on.
+ *      - Data[21]:        Cabinet Width? MSB
+ *      - Data[22]:        Cabinet Width? LSB
+ *      - Data[23]:        Cabinet Height? MSB
+ *      - Data[24]:        Cabinet Height? LSB
+ *      - Data[??]:        Cabinet X-Offset MSB
+ *      - Data[??]:        Cabinet X-Offset LSB
+ *      - Data[??]:        Cabinet Y-Offset MSB
+ *      - Data[??]:        Cabinet Y-Offset LSB
+ *
+ *    Data    *  *  *  *  *  *  <-- Fields of interest
+ *    Offset 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 - Offsets in packet data
+ *           00 00 00 20 00 10 00 00 00 00 00 00 01 02 03 ff - 32x16 size, r0: 32x16 cabinet, offset 0,0
+ *           00 10 00 20 00 20 00 00 00 00 00 00 01 02 03 ff - 32x32 size, r1: 32x16 cabinet, offset 0,16
+ *
+ *           00 00 00 20 00 10 00 00 00 00 00 00 01 02 03 ff - 32x16 size, r0: 32x16 cabinet, offset 0,0
+ *           00 10 00 40 00 20 00 00 00 00 00 00 01 02 03 ff - 64x32 size, r1: 32x16 cabinet, offset 32,16
+ *
+ *           00 00 00 20 00 10 00 00 00 00 00 00 01 02 03 ff - 32x16 size, r0: 32x16 cabinet, offset 0,0
+ *           00 10 00 20 00 20 00 00 00 00 00 00 01 02 03 ff - 64x16 size, r1: 32x16 cabinet, offset 32,0
+ *
+ *   0x10 - ???? - sent when sending config to receiver
+ *   	- Data Length:     1026
+ *
+ *   0x11 - Save Config??
+ *      - Data Bytes:      1283
+ *      - Data[3]:         0x00 - first receiver, 0x01 2nd, etc.
+ *
+ *   0x18 - ???? - sent when sending config to receiver
+ *
+ *   0x1F - ???? - sent when sending config to receiver
+ *   	- Data Length:     1034
+ *
+ *   0x26 - ???? - sent when sending config to receiver
+ *   	- Data Length:     264
+ *
+ *   0x31 - ???? - sent when sending config to receiver.  Some kind of table, 2 bytes per entry?
+ *
+ *   0x32 - ???? - sent when sending config to receiver
+ *
+ *   0x76 - ???? - sent when sending config to receiver.  Some kind of table, 3 bytes per entry?
+ *
+ *   0x0A - Panel Brightness (sent twice for v13+ FW, but possbily uncessary) (CL_BRIG_PACKET_TYPE)
+ *   	- Data Length:     64 (CL_BRIG_PACKET_SIZE - 13)
+ *   	- Data[0]:         0xFF - Brightness
+ *   	- Data[1]:         0xFF - Brightness
+ *   	- Data[2]:         0xFF - Brightness
+ *   	- Data[3]:         0xFF
+ *
+ *   0x55 - Pixel Data (sent twice per row for v13+ FW, but seems uncessary to do so) (CL_PIXL_PACKET_TYPE)
+ *      - Data Length:     CL_PIXL_HEADER_SIZE + (Row_Width * 3)
+ *   	- Data[0]:         Row Number MSB
+ *   	- Data[1]:         Row Number LSB
+ *   	- Data[2]:         MSB of pixel offset for this packet
+ *   	- Data[3]:         LSB of pixel offset for this packet
+ *   	- Data[4]:         MSB of pixel count in packet
+ *   	- Data[5]:         LSB of pixel count in packet
+ *   	- Data[6]:         0x08 - ?? unsure what this is
+ *   	- Data[7]:         0x88 - ?? unsure what this is
+ *   	- Data[8-end]:     RGB order pixel data
+ *
+ * Notes:
+ * - Brightness may only work on newer firmware. Doesn't seem to work on v2.x and v3.x ColorLight FW.
+ *
+ * Other sources of info:
+ * https://www.mylifesucks.de/oss/mplayer-colorlight/
+ * https://hkubota.wordpress.com/2022/01/31/winter-project-colorlight-5a-75b-protocol/
  */
 #include "fpp-pch.h"
 
@@ -117,7 +219,8 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
     m_matrix(NULL),
     m_panelMatrix(NULL),
     m_slowCount(0),
-    m_flippedLayout(0) {
+    m_flippedLayout(0),
+    m_highestFirmwareVersion(0) {
     LogDebug(VB_CHANNELOUT, "ColorLight5a75Output::ColorLight5a75Output(%u, %u)\n",
              startChannel, channelCount);
 }
@@ -128,11 +231,22 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
 ColorLight5a75Output::~ColorLight5a75Output() {
     LogDebug(VB_CHANNELOUT, "ColorLight5a75Output::~ColorLight5a75Output()\n");
 
+    for (int i = 0; i < m_synciovecs.size(); i++) {
+        free(m_synciovecs[i].iov_base);
+
+        // Higher firmware has duplicate sync packet which re-uses same buffer
+        if (m_highestFirmwareVersion >= 13)
+            i++;
+    }
+
     for (int i = 0; i < m_iovecs.size(); i++) {
         free(m_iovecs[i].iov_base);
 
-        if (i >= 4)
-            i++; // first 4 are header+data, only headers for the rest
+        // Higher firmware has duplicate brightness packet which re-uses same buffer
+        if ((i == 0) && (m_highestFirmwareVersion >= 13))
+            i+= 3;
+        else
+            i++; // Every second iovec is either part of the header malloc() or external data
     }
 
     if (m_fd >= 0)
@@ -341,6 +455,14 @@ int ColorLight5a75Output::Init(Json::Value config) {
         WarningHolder::AddWarning("ColorLight: Could not bind to interface " + m_ifName);
         return 0;
     }
+
+    // Query the receivers to find out what firmware vesion is installed.
+    GetReceiverInfo();
+
+    if (!m_receivers.size() && m_colorlightDisable) {
+       return 0;
+    }
+
 #else
     char buf[11] = { 0 };
     int i = 0;
@@ -366,95 +488,125 @@ int ColorLight5a75Output::Init(Json::Value config) {
     ioctl(m_fd, BIOCSHDRCMPLT, &yes);
 #endif
 
-    int packetCount = 2 + (m_rows * (((int)(m_rowSize - 1) / CL5A75_MAX_CHANNELS_PER_PACKET) + 1));
-    m_msgs.resize(packetCount);
-    m_iovecs.resize(packetCount * 2);
-
+    unsigned int byteCount = 0;
     unsigned int p = 0;
     unsigned char* header = nullptr;
     unsigned char* data = nullptr;
+    unsigned char brightness = 0xff;
 
-    // First Init packet
-    header = (unsigned char*)malloc(sizeof(struct ether_header));
-    memset(header, 0, sizeof(struct ether_header));
-    m_eh = (struct ether_header*)header;
-    m_eh->ether_type = htons(0x0101);
+    if (config.isMember("brightness")) {
+        brightness = config["brightness"].asInt(); // 0-100% scale
+        if (!brightness)
+            brightness = 0xFF;
+        else
+            brightness = 2.55 * brightness; // Scale up to 0-255
+    }
+
+    /////////////////////////////////////////////////
+    // Prep the brightness and pixel data packets
+    int packetCount = 1 + (m_rows * (((int)(m_rowSize - 1) / CL_MAX_CHAN_PER_PACKET) + 1));
+
+    if (m_highestFirmwareVersion >= 13) {
+        packetCount += 1; // 0x0A brightness sent twice
+    }
+
+    m_msgs.resize(packetCount);
+    m_iovecs.resize(packetCount * 2);
+
+    // Brightness packet
+    byteCount = CL_BRIG_PACKET_SIZE;
+    header = (unsigned char*)malloc(byteCount);
+    memset(header, 0, byteCount);
+
     SetHostMACs(header);
-    m_iovecs[p * 2].iov_base = header;
-    m_iovecs[p * 2].iov_len = sizeof(struct ether_header);
 
-    data = (unsigned char*)malloc(CL5A75_0101_PACKET_DATA_LEN);
-    memset(data, 0, CL5A75_0101_PACKET_DATA_LEN);
-    m_iovecs[p * 2 + 1].iov_base = data;
-    m_iovecs[p * 2 + 1].iov_len = CL5A75_0101_PACKET_DATA_LEN;
+    // Packet Type follows Dest MAC, data follows type
+    header[CL_PACKET_TYPE_OFFSET] = CL_BRIG_PACKET_TYPE;
+    data = header + CL_PACKET_DATA_OFFSET;
+
+    data[0] = brightness;
+    data[1] = brightness;
+    data[2] = brightness;
+    data[3] = 0xff;
+
+    // Split this apart since it is grouped with pixel data packets which are split into two iovec entries
+    m_iovecs[p * 2].iov_base = header;
+    m_iovecs[p * 2].iov_len = CL_PACKET_DATA_OFFSET;
+    m_iovecs[p * 2 + 1].iov_base = header + CL_PACKET_DATA_OFFSET;
+    m_iovecs[p * 2 + 1].iov_len = byteCount - CL_PACKET_DATA_OFFSET;
     p++;
 
-    // Second Init packet
-    header = (unsigned char*)malloc(sizeof(struct ether_header));
-    memset(header, 0, sizeof(struct ether_header));
-    m_eh = (struct ether_header*)header;
-    m_eh->ether_type = htons(0x0AFF);
-    SetHostMACs(header);
-    m_iovecs[p * 2].iov_base = header;
-    m_iovecs[p * 2].iov_len = sizeof(struct ether_header);
+    if (m_highestFirmwareVersion >= 13) {
+        // Send duplicate brightness packet
+        m_iovecs[p * 2].iov_base     = m_iovecs[(p-1) * 2].iov_base;
+        m_iovecs[p * 2].iov_len      = m_iovecs[(p-1) * 2].iov_len;
+        m_iovecs[p * 2 + 1].iov_base = m_iovecs[(p-1) * 2 + 1].iov_base;
+        m_iovecs[p * 2 + 1].iov_len  = m_iovecs[(p-1) * 2 + 1].iov_len;
+        p++;
+    }
 
-    data = (unsigned char*)malloc(CL5A75_0AFF_PACKET_DATA_LEN);
-    memset(data, 0, CL5A75_0AFF_PACKET_DATA_LEN);
-    data[0] = 0xff;
-    data[1] = 0xff;
-    data[2] = 0xff;
-    m_iovecs[p * 2 + 1].iov_base = data;
-    m_iovecs[p * 2 + 1].iov_len = CL5A75_0AFF_PACKET_DATA_LEN;
-    p++;
-
+    // Pixel Data row packets - Type 0x55
     char* rowPtr = (char*)m_outputFrame;
     unsigned int dSize = 0;
     unsigned int part = 0;
-    unsigned int hSize = sizeof(struct ether_header) + CL5A75_HEADER_LEN;
+    unsigned int hSize = CL_PACKET_DATA_OFFSET + CL_PIXL_HEADER_SIZE;
     unsigned int offset = 0;
     unsigned int bytesInPacket = 0;
     unsigned int pixelOffset = 0;
     unsigned int pixelsInPacket = 0;
 
-    for (int r = 0; r < m_rows; r++) {
+    for (int row = 0; row < m_rows; row++) {
         part = 0;
         offset = 0;
 
         while (offset < m_rowSize) {
             header = (unsigned char*)malloc(hSize);
             memset(header, 0, hSize);
-            m_eh = (struct ether_header*)header;
 
-            m_eh->ether_type = htons(0x5500 + (int)(r / 256));
             SetHostMACs(header);
 
-            data = header + sizeof(struct ether_header);
-            data[0] = r % 256;
+            // Packet Type follows Dest MAC, data follows type
+            header[CL_PACKET_TYPE_OFFSET] = CL_PIXL_PACKET_TYPE;
+            data = header + CL_PACKET_DATA_OFFSET;
 
-            if ((offset + CL5A75_MAX_CHANNELS_PER_PACKET) > m_rowSize)
+            if ((offset + CL_MAX_CHAN_PER_PACKET) > m_rowSize)
                 bytesInPacket = m_rowSize - offset;
             else
-                bytesInPacket = CL5A75_MAX_CHANNELS_PER_PACKET;
+                bytesInPacket = CL_MAX_CHAN_PER_PACKET;
 
             pixelOffset = offset / 3;
             pixelsInPacket = bytesInPacket / 3;
 
-            data[1] = pixelOffset >> 8;      // Pixel Offset MSB
-            data[2] = pixelOffset & 0xFF;    // Pixel Offset LSB
-            data[3] = pixelsInPacket >> 8;   // Pixels In Packet MSB
-            data[4] = pixelsInPacket & 0xFF; // Pixels In Packet LSB
-
-            data[5] = 0x08; // ?? still not sure what this value is
-            data[6] = 0x80; // ?? still not sure what this value is
+            data[0] = row >> 8;              // Pixel Row MSB
+            data[1] = row & 0xFF;            // Pixel Row LSB
+            data[2] = pixelOffset >> 8;      // Pixel Offset MSB
+            data[3] = pixelOffset & 0xFF;    // Pixel Offset LSB
+            data[4] = pixelsInPacket >> 8;   // Pixels In Packet MSB
+            data[5] = pixelsInPacket & 0xFF; // Pixels In Packet LSB
+            data[6] = 0x08;                  // ?? not sure what this value is
+            data[7] = 0x88;                  // ?? not sure what this value is
 
             m_iovecs[p * 2].iov_base = header;
             m_iovecs[p * 2].iov_len = hSize;
             m_iovecs[p * 2 + 1].iov_base = rowPtr + offset;
             m_iovecs[p * 2 + 1].iov_len = bytesInPacket;
+            p++;
+
+#if 0
+            // LEDVision sends data rows duplicated as well, but doesn't seem necessary.
+            // If this is enabled, the packetCount needs to be adjusted when set above.
+            if (0 && m_highestFirmwareVersion >= 13) {
+                // Send duplicate row data packet
+                m_iovecs[p * 2].iov_base     = m_iovecs[(p-1) * 2].iov_base;
+                m_iovecs[p * 2].iov_len      = m_iovecs[(p-1) * 2].iov_len;
+                m_iovecs[p * 2 + 1].iov_base = m_iovecs[(p-1) * 2 + 1].iov_base;
+                m_iovecs[p * 2 + 1].iov_len  = m_iovecs[(p-1) * 2 + 1].iov_len;
+                p++;
+            }
+#endif
 
             offset += bytesInPacket;
             part++;
-            p++;
         }
 
         rowPtr += m_rowSize;
@@ -467,6 +619,57 @@ int ColorLight5a75Output::Init(Json::Value config) {
         msg.msg_hdr.msg_iovlen = 2;
         m_msgs[m] = msg;
     }
+
+    ////////////////////////////////////////////////////////////////////
+    // Prep the Display Frame packet(s) - sent in PrepData()
+    if (m_highestFirmwareVersion >= 13) {
+        m_syncMsgs.resize(2);
+        m_synciovecs.resize(2);
+    } else {
+        m_syncMsgs.resize(1);
+        m_synciovecs.resize(1);
+    }
+
+    p = 0;
+    byteCount = CL_SYNC_PACKET_SIZE;
+    header = (unsigned char*)malloc(byteCount);
+    memset(header, 0, byteCount);
+
+    SetHostMACs(header);
+
+    // Packet Type follows Dest MAC, data follows type
+    header[CL_PACKET_TYPE_OFFSET] = CL_SYNC_PACKET_TYPE;
+    data = header + CL_PACKET_DATA_OFFSET;
+
+    data[0]  = 0x07;
+
+    data[22] = brightness;
+    data[23] = 0x05;        // ?? not sure what this value is
+
+    data[25] = brightness;
+    data[26] = brightness;
+    data[27] = brightness;
+
+    m_synciovecs[p].iov_base = header;
+    m_synciovecs[p].iov_len = byteCount;
+    p++;
+
+    if (m_highestFirmwareVersion >= 13) {
+        // Send duplicate display frame packet
+        m_synciovecs[p].iov_base     = m_synciovecs[p-1].iov_base;
+        m_synciovecs[p].iov_len      = m_synciovecs[p-1].iov_len;
+        p++;
+    }
+
+    for (int m = 0; m < p; m++) {
+        struct mmsghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        msg.msg_hdr.msg_iov = &m_synciovecs[m];
+        msg.msg_hdr.msg_iovlen = 1;
+        m_syncMsgs[m] = msg;
+    }
+
+    // Create Pixel Overlay Models if needed
     if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::string dd = "LED Panels";
         if (config.isMember("description")) {
@@ -483,6 +686,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
                                                           "H", m_invertedData ? "BL" : "TL",
                                                           m_height, 1);
     }
+
     return ChannelOutput::Init(config);
 }
 
@@ -515,6 +719,60 @@ void ColorLight5a75Output::OverlayTestData(unsigned char* channelData, int cycle
         }
     }
 }
+
+int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr> &msgsToSend) {
+    long long startTime = GetTimeMS();
+    struct mmsghdr* msgs = &msgsToSend[0];
+    int msgCount = msgsToSend.size();
+    if (msgCount == 0)
+        return 0;
+
+    errno = 0;
+
+    int oc = SendMessagesHelper(msgs, msgCount);
+    int outputCount = 0;
+    if (oc > 0) {
+        outputCount = oc;
+    }
+
+    int errCount = 0;
+    bool done = false;
+    while ((outputCount != msgCount) && !done) {
+        errCount++;
+        errno = 0;
+        oc = SendMessagesHelper(&msgs[outputCount], msgCount - outputCount);
+        if (oc > 0) {
+            outputCount += oc;
+        }
+        if (outputCount != msgCount) {
+            long long tm = GetTimeMS();
+            long long totalTime = tm - startTime;
+            if (totalTime < 22) {
+                // we'll keep trying for up to 22ms, but give the network stack some time to flush some buffers
+                std::this_thread::sleep_for(std::chrono::microseconds(500));
+            } else {
+                done = true;
+            }
+        }
+    }
+    long long endTime = GetTimeMS();
+    long long totalTime = endTime - startTime;
+    if (outputCount != msgCount) {
+        int tti = (int)totalTime;
+        LogWarn(VB_CHANNELOUT, "sendmmsg() failed for ColorLight output (Socket: %d   output count: %d/%d   time: %dms) with error: %d   %s, errorcount: %d\n",
+                m_fd, outputCount, msgCount, tti, errno, strerror(errno), errCount);
+        m_slowCount++;
+        if (m_slowCount > 3) {
+            LogWarn(VB_CHANNELOUT, "Repeated frames taking more than 20ms to send to ColorLight");
+            WarningHolder::AddWarningTimeout("Repeated frames taking more than 20ms to send to ColorLight", 30);
+        }
+    } else {
+        m_slowCount = 0;
+    }
+
+    return oc;
+}
+
 
 /*
  *
@@ -557,9 +815,11 @@ void ColorLight5a75Output::PrepData(unsigned char* channelData) {
             }
         }
     }
+
+    SendMessages(m_msgs);
 }
 
-int ColorLight5a75Output::sendMessages(struct mmsghdr* msgs, int msgCount) {
+int ColorLight5a75Output::SendMessagesHelper(struct mmsghdr* msgs, int msgCount) {
 #ifdef PLATFORM_OSX
     char buf[1500];
     for (int m = 0; m < msgCount; m++) {
@@ -585,53 +845,8 @@ int ColorLight5a75Output::sendMessages(struct mmsghdr* msgs, int msgCount) {
 int ColorLight5a75Output::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "ColorLight5a75Output::SendData(%p)\n", channelData);
 
-    long long startTime = GetTimeMS();
-    struct mmsghdr* msgs = &m_msgs[0];
-    int msgCount = m_msgs.size();
-    if (msgCount == 0)
-        return 0;
+    SendMessages(m_syncMsgs);
 
-    errno = 0;
-    int oc = sendMessages(msgs, msgCount);
-    int outputCount = 0;
-    if (oc > 0) {
-        outputCount = oc;
-    }
-
-    int errCount = 0;
-    bool done = false;
-    while ((outputCount != msgCount) && !done) {
-        errCount++;
-        errno = 0;
-        oc = sendMessages(&msgs[outputCount], msgCount - outputCount);
-        if (oc > 0) {
-            outputCount += oc;
-        }
-        if (outputCount != msgCount) {
-            long long tm = GetTimeMS();
-            long long totalTime = tm - startTime;
-            if (totalTime < 22) {
-                // we'll keep trying for up to 22ms, but give the network stack some time to flush some buffers
-                std::this_thread::sleep_for(std::chrono::microseconds(500));
-            } else {
-                done = true;
-            }
-        }
-    }
-    long long endTime = GetTimeMS();
-    long long totalTime = endTime - startTime;
-    if (outputCount != msgCount) {
-        int tti = (int)totalTime;
-        LogWarn(VB_CHANNELOUT, "sendmmsg() failed for ColorLight output (Socket: %d   output count: %d/%d   time: %dms) with error: %d   %s, errorcount: %d\n",
-                m_fd, outputCount, msgCount, tti, errno, strerror(errno), errCount);
-        m_slowCount++;
-        if (m_slowCount > 3) {
-            LogWarn(VB_CHANNELOUT, "Repeated frames taking more than 20ms to send to ColorLight");
-            WarningHolder::AddWarningTimeout("Repeated frames taking more than 20ms to send to ColorLight", 30);
-        }
-    } else {
-        m_slowCount = 0;
-    }
     return m_channelCount;
 }
 
@@ -676,3 +891,143 @@ void ColorLight5a75Output::SetHostMACs(void* ptr) {
     eh->ether_dhost[4] = 0x55;
     eh->ether_dhost[5] = 0x66;
 }
+
+/*
+ *
+ */
+void ColorLight5a75Output::GetReceiverInfo() {
+    int sockfd;
+    int sockopt;
+    struct ifreq ifopts;
+    struct mmsghdr msgs[1];
+    struct iovec iovecs[1];
+
+    unsigned char discoverBuffer[CL_DISC_PACKET_SIZE];
+    memset(discoverBuffer, 0, CL_DISC_PACKET_SIZE);
+
+    // Setup Discover packet
+    SetHostMACs(discoverBuffer);
+
+    discoverBuffer[CL_PACKET_TYPE_OFFSET] = CL_DISC_PACKET_TYPE;
+
+    iovecs[0].iov_base = discoverBuffer;
+    iovecs[0].iov_len = CL_DISC_PACKET_SIZE;
+
+    memset(msgs, 0, sizeof(struct mmsghdr));
+    msgs[0].msg_hdr.msg_iov = &iovecs[0];
+    msgs[0].msg_hdr.msg_iovlen = 1;
+
+    // Setup socket to receive response(s)
+    if ((sockfd = socket(PF_PACKET, SOCK_RAW, htons(0x0805))) == -1) {
+        LogErr(VB_CHANNELOUT, "Unable to open receive socket\n");
+        return;
+    }
+
+    strncpy(ifopts.ifr_name, m_ifName.c_str(), IFNAMSIZ - 1);
+    ioctl(sockfd, SIOCGIFFLAGS, &ifopts);
+    ifopts.ifr_flags |= IFF_PROMISC;
+    ioctl(sockfd, SIOCSIFFLAGS, &ifopts);
+
+    // Wait up to 300ms for responses, shouldn't take anywhere near this long
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 300000;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv) == -1) {
+        LogErr(VB_CHANNELOUT, "Unable to set socket receive timeout\n");
+        close(sockfd);
+        return;
+    }
+
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof sockopt) == -1) {
+        LogErr(VB_CHANNELOUT, "Unable to set receive socket options\n");
+        close(sockfd);
+        return;
+    }
+
+    if (setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, m_ifName.c_str(), IFNAMSIZ - 1) == -1) {
+        LogErr(VB_CHANNELOUT, "Unable to bind receive socket\n");
+        close(sockfd);
+        return;
+    }
+
+    LogInfo(VB_CHANNELOUT, "Searching for ColorLight receivers\n");
+
+    unsigned char receiveBuffer[CL_RESP_PACKET_SIZE];
+    unsigned char *data = receiveBuffer + CL_PACKET_DATA_OFFSET;
+    int recvBytes = 0;
+    int r = 0;
+    bool tryNextReceiver = true;
+    bool foundReceiver = false;
+
+    memset(receiveBuffer, 0, CL_RESP_PACKET_SIZE);
+
+    while (tryNextReceiver && r < 32) {
+        foundReceiver = false;
+        discoverBuffer[16] = r;
+        sendmmsg(m_fd, msgs, 1, MSG_DONTWAIT);
+
+        // Should only get one packet from a receiver, but consume all just in case
+        while((recvBytes = recvfrom(sockfd, receiveBuffer, CL_RESP_PACKET_SIZE, 0, NULL, NULL)) > 0) {
+            if (recvBytes > 1000) {
+                // Shouldn't be receiving anything, but ignore anything other than receiver replies
+                if ((receiveBuffer[6]  != 0x11) ||
+                    (receiveBuffer[7]  != 0x22) ||
+                    (receiveBuffer[8]  != 0x33) ||
+                    (receiveBuffer[9]  != 0x44) ||
+                    (receiveBuffer[10] != 0x55) ||
+                    (receiveBuffer[11] != 0x66) ||
+                    (receiveBuffer[CL_PACKET_TYPE_OFFSET] != CL_RESP_PACKET_TYPE)) {
+                    continue;
+                }
+
+                if (WillLog(LOG_DEBUG, VB_CHANNELOUT)) {
+                    LogDebug(VB_CHANNELOUT, "Response received from receiver id %d\n", r);
+                    HexDump("DiscoverResponse", receiveBuffer, 256, VB_CHANNELOUT);
+                }
+
+                foundReceiver = true;
+                ColorLightReceiver receiver;
+
+                receiver.id = data[85];
+                receiver.majorFirmwareVersion = data[2];
+                receiver.minorFirmwareVersion = data[3];
+
+                receiver.width   = (data[21] << 8) | data[22];
+                receiver.height  = (data[23] << 8) | data[24];
+                receiver.packets = (data[38] << 24) | (data[39] << 16) | (data[40] << 8) | data[41];
+                receiver.uptime  = (data[46] << 24) | (data[47] << 16) | (data[48] << 8) | data[49];
+
+                LogInfo(VB_CHANNELOUT, "Found Receiver #%d:\n", receiver.id);
+                LogInfo(VB_CHANNELOUT, "- Firmware Version    : v%d.%d\n",
+                    receiver.majorFirmwareVersion, receiver.minorFirmwareVersion);
+                LogInfo(VB_CHANNELOUT, "- Cabinet Size (WxH)  : %dx%d\n", receiver.width, receiver.height);
+                //LogInfo(VB_CHANNELOUT, "- Cabinet Offset (X,Y): %d,%d\n", receiver.xOffset, receiver.yOffset);
+                LogInfo(VB_CHANNELOUT, "- Uptime              : %ums\n", receiver.uptime);
+                LogInfo(VB_CHANNELOUT, "- Packets             : %u\n", receiver.packets);
+
+                if (receiver.majorFirmwareVersion > m_highestFirmwareVersion) {
+                    m_highestFirmwareVersion = receiver.majorFirmwareVersion;
+                }
+
+                m_receivers.resize(r+1);
+                m_receivers[r] = receiver;
+            }
+        }
+
+        if (!foundReceiver)
+            tryNextReceiver = false;
+
+        r++;
+    }
+
+    if (m_receivers.size()) {
+        LogInfo(VB_CHANNELOUT, "Found %d ColorLight receiver(s)\n", m_receivers.size());
+    } else {
+        WarningHolder::AddWarning("ColorLight: No receiver cards were detected on interface " + m_ifName);
+        LogWarn(VB_CHANNELOUT, "WARNING: No ColorLight receiver cards were discovered\n");
+    }
+
+    close(sockfd);
+}
+
+

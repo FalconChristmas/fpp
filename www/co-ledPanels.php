@@ -679,9 +679,7 @@ function LEDPanelsConnectionChanged()
 	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "X11PanelMatrix")) {
 		$('#LEDPanelsGPIOSlowdownLabel').hide();
 		$('#LEDPanelsGPIOSlowdown').hide();
-        $('#LEDPanelsBrightness').hide();
         $('#LEDPanelsColorDepth').hide();
-        $('#LEDPanelsBrightnessLabel').hide();
         $('#LEDPanelsColorDepthLabel').hide();
         $('#LEDPanelsWiringPinoutLabel').hide();
         $('#LEDPanelsWiringPinout').hide();
@@ -689,9 +687,13 @@ function LEDPanelsConnectionChanged()
         if ($('#LEDPanelsConnection').val() === "X11PanelMatrix") {
             $('#LEDPanelsConnectionInterface').hide();
             $('#LEDPanelsInterface').hide();
+            $('#LEDPanelsBrightness').hide();
+            $('#LEDPanelsBrightnessLabel').hide();
         } else {
             $('#LEDPanelsConnectionInterface').show();
             $('#LEDPanelsInterface').show();
+            $('#LEDPanelsBrightness').show();
+            $('#LEDPanelsBrightnessLabel').show();
         }
 
 <?
@@ -1508,7 +1510,7 @@ if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux
                         <select id='LEDPanelsBrightness'>
                                 <?
 if ($settings['Platform'] == "Raspberry Pi") {
-    for ($x = 100; $x >= 10; $x -= 5) {
+    for ($x = 100; $x >= 5; $x -= 5) {
         echo "<option value='$x'>$x%</option>\n";
     }
 

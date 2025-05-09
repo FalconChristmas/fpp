@@ -848,7 +848,7 @@
 		"ColorlightLinkDownDisable": {
 			"name": "ColorlightLinkDownDisable",
 			"description": "Disable Colorlight outputs on link down",
-			"tip": "By default FPP will disable Colorlight outputs when the link is down, or the link speed is < 1Gbps.  If you fix one of these problems you have to restart fppd for the output to work.  This setting avoids disabling them.",
+			"tip": "By default FPP will disable Colorlight outputs when the link is down, the link speed is < 1Gbps, or no receivers are detected.  If you fix one of these problems you have to restart fppd for the output to work.  This setting avoids disabling the output, but applicable warnings will still appear.",
 			"level": 1,
 			"gatherStats": true,
 			"restart": 2,
