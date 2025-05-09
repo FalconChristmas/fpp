@@ -55,8 +55,7 @@ body {
   color: var(--#{$prefix}body-color);
   text-align: var(--#{$prefix}body-text-align);
   background-color: var(--#{$prefix}body-bg); // 2
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%; // 3
+  -webkit-text-size-adjust: 100%; // 3
   -webkit-tap-highlight-color: rgba($black, 0); // 4
 }
 // scss-docs-end reboot-body-rules
@@ -356,15 +355,13 @@ caption {
 }
 
 // 1. Removes font-weight bold by inheriting
-// 2. Fix alignment for Safari
-// 3. Matches default `<td>` alignment by inheriting `text-align`.
-
+// 2. Matches default `<td>` alignment by inheriting `text-align`.
+// 3. Fix alignment for Safari
 
 th {
   font-weight: $table-th-font-weight; // 1
-  text-align: -webkit-match-parent;
-  text-align: match-parent; // 2
-  text-align: inherit; // 3
+  text-align: inherit; // 2
+  text-align: -webkit-match-parent; // 3
 }
 
 thead,
@@ -457,7 +454,7 @@ button,
 [type="reset"],
 [type="submit"] {
   -webkit-appearance: button; // 2
-  appearance: button;
+
   @if $enable-button-pointers {
     &:not(:disabled) {
       cursor: pointer; // 3
@@ -502,9 +499,9 @@ legend {
   width: 100%;
   padding: 0;
   margin-bottom: $legend-margin-bottom;
-  @include font-size($legend-font-size);
   font-weight: $legend-font-weight;
   line-height: inherit;
+  @include font-size($legend-font-size);
 
   + * {
     clear: left; // 2
@@ -535,8 +532,7 @@ legend {
 // 2. Correct the outline style in Safari.
 
 [type="search"] {
-  -webkit-appearance: textfield;
-  appearance: textfield; // 1
+  -webkit-appearance: textfield; // 1
   outline-offset: -2px; // 2
 }
 
@@ -572,8 +568,7 @@ legend {
 
 ::file-selector-button {
   font: inherit; // 1
-  -webkit-appearance: button;
-  appearance: button; // 2
+  -webkit-appearance: button; // 2
 }
 
 // Correct element displays

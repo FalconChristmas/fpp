@@ -184,19 +184,19 @@
 
 .btn-close {
   --bs-btn-close-color: #171720;
-  --bs-btn-close-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23171720'%3e%3cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z'/%3e%3c/svg%3e");
+  --bs-btn-close-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23171720'%3e%3cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414'/%3e%3c/svg%3e");
   --bs-btn-close-opacity: 0.5;
   --bs-btn-close-hover-opacity: 0.75;
   --bs-btn-close-focus-shadow: 0 0 0 0.25rem rgba(23, 23, 32, 0.25);
   --bs-btn-close-focus-opacity: 1;
   --bs-btn-close-disabled-opacity: 0.25;
-  --bs-btn-close-white-filter: invert(1) grayscale(100%) brightness(200%);
   box-sizing: content-box;
   width: 1em;
   height: 1em;
   padding: 0.25em 0.25em;
   color: var(--bs-btn-close-color);
   background: transparent var(--bs-btn-close-bg) center/1em auto no-repeat;
+  filter: var(--bs-btn-close-filter);
   border: 0;
   border-radius: 0.25rem;
   opacity: var(--bs-btn-close-opacity);
@@ -220,11 +220,16 @@
 }
 
 .btn-close-white {
-  filter: var(--bs-btn-close-white-filter);
+  --bs-btn-close-filter: invert(1) grayscale(100%) brightness(200%);
 }
 
-[data-bs-theme=dark] .btn-close {
-  filter: var(--bs-btn-close-white-filter);
+:root,
+[data-bs-theme=light] {
+  --bs-btn-close-filter: ;
+}
+
+[data-bs-theme=dark] {
+  --bs-btn-close-filter: invert(1) grayscale(100%) brightness(200%);
 }
 
 .btn, .pageContent .disableButtons, .ui-dialog .disableButtons, .modal .disableButtons, .ajax-file-upload, .buttons, .ui-dialog-buttonset button {
@@ -833,7 +838,7 @@
 }
 .btn-group > :not(.btn-check:first-child) + .btn, .pageContent .btn-group > :not(.btn-check:first-child) + .disableButtons, .ui-dialog .btn-group > :not(.btn-check:first-child) + .disableButtons, .modal .btn-group > :not(.btn-check:first-child) + .disableButtons, .btn-group > :not(.btn-check:first-child) + .ajax-file-upload, .btn-group > :not(.btn-check:first-child) + .buttons, .ui-dialog-buttonset .btn-group > :not(.btn-check:first-child) + button,
 .btn-group > .btn-group:not(:first-child) {
-  margin-left: calc(1px * -1);
+  margin-left: calc(-1 * 1px);
 }
 .btn-group > .btn:not(:last-child):not(.dropdown-toggle), .pageContent .btn-group > .disableButtons:not(:last-child):not(.dropdown-toggle), .ui-dialog .btn-group > .disableButtons:not(:last-child):not(.dropdown-toggle), .modal .btn-group > .disableButtons:not(:last-child):not(.dropdown-toggle), .btn-group > .ajax-file-upload:not(:last-child):not(.dropdown-toggle), .btn-group > .buttons:not(:last-child):not(.dropdown-toggle), .ui-dialog-buttonset .btn-group > button:not(:last-child):not(.dropdown-toggle),
 .btn-group > .btn.dropdown-toggle-split:first-child,
@@ -904,7 +909,7 @@
 }
 .btn-group-vertical > .btn:not(:first-child), .pageContent .btn-group-vertical > .disableButtons:not(:first-child), .ui-dialog .btn-group-vertical > .disableButtons:not(:first-child), .modal .btn-group-vertical > .disableButtons:not(:first-child), .btn-group-vertical > .ajax-file-upload:not(:first-child), .btn-group-vertical > .buttons:not(:first-child), .ui-dialog-buttonset .btn-group-vertical > button:not(:first-child),
 .btn-group-vertical > .btn-group:not(:first-child) {
-  margin-top: calc(1px * -1);
+  margin-top: calc(-1 * 1px);
 }
 .btn-group-vertical > .btn:not(:last-child):not(.dropdown-toggle), .pageContent .btn-group-vertical > .disableButtons:not(:last-child):not(.dropdown-toggle), .ui-dialog .btn-group-vertical > .disableButtons:not(:last-child):not(.dropdown-toggle), .modal .btn-group-vertical > .disableButtons:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .ajax-file-upload:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .buttons:not(:last-child):not(.dropdown-toggle), .ui-dialog-buttonset .btn-group-vertical > button:not(:last-child):not(.dropdown-toggle),
 .btn-group-vertical > .btn-group:not(:last-child) > .btn,
@@ -917,7 +922,14 @@
   border-bottom-right-radius: 0;
   border-bottom-left-radius: 0;
 }
-.btn-group-vertical > .btn ~ .btn, .pageContent .btn-group-vertical > .disableButtons ~ .btn, .ui-dialog .btn-group-vertical > .disableButtons ~ .btn, .modal .btn-group-vertical > .disableButtons ~ .btn, .pageContent .btn-group-vertical > .btn ~ .disableButtons, .pageContent .btn-group-vertical > .disableButtons ~ .disableButtons, .ui-dialog .btn-group-vertical > .btn ~ .disableButtons, .ui-dialog .btn-group-vertical > .disableButtons ~ .disableButtons, .modal .btn-group-vertical > .btn ~ .disableButtons, .modal .btn-group-vertical > .disableButtons ~ .disableButtons, .btn-group-vertical > .ajax-file-upload ~ .btn, .pageContent .btn-group-vertical > .ajax-file-upload ~ .disableButtons, .ui-dialog .btn-group-vertical > .ajax-file-upload ~ .disableButtons, .modal .btn-group-vertical > .ajax-file-upload ~ .disableButtons, .btn-group-vertical > .btn ~ .ajax-file-upload, .pageContent .btn-group-vertical > .disableButtons ~ .ajax-file-upload, .ui-dialog .btn-group-vertical > .disableButtons ~ .ajax-file-upload, .modal .btn-group-vertical > .disableButtons ~ .ajax-file-upload, .btn-group-vertical > .ajax-file-upload ~ .ajax-file-upload, .btn-group-vertical > .buttons ~ .btn, .ui-dialog-buttonset .btn-group-vertical > button ~ .btn, .pageContent .btn-group-vertical > .buttons ~ .disableButtons, .pageContent .ui-dialog-buttonset .btn-group-vertical > button ~ .disableButtons, .ui-dialog-buttonset .pageContent .btn-group-vertical > button ~ .disableButtons, .ui-dialog .btn-group-vertical > .buttons ~ .disableButtons, .ui-dialog .ui-dialog-buttonset .btn-group-vertical > button ~ .disableButtons, .ui-dialog-buttonset .ui-dialog .btn-group-vertical > button ~ .disableButtons, .modal .btn-group-vertical > .buttons ~ .disableButtons, .modal .ui-dialog-buttonset .btn-group-vertical > button ~ .disableButtons, .ui-dialog-buttonset .modal .btn-group-vertical > button ~ .disableButtons, .btn-group-vertical > .buttons ~ .ajax-file-upload, .ui-dialog-buttonset .btn-group-vertical > button ~ .ajax-file-upload, .btn-group-vertical > .btn ~ .buttons, .ui-dialog-buttonset .btn-group-vertical > .btn ~ button, .pageContent .btn-group-vertical > .disableButtons ~ .buttons, .pageContent .ui-dialog-buttonset .btn-group-vertical > .disableButtons ~ button, .ui-dialog-buttonset .pageContent .btn-group-vertical > .disableButtons ~ button, .ui-dialog .btn-group-vertical > .disableButtons ~ .buttons, .ui-dialog .ui-dialog-buttonset .btn-group-vertical > .disableButtons ~ button, .ui-dialog-buttonset .ui-dialog .btn-group-vertical > .disableButtons ~ button, .modal .btn-group-vertical > .disableButtons ~ .buttons, .modal .ui-dialog-buttonset .btn-group-vertical > .disableButtons ~ button, .ui-dialog-buttonset .modal .btn-group-vertical > .disableButtons ~ button, .btn-group-vertical > .ajax-file-upload ~ .buttons, .ui-dialog-buttonset .btn-group-vertical > .ajax-file-upload ~ button, .btn-group-vertical > .buttons ~ .buttons, .ui-dialog-buttonset .btn-group-vertical > button ~ .buttons, .ui-dialog-buttonset .btn-group-vertical > .buttons ~ button, .ui-dialog-buttonset .btn-group-vertical > button ~ button,
+.btn-group-vertical > .btn:nth-child(n+3), .pageContent .btn-group-vertical > .disableButtons:nth-child(n+3), .ui-dialog .btn-group-vertical > .disableButtons:nth-child(n+3), .modal .btn-group-vertical > .disableButtons:nth-child(n+3), .btn-group-vertical > .ajax-file-upload:nth-child(n+3), .btn-group-vertical > .buttons:nth-child(n+3), .ui-dialog-buttonset .btn-group-vertical > button:nth-child(n+3),
+.btn-group-vertical > :not(.btn-check) + .btn,
+.pageContent .btn-group-vertical > :not(.btn-check) + .disableButtons,
+.ui-dialog .btn-group-vertical > :not(.btn-check) + .disableButtons,
+.modal .btn-group-vertical > :not(.btn-check) + .disableButtons,
+.btn-group-vertical > :not(.btn-check) + .ajax-file-upload,
+.btn-group-vertical > :not(.btn-check) + .buttons,
+.ui-dialog-buttonset .btn-group-vertical > :not(.btn-check) + button,
 .btn-group-vertical > .btn-group:not(:first-child) > .btn,
 .pageContent .btn-group-vertical > .btn-group:not(:first-child) > .disableButtons,
 .ui-dialog .btn-group-vertical > .btn-group:not(:first-child) > .disableButtons,
@@ -1531,9 +1543,11 @@ textarea.form-control-lg {
   top: 0;
   left: 0;
   z-index: 2;
+  max-width: 100%;
   height: 100%;
   padding: 1rem 0.65rem;
   overflow: hidden;
+  color: rgba(var(--bs-body-color-rgb), 0.65);
   text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1576,9 +1590,9 @@ textarea.form-control-lg {
 .form-floating > .form-select {
   padding-top: 1.625rem;
   padding-bottom: 0.625rem;
+  padding-left: 0.65rem;
 }
 .form-floating > .form-control:not(:-moz-placeholder-shown) ~ label, #settingsManagerTabsContent .form-floating > input[type=text]:not(:-moz-placeholder-shown) ~ label, .form-floating > input[type=checkbox]:not(:-moz-placeholder-shown) ~ label {
-  color: rgba(var(--bs-body-color-rgb), 0.65);
   transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
 }
 .form-floating > .form-control:focus ~ label, #settingsManagerTabsContent .form-floating > input[type=text]:focus ~ label, .form-floating > input[type=checkbox]:focus ~ label,
@@ -1587,35 +1601,32 @@ textarea.form-control-lg {
 .form-floating > input[type=checkbox]:not(:placeholder-shown) ~ label,
 .form-floating > .form-control-plaintext ~ label,
 .form-floating > .form-select ~ label {
-  color: rgba(var(--bs-body-color-rgb), 0.65);
   transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
-}
-.form-floating > .form-control:not(:-moz-placeholder-shown) ~ label::after, #settingsManagerTabsContent .form-floating > input[type=text]:not(:-moz-placeholder-shown) ~ label::after, .form-floating > input[type=checkbox]:not(:-moz-placeholder-shown) ~ label::after {
-  position: absolute;
-  inset: 1rem 0.325rem;
-  z-index: -1;
-  height: 1.5em;
-  content: "";
-  background-color: var(--bs-body-bg);
-  border-radius: var(--bs-border-radius);
-}
-.form-floating > .form-control:focus ~ label::after, #settingsManagerTabsContent .form-floating > input[type=text]:focus ~ label::after, .form-floating > input[type=checkbox]:focus ~ label::after,
-.form-floating > .form-control:not(:placeholder-shown) ~ label::after,
-#settingsManagerTabsContent .form-floating > input[type=text]:not(:placeholder-shown) ~ label::after,
-.form-floating > input[type=checkbox]:not(:placeholder-shown) ~ label::after,
-.form-floating > .form-control-plaintext ~ label::after,
-.form-floating > .form-select ~ label::after {
-  position: absolute;
-  inset: 1rem 0.325rem;
-  z-index: -1;
-  height: 1.5em;
-  content: "";
-  background-color: var(--bs-body-bg);
-  border-radius: var(--bs-border-radius);
 }
 .form-floating > .form-control:-webkit-autofill ~ label, #settingsManagerTabsContent .form-floating > input[type=text]:-webkit-autofill ~ label, .form-floating > input[type=checkbox]:-webkit-autofill ~ label {
-  color: rgba(var(--bs-body-color-rgb), 0.65);
   transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+}
+.form-floating > textarea:not(:-moz-placeholder-shown) ~ label::after {
+  position: absolute;
+  inset: 1rem 0.325rem;
+  z-index: -1;
+  height: 1.5em;
+  content: "";
+  background-color: var(--bs-body-bg);
+  border-radius: var(--bs-border-radius);
+}
+.form-floating > textarea:focus ~ label::after,
+.form-floating > textarea:not(:placeholder-shown) ~ label::after {
+  position: absolute;
+  inset: 1rem 0.325rem;
+  z-index: -1;
+  height: 1.5em;
+  content: "";
+  background-color: var(--bs-body-bg);
+  border-radius: var(--bs-border-radius);
+}
+.form-floating > textarea:disabled ~ label::after {
+  background-color: var(--bs-secondary-bg);
 }
 .form-floating > .form-control-plaintext ~ label {
   border-width: 1px 0;
@@ -1624,11 +1635,6 @@ textarea.form-control-lg {
 .form-floating > .form-control:disabled ~ label,
 #settingsManagerTabsContent .form-floating > input[type=text]:disabled ~ label {
   color: #6c757d;
-}
-.form-floating > :disabled ~ label::after,
-.form-floating > .form-control:disabled ~ label::after,
-#settingsManagerTabsContent .form-floating > input[type=text]:disabled ~ label::after {
-  background-color: var(--bs-secondary-bg);
 }
 
 .input-group {
@@ -1728,7 +1734,7 @@ textarea.form-control-lg {
   border-bottom-right-radius: 0;
 }
 .input-group > :not(:first-child):not(.dropdown-menu):not(.valid-tooltip):not(.valid-feedback):not(.invalid-tooltip):not(.invalid-feedback) {
-  margin-left: calc(1px * -1);
+  margin-left: calc(-1 * 1px);
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
@@ -1770,7 +1776,7 @@ textarea.form-control-lg {
 .was-validated .form-control:valid, .was-validated #settingsManagerTabsContent input[type=text]:valid, #settingsManagerTabsContent .was-validated input[type=text]:valid, .was-validated input[type=checkbox]:valid, .form-control.is-valid, #settingsManagerTabsContent input.is-valid[type=text], input.is-valid[type=checkbox] {
   border-color: var(--bs-form-valid-border-color);
   padding-right: calc(1.5em + 0.66rem);
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2356B760' d='M2.3 6.73.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2356B760' d='M2.3 6.73.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1'/%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.165rem) center;
   background-size: calc(0.75em + 0.33rem) calc(0.75em + 0.33rem);
@@ -1789,7 +1795,7 @@ textarea.form-control-lg {
   border-color: var(--bs-form-valid-border-color);
 }
 .was-validated .form-select:valid:not([multiple]):not([size]), .was-validated .form-select:valid:not([multiple])[size="1"], .form-select.is-valid:not([multiple]):not([size]), .form-select.is-valid:not([multiple])[size="1"] {
-  --bs-form-select-bg-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2356B760' d='M2.3 6.73.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+  --bs-form-select-bg-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2356B760' d='M2.3 6.73.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1'/%3e%3c/svg%3e");
   padding-right: 3.575rem;
   background-position: right 0.65rem center, center right 1.95rem;
   background-size: 16px 12px, calc(0.75em + 0.33rem) calc(0.75em + 0.33rem);
@@ -2305,8 +2311,6 @@ body {
   text-align: var(--bs-body-text-align);
   background-color: var(--bs-body-bg);
   -webkit-text-size-adjust: 100%;
-  -moz-text-size-adjust: 100%;
-       text-size-adjust: 100%;
   -webkit-tap-highlight-color: rgba(23, 23, 32, 0);
 }
 
@@ -2531,9 +2535,8 @@ caption {
 }
 
 th {
-  text-align: -webkit-match-parent;
-  text-align: match-parent;
   text-align: inherit;
+  text-align: -webkit-match-parent;
 }
 
 thead,
@@ -2595,8 +2598,6 @@ button,
 [type=reset],
 [type=submit] {
   -webkit-appearance: button;
-  -moz-appearance: button;
-       appearance: button;
 }
 button:not(:disabled),
 [type=button]:not(:disabled),
@@ -2626,8 +2627,8 @@ legend {
   width: 100%;
   padding: 0;
   margin-bottom: 0.5rem;
-  font-size: calc(1.275rem + 0.3vw);
   line-height: inherit;
+  font-size: calc(1.275rem + 0.3vw);
 }
 @media (min-width: 1200px) {
   legend {
@@ -2654,8 +2655,6 @@ legend + * {
 
 [type=search] {
   -webkit-appearance: textfield;
-  -moz-appearance: textfield;
-       appearance: textfield;
   outline-offset: -2px;
 }
 
@@ -2678,8 +2677,6 @@ legend + * {
 ::file-selector-button {
   font: inherit;
   -webkit-appearance: button;
-  -moz-appearance: button;
-       appearance: button;
 }
 
 output {
@@ -2709,9 +2706,9 @@ progress {
 }
 
 .display-1 {
-  font-size: calc(1.625rem + 4.5vw);
   font-weight: 300;
   line-height: 1.2;
+  font-size: calc(1.625rem + 4.5vw);
 }
 @media (min-width: 1200px) {
   .display-1 {
@@ -2720,9 +2717,9 @@ progress {
 }
 
 .display-2 {
-  font-size: calc(1.575rem + 3.9vw);
   font-weight: 300;
   line-height: 1.2;
+  font-size: calc(1.575rem + 3.9vw);
 }
 @media (min-width: 1200px) {
   .display-2 {
@@ -2731,9 +2728,9 @@ progress {
 }
 
 .display-3 {
-  font-size: calc(1.525rem + 3.3vw);
   font-weight: 300;
   line-height: 1.2;
+  font-size: calc(1.525rem + 3.3vw);
 }
 @media (min-width: 1200px) {
   .display-3 {
@@ -2742,9 +2739,9 @@ progress {
 }
 
 .display-4 {
-  font-size: calc(1.475rem + 2.7vw);
   font-weight: 300;
   line-height: 1.2;
+  font-size: calc(1.475rem + 2.7vw);
 }
 @media (min-width: 1200px) {
   .display-4 {
@@ -2753,9 +2750,9 @@ progress {
 }
 
 .display-5 {
-  font-size: calc(1.425rem + 2.1vw);
   font-weight: 300;
   line-height: 1.2;
+  font-size: calc(1.425rem + 2.1vw);
 }
 @media (min-width: 1200px) {
   .display-5 {
@@ -2764,9 +2761,9 @@ progress {
 }
 
 .display-6 {
-  font-size: calc(1.375rem + 1.5vw);
   font-weight: 300;
   line-height: 1.2;
+  font-size: calc(1.375rem + 1.5vw);
 }
 @media (min-width: 1200px) {
   .display-6 {
@@ -2932,7 +2929,7 @@ progress {
 }
 
 .col {
-  flex: 1 0 0%;
+  flex: 1 0 0;
 }
 
 .row-cols-auto > * {
@@ -3141,7 +3138,7 @@ progress {
 
 @media (min-width: 576px) {
   .col-sm {
-    flex: 1 0 0%;
+    flex: 1 0 0;
   }
   .row-cols-sm-auto > * {
     flex: 0 0 auto;
@@ -3310,7 +3307,7 @@ progress {
 }
 @media (min-width: 768px) {
   .col-md {
-    flex: 1 0 0%;
+    flex: 1 0 0;
   }
   .row-cols-md-auto > * {
     flex: 0 0 auto;
@@ -3479,7 +3476,7 @@ progress {
 }
 @media (min-width: 992px) {
   .col-lg {
-    flex: 1 0 0%;
+    flex: 1 0 0;
   }
   .row-cols-lg-auto > * {
     flex: 0 0 auto;
@@ -3648,7 +3645,7 @@ progress {
 }
 @media (min-width: 1200px) {
   .col-xl {
-    flex: 1 0 0%;
+    flex: 1 0 0;
   }
   .row-cols-xl-auto > * {
     flex: 0 0 auto;
@@ -3817,7 +3814,7 @@ progress {
 }
 @media (min-width: 1360px) {
   .col-xxl {
-    flex: 1 0 0%;
+    flex: 1 0 0;
   }
   .row-cols-xxl-auto > * {
     flex: 0 0 auto;
@@ -3986,7 +3983,7 @@ progress {
 }
 @media (min-width: 1440px) {
   .col-xxxl {
-    flex: 1 0 0%;
+    flex: 1 0 0;
   }
   .row-cols-xxxl-auto > * {
     flex: 0 0 auto;
@@ -4155,7 +4152,7 @@ progress {
 }
 @media (min-width: 1536px) {
   .col-xxxxl {
-    flex: 1 0 0%;
+    flex: 1 0 0;
   }
   .row-cols-xxxxl-auto > * {
     flex: 0 0 auto;
@@ -4324,7 +4321,7 @@ progress {
 }
 @media (min-width: 1920px) {
   .col-xxxxxl {
-    flex: 1 0 0%;
+    flex: 1 0 0;
   }
   .row-cols-xxxxxl-auto > * {
     flex: 0 0 auto;
@@ -4876,6 +4873,10 @@ progress {
 .visually-hidden-focusable:not(:focus):not(:focus-within):not(caption) {
   position: absolute !important;
 }
+.visually-hidden *,
+.visually-hidden-focusable:not(:focus):not(:focus-within) * {
+  overflow: hidden !important;
+}
 
 .stretched-link::after {
   position: absolute;
@@ -5020,8 +5021,8 @@ progress {
 
 .nav-justified > .nav-link,
 .nav-justified .nav-item {
-  flex-basis: 0;
   flex-grow: 1;
+  flex-basis: 0;
   text-align: center;
 }
 
@@ -5125,8 +5126,8 @@ progress {
 }
 
 .navbar-collapse {
-  flex-basis: 100%;
   flex-grow: 1;
+  flex-basis: 100%;
   align-items: center;
 }
 
@@ -5613,7 +5614,7 @@ progress {
   --bs-modal-width: 500px;
   --bs-modal-padding: 1.5rem;
   --bs-modal-margin: 0.5rem;
-  --bs-modal-color: ;
+  --bs-modal-color: var(--bs-body-color);
   --bs-modal-bg: var(--bs-body-bg);
   --bs-modal-border-color: var(--bs-border-color-translucent);
   --bs-modal-border-width: var(--bs-border-width);
@@ -5649,8 +5650,8 @@ progress {
   pointer-events: none;
 }
 .modal.fade .modal-dialog {
-  transition: transform 0.3s ease-out;
   transform: translate(0, -50px);
+  transition: transform 0.3s ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
   .modal.fade .modal-dialog {
@@ -5725,7 +5726,10 @@ progress {
 }
 .modal-header .btn-close {
   padding: calc(var(--bs-modal-header-padding-y) * 0.5) calc(var(--bs-modal-header-padding-x) * 0.5);
-  margin: calc(-0.5 * var(--bs-modal-header-padding-y)) calc(-0.5 * var(--bs-modal-header-padding-x)) calc(-0.5 * var(--bs-modal-header-padding-y)) auto;
+  margin-top: calc(-0.5 * var(--bs-modal-header-padding-y));
+  margin-right: calc(-0.5 * var(--bs-modal-header-padding-x));
+  margin-bottom: calc(-0.5 * var(--bs-modal-header-padding-y));
+  margin-left: auto;
 }
 
 .modal-title {
@@ -6274,7 +6278,7 @@ progress {
     flex-flow: row wrap;
   }
   .card-group > .card {
-    flex: 1 0 0%;
+    flex: 1 0 0;
     margin-bottom: 0;
   }
   .card-group > .card + .card {
@@ -6285,24 +6289,24 @@ progress {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
   }
-  .card-group > .card:not(:last-child) .card-img-top,
-  .card-group > .card:not(:last-child) .card-header {
+  .card-group > .card:not(:last-child) > .card-img-top,
+  .card-group > .card:not(:last-child) > .card-header {
     border-top-right-radius: 0;
   }
-  .card-group > .card:not(:last-child) .card-img-bottom,
-  .card-group > .card:not(:last-child) .card-footer {
+  .card-group > .card:not(:last-child) > .card-img-bottom,
+  .card-group > .card:not(:last-child) > .card-footer {
     border-bottom-right-radius: 0;
   }
   .card-group > .card:not(:first-child) {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
   }
-  .card-group > .card:not(:first-child) .card-img-top,
-  .card-group > .card:not(:first-child) .card-header {
+  .card-group > .card:not(:first-child) > .card-img-top,
+  .card-group > .card:not(:first-child) > .card-header {
     border-top-left-radius: 0;
   }
-  .card-group > .card:not(:first-child) .card-img-bottom,
-  .card-group > .card:not(:first-child) .card-footer {
+  .card-group > .card:not(:first-child) > .card-img-bottom,
+  .card-group > .card:not(:first-child) > .card-footer {
     border-bottom-left-radius: 0;
   }
 }
@@ -6373,7 +6377,7 @@ progress {
 
 @keyframes progress-bar-stripes {
   0% {
-    background-position-x: 1rem;
+    background-position-x: var(--bs-progress-height);
   }
 }
 .progress,
