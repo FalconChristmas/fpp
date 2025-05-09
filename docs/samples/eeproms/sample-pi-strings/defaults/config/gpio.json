@@ -1,0 +1,72 @@
+[
+    {
+        "pin": "P1-13",
+        "enabled": true,
+        "mode": "gpio",
+        "desc": "",
+        "falling": {
+            "command": "OLED Navigation",
+            "multisyncCommand": false,
+            "multisyncHosts": "",
+            "args": [
+                "Back"
+            ]
+        }
+    },
+    {
+        "pin": "P1-15",
+        "enabled": true,
+        "mode": "gpio",
+        "desc": "",
+        "falling": {
+            "command": "OLED Navigation",
+            "multisyncCommand": false,
+            "multisyncHosts": "",
+            "args": [
+                "Down"
+            ]
+        }
+    },
+    {
+        "pin": "P1-16",
+        "enabled": true,
+        "mode": "gpio",
+        "desc": "",
+        "falling": {
+            "command": "OLED Navigation",
+            "multisyncCommand": false,
+            "multisyncHosts": "",
+            "args": [
+                "Up"
+            ]
+        }
+    },
+    {
+        "pin": "P1-18",
+        "enabled": true,
+        "mode": "gpio",
+        "desc": "",
+        "falling": {
+            "command": "OLED Navigation",
+            "multisyncCommand": false,
+            "multisyncHosts": "",
+            "args": [
+                "Enter"
+            ]
+        }
+    },
+    {
+        "pin": "P1-22",
+        "enabled": true,
+        "mode": "gpio",
+        "desc": "",
+        "falling": {
+            "command": "OLED Navigation",
+            "multisyncCommand": false,
+            "multisyncHosts": "",
+            "args": [
+                "Test"
+            ]
+        }
+    }
+]
