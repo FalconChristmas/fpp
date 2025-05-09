@@ -73,7 +73,7 @@ $fpp_version = "v" . getFPPVersion();
                 </div>
                 <br>
 
-                <small>Copyright &copy; 2013-2024</small>
+                <small>Copyright &copy; 2013-<? echo (new DateTime())->format("Y"); ?></small>
               </div>
             </div>
 
