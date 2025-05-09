@@ -3625,10 +3625,6 @@ a.api-anchor {
 	filter: 'alpha(opacity=0)';
 }
 
-#navbarUpdateAvail {
-	display: none;
-}
-
 #divRunningEffects table thead th {
 	color: black;
 	background-color: lightgrey;
@@ -3644,6 +3640,12 @@ a.api-anchor {
 
 #navbarUpdateAvail {
 	display: none;
+	color: red;
+}
+
+#navbarUpdateAvail a {
+	color: rgb(245, 136, 34);
+	font-size: 1.5em;
 }
 
 #divLEDPanelMatrices a.nav-link.active {
