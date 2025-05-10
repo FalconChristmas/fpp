@@ -11,6 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <list>
 #include <string>
 #include <vector>
 
@@ -54,7 +55,7 @@ public:
     }
 
     static PixelOverlayEffect* GetPixelOverlayEffect(const std::string& name);
-    static const std::vector<std::string>& GetPixelOverlayEffects();
+    static const std::list<std::string>& GetPixelOverlayEffects();
 
     static void AddPixelOverlayEffect(PixelOverlayEffect* effect);
     static void RemovePixelOverlayEffect(PixelOverlayEffect* effect);

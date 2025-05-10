@@ -202,9 +202,9 @@ public:
         PixelOverlayEffect("Bars") {
         args.push_back(CommandArg("Direction", "string", "Direction").setContentList({ "Up", "Down", "Left", "Right" }));
         args.push_back(CommandArg("time", "int", "Time (ms)").setRange(1, 60000).setDefaultValue("2000"));
-        args.push_back(CommandArg("iterations", "int", "Iterations").setRange(1, 30).setDefaultValue("1"));
-        args.push_back(CommandArg("colorRep", "int", "Color Rep.").setRange(1, 5).setDefaultValue("1"));
-        args.push_back(CommandArg("colors", "int", "Num Colors").setRange(1, 5).setDefaultValue("3"));
+        args.push_back(CommandArg("iterations", "range", "Iterations").setRange(1, 30).setDefaultValue("1"));
+        args.push_back(CommandArg("colorRep", "range", "Color Rep.").setRange(1, 5).setDefaultValue("1"));
+        args.push_back(CommandArg("colors", "range", "Num Colors").setRange(1, 5).setDefaultValue("3"));
         args.push_back(CommandArg("Color1", "color", "Color 1").setDefaultValue("#FF0000"));
         args.push_back(CommandArg("Color2", "color", "Color 2").setDefaultValue("#00FF00"));
         args.push_back(CommandArg("Color3", "color", "Color 3").setDefaultValue("#0000FF"));
@@ -494,10 +494,10 @@ public:
         PixelOverlayEffect("Text") {
         args.push_back(CommandArg("Color", "color", "Color").setDefaultValue("#FF0000"));
         args.push_back(CommandArg("Font", "string", "Font").setContentListUrl("api/overlays/fonts", false));
-        args.push_back(CommandArg("FontSize", "int", "FontSize").setRange(4, 100).setDefaultValue("18"));
+        args.push_back(CommandArg("FontSize", "range", "FontSize").setRange(4, 100).setDefaultValue("18"));
         args.push_back(CommandArg("FontAntiAlias", "bool", "Anti-Aliased").setDefaultValue("false"));
         args.push_back(CommandArg("Position", "string", "Position").setContentList({ "Center", "Right to Left", "Left to Right", "Bottom to Top", "Top to Bottom" }));
-        args.push_back(CommandArg("Speed", "int", "Scroll Speed").setRange(0, 200).setDefaultValue("10"));
+        args.push_back(CommandArg("Speed", "range", "Scroll Speed").setRange(0, 200).setDefaultValue("10"));
         args.push_back(CommandArg("Duration", "int", "Duration").setRange(-1, 2000).setDefaultValue("0"));
 
         // keep text as last argument if possible as the MQTT commands will, by default, use the payload of the mqtt
@@ -747,14 +747,15 @@ public:
         add(new ColorFadeEffect());
         add(new BarsEffect());
         add(new TextEffect());
-        add(new StopEffect());
 
         std::list<PixelOverlayEffect*> wled = WLEDEffect::getWLEDEffects();
         for (auto a : wled) {
             add(a);
         }
-
-        std::sort(effectNames.begin(), effectNames.end());
+        effectNames.sort();
+        StopEffect* pe = new StopEffect();
+        effectNames.push_front(pe->name);
+        effects[pe->name] = pe;
     }
     ~PixelOverlayEffectHolder() {
         for (auto& a : effects) {
@@ -777,13 +778,13 @@ public:
     PixelOverlayEffect* get(const std::string& n) {
         return effects[n];
     }
-    const std::vector<std::string>& names() const {
+    const std::list<std::string>& names() const {
         return effectNames;
     }
 
 private:
     std::map<std::string, PixelOverlayEffect*> effects;
-    std::vector<std::string> effectNames;
+    std::list<std::string> effectNames;
 };
 
 static PixelOverlayEffectHolder EFFECTS;
@@ -792,7 +793,7 @@ PixelOverlayEffect* PixelOverlayEffect::GetPixelOverlayEffect(const std::string&
     return EFFECTS.get(name);
 }
 
-const std::vector<std::string>& PixelOverlayEffect::GetPixelOverlayEffects() {
+const std::list<std::string>& PixelOverlayEffect::GetPixelOverlayEffects() {
     return EFFECTS.names();
 }
 
