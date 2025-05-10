@@ -568,11 +568,11 @@ std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {
     int i = inst->getModeCount();
     for (int x = 2; x < i; x++) {
         std::string name = "WLED - ";
-        if (x > 127) {
+        std::string ename = inst->getModeData(x);
+        if (ename.find("si=0") != std::string::npos) {
             // audio reactive effects, add a note so people know these are special
             name = "WLED♪ - ";
         }
-        std::string ename = inst->getModeData(x);
         if (ename != "RSVD") {
             while (ename.find('+') != std::string::npos) {
                 int idx = ename.find('+');
