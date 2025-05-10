@@ -18,7 +18,7 @@
 #include <string.h>
 #include <string>
 
-#define MAX_LEDS     1024 * 64
+#define MAX_LEDS 1024 * 64
 #define MAX_LEDS_PER_BUS MAX_LEDS
 #define MAX_LED_MEMORY (MAX_LEDS * 3)
 
@@ -39,6 +39,8 @@
 #define WLED_DISABLE_DMX512_SERIAL
 #define WLED_DISABLE_DMX512_UNIVERSE
 #define WLED_DISABLE_DMX512_UNIVERSE_SERIAL
+#define WLED_DISABLE_MODE_BLEND
+#define WLED_PS_DONT_REPLACE_FX
 
 long long GetTimeMS(void);
 long long GetTimeMicros(void);

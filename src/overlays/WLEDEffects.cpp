@@ -233,7 +233,7 @@ public:
         fillVectors();
         args.push_back(CommandArg("BufferMapping", "string", "Buffer Mapping").setContentList(*BUFFERMAPS));
         argMap.push_back(ArgMapping::Mapping); // always have mapping
-        args.push_back(CommandArg("Brightness", "range", "Brightness").setRange(0, 255).setDefaultValue("128"));
+        args.push_back(CommandArg("brightness", "range", "Brightness").setRange(0, 255).setDefaultValue("128"));
         argMap.push_back(ArgMapping::Brightness); // always have brightness
 
         std::string c = config;
@@ -252,8 +252,15 @@ public:
                 c = c.substr(t + 1);
                 pallete = pallete.substr(0, t);
             }
+            std::string palEnable = c;
+            t = c.find(";");
+            if (t != std::string::npos) {
+                c = c.substr(t + 1);
+                palEnable = palEnable.substr(0, t);
+            }
+
             int idx = 0;
-            // printf("%s        -%s-\n", config.c_str(), c.c_str());
+            // printf("%s        -%s-   -%s-\n", name.c_str(), pallete.c_str(), p2.c_str());
             while (!sliders.empty()) {
                 ArgMapping m;
                 std::string sname = defaultSliderName(idx, m);
@@ -276,19 +283,50 @@ public:
                 if (sname != "") {
                     if (m == ArgMapping::Custom3) {
                         // custom3 is
-                        args.push_back(CommandArg(sname, "range", sname).setRange(0, 31).setDefaultValue("16"));
+                        int i = extractModeDefaults(mode, "c3");
+                        if (i < 0) {
+                            i = DEFAULT_C3;
+                        }
+                        args.push_back(CommandArg(sname, "range", sname).setRange(0, 31).setDefaultValue(std::to_string(i)));
                     } else if (m >= ArgMapping::Check1 && m <= ArgMapping::Check3) {
-                        args.push_back(CommandArg(sname, "bool", sname).setDefaultValue("0"));
+                        std::string dn = "o1";
+                        if (m == ArgMapping::Check2) {
+                            dn = "o2";
+                        } else if (m == ArgMapping::Check3) {
+                            dn = "o3";
+                        }
+                        int i = extractModeDefaults(mode, dn.c_str());
+                        args.push_back(CommandArg(sname, "bool", sname).setDefaultValue(i > 0 ? "1" : "0"));
                     } else {
                         // speed, intensity, custom1, custom2 are full range
-                        args.push_back(CommandArg(sname, "range", sname).setRange(0, 255).setDefaultValue("128"));
+                        int defValue = 128;
+                        if (m == ArgMapping::Speed) {
+                            defValue = extractModeDefaults(mode, "sx");
+                        } else if (m == ArgMapping::Intensity) {
+                            defValue = extractModeDefaults(mode, "ix");
+                        } else if (m == ArgMapping::Custom1) {
+                            defValue = extractModeDefaults(mode, "c1");
+                        } else if (m == ArgMapping::Custom2) {
+                            defValue = extractModeDefaults(mode, "c2");
+                        }
+                        if (defValue < 0) {
+                            defValue = 128;
+                        }
+                        args.push_back(CommandArg(sname, "range", sname).setRange(0, 255).setDefaultValue(std::to_string(defValue)));
                     }
                     argMap.push_back(m);
                 }
                 idx++;
             }
-            args.push_back(CommandArg("Palette", "string", "Palette").setContentList(*PALETTES).setDefaultValue("Default"));
-            argMap.push_back(ArgMapping::Palette); // Palette
+
+            if (palEnable == "!") {
+                int i = extractModeDefaults(mode, "pal");
+                if (i < 0) {
+                    i = 0;
+                }
+                args.push_back(CommandArg("palette", "string", "Palette").setContentList(*PALETTES).setDefaultValue(PALETTES->at(i)));
+                argMap.push_back(ArgMapping::Palette); // Palette
+            }
             if (!pallete.empty()) {
                 idx = 0;
                 while (!pallete.empty()) {
@@ -312,15 +350,15 @@ public:
                     }
                     // printf("    p%d: %s    %s\n", idx, cname.c_str(), val.c_str());
                     if (cname != "") {
-                        args.push_back(CommandArg(cname, "color", cname).setDefaultValue(val));
+                        args.push_back(CommandArg("color" + std::to_string(idx + 1), "color", cname).setDefaultValue(val));
                         argMap.push_back(m);
                     }
                     idx++;
                 }
             } else {
-                args.push_back(CommandArg("Color 1", "color", "Color 1").setDefaultValue("#FF0000"));
-                args.push_back(CommandArg("Color 2", "color", "Color 2").setDefaultValue("#0000FF"));
-                args.push_back(CommandArg("Color 3", "color", "Color 3").setDefaultValue("#000000"));
+                args.push_back(CommandArg("color1", "color", "Color 1").setDefaultValue("#FF0000"));
+                args.push_back(CommandArg("color2", "color", "Color 2").setDefaultValue("#0000FF"));
+                args.push_back(CommandArg("color3", "color", "Color 3").setDefaultValue("#000000"));
                 argMap.push_back(ArgMapping::Color1); // c1
                 argMap.push_back(ArgMapping::Color2); // c2
                 argMap.push_back(ArgMapping::Color3); // c3
@@ -331,10 +369,10 @@ public:
             argMap.push_back(ArgMapping::Speed);     // speed
             argMap.push_back(ArgMapping::Intensity); // intensity
 
-            args.push_back(CommandArg("Palette", "string", "Palette").setContentList(*PALETTES).setDefaultValue("Default"));
-            args.push_back(CommandArg("Color1", "color", "Color1").setDefaultValue("#FF0000"));
-            args.push_back(CommandArg("Color2", "color", "Color2").setDefaultValue("#0000FF"));
-            args.push_back(CommandArg("Color3", "color", "Color3").setDefaultValue("#000000"));
+            args.push_back(CommandArg("palette", "string", "Palette").setContentList(*PALETTES).setDefaultValue("Default"));
+            args.push_back(CommandArg("color1", "color", "Color1").setDefaultValue("#FF0000"));
+            args.push_back(CommandArg("color2", "color", "Color2").setDefaultValue("#0000FF"));
+            args.push_back(CommandArg("color3", "color", "Color3").setDefaultValue("#000000"));
             argMap.push_back(ArgMapping::Palette); // Palette
             argMap.push_back(ArgMapping::Color1);  // c1
             argMap.push_back(ArgMapping::Color2);  // c2

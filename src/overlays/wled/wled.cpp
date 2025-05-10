@@ -299,7 +299,7 @@ WS2812FXExt::WS2812FXExt(PixelOverlayModel* m, int map, int b,
         p.width = m->getHeight();
         p.height = m->getWidth();
     }
-    _segments[0].setMode(mode);
+    _segments[0].setMode(mode, true);
     _segments[0].speed = s;
     _segments[0].intensity = i;
     _segments[0].palette = pal;

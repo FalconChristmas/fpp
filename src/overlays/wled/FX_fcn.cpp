@@ -1671,7 +1671,9 @@ void WS2812FX::service() {
     }
     _segment_index++;
   }
+#ifndef WLED_DISABLE_MODE_BLEND
   Segment::setClippingRect(0, 0);             // disable clipping for overlays
+#endif
   _isServicing = false;
   _triggered = false;
 
