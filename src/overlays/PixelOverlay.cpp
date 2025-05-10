@@ -511,8 +511,13 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
             }
         } else if (p2 == "effects") {
             if (p3 == "") {
+                bool fullResult = std::string(req.get_arg("full")) == "true";
                 for (auto& a : PixelOverlayEffect::GetPixelOverlayEffects()) {
-                    result.append(a);
+                    if (fullResult) {
+                        result.append(PixelOverlayEffect::GetPixelOverlayEffect(a)->getDescription());
+                    } else {
+                        result.append(a);
+                    }
                 }
             } else {
                 PixelOverlayEffect* e = PixelOverlayEffect::GetPixelOverlayEffect(p3);
