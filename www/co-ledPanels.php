@@ -603,7 +603,7 @@
         var matrixDivName = 'panelMatrix' + panelMatrixID;
         var matrixDiv = $(`.tab-content [id=${matrixDivName}]`);
 
-        config.cfgVersion = 2;
+        config.cfgVersion = 3;
         config.type = "LEDPanelMatrix";
         if ((matrixDiv.find(`#panelMatrix${panelMatrixID} .LEDPanelUIAdvancedLayout`).is(":checked")) &&
             (typeof mp !== 'undefined')) {
