@@ -29,10 +29,6 @@
     var RunningEffectSelectedName = "";
 
     $(function () {
-      new $.Zebra_Pin($('#divRunningEffects'), {
-        contained: true,
-        top_spacing: $('.header').outerHeight() + 10
-      });
       $('#tblEffectLibraryBody').on('click', '.buttons', function (event, ui) {
         $('#tblEffectLibraryBody tr').removeClass('effectSelectedEntry');
         var $selectedEntry = $(this).parent().parent();
@@ -74,6 +70,30 @@
         //SetButtonState('#btnStopEffect','enable');
       });
     });
+
+  $(document).on('click', '.stop-overlay-effects', function () {
+    const model = $(this).data('model');
+    SelectedOverlayModel = model;
+  
+    const url = 'api/command/' +
+                encodeURIComponent('Overlay Model Effect') + '/' +
+                encodeURIComponent(model) + '/' +
+                'Enabled/' +
+                encodeURIComponent('Stop Effects');
+    
+    const $btn = $(this).prop('disabled', true);
+  
+    $.get(url)
+      .done(() => {
+        $.jGrowl('Stopped all effects on ' + model, { themeState: 'success' });
+        GetRunningOverlayEffects();
+      })
+      .fail(() => {
+        DialogError('Error', 'Error stopping effects on ' + model);
+        GetRunningOverlayEffects();
+      });
+    });
+
 
     function StartSelectedEffect() {
       var row = $('#tblEffectLibraryBody tr').find('.effectSelectedEntry');
@@ -130,7 +150,7 @@
   <title><? echo $pageTitle; ?></title>
 </head>
 
-<body onLoad="GetRunningEffects();">
+<body onLoad="GetRunningEffects(); GetRunningOverlayEffects();">
   <div id="bodyWrapper">
     <?php
     $activeParentMenuItem = 'status';
@@ -217,10 +237,33 @@
                 </div>
               </div>
             </div>
+ 
+            <div style="height: 20px;"></div>
+            
+            <div id="divOverlayEffects" class="divOverlayEffectsDisabled">
+              <h2 id="overlayEffectsTitle">Overlay Model Effects</h2>
+              <!-- <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" /><br> -->
+              <div class='fppTableWrapper'>
+                <div class='fppTableContents'>
+                  <table id="tblOverlayEffects" class="fppActionTable fppActionTable-success" width="100%" cellpadding=1
+                    cellspacing=0>
+                    <thead>
+                      <tr>
+                        <th>Model</th>
+                        <th>Running Effects</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id='tblOverlayEffectsBody'></tbody>
+                  </table>
+                  <div class="tblOverlayEffectsPlaceholder">
+                    There are currently no overlay model effects running
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-
-
       </div>
     </div>
 

@@ -5878,6 +5878,81 @@ function GetRunningEffects () {
 		});
 }
 
+let SelectedOverlayModel = null;
+
+function GetRunningOverlayEffects() {
+  $.getJSON('api/overlays/running')
+    .done(function (data) {
+      const $tbody       = $('#tblOverlayEffectsBody');
+      const $table       = $('#tblOverlayEffects');
+      const $title       = $('#overlayEffectsTitle');
+      const $container   = $('#divOverlayEffects');
+
+      $tbody.empty(); // Clear old rows
+
+      // --- group effect names per model ---
+      const models = {}; // { model: [effect, …] }
+      $.each(data || [], (_, item) => {
+        const model = item?.Name;
+        const effect = item?.effect?.name;
+        if (!model) return;
+        if (!models[model]) models[model] = [];
+        if (effect && !models[model].includes(effect)) models[model].push(effect);
+      });
+
+      const anyRunning = Object.keys(models).length > 0;
+      $table.toggleClass('fppActionTable-success', anyRunning);
+	  
+      if (anyRunning) {
+        $.each(Object.keys(models).sort(), (_, model) => {
+          const effectsText = models[model].join(', ');
+          const $tr = $('<tr>');
+          if (model === SelectedOverlayModel) {
+            $tr.addClass('effectSelectedEntry');
+          }
+
+          $('<td width="5%">').text(model).appendTo($tr);
+          $('<td width="80%">').text(effectsText).appendTo($tr);
+          $('<td width="15%">')
+            .append(
+              $('<button>', {
+                class: 'buttons btn-danger stop-overlay-effects',
+                'data-model': model,
+                text: 'Stop'
+              })
+            )
+            .appendTo($tr);
+
+          $tbody.append($tr);
+        });
+
+		$container
+            .removeClass('divOverlayEffectsDisabled backdrop-disabled')
+  			.addClass('divOverlayEffectsRunning backdrop-success');
+
+      } else {
+        // Nothing running
+        $container
+            .addClass('divOverlayEffectsDisabled backdrop-disabled')
+  			.removeClass('divOverlayEffectsRunning backdrop-success');
+      }
+
+      setTimeout(GetRunningOverlayEffects, 1000);
+    })
+
+    .fail(function () {
+      $('#tblOverlayEffectsBody').empty();
+      $('#tblOverlayEffects').removeClass('fppActionTable-success');
+      $('#overlayEffectsTitle').removeClass('text-success');
+
+      $('#divOverlayEffects')
+        .removeClass('divOverlayEffectsRunning backdrop-success')
+        .addClass('divOverlayEffectsDisabled backdrop-disabled');
+
+      setTimeout(GetRunningOverlayEffects, 1000);
+    });
+}
+
 function Reboot () {
 	DoModalDialog({
 		id: 'RebootModal',
