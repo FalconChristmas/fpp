@@ -5,11 +5,19 @@
     $panelCapes = array();
     $panelCapes = readPanelCapes($mediaDirectory . "/tmp/panels/", $panelCapes);
     $panelCapesHaveSel4 = false;
+    $panelCapesDriver = "";
+    $panelCapesName = "";
     if (count($panelCapes) == 1) {
         echo "var KNOWN_PANEL_CAPE = " . $panelCapes[0] . ";";
         $panelCapes[0] = json_decode($panelCapes[0], true);
         if (isset($panelCapes[0]["controls"]["sel4"])) {
             $panelCapesHaveSel4 = true;
+        }
+        if (isset($panelCapes[0]["driver"])) {
+            $panelCapesDriver = $panelCapes[0]["driver"];
+        }
+        if (isset($panelCapes[0]["name"])) {
+            $panelCapesName = $panelCapes[0]["name"];
         }
     } else {
         echo "// NO KNOWN_PANEL_CAPE";
@@ -358,6 +366,30 @@
         return html;
     }
 
+    function RowAddressTypeChanged(panelMatrixID) {
+
+        <? if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
+            var value = parseInt($('#panelMatrix${panelMatrixID} .LEDPanelRowAddressType').val());
+            if (value >= 50) {
+                $('#panelMatrix${panelMatrixID} .LEDPanelsColorDepth').hide();
+                $('#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel').hide();
+
+                $('#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow').hide();
+                $('#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow').prop('checked', false);
+                $('#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel').hide();
+
+            } else {
+                $('#panelMatrix${panelMatrixID} .LEDPanelsColorDepth').show();
+                $('#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel').show();
+
+                $('#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow').show();
+                $('#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel').show();
+            }
+            outputByRowClicked();
+        <? } ?>
+    }
+
+
     function UpdateLegacyLEDPanelLayout(panelMatrixID) {
         let mp = channelOutputsLookup.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
         if (!mp) {
@@ -583,6 +615,7 @@
 
             PanelSubtypeChanged(panelMatrixID);
             UpdateLegacyLEDPanelLayout(panelMatrixID);
+            RowAddressTypeChanged(panelMatrixID);
             if (mp?.LEDPanelUIAdvancedLayout) {
                 ToggleAdvancedLayout(panelMatrixID);
             }
@@ -615,10 +648,15 @@
         config.LEDPanelUIAdvancedLayout = matrixDiv.find('.LEDPanelUIAdvancedLayout').is(':checked');
         config.LEDPanelUIFrontView = matrixDiv.find('.LEDPanelUIFrontView').is(':checked');
         <?
-        if ($settings['BeaglePlatform']) {
+        if ($panelCapesDriver != "") {
+            echo "config.subType = '" . $panelCapesDriver . "';\n";
+        } else if ($settings['BeaglePlatform']) {
             echo "config.subType = 'LEDscapeMatrix';\n";
         } else {
             echo "config.subType = 'RGBMatrix';\n";
+        }
+        if ($panelCapesName != "") {
+            echo "config.configName = '" . $panelCapesName . "';\n";
         }
         ?>
 
@@ -677,6 +715,7 @@
         if (mp.LEDPanelAddressing) {
             config.panelAddressing = mp.LEDPanelAddressing;
         }
+
         if (matrixDiv.find('.LEDPanelsRowAddressType').val() != "0") {
             config.panelRowAddressType = parseInt(matrixDiv.find('.LEDPanelsRowAddressType').val());
         }
@@ -754,6 +793,7 @@
     <?
     function PopulateEthernetInterfaces()
     {
+        global $SUDO;
         $interfaces = network_list_interfaces_array();
         foreach ($interfaces as $iface) {
             $iface = preg_replace("/:$/", "", $iface);
@@ -763,7 +803,7 @@
                 echo " selected";
             }
 
-            $ifaceSpeed = (int) file_get_contents("/sys/class/net/$iface/speed");
+            $ifaceSpeed = (int) exec("$SUDO ethtool $iface | grep -i 'baset' | grep -Eo '[0-9]{1,4}' | sort | tail -1");
             echo ">" . $iface . " (" . $ifaceSpeed . "Mbps)</option>";
         }
     }
@@ -779,9 +819,7 @@
             if (($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "ColorLight5a75") || ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix")) {
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsGPIOSlowdownLabel`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsGPIOSlowdown`).hide();
-                $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightness`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepth`).hide();
-                $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightnessLabel`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsWiringPinoutLabel`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsWiringPinout`).hide();
@@ -793,13 +831,18 @@
                 if ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix") {
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionInterface`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).hide();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightness`).hide();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightnessLabel`).hide();
+
                 } else {
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionInterface`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).show();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightness`).show();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightnessLabel`).show();
                 }
 
                 <?
-                //NEEDS FIXING FOR MULTI MATRIX
+
                 if ($settings['BeaglePlatform']) { ?>
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressTypeLabel`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressType`).hide();
@@ -835,7 +878,7 @@
 
                 <? //NEEDS FIX
                 if ($settings['BeaglePlatform']) { ?>
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelsInterleaveLabel`).show();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).show();
@@ -866,7 +909,7 @@
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressType`).show();
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsTypeLabel`).show();
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsType`).show();
-                        $(`#panelMatrix${panelMatrixID} .LEDPanelsInterleaveLabel`).show();
+                        $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).show();
                         $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).show();
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputCPUPWMLabel`).show();
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputCPUPWM`).show();
@@ -1384,13 +1427,22 @@
         <? if ($settings['BeaglePlatform']) { ?>
             html += "<option value='32x16x8'>32x16 1/8 Scan</option>"
             html += "<option value='32x16x4'>32x16 1/4 Scan</option>"
-            html += "<option value='32x16x4x1'>32x16 1/4 Scan ABCD</option>"
-            html += "<option value='32x16x2'>32x16 1/2 Scan A</option>"
-            html += "<option value='32x16x2x1'>32x16 1/2 Scan AB</option>"
+            <? if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
+                html += "<option value='32x16x2'>32x16 1/2 Scan</option>"
+            <? } else { ?>
+                html += "<option value='32x16x4x1'>32x16 1/4 Scan ABCD</option>"
+                html += "<option value='32x16x2'>32x16 1/2 Scan A</option>"
+                html += "<option value='32x16x2x1'>32x16 1/2 Scan AB</option>"
+            <? } ?>
             html += "<option value='32x32x16'>32x32 1/16 Scan</option>"
+            html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
             html += "<option value='64x32x16'>64x32 1/16 Scan</option>"
+            html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
+            html += "<option value='64x64x16'>64x64 1/16 Scan</option>"
             <? if ($panelCapesHaveSel4) { ?>
                 html += "<option value='64x64x32'>64x64 1/32 Scan</option>"
+                html += "<option value='128x64x16'>128x64 1/16 Scan</option>"
+                html += "<option value='128x64x32'>128x64 1/32 Scan</option>"
             <? } ?>
             html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
             html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
@@ -1459,13 +1511,24 @@
         var val = $("#PanelTestPatternButton").val();
         if (val == "Test Pattern") {
             var outputType = $('#LEDPanelsConnection').val();
-            if (outputType == "ColorLight5a75") {
-                outputType = "ColorLight Panels";
-            } else if (outputType == "RGBMatrix") {
-                outputType = "Pi Panels";
-            } else if (outputType == "BBBMatrix" || outputType == "LEDscapeMatrix") {
-                outputType = "BBB Panels";
+            <?
+            if ($panelCapesDriver == "BBShiftPanel") {
+                echo "outputType = 'BB64 Panels';";
+            } else {
+                ?>
+                if (outputType == "ColorLight5a75") {
+                    outputType = "ColorLight Panels";
+                } else if (outputType == "RGBMatrix") {
+                    outputType = "Pi Panels";
+                } else if (outputType == "BBBMatrix" || outputType == "LEDscapeMatrix") {
+                    outputType = "BBB Panels";
+                }
+                <?
             }
+            ?>
+
+
+
             $("#PanelTestPatternButton").val("Stop Pattern");
             var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["1000","Output Specific","' + outputType + '","1"]}';
             $.post("api/command", data
@@ -1724,13 +1787,11 @@
         <?
         if (
             (isset($settings['cape-info'])) &&
-            ((in_array('all', $settings['cape-info']["provides"])) ||
-                (in_array('panels', $settings['cape-info']["provides"])))
+            ((in_array('panels', $currentCapeInfo["provides"])))
         ) {
             ?>
             if (currentCapeName != "" && currentCapeName != "Unknown") {
                 $('.capeNamePanels').html(currentCapeName);
-                $('.capeTypeLabel').html("Cape Config");
             }
 
             <?
@@ -1846,7 +1907,7 @@
                                     ?>
                                     <option value='RGBMatrix'>Hat/Cap/Cape</option>
                                     <?
-                                } else if ($settings['Platform'] == "BeagleBone Black") { ?>
+                                } else if ($settings['BeaglePlatform']) { ?>
                                         <option value='LEDscapeMatrix'>Hat/Cap/Cape</option>
                                 <? } ?>
                                 <?
@@ -1879,11 +1940,14 @@
                             <? } else if ($settings['BeaglePlatform']) {
                                 if (strpos($settings['SubPlatform'], 'Green Wireless') !== false) { ?>
                                         <option value='v2'>v2.x</option>
-                                <? } else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) { ?>
+                                <? } else if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
                                             <option value='PocketScroller1x'>PocketScroller</option>
+                                            <option value='PocketScroller3x'>PocketScroller v3</option>
+                                <? } else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) { ?>
+                                                <option value='PocketScroller1x'>PocketScroller</option>
                                 <? } else { ?>
-                                            <option value='v1'>Standard v1.x</option>
-                                            <option value='v2'>v2.x</option>
+                                                <option value='v1'>Standard v1.x</option>
+                                                <option value='v2'>v2.x</option>
                                 <? } ?>
                                 <?
                             } ?>
@@ -1982,7 +2046,7 @@
                             <select class='LEDPanelsBrightness'>
                                 <?
                                 if ($settings['Platform'] == "Raspberry Pi") {
-                                    for ($x = 100; $x >= 10; $x -= 5) {
+                                    for ($x = 100; $x >= 5; $x -= 5) {
                                         echo "<option value='$x'>$x%</option>\n";
                                     }
 
@@ -2075,9 +2139,25 @@
                                     <option value='4'>ABC Shift + DE Direct</option>
                                 </select>
                             </div>
+                        <? } else if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
+                                <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                        id='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
+                                <div class="printSettingFieldCol col-md-3 col-lg-3">
+                                    <select id='LEDPanelRowAddressType' onchange="RowAddressTypeChanged();>
+                            <option value='0' selected>Standard</option>
+                            <option value='1'>Direct Row Select</option>
+                            <?
+                            if ($panelCapesDriver == "BBShiftPanel") {
+                                //echo "<option value='50'>FM6353C</option>";
+                                echo "<option value='51'>FM6363C</option>";
+                            }
+                            ?> 
+                        </select>
+                    </div>
                         <? } else { ?>
-                            <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
-                            <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
+                            <div class=" printSettingLabelCol col-md-2 col-lg-2">
+                                </div>
+                                <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
                         <? } ?>
                     </div>
 
