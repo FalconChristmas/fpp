@@ -1708,7 +1708,7 @@
 
     }
 
-    function populatePanelMatrixTab(panelMatrixID = 1) {
+    function populatePanelMatrixTab(panelMatrixID) {
         return new Promise((resolve) => {
             //copy from template
             document.querySelector(`#panelMatrix${panelMatrixID}`).innerHTML = document.querySelector('#divLEDPanelsTemplate').innerHTML;
@@ -1756,7 +1756,7 @@
         <?
         //Discover currently configured panel matrices and populate a tab and initialize each        
         for ($z = 0; $z < count($matricesArray); $z++) {
-            $panelMatrixID = $matricesArray[$z]["panelMatrixID"];
+            $panelMatrixID = $matricesArray[$z]["panelMatrixID"] ?? 1;
             //set whether the tabs are displayed
             echo "$('#matrixPanelTab$panelMatrixID').show();\n";
             //populate the tab
@@ -1773,16 +1773,6 @@
 
         ?>
 
-        /*         panelMatrixID = GetCurrentActiveMatrixPanelID();
-        
-                if ($(`#panelMatrix${panelMatrixID}.LEDPanelUIAdvancedLayout`).is(":checked")) {
-                    InitializeCanvas(panelMatrixID, 0);
-                    //InitializeCanvas(1, 0);
-                    $(`#panelMatrix${panelMatrixID}.ledPanelSimpleUI`).hide();
-                    $(`#panelMatrix${panelMatrixID}.ledPanelCanvasUI`).show();s
-                } else {
-                    $(`#panelMatrix${panelMatrixID}.ledPanelCanvasUI`).hide();
-                } */
 
         <?
         if (
