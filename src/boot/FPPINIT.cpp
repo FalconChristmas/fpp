@@ -174,6 +174,7 @@ static void checkHostName() {
         std::string CID = execAndReturn("/usr/bin/head -1 /proc/1/cgroup | sed -e \"s/.*docker-//\" | cut -c1-12");
         hn = execAndReturn("/usr/bin/hostname");
         TrimWhiteSpace(hn);
+        TrimWhiteSpace(CID);
         setRawSetting("HostName", hn);
         setRawSetting("HostDescription", "Docker ID: " + CID);
     } else {
