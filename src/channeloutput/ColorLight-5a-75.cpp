@@ -183,6 +183,38 @@
 #include "overlays/PixelOverlay.h"
 
 #include "Plugin.h"
+
+
+#ifdef PLATFORM_OSX
+int bindBPFSocket(const std::string iface) {
+    char buf[11] = { 0 };
+    int i = 0;
+    int m_fd = -1;
+    for (int i = 0; i < 255; i++) {
+        snprintf(buf, sizeof(buf), "/dev/bpf%i", i);
+        m_fd = open(buf, O_RDWR);
+        if (m_fd != -1) {
+            break;
+        }
+    }
+    if (m_fd == -1) {
+        LogErr(VB_CHANNELOUT, "Error opening bpf file: %s\n", strerror(errno));
+        return -1;
+    }
+
+    struct ifreq bound_if;
+    memset(&bound_if, 0, sizeof(bound_if));
+    strcpy(bound_if.ifr_name, iface.c_str());
+    if (ioctl(m_fd, BIOCSETIF, &bound_if) > 0) {
+        LogErr(VB_CHANNELOUT, "Cannot bind bpf device to physical device %s, exiting\n", iface.c_str());
+    }
+    int yes = 1;
+    ioctl(m_fd, BIOCSHDRCMPLT, &yes);
+    return m_fd;
+}
+#endif
+
+
 class ColorLight5a75Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
     ColorLight5a75Plugin() :
@@ -464,28 +496,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     }
 
 #else
-    char buf[11] = { 0 };
-    int i = 0;
-    for (int i = 0; i < 255; i++) {
-        snprintf(buf, sizeof(buf), "/dev/bpf%i", i);
-        m_fd = open(buf, O_RDWR);
-        if (m_fd != -1) {
-            break;
-        }
-    }
-    if (m_fd == -1) {
-        LogErr(VB_CHANNELOUT, "Error opening bpf file: %s\n", strerror(errno));
-        return 0;
-    }
-
-    struct ifreq bound_if;
-    memset(&bound_if, 0, sizeof(bound_if));
-    strcpy(bound_if.ifr_name, m_ifName.c_str());
-    if (ioctl(m_fd, BIOCSETIF, &bound_if) > 0) {
-        LogErr(VB_CHANNELOUT, "Cannot bind bpf device to physical device %s, exiting\n", m_ifName.c_str());
-    }
-    int yes = 1;
-    ioctl(m_fd, BIOCSHDRCMPLT, &yes);
+    m_fd = bindBPFSocket(m_ifName);
 #endif
 
     unsigned int byteCount = 0;
@@ -917,6 +928,7 @@ void ColorLight5a75Output::GetReceiverInfo() {
     msgs[0].msg_hdr.msg_iov = &iovecs[0];
     msgs[0].msg_hdr.msg_iovlen = 1;
 
+#ifndef PLATFORM_OSX
     // Setup socket to receive response(s)
     if ((sockfd = socket(PF_PACKET, SOCK_RAW, htons(0x0805))) == -1) {
         LogErr(VB_CHANNELOUT, "Unable to open receive socket\n");
@@ -949,6 +961,9 @@ void ColorLight5a75Output::GetReceiverInfo() {
         close(sockfd);
         return;
     }
+#else
+    sockfd = bindBPFSocket(m_ifName);
+#endif
 
     LogInfo(VB_CHANNELOUT, "Searching for ColorLight receivers\n");
 
