@@ -12,6 +12,7 @@
  */
 
 #include <algorithm>
+#include <array>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -41,6 +42,8 @@
 #define WLED_DISABLE_DMX512_UNIVERSE_SERIAL
 #define WLED_DISABLE_MODE_BLEND
 #define WLED_PS_DONT_REPLACE_FX
+
+constexpr int NUM_SAMPLES = 1024;
 
 long long GetTimeMS(void);
 long long GetTimeMicros(void);
@@ -215,6 +218,7 @@ public:
                 uint8_t custom1, uint8_t custom2, uint8_t custom3,
                 int check1, int check2, int check3,
                 const std::string& text);
+    ~WS2812FXExt();
 
     bool setEffectConfig(uint8_t m, uint8_t s, uint8_t i, uint8_t p);
     PixelOverlayModel* model = nullptr;
@@ -226,8 +230,26 @@ public:
     static void clearInstance();
     static WS2812FXExt* getInstance();
 
+    um_data_t* getAudioSamples(int simulationId);
+
 private:
     WS2812FXExt* parent = nullptr;
+
+    // Sound Reactive Stuff
+    void processSamples(std::array<float, NUM_SAMPLES>& samples, int sampleRate);
+    static constexpr int UDATA_ELEMENTS = 8;
+    um_data_t um_data;
+
+    std::array<uint8_t, 16> fftResult;
+    std::array<um_types_t, UDATA_ELEMENTS> udata_types;
+    std::array<void*, UDATA_ELEMENTS> udata_ptrs;
+    uint8_t samplePeak;
+    float FFT_MajorPeak;
+    uint8_t maxVol;
+    uint8_t binNum;
+    float volumeSmth;
+    uint16_t volumeRaw;
+    float my_magnitude;
 };
 inline WS2812FXExt& strip() {
     return *WS2812FXExt::getInstance();
