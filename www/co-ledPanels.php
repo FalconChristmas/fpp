@@ -2129,19 +2129,19 @@
                                 <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                         id='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
                                 <div class="printSettingFieldCol col-md-3 col-lg-3">
-                                    <select id='LEDPanelRowAddressType' onchange="RowAddressTypeChanged();>
-                            <option value='0' selected>Standard</option>
-                            <option value='1'>Direct Row Select</option>
-                            <?
-                            if ($panelCapesDriver == "BBShiftPanel") {
-                                //echo "<option value='50'>FM6353C</option>";
-                                echo "<option value='51'>FM6363C</option>";
-                            }
-                            ?> 
-                        </select>
-                    </div>
+                                    <select id='LEDPanelRowAddressType' onchange="RowAddressTypeChanged();">
+                                        <option value='0' selected>Standard</option>
+                                        <option value='1'>Direct Row Select</option>
+                                        <?
+                                        if ($panelCapesDriver == "BBShiftPanel") {
+                                            //echo "<option value='50'>FM6353C</option>";
+                                            echo "<option value='51'>FM6363C</option>";
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
                         <? } else { ?>
-                            <div class=" printSettingLabelCol col-md-2 col-lg-2">
+                                <div class=" printSettingLabelCol col-md-2 col-lg-2">
                                 </div>
                                 <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
                         <? } ?>
