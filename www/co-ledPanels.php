@@ -369,21 +369,21 @@
     function RowAddressTypeChanged(panelMatrixID) {
 
         <? if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
-            var value = parseInt($('#panelMatrix${panelMatrixID} .LEDPanelRowAddressType').val());
+            var value = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelRowAddressType`).val());
             if (value >= 50) {
-                $('#panelMatrix${panelMatrixID} .LEDPanelsColorDepth').hide();
-                $('#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel').hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepth`).hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel`).hide();
 
-                $('#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow').hide();
-                $('#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow').prop('checked', false);
-                $('#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel').hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).prop('checked', false);
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).hide();
 
             } else {
-                $('#panelMatrix${panelMatrixID} .LEDPanelsColorDepth').show();
-                $('#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel').show();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepth`).show();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel`).show();
 
-                $('#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow').show();
-                $('#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel').show();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).show();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).show();
             }
             outputByRowClicked();
         <? } ?>
@@ -945,7 +945,7 @@
 
     <? if ($settings['BeaglePlatform']) { ?>
         function outputByRowClicked() {
-            var checked = $('#LEDPanelsOutputByRow').is(':checked')
+            var checked = $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).is(':checked')
             if (checked != false) {
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputBlankRowLabel`).show();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputBlankRow`).show();
