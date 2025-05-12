@@ -112,6 +112,8 @@ private:
     int m_flippedLayout;
     bool m_colorlightDisable;
 
+    int m_highestFirmwareVersion;
+
     std::vector<ColorLightReceiver> m_receivers;
 
     // Display Frame
@@ -126,6 +128,4 @@ private:
     struct ifreq m_if_mac;
     struct ether_header* m_eh;
     struct sockaddr_ll m_sock_addr;
-
-    int m_highestFirmwareVersion;
 };
