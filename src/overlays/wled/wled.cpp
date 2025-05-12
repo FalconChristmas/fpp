@@ -21,9 +21,13 @@
 #include <math.h>
 #include <time.h>
 
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_audio.h>
+
 #include "wled.h"
 
 #include "kiss_fftr.h"
+#include "../../Warnings.h"
 #include "../../mediaoutput/SDLOut.h"
 
 uint8_t blendingStyle = 0; // effect blending/transitionig style
@@ -113,8 +117,6 @@ uint32_t get_millisecond_timer() {
     return GetTimeMS();
 }
 
-constexpr int NUM_SAMPLES = 1024;
-
 // RMS average
 static float fftAddAvgRMS(int from, int to, float* samples) {
     double result = 0.0;
@@ -148,129 +150,120 @@ void HammingWindow(std::array<float, NUM_SAMPLES> &samples)
 }
 */
 
-static um_data_t* processSamples(std::array<float, NUM_SAMPLES>& samples, int sampleRate) {
-    static kiss_fft_cpx fft_out[NUM_SAMPLES];
-    static kiss_fftr_cfg cfg = kiss_fftr_alloc(NUM_SAMPLES, false, 0, 0);
-
-    // GenerateSinWave(samples, sampleRate);
-    // HammingWindow(samples);
-
-    // compute fast fourier transform
-    kiss_fftr(cfg, (kiss_fft_scalar*)&samples[0], fft_out);
-
-    static uint8_t samplePeak;
-    static float FFT_MajorPeak;
-    static uint8_t maxVol;
-    static uint8_t binNum;
-    static float volumeSmth;
-    static uint16_t volumeRaw;
-    static float my_magnitude;
-    // arrays
-    static um_data_t* um_data = nullptr;
-    if (!um_data) {
-        // initialize um_data pointer structure
-        // NOTE!!!
-        // This may change as AudioReactive usermod may change
-        um_data = new um_data_t;
-        um_data->u_size = 8;
-        um_data->u_type = new um_types_t[um_data->u_size];
-        um_data->u_data = new void*[um_data->u_size];
-        um_data->u_data[0] = &volumeSmth;
-        um_data->u_data[1] = &volumeRaw;
-        um_data->u_data[2] = (uint8_t*)calloc(sizeof(uint8_t) * 16, 1);
-        um_data->u_data[3] = &samplePeak;
-        um_data->u_data[4] = &FFT_MajorPeak;
-        um_data->u_data[5] = &my_magnitude;
-        um_data->u_data[6] = &maxVol;
-        um_data->u_data[7] = &binNum;
+class WLEDAudioReactiveSoundSource {
+public:
+    WLEDAudioReactiveSoundSource() {
     }
-
-    std::array<float, 17> res;
-    for (int x = 0; x < 16; x++) {
-        res[x] = 0;
+    ~WLEDAudioReactiveSoundSource() {
+        if (audioDev > 1) {
+            SDL_PauseAudioDevice(audioDev, 1);
+            SDL_CloseAudioDevice(audioDev);
+        }
     }
-    float rate = sampleRate;
-    int curBucket = 0;
-    double freqnext = 440.0 * exp2f(((float)((1 + 1) * 8) - 69.0) / 12.0);
-    int end = freqnext * (float)NUM_SAMPLES / rate;
-    float binHzRange = rate / (float)NUM_SAMPLES;
-
-    float maxValue = 0;
-    int maxBin = 0;
-    int maxBucket = 0;
-    for (int bin = 0; bin < (NUM_SAMPLES / 2); ++bin) {
-        if (bin > end) {
-            curBucket++;
-            if (curBucket == 18) {
-                break;
+    static void InputAudioCallback(WLEDAudioReactiveSoundSource* p, uint8_t* stream, int len) {
+        int16_t* data = (int16_t*)stream;
+        int numSamples = len / sizeof(int16_t);
+        int start = 0;
+        if (numSamples > NUM_SAMPLES) {
+            numSamples = NUM_SAMPLES;
+            start = numSamples - NUM_SAMPLES;
+        }
+        p->inputSamples.fill(0);
+        for (int i = 0; i < numSamples; i++) {
+            float f = data[start + i] / 32768.0f;
+            p->inputSamples[i] = data[start + i];
+        }
+        /*
+        float sum = 0;
+        float min = 99999;
+        float max = -99999;
+        for (int i = 0; i < numSamples; i++) {
+            sum += data[i];
+            if (data[i] < min) {
+                min = data[i];
             }
-            freqnext = 440.0 * exp2f(((double)((curBucket + 1) * 8) - 69.0) / 12.0);
-            end = freqnext * (double)NUM_SAMPLES / rate;
+            if (data[i] > max) {
+                max = data[i];
+            }
         }
-        float nv = sqrtf(fft_out[bin].r * fft_out[bin].r + fft_out[bin].i * fft_out[bin].i);
-        if (nv > maxValue) {
-            maxValue = nv;
-            maxBin = bin;
-            maxBucket = curBucket;
+        printf("Samples: %d  Sum: %0.3f      %0.3f -> %0.3f\n", numSamples, sum, min, max);
+        */
+    }
+    void openAudioDevice(const std::string& dev) {
+        SDL_AudioSpec want;
+        SDL_AudioSpec obtained;
+
+        SDL_memset(&want, 0, sizeof(want));
+        SDL_memset(&obtained, 0, sizeof(obtained));
+        want.freq = 44100;
+        want.format = AUDIO_S16SYS;
+        want.channels = 1;
+        want.samples = NUM_SAMPLES;
+        want.callback = (SDL_AudioCallback)InputAudioCallback;
+        want.userdata = this;
+        SDL_Init(SDL_INIT_AUDIO);
+        SDL_ClearError();
+
+        audioDev = SDL_OpenAudioDevice(dev.c_str(), 1, &want, &obtained, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+        if (audioDev < 2) {
+            std::string err = SDL_GetError();
+            WarningHolder::AddWarning("WLED Sound Reactive - Could not open Output Audio Device: " + dev + "   Error: " + err);
+            return;
         }
-        res[curBucket] = std::max(res[curBucket], nv);
+        SDL_ClearError();
+        SDL_AudioStatus as = SDL_GetAudioDeviceStatus(audioDev);
+        if (as == SDL_AUDIO_PAUSED) {
+            SDL_PauseAudioDevice(audioDev, 0);
+        }
+        inputSampleRate = obtained.freq;
     }
 
-    uint8_t* fftResult = (uint8_t*)um_data->u_data[2];
-    float maxFreq = (maxBin * binHzRange) + (binHzRange / 2);
-    int maxIdx = maxBin;
-
-    // printf("Max: %0.5f Hz   idx: %d\n", maxFreq, maxIdx);
-    int maxV = 0;
-    float maxRV = 0;
-    for (int x = 0; x < 16; x++) {
-        int v2 = round(log10(res[x]) * 120.0);
-        if (v2 > 255) {
-            v2 = 255;
+    bool getAudioSamples(std::array<float, NUM_SAMPLES>& samples, int& sampleRate) {
+        if (sourceType == -1) {
+            std::string source = getSetting("WLEDAudioInput", "-- Playing Media --");
+            if (source == "-- Playing Media --") {
+                sourceType = 0;
+            } else {
+                sourceType = 1;
+                openAudioDevice(source);
+            }
         }
-        if (v2 < 0) {
-            v2 = 0;
+        bool retValue = false;
+        if (sourceType == 0) {
+            // Playing Media
+            retValue = SDLOutput::GetAudioSamples(&samples[0], NUM_SAMPLES, sampleRate);
+        } else if (sourceType == 1) {
+            // Audio Input
+            if (audioDev > 0) {
+                samples = inputSamples;
+                sampleRate = inputSampleRate;
+                retValue = true;
+            }
         }
-        // printf("%d:   %0.2f  %0.2f    %d\n", x, res[x], (float)log10(res[x]), v2);
-        maxV = std::max(maxV, v2);
-        maxRV = std::max(maxRV, res[x]);
-        fftResult[x] = v2;
+        /*
+            float sum = 0;
+            float min = 999;
+            float max = -999;
+            for (int i = 0; i < NUM_SAMPLES; i++) {
+                sum += inputSamples[i];
+                if (inputSamples[i] < min) {
+                    min = inputSamples[i];
+                }
+                if (inputSamples[i] > max) {
+                    max = inputSamples[i];
+                }
+            }
+            printf("ST:  %d    Sample rate:  %d    Samples: %d  Sum: %0.3f      %0.3f -> 0.3f\n", sourceType, inputSampleRate, NUM_SAMPLES, sum, min,  max);
+        */
+        return retValue;
     }
-    // printf("\n");
-    // volumeSmth = max * 127.0;
 
-    FFT_MajorPeak = maxFreq;
-    my_magnitude = maxRV;
-    maxVol = maxV;
-    binNum = maxBucket;
+    int sourceType = -1;
+    int audioDev = 0;
+    std::array<float, NUM_SAMPLES> inputSamples;
+    int inputSampleRate;
 
-    volumeSmth = maxFreq;
-    volumeRaw = volumeSmth;
-    samplePeak = random8() > 250;
-    if (volumeSmth < 1)
-        my_magnitude = 0.001f;
-
-    return um_data;
-}
-
-CRGB getCRGBForBand(int x, uint8_t* fftResult, int pal) {
-    CRGB value;
-    CHSV hsv;
-    if (pal == 71) { // bit hacky to use palette id here, but don't want to litter the code with lots of different methods. TODO: add enum for palette creation type
-        if (x == 1) {
-            value = CRGB(fftResult[10] / 2, fftResult[4] / 2, fftResult[0] / 2);
-        } else if (x == 255) {
-            value = CRGB(fftResult[10] / 2, fftResult[0] / 2, fftResult[4] / 2);
-        } else {
-            value = CRGB(fftResult[0] / 2, fftResult[4] / 2, fftResult[10] / 2);
-        }
-    } else if (pal == 72) {
-        int b = map(x, 0, 255, 0, 8);                                      // convert palette position to lower half of freq band
-        hsv = CHSV(fftResult[b], 255, map(fftResult[b], 0, 255, 30, 255)); // pick hue
-        hsv2rgb_rainbow(hsv, value);                                       // convert to R,G,B
-    }
-    return value;
-}
+} WLED_SOUND_SOURCE;
 
 WS2812FXExt::WS2812FXExt() :
     WS2812FX() {
@@ -319,10 +312,57 @@ WS2812FXExt::WS2812FXExt(PixelOverlayModel* m, int map, int b,
     _segments[0].setColor(1, c2);
     _segments[0].setColor(2, c3);
 
+    um_data.u_size = UDATA_ELEMENTS;
+    um_data.u_type = &udata_types[0];
+    um_data.u_data = &udata_ptrs[0];
+    um_data.u_data[0] = &volumeSmth; //*used (New)
+    um_data.u_type[0] = UMT_FLOAT;
+    um_data.u_data[1] = &volumeRaw; // used (New)
+    um_data.u_type[1] = UMT_UINT16;
+    um_data.u_data[2] = &fftResult[0]; //*used (Blurz, DJ Light, Noisemove, GEQ_base, 2D Funky Plank, Akemi)
+    um_data.u_type[2] = UMT_BYTE_ARR;
+    um_data.u_data[3] = &samplePeak; //*used (Puddlepeak, Ripplepeak, Waterfall)
+    um_data.u_type[3] = UMT_BYTE;
+    um_data.u_data[4] = &FFT_MajorPeak; //*used (Ripplepeak, Freqmap, Freqmatrix, Freqpixels, Freqwave, Gravfreq, Rocktaves, Waterfall)
+    um_data.u_type[4] = UMT_FLOAT;
+    um_data.u_data[5] = &my_magnitude; // used (New)
+    um_data.u_type[5] = UMT_FLOAT;
+    um_data.u_data[6] = &maxVol; // assigned in effect function from UI element!!! (Puddlepeak, Ripplepeak, Waterfall)
+    um_data.u_type[6] = UMT_BYTE;
+    um_data.u_data[7] = &binNum; // assigned in effect function from UI element!!! (Puddlepeak, Ripplepeak, Waterfall)
+    um_data.u_type[7] = UMT_BYTE;
+
+    /*
+    micDataReal = 0.0f;
+    volumeRaw = 0;
+    volumeSmth = 0;
+    sampleAgc = 0;
+    sampleAvg = 0;
+    sampleRaw = 0;
+    rawSampleAgc = 0;
+    my_magnitude = 0;
+    FFT_Magnitude = 0;
+    FFT_MajorPeak = 1;
+    multAgc = 1;
+    // reset FFT data
+    memset(fftCalc, 0, sizeof(fftCalc));
+    memset(fftAvg, 0, sizeof(fftAvg));
+    memset(fftResult, 0, sizeof(fftResult));
+    for (int i = (init ? 0 : 1); i < NUM_GEQ_CHANNELS; i += 2)
+        fftResult[i] = 16; // make a tiny pattern
+    inputLevel = 128;
+      autoResetPeak();
+    */
+
     panel.push_back(p);
     pushCurrent(this);
     finalizeInit();
     popCurrent();
+}
+
+WS2812FXExt::~WS2812FXExt() {
+    um_data.u_type = nullptr;
+    um_data.u_data = nullptr;
 }
 
 thread_local WS2812FXExt* currentStrip = nullptr;
@@ -417,4 +457,177 @@ void Bus::setPixelColor(int i, uint32_t c) {
 
 bool UsermodManager::getUMData(um_data_t** um_data, uint8_t mod_id) {
     return false;
+}
+CRGB getCRGBForBand(int x, uint8_t* fftResult, int pal) {
+    CRGB value;
+    CHSV hsv;
+    if (pal == 71) { // bit hacky to use palette id here, but don't want to litter the code with lots of different methods. TODO: add enum for palette creation type
+        if (x == 1) {
+            value = CRGB(fftResult[10] / 2, fftResult[4] / 2, fftResult[0] / 2);
+        } else if (x == 255) {
+            value = CRGB(fftResult[10] / 2, fftResult[0] / 2, fftResult[4] / 2);
+        } else {
+            value = CRGB(fftResult[0] / 2, fftResult[4] / 2, fftResult[10] / 2);
+        }
+    } else if (pal == 72) {
+        int b = map(x, 0, 255, 0, 8);                                      // convert palette position to lower half of freq band
+        hsv = CHSV(fftResult[b], 255, map(fftResult[b], 0, 255, 30, 255)); // pick hue
+        hsv2rgb_rainbow(hsv, value);                                       // convert to R,G,B
+    }
+    return value;
+}
+void WS2812FXExt::processSamples(std::array<float, NUM_SAMPLES>& samples, int sampleRate) {
+    kiss_fft_cpx fft_out[NUM_SAMPLES];
+    static kiss_fftr_cfg cfg = kiss_fftr_alloc(NUM_SAMPLES, false, 0, 0);
+
+    // GenerateSinWave(samples, sampleRate);
+    // HammingWindow(samples);
+
+    // compute fast fourier transform
+    kiss_fftr(cfg, (kiss_fft_scalar*)&samples[0], fft_out);
+
+    // arrays
+
+    std::array<float, 17> res;
+    for (int x = 0; x < 16; x++) {
+        res[x] = 0;
+    }
+    float rate = sampleRate;
+    int curBucket = 0;
+    double freqnext = 440.0 * exp2f(((float)((1 + 1) * 8) - 69.0) / 12.0);
+    int end = freqnext * (float)NUM_SAMPLES / rate;
+    float binHzRange = rate / (float)NUM_SAMPLES;
+
+    float maxValue = 0;
+    int maxBin = 0;
+    int maxBucket = 0;
+    for (int bin = 0; bin < (NUM_SAMPLES / 2); ++bin) {
+        if (bin > end) {
+            curBucket++;
+            if (curBucket == 18) {
+                break;
+            }
+            freqnext = 440.0 * exp2f(((double)((curBucket + 1) * 8) - 69.0) / 12.0);
+            end = freqnext * (double)NUM_SAMPLES / rate;
+        }
+        float nv = sqrtf(fft_out[bin].r * fft_out[bin].r + fft_out[bin].i * fft_out[bin].i);
+        if (nv > maxValue) {
+            maxValue = nv;
+            maxBin = bin;
+            maxBucket = curBucket;
+        }
+        res[curBucket] = std::max(res[curBucket], nv);
+    }
+
+    uint8_t* fftResult = (uint8_t*)um_data.u_data[2];
+    float maxFreq = (maxBin * binHzRange) + (binHzRange / 2);
+    int maxIdx = maxBin;
+
+    // printf("Max: %0.5f Hz   idx: %d\n", maxFreq, maxIdx);
+    int maxV = 0;
+    float maxRV = 0;
+    for (int x = 0; x < 16; x++) {
+        int v2 = round(log10(res[x]) * 120.0);
+        if (v2 > 255) {
+            v2 = 255;
+        }
+        if (v2 < 0) {
+            v2 = 0;
+        }
+        // printf("%d:   %0.2f  %0.2f    %d\n", x, res[x], (float)log10(res[x]), v2);
+        maxV = std::max(maxV, v2);
+        maxRV = std::max(maxRV, res[x]);
+        fftResult[x] = v2;
+    }
+    // printf("\n");
+    // volumeSmth = max * 127.0;
+
+    FFT_MajorPeak = maxFreq;
+    my_magnitude = maxRV;
+    maxVol = maxV;
+    binNum = maxBucket;
+
+    volumeSmth = maxFreq;
+    volumeRaw = volumeSmth;
+    samplePeak = random8() > 250;
+    if (volumeSmth < 1)
+        my_magnitude = 0.001f;
+}
+// Currently 4 types defined, to be fine tuned and new types added
+typedef enum UM_SoundSimulations {
+    UMS_BeatSin = 0,
+    UMS_WeWillRockYou,
+    UMS_10_13,
+    UMS_14_3
+} um_soundSimulations_t;
+um_data_t* WS2812FXExt::getAudioSamples(int simulationId) {
+    std::array<float, NUM_SAMPLES> samples;
+    int sampleRate = 0;
+    if (WLED_SOUND_SOURCE.getAudioSamples(samples, sampleRate)) {
+        processSamples(samples, sampleRate);
+    } else {
+        // arrays
+        auto ms = GetTimeMS();
+
+        switch (simulationId) {
+        default:
+        case UMS_BeatSin:
+            for (int i = 0; i < 16; i++)
+                fftResult[i] = beatsin8_t(120 / (i + 1), 0, 255);
+            // fftResult[i] = (beatsin8_t(120, 0, 255) + (256/16 * i)) % 256;
+            volumeSmth = fftResult[8];
+            break;
+        case UMS_WeWillRockYou:
+            if (ms % 2000 < 200) {
+                volumeSmth = hw_random8();
+                for (int i = 0; i < 5; i++)
+                    fftResult[i] = hw_random8();
+            } else if (ms % 2000 < 400) {
+                volumeSmth = 0;
+                for (int i = 0; i < 16; i++)
+                    fftResult[i] = 0;
+            } else if (ms % 2000 < 600) {
+                volumeSmth = hw_random8();
+                for (int i = 5; i < 11; i++)
+                    fftResult[i] = hw_random8();
+            } else if (ms % 2000 < 800) {
+                volumeSmth = 0;
+                for (int i = 0; i < 16; i++)
+                    fftResult[i] = 0;
+            } else if (ms % 2000 < 1000) {
+                volumeSmth = hw_random8();
+                for (int i = 11; i < 16; i++)
+                    fftResult[i] = hw_random8();
+            } else {
+                volumeSmth = 0;
+                for (int i = 0; i < 16; i++)
+                    fftResult[i] = 0;
+            }
+            break;
+        case UMS_10_13:
+            for (int i = 0; i < 16; i++)
+                fftResult[i] = perlin8(beatsin8_t(90 / (i + 1), 0, 200) * 15 + (ms >> 10), ms >> 3);
+            volumeSmth = fftResult[8];
+            break;
+        case UMS_14_3:
+            for (int i = 0; i < 16; i++)
+                fftResult[i] = perlin8(beatsin8_t(120 / (i + 1), 10, 30) * 10 + (ms >> 14), ms >> 3);
+            volumeSmth = fftResult[8];
+            break;
+        }
+
+        samplePeak = hw_random8() > 250;
+        FFT_MajorPeak = 21 + (volumeSmth * volumeSmth) / 8.0f; // walk thru full range of 21hz...8200hz
+        maxVol = 31;                                           // this gets feedback fro UI
+        binNum = 8;                                            // this gets feedback fro UI
+        volumeRaw = volumeSmth;
+        my_magnitude = 10000.0f / 8.0f; // no idea if 10000 is a good value for FFT_Magnitude ???
+        if (volumeSmth < 1)
+            my_magnitude = 0.001f; // noise gate closed - mute
+    }
+    return &um_data;
+}
+
+um_data_t* simulateSound(uint8_t simulationId) {
+    return strip().getAudioSamples(simulationId);
 }

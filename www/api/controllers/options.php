@@ -147,11 +147,21 @@ function GetOptions_AudioOutputDevice($fulllist = false)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-function GetOptions_AudioInputDevice($fulllist = false)
+function GetOptions_AudioInputDevice($fulllist = false, $allowMedia = false)
 {
+
     global $SUDO;
 
     $AlsaCards = array();
+    if ($allowMedia) {
+        if ($fulllist) {
+            $AlsaCards[] = '-- Playing Media --';
+        } else {
+            $AlsaCards[] = '-- Playing Media --';
+            $AlsaCards['-- Playing Media --'] = '-- Playing Media --';
+        }
+    }
+
     if ($fulllist) {
         exec($SUDO . " arecord -l | grep '^card' | sed -e 's/^card //' -e 's/.*\[\(.*\)\].*\[\(.*\)\]/\\1, \\2/'", $output, $return_val);
     } else {
@@ -315,6 +325,8 @@ function GetOptions()
             return GetOptions_AudioOutputDevice(true);
         case 'AudioInputList':
             return GetOptions_AudioInputDevice(true);
+        case 'AudioInputListAllowMedia':
+            return GetOptions_AudioInputDevice(true, true);
         case 'FrameBuffer':
             return GetOptions_FrameBuffer();
         case 'BBBLeds':

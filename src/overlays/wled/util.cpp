@@ -411,6 +411,7 @@ uint8_t beatsin8_t(accum88 beats_per_minute, uint8_t lowest, uint8_t highest, ui
     return result;
 }
 
+#ifndef WLED_DISABLE_FPP
 ///////////////////////////////////////////////////////////////////////////////
 // Begin simulateSound (to enable audio enhanced effects to display something)
 ///////////////////////////////////////////////////////////////////////////////
@@ -527,6 +528,7 @@ um_data_t* simulateSound(uint8_t simulationId)
 
   return um_data;
 }
+#endif
 
 static const char s_ledmap_tmpl[] PROGMEM = "ledmap%d.json";
 // enumerate all ledmapX.json files on FS and extract ledmap names if existing
