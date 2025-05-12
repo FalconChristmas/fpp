@@ -1,5 +1,7 @@
 <?php
 
+require_once "common.php";
+
 setlocale(LC_CTYPE, "en_US.UTF-8");
 
 $SUDO = "sudo";
@@ -37,7 +39,9 @@ if (file_exists(__DIR__ . "/fppversion.php")) {
 // Allow overrides that we'll ignore from the git repository to make it
 // easier to develop on machines configured differently than our current
 // Pi image.
-@include '.config.php';
+if (file_exists('.config.php')) {
+    @include '.config.php';
+}
 
 // Settings array so we can stop making individual variables for each new setting
 $settings = array();
@@ -417,7 +421,9 @@ if ($fd) {
         $key = trim($split[0]);
         $value = trim($split[1]);
 
-        $value = preg_replace("/\"/", "", $value);
+        if (!json_object_validate($value)) {
+            $value = preg_replace("/\"/", "", $value);
+        }
 
         if ($key != "") {
             // If we have a Directory setting that doesn't
@@ -566,7 +572,7 @@ $settings['emailtoemail'] = $emailtoemail;
 $settings['outputProcessorsFile'] = $outputProcessorsFile;
 
 /*
- * Load setting info and default values from settings.json
+ * Load setting info and default values from www/settings.json
  */
 LoadSettingInfos();
 
@@ -770,7 +776,7 @@ if (!isset($skipJSsettings)) {
 
             //Print Out settings which haven't been defined at all in www/settings.json
             if (!isset($settingInfos[$key])) {
-                //Print out settings that need to be exposed to the browser in JS settings array - this is temporary until all settings properly define in json file
+                //Print out settings that need to be exposed to the browser in JS settings array - this is temporary until all settings properly defined in json file
                 if (!is_array($value)) {
                     printf("	settings['%s'] = \"%s\"; // Needs proper defintion in JSON\n", $key, $value);
                 } else {

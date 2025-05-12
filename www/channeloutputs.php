@@ -15,8 +15,8 @@
     include 'common/menuHead.inc';
 
     //$settings['Platform'] = "Raspberry Pi"; // Uncomment for testing
-//$settings['Platform'] = "BeagleBone Black"; // Uncomment for testing
-//$settings['SubPlatform'] = "BeagleBone Black"; // Uncomment for testing
+    //$settings['Platform'] = "BeagleBone Black"; // Uncomment for testing
+    //$settings['SubPlatform'] = "BeagleBone Black"; // Uncomment for testing
     ?>
     <script>
         var currentCapeName = '';
@@ -161,21 +161,33 @@
         function UpdateChannelOutputLookup() {
             var i = 0;
             for (i = 0; i < channelOutputs.channelOutputs.length; i++) {
-                channelOutputsLookup[channelOutputs.channelOutputs[i].type + "-Enabled"] = channelOutputs.channelOutputs[i].enabled;
+                //channelOutputsLookup[channelOutputs.channelOutputs[i].type + "-Enabled"] = channelOutputs.channelOutputs[i].enabled;
                 if (channelOutputs.channelOutputs[i].type == "LEDPanelMatrix") {
-                    channelOutputsLookup["LEDPanelMatrix"] = channelOutputs.channelOutputs[i];
+                    if (!channelOutputsLookup.hasOwnProperty("LEDPanelMatrices")) { channelOutputsLookup["LEDPanelMatrices"] = []; }
+                    if (typeof channelOutputs.channelOutputs[i].panelMatrixID !== 'undefined') {
+                        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID] = channelOutputs.channelOutputs[i];
 
-                    var p = 0;
-                    for (p = 0; p < channelOutputs.channelOutputs[i].panels.length; p++) {
-                        var r = channelOutputs.channelOutputs[i].panels[p].row;
-                        var c = channelOutputs.channelOutputs[i].panels[p].col;
+                        if (!channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID].hasOwnProperty("LEDPanelUIFrontView")) {
+                            channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelUIFrontView"] = false;
+                        }
 
-                        channelOutputsLookup["LEDPanelOutputNumber_" + r + "_" + c]
-                            = channelOutputs.channelOutputs[i].panels[p];
-                        channelOutputsLookup["LEDPanelPanelNumber_" + r + "_" + c]
-                            = channelOutputs.channelOutputs[i].panels[p];
-                        channelOutputsLookup["LEDPanelColorOrder_" + r + "_" + c]
-                            = channelOutputs.channelOutputs[i].panels[p];
+                        if (typeof SetDefaultsInChannelOutputsLookup === 'function') {
+                            SetDefaultsInChannelOutputsLookup();
+                        }
+
+
+                        var p = 0;
+                        for (p = 0; p < channelOutputs.channelOutputs[i].panels.length; p++) {
+                            var r = channelOutputs.channelOutputs[i].panels[p].row;
+                            var c = channelOutputs.channelOutputs[i].panels[p].col;
+
+                            channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelOutputNumber_" + r + "_" + c]
+                                = channelOutputs.channelOutputs[i].panels[p];
+                            channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelPanelNumber_" + r + "_" + c]
+                                = channelOutputs.channelOutputs[i].panels[p];
+                            channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelColorOrder_" + r + "_" + c]
+                                = channelOutputs.channelOutputs[i].panels[p];
+                        }
                     }
                 }
             }
@@ -186,17 +198,24 @@
 
             config.channelOutputs = [];
 
-            var lpc = GetLEDPanelConfig();
-            config.channelOutputs.push(lpc);
-
+            //loop round the displayed tabs and gather up their configs
+            for ($i = 0; $i < $('.tab-content .divPanelMatrixID').length; $i++) {
+                var panelMatrixID = $('.tab-content .divPanelMatrixID')[$i].innerText;
+                if (parseInt(panelMatrixID) > 0) {
+                    var lpc = GetLEDPanelConfigFromUI(panelMatrixID);
+                    config.channelOutputs.push(lpc);
+                }
+            }
             channelOutputs = config;
             UpdateChannelOutputLookup();
             var result = JSON.stringify(config);
+            //result = result.replace("'", "");
             return result;
         }
 
         function SaveChannelOutputsJSON() {
             var configStr = GetChannelOutputConfig();
+            configStr = configStr.replace("'", "");
             $.post("api/configfile/channeloutputs.json",
                 configStr
             ).done(function (data) {
@@ -239,9 +258,10 @@
 
         // If led panels are enabled, make sure the page is displayed even if the cape is a string cape (could be a colorlight output)
         if ($channelOutputs != null && $channelOutputs['channelOutputs'] != null && $channelOutputs['channelOutputs'][0] != null) {
-            if ($channelOutputs['channelOutputs'][0]['type'] == "LEDPanelMatrix" && $channelOutputs['channelOutputs'][0]['enabled'] == 1) {
-                $currentCapeInfo["provides"][] = 'panels';
-            }
+            foreach ($channelOutputs['channelOutputs'] as $i)
+                if ($i['type'] == "LEDPanelMatrix" && $i['enabled'] == 1) {
+                    $currentCapeInfo["provides"][] = 'panels';
+                }
         }
 
         ?>
@@ -265,6 +285,7 @@
                 channelOutputs.channelOutputs = [];
 
             UpdateChannelOutputLookup();
+            SetDefaultsInChannelOutputsLookup();
 
         }
 
@@ -396,7 +417,7 @@
                             <?
                         }
 
-                        $ledTabText = "LED Panels";
+                        $ledTabText = "LED Panel Matrices";
                         if (
                             ((in_array('all', $currentCapeInfo["provides"])) || (in_array('panels', $currentCapeInfo["provides"]))) &&
                             (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")

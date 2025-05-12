@@ -165,3 +165,31 @@ function GetTime()
     $result['time'] = exec('date');
     return json($result);
 }
+
+function UpdateJSONValueSetting()
+{
+    global $SUDO;
+    $new_json_sub_value = file_get_contents('php://input');
+    $new_json_sub_value = trim($new_json_sub_value, " \t\n\r\0\x0B\"");
+    $new_json_sub_value = str_replace("\\", "", $new_json_sub_value);
+    $settingName = params('SettingName');
+
+    $orig_json_value = ReadSettingFromFile($settingName);
+
+    if (json_object_validate($orig_json_value) && json_object_validate($new_json_sub_value)) {
+
+        $OriginArrayData = json_decode($orig_json_value, true);
+
+        $replacementDataArray = json_decode($new_json_sub_value, true);
+
+        $newArrayData = array_replace_recursive($OriginArrayData, $replacementDataArray);
+        $new_json_value = json_encode($newArrayData);
+
+        WriteSettingToFile($settingName, $new_json_value);
+
+        $status = array("status" => "OK");
+    } else {
+        $status = array("status" => "Error updating JSON value");
+    }
+    return json($status);
+}

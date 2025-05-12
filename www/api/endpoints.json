@@ -2548,6 +2548,18 @@
             }
         },
         {
+            "endpoint": "settings/:SettingName/jsonValueUpdate",
+            "methods": {
+                "PUT": {
+                    "desc": "Used to update a sub value held as json within the setting value. Only valid for settings held as json",
+                    "input": "raw json of hierarchy to update",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "statistics/usage",
             "methods": {
                 "GET": {

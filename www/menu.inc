@@ -83,13 +83,18 @@ function list_plugin_entries($menu)
                 ?>
             </a>
             <a href='about.php' class='nonULLink headerLink versionHead'><?php echo $fpp_head_version; ?></a>
+            <div class="nav-item" id="navbarUpdateAvail">
+                <a class="nav-link" href="about.php" role="button">
+                    <i class="fa-solid fa-download" id="navbarUpdateAvailIcon"></i>
+                </a>
+            </div>
         </div>
 
     </div>
     <div class="headerCenter">
         <div class="headerCenterRow headerHost">
             <?
-             if (isset($settings['HostDescription']) && $settings['HostDescription'] != "") {
+            if (isset($settings['HostDescription']) && $settings['HostDescription'] != "") {
                 echo ("<span class=\"headerHostName headerBox\" id=\"header_host\" data-bs-placement=\"bottom\" data-bs-title=\"" . $settings['HostDescription'] . "\" data-bs-toggle=\"tooltip\"><a href='index.php' class='nonULLink'>" . $settings['HostName'] . "</a></span>");
             } else {
                 echo ("<span class=\"headerHostName headerBox\" id=\"header_host\" ><a href='index.php' class='nonULLink'>" . $settings['HostName'] . "</a></span>");
@@ -252,7 +257,7 @@ function list_plugin_entries($menu)
             <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
                     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-                                                                                                                                                                            </textarea>
+                                                                                                                                                                                        </textarea>
                 </div>
                 <script>
                     function RebuildFPPDDone() {
@@ -295,11 +300,6 @@ function list_plugin_entries($menu)
                 </div>
                 <div class="collapse navbar-collapse" id="navbarNavDropdown">
                     <ul id="fppMenuList" class="navbar-nav">
-                        <li class="nav-item" id="navbarUpdateAvail">
-                            <a class="nav-link" href="about.php" role="button">
-                                <i class="fa-solid fa-download" id="navbarUpdateAvailIcon"></i>
-                            </a>
-                        </li>
 
                         <li class="nav-item dropdown <? echo $activeParentMenuItem == 'status' ? 'active' : ''; ?>">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkStatus" role="button"
@@ -362,9 +362,9 @@ function list_plugin_entries($menu)
                                     <a class="dropdown-item" href="scheduler.php"><i class="fas fa-clock"></i> Scheduler</a>
                                 <? } ?>
                                 <? if ($uiLevel >= 1) { ?>
-                                <a class="dropdown-item" href="scriptbrowser.php"><i class="fas fa-scroll"></i> Script
-                                    Repository
-                                    Browser</a>
+                                    <a class="dropdown-item" href="scriptbrowser.php"><i class="fas fa-scroll"></i> Script
+                                        Repository
+                                        Browser</a>
                                 <? } ?>
                                 <a class="dropdown-item" href="plugins.php"><i class="fas fa-puzzle-piece"></i> Plugin
                                     Manager</a>
@@ -388,9 +388,9 @@ function list_plugin_entries($menu)
                                 <a class="dropdown-item" href="channeloutputs.php"><i class="fas fa-project-diagram"
                                         style="color:green;"></i> Channel Outputs</a>
                                 <? if ($uiLevel >= 1) { ?>
-                                <a class="dropdown-item" href="outputprocessors.php"><i class="fas fa-microchip"></i>
-                                    Output
-                                    Processors</a>
+                                    <a class="dropdown-item" href="outputprocessors.php"><i class="fas fa-microchip"></i>
+                                        Output
+                                        Processors</a>
                                 <? } ?>
                                 <a class="dropdown-item" href="pixeloverlaymodels.php"><i class="fas fa-cubes"></i>
                                     Pixel Overlay
@@ -423,7 +423,8 @@ function list_plugin_entries($menu)
                                     $externalLinkClass = "hiddenExternalLink";
                                 }
                                 ?>
-                                <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Get Help</a>
+                                <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Get
+                                    Help</a>
                                 <a class="dropdown-item" href="credits.php"><i class="fas fa-stream"></i> Credits</a>
                                 <a class="<?= $externalLinkClass ?>"
                                     href="https://www.paypal.com/donate/?hosted_button_id=ASF9XYZ2V2F5G" target='_blank'

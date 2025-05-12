@@ -372,7 +372,7 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
                 </div>
             </div>
         </div>
-        <div id='pixelOutputs' class="fppFThScrollContainer">
+        <div id='pwmOutputs' class="fppFThScrollContainer">
             <div class='fppTableWrapper'>
                 <div class='fppTableContents' role='region' aria-labelledby='PWM' tabindex='0'>
                     <table id='PWM' class='fppSelectableRowTable fppStickyTheadTable'>

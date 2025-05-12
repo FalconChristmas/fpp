@@ -174,7 +174,7 @@ function channel_get_pixelnetDMX()
     $dataFile = null;
 
     if ($f == false) {
-        fclose($f);
+        //fclose($f);
         //No file exists add one and save to new file.
         $address = 1;
         for ($i = 0; $i < 12; $i++) {

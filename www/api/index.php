@@ -154,6 +154,7 @@ dispatch_get('/settings', 'GetSettings');
 dispatch_get('/settings/:SettingName', 'GetSetting');
 dispatch_get('/settings/:SettingName/options', 'GetOptions');
 dispatch_put('/settings/:SettingName', 'PutSetting');
+dispatch_put('/settings/:SettingName/jsonValueUpdate', 'UpdateJSONValueSetting');
 
 dispatch_get('/scripts', 'scripts_list');
 dispatch_get('/scripts/installRemote/:category/:filename', 'scripts_install_remote');
