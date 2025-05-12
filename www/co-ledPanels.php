@@ -1857,10 +1857,6 @@
                     echo "<li><font color='red'>" . $panelCapes[0]["warnings"]["*"] . "</font></li>\n";
                 }
             } ?>
-            <li>
-                <font color='red'>New Colorlight receiver firmware eg 13.x is currently incompatible with FPP, please
-                    see <a href="https://github.com/FalconChristmas/fpp/issues/1849">Issue 1849</a></font>
-            </li>
             <li>When wiring panels, divide the panels across as many outputs as possible. Shorter chains on more outputs
                 will have higher refresh than longer chains on fewer outputs.</li>
             <li>If not using all outputs, use all the outputs from 1 up to what is needed. Data is always sent on
