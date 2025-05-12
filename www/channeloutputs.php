@@ -161,9 +161,13 @@
         function UpdateChannelOutputLookup() {
             var i = 0;
             for (i = 0; i < channelOutputs.channelOutputs.length; i++) {
-                //channelOutputsLookup[channelOutputs.channelOutputs[i].type + "-Enabled"] = channelOutputs.channelOutputs[i].enabled;
+
                 if (channelOutputs.channelOutputs[i].type == "LEDPanelMatrix") {
                     if (!channelOutputsLookup.hasOwnProperty("LEDPanelMatrices")) { channelOutputsLookup["LEDPanelMatrices"] = []; }
+                    if (typeof channelOutputs.channelOutputs[i].panelMatrixID == 'undefined') {
+                        channelOutputs.channelOutputs[i].panelMatrixID = i + 1;
+                    }
+
                     if (typeof channelOutputs.channelOutputs[i].panelMatrixID !== 'undefined') {
                         channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID] = channelOutputs.channelOutputs[i];
 
