@@ -615,7 +615,7 @@
 
             PanelSubtypeChanged(panelMatrixID);
             UpdateLegacyLEDPanelLayout(panelMatrixID);
-            //RowAddressTypeChanged(panelMatrixID);
+            RowAddressTypeChanged(panelMatrixID);
             if (mp?.LEDPanelUIAdvancedLayout) {
                 ToggleAdvancedLayout(panelMatrixID);
             }
