@@ -429,6 +429,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
         ifstate_src.close();
     }
 
+    m_highestFirmwareVersion = getSettingInt("ColorlightFirmwareVersion");
     m_colorlightDisable = true;
     m_colorlightDisable = getSettingInt("ColorlightLinkDownDisable") == 1;
 
@@ -488,11 +489,14 @@ int ColorLight5a75Output::Init(Json::Value config) {
         return 0;
     }
 
-    // Query the receivers to find out what firmware vesion is installed.
-    GetReceiverInfo();
+    // 0 is auto-detect, else use the value loaded from the ColorlightFirmwareVersion setting
+    if (!m_highestFirmwareVersion) {
+        // Query the receivers to find out what firmware vesion is installed.
+        GetReceiverInfo();
 
-    if (!m_receivers.size() && m_colorlightDisable) {
-       return 0;
+        if (!m_receivers.size() && m_colorlightDisable) {
+           return 0;
+        }
     }
 
 #else

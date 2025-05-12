@@ -188,7 +188,8 @@
 				"eFuseRetryInterval",
 				"alwaysTransmit",
 				"E131BridgingInterval",
-				"ColorlightLinkDownDisable"
+				"ColorlightLinkDownDisable",
+				"ColorlightFirmwareVersion"
 			]
 		},
 		"privacy": {
@@ -859,6 +860,21 @@
 			"default": "1",
 			"type": "checkbox"
 		},
+		"ColorlightFirmwareVersion": {
+			"name": "ColorlightFirmwareVersion",
+			"description": "ColorLight Firmware Version",
+			"gatherStats": true,
+			"tip": "This setting allows forcing FPP to output packets for a specific Colorlight firmware version rather than relying on the discovery process which may not work in some situations such as when receivers are powered down when FPP is restarted.  Currently receivers with v13.x firmware may not be chained together with receivers running v12.x or under, all receivers need to be at v13.x or above or all need to be below v13.x.",
+			"level": 1,
+			"restart": 2,
+			"default": "0",
+			"type": "select",
+			"options": {
+				"Auto": 0,
+				"v2.x - v12.x": 2,
+				"v13.x and up": 13
+            }
+        },
 		"CompressMultiSyncTransfers": {
 			"name": "CompressMultiSyncTransfers",
 			"gatherStats": true,
