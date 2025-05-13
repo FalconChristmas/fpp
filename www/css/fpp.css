@@ -3661,17 +3661,17 @@ a.api-anchor {
 }
 
 .panelMatrix-tab-content .divLEDPanelsData {
-	border: 2px solid black; /* Black border */
-	border-radius: 10px; /* Rounded corners */
-	padding: 10px; /* Space inside the div */
+	border-radius: 10px;
+	padding: 10px;
 	margin-top: 5px;
+	background-color: whitesmoke;
 }
 
 .panelMatrix-tab-content .divLEDPanelsLayoutData {
-	border: 2px solid black; /* Black border */
-	border-radius: 10px; /* Rounded corners */
-	padding: 10px; /* Space inside the div */
+	border-radius: 10px;
+	padding: 10px;
 	margin-top: 5px;
+	background-color: whitesmoke;
 }
 
 .LEDPanelTable table {
