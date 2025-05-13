@@ -375,8 +375,6 @@
         // Reference the panelMatrix object
         let mp = channelOutputsLookup.LEDPanelMatrices["panelMatrix" + panelMatrixID];
 
-        mp.
-
         // Assign values using destructuring
         [mp.LEDPanelWidth, mp.LEDPanelHeight, mp.LEDPanelScan, mp.LEDPanelAddressing] = sizeparts.map(Number);
     }
