@@ -2,6 +2,8 @@
 <script>
 
     <?
+
+    //Get Cape Information
     $panelCapes = array();
     $panelCapes = readPanelCapes($mediaDirectory . "/tmp/panels/", $panelCapes);
     $panelCapesHaveSel4 = false;
@@ -69,6 +71,16 @@
         }
 
         for ($z = 0; $z < count($matricesArray); $z++) {
+            //Temporary Code to help handle migrating from old LEDPanelMatrix to new LEDPanelMatrix v2 ->v3 
+            if (!isset($matricesArray[$z]["ledPanelsLayout"]) && isset($settings["LEDPanelsLayout"])) {
+                $matricesArray[$z]["ledPanelsLayout"] = $settings["LEDPanelsLayout"];
+            }
+
+            if (!isset($matricesArray[$z]["LEDPanelsSize"]) && isset($settings["LEDPanelsSize"])) {
+                $matricesArray[$z]["LEDPanelsSize"] = $settings["LEDPanelsSize"];
+            }
+
+            ////////////////////////////////////
             $panelMatrixID = $matricesArray[$z]["panelMatrixID"];
             $parts = explode('x', $matricesArray[$z]["ledPanelsLayout"]);
             if (count($parts) == 2) {
@@ -183,7 +195,7 @@
     {
         global $matricesArray;
 
-        echo "W: <select class='LEDPanelsLayoutCols' onChange='LEDPanelsLayoutChanged()'>\n";
+        echo "W: <select class='LEDPanelsLayoutCols' onChange='LEDPanelsLayoutChanged();'>\n";
         for ($r = 1; $r <= readMatrixArrayValue($panelMatrixID, "maxLEDPanels"); $r++) {
             if (readMatrixArrayValue($panelMatrixID, "LEDPanelCols") == $r) {
                 echo "<option value='" . $r . "' selected>" . $r . "</option>\n";
@@ -193,7 +205,7 @@
         }
         echo "</select>";
 
-        echo "&nbsp; H:<select class='LEDPanelsLayoutRows' onChange='LEDPanelsLayoutChanged()'>\n";
+        echo "&nbsp; H:<select class='LEDPanelsLayoutRows' onChange='LEDPanelsLayoutChanged();'>\n";
         for ($r = 1; $r <= readMatrixArrayValue($panelMatrixID, "maxLEDPanels"); $r++) {
             if (readMatrixArrayValue($panelMatrixID, "LEDPanelRows") == $r) {
                 echo "<option value='" . $r . "' selected>" . $r . "</option>\n";
@@ -289,6 +301,7 @@
             mp.LEDPanelScan ||= LEDPanelDefaults.LEDPanelScan;
             mp.LEDPanelAddressing ||= LEDPanelDefaults.LEDPanelAddressing;
             mp.LEDPanelGamma ||= LEDPanelDefaults.LEDPanelGamma;
+            mp.ledPanelsLayout ||= LEDPanelDefaults.ledPanelsLayout;
 
             // Use optional chaining (`?.`) and default value to prevent errors
             const sizeParts = mp.ledPanelsLayout?.split("x") || [1, 1];
