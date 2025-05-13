@@ -72,6 +72,11 @@
 
         for ($z = 0; $z < count($matricesArray); $z++) {
             //Temporary Code to help handle migrating from old LEDPanelMatrix to new LEDPanelMatrix v2 ->v3 
+    
+            if (!isset($matricesArray[$z]["panelMatrixID"])) {
+                $matricesArray[$z]["panelMatrixID"] = $z + 1;
+            }
+
             if (!isset($matricesArray[$z]["ledPanelsLayout"]) && isset($settings["LEDPanelsLayout"])) {
                 $matricesArray[$z]["ledPanelsLayout"] = $settings["LEDPanelsLayout"];
             }
@@ -713,7 +718,6 @@
         config.panelColorDepth = parseInt(matrixDiv.find('.LEDPanelsColorDepth').val());
         config.gamma = matrixDiv.find('.LEDPanelsGamma').val();
         config.invertedData = parseInt(matrixDiv.find('.LEDPanelsStartCorner').val());
-        config.ledPanelsLayout = matrixDiv.find('.LEDPanelsLayoutCols').val() + "x" + matrixDiv.find('.LEDPanelsLayoutRows').val();
         config.panelWidth = mp.LEDPanelWidth;
         config.panelHeight = mp.LEDPanelHeight;
         config.panelScan = mp.LEDPanelScan;
