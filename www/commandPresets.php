@@ -3,10 +3,10 @@
 
 <head>
     <?php
-    include 'common/htmlMeta.inc';
-    include 'config.php';
-    include 'common/menuHead.inc';
-    include 'common.php';
+    require_once 'common/htmlMeta.inc';
+    require_once 'config.php';
+    require_once 'common/menuHead.inc';
+    require_once 'common.php';
 
     $commandOptions = "";
     $commandsJSON = file_get_contents('http://localhost:32322/commands');
