@@ -50,6 +50,7 @@
     $LEDPanelDefaults['LEDPanelUIFrontView'] = 0; // Default to back view
     $LEDPanelDefaults['LEDPanelUIPixelsHigh'] = 192; // Default to 192 pixels high
     $LEDPanelDefaults['LEDPanelUIPixelsWide'] = 128; // Default to 128 pixels wide
+    $LEDPanelDefaults['LEDPanelsSize'] = "32x16x8"; // Default to 32x16x8
     
     if ($settings['BeaglePlatform']) {
         $LEDPanelDefaults["LEDPanelPanelsPerOutput"] = 16;
@@ -143,6 +144,9 @@
     foreach ($matricesArray as &$matrix) { // Use reference with & to modify the array directly
         if (!isset($matrix["ledPanelsLayout"])) {
             $matrix["ledPanelsLayout"] = $LEDPanelDefaults["ledPanelsLayout"];
+        }
+        if (!isset($matrix["ledPanelsSize"])) {
+            $matrix["ledPanelsSize"] = $LEDPanelDefaults["LEDPanelsSize"];
         }
         if (!isset($matrix["ledPanelsGamma"])) {
             $matrix["ledPanelsGamma"] = $LEDPanelDefaults["LEDPanelGamma"];
@@ -354,6 +358,7 @@
             mp.LEDPanelAddressing ||= LEDPanelDefaults.LEDPanelAddressing;
             mp.LEDPanelGamma ||= LEDPanelDefaults.LEDPanelGamma;
             mp.ledPanelsLayout ||= LEDPanelDefaults.ledPanelsLayout;
+            mp.LEDPanelsSize ||= LEDPanelDefaults.LEDPanelsSize;
 
             // Use optional chaining (`?.`) and default value to prevent errors
             const sizeParts = mp.ledPanelsLayout?.split("x") || [1, 1];
@@ -369,6 +374,8 @@
 
         // Reference the panelMatrix object
         let mp = channelOutputsLookup.LEDPanelMatrices["panelMatrix" + panelMatrixID];
+
+        mp.
 
         // Assign values using destructuring
         [mp.LEDPanelWidth, mp.LEDPanelHeight, mp.LEDPanelScan, mp.LEDPanelAddressing] = sizeparts.map(Number);
@@ -642,7 +649,10 @@
                 ["LEDPanelsEnabled", "enabled"],
                 ["LEDPanelsOutputCPUPWM", "cpuPWM"],
                 ["LEDPanelsColorOrder", "colorOrder"],
-                ["LEDPanelMatrixName", "LEDPanelMatrixName"]
+                ["LEDPanelMatrixName", "LEDPanelMatrixName"],
+                ["LEDPanelsSize", "ledPanelsSize"],
+                ["LEDPanelsLayoutCols", "LEDPanelCols"],
+                ["LEDPanelsLayoutRows", "LEDPanelRows"]
             ];
 
             selectors.forEach(([selector, key, transform = val => val]) => {
@@ -1660,7 +1670,6 @@
                             LEDPanelScan: LEDPanelDefaults['LEDPanelScan'],
                             colorOrder: LEDPanelDefaults['LEDPanelColorOrder'],
                             gamma: LEDPanelDefaults['LEDPanelGamma'],
-                            LEDPanelsSize: LEDPanelDefaults['LEDPanelsSize'],
                             LEDPanelCols: LEDPanelDefaults['LEDPanelCols'],
                             LEDPanelRows: LEDPanelDefaults['LEDPanelRows'],
                             ledPanelsLayout: LEDPanelDefaults['ledPanelsLayout'],
@@ -2012,9 +2021,16 @@
                     </div>
 
 
-
-
                 </div>
+
+                <div class="col-md-auto ms-lg-auto">
+                    <div class="form-actions">
+                        <input id="RemovePanelMatrixButton" type='button' class="buttons ms-1 btn-danger"
+                            onClick='RemovePanelMatrixConfig();' value='Remove Panel Matrix'>
+                    </div>
+                </div>
+
+
                 <div class="col-md-auto form-inline">
                     <b>Matrix Name:</b>
                     <input class='LEDPanelMatrixName' type='text' onchange="MatrixNameChange()">
