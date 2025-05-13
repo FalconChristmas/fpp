@@ -45,6 +45,11 @@
     $LEDPanelDefaults["LEDPanelsOutputCPUPWM"] = 0;
     $LEDPanelDefaults['LEDPanelType'] = 0;
     $LEDPanelDefaults['invertedData'] = 0; // Default to no inversion - Top Left
+    $LEDPanelDefaults['panelInterleave'] = 0; // Default to no interleaving
+    $LEDPanelDefaults['LEDPanelUIAdvancedLayout'] = 0; // Default to standard layout
+    $LEDPanelDefaults['LEDPanelUIFrontView'] = 0; // Default to back view
+    $LEDPanelDefaults['LEDPanelUIPixelsHigh'] = 192; // Default to 192 pixels high
+    $LEDPanelDefaults['LEDPanelUIPixelsWide'] = 128; // Default to 128 pixels wide
     
     if ($settings['BeaglePlatform']) {
         $LEDPanelDefaults["LEDPanelPanelsPerOutput"] = 16;
@@ -55,6 +60,12 @@
         } else {
             $LEDPanelDefaults["LEDPanelOutputs"] = 8;
         }
+    }
+
+    if ($settings['Platform'] == "Raspberry Pi") {
+        $LEDPanelDefaults["brightness"] = 100;
+    } else {
+        $LEDPanelDefaults["brightness"] = 10;
     }
 
     $LEDPanelDefaults["maxLEDPanels"] = $LEDPanelDefaults["LEDPanelOutputs"] * $LEDPanelDefaults["LEDPanelPanelsPerOutput"];
@@ -83,6 +94,33 @@
 
             if (!isset($matricesArray[$z]["LEDPanelsSize"]) && isset($settings["LEDPanelsSize"])) {
                 $matricesArray[$z]["LEDPanelsSize"] = $settings["LEDPanelsSize"];
+            }
+
+            if (!isset($matricesArray[$z]["LEDPanelUIAdvancedLayout"]) && isset($settings["LEDPanelUIAdvancedLayout"])) {
+                $matricesArray[$z]["LEDPanelUIAdvancedLayout"] = $settings["LEDPanelUIAdvancedLayout"];
+            }
+
+            if (!isset($matricesArray[$z]["LEDPanelUIFrontView"]) && isset($settings["LEDPanelUIFrontView"])) {
+                $matricesArray[$z]["LEDPanelUIFrontView"] = $settings["LEDPanelUIFrontView"];
+            }
+
+            if (!isset($matricesArray[$z]["LEDPanelUIPixelsHigh"]) && isset($settings["LEDPanelUIPixelsHigh"])) {
+                $matricesArray[$z]["LEDPanelUIPixelsHigh"] = $settings["LEDPanelUIPixelsHigh"];
+            }
+            if (!isset($matricesArray[$z]["LEDPanelUIPixelsWide"]) && isset($settings["LEDPanelUIPixelsWide"])) {
+                $matricesArray[$z]["LEDPanelUIPixelsWide"] = $settings["LEDPanelUIPixelsWide"];
+            }
+
+            if (!isset($matricesArray[$z]["panelInterleave"]) && isset($settings["panelInterleave"])) {
+                $matricesArray[$z]["interLeave"] = $settings["interLeave"];
+            }
+
+            if (!isset($matricesArray[$z]["gpioSlowdown"]) && isset($settings["gpioSlowdown"])) {
+                $matricesArray[$z]["gpioSlowdown"] = $settings["gpioSlowdown"];
+            }
+
+            if (isset($matricesArray[$z]["brightness"]) && $settings['Platform'] == "Raspberry Pi") {
+                $matricesArray[$z]["brightness"] = round($matricesArray[$z]["brightness"] / 5) * 5; //round to selectable value
             }
 
             ////////////////////////////////////
@@ -153,6 +191,15 @@
         }
         if (!isset($matrix["LEDPanelsOutputCPUPWM"])) {
             $matrix["LEDPanelsOutputCPUPWM"] = $LEDPanelDefaults["LEDPanelsOutputCPUPWM"];
+        }
+        if (!isset($matrix["interLeave"])) {
+            $matrix["interLeave"] = $LEDPanelDefaults["panelinterLeave"];
+        }
+        if (!isset($matrix["LEDPanelUIAdvancedLayout"])) {
+            $matrix["LEDPanelUIAdvancedLayout"] = $LEDPanelDefaults["LEDPanelUIAdvancedLayout"];
+        }
+        if (!isset($matrix["LEDPanelUIFrontView"])) {
+            $matrix["LEDPanelUIFrontView"] = $LEDPanelDefaults["LEDPanelUIFrontView"];
         }
     }
     // Unset reference to avoid side effects
@@ -1841,7 +1888,7 @@
 
     <!-- LED Panel Matrix Tab-Content --->
 
-    <div class="panelMatrix-tab-content tab-content" style="border:1px;border-style: solid;">
+    <div class="panelMatrix-tab-content tab-content">
         <div class="tab-pane active" id="panelMatrix1">panel 1 content</div>
         <div class="tab-pane" id="panelMatrix2">panel 2 content</div>
         <div class="tab-pane" id="panelMatrix3">panel 3 content</div>
