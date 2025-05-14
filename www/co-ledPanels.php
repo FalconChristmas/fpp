@@ -1477,7 +1477,7 @@
             $(`#panelMatrix${panelMatrixID} .cpOutputNumber`).append("<option value='" + i + "'>" + (i + 1) + "</option>");
         }
 
-        for (var i = 0; i < mp.LEDPanelPanelsPerOutput; i++) {
+        for (var i = 0; i < mp.ledPanelsPanelsPerOutput; i++) {
             $(`#panelMatrix${panelMatrixID} .cpPanelNumber`).append("<option value='" + i + "'>" + (i + 1) + "</option>");
         }
     }
@@ -1571,6 +1571,15 @@
 
         var panelsWide = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelsLayoutCols`).val());
         var panelsHigh = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelsLayoutRows`).val());
+
+        //Delete existing panel data from channelOutputsLookup
+        // Loop through object keys and delete matching ones
+        Object.keys(mp).forEach(key => {
+            if (key.startsWith("LEDPanelPanelNumber_") || key.startsWith("LEDPanelOutputNumber_") || key.startsWith("LEDPanelOrientation_") || key.startsWith("LEDPanelColorOrder_")) {
+                delete mp[key];
+            }
+        });
+
 
         for (var y = 0; y < panelsHigh; y++) {
             for (var x = 0; x < panelsWide; x++) {
