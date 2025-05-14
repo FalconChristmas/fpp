@@ -1607,9 +1607,11 @@
 
 
     function TogglePanelTestPattern() {
+
+        panelMatrixID = GetCurrentActiveMatrixPanelID();
         var val = $("#PanelTestPatternButton").val();
         if (val == "Test Pattern") {
-            var outputType = $('#LEDPanelsConnection').val();
+            var outputType = $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).val();
             <?
             if ($panelCapesDriver == "BBShiftPanel") {
                 echo "outputType = 'BB64 Panels';";
