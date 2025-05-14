@@ -475,9 +475,9 @@
 
         UpdatePanelSize(panelMatrixID);
 
-        $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).prop("disabled", (mp.LEDPanelScan * 2) === mp.LEDPanelHeight);
+        $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).prop("disabled", (mp.panelScan * 2) === mp.panelHeight);
 
-        const pixelCount = mp.LEDPanelCols * mp.LEDPanelRows * mp.LEDPanelWidth * mp.LEDPanelHeight;
+        const pixelCount = mp.LEDPanelCols * mp.LEDPanelRows * mp.panelWidth * mp.panelHeight;
         const channelCount = pixelCount * 3;
 
         $(`#panelMatrix${panelMatrixID} .LEDPanelsPixelCount`).html(pixelCount);
@@ -604,6 +604,15 @@
         }
     }
 
+    function isSpan(element) {
+        if (element instanceof jQuery) {
+            element = element[0]; // Convert jQuery object to DOM element
+        }
+        return element.tagName.toLowerCase() === "span";
+    }
+
+
+
     function InitializeLEDPanelMatrix(panelMatrixID) {
         return new Promise((resolve) => {
             let mp = channelOutputsLookup?.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
@@ -648,11 +657,16 @@
             selectors.forEach(([selector, key, transform = val => val]) => {
                 if (mp[key] != null) {
                     const $element = $(`#panelMatrix${panelMatrixID} .${selector}`);
+                    if ($element.length > 0) {
 
-                    if ($element.is(":checkbox")) {
-                        $element.prop("checked", Boolean(transform(mp[key])));
-                    } else {
-                        $element.val(transform(mp[key]));
+                        if ($element.is(":checkbox")) {
+                            $element.prop("checked", Boolean(transform(mp[key])));
+                        } else if (isSpan($element)) {
+                            $element.html(transform(mp[key]));
+                        }
+                        else {
+                            $element.val(transform(mp[key]));
+                        }
                     }
 
                 }
@@ -727,9 +741,9 @@
         ?>
 
         UpdatePanelSize(panelMatrixID);
-        config.ledPanelsWidth = mp.LEDPanelWidth;
-        config.ledPanelsHeight = mp.LEDPanelHeight;
-        config.ledPanelsScan = mp.LEDPanelScan;
+        config.ledPanelsWidth = mp.panelWidth;
+        config.ledPanelsHeight = mp.panelHeight;
+        config.ledPanelsScan = mp.panelScan;
         if (mp.LEDPanelAddressing) {
             config.panelAddressing = mp.LEDPanelAddressing;
         }
@@ -770,9 +784,9 @@
         config.panelColorDepth = parseInt(matrixDiv.find('.LEDPanelsColorDepth').val());
         config.gamma = matrixDiv.find('.LEDPanelsGamma').val();
         config.invertedData = parseInt(matrixDiv.find('.LEDPanelsStartCorner').val());
-        config.panelWidth = mp.LEDPanelWidth;
-        config.panelHeight = mp.LEDPanelHeight;
-        config.panelScan = mp.LEDPanelScan;
+        config.panelWidth = mp.panelWidth;
+        config.panelHeight = mp.panelHeight;
+        config.panelScan = mp.panelScan;
         <? if ($settings['Platform'] == "Raspberry Pi" || $settings['BeaglePlatform']) { ?>
             config.panelOutputOrder = matrixDiv.find('.LEDPanelsOutputByRow').is(':checked');
             config.panelOutputBlankRow = matrixDiv.find('.LEDPanelsOutputBlankRow').is(':checked');
@@ -824,23 +838,23 @@
 
                     if (src == 'images/arrow_N.png') {
                         panel.orientation = "N";
-                        xOffset += mp.LEDPanelWidth;
-                        yDiff = mp.LEDPanelHeight;
+                        xOffset += mp.panelWidth;
+                        yDiff = mp.panelHeight;
                     }
                     else if (src == 'images/arrow_R.png') {
                         panel.orientation = "R";
-                        xOffset += mp.LEDPanelHeight;
-                        yDiff = mp.LEDPanelWidth;
+                        xOffset += mp.panelHeight;
+                        yDiff = mp.panelWidth;
                     }
                     else if (src == 'images/arrow_U.png') {
                         panel.orientation = "U";
-                        xOffset += mp.LEDPanelWidth;
-                        yDiff = mp.LEDPanelHeight;
+                        xOffset += mp.panelWidth;
+                        yDiff = mp.panelHeight;
                     }
                     else if (src == 'images/arrow_L.png') {
                         panel.orientation = "L";
-                        xOffset += mp.LEDPanelHeight;
-                        yDiff = mp.LEDPanelWidth;
+                        xOffset += mp.panelHeight;
+                        yDiff = mp.panelWidth;
                     }
 
                     panel.row = r;
@@ -1306,22 +1320,23 @@
         var matrixWidth = 0;
         var matrixHeight = 0;
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
+        mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
 
         for (var key in AdvancedUIcanvas.panelGroups) {
             var panel = new Object();
             var pg = AdvancedUIcanvas.panelGroups[key];
 
-            if ((channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panels[pg.panelNumber].orientation == 'N') ||
-                (channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panels[pg.panelNumber].orientation == 'U')) {
-                if ((Math.round(pg.group.left / AdvancedUIcanvas.uiScale) + channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelWidth) > matrixWidth)
-                    matrixWidth = Math.round(pg.group.left / AdvancedUIcanvas.uiScale) + channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelWidth;
-                if ((Math.round(pg.group.top / AdvancedUIcanvas.uiScale) + channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelHeight) > matrixHeight)
-                    matrixHeight = Math.round(pg.group.top / AdvancedUIcanvas.uiScale) + channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelHeight;
+            if ((mp.panels[pg.panelNumber].orientation == 'N') ||
+                (mp.panels[pg.panelNumber].orientation == 'U')) {
+                if ((Math.round(pg.group.left / AdvancedUIcanvas.uiScale) + mp.panelWidth) > matrixWidth)
+                    matrixWidth = Math.round(pg.group.left / AdvancedUIcanvas.uiScale) + mp.panelWidth;
+                if ((Math.round(pg.group.top / AdvancedUIcanvas.uiScale) + mp.panelHeight) > matrixHeight)
+                    matrixHeight = Math.round(pg.group.top / AdvancedUIcanvas.uiScale) + mp.panelHeight;
             } else {
-                if ((Math.round(pg.group.left / AdvancedUIcanvas.uiScale) + channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelHeight) > matrixWidth)
-                    matrixWidth = Math.round(pg.group.left / AdvancedUIcanvas.uiScale) + channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelHeight;
-                if ((Math.round(pg.group.top / AdvancedUIcanvas.uiScale) + channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelWidth) > matrixHeight)
-                    matrixHeight = Math.round(pg.group.top / AdvancedUIcanvas.uiScale) + channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelWidth;
+                if ((Math.round(pg.group.left / AdvancedUIcanvas.uiScale) + mp.panelHeight) > matrixWidth)
+                    matrixWidth = Math.round(pg.group.left / AdvancedUIcanvas.uiScale) + mp.panelHeight;
+                if ((Math.round(pg.group.top / AdvancedUIcanvas.uiScale) + mp.panelWidth) > matrixHeight)
+                    matrixHeight = Math.round(pg.group.top / AdvancedUIcanvas.uiScale) + mp.panelWidth;
             }
         }
 
@@ -1403,8 +1418,8 @@
 
         if ($(`#panelMatrix${panelMatrixID}  .LEDPanelUIAdvancedLayout`).is(":checked")) {
 
-            $(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsWide`).val(mp.LEDPanelWidth * (mp.LEDPanelCols + 1));
-            $(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsHigh`).val(mp.LEDPanelHeight * (mp.LEDPanelRows + 1));
+            $(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsWide`).val(mp.panelWidth * (mp.LEDPanelCols + 1));
+            $(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsHigh`).val(mp.panelHeight * (mp.LEDPanelRows + 1));
 
             if (AdvancedUIcanvas.canvasInitialized)
                 InitializeCanvas(panelMatrixID, 1);
@@ -1565,10 +1580,16 @@
                 $(`#panelMatrix${panelMatrixID} .LEDPanelOutputNumber_${y}_${panel}`).val(y);
                 $(`#panelMatrix${panelMatrixID} .LEDPanelOrientation_${y}_${panel}`).attr('src', 'images/arrow_N.png');
                 $(`#panelMatrix${panelMatrixID} .LEDPanelColorOrder_${y}_${panel}`).val('');
-                //Update channelOutputsLookup - this needs work
-                /*                 mp["LEDPanelPanelNumber_" + y + "_" + panel].panelNumber = x;
-                                mp["LEDPanelOutputNumber_" + y + "_" + panel].outputNumber = y;
-                                mp["LEDPanelOrientation_" + y + "_" + panel].orientation = 'N'; */
+                //Update channelOutputsLookup
+                // Ensure the objects exist before setting properties
+                mp["LEDPanelPanelNumber_" + y + "_" + panel] = mp["LEDPanelPanelNumber_" + y + "_" + panel] || {};
+                mp["LEDPanelOutputNumber_" + y + "_" + panel] = mp["LEDPanelOutputNumber_" + y + "_" + panel] || {};
+                mp["LEDPanelOrientation_" + y + "_" + panel] = mp["LEDPanelOrientation_" + y + "_" + panel] || {};
+
+
+                mp["LEDPanelPanelNumber_" + y + "_" + panel].panelNumber = x;
+                mp["LEDPanelOutputNumber_" + y + "_" + panel].outputNumber = y;
+                mp["LEDPanelOrientation_" + y + "_" + panel].orientation = 'N';
 
             }
         }
