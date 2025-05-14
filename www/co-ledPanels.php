@@ -574,7 +574,7 @@
 
                 html += "<img src='images/arrow_";
 
-                if (typeof mp[key] !== 'undefined') {
+                if (typeof mp[key] !== 'undefined' && typeof mp[key].orientation !== 'undefined') {
                     html += mp[key].orientation;
                 } else {
                     html += "N";
