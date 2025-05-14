@@ -351,7 +351,14 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
     // Default is now to use KMS which would be named DPI-1
     device = "DPI-1";
-    if (!FileExists("/sys/class/drm/card0-DPI-1/modes") && !FileExists("/sys/class/drm/card1-DPI-1/modes")) {
+    int card = -1;
+    for (int c = 0; c < 10; c++) {
+        if (FileExists("/sys/class/drm/card" + std::to_string(c) + "-DPI-1/modes")) {
+            card = c;
+            break;
+        }
+    }
+    if (card == -1) {
         // fallbacks, may or may not work
         device = "fb1";
         if (!FileExists("/dev/fb1") && FileExists("/dev/fb0")) {
