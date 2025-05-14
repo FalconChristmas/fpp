@@ -207,6 +207,7 @@ function FileManagerFilterToggled () {
 				}
 			}
 		}
+		$('table').trigger('filterReset');
 	}
 }
 
