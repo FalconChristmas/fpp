@@ -211,7 +211,6 @@
                 }
             }
             channelOutputs = config;
-            UpdateChannelOutputLookup();
             var result = JSON.stringify(config);
             //result = result.replace("'", "");
             return result;
@@ -224,6 +223,7 @@
                 configStr
             ).done(function (data) {
                 $.jGrowl(" Channel Output configuration saved", { themeState: 'success' });
+                UpdateChannelOutputLookup();
                 SetRestartFlag(1);
             }).fail(function () {
                 DialogError("Save Channel Output Config", "Save Failed");

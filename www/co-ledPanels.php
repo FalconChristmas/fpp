@@ -29,7 +29,7 @@
     $LEDPanelDefaults = [];
     $LEDPanelDefaults["LEDPanelsEnabled"] = 1;
     $LEDPanelDefaults["LEDPanelOutputs"] = 24;
-    $LEDPanelDefaults["LEDPanelPanelsPerOutput"] = 24;
+    $LEDPanelDefaults["LEDPanelsPanelsPerOutput"] = 24;
     $LEDPanelDefaults["LEDPanelWidth"] = 32;
     $LEDPanelDefaults["LEDPanelHeight"] = 16;
     $LEDPanelDefaults["LEDPanelScan"] = 8;
@@ -45,7 +45,7 @@
     $LEDPanelDefaults["LEDPanelsOutputCPUPWM"] = 0;
     $LEDPanelDefaults['LEDPanelType'] = 0;
     $LEDPanelDefaults['invertedData'] = 0; // Default to no inversion - Top Left
-    $LEDPanelDefaults['panelInterleave'] = 0; // Default to no interleaving
+    $LEDPanelDefaults['LEDPanelInterleave'] = 0; // Default to no interleaving
     $LEDPanelDefaults['LEDPanelUIAdvancedLayout'] = 0; // Default to standard layout
     $LEDPanelDefaults['LEDPanelUIFrontView'] = 0; // Default to back view
     $LEDPanelDefaults['LEDPanelUIPixelsHigh'] = 192; // Default to 192 pixels high
@@ -53,7 +53,7 @@
     $LEDPanelDefaults['LEDPanelsSize'] = "32x16x8"; // Default to 32x16x8
     
     if ($settings['BeaglePlatform']) {
-        $LEDPanelDefaults["LEDPanelPanelsPerOutput"] = 16;
+        $LEDPanelDefaults["LEDPanelsPanelsPerOutput"] = 16;
         if (strpos($settings['SubPlatform'], 'Green Wireless') !== false) {
             $LEDPanelDefaults["LEDPanelOutputs"] = 5;
         } else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
@@ -69,7 +69,7 @@
         $LEDPanelDefaults["brightness"] = 10;
     }
 
-    $LEDPanelDefaults["maxLEDPanels"] = $LEDPanelDefaults["LEDPanelOutputs"] * $LEDPanelDefaults["LEDPanelPanelsPerOutput"];
+    $LEDPanelDefaults["maxLEDPanels"] = $LEDPanelDefaults["LEDPanelOutputs"] * $LEDPanelDefaults["LEDPanelsPanelsPerOutput"];
     $LEDPanelDefaults["maxLEDPanels"] = 96; // Override to allow different panel configs using ColorLight cards
     // End of Default Value Logic
     
@@ -145,8 +145,8 @@
         if (!isset($matrix["ledPanelsLayout"])) {
             $matrix["ledPanelsLayout"] = $LEDPanelDefaults["ledPanelsLayout"];
         }
-        if (!isset($matrix["ledPanelsSize"])) {
-            $matrix["ledPanelsSize"] = $LEDPanelDefaults["LEDPanelsSize"];
+        if (!isset($matrix["LEDPanelsSize"])) {
+            $matrix["LEDPanelsSize"] = $LEDPanelDefaults["LEDPanelsSize"];
         }
         if (!isset($matrix["ledPanelsGamma"])) {
             $matrix["ledPanelsGamma"] = $LEDPanelDefaults["LEDPanelGamma"];
@@ -197,7 +197,7 @@
             $matrix["LEDPanelsOutputCPUPWM"] = $LEDPanelDefaults["LEDPanelsOutputCPUPWM"];
         }
         if (!isset($matrix["interLeave"])) {
-            $matrix["interLeave"] = $LEDPanelDefaults["panelinterLeave"];
+            $matrix["interLeave"] = $LEDPanelDefaults["LEDPanelInterleave"];
         }
         if (!isset($matrix["LEDPanelUIAdvancedLayout"])) {
             $matrix["LEDPanelUIAdvancedLayout"] = $LEDPanelDefaults["LEDPanelUIAdvancedLayout"];
@@ -349,16 +349,21 @@
     function SetDefaultsInChannelOutputsLookup() {
         Object.values(channelOutputsLookup.LEDPanelMatrices).forEach(mp => {
             panelMatrixID = mp.panelMatrixID;
-            mp.LEDPanelColorOrder ||= LEDPanelDefaults.LEDPanelColorOrder;
-            mp.LEDPanelOutputs ||= LEDPanelDefaults.LEDPanelOutputs;
-            mp.LEDPanelPanelsPerOutput ||= LEDPanelDefaults.LEDPanelPanelsPerOutput;
-            mp.LEDPanelWidth ||= LEDPanelDefaults.LEDPanelWidth;
-            mp.LEDPanelHeight ||= LEDPanelDefaults.LEDPanelHeight;
-            mp.LEDPanelScan ||= LEDPanelDefaults.LEDPanelScan;
+            mp.colorOrder ||= LEDPanelDefaults.LEDPanelColorOrder;
+            mp.ledPanelsOutputs ||= LEDPanelDefaults.LEDPanelOutputs;
+            mp.ledPanelsPanelsPerOutput ||= LEDPanelDefaults.LEDPanelPanelsPerOutput;
             mp.LEDPanelAddressing ||= LEDPanelDefaults.LEDPanelAddressing;
-            mp.LEDPanelGamma ||= LEDPanelDefaults.LEDPanelGamma;
+            mp.gamma ||= LEDPanelDefaults.LEDPanelGamma;
             mp.ledPanelsLayout ||= LEDPanelDefaults.ledPanelsLayout;
             mp.LEDPanelsSize ||= LEDPanelDefaults.LEDPanelsSize;
+
+
+            const sizeparts = mp.LEDPanelsSize.split("x");
+            // Assign values using destructuring
+            [mp.panelWidth, mp.panelHeight, mp.panelScan, mp.LEDPanelAddressing] = sizeparts.map(Number);
+
+
+
 
             // Use optional chaining (`?.`) and default value to prevent errors
             const sizeParts = mp.ledPanelsLayout?.split("x") || [1, 1];
@@ -369,14 +374,12 @@
 
 
     function UpdatePanelSize(panelMatrixID) {
-
-        const sizeparts = $(`#panelMatrix${panelMatrixID} .LEDPanelsSize`).val().split("x");
-
         // Reference the panelMatrix object
         let mp = channelOutputsLookup.LEDPanelMatrices["panelMatrix" + panelMatrixID];
 
+        const sizeparts = mp.LEDPanelsSize.split("x");
         // Assign values using destructuring
-        [mp.LEDPanelWidth, mp.LEDPanelHeight, mp.LEDPanelScan, mp.LEDPanelAddressing] = sizeparts.map(Number);
+        [mp.panelWidth, mp.panelHeight, mp.panelScan, mp.LEDPanelAddressing] = sizeparts.map(Number);
     }
 
 
@@ -441,7 +444,7 @@
         <? if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
             var value = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelRowAddressType`).val());
             if (value >= 50) {
-                $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepth`).hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDe        pth`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel`).hide();
 
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).hide();
@@ -517,19 +520,8 @@
 
         var PanelLayoutValueJSON = JSON.stringify(PanelLayoutUpdateJSONObj);
 
-        /* $.put('api/settings/LEDPanelMatrices/jsonValueUpdate', PanelLayoutValueJSON)
-            .done(function () {
-                $.jGrowl('Panel Layout saved', { themeState: 'success' });
-                //settings["LEDPanelMatrices"]["panelMatrices"]["panelMatrix" + panelMatrixID]["Configuration"]["LEDPanelsLayout"] = PanelLayoutValue;
-                LEDPanelLayoutChanged();
-                SetRestartFlag(2);
-                common_ViewPortChange();
-            }).fail(function () {
-                DialogError('Panel Layout', 'Failed to save Panel Layout');
-            }); */
 
         LEDPanelLayoutChanged();
-        //SetRestartFlag(2);
         common_ViewPortChange();
     }
 
@@ -592,9 +584,9 @@
 
                 key = "LEDPanelPanelNumber_" + r + "_" + c;
                 if (typeof mp[key] !== 'undefined') {
-                    html += GetLEDPanelNumberSetting("P", key, mp.LEDPanelPanelsPerOutput, mp[key].panelNumber);
+                    html += GetLEDPanelNumberSetting("P", key, mp.ledPanelsPanelsPerOutput, mp[key].panelNumber);
                 } else {
-                    html += GetLEDPanelNumberSetting("P", key, mp.LEDPanelPanelsPerOutput, 0);
+                    html += GetLEDPanelNumberSetting("P", key, mp.ledPanelsPanelsPerOutput, 0);
                 }
                 html += "<br>";
 
@@ -641,14 +633,14 @@
                 ["LEDPanelsOutputByRow", "panelOutputOrder", val => val ? 1 : 0],
                 ["LEDPanelsOutputBlankRow", "panelOutputBlankRow", val => val ? 1 : 0],
                 ["LEDPanelUIFrontView", "LEDPanelUIFrontView"],
-                ["LEDPanelUIAdvancedLayout", "LEDPanelUIAdvancedLayout"],
+                ["LEDPanelUIAdvancedLayout", "advanced"],
                 ["LEDPanelsWiringPinout", "wiringPinout"],
                 ["LEDPanelsGPIOSlowdown", "gpioSlowdown"],
                 ["LEDPanelsEnabled", "enabled"],
                 ["LEDPanelsOutputCPUPWM", "cpuPWM"],
                 ["LEDPanelsColorOrder", "colorOrder"],
                 ["LEDPanelMatrixName", "LEDPanelMatrixName"],
-                ["LEDPanelsSize", "ledPanelsSize"],
+                ["LEDPanelsSize", "LEDPanelsSize"],
                 ["LEDPanelsLayoutCols", "LEDPanelCols"],
                 ["LEDPanelsLayoutRows", "LEDPanelRows"]
             ];
@@ -687,7 +679,7 @@
             }
 
             PanelSubtypeChanged(panelMatrixID);
-            UpdateLegacyLEDPanelLayout(panelMatrixID);
+            // UpdateLegacyLEDPanelLayout(panelMatrixID);
             RowAddressTypeChanged(panelMatrixID);
             if (mp?.LEDPanelUIAdvancedLayout) {
                 ToggleAdvancedLayout(panelMatrixID);
@@ -711,14 +703,15 @@
 
         config.cfgVersion = 3;
         config.type = "LEDPanelMatrix";
-        if ((matrixDiv.find(`#panelMatrix${panelMatrixID} .LEDPanelUIAdvancedLayout`).is(":checked")) &&
+        if ((matrixDiv.find(`.LEDPanelUIAdvancedLayout`).is(":checked")) &&
             (typeof mp !== 'undefined')) {
             advanced = 1;
         }
         else {
             advanced = 0;
         }
-        config.LEDPanelUIAdvancedLayout = matrixDiv.find('.LEDPanelUIAdvancedLayout').is(':checked');
+        config.advanced = advanced;
+
         config.LEDPanelUIFrontView = matrixDiv.find('.LEDPanelUIFrontView').is(':checked');
         <?
         if ($panelCapesDriver != "") {
@@ -734,9 +727,16 @@
         ?>
 
         UpdatePanelSize(panelMatrixID);
+        config.ledPanelsWidth = mp.LEDPanelWidth;
+        config.ledPanelsHeight = mp.LEDPanelHeight;
+        config.ledPanelsScan = mp.LEDPanelScan;
+        if (mp.LEDPanelAddressing) {
+            config.panelAddressing = mp.LEDPanelAddressing;
+        }
 
         config.panelMatrixID = panelMatrixID;
         config.enabled = Number(matrixDiv.find('.LEDPanelsEnabled').is(":checked"));
+        config.LEDPanelsSize = matrixDiv.find('.LEDPanelsSize').val();
         config.startChannel = parseInt(matrixDiv.find('.LEDPanelsStartChannel').val());
         config.channelCount = parseInt(matrixDiv.find('.LEDPanelsChannelCount').html());
         config.colorOrder = matrixDiv.find('.LEDPanelsColorOrder').val();
@@ -765,10 +765,7 @@
         config.LEDPanelMatrixName = matrixDiv.find('.LEDPanelMatrixName').val();
         config.ledPanelsLayout = matrixDiv.find('.LEDPanelsLayoutCols').val() + "x" + matrixDiv.find('.LEDPanelsLayoutRows').val();
         config.ledPanelsOutputs = parseInt(matrixDiv.find('.LEDPanelsLayoutCols').val());
-        config.ledPanelsPanelsPerOutput = parseInt(matrixDiv.find('.LEDPanelsLayoutRows').val());
-        config.ledPanelsWidth = mp.LEDPanelWidth;
-        config.ledPanelsHeight = mp.LEDPanelHeight;
-        config.ledPanelsScan = mp.LEDPanelScan;
+        config.ledPanelsPanelsPerOutput = parseInt(mp.ledPanelsPanelsPerOutput);
         config.maxLEDPanels = mp.maxLEDPanels;
         config.panelColorDepth = parseInt(matrixDiv.find('.LEDPanelsColorDepth').val());
         config.gamma = matrixDiv.find('.LEDPanelsGamma').val();
@@ -784,9 +781,6 @@
             config.cpuPWM = matrixDiv.find('.LEDPanelsOutputCPUPWM').is(':checked');
         <? } ?>
 
-        if (mp.LEDPanelAddressing) {
-            config.panelAddressing = mp.LEDPanelAddressing;
-        }
 
         if (matrixDiv.find('.LEDPanelsRowAddressType').val() != "0") {
             config.panelRowAddressType = parseInt(matrixDiv.find('.LEDPanelsRowAddressType').val());
@@ -1049,22 +1043,23 @@
     const AdvancedUIcanvas4 = new Canvas();
     const AdvancedUIcanvas5 = new Canvas();
 
-
+    ///////////////
 
     function GetAdvancedPanelConfig(panelMatrixID) {
         var co = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
         var panels = [];
+        let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
 
-        for (var key in panelGroups[panelMatrixID]) {
+        for (var key in AdvancedUIcanvas.panelGroups) {
             var panel = new Object();
-            var pg = panelGroups[panelMatrixID][key];
+            var pg = AdvancedUIcanvas.panelGroups[key];
 
-            p = co.panels[pg.panelNumber];
+            var p = co.panels[pg.panelNumber];
 
             panel.outputNumber = p.outputNumber;
             panel.panelNumber = p.panelNumber;
-            panel.xOffset = Math.round(pg.group.left / uiScale);
-            panel.yOffset = Math.round(pg.group.top / uiScale);
+            panel.xOffset = Math.round(pg.group.left / AdvancedUIcanvas.uiScale);
+            panel.yOffset = Math.round(pg.group.top / AdvancedUIcanvas.uiScale);
             panel.orientation = p.orientation;
             panel.colorOrder = p.colorOrder;
             panel.row = p.row;
@@ -1473,12 +1468,14 @@
     }
 
     function SetSinglePanelSize(panelMatrixID) {
-        if (!("LEDPanelMatrix" in channelOutputsLookup))
+        if (!("LEDPanelMatrices" in channelOutputsLookup))
             return;
 
-        var w = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelWidth;
-        var h = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelHeight;
-        var s = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelScan;
+        var co = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
+
+        var w = co.panelWidth;
+        var h = co.panelHeight;
+        var s = co.panelScan;
         var singlePanelSize = [w, h, s].join('x');
         if ("panelAddressing" in channelOutputsLookup) {
             singlePanelSize = [singlePanelSize, channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelAddressing].join('x');
@@ -1660,12 +1657,12 @@
                             invertedData: LEDPanelDefaults['invertedData'],
                             LEDPanelsSize: LEDPanelDefaults['LEDPanelsSize'],
                             LEDPanelsOutputByRow: LEDPanelDefaults['LEDPanelsOutputByRow'],
-                            LEDPanelsOutputBlankRow: LEDPanelDefaults['LEDPanelsOutputBlankRow'],
+                            panelOutputBlankRow: LEDPanelDefaults['LEDPanelsOutputBlankRow'],
                             LEDPanelsLayoutCols: LEDPanelDefaults['LEDPanelsLayoutCols'],
                             LEDPanelsLayoutRows: LEDPanelDefaults['LEDPanelsLayoutRows'],
-                            LEDPanelWidth: LEDPanelDefaults['LEDPanelWidth'],
-                            LEDPanelHeight: LEDPanelDefaults['LEDPanelHeight'],
-                            LEDPanelScan: LEDPanelDefaults['LEDPanelScan'],
+                            panelWidth: LEDPanelDefaults['LEDPanelWidth'],
+                            panelHeight: LEDPanelDefaults['LEDPanelHeight'],
+                            panelScan: LEDPanelDefaults['LEDPanelScan'],
                             colorOrder: LEDPanelDefaults['LEDPanelColorOrder'],
                             gamma: LEDPanelDefaults['LEDPanelGamma'],
                             LEDPanelCols: LEDPanelDefaults['LEDPanelCols'],
@@ -1673,8 +1670,8 @@
                             ledPanelsLayout: LEDPanelDefaults['ledPanelsLayout'],
                             LEDPanelUIAdvancedLayout: LEDPanelDefaults['LEDPanelUIAdvancedLayout'],
                             LEDPanelUIFrontView: LEDPanelDefaults['LEDPanelUIFrontView'],
-                            LEDPanelPanelsPerOutput: LEDPanelDefaults['LEDPanelPanelsPerOutput'],
-                            LEDPanelOutputs: LEDPanelDefaults['LEDPanelOutputs'],
+                            ledPanelsPanelsPerOutput: LEDPanelDefaults['LEDPanelsPanelsPerOutput'],
+                            ledPanelsOutputs: LEDPanelDefaults['LEDPanelOutputs'],
                             colorOrder: LEDPanelDefaults['LEDPanelColorOrder'],
                             panelScan: LEDPanelDefaults['LEDPanelScan'],
                             panelType: LEDPanelDefaults['LEDPanelType']
@@ -2011,12 +2008,7 @@
                         </select>
                     </div>
 
-                    <div class="col-md-auto ms-lg-auto">
-                        <div class="form-actions">
-                            <input id="RemovePanelMatrixButton" type='button' class="buttons ms-1 btn-danger"
-                                onClick='RemovePanelMatrixConfig();' value='Remove Panel Matrix'>
-                        </div>
-                    </div>
+
 
 
                 </div>
