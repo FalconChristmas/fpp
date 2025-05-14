@@ -277,7 +277,7 @@ function SignEEPROM($key = '', $order = '')
 
     if ($replyStr === false) {
         $result['Status'] = 'ERROR';
-        $result['Message'] = "Could not contact signing website https://$APIhost.  RC: " . $rc);
+        $result['Message'] = "Could not contact signing website https://$APIhost.  RC: " . $rc;
         return json($result);
     }
 
