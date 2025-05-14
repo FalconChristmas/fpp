@@ -204,10 +204,16 @@ public:
                 v["enabled"] = (pv && highToEnable) || (!pv && !highToEnable);
             }
             if (receivers[0].isOn && eFusePin) {
-                v["status"] = eFuseOKValue == eFusePin->getValue();
+                if (receivers[0].hasTriggered) {
+                    v["status"] = false;
+                } else {
+                    v["status"] = eFuseOKValue == eFusePin->getValue();
+                }
             } else {
                 v["status"] = true;
             }
+
+            // printf("Port %s   isOn: %d    hasTriggered: %d     okVal: %d    curVal: %d\n", name.c_str(), receivers[0].isOn, receivers[0].hasTriggered, eFuseOKValue, eFusePin->getValue());
             if (currentMonitor) {
                 float f = currentMonitor->getValue();
                 int c = std::round(f);
@@ -583,8 +589,11 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
                             // make sure the port is turned off
                             pi->enablePin->setValue(pi->highToEnable ? 0 : 1);
                         }
-                        if (pi->receivers[0].isOn && checkEFuseRetry(pi)) {
-                            addEFuseWarning(pi, 0);
+                        if (pi->receivers[0].isOn) {
+                            pi->receivers[0].hasTriggered = true;
+                            if (checkEFuseRetry(pi)) {
+                                addEFuseWarning(pi, 0);
+                            }
                         }
                     }
                     return true;
