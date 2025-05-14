@@ -444,7 +444,7 @@
         <? if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
             var value = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelRowAddressType`).val());
             if (value >= 50) {
-                $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDe        pth`).hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepth`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel`).hide();
 
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).hide();
