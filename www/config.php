@@ -409,7 +409,7 @@ if ($fd) {
 
         // Parse the file, assuming it exists
         $data = fgets($fd);
-        $split = explode("=", $data);
+        $split = explode("=", $data, 2);
         if (count($split) < 2) {
             if ($debug) {
                 error_log("not long enough");
