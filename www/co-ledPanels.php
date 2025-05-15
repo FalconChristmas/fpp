@@ -493,7 +493,13 @@
 
         UpdatePanelSize(panelMatrixID);
 
-        $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).prop("disabled", (mp.panelScan * 2) === mp.panelHeight);
+        if ((mp.panelScan * 2) === mp.panelHeight) {
+            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
+            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).hide();
+        } else if (!(($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "ColorLight5a75") || ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix"))) {
+            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).show();
+            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).show();
+        }
 
         const pixelCount = mp.LEDPanelCols * mp.LEDPanelRows * mp.panelWidth * mp.panelHeight;
         const channelCount = pixelCount * 3;
@@ -946,7 +952,7 @@
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressType`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsTypeLabel`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsType`).hide();
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelsInterleaveLabel`).hide();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).hide();
@@ -956,7 +962,7 @@
 
 
                 <? if ($settings['Platform'] == "Raspberry Pi") { ?>
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelsInterleaveLabel`).hide();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputCPUPWMLabel`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputCPUPWM`).hide();
@@ -2196,7 +2202,7 @@
                     </div>
                     <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><span
-                                class='LEDPanelsInterleaveLabel'><b>Panel Interleave:</b></span></div>
+                                class='LEDPanelInterleaveLabel'><b>Panel Interleave:</b></span></div>
                         <div class="printSettingFieldCol col-md-3 col-lg-3">
                             <? printLEDPanelInterleaveSelect(); ?>
                         </div>
