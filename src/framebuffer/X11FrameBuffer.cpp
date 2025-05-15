@@ -46,6 +46,7 @@ int X11FrameBuffer::InitializeFrameBuffer(void) {
     m_pageSize = m_width * m_height * m_bpp / 8;
     m_bufferSize = m_pageSize;
     m_buffer = new uint8_t[m_bufferSize];
+    m_pageBuffers[0] = m_buffer;
 
     m_xImage = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
                             (char*)m_buffer, m_width, m_height, 32, m_width * 4);
