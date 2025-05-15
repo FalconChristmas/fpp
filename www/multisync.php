@@ -533,6 +533,14 @@
                             unavailables[ip] = 0;
                         }
 
+                        if (data.rebootFlag == 1) {
+                            status += "<br><i class=\"fas fa-exclamation-triangle\" style=\"color: red;\"></i><span class='warning-text'>Device Reboot Required</span>";
+                        }
+
+                        if (data.restartFlag == 1) {
+                            status += "<br><i class=\"fas fa-exclamation-triangle\" style=\"color: orange;\"></i><span class='warning-text'>FPPD Restart Required</span>";
+                        }
+
                         var rowID = "fpp_" + ip.replace(/\./g, '_');
                         var hostRowKey = ip.replace(/\./g, '_');
 
