@@ -534,11 +534,11 @@
                         }
 
                         if (data.rebootFlag == 1) {
-                            status += "<br><i class=\"fas fa-exclamation-triangle\" style=\"color: red;\"></i><span class='warning-text'>Reboot Required</span>";
+                            status += "<br><i class=\"fas fa-exclamation-triangle\" style=\"color: red;\"></i><span class='warning-text'>Device Reboot Required</span>";
                         }
 
                         if (data.restartFlag == 1) {
-                            status += "<br><i class=\"fas fa-exclamation-triangle\" style=\"color: orange;\"></i><span class='warning-text'>Restart Required</span>";
+                            status += "<br><i class=\"fas fa-exclamation-triangle\" style=\"color: orange;\"></i><span class='warning-text'>FPPD Restart Required</span>";
                         }
 
                         var rowID = "fpp_" + ip.replace(/\./g, '_');
