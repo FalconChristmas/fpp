@@ -215,18 +215,19 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
             x = atoi(parts[0].c_str());
             y = atoi(parts[1].c_str());
 
-            if (parts.size() == 5) {
-                z = 0;
-                ch = atoi(parts[2].c_str());
-                BPP = atoi(parts[3].c_str());
-                colorPart = parts[4];
-            } else if (parts.size() == 6) {
+            if (parts.size() >= 6) {
                 z = atoi(parts[2].c_str());
                 ch = atoi(parts[3].c_str());
                 BPP = atoi(parts[4].c_str());
                 colorPart = parts[5];
-            } else
+            } else if (parts.size() >= 5) {
+                z = 0;
+                ch = atoi(parts[2].c_str());
+                BPP = atoi(parts[3].c_str());
+                colorPart = parts[4];
+            } else {
                 continue;
+            }
 
             customR = customG = customB = 0;
 

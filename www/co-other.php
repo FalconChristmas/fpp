@@ -267,7 +267,7 @@
         result += "Width: <input type=text class='width' size=4 maxlength=4 value='" + config.width + "'> ";
         result += "Height: <input type=text class='height' size=4 maxlength=4 value='" + config.height + "'> ";
         result += "Pixel Size: <select class='pixelSize'>";
-        for (i = 1; i <= 3; i++) {
+        for (i = 1; i <= 10; i++) {
             result += "<option value='" + i + "'";
             if (config.pixelSize == i)
                 result += " selected";

@@ -147,7 +147,7 @@
 
             if (this._allowPixelSize) {
                 result += "Pixel Size:&nbsp;<select class='pixelSize'>";
-                for (i = 1; i <= 3; i++) {
+                for (i = 1; i <= 10; i++) {
                     result += "<option value='" + i + "'";
                     if (config.pixelSize == i)
                         result += " selected";

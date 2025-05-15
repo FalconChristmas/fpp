@@ -17,6 +17,16 @@ for ($i = 0; $i < 64; $i++)
 	printf("base64['%s'] = '%02X';\n", substr($base64, $i, 1), $i << 2);
 }
 
+$pixelSize = 1;
+$content = file_get_contents($settings['configDirectory'] . "/co-other.json");
+$json = json_decode($content, true);
+foreach ($json['channelOutputs'] as $output) {
+    if ($output['type'] == 'HTTPVirtualDisplay') {
+        $pixelSize = $output['pixelSize'];
+    }
+}
+echo "var pixelSize = " . $pixelSize . ";\n";
+
 $f = fopen($settings['configDirectory'] . '/virtualdisplaymap', "r");
 if ($f) {
 	$line = fgets($f);
@@ -45,7 +55,7 @@ if ($f) {
 			continue;
 
 		$line = trim($line);
-		$entry = explode(",", $line, 6);
+		$entry = explode(",", $line);
 
 		$ox = $entry[0];
 		$oy = $previewHeight - $entry[1];
@@ -55,7 +65,14 @@ if ($f) {
 		$z = (int)($oz * $scale);
 		$ch = $entry[3];
 		$colors = $entry[4];
-		$iy = $canvasHeight - $y;
+        $iy = $canvasHeight - $y;
+
+        $ps = 1;
+        if (sizeof($entry) >= 7) {
+            $ps = (int)$entry[6];
+        }
+
+        $ps *= $pixelSize;
 
 		if (($ox >= 4096) || ($oy >= 4096))
 			$key = substr($base64, ($ox >> 12) & 0x3f, 1) .
@@ -72,9 +89,9 @@ if ($f) {
 
 		if (!isset($scaleMap[$key]))
 		{
-			$scaleMap[$key] = 1;
-			echo "scaleMap['" . $key . "'] = { x: $x, y: $y, ox: $ox, oy: $oy };\n";
-			echo "cellColors['$x,$y'] = { x: $x, y: $y, color: '#000000'};\n";
+            $scaleMap[$key] = 1;
+            echo "scaleMap['" . $key . "'] = { x: $x, y: $y, ox: $ox, oy: $oy, size: $ps };\n";
+            echo "cellColors['$x,$y'] = { x: $x, y: $y, color: '#000000', size: $ps};\n";
 		}
 	}
 	fclose($f);
@@ -88,6 +105,10 @@ var evtSource;
 var ctx;
 var buffer;
 var bctx;
+var imgWidth;
+var imgHeight;
+const img = new Image();
+var clearTimer;
 
 function initCanvas()
 {
@@ -96,35 +117,47 @@ function initCanvas()
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvasWidth * window.devicePixelRatio, canvasHeight * window.devicePixelRatio);
 
-    const img = new Image();
     img.addEventListener("load", () => {
-         const cratio = canvas.width / canvas.height;
-         const iratio = img.width / img.height;
-         if (cratio > iratio) {
+        const cratio = canvas.width / canvas.height;
+        const iratio = img.width / img.height;
+        if (cratio > iratio) {
             var neww = canvasHeight * iratio;
-            ctx.drawImage(img, 0, 0, neww, canvasHeight);
-         } else {
+            imgWidth = neww;
+            imgHeight = canvasHeight;
+        } else {
             var newh = canvasWidth / iratio;
-            ctx.drawImage(img, 0, 0, canvasWidth, newh);
-         }
+            imgWidth = canvasWidth;
+            imgHeight = newh;
+        }
+        ctx.drawImage(img, 0, 0, imgWidth, imgHeight);
     });
     img.src = 'api/file/Images/virtualdisplaybackground.jpg';
     
-	buffer = document.createElement('canvas');
-	buffer.width = canvas.width * window.devicePixelRatio;
-	buffer.height = canvas.height * window.devicePixelRatio;
-	bctx = buffer.getContext('2d');
+    buffer = document.createElement('canvas');
+    buffer.width = canvas.width * window.devicePixelRatio;
+    buffer.height = canvas.height * window.devicePixelRatio;
+    bctx = buffer.getContext('2d');
 
-	// Draw the black pixels
-	bctx.fillStyle = '#000000';
-	for (var key in cellColors) {
-		bctx.fillRect(cellColors[key].x, cellColors[key].y, 1, 1);
+    // Draw the black pixels
+    bctx.fillStyle = '#000000';
+
+    for (var key in cellColors) {
+        // Draw a circle if size is greater than one pixel
+        if (cellColors[key].size > 1) {
+            bctx.beginPath();
+            bctx.arc(cellColors[key].x, cellColors[key].y, parseInt(cellColors[key].size / 2.0), 0, 2 * Math.PI);
+            bctx.fill();
+        } else {
+            bctx.fillRect(cellColors[key].x, cellColors[key].y, 1, 1);
+        }
 	}
 }
 
 function processEvent(e)
 {
-	var pixels = e.data.split('|');
+    var pixels = e.data.split('|');
+
+    clearTimeout(clearTimer);
 
 	for (i = 0; i < pixels.length; i++)
 	{
@@ -135,22 +168,37 @@ function processEvent(e)
 
 		var r = base64[rgb.substring(0,1)];
 		var g = base64[rgb.substring(1,2)];
-		var b = base64[rgb.substring(2,3)];
+        var b = base64[rgb.substring(2,3)];
 
-		bctx.fillStyle = '#' + r + g + b;
+        bctx.fillStyle = '#' + r + g + b;
 
 		// Uncomment to see the incoming color and location data in real time
 		// $('#data').html(bctx.fillStyle + ' => ' + data[1] + '<br>' + $('#data').html().substring(0,500));
+
+        bctx.lineWidth = 0;
+        bctx.strokeStyle = '#000000';
 
 		var locs = data[1].split(';');
 		for (j = 0; j < locs.length; j++)
 		{
 			var s = scaleMap[locs[j]];
 
-			bctx.fillRect(s.x, s.y, 1, 1);
+            // Draw a circle if size is greater than one pixel
+            if (s.size > 1) {
+                bctx.beginPath();
+                bctx.arc(s.x, s.y, parseInt(s.size / 2.0), 0, 2 * Math.PI);
+                bctx.stroke();
+                bctx.fill();
+            } else {
+                bctx.fillRect(s.x, s.y, 1, 1);
+            }
 		}
-	}
-	ctx.drawImage(buffer, 0, 0);
+    }
+
+    ctx.drawImage(buffer, 0, 0);
+
+    // Clear the display after 6 seconds if no more events.  Max update time in test mode is 5 seconds.
+    clearTimer = setTimeout(function() { ctx.drawImage(img, 0, 0, imgWidth, imgHeight); }, 6000);
 }
 
 function startSSE()

@@ -177,34 +177,28 @@ int VirtualDisplayOutput::SendData(unsigned char* channelData) {
     int stride = m_width * m_bytesPerPixel;
     VirtualDisplayPixel pixel;
 
+    int tx = 0;
+    int ty = 0;
+    int radius = m_pixelSize >= 2 ? m_pixelSize / 2 : 1;
+
     for (int i = 0; i < m_pixels.size(); i++) {
         pixel = m_pixels[i];
 
         GetPixelRGB(pixel, channelData, r, g, b);
 
-        m_model->setPixelValue(pixel.xs, pixel.ys, r, g, b);
+        for (int xo = 0 - radius; xo < radius; xo++) {
+            for (int yo = 0 - radius; yo < radius; yo++) {
+                if (sqrt(xo * xo + yo * yo) > radius)
+                    continue;
 
-        if (m_pixelSize >= 2) {
-            if (m_pixelSize == 2) {
-                r /= 4;
-                g /= 4;
-                b /= 4;
-                r *= 3;
-                g *= 3;
-                b *= 3;
+                tx = pixel.xs + xo;
+                ty = pixel.ys + yo;
+
+                if ((tx < 0) || (ty < 0) || (tx > (m_width - 1)) || (ty > (m_height - 1)))
+                    continue;
+
+                m_model->setPixelValue(tx, ty, r, g, b);
             }
-
-            if (pixel.y < (m_width - 1))
-                m_model->setPixelValue(pixel.xs, pixel.ys + 1, r, g, b);
-
-            if (pixel.y > 0)
-                m_model->setPixelValue(pixel.xs, pixel.ys - 1, r, g, b);
-
-            if (pixel.x > 0)
-                m_model->setPixelValue(pixel.xs - 1, pixel.ys, r, g, b);
-
-            if (pixel.x < (m_height - 1))
-                m_model->setPixelValue(pixel.xs + 1, pixel.ys, r, g, b);
         }
     }
     m_model->setBufferIsDirty(true);
