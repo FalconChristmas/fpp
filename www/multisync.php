@@ -533,6 +533,14 @@
                             unavailables[ip] = 0;
                         }
 
+                        if (data.rebootFlag == 1) {
+                            status += "<br><span class='warning-text'>Reboot Required</span>";
+                        }
+
+                        if (data.restartFlag == 1) {
+                            status += "<br><span class='warning-text'>Restart Required</span>";
+                        }
+
                         var rowID = "fpp_" + ip.replace(/\./g, '_');
                         var hostRowKey = ip.replace(/\./g, '_');
 
