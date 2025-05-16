@@ -5873,8 +5873,7 @@ function GetRunningEffects () {
 			setTimeout(GetRunningEffects, 1000);
 		})
 		.fail(function () {
-			DialogError('Query Failed', 'Failed to refresh running effects.');
-			GetRunningEffects();
+			DialogError('Query Failed', 'Failed to refresh running effects, reload page to try again.');
 		});
 }
 
