@@ -1816,7 +1816,11 @@
     }
 
     function WarnIfSlowNIC(panelMatrixID = GetCurrentActiveMatrixPanelID()) {
-        var NicSpeed = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).find(":selected").text().split('(')[1].split('M')[0]);
+        var txt = $(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).find(":selected").text();
+        var NicSpeed = 1000;
+        if (txt != "") {
+            parseInt(txt.split('(')[1].split('M')[0]);
+        }
         if (NicSpeed < 1000 && $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).find(":selected").text() == "ColorLight" && $(`#panelMatrix${panelMatrixID} .LEDPanelsEnabled`).is(":checked") == true) {
             $(`#panelMatrix${panelMatrixID} .divLEDPanelWarnings`).html(`<div class="alert alert-danger">Selected interface for Panel Matrix ${panelMatrixID} does not support 1000+ Mbps, which is the Colorlight minimum</div>`);
         } else {
