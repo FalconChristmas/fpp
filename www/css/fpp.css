@@ -3657,7 +3657,8 @@ a.api-anchor {
 }
 
 .panelMatrix-tab-content .backdrop {
-	margin: 0.2pc;
+	margin: 0;
+	border-radius: 10px;
 }
 
 .panelMatrix-tab-content .divLEDPanelWarnings {
