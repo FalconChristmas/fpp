@@ -47,6 +47,7 @@
 @import "./bootstrap-scss-src/progress";
 
 
+
 // 7. Optionally include utilities API last to generate classes based on the Sass map in `_utilities.scss`
 @import "./bootstrap-scss-src/utilities/api";
 
@@ -56,7 +57,7 @@
 @import "./hamburger";
 @import "./spacing";
 @import "./uploadfile";
-
+@import "./bootstrap-scss-src/popover";
 
 
 body {

@@ -155,7 +155,7 @@
             $matrix["ledPanelsOutputs"] = $LEDPanelDefaults["LEDPanelOutputs"];
         }
         if (!isset($matrix["ledPanelsPanelsPerOutput"])) {
-            $matrix["ledPanelsPanelsPerOutput"] = $LEDPanelDefaults["LEDPanelPanelsPerOutput"];
+            $matrix["ledPanelsPanelsPerOutput"] = $LEDPanelDefaults["LEDPanelsPanelsPerOutput"];
         }
         if (!isset($matrix["ledPanelsWidth"])) {
             $matrix["ledPanelsWidth"] = $LEDPanelDefaults["LEDPanelWidth"];
@@ -346,16 +346,32 @@
 
     var LEDPanelDefaults = <?php echo json_encode($LEDPanelDefaults); ?>;
 
+    function checkAndCorrectMissingChannelLookup() {
+        if (typeof channelOutputsLookup === "undefined" || channelOutputsLookup === null || channelOutputsLookup.length === 0) {
+            {
+                channelOutputsLookup = [];
+                channelOutputsLookup["LEDPanelMatrices"] = [];
+                channelOutputsLookup["LEDPanelMatrices"]["panelMatrix1"] = [];
+                channelOutputsLookup["LEDPanelMatrices"]["panelMatrix1"].panelMatrixID = 1;
+                SetDefaultsInChannelOutputsLookup();
+            }
+        }
+    }
+
+
     function SetDefaultsInChannelOutputsLookup() {
+
         Object.values(channelOutputsLookup.LEDPanelMatrices).forEach(mp => {
             panelMatrixID = mp.panelMatrixID;
             mp.colorOrder ||= LEDPanelDefaults.LEDPanelColorOrder;
             mp.ledPanelsOutputs ||= LEDPanelDefaults.LEDPanelOutputs;
-            mp.ledPanelsPanelsPerOutput ||= LEDPanelDefaults.LEDPanelPanelsPerOutput;
+            mp.ledPanelsPanelsPerOutput ||= LEDPanelDefaults.LEDPanelsPanelsPerOutput;
             mp.LEDPanelAddressing ||= LEDPanelDefaults.LEDPanelAddressing;
             mp.gamma ||= LEDPanelDefaults.LEDPanelGamma;
             mp.ledPanelsLayout ||= LEDPanelDefaults.ledPanelsLayout;
             mp.LEDPanelsSize ||= LEDPanelDefaults.LEDPanelsSize;
+            mp.gpioSlowdown ||= LEDPanelDefaults.gpioSlowdown;
+            mp.wiringPinout ||= LEDPanelDefaults.LEDPanelsWiringPinout;
 
 
             const sizeparts = mp.LEDPanelsSize.split("x");
@@ -369,6 +385,8 @@
             const sizeParts = mp.ledPanelsLayout?.split("x") || [1, 1];
             mp.LEDPanelRows ||= parseInt(sizeParts[1], 10);
             mp.LEDPanelCols ||= parseInt(sizeParts[0], 10);
+
+            AutoLayoutPanels(panelMatrixID, 1);
         });
     }
 
@@ -567,9 +585,9 @@
 
                 key = "LEDPanelOutputNumber_" + r + "_" + c;
                 if (typeof mp[key] !== 'undefined') {
-                    html += GetLEDPanelNumberSetting("O", key, mp.LEDPanelOutputs, mp[key].outputNumber);
+                    html += GetLEDPanelNumberSetting("O", key, mp.ledPanelsOutputs, mp[key].outputNumber);
                 } else {
-                    html += GetLEDPanelNumberSetting("O", key, mp.LEDPanelOutputs, 0);
+                    html += GetLEDPanelNumberSetting("O", key, mp.ledPanelsOutputs, 0);
                 }
 
                 html += "<img src='images/arrow_";
@@ -1744,6 +1762,7 @@
 
 
                         CloseModalDialog('AddPanelMatrixDialog');
+
                         populatePanelMatrixTab(NewPanelMatrixID).then(() => {
                             return InitializeLEDPanelMatrix(NewPanelMatrixID);
                         }).then(() => { return LEDPanelsConnectionChanged(NewPanelMatrixID); });
@@ -1809,6 +1828,7 @@
     }
 
     function populatePanelMatrixTab(panelMatrixID) {
+        checkAndCorrectMissingChannelLookup();
         return new Promise((resolve) => {
             //copy from template
             document.querySelector(`#panelMatrix${panelMatrixID}`).innerHTML = document.querySelector('#divLEDPanelsTemplate').innerHTML;
@@ -1857,6 +1877,8 @@
         //Discover currently configured panel matrices and populate a tab and initialize each        
         for ($z = 0; $z < count($matricesArray); $z++) {
             $panelMatrixID = $matricesArray[$z]["panelMatrixID"] ?? 1;
+            //Fix for missing channelOutputsLookup
+            echo "checkAndCorrectMissingChannelLookup();\n";
             //set whether the tabs are displayed
             echo "$('#matrixPanelTab$panelMatrixID').show();\n";
             //populate the tab

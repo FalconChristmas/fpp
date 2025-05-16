@@ -288,6 +288,7 @@
             else
                 channelOutputs.channelOutputs = [];
 
+            checkAndCorrectMissingChannelLookup();
             UpdateChannelOutputLookup();
             SetDefaultsInChannelOutputsLookup();
 
