@@ -2449,10 +2449,13 @@
                         ?>
                         <option value='RGBMatrix'>Hat/Cap/Cape</option>
                         <?
-                    } else if ($settings['Platform'] == "BeagleBone Black") { ?>
-                            <option value='LEDscapeMatrix'>Hat/Cap/Cape</option>
-                    <? } ?>
-                    <?
+                    } else if ($settings['BeaglePlatform']) {
+                        if ($panelCapesDriver != "") {
+                            echo "<option value='$panelCapesDriver'>Hat/Cap/Cape</option>\n";
+                        } else {
+                            echo "<option value='LEDscapeMatrix'>Hat/Cap/Cape</option>\n";
+                        }
+                    }
                 } ?>
                 <option value='ColorLight5a75'>ColorLight</option>
                 <?
