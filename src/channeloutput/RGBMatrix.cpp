@@ -82,8 +82,8 @@ RGBMatrixOutput::~RGBMatrixOutput() {
 int RGBMatrixOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::Init(JSON)\n");
     std::string model = GetFileContents("/proc/device-tree/model");
-    if (startsWith(model, "Raspberry Pi 5") || 
-            startsWith(model, "Raspberry Pi Compute Module 5")) {
+    if (startsWith(model, "Raspberry Pi 5") ||
+        startsWith(model, "Raspberry Pi Compute Module 5")) {
         LogErr(VB_CHANNELOUT, "RGBMatrix does work on Raspberry Pi 5\n");
         return 0;
     }
@@ -234,18 +234,16 @@ int RGBMatrixOutput::Init(Json::Value config) {
         options.row_address_type = config["panelRowAddressType"].asInt();
     }
 
-
     if (config.isMember("panelType")) {
-        switch(config["panelType"].asInt())
-        {
-            case 1:
-                options.panel_type = "FM6126A";
-                break;
-            case 2:
-                options.panel_type = "FM6127";
-                break;
-            default:
-                break;
+        switch (config["panelType"].asInt()) {
+        case 1:
+            options.panel_type = "FM6126A";
+            break;
+        case 2:
+            options.panel_type = "FM6127";
+            break;
+        default:
+            break;
         }
     }
 
@@ -296,6 +294,9 @@ int RGBMatrixOutput::Init(Json::Value config) {
     }
     if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::string dd = "LED Panels";
+        if (config.isMember("LEDPanelMatrixName") && !config["LEDPanelMatrixName"].asString().empty()) {
+            dd = config["LEDPanelMatrixName"].asString();
+        }
         if (config.isMember("description")) {
             dd = config["description"].asString();
         }

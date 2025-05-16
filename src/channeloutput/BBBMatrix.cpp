@@ -987,6 +987,9 @@ int BBBMatrix::Init(Json::Value config) {
     m_curFrame = 0;
     if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::string dd = "LED Panels";
+        if (config.isMember("LEDPanelMatrixName") && !config["LEDPanelMatrixName"].asString().empty()) {
+            dd = config["LEDPanelMatrixName"].asString();
+        }
         if (config.isMember("description")) {
             dd = config["description"].asString();
         }

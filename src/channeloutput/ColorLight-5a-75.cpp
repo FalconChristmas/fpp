@@ -184,7 +184,6 @@
 
 #include "Plugin.h"
 
-
 #ifdef PLATFORM_OSX
 int bindBPFSocket(const std::string iface) {
     char buf[11] = { 0 };
@@ -213,7 +212,6 @@ int bindBPFSocket(const std::string iface) {
     return m_fd;
 }
 #endif
-
 
 class ColorLight5a75Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
@@ -276,7 +274,7 @@ ColorLight5a75Output::~ColorLight5a75Output() {
 
         // Higher firmware has duplicate brightness packet which re-uses same buffer
         if ((i == 0) && (m_highestFirmwareVersion >= 13))
-            i+= 3;
+            i += 3;
         else
             i++; // Every second iovec is either part of the header malloc() or external data
     }
@@ -438,7 +436,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
         WarningHolder::AddWarning("ColorLight: Configured interface " + m_ifName + " does not have link");
 
         if (m_colorlightDisable) {
-           return 0;
+            return 0;
         }
     }
 
@@ -454,7 +452,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
         LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s is not 1000Mbps Capable: %s\n", m_ifName.c_str(), strerror(errno));
         WarningHolder::AddWarning("ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
         if (m_colorlightDisable) {
-           return 0;
+            return 0;
         }
     }
 
@@ -495,7 +493,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
         GetReceiverInfo();
 
         if (!m_receivers.size() && m_colorlightDisable) {
-           return 0;
+            return 0;
         }
     }
 
@@ -553,10 +551,10 @@ int ColorLight5a75Output::Init(Json::Value config) {
 
     if (m_highestFirmwareVersion >= 13) {
         // Send duplicate brightness packet
-        m_iovecs[p * 2].iov_base     = m_iovecs[(p-1) * 2].iov_base;
-        m_iovecs[p * 2].iov_len      = m_iovecs[(p-1) * 2].iov_len;
-        m_iovecs[p * 2 + 1].iov_base = m_iovecs[(p-1) * 2 + 1].iov_base;
-        m_iovecs[p * 2 + 1].iov_len  = m_iovecs[(p-1) * 2 + 1].iov_len;
+        m_iovecs[p * 2].iov_base = m_iovecs[(p - 1) * 2].iov_base;
+        m_iovecs[p * 2].iov_len = m_iovecs[(p - 1) * 2].iov_len;
+        m_iovecs[p * 2 + 1].iov_base = m_iovecs[(p - 1) * 2 + 1].iov_base;
+        m_iovecs[p * 2 + 1].iov_len = m_iovecs[(p - 1) * 2 + 1].iov_len;
         p++;
     }
 
@@ -656,10 +654,10 @@ int ColorLight5a75Output::Init(Json::Value config) {
     header[CL_PACKET_TYPE_OFFSET] = CL_SYNC_PACKET_TYPE;
     data = header + CL_PACKET_DATA_OFFSET;
 
-    data[0]  = 0x07;
+    data[0] = 0x07;
 
     data[22] = brightness;
-    data[23] = 0x05;        // ?? not sure what this value is
+    data[23] = 0x05; // ?? not sure what this value is
 
     data[25] = brightness;
     data[26] = brightness;
@@ -671,8 +669,8 @@ int ColorLight5a75Output::Init(Json::Value config) {
 
     if (m_highestFirmwareVersion >= 13) {
         // Send duplicate display frame packet
-        m_synciovecs[p].iov_base     = m_synciovecs[p-1].iov_base;
-        m_synciovecs[p].iov_len      = m_synciovecs[p-1].iov_len;
+        m_synciovecs[p].iov_base = m_synciovecs[p - 1].iov_base;
+        m_synciovecs[p].iov_len = m_synciovecs[p - 1].iov_len;
         p++;
     }
 
@@ -687,6 +685,9 @@ int ColorLight5a75Output::Init(Json::Value config) {
     // Create Pixel Overlay Models if needed
     if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::string dd = "LED Panels";
+        if (config.isMember("LEDPanelMatrixName") && !config["LEDPanelMatrixName"].asString().empty()) {
+            dd = config["LEDPanelMatrixName"].asString();
+        }
         if (config.isMember("description")) {
             dd = config["description"].asString();
         }
@@ -735,7 +736,7 @@ void ColorLight5a75Output::OverlayTestData(unsigned char* channelData, int cycle
     }
 }
 
-int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr> &msgsToSend) {
+int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr>& msgsToSend) {
     long long startTime = GetTimeMS();
     struct mmsghdr* msgs = &msgsToSend[0];
     int msgCount = msgsToSend.size();
@@ -787,7 +788,6 @@ int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr> &msgsToSend) 
 
     return oc;
 }
-
 
 /*
  *
@@ -972,7 +972,7 @@ void ColorLight5a75Output::GetReceiverInfo() {
     LogInfo(VB_CHANNELOUT, "Searching for ColorLight receivers\n");
 
     unsigned char receiveBuffer[CL_RESP_PACKET_SIZE];
-    unsigned char *data = receiveBuffer + CL_PACKET_DATA_OFFSET;
+    unsigned char* data = receiveBuffer + CL_PACKET_DATA_OFFSET;
     int recvBytes = 0;
     int r = 0;
     bool tryNextReceiver = true;
@@ -986,13 +986,13 @@ void ColorLight5a75Output::GetReceiverInfo() {
         sendmmsg(m_fd, msgs, 1, MSG_DONTWAIT);
 
         // Should only get one packet from a receiver, but consume all just in case
-        while((recvBytes = recvfrom(sockfd, receiveBuffer, CL_RESP_PACKET_SIZE, 0, NULL, NULL)) > 0) {
+        while ((recvBytes = recvfrom(sockfd, receiveBuffer, CL_RESP_PACKET_SIZE, 0, NULL, NULL)) > 0) {
             if (recvBytes > 1000) {
                 // Shouldn't be receiving anything, but ignore anything other than receiver replies
-                if ((receiveBuffer[6]  != 0x11) ||
-                    (receiveBuffer[7]  != 0x22) ||
-                    (receiveBuffer[8]  != 0x33) ||
-                    (receiveBuffer[9]  != 0x44) ||
+                if ((receiveBuffer[6] != 0x11) ||
+                    (receiveBuffer[7] != 0x22) ||
+                    (receiveBuffer[8] != 0x33) ||
+                    (receiveBuffer[9] != 0x44) ||
                     (receiveBuffer[10] != 0x55) ||
                     (receiveBuffer[11] != 0x66) ||
                     (receiveBuffer[CL_PACKET_TYPE_OFFSET] != CL_RESP_PACKET_TYPE)) {
@@ -1011,16 +1011,16 @@ void ColorLight5a75Output::GetReceiverInfo() {
                 receiver.majorFirmwareVersion = data[2];
                 receiver.minorFirmwareVersion = data[3];
 
-                receiver.width   = (data[21] << 8) | data[22];
-                receiver.height  = (data[23] << 8) | data[24];
+                receiver.width = (data[21] << 8) | data[22];
+                receiver.height = (data[23] << 8) | data[24];
                 receiver.packets = (data[38] << 24) | (data[39] << 16) | (data[40] << 8) | data[41];
-                receiver.uptime  = (data[46] << 24) | (data[47] << 16) | (data[48] << 8) | data[49];
+                receiver.uptime = (data[46] << 24) | (data[47] << 16) | (data[48] << 8) | data[49];
 
                 LogInfo(VB_CHANNELOUT, "Found Receiver #%d:\n", receiver.id);
                 LogInfo(VB_CHANNELOUT, "- Firmware Version    : v%d.%d\n",
-                    receiver.majorFirmwareVersion, receiver.minorFirmwareVersion);
+                        receiver.majorFirmwareVersion, receiver.minorFirmwareVersion);
                 LogInfo(VB_CHANNELOUT, "- Cabinet Size (WxH)  : %dx%d\n", receiver.width, receiver.height);
-                //LogInfo(VB_CHANNELOUT, "- Cabinet Offset (X,Y): %d,%d\n", receiver.xOffset, receiver.yOffset);
+                // LogInfo(VB_CHANNELOUT, "- Cabinet Offset (X,Y): %d,%d\n", receiver.xOffset, receiver.yOffset);
                 LogInfo(VB_CHANNELOUT, "- Uptime              : %ums\n", receiver.uptime);
                 LogInfo(VB_CHANNELOUT, "- Packets             : %u\n", receiver.packets);
 
@@ -1028,7 +1028,7 @@ void ColorLight5a75Output::GetReceiverInfo() {
                     m_highestFirmwareVersion = receiver.majorFirmwareVersion;
                 }
 
-                m_receivers.resize(r+1);
+                m_receivers.resize(r + 1);
                 m_receivers[r] = receiver;
             }
         }
@@ -1048,5 +1048,3 @@ void ColorLight5a75Output::GetReceiverInfo() {
 
     close(sockfd);
 }
-
-
