@@ -176,7 +176,7 @@ std::unique_ptr<Command::Result> RunScriptEvent::run(const std::vector<std::stri
 StartEffectCommand::StartEffectCommand() :
     Command("Effect Start") {
     args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects"));
-    args.push_back(CommandArg("startChannel", "int", "Start Channel").setDefaultValue("1"));
+    args.push_back(CommandArg("startChannel", "int", "Start Channel"));
     args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
     args.push_back(CommandArg("bg", "bool", "Background"));
     args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
@@ -213,6 +213,8 @@ std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::
             if (!m_model) {
                 LogErr(VB_COMMAND, "Invalid Pixel Overlay Model: '%s'\n", Model.c_str());
             } else {
+                if (args[1] == "")
+                    startChannel = 1;
                 LogDebug(VB_COMMAND, "Overlay Model start channel modified to be : '%i'\n", m_model->getStartChannel() + startChannel);
                 startChannel = m_model->getStartChannel() + startChannel;
             }
