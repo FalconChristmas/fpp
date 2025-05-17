@@ -46,7 +46,7 @@ function readCapes($cd, $capes)
         $virtualEEPROMDir = '';
         if ($settings['Platform'] == "Raspberry Pi") {
             $virtualEEPROMDir = $fppDir . '/capes/pi';
-        } else if ($settings['Platform'] == "BeagleBone Black") {
+        } else if ($settings['BeaglePlatform']) {
             $virtualEEPROMDir = $fppDir . '/capes/bbb';
             if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
                 $virtualEEPROMDir = $fppDir . '/capes/pb';
@@ -61,7 +61,7 @@ function readCapes($cd, $capes)
         if (count($capes) == 0 || $settings["showAllOptions"] == 1) {
             if ($settings['Platform'] == "Raspberry Pi") {
                 $capedir = $fppDir . "/capes/pi/strings/";
-            } else if ($settings['Platform'] == "BeagleBone Black") {
+            } else if ($settings['BeaglePlatform']) {
                 $capedir = $fppDir . "/capes/bbb/strings/";
                 if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
                     $capedir = $fppDir . "/capes/pb/strings/";
@@ -262,7 +262,7 @@ function readCapes($cd, $capes)
 
     function pixelOutputTableInputOrder(colorOrder) {
         var result = "";
-        <? if ($settings['Platform'] == "BeagleBone Black") { ?>
+        <? if ($settings['BeaglePlatform']) { ?>
             var isChannelBased = true;
         <? } else { ?>
             var outtype = $('#PixelStringSubType').val();
