@@ -1905,6 +1905,16 @@
 
         //The current channeloutputsLookup for current panelMatrixID
         let currentConfigObj = channelOutputsLookup.LEDPanelMatrices[`panelMatrix${panelMatrixID}`];
+        //remove the elements used only for the UI which are not in the saved config
+        Object.keys(currentConfigObj).forEach(key => {
+            if (key.startsWith("LEDPanelOutputNumber_") ||
+                key.startsWith("LEDPanelPanelNumber_") ||
+                key.startsWith("LEDPanelOrientation_") ||
+                key.startsWith("LEDPanelColorOrder_")) {
+                delete currentConfigObj[key]; // Remove the property
+            }
+        });
+
         // Sort object keys alphabetically
         const sortedCurrentObj = Object.keys(currentConfigObj).sort().reduce((acc, key) => {
             acc[key] = currentConfigObj[key];
