@@ -1034,7 +1034,7 @@
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsWiringPinoutLabel`).hide();
                 }
                 if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"] !== 'undefined') {
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).text(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionLabel`).hide();
                 }
