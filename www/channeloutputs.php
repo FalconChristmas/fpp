@@ -158,7 +158,7 @@
 
         /////////////////////////////////////////////////////////////////////////////
 
-        function UpdateChannelOutputLookup() {
+        function PopulateChannelOutputLookup() {
             var i = 0;
             for (i = 0; i < channelOutputs.channelOutputs.length; i++) {
 
@@ -223,7 +223,7 @@
                 configStr
             ).done(function (data) {
                 $.jGrowl(" Channel Output configuration saved", { themeState: 'success' });
-                UpdateChannelOutputLookup();
+                PopulateChannelOutputLookup();
                 SetRestartFlag(1);
             }).fail(function () {
                 DialogError("Save Channel Output Config", "Save Failed");
@@ -288,8 +288,9 @@
             else
                 channelOutputs.channelOutputs = [];
 
+
+            PopulateChannelOutputLookup();
             checkAndCorrectMissingChannelLookup();
-            UpdateChannelOutputLookup();
             SetDefaultsInChannelOutputsLookup();
 
         }

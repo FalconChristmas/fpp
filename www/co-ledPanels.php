@@ -386,7 +386,7 @@
             mp.LEDPanelRows ||= parseInt(sizeParts[1], 10);
             mp.LEDPanelCols ||= parseInt(sizeParts[0], 10);
 
-            AutoLayoutPanels(panelMatrixID, 1);
+            //AutoLayoutPanels(panelMatrixID, 1);
         });
     }
 
