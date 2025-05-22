@@ -75,7 +75,7 @@
     
     //Setup PHP MatricesArray
     $matricesArray = [];
-    if (isset($channelOutputs["channelOutputs"])) {
+    if (isset($channelOutputs["channelOutputs"]) && !empty($channelOutputs["channelOutputs"])) {
         foreach ($channelOutputs["channelOutputs"] as $output) {
             if ($output["type"] == "LEDPanelMatrix") {
                 $matricesArray[] = $output;
@@ -347,7 +347,7 @@
     var LEDPanelDefaults = <?php echo json_encode($LEDPanelDefaults); ?>;
 
     function checkAndCorrectMissingChannelLookup() {
-        if (typeof channelOutputsLookup === "undefined" || channelOutputsLookup === null || channelOutputsLookup.length === 0) {
+        if (typeof channelOutputsLookup === "undefined" || channelOutputsLookup === null || !channelOutputsLookup.LEDPanelMatrices || Object.keys(channelOutputsLookup.LEDPanelMatrices).length === 0) {
             {
                 channelOutputsLookup = [];
                 channelOutputsLookup["LEDPanelMatrices"] = [];
@@ -386,7 +386,7 @@
             mp.LEDPanelRows ||= parseInt(sizeParts[1], 10);
             mp.LEDPanelCols ||= parseInt(sizeParts[0], 10);
 
-            AutoLayoutPanels(panelMatrixID, 1);
+            //AutoLayoutPanels(panelMatrixID, 1);
         });
     }
 
@@ -1034,7 +1034,7 @@
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsWiringPinoutLabel`).hide();
                 }
                 if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"] !== 'undefined') {
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).text(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionLabel`).hide();
                 }
@@ -1872,12 +1872,62 @@
             return;
 
         delete channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
-        document.querySelector(`#panelMatrix${panelMatrixID}`).innerHTML = "";
+        document.querySelector(`#panelMatrix${panelMatrixID}`).innerHTML = "No Panels Defined - Use \"Add Panel Matrix\" button";
         $(`#matrixPanelTab${panelMatrixID}`).hide();
-        //set first tab to be active
-        let objkey = Object.keys(channelOutputsLookup.LEDPanelMatrices).reduce((min, current) => current.panelMatrixID < min.panelMatrixID ? current : min);
-        let objkeyNum = objkey.replace("panelMatrix", "");
-        $(`#matrixPanelTab${objkeyNum} a`).tab('show');
+        // Ensure LEDPanelMatrices exists and is not empty
+        if (Array.isArray(channelOutputsLookup.LEDPanelMatrices) && channelOutputsLookup.LEDPanelMatrices.length > 0) {
+            // Set first tab to be active
+            let objkey = Object.keys(channelOutputsLookup.LEDPanelMatrices).reduce((min, current) =>
+                current.panelMatrixID < min.panelMatrixID ? current : min
+            );
+
+            let objkeyNum = objkey.replace("panelMatrix", "");
+            $(`#matrixPanelTab${objkeyNum} a`).tab('show');
+        } else {
+            console.warn("No LED panel matrices found. Defaulting to show empty panel matrix 1 tab");
+            $(`#matrixPanelTab1 a`).tab('show');
+        }
+
+    }
+
+    function DetectConfigChangesInUI() {
+
+        //get currently visible panelMatrixID
+        const panelMatrixID = GetCurrentActiveMatrixPanelID();
+
+        // Find the matching object from saved config
+        let resultObject = channelOutputs.channelOutputs.find(obj => obj.panelMatrixID === panelMatrixID);
+        // Sort object keys alphabetically
+        const sortedSavedObj = Object.keys(resultObject).sort().reduce((acc, key) => {
+            acc[key] = resultObject[key];
+            return acc;
+        }, {});
+
+        //The current channeloutputsLookup for current panelMatrixID
+        let currentConfigObj = channelOutputsLookup.LEDPanelMatrices[`panelMatrix${panelMatrixID}`];
+        //remove the elements used only for the UI which are not in the saved config
+        Object.keys(currentConfigObj).forEach(key => {
+            if (key.startsWith("LEDPanelOutputNumber_") ||
+                key.startsWith("LEDPanelPanelNumber_") ||
+                key.startsWith("LEDPanelOrientation_") ||
+                key.startsWith("LEDPanelColorOrder_")) {
+                delete currentConfigObj[key]; // Remove the property
+            }
+        });
+
+        // Sort object keys alphabetically
+        const sortedCurrentObj = Object.keys(currentConfigObj).sort().reduce((acc, key) => {
+            acc[key] = currentConfigObj[key];
+            return acc;
+        }, {});
+
+        if (JSON.stringify(sortedSavedObj) !== JSON.stringify(sortedCurrentObj)) {
+            console.log("Arrays are different!");
+            return true;
+        } else {
+            console.log("Arrays are identical.");
+            return false
+        }
     }
 
 
@@ -1887,8 +1937,6 @@
         //Discover currently configured panel matrices and populate a tab and initialize each        
         for ($z = 0; $z < count($matricesArray); $z++) {
             $panelMatrixID = $matricesArray[$z]["panelMatrixID"] ?? 1;
-            //Fix for missing channelOutputsLookup
-            echo "checkAndCorrectMissingChannelLookup();\n";
             //set whether the tabs are displayed
             echo "$('#matrixPanelTab$panelMatrixID').show();\n";
             //populate the tab
@@ -1921,7 +1969,22 @@
         ?>
         WarnIfSlowNIC(1);
         SetupToolTips();
+
     });
+
+    $(document).on("change input", "select, input, textarea", function () {
+        console.log(`Changed: ${$(this).attr("class")} -> ${this.value}`);
+        if (DetectConfigChangesInUI()) {
+            console.log("Need to show save changes required...");
+            $("#SaveChangeWarningLabel").show();
+        }
+        else {
+            console.log("No changes detected...");
+            $("#SaveChangeWarningLabel").hide();
+        }
+    });
+
+
 
 </script>
 <div id="divLEDPanelMatrices">
@@ -1939,6 +2002,9 @@
                 <input type='button' class="buttons btn-success ms-1" onClick='SaveChannelOutputsJSON();' value='Save'>
             </div>
         </div>
+        <div id="SaveChangeWarningLabel" class="alert alert-danger" style="display:none;">
+            <strong>Warning!</strong> You have unsaved changes. Please save your changes before leaving this page.
+        </div>
     </div>
     <!-- LED Panel Matrix Tabs --->
     <ul class="nav nav-tabs" id="panelTabs" role="tablist">
@@ -1954,10 +2020,12 @@
                 data-bs-toggle="tab" data-bs-target="#panelMatrix5">Panel Matrix 5</a></li>
     </ul>
 
+
+
     <!-- LED Panel Matrix Tab-Content --->
 
     <div class="panelMatrix-tab-content tab-content">
-        <div class="tab-pane active" id="panelMatrix1">panel 1 content</div>
+        <div class="tab-pane active" id="panelMatrix1">No Panels Defined - Use "Add Panel Matrix" button</div>
         <div class="tab-pane" id="panelMatrix2">panel 2 content</div>
         <div class="tab-pane" id="panelMatrix3">panel 3 content</div>
         <div class="tab-pane" id="panelMatrix4">panel 4 content</div>
