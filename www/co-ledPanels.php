@@ -1683,6 +1683,8 @@
 
     function AddPanelMatrixDialog() {
 
+        var mp = channelOutputsLookup["LEDPanelMatrices"];
+
         var options = {
             id: 'AddPanelMatrixDialog',
             title: 'Add a new LED Panel Matrix Output',
@@ -1797,11 +1799,60 @@
                         //location.reload();
                     }
                 }
+            },
+            open: function () {
+                //set available connections based on existing configName
+                // Create an object to track subtype counts
+                let subtypeCount = {};
+
+                Object.values(mp).forEach(item => {
+                    if (item.subType) { // Ensure subType exists
+                        subtypeCount[item.subType] = (subtypeCount[item.subType] || 0) + 1;
+                    }
+                });
+
+                //Disable subtypes that are already in use based on maxes
+                if (subtypeCount["ColorLight5a75"] >= 4) {
+                    $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='ColorLight5a75']").prop("disabled", true);
+                    $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='ColorLight5a75']").text(function (_, currentText) {
+                        return currentText + " (max number reached)";
+                    });
+                }
+                if (subtypeCount["RGBMatrix"] >= 1) {
+                    $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='RGBMatrix']").prop("disabled", true);
+                    $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='RGBMatrix']").text(function (_, currentText) {
+                        return currentText + " (max number reached)";
+                    });
+                }
+                if (subtypeCount["BBBMatrix"] >= 1) {
+                    $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='BBBMatrix']").prop("disabled", true);
+                    $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='BBBMatrix']").text(function (_, currentText) {
+                        return currentText + " (max number reached)";
+                    });
+                }
+                if (subtypeCount["LEDscapeMatrix"] >= 1) {
+                    $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='LEDscapeMatrix']").prop("disabled", true);
+                    $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='LEDscapeMatrix']").text(function (_, currentText) {
+                        return currentText + " (max number reached)";
+                    });
+                }
+
+                //default to select first non disabled option:
+                let firstEnabledOption = $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option:not(:disabled)").first();
+                if (firstEnabledOption.length) {
+                    $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect").val(firstEnabledOption.val());
+                }
+
             }
 
         };
 
+        //copy the HTML from the template
         options.body = document.querySelector("#AddPanelDialogCode").innerHTML;
+
+
+
+
         DoModalDialog(options);
 
     }
