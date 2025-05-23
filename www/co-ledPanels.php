@@ -1948,7 +1948,8 @@
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
 
         // Find the matching object from saved config
-        let resultObject = channelOutputs.channelOutputs.find(obj => obj.panelMatrixID === panelMatrixID);
+        let resultObject = channelOutputs.channelOutputs.find(obj => obj.panelMatrixID === panelMatrixID) || {};
+        ;
         // Sort object keys alphabetically
         const sortedSavedObj = Object.keys(resultObject).sort().reduce((acc, key) => {
             acc[key] = resultObject[key];
@@ -1956,7 +1957,8 @@
         }, {});
 
         //The current channeloutputsLookup for current panelMatrixID
-        let currentConfigObj = channelOutputsLookup.LEDPanelMatrices[`panelMatrix${panelMatrixID}`];
+        let currentConfigObj = channelOutputsLookup.LEDPanelMatrices[`panelMatrix${panelMatrixID}`] || {};
+
         //remove the elements used only for the UI which are not in the saved config
         Object.keys(currentConfigObj).forEach(key => {
             if (key.startsWith("LEDPanelOutputNumber_") ||
