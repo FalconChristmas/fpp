@@ -346,6 +346,38 @@
 
     var LEDPanelDefaults = <?php echo json_encode($LEDPanelDefaults); ?>;
 
+    //Define mappings of selectors to channelOutputsLookup
+    const selectors = [
+        ["LEDPanelsStartChannel", "startChannel"],
+        ["LEDPanelsPixelCount", "channelCount", val => val / 3],
+        ["LEDPanelsChannelCount", "channelCount"],
+        ["LEDPanelsColorOrder", "colorOrder"],
+        ["LEDPanelsBrightness", "brightness"],
+        ["LEDPanelsGamma", "gamma"],
+        ["LEDPanelsConnectionSelect", "subType"],
+        ["LEDPanelsInterface", "interface"],
+        ["LEDPanelsLayoutCols", "LEDPanelCols"],
+        ["LEDPanelsLayoutRows", "LEDPanelRows"],
+        ["LEDPanelsColorDepth", "panelColorDepth"],
+        ["LEDPanelsStartCorner", "invertedData"],
+        ["LEDPanelsRowAddressType", "panelRowAddressType"],
+        ["LEDPanelsType", "panelType"],
+        ["LEDPanelInterleave", "panelInterleave"],
+        ["LEDPanelsOutputByRow", "panelOutputOrder", val => val ? 1 : 0],
+        ["LEDPanelsOutputBlankRow", "panelOutputBlankRow", val => val ? 1 : 0],
+        ["LEDPanelUIFrontView", "LEDPanelUIFrontView"],
+        ["LEDPanelUIAdvancedLayout", "advanced"],
+        ["LEDPanelsWiringPinout", "wiringPinout"],
+        ["LEDPanelsGPIOSlowdown", "gpioSlowdown"],
+        ["LEDPanelsEnabled", "enabled"],
+        ["LEDPanelsOutputCPUPWM", "cpuPWM"],
+        ["LEDPanelsColorOrder", "colorOrder"],
+        ["LEDPanelMatrixName", "LEDPanelMatrixName"],
+        ["LEDPanelsSize", "LEDPanelsSize"],
+        ["LEDPanelsLayoutCols", "LEDPanelCols"],
+        ["LEDPanelsLayoutRows", "LEDPanelRows"]
+    ];
+
     function checkAndCorrectMissingChannelLookup() {
         if (typeof channelOutputsLookup === "undefined" || channelOutputsLookup === null || !channelOutputsLookup.LEDPanelMatrices || Object.keys(channelOutputsLookup.LEDPanelMatrices).length === 0) {
             {
@@ -647,36 +679,6 @@
                 $(`#panelMatrix${panelMatrixID} .tab-LEDPanels-LI`).show();
             }
 
-            const selectors = [
-                ["LEDPanelsStartChannel", "startChannel"],
-                ["LEDPanelsPixelCount", "channelCount", val => val / 3],
-                ["LEDPanelsChannelCount", "channelCount"],
-                ["LEDPanelsColorOrder", "colorOrder"],
-                ["LEDPanelsBrightness", "brightness"],
-                ["LEDPanelsGamma", "gamma"],
-                ["LEDPanelsConnectionSelect", "subType"],
-                ["LEDPanelsInterface", "interface"],
-                ["LEDPanelsLayoutCols", "LEDPanelCols"],
-                ["LEDPanelsLayoutRows", "LEDPanelRows"],
-                ["LEDPanelsColorDepth", "panelColorDepth"],
-                ["LEDPanelsStartCorner", "invertedData"],
-                ["LEDPanelsRowAddressType", "panelRowAddressType"],
-                ["LEDPanelsType", "panelType"],
-                ["LEDPanelInterleave", "panelInterleave"],
-                ["LEDPanelsOutputByRow", "panelOutputOrder", val => val ? 1 : 0],
-                ["LEDPanelsOutputBlankRow", "panelOutputBlankRow", val => val ? 1 : 0],
-                ["LEDPanelUIFrontView", "LEDPanelUIFrontView"],
-                ["LEDPanelUIAdvancedLayout", "advanced"],
-                ["LEDPanelsWiringPinout", "wiringPinout"],
-                ["LEDPanelsGPIOSlowdown", "gpioSlowdown"],
-                ["LEDPanelsEnabled", "enabled"],
-                ["LEDPanelsOutputCPUPWM", "cpuPWM"],
-                ["LEDPanelsColorOrder", "colorOrder"],
-                ["LEDPanelMatrixName", "LEDPanelMatrixName"],
-                ["LEDPanelsSize", "LEDPanelsSize"],
-                ["LEDPanelsLayoutCols", "LEDPanelCols"],
-                ["LEDPanelsLayoutRows", "LEDPanelRows"]
-            ];
 
             selectors.forEach(([selector, key, transform = val => val]) => {
                 if (mp[key] != null) {
@@ -1926,6 +1928,12 @@
         delete channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
         document.querySelector(`#panelMatrix${panelMatrixID}`).innerHTML = "No Panels Defined - Use \"Add Panel Matrix\" button";
         $(`#matrixPanelTab${panelMatrixID}`).hide();
+
+        SetMatrixDisplayDefault();
+
+    }
+
+    function SetMatrixDisplayDefault() {
         // Ensure LEDPanelMatrices exists and is not empty
         if (Array.isArray(channelOutputsLookup.LEDPanelMatrices) && Object.keys(channelOutputsLookup.LEDPanelMatrices).length > 0) {
             // Set first tab to be active
@@ -1939,7 +1947,6 @@
             console.warn("No LED panel matrices found. Defaulting to show empty panel matrix 1 tab");
             $(`#matrixPanelTab1 a`).tab('show');
         }
-
     }
 
     function DetectConfigChangesInUI() {
@@ -1975,13 +1982,34 @@
             return acc;
         }, {});
 
-        if (JSON.stringify(sortedSavedObj) !== JSON.stringify(sortedCurrentObj)) {
-            console.log("Arrays are different!");
+        // Compare objects and log differences
+        let differences = [];
+        Object.keys({ ...sortedSavedObj, ...sortedCurrentObj }).forEach(key => {
+            if (sortedSavedObj[key] !== sortedCurrentObj[key]) {
+                differences.push({
+                    key: key,
+                    savedValue: sortedSavedObj[key],
+                    currentValue: sortedCurrentObj[key]
+                });
+            }
+        });
+
+        if (differences.length > 0) {
+            console.log("Differences detected:", differences);
             return true;
         } else {
-            console.log("Arrays are identical.");
-            return false
+            console.log("No differences found.");
+            return false;
         }
+
+
+        /*         if (JSON.stringify(sortedSavedObj) !== JSON.stringify(sortedCurrentObj)) {
+                    console.log("Arrays are different!");
+                    return true;
+                } else {
+                    console.log("Arrays are identical.");
+                    return false
+                } */
     }
 
 
@@ -2028,15 +2056,26 @@
 
     $(document).on("change input", "select, input, textarea", function () {
         console.log(`Changed: ${$(this).attr("class")} -> ${this.value}`);
-        if (DetectConfigChangesInUI()) {
-            console.log("Need to show save changes required...");
-            $("#SaveChangeWarningLabel").show();
-        }
-        else {
-            console.log("No changes detected...");
-            $("#SaveChangeWarningLabel").hide();
-        }
+
+        const panelMatrixID = GetCurrentActiveMatrixPanelID();
+        let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
+        //Update the channelOutputsLookup with the new values from UI screen
+        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID] = GetLEDPanelConfigFromUI(panelMatrixID);
+        //re-add derived values
+
+
+        //show hide changes warning
+        DisplaySaveWarningIfRequired();
     });
+
+    $(document).on("shown.bs.tab", 'a[data-bs-toggle="pill"]', function (event) {
+        if (event.target.id.startsWith("tab-LEDPanels-tab")) {
+            //Default to first tab if no tab is selected
+            SetMatrixDisplayDefault();
+        }
+        //console.log("Tab activated:", event.target); // Logs the activated pill
+    });
+
 
 
 

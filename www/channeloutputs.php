@@ -216,6 +216,17 @@
             return result;
         }
 
+        function DisplaySaveWarningIfRequired() {
+            if (DetectConfigChangesInUI()) {
+                console.log("Need to show save changes required...");
+                $("#SaveChangeWarningLabel").show();
+            }
+            else {
+                console.log("No changes detected...");
+                $("#SaveChangeWarningLabel").hide();
+            }
+        }
+
         function SaveChannelOutputsJSON() {
             var configStr = GetChannelOutputConfig();
             configStr = configStr.replace("'", "");
@@ -224,6 +235,7 @@
             ).done(function (data) {
                 $.jGrowl(" Channel Output configuration saved", { themeState: 'success' });
                 PopulateChannelOutputLookup();
+                DisplaySaveWarningIfRequired();
                 SetRestartFlag(1);
             }).fail(function () {
                 DialogError("Save Channel Output Config", "Save Failed");
