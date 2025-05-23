@@ -554,7 +554,7 @@
         //get currently visible panelMatrixID
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
 
-        value = $(`#panelMatrix${panelMatrixID}  .LEDPanelUIFrontView`).is(":checked");
+        value = $(`#panelMatrix${panelMatrixID} .LEDPanelUIFrontView`).is(":checked");
 
         GetChannelOutputConfig(); // Refresh the in-memory config before redrawing
         channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID]['LEDPanelUIFrontView'] = value;
@@ -1927,7 +1927,7 @@
         document.querySelector(`#panelMatrix${panelMatrixID}`).innerHTML = "No Panels Defined - Use \"Add Panel Matrix\" button";
         $(`#matrixPanelTab${panelMatrixID}`).hide();
         // Ensure LEDPanelMatrices exists and is not empty
-        if (Array.isArray(channelOutputsLookup.LEDPanelMatrices) && channelOutputsLookup.LEDPanelMatrices.length > 0) {
+        if (Array.isArray(channelOutputsLookup.LEDPanelMatrices) && Object.keys(channelOutputsLookup.LEDPanelMatrices).length > 0) {
             // Set first tab to be active
             let objkey = Object.keys(channelOutputsLookup.LEDPanelMatrices).reduce((min, current) =>
                 current.panelMatrixID < min.panelMatrixID ? current : min
