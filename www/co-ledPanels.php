@@ -1683,13 +1683,6 @@
 
     function AddPanelMatrixDialog() {
 
-        //get next panel matrix ID
-        var NewPanelMatrixID = findNextAvailableId(channelOutputsLookup["LEDPanelMatrices"]);
-        if (NewPanelMatrixID > 5) {
-            alert("Maximum number of panel matrices reached.  Please remove a panel matrix before adding a new one.");
-            return;
-        }
-
         var options = {
             id: 'AddPanelMatrixDialog',
             title: 'Add a new LED Panel Matrix Output',
@@ -1703,6 +1696,14 @@
                     id: 'AddPanelButton',
                     class: 'btn-danger',
                     click: function () {
+
+                        //get next panel matrix ID
+                        var NewPanelMatrixID = findNextAvailableId(channelOutputsLookup["LEDPanelMatrices"]);
+                        if (NewPanelMatrixID > 5) {
+                            alert("Maximum number of panel matrices reached.  Please remove a panel matrix before adding a new one.");
+                            return;
+                        }
+
                         //add new matrix to channelOutputsLookup
                         //set the default values for the new panel matrix based on system defaults
                         channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + NewPanelMatrixID] = {
