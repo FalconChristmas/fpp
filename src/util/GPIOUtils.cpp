@@ -121,6 +121,7 @@ int GPIODCapabilities::configPin(const std::string& mode,
                                  bool directionOut,
                                  const std::string& desc) const {
 #ifdef HASGPIOD
+    // printf("Configuring %s %d %d %s\n", name.c_str(), gpioIdx, gpio, mode.c_str());
     if (chip == nullptr) {
         if (!GPIOChipHolder::INSTANCE.chips[gpioIdx]) {
             if (gpioName.empty()) {
@@ -167,10 +168,44 @@ int GPIODCapabilities::configPin(const std::string& mode,
 void GPIODCapabilities::releaseGPIOD() const {
 #ifdef HASGPIOD
     if (line.is_requested()) {
+        // printf("Releasing %s %d %d\n", name.c_str(), gpioIdx, gpio);
         line.release();
         lastRequestType = 0;
     }
 #endif
+}
+int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const {
+    int fd = -1;
+#ifdef HASGPIOD
+    gpiod::line_request req;
+    req.consumer = PROCESS_NAME;
+    req.request_type = lastRequestType;
+    if (risingEdge && fallingEdge) {
+        req.request_type |= gpiod::line_request::EVENT_BOTH_EDGES;
+    } else if (risingEdge) {
+        req.request_type |= gpiod::line_request::EVENT_RISING_EDGE;
+    } else if (fallingEdge) {
+        req.request_type |= gpiod::line_request::EVENT_FALLING_EDGE;
+    }
+    if (line.is_requested()) {
+        line.release();
+    }
+    try {
+        line.request(req, 0);
+    } catch (const std::exception& ex) {
+        WarningHolder::AddWarning("Could not configure pin " + name + " for events (" + ex.what() + ") for edges Rising:" +
+                                  std::to_string(risingEdge) + "   Falling:" + std::to_string(fallingEdge));
+    }
+    if (line.is_requested()) {
+        fd = line.event_get_fd();
+        if (fd < 0) {
+            WarningHolder::AddWarning("Could not get event file descriptor for pin " + name);
+        }
+    } else {
+        WarningHolder::AddWarning("Could not request event for pin " + name);
+    }
+#endif
+    return fd;
 }
 
 bool GPIODCapabilities::getValue() const {

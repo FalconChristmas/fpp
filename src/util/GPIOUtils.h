@@ -82,6 +82,10 @@ public:
     virtual int mappedGPIOIdx() const { return gpioIdx; }
     virtual int mappedGPIO() const { return gpio; }
 
+    virtual int requestEventFile(bool risingEdge, bool fallingEdge) const {
+        return -1;
+    }
+
     static const PinCapabilities& getPinByName(const std::string& n);
     static const PinCapabilities& getPinByGPIO(int i);
     static const PinCapabilities& getPinByUART(const std::string& n);
@@ -141,6 +145,8 @@ public:
 
     virtual bool isGPIOD() const override { return true; }
     virtual void releaseGPIOD() const override;
+
+    virtual int requestEventFile(bool risingEdge, bool fallingEdge) const override;
 
     std::string gpioName;
 #ifdef HASGPIOD

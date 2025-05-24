@@ -18,14 +18,6 @@
 
 #include "config.h"
 
-#ifdef HAS_GPIOD
-#include <gpiod.h>
-#else
-struct gpiod_line {};
-struct gpiod_chip {};
-#endif
-
-constexpr int MAX_GPIOD_CHIPS = 8;
 constexpr uint32_t DEFAULT_GPIO_DEBOUNCE_TIME = 100000;
 
 class PinCapabilities;
@@ -56,7 +48,6 @@ private:
         long long lastTriggerTime;
         int futureValue;
 
-        struct gpiod_line* gpiodLine = nullptr;
         int file;
         Json::Value fallingAction;
         Json::Value risingAction;
@@ -72,7 +63,6 @@ private:
     void SetupGPIOInput(std::map<int, std::function<bool(int)>>& callbacks);
     void addState(GPIOState& state);
 
-    std::array<gpiod_chip*, MAX_GPIOD_CHIPS> gpiodChips;
     std::vector<GPIOState> pollStates;
     std::vector<GPIOState> eventStates;
 

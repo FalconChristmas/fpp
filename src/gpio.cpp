@@ -84,7 +84,7 @@ public:
     FPPGPIOCommand() :
         Command("GPIO") {
         args.push_back(CommandArg("pin", "string", "Pin").setContentListUrl("api/gpio?list=true"));
-        args.push_back(CommandArg("on", "string", "Action").setContentList({"On", "Off", "Opposite"}));
+        args.push_back(CommandArg("on", "string", "Action").setContentList({ "On", "Off", "Opposite" }));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
         if (args.size() != 2) {
@@ -98,16 +98,13 @@ public:
             if (v == "On" || v == "on" || v == "true" || v == "True" || v == "1") {
                 p.setValue(true);
                 GPIOManager::INSTANCE.fppCommandLastValue[n] = true;
-            }
-            else if (v == "Off" || v == "off" || v == "false" || v == "False" || v == "0") {
+            } else if (v == "Off" || v == "off" || v == "false" || v == "False" || v == "0") {
                 p.setValue(false);
                 GPIOManager::INSTANCE.fppCommandLastValue[n] = false;
-            }
-            else if (v == "Opposite" || v == "opposite") {
+            } else if (v == "Opposite" || v == "opposite") {
                 GPIOManager::INSTANCE.fppCommandLastValue[n] = !GPIOManager::INSTANCE.fppCommandLastValue[n];
                 p.setValue(GPIOManager::INSTANCE.fppCommandLastValue[n]);
-            }
-            else {
+            } else {
                 return std::make_unique<Command::ErrorResult>("Invalid Action" + v);
             }
             return std::make_unique<Command::Result>("OK");
@@ -116,12 +113,8 @@ public:
     }
 };
 
-
 GPIOManager::GPIOManager() :
     checkDebounces(false) {
-    for (auto& a : gpiodChips) {
-        a = nullptr;
-    }
 }
 GPIOManager::~GPIOManager() {
 }
@@ -166,23 +159,16 @@ void GPIOManager::CheckGPIOInputs(void) {
     }
 }
 void GPIOManager::Cleanup() {
-#ifdef HAS_GPIOD
     for (auto& a : eventStates) {
-        if (a.gpiodLine) {
-            gpiod_line_release(a.gpiodLine);
+        if (a.file != -1) {
+            a.pin->releaseGPIOD();
         }
     }
     for (auto& a : pollStates) {
-        if (a.gpiodLine) {
-            gpiod_line_release(a.gpiodLine);
+        if (a.file) {
+            a.pin->releaseGPIOD();
         }
     }
-    for (auto a : gpiodChips) {
-        if (a) {
-            gpiod_chip_close(a);
-        }
-    }
-#endif
 }
 
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::render_GET(const httpserver::http_request& req) {
@@ -303,56 +289,17 @@ void GPIOManager::addState(GPIOState& state) {
     // from triggering our GPIOs on startup.
     state.lastTriggerTime = GetTime();
     state.lastValue = state.futureValue = state.pin->getValue();
-    state.gpiodLine = nullptr;
     state.file = -1;
 
-#ifdef HAS_GPIOD
-    if ((state.pin->supportsGpiod()) &&
-        (!gpiodChips[state.pin->gpioIdx])) {
-        gpiodChips[state.pin->gpioIdx] = gpiod_chip_open_by_number(state.pin->gpioIdx);
-    }
-
-    if ((state.pin->supportsGpiod()) &&
-        (state.pin->gpio < gpiod_chip_num_lines(gpiodChips[state.pin->gpioIdx]))) {
-        state.gpiodLine = gpiod_chip_get_line(gpiodChips[state.pin->gpioIdx], state.pin->gpio);
-
-        struct gpiod_line_request_config lineConfig;
-        lineConfig.consumer = "FPPD";
-        lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
-        lineConfig.flags = 0;
-        if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
-            LogDebug(VB_GPIO, "Could not config line as input\n");
-        }
-        gpiod_line_release(state.gpiodLine);
-
-        if (state.risingAction != "" && state.fallingAction != "") {
-            lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
-        } else if (state.risingAction != "") {
-            lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
-        } else {
-            lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE;
-        }
-        lineConfig.flags = 0;
-        if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
-            LogDebug(VB_GPIO, "Could not config line edge for %s, will poll\n", state.pin->name.c_str());
-        } else {
-            state.file = gpiod_line_event_get_fd(state.gpiodLine);
-        }
+    if (state.pin->supportsGpiod()) {
+        state.file = state.pin->requestEventFile(state.risingAction != "", state.fallingAction != "");
     } else {
-        state.gpiodLine = nullptr;
         state.file = -1;
     }
-#endif
 
     if (state.file > 0) {
         eventStates.push_back(state);
     } else {
-#ifdef HAS_GPIOD
-        if (state.gpiodLine) {
-            gpiod_line_release(state.gpiodLine);
-        }
-        state.gpiodLine = nullptr;
-#endif
         pollStates.push_back(state);
     }
 }
