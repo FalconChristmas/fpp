@@ -15,6 +15,7 @@
 #include <sys/wait.h>
 #include <fstream>
 #include <unistd.h>
+#include <thread>
 
 #include "../Warnings.h"
 #include "../common.h"

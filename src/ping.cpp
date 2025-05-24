@@ -22,6 +22,11 @@
 #include <poll.h>
 #include <unistd.h>
 
+#include <mutex>
+#include <list>
+#include <thread>
+
+#include "common.h"
 #include "ping.h"
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

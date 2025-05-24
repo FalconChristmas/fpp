@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <cmath>
 
 // FPP includes
 #include "../../Sequence.h"
@@ -1212,14 +1213,14 @@ void BBShiftPanelOutput::setupGamma(float gamma) {
             break;
         }
         float f = v;
-        f = max * pow(f / 255.0f, gamma);
+        f = max * std::pow(f / 255.0f, gamma);
         if (f > max) {
             f = max;
         }
         if (f < 0.0) {
             f = 0.0;
         }
-        gammaCurve[x] = round(f);
+        gammaCurve[x] = std::round(f);
         if (gammaCurve[x] == 0 && f > 0.25) {
             // don't drop as much of the low end to 0
             gammaCurve[x] = 1;

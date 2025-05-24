@@ -15,6 +15,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <cmath>
 
 #include "../common.h"
 #include "../log.h"
@@ -188,7 +189,7 @@ int VirtualDisplayOutput::SendData(unsigned char* channelData) {
 
         for (int xo = 0 - radius; xo < radius; xo++) {
             for (int yo = 0 - radius; yo < radius; yo++) {
-                if (sqrt(xo * xo + yo * yo) > radius)
+                if (std::sqrt(xo * xo + yo * yo) > radius)
                     continue;
 
                 tx = pixel.xs + xo;

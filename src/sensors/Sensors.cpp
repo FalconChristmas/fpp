@@ -19,8 +19,10 @@
 #include <iomanip>
 #include <thread>
 #include <unistd.h>
+#include <set>
 
 #include "../common.h"
+#include "../Warnings.h"
 
 #include "ADS7828.h"
 #include "IIOSensorSource.h"

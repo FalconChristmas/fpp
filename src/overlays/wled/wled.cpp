@@ -15,6 +15,7 @@
 
 #include "fpp-pch.h"
 
+#include "../../settings.h"
 #include "../PixelOverlayModel.h"
 
 #include <cmath>

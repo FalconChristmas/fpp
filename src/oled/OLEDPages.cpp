@@ -1,7 +1,10 @@
 #include "fpp-pch.h"
 
+#include <fstream>
+
 #include "OLEDPages.h"
 #include "../common.h"
+
 
 static std::unique_ptr<DisplayDriver> displayDriver{ nullptr };
 

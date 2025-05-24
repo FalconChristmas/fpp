@@ -178,6 +178,7 @@
 #include "../Warnings.h"
 #include "../common.h"
 #include "../log.h"
+#include "../settings.h"
 
 #include "ColorLight-5a-75.h"
 #include "overlays/PixelOverlay.h"

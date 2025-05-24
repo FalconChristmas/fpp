@@ -12,6 +12,7 @@
 
 #include "fpp-pch.h"
 
+#include "../log.h"
 #include "../Warnings.h"
 #include "../config.h"
 #include <unistd.h>

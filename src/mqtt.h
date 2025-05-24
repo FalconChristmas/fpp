@@ -16,6 +16,7 @@
 #include <mutex>
 #include <pthread.h>
 #include <string>
+#include <atomic>
 
 #include "Events.h"
 #include "Warnings.h"

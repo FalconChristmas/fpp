@@ -13,7 +13,10 @@
 #include "fpp-pch.h"
 
 #include <curl/curl.h>
+
+#include <functional>
 #include <mutex>
+#include <thread>
 
 #include "../Timers.h"
 #include "../log.h"

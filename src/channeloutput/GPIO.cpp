@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 
 #include "../log.h"
+#include "../Warnings.h"
 
 #include "GPIO.h"
 

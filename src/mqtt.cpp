@@ -12,6 +12,7 @@
 
 #include "fpp-pch.h"
 
+#include <atomic>
 #include <cstring>
 #include <functional>
 #include <list>

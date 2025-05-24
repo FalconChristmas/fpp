@@ -11,6 +11,7 @@
  */
 
 #include "fpp-pch.h"
+#include <thread>
 
 #include "MuxSensorSource.h"
 

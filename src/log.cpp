@@ -12,6 +12,7 @@
 
 #include "fpp-pch.h"
 
+#include <fcntl.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
