@@ -477,13 +477,11 @@ void Sensors::DetectHWSensors() {
                 --r;
             }
             std::string label = path;
-            printf("Thermal Zone %d: %s\n", i, path);
             if (endsWith(label, "thermal_zone") || endsWith(label, "thermal-zone")) {
                 path[r - 13] = 0; // remove the "thermal_zone" suffix
             } else if (endsWith(label, "thermal")) {
                 path[r - 8] = 0; // remove the "thermal" suffix
             }
-            printf("      %s\n", path);
             bool hasUpper = false;
             for (int x = 0; path[x]; x++) {
                 if (isupper(path[x])) {
