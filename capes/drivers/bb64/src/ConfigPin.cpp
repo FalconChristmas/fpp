@@ -34,7 +34,10 @@ int main(int argc, char const* argv[]) {
     }
     close(mem_fd);
 
-    std::string arg1(argv[1]);
+    std::string arg1;
+    if (argc > 1) {
+        arg1 = argv[1];
+    }
     if (arg1 == "-q") {
         if (argc > 2) {
             Pin::getPin(argv[2]).query();
@@ -55,6 +58,12 @@ int main(int argc, char const* argv[]) {
                 p.second.listModes();
             }
         }
+    } else {
+        printf("Usage: %s -q <pin> | -s <pin> <mode> | -l <pin>\n", argv[0]);
+        printf("       %s -q : query all pins\n", argv[0]);
+        printf("       %s -q <pin> : query pin\n", argv[0]);
+        printf("       %s -s <pin> <mode> : set pin mode\n", argv[0]);
+        printf("       %s -l <pin> : list modes for pin\n", argv[0]);
     }
     return 0;
 }
