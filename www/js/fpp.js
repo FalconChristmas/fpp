@@ -4775,13 +4775,27 @@ function updateSensorStatus () {
 	jsonStatus = lastStatusJSON;
 	if (jsonStatus.hasOwnProperty('sensors')) {
 		var sensorText = "<table id='sensorTable'>";
+		var outPos = 0;
+		var sensorType = '';
+		if (jsonStatus.sensors.length > 0) {
+			sensorType = jsonStatus.sensors[0].valueType;
+		}
 		for (var i = 0; i < jsonStatus.sensors.length; i++) {
-			if (jsonStatus.sensors.length < 4 || i % 2 == 0) {
+			if (
+				jsonStatus.sensors[i].valueType != sensorType &&
+				jsonStatus.sensors.length > 3 &&
+				outPos % 2 == 1
+			) {
+				sensorText += '</tr>';
+				outPos++;
+			}
+			sensorType = jsonStatus.sensors[i].valueType;
+			if (jsonStatus.sensors.length < 4 || outPos % 2 == 0) {
 				sensorText += '<tr>';
 			}
 			sensorText += '<td>';
 			sensorText += jsonStatus.sensors[i].label;
-			sensorText += '</td><td';
+			sensorText += '</td><td style="padding-right: 15px;"';
 			if (jsonStatus.sensors[i].valueType == 'Temperature') {
 				sensorText += " onclick='changeTemperatureUnit()'>";
 				var val = jsonStatus.sensors[i].value;
@@ -4800,9 +4814,10 @@ function updateSensorStatus () {
 			}
 			sensorText += '</td>';
 
-			if (jsonStatus.sensors.length > 4 && i % 2 == 1) {
+			if (jsonStatus.sensors.length > 4 && outPos % 2 == 1) {
 				sensorText += '<tr>';
 			}
+			outPos++;
 		}
 		sensorText += '</table>';
 		var sensorData = document.getElementById('sensorData');
@@ -5873,83 +5888,86 @@ function GetRunningEffects () {
 			setTimeout(GetRunningEffects, 1000);
 		})
 		.fail(function () {
-			DialogError('Query Failed', 'Failed to refresh running effects, reload page to try again.');
+			DialogError(
+				'Query Failed',
+				'Failed to refresh running effects, reload page to try again.'
+			);
 		});
 }
 
 let SelectedOverlayModel = null;
 
-function GetRunningOverlayEffects() {
-  $.getJSON('api/overlays/running')
-    .done(function (data) {
-      const $tbody       = $('#tblOverlayEffectsBody');
-      const $table       = $('#tblOverlayEffects');
-      const $title       = $('#overlayEffectsTitle');
-      const $container   = $('#divOverlayEffects');
+function GetRunningOverlayEffects () {
+	$.getJSON('api/overlays/running')
+		.done(function (data) {
+			const $tbody = $('#tblOverlayEffectsBody');
+			const $table = $('#tblOverlayEffects');
+			const $title = $('#overlayEffectsTitle');
+			const $container = $('#divOverlayEffects');
 
-      $tbody.empty(); // Clear old rows
+			$tbody.empty(); // Clear old rows
 
-      // --- group effect names per model ---
-      const models = {}; // { model: [effect, …] }
-      $.each(data || [], (_, item) => {
-        const model = item?.Name;
-        const effect = item?.effect?.name;
-        if (!model) return;
-        if (!models[model]) models[model] = [];
-        if (effect && !models[model].includes(effect)) models[model].push(effect);
-      });
+			// --- group effect names per model ---
+			const models = {}; // { model: [effect, …] }
+			$.each(data || [], (_, item) => {
+				const model = item?.Name;
+				const effect = item?.effect?.name;
+				if (!model) return;
+				if (!models[model]) models[model] = [];
+				if (effect && !models[model].includes(effect))
+					models[model].push(effect);
+			});
 
-      const anyRunning = Object.keys(models).length > 0;
-      $table.toggleClass('fppActionTable-success', anyRunning);
-	  
-      if (anyRunning) {
-        $.each(Object.keys(models).sort(), (_, model) => {
-          const effectsText = models[model].join(', ');
-          const $tr = $('<tr>');
-          if (model === SelectedOverlayModel) {
-            $tr.addClass('effectSelectedEntry');
-          }
+			const anyRunning = Object.keys(models).length > 0;
+			$table.toggleClass('fppActionTable-success', anyRunning);
 
-          $('<td width="5%">').text(model).appendTo($tr);
-          $('<td width="80%">').text(effectsText).appendTo($tr);
-          $('<td width="15%">')
-            .append(
-              $('<button>', {
-                class: 'buttons btn-danger stop-overlay-effects',
-                'data-model': model,
-                text: 'Stop'
-              })
-            )
-            .appendTo($tr);
+			if (anyRunning) {
+				$.each(Object.keys(models).sort(), (_, model) => {
+					const effectsText = models[model].join(', ');
+					const $tr = $('<tr>');
+					if (model === SelectedOverlayModel) {
+						$tr.addClass('effectSelectedEntry');
+					}
 
-          $tbody.append($tr);
-        });
+					$('<td width="5%">').text(model).appendTo($tr);
+					$('<td width="80%">').text(effectsText).appendTo($tr);
+					$('<td width="15%">')
+						.append(
+							$('<button>', {
+								class: 'buttons btn-danger stop-overlay-effects',
+								'data-model': model,
+								text: 'Stop'
+							})
+						)
+						.appendTo($tr);
 
-		$container
-            .removeClass('divOverlayEffectsDisabled backdrop-disabled')
-  			.addClass('divOverlayEffectsRunning backdrop-success');
+					$tbody.append($tr);
+				});
 
-      } else {
-        // Nothing running
-        $container
-            .addClass('divOverlayEffectsDisabled backdrop-disabled')
-  			.removeClass('divOverlayEffectsRunning backdrop-success');
-      }
+				$container
+					.removeClass('divOverlayEffectsDisabled backdrop-disabled')
+					.addClass('divOverlayEffectsRunning backdrop-success');
+			} else {
+				// Nothing running
+				$container
+					.addClass('divOverlayEffectsDisabled backdrop-disabled')
+					.removeClass('divOverlayEffectsRunning backdrop-success');
+			}
 
-      setTimeout(GetRunningOverlayEffects, 1000);
-    })
+			setTimeout(GetRunningOverlayEffects, 1000);
+		})
 
-    .fail(function () {
-      $('#tblOverlayEffectsBody').empty();
-      $('#tblOverlayEffects').removeClass('fppActionTable-success');
-      $('#overlayEffectsTitle').removeClass('text-success');
+		.fail(function () {
+			$('#tblOverlayEffectsBody').empty();
+			$('#tblOverlayEffects').removeClass('fppActionTable-success');
+			$('#overlayEffectsTitle').removeClass('text-success');
 
-      $('#divOverlayEffects')
-        .removeClass('divOverlayEffectsRunning backdrop-success')
-        .addClass('divOverlayEffectsDisabled backdrop-disabled');
+			$('#divOverlayEffects')
+				.removeClass('divOverlayEffectsRunning backdrop-success')
+				.addClass('divOverlayEffectsDisabled backdrop-disabled');
 
-      setTimeout(GetRunningOverlayEffects, 1000);
-    });
+			setTimeout(GetRunningOverlayEffects, 1000);
+		});
 }
 
 function Reboot () {
@@ -6740,35 +6758,35 @@ function SetupSelectableTableRow (info) {
 }
 
 function DialogOK (title, message) {
-    DoModalDialog({
-        id: 'dialogOKPopup',
-        title: title,
-        body: message,
-        class: 'modal-sm',
-        keyboard: true,
-        backdrop: true,
-        buttons: {
-            Close: {
-                click: function () {
-                    CloseModalDialog('dialogOKPopup');
-                },
-                class: 'btn-success'
-            }
-        },
-        open: function() {
-            $('#dialogOKPopup').css('z-index', 1060);
-            $('.modal-backdrop').last().css('z-index', 1059);
-        },
-        close: function() {
-            $('.modal-backdrop').remove(); // Remove lingering backdrop
-            $('body').removeClass('modal-open').css('padding-right', ''); // Reset body state
-        }
-    });
+	DoModalDialog({
+		id: 'dialogOKPopup',
+		title: title,
+		body: message,
+		class: 'modal-sm',
+		keyboard: true,
+		backdrop: true,
+		buttons: {
+			Close: {
+				click: function () {
+					CloseModalDialog('dialogOKPopup');
+				},
+				class: 'btn-success'
+			}
+		},
+		open: function () {
+			$('#dialogOKPopup').css('z-index', 1060);
+			$('.modal-backdrop').last().css('z-index', 1059);
+		},
+		close: function () {
+			$('.modal-backdrop').remove(); // Remove lingering backdrop
+			$('body').removeClass('modal-open').css('padding-right', ''); // Reset body state
+		}
+	});
 }
 
 // Simple wrapper for now, but we may highlight this somehow later
 function DialogError (title, message) {
-    DialogOK(title, message);
+	DialogOK(title, message);
 }
 
 // page visibility prefixing

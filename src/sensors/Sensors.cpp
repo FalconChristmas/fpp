@@ -17,12 +17,12 @@
 #include <fcntl.h>
 #include <fstream>
 #include <iomanip>
+#include <set>
 #include <thread>
 #include <unistd.h>
-#include <set>
 
-#include "../common.h"
 #include "../Warnings.h"
+#include "../common.h"
 
 #include "ADS7828.h"
 #include "IIOSensorSource.h"
@@ -472,18 +472,31 @@ void Sensors::DetectHWSensors() {
             int file = open(path, O_RDONLY);
             int r = read(file, path, 30);
             path[r] = 0;
-            r = 0;
-            while (path[r]) {
-                if (path[r] == '-') {
-                    path[r] = 0;
-                } else if (path[r] == '\n') {
-                    path[r] = 0;
-                } else {
-                    path[r] = toupper(path[r]);
-                    r++;
-                }
+            if (path[r - 1] == '\n') {
+                path[r - 1] = 0; // remove trailing newline
+                --r;
             }
             std::string label = path;
+            printf("Thermal Zone %d: %s\n", i, path);
+            if (endsWith(label, "thermal_zone") || endsWith(label, "thermal-zone")) {
+                path[r - 13] = 0; // remove the "thermal_zone" suffix
+            } else if (endsWith(label, "thermal")) {
+                path[r - 8] = 0; // remove the "thermal" suffix
+            }
+            printf("      %s\n", path);
+            bool hasUpper = false;
+            for (int x = 0; path[x]; x++) {
+                if (isupper(path[x])) {
+                    hasUpper = true;
+                }
+            }
+            if (!hasUpper) {
+                // convert to lower case
+                for (int x = 0; path[x]; x++) {
+                    path[x] = toupper(path[x]);
+                }
+            }
+            label = path;
             if (endsWith(label, "_THERMAL_ZONE")) {
                 label = label.substr(0, label.size() - 13);
             } else if (endsWith(label, "_THERMAL")) {
