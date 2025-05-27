@@ -1531,7 +1531,7 @@
     }
 
     function PanelSubtypeChanged(panelMatrixID) {
-        var select = document.getElementById("panelMatrix" + panelMatrixID).getElementsByClassName("printSettingFieldCola col-md-3 col-lg-3");
+        var select = document.getElementById("panelMatrix" + panelMatrixID).getElementsByClassName("printSettingFieldCola col-md-4 col-lg-4");
         var html = "";
 
         html += "<select class='LEDPanelsSize' onchange='LEDPanelsSizeChanged(GetCurrentActiveMatrixPanelID());'>"
@@ -2168,8 +2168,8 @@
         </div>
 
         <div class="tableOptionsForm">
-            <div class="backdrop row">
-                <div class="col-md-auto">
+            <div class="divLEDPanelHeader backdrop row">
+                <div class="col-md-auto form-inline">
                     <div class="backdrop-dark form-inline enableCheckboxWrapper">
                         <div><b>Enable LED Panel Matrix:&nbsp; <span class='matrixPanelID'></span></b></div>
                         <div><input class='LEDPanelsEnabled' type='checkbox' onChange="WarnIfSlowNIC();"></div>
@@ -2241,7 +2241,7 @@
 
                 </div>
 
-                <div class="col-md-auto ms-lg-auto">
+                <div class="col-md-auto ms-lg-auto form-inline">
                     <div class="form-actions">
                         <input id="RemovePanelMatrixButton" type='button' class="buttons ms-1 btn-danger"
                             onClick='RemovePanelMatrixConfig();' value='Remove Panel Matrix'>
@@ -2266,7 +2266,7 @@
                             <span class='ledPanelSimpleUI'><b>Panel Layout:</b></span>
                             <span class='ledPanelCanvasUI'><b>Matrix Size (WxH):</b></span>
                         </div>
-                        <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <span class='ledPanelSimpleUI LEDPanelLayoutSelect'>
                                 <!--  W:<select class='LEDPanelsLayoutCols' onChange='LEDPanelsLayoutChanged()'></select>
                                 H:<select class='LEDPanelsLayoutRows' onChange='LEDPanelsLayoutChanged()'></select> -->
@@ -2280,23 +2280,23 @@
                             </span>
                         </div>
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Start Channel:</b></div>
-                        <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <input class='LEDPanelsStartChannel' type=number min=1 max=<?= FPPD_MAX_CHANNELS ?>
                                 value='1'>
                         </div>
                     </div>
                     <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Single Panel Size (WxH):</b></div>
-                        <div class="printSettingFieldCola col-md-3 col-lg-3">
+                        <div class="printSettingFieldCola col-md-4 col-lg-4">
                         </div>
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Channel Count:</b></div>
-                        <div class="printSettingFieldCol col-md-3 col-lg-3"><span
+                        <div class="printSettingFieldCol col-md-4 col-lg-4"><span
                                 class='LEDPanelsChannelCount'>1536</span>(<span class='LEDPanelsPixelCount'>512</span>
                             Pixels)</div>
                     </div>
                     <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Model Start Corner:</b></div>
-                        <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <select class='LEDPanelsStartCorner'>
                                 <option value='0'>Top Left</option>
                                 <option value='1'>Bottom Left</option>
@@ -2304,7 +2304,7 @@
                         </div>
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Default Panel Color Order (C-Def):</b>
                         </div>
-                        <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <select class='LEDPanelsColorOrder'>
                                 <option value='RGB'>RGB</option>
                                 <option value='RBG'>RBG</option>
@@ -2317,16 +2317,16 @@
                     </div>
                     <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Panel Gamma:</b></div>
-                        <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <? printLEDPanelGammaSelect($settings['Platform']); ?>
                         </div>
                         <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
-                        <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
+                        <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
                     </div>
                     <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                 class='LEDPanelsBrightnessLabel'><b>Brightness:</b></span></div>
-                        <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <select class='LEDPanelsBrightness'>
                                 <?
                                 if ($settings['Platform'] == "Raspberry Pi") {
@@ -2346,7 +2346,7 @@
                         <? if ($settings['Platform'] == "Raspberry Pi") { ?>
                             <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                     class='LEDPanelsGPIOSlowdownLabel'><b>GPIO Slowdown:</b></span></div>
-                            <div class="printSettingFieldCol col-md-3 col-lg-3">
+                            <div class="printSettingFieldCol col-md-4 col-lg-4">
                                 <select class='LEDPanelsGPIOSlowdown'>
                                     <option value='0'>0 (Pi Zero and other single-core)</option>
                                     <option value='1' selected>1 (multi-core Pi)</option>
@@ -2360,39 +2360,39 @@
                         <? } else if ($settings['BeaglePlatform']) { ?>
                                 <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                         class='LEDPanelsOutputByRowLabel'><b>Output By Row:</b></div>
-                                <div class="printSettingFieldCol col-md-3 col-lg-3"><input class='LEDPanelsOutputByRow'
+                                <div class="printSettingFieldCol col-md-4 col-lg-4"><input class='LEDPanelsOutputByRow'
                                         type='checkbox' onclick='outputByRowClicked()'></div>
                         <? } else { ?>
                                 <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
-                                <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
+                                <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
                         <? } ?>
 
                     </div>
                     <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                 class='LEDPanelInterleaveLabel'><b>Panel Interleave:</b></span></div>
-                        <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <? printLEDPanelInterleaveSelect(); ?>
                         </div>
                         <? if ($settings['Platform'] == "Raspberry Pi") { ?>
                             <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                     class='LEDPanelsOutputCPUPWMLabel'><b>Use CPU PWM:</b></span></div>
-                            <div class="printSettingFieldCol col-md-3 col-lg-3"><input class='LEDPanelsOutputCPUPWM'
+                            <div class="printSettingFieldCol col-md-4 col-lg-4"><input class='LEDPanelsOutputCPUPWM'
                                     type='checkbox'></div>
                         <? } else if ($settings['BeaglePlatform']) { ?>
                                 <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                         class='LEDPanelsOutputBlankRowLabel'><b>Blank between rows:</b></span></div>
-                                <div class="printSettingFieldCol col-md-3 col-lg-3"><input class='LEDPanelsOutputBlankRow'
+                                <div class="printSettingFieldCol col-md-4 col-lg-4"><input class='LEDPanelsOutputBlankRow'
                                         type='checkbox'></div>
                         <? } else { ?>
                                 <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
-                                <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
+                                <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
                         <? } ?>
                     </div>
                     <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                 class='LEDPanelsColorDepthLabel'><b>Color Depth:</b></span></div>
-                        <div class="printSettingFieldCol col-md-3 col-lg-3">
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <select class='LEDPanelsColorDepth'>
                                 <? if ($settings['BeaglePlatform']) { ?>
                                     <option value='12'>12 Bit</option>
@@ -2406,7 +2406,7 @@
                             </select>
                         </div>
                         <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
-                        <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
+                        <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
                     </div>
 
                     <div class="row">
@@ -2414,7 +2414,7 @@
                             <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                     class='LEDPanelsRowAddressTypeLabel'><b>Panel
                                         Row Address Type:</b></span></div>
-                            <div class="printSettingFieldCol col-md-3 col-lg-3">
+                            <div class="printSettingFieldCol col-md-4 col-lg-4">
                                 <select class='LEDPanelsRowAddressType'>
                                     <option value='0' selected>Standard</option>
                                     <option value='1'>AB-Addressed Panels</option>
@@ -2426,7 +2426,7 @@
                         <? } else if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
                                 <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                         class='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
-                                <div class="printSettingFieldCol col-md-3 col-lg-3">
+                                <div class="printSettingFieldCol col-md-4 col-lg-4">
                                     <select class="LEDPanelsRowAddressType" onchange="RowAddressTypeChanged();">
                                         <option value='0' selected>Standard</option>
                                         <option value='1'>Direct Row Select</option>
@@ -2441,7 +2441,7 @@
                         <? } else { ?>
                                 <div class=" printSettingLabelCol col-md-2 col-lg-2">
                                 </div>
-                                <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
+                                <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
                         <? } ?>
                     </div>
 
@@ -2450,7 +2450,7 @@
                             <div class="printSettingLabelCol col-md-2 col-lg-2"><span class='LEDPanelsTypeLabel'><b>LED
                                         Panel
                                         Type:</b></span></div>
-                            <div class="printSettingFieldCol col-md-3 col-lg-3">
+                            <div class="printSettingFieldCol col-md-4 col-lg-4">
                                 <select class='LEDPanelsType'>
                                     <option value='0' selected>Standard</option>
                                     <option value='1'>FM6126A</option>
@@ -2459,7 +2459,7 @@
                             </div>
                         <? } else { ?>
                             <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
-                            <div class="printSettingFieldCol col-md-3 col-lg-3"></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
                         <? } ?>
                     </div>
 

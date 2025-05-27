@@ -3661,6 +3661,10 @@ a.api-anchor {
 	border-radius: 10px;
 }
 
+.panelMatrix-tab-content .divLEDPanelHeader {
+	padding: 0px;
+}
+
 .panelMatrix-tab-content .divLEDPanelWarnings {
 	margin: 0.2pc;
 }
