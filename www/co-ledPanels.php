@@ -829,15 +829,18 @@
         <? } ?>
 
 
-        if (matrixDiv.find('.LEDPanelsRowAddressType').val() != "0") {
-            config.panelRowAddressType = parseInt(matrixDiv.find('.LEDPanelsRowAddressType').val());
+        if (matrixDiv.find('.LEDPanelsRowAddressType').length > 0) {
+            var rat = matrixDiv.find('.LEDPanelsRowAddressType').val();
+            config.panelRowAddressType = parseInt(rat);
         }
-        if (matrixDiv.find('.LEDPanelsType').val() != "0") {
-            config.panelType = parseInt(matrixDiv.find('.LEDPanelsType').val());
+        if (matrixDiv.find('.LEDPanelsType').length > 0) {
+            var rat = matrixDiv.find('.LEDPanelsType').val();
+            config.panelType = parseInt(rat);
         }
 
-        if (matrixDiv.find('.LEDPanelInterleave').val() != "0") {
-            config.panelInterleave = matrixDiv.find('.LEDPanelInterleave').val();
+        if (matrixDiv.find('.LEDPanelInterleave').length > 0) {
+            var rat = matrixDiv.find('.LEDPanelInterleave').val();
+            config.panelInterleave = rat;
         }
         config.panels = [];
 
@@ -2422,9 +2425,9 @@
                             </div>
                         <? } else if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
                                 <div class="printSettingLabelCol col-md-2 col-lg-2"><span
-                                        id='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
+                                        class='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
                                 <div class="printSettingFieldCol col-md-3 col-lg-3">
-                                    <select id='LEDPanelsRowAddressType' onchange="RowAddressTypeChanged();">
+                                    <select class="LEDPanelsRowAddressType" onchange="RowAddressTypeChanged();">
                                         <option value='0' selected>Standard</option>
                                         <option value='1'>Direct Row Select</option>
                                         <?
