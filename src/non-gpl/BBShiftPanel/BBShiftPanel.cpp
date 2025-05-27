@@ -52,7 +52,7 @@ FPPPlugins::Plugin* createPlugin() {
 }
 
 constexpr int ADDRESSING_MODE_STANDARD = 0;
-constexpr int ADDRESSING_MODE_DIRECT = 1;
+constexpr int ADDRESSING_MODE_DIRECT = 2;
 constexpr int ADDRESSING_MODE_FM6363C = 51;
 
 constexpr int PWM_COMMAND_SYNC = 0x0001;
@@ -871,7 +871,7 @@ int BBShiftPanelOutput::SendData(unsigned char* channelData) {
     return m_channelCount;
 }
 inline int mapRow(int row, int mode) {
-    if (mode == 1) {
+    if (mode == ADDRESSING_MODE_DIRECT) {
         switch (row) {
         case 0:
             return 0x0E;

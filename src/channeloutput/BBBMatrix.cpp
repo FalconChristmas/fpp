@@ -541,7 +541,7 @@ int BBBMatrix::Init(Json::Value config) {
     if (!m_panelHeight)
         m_panelHeight = 16;
 
-    int addressingType = config["panelAddressing"].asInt();
+    int addressingType = config["panelRowAddressType"].asInt();
 
     m_invertedData = config["invertedData"].asInt();
     m_colorOrder = ColorOrderFromString(config["colorOrder"].asString());
@@ -831,7 +831,7 @@ int BBBMatrix::Init(Json::Value config) {
         compileArgs.push_back("-DUSING_PWM");
     }
 
-    if (addressingType == 1) {
+    if (addressingType == 2) {
         // 1/2 scan panel that uses 2 bits, bit one for scan row 1 and bit two for row 2
         // Normal addressing would be 1 bit, 0 for row 1, 1 for row 2
         compileArgs.push_back("-DADDRESSING_AB=1");

@@ -2429,7 +2429,7 @@
                                 <div class="printSettingFieldCol col-md-4 col-lg-4">
                                     <select class="LEDPanelsRowAddressType" onchange="RowAddressTypeChanged();">
                                         <option value='0' selected>Standard</option>
-                                        <option value='1'>Direct Row Select</option>
+                                        <option value='2'>Direct Row Select</option>
                                         <?
                                         if ($panelCapesDriver == "BBShiftPanel") {
                                             //echo "<option value='50'>FM6353C</option>";
