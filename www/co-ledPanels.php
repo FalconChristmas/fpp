@@ -9,21 +9,6 @@
     $panelCapesHaveSel4 = false;
     $panelCapesDriver = "";
     $panelCapesName = "";
-    if (count($panelCapes) == 1) {
-        echo "var KNOWN_PANEL_CAPE = " . $panelCapes[0] . ";";
-        $panelCapes[0] = json_decode($panelCapes[0], true);
-        if (isset($panelCapes[0]["controls"]["sel4"])) {
-            $panelCapesHaveSel4 = true;
-        }
-        if (isset($panelCapes[0]["driver"])) {
-            $panelCapesDriver = $panelCapes[0]["driver"];
-        }
-        if (isset($panelCapes[0]["name"])) {
-            $panelCapesName = $panelCapes[0]["name"];
-        }
-    } else {
-        echo "// NO KNOWN_PANEL_CAPE";
-    }
 
     //set default values
     $LEDPanelDefaults = [];
@@ -52,9 +37,27 @@
     $LEDPanelDefaults['LEDPanelUIPixelsWide'] = 128; // Default to 128 pixels wide
     $LEDPanelDefaults['LEDPanelsSize'] = "32x16x8"; // Default to 32x16x8
     
+    if (count($panelCapes) == 1) {
+        echo "var KNOWN_PANEL_CAPE = " . $panelCapes[0] . ";";
+        $panelCapes[0] = json_decode($panelCapes[0], true);
+        if (isset($panelCapes[0]["controls"]["sel4"])) {
+            $panelCapesHaveSel4 = true;
+        }
+        if (isset($panelCapes[0]["driver"])) {
+            $panelCapesDriver = $panelCapes[0]["driver"];
+        }
+        if (isset($panelCapes[0]["name"])) {
+            $panelCapesName = $panelCapes[0]["name"];
+        }
+    } else {
+        echo "// NO KNOWN_PANEL_CAPE";
+    }
+
     if ($settings['BeaglePlatform']) {
         $LEDPanelDefaults["LEDPanelsPanelsPerOutput"] = 16;
-        if (strpos($settings['SubPlatform'], 'Green Wireless') !== false) {
+        if (count($panelCapes) == 1) {
+            $LEDPanelDefaults["LEDPanelOutputs"] = count($panelCapes[0]["outputs"]);
+        } else if (strpos($settings['SubPlatform'], 'Green Wireless') !== false) {
             $LEDPanelDefaults["LEDPanelOutputs"] = 5;
         } else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
             $LEDPanelDefaults["LEDPanelOutputs"] = 6;
@@ -492,7 +495,7 @@
     function RowAddressTypeChanged(panelMatrixID) {
 
         <? if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
-            var value = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelRowAddressType`).val());
+            var value = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressType`).val());
             if (value >= 50) {
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepth`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel`).hide();
@@ -512,6 +515,16 @@
         <? } ?>
     }
 
+    function checkInterleave(panelMatrixID) {
+        let mp = channelOutputsLookup.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
+        if ((mp.panelScan * 2) === mp.panelHeight) {
+            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
+            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).hide();
+        } else if (!(($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "ColorLight5a75") || ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix"))) {
+            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).show();
+            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).show();
+        }
+    }
 
     function UpdateLegacyLEDPanelLayout(panelMatrixID) {
         let mp = channelOutputsLookup.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
@@ -525,20 +538,12 @@
 
         UpdatePanelSize(panelMatrixID);
 
-        if ((mp.panelScan * 2) === mp.panelHeight) {
-            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
-            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).hide();
-        } else if (!(($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "ColorLight5a75") || ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix"))) {
-            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).show();
-            $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).show();
-        }
-
         const pixelCount = mp.LEDPanelCols * mp.LEDPanelRows * mp.panelWidth * mp.panelHeight;
         const channelCount = pixelCount * 3;
 
         $(`#panelMatrix${panelMatrixID} .LEDPanelsPixelCount`).html(pixelCount);
         $(`#panelMatrix${panelMatrixID} .LEDPanelsChannelCount`).html(channelCount);
-
+        checkInterleave(panelMatrixID);
         DrawLEDPanelTable(panelMatrixID);
     }
 
@@ -568,11 +573,11 @@
 
         var PanelLayoutUpdateJSONObj = {};
         PanelLayoutUpdateJSONObj.panelMatrices = {};
-        PanelLayoutUpdateJSONObj.panelMatrices[`panelMatrix${panelMatrixID}`] = {};
-        PanelLayoutUpdateJSONObj.panelMatrices[`panelMatrix${panelMatrixID}`].Configuration = {};
-        PanelLayoutUpdateJSONObj.panelMatrices[`panelMatrix${panelMatrixID}`].Configuration.LEDPanelsLayout = {};
+        PanelLayoutUpdateJSONObj.panelMatrices['panelMatrix' + panelMatrixID] = {};
+        PanelLayoutUpdateJSONObj.panelMatrices['panelMatrix' + panelMatrixID].Configuration = {};
+        PanelLayoutUpdateJSONObj.panelMatrices['panelMatrix' + panelMatrixID].Configuration.LEDPanelsLayout = {};
 
-        PanelLayoutUpdateJSONObj.panelMatrices[`panelMatrix${panelMatrixID}`].Configuration.LEDPanelsLayout = PanelLayoutValue;
+        PanelLayoutUpdateJSONObj.panelMatrices['panelMatrix' + panelMatrixID].Configuration.LEDPanelsLayout = PanelLayoutValue;
 
         var PanelLayoutValueJSON = JSON.stringify(PanelLayoutUpdateJSONObj);
 
@@ -803,8 +808,10 @@
         ?>
 
         config.LEDPanelMatrixName = matrixDiv.find('.LEDPanelMatrixName').val();
+        config.LEDPanelRows = parseInt(matrixDiv.find('.LEDPanelsLayoutRows').val());
+        config.LEDPanelCols = parseInt(matrixDiv.find('.LEDPanelsLayoutCols').val());
         config.ledPanelsLayout = matrixDiv.find('.LEDPanelsLayoutCols').val() + "x" + matrixDiv.find('.LEDPanelsLayoutRows').val();
-        config.ledPanelsOutputs = parseInt(matrixDiv.find('.LEDPanelsLayoutCols').val());
+        config.ledPanelsOutputs = parseInt(mp.ledPanelsOutputs);
         config.ledPanelsPanelsPerOutput = parseInt(mp.ledPanelsPanelsPerOutput);
         config.maxLEDPanels = mp.maxLEDPanels;
         config.panelColorDepth = parseInt(matrixDiv.find('.LEDPanelsColorDepth').val());
@@ -954,8 +961,6 @@
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressType`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsTypeLabel`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsType`).hide();
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).hide();
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputBlankRowLabel`).hide();
@@ -964,8 +969,6 @@
 
 
                 <? if ($settings['Platform'] == "Raspberry Pi") { ?>
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).hide();
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputCPUPWMLabel`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputCPUPWM`).hide();
                 <? } ?>
@@ -984,8 +987,6 @@
 
                 <? //NEEDS FIX
                 if ($settings['BeaglePlatform']) { ?>
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).show();
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).show();
                     var checked = $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).is(':checked');
@@ -1015,8 +1016,6 @@
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressType`).show();
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsTypeLabel`).show();
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsType`).show();
-                        $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).show();
-                        $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).show();
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputCPUPWMLabel`).show();
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputCPUPWM`).show();
                     <? }
@@ -2025,6 +2024,7 @@
             echo "populatePanelMatrixTab($panelMatrixID).then(() => {
             return InitializeLEDPanelMatrix($panelMatrixID);
             }).then(() => {
+            checkInterleave($panelMatrixID);
             return LEDPanelsConnectionChanged($panelMatrixID);});\n";
             //   echo "populatePanelMatrixTab($panelMatrixID);";
             //    echo "InitializeLEDPanelMatrix($panelMatrixID);";
@@ -2424,7 +2424,7 @@
                                 <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                         id='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
                                 <div class="printSettingFieldCol col-md-3 col-lg-3">
-                                    <select id='LEDPanelRowAddressType' onchange="RowAddressTypeChanged();">
+                                    <select id='LEDPanelsRowAddressType' onchange="RowAddressTypeChanged();">
                                         <option value='0' selected>Standard</option>
                                         <option value='1'>Direct Row Select</option>
                                         <?
