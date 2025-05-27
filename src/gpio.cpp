@@ -299,6 +299,7 @@ void GPIOManager::addState(GPIOState& state) {
 
     if ((state.pin->supportsGpiod()) &&
         (state.pin->gpio < gpiod_chip_num_lines(gpiodChips[state.pin->gpioIdx]))) {
+        state.pin->releaseGPIOD();
         state.gpiodLine = gpiod_chip_get_line(gpiodChips[state.pin->gpioIdx], state.pin->gpio);
 
         struct gpiod_line_request_config lineConfig;
