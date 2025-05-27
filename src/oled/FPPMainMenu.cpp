@@ -55,7 +55,7 @@ public:
     RebootPromptPage(const std::string& msg1, const std::string& msg2, OLEDPage* p) :
         PromptOLEDPage("Reboot?", msg1, msg2, { "OK", "Cancel" }),
         parent(p) {}
-    virtual ~RebootPromptPage(){};
+    virtual ~RebootPromptPage() {};
 
     virtual void ItemSelected(const std::string& item) override {
         if (item == "Cancel") {
@@ -82,7 +82,7 @@ public:
     ShutdownPromptPage(const std::string& msg1, const std::string& msg2, OLEDPage* p) :
         PromptOLEDPage("Shutdown?", msg1, msg2, { "OK", "Cancel" }),
         parent(p) {}
-    virtual ~ShutdownPromptPage(){};
+    virtual ~ShutdownPromptPage() {};
 
     virtual void ItemSelected(const std::string& item) override {
         if (item == "Cancel") {
@@ -104,7 +104,7 @@ private:
 class BridgeStatsPage : public ListOLEDPage {
 public:
     BridgeStatsPage(OLEDPage* parent) :
-        ListOLEDPage("Bridge Stats", {}, parent){};
+        ListOLEDPage("Bridge Stats", {}, parent) {};
     virtual ~BridgeStatsPage() {}
 
     virtual void displaying() override {
@@ -152,11 +152,12 @@ public:
             SetCurrentPage(parent);
             return;
         } else if (item == "Perform Reset") {
-            PromptOLEDPage* p = new PromptOLEDPage("Reset FPP?", "Reset FPP?", "", { "No", "Yes" }, [this](const std::string& i) {
+            PromptOLEDPage* p = new PromptOLEDPage("Reset FPP?", "Reset FPP?", "", { "No", "Yes" }, [parent = this->parent, it = this->items](const std::string& i) {
+                printf("Item: %s\n", i.c_str());
                 if (i == "No") {
                     SetCurrentPage(parent);
                 } else if (i == "Yes") {
-                    performReset();
+                    performReset(parent, it);
                 }
             });
             p->autoDelete();
@@ -176,7 +177,7 @@ public:
         }
     }
 
-    void performReset() {
+    static void performReset(OLEDPage* parent, const std::vector<std::string>& items) {
         std::string areas;
         printf("Performing reset\n");
         for (int x = 4; x < items.size(); x++) {
@@ -203,7 +204,9 @@ public:
         }
         if (!areas.empty()) {
             areas = areas.substr(0, areas.length() - 1);
+            printf("Areas: %s\n", areas.c_str());
             std::string url = "http://127.0.0.1/resetConfig.php?areas=" + areas;
+            printf("Reset URL: %s\n", url.c_str());
             std::string d = doCurlGet(url, 10000);
             printf("%s\n", d.c_str());
         }
@@ -269,7 +272,7 @@ public:
     }
 
     virtual void itemSelected(const std::string& item) override {
-        //printf("Item: %s\n", item.c_str());
+        // printf("Item: %s\n", item.c_str());
         if (item == " Enable Multisync") {
             items[0][0] = '*';
             statusPage->setMultiSyncTest(true);
