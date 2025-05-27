@@ -943,6 +943,7 @@
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressType`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsTypeLabel`).hide();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsType`).hide();
+                $(`#panelMatrix${panelMatrixID} .vendorPanelSettingsBtn`).hide();
 
                 if ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix") {
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionInterface`).hide();
@@ -987,6 +988,8 @@
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel`).show();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsWiringPinoutLabel`).show();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsWiringPinout`).show();
+                $(`#panelMatrix${panelMatrixID} .vendorPanelSettingsBtn`).show();
+
 
                 <? //NEEDS FIX
                 if ($settings['BeaglePlatform']) { ?>
@@ -2079,8 +2082,114 @@
         //console.log("Tab activated:", event.target); // Logs the activated pill
     });
 
+    var lastVendorPanelSelect = new Array();
+    function PopulatePanelTypes() {
+        var url = $('#vendorPanelSelectDialog .selectVendor').val();
+        $('#vendorPanelSelectDialog .selectPanel').empty();
+        if (url === "") {
+            return;
+        }
+        var request = new XMLHttpRequest();
+        request.open('GET', url, true);
+        request.overrideMimeType("application/json");
+        request.onload = function () {
+            lastVendorPanelSelect = JSON.parse(request.responseText);
+            Object.entries(lastVendorPanelSelect).forEach(function ([idx, details]) {
+                $('#vendorPanelSelectDialog .selectPanel').append(
+                    `<option value="${details['name']}">${details['name']}</option>`
+                );
+            });
+        };
+        request.send();
+    }
+    function applyPanelProperties(panelMatrixID, details) {
+        let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
+        var matrixDivName = 'panelMatrix' + panelMatrixID;
+        var matrixDiv = $(`.tab-content [id=${matrixDivName}]`);
 
+        Object.entries(details).forEach(function ([name, value]) {
+            console.log("Applying panel properties for " + name + " with value: " + value);
+            if (name == "panelWidth" || name == "panelHeight" || name == "panelScan") {
+                // these three must always be set together
+                var val = details["panelWidth"] + "x" + details["panelHeight"] + "x" + details["panelScan"];
+                $(`#${matrixDivName} .LEDPanelsSize`).val(val);
+                LEDPanelsSizeChanged(panelMatrixID);
+            } else if (name == "panelOutputOrder") {
+                mp.LEDPanelsOutputByRow = value;
+                $(`#${matrixDivName} .LEDPanelsOutputByRow`).prop("checked", value);
+                outputByRowClicked();
+            } else if (name == "panelOutputBlankRow") {
+                mp.panelOutputBlankRow = value;
+                $(`#${matrixDivName} .LEDPanelsOutputBlankRow`).prop("checked", value);
+            } else if (name == "panelInterleave") {
+                mp.ledPanelsInterleave = value;
+                $(`#${matrixDivName} .LEDPanelInterleave`).val(value);
+                LEDPanelLayoutChanged();
+            } else if (name == "panelColorOrder") {
+                mp.colorOrder = value;
+                $(`#${matrixDivName} .LEDPanelsColorOrder`).val(value);
+            } else if (name == "panelAddressing") {
+                mp.panelAddressing = value;
+                $(`#${matrixDivName} .LEDPanelsRowAddressType`).val(value);
+                RowAddressTypeChanged(panelMatrixID);
+            } else if (name == "panelType") {
+                mp.panelType = value;
+                $(`#${matrixDivName} .LEDPanelsType`).val(value);
+            }
+        });
+    }
+    $(function () {
+        const url = "https://raw.githubusercontent.com/FalconChristmas/fpp-data/refs/heads/master/panels/fpp-panels.json";
+        var request = new XMLHttpRequest();
+        request.open('GET', url, true);
+        request.overrideMimeType("application/json");
+        request.onload = function () {
+            var jsonResponse = JSON.parse(request.responseText);
+            Object.entries(jsonResponse["vendors"]).forEach(function ([vendor, details]) {
+                $('#vendorPanelSelectDialog .selectVendor').append(
+                    `<option value="${details['url']}">${vendor}</option>`
+                );
+            });
+        };
+        request.send();
+        $('.vendorPanelSettingsBtn').on("click", function () {
+            const panelMatrixID = GetCurrentActiveMatrixPanelID();
+            let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
 
+            DoModalDialog({
+                id: "PanelSelectDialog",
+                backdrop: true,
+                keyboard: true,
+                title: "Select Panel Type",
+                body: $("#vendorPanelSelectDialog"),
+                class: "modal-m",
+                buttons: {
+                    "Select": {
+                        click: function () {
+                            var panel = $('#vendorPanelSelectDialog .selectPanel').val();
+                            const panelMatrixID = GetCurrentActiveMatrixPanelID();
+                            Object.entries(lastVendorPanelSelect).forEach(function ([idx, details]) {
+                                if (details["name"] == panel) {
+                                    let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
+                                    if (details["settings"]["all"] != undefined) {
+                                        applyPanelProperties(panelMatrixID, details["settings"]["all"]);
+                                    }
+                                    if (details["settings"][mp.subType] != undefined) {
+                                        applyPanelProperties(panelMatrixID, details["settings"][mp.subType]);
+                                    }
+                                }
+                            });
+                            CloseModalDialog("PanelSelectDialog");
+                        },
+                        class: 'btn-success'
+                    },
+                    "Cancel": function () {
+                        CloseModalDialog("PanelSelectDialog");
+                    }
+                }
+            });
+        });
+    });
 
 </script>
 <div id="divLEDPanelMatrices">
@@ -2461,6 +2570,12 @@
                             <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
                             <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
                         <? } ?>
+                        <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
+                            <button class="vendorPanelSettingsBtn buttons btn-outline-success btn-rounded">Vendor
+                                Panel Properties
+                            </button>
+                        </div>
                     </div>
 
                 </div>
@@ -2633,5 +2748,17 @@
                 ?>
             </select>
         </div>
+    </div>
+</div>
+
+<div id="vendorPanelSelectDialog" class="vendorPanelSelectDialog hidden">
+    <div class="form-group">
+        <label for="selectVendor">Vendor:</label>
+        <select id="selectVendor" class="selectVendor form-control" onChange="PopulatePanelTypes();">
+            <option value="">Select Vendor</option>
+        </select>
+        <label for="selectPanel">Panel Type:</label>
+        <select id="selectPanel" class="selectPanel form-control">
+        </select>
     </div>
 </div>
