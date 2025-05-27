@@ -33,11 +33,11 @@ uint8_t* PixelCountPixelStringTester::createTestData(PixelString* ps, int cycleC
     clr[1] = 255;
     clr[3] = clr[5] = 0;
     clr[4] = 255;
-    int clrOffset = cycleCount % 3;
+    int clrOffset = 0;
     int curPixel = 1;
     for (auto& vs : ps->m_virtualStrings) {
         if (m_byString) {
-            clrOffset = cycleCount % 3;
+            clrOffset = 0;
             curPixel = 1;
         }
         if (vs.receiverNum == -1) {
