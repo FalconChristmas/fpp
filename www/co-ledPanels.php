@@ -2082,11 +2082,18 @@
         console.log(`Changed: ${$(this).attr("class")} -> ${this.value}`);
 
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
-        let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
         //Update the channelOutputsLookup with the new values from UI screen
-        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID] = GetLEDPanelConfigFromUI(panelMatrixID);
+        let mp = GetLEDPanelConfigFromUI(panelMatrixID);
+        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID] = mp;
         //re-add derived values
+        for (var p = 0; p < mp.panels.length; p++) {
+            var r = mp.panels[p].row;
+            var c = mp.panels[p].col;
 
+            mp["LEDPanelOutputNumber_" + r + "_" + c] = mp.panels[p];
+            mp["LEDPanelPanelNumber_" + r + "_" + c] = mp.panels[p];
+            mp["LEDPanelColorOrder_" + r + "_" + c] = mp.panels[p];
+        }
 
         //show hide changes warning
         DisplaySaveWarningIfRequired();
