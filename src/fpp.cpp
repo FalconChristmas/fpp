@@ -50,6 +50,18 @@ void Usage(char* appname);
 
 socklen_t address_length;
 
+#ifdef HAS_KMS_FB
+using namespace kms;
+inline std::string FourCCFromPixelFormat(PixelFormat f) {
+    char buf[5] = { (char)(((uint32_t)f >> 0) & 0xff),
+                    (char)(((uint32_t)f >> 8) & 0xff),
+                    (char)(((uint32_t)f >> 16) & 0xff),
+                    (char)(((uint32_t)f >> 24) & 0xff),
+                    0 };
+    return std::string(buf);
+}
+#endif
+
 void GetFrameBufferDevices(Json::Value& v, bool debug) {
     std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/";
     for (int x = 0; x < 10; x++) {
@@ -74,7 +86,7 @@ void GetFrameBufferDevices(Json::Value& v, bool debug) {
                     std::set<std::string> formats;
                     if (c->get_current_crtc()) {
                         for (auto& f : c->get_current_crtc()->get_primary_plane()->get_formats()) {
-                            formats.insert(PixelFormatToFourCC(f));
+                            formats.insert(FourCCFromPixelFormat(f));
                         }
                     }
                     Json::Value v2(Json::objectValue);
