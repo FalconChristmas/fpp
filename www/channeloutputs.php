@@ -169,7 +169,7 @@
                     }
 
                     if (typeof channelOutputs.channelOutputs[i].panelMatrixID !== 'undefined') {
-                        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID] = channelOutputs.channelOutputs[i];
+                        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID] = structuredClone(channelOutputs.channelOutputs[i]);
 
                         if (!channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID].hasOwnProperty("LEDPanelUIFrontView")) {
                             channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelUIFrontView"] = false;

@@ -1960,7 +1960,7 @@
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
 
         // Find the matching object from saved config
-        let resultObject = channelOutputs.channelOutputs.find(obj => obj.panelMatrixID === panelMatrixID) || {};
+        let resultObject = structuredClone(channelOutputs.channelOutputs.find(obj => obj.panelMatrixID === panelMatrixID) || {});
         ;
         // Sort object keys alphabetically
         const sortedSavedObj = Object.keys(resultObject).sort().reduce((acc, key) => {
@@ -1969,14 +1969,19 @@
         }, {});
 
         //The current channeloutputsLookup for current panelMatrixID
-        let currentConfigObj = channelOutputsLookup.LEDPanelMatrices[`panelMatrix${panelMatrixID}`] || {};
+        let currentConfigObj = structuredClone(channelOutputsLookup.LEDPanelMatrices[`panelMatrix${panelMatrixID}`] || {});
 
         //remove the elements used only for the UI which are not in the saved config
         Object.keys(currentConfigObj).forEach(key => {
             if (key.startsWith("LEDPanelOutputNumber_") ||
                 key.startsWith("LEDPanelPanelNumber_") ||
                 key.startsWith("LEDPanelOrientation_") ||
-                key.startsWith("LEDPanelColorOrder_")) {
+                key.startsWith("LEDPanelColorOrder_")
+                <? if ($settings['Platform'] != "Raspberry Pi") { ?>
+                    || key.startsWith("gpioSlowdown")
+                <? } ?>
+
+            ) {
                 delete currentConfigObj[key]; // Remove the property
             }
         });
@@ -1990,7 +1995,20 @@
         // Compare objects and log differences
         let differences = [];
         Object.keys({ ...sortedSavedObj, ...sortedCurrentObj }).forEach(key => {
-            if (sortedSavedObj[key] !== sortedCurrentObj[key]) {
+            let saved = sortedSavedObj[key];
+            let current = sortedCurrentObj[key];
+            if (Array.isArray(saved)) {
+                // kind of hacky...
+                let savedJSON = JSON.stringify(saved);
+                let currentJSON = JSON.stringify(current);
+                if (savedJSON !== currentJSON) {
+                    differences.push({
+                        key: key,
+                        savedValue: saved,
+                        currentValue: current
+                    });
+                }
+            } else if (saved !== current) {
                 differences.push({
                     key: key,
                     savedValue: sortedSavedObj[key],
@@ -2083,6 +2101,18 @@
     });
 
     var lastVendorPanelSelect = new Array();
+    function PanelTypeSelected() {
+        $('#vendorPanelSelectDialog .vendorPanelURL').html("<br><p></p>");
+        var panel = $('#vendorPanelSelectDialog .selectPanel').val();
+        Object.entries(lastVendorPanelSelect).forEach(function ([idx, details]) {
+            if (details["name"] == panel) {
+                if (details["url"] !== undefined) {
+                    var html = `<br><p>Link: <a href="${details["url"]}" target="_blank">${details["url"]}</a></p>`;
+                    $('#vendorPanelSelectDialog .vendorPanelURL').html(html);
+                }
+            }
+        });
+    }
     function PopulatePanelTypes() {
         var url = $('#vendorPanelSelectDialog .selectVendor').val();
         $('#vendorPanelSelectDialog .selectPanel').empty();
@@ -2093,12 +2123,17 @@
         request.open('GET', url, true);
         request.overrideMimeType("application/json");
         request.onload = function () {
+            const panelMatrixID = GetCurrentActiveMatrixPanelID();
+            let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
             lastVendorPanelSelect = JSON.parse(request.responseText);
             Object.entries(lastVendorPanelSelect).forEach(function ([idx, details]) {
-                $('#vendorPanelSelectDialog .selectPanel').append(
-                    `<option value="${details['name']}">${details['name']}</option>`
-                );
+                if (details["settings"]["all"] !== undefined || details) {
+                    $('#vendorPanelSelectDialog .selectPanel').append(
+                        `<option value="${details['name']}">${details['name']}</option>`
+                    );
+                }
             });
+            PanelTypeSelected();
         };
         request.send();
     }
@@ -2160,7 +2195,7 @@
                 id: "PanelSelectDialog",
                 backdrop: true,
                 keyboard: true,
-                title: "Select Panel Type",
+                title: "Select Vendor and Panel Type",
                 body: $("#vendorPanelSelectDialog"),
                 class: "modal-m",
                 buttons: {
@@ -2753,12 +2788,17 @@
 
 <div id="vendorPanelSelectDialog" class="vendorPanelSelectDialog hidden">
     <div class="form-group">
+        <p>These settings are provided either the vendor or users who have tested them. If the settings do not work
+            properly, please work with the vendor to determine the proper settings that are required and log an issue or
+            pull request.
+        </p>
         <label for="selectVendor">Vendor:</label>
         <select id="selectVendor" class="selectVendor form-control" onChange="PopulatePanelTypes();">
             <option value="">Select Vendor</option>
         </select>
         <label for="selectPanel">Panel Type:</label>
-        <select id="selectPanel" class="selectPanel form-control">
+        <select id="selectPanel" class="selectPanel form-control" onChange="PanelTypeSelected();">
         </select>
+        <div id="vendorPanelURL" class="vendorPanelURL"></div>
     </div>
 </div>
