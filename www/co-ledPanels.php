@@ -1530,7 +1530,11 @@
     }
 
     function GetCurrentActiveMatrixPanelID() {
-        return $("[id^=panelMatrix].tab-pane.active")[0].firstElementChild.innerText;
+        let element = $("[id^=panelMatrix].tab-pane.active")[0];
+
+        return element && element.firstElementChild
+            ? element.firstElementChild.innerText
+            : "1"; // Default value if element not found
     }
 
     function PanelSubtypeChanged(panelMatrixID) {
@@ -2078,7 +2082,9 @@
 
     });
 
-    $(document).on("change input", "select, input, textarea", function () {
+
+    $(document).on("change input", "select, input, textarea", function (event) {
+        if ($(this).is("input[type='text'], textarea") && event.type === "change") return;
         console.log(`Changed: ${$(this).attr("class")} -> ${this.value}`);
 
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
