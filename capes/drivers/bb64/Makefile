@@ -24,6 +24,7 @@ install: pinctrl fpp-base-overlay.dtb fpp-cape-overlay.dtb
 	chmod +s /usr/bin/pinctrl
 	cp fpp-base-overlay.dtb /boot/firmware/overlays
 	cp fpp-cape-overlay.dtb /boot/firmware/overlays
+	cp fpp-cape-overlay.dtb /boot/firmware/overlays/fpp-cape-overlay-default.dtb
 	cp extlinux/extlinux.conf /boot/firmware/extlinux/extlinux.conf
 
 clean:

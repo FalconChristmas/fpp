@@ -640,7 +640,10 @@ int getRawSettingInt(const std::string& setting, int def) {
     std::string c = GetFileContents("/home/fpp/media/settings");
     size_t idx = c.find(setting + " = ");
     if (idx != std::string::npos) {
-        int offset = idx + setting.size() + 4;
+        int offset = idx + setting.size() + 3;
+        if (c[offset] == '\"') {
+            ++offset; // skip the opening quote
+        }
         int ch1 = c[offset];
         if (ch1 == '-') {
             ++offset;

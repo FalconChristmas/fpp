@@ -52,6 +52,7 @@ void sigTermHandler(int sig) {
 int main(int argc, char* argv[]) {
     printf("FPP OLED Status Display Driver\n");
     int lt = getRawSettingInt("LEDDisplayType", 7);
+    printf("    LED Display Type: %d\n", lt);
     if (!OLEDPage::InitializeDisplay(lt)) {
         lt = 0;
     }

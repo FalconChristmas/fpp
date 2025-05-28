@@ -1,0 +1,11 @@
+[Unit]
+Description=FPP Reboot Services
+DefaultDependencies=no
+
+[Service]
+ExecStart=/opt/fpp/src/fppinit reboot
+Type=oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=reboot.target

@@ -1510,6 +1510,32 @@ int main(int argc, char* argv[]) {
         }
     } else if (action == "detectNetworkModules") {
         detectNetworkModules();
+    } else if (action == "reboot") {
+        std::string s;
+        getRawSetting("FPPRebootPin", s);
+        TrimWhiteSpace(s);
+        if (!s.empty()) {
+            int val = 0;
+            if (s[0] == '+') {
+                s = s.substr(1);
+                val = 1;
+            }
+            std::string ret = execAndReturn("gpioinfo | grep -e gpioch -e " + s);
+            auto lines = split(ret, '\n');
+            int curChip = 0;
+            for (const auto& line : lines) {
+                if (line.find("gpiochip") != std::string::npos) {
+                    curChip = atoi(line.substr(line.find("gpiochip") + 8).c_str());
+                } else if (line.find("\"" + s + "\"") != std::string::npos) {
+                    std::string l = line.substr(line.find("line ") + 5);
+                    TrimWhiteSpace(l);
+                    int lineNum = atoi(l.c_str());
+                    std::string cmd = "gpioset " + std::to_string(curChip) + " " + std::to_string(lineNum) + "=" + std::to_string(val);
+                    printf("FPP - Toggling GPIO via: %s\n", cmd.c_str());
+                    exec(cmd);
+                }
+            }
+        }
     }
     printf("------------------------------\n");
     return 0;

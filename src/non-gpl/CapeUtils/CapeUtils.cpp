@@ -555,13 +555,29 @@ bool setFilePerms(const std::string& filename) {
     setOwnerGroup(filename);
     return true;
 }
-
+static void restoreDefaultCapeOverlay() {
+#if defined(PLATFORM_BB64) || defined(PLATFORM_PI)
+    copyFile("/boot/firmware/overlays/fpp-cape-overlay-default.dtb", "/boot/firmware/overlays/fpp-cape-overlay.dtb");
+#elif defined(PLATFORM_BBB)
+    copyFile("/lib/firmware/fpp-cape-overlay-default.dtb", "/lib/firmware/fpp-cape-overlay.dtb");
+#endif
+}
 static bool handleCapeOverlay(const std::string& outputPath) {
 #ifdef PLATFORM_BB64
     static const std::string src = outputPath + "/tmp/fpp-cape-overlay-bb64.dtb";
     static const std::string target = "/boot/firmware/overlays/fpp-cape-overlay.dtb";
+#elif defined(PLATFORM_BBB)
+    static const std::string src = outputPath + "/tmp/fpp-cape-overlay-bbb.dtb";
+    static const std::string target = "/lib/firmware/fpp-cape-overlay.dtb";
+#elif defined(PLATFORM_PI)
+    static const std::string src = outputPath + "/tmp/fpp-cape-overlay-rpi.dtb";
+    static const std::string target = "/boot/firmware/overlays/fpp-cape-overlay.dtb";
+#else
+    static const std::string src = "";
+    static const std::string target = "";
+#endif
     static const std::string overlay = "/proc/device-tree/chosen/overlays/fpp-cape-overlay";
-    if (file_exists(src)) {
+    if (!src.empty() && file_exists(src)) {
         int slen = 0;
         int tlen = 0;
         uint8_t* sd = get_file_contents(src, slen);
@@ -574,19 +590,17 @@ static bool handleCapeOverlay(const std::string& outputPath) {
         }
         free(sd);
         free(td);
-    } else if (file_exists(overlay)) {
+    } else if (!overlay.empty() && file_exists(overlay)) {
         int len = 0;
         char* c = (char*)get_file_contents(overlay, len);
         if (strcmp(c, "DEFAULT_CAPE_OVERLAY") != 0) {
             // not the default cape overlay, need to flip back to default
-            std::string r = exec("make -f /opt/fpp/capes/drivers/bb64/Makefile install_cape_overlay");
-            printf("%s\n", r.c_str());
+            restoreDefaultCapeOverlay();
             free(c);
             return true;
         }
         free(c);
     }
-#endif
     return false;
 }
 
