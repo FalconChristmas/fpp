@@ -1505,6 +1505,7 @@ systemctl enable fppoled.service
 systemctl enable fppd.service
 systemctl enable fpp_postnetwork.service
 systemctl enable fpp-install-kiosk.service
+systemctl enable fpp-reboot.service
 
 if $isimage; then
     cp /opt/fpp/etc/update-RTC /etc/cron.daily
