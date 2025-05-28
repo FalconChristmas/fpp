@@ -1530,7 +1530,11 @@
     }
 
     function GetCurrentActiveMatrixPanelID() {
-        return $("[id^=panelMatrix].tab-pane.active")[0].firstElementChild.innerText;
+        let element = $("[id^=panelMatrix].tab-pane.active")[0];
+
+        return element && element.firstElementChild
+            ? element.firstElementChild.innerText
+            : "1"; // Default value if element not found
     }
 
     function PanelSubtypeChanged(panelMatrixID) {
