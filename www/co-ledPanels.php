@@ -2082,7 +2082,9 @@
 
     });
 
-    $(document).on("change input", "select, input, textarea", function () {
+
+    $(document).on("change input", "select, input, textarea", function (event) {
+        if ($(this).is("input[type='text'], textarea") && event.type === "change") return;
         console.log(`Changed: ${$(this).attr("class")} -> ${this.value}`);
 
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
