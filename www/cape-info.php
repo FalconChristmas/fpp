@@ -86,9 +86,47 @@ if (isset($settings["cape-info"])) {
                 }
             }
         }
+        if ($channelOutputDriver == '') {
+            $path = $mediaDirectory . "/tmp/panels/";
+            if (is_dir($path)) {
+                $files = scandir($path);
+                foreach ($files as $file) {
+                    if (substr($file, 0, 1) != '.') {
+                        $json = file_get_contents($path . $file);
+                        $data = json_decode($json, true);
+                        if (
+                            (isset($data['driver'])) &&
+                            (($data['driver'] == 'BBShiftPanel'))
+                        ) {
+                            $channelOutputDriver = $data['driver'];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if ($channelOutputDriver == '') {
+            $path = $mediaDirectory . "/tmp/pwm/";
+            if (is_dir($path)) {
+                $files = scandir($path);
+                foreach ($files as $file) {
+                    if (substr($file, 0, 1) != '.') {
+                        $json = file_get_contents($path . $file);
+                        $data = json_decode($json, true);
+                        if (
+                            (isset($data['driver'])) &&
+                            (($data['driver'] == 'PCA9685'))
+                        ) {
+                            $channelOutputDriver = $data['driver'];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    if (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels') || ($channelOutputDriver == 'BBShiftString')) {
+    if (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels') || ($channelOutputDriver == 'BBShiftString') || ($channelOutputDriver == 'BBShiftPanel')) {
         $channelOutputDriverStr = "  This cape uses the $channelOutputDriver Channel Output driver.";
         if ($currentCapeInfo['serialNumber'] == 'FPP-INTERNAL') {
             if (isset($currentCapeInfo['verifiedKeyId'])) {
