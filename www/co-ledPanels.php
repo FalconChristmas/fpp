@@ -2801,7 +2801,7 @@
 
 <div id="vendorPanelSelectDialog" class="vendorPanelSelectDialog hidden">
     <div class="form-group">
-        <p>These settings are provided either the vendor or users who have tested them. If the settings do not work
+        <p>These settings are provided by either the vendor or users who have tested them. If the settings do not work
             properly, please work with the vendor to determine the proper settings that are required and log an issue or
             pull request.
         </p>
