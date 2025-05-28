@@ -119,6 +119,27 @@ static int decodeFrequency(const std::string& fr) {
     return 50;
 }
 
+unsigned short PCA9685Output::PCA9685Port::mapLEDValue(unsigned short val) {
+    // LED
+    float f = val;
+    if (m_reverse) {
+        if (is16Bit) {
+            f = 65535 - f;
+        } else {
+            f = 255 - f;
+        }
+    }
+    float bf = brightness;
+    float maxB = bf * 40.95f;
+    if (is16Bit) {
+        f = maxB * pow(f / 65535.0f, gamma);
+    } else {
+        f = maxB * pow(f / 255.0f, gamma);
+    }
+    val = std::round(f);
+    return val;
+}
+
 unsigned short PCA9685Output::PCA9685Port::readValue(unsigned char* channelData, float frequency, int port) {
     uint32_t val = channelData[startChannel];
     if (is16Bit) {
@@ -213,16 +234,7 @@ unsigned short PCA9685Output::PCA9685Port::readValue(unsigned char* channelData,
             }
         }
     } else {
-        // LED
-        float f = val;
-        float bf = brightness;
-        float maxB = bf * 40.95f;
-        if (is16Bit) {
-            f = maxB * pow(f / 65535.0f, gamma);
-        } else {
-            f = maxB * pow(f / 255.0f, gamma);
-        }
-        val = std::round(f);
+        val = mapLEDValue(val);
     }
     m_nextValue = val;
     return val;
@@ -431,6 +443,7 @@ void PCA9685Output::loadPortConfig(const Json::Value& portConfigs) {
             m_ports[x].gamma = portConfigs[x]["gamma"].asFloat();
             m_ports[x].brightness = portConfigs[x]["brightness"].asInt();
             m_ports[x].is16Bit = portConfigs[x]["is16bit"].asInt();
+            m_ports[x].m_reverse = portConfigs[x]["reverse"].asInt();
             if (m_ports[x].brightness > 100 || m_ports[x].brightness < 0) {
                 m_ports[x].brightness = 100;
             }
@@ -533,6 +546,17 @@ void PCA9685Output::OverlayTestData(unsigned char* channelData, int cycleNum, fl
                         value = m_ports[x].is16Bit ? 65535 : 255;
                     }
                     m_ports[x].m_dataType = PCA9685Output::DataType::SCALED;
+                    writeChannelValue(channelData, m_ports[x].startChannel, m_ports[x].is16Bit, value);
+                } else {
+                    // LED
+                    uint32_t max = m_ports[x].is16Bit ? 65535 : 255;
+                    uint32_t value = max;
+                    value *= 100;
+                    value *= percentOfCycle;
+                    if (cycleNum % 2 == 0) {
+                        value = max - value;
+                    }
+                    value = m_ports[x].mapLEDValue(value);
                     writeChannelValue(channelData, m_ports[x].startChannel, m_ports[x].is16Bit, value);
                 }
             }

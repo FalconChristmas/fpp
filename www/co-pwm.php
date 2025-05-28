@@ -105,6 +105,7 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
             }
             html += "</select>";
             html += "    Gamma: <input type='number' class='vsGamma'  id='pwmGamma" + idx + "' size='3' value='1.0' min='0.1' max='5.0' step='0.01'>";
+            html += "&nbsp;Reverse:&nbsp;<input type='checkbox' id='pwmReverse" + idx + "'></div>";
             $("#PWM-SETTINGS-" + idx).html(html);
         } else if (type == "Servo") {
             html = "<div style=' white-space: nowrap; display:flex; overflow:auto; align-items:center;'>Range:&nbsp;";
@@ -177,6 +178,7 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
             if (output.type == "LED") {
                 $("#pwmBrightness" + idx).val(output.brightness);
                 $("#pwmGamma" + idx).val(output.gamma);
+                $('#pwmReverse' + idx).prop('checked', output.reverse);
             } else {
                 $("#pwmMin" + idx).val(output.min);
                 $("#pwmMax" + idx).val(output.max);
@@ -208,6 +210,7 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
             if (output.type == "LED") {
                 output.brightness = parseInt($("#pwmBrightness" + idx).val());
                 output.gamma = parseFloat($("#pwmGamma" + idx).val());
+                output.reverse = $("#pwmReverse" + idx).is(':checked') ? 1 : 0;
             } else if (output.type == "Servo") {
                 output.min = parseInt($("#pwmMin" + idx).val());
                 output.max = parseInt($("#pwmMax" + idx).val());

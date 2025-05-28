@@ -93,6 +93,8 @@ private:
         unsigned short m_nextValue = 0;
 
         unsigned short readValue(unsigned char* channelData, float frequency, int port);
+
+        unsigned short mapLEDValue(unsigned short val);
     };
 
     PCA9685Port m_ports[16];
