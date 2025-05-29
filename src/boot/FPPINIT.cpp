@@ -113,6 +113,21 @@ static std::string execAndReturn(const std::string& cmd) {
     return ret;
 }
 
+static bool LoadJsonFromString(const std::string& str, Json::Value& root) {
+    Json::CharReaderBuilder builder;
+    Json::CharReader* reader = builder.newCharReader();
+    std::string errors;
+    builder["collectComments"] = false;
+    bool success = reader->parse(str.c_str(), str.c_str() + str.size(), &root, &errors);
+    delete reader;
+    if (!success) {
+        Json::Value empty;
+        root = empty;
+        return false;
+    }
+    return true;
+}
+
 static void DetectCape() {
     if (!FileExists("/.dockerenv")) {
 #ifdef CAPEDETECT
@@ -1260,23 +1275,6 @@ void checkInstallPackages() {
     }
 }
 
-#ifdef PLATFORM_PI
-static bool LoadJsonFromString(const std::string& str, Json::Value& root) {
-    Json::CharReaderBuilder builder;
-    Json::CharReader* reader = builder.newCharReader();
-    std::string errors;
-    builder["collectComments"] = false;
-    bool success = reader->parse(str.c_str(), str.c_str() + str.size(), &root, &errors);
-    delete reader;
-    if (!success) {
-        Json::Value empty;
-        root = empty;
-        return false;
-    }
-    return true;
-}
-#endif
-
 static void setupChannelOutputs() {
 #ifdef PLATFORM_PI
     bool hasRPI = false;
@@ -1362,6 +1360,41 @@ static void setupChannelOutputs() {
         exec("/usr/sbin/reboot");
     }
 #endif
+}
+
+static void handleRebootActions() {
+    if (FileExists("/home/fpp/media/tmp/cape-info.json")) {
+        Json::Value v;
+        if (LoadJsonFromString(GetFileContents("/home/fpp/media/tmp/cape-info.json"), v)) {
+            if (v.isMember("rebootActions")) {
+                for (const auto& action : v["rebootActions"]) {
+                    if (action["type"].asString() == "gpio") {
+                        std::string pin = action["pin"].asString();
+                        int val = 0;
+                        if (pin[0] == '+') {
+                            pin = pin.substr(1);
+                            val = 1;
+                        }
+                        std::string ret = execAndReturn("gpioinfo | grep -e gpioch -e " + pin);
+                        auto lines = split(ret, '\n');
+                        int curChip = 0;
+                        for (const auto& line : lines) {
+                            if (line.find("gpiochip") != std::string::npos) {
+                                curChip = atoi(line.substr(line.find("gpiochip") + 8).c_str());
+                            } else if (line.find("\"" + pin + "\"") != std::string::npos) {
+                                std::string l = line.substr(line.find("line ") + 5);
+                                TrimWhiteSpace(l);
+                                int lineNum = atoi(l.c_str());
+                                std::string cmd = "gpioset " + std::to_string(curChip) + " " + std::to_string(lineNum) + "=" + std::to_string(val);
+                                printf("FPP - Toggling GPIO via: %s\n", cmd.c_str());
+                                exec(cmd);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -1511,31 +1544,7 @@ int main(int argc, char* argv[]) {
     } else if (action == "detectNetworkModules") {
         detectNetworkModules();
     } else if (action == "reboot") {
-        std::string s;
-        getRawSetting("FPPRebootPin", s);
-        TrimWhiteSpace(s);
-        if (!s.empty()) {
-            int val = 0;
-            if (s[0] == '+') {
-                s = s.substr(1);
-                val = 1;
-            }
-            std::string ret = execAndReturn("gpioinfo | grep -e gpioch -e " + s);
-            auto lines = split(ret, '\n');
-            int curChip = 0;
-            for (const auto& line : lines) {
-                if (line.find("gpiochip") != std::string::npos) {
-                    curChip = atoi(line.substr(line.find("gpiochip") + 8).c_str());
-                } else if (line.find("\"" + s + "\"") != std::string::npos) {
-                    std::string l = line.substr(line.find("line ") + 5);
-                    TrimWhiteSpace(l);
-                    int lineNum = atoi(l.c_str());
-                    std::string cmd = "gpioset " + std::to_string(curChip) + " " + std::to_string(lineNum) + "=" + std::to_string(val);
-                    printf("FPP - Toggling GPIO via: %s\n", cmd.c_str());
-                    exec(cmd);
-                }
-            }
-        }
+        handleRebootActions();
     }
     printf("------------------------------\n");
     return 0;
