@@ -12,6 +12,11 @@
 
 #include "fpp-pch.h"
 
+#ifndef PLATFORM_OSX
+#include <asm-generic/hugetlb_encode.h>
+#endif
+#include <sys/mman.h>
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -72,7 +77,21 @@ Sequence::Sequence() :
     m_lastFrameData(nullptr),
     m_dataProcessed(false),
     m_seqFilename(""),
-    m_bridgeData(nullptr) {
+    m_bridgeData(nullptr),
+    m_seqData(nullptr) {
+#ifndef PLATFORM_OSX
+    m_seqData = (char*)mmap(NULL, FPPD_MAX_CHANNEL_NUM, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | HUGETLB_FLAG_ENCODE_16KB, -1, 0);
+    if (m_seqData == nullptr || m_seqData == MAP_FAILED) {
+        printf("Could not use 64K Huge Pages for Sequence Data, trying 2MB\n");
+        m_seqData = (char*)mmap(NULL, FPPD_MAX_CHANNEL_NUM, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | HUGETLB_FLAG_ENCODE_2MB, -1, 0);
+    }
+#endif
+    if (m_seqData == nullptr || m_seqData == MAP_FAILED) {
+        printf("Not using Huge Pages for Sequence Data\n");
+        m_seqData = (char*)mmap(NULL, FPPD_MAX_CHANNEL_NUM, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    } else {
+        printf("Using Huge Pages for Sequence Data   %p\n", m_seqData);
+    }
     memset(m_seqData, 0, sizeof(m_seqData));
     for (int x = 0; x < 4; x++) {
         m_seqData[FPPD_OFF_CHANNEL + x] = 0;
@@ -106,6 +125,7 @@ Sequence::~Sequence() {
     if (m_bridgeData) {
         free(m_bridgeData);
     }
+    munmap(m_seqData, FPPD_MAX_CHANNELS);
 }
 void Sequence::clearCaches() {
     while (!frameCache.empty()) {
@@ -171,7 +191,7 @@ void Sequence::ReadFramesLoop() {
                 FSEQFile* file = m_seqFile;
                 FSEQFile::FrameData* fd = nullptr;
                 if (m_doneRead || file == nullptr) {
-                    //memset(fd->data, 0, maxChanToRead);
+                    // memset(fd->data, 0, maxChanToRead);
                 } else {
                     fd = m_seqFile->getFrame(frame);
                 }
@@ -200,7 +220,7 @@ void Sequence::ReadFramesLoop() {
                         std::this_thread::sleep_for(1ms);
                         lock.lock();
                     } else {
-                        //a skip is in progress, we don't need this frame anymore
+                        // a skip is in progress, we don't need this frame anymore
                         delete fd;
                     }
                 }
@@ -230,12 +250,12 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     if (m_seqFile) {
         if (m_seqFilename == filename && m_seqStarting) {
-            //same filename AND we haven't started yet, we can continue
+            // same filename AND we haven't started yet, we can continue
             return 1;
         }
     }
 
-    if (IsSequenceRunning()) 
+    if (IsSequenceRunning())
         CloseSequenceFile();
 
     std::unique_lock<std::mutex> lock(frameCacheLock);
@@ -337,11 +357,11 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     m_seqMSElapsed = 0;
     SetChannelOutputRefreshRate(m_seqRefreshRate);
 
-    //start reading frames
+    // start reading frames
     lock.lock();
     m_seqFile = seqFile;
     lock.unlock();
-    m_seqStarting = 1; //beyond header, read loop can start reading frames
+    m_seqStarting = 1; // beyond header, read loop can start reading frames
     frameLoadSignal.notify_all();
     m_seqPaused = 0;
     m_seqSingleStep = 0;
@@ -364,14 +384,14 @@ void Sequence::ProcessVariableHeaders() {
             if (vh.code[1] == 'C' || vh.code[1] == 'E') {
                 uint8_t* data = (uint8_t*)(&vh.data[0]);
                 if (data[0] != 1)
-                    continue; //version flag, only understand v1 right now
+                    continue; // version flag, only understand v1 right now
                 uint32_t* uintData = (uint32_t*)&data[1];
                 int count = *uintData;
                 std::string ips = "";
                 if (data[5]) {
                     ips = std::string((const char*)&data[5]);
-                    //TODO - process ips to see if we are actually supposed to run these commands/effects
-                    //    Not supported in xLights yet
+                    // TODO - process ips to see if we are actually supposed to run these commands/effects
+                    //     Not supported in xLights yet
                 }
                 data += 6 + ips.length();
                 for (int x = 0; x < count; x++) {
@@ -440,7 +460,7 @@ void Sequence::SeekSequenceFile(int frameNumber) {
 
     std::unique_lock<std::mutex> lock(frameCacheLock);
     while (!pastFrameCache.empty() && frameNumber >= pastFrameCache.back()->frame) {
-        //Going backwords but frame is cached, we'll push the old frames
+        // Going backwords but frame is cached, we'll push the old frames
         frameCache.push_front(pastFrameCache.back());
         pastFrameCache.pop_back();
     }
@@ -562,7 +582,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
 
         std::unique_lock<std::mutex> lock(frameCacheLock);
         if (frameCache.empty() && !m_doneRead) {
-            //wait up to the step time, if we don't have the frame, bail
+            // wait up to the step time, if we don't have the frame, bail
             frameLoadSignal.notify_all();
             frameLoadedSignal.wait_for(lock, std::chrono::milliseconds(m_seqStepTime - 1));
         }
@@ -591,10 +611,10 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             CloseSequenceFile();
         } else {
             if (m_lastFrameRead > 0) {
-                //we'll have the read thread discard the frame
+                // we'll have the read thread discard the frame
                 m_lastFrameRead++;
                 if (!pastFrameCache.empty()) {
-                    //and copy the last frame data
+                    // and copy the last frame data
                     SetLastFrameData(pastFrameCache.back());
                     pastFrameCache.back()->readFrame((uint8_t*)m_seqData, FPPD_MAX_CHANNELS);
                     m_dataProcessed = false;
@@ -607,18 +627,18 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
         if (m_blankBetweenSequences) {
             BlankSequenceData();
         } else if (getFPPmode() == REMOTE_MODE) {
-            //on a remote, we will get a "stop" and then a "start" a short time later
-            //we don't want to blank immediately (unless the master tells us to)
-            //so we don't get black blinks on the remote.  We'll wait the equivalent
-            //of 5 frames to then blank
+            // on a remote, we will get a "stop" and then a "start" a short time later
+            // we don't want to blank immediately (unless the master tells us to)
+            // so we don't get black blinks on the remote.  We'll wait the equivalent
+            // of 5 frames to then blank
             if (m_remoteBlankCount > 5) {
                 BlankSequenceData();
             } else {
                 m_remoteBlankCount++;
             }
         } else if (!Player::INSTANCE.IsPlaying() && (getFPPmode() & PLAYER_MODE)) {
-            //Player, but not playlist running (so not between sequences)
-            //yet we are likely outputting something (overlay, etc...)  Need to blank
+            // Player, but not playlist running (so not between sequences)
+            // yet we are likely outputting something (overlay, etc...)  Need to blank
             BlankSequenceData();
         }
     }
@@ -713,7 +733,7 @@ void Sequence::SendSequenceData() {
         if (!commandPresets.empty()) {
             const auto& p = commandPresets.find(frame);
             if (p != commandPresets.end()) {
-                std::map<std::string, std::string> keywords({{"SEQUENCE_NAME", m_seqFilename}});
+                std::map<std::string, std::string> keywords({ { "SEQUENCE_NAME", m_seqFilename } });
                 for (auto& cmd : p->second) {
                     CommandManager::INSTANCE.TriggerPreset(cmd, keywords);
                 }

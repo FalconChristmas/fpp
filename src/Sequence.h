@@ -27,8 +27,8 @@
 #define FPPD_MAX_CHANNELS (8192 * 1024)
 #define DATA_DUMP_SIZE 28
 
-//reserve 4 channels of 0 and 4 channels of 0xFF for indexes
-//that require one or the other
+// reserve 4 channels of 0 and 4 channels of 0xFF for indexes
+// that require one or the other
 #define FPPD_OFF_CHANNEL FPPD_MAX_CHANNELS
 #define FPPD_WHITE_CHANNEL (FPPD_MAX_CHANNELS + 4)
 #define FPPD_MAX_CHANNEL_NUM (FPPD_WHITE_CHANNEL + 4)
@@ -62,7 +62,7 @@ public:
     int m_seqMSDuration;
     int m_seqMSElapsed;
     int m_seqMSRemaining;
-    char m_seqData[FPPD_MAX_CHANNEL_NUM] __attribute__((aligned(__BIGGEST_ALIGNMENT__)));
+    char* m_seqData;
     std::string m_seqFilename;
 
     int GetSeqStepTime() const { return m_seqStepTime; }
@@ -114,13 +114,14 @@ private:
     FSEQFile::FrameData* m_lastFrameData;
     void clearCaches();
     std::mutex frameCacheLock;
-    std::mutex readFileLock; //lock for just the stuff needed to read from the file (m_seqFile variable)
+    std::mutex readFileLock; // lock for just the stuff needed to read from the file (m_seqFile variable)
     std::condition_variable frameLoadSignal;
     std::condition_variable frameLoadedSignal;
 
     std::map<uint32_t, std::vector<std::string>> commandPresets;
     std::map<uint32_t, std::vector<std::string>> effectsOn;
     std::map<uint32_t, std::vector<std::string>> effectsOff;
+
 public:
     void ReadFramesLoop();
 };
