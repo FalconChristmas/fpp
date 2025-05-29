@@ -80,17 +80,13 @@ Sequence::Sequence() :
     m_bridgeData(nullptr),
     m_seqData(nullptr) {
 #ifndef PLATFORM_OSX
-    m_seqData = (char*)mmap(NULL, FPPD_MAX_CHANNEL_NUM, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | HUGETLB_FLAG_ENCODE_16KB, -1, 0);
-    if (m_seqData == nullptr || m_seqData == MAP_FAILED) {
-        printf("Could not use 64K Huge Pages for Sequence Data, trying 2MB\n");
-        m_seqData = (char*)mmap(NULL, FPPD_MAX_CHANNEL_NUM, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | HUGETLB_FLAG_ENCODE_2MB, -1, 0);
-    }
+    m_seqData = (char*)mmap(NULL, FPPD_MAX_CHANNEL_NUM, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | HUGETLB_FLAG_ENCODE_2MB, -1, 0);
 #endif
     if (m_seqData == nullptr || m_seqData == MAP_FAILED) {
-        printf("Not using Huge Pages for Sequence Data\n");
         m_seqData = (char*)mmap(NULL, FPPD_MAX_CHANNEL_NUM, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        LogDebug(VB_SEQUENCE, "Not using Huge Pages for Sequence Data   %p\n", m_seqData);
     } else {
-        printf("Using Huge Pages for Sequence Data   %p\n", m_seqData);
+        LogDebug(VB_SEQUENCE, "Using Huge Pages for Sequence Data   %p\n", m_seqData);
     }
     memset(m_seqData, 0, sizeof(m_seqData));
     for (int x = 0; x < 4; x++) {
