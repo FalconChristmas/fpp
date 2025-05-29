@@ -401,7 +401,8 @@ case "${OSVER}" in
 
         #remove a bunch of packages that aren't neeeded, free's up space
         PACKAGE_REMOVE="nginx nginx-full nginx-common  triggerhappy pocketsphinx-en-us guile-2.2-libs \
-            gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv iwd"
+            gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv \
+            unattended-upgrades packagekit iwd"
         if [ "$FPPPLATFORM" == "BeagleBone 64" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer mender-client bb-code-server"
         fi
@@ -546,7 +547,7 @@ case "${OSVER}" in
         (cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.19.0 && ./bootstrap && autoupdate && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr --disable-examples && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
         
         echo "FPP - Installing libkms++"
-        (cd /opt/ && git clone https://github.com/tomba/kmsxx && cd kmsxx && git checkout aaab406251540429522c5ef7808ee049c65a06d2 && apt-get install -y meson cmake libfmt-dev && meson setup build --prefix=/usr -Dpykms=disabled && ninja -C build install && cd /opt/ && rm -rf kmsxx && apt-get remove -y --purge --autoremove meson cmake libfmt-dev && ccache -C)
+        (cd /opt/ && git clone https://github.com/tomba/kmsxx && cd kmsxx && git checkout 0f18e6d0616b597fc32bba78b38dfc5c922ec9a4 && apt-get install -y meson cmake libfmt-dev && meson setup build --prefix=/usr -Dpykms=disabled && ninja -j ${CPUS} -C build install && cd /opt/ && rm -rf kmsxx && apt-get remove -y --purge --autoremove meson cmake libfmt-dev && ccache -C)
         
         if $isimage; then
             apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install systemd wpasupplicant
@@ -736,22 +737,14 @@ case "${FPPPLATFORM}" in
         systemctl disable resize_filesystem
         systemctl disable console-setup
         systemctl disable samba-ad-dc
-        echo "vm.swappiness = 1" >> /etc/sysctl.conf
 
         echo "FPP - Adding required modules to modules-load to speed up boot"
         echo "snd_pcm" >> /etc/modules-load.d/modules.conf
         echo "snd_timer" >> /etc/modules-load.d/modules.conf
-        echo "cdc_mbim" >> /etc/modules-load.d/modules.conf
         echo "snd" >> /etc/modules-load.d/modules.conf
-        echo "cdc_wdm" >> /etc/modules-load.d/modules.conf
-        echo "cdc_ncm" >> /etc/modules-load.d/modules.conf
-        echo "cdc_ether" >> /etc/modules-load.d/modules.conf
         echo "soundcore" >> /etc/modules-load.d/modules.conf
-        echo "usbnet" >> /etc/modules-load.d/modules.conf
         echo "irq_pruss_intc" >> /etc/modules-load.d/modules.conf
         echo "pru_rproc" >> /etc/modules-load.d/modules.conf
-        echo "crct10dif_ce" >> /etc/modules-load.d/modules.conf
-        echo "cfg80211" >> /etc/modules-load.d/modules.conf
         echo "cpufreq_dt" >> /etc/modules-load.d/modules.conf
         echo "rti_wdt" >> /etc/modules-load.d/modules.conf
         echo "at24" >> /etc/modules-load.d/modules.conf
@@ -1310,7 +1303,9 @@ EOF
         sed -i 's|tmpfs\s*/tmp\s*tmpfs.*||g' /etc/fstab
         echo "#####################################" >> /etc/fstab
         echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=75M 0 0" >> /etc/fstab
-        echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
+        if [ "$FPPPLATFORM" != "BeagleBone 64" ]; then
+            echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
+        fi
         echo "#####################################" >> /etc/fstab
     fi
 
@@ -1463,13 +1458,7 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/sun*
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/vmw*
 fi
-if [ "x${FPPPLATFORM}" = "xBeagleBone 64" ]; then
-    #######################################
-    ## With just 512M of ram, reserving hugepages makes little sense
-    systemctl disable dev-hugepages.mount
-    ## BB64 pretty much requires "real" swap so we won't use the zramswap
-    systemctl disable zramswap
-    
+if [ "x${FPPPLATFORM}" = "xBeagleBone 64" ]; then    
     cd /opt/fpp/capes/drivers/bb64
     make -j ${CPUS}
     make install
@@ -1542,10 +1531,18 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" -o
     
     
     echo "ALGO=zstd" >> /etc/default/zramswap
-    echo "SIZE=75" >> /etc/default/zramswap
     echo "PRIORITY=100" >> /etc/default/zramswap
-    echo "vm.swappiness=1" >> /etc/sysctl.d/10-swap.conf
-    echo "vm.vfs_cache_pressure=50" >> /etc/sysctl.d/10-swap.conf
+    if [ "$FPPPLATFORM" == "BeagleBone 64" ]; then
+        echo "SIZE=125" >> /etc/default/zramswap
+        echo "vm.swappiness=100" >> /etc/sysctl.d/10-swap.conf
+        echo "vm.vfs_cache_pressure=100" >> /etc/sysctl.d/10-swap.conf
+        echo "vm.dirty_background_ratio=1" >> /etc/sysctl.d/10-swap.conf
+        echo "vm.dirty_ratio=50" >> /etc/sysctl.d/10-swap.conf
+    else
+        echo "SIZE=75" >> /etc/default/zramswap
+        echo "vm.swappiness=1" >> /etc/sysctl.d/10-swap.conf
+        echo "vm.vfs_cache_pressure=50" >> /etc/sysctl.d/10-swap.conf
+    fi
     
     if $isimage; then
         # make sure the existing users are completely removed
