@@ -7,19 +7,46 @@
 #include <dt-bindings/soc/ti,sci_pm_domain.h>
 #include "k3-pinctrl.h"
 
-/* Reserve 4M DDR memory for the pixel buffers */
 &{/chosen} {
         overlays {
-                fpp-reserved-memory = "FPP_RESERVED_MEMORY";
+                fpp-base-overlay = "FPP_BASE_OVERLAY";
+        };
+};
+
+&{/firmware} {
+        optee {
+                status = "disabled";
         };
 };
 
 &reserved_memory {
 	#address-cells = <2>;
 	#size-cells = <2>;
+
+	/* Reserve 4M DDR memory for the pixel buffers */
 	fpp_reserved: fpp_reserved@8f000000 {
 		reg = <0x00 0x8f000000 0x00 0x00400000>;
 	};
+	linux,cma {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x00 0x4000000>;
+		linux,cma-default;
+	};
+	secure_ddr: optee@9e800000 {
+		reg = <0x00 0x9e800000 0x00 0x0400000>;
+		alignment = <0x1000>;
+		no-map;
+	};
+};
+&mcu_m4fss_memory_region {
+	status = "disabled";
+};
+&mcu_m4fss_dma_memory_region {
+	status = "disabled";
+};
+&mcu_m4fss {
+	status = "disabled";
 };
 
 &main_uart1 {
