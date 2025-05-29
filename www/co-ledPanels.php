@@ -100,8 +100,8 @@
                 $matricesArray[$z]["LEDPanelsSize"] = $settings["LEDPanelsSize"];
             }
 
-            if (!isset($matricesArray[$z]["LEDPanelUIAdvancedLayout"]) && isset($settings["LEDPanelUIAdvancedLayout"])) {
-                $matricesArray[$z]["LEDPanelUIAdvancedLayout"] = $settings["LEDPanelUIAdvancedLayout"];
+            if (!isset($matricesArray[$z]["advanced"]) && isset($settings["LEDPanelUIAdvancedLayout"])) {
+                $matricesArray[$z]["advanced"] = $settings["LEDPanelUIAdvancedLayout"];
             }
 
             if (!isset($matricesArray[$z]["LEDPanelUIFrontView"]) && isset($settings["LEDPanelUIFrontView"])) {
@@ -202,8 +202,8 @@
         if (!isset($matrix["interLeave"])) {
             $matrix["interLeave"] = $LEDPanelDefaults["LEDPanelInterleave"];
         }
-        if (!isset($matrix["LEDPanelUIAdvancedLayout"])) {
-            $matrix["LEDPanelUIAdvancedLayout"] = $LEDPanelDefaults["LEDPanelUIAdvancedLayout"];
+        if (!isset($matrix["advanced"])) {
+            $matrix["advanced"] = $LEDPanelDefaults["LEDPanelUIAdvancedLayout"];
         }
         if (!isset($matrix["LEDPanelUIFrontView"])) {
             $matrix["LEDPanelUIFrontView"] = $LEDPanelDefaults["LEDPanelUIFrontView"];
@@ -726,7 +726,7 @@
             PanelSubtypeChanged(panelMatrixID);
             // UpdateLegacyLEDPanelLayout(panelMatrixID);
             RowAddressTypeChanged(panelMatrixID);
-            if (mp?.LEDPanelUIAdvancedLayout) {
+            if (mp?.advanced == 1) {
                 ToggleAdvancedLayout(panelMatrixID);
             }
             resolve();
@@ -848,7 +848,10 @@
             config.enabled = 1;
 
         if (advanced) {
-            config.panels = GetAdvancedPanelConfig(panelMatrixID);
+            if (GetAdvancedPanelConfig(panelMatrixID).length > 0) {
+                config.panels = GetAdvancedPanelConfig(panelMatrixID);
+            }
+            else { config.panels = mp.panels; }
         } else {
             for (r = 0; r < mp.LEDPanelRows; r++) {
                 xOffset = 0;
@@ -1445,7 +1448,8 @@
 
         value = $(`#panelMatrix${panelMatrixID}  .LEDPanelUIAdvancedLayout`).is(":checked");
 
-        mp['LEDPanelUIAdvancedLayout'] = value;
+        mp.advanced = value ? 1 : 0;
+
 
         if ($(`#panelMatrix${panelMatrixID}  .LEDPanelUIAdvancedLayout`).is(":checked")) {
 
@@ -1504,7 +1508,7 @@
         let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
 
 
-        for (var i = 0; i < mp.LEDPanelOutputs; i++) {
+        for (var i = 0; i < mp.ledPanelsOutputs; i++) {
             $(`#panelMatrix${panelMatrixID} .cpOutputNumber`).append("<option value='" + i + "'>" + (i + 1) + "</option>");
         }
 
@@ -1738,7 +1742,7 @@
                             LEDPanelCols: LEDPanelDefaults['LEDPanelCols'],
                             LEDPanelRows: LEDPanelDefaults['LEDPanelRows'],
                             ledPanelsLayout: LEDPanelDefaults['ledPanelsLayout'],
-                            LEDPanelUIAdvancedLayout: LEDPanelDefaults['LEDPanelUIAdvancedLayout'],
+                            advanced: LEDPanelDefaults['LEDPanelUIAdvancedLayout'],
                             LEDPanelUIFrontView: LEDPanelDefaults['LEDPanelUIFrontView'],
                             ledPanelsPanelsPerOutput: LEDPanelDefaults['LEDPanelsPanelsPerOutput'],
                             ledPanelsOutputs: LEDPanelDefaults['LEDPanelOutputs'],
@@ -1913,7 +1917,7 @@
             //Rename the Canvas id
             $(`#panelMatrix${panelMatrixID} canvas.ledPanelCanvas`).attr("id", "ledPanelCanvas" + panelMatrixID);
             //Set which elements are visible on first render
-            if (channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].LEDPanelUIAdvancedLayout) {
+            if (channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].advanced == 1) {
                 $(`#panelMatrix${panelMatrixID} .ledPanelCanvasUI`).show();
                 $(`#panelMatrix${panelMatrixID} .ledPanelSimpleUI`).hide();
             } else {
@@ -2083,7 +2087,7 @@
     });
 
 
-    $(document).on("change input", "select, input, textarea", function (event) {
+    $(document).on("change input", "#divLEDPanelMatrices select, #divLEDPanelMatrices input, #divLEDPanelMatrices textarea", function (event) {
         if ($(this).is("input[type='text'], textarea") && event.type === "change") return;
         console.log(`Changed: ${$(this).attr("class")} -> ${this.value}`);
 
