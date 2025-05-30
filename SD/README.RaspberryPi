@@ -3,7 +3,7 @@ Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
 Install the latest Raspbian Bullseye Lite image to the SD card.  The last
-version tested 2024-07-04-raspios-bookworm-armhf-lite.img.xz
+version tested 2025-05-13-raspios-bookworm-armhf-lite.img.xz
 Resize the root partition to 3.5GB using fdisk (substitute the proper device
 for your SD card).
 
@@ -32,7 +32,7 @@ Disable the auto partition resize script on the SD and enable the SSH server whi
 we have the partition mounted:
 
 	# Make a temp mount location
-	mkdir -f /mnt/tmp
+	mkdir -p /mnt/tmp
 	# Mount the boot partition
 	mount /dev/sdc1 /mnt/tmp
 	# Backup the cmdline.txt file

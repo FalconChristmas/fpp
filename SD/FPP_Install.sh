@@ -55,8 +55,8 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2025-02"
-FPPCFGVER="91"
+FPPIMAGEVER="2025-05"
+FPPCFGVER="95"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -1564,6 +1564,9 @@ if $isimage; then
     rm -f /etc/resolv.conf
     ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
 fi
+
+# generate apache csp file
+/opt/fpp/scripts/ManageApacheContentPolicy.sh regenerate
 
 ENDTIME=$(date)
 

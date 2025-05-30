@@ -1,13 +1,16 @@
 # FPP BB64 Image creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian pocketbeagle2 images:
-# https://rcn-ee.net/rootfs/debian-arm64-12-bookworm-minimal-v6.12-ti/2025-01-23/
+# https://rcn-ee.net/rootfs/debian-arm64-12-bookworm-minimal-v6.12-ti/2025-05-24/
 
-# Clear the SD card
-sudo dd if=/dev/zero of=/dev/rdisk4 bs=1m count=8000
+# Burn the above image onto an SD card and insert into a running Linux machine
+# We need to make changes to the filesystems and layout prior to booting
+# on a BB64 device
 
 # Need to resize the root to be at least 5G
 # Using gparted on Linux/gui is easiest option.
+# In general, if using the above image, it will default to about 6.3G which is fine
+# and this step can be skipped
 
 
 # First, mount the rootfs on a Linux machine.   We need to disable the growfs on
@@ -75,6 +78,9 @@ chmod 700 ./FPP_Install.sh
 # Before shutting down, run:
 systemctl enable grow_partition.service
 journalctl --flush --rotate --vacuum-time=1s
+sync
+fstrim -v /
+
 
 
     DEVICE=/dev/sdc

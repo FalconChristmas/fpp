@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# am335x-debian-12.6-minimal-armhf-2024-08-28-2gb.img.xz
-# from https://rcn-ee.net/rootfs/debian-armhf-12-bookworm-minimal-mainline/2024-08-28/
+# am335x-debian-12.11-minimal-armhf-2025-05-28-2gb.img.xz
+# from https://rcn-ee.net/rootfs/debian-armhf-12-bookworm-minimal-mainline/2025-05-28/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -66,23 +66,15 @@ systemctl enable systemd-resolved
 
 #check
 cd /root
-export BASE_NEW_KERNEL_VERSION=6.11.0-fpp7
-export NEW_KERNEL_VERSION=6.11.0-fpp7_1
+export BASE_NEW_KERNEL_VERSION=6.15.0-fpp13
+export NEW_KERNEL_VERSION=6.15.0-fpp13_1
 wget -4 https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${NEW_KERNEL_VERSION}_armhf.deb
 # wget -4 https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-${NEW_KERNEL_VERSION}_armhf.deb
 dpkg -i *.deb
 rm -f *.deb
 apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r) bbb.io-kernel-tasks
 
-wget -4 https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/wireless-${BASE_NEW_KERNEL_VERSION}.tgz
-tar -xzf wireless-${BASE_NEW_KERNEL_VERSION}.tgz
-cp -a wireless/* /lib/modules/${BASE_NEW_KERNEL_VERSION}/kernel/drivers/net/wireless
-depmod -a ${BASE_NEW_KERNEL_VERSION}
-rm -rf wireless
-rm -f wireless-${BASE_NEW_KERNEL_VERSION}.tgz
-# need to copy these or the older bootloader on freshly shipped Beagles will not be able to see
-# the IIO sensor or the eMMC
-cp -a /boot/dtbs/${BASE_NEW_KERNEL_VERSION}/BB-* /lib/firmware
+
 
 # delete old kernels and modules in /boot and /lib/modules
 # and in /boot/dtbs and any initrd's
@@ -124,6 +116,14 @@ echo "blacklist bluetooth" > /etc/modprobe.d/blacklist-bluetooth.conf
 echo "blacklist hci_uart" >> /etc/modprobe.d/blacklist-bluetooth.conf
 echo "blacklist bnep" >> /etc/modprobe.d/blacklist-bluetooth.conf
 
+
+#if external wifi adapters are built for the kernel:
+wget -4 https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/wireless-${BASE_NEW_KERNEL_VERSION}.tgz
+tar -xzf wireless-${BASE_NEW_KERNEL_VERSION}.tgz
+cp -a wireless/* /lib/modules/${BASE_NEW_KERNEL_VERSION}/kernel/drivers/net/wireless
+depmod -a ${BASE_NEW_KERNEL_VERSION}
+rm -rf wireless
+rm -f wireless-${BASE_NEW_KERNEL_VERSION}.tgz
 
 echo "options 8188eu.ko rtw_power_mgnt=0 rtw_enusbss=0" > /etc/modprobe.d/wifi-disable-power-management.conf
 echo "options 8192eu.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
@@ -206,12 +206,8 @@ rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-<<<<<<< Updated upstream
-VERSION=8.5
-=======
-VERSION=8.5.1
->>>>>>> Stashed changes
-OSVERSION=2025-02
+VERSION=9.0-alpha1
+OSVERSION=2025-05
 DEVICE=/dev/sdc
 dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 
