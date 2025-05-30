@@ -16,22 +16,6 @@
                 "pi5-32bit", "pi4-32bit", "pi3-32bit", "pi2-32bit", "pi1-32bit"
             ]
         },
-              {
-            "name": "FPP v7.5 Pi",
-            "description": "Falcon Player for all RPi models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/7.5/FPP-v7.5-Pi.img.zip",
-            "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
-            "init_format": "none",
-            "website": "https://www.falconplayer.com/",
-            "extract_size": 3984588800,
-            "extract_sha256": "b8f51c3d3d598a840dffcc0a64e1dc3eee30841b0f21550b597c57945a02c921",
-            "image_download_size": 1103835401,
-            "image_download_sha256": "f884e2306562a632b199b725a04e8b535d1b7f94929756b3d10d06bbdf632028",
-            "release_date": "2024-01-12",
-            "devices": [
-                "pi4-32bit", "pi3-32bit", "pi2-32bit", "pi1-32bit"
-            ]
-        },
         {
             "name": "FPP v8.5.1 BBB",
             "description": "Falcon Player for all BeagleBone models",
@@ -65,17 +49,49 @@
             ]
         },
         {
-            "name": "FPP v7.5 BBB",
+            "name": "FPP v9.0-alpha1 Pi",
+            "description": "Falcon Player for all RPi models",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/9.0-alpha1/FPP-v9.0-alpha1-Pi.img.zip",
+            "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
+            "init_format": "none",
+            "website": "https://www.falconplayer.com/",
+            "extract_size": 7130316800,
+            "extract_sha256": "6c70b53859727860a0c5ecdf8f25b66d0d09a34bde6e4988c9bcfb29b867afd0",
+            "image_download_size": 1392653775,
+            "image_download_sha256": "36ef8b6b0e7b17a010ee4e496abfac45bdb8d5da75a63d99d311b28c97791a46",
+            "release_date": "2025-05-30",
+            "devices": [
+                "pi5-32bit", "pi4-32bit", "pi3-32bit", "pi2-32bit", "pi1-32bit"
+            ]
+        },
+        {
+            "name": "FPP v9.0-alpha1 BBB",
             "description": "Falcon Player for all BeagleBone models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/7.5/FPP-v7.5-BBB.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/9.0-alpha1/FPP-v9.0-alpha1-BBB.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 3745513472,
-            "extract_sha256": "c7595dd83fa01584c03a2d08adcf4586a7ba4422c10e87882ec2f098709a5d51",
-            "image_download_size": 923472051,
-            "image_download_sha256": "cfd66aed2a232ef1b9bf92416477e584f8b724693d1201142d2835f49ee76c84",
-            "release_date": "2024-01-12",
+            "extract_sha256": "6309f655f9a4a231e0b9628b4b6ac413689ecb16112293e3a2e12724d964d937",
+            "image_download_size": 1097733667,
+            "image_download_sha256": "7464393de62dbb6b2cd9002934c162ad965470de6d99520dd6352468ec302178",
+            "release_date": "2025-05-30",
+            "devices": [
+                "pi1-32bit"
+            ]
+        },
+        {
+            "name": "FPP v9.0-alpha1 BB64/PocketBeagle2",
+            "description": "Falcon Player for PocketBeagle2",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/9.0-alpha1/FPP-v9.0-alpha1-BB64.img.zip",
+            "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
+            "init_format": "none",
+            "website": "https://www.falconplayer.com/",
+            "extract_size": 8178892800,
+            "extract_sha256": "53c93c293bcd478fa478608e37c160725e7380355fda3aaa9e9013c91ebb578d",
+            "image_download_size": 1428335720,
+            "image_download_sha256": "dc08e84f8488002ce081926b928de8d947f6399c0b0f262c44521e079899b709",
+            "release_date": "2025-05-30",
             "devices": [
                 "pi1-32bit"
             ]
