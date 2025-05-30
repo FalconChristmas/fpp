@@ -1566,6 +1566,7 @@ if $isimage; then
 fi
 
 # generate apache csp file
+mkdir -p /home/fpp/media/config/
 /opt/fpp/scripts/ManageApacheContentPolicy.sh regenerate
 
 ENDTIME=$(date)

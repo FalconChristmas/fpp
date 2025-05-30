@@ -200,8 +200,12 @@ reboot
 
 #place 4G SD card in sd slot
 # zero out everything unused so compressing the image will work better
-dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=3800
+dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=4000
 /opt/fpp/SD/BBB-FlashMMC.sh -s 3500M -noreboot -clear ext4 /dev/mmcblk0
+mount  /dev/mmcblk0p1 /mnt
+echo "uninitialized" > /mnt/etc/machine-id
+fstrim -v /mnt
+umount /mnt
 rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
@@ -209,6 +213,7 @@ rmdir /tmp/rootfs
 VERSION=9.0-alpha1
 OSVERSION=2025-05
 DEVICE=/dev/sdc
+zerofree -v /dev/sdc1
 dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
 
 

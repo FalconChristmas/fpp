@@ -49,7 +49,7 @@ reboot
 # always report half duplex mode and sometimes only 100MB connection (despite actualy gigabit connection
 # as verified by unifi and speed tests) and other issues which can cause warnings to pop up (for
 # colorlights that need gigabit).  We'll install the driver directly from Asix and use it.
-apt-get install linux-headers-$(uname -r)
+apt-get install -y linux-headers-$(uname -r)
 cd /opt
 curl "https://www.asix.com.tw/en/support/download/file/1943?time=1748550560053" --output asix.tar.bz2
 tar -xjf asix.tar.bz2
@@ -63,7 +63,12 @@ cat > /etc/udev/rules.d/99-asix.rules << EOF
 ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0b95", ATTR{idProduct}=="1790", ATTR{bConfigurationValue}!="1", ATTR{bConfigurationValue}="1"
 EOF
 rm  asix.tar.bz2
-apt-get remove --autoremove linux-headers-$(uname -r)
+apt-get remove -y --autoremove linux-headers-$(uname -r)
+
+#remove some unneeded things to clear up space
+rm -rf /opt/bb-code-server
+rm -rf /opt/vsx-examples
+
 
 reboot
 
@@ -86,7 +91,7 @@ fstrim -v /
     DEVICE=/dev/sdc
     VERSION=9.0-alpha1
     OSVERSION=2025-05
-    BLOCKS=6800
+    BLOCKS=7800
     mount "${DEVICE}3" /mnt
     rm -f /mnt/home/fpp/.bash_history
     rm -f /mnt/home/fpp/media/settings

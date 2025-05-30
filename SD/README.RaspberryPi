@@ -72,9 +72,9 @@ Do a system upgrade to make sure everything is at the latest versions
 
 
 
-# For debian 12, we'd like to move to kernel 6.6+ and drop compiled wifi drivers, this still
+# For debian 12, we'd like to move to kernel 6.12+ and drop compiled wifi drivers, this still
 # needs some work to figure out and LOTS more testing
-# If the kernel version is NOT already 6.6.x (depends on the image used), then you need to update:
+# If the kernel version is NOT already 6.12.x (depends on the image used), then you need to update:
 PRUNE_MODULES=1 WANT_PI5=1 rpi-update
 KV=$(uname -r)
 KV=${KV::-3}
@@ -90,7 +90,7 @@ rm -rf /lib/modules/*-16k*
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
 
 
-# build/install the wifi drivers
+# Opional: build/install the wifi drivers
 KV=6.6.74
 apt-get install git bc
 # apt-get install linux-image-${KV}+rpt-rpi-v6 linux-image-${KV}+rpt-rpi-v7 linux-image-${KV}+rpt-rpi-v7l linux-image-${KV}+rpt-rpi-v8
@@ -103,6 +103,7 @@ chmod +x ./FPP-Wifi-Drivers.sh
 
 apt-get remove --purge linux-headers-${KV}+rpt-rpi-v7l linux-headers-${KV}+rpt-rpi-v7 linux-headers-${KV}+rpt-rpi-v6 linux-headers-${KV}+rpt-common-rpi linux-kbuild-${KV}+rpt
 rm ./FPP-Wifi-Drivers.sh
+
 
 
 
@@ -122,7 +123,8 @@ up.
 
 If you are installing to create a SD image zip, do the following:
     apt-get remove -y --purge --autoremove raspberrypi-kernel-headers
-    KV=6.6.51
+    KV=$(uname -r)
+    KV=${KV::-3}
     apt-get remove -y --purge --autoremove linux-headers-${KV}+rpt-rpi-v8 linux-headers-${KV}+rpt-rpi-v7l linux-headers-${KV}+rpt-rpi-v7 linux-headers-${KV}+rpt-rpi-v6
     apt-get clean
 
@@ -131,6 +133,9 @@ If you are installing to create a SD image zip, do the following:
 
 	Once the Pi reboots, login as the new fpp user and check to make sure everything
     is up and running and working properly
+
+    # Trim the fs
+    sudo fstrim -v /
 
 	# Shutdown the Pi
 	sudo shutdown -h now
@@ -144,12 +149,8 @@ the proper device name for your SD card in place of '/dev/sdg'):
        apt-get install zerofree squashfs-tools
 
     DEVICE=/dev/sdc
-<<<<<<< Updated upstream
-    VERSION=8.5
-=======
-    VERSION=8.5.1
->>>>>>> Stashed changes
-    OSVERSION=2025-02
+    VERSION=9.0-alpha1
+    OSVERSION=2025-05
     BLOCKS=6800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
