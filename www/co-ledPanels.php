@@ -1587,7 +1587,7 @@
             html += "<option value='64x32x16'>64x32 1/16 Scan</option>"
             html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
             html += "<option value='64x64x8'>64x64 1/8 Scan</option>"
-            if ($(`#panelMatrix${panelMatrixID}` + " .LEDPanelsConnectionType").text() === 'ColorLight5a75') {
+            if ($(`#panelMatrix${panelMatrixID}` + " .LEDPanelsConnectionSelect").val() === 'ColorLight5a75') {
                 html += "<option value='48x48x6'>48x48 1/6 Scan</option>"
                 html += "<option value='80x40x10'>80x40 1/10 Scan</option>"
                 html += "<option value='80x40x20'>80x40 1/20 Scan</option>"
