@@ -92,7 +92,6 @@
 				"ForceHDMIResolutionPort2",
 				"HardwareDecoding",
 				"VLCOptions",
-				"ForceAudioId",
 				"mediaOffset",
 				"remoteIgnoreSync"
 			]

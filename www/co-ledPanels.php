@@ -598,6 +598,7 @@
 
 
         DrawLEDPanelTable(panelMatrixID);
+        DisplaySaveWarningIfRequired();
     }
 
     function DrawLEDPanelTable(panelMatrixID) {
@@ -771,6 +772,7 @@
         }
         ?>
 
+        mp.LEDPanelsSize = matrixDiv.find('.LEDPanelsSize').val();
         UpdatePanelSize(panelMatrixID);
         config.ledPanelsWidth = mp.panelWidth;
         config.ledPanelsHeight = mp.panelHeight;
@@ -980,7 +982,7 @@
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputCPUPWM`).hide();
                 <? } ?>
 
-                mp.LEDPanelOutputs = 24;
+                mp.ledPanelsOutputs = 24;
             }
             else {
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionInterface`).hide();
@@ -1009,11 +1011,11 @@
 
                     <?
                     if (strpos($settings['SubPlatform'], 'Green Wireless') !== false) {
-                        echo "        mp.LEDPanelOutputs = 5;\n";
+                        echo "        mp.ledPanelsOutputs = 5;\n";
                     } else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
-                        echo "        mp.LEDPanelOutputs = 6;\n";
+                        echo "        mp.ledPanelsOutputs = 6;\n";
                     } else {
-                        echo "        mp.LEDPanelOutputs = 8;\n";
+                        echo "        mp.ledPanelsOutputs = 8;\n";
                     }
                     ?> //////
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsGPIOSlowdownLabel`).hide();
@@ -1029,7 +1031,7 @@
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputCPUPWM`).show();
                     <? }
                     ?> /////
-                    mp.LEDPanelOutputs = 3;
+                    mp.ledPanelsOutputs = 3;
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsGPIOSlowdownLabel`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsGPIOSlowdown`).show();
                     <?
@@ -1048,7 +1050,7 @@
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionLabel`).hide();
                 }
-                mp.LEDPanelOutputs = KNOWN_PANEL_CAPE["outputs"].length;
+                mp.ledPanelsOutputs = KNOWN_PANEL_CAPE["outputs"].length;
             }
 
             PanelSubtypeChanged(panelMatrixID);
@@ -1226,6 +1228,8 @@
 
         SetupCanvasPanel(panelMatrixID, panelNumber);
         UpdateMatrixSize(panelMatrixID);
+        //show hide changes warning
+        DisplaySaveWarningIfRequired();
     }
 
     function GetOutputNumberColor(output) {
@@ -1451,7 +1455,7 @@
         mp.advanced = value ? 1 : 0;
 
 
-        if ($(`#panelMatrix${panelMatrixID}  .LEDPanelUIAdvancedLayout`).is(":checked")) {
+        if (mp.advanced == 1) {
 
             $(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsWide`).val(mp.panelWidth * (mp.LEDPanelCols + 1));
             $(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsHigh`).val(mp.panelHeight * (mp.LEDPanelRows + 1));
@@ -1583,7 +1587,7 @@
             html += "<option value='64x32x16'>64x32 1/16 Scan</option>"
             html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
             html += "<option value='64x64x8'>64x64 1/8 Scan</option>"
-            if ($(`#panelMatrix${panelMatrixID}` + " .LEDPanelsConnectionType").text() === 'ColorLight5a75') {
+            if ($(`#panelMatrix${panelMatrixID}` + " .LEDPanelsConnectionSelect").val() === 'ColorLight5a75') {
                 html += "<option value='48x48x6'>48x48 1/6 Scan</option>"
                 html += "<option value='80x40x10'>80x40 1/10 Scan</option>"
                 html += "<option value='80x40x20'>80x40 1/20 Scan</option>"
@@ -1612,12 +1616,14 @@
         var panelsHigh = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelsLayoutRows`).val());
 
         //Delete existing panel data from channelOutputsLookup
-        // Loop through object keys and delete matching ones
+        // Loop through legacy object keys and delete matching ones
         Object.keys(mp).forEach(key => {
             if (key.startsWith("LEDPanelPanelNumber_") || key.startsWith("LEDPanelOutputNumber_") || key.startsWith("LEDPanelOrientation_") || key.startsWith("LEDPanelColorOrder_")) {
                 delete mp[key];
             }
         });
+        //reset advanced panels
+        mp.panels = [];
 
 
         for (var y = 0; y < panelsHigh; y++) {
@@ -1629,7 +1635,7 @@
                 $(`#panelMatrix${panelMatrixID} .LEDPanelOrientation_${y}_${panel}`).attr('src', 'images/arrow_N.png');
                 $(`#panelMatrix${panelMatrixID} .LEDPanelColorOrder_${y}_${panel}`).val('');
                 //Update channelOutputsLookup
-                // Ensure the objects exist before setting properties
+                // Ensure the legacy objects exist before setting properties
                 mp["LEDPanelPanelNumber_" + y + "_" + panel] = mp["LEDPanelPanelNumber_" + y + "_" + panel] || {};
                 mp["LEDPanelOutputNumber_" + y + "_" + panel] = mp["LEDPanelOutputNumber_" + y + "_" + panel] || {};
                 mp["LEDPanelOrientation_" + y + "_" + panel] = mp["LEDPanelOrientation_" + y + "_" + panel] || {};
@@ -1638,7 +1644,9 @@
                 mp["LEDPanelPanelNumber_" + y + "_" + panel].panelNumber = x;
                 mp["LEDPanelOutputNumber_" + y + "_" + panel].outputNumber = y;
                 mp["LEDPanelOrientation_" + y + "_" + panel].orientation = 'N';
-
+                //update advanced panels config
+                //var newPanel = []
+                //mp.panels
             }
         }
         //SaveChannelOutputsJSON();
@@ -1865,11 +1873,7 @@
         //copy the HTML from the template
         options.body = document.querySelector("#AddPanelDialogCode").innerHTML;
 
-
-
-
         DoModalDialog(options);
-
     }
 
     function MatrixNameChange() {
@@ -2032,15 +2036,6 @@
             console.log("No differences found.");
             return false;
         }
-
-
-        /*         if (JSON.stringify(sortedSavedObj) !== JSON.stringify(sortedCurrentObj)) {
-                    console.log("Arrays are different!");
-                    return true;
-                } else {
-                    console.log("Arrays are identical.");
-                    return false
-                } */
     }
 
 
@@ -2058,11 +2053,7 @@
             }).then(() => {
             checkInterleave($panelMatrixID);
             return LEDPanelsConnectionChanged($panelMatrixID);});\n";
-            //   echo "populatePanelMatrixTab($panelMatrixID);";
-            //    echo "InitializeLEDPanelMatrix($panelMatrixID);";
-            //echo "LEDPanelsConnectionChanged($panelMatrixID);";
             echo "SetupAdvancedUISelects($panelMatrixID);\n";
-
         }
 
         ?>
