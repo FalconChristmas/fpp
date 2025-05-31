@@ -210,7 +210,7 @@
                     config.channelOutputs.push(lpc);
                 }
             }
-            channelOutputs = config;
+            //channelOutputs = config;
             var result = JSON.stringify(config);
             //result = result.replace("'", "");
             return result;
