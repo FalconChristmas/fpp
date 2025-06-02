@@ -1096,28 +1096,49 @@
     const AdvancedUIcanvas5 = new Canvas();
 
     ///////////////
+    function countChildObjects(obj) {
+        let count = 0;
+
+        if (typeof obj === "object" && obj !== null) {
+            for (const key in obj) {
+                if (typeof obj[key] === "object" && obj[key] !== null && !Array.isArray(obj[key])) {
+                    count++; // Count only direct child objects
+                }
+            }
+        }
+
+        return count;
+    }
+
+
 
     function GetAdvancedPanelConfig(panelMatrixID) {
         var co = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
         var panels = [];
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
 
-        for (var key in AdvancedUIcanvas.panelGroups) {
-            var panel = new Object();
-            var pg = AdvancedUIcanvas.panelGroups[key];
+        let correctNumPanels = co.LEDPanelCols * co.LEDPanelRows;
 
-            var p = co.panels[pg.panelNumber];
+        let currentCanvasPanelNum = countChildObjects(AdvancedUIcanvas.panelGroups);
 
-            panel.outputNumber = p.outputNumber;
-            panel.panelNumber = p.panelNumber;
-            panel.xOffset = Math.round(pg.group.left / AdvancedUIcanvas.uiScale);
-            panel.yOffset = Math.round(pg.group.top / AdvancedUIcanvas.uiScale);
-            panel.orientation = p.orientation;
-            panel.colorOrder = p.colorOrder;
-            panel.row = p.row;
-            panel.col = p.col;
+        if (currentCanvasPanelNum === correctNumPanels) {
+            for (var key in AdvancedUIcanvas.panelGroups) {
+                var panel = new Object();
+                var pg = AdvancedUIcanvas.panelGroups[key];
 
-            panels.push(panel);
+                var p = co.panels[pg.panelNumber];
+
+                panel.outputNumber = p.outputNumber;
+                panel.panelNumber = p.panelNumber;
+                panel.xOffset = Math.round(pg.group.left / AdvancedUIcanvas.uiScale);
+                panel.yOffset = Math.round(pg.group.top / AdvancedUIcanvas.uiScale);
+                panel.orientation = p.orientation;
+                panel.colorOrder = p.colorOrder;
+                panel.row = p.row;
+                panel.col = p.col;
+
+                panels.push(panel);
+            }
         }
 
         return panels;
