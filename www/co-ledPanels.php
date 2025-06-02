@@ -449,6 +449,8 @@
             $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_L.png');
         else if (src == 'images/arrow_L.png')
             $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_N.png');
+
+        HandleChangesInUIValues();
     }
 
     function GetLEDPanelNumberSetting(id, key, maxItems, selectedItem) {
@@ -1094,28 +1096,49 @@
     const AdvancedUIcanvas5 = new Canvas();
 
     ///////////////
+    function countChildObjects(obj) {
+        let count = 0;
+
+        if (typeof obj === "object" && obj !== null) {
+            for (const key in obj) {
+                if (typeof obj[key] === "object" && obj[key] !== null && !Array.isArray(obj[key])) {
+                    count++; // Count only direct child objects
+                }
+            }
+        }
+
+        return count;
+    }
+
+
 
     function GetAdvancedPanelConfig(panelMatrixID) {
         var co = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
         var panels = [];
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
 
-        for (var key in AdvancedUIcanvas.panelGroups) {
-            var panel = new Object();
-            var pg = AdvancedUIcanvas.panelGroups[key];
+        let correctNumPanels = co.LEDPanelCols * co.LEDPanelRows;
 
-            var p = co.panels[pg.panelNumber];
+        let currentCanvasPanelNum = countChildObjects(AdvancedUIcanvas.panelGroups);
 
-            panel.outputNumber = p.outputNumber;
-            panel.panelNumber = p.panelNumber;
-            panel.xOffset = Math.round(pg.group.left / AdvancedUIcanvas.uiScale);
-            panel.yOffset = Math.round(pg.group.top / AdvancedUIcanvas.uiScale);
-            panel.orientation = p.orientation;
-            panel.colorOrder = p.colorOrder;
-            panel.row = p.row;
-            panel.col = p.col;
+        if (currentCanvasPanelNum === correctNumPanels) {
+            for (var key in AdvancedUIcanvas.panelGroups) {
+                var panel = new Object();
+                var pg = AdvancedUIcanvas.panelGroups[key];
 
-            panels.push(panel);
+                var p = co.panels[pg.panelNumber];
+
+                panel.outputNumber = p.outputNumber;
+                panel.panelNumber = p.panelNumber;
+                panel.xOffset = Math.round(pg.group.left / AdvancedUIcanvas.uiScale);
+                panel.yOffset = Math.round(pg.group.top / AdvancedUIcanvas.uiScale);
+                panel.orientation = p.orientation;
+                panel.colorOrder = p.colorOrder;
+                panel.row = p.row;
+                panel.col = p.col;
+
+                panels.push(panel);
+            }
         }
 
         return panels;
@@ -1966,6 +1989,21 @@
         }
     }
 
+    function sortJson(obj) {
+        if (Array.isArray(obj)) {
+            return obj.map(sortJson).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+        } else if (typeof obj === "object" && obj !== null) {
+            return Object.keys(obj)
+                .sort()
+                .reduce((sortedObj, key) => {
+                    sortedObj[key] = sortJson(obj[key]);
+                    return sortedObj;
+                }, {});
+        } else {
+            return obj;
+        }
+    }
+
     function DetectConfigChangesInUI() {
 
         //get currently visible panelMatrixID
@@ -1975,10 +2013,7 @@
         let resultObject = structuredClone(channelOutputs.channelOutputs.find(obj => obj.panelMatrixID === panelMatrixID) || {});
         ;
         // Sort object keys alphabetically
-        const sortedSavedObj = Object.keys(resultObject).sort().reduce((acc, key) => {
-            acc[key] = resultObject[key];
-            return acc;
-        }, {});
+        const sortedSavedObj = sortJson(resultObject);
 
         //The current channeloutputsLookup for current panelMatrixID
         let currentConfigObj = structuredClone(channelOutputsLookup.LEDPanelMatrices[`panelMatrix${panelMatrixID}`] || {});
@@ -1999,10 +2034,7 @@
         });
 
         // Sort object keys alphabetically
-        const sortedCurrentObj = Object.keys(currentConfigObj).sort().reduce((acc, key) => {
-            acc[key] = currentConfigObj[key];
-            return acc;
-        }, {});
+        const sortedCurrentObj = sortJson(currentConfigObj);
 
         // Compare objects and log differences
         let differences = [];
@@ -2036,6 +2068,26 @@
             console.log("No differences found.");
             return false;
         }
+    }
+
+    function HandleChangesInUIValues() {
+        const panelMatrixID = GetCurrentActiveMatrixPanelID();
+        //Update the channelOutputsLookup with the new values from UI screen
+        let currentUIConfig = GetLEDPanelConfigFromUI(panelMatrixID);
+        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID] = currentUIConfig;
+        mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
+        //re-add derived values
+        for (var p = 0; p < mp.panels.length; p++) {
+            var r = mp.panels[p].row;
+            var c = mp.panels[p].col;
+
+            mp["LEDPanelOutputNumber_" + r + "_" + c] = mp.panels[p];
+            mp["LEDPanelPanelNumber_" + r + "_" + c] = mp.panels[p];
+            mp["LEDPanelColorOrder_" + r + "_" + c] = mp.panels[p];
+        }
+
+        //show hide changes warning
+        DisplaySaveWarningIfRequired();
     }
 
 
@@ -2082,22 +2134,8 @@
         if ($(this).is("input[type='text'], textarea") && event.type === "change") return;
         console.log(`Changed: ${$(this).attr("class")} -> ${this.value}`);
 
-        const panelMatrixID = GetCurrentActiveMatrixPanelID();
-        //Update the channelOutputsLookup with the new values from UI screen
-        let mp = GetLEDPanelConfigFromUI(panelMatrixID);
-        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID] = mp;
-        //re-add derived values
-        for (var p = 0; p < mp.panels.length; p++) {
-            var r = mp.panels[p].row;
-            var c = mp.panels[p].col;
+        HandleChangesInUIValues();
 
-            mp["LEDPanelOutputNumber_" + r + "_" + c] = mp.panels[p];
-            mp["LEDPanelPanelNumber_" + r + "_" + c] = mp.panels[p];
-            mp["LEDPanelColorOrder_" + r + "_" + c] = mp.panels[p];
-        }
-
-        //show hide changes warning
-        DisplaySaveWarningIfRequired();
     });
 
     $(document).on("shown.bs.tab", 'a[data-bs-toggle="pill"]', function (event) {
