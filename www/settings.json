@@ -26,6 +26,43 @@
 				"emailtoemail"
 			]
 		},
+		"fileDirLocations": {
+			"description": "File Directory Locations",
+			"settings": [
+				"fppBinDir",
+				"wwwDir",
+				"fppDir",
+				"playlistDirectory",
+				"pluginDirectory",
+				"mediaDirectory",
+				"bootDirectory",
+				"configDirectory",
+				"channelOutputsFile",
+				"channelOutputsJSON",
+				"co-other",
+				"co-pixelStrings",
+				"co-bbbStrings",
+				"co-pwm",
+				"universeOutputs",
+				"universeInputs",
+				"dmxInputs",
+				"model-overlays",
+				"scheduleJsonFile",
+				"scriptDirectory",
+				"sequenceDirectory",
+				"musicDirectory",
+				"videoDirectory",
+				"imageDirectory",
+				"effectDirectory",
+				"eventDirectory",
+				"logDirectory",
+				"uploadDirectory",
+				"docsDirectory",
+				"exim4Directory",
+				"outputProcessorsFile",
+				"statsFile"
+			]
+		},
 		"host": {
 			"description": "Host Settings",
 			"settings": [
@@ -872,8 +909,8 @@
 				"Auto": 0,
 				"v2.x - v12.x": 2,
 				"v13.x and up": 13
-            }
-        },
+			}
+		},
 		"CompressMultiSyncTransfers": {
 			"name": "CompressMultiSyncTransfers",
 			"gatherStats": true,
@@ -2528,17 +2565,17 @@
 			"restart": 2
 		},
 		"WLEDAudioInput": {
-            "name": "WLEDAudioInput",
-            "description": "WLED Sound Reactive Source",
-            "tip": "The WLED Sound Reactive Source is used to set the source of the sound reactive data for WLED Sound Reactive Effects.",
-            "restart": 1,
-            "reboot": 0,
-            "default": "-- Playing Media --",
-            "type": "select",
-            "optionsURL": "api/settings/AudioInputListAllowMedia/options",
-            "optionCanBeBlank": false,
+			"name": "WLEDAudioInput",
+			"description": "WLED Sound Reactive Source",
+			"tip": "The WLED Sound Reactive Source is used to set the source of the sound reactive data for WLED Sound Reactive Effects.",
+			"restart": 1,
+			"reboot": 0,
+			"default": "-- Playing Media --",
+			"type": "select",
+			"optionsURL": "api/settings/AudioInputListAllowMedia/options",
+			"optionCanBeBlank": false,
 			"level": 1
-        },
+		},
 		"TimeZone": {
 			"name": "TimeZone",
 			"description": "Time Zone",
@@ -2550,6 +2587,230 @@
 			"optionsURL": "api/settings/TimeZone/options",
 			"platforms": [
 				"!MacOS"
+			]
+		},
+		"fppBinDir": {
+			"name": "fppBinDir",
+			"description": "FPP Binary Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"wwwDir": {
+			"name": "wwwDir",
+			"description": "FPP Web Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"fppDir": {
+			"name": "fppDir",
+			"description": "FPP Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"playlistDirectory": {
+			"name": "playlistDirectory",
+			"description": "Playlist Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"pluginDirectory": {
+			"name": "pluginDirectory",
+			"description": "Plugin Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"mediaDirectory": {
+			"name": "mediaDirectory",
+			"description": "Media Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"bootDirectory": {
+			"name": "bootDirectory",
+			"description": "Boot Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"configDirectory": {
+			"name": "configDirectory",
+			"description": "Configuration Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"channelOutputsFile": {
+			"name": "channelOutputsFile",
+			"description": "Channel Outputs File",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"channelOutputsJSON": {
+			"name": "channelOutputsJSON",
+			"description": "Channel Outputs JSON File",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"co-other": {
+			"name": "co-other",
+			"description": "Other Channel Outputs",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"co-pixelStrings": {
+			"name": "co-pixelStrings",
+			"description": "Pixel Strings Channel Outputs",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"co-bbbStrings": {
+			"name": "co-bbbStrings",
+			"description": "BBB Strings Channel Outputs",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"co-pwm": {
+			"name": "co-pwm",
+			"description": "PWM Channel Outputs",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"universeOutputs": {
+			"name": "universeOutputs",
+			"description": "Universe Outputs File",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"universeInputs": {
+			"name": "universeInputs",
+			"description": "Universe Inputs File",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"dmxInputs": {
+			"name": "dmxInputs",
+			"description": "DMX Inputs File",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"model-overlays": {
+			"name": "model-overlays",
+			"description": "Model Overlays File",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"scheduleJsonFile": {
+			"name": "scheduleJsonFile",
+			"description": "Schedule JSON File",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"scriptDirectory": {
+			"name": "scriptDirectory",
+			"description": "Script Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"sequenceDirectory": {
+			"name": "sequenceDirectory",
+			"description": "Sequence Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"musicDirectory": {
+			"name": "musicDirectory",
+			"description": "Music Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"videoDirectory": {
+			"name": "videoDirectory",
+			"description": "Video Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"imageDirectory": {
+			"name": "imageDirectory",
+			"description": "Image Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"effectDirectory": {
+			"name": "effectDirectory",
+			"description": "Effect Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"eventDirectory": {
+			"name": "eventDirectory",
+			"description": "Event Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"logDirectory": {
+			"name": "logDirectory",
+			"description": "Log Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"uploadDirectory": {
+			"name": "uploadDirectory",
+			"description": "Upload Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"docsDirectory": {
+			"name": "docsDirectory",
+			"description": "Documentation Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"exim4Directory": {
+			"name": "exim4Directory",
+			"description": "Exim4 Directory",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"outputProcessorsFile": {
+			"name": "outputProcessorsFile",
+			"description": "Output Processors File",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"statsFile": {
+			"name": "statsFile",
+			"description": "Statistics File",
+			"exposedAsJSToPages": [
+				"none"
 			]
 		}
 	}
