@@ -449,6 +449,8 @@
             $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_L.png');
         else if (src == 'images/arrow_L.png')
             $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_N.png');
+
+        HandleChangesInUIValues();
     }
 
     function GetLEDPanelNumberSetting(id, key, maxItems, selectedItem) {
@@ -2038,6 +2040,26 @@
         }
     }
 
+    function HandleChangesInUIValues() {
+        const panelMatrixID = GetCurrentActiveMatrixPanelID();
+        //Update the channelOutputsLookup with the new values from UI screen
+        let currentUIConfig = GetLEDPanelConfigFromUI(panelMatrixID);
+        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID] = currentUIConfig;
+        mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
+        //re-add derived values
+        for (var p = 0; p < mp.panels.length; p++) {
+            var r = mp.panels[p].row;
+            var c = mp.panels[p].col;
+
+            mp["LEDPanelOutputNumber_" + r + "_" + c] = mp.panels[p];
+            mp["LEDPanelPanelNumber_" + r + "_" + c] = mp.panels[p];
+            mp["LEDPanelColorOrder_" + r + "_" + c] = mp.panels[p];
+        }
+
+        //show hide changes warning
+        DisplaySaveWarningIfRequired();
+    }
+
 
     $(document).ready(function () {
 
@@ -2082,22 +2104,8 @@
         if ($(this).is("input[type='text'], textarea") && event.type === "change") return;
         console.log(`Changed: ${$(this).attr("class")} -> ${this.value}`);
 
-        const panelMatrixID = GetCurrentActiveMatrixPanelID();
-        //Update the channelOutputsLookup with the new values from UI screen
-        let mp = GetLEDPanelConfigFromUI(panelMatrixID);
-        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID] = mp;
-        //re-add derived values
-        for (var p = 0; p < mp.panels.length; p++) {
-            var r = mp.panels[p].row;
-            var c = mp.panels[p].col;
+        HandleChangesInUIValues();
 
-            mp["LEDPanelOutputNumber_" + r + "_" + c] = mp.panels[p];
-            mp["LEDPanelPanelNumber_" + r + "_" + c] = mp.panels[p];
-            mp["LEDPanelColorOrder_" + r + "_" + c] = mp.panels[p];
-        }
-
-        //show hide changes warning
-        DisplaySaveWarningIfRequired();
     });
 
     $(document).on("shown.bs.tab", 'a[data-bs-toggle="pill"]', function (event) {
