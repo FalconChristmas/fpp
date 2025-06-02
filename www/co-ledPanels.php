@@ -1968,6 +1968,21 @@
         }
     }
 
+    function sortJson(obj) {
+        if (Array.isArray(obj)) {
+            return obj.map(sortJson).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+        } else if (typeof obj === "object" && obj !== null) {
+            return Object.keys(obj)
+                .sort()
+                .reduce((sortedObj, key) => {
+                    sortedObj[key] = sortJson(obj[key]);
+                    return sortedObj;
+                }, {});
+        } else {
+            return obj;
+        }
+    }
+
     function DetectConfigChangesInUI() {
 
         //get currently visible panelMatrixID
@@ -1977,10 +1992,7 @@
         let resultObject = structuredClone(channelOutputs.channelOutputs.find(obj => obj.panelMatrixID === panelMatrixID) || {});
         ;
         // Sort object keys alphabetically
-        const sortedSavedObj = Object.keys(resultObject).sort().reduce((acc, key) => {
-            acc[key] = resultObject[key];
-            return acc;
-        }, {});
+        const sortedSavedObj = sortJson(resultObject);
 
         //The current channeloutputsLookup for current panelMatrixID
         let currentConfigObj = structuredClone(channelOutputsLookup.LEDPanelMatrices[`panelMatrix${panelMatrixID}`] || {});
@@ -2001,10 +2013,7 @@
         });
 
         // Sort object keys alphabetically
-        const sortedCurrentObj = Object.keys(currentConfigObj).sort().reduce((acc, key) => {
-            acc[key] = currentConfigObj[key];
-            return acc;
-        }, {});
+        const sortedCurrentObj = sortJson(currentConfigObj);
 
         // Compare objects and log differences
         let differences = [];
