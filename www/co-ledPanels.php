@@ -33,8 +33,8 @@
     $LEDPanelDefaults['LEDPanelInterleave'] = 0; // Default to no interleaving
     $LEDPanelDefaults['LEDPanelUIAdvancedLayout'] = 0; // Default to standard layout
     $LEDPanelDefaults['LEDPanelUIFrontView'] = 0; // Default to back view
-    $LEDPanelDefaults['LEDPanelUIPixelsHigh'] = 192; // Default to 192 pixels high
-    $LEDPanelDefaults['LEDPanelUIPixelsWide'] = 128; // Default to 128 pixels wide
+    $LEDPanelDefaults['LEDPanelCanvasUIPixelsHigh'] = 192; // Default to 192 pixels high
+    $LEDPanelDefaults['LEDPanelCanvasUIPixelsWide'] = 128; // Default to 128 pixels wide
     $LEDPanelDefaults['LEDPanelsSize'] = "32x16x8"; // Default to 32x16x8
     
     if (count($panelCapes) == 1) {
@@ -108,11 +108,11 @@
                 $matricesArray[$z]["LEDPanelUIFrontView"] = $settings["LEDPanelUIFrontView"];
             }
 
-            if (!isset($matricesArray[$z]["LEDPanelUIPixelsHigh"]) && isset($settings["LEDPanelUIPixelsHigh"])) {
-                $matricesArray[$z]["LEDPanelUIPixelsHigh"] = $settings["LEDPanelUIPixelsHigh"];
+            if (!isset($matricesArray[$z]["LEDPanelCanvasUIPixelsHigh"]) && isset($settings["LEDPanelUIPixelsHigh"])) {
+                $matricesArray[$z]["LEDPanelCanvasUIPixelsHigh"] = $settings["LEDPanelUIPixelsHigh"];
             }
-            if (!isset($matricesArray[$z]["LEDPanelUIPixelsWide"]) && isset($settings["LEDPanelUIPixelsWide"])) {
-                $matricesArray[$z]["LEDPanelUIPixelsWide"] = $settings["LEDPanelUIPixelsWide"];
+            if (!isset($matricesArray[$z]["LEDPanelCanvasUIPixelsWide"]) && isset($settings["LEDPanelUIPixelsWide"])) {
+                $matricesArray[$z]["LEDPanelCanvasUIPixelsWide"] = $settings["LEDPanelUIPixelsWide"];
             }
 
             if (!isset($matricesArray[$z]["panelInterleave"]) && isset($settings["panelInterleave"])) {
@@ -378,7 +378,9 @@
         ["LEDPanelMatrixName", "LEDPanelMatrixName"],
         ["LEDPanelsSize", "LEDPanelsSize"],
         ["LEDPanelsLayoutCols", "LEDPanelCols"],
-        ["LEDPanelsLayoutRows", "LEDPanelRows"]
+        ["LEDPanelsLayoutRows", "LEDPanelRows"],
+        ["LEDPanelCanvasUIPixelsHigh", "LEDPanelCanvasUIPixelsHigh"],
+        ["LEDPanelCanvasUIPixelsWide", "LEDPanelCanvasUIPixelsWide"]
     ];
 
     function checkAndCorrectMissingChannelLookup() {
@@ -407,6 +409,8 @@
             mp.LEDPanelsSize ||= LEDPanelDefaults.LEDPanelsSize;
             mp.gpioSlowdown ||= LEDPanelDefaults.gpioSlowdown;
             mp.wiringPinout ||= LEDPanelDefaults.LEDPanelsWiringPinout;
+            mp.LEDPanelCanvasUIPixelsHigh ||= LEDPanelDefaults.LEDPanelCanvasUIPixelsHigh;
+            mp.LEDPanelCanvasUIPixelsWide ||= LEDPanelDefaults.LEDPanelCanvasUIPixelsWide;
 
 
             const sizeparts = mp.LEDPanelsSize.split("x");
@@ -850,6 +854,9 @@
 
         if (matrixDiv.find('.LEDPanelsEnabled').is(":checked"))
             config.enabled = 1;
+
+        config.LEDPanelCanvasUIPixelsHigh = parseInt(matrixDiv.find('.LEDPanelCanvasUIPixelsHigh').val());
+        config.LEDPanelCanvasUIPixelsWide = parseInt(matrixDiv.find('.LEDPanelCanvasUIPixelsWide').val());
 
         if (advanced) {
             if (GetAdvancedPanelConfig(panelMatrixID).length > 0) {
@@ -1409,13 +1416,13 @@
         $(`#panelMatrix${panelMatrixID} .LEDPanelsPixelCount`).html(matrixPixels);
 
         var resized = 0;
-        if (matrixWidth > parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsWide`).val())) {
+        if (matrixWidth > parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsWide`).val())) {
             resized = 1;
-            $(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsWide`).val(matrixWidth);
+            $(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsWide`).val(matrixWidth);
         }
-        if (matrixHeight > parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsHigh`).val())) {
+        if (matrixHeight > parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsHigh`).val())) {
             resized = 1;
-            $(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsHigh`).val(matrixHeight);
+            $(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsHigh`).val(matrixHeight);
         }
         if (resized)
             SetCanvasSize(panelMatrixID);
@@ -1425,8 +1432,8 @@
 
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
 
-        let canvasWidth = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsWide`).val()) * AdvancedUIcanvas.uiScale;
-        let canvasHeight = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsHigh`).val()) * AdvancedUIcanvas.uiScale;
+        let canvasWidth = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsWide`).val()) * AdvancedUIcanvas.uiScale;
+        let canvasHeight = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsHigh`).val()) * AdvancedUIcanvas.uiScale;
 
         AdvancedUIcanvas.ledPanelCanvas.setWidth(canvasWidth);
         AdvancedUIcanvas.ledPanelCanvas.setHeight(canvasHeight);
@@ -1480,8 +1487,22 @@
 
         if (mp.advanced == 1) {
 
-            $(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsWide`).val(mp.panelWidth * (mp.LEDPanelCols + 1));
-            $(`#panelMatrix${panelMatrixID} .LEDPanelUIPixelsHigh`).val(mp.panelHeight * (mp.LEDPanelRows + 1));
+            if (mp.LEDPanelCanvasUIPixelsHigh < mp.panelHeight * (mp.LEDPanelRows + 1)) {
+                $(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsHigh`).val(mp.panelHeight * (mp.LEDPanelRows + 1));
+            }
+            else {
+                $(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsHigh`).val(mp.LEDPanelCanvasUIPixelsHigh);
+            }
+
+            if (mp.LEDPanelCanvasUIPixelsWide < mp.panelWidth * (mp.LEDPanelCols + 1)) {
+                $(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsWide`).val(mp.panelWidth * (mp.LEDPanelCols + 1));
+            }
+            else {
+                $(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsWide`).val(mp.LEDPanelCanvasUIPixelsWide);
+            }
+
+            // $(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsWide`).val(mp.panelWidth * (mp.LEDPanelCols + 1));
+            // $(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsHigh`).val(mp.panelHeight * (mp.LEDPanelRows + 1));
 
             if (AdvancedUIcanvas.canvasInitialized)
                 InitializeCanvas(panelMatrixID, 1);
@@ -1672,7 +1693,6 @@
                 //mp.panels
             }
         }
-        //SaveChannelOutputsJSON();
     }
 
 
@@ -2089,7 +2109,6 @@
         //show hide changes warning
         DisplaySaveWarningIfRequired();
     }
-
 
     $(document).ready(function () {
 
@@ -2766,11 +2785,17 @@
                                         <tr>
                                             <td><b>UI Layout Size:</b></td>
                                             <td>Pixels Wide:</td>
-                                            <td><? PrintSettingTextSaved("LEDPanelUIPixelsWide", 2, 0, 4, 4, "", "256", "SetCanvasSize", "", "text", [], "class"); ?>
+                                            <td><? //PrintSettingTextSaved("LEDPanelUIPixelsWide", 2, 0, 4, 4, "", "256", "SetCanvasSize", "", "text", [], "class"); ?>
+                                                <input type='number' class='mw-100 LEDPanelCanvasUIPixelsWide'
+                                                    maxlength='4' size='4' onChange='SetCanvasSize();'
+                                                    value="undefined">
                                             </td>
                                             <td></td>
                                             <td>Pixels High:</td>
-                                            <td><? PrintSettingTextSaved("LEDPanelUIPixelsHigh", 2, 0, 4, 4, "", "128", "SetCanvasSize", "", "text", [], "class"); ?>
+                                            <td><? //PrintSettingTextSaved("LEDPanelUIPixelsHigh", 2, 0, 4, 4, "", "128", "SetCanvasSize", "", "text", [], "class"); ?>
+                                                <input type='number' class='mw-100 LEDPanelCanvasUIPixelsHigh'
+                                                    maxlength='4' size='4' onChange='SetCanvasSize();'
+                                                    value="undefined">
                                             </td>
                                         </tr>
                                     </table>
