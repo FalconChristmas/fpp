@@ -254,7 +254,8 @@
 			"settings": [
 				"Service_rsync",
 				"Service_smbd_nmbd",
-				"Service_vsftpd"
+				"Service_vsftpd",
+				"Service_MQTT_localbroker"
 			]
 		},
 		"kiosk": {
@@ -2270,6 +2271,18 @@
 			"description": "Enable FTP",
 			"gatherStats": true,
 			"tip": "The FTP daemon can be used to remotely access the files on a FPP system via the FTP protocol.",
+			"level": 1,
+			"type": "checkbox",
+			"default": "0",
+			"platforms": [
+				"!MacOS"
+			]
+		},
+		"Service_MQTT_localbroker": {
+			"name": "Service_MQTT_localbroker",
+			"description": "Enable Local MQTT Broker",
+			"gatherStats": true,
+			"tip": "The Local MQTT Broker can be used to publish and subscribe to MQTT messages on the local FPP system.  The username and password are the same as the noraml fpp user. Will run on localhost port 1883",
 			"level": 1,
 			"type": "checkbox",
 			"default": "0",
