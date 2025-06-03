@@ -332,6 +332,12 @@
 				"dhcpOffset",
 				"dhcpPoolSize"
 			]
+		},
+		"UsageStats": {
+			"description": "Usage Statistics",
+			"settings": [
+				"statsPublishUrl"
+			]
 		}
 	},
 	"attributes": {
@@ -2809,6 +2815,14 @@
 		"statsFile": {
 			"name": "statsFile",
 			"description": "Statistics File",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"statsPublishUrl": {
+			"name": "statsPublishUrl",
+			"description": "Statistics Publish URL",
+			"tip": "The URL to which FPP will send anonymous hardware and feature statistics.  This is used by the FPP developers to determine what hardware is being used and what features are popular.",
 			"exposedAsJSToPages": [
 				"none"
 			]
