@@ -14,6 +14,19 @@
 				"BBBLedPWR"
 			]
 		},
+		"DeviceInstanceInfo": {
+			"description": "Device Instance Information",
+			"settings": [
+				"Platform",
+				"Variant",
+				"SubPlatform",
+				"OSImagePrefix",
+				"IsDesktop",
+				"BeaglePlatform",
+				"AudioCardType",
+				"AudioCard0Type"
+			]
+		},
 		"email": {
 			"description": "Outbound Email Configuration",
 			"settings": [
@@ -243,7 +256,8 @@
 			"settings": [
 				"Service_rsync",
 				"Service_smbd_nmbd",
-				"Service_vsftpd"
+				"Service_vsftpd",
+				"Service_MQTT_localbroker"
 			]
 		},
 		"kiosk": {
@@ -309,6 +323,18 @@
 				"tableColorPair4B"
 			]
 		},
+		"uiBehavior": {
+			"description": "UI Behavior",
+			"settings": [
+				"LogoLink",
+				"Logo",
+				"hideExternalURLs",
+				"currentHeaderSensor",
+				"initialSetup-02",
+				"locale",
+				"volume"
+			]
+		},
 		"wifiDomainGroup": {
 			"description": "WIFI Domain",
 			"settings": [
@@ -331,6 +357,12 @@
 				"dhcpServer",
 				"dhcpOffset",
 				"dhcpPoolSize"
+			]
+		},
+		"UsageStats": {
+			"description": "Usage Statistics",
+			"settings": [
+				"statsPublishUrl"
 			]
 		}
 	},
@@ -2260,6 +2292,18 @@
 				"!MacOS"
 			]
 		},
+		"Service_MQTT_localbroker": {
+			"name": "Service_MQTT_localbroker",
+			"description": "Enable Local MQTT Broker",
+			"gatherStats": true,
+			"tip": "The Local MQTT Broker can be used to publish and subscribe to MQTT messages on the local FPP system.  The username and password are the same as the noraml fpp user. Will run on localhost port 1883",
+			"level": 1,
+			"type": "checkbox",
+			"default": "0",
+			"platforms": [
+				"!MacOS"
+			]
+		},
 		"ShareCrashData": {
 			"name": "ShareCrashData",
 			"description": "Share Crash Data with FPP Developers",
@@ -2811,6 +2855,140 @@
 			"description": "Statistics File",
 			"exposedAsJSToPages": [
 				"none"
+			]
+		},
+		"statsPublishUrl": {
+			"name": "statsPublishUrl",
+			"description": "Statistics Publish URL",
+			"tip": "The URL to which FPP will send anonymous hardware and feature statistics.  This is used by the FPP developers to determine what hardware is being used and what features are popular.",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"Platform": {
+			"name": "Platform",
+			"description": "Platform",
+			"tip": "The Platform setting is used to determine what hardware FPP is running on.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"Variant": {
+			"name": "Variant",
+			"description": "Variant",
+			"tip": "The Variant setting is used to determine what variant of the platform FPP is running on.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"SubPlatform": {
+			"name": "SubPlatform",
+			"description": "Sub Platform",
+			"tip": "The Sub Platform setting is used to determine what sub platform FPP is running on.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"OSImagePrefix": {
+			"name": "OSImagePrefix",
+			"description": "OS Image Prefix",
+			"tip": "The OS Image Prefix setting is used to determine the prefix of the OS image that FPP is running on.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"IsDesktop": {
+			"name": "IsDesktop",
+			"description": "Is Desktop",
+			"tip": "The Is Desktop setting is used to determine if FPP is running on a desktop system.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"BeaglePlatform": {
+			"name": "BeaglePlatform",
+			"description": "Beagle Platform",
+			"tip": "The Beagle Platform setting is used to determine what Beagle platform FPP is running on.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"LogoLink": {
+			"name": "LogoLink",
+			"description": "Logo Link",
+			"tip": "The URL to which the FPP logo will link.  This is used in the header of the FPP UI.",
+			"exposedAsJSToPages": [
+				"index",
+				"all"
+			]
+		},
+		"Logo": {
+			"name": "Logo",
+			"description": "Logo",
+			"tip": "The URL to the logo image to display in the header of the FPP UI.",
+			"exposedAsJSToPages": [
+				"index",
+				"all"
+			]
+		},
+		"hideExternalURLs": {
+			"name": "hideExternalURLs",
+			"description": "Hide External URLs",
+			"tip": "If enabled, external URLs will not be displayed in the FPP UI.  This is useful for kiosk mode or if you do not want users to be able to access external sites.",
+			"exposedAsJSToPages": [
+				"index",
+				"all"
+			]
+		},
+		"currentHeaderSensor": {
+			"name": "currentHeaderSensor",
+			"description": "Current Header Sensor",
+			"tip": "The current header sensor is used to display the current sensor in the header of the FPP UI.",
+			"exposedAsJSToPages": [
+				"index",
+				"all"
+			]
+		},
+		"initialSetup-02": {
+			"name": "initialSetup-01",
+			"description": "Initial Setup Step 1",
+			"tip": "This setting is used to track if the initial setup step 1 has been completed.  This is used to determine if the initial setup page should be displayed.",
+			"exposedAsJSToPages": [
+				"index",
+				"all"
+			]
+		},
+		"locale": {
+			"name": "locale",
+			"description": "Locale",
+			"tip": "The locale setting is used to determine the language and region settings for FPP.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"index",
+				"all"
+			]
+		},
+		"AudioCardType": {
+			"name": "AudioCardType",
+			"description": "Audio Card Type",
+			"tip": "The Audio Card Type setting is used to determine the type of audio card that FPP is using.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"AudioCard0Type": {
+			"name": "AudioCard0Type",
+			"description": "Audio Card 0 Type",
+			"tip": "The Audio Card 0 Type setting is used to determine the type of audio card 0 that FPP is using.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"volume": {
+			"name": "volume",
+			"description": "Volume",
+			"tip": "The volume setting is used to control the volume of the audio output.",
+			"exposedAsJSToPages": [
+				"index"
 			]
 		}
 	}

@@ -288,6 +288,37 @@ function SetGPIOFanProperties()
     }
 }
 
+function SetupLocalMQTTBroker($value)
+{
+    global $settings;
+    if ($settings["Platform"] != "MacOS") {
+        if ($value == '0') {
+            //remove local broker config and restart the service
+            exec("sudo rm -f /etc/mosquitto/conf.d/fpp_local_broker.conf", $output, $return_val);
+            exec("sudo systemctl restart mosquitto >/dev/null &");
+        } else if ($value == '1') {
+            //generate mosquitto password file
+            $password = GetSettingValue('osPassword');
+            if ($password == '') {
+                $password = 'fpp';
+            }
+            exec("sudo mosquitto_passwd -b -c /etc/mosquitto/passwd fpp $password", $output, $return_val);
+            if ($return_val != 0) {
+                error_log("Error creating mosquitto password file: " . implode("\n", $output));
+                return;
+            }
+
+            //generate local broker config and restart the service
+            $config = "listener 1883\n";
+            $config .= "protocol mqtt\n";
+            $config .= "allow_anonymous false\n";
+            $config .= "password_file /etc/mosquitto/passwd";
+            $command = "echo " . escapeshellarg($config) . " | sudo tee /etc/mosquitto/conf.d/fpp_local_broker.conf > /dev/null";
+            exec($command);
+            exec("sudo systemctl restart mosquitto >/dev/null &");
+        }
+    }
+}
 function SetupScreenBlanking($value)
 {
     global $settings;
@@ -365,11 +396,16 @@ function ApplySetting($setting, $value)
         case 'screensaver':
             SetupScreenBlanking($value);
             break;
+        case 'Service_MQTT_localbroker':
+            SetupLocalMQTTBroker($value);
+            break;
         default:
             ApplyServiceSetting($setting, $value, "--now");
             break;
     }
 }
+
+
 
 function setVolume($vol)
 {
