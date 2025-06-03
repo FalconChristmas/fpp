@@ -67,15 +67,15 @@
         {
             "name": "FPP v9.0-alpha1 BBB",
             "description": "Falcon Player for all BeagleBone models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/9.0-alpha1/FPP-v9.0-alpha1-BBB.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/9.0-alpha1/FPP-v9.0-alpha1b-BBB.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 3745513472,
-            "extract_sha256": "6309f655f9a4a231e0b9628b4b6ac413689ecb16112293e3a2e12724d964d937",
-            "image_download_size": 1097733667,
-            "image_download_sha256": "7464393de62dbb6b2cd9002934c162ad965470de6d99520dd6352468ec302178",
-            "release_date": "2025-05-30",
+            "extract_sha256": "ba7be79ed547397844c71a38933d450d1d4f640e41984e2490d05fec9bdb0bc1",
+            "image_download_size": 1156339000,
+            "image_download_sha256": "c799d423e0508af0952378e58e1b74237cbbeeb59b58d5eed17431bf94e426c6",
+            "release_date": "2025-06-03",
             "devices": [
                 "pi1-32bit"
             ]

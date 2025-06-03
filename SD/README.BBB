@@ -66,8 +66,8 @@ systemctl enable systemd-resolved
 
 #check
 cd /root
-export BASE_NEW_KERNEL_VERSION=6.15.0-fpp13
-export NEW_KERNEL_VERSION=6.15.0-fpp13_1
+export BASE_NEW_KERNEL_VERSION=6.15.0-fpp14
+export NEW_KERNEL_VERSION=6.15.0-fpp14_1
 wget -4 https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${NEW_KERNEL_VERSION}_armhf.deb
 # wget -4 https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-${NEW_KERNEL_VERSION}_armhf.deb
 dpkg -i *.deb
@@ -201,16 +201,20 @@ reboot
 #place 4G SD card in sd slot
 # zero out everything unused so compressing the image will work better
 dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=4000
+journalctl --flush --rotate --vacuum-time=1s
 /opt/fpp/SD/BBB-FlashMMC.sh -s 3500M -noreboot -clear ext4 /dev/mmcblk0
 mount  /dev/mmcblk0p1 /mnt
 echo "uninitialized" > /mnt/etc/machine-id
+chroot /mnt
+systemctl enable grow_partition.service
+exit
 fstrim -v /mnt
 umount /mnt
 rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-VERSION=9.0-alpha1
+VERSION=9.0-alpha1b
 OSVERSION=2025-05
 DEVICE=/dev/sdc
 zerofree -v /dev/sdc1
