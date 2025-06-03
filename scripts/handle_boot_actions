@@ -4,22 +4,38 @@ $skipJSsettings = true;
 require_once('/opt/fpp/www/config.php');
 require_once('/opt/fpp/www/common.php');
 require_once('/opt/fpp/www/common/settings.php');
-function HandleSettings() {
+function HandleSettings()
+{
     global $settings;
-    if (array_key_exists("TimeZone", $settings)) ApplySetting("TimeZone", $settings["TimeZone"]);
-    if (array_key_exists("ntpServer", $settings)) ApplySetting("ntpServer", $settings["ntpServer"]);
-    if (array_key_exists("ForceHDMI", $settings)) ApplySetting("ForceHDMI", $settings["ForceHDMI"]);
-    if (array_key_exists("ForceHDMIResolution", $settings)) ApplySetting("ForceHDMIResolution", $settings["ForceHDMIResolution"]);
-    if (array_key_exists("ForceHDMIResolutionPort2", $settings)) ApplySetting("ForceHDMIResolutionPort2", $settings["ForceHDMIResolutionPort2"]);
-    if (array_key_exists("wifiDrivers", $settings)) ApplySetting("wifiDrivers", $settings["wifiDrivers"]);
-    if (array_key_exists("GPIOFan", $settings)) ApplySetting("GPIOFan", $settings["GPIOFan"]);
-    if (array_key_exists("Kiosk", $settings)) ApplySetting("Kiosk", $settings["Kiosk"]);
-    if (array_key_exists("EnableBBBHDMI", $settings)) ApplySetting("EnableBBBHDMI", $settings["EnableBBBHDMI"]);
-    if (array_key_exists("Service_rsync", $settings)) ApplyServiceSetting("Service_rsync", $settings["Service_rsync"], "--now");
-    if (array_key_exists("Service_smbd_nmbd", $settings)) ApplyServiceSetting("Service_smbd_nmbd", $settings["Service_smbd_nmbd"], "--now");
-    if (array_key_exists("Service_vsftpd", $settings)) ApplyServiceSetting("Service_vsftpd", $settings["Service_vsftpd"], "--now");
+    if (array_key_exists("TimeZone", $settings))
+        ApplySetting("TimeZone", $settings["TimeZone"]);
+    if (array_key_exists("ntpServer", $settings))
+        ApplySetting("ntpServer", $settings["ntpServer"]);
+    if (array_key_exists("ForceHDMI", $settings))
+        ApplySetting("ForceHDMI", $settings["ForceHDMI"]);
+    if (array_key_exists("ForceHDMIResolution", $settings))
+        ApplySetting("ForceHDMIResolution", $settings["ForceHDMIResolution"]);
+    if (array_key_exists("ForceHDMIResolutionPort2", $settings))
+        ApplySetting("ForceHDMIResolutionPort2", $settings["ForceHDMIResolutionPort2"]);
+    if (array_key_exists("wifiDrivers", $settings))
+        ApplySetting("wifiDrivers", $settings["wifiDrivers"]);
+    if (array_key_exists("GPIOFan", $settings))
+        ApplySetting("GPIOFan", $settings["GPIOFan"]);
+    if (array_key_exists("Kiosk", $settings))
+        ApplySetting("Kiosk", $settings["Kiosk"]);
+    if (array_key_exists("EnableBBBHDMI", $settings))
+        ApplySetting("EnableBBBHDMI", $settings["EnableBBBHDMI"]);
+    if (array_key_exists("Service_rsync", $settings))
+        ApplyServiceSetting("Service_rsync", $settings["Service_rsync"], "--now");
+    if (array_key_exists("Service_smbd_nmbd", $settings))
+        ApplyServiceSetting("Service_smbd_nmbd", $settings["Service_smbd_nmbd"], "--now");
+    if (array_key_exists("Service_vsftpd", $settings))
+        ApplyServiceSetting("Service_vsftpd", $settings["Service_vsftpd"], "--now");
+    if (array_key_exists("Service_MQTT_localbroker", $settings))
+        ApplySetting("Service_MQTT_localbroker", $settings["Service_MQTT_localbroker"]);
 }
-function HandleExpandFS() {
+function HandleExpandFS()
+{
     global $settings;
     if ($settings['Platform'] == "BeagleBone Black") {
         $command = "sudo /opt/fpp/SD/BBB-grow_partition.sh 2>&1";
@@ -34,7 +50,7 @@ $actions = explode(",", $settings["BootActions"]);
 $action = array_shift($actions);
 while ($action != NULL) {
     echo "Performing boot action: " . $action . "\n";
-    
+
     // save the actions we haven't handled yet back out to settings in case
     // we reboot or something we can keep processing
     $newactions = implode(",", $actions);
@@ -43,7 +59,7 @@ while ($action != NULL) {
     } else {
         WriteSettingToFile("BootActions", $newactions);
     }
-    
+
     if ($action == "settings") {
         HandleSettings();
     } else if ($action == "expandfs") {
