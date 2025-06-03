@@ -321,6 +321,17 @@
 				"tableColorPair4B"
 			]
 		},
+		"uiBehavior": {
+			"description": "UI Behavior",
+			"settings": [
+				"LogoLink",
+				"Logo",
+				"hideExternalURLs",
+				"currentHeaderSensor",
+				"initialSetup-02",
+				"locale"
+			]
+		},
 		"wifiDomainGroup": {
 			"description": "WIFI Domain",
 			"settings": [
@@ -2896,6 +2907,60 @@
 			"description": "Beagle Platform",
 			"tip": "The Beagle Platform setting is used to determine what Beagle platform FPP is running on.  This setting is automatically set by FPP and should not be changed manually.",
 			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"LogoLink": {
+			"name": "LogoLink",
+			"description": "Logo Link",
+			"tip": "The URL to which the FPP logo will link.  This is used in the header of the FPP UI.",
+			"exposedAsJSToPages": [
+				"index",
+				"all"
+			]
+		},
+		"Logo": {
+			"name": "Logo",
+			"description": "Logo",
+			"tip": "The URL to the logo image to display in the header of the FPP UI.",
+			"exposedAsJSToPages": [
+				"index",
+				"all"
+			]
+		},
+		"hideExternalURLs": {
+			"name": "hideExternalURLs",
+			"description": "Hide External URLs",
+			"tip": "If enabled, external URLs will not be displayed in the FPP UI.  This is useful for kiosk mode or if you do not want users to be able to access external sites.",
+			"exposedAsJSToPages": [
+				"index",
+				"all"
+			]
+		},
+		"currentHeaderSensor": {
+			"name": "currentHeaderSensor",
+			"description": "Current Header Sensor",
+			"tip": "The current header sensor is used to display the current sensor in the header of the FPP UI.",
+			"exposedAsJSToPages": [
+				"index",
+				"all"
+			]
+		},
+		"initialSetup-02": {
+			"name": "initialSetup-01",
+			"description": "Initial Setup Step 1",
+			"tip": "This setting is used to track if the initial setup step 1 has been completed.  This is used to determine if the initial setup page should be displayed.",
+			"exposedAsJSToPages": [
+				"index",
+				"all"
+			]
+		},
+		"locale": {
+			"name": "locale",
+			"description": "Locale",
+			"tip": "The locale setting is used to determine the language and region settings for FPP.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"index",
 				"all"
 			]
 		}
