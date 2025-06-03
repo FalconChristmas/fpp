@@ -22,7 +22,9 @@
 				"SubPlatform",
 				"OSImagePrefix",
 				"IsDesktop",
-				"BeaglePlatform"
+				"BeaglePlatform",
+				"AudioCardType",
+				"AudioCard0Type"
 			]
 		},
 		"email": {
@@ -329,7 +331,8 @@
 				"hideExternalURLs",
 				"currentHeaderSensor",
 				"initialSetup-02",
-				"locale"
+				"locale",
+				"volume"
 			]
 		},
 		"wifiDomainGroup": {
@@ -2962,6 +2965,30 @@
 			"exposedAsJSToPages": [
 				"index",
 				"all"
+			]
+		},
+		"AudioCardType": {
+			"name": "AudioCardType",
+			"description": "Audio Card Type",
+			"tip": "The Audio Card Type setting is used to determine the type of audio card that FPP is using.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"AudioCard0Type": {
+			"name": "AudioCard0Type",
+			"description": "Audio Card 0 Type",
+			"tip": "The Audio Card 0 Type setting is used to determine the type of audio card 0 that FPP is using.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"none"
+			]
+		},
+		"volume": {
+			"name": "volume",
+			"description": "Volume",
+			"tip": "The volume setting is used to control the volume of the audio output.",
+			"exposedAsJSToPages": [
+				"index"
 			]
 		}
 	}
