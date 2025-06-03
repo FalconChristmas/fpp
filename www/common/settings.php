@@ -295,7 +295,8 @@ function SetupLocalMQTTBroker($value)
         if ($value == '0') {
             //remove local broker config and restart the service
             exec("sudo rm -f /etc/mosquitto/conf.d/fpp_local_broker.conf", $output, $return_val);
-            exec("sudo systemctl restart mosquitto >/dev/null &");
+            exec("sudo systemctrl stop mosquitto >/dev/null &");
+            exec("sudo systemctrl disable mosquitto >/dev/null &");
         } else if ($value == '1') {
             //generate mosquitto password file
             $password = GetSettingValue('osPassword');
@@ -315,6 +316,9 @@ function SetupLocalMQTTBroker($value)
             $config .= "password_file /etc/mosquitto/passwd";
             $command = "echo " . escapeshellarg($config) . " | sudo tee /etc/mosquitto/conf.d/fpp_local_broker.conf > /dev/null";
             exec($command);
+            if (exec("sudo systemctl is-enabled mosquitto") != "enabled") {
+                exec("sudo systemctl enable mosquitto >/dev/null &");
+            }
             exec("sudo systemctl restart mosquitto >/dev/null &");
         }
     }
