@@ -179,5 +179,11 @@
 			"keep_fnames": false,
 			"keep_classnames": false
 		}
-	}
+	},
+	"sortJSON.orderOverride": [
+		"name",
+		"description",
+		"tip",
+		"default"
+	]
 }

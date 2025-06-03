@@ -13,6 +13,7 @@
         "devsense.phptools-vscode",
         "xdebug.php-debug",
         "glenn2223.live-sass",
-        "josee9988.minifyall"
+        "josee9988.minifyall",
+        "richie5um2.vscode-sort-json"
     ]
 }
