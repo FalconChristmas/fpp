@@ -14,6 +14,17 @@
 				"BBBLedPWR"
 			]
 		},
+		"DeviceInstanceInfo": {
+			"description": "Device Instance Information",
+			"settings": [
+				"Platform",
+				"Variant",
+				"SubPlatform",
+				"OSImagePrefix",
+				"IsDesktop",
+				"BeaglePlatform"
+			]
+		},
 		"email": {
 			"description": "Outbound Email Configuration",
 			"settings": [
@@ -2825,6 +2836,54 @@
 			"tip": "The URL to which FPP will send anonymous hardware and feature statistics.  This is used by the FPP developers to determine what hardware is being used and what features are popular.",
 			"exposedAsJSToPages": [
 				"none"
+			]
+		},
+		"Platform": {
+			"name": "Platform",
+			"description": "Platform",
+			"tip": "The Platform setting is used to determine what hardware FPP is running on.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"Variant": {
+			"name": "Variant",
+			"description": "Variant",
+			"tip": "The Variant setting is used to determine what variant of the platform FPP is running on.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"SubPlatform": {
+			"name": "SubPlatform",
+			"description": "Sub Platform",
+			"tip": "The Sub Platform setting is used to determine what sub platform FPP is running on.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"OSImagePrefix": {
+			"name": "OSImagePrefix",
+			"description": "OS Image Prefix",
+			"tip": "The OS Image Prefix setting is used to determine the prefix of the OS image that FPP is running on.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"IsDesktop": {
+			"name": "IsDesktop",
+			"description": "Is Desktop",
+			"tip": "The Is Desktop setting is used to determine if FPP is running on a desktop system.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"BeaglePlatform": {
+			"name": "BeaglePlatform",
+			"description": "Beagle Platform",
+			"tip": "The Beagle Platform setting is used to determine what Beagle platform FPP is running on.  This setting is automatically set by FPP and should not be changed manually.",
+			"exposedAsJSToPages": [
+				"all"
 			]
 		}
 	}
