@@ -617,23 +617,31 @@ function AddFilesToPlaylist (type, files) {
 		var fileStr = files[i];
 		if (mediaFile != '') fileStr += ' (' + mediaFile + ')';
 
-		tbody +=
-			"<tr class='fppTableRow'><td class='file' file='" +
-			files[i] +
-			"' media='" +
-			mediaFile +
-			"' duration='" +
-			duration +
-			"'>" +
-			fileStr +
-			"</td><td class='type' etype='" +
-			etype +
-			"'>" +
+		let trElem = document.createElement('tr');
+		trElem.className = 'fppTableRow';
+
+		let tdFile = document.createElement('td');
+		tdFile.className = 'file';
+		tdFile.setAttribute('file', files[i]);
+		tdFile.setAttribute('media', mediaFile);
+		tdFile.setAttribute('duration', duration);
+		tdFile.textContent = fileStr;
+
+		let tdType = document.createElement('td');
+		tdType.className = 'type';
+		tdType.setAttribute('etype', etype);
+		tdType.textContent =
 			PlaylistEntryTypeToString(etype) +
-			(etype == 'command' ? ' (Run Script)' : '') +
-			'</td><td>' +
-			SecondsToHuman(duration, true) +
-			'</td></tr>';
+			(etype == 'command' ? ' (Run Script)' : '');
+
+		let tdDuration = document.createElement('td');
+		tdDuration.textContent = SecondsToHuman(duration, true);
+
+		trElem.appendChild(tdFile);
+		trElem.appendChild(tdType);
+		trElem.appendChild(tdDuration);
+
+		tbody += trElem.outerHTML;
 	}
 
 	var options = {
