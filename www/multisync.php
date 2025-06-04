@@ -2513,6 +2513,8 @@
 
             });
 
+            autoRefreshToggled();
+
         });
 
 
