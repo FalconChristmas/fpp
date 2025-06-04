@@ -10,6 +10,7 @@
     <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.min.js"></script>
     <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.min.js"></script>
     <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.min.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/widgets/widget-columnSelector.min.js"></script>
     <script type="text/javascript" src="js/xlsx.full.min.js" async></script>
     <script type="text/javascript" src="js/FileSaver.min.js" async></script>
 
@@ -17,6 +18,42 @@
     <style>
         .actionOptions {
             display: none;
+        }
+    </style>
+
+
+    <style>
+        /*** Bootstrap popover ***/
+        #popover-target label {
+            margin: 0 5px;
+            display: block;
+        }
+
+        #popover-target input {
+            margin-right: 5px;
+        }
+
+        #popover-target .disabled {
+            color: #ddd;
+        }
+
+        #columnSelector input[type="checkbox"] {
+            margin-right: 8px;
+            margin-bottom: 2px;
+        }
+
+        #columnSelector label:first-of-type {
+            border-bottom: 2px dotted #000;
+            /* Adjust thickness and color as needed */
+            padding-bottom: 1px;
+            /* Adds spacing between the label and the border */
+            display: block;
+            /* Ensures the border spans the full width */
+
+        }
+
+        #columnSelector label:nth-of-type(2) {
+            margin-top: -8px;
         }
     </style>
 
@@ -2105,24 +2142,50 @@
             <h1 class="title">FPP MultiSync</h1>
             <div class="pageContent">
                 <div id="uifppsystems" class="settings">
+
+
+                    <!-- Bootstrap popover button for column selection  -->
+                    <button id="columnSelectorBtn" type="button" class="buttons btn btn-default"
+                        data-bs-toggle="popover" data-bs-placement="bottom" data-bs-title="Select Columns to Display">
+                        Select Columns to Display
+                    </button>
+
+                    <!-- Hidden Popover Content with Checkboxes -->
+                    <div id="popoverContent" class="hidden">
+                        <div id="columnSelector" class="columnSelector">
+                            <!-- this div is where the column selector is added -->
+                        </div>
+                    </div>
+
+
+
                     <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
                         <div class='fppTableContents' role="region" aria-labelledby="fppSystemsTable" tabindex="0">
-                            <table id='fppSystemsTable' cellpadding='3'>
+                            <table id='fppSystemsTable' class="tablesorter bootstrap-popup" cellpadding='3'>
                                 <thead>
                                     <tr>
-                                        <th class="hostnameColumn" data-placeholder="Hostname">Hostname</th>
-                                        <th data-placeholder="IP Address">IP Address</th>
-                                        <th>Platform</th>
-                                        <th>Mode</th>
-                                        <th data-placeholder="Status">Status</th>
-                                        <th data-sorter='false' data-filter='false'>Elapsed</th>
-                                        <th data-placeholder="Version">Version</th>
-
-                                        <th data-sorter='false' data-filter='false'>Git Versions</th>
-                                        <th data-sorter='false' data-filter='false'>Utilization</th>
-                                        <th data-sorter='false' data-filter='false'><input id='selectAllCheckbox'
-                                                type='checkbox' class='largeCheckbox multisyncRowCheckbox'
-                                                onChange='selectAllChanged();' /></th>
+                                        <th class="hostnameColumn" data-selector-name="Host Name"
+                                            data-placeholder="Hostname" data-priority="critical">
+                                            Hostname</th>
+                                        <th data-placeholder="IP Address" data-selector-name="IP Address"
+                                            data-priority="4">IP Address</th>
+                                        <th data-priority="5" data-selector-name="Platform">Platform</th>
+                                        <th data-priority="4" data-selector-name="Mode">Mode</th>
+                                        <th data-placeholder="Status" data-priority="1" data-selector-name="Status">
+                                            Status</th>
+                                        <th data-sorter='false' data-filter='false' data-priority="2"
+                                            data-selector-name="Elapsed">Elapsed</th>
+                                        <th data-placeholder="Version" data-priority="4" data-selector-name="Version">
+                                            Version</th>
+                                        <th data-sorter='false' data-filter='false' data-priority="5"
+                                            data-selector-name="Git Versions">Git Versions</th>
+                                        <th data-sorter='false' data-filter='false' data-priority="6"
+                                            data-selector-name="Utilization">Utilization</th>
+                                        <th data-sorter='false' data-filter='false' class="columnSelector-disable">
+                                            <input id='selectAllCheckbox' type='checkbox'
+                                                class='largeCheckbox multisyncRowCheckbox'
+                                                onChange='selectAllChanged();' />
+                                        </th>
 
                                     </tr>
                                 </thead>
@@ -2291,25 +2354,11 @@
             });
 
             $table
-                <? if (0) { ?>
-                    .bind('filterInit', function () {
-                        $table.find('.tablesorter-filter').hide().each(function () {
-                            var w, $t = $(this);
-                            w = $t.closest('td').innerWidth();
-                            $t
-                                .show()
-                                .css({
-                                    'min-width': w,
-                                    width: w // 'auto' makes it wide again
-                                });
-                        });
-                    })
-                <? } ?>
                 .tablesorter({
                     widthFixed: false,
                     theme: 'fpp',
                     cssInfoBlock: 'tablesorter-no-sort',
-                    widgets: ['zebra', 'filter', 'staticRow', 'saveSort'],
+                    widgets: ['zebra', 'filter', 'staticRow', 'saveSort', 'columnSelector'],
                     headers: {
                         0: { sortInitialOrder: 'asc' },
                         1: { extractor: 'FPPIPParser', sorter: 'ipAddress' }
@@ -2365,10 +2414,109 @@
                                 "Bridge": function (e, n, f, i, $r, c, data) { return e === "Bridge"; },
                                 "Remote": function (e, n, f, i, $r, c, data) { return e === "Remote"; }
                             }
-                        }
+                        },
+                        // target the column selector markup
+                        columnSelector_container: $('#columnSelector'),
+                        // column status, true = display, false = hide
+                        // disable = do not display on list
+                        columnSelector_columns: {
+                            0: 'disable', /* Hostname - set to disabled; not allowed to unselect it */
+                            1: true, /* IP Address */
+                            2: true, /* Platform */
+                            3: true, /* Mode */
+                            4: true, /* Status */
+                            5: true, /* Elapsed */
+                            6: true, /* Version */
+                            7: true, /* Git Versions */
+                            8: true /* Utilization */
+                        },
+                        // remember selected columns (requires $.tablesorter.storage)
+                        columnSelector_saveColumns: true,
+
+                        // container layout
+                        columnSelector_layout: '<label><input type="checkbox">{name}</label><br>',
+                        // layout customizer callback called for each column
+                        // function($cell, name, column) { return name || $cell.html(); }
+                        columnSelector_layoutCustomizer: null,
+                        // data attribute containing column name to use in the selector container
+                        columnSelector_name: 'data-selector-name',
+
+                        /* Responsive Media Query settings */
+                        // enable/disable mediaquery breakpoints
+                        columnSelector_mediaquery: true,
+                        // toggle checkbox name
+                        columnSelector_mediaqueryName: 'Auto: ',
+                        // breakpoints checkbox initial setting
+                        columnSelector_mediaqueryState: true,
+                        // hide columnSelector false columns while in auto mode
+                        columnSelector_mediaqueryHidden: true,
+
+                        // set the maximum and/or minimum number of visible columns; use null to disable
+                        columnSelector_maxVisible: null,
+                        columnSelector_minVisible: null,
+                        // responsive table hides columns with priority 1-6 at these breakpoints
+                        // see http://view.jquerymobile.com/1.3.2/dist/demos/widgets/table-column-toggle/#Applyingapresetbreakpoint
+                        // *** set to false to disable ***
+                        columnSelector_breakpoints: ['20em', '30em', '40em', '50em', '60em', '70em'],
+                        // data attribute containing column priority
+                        // duplicates how jQuery mobile uses priorities:
+                        // http://view.jquerymobile.com/1.3.2/dist/demos/widgets/table-column-toggle/
+                        columnSelector_priority: 'data-priority',
+
+                        // class name added to checked checkboxes - this fixes an issue with Chrome not updating FontAwesome
+                        // applied icons; use this class name (input.checked) instead of input:checked
+                        columnSelector_cssChecked: 'checked',
+
+                        // class name added to rows that have a span (e.g. grouping widget & other rows inside the tbody)
+                        columnSelector_classHasSpan: 'hasSpan',
+
+                        // event triggered when columnSelector completes
+                        columnSelector_updated: 'columnSelectorUpdate'
                     }
                 });
+
+            // call this function to copy the column selection code into the popover
+            //$table.tablesorter.columnSelector.attachTo($('.bootstrap-popup'), '#columnSelector');
+
+            // Initialize Bootstrap Popover with Column Selector inside
+            var popover = new bootstrap.Popover(document.getElementById("columnSelectorBtn"), {
+                html: true,
+                //content: document.getElementById("columnSelector").innerHTML
+                content: $('#columnSelector')
+            });
+
+            // Toggle column visibility when checkboxes change
+            $(".toggle-column").on("change", function () {
+                var columnIndex = $(this).data("column");
+                var isChecked = $(this).prop("checked");
+                $("#fppSystemsTable").trigger("toggleColumn", [columnIndex, isChecked]);
+            });
+
+            // Prevent popover from closing when clicking inside
+            document.getElementById("columnSelector").addEventListener("click", function (event) {
+                event.stopPropagation(); // Stops click from propagating to document
+            });
+
+            // Close popover when clicking outside
+            document.addEventListener("click", function (event) {
+                var popoverEl = document.getElementById("columnSelectorBtn");
+                if (!popoverEl.contains(event.target) && !document.querySelector(".popover")?.contains(event.target)) {
+                    popover.hide();
+                }
+            });
+
+            $('#fppSystemsTable').on('columnSelectorUpdate', function () {
+                // little hack to ensure columns of children tables are shown which columnSelector is hiding by mistake
+                $('#fppSystemsTable tbody tr td table tbody tr td').each(function () {
+                    $(this).show(); // Ensure child tables stay visible
+                });
+
+            });
+
         });
+
+
+
 
     </script>
 </body>
