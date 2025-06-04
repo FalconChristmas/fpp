@@ -21,6 +21,14 @@ function readCapes($cd, $capes)
 
             if ($string != "") {
                 $json = json_decode($string, true);
+                $driver = $json['driver'] ?? '';
+                if (str_contains($settings["SubPlatform"], "Raspberry Pi 5") || str_contains($settings["SubPlatform"], "Raspberry Pi Compute Module 5")) {
+                    if ($driver == "RPIWS281X") {
+                        continue;
+                    }
+                }
+
+
                 if (isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported" && $json['numSerial'] != 0) {
                     // unsupported
                     continue;
@@ -2395,11 +2403,12 @@ function readCapes($cd, $capes)
                             foreach ($files as $file) {
                                 // Most of the eeproms don't work on pi 5
                                 if (str_contains($settings["SubPlatform"], "Raspberry Pi 5") || str_contains($settings["SubPlatform"], "Raspberry Pi Compute Module 5")) {
-                                    if (!preg_match('/DPIPixels/', $file)) {
-                                        continue; // Ignore everything except DPIPixels
+                                    if (str_contains($file, "spixels") || str_contains($file, "rPi-")) {
+                                        // Skip spixels and rPi- eeproms on pi 5 as they won't work
+                                        continue;
                                     }
                                 }
-                                  
+
                                 if (preg_match('/-eeprom.bin$/', $file)) {
                                     $base = preg_replace('/-eeprom.bin/', '', $file);
 
