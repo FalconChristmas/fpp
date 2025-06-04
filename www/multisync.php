@@ -41,6 +41,20 @@
             margin-right: 8px;
             margin-bottom: 2px;
         }
+
+        #columnSelector label:first-of-type {
+            border-bottom: 2px dotted #000;
+            /* Adjust thickness and color as needed */
+            padding-bottom: 1px;
+            /* Adds spacing between the label and the border */
+            display: block;
+            /* Ensures the border spans the full width */
+
+        }
+
+        #columnSelector label:nth-of-type(2) {
+            margin-top: -8px;
+        }
     </style>
 
     <script>
