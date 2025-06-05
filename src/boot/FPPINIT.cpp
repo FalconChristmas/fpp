@@ -127,6 +127,20 @@ static bool LoadJsonFromString(const std::string& str, Json::Value& root) {
     }
     return true;
 }
+std::string SaveJsonToString(const Json::Value& root) {
+    Json::StreamWriterBuilder wbuilder;
+    wbuilder["indentation"] = "\t";
+
+    std::string result = Json::writeString(wbuilder, root);
+
+    return result;
+}
+
+#ifdef PLATFORM_PI
+inline bool isPi5() {
+    return startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5") || startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi Compute Module 5");
+}
+#endif
 
 static void DetectCape() {
     if (!FileExists("/.dockerenv")) {
@@ -980,7 +994,7 @@ static void detectNetworkModules() {
 }
 static void checkPi5Wifi() {
 #ifdef PLATFORM_PI
-    if (startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5") || startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi Compute Module 5")) {
+    if (isPi5()) {
         // Pi5 does not have external wifi adapters, make sure we have them disabled
         if (FileExists("/etc/modprobe.d/blacklist-native-wifi.conf")) {
             unlink("/etc/modprobe.d/blacklist-native-wifi.conf");
@@ -1295,6 +1309,15 @@ static void setupChannelOutputs() {
             for (int x = 0; x < v["channelOutputs"].size(); x++) {
                 if (v["channelOutputs"][x]["type"].asString() == "RPIWS281X" && v["channelOutputs"][x]["enabled"].asInt() == 1) {
                     hasRPI = true;
+                    if (isPi5() && v["channelOutputs"][x]["subType"].asString() == "PiHat") {
+                        // Pi5 does not support RPIWS281X.  If using standard PiHat, then flip to DPIPixels,
+                        v["channelOutputs"][x]["type"] = "DPIPixels";
+                        v["channelOutputs"][x]["subType"] = "PiHat-DPIPixels";
+                        std::string newPixels = SaveJsonToString(v);
+                        bool b = PutFileContents("/home/fpp/media/config/co-pixelStrings.json", newPixels);
+                        hasRPI = false;
+                        hasDPI = true;
+                    }
                 }
                 if (v["channelOutputs"][x]["type"].asString() == "DPIPixels" && v["channelOutputs"][x]["enabled"].asInt() == 1) {
                     hasDPI = true;
