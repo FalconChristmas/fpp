@@ -5,9 +5,13 @@ iw dev | awk '$1=="Interface"{print $2}' > /tmp/wifi_devices
 
 cat /tmp/wifi_devices | while read wifi_device || [[ -n $wifi_device ]];
 do
-
+UPORDOWN=$(cat /sys/class/net/$wifi_device/operstate)
+ifconfig $wifi_device up
 iwlist $wifi_device scanning > /tmp/wifiscan #save scan results to a temp file
 scan_ok=$(grep "$wifi_device" /tmp/wifiscan) #check if the scanning was ok
+if [ "$UPORDOWN" == "down" ]; then #if wifi device is down, skip it
+    ifconfig $wifi_device down
+fi
 if [ -z "$scan_ok" ]; then #if scan was not ok, finish the script
     echo -n "
 WIFI scanning failed.
