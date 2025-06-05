@@ -4,7 +4,7 @@
  *
  * The Falcon Player (FPP) is free software, and is covered under
  * multiple Open Source licenses.  Please see the included 'LICENSES'
- * file for descriptions of what files are covered by each license.
+ * file for descriptionsE of what files are covered by each license.
  *
  * This source file is covered under the LGPL v2.1 as described in the
  * included LICENSE.LGPL file.
@@ -28,54 +28,6 @@
 
 #include "gpio.h"
 
-/*
- * Setup given GPIO for external use
- */
-int SetupExtGPIO(int gpio, char* mode) {
-    int retval = 0;
-
-    if (!strcmp(mode, "Output")) {
-        LogDebug(VB_GPIO, "GPIO %d set to Output mode\n", gpio);
-        PinCapabilities::getPinByGPIO(gpio).configPin("gpio", true);
-    } else if (!strcmp(mode, "Input")) {
-        LogDebug(VB_GPIO, "GPIO %d set to Input mode\n", gpio);
-        PinCapabilities::getPinByGPIO(gpio).configPin("gpio", false);
-    } else if (!strcmp(mode, "SoftPWM")) {
-        LogDebug(VB_GPIO, "GPIO %d set to SoftPWM mode\n", gpio);
-        const PinCapabilities& pin = PinCapabilities::getPinByGPIO(gpio);
-        if (pin.supportPWM()) {
-            pin.setupPWM(10000);
-        } else {
-            LogDebug(VB_GPIO, "GPIO %d does not support PWM\n", gpio);
-            retval = 1;
-        }
-    } else {
-        LogDebug(VB_GPIO, "GPIO %d invalid mode %s\n", gpio, mode);
-        retval = 1;
-    }
-
-    return retval;
-}
-
-/*
- * Set the given GPIO as requested
- */
-int ExtGPIO(int gpio, char* mode, int value) {
-    int retval = 0;
-    const PinCapabilities& pin = PinCapabilities::getPinByGPIO(gpio);
-    if (!strcmp(mode, "Output")) {
-        pin.setValue(value);
-    } else if (!strcmp(mode, "Input")) {
-        retval = pin.getValue();
-    } else if (!strcmp(mode, "SoftPWM")) {
-        pin.setPWMValue(value * 100);
-    } else {
-        LogDebug(VB_GPIO, "GPIO %d invalid mode %s\n", gpio, mode);
-        retval = -1;
-    }
-
-    return retval;
-}
 
 GPIOManager GPIOManager::INSTANCE;
 
@@ -215,14 +167,10 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                 if (!v["enabled"].asBool()) {
                     continue;
                 }
-                int gpio = v.isMember("gpio") ? v["gpio"].asInt() : -1;
                 std::string pin = v.isMember("pin") ? v["pin"].asString() : "";
                 std::string mode = v.isMember("mode") ? v["mode"].asString() : "gpio";
                 GPIOState state;
                 state.pin = PinCapabilities::getPinByName(pin).ptr();
-                if (!state.pin && gpio != -1) {
-                    state.pin = PinCapabilities::getPinByGPIO(gpio).ptr();
-                }
                 if (v.isMember("debounceTime")) {
                     state.debounceTime = v["debounceTime"].asInt() * 1000;
                 }

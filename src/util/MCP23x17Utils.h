@@ -16,7 +16,6 @@
 class MCP23x17PinCapabilities : public PinCapabilitiesFluent<MCP23x17PinCapabilities> {
 public:
     MCP23x17PinCapabilities(const std::string& n, uint32_t kg, int base);
-    int gpioBase;
 
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true,
@@ -34,9 +33,9 @@ public:
     virtual bool supportsPullUp() const override { return true; }
     virtual bool supportsPullDown() const override { return false; }
 
-    static void Init(int base);
+    static void Init(int chip);
     static void getPinNames(std::vector<std::string>& r);
     static const PinCapabilities& getPinByName(const std::string& name);
-    static const PinCapabilities& getPinByGPIO(int i);
+    static const PinCapabilities& getPinByGPIO(int chip, int gpio);
     static const PinCapabilities& getPinByUART(const std::string& n);
 };

@@ -43,6 +43,7 @@
 #include "mediaoutput/MediaOutputStatus.h"
 #include "mediaoutput/mediaoutput.h"
 #include "playlist/Playlist.h"
+#include "util/GPIOUtils.h"
 
 constexpr int MAX_RESPONSE_SIZE = 1501;
 
@@ -270,10 +271,31 @@ char* ProcessCommand(char* command, char* response) {
         s = strtok(NULL, ",");
         s2 = strtok(NULL, ",");
         if (s && s2) {
-            if (!SetupExtGPIO(atoi(s), s2)) {
-                snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Configuring GPIO,%d,%s,,,,,,,,,\n", getFPPmode(), COMMAND_SUCCESS, atoi(s), s2);
+            const PinCapabilities *pin = PinCapabilities::getPinByName(s).ptr();
+            if (!pin) {
+                pin = PinCapabilities::getPinByGPIO(0, atoi(s)).ptr();
+            }
+            bool OK = false;
+            if (pin) {
+                OK = true;
+                std::string mode = s2;
+                if (mode == "Input") {
+                    pin->configPin("gpio", false);
+                } else if (mode == "Output") {
+                    pin->configPin("gpio", true);
+                } else if (mode == "SoftPWM" || mode == "PWM") {
+                    if (pin->supportPWM()) {
+                        pin->setupPWM(10000);
+                    } else {
+                        LogDebug(VB_GPIO, "GPIO %s does not support PWM\n", pin->name.c_str());
+                        OK = false;
+                    }
+                }
+            }
+            if (OK) {
+                snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Configuring GPIO,%s,%s,,,,,,,,,\n", getFPPmode(), COMMAND_SUCCESS, s, s2);
             } else {
-                snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Configuring GPIO,%d,%s,,,,,,,,,\n", getFPPmode(), COMMAND_FAILED, atoi(s), s2);
+                snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Configuring GPIO,%s,%s,,,,,,,,,\n", getFPPmode(), COMMAND_FAILED, s, s2);
             }
         }
     } else if (!strcmp(CommandStr, "ExtGPIO")) {
@@ -281,11 +303,29 @@ char* ProcessCommand(char* command, char* response) {
         s2 = strtok(NULL, ",");
         s3 = strtok(NULL, ",");
         if (s && s2 && s3) {
-            i = ExtGPIO(atoi(s), s2, atoi(s3));
+            const PinCapabilities *pin = PinCapabilities::getPinByName(s).ptr();
+            if (!pin) {
+                pin = PinCapabilities::getPinByGPIO(0, atoi(s)).ptr();
+            }
+            int i = 0;
+            if (pin) {
+                std::string mode = s2;
+                if (mode == "Input") {
+                    i = pin->getValue();
+                } else if (mode == "Output") {
+                    pin->setValue(atoi(s3));
+                } else if (mode == "SoftPWM" || mode == "PWM") {
+                    if (pin->supportPWM()) {
+                        pin->setPWMValue(100 * atoi(s3)); // Convert to percentage
+                    } else {
+                        LogDebug(VB_GPIO, "GPIO %s does not support PWM\n", pin->name.c_str());
+                    }
+                }
+            }
             if (i >= 0) {
-                snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Setting GPIO,%d,%s,%d,%d,,,,,,,\n", getFPPmode(), COMMAND_SUCCESS, atoi(s), s2, atoi(s3), i);
+                snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Setting GPIO,%s,%s,%s,%d,,,,,,,\n", getFPPmode(), COMMAND_SUCCESS, s, s2, s3, i);
             } else {
-                snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Setting GPIO,%d,%s,%d,,,,,,,,\n", getFPPmode(), COMMAND_FAILED, atoi(s), s2, atoi(s3));
+                snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Setting GPIO,%s,%s,%s,,,,,,,,\n", getFPPmode(), COMMAND_FAILED, s, s2, s3);
             }
         }
     } else {

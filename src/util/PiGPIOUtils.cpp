@@ -34,12 +34,12 @@ int PiGPIOPinCapabilities::configPin(const std::string& mode,
                                      bool directionOut,
                                      const std::string& desc) const {
     if (mode == "pwm" && pwm != -1) {
-        bcm2835_gpio_fsel(kernelGpio, BCM2835_GPIO_FSEL_ALT5); // ALT5 is the PWM
+        bcm2835_gpio_fsel(gpio, BCM2835_GPIO_FSEL_ALT5); // ALT5 is the PWM
         return 0;
     }
 
     if (mode == "dpi") {
-        bcm2835_gpio_fsel(kernelGpio, BCM2835_GPIO_FSEL_ALT2); // ALT2 is DPI
+        bcm2835_gpio_fsel(gpio, BCM2835_GPIO_FSEL_ALT2); // ALT2 is DPI
         return 0;
     }
 
@@ -47,25 +47,25 @@ int PiGPIOPinCapabilities::configPin(const std::string& mode,
         return 0;
     }
 
-    bcm2835_gpio_fsel(kernelGpio, directionOut ? BCM2835_GPIO_FSEL_OUTP : BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(gpio, directionOut ? BCM2835_GPIO_FSEL_OUTP : BCM2835_GPIO_FSEL_INPT);
     if (mode == "gpio_pu") {
-        bcm2835_gpio_set_pud(kernelGpio, BCM2835_GPIO_PUD_UP);
+        bcm2835_gpio_set_pud(gpio, BCM2835_GPIO_PUD_UP);
     } else if (mode == "gpio_pd") {
-        bcm2835_gpio_set_pud(kernelGpio, BCM2835_GPIO_PUD_DOWN);
+        bcm2835_gpio_set_pud(gpio, BCM2835_GPIO_PUD_DOWN);
     } else {
-        bcm2835_gpio_set_pud(kernelGpio, BCM2835_GPIO_PUD_OFF);
+        bcm2835_gpio_set_pud(gpio, BCM2835_GPIO_PUD_OFF);
     }
     return 0;
 }
 
 bool PiGPIOPinCapabilities::getValue() const {
-    return bcm2835_gpio_lev(kernelGpio);
+    return bcm2835_gpio_lev(gpio);
 }
 void PiGPIOPinCapabilities::setValue(bool i) const {
     if (i) {
-        bcm2835_gpio_set(kernelGpio);
+        bcm2835_gpio_set(gpio);
     } else {
-        bcm2835_gpio_clr(kernelGpio);
+        bcm2835_gpio_clr(gpio);
     }
 }
 
@@ -270,18 +270,20 @@ const PinCapabilities& PiGPIOPinProvider::getPinByName(const std::string& name) 
     }
     return PiFacePinCapabilities::getPinByName(name);
 }
-const PinCapabilities& PiGPIOPinProvider::getPinByGPIO(int i) {
-    for (auto& a : PI_PINS) {
-        if (a.kernelGpio == i) {
-            return a;
+const PinCapabilities& PiGPIOPinProvider::getPinByGPIO(int chip, int gpio) {
+    if (chip == 0) {
+        for (auto& a : PI_PINS) {
+            if (a.gpioIdx == chip && a.gpio == gpio) {
+                return a;
+            }
+        }
+        for (auto& a : PI5_PINS) {
+            if (a.gpioIdx == chip && a.gpio == gpio) {
+                return a;
+            }
         }
     }
-    for (auto& a : PI5_PINS) {
-        if (a.kernelGpio == i) {
-            return a;
-        }
-    }
-    return PiFacePinCapabilities::getPinByGPIO(i);
+    return PiFacePinCapabilities::getPinByGPIO(chip, gpio);
 }
 
 std::vector<std::string> PiGPIOPinProvider::getPinNames() {

@@ -20,7 +20,6 @@ var gpioPinNames = {
 $count = 0;
 foreach ($gpiojson as $gpio) {
     $pinName = $gpio['pin'];
-    $gpioNum = $gpio['gpio'];
     $pinNameClean = preg_replace('/[-\.]/', "_", $pinName);
     if ($count != 0) {
         echo ",\n";
@@ -180,7 +179,6 @@ if (!isset($settings["showAllOptions"]) || $settings["showAllOptions"] == 0) {
 
 foreach ($gpiojson as $gpio) {
     $pinName = $gpio['pin'];
-    $gpioNum = $gpio['gpio'];
     $pinNameClean = preg_replace('/[-\.]/', "_", $pinName);
     $style = " evenRow";
     if ($count % 2 == 0) {
@@ -211,7 +209,7 @@ foreach ($gpiojson as $gpio) {
             <tr class='fppTableRow <?=$style?>' <?=$hideStyle?> id='row_<?=$pinNameClean?>'>
                 <td><input type="checkbox" id="gpio_<?=$pinNameClean?>_enabled"></td>
                 <td><?=$pinName?></td>
-            <td><?=$gpioNum?>&nbsp;-&nbsp;<?=$gpio['gpioChip']?>/<?=$gpio['gpioLine']?></td>
+            <td><?=$gpio['gpioChip']?>/<?=$gpio['gpioLine']?></td>
         <?
     if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {
         ?>

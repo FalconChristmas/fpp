@@ -44,7 +44,7 @@ public:
 
     void Init();
     const PinCapabilities& getPinByName(const std::string& name);
-    const PinCapabilities& getPinByGPIO(int i);
+    const PinCapabilities& getPinByGPIO(int chip, int gpio);
     const PinCapabilities& getPinByUART(const std::string& n);
 
     std::vector<std::string> getPinNames();

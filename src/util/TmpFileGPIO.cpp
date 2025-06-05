@@ -73,9 +73,9 @@ const PinCapabilities& TmpFilePinProvider::getPinByName(const std::string& name)
     }
     return NULL_TMPFILE_INSTANCE;
 }
-const PinCapabilities& TmpFilePinProvider::getPinByGPIO(int i) {
+const PinCapabilities& TmpFilePinProvider::getPinByGPIO(int chip, int gpio) {
     for (auto& a : TMPFILE_PINS) {
-        if (a.kernelGpio == i) {
+        if (a.gpio == gpio) {
             return a;
         }
     }

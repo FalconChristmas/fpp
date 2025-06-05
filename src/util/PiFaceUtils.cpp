@@ -21,12 +21,13 @@
 //  the second 8 pins are inputs
 //  It's only exposed as 8 GPIO's
 
-PiFacePinCapabilities::PiFacePinCapabilities(const std::string& n, uint32_t kg,
+PiFacePinCapabilities::PiFacePinCapabilities(const std::string& n, uint32_t kg, int chip,
                                              const PinCapabilities& read,
                                              const PinCapabilities& write) :
     PinCapabilitiesFluent(n, kg),
     readPin(read),
     writePin(write) {
+    gpioIdx = chip;
 }
 
 int PiFacePinCapabilities::configPin(const std::string& mode,
@@ -54,19 +55,19 @@ static std::vector<PiFacePinCapabilities> PIFACE_PINS_HIDDEN;
 
 void PiFacePinCapabilities::Init() {
     // the old wiringPi put the MCP23x17 pins 16 above the PiFace pins
-    MCP23x17PinCapabilities::Init(216);
-    if (MCP23x17PinCapabilities::getPinByGPIO(216).ptr()) {
+    MCP23x17PinCapabilities::Init(101);
+    if (MCP23x17PinCapabilities::getPinByGPIO(101, 0).ptr()) {
         // MCP23x17 detected, add our pins
         for (int x = 0; x < 8; x++) {
-            const PinCapabilities& write = MCP23x17PinCapabilities::getPinByGPIO(216 + x);
-            const PinCapabilities& read = MCP23x17PinCapabilities::getPinByGPIO(216 + 8 + x);
+            const PinCapabilities& write = MCP23x17PinCapabilities::getPinByGPIO(101, x);
+            const PinCapabilities& read = MCP23x17PinCapabilities::getPinByGPIO(101, 8 + x);
 
             write.configPin("gpio", true, "PiFace");
             read.configPin("gpio_pu", false, "PiFace");
 
             std::string name = "PiFace-" + std::to_string(x + 1);
-            PIFACE_PINS.push_back(PiFacePinCapabilities(name, 200 + x, read, write));
-            PIFACE_PINS_HIDDEN.push_back(PiFacePinCapabilities(name, 200 + 8 + x, read, write));
+            PIFACE_PINS.push_back(PiFacePinCapabilities(name, x, 100, read, write));
+            PIFACE_PINS_HIDDEN.push_back(PiFacePinCapabilities(name, 8 + x, 100, read, write));
         }
     }
 }
@@ -85,18 +86,18 @@ const PinCapabilities& PiFacePinCapabilities::getPinByName(const std::string& na
     }
     return MCP23x17PinCapabilities::getPinByName(name);
 }
-const PinCapabilities& PiFacePinCapabilities::getPinByGPIO(int i) {
+const PinCapabilities& PiFacePinCapabilities::getPinByGPIO(int chip, int gpio) {
     for (auto& a : PIFACE_PINS) {
-        if (a.kernelGpio == i) {
+        if (a.gpio == gpio && a.gpioIdx == chip) {
             return a;
         }
     }
     for (auto& a : PIFACE_PINS_HIDDEN) {
-        if (a.kernelGpio == i) {
+        if (a.gpio == gpio && a.gpioIdx == chip) {
             return a;
         }
     }
-    return MCP23x17PinCapabilities::getPinByGPIO(i);
+    return MCP23x17PinCapabilities::getPinByGPIO(chip, gpio);
 }
 const PinCapabilities& PiFacePinCapabilities::getPinByUART(const std::string& n) {
     return MCP23x17PinCapabilities::getPinByUART(n);

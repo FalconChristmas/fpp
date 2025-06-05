@@ -75,7 +75,7 @@ MAX7219MatrixOutput::MAX7219MatrixOutput(unsigned int startChannel, unsigned int
     LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::MAX7219MatrixOutput(%u, %u)\n",
              startChannel, channelCount);
 
-    m_csPin = PinCapabilities::getPinByGPIO(8).ptr();
+    m_csPin = PinCapabilities::getPinByGPIO(0, 8).ptr();
 }
 
 /*

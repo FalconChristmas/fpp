@@ -877,7 +877,7 @@
     foreach ($gpiojson as $gpio) {
         $pn = $gpio['pin'];
         echo "GPIOPins.set('" . $pn . "', '" . $pn . "');\n";
-        echo "GPIOPinsByNumber.set(" . $gpio['gpio'] . ", '" . $gpio['pin'] . "');\n";
+        echo "GPIOPinsByNumber.set(" . $gpio['gpioLine'] . ", '" . $gpio['pin'] . "');\n";
         if (isset($gpio['pwm'])) {
             echo "PWMPins['" . $gpio['pin'] . "'] = true;\n";
         }

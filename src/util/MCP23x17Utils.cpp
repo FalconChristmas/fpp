@@ -88,9 +88,9 @@ static int32_t readByte(uint8_t reg, uint8_t devId = 0) {
     return -1;
 }
 
-MCP23x17PinCapabilities::MCP23x17PinCapabilities(const std::string& n, uint32_t kg, int base) :
-    PinCapabilitiesFluent(n, kg),
-    gpioBase(base) {
+MCP23x17PinCapabilities::MCP23x17PinCapabilities(const std::string& n, uint32_t kg, int chip) :
+    PinCapabilitiesFluent(n, kg) {
+    gpioIdx = chip;
 }
 
 int MCP23x17PinCapabilities::configPin(const std::string& mode,
@@ -99,7 +99,7 @@ int MCP23x17PinCapabilities::configPin(const std::string& mode,
     if (mode == "pwm" || mode == "uart") {
         return 0;
     }
-    int pin = this->kernelGpio - gpioBase;
+    int pin = this->gpio;
     int reg = (pin < 8) ? MCP23x17_IODIRA : MCP23x17_IODIRB;
     int pureg = (pin < 8) ? MCP23x17_GPPUA : MCP23x17_GPPUB;
     if (pin > 7) {
@@ -126,7 +126,7 @@ int MCP23x17PinCapabilities::configPin(const std::string& mode,
 }
 
 bool MCP23x17PinCapabilities::getValue() const {
-    int pin = this->kernelGpio - gpioBase;
+    int pin = this->gpio;
     int gpio = (pin < 8) ? MCP23x17_GPIOA : MCP23x17_GPIOB;
     if (pin > 7) {
         pin &= 0x07;
@@ -136,7 +136,7 @@ bool MCP23x17PinCapabilities::getValue() const {
     return ((value & mask) != 0);
 }
 void MCP23x17PinCapabilities::setValue(bool i) const {
-    int pin = this->kernelGpio - gpioBase;
+    int pin = this->gpio;
     int bit = 1 << (pin & 7);
     int old = (pin < 8) ? status_port_a : status_port_b;
     if (i == 0) {
@@ -164,7 +164,7 @@ static NullMCP23x17GPIOPinCapabilities NULL_WP_INSTANCE;
 
 static std::vector<MCP23x17PinCapabilities> MCP23x17_PINS;
 
-void MCP23x17PinCapabilities::Init(int base) {
+void MCP23x17PinCapabilities::Init(int chip) {
     MCP23x17_SPI = new SPIUtils(0, 4000000);
     if (MCP23x17_SPI->isOk()) {
         writeByte(MCP23x17_IOCON, IOCON_INIT | IOCON_HAEN);
@@ -181,7 +181,7 @@ void MCP23x17PinCapabilities::Init(int base) {
         status_port_a = iA;
         status_port_b = iB;
 
-        MCP23x17PinCapabilities testPin("MCP23x17-1", 215, 215);
+        MCP23x17PinCapabilities testPin("MCP23x17-1", chip, 0);
         testPin.configPin("gpio");
         int a = testPin.getValue();
         testPin.setValue(1);
@@ -198,7 +198,7 @@ void MCP23x17PinCapabilities::Init(int base) {
 
         for (int x = 0; x < 16; x++) {
             std::string name = "MCP23x17-" + std::to_string(x + 1);
-            MCP23x17_PINS.push_back(MCP23x17PinCapabilities(name, base + x, base));
+            MCP23x17_PINS.push_back(MCP23x17PinCapabilities(name, x, chip));
         }
     } else {
         delete MCP23x17_SPI;
@@ -219,9 +219,9 @@ const PinCapabilities& MCP23x17PinCapabilities::getPinByName(const std::string& 
     }
     return NULL_WP_INSTANCE;
 }
-const PinCapabilities& MCP23x17PinCapabilities::getPinByGPIO(int i) {
+const PinCapabilities& MCP23x17PinCapabilities::getPinByGPIO(int chip, int gpio) {
     for (auto& a : MCP23x17_PINS) {
-        if (a.kernelGpio == i) {
+        if (a.gpio == gpio && a.gpioIdx == chip) {
             return a;
         }
     }

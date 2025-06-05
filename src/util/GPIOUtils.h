@@ -29,7 +29,6 @@ public:
 
     PinCapabilities(const std::string& n, uint32_t k) :
         name(n),
-        kernelGpio(k),
         pwm(-1),
         subPwm(-1),
         i2cBus(-1),
@@ -38,10 +37,7 @@ public:
     virtual ~PinCapabilities() {}
 
     std::string name;
-    uint32_t kernelGpio;
 
-    // on some platforms, the kernelGpio number may be split into multiple gpio address locations
-    // these fields are the GPIO chip index and the gpio number on that chip
     uint8_t gpioIdx;
     uint8_t gpio;
 
@@ -87,7 +83,7 @@ public:
     }
 
     static const PinCapabilities& getPinByName(const std::string& n);
-    static const PinCapabilities& getPinByGPIO(int i);
+    static const PinCapabilities& getPinByGPIO(int chip, int gpio);
     static const PinCapabilities& getPinByUART(const std::string& n);
     static std::vector<std::string> getPinNames();
 
@@ -164,7 +160,7 @@ public:
     virtual void Init() = 0;
 
     virtual const PinCapabilities& getPinByName(const std::string& n) = 0;
-    virtual const PinCapabilities& getPinByGPIO(int i) = 0;
+    virtual const PinCapabilities& getPinByGPIO(int chip, int gpio) = 0;
     virtual const PinCapabilities& getPinByUART(const std::string& n) = 0;
     virtual std::vector<std::string> getPinNames() = 0;
 };
@@ -198,7 +194,7 @@ public:
 
     void Init() {}
     const NoPinCapabilities& getPinByName(const std::string& name);
-    const NoPinCapabilities& getPinByGPIO(int i);
+    const NoPinCapabilities& getPinByGPIO(int chip, int gpio);
     const NoPinCapabilities& getPinByUART(const std::string& n);
     std::vector<std::string> getPinNames() {
         return std::vector<std::string>();

@@ -71,5 +71,3 @@ private:
     friend class GPIOCommand;
 };
 
-int SetupExtGPIO(int gpio, char* mode);
-int ExtGPIO(int gpio, char* mode, int value);

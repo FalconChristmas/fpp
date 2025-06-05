@@ -25,16 +25,19 @@
 static NoPinCapabilities NULL_PIN_INSTANCE("-none-", 0);
 
 const NoPinCapabilities& NoPinCapabilitiesProvider::getPinByName(const std::string& name) { return NULL_PIN_INSTANCE; }
-const NoPinCapabilities& NoPinCapabilitiesProvider::getPinByGPIO(int i) { return NULL_PIN_INSTANCE; }
+const NoPinCapabilities& NoPinCapabilitiesProvider::getPinByGPIO(int chip, int gpio) { return NULL_PIN_INSTANCE; }
 const NoPinCapabilities& NoPinCapabilitiesProvider::getPinByUART(const std::string& n) { return NULL_PIN_INSTANCE; }
 
 Json::Value PinCapabilities::toJSON() const {
     Json::Value ret;
     if (name != "" && name != "-non-") {
         ret["pin"] = name;
-        ret["gpio"] = kernelGpio;
         ret["gpioChip"] = gpioIdx;
         ret["gpioLine"] = gpio;
+        if (gpioIdx == 0) {
+            //somewhat for compatibility with the old kernel GPIO numbers on the Pi's
+            ret["gpio"] = gpio;
+        }
         if (pwm != -1) {
             ret["pwm"] = pwm;
             ret["subPwm"] = subPwm;
@@ -282,13 +285,14 @@ const PinCapabilities& PinCapabilities::getPinByName(const std::string& n) {
     }
     return PIN_PROVIDER->getPinByName(n);
 }
-const PinCapabilities& PinCapabilities::getPinByGPIO(int i) {
+const PinCapabilities& PinCapabilities::getPinByGPIO(int chip, int gpio) {
+    
     for (auto& a : GPIOD_PINS) {
-        if (i == a.kernelGpio) {
+        if (a.gpioIdx == chip && a.gpio == gpio) {
             return a;
         }
     }
-    return PIN_PROVIDER->getPinByGPIO(i);
+    return PIN_PROVIDER->getPinByGPIO(chip, gpio);
 }
 const PinCapabilities& PinCapabilities::getPinByUART(const std::string& n) {
     return PIN_PROVIDER->getPinByUART(n);

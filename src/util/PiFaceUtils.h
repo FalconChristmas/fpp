@@ -15,7 +15,7 @@
 
 class PiFacePinCapabilities : public PinCapabilitiesFluent<PiFacePinCapabilities> {
 public:
-    PiFacePinCapabilities(const std::string& n, uint32_t kg,
+    PiFacePinCapabilities(const std::string& n, uint32_t kg, int chip,
                           const PinCapabilities& read,
                           const PinCapabilities& write);
 
@@ -41,6 +41,6 @@ public:
     static void Init();
     static void getPinNames(std::vector<std::string>& r);
     static const PinCapabilities& getPinByName(const std::string& name);
-    static const PinCapabilities& getPinByGPIO(int i);
+    static const PinCapabilities& getPinByGPIO(int chip, int gpio);
     static const PinCapabilities& getPinByUART(const std::string& n);
 };

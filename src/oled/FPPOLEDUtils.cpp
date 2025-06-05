@@ -169,7 +169,6 @@ FPPOLEDUtils::InputAction* FPPOLEDUtils::configureGPIOPin(const std::string& pin
         printf("Could not config line edge for line %d\n", action->gpiodLine);
     }
     action->file = gpiod_line_event_get_fd(action->gpiodLine);
-    action->kernelGPIO = pin.kernelGpio;
     action->gpioChipIdx = pin.gpioIdx;
     action->gpioChipLine = pin.gpio;
     return action;
@@ -227,11 +226,11 @@ bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string& file) {
                 if (edge != "") {
                     InputAction* action = configureGPIOPin(pinName, mode, edge);
                     if (risingAction != "") {
-                        printf("Configuring pin %s as input of type %s   (mode: %s, gpio: %d,  file: %d)\n", action->pin.c_str(), risingAction.c_str(), action->mode.c_str(), action->kernelGPIO, action->file);
+                        printf("Configuring pin %s as input of type %s   (mode: %s,  file: %d)\n", action->pin.c_str(), risingAction.c_str(), action->mode.c_str(), action->file);
                         action->actions.push_back(new FPPOLEDUtils::InputAction::Action(risingAction, 1, 1, 100000));
                     }
                     if (fallingAction != "") {
-                        printf("Configuring pin %s as input of type %s   (mode: %s, gpio: %d,  file: %d)\n", action->pin.c_str(), fallingAction.c_str(), action->mode.c_str(), action->kernelGPIO, action->file);
+                        printf("Configuring pin %s as input of type %s   (mode: %s,  file: %d)\n", action->pin.c_str(), fallingAction.c_str(), action->mode.c_str(), action->file);
                         action->actions.push_back(new FPPOLEDUtils::InputAction::Action(fallingAction, 0, 0, 100000));
                     }
                     actions.push_back(action);
@@ -343,11 +342,11 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                             printf("Could not find gpio chip for %s\n", label.c_str());
                         }
                     } else if (!edgeOK || action->file == -1) {
-                        printf("Configuring pin %s as input of type %s   (mode: %s, gpio: %d)\n", action->pin.c_str(), type.c_str(), action->mode.c_str(), pin.kernelGpio);
+                        printf("Configuring pin %s as input of type %s   (mode: %s)\n", action->pin.c_str(), type.c_str(), action->mode.c_str());
                         action->actions.push_back(new GPIODExtenderAction(type, actionValue, actionValue, 100000, action->gpiodLine));
                         needsPolling = true;
                     } else {
-                        printf("Configuring pin %s as input of type %s   (mode: %s, gpio: %d)\n", action->pin.c_str(), type.c_str(), action->mode.c_str(), pin.kernelGpio);
+                        printf("Configuring pin %s as input of type %s   (mode: %s)\n", action->pin.c_str(), type.c_str(), action->mode.c_str());
                         action->actions.push_back(new FPPOLEDUtils::InputAction::Action(type, actionValue, actionValue, 100000));
                         setInputFlag(type);
                     }

@@ -61,7 +61,6 @@ static std::vector<BBBPinCapabilities> BBB_PINS;
 
 // static uint32_t bbGPIOMap[] = { 3, 0, 1, 2 };
 static uint32_t bbGPIOMap[] = { 0, 0, 0, 0 };
-static uint32_t bbGPIOStart[] = { 0, 0, 0, 0 };
 static const char* bbbPWMDeviceName = "/sys/class/pwm/pwmchip";
 static FILE* bbbPWMDutyFiles[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 
@@ -149,7 +148,6 @@ static void setupBBBMemoryMap() {
         TrimWhiteSpace(clabel);
         if (labelMapping.contains(clabel)) {
             bbGPIOMap[labelMapping[clabel].first] = curChip;
-            bbGPIOStart[labelMapping[clabel].first] = labelMapping[clabel].second;
         } else {
 #ifdef PLATFORM_BBB
             // if mapping by base fails, try using specific line labels
@@ -195,7 +193,6 @@ BBBPinCapabilities::BBBPinCapabilities(const std::string& n, uint32_t g, uint32_
     setupBBBMemoryMap();
     gpioIdx = bbGPIOMap[g];
     gpio = o;
-    kernelGpio = bbGPIOStart[g] + o;
     _pruPin[0] = -1;
     _pruPin[1] = -1;
 }
@@ -259,6 +256,13 @@ int BBBPinCapabilities::mappedGPIO() const {
 
 Json::Value BBBPinCapabilities::toJSON() const {
     Json::Value ret = PinCapabilities::toJSON();
+#ifdef PLATFORM_BBB
+    if (gpioIdx < 4) {
+        //somewhat for compatibility with the old kernel GPIO numbers on the BBB's
+        int kgpio = mappedGPIOIdx(gpioIdx) * 32 + gpio;
+        ret["gpio"] = kgpio;
+    }
+#endif    
     if (_pruPin[0] != -1) {
         ret["pru"] = 0;
         ret["pruPin"] = _pruPin[0];
@@ -427,9 +431,15 @@ const PinCapabilities& BBBPinProvider::getPinByName(const std::string& name) {
     return NULL_BBB_INSTANCE;
 }
 
-const PinCapabilities& BBBPinProvider::getPinByGPIO(int i) {
+const PinCapabilities& BBBPinProvider::getPinByGPIO(int chip, int gpio) {
+#ifdef PLATFORM_BBB
+    if (chip == 0) {
+        chip = gpio / 32;
+        gpio = gpio % 32;
+    }
+#endif    
     for (auto& a : BBB_PINS) {
-        if (a.kernelGpio == i) {
+        if (a.gpioIdx == chip && a.gpio == gpio) {
             return a;
         }
     }

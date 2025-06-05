@@ -63,16 +63,28 @@ int GPIO595Output::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "GPIO595Output::Init()\n");
 
     if (config.isMember("clockPin")) {
-        int p = config["clockPin"].asInt();
-        m_clockPin = PinCapabilities::getPinByGPIO(p).ptr();
+        if (config["clockPin"].isString()) {
+            m_clockPin = PinCapabilities::getPinByName(config["clockPin"].asString()).ptr();
+        } else {
+            int p = config["clockPin"].asInt();
+            m_clockPin = PinCapabilities::getPinByGPIO(0, p).ptr();
+        }
     }
     if (config.isMember("dataPin")) {
-        int p = config["dataPin"].asInt();
-        m_dataPin = PinCapabilities::getPinByGPIO(p).ptr();
+        if (config["dataPin"].isString()) {
+            m_dataPin = PinCapabilities::getPinByName(config["dataPin"].asString()).ptr();
+        } else {
+            int p = config["dataPin"].asInt();
+            m_dataPin = PinCapabilities::getPinByGPIO(0, p).ptr();
+        }
     }
     if (config.isMember("latchPin")) {
-        int p = config["latchPin"].asInt();
-        m_latchPin = PinCapabilities::getPinByGPIO(p).ptr();
+        if (config["latchPin"].isString()) {
+            m_latchPin = PinCapabilities::getPinByName(config["latchPin"].asString()).ptr();
+        } else {
+            int p = config["latchPin"].asInt();
+            m_latchPin = PinCapabilities::getPinByGPIO(0, p).ptr();
+        }
     }
 
     if ((m_clockPin == nullptr) ||
@@ -138,9 +150,9 @@ int GPIO595Output::RawSendData(unsigned char* channelData) {
 void GPIO595Output::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "GPIO595Output::DumpConfig()\n");
 
-    LogDebug(VB_CHANNELOUT, "    Clock Pin: %d\n", m_clockPin ? m_clockPin->kernelGpio : -1);
-    LogDebug(VB_CHANNELOUT, "    Data Pin : %d\n", m_dataPin ? m_dataPin->kernelGpio : -1);
-    LogDebug(VB_CHANNELOUT, "    Latch Pin: %d\n", m_latchPin ? m_latchPin->kernelGpio : -1);
+    LogDebug(VB_CHANNELOUT, "    Clock Pin: %s\n", m_clockPin ? m_clockPin->name.c_str() : "-none-");
+    LogDebug(VB_CHANNELOUT, "    Data Pin : %s\n", m_dataPin ? m_dataPin->name.c_str() : "-none-");
+    LogDebug(VB_CHANNELOUT, "    Latch Pin: %s\n", m_latchPin ? m_latchPin->name.c_str() : "-none-");
 
     ThreadedChannelOutput::DumpConfig();
 }
