@@ -11,6 +11,9 @@
     <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.min.js"></script>
     <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.min.js"></script>
     <script type="text/javascript" src="jquery/jquery.tablesorter/widgets/widget-columnSelector.min.js"></script>
+    <script type="text/javascript" src="jquery/jquery.tablesorter/widgets/widget-grouping.min.js"></script>
+    <link href="jquery/jquery.tablesorter/css/widget.grouping.css" rel="stylesheet">
+
     <script type="text/javascript" src="js/xlsx.full.min.js" async></script>
     <script type="text/javascript" src="js/FileSaver.min.js" async></script>
 
@@ -57,8 +60,13 @@
         }
 
         /*Hide columns only used for grouping functionality */
+        /* Hide the column used for grouping by Color Value*/
         #fppSystemsTable td:nth-child(10),
         #fppSystemsTable th:nth-child(10) {
+            display: none;
+        }
+
+        #fppSystemsTable .group-header {
             display: none;
         }
     </style>
@@ -682,7 +690,7 @@
                                 $('#' + rowID).css('color', "#FFF");
                                 $('#' + rowID + " a").css('color', "#989898");
                                 $('#' + rowID + "_warnings .warning-text").css('color', "#FF8080");
-                                $('#advancedViewFPPColor_' + rowID).html(data.advancedView.backgroundColor);
+                                $('#advancedViewFPPColor_' + rowID).html(parseInt(data.advancedView.backgroundColor, 16));
                             }
                             if (data.advancedView.hasOwnProperty("RemoteGitVersion")) {
                                 var u = "<table class='multiSyncVerboseTable'>";
@@ -2190,7 +2198,8 @@
                                         <th data-sorter='false' data-filter='false' data-priority="6"
                                             data-selector-name="Utilization">Utilization</th>
                                         <th data-sorter='false' data-filter='false' data-priority="6"
-                                            data-selector-name="FPPColor" class="columnSelector-disable">FPPColor</th>
+                                            data-selector-name="FPPColor" class="columnSelector-disable group-number">
+                                            FPPColor</th>
                                         <th data-sorter='false' data-filter='false' class="columnSelector-disable">
                                             <input id='selectAllCheckbox' type='checkbox'
                                                 class='largeCheckbox multisyncRowCheckbox'
@@ -2368,7 +2377,7 @@
                     widthFixed: false,
                     theme: 'fpp',
                     cssInfoBlock: 'tablesorter-no-sort',
-                    widgets: ['zebra', 'filter', 'staticRow', 'saveSort', 'columnSelector'],
+                    widgets: ['zebra', 'filter', 'staticRow', 'saveSort', 'columnSelector', 'group'],
                     headers: {
                         0: { sortInitialOrder: 'asc' },
                         1: { extractor: 'FPPIPParser', sorter: 'ipAddress' }
@@ -2482,7 +2491,66 @@
                         columnSelector_classHasSpan: 'hasSpan',
 
                         // event triggered when columnSelector completes
-                        columnSelector_updated: 'columnSelectorUpdate'
+                        columnSelector_updated: 'columnSelectorUpdate',
+
+                        group_collapsible: true,  // make the group header clickable and collapse the rows below it.
+                        group_collapsed: false, // start with all groups collapsed (if true)
+                        group_saveGroups: true,  // remember collapsed groups
+                        group_saveReset: '.group_reset', // element to clear saved collapsed groups
+                        group_count: " ({num})", // if not false, the "{num}" string is replaced with the number of rows in the group
+
+                        // apply the grouping widget only to selected column
+                        group_forceColumn: [9],   // only the first value is used; set as an array for future expansion
+                        group_enforceSort: true, // only apply group_forceColumn when a sort is applied to the table
+
+                        // checkbox parser text used for checked/unchecked values
+                        group_checkbox: ['checked', 'unchecked'],
+
+                        // change these default date names based on your language preferences (see Globalize section for details)
+                        group_months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+                        group_week: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+                        group_time: ["AM", "PM"],
+
+                        // use 12 vs 24 hour time
+                        group_time24Hour: false,
+                        // group header text added for invalid dates
+                        group_dateInvalid: 'Invalid Date',
+
+                        // this function is used when "group-date" is set to create the date string
+                        // you can just return date, date.toLocaleString(), date.toLocaleDateString() or d.toLocaleTimeString()
+                        // reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date#Conversion_getter
+                        group_dateString: function (date) {
+                            return date.toLocaleString();
+                        },
+
+                        group_formatter: function (txt, col, table, c, wo, data) {
+                            // txt = current text; col = current column
+                            // table = current table (DOM); c = table.config; wo = table.config.widgetOptions
+                            // data = group data including both group & row data
+                            if (col === 7 && txt.indexOf("GMT") > 0) {
+                                // remove "GMT-0000 (Xxxx Standard Time)" from the end of the full date
+                                // this code is needed if group_dateString returns date.toString(); (not localeString)
+                                txt = txt.substring(0, txt.indexOf("GMT"));
+                            }
+                            // If there are empty cells, name the group "Empty"
+                            return txt === "" ? "Empty" : txt;
+                        },
+
+                        group_callback: function ($cell, $rows, column, table) {
+                            // callback allowing modification of the group header labels
+                            // $cell = current table cell (containing group header cells ".group-name" & ".group-count"
+                            // $rows = all of the table rows for the current group; table = current table (DOM)
+                            // column = current column being sorted/grouped
+                            if (column === 2) {
+                                var subtotal = 0;
+                                $rows.each(function () {
+                                    subtotal += parseFloat($(this).find("td").eq(column).text());
+                                });
+                                $cell.find(".group-count").append("; subtotal: " + subtotal);
+                            }
+                        },
+                        // event triggered on the table when the grouping widget has finished work
+                        group_complete: "groupingComplete"
                     }
                 });
 
