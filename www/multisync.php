@@ -1493,6 +1493,8 @@
             getGeniusControllerStatus(gips, true);
             getWLEDControllerStatus(wips, true);
             getFalconControllerStatus(fv3ips, fv4ips, true);
+            $('#fppSystemsTable').trigger('sorton', [[[9, 0]]]); // Sort by Color columns
+            $("#fppSystemsTable").trigger("update"); // Refresh Tablesorter
         }
 
         function MultiSyncEnableToggled() {
@@ -2172,7 +2174,12 @@
                             <!-- this div is where the column selector is added -->
                         </div>
                     </div>
-
+                    <!-- Sort by Color Btn  -->
+                    <button id="sortbyColorBtn" type="button" class="buttons btn btn-default" data-bs-placement="bottom"
+                        data-bs-title="Sort Systems by Color"
+                        onclick="$('#fppSystemsTable').trigger('sorton', [[[9, 0]]]);">
+                        Sort Systems by Color
+                    </button>
 
 
                     <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
@@ -2197,8 +2204,8 @@
                                             data-selector-name="Git Versions">Git Versions</th>
                                         <th data-sorter='false' data-filter='false' data-priority="6"
                                             data-selector-name="Utilization">Utilization</th>
-                                        <th data-sorter='false' data-filter='false' data-priority="6"
-                                            data-selector-name="FPPColor" class="columnSelector-disable group-number">
+                                        <th data-filter='false' data-priority="6" data-selector-name="FPPColor"
+                                            class="columnSelector-disable group-word">
                                             FPPColor</th>
                                         <th data-sorter='false' data-filter='false' class="columnSelector-disable">
                                             <input id='selectAllCheckbox' type='checkbox'
@@ -2497,11 +2504,13 @@
                         group_collapsed: false, // start with all groups collapsed (if true)
                         group_saveGroups: true,  // remember collapsed groups
                         group_saveReset: '.group_reset', // element to clear saved collapsed groups
-                        group_count: " ({num})", // if not false, the "{num}" string is replaced with the number of rows in the group
+                        //group_count: " ({num})", // if not false, the "{num}" string is replaced with the number of rows in the group
+                        group_count: false, // disable the count of rows in the group; set to false to disable
 
                         // apply the grouping widget only to selected column
                         group_forceColumn: [9],   // only the first value is used; set as an array for future expansion
                         group_enforceSort: true, // only apply group_forceColumn when a sort is applied to the table
+                        group_enforce: true, // only apply group_forceColumn when the grouping widget is initialized
 
                         // checkbox parser text used for checked/unchecked values
                         group_checkbox: ['checked', 'unchecked'],
@@ -2527,6 +2536,8 @@
                             // txt = current text; col = current column
                             // table = current table (DOM); c = table.config; wo = table.config.widgetOptions
                             // data = group data including both group & row data
+
+                            /* example
                             if (col === 7 && txt.indexOf("GMT") > 0) {
                                 // remove "GMT-0000 (Xxxx Standard Time)" from the end of the full date
                                 // this code is needed if group_dateString returns date.toString(); (not localeString)
@@ -2534,6 +2545,13 @@
                             }
                             // If there are empty cells, name the group "Empty"
                             return txt === "" ? "Empty" : txt;
+                            */
+                            console.log("group_formatter called with txt: " + txt + ", col: " + col);
+                            console.log("group data: ", data);
+                            //console.log("table config: ", c);
+                            //console.log("widget options: ", wo);
+                            //console.log(data);
+                            return txt === "" ? "Empty" : txt; // return the text as is, or modify it as needed
                         },
 
                         group_callback: function ($cell, $rows, column, table) {
@@ -2541,13 +2559,16 @@
                             // $cell = current table cell (containing group header cells ".group-name" & ".group-count"
                             // $rows = all of the table rows for the current group; table = current table (DOM)
                             // column = current column being sorted/grouped
-                            if (column === 2) {
-                                var subtotal = 0;
-                                $rows.each(function () {
-                                    subtotal += parseFloat($(this).find("td").eq(column).text());
-                                });
-                                $cell.find(".group-count").append("; subtotal: " + subtotal);
-                            }
+
+                            /* Example
+                                                        if (column === 2) {
+                                                            var subtotal = 0;
+                                                            $rows.each(function () {
+                                                                subtotal += parseFloat($(this).find("td").eq(column).text());
+                                                            });
+                                                            $cell.find(".group-count").append("; subtotal: " + subtotal);
+                                                        }
+                                                            */
                         },
                         // event triggered on the table when the grouping widget has finished work
                         group_complete: "groupingComplete"
