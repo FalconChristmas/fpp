@@ -86,6 +86,8 @@ $storageUILevel = 1;
 if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 0) {
     $storageUILevel = 0;
 }
+$tabIDs = array();
+$id = 0;
 ?>
 
 <body>
@@ -100,6 +102,7 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                     <div id="settingsManager">
                         <ul id="settingsManagerTabs" class="nav nav-pills pageContent-tabs" role="tablist">
                             <li class="nav-item">
+                                <? $tabIDs["Playback"] = $id++; ?>
                                 <a class="nav-link" id="settings-playback-tab" data-bs-toggle="tab"
                                     data-bs-target="#settings-playback" href="#settings-playback" data-option="Playback"
                                     role="tab" aria-controls="settings-playback" aria-selected="true">
@@ -107,6 +110,7 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <? $tabIDs["AV"] = $id++; ?>
                                 <a class="nav-link" id="settings-av-tab" data-bs-toggle="tab"
                                     data-bs-target="#settings-av" href="#settings-av" data-option="AV" role="tab"
                                     aria-controls="settings-av" aria-selected="true">
@@ -114,42 +118,47 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                 </a>
                             </li>
                             <? if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2)) { ?>
-                                                        <li class="nav-item">
-                                                            <a class="nav-link" id="settings-time-tab" data-bs-toggle="tab"
-                                                                data-bs-target="#settings-time" href="#settings-time" data-option="Time" role="tab"
-                                                                aria-controls="settings-time" aria-selected="true">
-                                                                Time
-                                                            </a>
-                                                        </li>
+                                    <li class="nav-item">
+                                        <? $tabIDs["Time"] = $id++; ?>
+                                        <a class="nav-link" id="settings-time-tab" data-bs-toggle="tab"
+                                            data-bs-target="#settings-time" href="#settings-time" data-option="Time" role="tab"
+                                            aria-controls="settings-time" aria-selected="true">
+                                            Time
+                                        </a>
+                                    </li>
                             <? } ?>
                             <li class="nav-item">
+                                <? $tabIDs["UI"] = $id++; ?>
                                 <a class="nav-link" id="settings-ui-tab" data-bs-toggle="tab"
                                     data-bs-target="#settings-ui" href="#settings-ui" data-option="UI" role="tab"
                                     aria-controls="settings-ui" aria-selected="true">
                                     UI
                                 </a>
                             </li>
-                            <? if ($settings["Platform"] != "MacOS") { ?>
-                                <? if ($uiLevel >= 1 || $tabId == "Email") { ?>
-                                                        <li class="nav-item">
-                                                            <a class="nav-link" id="settings-email-tab" data-bs-toggle="tab"
-                                                                data-bs-target="#settings-email" href="#settings-email" data-option="Email"
-                                                                role="tab" aria-controls="settings-email" aria-selected="true">
-                                                                Email
-                                                            </a>
-                                                        </li>
-                                <? } ?>
-                            <? } ?>
+                            <? if ($settings["Platform"] != "MacOS") {
+                                if ($uiLevel >= 1 || $tabId == "Email") {
+                                    $tabIDs["Email"] = $id++; ?>
+                                            <li class="nav-item">
+                                                <a class="nav-link" id="settings-email-tab" data-bs-toggle="tab"
+                                                    data-bs-target="#settings-email" href="#settings-email" data-option="Email"
+                                                    role="tab" aria-controls="settings-email" aria-selected="true">
+                                                    Email
+                                                </a>
+                                            </li>
+                                    <? }
+                            } ?>
                             <? if ($uiLevel >= 1 || $tabId == "MQTT") { ?>
-                            <li class="nav-item">
-                                <a class="nav-link" id="settings-mqtt-tab" data-bs-toggle="tab"
-                                    data-bs-target="#settings-mqtt" href="#settings-mqtt" data-option="MQTT" role="tab"
-                                    aria-controls="settings-mqtt" aria-selected="true">
-                                    MQTT
-                                </a>
-                            </li>
+                                    <li class="nav-item">
+                                        <? $tabIDs["MQTT"] = $id++; ?>
+                                        <a class="nav-link" id="settings-mqtt-tab" data-bs-toggle="tab"
+                                            data-bs-target="#settings-mqtt" href="#settings-mqtt" data-option="MQTT" role="tab"
+                                            aria-controls="settings-mqtt" aria-selected="true">
+                                            MQTT
+                                        </a>
+                                    </li>
                             <? } ?>
                             <li class="nav-item">
+                                <? $tabIDs["Privacy"] = $id++; ?>
                                 <a class="nav-link" id="settings-privacy-tab" data-bs-toggle="tab"
                                     data-bs-target="#settings-privacy" href="#settings-privacy" data-option="Privacy"
                                     role="tab" aria-controls="settings-privacy" aria-selected="true">
@@ -157,15 +166,17 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                 </a>
                             </li>
                             <? if ($uiLevel >= 1 || $tabId == "Output") { ?>
-                                                        <li class="nav-item">
-                                                            <a class="nav-link" id="settings-output-tab" data-bs-toggle="tab"
-                                                                data-bs-target="#settings-output" href="#settings-output" data-option="Output"
-                                                                role="tab" aria-controls="settings-output" aria-selected="true">
-                                                                Input/Output
-                                                            </a>
-                                                        </li>
+                                    <li class="nav-item">
+                                        <? $tabIDs["Output"] = $id++; ?>
+                                        <a class="nav-link" id="settings-output-tab" data-bs-toggle="tab"
+                                            data-bs-target="#settings-output" href="#settings-output" data-option="Output"
+                                            role="tab" aria-controls="settings-output" aria-selected="true">
+                                            Input/Output
+                                        </a>
+                                    </li>
                             <? } ?>
                             <li class="nav-item">
+                                <? $tabIDs["Logging"] = $id++; ?>
                                 <a class="nav-link" id="settings-logs-tab" data-bs-toggle="tab"
                                     data-bs-target="#settings-logs" href="#settings-logs" data-option="Logging"
                                     role="tab" aria-controls="settings-logs" aria-selected="true">
@@ -173,15 +184,17 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                 </a>
                             </li>
                             <? if ($uiLevel >= $storageUILevel || $tabId == "Storage") { ?>
-                                                        <li class="nav-item">
-                                                            <a class="nav-link" id="settings-storage-tab" data-bs-toggle="tab"
-                                                                data-bs-target="#settings-storage" href="#settings-storage" data-option="Storage"
-                                                                role="tab" aria-controls="settings-storage" aria-selected="true">
-                                                                Storage
-                                                            </a>
-                                                        </li>
+                                    <li class="nav-item">
+                                        <? $tabIDs["Storage"] = $id++; ?>
+                                        <a class="nav-link" id="settings-storage-tab" data-bs-toggle="tab"
+                                            data-bs-target="#settings-storage" href="#settings-storage" data-option="Storage"
+                                            role="tab" aria-controls="settings-storage" aria-selected="true">
+                                            Storage
+                                        </a>
+                                    </li>
                             <? } ?>
                             <li class="nav-item">
+                                <? $tabIDs["System"] = $id++; ?>
                                 <a class="nav-link" id="settings-system-tab" data-bs-toggle="tab"
                                     data-bs-target="#settings-system" href="#settings-system" data-option="System"
                                     role="tab" aria-controls="settings-system" aria-selected="true">
@@ -189,14 +202,15 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
                                 </a>
                             </li>
                             <? if ($uiLevel >= 3 || $tabId == "Developer") { ?>
-                                                        <li class="nav-item">
-                                                            <a class="nav-link" id="settings-developer-tab" data-bs-toggle="tab"
-                                                                data-bs-target="#settings-developer" href="#settings-developer"
-                                                                data-option="Developer" role="tab" aria-controls="settings-developer"
-                                                                aria-selected="true">
-                                                                Developer
-                                                            </a>
-                                                        </li>
+                                    <li class="nav-item">
+                                        <? $tabIDs["Developer"] = $id++; ?>
+                                        <a class="nav-link" id="settings-developer-tab" data-bs-toggle="tab"
+                                            data-bs-target="#settings-developer" href="#settings-developer"
+                                            data-option="Developer" role="tab" aria-controls="settings-developer"
+                                            aria-selected="true">
+                                            Developer
+                                        </a>
+                                    </li>
                             <? } ?>
                         </ul>
                         <div id="settingsManagerTabsContent" class="tab-content">
@@ -207,21 +221,21 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
 
                         <br>
                         <? if ($uiLevel >= 1) { ?>
-                                                    <div class="backdrop">
-                                                        <div class="row">
-                                                            <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i> - Advanced
-                                                                Level Setting</div>
-                                                            <? if ($uiLevel >= 2) { ?>
-                                                                                        <div class="col-auto"><i class='fas fa-fw fa-flask ui-level-2'></i> - Experimental Level
-                                                                                            Setting</div>
-                                                            <? } ?>
-                                                            <? if ($uiLevel >= 3) { ?>
-                                                                                        <div class="col-auto"><i class='fas fa-fw fa-code ui-level-3'></i> - Developer Level
-                                                                                            Setting</div>
-                                                            <? } ?>
-                                                        </div>
+                                <div class="backdrop">
+                                    <div class="row">
+                                        <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i> - Advanced
+                                            Level Setting</div>
+                                        <? if ($uiLevel >= 2) { ?>
+                                            <div class="col-auto"><i class='fas fa-fw fa-flask ui-level-2'></i> - Experimental Level
+                                                Setting</div>
+                                        <? } ?>
+                                        <? if ($uiLevel >= 3) { ?>
+                                            <div class="col-auto"><i class='fas fa-fw fa-code ui-level-3'></i> - Developer Level
+                                                Setting</div>
+                                        <? } ?>
+                                    </div>
 
-                                                    </div>
+                                </div>
                         <? } ?>
 
                     </div>
@@ -233,28 +247,6 @@ if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 
             <script>
                 var activeTabNumber =
                     <?php
-                    $tabIDs = array();
-                    $id = 0;
-                    $tabIDs["Playback"] = $id++;
-                    $tabIDs["AV"] = $id++;
-                    $tabIDs["Time"] = $id++;
-                    $tabIDs["UI"] = $id++;
-                    $tabIDs["Email"] = $id++;
-                    $tabIDs["MQTT"] = $id++;
-                    $tabIDs["Privacy"] = $id++;
-                    if ($uiLevel >= 1 || $tabId == "Output") {
-                        $tabIDs["Output"] = $id++;
-                    }
-
-                    $tabIDs["Logging"] = $id++;
-                    if ($uiLevel >= $storageUILevel || $tabId == "Storage") {
-                        $tabIDs["Storage"] = $id++;
-                    }
-
-                    $tabIDs["System"] = $id++;
-                    if ($uiLevel >= 3 || $tabId == "Developer") {
-                        $tabIDs["Developer"] = $id++;
-                    }
 
                     if (!array_key_exists($tabId, $tabIDs)) {
                         print $tabId;
