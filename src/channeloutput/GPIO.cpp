@@ -12,8 +12,8 @@
 
 #include "fpp-pch.h"
 
-#include "../log.h"
 #include "../Warnings.h"
+#include "../log.h"
 
 #include "GPIO.h"
 
@@ -54,7 +54,7 @@ GPIOOutput::~GPIOOutput() {
 }
 int GPIOOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "GPIOOutput::Init()\n");
-    int gpio = config["gpio"].asInt();
+
     m_invertOutput = config["invert"].asInt();
     if (config.isMember("softPWM")) {
         m_pwm = config["softPWM"].asInt();
@@ -63,7 +63,12 @@ int GPIOOutput::Init(Json::Value config) {
         m_pwm = config["pwm"].asInt();
     }
 
-    m_GPIOPin = PinCapabilities::getPinByGPIO(gpio).ptr();
+    if (config.isMember("pin")) {
+        m_GPIOPin = PinCapabilities::getPinByName(config["pin"].asString()).ptr();
+    } else {
+        int gpio = config["gpio"].asInt();
+        m_GPIOPin = PinCapabilities::getPinByGPIO(gpio).ptr();
+    }
     if (m_GPIOPin == nullptr) {
         LogErr(VB_CHANNELOUT, "GPIO Pin not configured\n");
         return 0;
@@ -138,7 +143,7 @@ int GPIOOutput::SendData(unsigned char* channelData) {
 void GPIOOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "GPIOOutput::DumpConfig()\n");
 
-    LogDebug(VB_CHANNELOUT, "    GPIO Pin       : %d\n", m_GPIOPin ? m_GPIOPin->kernelGpio : -1);
+    LogDebug(VB_CHANNELOUT, "    GPIO Pin       : %s\n", m_GPIOPin ? m_GPIOPin->name.c_str() : "");
     LogDebug(VB_CHANNELOUT, "    Inverted Output: %s\n", m_invertOutput ? "Yes" : "No");
     LogDebug(VB_CHANNELOUT, "    PWM            : %s\n", m_pwm ? "Yes" : "No");
 

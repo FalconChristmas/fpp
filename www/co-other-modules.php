@@ -503,7 +503,7 @@
                 result += "</td></tr>";
             }
             result += "</table>";
-            
+
             return result;
         }
         GetOutputConfig(result, cell) {
@@ -869,15 +869,17 @@
     // GPIO Output
 
     var GPIOPins = new Map();
+    var GPIOPinsByNumber = new Map();
     var PWMPins = new Array();
     <?
     $data = file_get_contents('http://127.0.0.1:32322/gpio');
     $gpiojson = json_decode($data, true);
     foreach ($gpiojson as $gpio) {
-        $pn = $gpio['pin'] . ' (GPIO: ' . $gpio['gpio'] . ')';
-        echo "GPIOPins.set(" . $gpio['gpio'] . ", '" . $pn . "');\n";
+        $pn = $gpio['pin'];
+        echo "GPIOPins.set('" . $pn . "', '" . $pn . "');\n";
+        echo "GPIOPinsByNumber.set(" . $gpio['gpio'] . ", '" . $gpio['pin'] . "');\n";
         if (isset($gpio['pwm'])) {
-            echo "PWMPins['" . $gpio['gpio'] . "'] = true;\n";
+            echo "PWMPins['" . $gpio['pin'] . "'] = true;\n";
         }
     }
     ?>
@@ -904,8 +906,10 @@
             var pwm = 0;
             var inverted = 0;
             var description = "";
-            if (config.gpio != undefined) {
-                gpio = config.gpio;
+            if (config.pin != undefined) {
+                gpio = config.pin;
+            } else if (config.gpio != undefined) {
+                gpio = GPIOPinsByNumber.get(config.gpio);
             }
             if (config.pwm != undefined) {
                 pwm = config.pwm;
@@ -939,8 +943,7 @@
 
         GetOutputConfig(result, cell) {
             result = super.GetOutputConfig(result, cell);
-            var gpio = cell.find("select.gpio").val();
-            result.gpio = parseInt(gpio);
+            result.pin = cell.find("select.pin").val();
             result.invert = cell.find("input.inverted").is(":checked") ? 1 : 0;
             result.pwm = cell.find("input.pwm").is(":checked") ? 1 : 0;
             result.description = cell.find("input.description").val();
