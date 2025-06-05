@@ -197,12 +197,12 @@ function SystemGetStatus()
         'interfaces' => [],
         'status_name' => 'unknown',
         'current_playlist' =>
-        [
-            'playlist' => '',
-            'type' => '',
-            'index' => '0',
-            'count' => '0',
-        ],
+            [
+                'playlist' => '',
+                'type' => '',
+                'index' => '0',
+                'count' => '0',
+            ],
         'current_sequence' => '',
         'current_song' => '',
         'seconds_played' => '0',
@@ -245,6 +245,18 @@ function SystemGetStatus()
                     $data = '{"T":"Q","M":"ST","B":0,"E":0,"I":0,"P":{}}';
                     curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
                     curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+                } else if ($type == "ESPixelStick") {
+                    $curl = curl_init("http://$ip/ws"); // WebSocket URL (use wss:// for secure connections)
+                    curl_setopt($curl, CURLOPT_URL, "http://$ip/ws");
+                    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                        "Connection: Upgrade",
+                        "Upgrade: websocket",
+                        "Host: $ip",
+                        "Origin: http://$ip",
+                        "Sec-WebSocket-Key: " . base64_encode(random_bytes(16)),
+                        "Sec-WebSocket-Version: 13"
+                    ]);
                 } else {
                     $curl = curl_init("http://" . $ip . "/api/system/status");
                 }
@@ -347,7 +359,7 @@ function finalizeStatusJson($obj)
 {
     global $settings;
 
-    if (!isset($_GET['nonetwork'])) { 
+    if (!isset($_GET['nonetwork'])) {
         $obj['wifi'] = network_wifi_strength_obj();
         $obj['interfaces'] = network_list_interfaces_obj();
     }
@@ -404,9 +416,10 @@ function finalizeStatusJson($obj)
 /**
  * Get a list of all available packages on the system.
  *
- * @return array List of package names.
+ * @return string List of package names.
  */
-function GetOSPackages() {
+function GetOSPackages()
+{
     $packages = [];
     $cmd = 'apt list --all-versions 2>&1'; // Fetch all package names and versions
     $handle = popen($cmd, 'r'); // Open a process for reading the output
@@ -431,9 +444,10 @@ function GetOSPackages() {
  * This function retrieves the description, dependencies, and installation status for a given package.
  *
  * @param string $packageName The name of the package.
- * @return array An associative array containing 'Description', 'Depends', and 'Installed'.
+ * @return string An associative array containing 'Description', 'Depends', and 'Installed'.
  */
-function GetOSPackageInfo() {
+function GetOSPackageInfo()
+{
     $packageName = params('packageName');
 
     // Fetch package information using apt-cache show
