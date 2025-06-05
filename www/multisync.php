@@ -2546,11 +2546,7 @@
                             // If there are empty cells, name the group "Empty"
                             return txt === "" ? "Empty" : txt;
                             */
-                            console.log("group_formatter called with txt: " + txt + ", col: " + col);
-                            console.log("group data: ", data);
-                            //console.log("table config: ", c);
-                            //console.log("widget options: ", wo);
-                            //console.log(data);
+
                             return txt === "" ? "Empty" : txt; // return the text as is, or modify it as needed
                         },
 
