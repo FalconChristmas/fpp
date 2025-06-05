@@ -55,6 +55,12 @@
         #columnSelector label:nth-of-type(2) {
             margin-top: -8px;
         }
+
+        /*Hide columns only used for grouping functionality */
+        #fppSystemsTable td:nth-child(10),
+        #fppSystemsTable th:nth-child(10) {
+            display: none;
+        }
     </style>
 
     <script>
@@ -676,6 +682,7 @@
                                 $('#' + rowID).css('color', "#FFF");
                                 $('#' + rowID + " a").css('color', "#989898");
                                 $('#' + rowID + "_warnings .warning-text").css('color', "#FF8080");
+                                $('#advancedViewFPPColor_' + rowID).html(data.advancedView.backgroundColor);
                             }
                             if (data.advancedView.hasOwnProperty("RemoteGitVersion")) {
                                 var u = "<table class='multiSyncVerboseTable'>";
@@ -964,7 +971,8 @@
 
                     newRow +=
                         "<td id='advancedViewGitVersions_" + rowID + "'></td>" +
-                        "<td id='advancedViewUtilization_" + rowID + "'></td>";
+                        "<td id='advancedViewUtilization_" + rowID + "'></td>" +
+                        "<td id='advancedViewFPPColor_" + rowID + "'></td>";
 
                     newRow += "<td class='centerCenter'>";
                     if ((isFPP(data[i].typeId)) &&
@@ -2181,6 +2189,8 @@
                                             data-selector-name="Git Versions">Git Versions</th>
                                         <th data-sorter='false' data-filter='false' data-priority="6"
                                             data-selector-name="Utilization">Utilization</th>
+                                        <th data-sorter='false' data-filter='false' data-priority="6"
+                                            data-selector-name="FPPColor" class="columnSelector-disable">FPPColor</th>
                                         <th data-sorter='false' data-filter='false' class="columnSelector-disable">
                                             <input id='selectAllCheckbox' type='checkbox'
                                                 class='largeCheckbox multisyncRowCheckbox'
@@ -2428,7 +2438,8 @@
                             5: true, /* Elapsed */
                             6: true, /* Version */
                             7: true, /* Git Versions */
-                            8: true /* Utilization */
+                            8: true, /* Utilization */
+                            9: false /* FPPColor - hidden as only used for grouping */
                         },
                         // remember selected columns (requires $.tablesorter.storage)
                         columnSelector_saveColumns: true,
