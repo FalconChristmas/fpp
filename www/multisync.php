@@ -752,7 +752,7 @@
                                 if (data.advancedView.Utilization.hasOwnProperty("MemoryFree")) {
                                     var fr = data.advancedView.Utilization.MemoryFree;
                                     fr /= 1024;
-                                    u += "<tr><td>Free Mem:&nbsp;</td><td>" + Math.round(fr) + "K</td></tr>";
+                                    u += "<tr><td>Mem:&nbsp;</td><td>" + Math.round(fr) + "K Free</td></tr>";
                                 }
                                 if (data.advancedView.hasOwnProperty("rssi")) {
                                     var rssi = +data.advancedView.rssi;
@@ -762,8 +762,30 @@
                                         quality = 0;
                                     else if (rssi >= -50)
                                         quality = 100;
-                                    u += "<tr><td>RSSI:</td><td>" + rssi + "dBm / " + quality + "%</td></tr>";
+
+                                    var wifi_html = [];
+
+                                    wifi_html.push('<span title="');
+                                    wifi_html.push(quality + '%');
+                                    wifi_html.push(' ' + rssi + 'dBm');
+                                    wifi_html.push('" class="wifi-icon wifi-');
+
+                                    if (quality < 25) { var desc = "weak"; }
+                                    else if (quality < 50) { var desc = "fair"; }
+                                    else if (quality < 75) { var desc = "good"; }
+                                    else { var desc = "excellent"; }
+
+                                    wifi_html.push(desc);
+                                    wifi_html.push('"></span>');
+
+                                    if (wifi_html.length > 0) {
+                                        $('#' + rowID + "_ip").find(".wifi-icon").remove();
+                                        $(wifi_html.join('')).appendTo('td[ip="' + ip + '"]');
+                                    }
+
+                                    //u += "<tr><td>RSSI:</td><td>" + rssi + "dBm / " + quality + "%</td></tr>";
                                 }
+
                                 if (data.advancedView.Utilization.hasOwnProperty("Uptime")) {
                                     var ut = data.advancedView.Utilization.Uptime;
                                     if (typeof ut === "string" || ut instanceof String) {
@@ -1474,7 +1496,7 @@
                 } else if (isESPixelStick(typeId)) {
                     var versionParts = version.split('.');
                     var majorVersion = parseInt(versionParts[0]);
-                    if (majorVersion == 3) {
+                    if (majorVersion >= 3) {
                         getESPixelStickBridgeStatus(ip);
                     } else {
                         ips.push(ip);
@@ -2608,6 +2630,43 @@
                 });
 
             });
+
+            let mouseX = 0;
+            let mouseY = 0;
+
+            // Update mouse position on movement
+            document.addEventListener("mousemove", function (event) {
+                mouseX = event.pageX;
+                mouseY = event.pageY;
+            });
+
+            // Run tooltip cleanup every 2 seconds
+            setInterval(() => {
+                $(".tooltip").each(function () {
+                    const tooltip = $(this);
+                    const offset = tooltip.offset();
+                    const width = tooltip.outerWidth();
+                    const height = tooltip.outerHeight();
+
+                    // Expand boundaries
+                    const leftBoundary = offset.left - (width * 0.2);  // Allow 20% leeway on left side
+                    const rightBoundary = offset.left + width + (width * 0.15); // Allow 15% leeway on right side
+
+                    // Check if mouse is inside tooltip bounds
+                    if (
+                        mouseX < leftBoundary || // Adjusted left boundary
+                        mouseX > rightBoundary || // Adjusted right boundary
+
+                        mouseY < offset.top ||
+                        mouseY > offset.top + height
+
+                    ) {
+                        tooltip.remove(); // Remove tooltip if mouse is outside
+                    }
+                });
+            }, 3000);
+
+
 
             autoRefreshToggled();
 

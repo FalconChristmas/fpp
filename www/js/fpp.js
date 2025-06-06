@@ -1495,9 +1495,9 @@ function GetItemCount (url, id, key = '') {
 }
 
 function SetupToolTips (delay = 100) {
-	var titles = document.querySelectorAll('[title]'),
-		i;
-	[].forEach.call(titles, function (value) {
+	var titles = document.querySelectorAll('[title]');
+
+	titles.forEach(value => {
 		var title = value.title;
 		value.setAttribute('data-bs-tooltip-title', title);
 		value.setAttribute('data-bs-toggle', 'tooltip');
@@ -1508,9 +1508,24 @@ function SetupToolTips (delay = 100) {
 	const tooltipTriggerList = document.querySelectorAll(
 		'[data-bs-toggle="tooltip"]'
 	);
-	const tooltipList = [...tooltipTriggerList].map(
-		tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl)
-	);
+	const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => {
+		let tooltipInstance = new bootstrap.Tooltip(tooltipTriggerEl);
+
+		// Auto-hide tooltip after 3 seconds if mouse is not hovering
+		tooltipTriggerEl.addEventListener('mouseenter', () => {
+			clearTimeout(tooltipTriggerEl.tooltipTimeout);
+		});
+
+		tooltipTriggerEl.addEventListener('mouseleave', () => {
+			tooltipTriggerEl.tooltipTimeout = setTimeout(() => {
+				if (!tooltipTriggerEl.matches(':hover')) {
+					tooltipInstance.hide();
+				}
+			}, 3000);
+		});
+
+		return tooltipInstance;
+	});
 }
 function SetHomepageStatusRowWidthForMobile () {
 	if ($('.statusDivTopRow').length > 0) {
