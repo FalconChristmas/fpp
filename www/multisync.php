@@ -2631,6 +2631,43 @@
 
             });
 
+            let mouseX = 0;
+            let mouseY = 0;
+
+            // Update mouse position on movement
+            document.addEventListener("mousemove", function (event) {
+                mouseX = event.pageX;
+                mouseY = event.pageY;
+            });
+
+            // Run tooltip cleanup every 2 seconds
+            setInterval(() => {
+                $(".tooltip").each(function () {
+                    const tooltip = $(this);
+                    const offset = tooltip.offset();
+                    const width = tooltip.outerWidth();
+                    const height = tooltip.outerHeight();
+
+                    // Expand boundaries
+                    const leftBoundary = offset.left - (width * 0.2);  // Allow 20% leeway on left side
+                    const rightBoundary = offset.left + width + (width * 0.15); // Allow 15% leeway on right side
+
+                    // Check if mouse is inside tooltip bounds
+                    if (
+                        mouseX < leftBoundary || // Adjusted left boundary
+                        mouseX > rightBoundary || // Adjusted right boundary
+
+                        mouseY < offset.top ||
+                        mouseY > offset.top + height
+
+                    ) {
+                        tooltip.remove(); // Remove tooltip if mouse is outside
+                    }
+                });
+            }, 3000);
+
+
+
             autoRefreshToggled();
 
         });
