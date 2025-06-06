@@ -259,7 +259,7 @@ Json::Value BBBPinCapabilities::toJSON() const {
 #ifdef PLATFORM_BBB
     if (gpioIdx < 4) {
         //somewhat for compatibility with the old kernel GPIO numbers on the BBB's
-        int kgpio = mappedGPIOIdx(gpioIdx) * 32 + gpio;
+        int kgpio = mappedGPIOIdx() * 32 + gpio;
         ret["gpio"] = kgpio;
     }
 #endif    
