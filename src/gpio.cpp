@@ -28,14 +28,13 @@
 
 #include "gpio.h"
 
-
 GPIOManager GPIOManager::INSTANCE;
 
 class FPPGPIOCommand : public Command {
 public:
     FPPGPIOCommand() :
         Command("GPIO") {
-        args.push_back(CommandArg("pin", "string", "Pin").setContentListUrl("api/gpio?list=true"));
+        args.push_back(CommandArg("pin", "string", "Pin").setContentListUrl("api/options/GPIOLIST"));
         args.push_back(CommandArg("on", "string", "Action").setContentList({ "On", "Off", "Opposite" }));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {

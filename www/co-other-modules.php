@@ -872,15 +872,50 @@
     var GPIOPinsByNumber = new Map();
     var PWMPins = new Array();
     <?
+    $includeFilters = array(
+    );
+    $excludeFilters = array(
+    );
+    if (!isset($settings["showAllOptions"]) || $settings["showAllOptions"] == 0) {
+        if (isset($settings['cape-info']['show']) && isset($settings['cape-info']['show']['gpio'])) {
+            $includeFilters = $settings['cape-info']['show']['gpio'];
+        }
+        if (isset($settings['cape-info']['hide']) && isset($settings['cape-info']['hide']['gpio'])) {
+            $excludeFilters = $settings['cape-info']['hide']['gpio'];
+        }
+    }
+
     $data = file_get_contents('http://127.0.0.1:32322/gpio');
     $gpiojson = json_decode($data, true);
     foreach ($gpiojson as $gpio) {
         $pn = $gpio['pin'];
-        echo "GPIOPins.set('" . $pn . "', '" . $pn . "');\n";
+
+        $hide = false;
+        if (count($includeFilters) > 0) {
+            $hide = true;
+            foreach ($includeFilters as $value) {
+                if (preg_match("/" . $value . "/", $pn) == 1) {
+                    $hide = false;
+                }
+            }
+        }
+        if (count($excludeFilters) > 0) {
+            foreach ($excludeFilters as $value) {
+                if (preg_match("/" . $value . "/", $pn) == 1) {
+                    $hide = true;
+                }
+            }
+        }
+
+        if (!$hide) {
+            echo "GPIOPins.set('" . $pn . "', '" . $pn . "');\n";
+        }
         echo "GPIOPinsByNumber.set(" . $gpio['gpioLine'] . ", '" . $gpio['pin'] . "');\n";
         if (isset($gpio['pwm'])) {
             echo "PWMPins['" . $gpio['pin'] . "'] = true;\n";
         }
+
+
     }
     ?>
 
@@ -902,7 +937,7 @@
 
         PopulateHTMLRow(config) {
             var result = super.PopulateHTMLRow(config);
-            var gpio = GPIOPins[0];
+            var gpio = GPIOPins.keys().next().value;
             var pwm = 0;
             var inverted = 0;
             var description = "";

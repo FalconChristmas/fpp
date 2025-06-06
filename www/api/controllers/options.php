@@ -308,6 +308,54 @@ function GetOptions_BBBLeds()
     return json($options);
 }
 
+function GetOptions_GPIOS($list)
+{
+    global $settings;
+    $data = json_decode(file_get_contents('http://127.0.0.1:32322/gpio'));
+    $ret = array();
+    $includeFilters = array(
+    );
+    $excludeFilters = array(
+    );
+    if (!isset($settings["showAllOptions"]) || $settings["showAllOptions"] == 0) {
+        if (isset($settings['cape-info']['show']) && isset($settings['cape-info']['show']['gpio'])) {
+            $includeFilters = $settings['cape-info']['show']['gpio'];
+        }
+        if (isset($settings['cape-info']['hide']) && isset($settings['cape-info']['hide']['gpio'])) {
+            $excludeFilters = $settings['cape-info']['hide']['gpio'];
+        }
+    }
+    foreach ($data as $gpio) {
+        $pn = $gpio->pin;
+        $hide = false;
+        if (count($includeFilters) > 0) {
+            $hide = true;
+            foreach ($includeFilters as $value) {
+                if (preg_match("/" . $value . "/", $pn) == 1) {
+                    $hide = false;
+                }
+            }
+        }
+        if (count($excludeFilters) > 0) {
+            foreach ($excludeFilters as $value) {
+                if (preg_match("/" . $value . "/", $pn) == 1) {
+                    $hide = true;
+                }
+            }
+        }
+        if (!$hide) {
+            if ($list) {
+                $ret[] = $gpio->pin;
+            } else {
+                $ret[] = $gpio;
+            }
+        }
+    }
+
+    return json($ret);
+}
+
+
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/options/:SettingName
 function GetOptions()
@@ -341,6 +389,10 @@ function GetOptions()
             return GetOptions_TimeZone();
         case 'VideoOutput':
             return GetOptions_VideoOutput(0);
+        case 'GPIOS':
+            return GetOptions_GPIOS(false);
+        case 'GPIOLIST':
+            return GetOptions_GPIOS(true);
     }
 
     return json("{}");
