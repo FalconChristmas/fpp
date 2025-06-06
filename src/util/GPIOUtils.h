@@ -83,9 +83,16 @@ public:
     }
 
     static const PinCapabilities& getPinByName(const std::string& n);
-    static const PinCapabilities& getPinByGPIO(int chip, int gpio);
     static const PinCapabilities& getPinByUART(const std::string& n);
     static std::vector<std::string> getPinNames();
+
+    // [[deprecated("Use Pin Names instead")]]
+    static const PinCapabilities& getPinByGPIO(int chip, int gpio);
+
+    [[deprecated("Use Pin Names (getPinByName(...)) instead")]]
+    static const PinCapabilities& getPinByGPIO(int gpio) {
+        return getPinByGPIO(0, gpio);
+    }
 
 protected:
     static void enableOledScreen(int i2cBus, bool enable);
