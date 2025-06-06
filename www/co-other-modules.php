@@ -908,7 +908,7 @@
         }
 
         if (!$hide) {
-            echo "GPIOPins.set('" . $pn . "', '" . $pn . "');\n";
+            echo "GPIOPins.set('" . $pn . "', '" . $pn . " (GPIO " . $gpio["gpioChip"] . "/" . $gpio["gpioLine"] . ")');\n";
         }
         echo "GPIOPinsByNumber.set(" . $gpio['gpioLine'] . ", '" . $gpio['pin'] . "');\n";
         if (isset($gpio['pwm'])) {
@@ -978,7 +978,7 @@
 
         GetOutputConfig(result, cell) {
             result = super.GetOutputConfig(result, cell);
-            result.pin = cell.find("select.pin").val();
+            result.pin = cell.find("select.gpio").val();
             result.invert = cell.find("input.inverted").is(":checked") ? 1 : 0;
             result.pwm = cell.find("input.pwm").is(":checked") ? 1 : 0;
             result.description = cell.find("input.description").val();

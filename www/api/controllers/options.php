@@ -345,7 +345,7 @@ function GetOptions_GPIOS($list)
         }
         if (!$hide) {
             if ($list) {
-                $ret[] = $gpio->pin;
+                $ret[$gpio->pin] = $gpio->pin . " (GPIO " . $gpio->gpioChip . "/" . $gpio->gpioLine . ")";
             } else {
                 $ret[] = $gpio;
             }
