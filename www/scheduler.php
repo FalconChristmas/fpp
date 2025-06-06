@@ -146,6 +146,9 @@ error_reporting(E_ALL);
                 if (data.repeat == 1)
                     data.repeat = 0;
 
+                if (data.repeat == 0)
+                    row.find('.schEndTime').hide();
+
                 FillInCommandTemplate(row, data);
             }
 
@@ -377,6 +380,16 @@ error_reporting(E_ALL);
 
         }
 
+        function ScheduleEntryRepeatChanged(item) {
+            var row = $(item).parent().parent();
+
+            if (($(row).find('.schType').val() == 'command') && (parseInt($(item).val()) == 0)) {
+                $(row).find('.schEndTime').hide();
+            } else {
+                $(row).find('.schEndTime').show();
+            }
+        }
+
         function ScheduleEntryTypeChanged(item) {
             var row = $(item).parent().parent();
 
@@ -392,12 +405,14 @@ error_reporting(E_ALL);
                 row.find('.schOptionsSequence').hide();
                 row.find('.schOptionsPlaylist').show();
                 row.find('.schRepeat').find('.immediate').show();
+                row.find('.schEndTime').show();
             } else if ($(item).val() == 'sequence') {
                 // Sequence
                 row.find('.schOptionsCommand').hide();
                 row.find('.schOptionsPlaylist').hide();
                 row.find('.schOptionsSequence').show();
                 row.find('.schRepeat').find('.immediate').show();
+                row.find('.schEndTime').show();
             } else {
                 // FPP Command
                 row.find('.schOptionsPlaylist').hide();
@@ -405,6 +420,7 @@ error_reporting(E_ALL);
                 row.find('.schOptionsCommand').show();
                 row.find('.schRepeat').find('.immediate').hide();
                 row.find('.schRepeat').val(0);
+                row.find('.schEndTime').hide();
                 row.find('.schEndTime').val(row.find('.schStartTime').val());
 
                 if (row.find('.cmdTmplArgs').val() == '')
@@ -518,6 +534,9 @@ error_reporting(E_ALL);
                 // Just in case, FPP Commands can't immediately repeat so disable
                 if (e.repeat == 1)
                     e.repeat = 0;
+
+                if (e.repeat == 0)
+                    e.endTime = e.startTime;
 
                 var jdata = JSON.parse(json);
                 e.playlist = '';
@@ -863,8 +882,8 @@ error_reporting(E_ALL);
                                     <td class='schOptionsCommand' colspan='2'>
                                         <select class='cmdTmplCommand'
                                             onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
-                                        <img class='cmdTmplTooltipIcon' title='' src='images/redesign/help-icon.svg'
-                                            width=22 height=22>
+                                        <img class='cmdTmplTooltipIcon' title='' data-bs-html='true' data-bs-toggle='tooltip'
+                                            src='images/redesign/help-icon.svg' width=22 height=22>
                                         <input type='button' class='buttons reallySmallButton' value='Edit'
                                             onClick='EditCommandTemplate($(this).parent().parent());'>
                                         <input type='button' class='buttons smallButton' value='Run Now'
@@ -884,7 +903,7 @@ error_reporting(E_ALL);
                                                 type='number' size='4' value='0' min='-120' max='120'>min</span>
                                     </td>
                                     <td class=''>
-                                        <select class='schRepeat'>
+                                        <select class='schRepeat' onChange='ScheduleEntryRepeatChanged(this);'>
                                             <option value='0'>None</option>
                                             <option value='1' class='immediate'>Immediate</option>
                                             <option value='500'>5 Min.</option>
