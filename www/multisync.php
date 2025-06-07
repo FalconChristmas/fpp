@@ -2412,6 +2412,7 @@
                         1: { extractor: 'FPPIPParser', sorter: 'ipAddress' }
                     },
                     widgetOptions: {
+                        saveSort: true,
                         filter_childRows: true,
                         filter_childByColumn: false,
                         filter_childWithSibs: false,
