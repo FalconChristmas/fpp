@@ -654,7 +654,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                                             }
 
                                             if ($settings['uiLevel'] > 0) {
-                                                echo "<br><span><i class='fas fa-fw fa-timeline ui-level-1'></i> Show Legacy OS's <input type='checkbox' id='LegacyOS' onClick='PopulateOSSelect();'><img id='allOSs_img' title='Included Historic OS releases in listing' src='images/redesign/help-icon.svg' class='icon-help'></span>";
+                                                echo "<br><span><i class='fas fa-fw fa-graduation-cap ui-level-1'></i> Show Legacy OS's <input type='checkbox' id='LegacyOS' onClick='PopulateOSSelect();'><img id='allOSs_img' title='Included Historic OS releases in listing' src='images/redesign/help-icon.svg' class='icon-help'></span>";
                                             }
 
                                             if ($settings['uiLevel'] == 3) {
