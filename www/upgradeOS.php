@@ -132,9 +132,16 @@ session_write_close();
 
 if ($applyUpdate && ($return_code == 0)) {
     sleep(3);
-
-    # Force reboot the system
+    
+    # Force reboot the system, try a variety of methods
+    # to see if one will properly trigger
     system("echo b > /proc/sysrq-trigger");
+    
+    sleep(1);
+    system("echo b | sudo tee /proc/sysrq-trigger");
+
+    sleep(1);
+    system("shutdown -r now");
 }
 
 function progress($resource, $download_size, $downloaded, $upload_size, $uploaded)
