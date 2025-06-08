@@ -1,12 +1,6 @@
 /dts-v1/;
 /plugin/;
 
-&{/chosen} {
-        overlays {
-                fpp-base-overlay = "FPP_BASE_OVERLAY";
-        };
-};
-
 / {
 
     compatible = "ti,beaglebone", "ti,beaglebone-black", "ti,beaglebone-green";
@@ -44,4 +38,10 @@
                         clock-frequency = <400000>;
                 };
         };
+	fragment@3 {
+		target-path = "/chosen/overlays";
+		__overlay__ {
+			fpp-base-overlay = "FPP_BASE_OVERLAY";
+		};
+	};
 };
