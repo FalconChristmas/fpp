@@ -1395,6 +1395,9 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     systemctl disable cpufrequtils
     systemctl disable loadcpufreq.service
     
+    # sysconf requires a vfat partition which the BBB images currently don't have
+    systemctl disable bbbio-set-sysconf
+    
     if [ ! -f "/opt/source/bb.org-overlays/Makefile" ]; then
         mkdir -p /opt/source
         cd /opt/source
@@ -1412,8 +1415,8 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     #adjust a bunch of settings in /boot/uEnv.txt
     sed -i -e "s+^#enable_uboot_cape_universal=\(.*\)+enable_uboot_cape_universal=1+g"  /boot/uEnv.txt
     sed -i -e "s+^#disable_uboot_overlay_video=\(.*\)+disable_uboot_overlay_video=1+g"  /boot/uEnv.txt
-    sed -i -e "s+#uboot_overlay_addr0=\(.*\)+uboot_overlay_addr0=/lib/firmware/bbb-fpp-reserve-memory.dtbo+g"  /boot/uEnv.txt
-    sed -i -e "s+#uboot_overlay_addr1=\(.*\)+uboot_overlay_addr0=/lib/firmware/bbb-cape-overlay.dtb+g"  /boot/uEnv.txt
+    sed -i -e "s+#uboot_overlay_addr0=\(.*\)+uboot_overlay_addr0=/lib/firmware/fpp-base-overlay.dtb+g"  /boot/uEnv.txt
+    sed -i -e "s+#uboot_overlay_addr1=\(.*\)+uboot_overlay_addr1=/lib/firmware/fpp-cape-overlay.dtb+g"  /boot/uEnv.txt
     sed -i -e "s+ quiet+ quiet rootwait+g"  /boot/uEnv.txt
     sed -i -e "s+ net.ifnames=.+ +g"  /boot/uEnv.txt
     sed -i -e "s+^uboot_overlay_pru=+#uboot_overlay_pru=+g"  /boot/uEnv.txt
