@@ -214,7 +214,7 @@ rmdir /tmp/rootfs
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-VERSION=9.0-alpha1b
+VERSION=9.0-alpha1c
 OSVERSION=2025-05
 DEVICE=/dev/sdc
 zerofree -v /dev/sdc1

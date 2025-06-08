@@ -84,7 +84,7 @@ if ($applyUpdate) {
     echo "Upgrading OS:\n";
 
     # Ensure /proc/sysrq-trigger is writable by fpp for reboot later.  Do it now whilst libraries are all good
-    system($SUDO . "chmod a+w /proc/sysrq-trigger");
+    system($SUDO . " chmod a+w /proc/sysrq-trigger");
 
     $TMP_FILE = "/home/fpp/media/tmp/upgradeOS-part1.sh";
     echo ("Checking for previous $TMP_FILE\n");
