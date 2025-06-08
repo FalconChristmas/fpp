@@ -55,7 +55,6 @@
 #define out_clr         tmp_reg2    // must be one less than out_set
 #define out_set         tmp_reg3
 #define out_clrset      out_clr
-#define 
 #else
 #define gpio_base       tmp_reg1    // must be one less than out_set
 #define out_set         tmp_reg2    // must be one less than out_clr

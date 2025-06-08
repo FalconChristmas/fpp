@@ -1,12 +1,12 @@
-all: BBB-AUDIO-PCM5012A-00A0.dtbo BBB-P8-AUDIO-PCM5012A-00A0.dtbo bbb-fpp-reserve-memory.dtbo fpp-cape-overlay.dtb
+all: BBB-AUDIO-PCM5012A-00A0.dtbo BBB-P8-AUDIO-PCM5012A-00A0.dtbo fpp-base-overlay.dtb fpp-cape-overlay.dtb
 
 clean:
-	rm -f BBB-AUDIO-PCM5012A-00A0.dtbo BBB-P8-AUDIO-PCM5012A-00A0.dtbo bbb-fpp-reserve-memory.dtbo fpp-cape-overlay.dtb
+	rm -f BBB-AUDIO-PCM5012A-00A0.dtbo BBB-P8-AUDIO-PCM5012A-00A0.dtbo fpp-base-overlay.dtb fpp-cape-overlay.dtb
 
 install:
 	cp BBB-AUDIO-PCM5012A-00A0.dtbo /lib/firmware
 	cp BBB-P8-AUDIO-PCM5012A-00A0.dtbo /lib/firmware
-	cp bbb-fpp-reserve-memory.dtbo /lib/firmware
+	cp fpp-base-overlay.dtb /lib/firmware
 	cp fpp-cape-overlay.dtb /lib/firmware
 	cp fpp-cape-overlay.dtb /lib/firmware/fpp-cape-overlay-default.dtb
 
@@ -22,11 +22,8 @@ BBB-P8-AUDIO-PCM5012A-00A0.dtbo: BBB-P8-AUDIO-PCM5012A-00A0.dts
 	cd /opt/source/bb.org-overlays ; make src/arm/BBB-P8-AUDIO-PCM5012A-00A0.dtbo
 	cp /opt/source/bb.org-overlays/src/arm/BBB-P8-AUDIO-PCM5012A-00A0.dtbo .
 
-bbb-fpp-reserve-memory.dtbo: bbb-fpp-reserve-memory.dts
-	cp bbb-fpp-reserve-memory.dts /opt/source/bb.org-overlays/src/arm
-	touch /opt/source/bb.org-overlays/src/arm/bbb-fpp-reserve-memory.dts
-	cd /opt/source/bb.org-overlays ; make src/arm/bbb-fpp-reserve-memory.dtbo
-	cp /opt/source/bb.org-overlays/src/arm/bbb-fpp-reserve-memory.dtbo .
+fpp-base-overlay.dtb: fpp-base-overlay.dts
+	dtc -@ -O dtb -o fpp-base-overlay.dtb fpp-base-overlay.dts
 
 fpp-cape-overlay.dtb: fpp-cape-overlay.dts
 	dtc -O dtb -o fpp-cape-overlay.dtb fpp-cape-overlay.dts

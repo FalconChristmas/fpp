@@ -853,6 +853,7 @@ int BBBMatrix::Init(Json::Value config) {
         compileArgs.push_back("-DOUTPUTBYDEPTH");
     }
     compilePRUMatrixCode(compileArgs);
+    exit(1);
     std::string pru_program = "/tmp/FalconMatrix.out";
 
     if (!m_singlePRU) {
