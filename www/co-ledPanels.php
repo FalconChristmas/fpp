@@ -72,6 +72,34 @@
         $LEDPanelDefaults["brightness"] = 10;
     }
 
+    if ($settings['Platform'] == "Raspberry Pi") {
+        switch ($settings['SubPlatform']) {
+            case "Raspberry Pi 5":
+                $LEDPanelDefaults["gpioSlowdown"] = 1;
+                break;
+            case "Raspberry Pi 4":
+                $LEDPanelDefaults["gpioSlowdown"] = 1;
+                break;
+            case "Raspberry Pi 3":
+                $LEDPanelDefaults["gpioSlowdown"] = 1;
+                break;
+            case "Raspberry Pi 2":
+                $LEDPanelDefaults["gpioSlowdown"] = 0;
+                break;
+            case "Raspberry Pi Zero":
+                $LEDPanelDefaults["gpioSlowdown"] = 0;
+                break;
+            case "Raspberry Pi Zero 2":
+                $LEDPanelDefaults["gpioSlowdown"] = 0;
+                break;
+            case "Raspberry Pi 1":
+                $LEDPanelDefaults["gpioSlowdown"] = 0;
+                break;
+        }
+    }
+
+
+
     $LEDPanelDefaults["maxLEDPanels"] = $LEDPanelDefaults["LEDPanelOutputs"] * $LEDPanelDefaults["LEDPanelsPanelsPerOutput"];
     $LEDPanelDefaults["maxLEDPanels"] = 96; // Override to allow different panel configs using ColorLight cards
     // End of Default Value Logic
