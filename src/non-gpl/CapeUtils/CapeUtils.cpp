@@ -406,6 +406,9 @@ static bool processBootConfig(Json::Value& bootConfig) {
         }
     }
     free(data);
+    if (current != orig) {
+        put_file_contents(fileName, (const uint8_t*)current.c_str(), current.length());
+    }
     return current != orig;
 }
 static void handleReboot(bool r) {
@@ -1120,7 +1123,7 @@ private:
                     if (result.isMember("bootConfig")) {
                         // if the cape requires changes/update to config.txt (Pi) or uEnv.txt (BBB)
                         // we need to process them and see if we have to apply the changes and reboot or not
-                        processBootConfig(result["bootConfig"]);
+                        reboot = processBootConfig(result["bootConfig"]);
                     }
                     if (result.isMember("copyFiles")) {
                         // if the cape requires certain files copied into place (asoundrc for example)
@@ -1137,7 +1140,7 @@ private:
                             setFilePerms(target);
                         }
                     }
-                    reboot = handleCapeOverlay(outputPath);
+                    reboot |= handleCapeOverlay(outputPath);
                     handleReboot(reboot);
                     if (result.isMember("modules")) {
                         // if the cape requires kernel modules, load them at this
