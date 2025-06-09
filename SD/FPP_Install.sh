@@ -520,7 +520,7 @@ case "${OSVER}" in
             PACKAGE_LIST="$PACKAGE_LIST libva-dev smartmontools"
         fi
         if $isimage; then
-            PACKAGE_LIST="$PACKAGE_LIST networkd-dispatcher systemd-resolved"
+            PACKAGE_LIST="$PACKAGE_LIST networkd-dispatcher"
         fi
         if ! $build_vlc; then
             PACKAGE_LIST="$PACKAGE_LIST vlc libvlc-dev"
@@ -583,6 +583,12 @@ case "${OSVER}" in
             echo "FPP - Disabling dhcp-helper and hostapd from automatically starting"
             systemctl disable dhcp-helper
             systemctl disable hostapd
+            
+            echo "FPP - Disabling the auto-upgrade services"
+            systemctl disable apt-daily.service || true
+            systemctl disable apt-daily.timer || true
+            systemctl disable apt-daily-upgrade.service || true
+            systemctl disable apt-daily-upgrade.timer || true
             
             echo "FPP - Enabling systemd-networkd"
             # clean out the links to /dev/null so that we can enable systemd-networkd
@@ -729,6 +735,7 @@ case "${FPPPLATFORM}" in
         systemctl disable keyboard-setup
         systemctl disable unattended-upgrades
         systemctl disable resize_filesystem
+        systemctl disable console-setup
 		;;
     'BeagleBone 64')
         systemctl disable keyboard-setup
@@ -1472,6 +1479,8 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone 64" ]; then
         
     #Set colored prompt
     sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
+    
+    systemctl disable console-setup.service
 fi
 
 if $isimage; then
@@ -1531,8 +1540,8 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" -o
         # default line not there, just append to end of file
         echo "DAEMON_CONF=\"/etc/hostapd/hostapd.conf\"" >> /etc/default/hostapd
     fi
-    
-    
+        
+    systemctl disable zramswap
     echo "ALGO=zstd" >> /etc/default/zramswap
     echo "PRIORITY=100" >> /etc/default/zramswap
     if [ "$FPPPLATFORM" == "BeagleBone 64" ]; then

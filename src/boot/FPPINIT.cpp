@@ -1288,6 +1288,11 @@ void checkInstallPackages() {
         installPackagesFromJson("/home/fpp/media/config/userpackages.json");
     }
 }
+void startZRAMSwap() {
+    if (!FileExists("/dev/zram0") && FileExists("/usr/sbin/zramswap")) {
+        execbg("/usr/sbin/zramswap start 2>/dev/null > /dev/null &");
+    }
+}
 
 static void setupChannelOutputs() {
 #ifdef PLATFORM_PI
@@ -1502,6 +1507,7 @@ int main(int argc, char* argv[]) {
         detectFalconHardware();
         setFileOwnership();
         checkInstallPackages();
+        startZRAMSwap();
     } else if (action == "bootPre") {
         int restart = getRawSettingInt("restartFlag", 0);
         if (restart) {
