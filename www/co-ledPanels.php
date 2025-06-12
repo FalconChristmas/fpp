@@ -331,6 +331,8 @@
             $values["4 Pixels Zig/Zag"] = "4z";
             $values["8 Pixels Zig/Zag"] = "8z";
             $values["16 Pixels Zig/Zag"] = "16z";
+            $values["32 Pixels Zig/Zag"] = "32z";
+            $values["40 Pixels Zig/Zag"] = "40z";
             $values["8 Pixels Flip Rows"] = "8f";
             $values["16 Pixels Flip Rows"] = "16f";
             $values["32 Pixels Flip Rows"] = "32f";

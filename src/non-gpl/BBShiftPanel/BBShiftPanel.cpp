@@ -449,6 +449,12 @@ int BBShiftPanelOutput::Init(Json::Value config) {
         } else if (config["panelInterleave"].asString() == "4z") {
             m_interleave = 4;
             zigZagInterleave = true;
+        } else if (config["panelInterleave"].asString() == "32z") {
+            m_interleave = 32;
+            zigZagInterleave = true;
+        } else if (config["panelInterleave"].asString() == "40z") {
+            m_interleave = 40;
+            zigZagInterleave = true;
         } else if (config["panelInterleave"].asString() == "8f") {
             m_interleave = 8;
             flipRows = true;
