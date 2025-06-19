@@ -340,6 +340,27 @@
             $values["80 Pixels Flip Rows"] = "80f";
             $values["8 Pixels Cluster Zig/Zag"] = "8c";
             $values["8 Stripe/16 Cluster"] = "8s";
+
+            $values["Stripe"] = "RPi1";
+            $values["Checkered"] = "RPi2";
+            $values["Spiral"] = "RPi3";
+            $values["ZStripe"] = "RPi4";
+            $values["ZnMirrorZStripe"] = "RPi5";
+            $values["Coreman"] = "RPi6";
+            $values["Kaler2Scan"] = "RPi7";
+            $values["ZStripeUneven"] = "RPi8";
+            $values["P10-128x4-Z"] = "RPi9";
+            $values["QiangLiQ8"] = "RPi10";
+            $values["InversedZStripe"] = "RPi11";
+            $values["P10Outdoor1R1G1-1"] = "RPi12";
+            $values["P10Outdoor1R1G1-2"] = "RPi13";
+            $values["P10Outdoor1R1G1-3"] = "RPi14";
+            $values["P10CoremanMapper"] = "RPi15";
+            $values["P8Outdoor1R1G1"] = "RPi16";
+            $values["FlippedStripe"] = "RPi17";
+            $values["P10Outdoor32x16HalfScan"] = "RPi18";
+            $values["P10Outdoor32x16QuarterScanMapper"] = "RPi19";
+            $values["P3Outdoor64x64MultiplexMapper"] = "RPi20";
         } else {
             $values["Off"] = "0";
             $values["Stripe"] = "1";

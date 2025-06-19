@@ -10,6 +10,7 @@ OBJECTS_fpp_so += \
 	channeloutput/FPD.o \
 	channeloutput/Matrix.o \
 	channeloutput/PanelMatrix.o \
+	channeloutput/PanelInterleaveHandler.o \
 	channeloutput/PixelString.o \
 	channeloutput/serialutil.o \
 	channeloutput/VirtualDisplayBase.o \

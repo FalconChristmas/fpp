@@ -32,6 +32,8 @@
 #include "util/BBBUtils.h"
 
 #include "MapPixelsByDepth16.h"
+
+#include "channeloutput/PanelInterleaveHandler.h"
 #include "overlays/PixelOverlay.h"
 
 #include "Plugin.h"
@@ -72,199 +74,6 @@ static std::map<int, std::vector<int>> BIT_ORDERS = {
     { 11, { 10, 4, 7, 2, 3, 1, 6, 9, 8, 5, 0 } },
     //{ 12, { 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 } }
     { 12, { 11, 5, 8, 2, 4, 1, 7, 10, 3, 9, 6, 0 } }
-};
-
-class InterleaveHandler {
-protected:
-    InterleaveHandler() {}
-
-public:
-    virtual ~InterleaveHandler() {}
-
-    virtual void mapRow(int& y) = 0;
-    virtual void mapCol(int y, int& x) = 0;
-
-private:
-};
-
-class NoInterleaveHandler : public InterleaveHandler {
-public:
-    NoInterleaveHandler() {}
-    virtual ~NoInterleaveHandler() {}
-
-    virtual void mapRow(int& y) override {}
-    virtual void mapCol(int y, int& x) override {}
-};
-class SimpleInterleaveHandler : public InterleaveHandler {
-public:
-    SimpleInterleaveHandler(int interleave, int ph, int pw, int ps, bool flip) :
-        InterleaveHandler(),
-        m_interleave(interleave),
-        m_panelHeight(ph),
-        m_panelWidth(pw),
-        m_panelScan(ps),
-        m_flipRows(flip) {}
-    virtual ~SimpleInterleaveHandler() {}
-
-    virtual void mapRow(int& y) override {
-        while (y >= m_panelScan) {
-            y -= m_panelScan;
-        }
-    }
-    virtual void mapCol(int y, int& x) override {
-        int whichInt = x / m_interleave;
-        if (m_flipRows) {
-            if (y & m_panelScan) {
-                y &= !m_panelScan;
-            } else {
-                y |= m_panelScan;
-            }
-        }
-        int offInInt = x % m_interleave;
-        int mult = (m_panelHeight / m_panelScan / 2) - 1 - y / m_panelScan;
-        x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult) + offInInt;
-    }
-
-private:
-    const int m_interleave;
-    const int m_panelWidth;
-    const int m_panelHeight;
-    const int m_panelScan;
-    const bool m_flipRows;
-};
-
-class ZigZagClusterInterleaveHandler : public InterleaveHandler {
-public:
-    ZigZagClusterInterleaveHandler(int interleave, int ph, int pw, int ps) :
-        InterleaveHandler(),
-        m_interleave(interleave),
-        m_panelHeight(ph),
-        m_panelWidth(pw),
-        m_panelScan(ps) {}
-    virtual ~ZigZagClusterInterleaveHandler() {}
-
-    virtual void mapRow(int& y) override {
-        while (y >= m_panelScan) {
-            y -= m_panelScan;
-        }
-    }
-    virtual void mapCol(int y, int& x) override {
-        int whichInt = x / m_interleave;
-        int offInInt = x % m_interleave;
-        int mult = y / m_panelScan;
-
-        if (m_panelScan == 2) {
-            // AC_MAPPING code - stealing codepath for scan 1/2 and zigzag8
-            // cluster -- the ordinal number of a group of 8 linear lights on a half-frame
-            // starting in the top left corner of a half-module; bits 3,2 from y, 1,0 from x
-            int tc = whichInt | (y << 1) & 0xc;
-            // mapped cluster - this reverses the effects of unusual wiring on this panel
-            // address bits are shifted around and bit3 is negated to achieve linear counting
-            uint8_t map_cb = (~tc & 8) | (tc & 4) >> 2 | (tc & 2) << 1 | (tc & 1) << 1;
-            // scale up from cluster to pixel counts and account for reverse-running clusters
-            x = map_cb * 8 + (x & 0x7 ^ (((~y >> 1) & 1) * 7));
-            return;
-        } else if (m_interleave == 4) {
-            if ((whichInt & 0x1) == 1) {
-                mult = (y < m_panelScan ? y + m_panelScan : y - m_panelScan) / m_panelScan;
-            }
-        } else {
-            int tmp = (y * 2) / m_panelScan;
-            if ((tmp & 0x2) == 0) {
-                offInInt = m_interleave - 1 - offInInt;
-            }
-        }
-        x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult) + offInInt;
-    }
-
-private:
-    const int m_interleave;
-    const int m_panelWidth;
-    const int m_panelHeight;
-    const int m_panelScan;
-};
-
-class StripeClusterInterleaveHandler : public InterleaveHandler {
-public:
-    static constexpr int MAPPING[8][4] = {
-        { 32, 48, 96, 112 },
-        { 32, 48, 96, 112 },
-        { 40, 56, 104, 120 },
-        { 40, 56, 104, 120 },
-        { 0, 16, 64, 80 },
-        { 0, 16, 64, 80 },
-        { 8, 24, 72, 88 },
-        { 8, 24, 72, 88 }
-    };
-
-    StripeClusterInterleaveHandler(int interleave, int ph, int pw, int ps) :
-        InterleaveHandler(),
-        m_interleave(interleave),
-        m_panelHeight(ph),
-        m_panelWidth(pw),
-        m_panelScan(ps) {}
-    virtual ~StripeClusterInterleaveHandler() {}
-
-    virtual void mapRow(int& y) override {
-        while (y >= m_panelScan) {
-            y -= m_panelScan;
-        }
-    }
-    virtual void mapCol(int y, int& x) override {
-        int whichInt = x / m_interleave;
-        int offInInt = x % m_interleave;
-        x = MAPPING[y % 8][whichInt % 4] + offInInt;
-    }
-
-private:
-    const int m_interleave;
-    const int m_panelWidth;
-    const int m_panelHeight;
-    const int m_panelScan;
-};
-
-class ZigZagInterleaveHandler : public InterleaveHandler {
-public:
-    ZigZagInterleaveHandler(int interleave, int ph, int pw, int ps) :
-        InterleaveHandler(),
-        m_interleave(interleave),
-        m_panelHeight(ph),
-        m_panelWidth(pw),
-        m_panelScan(ps) {}
-    virtual ~ZigZagInterleaveHandler() {}
-
-    virtual void mapRow(int& y) override {
-        while (y >= m_panelScan) {
-            y -= m_panelScan;
-        }
-    }
-    virtual void mapCol(int y, int& x) override {
-        int whichInt = x / m_interleave;
-        int offInInt = x % m_interleave;
-        int mult = y / m_panelScan;
-
-        if (m_panelScan == 2) {
-            if ((y & 0x2) == 0) {
-                offInInt = m_interleave - 1 - offInInt;
-            }
-        } else if (m_interleave == 4) {
-            if ((whichInt & 0x1) == 1) {
-                mult = (y < m_panelScan ? y + m_panelScan : y - m_panelScan) / m_panelScan;
-            }
-        } else {
-            int tmp = (y * 2) / m_panelScan;
-            if ((tmp & 0x2) == 0) {
-                offInInt = m_interleave - 1 - offInInt;
-            }
-        }
-        x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult) + offInInt;
-    }
-
-private:
-    const int m_interleave;
-    const int m_panelWidth;
-    const int m_panelHeight;
-    const int m_panelScan;
 };
 
 static const std::vector<std::string> PRU_PINS = { "P1-20", "P1-29", "P1-31", "P1-33", "P1-36",
@@ -440,56 +249,14 @@ int BBShiftPanelOutput::Init(Json::Value config) {
     setupGamma(gamma);
 
     if (config.isMember("panelInterleave")) {
-        if (config["panelInterleave"].asString() == "8z") {
-            m_interleave = 8;
-            zigZagInterleave = true;
-        } else if (config["panelInterleave"].asString() == "16z") {
-            m_interleave = 16;
-            zigZagInterleave = true;
-        } else if (config["panelInterleave"].asString() == "4z") {
-            m_interleave = 4;
-            zigZagInterleave = true;
-        } else if (config["panelInterleave"].asString() == "32z") {
-            m_interleave = 32;
-            zigZagInterleave = true;
-        } else if (config["panelInterleave"].asString() == "40z") {
-            m_interleave = 40;
-            zigZagInterleave = true;
-        } else if (config["panelInterleave"].asString() == "8f") {
-            m_interleave = 8;
-            flipRows = true;
-        } else if (config["panelInterleave"].asString() == "16f") {
-            m_interleave = 16;
-            flipRows = true;
-        } else if (config["panelInterleave"].asString() == "32f") {
-            m_interleave = 32;
-            flipRows = true;
-        } else if (config["panelInterleave"].asString() == "64f") {
-            m_interleave = 64;
-            flipRows = true;
-        } else if (config["panelInterleave"].asString() == "80f") {
-            m_interleave = 80;
-            flipRows = true;
-        } else if (config["panelInterleave"].asString() == "8c") {
-            m_interleave = 8;
-            zigZagClusterInterleave = true;
-        } else if (config["panelInterleave"].asString() == "8s") {
-            m_interleave = 8;
-            stripeInterleave = true;
-        } else {
-            m_interleave = std::atoi(config["panelInterleave"].asString().c_str());
-        }
-    } else {
-        m_interleave = 0;
+        m_panelInterleave = config["panelInterleave"].asString();
     }
+
     m_panelScan = config["panelScan"].asInt();
     // printf("Interleave: %d     Scan: %d    ZZI: %d    ZZCI:  %d    SI: %d\n", m_interleave, m_panelScan, zigZagInterleave, zigZagClusterInterleave, stripeInterleave);
     if (m_panelScan == 0) {
-        // 1/8 scan by default
-        m_panelScan = 8;
-    }
-    if (((m_panelScan * 2) != m_panelHeight) && m_interleave == 0) {
-        m_interleave = 8;
+        //  default scan is 1/2 the height of the panel
+        m_panelScan = m_panelHeight / 2;
     }
 
     m_channelCount = m_width * m_height * 3;
@@ -508,7 +275,9 @@ int BBShiftPanelOutput::Init(Json::Value config) {
                 sm["yOffset"].asInt());
         }
     }
-    setupChannelOffsets();
+    if (!setupChannelOffsets()) {
+        return 0;
+    }
     if (StartPRU() == 0) {
         return 0;
     }
@@ -1047,22 +816,12 @@ void BBShiftPanelOutput::setupBrightnessValues() {
     }
 }
 
-void BBShiftPanelOutput::setupChannelOffsets() {
-    InterleaveHandler* handler = nullptr;
-    if (m_interleave && ((m_panelScan * 2) != m_panelHeight)) {
-        if (zigZagInterleave) {
-            handler = new ZigZagInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
-        } else if (zigZagClusterInterleave) {
-            handler = new ZigZagClusterInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
-        } else if (stripeInterleave) {
-            handler = new StripeClusterInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
-        } else {
-            handler = new SimpleInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan, flipRows);
-        }
-    } else {
-        handler = new NoInterleaveHandler();
+bool BBShiftPanelOutput::setupChannelOffsets() {
+    PanelInterleaveHandler* handler = PanelInterleaveHandler::createHandler(m_panelInterleave, m_panelWidth, m_panelHeight, m_panelScan);
+    if (!handler) {
+        LogErr(VB_CHANNELOUT, "Failed to create panel interleave handler\n");
+        return false;
     }
-
     numRows = 0;
     rowLen = 0;
     int maxRowLen = 0;
@@ -1070,21 +829,14 @@ void BBShiftPanelOutput::setupChannelOffsets() {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
 
         for (int i = 0; i < panelsOnOutput; i++) {
-            int panel = m_panelMatrix->m_outputPanels[output][i];
-            int chain = m_panelMatrix->m_panels[panel].chain;
-
             for (int y = 0; y < (m_panelHeight / 2); y++) {
-                int yw1 = y * m_panelWidth * 3;
-                int yw2 = (y + (m_panelHeight / 2)) * m_panelWidth * 3;
-
-                int yOut = y;
-                handler->mapRow(yOut);
-                if (yOut >= numRows) {
-                    numRows = yOut + 1;
-                }
                 for (int x = 0; x < m_panelWidth; ++x) {
+                    int yOut = y;
                     int xOut = x;
-                    handler->mapCol(y, xOut);
+                    handler->map(xOut, yOut);
+                    if (yOut >= numRows) {
+                        numRows = yOut + 1;
+                    }
                     if (xOut >= maxRowLen) {
                         maxRowLen = xOut + 1;
                     }
@@ -1111,9 +863,6 @@ void BBShiftPanelOutput::setupChannelOffsets() {
                 int yw1 = y * m_panelWidth * 3;
                 int yw2 = (y + (m_panelHeight / 2)) * m_panelWidth * 3;
 
-                int yOut = y;
-                handler->mapRow(yOut);
-
                 for (int x = 0; x < m_panelWidth; ++x) {
                     uint32_t r1 = m_panelMatrix->m_panels[panel].pixelMap[yw1 + x * 3];
                     uint32_t g1 = m_panelMatrix->m_panels[panel].pixelMap[yw1 + x * 3 + 1];
@@ -1122,8 +871,9 @@ void BBShiftPanelOutput::setupChannelOffsets() {
                     uint32_t r2 = m_panelMatrix->m_panels[panel].pixelMap[yw2 + x * 3];
                     uint32_t g2 = m_panelMatrix->m_panels[panel].pixelMap[yw2 + x * 3 + 1];
                     uint32_t b2 = m_panelMatrix->m_panels[panel].pixelMap[yw2 + x * 3 + 2];
+                    int yOut = y;
                     int xOut = x;
-                    handler->mapCol(y, xOut);
+                    handler->map(xOut, yOut);
                     xOut += xOff;
 
                     if (isPWMPanel()) {
@@ -1170,6 +920,7 @@ void BBShiftPanelOutput::setupChannelOffsets() {
     */
     currentChannelData = new uint16_t[rowLen * 8 * 6 * numRows];
     memset(currentChannelData, 0, rowLen * 8 * 6 * numRows * sizeof(uint16_t));
+    return true;
 }
 
 void BBShiftPanelOutput::setupGamma(float gamma) {

@@ -22,7 +22,7 @@
 // 16 rows (1/16 scan) * 8bits per row
 #define MAX_STATS 16 * 8
 
-class InterleaveHandler;
+class PanelInterleaveHandler;
 
 // structure of the data at the start of the PRU ram
 // that the pru program expects to see
@@ -78,14 +78,15 @@ private:
 
     int m_panelWidth;
     int m_panelHeight;
+    int m_panelScan;
+    std::string m_panelInterleave;
+
     int m_outputs;
     int m_longestChain;
     int m_invertedData;
     int m_brightness;
     int m_colorDepth;
-    int m_interleave;
     bool m_printStats;
-    int m_panelScan;
     FPPColorOrder m_colorOrder;
 
     uint32_t* m_gpioFrame;
@@ -100,7 +101,7 @@ private:
     std::vector<int> m_bitOrder;
 
     int m_timing;
-    InterleaveHandler* m_handler;
+    PanelInterleaveHandler* m_handler;
 
     uint32_t brightnessValues[12];
     uint32_t delayValues[12];

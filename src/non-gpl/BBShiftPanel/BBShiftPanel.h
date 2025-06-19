@@ -87,7 +87,7 @@ private:
     bool isPWMPanel();
 
     void setupGamma(float gamma);
-    void setupChannelOffsets();
+    bool setupChannelOffsets();
 
     void setupBrightnessValues();
     void setupPWMRegisters();
@@ -101,17 +101,15 @@ private:
 
     int m_panelWidth = 0;
     int m_panelHeight = 0;
+    int m_panelScan = 0;
+    std::string m_panelInterleave = "";
+
     int m_addressingMode = 0;
     int m_longestChain = 0;
     int m_invertedData = 0;
     int m_brightness = 10;
     int m_colorDepth = 12;
-    int m_interleave = 0;
-    int m_panelScan = 0;
-    bool zigZagInterleave = false;
-    bool zigZagClusterInterleave = false;
-    bool stripeInterleave = false;
-    bool flipRows = false;
+
     FPPColorOrder m_colorOrder;
 
     int m_panels = 0;
