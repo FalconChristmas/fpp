@@ -110,9 +110,13 @@
 				"LogLevel_Sync"
 			]
 		},
-		"geolocation": {
-			"description": "Geographic Location",
+		"regionallocation": {
+			"description": "Regional Settings",
 			"settings": [
+				"Locale",
+				"DateFormat",
+				"TimeFormat",
+				"temperatureInF",
 				"Latitude",
 				"Longitude"
 			]
@@ -292,11 +296,7 @@
 				"ClockTime",
 				"piRTC",
 				"ntpServer",
-				"TimeZone",
-				"Locale",
-				"DateFormat",
-				"TimeFormat",
-				"temperatureInF"
+				"TimeZone"
 			]
 		},
 		"ui": {

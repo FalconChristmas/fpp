@@ -119,11 +119,11 @@ $id = 0;
                             </li>
                             <? if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2)) { ?>
                                     <li class="nav-item">
-                                        <? $tabIDs["Time"] = $id++; ?>
-                                        <a class="nav-link" id="settings-time-tab" data-bs-toggle="tab"
-                                            data-bs-target="#settings-time" href="#settings-time" data-option="Time" role="tab"
-                                            aria-controls="settings-time" aria-selected="true">
-                                            Time
+                                        <? $tabIDs["Localisation"] = $id++; ?>
+                                        <a class="nav-link" id="settings-localisation-tab" data-bs-toggle="tab"
+                                            data-bs-target="#settings-localisation" href="#settings-localisation" data-option="Localisation" role="tab"
+                                            aria-controls="settings-localisation" aria-selected="true">
+                                            Localisation
                                         </a>
                                     </li>
                             <? } ?>
@@ -259,7 +259,7 @@ $id = 0;
 if(location.hash){
     if( location.hash == '#settings-system'){ activeTabNumber = tabIDs["System"]}
     if( location.hash == '#settings-av'){ activeTabNumber = tabIDs["AV"]}
-    if( location.hash == '#settings-time'){ activeTabNumber = tabIDs["Time"] }
+    if( location.hash == '#settings-localisation'){ activeTabNumber = tabIDs["Localisation"] }
     if( location.hash == '#settings-ui'){ activeTabNumber = tabIDs["UI"] }
     if( location.hash == '#settings-email'){ activeTabNumber = tabIDs["Email"] }
     if( location.hash == '#settings-mqtt'){ activeTabNumber = tabIDs["MQTT"] }
@@ -305,7 +305,7 @@ if(location.hash){
                         };
                     }
                     $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
-                        if (($(this).attr("href") == '#settings-time') &&
+                        if (($(this).attr("href") == '#settings-localisation') &&
                             ($(this).parent().hasClass('active'))) {
                             UpdateCurrentTime();
                         } else if (statusTimeout != null) {
@@ -348,7 +348,7 @@ if(location.hash){
                     },
                     activate: function(event, ui) {
                         $('.ui-tooltip').hide();
-                        if (ui.newTab.find("a").attr("href") == 'settings-time.php') {
+                        if (ui.newTab.find("a").attr("href") == 'settings-localisation.php') {
                             UpdateCurrentTime();
                     } else if (statusTimeout != null) {
             clearTimeout(statusTimeout);
