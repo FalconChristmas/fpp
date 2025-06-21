@@ -183,6 +183,14 @@ $id = 0;
                                     Logging
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <? $tabIDs["Services"] = $id++; ?>
+                                <a class="nav-link" id="settings-services-tab" data-bs-toggle="tab"
+                                    data-bs-target="#settings-services" href="#settings-services" data-option="Services"
+                                    role="tab" aria-controls="settings-services" aria-selected="true">
+                                    Services
+                                </a>
+                            </li>
                             <? if ($uiLevel >= $storageUILevel || $tabId == "Storage") { ?>
                                     <li class="nav-item">
                                         <? $tabIDs["Storage"] = $id++; ?>
@@ -266,6 +274,7 @@ if(location.hash){
     if( location.hash == '#settings-privacy'){ activeTabNumber = tabIDs["Privacy"] }
     if( location.hash == '#settings-output'){ activeTabNumber = tabIDs["Output"] }
     if( location.hash == '#settings-logs'){ activeTabNumber = tabIDs["Logging"] }
+    if( location.hash == '#settings-services'){ activeTabNumber = tabIDs["Services"]}
     if( location.hash == '#settings-storage'){ activeTabNumber = tabIDs["Storage"]}
     if( location.hash == '#settings-system'){ activeTabNumber = tabIDs["System"] }
     if( location.hash == '#settings-developer'){ activeTabNumber = tabIDs["Developer"] }
