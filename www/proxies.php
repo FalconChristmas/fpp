@@ -130,7 +130,7 @@
                     for (var i = 0; i < proxyInfos.length; i++) {
                        if (proxyInfos[i].dhcp) {
                           $("#proxyTable tbody").append(
-                              "<tr><td>" + (i + 1) + "</td><td>&nbsp;&nbsp;&nbsp;" + proxyInfos[i].host + "</td><td>DHCP</td><td><a target='_blank' href='proxy/" + proxyInfos[i].host + "/'>" + proxyInfos[i].host + "</a></td></tr>"
+                              "<tr><td>" + (i + 1) + "</td><td>&nbsp;&nbsp;&nbsp;" + proxyInfos[i].host + "</td><td>&nbsp;&nbsp;&nbsp;DHCP</td><td><a target='_blank' href='proxy/" + proxyInfos[i].host + "/'>" + proxyInfos[i].host + "</a></td></tr>"
                           );
                        } else {
                           AddProxyForHost(proxyInfos[i].host, proxyInfos[i].description);
