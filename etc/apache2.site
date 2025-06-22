@@ -273,6 +273,7 @@ AddDefaultCharset utf-8
         ExpiresByType application/rdf+xml            "access plus 1 hour"
         ExpiresByType application/rss+xml            "access plus 1 hour"
 
+        ExpiresByType application/binary             "access plus 0 seconds"
         ExpiresByType application/json               "access plus 0 seconds"
         ExpiresByType application/ld+json            "access plus 0 seconds"
         ExpiresByType application/schema+json        "access plus 0 seconds"
