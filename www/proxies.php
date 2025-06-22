@@ -128,8 +128,15 @@
                 success: function (data) {
                     proxyInfos = data;
                     for (var i = 0; i < proxyInfos.length; i++) {
-                        AddProxyForHost(proxyInfos[i].host, proxyInfos[i].description);
+                       if (proxyInfos[i].dhcp) {
+                          $("#dchpProxyTable tbody").append(
+                              "<tr><td>" + (i + 1) + "</td><td><a target='_blank' href='proxy/" + proxyInfos[i].host + "/'>" + proxyInfos[i].host + "</a></td></tr>"
+                          );
+                       } else {
+                          AddProxyForHost(proxyInfos[i].host, proxyInfos[i].description);
+                       }
                     }
+
                 },
                 error: function () {
                     $.jGrowl('Error: Unable to get list of proxies', { themeState: 'danger' });
@@ -193,75 +200,7 @@
                             </table>
                         </div>
                     </div>
-                    <?
-                    $interfaces = network_list_interfaces_array();
-                    $dhcpIps = array();
-                    foreach ($interfaces as $iface) {
-                        $iface = rtrim($iface, " :\n\r\t\v\x00");
-                        $out = shell_exec("networkctl --no-legend -l -n 0 status " . $iface);
-                        if ($out == null) {
-                            $out = "";
-                        }
-                        $lines = explode("\n", trim($out));
-                        $inLeases = false;
-                        foreach ($lines as $line) {
-                            $line = trim($line);
-                            //echo $line . "\n";
-                    
-                            if (!$inLeases && startsWith($line, "Offered DHCP leases")) {
-                                $inLeases = true;
-                                $line = trim(substr($line, 20));
-                            }
-                            if ($inLeases) {
-                                $pos = strpos($line, "(to ");
-                                if ($pos === false) {
-                                    $inLeases = false;
-                                } else {
-                                    $line = trim(substr($line, 0, $pos));
-                                    $dhcpIps[] = $line;
-                                }
-                            }
-                        }
-                    }
-                    if (count($dhcpIps) > 0) {
-                        ?>
-                        <br>
-                        <hr>
-                        <div class="row tablePageHeader">
-                            <div class="col-md">
-                                <h3>DHCP Hosts</h3>
-                            </div>
-                        </div>
 
-                        <div class="fppTableWrapper">
-                            <div class='fppTableContents' role="region" aria-labelledby="dchpProxyTable" tabindex="0">
-                                <table id="dchpProxyTable" class="fppSelectableRowTable">
-                                    <thead>
-                                        <tr>
-                                            <th>#</td>
-                                            <th>IP/HostName</td>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?
-                                        $count = 1;
-                                        foreach ($dhcpIps as $ip) {
-                                            if (!$settings['hideExternalURLs']) {
-                                                echo "<tr><td>" . $count . "</td><td><a target='_blank' href='proxy/" . $ip . "/'>" . $ip . "</a></td></tr>\n";
-                                            } else {
-                                                echo "<tr><td>" . $count . "</td><td>" . $ip . "</td></tr>\n";
-                                            }
-                                            $count++;
-                                        }
-                                        ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <?
-                    }
-                    ?>
                     <div class="backdrop">
                         <b>Notes:</b>
                         <p>This is a list of ip/hostnames for which we can reach their HTTP configuration pages via

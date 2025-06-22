@@ -23,6 +23,20 @@ function LoadProxyList()
             $description = substr($line, 4);
         }
     }
+
+    $leases = getDHCPLeases();
+    foreach ($leases as $ip) {
+        $alreadyExists = false;
+        foreach ($proxies as $proxy) {
+            if ($proxy['host'] === $ip) {
+                $alreadyExists = true;
+                break;
+            }
+        }
+        if (!$alreadyExists) {
+            $proxies[] = array("host" => $ip, "description" => "", "dhcp" => true);
+        }
+    }
     return $proxies;
 }
 
@@ -145,3 +159,35 @@ function GetProxiedURL()
 
     return;
 }
+
+function getDHCPLeases() {
+    $dhcpIps = array();
+    $interfaces = network_list_interfaces_array();
+    foreach ($interfaces as $iface) {
+        $iface = rtrim($iface, " :\n\r\t\v\x00");
+        $out = shell_exec("networkctl --no-legend -l -n 0 status " . escapeshellarg($iface));
+        if ($out == null) {
+            $out = "";
+        }
+        $lines = explode("\n", trim($out));
+        $inLeases = false;
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (!$inLeases && strpos($line, "Offered DHCP leases") === 0) {
+                $inLeases = true;
+                $line = trim(substr($line, 20));
+            }
+            if ($inLeases) {
+                $pos = strpos($line, "(to ");
+                if ($pos === false) {
+                    $inLeases = false;
+                } else {
+                    $line = trim(substr($line, 0, $pos));
+                    $dhcpIps[] = $line;
+                }
+            }
+        }
+    }
+    return $dhcpIps;
+}
+
