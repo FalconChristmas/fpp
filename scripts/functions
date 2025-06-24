@@ -472,8 +472,7 @@ BINARIES="fppd fpp fppmm"
 cleanCompiledBinaries() {
     echo "in Clean stage"
 
-	if [ "x${FPPDIR}" = "x/opt/fpp" ]
-	then
+	if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
 		cd ${FPPDIR}/src && ${SUDO} make clean
 	else
 		cd ${FPPDIR}/src && sudo -u ${FPPUSER} make clean
@@ -483,7 +482,11 @@ cleanCompiledBinaries() {
         if [ -d "$p" ]; then
             if [ -f "${p}/Makefile" ]; then
                 echo "Cleaning plugin $p"
-                make -C "${p}" -f "${p}/Makefile" SRCDIR=${FPPDIR}/src clean
+                if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
+                    ${SUDO} make -C "${p}" -f "${p}/Makefile" SRCDIR=${FPPDIR}/src clean
+                else
+                    sudo -u ${FPPUSER} make -C "${p}" -f "${p}/Makefile" SRCDIR=${FPPDIR}/src clean
+                fi
             fi
         fi
     done
@@ -647,8 +650,7 @@ compileBinaries() {
         fi
     fi
 
-	if [ "x${FPPDIR}" = "x/opt/fpp" ]
-	then
+	if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
 		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} -E make -j ${CPUS} optimized
 	else
 		cd ${FPPDIR}/src && sudo -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make -j ${CPUS} optimized
@@ -658,7 +660,12 @@ compileBinaries() {
         if [ -d "$p" ]; then
             if [ -f "${p}/Makefile" ]; then
                 echo "Building plugin $p"
-                make -C "${p}" -f "${p}/Makefile" -j ${CPUS} SRCDIR=${FPPDIR}/src
+                if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
+                    ${SUDO} make -C "${p}" -f "${p}/Makefile" -j ${CPUS} SRCDIR=${FPPDIR}/src
+                    chown -R ${FPPUSER}:${FPPGROUP} "${p}"
+                else
+                    sudo -u ${FPPUSER} make -C "${p}" -f "${p}/Makefile" -j ${CPUS} SRCDIR=${FPPDIR}/src
+                fi
             fi
         fi
     done
