@@ -2296,7 +2296,7 @@
 			"name": "Service_MQTT_localbroker",
 			"description": "Enable Local MQTT Broker",
 			"gatherStats": true,
-			"tip": "The Local MQTT Broker can be used to publish and subscribe to MQTT messages on the local FPP system.  The username and password are the same as the noraml fpp user. Will run on localhost port 1883",
+			"tip": "The Local MQTT Broker can be used to publish and subscribe to MQTT messages on the local FPP system.  The username and password are the same as the normal fpp user. Will run on localhost port 1883",
 			"level": 1,
 			"type": "checkbox",
 			"default": "0",
