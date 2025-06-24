@@ -662,7 +662,7 @@ compileBinaries() {
                 echo "Building plugin $p"
                 if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
                     ${SUDO} make -C "${p}" -f "${p}/Makefile" -j ${CPUS} SRCDIR=${FPPDIR}/src
-                    chown -R ${FPPUSER}:${FPPGROUP} "${p}"
+                    ${SUDO} chown -R ${FPPUSER}:${FPPGROUP} "${p}"
                 else
                     sudo -u ${FPPUSER} make -C "${p}" -f "${p}/Makefile" -j ${CPUS} SRCDIR=${FPPDIR}/src
                 fi
