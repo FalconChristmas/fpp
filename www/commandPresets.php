@@ -108,7 +108,6 @@
                 alert('Error saving commands!');
             } else {
                 $.jGrowl('Commands saved.', { themeState: 'success' });
-                SetRestartFlag(2);
             }
         }
 

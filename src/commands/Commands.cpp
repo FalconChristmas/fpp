@@ -427,10 +427,13 @@ Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std
 }
 
 int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& keywords) {
+    std::unique_lock<std::mutex> lock(presetsMutex);
+    MaybeReloadPresets();
     for (auto const& name : presets.getMemberNames()) {
         for (int i = 0; i < presets[name].size(); i++) {
             if (presets[name][i]["presetSlot"].asInt() == slot) {
                 Json::Value cmd = ReplaceCommandKeywords(presets[name][i], keywords);
+                lock.unlock();
                 run(cmd);
             }
         }
@@ -446,11 +449,14 @@ int CommandManager::TriggerPreset(int slot) {
 }
 
 int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::string>& keywords) {
+    std::unique_lock<std::mutex> lock(presetsMutex);
+    MaybeReloadPresets();
     if (!presets.isMember(name))
         return 0;
 
     for (int i = 0; i < presets[name].size(); i++) {
         Json::Value cmd = ReplaceCommandKeywords(presets[name][i], keywords);
+        lock.unlock();
         run(cmd);
     }
 
@@ -461,6 +467,14 @@ int CommandManager::TriggerPreset(std::string name) {
     std::map<std::string, std::string> keywords;
 
     return TriggerPreset(name, keywords);
+}
+
+void CommandManager::MaybeReloadPresets() {
+    std::string commandsFile = FPP_DIR_CONFIG("/commandPresets.json");
+    if (lastPresetTimeStamp < FileTimestamp(commandsFile)) {
+        presets.clear();
+        LoadPresets();
+    }
 }
 
 void CommandManager::LoadPresets() {
@@ -475,6 +489,7 @@ void CommandManager::LoadPresets() {
 
     if (FileExists(commandsFile)) {
         // Load new config file
+        lastPresetTimeStamp = FileTimestamp(commandsFile);
         allCommands = LoadJsonFromFile(commandsFile);
     } else {
         // Convert any old events to new format
@@ -502,6 +517,7 @@ void CommandManager::LoadPresets() {
 
         allCommands["commands"] = commands;
         SaveJsonToFile(allCommands, commandsFile, "\t");
+        lastPresetTimeStamp = FileTimestamp(commandsFile);
     }
 
     if (allCommands.isMember("commands")) {

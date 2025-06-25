@@ -126,6 +126,14 @@ int FileExists(const char* File) {
 int FileExists(const std::string& f) {
     return FileExists(f.c_str());
 }
+uint64_t FileTimestamp(const std::string& File) {
+    struct stat sts;
+    if (stat(File.c_str(), &sts) == -1) {
+        return 0;
+    } else {
+        return (uint64_t)sts.st_mtime;
+    }
+}
 
 int Touch(const std::string& File) {
     int fd = open(File.c_str(), O_WRONLY | O_CREAT | O_NOCTTY | O_NONBLOCK, 0666);

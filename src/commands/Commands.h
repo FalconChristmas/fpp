@@ -150,10 +150,13 @@ private:
     ~CommandManager();
 
     void LoadPresets();
+    void MaybeReloadPresets();
 
     Json::Value ReplaceCommandKeywords(Json::Value cmd, std::map<std::string, std::string>& keywords);
 
+    std::mutex presetsMutex;
     Json::Value presets;
+    uint64_t lastPresetTimeStamp = 0;
 
     std::map<std::string, Command*> commands;
 };
