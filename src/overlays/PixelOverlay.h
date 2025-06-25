@@ -72,7 +72,7 @@ private:
     std::atomic_int numActive;
     std::list<PixelOverlayModel*> activeModels;
     std::list<OverlayRange> activeRanges;
-    std::mutex activeModelsLock;
+    std::recursive_mutex activeModelsLock;
 
     std::map<std::string, PixelOverlayModel*> models;
     std::list<std::string> modelNames;

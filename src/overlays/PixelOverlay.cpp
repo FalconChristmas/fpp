@@ -266,12 +266,12 @@ bool PixelOverlayManager::hasActiveOverlays() {
 void PixelOverlayManager::modelStateChanged(PixelOverlayModel* m, const PixelOverlayState& old, const PixelOverlayState& state) {
     if (old.getState() == 0) {
         // enabling, add
-        std::unique_lock<std::mutex> lock(activeModelsLock);
+        std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
         activeModels.push_back(m);
         numActive++;
     } else if (state.getState() == 0) {
         // disabling, remove
-        std::unique_lock<std::mutex> lock(activeModelsLock);
+        std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
         activeModels.remove(m);
         numActive--;
     }
@@ -284,7 +284,7 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
     if (numActive == 0) {
         return;
     }
-    std::unique_lock<std::mutex> lock(activeModelsLock);
+    std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
     // First, flush any buffers
     for (auto m : activeModels) {
         if (m->overlayBufferIsDirty()) {
@@ -315,7 +315,9 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
         PixelOverlayModel* m = afterOverlayModels.front();
         afterOverlayModels.pop_front();
         l.unlock();
+        lock.lock();
         m->updateRunningEffects();
+        lock.unlock();
         l.lock();
     }
 }
@@ -688,7 +690,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
                     if (root.isMember("delete") && root["delete"].asBool()) {
                         val = -1;
                     } else if (root.isMember("deleteAll") && root["deleteAll"].asBool()) {
-                        std::unique_lock<std::mutex> lock(activeModelsLock);
+                        std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
                         int sz = activeRanges.size();
                         activeRanges.clear();
                         numActive -= sz;
@@ -721,7 +723,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
                 if (start > 0 && end >= start) {
                     end--;
                     start--;
-                    std::unique_lock<std::mutex> lock(activeModelsLock);
+                    std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
                     auto it = activeRanges.begin();
                     bool found = false;
                     while (it != activeRanges.end()) {
@@ -990,7 +992,7 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
 Json::Value PixelOverlayManager::getActiveOverlayEffects() {
     Json::Value ret = Json::arrayValue;
 
-    std::unique_lock<std::mutex> lock(activeModelsLock);
+    std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
     for (auto& m : activeModels) {
         std::unique_lock<std::recursive_mutex> l(m->getRunningEffectMutex());
         RunningEffect* eff = m->getRunningEffect();
