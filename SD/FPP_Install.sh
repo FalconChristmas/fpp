@@ -494,7 +494,7 @@ case "${OSVER}" in
         PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
                       apache2 apache2-bin apache2-data apache2-utils libavahi-client-dev \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
-                      fbi fbset file flite ca-certificates lshw gettext wget iproute2 \
+                      fbi fbset file flite ca-certificates lshw gettext wget iproute2 fswatch \
                       build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
                       git git-core hdparm i2c-tools ifplugd jq less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
@@ -1391,8 +1391,9 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone 64" ]; then
     # remove the udev rules that create the SoftAp interface on the bbbw and bbggw
     rm -f /etc/udev/rules.d/*SoftAp*
     
-    echo 'GOVERNOR="performance"' > /etc/default/cpufrequtils
+    echo 'GOVERNOR="schedutil"' > /etc/default/cpufrequtils
     
+    echo "USB_UMTPRD_DISABLED=yes" >> /etc/default/bb-boot
 fi
 if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     #######################################
@@ -1404,7 +1405,8 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     
     # sysconf requires a vfat partition which the BBB images currently don't have
     systemctl disable bbbio-set-sysconf
-    
+    echo "USB_UMTPRD_DISABLED=yes" >> /etc/default/bb-boot
+
     if [ ! -f "/opt/source/bb.org-overlays/Makefile" ]; then
         mkdir -p /opt/source
         cd /opt/source
