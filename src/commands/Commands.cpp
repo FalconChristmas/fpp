@@ -429,16 +429,20 @@ Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std
 int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& keywords) {
     std::unique_lock<std::mutex> lock(presetsMutex);
     MaybeReloadPresets();
+    std::list<Json::Value> slotPresets;
     for (auto const& name : presets.getMemberNames()) {
         for (int i = 0; i < presets[name].size(); i++) {
             if (presets[name][i]["presetSlot"].asInt() == slot) {
                 Json::Value cmd = ReplaceCommandKeywords(presets[name][i], keywords);
-                lock.unlock();
-                run(cmd);
+                slotPresets.push_back(cmd);
             }
         }
     }
+    lock.unlock();
 
+    for (auto const& preset : slotPresets) {
+        run(preset);
+    }
     return 1;
 }
 
@@ -454,9 +458,11 @@ int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::s
     if (!presets.isMember(name))
         return 0;
 
-    for (int i = 0; i < presets[name].size(); i++) {
-        Json::Value cmd = ReplaceCommandKeywords(presets[name][i], keywords);
-        lock.unlock();
+    auto it = presets[name];
+    lock.unlock();
+
+    for (int i = 0; i < it.size(); i++) {
+        Json::Value cmd = ReplaceCommandKeywords(it[i], keywords);
         run(cmd);
     }
 
