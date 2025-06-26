@@ -230,7 +230,7 @@ int SetSetting(const std::string& key, const std::string& value) {
     settings.settings[key] = value;
 
     if (key == "fppMode") {
-        if (value == "player") {
+        if (value == "player" || value.empty()) {
             settings.fppMode = PLAYER_MODE;
         } else if (value == "bridge") {
             // legacy, remap to PLAYER

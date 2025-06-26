@@ -583,7 +583,7 @@ int parseArguments(int argc, char** argv) {
             setVolume(atoi(optarg));
             break;
         case 'm': // mode
-            if (strcmp(optarg, "player") == 0)
+            if (strcmp(optarg, "player") == 0 || strcmp(optarg, "") == 0)
                 settings.fppMode = PLAYER_MODE;
             else if (strcmp(optarg, "master") == 0) {
                 settings.fppMode = PLAYER_MODE;
