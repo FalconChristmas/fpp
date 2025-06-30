@@ -51,7 +51,6 @@ int socket_fd = -1;
 struct sockaddr_un server_address;
 int integer_buffer;
 int fppdStartTime = 0;
-int m_localOverride;
 
 static void exit_handler(int signum) {
     LogInfo(VB_GENERAL, "Caught signal %d\n", signum);

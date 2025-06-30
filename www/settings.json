@@ -159,8 +159,7 @@
 				"screensaver",
 				"screensaverTimeout",
 				"openStartDelay",
-				"remoteOffset",
-				"localOverride"
+				"remoteOffset"
 			]
 		},
 		"generalScheduler": {
@@ -835,19 +834,8 @@
 			"description": "Blank between sequences",
 			"gatherStats": true,
 			"tip": "Blank Between Sequences instructs FPP to send blanking data out all channel outputs between each sequence played in a playlist.  This can be used to turn off all the lights after each sequence if the sequences do not end with all channels turned off.",
-			"restart": 2,
+			"restart": 0,
 			"type": "checkbox"
-		},
-		"localOverride": {
-			"name": "localOverride",
-			"description": "Local sequences override remote",
-			"gatherStats": true,
-			"tip": "This instructs FPP to allow local sequences to override remote sequences for when you have an interactive show that may affect the props on this controller.",
-			"restart": 2,
-			"type": "checkbox",
-			"fppModes": [
-				"remote"
-			]
 		},
 		"bridgeDataPriority": {
 			"name": "bridgeDataPriority",
@@ -856,7 +844,7 @@
 			"level": 0,
 			"gatherStats": true,
 			"reboot": 0,
-			"restart": 1,
+			"restart": 0,
 			"reloadUI": 0,
 			"type": "select",
 			"default": "Warn If Sequence Running",
@@ -2072,7 +2060,6 @@
 			"description": "Pause background effects during FSEQ playback",
 			"gatherStats": true,
 			"tip": "Background effects normally continue to run when a sequence is playing.  This setting instructs FPP to pause all background effects when a sequence is running.  When the sequence stops running, the background effects resume playback.",
-			"restart": 2,
 			"type": "checkbox"
 		},
 		"password": {
@@ -2191,7 +2178,7 @@
 			"tip": "Allow scheduling down to the second instead of scheduling on minute boundaries.  Enabling this setting will show the seconds value in the Scheduler UI for the Start and End times on schedule entries.",
 			"type": "checkbox",
 			"level": 1,
-			"restart": 1,
+			"reloadUI": 1,
 			"exposedAsJSToPages": [
 				"scheduler"
 			]
@@ -2568,6 +2555,7 @@
 			"gatherStats": true,
 			"tip": "The Default Video Output device to be used when playing a video.  On all FPP systems, video played in a playlist can be displayed on a Pixel Overlay model.  On the Raspberry Pi, video can also be played on the HDMI/Composite video outputs.",
 			"type": "select",
+			"restart": 2,
 			"optionsURL": "api/settings/VideoOutput/options",
 			"platforms": [
 				"!MacOS"

@@ -630,9 +630,13 @@ int main(int argc, char* argv[]) {
     // Check to see if we were restarted and should skip sending blanking data at startup
     if (FileExists(FPP_DIR_MEDIA("/tmp/fppd_restarted"))) {
         unlink(FPP_DIR_MEDIA("/tmp/fppd_restarted").c_str());
-        SetSetting("restarted", 1);
+        setSetting("restarted", 1);
     }
-
+    std::string restartFlag = getSetting("restartFlag", "0");
+    if (restartFlag == "2") {
+        // if this was a restart and a "quick" was requested, then mark as restarted
+        setSetting("restartFlag", "0", true);
+    }
     if (loggingToFile()) {
         logVersionInfo();
     }

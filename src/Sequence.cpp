@@ -95,15 +95,16 @@ Sequence::Sequence() :
     }
 
     m_blankBetweenSequences = getSettingInt("blankBetweenSequences");
-    m_prioritize_sequence_over_bridge = false;
-    m_warn_if_bridging = false;
-    std::string bridgeDataPriority = getSetting("bridgeDataPriority", "Warn If Sequence Running");
-    if (bridgeDataPriority == "Prioritize Sequence") {
-        m_prioritize_sequence_over_bridge = true;
-    } else if (bridgeDataPriority == "Warn If Sequence Running") {
-        m_prioritize_sequence_over_bridge = true;
-        m_warn_if_bridging = true;
-    }
+    setBridgePrioritySetting(getSetting("bridgeDataPriority", "Warn If Sequence Running"));
+
+    registerSettingsListener("sequence", "blankBetweenSequences",
+                             [this](const std::string& value) {
+                                 m_blankBetweenSequences = getSettingInt("blankBetweenSequences");
+                             });
+    registerSettingsListener("sequence", "bridgeDataPriority",
+                             [this](const std::string& value) {
+                                 setBridgePrioritySetting(value);
+                             });
 }
 
 Sequence::~Sequence() {
@@ -123,6 +124,18 @@ Sequence::~Sequence() {
     }
     munmap(m_seqData, FPPD_MAX_CHANNELS);
 }
+
+void Sequence::setBridgePrioritySetting(const std::string& value) {
+    m_prioritize_sequence_over_bridge = false;
+    m_warn_if_bridging = false;
+    if (value == "Prioritize Sequence") {
+        m_prioritize_sequence_over_bridge = true;
+    } else if (value == "Warn If Sequence Running") {
+        m_prioritize_sequence_over_bridge = true;
+        m_warn_if_bridging = true;
+    }
+}
+
 void Sequence::clearCaches() {
     while (!frameCache.empty()) {
         if (frameCache.front() != m_lastFrameData)

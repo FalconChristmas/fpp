@@ -51,12 +51,14 @@ const std::string getFPPmodeStr(FPPMode mode = UNKNOWN_MODE);
 
 // Action functions
 int LoadSettings(const char* base);
-int SetSetting(const std::string& key, const std::string& value);
-int SetSetting(const std::string& key, const int value);
 
 // Setters & Getters
 std::string getSetting(const char* setting, const char* defaultVal = "");
 int getSettingInt(const char* setting, int defaultVal = 0);
+int setSetting(const std::string& key, const std::string& value, bool persist = false);
+int setSetting(const std::string& key, const int value);
+int SetSetting(const std::string& key, const std::string& value);
+int SetSetting(const std::string& key, const int value);
 
 // listeners
 void registerSettingsListener(const std::string& id, const std::string& setting, std::function<void(const std::string&)>&& cb);

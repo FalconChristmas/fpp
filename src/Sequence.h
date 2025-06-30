@@ -73,6 +73,8 @@ public:
 private:
     void ProcessVariableHeaders();
     void SetLastFrameData(FSEQFile::FrameData* data);
+
+    void setBridgePrioritySetting(const std::string& value);
     bool m_prioritize_sequence_over_bridge;
     bool m_warn_if_bridging = false;
 

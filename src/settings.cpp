@@ -102,7 +102,7 @@ public:
     std::string getSetting(const std::string& setting, const std::string& defaultVal);
     int getSettingInt(const std::string& setting, int defaultVal);
 
-    void setSetting(const std::string& key, const std::string& value);
+    void setSetting(const std::string& key, const std::string& value, bool persist);
 
     int LoadSettings(const std::string& base);
 
@@ -230,10 +230,28 @@ void SettingsConfig::LoadSettingsInfo() {
     settings["HostName"] = hn;
 #endif
 }
-void SettingsConfig::setSetting(const std::string& key, const std::string& value) {
+void SettingsConfig::setSetting(const std::string& key, const std::string& value, bool persist) {
     std::unique_lock<std::shared_mutex> lock(settingsMutex);
     if (setSettingLocked(key, value)) {
+        if (persist) {
+            std::string contents = GetFileContents(FPP_FILE_SETTINGS);
+            auto pos = contents.find(key + " = ");
+            if (pos != std::string::npos) {
+                // Found the key, replace its value
+                size_t endPos = contents.find('\n', pos);
+                if (endPos == std::string::npos) {
+                    endPos = contents.size();
+                }
+                std::string oldLine = contents.substr(pos, endPos - pos);
+                std::string newLine = key + " = \"" + value + "\"\n";
+                contents.replace(pos, oldLine.size(), newLine);
+            } else {
+                contents += key + " = \"" + value + "\"\n";
+            }
+            PutFileContents(FPP_FILE_SETTINGS, contents);
+        }
         lock.unlock();
+
         // Notify listeners about the setting change
         std::shared_lock<std::shared_mutex> listenersLock(settingsListenersMutex);
         if (settingsListeners.find(key) != settingsListeners.end()) {
@@ -445,14 +463,19 @@ int LoadSettings(const char* base) {
     return settings.LoadSettings(base);
 }
 
-int SetSetting(const std::string& key, const int value) {
-    return SetSetting(key, std::to_string(value));
+int setSetting(const std::string& key, const int value) {
+    return setSetting(key, std::to_string(value));
 }
-int SetSetting(const std::string& key, const std::string& value) {
-    settings.setSetting(key, value);
+int setSetting(const std::string& key, const std::string& value, bool persist) {
+    settings.setSetting(key, value, persist);
     return 1;
 }
-
+int SetSetting(const std::string& key, const int value) {
+    return SetSetting(key, value);
+}
+int SetSetting(const std::string& key, const std::string& value) {
+    return setSetting(key, value);
+}
 std::string getSetting(const char* setting, const char* defaultVal) {
     if ((!setting) || (setting[0] == 0x00)) {
         LogErr(VB_SETTING, "getSetting() called with NULL or empty value\n");

@@ -121,8 +121,6 @@ private:
     int m_loop;
     int m_loopCount;
     int m_random;
-    int m_blankBetweenSequences;
-    int m_blankBetweenIterations;
     int m_blankAtEnd;
     long long m_startTime;
     int m_subPlaylistDepth;

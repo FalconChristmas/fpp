@@ -58,8 +58,6 @@ Playlist::Playlist(Playlist* parent) :
     m_loop(0),
     m_loopCount(0),
     m_random(0),
-    m_blankBetweenSequences(0),
-    m_blankBetweenIterations(0),
     m_blankAtEnd(1),
     m_startTime(0),
     m_subPlaylistDepth(0),
@@ -703,9 +701,7 @@ void Playlist::Pause() {
     LogDebug(VB_PLAYLIST, "Playlist::Pause called on %s\n", m_filename.c_str());
     if (IsPlaying()) {
         std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
-        if (m_currentSection
-            && m_sectionPosition < m_currentSection->size()
-            && m_currentSection->at(m_sectionPosition)->IsPlaying()) {
+        if (m_currentSection && m_sectionPosition < m_currentSection->size() && m_currentSection->at(m_sectionPosition)->IsPlaying()) {
             m_currentSection->at(m_sectionPosition)->Pause();
             if (m_currentSection->at(m_sectionPosition)->IsPaused()) {
                 m_status = FPP_STATUS_PLAYLIST_PAUSED;
@@ -1778,8 +1774,6 @@ void Playlist::GetInfo(Json::Value& result) {
         result["loop"] = 0;
         result["loopCount"] = 0;
         result["random"] = 0;
-        result["blankBetweenSequences"] = 0;
-        result["blankBetweenIterations"] = 0;
         result["blankAtEnd"] = 0;
         result["size"] = 0;
     } else {
@@ -1789,8 +1783,6 @@ void Playlist::GetInfo(Json::Value& result) {
         result["loop"] = m_loop;
         result["loopCount"] = m_loopCount;
         result["random"] = m_random;
-        result["blankBetweenSequences"] = m_blankBetweenSequences;
-        result["blankBetweenIterations"] = m_blankBetweenIterations;
         result["blankAtEnd"] = m_blankAtEnd;
         result["size"] = GetSize();
     }

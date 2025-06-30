@@ -57,7 +57,7 @@ public:
 };
 
 static int effectCount = 0;
-static int pauseBackgroundEffects = 0;
+static volatile int pauseBackgroundEffects = 0;
 static std::array<FPPeffect*, MAX_EFFECTS> effects;
 static std::list<std::pair<uint32_t, uint32_t>> clearRanges;
 static std::mutex effectsLock;
@@ -85,6 +85,10 @@ int InitEffects(void) {
     }
 
     pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
+    registerSettingsListener("effects", "pauseBackgroundEffects",
+                             [](const std::string& value) {
+                                 pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
+                             });
 
     std::function<void(const std::string&, const std::string&)>
         effect_callback = [](const std::string& topic_in,
@@ -175,8 +179,8 @@ int StartEffect(FSEQFile* fseq, const std::string& effectName, int loop, bool bg
     StartChannelOutputThread();
 
     if (!sequence->IsSequenceRunning() && tmpec == 1) {
-        //first effect running, no sequence running, set the refresh rate
-        //to the rate of the effect
+        // first effect running, no sequence running, set the refresh rate
+        // to the rate of the effect
         SetChannelOutputRefreshRate(1000 / frameTime);
     }
 
@@ -246,7 +250,7 @@ void StopEffectHelper(int effectID) {
                 clearRanges.push_back(std::pair<uint32_t, uint32_t>(a.first, a.second));
             }
         } else {
-            //not sparse and not eseq, entire range
+            // not sparse and not eseq, entire range
             clearRanges.push_back(std::pair<uint32_t, uint32_t>(0, e->fp->getChannelCount()));
         }
     }
@@ -370,7 +374,7 @@ int OverlayEffects(char* channelData) {
 
     std::unique_lock<std::mutex> lock(effectsLock);
 
-    //for effects that have been stopped, we need to clear the data
+    // for effects that have been stopped, we need to clear the data
     for (auto& rng : clearRanges) {
         memset(&channelData[rng.first], 0, rng.second);
     }
