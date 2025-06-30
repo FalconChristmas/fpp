@@ -31,6 +31,7 @@
 #include "common.h"
 #include "log.h"
 #include "settings.h"
+#include "../FileMonitor.h"
 #include "../OutputMonitor.h"
 #include "../Plugin.h"
 #include "../Plugins.h"
@@ -125,15 +126,15 @@ static void sortRanges(std::vector<std::pair<uint32_t, uint32_t>>& rngs, bool ga
         rngs.push_back(cur);
     }
 }
-static void addRange(uint32_t min, uint32_t max) {
-    for (auto& r : preciseOutputRanges) {
+static void addRange(uint32_t min, uint32_t max, std::vector<std::pair<uint32_t, uint32_t>>& prec, std::vector<std::pair<uint32_t, uint32_t>>& normal) {
+    for (auto& r : prec) {
         int rm = r.first + r.second - 1;
         if (min >= r.first && max <= rm) {
             // within the range, don't add it
             return;
         }
     }
-    preciseOutputRanges.push_back(std::pair<uint32_t, uint32_t>(min, max - min + 1));
+    prec.emplace_back(min, max - min + 1);
 
     // having the reads be aligned to intervals of 8 can help performance so
     // we'll expand the range a bit to align things better
@@ -149,7 +150,38 @@ static void addRange(uint32_t min, uint32_t max) {
             return;
         }
     }
-    outputRanges.push_back(std::pair<uint32_t, uint32_t>(min, max - min + 1));
+    normal.emplace_back(min, max - min + 1);
+}
+
+static void ComputeOutputRanges() {
+    std::vector<std::pair<uint32_t, uint32_t>> normal;
+    std::vector<std::pair<uint32_t, uint32_t>> precise;
+
+    for (auto& co : channelOutputs) {
+        if (co.output) {
+            co.output->GetRequiredChannelRanges([&precise, &normal, &co](int m1, int m2) {
+                LogInfo(VB_CHANNELOUT, "%s: Determined range needed %d - %d\n", co.output->GetOutputType().c_str(), m1, m2);
+                addRange(m1, m2, precise, normal);
+            });
+        } else if (co.outputOld) {
+            // old style outputs
+            int m1 = co.startChannel;
+            int m2 = m1 + co.channelCount - 1;
+            LogInfo(VB_CHANNELOUT, "ChannelOutput:  Determined range needed %d - %d\n", m1, m2);
+            addRange(m1, m2, precise, normal);
+        }
+    }
+    outputProcessors.GetRequiredChannelRanges([&precise, &normal](int m1, int m2) {
+        LogInfo(VB_CHANNELOUT, "OutputProcessor:  Determined range needed %d - %d\n", m1, m2);
+        addRange(m1, m2, precise, normal);
+    });
+    sortRanges(normal, false);
+    sortRanges(precise, true);
+    for (auto& r : precise) {
+        LogInfo(VB_CHANNELOUT, "Determined range needed %d - %d\n", r.first, r.first + r.second - 1);
+    }
+    preciseOutputRanges.swap(precise);
+    outputRanges.swap(normal);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -230,14 +262,6 @@ int InitializeChannelOutputs(void) {
 
         if (FPDOutput.open("", &inst.privData)) {
             inst.channelCount = inst.outputOld->maxChannels(inst.privData);
-
-            int m1 = inst.startChannel;
-            int m2 = m1 + inst.channelCount - 1;
-            LogInfo(VB_CHANNELOUT, "FPD:  Determined range needed %d - %d\n",
-                    m1, m2);
-
-            addRange(m1, m2);
-
             channelOutputs.push_back(inst);
             LogDebug(VB_CHANNELOUT, "Configured FPD Channel Output\n");
         } else {
@@ -324,11 +348,6 @@ int InitializeChannelOutputs(void) {
                     }
                     if (channelOutput.output) {
                         if (channelOutput.output->Init(outputs[c])) {
-                            channelOutput.output->GetRequiredChannelRanges([type](int m1, int m2) {
-                                LogInfo(VB_CHANNELOUT, "%s:  Determined range needed %d - %d\n",
-                                        type.c_str(), m1, m2);
-                                addRange(m1, m2);
-                            });
                             channelOutputs.push_back(channelOutput);
                         } else {
                             WarningHolder::AddWarning("Could not initialize output type " + type + ". Check logs for details.");
@@ -354,18 +373,8 @@ int InitializeChannelOutputs(void) {
     }
 
     LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", channelOutputs.size());
-
     LoadOutputProcessors();
-    outputProcessors.GetRequiredChannelRanges([](int m1, int m2) {
-        LogInfo(VB_CHANNELOUT, "OutputProcessor:  Determined range needed %d - %d\n", m1, m2);
-        addRange(m1, m2);
-    });
-    sortRanges(outputRanges, false);
-    sortRanges(preciseOutputRanges, true);
-    for (auto& r : preciseOutputRanges) {
-        LogInfo(VB_CHANNELOUT, "Determined range needed %d - %d\n", r.first, r.first + r.second - 1);
-    }
-
+    ComputeOutputRanges();
     return 1;
 }
 
@@ -505,16 +514,23 @@ int LoadOutputProcessors(void) {
     Json::Value root;
     std::string filename = FPP_DIR_CONFIG("/outputprocessors.json");
 
+    FileMonitor::INSTANCE.AddFile("outputprocessors.json", filename, [filename]() {
+        Json::Value newRoot;
+        if (FileExists(filename)) {
+            LoadJsonFromFile(filename, newRoot);
+        }
+        outputProcessors.loadFromJSON(newRoot);
+        ComputeOutputRanges();
+    });
+
     if (!FileExists(filename))
         return 0;
 
     LogDebug(VB_CHANNELOUT, "Loading Output Processors.\n");
-
     if (!LoadJsonFromFile(filename, root)) {
         LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename.c_str());
         return 0;
     }
-
     outputProcessors.loadFromJSON(root);
 
     return 1;

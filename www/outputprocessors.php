@@ -23,7 +23,7 @@ require_once "common.php";
             var type = output.type;
             if (type != "Fold") {
                 html += "Model: <select class='model'>";
-                models.forEach(function(model) {
+                models.forEach(function (model) {
                     html += "<option value='" + model + "'";
                     if (output.model === model) {
                         html += " selected";
@@ -372,9 +372,8 @@ require_once "common.php";
             }
             ).done(function (data) {
                 $.jGrowl("Output Processors Table saved", { themeState: 'success' });
-                SetRestartFlag(2);
                 common_ViewPortChange();
-                PopulateOutputProcessorTable(data,models);
+                PopulateOutputProcessorTable(data, models);
             }).fail(function () {
                 DialogError("Save Output Processors Table", "Save Failed");
             });
@@ -536,13 +535,13 @@ require_once "common.php";
                 url: "api/models?simple=true",
                 method: "GET",
                 dataType: "json",
-                success: function(data) {
-                    data.unshift("&lt;Use Start Channel&gt;"); 
-                    models = data; 
+                success: function (data) {
+                    data.unshift("&lt;Use Start Channel&gt;");
+                    models = data;
                     SetupSelectableTableRow(tableInfo);
                     GetOutputProcessors(models);
                 },
-                error: function() {
+                error: function () {
                     models.unshift("&lt;Use Start Channel&gt;");
                     SetupSelectableTableRow(tableInfo);
                     GetOutputProcessors(models);
@@ -593,13 +592,15 @@ require_once "common.php";
                     <div class="row tablePageHeader">
                         <div class="col-md">
                             <h2>Output Processors</h2>
-                        When applying an output process to a Model:
-                        <br>
-                        - Start channel is an offset from the Model start channel. Eg Start Channel 1 means use the first channel of the model.
-                        <br>
-                        - Count or Nodes can be set to use the x channels/nodes from the model, rather than all of the channels/nodes in a model.
-                        <br>
-                        <br>
+                            When applying an output process to a Model:
+                            <br>
+                            - Start channel is an offset from the Model start channel. Eg Start Channel 1 means use the
+                            first channel of the model.
+                            <br>
+                            - Count or Nodes can be set to use the x channels/nodes from the model, rather than all of
+                            the channels/nodes in a model.
+                            <br>
+                            <br>
                         </div>
                         <div class="col-md-auto ms-lg-auto">
                             <div class="form-actions">

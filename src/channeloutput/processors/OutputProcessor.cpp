@@ -17,15 +17,15 @@
 #include "OutputProcessor.h"
 
 #include "BrightnessOutputProcessor.h"
+#include "ClampValueOutputProcessor.h"
 #include "ColorOrderOutputProcessor.h"
 #include "FoldOutputProcessor.h"
 #include "HoldValueOutputProcessor.h"
 #include "OverrideZeroOutputProcessor.h"
 #include "RemapOutputProcessor.h"
-#include "SetValueOutputProcessor.h"
-#include "ClampValueOutputProcessor.h"
-#include "ThreeToFourOutputProcessor.h"
 #include "ScaleValueOutputProcessor.h"
+#include "SetValueOutputProcessor.h"
+#include "ThreeToFourOutputProcessor.h"
 #include "../../overlays/PixelOverlay.h"
 #include "../../overlays/PixelOverlayModel.h"
 
@@ -66,20 +66,36 @@ void OutputProcessors::removeAll() {
     processors.clear();
 }
 
-void OutputProcessors::loadFromJSON(const Json::Value& config, bool clear) {
-    if (clear) {
-        removeAll();
+void OutputProcessors::loadFromJSON(const Json::Value& config) {
+    // If we are reloading, remove all existing processors first
+    // But only the ones created from JSON, plugins may have added their own
+    // and we don't want to remove those.
+    std::unique_lock<std::mutex> lock(processorsLock);
+    for (auto a : fromJsonProcessors) {
+        processors.remove(a);
+        delete a;
     }
+    fromJsonProcessors.clear();
+    lock.unlock();
+
     for (Json::Value::const_iterator itr = config.begin(); itr != config.end(); ++itr) {
         std::string name = itr.key().asString();
         if (name == "outputProcessors") {
             Json::Value val = *itr;
             if (val.isArray()) {
                 for (int x = 0; x < val.size(); x++) {
-                    addProcessor(create(val[x]));
+                    OutputProcessor* p = create(val[x]);
+                    addProcessor(p);
+                    lock.lock();
+                    fromJsonProcessors.push_back(p);
+                    lock.unlock();
                 }
             } else {
-                addProcessor(create(val));
+                OutputProcessor* p = create(val);
+                addProcessor(p);
+                lock.lock();
+                fromJsonProcessors.push_back(p);
+                lock.unlock();
             }
         }
     }
@@ -166,8 +182,8 @@ void ProcessModelConfig(const Json::Value& config, std::string& model, int& star
                 }
             }
         } else {
-           model = "";
-           --start;
+            model = "";
+            --start;
         }
     } else {
         model = "";

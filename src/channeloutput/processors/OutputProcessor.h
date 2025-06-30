@@ -63,7 +63,7 @@ public:
 
     OutputProcessor* find(std::function<bool(OutputProcessor*)> f) const;
 
-    void loadFromJSON(const Json::Value& config, bool clear = true);
+    void loadFromJSON(const Json::Value& config);
 
     void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange);
 
@@ -73,6 +73,7 @@ protected:
 
     mutable std::mutex processorsLock;
     std::list<OutputProcessor*> processors;
+    std::list<OutputProcessor*> fromJsonProcessors;
 };
 
 void ProcessModelConfig(const Json::Value& config, std::string& model, int& start, int& count);

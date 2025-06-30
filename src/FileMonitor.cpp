@@ -155,6 +155,8 @@ void FileMonitor::fileChangedEvent() {
         std::lock_guard<std::mutex> lock(mutex_);
         std::string path = fileMapping_[pevent->wd];
 
+        // printf("%d) %s: (%s)   mask: %X\n", buffer_i, path.c_str(), pevent->name, pevent->mask);
+
         if (pevent->mask & IN_IGNORED) {
             // The watch was removed, ignore this event
             continue;

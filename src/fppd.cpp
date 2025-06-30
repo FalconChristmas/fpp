@@ -641,7 +641,7 @@ int main(int argc, char* argv[]) {
         logVersionInfo();
     }
 
-    FileMonitor::INSTANCE.AddFile("FPPD:Settings", FPP_DIR_CONFIG("/settings"), [argv]() {
+    FileMonitor::INSTANCE.AddFile("FPPD:Settings", FPP_DIR_MEDIA("/settings"), [argv]() {
         LogInfo(VB_SETTING, "Settings file changed, reloading settings\n");
         LoadSettings(argv[0]); }, true);
 

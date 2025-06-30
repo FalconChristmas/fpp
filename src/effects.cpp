@@ -87,6 +87,7 @@ int InitEffects(void) {
     pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
     registerSettingsListener("effects", "pauseBackgroundEffects",
                              [](const std::string& value) {
+                                 LogDebug(VB_SETTING, "Setting pauseBackgroundEffects to %s\n", value.c_str());
                                  pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
                              });
 
