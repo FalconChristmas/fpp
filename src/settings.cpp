@@ -471,7 +471,7 @@ int setSetting(const std::string& key, const std::string& value, bool persist) {
     return 1;
 }
 int SetSetting(const std::string& key, const int value) {
-    return SetSetting(key, value);
+    return setSetting(key, value);
 }
 int SetSetting(const std::string& key, const std::string& value) {
     return setSetting(key, value);
