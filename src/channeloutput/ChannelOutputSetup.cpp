@@ -48,8 +48,6 @@ unsigned long channelOutputFrame = 0;
 float mediaElapsedSeconds = 0.0;
 std::vector<FPPChannelOutputInstance> channelOutputs;
 
-static int LoadOutputProcessors(void);
-
 OutputProcessors outputProcessors;
 
 static std::vector<std::pair<uint32_t, uint32_t>> outputRanges;
@@ -373,8 +371,16 @@ int InitializeChannelOutputs(void) {
     }
 
     LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", channelOutputs.size());
-    LoadOutputProcessors();
-    ComputeOutputRanges();
+    std::string opfilename = FPP_DIR_CONFIG("/outputprocessors.json");
+    FileMonitor::INSTANCE.AddFile("outputprocessors.json", opfilename, [opfilename]() {
+                             Json::Value newRoot;
+                             if (FileExists(opfilename)) {
+                                 LoadJsonFromFile(opfilename, newRoot);
+                             }
+                             outputProcessors.loadFromJSON(newRoot);
+                             ComputeOutputRanges();
+                         })
+        .TriggerFileChanged(opfilename);
     return 1;
 }
 
@@ -508,30 +514,4 @@ void CloseChannelOutputs(void) {
             channelOutputs[i].output = NULL;
         }
     }
-}
-
-int LoadOutputProcessors(void) {
-    Json::Value root;
-    std::string filename = FPP_DIR_CONFIG("/outputprocessors.json");
-
-    FileMonitor::INSTANCE.AddFile("outputprocessors.json", filename, [filename]() {
-        Json::Value newRoot;
-        if (FileExists(filename)) {
-            LoadJsonFromFile(filename, newRoot);
-        }
-        outputProcessors.loadFromJSON(newRoot);
-        ComputeOutputRanges();
-    });
-
-    if (!FileExists(filename))
-        return 0;
-
-    LogDebug(VB_CHANNELOUT, "Loading Output Processors.\n");
-    if (!LoadJsonFromFile(filename, root)) {
-        LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename.c_str());
-        return 0;
-    }
-    outputProcessors.loadFromJSON(root);
-
-    return 1;
 }

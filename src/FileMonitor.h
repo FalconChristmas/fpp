@@ -25,8 +25,10 @@ public:
     void Initialize(std::map<int, std::function<bool(int)>>& callbacks);
     void Cleanup();
 
-    void AddFile(const std::string& id, const std::string& file, const std::function<void()>& callback, bool modificationsOnly = false);
-    void RemoveFile(const std::string& id, const std::string& file);
+    FileMonitor& AddFile(const std::string& id, const std::string& file, const std::function<void()>& callback, bool modificationsOnly = false);
+    FileMonitor& RemoveFile(const std::string& id, const std::string& file);
+
+    FileMonitor& TriggerFileChanged(const std::string& file);
 
 private:
     FileMonitor();

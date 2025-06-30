@@ -84,7 +84,7 @@ void FileMonitor::Cleanup() {
     fileMapping_.clear();
     files_.clear();
 }
-void FileMonitor::AddFile(const std::string& id, const std::string& file, const std::function<void()>& callback, bool modificationsOnly) {
+FileMonitor& FileMonitor::AddFile(const std::string& id, const std::string& file, const std::function<void()>& callback, bool modificationsOnly) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = files_.find(file);
@@ -107,14 +107,15 @@ void FileMonitor::AddFile(const std::string& id, const std::string& file, const 
     if (FileExists(file) && fileInfo.inotify_watch_fd < 0) {
         int inotify_watch_fd = inotify_add_watch(inotify_fd_, file.c_str(), IN_MODIFY);
         if (inotify_watch_fd < 0) {
-            return;
+            return *this;
         }
         fileMapping_[inotify_watch_fd] = file;
         fileInfo.inotify_watch_fd = inotify_watch_fd;
     }
 #endif
+    return *this;
 }
-void FileMonitor::RemoveFile(const std::string& id, const std::string& file) {
+FileMonitor& FileMonitor::RemoveFile(const std::string& id, const std::string& file) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = files_.find(file);
     if (it != files_.end()) {
@@ -130,6 +131,18 @@ void FileMonitor::RemoveFile(const std::string& id, const std::string& file) {
             files_.erase(it);
         }
     }
+    return *this;
+}
+
+FileMonitor& FileMonitor::TriggerFileChanged(const std::string& file) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = files_.find(file);
+    if (it != files_.end()) {
+        for (const auto& callback : it->second.callbacks) {
+            callback.second();
+        }
+    }
+    return *this;
 }
 
 void FileMonitor::fileChangedEvent() {
@@ -155,7 +168,7 @@ void FileMonitor::fileChangedEvent() {
         std::lock_guard<std::mutex> lock(mutex_);
         std::string path = fileMapping_[pevent->wd];
 
-        // printf("%d) %s: (%s)   mask: %X\n", buffer_i, path.c_str(), pevent->name, pevent->mask);
+        // printf("%d) %s: (%s)    id: %d   mask: %X\n", buffer_i, path.c_str(), pevent->name, pevent->wd, pevent->mask);
 
         if (pevent->mask & IN_IGNORED) {
             // The watch was removed, ignore this event
@@ -192,6 +205,13 @@ void FileMonitor::fileChangedEvent() {
                     callback.second();
                 }
             }
+        }
+        if (buffer_i >= r) {
+            r = read(inotify_fd_, buffer, sizeof(buffer));
+            if (r <= 0) {
+                break; // No more events to process
+            }
+            buffer_i = 0;
         }
     }
 #else
