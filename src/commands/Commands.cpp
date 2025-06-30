@@ -20,6 +20,7 @@
 #include "../Events.h"
 
 #include "EventCommands.h"
+#include "FileMonitor.h"
 #include "MediaCommands.h"
 #include "MultiSync.h"
 #include "PlaylistCommands.h"
@@ -80,6 +81,13 @@ CommandManager::CommandManager() {
 
 void CommandManager::Init() {
     LoadPresets();
+
+    FileMonitor::INSTANCE.AddFile("CommandManager:CommandPresets.json",
+                                  FPP_DIR_CONFIG("/commandPresets.json"),
+                                  [this]() {
+                                      std::unique_lock<std::mutex> lock(presetsMutex);
+                                      MaybeReloadPresets();
+                                  });
 
     addCommand(new StopPlaylistCommand());
     addCommand(new StopGracefullyPlaylistCommand());
@@ -176,6 +184,7 @@ CommandManager::~CommandManager() {
 }
 
 void CommandManager::Cleanup() {
+    FileMonitor::INSTANCE.RemoveFile("CommandManager:CommandPresets.json", FPP_DIR_CONFIG("/commandPresets.json"));
     while (!commands.empty()) {
         Command* cmd = commands.begin()->second;
         commands.erase(commands.begin());
@@ -428,7 +437,6 @@ Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std
 
 int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& keywords) {
     std::unique_lock<std::mutex> lock(presetsMutex);
-    MaybeReloadPresets();
     std::list<Json::Value> slotPresets;
     for (auto const& name : presets.getMemberNames()) {
         for (int i = 0; i < presets[name].size(); i++) {
@@ -454,7 +462,6 @@ int CommandManager::TriggerPreset(int slot) {
 
 int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::string>& keywords) {
     std::unique_lock<std::mutex> lock(presetsMutex);
-    MaybeReloadPresets();
     if (!presets.isMember(name))
         return 0;
 

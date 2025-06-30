@@ -1,6 +1,6 @@
 /*
  * This file is part of the Falcon Player (FPP) and is Copyright (C)
- * 2013-2022 by the Falcon Player Developers.
+ * 2013-2025 by the Falcon Player Developers.
  *
  * The Falcon Player (FPP) is free software, and is covered under
  * multiple Open Source licenses.  Please see the included 'LICENSES'
@@ -9,16 +9,19 @@
  * This source file is covered under the LGPL v2.1 as described in the
  * included LICENSE.LGPL file.
  */
-
-#include "fpp-pch.h"
+#if __has_include(<jsoncpp/json/json.h>)
+#include <jsoncpp/json/json.h>
+#elif __has_include(<json/json.h>)
+#include <json/json.h>
+#endif
 
 #include <cstring>
 #include <ctype.h>
-#include <filesystem>
-#include <fstream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <pwd.h>
+#include <shared_mutex>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -27,13 +30,12 @@
 
 #include "common.h"
 #include "log.h"
-#include "commands/Commands.h"
-
 #include "settings.h"
 
 #ifdef PLATFORM_OSX
 #include <mach-o/dyld.h>
 #endif
+#include <sys/fcntl.h>
 
 static std::string FPP_BIN_DIR("");
 static std::string FPP_MEDIA_DIR("");
@@ -83,43 +85,108 @@ std::string getFPPMediaDir(const std::string& path) {
     return FPP_MEDIA_DIR + path;
 }
 
-SettingsConfig settings;
+class SettingListener {
+public:
+    std::string id;
+    std::function<void(const std::string&)> callback;
+};
+class SettingsConfig {
+public:
+    SettingsConfig();
+    ~SettingsConfig();
+
+    void Init();
+
+    FPPMode fppMode;
+
+    std::string getSetting(const std::string& setting, const std::string& defaultVal);
+    int getSettingInt(const std::string& setting, int defaultVal);
+
+    void setSetting(const std::string& key, const std::string& value);
+
+    int LoadSettings(const std::string& base);
+
+    void registerSettingsListener(const std::string& id, const std::string& setting, std::function<void(const std::string&)>&& cb);
+    void unregisterSettingsListener(const std::string& id, const std::string& setting);
+
+private:
+    bool setSettingLocked(const std::string& key, const std::string& value);
+    void LoadSettingsInfo();
+
+    Json::Value settingsInfo;
+    Json::Value settings;
+    std::shared_mutex settingsMutex;
+
+    std::map<std::string, std::list<SettingListener>> settingsListeners;
+    std::shared_mutex settingsListenersMutex;
+};
+static SettingsConfig settings;
 
 SettingsConfig::SettingsConfig() {
-    LoadSettingsInfo();
 }
 
 SettingsConfig::~SettingsConfig() {
 }
 
 void SettingsConfig::Init() {
-    fppMode = PLAYER_MODE;
+    if (settingsInfo.empty()) {
+        LoadSettingsInfo();
+        fppMode = PLAYER_MODE;
 
-    // load UUID File
-    if (access(getFPPDDir("/scripts/get_uuid").c_str(), F_OK) == 0) {
-        FILE* uuid_fp;
-        char temp_uuid[500];
-        uuid_fp = popen(getFPPDDir("/scripts/get_uuid").c_str(), "r");
-        if (uuid_fp == NULL) {
-            LogWarn(VB_SETTING, "Couldn't execute get_uuid\n");
-        }
-        if (fgets(temp_uuid, sizeof(temp_uuid), uuid_fp) != NULL) {
-            int pos = strlen(temp_uuid) - 1;
-            // Strip newline
-            if ('\n' == temp_uuid[pos]) {
-                temp_uuid[pos] = '\0';
+        // load UUID File
+        if (access(getFPPDDir("/scripts/get_uuid").c_str(), F_OK) == 0) {
+            FILE* uuid_fp;
+            char temp_uuid[500];
+            uuid_fp = popen(getFPPDDir("/scripts/get_uuid").c_str(), "r");
+            if (uuid_fp == NULL) {
+                LogWarn(VB_SETTING, "Couldn't execute get_uuid\n");
             }
-            settings["SystemUUID"] = std::string(temp_uuid);
+            if (fgets(temp_uuid, sizeof(temp_uuid), uuid_fp) != NULL) {
+                int pos = strlen(temp_uuid) - 1;
+                // Strip newline
+                if ('\n' == temp_uuid[pos]) {
+                    temp_uuid[pos] = '\0';
+                }
+                settings["SystemUUID"] = std::string(temp_uuid);
+            }
+            if (uuid_fp != NULL) {
+                pclose(uuid_fp);
+            }
         }
-        if (uuid_fp != NULL) {
-            pclose(uuid_fp);
+
+        // Set to unknown if not found
+        if (!settings.isMember("SystemUUID")) {
+            settings["SystemUUID"] = "Unknown";
+            LogWarn(VB_SETTING, "Couldn't find UUID\n");
         }
     }
+}
+void SettingsConfig::registerSettingsListener(const std::string& id, const std::string& setting, std::function<void(const std::string&)>&& cb) {
+    std::unique_lock<std::shared_mutex> lock(settingsListenersMutex);
+    SettingListener listener;
+    listener.id = id;
+    listener.callback = std::move(cb);
 
-    // Set to unknown if not found
-    if (!settings.isMember("SystemUUID")) {
-        settings["SystemUUID"] = "Unknown";
-        LogWarn(VB_SETTING, "Couldn't find UUID\n");
+    if (settingsListeners.find(setting) == settingsListeners.end()) {
+        settingsListeners[setting] = std::list<SettingListener>();
+    }
+    settingsListeners[setting].push_back(listener);
+    LogDebug(VB_SETTING, "Registered settings listener for %s setting with id %s\n", setting.c_str(), id.c_str());
+}
+void SettingsConfig::unregisterSettingsListener(const std::string& id, const std::string& setting) {
+    std::unique_lock<std::shared_mutex> lock(settingsListenersMutex);
+    if (settingsListeners.find(setting) != settingsListeners.end()) {
+        auto& listeners = settingsListeners[setting];
+        for (auto it = listeners.begin(); it != listeners.end();) {
+            if (it->id == id) {
+                it = listeners.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        if (listeners.empty()) {
+            settingsListeners.erase(setting);
+        }
     }
 }
 
@@ -162,6 +229,74 @@ void SettingsConfig::LoadSettingsInfo() {
     }
     settings["HostName"] = hn;
 #endif
+}
+void SettingsConfig::setSetting(const std::string& key, const std::string& value) {
+    std::unique_lock<std::shared_mutex> lock(settingsMutex);
+    if (setSettingLocked(key, value)) {
+        lock.unlock();
+        // Notify listeners about the setting change
+        std::shared_lock<std::shared_mutex> listenersLock(settingsListenersMutex);
+        if (settingsListeners.find(key) != settingsListeners.end()) {
+            for (const auto& listener : settingsListeners[key]) {
+                LogDebug(VB_SETTING, "Notifying listener %s for setting %s with value '%s'\n",
+                         listener.id.c_str(), key.c_str(), value.c_str());
+                listener.callback(value);
+            }
+        }
+    }
+}
+bool SettingsConfig::setSettingLocked(const std::string& key, const std::string& value) {
+    std::string val = settings[key].asString();
+    if (val != value) {
+        LogDebug(VB_SETTING, "Setting %s:  from %s to %s\n", key.c_str(), val.c_str(), value.c_str());
+        settings[key] = value;
+        if (key == "fppMode") {
+            if (value == "player" || value.empty()) {
+                fppMode = PLAYER_MODE;
+            } else if (value == "bridge") {
+                // legacy, remap to PLAYER
+                fppMode = PLAYER_MODE;
+            } else if (value == "master") {
+                // legacy, remap to player, but turn on MultiSync setting
+                fppMode = PLAYER_MODE;
+                settings[key] = "player";
+                settings["MultiSyncEnabled"] = "1";
+            } else if (value == "remote") {
+                fppMode = REMOTE_MODE;
+            } else {
+                // default to playmode if string is invalid
+                fppMode = PLAYER_MODE;
+                settings[key] = "player";
+            }
+        } else if (startsWith(key, "LogLevel_")) {
+            // Starts with LogLevel_
+            if (value != "") {
+                FPPLogger::INSTANCE.SetLevel(key.c_str(), value.c_str());
+            } else {
+                FPPLogger::INSTANCE.SetLevel(key.c_str(), "warn");
+            }
+        }
+        return true;
+    }
+    return false;
+}
+std::string SettingsConfig::getSetting(const std::string& setting, const std::string& defaultVal) {
+    std::shared_lock<std::shared_mutex> lock(settingsMutex);
+    std::string result = defaultVal;
+    if (settings.isMember(setting)) {
+        result = settings[setting].asString();
+    }
+    LogExcess(VB_SETTING, "getSetting(%s) returning '%s'\n", setting, result.c_str());
+    return result;
+}
+int SettingsConfig::getSettingInt(const std::string& setting, int defaultVal) {
+    std::shared_lock<std::shared_mutex> lock(settingsMutex);
+    int result = defaultVal;
+    if (settings.isMember(setting)) {
+        result = atoi(settings[setting].asString().c_str());
+    }
+    LogExcess(VB_SETTING, "getSettingInt(%s) returning %d\n", setting, result);
+    return result;
 }
 
 // Returns a string that's the white-space trimmed version
@@ -220,50 +355,9 @@ char* modeToString(int mode) {
     return strdup("unknown");
 }
 
-int SetSetting(const std::string& key, const int value) {
-    return SetSetting(key, std::to_string(value));
-}
-
-static std::map<std::string, std::string> UPDATES;
-
-int SetSetting(const std::string& key, const std::string& value) {
-    settings.settings[key] = value;
-
-    if (key == "fppMode") {
-        if (value == "player" || value.empty()) {
-            settings.fppMode = PLAYER_MODE;
-        } else if (value == "bridge") {
-            // legacy, remap to PLAYER
-            settings.fppMode = PLAYER_MODE;
-            UPDATES[key] = "player";
-        } else if (value == "master") {
-            // legacy, remap to player, but turn on MultiSync setting
-            settings.fppMode = PLAYER_MODE;
-            settings.settings[key] = "player";
-            settings.settings["MultiSyncEnabled"] = "1";
-
-            UPDATES[key] = "fppMode = \"player\"";
-            UPDATES["MultiSyncEnabled"] = "MultiSyncEnabled = \"1\"";
-        } else if (value == "remote") {
-            settings.fppMode = REMOTE_MODE;
-        } else {
-            fprintf(stderr, "Error parsing mode\n");
-            exit(EXIT_FAILURE);
-        }
-    } else if (startsWith(key, "LogLevel_")) {
-        // Starts with LogLevel_
-        if (value != "") {
-            FPPLogger::INSTANCE.SetLevel(key.c_str(), value.c_str());
-        } else {
-            FPPLogger::INSTANCE.SetLevel(key.c_str(), "warn");
-        }
-    }
-
-    return 1;
-}
-
-int LoadSettings(const char* base) {
-    settings.Init();
+int SettingsConfig::LoadSettings(const std::string& base) {
+    std::unique_lock<std::shared_mutex> lock(settingsMutex);
+    Init();
 
     if (!FileExists(FPP_FILE_SETTINGS)) {
         LogWarn(VB_SETTING,
@@ -272,8 +366,9 @@ int LoadSettings(const char* base) {
     }
 
     FILE* file = fopen(FPP_FILE_SETTINGS.c_str(), "r");
-
+    std::map<std::string, std::string> changed;
     if (file != NULL) {
+        flock(fileno(file), LOCK_EX); // Lock the file for exclusive access
         char* line = (char*)calloc(256, 1);
         size_t len = 256;
         ssize_t read;
@@ -308,8 +403,9 @@ int LoadSettings(const char* base) {
                 continue;
             }
             value = trimwhitespace(token);
-
-            SetSetting(key, value);
+            if (setSettingLocked(key, value)) {
+                changed[key] = value; // Store the changed setting
+            }
 
             if (key) {
                 free(key);
@@ -325,83 +421,53 @@ int LoadSettings(const char* base) {
         if (line) {
             free(line);
         }
-
+        flock(fileno(file), LOCK_UN); // Lock the file for exclusive access
         fclose(file);
     } else {
         LogWarn(VB_SETTING, "Warning: couldn't open settings file: '%s'!\n", FPP_FILE_SETTINGS.c_str());
         return -1;
     }
-
-    UpgradeSettings();
-
-    return 0;
-}
-
-int SaveSettings() {
-    // When SaveSettings() is implemented, it should only save settings
-    // defined in settings.json since there are other ephemeral values
-    // stored in the settings Json::Value.
-    return 0;
-}
-
-void UpgradeSettings() {
-    if (!UPDATES.empty()) {
-        std::string inbuf;
-        std::fstream input_file(FPP_FILE_SETTINGS, std::ios::in);
-        std::ofstream output_file("/tmp/upgradedsettings.txt");
-
-        while (!input_file.eof()) {
-            getline(input_file, inbuf);
-            int spot = inbuf.find(" = ");
-            if (spot >= 0) {
-                std::string tmpstring = inbuf.substr(0, spot);
-                if (UPDATES.find(tmpstring) != UPDATES.end()) {
-                    inbuf = UPDATES[tmpstring];
-                    UPDATES.erase(tmpstring);
+    lock.unlock();
+    if (!changed.empty()) {
+        std::shared_lock<std::shared_mutex> listenersLock(settingsListenersMutex);
+        for (const auto& change : changed) {
+            if (settingsListeners.find(change.first) != settingsListeners.end()) {
+                for (const auto& listener : settingsListeners[change.first]) {
+                    listener.callback(change.second);
                 }
             }
-            if (inbuf != "") {
-                output_file << inbuf << std::endl;
-            }
         }
-        for (auto& e : UPDATES) {
-            output_file << e.second << std::endl;
-        }
-        output_file.close();
-        input_file.close();
-        CopyFileContents("/tmp/upgradedsettings.txt", FPP_FILE_SETTINGS);
     }
+    return 0;
+}
+
+int LoadSettings(const char* base) {
+    return settings.LoadSettings(base);
+}
+
+int SetSetting(const std::string& key, const int value) {
+    return SetSetting(key, std::to_string(value));
+}
+int SetSetting(const std::string& key, const std::string& value) {
+    settings.setSetting(key, value);
+    return 1;
 }
 
 std::string getSetting(const char* setting, const char* defaultVal) {
-    std::string result = defaultVal;
-
     if ((!setting) || (setting[0] == 0x00)) {
         LogErr(VB_SETTING, "getSetting() called with NULL or empty value\n");
+        std::string result = defaultVal;
         return result;
     }
-
-    if (settings.settings.isMember(setting))
-        result = settings.settings[setting].asString().c_str();
-
-    LogExcess(VB_SETTING, "getSetting(%s) returning '%s'\n", setting, result.c_str());
-    return result;
+    return settings.getSetting(setting, defaultVal);
 }
 
 int getSettingInt(const char* setting, int defaultVal) {
-    int result = defaultVal;
-
     if ((!setting) || (setting[0] == 0x00)) {
-        LogErr(VB_SETTING, "getSettingInt() called with NULL or empty value\n");
+        LogErr(VB_SETTING, "getSetting() called with NULL or empty value\n");
         return defaultVal;
     }
-
-    if (settings.settings.isMember(setting))
-        result = atoi(settings.settings[setting].asString().c_str());
-
-    LogExcess(VB_SETTING, "getSettingInt(%s) returning %d\n", setting, result);
-
-    return result;
+    return settings.getSettingInt(setting, defaultVal);
 }
 
 FPPMode getFPPmode(void) {
@@ -422,4 +488,11 @@ const std::string getFPPmodeStr(FPPMode mode) {
     }
 
     return result;
+}
+
+void registerSettingsListener(const std::string& id, const std::string& key, std::function<void(const std::string&)>&& cb) {
+    settings.registerSettingsListener(id, key, std::move(cb));
+}
+void unregisterSettingsListener(const std::string& id, const std::string& key) {
+    settings.unregisterSettingsListener(id, key);
 }

@@ -48,6 +48,7 @@ OBJECTS_fpp_so += \
 	effects.o \
 	Events.o \
 	falcon.o \
+	FileMonitor.o \
 	fppversion.o \
 	framebuffer/FrameBuffer.o \
 	framebuffer/IOCTLFrameBuffer.o \

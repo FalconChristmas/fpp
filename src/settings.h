@@ -1,7 +1,7 @@
 #pragma once
 /*
  * This file is part of the Falcon Player (FPP) and is Copyright (C)
- * 2013-2022 by the Falcon Player Developers.
+ * 2013-2025 by the Falcon Player Developers.
  *
  * The Falcon Player (FPP) is free software, and is covered under
  * multiple Open Source licenses.  Please see the included 'LICENSES'
@@ -11,7 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
-#include <map>
+#include <functional>
 #include <stdbool.h>
 #include <string>
 
@@ -36,29 +36,13 @@ std::string getFPPMediaDir(const std::string& path = "");
 
 typedef enum fppMode {
     UNKNOWN_MODE = 0x00,
-    BRIDGE_MODE = 0x01, //deprecated, not used by FPP 5.x+, but external controllers
-                        //may report this mode
+    BRIDGE_MODE = 0x01, // deprecated, not used by FPP 5.x+, but external controllers
+                        // may report this mode
     PLAYER_MODE = 0x02,
-    MASTER_MODE = 0x06, //deprecated, FPP <=4.x instance may report
-                        //this mode
+    MASTER_MODE = 0x06, // deprecated, FPP <=4.x instance may report
+                        // this mode
     REMOTE_MODE = 0x08
 } FPPMode;
-
-class SettingsConfig {
-public:
-    SettingsConfig();
-    ~SettingsConfig();
-
-    void Init();
-
-    FPPMode fppMode;
-
-    Json::Value settingsInfo;
-    Json::Value settings;
-
-private:
-    void LoadSettingsInfo();
-};
 
 // Helpers
 char* trimwhitespace(const char* str, int quotesAlso = 1);
@@ -67,13 +51,15 @@ const std::string getFPPmodeStr(FPPMode mode = UNKNOWN_MODE);
 
 // Action functions
 int LoadSettings(const char* base);
-int SaveSettings();
-void UpgradeSettings();
-int SetSetting(const std::string &key, const std::string &value);
-int SetSetting(const std::string &key, const int value);
+int SetSetting(const std::string& key, const std::string& value);
+int SetSetting(const std::string& key, const int value);
 
 // Setters & Getters
 std::string getSetting(const char* setting, const char* defaultVal = "");
 int getSettingInt(const char* setting, int defaultVal = 0);
+
+// listeners
+void registerSettingsListener(const std::string& id, const std::string& setting, std::function<void(const std::string&)>&& cb);
+void unregisterSettingsListener(const std::string& id, const std::string& setting);
 
 FPPMode getFPPmode(void);

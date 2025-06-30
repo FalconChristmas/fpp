@@ -55,6 +55,7 @@
 
 #include "CurlManager.h"
 #include "Events.h"
+#include "FileMonitor.h"
 #include "MultiSync.h"
 #include "NetworkMonitor.h"
 #include "OutputMonitor.h"
@@ -520,7 +521,6 @@ void usage(char* appname) {
            "                                  The default logging is read from settings\n",
            appname);
 }
-extern SettingsConfig settings;
 
 int parseArguments(int argc, char** argv) {
     char* s = NULL;
@@ -583,17 +583,7 @@ int parseArguments(int argc, char** argv) {
             setVolume(atoi(optarg));
             break;
         case 'm': // mode
-            if (strcmp(optarg, "player") == 0 || strcmp(optarg, "") == 0)
-                settings.fppMode = PLAYER_MODE;
-            else if (strcmp(optarg, "master") == 0) {
-                settings.fppMode = PLAYER_MODE;
-                SetSetting("MultiSyncEnabled", 1);
-            } else if (strcmp(optarg, "remote") == 0)
-                settings.fppMode = REMOTE_MODE;
-            else {
-                fprintf(stderr, "Error parsing mode\n");
-                exit(EXIT_FAILURE);
-            }
+            SetSetting("fppMode", optarg);
             break;
         case 'l': // log-file
             SetSetting("logFile", optarg);
@@ -643,8 +633,13 @@ int main(int argc, char* argv[]) {
         SetSetting("restarted", 1);
     }
 
-    if (loggingToFile())
+    if (loggingToFile()) {
         logVersionInfo();
+    }
+
+    FileMonitor::INSTANCE.AddFile("FPPD:Settings", FPP_DIR_CONFIG("/settings"), [argv]() {
+        LogInfo(VB_SETTING, "Settings file changed, reloading settings\n");
+        LoadSettings(argv[0]); }, true);
 
     // Start functioning
     if (getSettingInt("daemonize")) {
@@ -843,6 +838,7 @@ void MainLoop(void) {
     PluginManager::INSTANCE.addControlCallbacks(callbacks);
     NetworkMonitor::INSTANCE.Init(callbacks);
     Sensors::INSTANCE.Init(callbacks);
+    FileMonitor::INSTANCE.Initialize(callbacks);
 
     StartChannelOutputThread();
     if (!getSettingInt("restarted")) {
@@ -1020,6 +1016,8 @@ void MainLoop(void) {
         GPIOManager::INSTANCE.CheckGPIOInputs();
     }
     close(epollf);
+
+    FileMonitor::INSTANCE.Cleanup();
 
     LogInfo(VB_GENERAL, "Stopping channel output thread.\n");
     StopChannelOutputThread();
