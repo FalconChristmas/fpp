@@ -241,6 +241,8 @@ void SettingsConfig::setSetting(const std::string& key, const std::string& value
                 size_t endPos = contents.find('\n', pos);
                 if (endPos == std::string::npos) {
                     endPos = contents.size();
+                } else {
+                    endPos++; // Include the newline in the replacement
                 }
                 std::string oldLine = contents.substr(pos, endPos - pos);
                 std::string newLine = key + " = \"" + value + "\"\n";
