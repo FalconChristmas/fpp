@@ -332,13 +332,6 @@
                     $('#templatePlugin').show();
                     $('#templatePlugin').append(html);
                 }
-            } else if (untestedVersion >= 0) {
-                if (firstUntested && settings["uiLevel"] > 0) {
-                    $('#untestedPlugins').show();
-                    firstUntested = 0;
-                }
-
-                InsertPluginTableItem('untestedPlugins', data.name, html);
             } else if (compatibleVersion != -1) {
                 if (firstCompatible) {
                     firstCompatible = 0;
@@ -350,6 +343,13 @@
                 } else {
                     InsertPluginTableItem('pluginTable', data.name, html);
                 }
+            } else if (untestedVersion >= 0) {
+                if (firstUntested && settings["uiLevel"] > 0) {
+                    $('#untestedPlugins').show();
+                    firstUntested = 0;
+                }
+
+                InsertPluginTableItem('untestedPlugins', data.name, html);
             } else {
                 if (firstIncompatible && settings["uiLevel"] > 2) {
                     $('#incompatiblePlugins').show();
