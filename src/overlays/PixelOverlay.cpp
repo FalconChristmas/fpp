@@ -315,9 +315,7 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
         PixelOverlayModel* m = afterOverlayModels.front();
         afterOverlayModels.pop_front();
         l.unlock();
-        lock.lock();
         m->updateRunningEffects();
-        lock.unlock();
         l.lock();
     }
 }
