@@ -138,7 +138,13 @@ void GPIOManager::CheckGPIOInputs(void) {
             if (a.futureValue != a.lastValue) {
                 long long lastAllowedTime = tm - a.debounceTime; // usec's ago
                 if ((a.lastTriggerTime < lastAllowedTime)) {
-                    int val = a.pin->getValue();
+                    int val = 0;
+#ifdef HAS_GPIOD
+                    if (a.gpiodLine) {
+                        val = gpiod_line_get_value(a.gpiodLine);
+                    } else
+#endif
+                    val = a.pin->getValue();
                     if (val != a.lastValue) {
                         a.doAction(val);
                     }
@@ -249,7 +255,6 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
             }
         }
     }
-    LogDebug(VB_GPIO, "%d GPIO Input(s) enabled\n", enabledCount);
 #ifdef HAS_GPIOD
     for (auto& a : eventStates) {
         std::function<bool(int)> f = [&a, this](int i) {
@@ -274,6 +279,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
         callbacks[a.file] = f;
     }
 #endif
+    LogDebug(VB_GPIO, "%d GPIO Input(s) and %d GPIO Events enabled\n", enabledCount, (int)eventStates.size());
 }
 void GPIOManager::AddGPIOCallback(const PinCapabilities* pin, const std::function<bool(int)>& cb) {
     GPIOState state;
