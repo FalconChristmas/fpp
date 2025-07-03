@@ -321,6 +321,7 @@ void GPIOManager::addState(GPIOState& state) {
         lineConfig.flags = 0;
         if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
             LogDebug(VB_GPIO, "Could not config line edge for %s, will poll\n", state.pin->name.c_str());
+            state.pin->configPin(lineConfig.request_type == GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE ? "gpio_pu" : "gpio", false);
         } else {
             state.file = gpiod_line_event_get_fd(state.gpiodLine);
         }
