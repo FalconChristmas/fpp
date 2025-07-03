@@ -990,8 +990,15 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
 Json::Value PixelOverlayManager::getActiveOverlayEffects() {
     Json::Value ret = Json::arrayValue;
 
+    // quickly create a snapshot of the active models
+    // so we don't hold the lock while iterating through them
+    // and to avoid deadlocks if the model is being modified
+    // while we are iterating through it
     std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
-    for (auto& m : activeModels) {
+    auto am = activeModels;
+    lock.unlock();
+
+    for (auto& m : am) {
         std::unique_lock<std::recursive_mutex> l(m->getRunningEffectMutex());
         RunningEffect* eff = m->getRunningEffect();
         if (eff) {
