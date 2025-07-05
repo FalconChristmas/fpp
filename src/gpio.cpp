@@ -330,6 +330,9 @@ void GPIOManager::addState(GPIOState& state) {
             state.pin->configPin(lineConfig.request_type == GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE ? "gpio_pu" : "gpio", false);
         } else {
             state.file = gpiod_line_event_get_fd(state.gpiodLine);
+            if (state.pin->isGPIOD()) {
+                ((GPIODCapabilities*)state.pin)->rawLine = state.gpiodLine;
+            }
         }
     } else {
         state.gpiodLine = nullptr;

@@ -171,6 +171,9 @@ void GPIODCapabilities::releaseGPIOD() const {
 
 bool GPIODCapabilities::getValue() const {
 #ifdef HASGPIOD
+    if (rawLine != nullptr) {
+        return gpiod_line_get_value(rawLine);
+    }
     return line.get_value();
 #else
     return 0;

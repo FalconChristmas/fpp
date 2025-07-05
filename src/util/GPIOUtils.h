@@ -144,6 +144,7 @@ public:
     mutable gpiod::chip* chip = nullptr;
     mutable gpiod::line line;
     mutable int lastRequestType = 0;
+    mutable struct gpiod_line* rawLine = nullptr;
 #endif
 };
 
