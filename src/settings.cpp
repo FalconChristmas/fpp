@@ -306,7 +306,7 @@ std::string SettingsConfig::getSetting(const std::string& setting, const std::st
     if (settings.isMember(setting)) {
         result = settings[setting].asString();
     }
-    LogExcess(VB_SETTING, "getSetting(%s) returning '%s'\n", setting, result.c_str());
+    LogExcess(VB_SETTING, "getSetting(%s) returning '%s'\n", setting.c_str(), result.c_str());
     return result;
 }
 int SettingsConfig::getSettingInt(const std::string& setting, int defaultVal) {
@@ -315,7 +315,7 @@ int SettingsConfig::getSettingInt(const std::string& setting, int defaultVal) {
     if (settings.isMember(setting)) {
         result = atoi(settings[setting].asString().c_str());
     }
-    LogExcess(VB_SETTING, "getSettingInt(%s) returning %d\n", setting, result);
+    LogExcess(VB_SETTING, "getSettingInt(%s) returning %d\n", setting.c_str(), result);
     return result;
 }
 
