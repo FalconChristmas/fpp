@@ -2413,6 +2413,7 @@ if ($skipHTMLCodeOutput === false) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?php include 'common/htmlMeta.inc'; ?>
     <?php require_once 'common/menuHead.inc';?>
     <title><?=$pageTitle?></title>
     <!--    <script>var helpPage = "help/backup.php";</script>-->
