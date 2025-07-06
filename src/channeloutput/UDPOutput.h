@@ -106,6 +106,9 @@ public:
     UDPOutput(unsigned int startChannel, unsigned int channelCount);
     virtual ~UDPOutput();
 
+    virtual std::string GetOutputType() const override {
+        return "UDPOutput";
+    }
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
@@ -131,6 +134,7 @@ private:
     int SendMessages(unsigned int key, SendSocketInfo* socketInfo, std::vector<struct mmsghdr>& sendmsgs);
     struct sockaddr_in localAddress;
     std::string outInterface;
+    bool needsBroadcast = false;
     bool interfaceUp;
 
     bool InitNetwork();

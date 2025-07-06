@@ -287,6 +287,8 @@ int UDPOutput::Init(Json::Value config) {
             LogErr(VB_CHANNELOUT, "Unknown IP output type %d\n", type);
             break;
         }
+
+        needsBroadcast |= (type == 0 || type == 2 );
     }
     if (config.isMember("threaded")) {
         int style = config["threaded"].asInt();
@@ -579,7 +581,7 @@ void UDPOutput::BackgroundOutputWork() {
 
 int UDPOutput::SendData(unsigned char* channelData) {
     std::unique_lock<std::mutex> lk(socketMutex);
-    if (!enabled || messages.sendSockets.empty()) {
+    if (!enabled || messages.messages.empty()) {
         return 0;
     }
     std::chrono::high_resolution_clock clock;
@@ -740,6 +742,7 @@ void UDPOutput::DumpConfig() {
     LogDebug(VB_CHANNELOUT, "    Interface        : %s\n", outInterface.c_str());
     LogDebug(VB_CHANNELOUT, "    Threaded         : %d\n", useThreadedOutput);
     LogDebug(VB_CHANNELOUT, "    Blocking         : %d\n", blockingOutput);
+    LogDebug(VB_CHANNELOUT, "    Needs Broadcast  : %d\n", needsBroadcast);
     for (auto u : outputs) {
         u->DumpConfig();
     }
@@ -776,15 +779,10 @@ SendSocketInfo* UDPOutput::findOrCreateSocket(unsigned int socketKey, int sc) {
 
 int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
     int sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
-
     if (sendSocket < 0) {
         LogErr(VB_CHANNELOUT, "Error opening datagram socket\n");
         exit(1);
     }
-
-    static struct sockaddr_in address;
-    memcpy(&address, &localAddress, sizeof(localAddress));
-    address.sin_port = ntohs(port);
 
     errno = 0;
     // Disable loopback so I do not receive my own datagrams.
@@ -817,12 +815,19 @@ int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
         }
 #ifndef PLATFORM_OSX
     } else if (multiCast) {
+        static struct sockaddr_in address;
+        memcpy(&address, &localAddress, sizeof(localAddress));
+        address.sin_port = ntohs(port);
+
         if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_IF, (char*)&address, sizeof(address)) < 0) {
             LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_IF error\n");
         }
 #endif
     }
     if (broadCast || multiCast) {
+        static struct sockaddr_in address;
+        memcpy(&address, &localAddress, sizeof(localAddress));
+        address.sin_port = ntohs(port);
         if (bind(sendSocket, (struct sockaddr*)&address, sizeof(struct sockaddr_in)) == -1) {
             LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
         }
@@ -849,19 +854,22 @@ bool UDPOutput::InitNetwork() {
     LogDebug(VB_CHANNELOUT, "UDPLocalAddress = %s\n", E131LocalAddress);
     localAddress.sin_addr.s_addr = inet_addr(E131LocalAddress);
 
-    if (rv) {
-        LogErr(VB_CHANNELOUT, "Invalid interface %s\n", outInterface.c_str());
-        WarningHolder::AddWarning("Invalid interface for UDP broadcast/multicast: " + outInterface);
-        return -1;
-    }
+    if (needsBroadcast) {
 
-    if (strlen(E131LocalAddress) > 3 && E131LocalAddress[0] == '1' && E131LocalAddress[1] == '2' && E131LocalAddress[2] == '7') {
-        // the entire 127.* subnet is localhost
-        return -1;
-    }
+        if (rv) {
+            LogErr(VB_CHANNELOUT, "Invalid interface %s\n", outInterface.c_str());
+            WarningHolder::AddWarning("Invalid interface for UDP broadcast/multicast: " + outInterface);
+            return -1;
+        }
 
-    int broadcastSocket = createSocket(0, true);
-    messages.ForceSocket(BROADCAST_MESSAGES_KEY, broadcastSocket);
+        if (strlen(E131LocalAddress) > 3 && E131LocalAddress[0] == '1' && E131LocalAddress[1] == '2' && E131LocalAddress[2] == '7') {
+            // the entire 127.* subnet is localhost
+            return -1;
+        }
+
+        int broadcastSocket = createSocket(0, true);
+        messages.ForceSocket(BROADCAST_MESSAGES_KEY, broadcastSocket);
+    }
     return true;
 }
 
