@@ -55,7 +55,7 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2025-05"
+FPPIMAGEVER="2025-07"
 FPPCFGVER="95"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -511,7 +511,7 @@ case "${OSVER}" in
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black"  -o "$FPPPLATFORM" == "BeagleBone 64" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity zram-tools"
             if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
-                PACKAGE_LIST="$PACKAGE_LIST libva-dev smartmontools"
+                PACKAGE_LIST="$PACKAGE_LIST libva-dev smartmontools edid-decode"
             fi
             if [ "$FPPPLATFORM" == "BeagleBone Black"  -o "$FPPPLATFORM" == "BeagleBone 64" ]; then
                 PACKAGE_LIST="$PACKAGE_LIST ti-pru-cgt-v2.3"

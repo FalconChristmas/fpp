@@ -1,7 +1,7 @@
 # FPP BB64 Image creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian pocketbeagle2 images:
-# https://rcn-ee.net/rootfs/debian-arm64-12-bookworm-minimal-v6.12-ti/2025-05-24/
+# https://rcn-ee.net/rootfs/debian-arm64-12-bookworm-minimal-v6.12-ti/2025-07-02/
 
 # Burn the above image onto an SD card and insert into a running Linux machine
 # We need to make changes to the filesystems and layout prior to booting
