@@ -19,6 +19,7 @@ cd /media/${USER}/rootfs
 sudo rm ./etc/systemd/system/multi-user.target.wants/grow_partition.service
 sudo rm ./var/lib/systemd/deb-systemd-helper-enabled/grow_partition.service.dsh-also
 sudo wget -4 -O ./etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+sudo sed -i -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' ./etc/systemd/network/50-default.network
 sudo rm ./etc/systemd/network/eth0* ./etc/systemd/network/mlan* ./etc/systemd/network/wlan*
 cd /media/${USER}/BOOT
 sudo nano sysconf.txt
@@ -89,8 +90,8 @@ fstrim -v /
 
 
     DEVICE=/dev/sdc
-    VERSION=9.0-alpha1
-    OSVERSION=2025-05
+    VERSION=9.0-beta1
+    OSVERSION=2025-07
     BLOCKS=7800
     mount "${DEVICE}3" /mnt
     rm -f /mnt/home/fpp/.bash_history
