@@ -2,6 +2,14 @@ body {
 	background-color: #171720;
 }
 
+html {
+	forced-color-adjust: none;
+}
+
+input {
+	background: white;
+}
+
 #restartFlag,
 #rebootFlag,
 #unsupportedBrowser,
@@ -3684,14 +3692,17 @@ a.api-anchor {
 }
 
 .LEDPanelTable table {
-	border: 1px solid grey; /* Black border */
-	border-radius: 5px; /* Rounded corners */
+	/* Black border */
+	border: 1px solid grey;
+	/* Rounded corners */
+	border-radius: 5px;
 
 	margin: 0.3pc;
 }
 
 .LEDPanelTable table {
 	border-spacing: 5px;
-	border-collapse: separate; /* Ensure spacing works */
+	/* Ensure spacing works */
+	border-collapse: separate;
 	background-color: lightgray;
 }
