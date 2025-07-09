@@ -311,7 +311,8 @@ DISABLE_PIN_INTERRUPTS .macro
     DISABLE_GPIO_PIN_INTERRUPTS gpio2_led_mask, GPIO2
     DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
     SETUP_GPIO0_REGS
-#else    
+    .endm
+#else
 DISABLE_PIN_INTERRUPTS .macro
     .endm
 #endif    
