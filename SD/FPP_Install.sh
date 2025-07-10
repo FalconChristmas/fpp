@@ -807,7 +807,9 @@ case "${FPPPLATFORM}" in
             echo "# Enable PCIe for NVME storage" >> ${BOOTDIR}/config.txt
             echo "dtparam=pciex1_gen=3" >> ${BOOTDIR}/config.txt
             echo >> ${BOOTDIR}/config.txt
-
+            echo "# Enable Cape Specific Overlays" >> ${BOOTDIR}/config.txt
+            echo "dtparam=fpp-cape-overlay" >> ${BOOTDIR}/config.txt
+            echo >> ${BOOTDIR}/config.txt
 
             echo "FPP - Updating SPI buffer size and enabling HDMI audio devices"
             sed -i 's/$/ spidev.bufsiz=102400 snd_bcm2835.enable_headphones=1/' ${BOOTDIR}/cmdline.txt

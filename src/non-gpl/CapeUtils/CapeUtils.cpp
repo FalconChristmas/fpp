@@ -559,8 +559,10 @@ bool setFilePerms(const std::string& filename) {
     return true;
 }
 static void restoreDefaultCapeOverlay() {
-#if defined(PLATFORM_BB64) || defined(PLATFORM_PI)
+#if defined(PLATFORM_BB64)
     copyFile("/boot/firmware/overlays/fpp-cape-overlay-default.dtb", "/boot/firmware/overlays/fpp-cape-overlay.dtb");
+#elif defined(PLATFORM_PI)
+    copyFile("/boot/firmware/overlays/fpp-cape-overlay-default.dtbo", "/boot/firmware/overlays/fpp-cape-overlay.dtbo");
 #elif defined(PLATFORM_BBB)
     copyFile("/lib/firmware/fpp-cape-overlay-default.dtb", "/lib/firmware/fpp-cape-overlay.dtb");
 #endif
@@ -574,7 +576,7 @@ static bool handleCapeOverlay(const std::string& outputPath) {
     static const std::string target = "/lib/firmware/fpp-cape-overlay.dtb";
 #elif defined(PLATFORM_PI)
     static const std::string src = outputPath + "/tmp/fpp-cape-overlay-rpi.dtb";
-    static const std::string target = "/boot/firmware/overlays/fpp-cape-overlay.dtb";
+    static const std::string target = "/boot/firmware/overlays/fpp-cape-overlay.dtbo";
 #else
     static const std::string src = "";
     static const std::string target = "";
