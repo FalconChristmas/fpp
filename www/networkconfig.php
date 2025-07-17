@@ -862,7 +862,9 @@
                                     <? if ($settings['uiLevel'] >= 1) { ?>
                                         <div class="row" id="backupessidRow">
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                                <div class="description">Backup WPA SSID</div>
+                                                <div class="description">
+                                                    <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1" data-bs-tooltip-title="Advanced Level Setting" data-bs-toggle="tooltip" data-bs-placement="auto" aria-label="Advanced Level Setting" data-bs-original-title="Advanced Level Setting"></i>
+                                                    Backup WPA SSID</div>
                                             </div>
                                             <div class="printSettingFieldCol col-md"><input list="eth_ssids"
                                                     name="backupeth_ssid" id="backupeth_ssid" size="32"
@@ -873,7 +875,9 @@
                                         </div>
                                         <div class="row" id="backuppskRow">
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                                <div class="description">Backup WPA Pre Shared key (PSK)</div>
+                                                <div class="description">
+                                                    <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1" data-bs-tooltip-title="Advanced Level Setting" data-bs-toggle="tooltip" data-bs-placement="auto" aria-label="Advanced Level Setting" data-bs-original-title="Advanced Level Setting"></i>
+                                                    Backup WPA Pre Shared key (PSK)</div>
                                             </div>
                                             <div class="printSettingFieldCol col-md"><input type="password"
                                                     name="backupeth_psk" id="backupeth_psk" size="32"
