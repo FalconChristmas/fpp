@@ -230,18 +230,15 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
 std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::string& remote, const std::string& cmd, const std::vector<std::string>& args) {
-    size_t startPos = 0;
-    std::string command = cmd;
-    while ((startPos = command.find(" ", startPos)) != std::string::npos) {
-        command.replace(startPos, 1, "%20");
-        startPos += 3;
-    }
-
-    std::string url = "http://" + remote + ":32322/command/" + command;
-
+    std::string url = "http://" + remote + "/api/command";
     Json::Value j;
+    j["command"] = cmd;
+    j["args"] = Json::arrayValue;
+    j["multisyncCommand"] = false;
+    j["multisyncHosts"] = "";
+    j["args"] = Json::arrayValue;
     for (auto& a : args) {
-        j.append(a);
+        j["args"].append(a);
     }
     std::vector<std::string> uargs;
     uargs.push_back(url);
