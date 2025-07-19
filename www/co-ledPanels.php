@@ -985,6 +985,11 @@
             }
 
             $ifaceSpeed = (int) exec("$SUDO ethtool $iface | grep -i 'baset' | grep -Eo '[0-9]{1,4}' | sort | tail -1");
+            if ($ifaceSpeed === 0) {
+                // Some USB adapters do not report the Supported link modes
+                // If no speed is found, try to get the speed from the Speed line for the actual connection/link speed                    
+                $ifaceSpeed = exec("$SUDO ethtool $iface | grep -i 'Speed:' | grep -Eo '[0-9]{1,4}' | sort | tail -1");
+            }
             echo ">" . $iface . " (" . $ifaceSpeed . "Mbps)</option>";
         }
     }
