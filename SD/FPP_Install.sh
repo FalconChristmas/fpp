@@ -1111,7 +1111,7 @@ adduser ${FPPUSER} video
 adduser ${FPPUSER} audio
 adduser ${FPPUSER} dialout
 # FIXME, use ${FPPUSER} here instead of hardcoding
-sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
+sed -i -e 's/^fpp:.*:/fpp:\$y\$j9T\$w6Yvb\/z1wtJh6TvI1zs8u\.\$ZEhs\/1W7JZlCrVCiVvsjarXzf\.3kY7GFHEpWIOQMPN6:20285:0:99999:7:::/' /etc/shadow
 
 if $isimage; then
     echo "FPP - Disabling any stock 'debian' user, use the '${FPPUSER}' user instead"

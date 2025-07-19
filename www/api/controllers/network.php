@@ -97,18 +97,18 @@ function network_persistentNames_create()
                 $cont = str_replace($iface, $new_iface, $cont);
                 file_put_contents($settings['configDirectory'] . "/interface." . $new_iface, $cont);
             }
+            $cont = $cont . "\n\n[Link]\nNamePolicy=\nName=" . $new_iface . "\n";
         } else {
             $cont = $cont . "\n\n[Link]\nNamePolicy=\nName=" . $iface . "\n";
-            file_put_contents("/tmp/5" . strval($count) . "-fpp-" . $iface . ".link", $cont);
-            shell_exec("sudo mv /tmp/5" . strval($count) . "-fpp-" . $iface . ".link /etc/systemd/network/");
         }
-
-        shell_exec("sudo  rm -f /etc/systemd/network/99-default.link");
-        shell_exec("sudo  rm -f /etc/systemd/network/73-usb-net-by-mac.link");
+        file_put_contents("/tmp/5" . strval($count) . "-fpp-" . $iface . ".link", $cont);
+        shell_exec("sudo mv /tmp/5" . strval($count) . "-fpp-" . $iface . ".link /etc/systemd/network/");
 
         unset($output);
         $count = $count + 1;
     }
+    shell_exec("sudo  rm -f /etc/systemd/network/99-default.link");
+    shell_exec("sudo  rm -f /etc/systemd/network/73-usb-net-by-mac.link");
 
     $output = array("status" => "OK", "interfaceCnt" => $count);
     return json($output);
