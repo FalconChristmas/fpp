@@ -17,7 +17,7 @@ JSON_FILE=$MEDIADIR"/config/csp_allowed_domains.json"
 declare -A DEFAULT_VALUES
 DEFAULT_VALUES=( 
     ["default-src"]="'self' http://www.w3.org"
-    ["connect-src"]="'self' https://raw.githubusercontent.com https://ipapi.co https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com https://fppstats.falconchristmas.com"
+    ["connect-src"]="* 'self'"
     ["object-src"]="'none' "
     ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com"
     ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval' https://api.falconplayer.com"
@@ -177,20 +177,22 @@ generate_csp() {
     cape_domains=$(detectCapeDomains)
     if [ -n "$cape_domains" ]; then
         combined_values["img-src"]="${combined_values["img-src"]} $cape_domains"
-        combined_values["connect-src"]="${combined_values["connect-src"]} $cape_domains"
+        # combined_values["connect-src"]="${combined_values["connect-src"]} $cape_domains"
     fi
 
     # Detect FPPD Discovered MultiSync Hosts to trust
-    fppd_multisync_ips=$(extract_fppd_multisync_ips)
-    if [ -n "$fppd_multisync_ips" ]; then
-        combined_values["connect-src"]="${combined_values["connect-src"]} $fppd_multisync_ips"
-    fi
+    #fppd_multisync_ips=$(extract_fppd_multisync_ips)
+    #if [ -n "$fppd_multisync_ips" ]; then
+    #    combined_values["connect-src"]="${combined_values["connect-src"]} $fppd_multisync_ips"
+    #fi
 
     # Detect MultiSync (Hard coded) Hosts to trust
-    multisync_ips=$(extract_multisync_ips)
-    if [ -n "$multisync_ips" ]; then
-        combined_values["connect-src"]="${combined_values["connect-src"]} $multisync_ips"
-    fi
+    #multisync_ips=$(extract_multisync_ips)
+    #if [ -n "$multisync_ips" ]; then
+    #    combined_values["connect-src"]="${combined_values["connect-src"]} $multisync_ips"
+    #fi
+    #combined_values["connect-src"]="* ${combined_values["connect-src"]}"
+
 
     # Detect IP subnets to trust and add them to connect-src
    #subnets=$(detect_systems_subnets)
