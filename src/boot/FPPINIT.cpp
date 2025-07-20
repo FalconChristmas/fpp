@@ -1554,7 +1554,8 @@ int main(int argc, char* argv[]) {
             }
         }
     } else if (action == "maybeRemoveTether") {
-        if (!FileExists(networkSetupMut)) {
+        int te = getRawSettingInt("EnableTethering", 0);
+        if (!FileExists(networkSetupMut) && (te != 1)) {
             std::string e = execAndReturn("systemctl is-enabled hostapd");
             std::string a = execAndReturn("systemctl is-active hostapd");
             TrimWhiteSpace(e);
