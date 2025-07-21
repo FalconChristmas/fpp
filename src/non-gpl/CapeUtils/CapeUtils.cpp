@@ -1173,6 +1173,9 @@ private:
                         lines.push_back("BootActions = \"settings\"");
                         writeSettingsFile(lines);
                     }
+                    if (result.isMember("vendor")) {
+                        processVendor(result["vendor"]);
+                    }
                 }
                 Json::StreamWriterBuilder wbuilder;
                 std::string resultStr = Json::writeString(wbuilder, result);
@@ -1215,6 +1218,48 @@ private:
                 std::string resultStr = Json::writeString(wbuilder, result);
                 put_file_contents(src, (const uint8_t*)resultStr.c_str(), resultStr.size());
             }
+        }
+    }
+
+    bool checkAddURL(const std::string& url, Json::Value& csp) {
+        if (url.empty()) {
+            return false;
+        }
+        for (int x = 0; x < csp.size(); x++) {
+            if (csp[x].asString() == url) {
+                return false; // already exists
+            }
+        }
+        csp.append(url);
+        return true;
+    }
+    void processVendor(const Json::Value& vendor) {
+        std::string url = vendor.isMember("url") ? vendor["url"].asString() : "";
+        std::string imageUrl = vendor.isMember("image") ? vendor["image"].asString() : "";
+        if (!imageUrl.empty()) {
+            int idx = imageUrl.find("/", 9);
+            if (idx != std::string::npos) {
+                imageUrl = imageUrl.substr(0, idx + 1);
+            }
+            if (imageUrl == url) {
+                imageUrl = "";
+            }
+        }
+        Json::Value csp;
+        if (!LoadJsonFromFile("/home/fpp/media/config/csp_allowed_domains.json", csp)) {
+            csp["default-src"] = Json::Value(Json::arrayValue);
+            csp["img-src"] = Json::Value(Json::arrayValue);
+            csp["script-src"] = Json::Value(Json::arrayValue);
+            csp["style-src"] = Json::Value(Json::arrayValue);
+            csp["connect-src"] = Json::Value(Json::arrayValue);
+            csp["object-src"] = Json::Value(Json::arrayValue);
+        }
+        if (checkAddURL(url, csp["img-src"]) || checkAddURL(imageUrl, csp["img-src"])) {
+            Json::StreamWriterBuilder wbuilder;
+            std::string resultStr = Json::writeString(wbuilder, csp);
+            put_file_contents("/home/fpp/media/config/csp_allowed_domains.json", (const uint8_t*)resultStr.c_str(), resultStr.size());
+            setFilePerms("/home/fpp/media/config/csp_allowed_domains.json");
+            exec("/opt/fpp/scripts/ManageApacheContentPolicy.sh regenerate-norestart");
         }
     }
 

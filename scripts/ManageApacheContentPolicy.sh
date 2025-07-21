@@ -19,7 +19,7 @@ DEFAULT_VALUES=(
     ["default-src"]="'self' http://www.w3.org"
     ["connect-src"]="* 'self'"
     ["object-src"]="'none' "
-    ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com"
+    ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
     ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval' https://api.falconplayer.com"
     ["style-src"]="'self' 'unsafe-inline'"
 )
@@ -253,6 +253,9 @@ case "$1" in
         generate_csp
         gracefullyReloadApacheConf
         ;;
+    regenerate-norestart)
+        generate_csp
+        ;;        
     *)
         echo "Usage: $0 {add|remove} key domain"
         echo "Possible Keys are: 'default-src','connect-src', 'img-src','script-src','style-src','object-src'"
