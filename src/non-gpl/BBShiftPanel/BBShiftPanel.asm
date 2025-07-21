@@ -132,6 +132,7 @@ TOGGLE_CLOCK .macro
     CLR r30, r30, CLOCK_PIN
     NOP
     NOP
+    NOP
     SET r30, r30, CLOCK_PIN
     NOP
     .endm
