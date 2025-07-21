@@ -48,7 +48,8 @@
 #define xferR2      r19
 #define xferR3      r20
 
-#define flags       r23
+#define flags       r23.b0
+#define readFlags   r23.b3
 #define curPixel    r24.w0
 #define curStride   r24.w2
 #define curBright   r25
@@ -250,17 +251,17 @@ UNPRELOAD_DATA .macro
 LOAD_DATA .macro
     .newblock
 
-    QBEQ  READPART1?, flags, 0
-    QBEQ  READPART2?, flags, 1
-    QBEQ  READPART3?, flags, 2
+    QBEQ  READPART1?, readFlags, 0
+    QBEQ  READPART2?, readFlags, 1
+    QBEQ  READPART3?, readFlags, 2
 
     XIN     10, &r2, 48
-    LDI     flags, 0
+    LDI     readFlags, 0
     JMP     ENDREAD?
 READPART1?:
     WAITFORDATA_READY
     XIN     0x60, &r2, 64
-    LDI     flags, 1
+    LDI     readFlags, 1
     JMP     ENDREAD?
 READPART2?:
     LDI     xshiftReg, 18
@@ -274,7 +275,7 @@ READPART2?:
     XOUT    11, &r10, 32
     LDI     xshiftReg, 0
     XIN     10, &r2, 48
-    LDI     flags, 2
+    LDI     readFlags, 2
     JMP     ENDREAD?
 READPART3?:
     WAITFORDATA_READY
@@ -285,7 +286,7 @@ READPART3?:
     XOUT    10, &r6, 48
     LDI     xshiftReg, 0
     XIN     11, &r2, 48
-    LDI     flags, 3    
+    LDI     readFlags, 3    
 ENDREAD?:
     LDI     dataOutReg, &outputData
     .endm
@@ -362,6 +363,7 @@ ENDLOOP?:
 
     // Make sure variables and such are clear
     LDI     flags, 0
+    LDI     readFlags, 0
     LDI     curStride, 0
     LDI     xshiftReg, 0
   
@@ -396,6 +398,7 @@ DOOUTPUT
 
 
     LDI     flags, 0
+    LDI     readFlags, 0
     LDI     curStride, 0
     LDI     curBright, 0
 STRIDE_START:
