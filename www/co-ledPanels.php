@@ -322,10 +322,13 @@
         $values = array();
         if ($settings['BeaglePlatform']) {
             $values["Off"] = "0";
+            $values["1 Pixel"] = "1";
+            $values["2 Pixel"] = "2";
             $values["4 Pixels"] = "4";
             $values["8 Pixels"] = "8";
             $values["16 Pixels"] = "16";
             $values["32 Pixels"] = "32";
+            $values["40 Pixels"] = "40";
             $values["64 Pixels"] = "64";
             $values["80 Pixels"] = "80";
             $values["4 Pixels Zig/Zag"] = "4z";
@@ -333,9 +336,13 @@
             $values["16 Pixels Zig/Zag"] = "16z";
             $values["32 Pixels Zig/Zag"] = "32z";
             $values["40 Pixels Zig/Zag"] = "40z";
+            $values["1 Pixel Flip Rows"] = "1f";
+            $values["2 Pixel Flip Rows"] = "2f";
+            $values["4 Pixel Flip Rows"] = "4f";
             $values["8 Pixels Flip Rows"] = "8f";
             $values["16 Pixels Flip Rows"] = "16f";
             $values["32 Pixels Flip Rows"] = "32f";
+            $values["40 Pixels Flip Rows"] = "40f";
             $values["64 Pixels Flip Rows"] = "64f";
             $values["80 Pixels Flip Rows"] = "80f";
             $values["8 Pixels Cluster Zig/Zag"] = "8c";

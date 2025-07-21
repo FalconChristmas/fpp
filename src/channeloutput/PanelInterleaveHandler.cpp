@@ -850,22 +850,38 @@ PanelInterleaveHandler* PanelInterleaveHandler::createHandler(const std::string&
         return new ZigZagInterleaveHandler(panelWidth, panelHeight, panelScan, 32);
     } else if (type == "40z") {
         return new ZigZagInterleaveHandler(panelWidth, panelHeight, panelScan, 40);
+    } else if (type == "1f") {
+        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 1, true);
+    } else if (type == "2f") {
+        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 2, true);
+    } else if (type == "4f") {
+        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 4, true);
     } else if (type == "8f") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 8, true);
     } else if (type == "16f") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 16, true);
     } else if (type == "32f") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 32, true);
+    } else if (type == "40f") {
+        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 32, true);
     } else if (type == "64f") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 64, true);
     } else if (type == "80f") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 80, true);
+    } else if (type == "1") {
+        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 1, false);
+    } else if (type == "2") {
+        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 2, false);
+    } else if (type == "4") {
+        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 4, false);
     } else if (type == "8") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 8, false);
     } else if (type == "16") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 16, false);
     } else if (type == "32") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 32, false);
+    } else if (type == "40") {
+        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 40, false);
     } else if (type == "64") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 64, false);
     } else if (type == "80") {
