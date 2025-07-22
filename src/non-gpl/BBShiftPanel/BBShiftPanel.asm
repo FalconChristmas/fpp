@@ -315,6 +315,8 @@ CLEARBITS .macro
         NOP
         NOP
         CHECK_FOR_DISPLAY_OFF
+        NOP
+        NOP
 ENDLOOP?:
 
     .endm
@@ -415,6 +417,19 @@ WAIT_FOR_TIMER1:
     DISPLAY_OFF
 #endif
 
+    LSL tmpReg1, curStride, 3
+    ADD tmpReg1, tmpReg1, 15
+	LBCO &tmpReg1.b0, CONST_PRUDRAM, tmpReg1, 1
+    QBBC OUTPUTPIXELS, tmpReg1.b0, 7
+        AND curAddress, tmpReg1.b0, 0x1F
+        WAIT_FOR_DISLAY_OFF
+        SETADDRESS
+        CLEARBITS
+        TOGGLE_LATCH
+        LDI curBright, 20
+        DISPLAY_ON
+        WAIT_FOR_DISLAY_OFF
+
 OUTPUTPIXELS:
     // output 8 pixels
     LOAD_DATA
@@ -436,30 +451,13 @@ ENDLOOPPIXEL2:
     LSL tmpReg1, curStride, 3
     ADD tmpReg1, tmpReg1, 8
 	LBCO &curBright, CONST_PRUDRAM, tmpReg1, 8
-    QBBC DOSETADDRESS, curAddress, 7
-        SET flags, flags, 7
-        CLR curAddress, curAddress, 7
+    AND curAddress, curAddress, 0x1F
 DOSETADDRESS:
     SETADDRESS
     LDI curAddress, 0
     TOGGLE_LATCH
     DISPLAY_ON
 
-    QBBC NEXTSTRIDECHECK, flags, 7
-        LDI curAddress, 0
-        SETADDRESS
-#ifdef SINGLEPRU
-        WAIT_FOR_DISLAY_OFF
-        CLEARBITS
-#else
-        CLEARBITS
-        WAIT_FOR_DISLAY_OFF
-#endif
-        TOGGLE_LATCH
-        LDI curBright, 10
-        DISPLAY_ON
-        CLR flags, flags, 7
-NEXTSTRIDECHECK:
     ADD curStride, curStride, 1
     QBNE STRIDE_START, numStrides, curStride
 

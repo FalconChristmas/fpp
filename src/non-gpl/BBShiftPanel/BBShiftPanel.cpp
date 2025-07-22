@@ -792,7 +792,7 @@ void BBShiftPanelOutput::setupBrightnessValues() {
                 bright >>= div;
                 cur[0] = bright;
                 cur[1] = extra + ((mappedRow << 24) & 0x7F000000);
-                if (m_outputBlankData && (d == m_colorDepth - 1)) {
+                if (m_outputBlankData && (d == 0)) {
                     cur[1] |= 0x80000000;
                 }
                 // printf("Brightness[%d %d] = %08x  %08x\n", r, d, cur[0], cur[1]);
