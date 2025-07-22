@@ -446,6 +446,8 @@ DOSETADDRESS:
     DISPLAY_ON
 
     QBBC NEXTSTRIDECHECK, flags, 7
+        LDI curAddress, 0
+        SETADDRESS
 #ifdef SINGLEPRU
         WAIT_FOR_DISLAY_OFF
         CLEARBITS
