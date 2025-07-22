@@ -557,7 +557,9 @@
     }
 
     function RowAddressTypeChanged(panelMatrixID) {
-
+        if (panelMatrixID === undefined) {
+            panelMatrixID = GetCurrentActiveMatrixPanelID();
+        }
         <? if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
             var value = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressType`).val());
             if (value >= 50) {
@@ -1070,8 +1072,24 @@
 
                 <? //NEEDS FIX
                 if ($settings['BeaglePlatform']) { ?>
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).show();
-                    $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).show();
+                    var value = 0;
+                    <? if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
+                        value = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressType`).val());
+                        if (value >= 50) {
+                            $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepth`).hide();
+                            $(`#panelMatrix${panelMatrixID} .LEDPanelsColorDepthLabel`).hide();
+
+                            $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).hide();
+                            $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).prop('checked', false);
+                            $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).hide();
+                        } else {
+                            $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).show();
+                            $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).show();
+                        }
+                    <? } else { ?>
+                        $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).show();
+                        $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).show();
+                    <? } ?>
                     var checked = $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).is(':checked');
                     if (checked != false) {
                         $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputBlankRowLabel`).show();
