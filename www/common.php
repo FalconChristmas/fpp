@@ -1893,7 +1893,7 @@ function get_local_git_version()
     $cache_age = 20;
 
     $git_version = file_cache($cachefile_name, function () {
-        $git_version = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ rev-parse --short=7 HEAD", $output, $return_val);
+        $git_version = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ rev-parse --short=9 HEAD", $output, $return_val);
         if ($return_val != 0) {
             $git_version = "Unknown";
         }
@@ -1940,7 +1940,7 @@ function get_remote_git_version()
             if ($return_val == 0) {
                 //Google DNS Ping success
                 // this can take a couple seconds to complete so we'll cache it
-                $git_remote_version = exec("(git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+                $git_remote_version = exec("(git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,9)}')", $output, $return_val);
                 if ($return_val != 0) {
                     $git_remote_version = "Unknown";
                 }
@@ -1951,7 +1951,7 @@ function get_remote_git_version()
                 // use ssh to access github, so fallback and check for a
                 // 'github' origin which can be setup to use https://
                 if ($git_remote_version == "") {
-                    $git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h github $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+                    $git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h github $git_branch | awk '$1 > 0 { print substr($1,1,9)}')", $output, $return_val);
                     if ($return_val != 0) {
                         $git_remote_version = "Unknown";
                     }
