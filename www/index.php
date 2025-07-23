@@ -313,7 +313,7 @@
         }
     </script>
 
-    <title><?= $pageTitle ?></title>
+    <title><?= htmlspecialchars($pageTitle) ?></title>
 </head>
 
 <body class="is-loading" onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);OnSystemStatusChange(GetFPPStatus);">
@@ -332,7 +332,7 @@
                     echo " - Player Mode";
                 }
 
-                ?><span class="statusHostname"><?= $settings["HostName"] ?></span>
+                ?><span class="statusHostname"><?= htmlspecialchars($settings["HostName"]) ?></span>
             </h1>
 
             <?php
