@@ -7754,11 +7754,22 @@ function ReloadContentList (baseUrl, inp) {
 	}
 	var url = arg.data('contentlisturl');
 	arg.empty();
+
+	// Get current browser IP (assumes http://IP/...)
+	var currentHost = window.location.hostname;
+
 	baseUrl.split(',').forEach(function (burl) {
+		let requestUrl;
+		if (burl !== currentHost) {
+			// Rewrite to proxy path
+			requestUrl = 'http://' + currentHost + '/proxy/' + burl + '/' + url;
+		} else {
+			requestUrl = 'http://' + burl + '/' + url;
+		}
 		$.ajax({
 			dataType: 'json',
 			async: false,
-			url: 'http://' + burl + '/' + url,
+			url: requestUrl,
 			success: function (data) {
 				var firstToRemove = 0;
 				if (arg.find('options[0]').value == '') {
