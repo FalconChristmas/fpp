@@ -1,11 +1,11 @@
 <?
-
+require_once(__DIR__ . "/../../config.php");
 function LoadProxyList()
 {
     global $settings;
     $mediaDirectory = $settings['mediaDirectory'];
-    if (file_exists("$mediaDirectory/config/proxies")) {
-        $hta = file("$mediaDirectory/config/proxies", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (file_exists("$mediaDirectory/config/proxy-config.conf")) {
+        $hta = file("$mediaDirectory/config/proxy-config.conf", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     } else {
         $hta = array();
     }
@@ -37,47 +37,98 @@ function LoadProxyList()
             $proxies[] = array("host" => $ip, "description" => "", "dhcp" => true);
         }
     }
+
+    // Mark all DHCP hosts in $proxies
+    foreach ($proxies as &$proxy) {
+        if (in_array($proxy['host'], $leases)) {
+            $proxy['dhcp'] = true;
+        }
+    }
+    unset($proxy);
+
     return $proxies;
 }
 
 function PostProxies()
 {
     $proxies = $_POST;
-    if (!empty($proxies)) {
-        WriteProxyFile($proxies);
-        //Trigger a JSON Configuration Backup
+    $validProxies = [];
+
+    foreach ($proxies as $proxy) {
+        // Validate expected structure
+        if (!isset($proxy['host']))
+            continue;
+        $host = $proxy['host'];
+        $description = isset($proxy['description']) ? $proxy['description'] : '';
+
+        // Validate host as IPv4 or hostname
+        if (
+            !filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) &&
+            !preg_match('/^[a-zA-Z0-9\-\.]+$/', $host)
+        ) {
+            continue; // skip invalid host
+        }
+
+        // Sanitize description (strip tags, limit length)
+        $description = strip_tags($description);
+        $description = substr($description, 0, 128);
+
+        $validProxies[] = [
+            'host' => $host,
+            'description' => $description
+        ];
+    }
+
+    if (!empty($validProxies)) {
+        WriteProxyFile($validProxies);
         GenerateBackupViaAPI('Proxies were added.');
-    
-        return json($proxies);
+        return json($validProxies);
     } else {
         http_response_code(400); // Bad Request
+        echo json_encode(['error' => 'No valid proxies provided']);
     }
 }
 
 function WriteProxyFile($proxies)
 {
     global $settings;
+    global $SUDO, $fppDir;
     $mediaDirectory = $settings['mediaDirectory'];
 
-    $newht = "RewriteEngine on\nRewriteBase /proxy/\n\n";
+    // Merge in current DHCP leases, avoiding duplicates
+    $leases = getDHCPLeases();
+    foreach ($leases as $ip) {
+        $alreadyExists = false;
+        foreach ($proxies as $proxy) {
+            if ($proxy['host'] === $ip) {
+                $alreadyExists = true;
+                break;
+            }
+        }
+        if (!$alreadyExists) {
+            $proxies[] = array("host" => $ip, "description" => "", "dhcp" => true);
+        }
+    }
 
-    $newht = $newht . "RewriteCond %{HTTP:Upgrade}     \"websocket\" [NC]\n";
-    $newht = $newht . "RewriteCond %{HTTP:Connection}  \"Upgrade\" [NC]\n";
-    $newht = $newht . "RewriteRule ^(.*)/(.*)$ \"ws://$1/$2\" [P]\n";
-    $newht = $newht . "\n";
-
+    $newht = "";
     foreach ($proxies as $item) {
         $host = $item['host'];
         $description = $item['description'];
-        if ($description != "") {
-            $newht = $newht . "# D:" . $description . "\n";
+        // Mark DHCP hosts with a comment if desired
+        if (!empty($item['dhcp'])) {
+            $newht .= "# DHCP\n";
         }
-        $newht = $newht . "RewriteRule ^" . $host . "$  " . $host . "/  [R,L]\n";
-        $newht = $newht . "RewriteRule ^" . $host . "/(.*)$  http://" . $host . "/$1  [P,L]\n\n";
+        if ($description != "") {
+            $newht .= "# D:" . $description . "\n";
+        }
+        $newht .= "RewriteRule ^" . $host . "$  " . $host . "/  [R,L]\n";
+        $newht .= "RewriteRule ^" . $host . "/(.*)$  http://" . $host . "/$1  [P,L]\n\n";
     }
-    $newht = $newht . "RewriteRule ^(.*)/(.*)$  http://$1/$2  [P,L]\n";
-    $newht = $newht . "RewriteRule ^(.*)$  $1/  [R,L]\n\n";
-    file_put_contents("$mediaDirectory/config/proxies", $newht);
+    file_put_contents("$mediaDirectory/config/proxy-config.conf", $newht);
+
+    // Graceful reload of Apache to apply changes
+    system($SUDO . " $fppDir/scripts/common gracefullyReloadApacheConf");
+    // exec('/opt/fpp/scripts/common gracefullyReloadApacheConf');
 }
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/proxies
@@ -90,16 +141,20 @@ function GetProxies()
 function AddProxy()
 {
     $pip = params('ProxyIp');
-    $pdesp = '';
+    $pdesp = params('Description', ''); // Allow description to be passed
     $proxies = LoadProxyList();
-    if (!in_array($pip, $proxies)) {
-        $proxies[] = array("host" => $pip, "description" => $pdesp);
+    $exists = false;
+    foreach ($proxies as $proxy) {
+        if ($proxy['host'] === $pip) {
+            $exists = true;
+            break;
+        }
     }
-    WriteProxyFile($proxies);
-
-	//Trigger a JSON Configuration Backup
-	GenerateBackupViaAPI('Proxy ' . $pip . ' was added.');
-
+    if (!$exists) {
+        $proxies[] = array("host" => $pip, "description" => $pdesp);
+        WriteProxyFile($proxies);
+        GenerateBackupViaAPI('Proxy ' . $pip . ' was added.');
+    }
     return json($proxies);
 }
 
@@ -107,21 +162,14 @@ function DeleteProxy()
 {
     $pip = params('ProxyIp');
     $proxies = LoadProxyList();
-    //$proxies = array_diff($proxies, array($pip));
-    
     $newproxies = [];
-    foreach($json as $key => $host) {
-            if($host->host != pip) {
-                    $newproxies[] = $host;
-            }
+    foreach ($proxies as $proxy) {
+        if ($proxy['host'] !== $pip) {
+            $newproxies[] = $proxy;
+        }
     }
-
-    //print_r(json_encode($newproxies));
     WriteProxyFile($newproxies);
-
-	//Trigger a JSON Configuration Backup
-	GenerateBackupViaAPI('Proxy ' . $pip . ' was deleted.');
-
+    GenerateBackupViaAPI('Proxy ' . $pip . ' was deleted.');
     return json($newproxies);
 }
 
@@ -151,16 +199,35 @@ function GetProxiedURL()
     $ip = params('Ip');
     $urlPart = params('urlPart');
 
+    // Basic validation: Only allow IPv4 addresses and safe URL parts
+    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid IP address']);
+        return;
+    }
+    // Prevent directory traversal and unsafe characters
+    if (preg_match('/\.\.|[^\w\-\/\.]/', $urlPart)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid URL part']);
+        return;
+    }
+
     $url = "http://$ip/$urlPart";
+    $data = @file_get_contents($url);
 
-    $data = file_get_contents($url);
+    if ($data === false) {
+        http_response_code(502); // Bad Gateway
+        echo json_encode(['error' => 'Failed to fetch proxied URL']);
+        return;
+    }
 
+    // Optionally set content-type if known
+    header('Content-Type: text/plain');
     echo $data;
-
     return;
 }
-
-function getDHCPLeases() {
+function getDHCPLeases()
+{
     $dhcpIps = array();
     $interfaces = network_list_interfaces_array();
     foreach ($interfaces as $iface) {
