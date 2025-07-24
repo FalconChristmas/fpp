@@ -26,7 +26,7 @@ if (!$wrapped) {
   <body>
     <h2>FPP Manual Update</h2>
     <pre>
-    <?
+      <?
 }
 ?>
 Pulling in updates...
@@ -45,6 +45,27 @@ printf("----------------------\nElapsed Time: %02d:%02d:%02d\n", $h, $m, $s);
 ==========================================================================
 Restarting fppd...
 <?
+
+// Compare and copy apache config if needed
+$srcConf = "/opt/fpp/etc/apache2.site";
+$dstConf = "/etc/apache2/sites-enabled/000-default.conf";
+$needCopy = true;
+
+if (file_exists($srcConf) && file_exists($dstConf)) {
+  // Compare file hashes
+  if (md5_file($srcConf) === md5_file($dstConf)) {
+    $needCopy = false;
+  }
+}
+
+if ($needCopy) {
+  echo "Updating Apache config...\n";
+  // Use sudo if needed for permissions
+  system("$SUDO cp $srcConf $dstConf");
+} else {
+  echo "Apache config is already up to date.\n";
+}
+
 touch("$mediaDirectory/tmp/fppd_restarted");
 
 system($SUDO . " $fppDir/scripts/fppd_restart");
@@ -71,11 +92,11 @@ if (file_exists($fppDir . "/src/fppd")) {
 
 if (!$wrapped) {
   ?>
-    <a href='index.php'>Go to FPP Main Status Page</a><br>
-    <a href='about.php'>Go back to FPP About page</a><br>
+      <a href='index.php'>Go to FPP Main Status Page</a><br>
+      <a href='about.php'>Go back to FPP About page</a><br>
 
-    </body>
-    </html>
-    <?
+      </body>
+      </html>
+      <?
 }
 ?>
