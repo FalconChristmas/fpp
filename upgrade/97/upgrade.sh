@@ -49,5 +49,11 @@ done < "$OLD_PROXIES"
 sudo chown fpp:fpp "$NEW_CONFIG"
 sudo chmod 755 "$NEW_CONFIG"
 
+# Check if /opt/fpp/www/proxy/.htaccess exists and is a symlink, and remove it if so
+if [ -L "/opt/fpp/www/proxy/.htaccess" ]; then
+    echo "Removing symlink /opt/fpp/www/proxy/.htaccess"
+    rm "/opt/fpp/www/proxy/.htaccess"
+fi
+
 # Gracefully reload apache config
 gracefullyReloadApacheConf
