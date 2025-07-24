@@ -17,7 +17,7 @@ JSON_FILE=$MEDIADIR"/config/csp_allowed_domains.json"
 declare -A DEFAULT_VALUES
 DEFAULT_VALUES=( 
     ["default-src"]="'self' http://www.w3.org"
-    ["connect-src"]="* 'self'"
+    ["connect-src"]="'self' https://raw.githubusercontent.com https://ipapi.co https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com https://fppstats.falconchristmas.com"
     ["object-src"]="'none' "
     ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
     ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval' https://api.falconplayer.com"
@@ -192,13 +192,6 @@ generate_csp() {
     #    combined_values["connect-src"]="${combined_values["connect-src"]} $multisync_ips"
     #fi
     #combined_values["connect-src"]="* ${combined_values["connect-src"]}"
-
-
-    # Detect IP subnets to trust and add them to connect-src
-   #subnets=$(detect_systems_subnets)
-    #if [ -n "$subnets" ]; then
-    #    combined_values["connect-src"]="${combined_values["connect-src"]} $subnets"
-    #fi
 
     # Detect domain of local device
     #local_domain=$(detect_systems_domainname)
