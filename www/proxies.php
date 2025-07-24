@@ -137,27 +137,18 @@
                     let hasPending = false;
                     for (var i = 0; i < proxyInfos.length; i++) {
                         if (proxyInfos[i].dhcp) {
-                            // Check for pending property (not yet in config)
-                            if (proxyInfos[i].pending) {
-                                hasPending = true;
-                                $("#proxyTable tbody").append(
-                                    "<tr class='pendingDhcpProxy' style='background-color: #fff3cd;'>" +
-                                    "<td>" + (i + 1) + "</td>" +
-                                    "<td>&nbsp;&nbsp;&nbsp;" + proxyInfos[i].host + "</td>" +
-                                    "<td>&nbsp;&nbsp;&nbsp;DHCP (Not in config)</td>" +
-                                    "<td><a target='_blank' href='proxy/" + proxyInfos[i].host + "/'>" + proxyInfos[i].host + "</a></td>" +
-                                    "</tr>"
-                                );
-                            } else {
-                                $("#proxyTable tbody").append(
-                                    "<tr>" +
-                                    "<td>" + (i + 1) + "</td>" +
-                                    "<td>&nbsp;&nbsp;&nbsp;" + proxyInfos[i].host + "</td>" +
-                                    "<td>&nbsp;&nbsp;&nbsp;DHCP</td>" +
-                                    "<td><a target='_blank' href='proxy/" + proxyInfos[i].host + "/'>" + proxyInfos[i].host + "</a></td>" +
-                                    "</tr>"
-                                );
-                            }
+                            let desc = proxyInfos[i].pending ? "DHCP (Not currently in saved proxy config)" : "DHCP";
+                            let rowClass = proxyInfos[i].pending ? "pendingDhcpProxy" : "";
+                            let descCellId = "dhcpDesc_" + proxyInfos[i].host.replace(/\./g, "_");
+                            if (proxyInfos[i].pending) hasPending = true;
+                            $("#proxyTable tbody").append(
+                                "<tr class='" + rowClass + "' style='" + (proxyInfos[i].pending ? "background-color: #fff3cd;" : "") + "'>" +
+                                "<td>" + (i + 1) + "</td>" +
+                                "<td>&nbsp;&nbsp;&nbsp;" + proxyInfos[i].host + "</td>" +
+                                "<td id='" + descCellId + "'>&nbsp;&nbsp;&nbsp;" + desc + "</td>" +
+                                "<td><a target='_blank' href='proxy/" + proxyInfos[i].host + "/'>" + proxyInfos[i].host + "</a></td>" +
+                                "</tr>"
+                            );
                         } else {
                             AddProxyForHost(proxyInfos[i].host, proxyInfos[i].description);
                         }
@@ -166,6 +157,30 @@
                         $(".backdrop").prepend(
                             "<div class='alert alert-danger' style='margin-bottom:10px;'><b>Note:</b> Highlighted DHCP hosts are detected on the network but are <u>not yet in the proxy configuration</u>. Click <b>Save</b> to add them.</div>"
                         );
+                    }
+                    for (var i = 0; i < proxyInfos.length; i++) {
+                        if (proxyInfos[i].dhcp) {
+                            (function (ip) {
+                                let descCellId = "dhcpDesc_" + ip.replace(/\./g, "_");
+                                $.ajax({
+                                    url: "proxy/" + ip + "/api/system/info",
+                                    type: "GET",
+                                    dataType: "json",
+                                    success: function (data) {
+                                        if (data && data.HostName) {
+                                            let cell = $("#" + descCellId);
+                                            let currentDesc = cell.text();
+                                            // Replace or append hostname
+                                            if (currentDesc.indexOf("DHCP") !== -1) {
+                                                cell.html(currentDesc.replace(/DHCP.*/, "DHCP (FPP Instance: " + data.HostName + ")" + (currentDesc.indexOf("Not in config") !== -1 ? " (Not in config)" : "")));
+                                            } else {
+                                                cell.html("DHCP (" + data.HostName + ")");
+                                            }
+                                        }
+                                    }
+                                });
+                            })(proxyInfos[i].host);
+                        }
                     }
                 },
                 error: function () {
