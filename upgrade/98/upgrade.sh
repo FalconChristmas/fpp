@@ -11,5 +11,13 @@ rm -f /opt/fpp/www/.htaccess
 rm -f /opt/fpp/www/proxy/.htaccess
 rm -f /home/fpp/media/config/.htaccess
 
+cat > /home/fpp/media/config/ui-password-config.conf <<EOF
+Allow from All
+Satisfy Any
+SetEnvIf Host ^ LOCAL_PROTECT=0
+EOF
+
+chown fpp:fpp /home/fpp/media/config/ui-password-config.conf
+
 # Gracefully reload apache config
 gracefullyReloadApacheConf
