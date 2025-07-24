@@ -842,6 +842,15 @@ void cleanupChromiumFiles() {
     exec("/usr/bin/rm -rf /home/fpp/.config/chromium/Singleton* 2>/dev/null > /dev/null");
 }
 
+static void checkWLANInterface() {
+    if (contains(execAndReturn("/usr/bin/systemctl is-enabled wpa_supplicant@wlan0"), "enabled")
+        && contains(execAndReturn("/usr/bin/systemctl is-active wpa_supplicant@wlan0"), "inactive")) {
+        printf("Need to restart wpa_supplicant@wlan0\n");
+        execbg("systemctl restart \"wpa_supplicant@wlan0.service\" &");
+    }
+}
+
+
 static bool waitForInterfacesUp(bool flite, int timeOut) {
     bool found = false;
     int count = 0;
@@ -1493,6 +1502,7 @@ int main(int argc, char* argv[]) {
     } else if (action == "postNetwork") {
         removeDummyInterface();
         handleBootDelay();
+        checkWLANInterface();
         // turn off blinking cursor
         PutFileContents("/sys/class/graphics/fbcon/cursor_blink", "0");
         cleanupChromiumFiles();
