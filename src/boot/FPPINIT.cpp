@@ -301,7 +301,7 @@ static void setupApache() {
     if (!FileExists(UIPASSCONF)) {
         std::string content = "Allow from All\nSatisfy Any\nSetEnvIf Host ^ LOCAL_PROTECT=0\n";
         PutFileContents(UIPASSCONF, content);
-    } else {
+    } /* else {
         std::string content = GetFileContents(UIPASSCONF);
         if (content.find("php_value") != std::string::npos) {
             printf("    Modifying .htaccess file\n");
@@ -315,7 +315,7 @@ static void setupApache() {
             }
             PutFileContents(UIPASSCONF, content);
         }
-    }
+    } */
     if (!FileExists(HTPWD)) {
         PutFileContents(HTPWD, "");
     }
