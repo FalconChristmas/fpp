@@ -33,6 +33,16 @@ function HandleSettings()
         ApplyServiceSetting("Service_vsftpd", $settings["Service_vsftpd"], "--now");
     if (array_key_exists("Service_MQTT_localbroker", $settings))
         ApplySetting("Service_MQTT_localbroker", $settings["Service_MQTT_localbroker"]);
+    if (array_key_exists("osPasswordEnable", $settings)) {
+        ApplySetting("osPasswordEnable", $settings["osPasswordEnable"]);
+    } else {
+        ApplySetting("osPasswordEnable", "0");
+    }
+    if (array_key_exists("passwordEnable", $settings)) {
+        ApplySetting("passwordEnable", $settings["passwordEnable"]);
+    } else {
+        ApplySetting("passwordEnable", "0");
+    }
 }
 function HandleExpandFS()
 {
