@@ -62,23 +62,25 @@ function SetNTPServer($value)
 function SetupHtaccess($enablePW)
 {
     global $settings;
-    $filename = $settings['mediaDirectory'] . "/config/.htaccess";
+    $filename = $settings['mediaDirectory'] . "/config/ui-password-config.conf";
 
-    if (file_exists($filename)) {
-        unlink($filename);
+    if (!file_exists($filename)) {
+        // Use sudo to create the file and set ownership to fpp:fpp
+        system("sudo touch " . escapeshellarg($filename));
+        system("sudo chown fpp:fpp " . escapeshellarg($filename));
     }
 
     $data = "";
 
     if ($enablePW) {
         $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\n";
-        $data .= "<RequireAny>\n  <RequireAll>\n    Require local\n  </RequireAll>\n  <RequireAll>\n    Require valid-user\n  </RequireAll>\n</RequireAny>\n";
+        $data .= "<RequireAny>\n  <RequireAll>\n    Require local\n  </RequireAll>\n  <RequireAll>\n    Require valid-user\n  </RequireAll>\n</RequireAny>\n\n";
     } else {
-        $data .= "Allow from All\nSatisfy Any\n";
+        $data .= "Allow from All\nRequireAny\n";
     }
 
     // can use env vars in child .htaccess using mod_setenvif
-    $data .= "SetEnvIf Host ^ LOCAL_PROTECT=" . $enablePW . "\n";
+    $data .= "SetEnvIf Host ^ LOCAL_PROTECT=" . $enablePW . "\n\n";
 
     // Don't block Fav icon
     if ($enablePW) {
@@ -86,6 +88,9 @@ function SetupHtaccess($enablePW)
     }
 
     file_put_contents($filename, $data, LOCK_EX);
+
+    //reload apache config
+    system("sudo service apache2 reload", $output);
 }
 
 function EnableUIPassword($value)

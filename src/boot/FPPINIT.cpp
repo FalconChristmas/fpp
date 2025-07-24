@@ -296,13 +296,13 @@ static void createDirectories() {
 }
 
 static void setupApache() {
-    static const std::string HTACCESSS = FPP_MEDIA_DIR + "/config/.htaccess";
+    static const std::string UIPASSCONF = FPP_MEDIA_DIR + "/config/ui-password-config.conf";
     static const std::string HTPWD = FPP_MEDIA_DIR + "/config/.htpasswd";
-    if (!FileExists(HTACCESSS)) {
+    if (!FileExists(UIPASSCONF)) {
         std::string content = "Allow from All\nSatisfy Any\nSetEnvIf Host ^ LOCAL_PROTECT=0\n";
-        PutFileContents(HTACCESSS, content);
-    } else {
-        std::string content = GetFileContents(HTACCESSS);
+        PutFileContents(UIPASSCONF, content);
+    } /* else {
+        std::string content = GetFileContents(UIPASSCONF);
         if (content.find("php_value") != std::string::npos) {
             printf("    Modifying .htaccess file\n");
             std::vector<std::string> lines = split(content, '\n');
@@ -313,19 +313,19 @@ static void setupApache() {
                 }
                 content += "\n";
             }
-            PutFileContents(HTACCESSS, content);
+            PutFileContents(UIPASSCONF, content);
         }
-    }
+    } */
     if (!FileExists(HTPWD)) {
         PutFileContents(HTPWD, "");
     }
-    if (!FileExists("/opt/fpp/www/proxy/.htaccess")) {
+/*     if (!FileExists("/opt/fpp/www/proxy/.htaccess")) {
         printf("Creating proxy .htaccess link\n");
         if (!FileExists("/home/fpp/media/config/proxies")) {
             PutFileContents("/home/fpp/media/config/proxies", "");
         }
         symlink("/home/fpp/media/config/proxies", "/opt/fpp/www/proxy/.htaccess");
-    }
+    } */
 }
 
 void handleBootActions() {
