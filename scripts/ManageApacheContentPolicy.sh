@@ -193,13 +193,6 @@ generate_csp() {
     #fi
     #combined_values["connect-src"]="* ${combined_values["connect-src"]}"
 
-
-    # Detect IP subnets to trust and add them to connect-src
-   #subnets=$(detect_systems_subnets)
-    #if [ -n "$subnets" ]; then
-    #    combined_values["connect-src"]="${combined_values["connect-src"]} $subnets"
-    #fi
-
     # Detect domain of local device
     #local_domain=$(detect_systems_domainname)
     #if [ -n "$local_domain" ]; then
