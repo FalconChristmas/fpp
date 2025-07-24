@@ -29,29 +29,25 @@ fi
 # Prepare new config file
 > "$NEW_CONFIG"
 
-while read -r line; do
-    # Skip empty lines and comments
-    [[ -z "$line" || "$line" =~ ^# ]] && continue
-
-    # Extract host and optional description (assume format: host [# D:description])
-    host=$(echo "$line" | awk '{print $1}')
-    description=$(echo "$line" | grep -o '# D:.*' | sed 's/# D://')
-
-    # Write description if present
-    if [ -n "$description" ]; then
-        echo "# D:$description" >> "$NEW_CONFIG"
+copy_desc=""
+while IFS= read -r line; do
+    # Bring across only description comments and IP-specific rules
+    if [[ "$line" =~ ^#\ D: ]]; then
+        # Save description to add before next IP rule
+        copy_desc="$line"
+    elif [[ "$line" =~ ^RewriteRule\ \^([0-9]{1,3}\.){3}[0-9]{1,3} ]]; then
+        # If there's a saved description, write it before the rule
+        if [ -n "$copy_desc" ]; then
+            echo "$copy_desc" >> "$NEW_CONFIG"
+            copy_desc=""
+        fi
+        echo "$line" >> "$NEW_CONFIG"
     fi
-
-    # Write rewrite rules
-    echo "RewriteRule ^${host}$  ${host}/  [R,L]" >> "$NEW_CONFIG"
-    echo "RewriteRule ^${host}/(.*)$  http://${host}/\$1  [P,L]" >> "$NEW_CONFIG"
-    echo "" >> "$NEW_CONFIG"
 done < "$OLD_PROXIES"
 
 # Set permissions
 sudo chown fpp:fpp "$NEW_CONFIG"
 sudo chmod 755 "$NEW_CONFIG"
-
 
 # Gracefully reload apache config
 gracefullyReloadApacheConf
