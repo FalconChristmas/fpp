@@ -43,6 +43,8 @@ function HandleSettings()
     } else {
         ApplySetting("passwordEnable", "0");
     }
+
+    system("sudo /opt/fpp/scripts/ManageApacheContentPolicy.sh regenerate");
 }
 function HandleExpandFS()
 {
