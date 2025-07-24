@@ -18,7 +18,6 @@ ServerTokens Prod
 	<Directory /opt/fpp/www/>
 		Options Indexes FollowSymLinks
 		AllowOverride None
-		Require all granted
      Require local
 
     # Equivalent to 'Satisfy Any'
@@ -26,6 +25,9 @@ ServerTokens Prod
 
     # Set environment variable based on Host header
     SetEnvIf Host "^" LOCAL_PROTECT=0
+
+    # Control password protected UI
+    IncludeOptional /home/fpp/media/config/ui-password-config.conf
 	</Directory>
 
   <Directory "/opt/fpp/www/api">
