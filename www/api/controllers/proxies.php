@@ -34,7 +34,8 @@ function LoadProxyList()
             }
         }
         if (!$alreadyExists) {
-            $proxies[] = array("host" => $ip, "description" => "", "dhcp" => true);
+            // Not in config, mark as pending
+            $proxies[] = array("host" => $ip, "description" => "", "dhcp" => true, "pending" => true);
         }
     }
 
@@ -42,6 +43,13 @@ function LoadProxyList()
     foreach ($proxies as &$proxy) {
         if (in_array($proxy['host'], $leases)) {
             $proxy['dhcp'] = true;
+            // Only set pending if not already set (i.e., was just added above)
+            if (!isset($proxy['pending'])) {
+                $proxy['pending'] = false;
+            }
+        } else {
+            // Not a DHCP lease, ensure pending is false
+            $proxy['pending'] = false;
         }
     }
     unset($proxy);
