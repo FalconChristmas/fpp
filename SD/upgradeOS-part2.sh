@@ -41,6 +41,10 @@ if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
     /opt/fpp/bin.bbb/bootloader/install.sh
     echo
 fi
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+    echo "Updating Raspberry Pi boot loader:"
+    /bin/rpi-eeprom-update -a
+fi
 
 # temporarily copy the ssh keys
 echo "Saving system ssh keys"

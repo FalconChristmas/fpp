@@ -331,7 +331,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                 clearTimeout(statusTimeout);
                 statusTimeout = null;
 
-                StreamURL('upgradeOS.php?wrapped=1&os=' + os + keepOptFPP, 'streamedUpgradeOSText', 'UpgradeDone');
+                StreamURL('upgradeOS.php?wrapped=1&os=' + os + keepOptFPP, 'streamedUpgradeOSText', 'UpgradeDone', 'UpgradeDone');
             }
         }
 
