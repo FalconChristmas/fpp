@@ -117,10 +117,7 @@ cd fpp/src
 make -j 4
 cd ../www
 echo "${MEDIADIR}" > media_root.txt
-ln -f -s "${MEDIADIR}/config/.htaccess" .htaccess
-cd proxy
-ln -f -s "${MEDIADIR}/config/proxies" .htaccess
-cd ../../..
+cd ../..
 echo "Configuring HTTP"
 HTTPCONF="${BREWLOC}/etc/httpd/httpd.conf"
 USER=$(whoami)

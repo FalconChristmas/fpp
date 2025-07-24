@@ -8,9 +8,6 @@ if [ "$1" != "-notee" ]; then
     teeOutput
 fi
 
-ln -f -s "${MEDIADIR}/config/.htaccess" "${FPPDIR}/www/.htaccess"
-ln -f -s "${MEDIADIR}/config/proxies" "${FPPDIR}/www/proxy/.htaccess"
-
 echo "Checking config version"
 export FPPVERSION
 

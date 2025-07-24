@@ -72,12 +72,10 @@ src/util/seqdump
 tags
 universes
 www/.config.php
-www/.htaccess
 www/.htpasswd
 www/fppdefines.php
 www/fppversion.php
 www/media_root.txt
-www/proxy/.htaccess
 www/warnings.json
 www/warnings_full.json
 fppdLog.txt
