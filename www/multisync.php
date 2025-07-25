@@ -1692,7 +1692,7 @@
         function upgradeSystemByHostname(id) {
             id = id.replace('_logText', '');
             var ip = ipOrHostnameFromRowID(id);
-            StreamURL(wrapUrlWithProxy(ip, '/manualUpdate.php?wrapped=1'), id + '_logText', 'upgradeDone', 'upgradeFailed');
+            StreamURL('upgradeRemote.php?ip=' + ip, id + '_logText', 'upgradeDone', 'upgradeFailed');
         }
 
         function upgradeSystem(rowID) {
@@ -1705,7 +1705,7 @@
             addLogsDivider(rowID);
 
             var ip = ipFromRowID(rowID);
-            StreamURL(wrapUrlWithProxy(ip, '/manualUpdate.php?wrapped=1'), rowID + '_logText', 'upgradeDone', 'upgradeSystemByHostname');
+            StreamURL('upgradeRemote.php?ip=' + ip, rowID + '_logText', 'upgradeDone', 'upgradeSystemByHostname');
         }
 
         function showWaitingOnOriginUpdate(rowID, origin) {
