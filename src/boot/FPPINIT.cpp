@@ -319,13 +319,13 @@ static void setupApache() {
     if (!FileExists(HTPWD)) {
         PutFileContents(HTPWD, "");
     }
-/*     if (!FileExists("/opt/fpp/www/proxy/.htaccess")) {
-        printf("Creating proxy .htaccess link\n");
-        if (!FileExists("/home/fpp/media/config/proxies")) {
-            PutFileContents("/home/fpp/media/config/proxies", "");
-        }
-        symlink("/home/fpp/media/config/proxies", "/opt/fpp/www/proxy/.htaccess");
-    } */
+    /*     if (!FileExists("/opt/fpp/www/proxy/.htaccess")) {
+            printf("Creating proxy .htaccess link\n");
+            if (!FileExists("/home/fpp/media/config/proxies")) {
+                PutFileContents("/home/fpp/media/config/proxies", "");
+            }
+            symlink("/home/fpp/media/config/proxies", "/opt/fpp/www/proxy/.htaccess");
+        } */
 }
 
 void handleBootActions() {
@@ -777,9 +777,17 @@ static void checkUnpartitionedSpace() {
                 fs = "0";
             }
         }
+#ifdef PLATFORM_RPI
+        if (fs != "0" && FileExists("/boot/firmware/fpp_expand_rootfs")) {
+            exec("/usr/bin/rm -f /boot/firmware/fpp_expand_rootfs");
+            exec("/usr/bin/raspi-config --expand-rootfs");
+            fs = "0";
+            setRawSetting("rebootFlag", "1");
+        }
+#endif
         std::string oldfs;
         getRawSetting("UnpartitionedSpace", oldfs);
-        if (oldfs != "fs") {
+        if (oldfs != fs) {
             setRawSetting("UnpartitionedSpace", fs);
         }
     }
@@ -843,13 +851,11 @@ void cleanupChromiumFiles() {
 }
 
 static void checkWLANInterface() {
-    if (contains(execAndReturn("/usr/bin/systemctl is-enabled wpa_supplicant@wlan0"), "enabled")
-        && contains(execAndReturn("/usr/bin/systemctl is-active wpa_supplicant@wlan0"), "inactive")) {
+    if (contains(execAndReturn("/usr/bin/systemctl is-enabled wpa_supplicant@wlan0"), "enabled") && contains(execAndReturn("/usr/bin/systemctl is-active wpa_supplicant@wlan0"), "inactive")) {
         printf("Need to restart wpa_supplicant@wlan0\n");
         execbg("systemctl restart \"wpa_supplicant@wlan0.service\" &");
     }
 }
-
 
 static bool waitForInterfacesUp(bool flite, int timeOut) {
     bool found = false;
