@@ -778,11 +778,13 @@ static void checkUnpartitionedSpace() {
             }
         }
 #ifdef PLATFORM_RPI
-        if (fs != "0" && FileExists("/boot/firmware/fpp_expand_rootfs")) {
+        if (FileExists("/boot/firmware/fpp_expand_rootfs")) {
+            if (fs != "0") {
+                exec("/usr/bin/raspi-config --expand-rootfs");
+                fs = "0";
+                setRawSetting("rebootFlag", "1");
+            }
             exec("/usr/bin/rm -f /boot/firmware/fpp_expand_rootfs");
-            exec("/usr/bin/raspi-config --expand-rootfs");
-            fs = "0";
-            setRawSetting("rebootFlag", "1");
         }
 #endif
         std::string oldfs;
