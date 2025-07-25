@@ -777,7 +777,7 @@ static void checkUnpartitionedSpace() {
                 fs = "0";
             }
         }
-#ifdef PLATFORM_RPI
+#ifdef PLATFORM_PI
         if (FileExists("/boot/firmware/fpp_expand_rootfs")) {
             if (fs != "0") {
                 exec("/usr/bin/raspi-config --expand-rootfs");
