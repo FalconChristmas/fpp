@@ -5762,6 +5762,74 @@ function ControlFPPD () {
 }
 
 function PopulatePlaylists (sequencesAlso, options) {
+	let onPlaylistArrayLoaded = function () {};
+	if (options && typeof options.onPlaylistArrayLoaded === 'function') {
+		onPlaylistArrayLoaded = options.onPlaylistArrayLoaded;
+	}
+
+	// Show loading placeholder
+	$('#playlistSelect').html('<option>Loading...</option>');
+
+	// Start all AJAX calls in parallel
+	let playlistPromise = $.getJSON('api/playlists/validate');
+	let sequencePromise = sequencesAlso
+		? $.getJSON('api/sequence')
+		: $.Deferred().resolve([]).promise();
+	let mediaPromise = sequencesAlso
+		? $.getJSON('api/media')
+		: $.Deferred().resolve([]).promise();
+
+	$.when(playlistPromise, sequencePromise, mediaPromise)
+		.done(function (playlists, sequences, media) {
+			// playlists, sequences, media are arrays like [data, status, xhr]
+			let playlistOptionsText = '';
+			let playListArray = playlists[0];
+			let sequenceArray = sequences[0];
+			let mediaArray = media[0];
+
+			if (sequencesAlso) playlistOptionsText += "<optgroup label='Playlists'>";
+			for (let j = 0; j < playListArray.length; j++) {
+				playlistOptionsText +=
+					'<option value="' +
+					playListArray[j].name +
+					'">' +
+					playListArray[j].name +
+					'</option>';
+			}
+			if (sequencesAlso) {
+				playlistOptionsText += "</optgroup><optgroup label='Sequences'>";
+				for (let j = 0; j < sequenceArray.length; j++) {
+					playlistOptionsText +=
+						'<option value="' +
+						sequenceArray[j] +
+						'.fseq">' +
+						sequenceArray[j] +
+						'.fseq</option>';
+				}
+				playlistOptionsText += '</optgroup><optgroup label="Media">';
+				for (let j = 0; j < mediaArray.length; j++) {
+					playlistOptionsText +=
+						'<option value="' +
+						mediaArray[j] +
+						'">' +
+						mediaArray[j] +
+						'</option>';
+				}
+				playlistOptionsText += '</optgroup>';
+			}
+			$('#playlistSelect').html(playlistOptionsText);
+
+			// Call callback if provided
+			onPlaylistArrayLoaded();
+		})
+		.fail(function () {
+			$('#playlistSelect').html('<option>Error loading playlists</option>');
+		});
+}
+
+/* LEGACY FUNCTION COMMENTED OUT UNTIL NEW APPROACH CONFIRMED STABLE
+
+function PopulatePlaylists (sequencesAlso, options) {
 	var playlistOptionsText = '';
 	var onPlaylistArrayLoaded = function () {};
 	if (options) {
@@ -5809,7 +5877,7 @@ function PopulatePlaylists (sequencesAlso, options) {
 	}
 
 	$('#playlistSelect').html(playlistOptionsText);
-}
+} */
 
 function PlayPlaylist (Playlist, goToStatus = 0) {
 	$.get('api/command/Start Playlist/' + Playlist + '/0', function () {
