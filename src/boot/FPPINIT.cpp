@@ -299,7 +299,7 @@ static void setupApache() {
     static const std::string UIPASSCONF = FPP_MEDIA_DIR + "/config/ui-password-config.conf";
     static const std::string HTPWD = FPP_MEDIA_DIR + "/config/.htpasswd";
     if (!FileExists(UIPASSCONF)) {
-        std::string content = "Allow from All\nSatisfy Any\nSetEnvIf Host ^ LOCAL_PROTECT=0\n";
+        std::string content = "<RequireAny>\n  Require all granted\n</RequireAny>\n\nSetEnvIf Host ^ LOCAL_PROTECT=0\n";
         PutFileContents(UIPASSCONF, content);
     } /* else {
         std::string content = GetFileContents(UIPASSCONF);

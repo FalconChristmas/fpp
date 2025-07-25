@@ -76,7 +76,7 @@ function SetupHtaccess($enablePW)
         $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\n";
         $data .= "<RequireAny>\n  <RequireAll>\n    Require local\n  </RequireAll>\n  <RequireAll>\n    Require valid-user\n  </RequireAll>\n</RequireAny>\n\n";
     } else {
-        $data .= "Allow from All\nRequireAny\n";
+        $data .= "<RequireAny>\n  Require all granted\n</RequireAny>\n\n";
     }
 
     // can use env vars in child .htaccess using mod_setenvif
