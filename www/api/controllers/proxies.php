@@ -135,7 +135,7 @@ function WriteProxyFile($proxies)
     file_put_contents("$mediaDirectory/config/proxy-config.conf", $newht);
 
     // Graceful reload of Apache to apply changes
-    system($SUDO . " $fppDir/scripts/common gracefullyReloadApacheConf");
+    system($SUDO . " $fppDir/scripts/common gracefullyReloadApacheConf > /dev/null 2>&1");
     // exec('/opt/fpp/scripts/common gracefullyReloadApacheConf');
 }
 /////////////////////////////////////////////////////////////////////////////
