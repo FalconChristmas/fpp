@@ -10,20 +10,23 @@ function GetMedia()
     global $settings;
     $files = array();
 
-    $dir = $settings['musicDirectory'];
-    foreach (glob($dir . "/*") as $filename) {
-        array_push($files, basename($filename));
-    }
-
-    $dir = $settings['videoDirectory'];
-    foreach (glob($dir . "/*") as $filename) {
-        array_push($files, basename($filename));
+    // Use scandir instead of glob for better performance
+    $dirs = [$settings['musicDirectory'], $settings['videoDirectory']];
+    foreach ($dirs as $dir) {
+        if (is_dir($dir)) {
+            foreach (scandir($dir) as $file) {
+                if ($file !== '.' && $file !== '..' && is_file($dir . '/' . $file)) {
+                    $files[] = $file;
+                }
+            }
+        }
     }
 
     sort($files);
 
     return json($files);
 }
+
 
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/media/:MediaName/duration
