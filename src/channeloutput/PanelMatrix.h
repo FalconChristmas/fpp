@@ -21,7 +21,7 @@
 #define MAX_MATRIX_PANELS (MAX_MATRIX_OUTPUTS * MAX_PANELS_PER_OUTPUT)
 
 class LEDPanel {
-public:    
+public:
     int output;
     int chain;
     int width;
@@ -34,8 +34,10 @@ public:
 
     std::vector<int> pixelMap;
 
-    void drawNumber(int v, int x, int y, unsigned char* channelData);
     void drawTestPattern(unsigned char* channelData, int cycleNum, int testType);
+
+private:
+    void drawNumber(int v, int x, int y, unsigned char* channelData);
 };
 
 class PanelMatrix {

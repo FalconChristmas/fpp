@@ -291,6 +291,8 @@ void LEDPanel::drawTestPattern(unsigned char* channelData, int cycleNum, int tes
             channelData[pixelMap[yw2 + x * 3 + 2]] = b2;
         }
     }
+    drawNumber(output + 1, width / 2 + 1, height > 16 ? 2 : 1, channelData);
+    drawNumber(chain + 1, width / 2 + 8, height > 16 ? 2 : 1, channelData);
 }
 
 void LEDPanel::drawNumber(int v, int x, int y, unsigned char* channelData) {
