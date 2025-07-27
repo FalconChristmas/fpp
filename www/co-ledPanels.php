@@ -502,16 +502,31 @@
         //get currently visible panelMatrixID
         panelMatrixID = GetCurrentActiveMatrixPanelID();
         var src = $(`#panelMatrix${panelMatrixID} .${id}`).attr('src');
+        var frontView = 0;
+        if ($(`#panelMatrix${panelMatrixID} .LEDPanelUIFrontView`).is(":checked")) {
+            frontView = 1;
+        }
 
-        if (src == 'images/arrow_N.png')
-            $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_R.png');
-        else if (src == 'images/arrow_R.png')
-            $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_U.png');
-        else if (src == 'images/arrow_U.png')
-            $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_L.png');
-        else if (src == 'images/arrow_L.png')
-            $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_N.png');
-
+        if (frontView === 0) { //backview
+            if (src == 'images/arrow_N.png')
+                $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_R.png');
+            else if (src == 'images/arrow_R.png')
+                $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_U.png');
+            else if (src == 'images/arrow_U.png')
+                $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_L.png');
+            else if (src == 'images/arrow_L.png')
+                $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_N.png');
+        }
+        else { // front view
+            if (src === 'images/arrow_N.png')
+                $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_L.png');
+            else if (src == 'images/arrow_L.png')
+                $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_U.png');
+            else if (src == 'images/arrow_U.png')
+                $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_R.png');
+            else if (src == 'images/arrow_R.png')
+                $(`#panelMatrix${panelMatrixID} .${id}`).attr('src', 'images/arrow_N.png');
+        }
         HandleChangesInUIValues();
     }
 
@@ -703,8 +718,31 @@
                 html += "<img src='images/arrow_";
 
                 if (typeof mp[key] !== 'undefined' && typeof mp[key].orientation !== 'undefined') {
-                    html += mp[key].orientation;
+                    if (frontView == 1) {
+                        // Front view orientation
+                        if (mp[key].orientation == "N") {
+                            html += "N";
+                        } else if (mp[key].orientation == "R") {
+                            html += "L"; // Reverse for front view
+                        } else if (mp[key].orientation == "U") {
+                            html += "U";
+                        } else if (mp[key].orientation == "L") {
+                            html += "R"; // Reverse for front view
+                        }
+                    } else {
+                        // Back view orientation
+                        if (mp[key].orientation == "N") {
+                            html += "N";
+                        } else if (mp[key].orientation == "R") {
+                            html += "R";
+                        } else if (mp[key].orientation == "U") {
+                            html += "U";
+                        } else if (mp[key].orientation == "L") {
+                            html += "L";
+                        }
+                    }
                 } else {
+                    //default unset to N
                     html += "N";
                 }
 
